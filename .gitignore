@@ -23,13 +23,22 @@ web-build/
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+pnpm-debug.log*
+
+# environment variables
+.env
+.env.production
+.env*.local
+
+# packages
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
 
 # macOS
 .DS_Store
 *.pem
-
-# local env files
-.env*.local
 
 # typescript
 *.tsbuildinfo
