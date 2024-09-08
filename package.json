@@ -13,7 +13,10 @@
     "format": "prettier --write \"app/**/*.{ts,js,tsx,jsx}\" \"components/**/*.{ts,js,tsx,jsx}\"",
     "format:check": "prettier --check \"app/**/*.{ts,js,tsx,jsx}\" \"components/**/*.{ts,js,tsx,jsx}\"",
     "prepare": "husky",
-    "test": "jest --watchAll"
+    "test": "jest --watch --coverage=false --changedSince=origin/main",
+    "test:debug": "jest -o --watch --coverage=false",
+    "test:final": "jest",
+    "update:snapshots": "jest -u --coverage=false"
   },
   "dependencies": {
     "expo": "~51.0.32",
@@ -57,6 +60,15 @@
     "preset": "jest-expo",
     "transformIgnorePatterns": [
       "node_modules/(?!(?:.pnpm/)?((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg))"
+    ],
+    "collectCoverage": true,
+    "collectCoverageFrom": [
+      "**/*.{ts,tsx,js,jsx}",
+      "!**/coverage/**",
+      "!**/node_modules/**",
+      "!**/babel.config.js",
+      "!**/expo-env.d.ts",
+      "!**/.expo/**"
     ]
   },
   "private": true
