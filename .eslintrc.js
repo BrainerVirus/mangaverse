@@ -1,7 +1,7 @@
 // https://docs.expo.dev/guides/using-eslint/
 module.exports = {
 	extends: ["expo", "prettier"],
-	plugins: ["prettier"],
+	plugins: ["testing-library", "prettier"],
 	rules: {
 		"prettier/prettier": [
 			"error",
@@ -9,5 +9,9 @@ module.exports = {
 				endOfLine: "lf",
 			},
 		],
+		"testing-library/await-async-queries": "error",
+		"testing-library/no-await-sync-queries": "error",
+		"testing-library/no-debugging-utils": "warn",
+		"testing-library/no-dom-import": "off",
 	},
 }
