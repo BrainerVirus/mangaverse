@@ -1,0 +1,7 @@
+{
+	"app/**/*.{ts,js,tsx,jsx}": ["eslint --fix", "prettier --write"],
+	"components/**/*.{ts,js,tsx,jsx}": ["eslint --fix", "prettier --write"],
+	"constants/**/*.{ts,js,tsx,jsx}": ["eslint --fix", "prettier --write"],
+	"lib/**/*.{ts,js,tsx,jsx}": ["eslint --fix", "prettier --write"],
+	"utils/**/*.{ts,js,tsx,jsx}": ["eslint --fix", "prettier --write"]
+}
