@@ -9,10 +9,7 @@
 	"useTabs": true,
 	"endOfLine": "lf",
 	"arrowParens": "always",
-	"plugins": [
-		"prettier-plugin-organize-imports",
-		"prettier-plugin-tailwindcss"
-	],
+	"plugins": ["prettier-plugin-organize-imports", "prettier-plugin-tailwindcss"],
 	"overrides": [
 		{
 			"files": ["*.json", "*.md", "*.toml", "*.yml"],

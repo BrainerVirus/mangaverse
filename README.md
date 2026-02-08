@@ -1,4 +1,4 @@
-# Project Name
+# Mangaverse
 
 ## Description
 
@@ -30,26 +30,14 @@ To get started with the project, follow these steps:
    cd mangaverse
    ```
 
-3. Install the dependencies:
-
-   pnpm
-
-   ```sh
-   pnpm install
-   ```
-
-   npm
+3. Install dependencies with npm:
 
    ```sh
    npm install
    ```
 
 4. Install Expo CLI globally if you haven't already:
-   pnpm
-   ```sh
-   pnpm add -g expo-cli
-   ```
-   npm
+
    ```sh
    npm install -g expo-cli
    ```
@@ -59,14 +47,6 @@ To get started with the project, follow these steps:
 To run the app on your device or emulator:
 
 1. Start the Expo development server:
-
-   pnpm
-
-   ```sh
-   pnpm start
-   ```
-
-   npm
 
    ```sh
    npm start
@@ -81,14 +61,6 @@ To run the app on your device or emulator:
 1. Make sure you have Xcode installed.
 2. Start the Expo development server:
 
-   pnpm
-
-   ```sh
-   pnpm start
-   ```
-
-   npm
-
    ```sh
    npm start
    ```
@@ -100,8 +72,12 @@ To run the app on your device or emulator:
 1. Make sure you have Android Studio installed.
 2. Start the Expo development server:
    ```sh
-   pnpm start
+   npm start
    ```
+
+## CI
+
+GitHub Actions runs lint and tests on every push and pull request.
 3. Press `a` to open the app in the Android emulator.
 
 ## Contributing
