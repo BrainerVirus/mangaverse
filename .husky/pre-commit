@@ -2,8 +2,12 @@
 
 # Verificar el sistema operativo
 if [ "$OSTYPE" = "msys" ] || [ "$OSTYPE" = "win32" ]; then
-  # Si es Windows, ejecutar npx.cmd lint-staged
-  npx.cmd lint-staged
+  # Si es Windows, ejecutar npx desde cmd si es necesario
+  if command -v npx.cmd 2> /dev/null; then
+    npx.cmd lint-staged
+  else
+    cmd.exe /c npx lint-staged
+  fi
 else
   # Si no es Windows, intentar ejecutar npx lint-staged
 	if command -v npx 2> /dev/null; then

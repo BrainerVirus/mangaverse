@@ -1,0 +1,8 @@
+# Force all text files to be normalized to LF when pushing and pulling
+* text=auto eol=lf
+
+# Exceptions for binary files (images, etc.), etc.)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary

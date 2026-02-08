@@ -30,12 +30,6 @@ pnpm-debug.log*
 .env.production
 .env*.local
 
-# packages
-pnpm-lock.yaml
-package-lock.json
-yarn.lock
-
-
 # macOS
 .DS_Store
 *.pem
