@@ -16,12 +16,18 @@ export function validateProviderContract(provider: ProviderContract) {
 	return requiredFns.every((fn) => typeof provider[fn] === "function")
 }
 
-export async function loadProviderBundle(bundleUrl: string) {
-	const response = await fetch(bundleUrl)
-	if (!response.ok) {
-		throw new Error("Failed to download provider bundle")
+export async function loadProviderBundle(bundlePathOrUrl: string) {
+	let code = ""
+	if (bundlePathOrUrl.startsWith("http")) {
+		const response = await fetch(bundlePathOrUrl)
+		if (!response.ok) {
+			throw new Error("Failed to download provider bundle")
+		}
+		code = await response.text()
+	} else {
+		const FileSystem = await import("expo-file-system")
+		code = await FileSystem.readAsStringAsync(bundlePathOrUrl)
 	}
-	const code = await response.text()
 	const module = { exports: {} as unknown }
 	const factory = new Function("module", "exports", code)
 	factory(module, (module as { exports: unknown }).exports)
