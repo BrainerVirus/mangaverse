@@ -3,3 +3,13 @@
 @import "tailwindcss/utilities.css";
 
 @import "nativewind/theme";
+
+:root {
+	--mv-bg: #0b0b0c;
+	--mv-surface: #141416;
+	--mv-surface-strong: #1b1b1f;
+	--mv-accent: #ffb14a;
+	--mv-accent-strong: #ff9900;
+	--mv-text: #f5f2eb;
+	--mv-muted: #9a9aa4;
+}

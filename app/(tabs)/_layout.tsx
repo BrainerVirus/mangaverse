@@ -1,50 +1,23 @@
-import Feather from "@expo/vector-icons/Feather"
-import { Tabs } from "expo-router"
+import { Label, NativeTabs } from "expo-router/unstable-native-tabs"
 
 export default function TabLayout() {
 	return (
-		<Tabs
-			screenOptions={{
-				tabBarShowLabel: false,
-				headerTitleAlign: "center",
-				tabBarActiveTintColor: "#ff9900",
-			}}
+		<NativeTabs
+			backgroundColor="#0b0b0c"
+			disableTransparentOnScrollEdge
 		>
-			<Tabs.Screen
-				name="discover"
-				options={{
-					title: "Discorver",
-					tabBarIcon: ({ color }) => <Feather size={28} name="book-open" color={color} />,
-				}}
-			/>
-			<Tabs.Screen
-				name="search"
-				options={{
-					title: "Search",
-					tabBarIcon: ({ color }) => <Feather size={28} name="search" color={color} />,
-				}}
-			/>
-			<Tabs.Screen
-				name="library"
-				options={{
-					title: "Library",
-					tabBarIcon: ({ color }) => <Feather size={28} name="bookmark" color={color} />,
-				}}
-			/>
-			<Tabs.Screen
-				name="history"
-				options={{
-					title: "History",
-					tabBarIcon: ({ color }) => <Feather size={28} name="clock" color={color} />,
-				}}
-			/>
-			<Tabs.Screen
-				name="settings"
-				options={{
-					title: "Settings",
-					tabBarIcon: ({ color }) => <Feather size={28} name="settings" color={color} />,
-				}}
-			/>
-		</Tabs>
+			<NativeTabs.Trigger name="library">
+				<Label>Library</Label>
+			</NativeTabs.Trigger>
+			<NativeTabs.Trigger name="discover">
+				<Label>Discover</Label>
+			</NativeTabs.Trigger>
+			<NativeTabs.Trigger name="history">
+				<Label>History</Label>
+			</NativeTabs.Trigger>
+			<NativeTabs.Trigger name="settings">
+				<Label>Settings</Label>
+			</NativeTabs.Trigger>
+		</NativeTabs>
 	)
 }
