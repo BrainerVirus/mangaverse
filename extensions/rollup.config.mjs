@@ -15,7 +15,12 @@ const makeConfig = (input, output) =>
 			typescript({
 				tsconfig: "./tsconfig.json",
 				include: [input],
-				compilerOptions: { noEmitOnError: false, outDir: "extensions/dist" },
+				compilerOptions: {
+					noEmitOnError: false,
+					outDir: "extensions/dist",
+					target: "ES5",
+					lib: ["ES2015", "DOM"],
+				},
 			}),
 		],
 	})
