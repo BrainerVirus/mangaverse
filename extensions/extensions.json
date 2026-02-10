@@ -1,0 +1,22 @@
+[
+	{
+		"id": "mangadex",
+		"name": "MangaDex",
+		"version": "0.1.0",
+		"icon": "https://mangadex.org/favicon.ico",
+		"languages": ["en"],
+		"nsfw": true,
+		"bundleUrl": "https://raw.githubusercontent.com/BrainerVirus/mangaverse/main/extensions/dist/mangadex.js",
+		"minAppVersion": "1.0.0"
+	},
+	{
+		"id": "tumangaonline",
+		"name": "TuMangaOnline",
+		"version": "0.1.0",
+		"icon": "https://zonatmo.com/favicon/favicon-32x32.png",
+		"languages": ["es"],
+		"nsfw": true,
+		"bundleUrl": "https://raw.githubusercontent.com/BrainerVirus/mangaverse/main/extensions/dist/tumangaonline.js",
+		"minAppVersion": "1.0.0"
+	}
+]

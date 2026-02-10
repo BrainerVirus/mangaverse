@@ -3,13 +3,7 @@ import { ScrollView, Text, TextInput, View } from "react-native"
 
 import { GradientBackdrop } from "@components/GradientBackdrop"
 import { SectionHeading } from "@components/SectionHeading"
-import {
-	installExtension,
-	loadInstalledExtensions,
-	loadProviderFromExtension,
-	saveInstalledExtensions,
-	uninstallExtension,
-} from "@services/extensions/manager"
+import { installExtension, saveInstalledExtensions, uninstallExtension } from "@services/extensions/manager"
 import { fetchExtensionIndex } from "@services/extensions/repository"
 import { useExtensionsStore } from "@stores/extensions"
 import type { ExtensionIndexItem } from "../../types/provider"
@@ -20,52 +14,14 @@ export default function ExtensionsSettings() {
 	const providers = useExtensionsStore((state) => state.enabledProviders)
 	const installed = useExtensionsStore((state) => state.installed)
 	const setInstalled = useExtensionsStore((state) => state.setInstalled)
-	const setProvider = useExtensionsStore((state) => state.setProvider)
-	const setProviders = useExtensionsStore((state) => state.setProviders)
+	const refreshProviders = useExtensionsStore((state) => state.refreshProviders)
 	const [index, setIndex] = useState<ExtensionIndexItem[]>([])
 	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 
 	useEffect(() => {
-		loadInstalledExtensions()
-			.then((items) => setInstalled(items))
-			.catch(() => {})
-	}, [setInstalled])
-
-	useEffect(() => {
-		const loadProviders = async () => {
-			if (installed.length === 0) {
-				setProviders([])
-				return
-			}
-			const enabledProviders = await Promise.all(
-				installed
-					.filter((entry) => entry.enabled)
-					.sort((a, b) => a.order - b.order)
-					.map(async (entry) => {
-						const provider = await loadProviderFromExtension(entry)
-						setProvider(entry.id, provider ?? undefined)
-						const sections = provider ? await provider.getDiscoverSections() : []
-						return {
-							id: entry.id,
-							name: entry.name,
-							meta: {
-								id: entry.id,
-								name: entry.name,
-								version: entry.version,
-								baseUrl: "",
-								supportedLanguages: entry.enabledLanguages,
-								supportsAuth: false,
-								icon: entry.icon,
-							},
-							sections,
-						}
-					})
-			)
-			setProviders(enabledProviders)
-		}
-		loadProviders().catch(() => {})
-	}, [installed, setProvider, setProviders])
+		refreshProviders().catch(() => {})
+	}, [refreshProviders, setInstalled])
 
 	useEffect(() => {
 		if (!repoUrl) {
@@ -88,7 +44,7 @@ export default function ExtensionsSettings() {
 			const next = [...installed, { ...extension, order: installed.length }]
 			setInstalled(next)
 			await saveInstalledExtensions(next)
-			setProviders([])
+			await refreshProviders()
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to install")
 		} finally {
@@ -104,22 +60,7 @@ export default function ExtensionsSettings() {
 			const next = installed.filter((entry) => entry.id !== id)
 			setInstalled(next)
 			await saveInstalledExtensions(next)
-			setProvider(id, undefined)
-			const enabledProviders = next.map((entry) => ({
-				id: entry.id,
-				name: entry.name,
-				meta: {
-					id: entry.id,
-					name: entry.name,
-					version: entry.version,
-					baseUrl: "",
-					supportedLanguages: entry.enabledLanguages,
-					supportsAuth: false,
-					icon: entry.icon,
-				},
-				sections: [],
-			}))
-			setProviders(enabledProviders)
+			await refreshProviders()
 		} catch (err) {
 			setError(err instanceof Error ? err.message : "Failed to uninstall")
 		} finally {
@@ -130,9 +71,9 @@ export default function ExtensionsSettings() {
 	return (
 		<View className="flex-1 bg-neutral-950">
 			<GradientBackdrop />
-			<ScrollView className="flex-1 px-5 pt-6">
+			<ScrollView className="flex-1 px-5 pt-6" contentInsetAdjustmentBehavior="automatic">
 				<SectionHeading title="Extensions" subtitle="Manage providers" />
-				<View className="rounded-3xl border border-neutral-800 bg-neutral-900/70 p-5">
+				<View className="rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">
 					<Text className="text-xs uppercase tracking-[0.2em] text-neutral-500">
 						Repository URL
 					</Text>
@@ -147,18 +88,18 @@ export default function ExtensionsSettings() {
 					/>
 				</View>
 				{loading ? (
-					<View className="mt-4 rounded-3xl border border-neutral-800 bg-neutral-900/70 p-5">
+					<View className="mt-4 rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">
 						<Text className="text-sm text-neutral-300">Working…</Text>
 					</View>
 				) : null}
 				{error ? (
-					<View className="mt-4 rounded-3xl border border-amber-500/40 bg-amber-500/10 p-5">
+					<View className="mt-4 rounded-[28px] border border-amber-500/40 bg-amber-500/10 p-5">
 						<Text className="text-sm text-amber-100">{error}</Text>
 					</View>
 				) : null}
 				<View className="mt-6 gap-4 pb-12">
 					{providers.length === 0 ? (
-						<View className="rounded-3xl border border-neutral-800 bg-neutral-900/70 p-5">
+						<View className="rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">
 							<Text className="text-base font-semibold text-white">
 								No extensions installed.
 							</Text>
@@ -168,10 +109,10 @@ export default function ExtensionsSettings() {
 						</View>
 					) : (
 						providers.map((provider) => (
-							<View
-								key={provider.id}
-								className="rounded-3xl border border-neutral-800 bg-neutral-900/70 p-5"
-							>
+						<View
+							key={provider.id}
+							className="rounded-[26px] border border-white/5 bg-neutral-900/70 p-5"
+						>
 								<Text className="text-base font-semibold text-white">
 									{provider.name}
 								</Text>
@@ -197,7 +138,7 @@ export default function ExtensionsSettings() {
 								return (
 									<View
 										key={item.id}
-										className="rounded-3xl border border-neutral-800 bg-neutral-900/70 p-5"
+										className="rounded-[26px] border border-white/5 bg-neutral-900/70 p-5"
 									>
 										<Text className="text-base font-semibold text-white">
 											{item.name}

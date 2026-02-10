@@ -47,6 +47,41 @@ export async function installExtension(item: ExtensionIndexItem): Promise<Instal
 	return toInstalledExtension(item, bundlePath)
 }
 
+const getIdFromBundleUrl = (bundleUrl: string) => {
+	try {
+		const url = new URL(bundleUrl)
+		const last = url.pathname.split("/").pop() ?? "extension"
+		const normalized = last.replace(/\.js$/i, "")
+		return normalized || "extension"
+	} catch {
+		return "extension"
+	}
+}
+
+export async function installExtensionFromUrl(params: {
+	bundleUrl: string
+	id?: string
+	name?: string
+	version?: string
+	icon?: string
+	languages?: string[]
+	nsfw?: boolean
+	minAppVersion?: string
+}): Promise<InstalledExtension> {
+	const id = params.id?.trim() || getIdFromBundleUrl(params.bundleUrl)
+	const item: ExtensionIndexItem = {
+		id,
+		name: params.name?.trim() || id,
+		version: params.version?.trim() || "0.0.0",
+		icon: params.icon?.trim() || undefined,
+		languages: params.languages?.length ? params.languages : [],
+		nsfw: params.nsfw ?? true,
+		bundleUrl: params.bundleUrl,
+		minAppVersion: params.minAppVersion?.trim() || undefined,
+	}
+	return installExtension(item)
+}
+
 export async function uninstallExtension(id: string) {
 	await removeExtensionBundle(id)
 }
