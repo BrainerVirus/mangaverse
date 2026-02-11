@@ -3,7 +3,7 @@ import { Label, NativeTabs } from "expo-router/unstable-native-tabs"
 export default function TabLayout() {
 	return (
 		<NativeTabs
-			backgroundColor="#0b0b0c"
+			backgroundColor="#0b0b0d"
 			disableTransparentOnScrollEdge
 		>
 			<NativeTabs.Trigger name="library">

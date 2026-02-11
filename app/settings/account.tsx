@@ -4,7 +4,13 @@ import { ScrollView, Text, TextInput, View } from "react-native"
 
 import { GradientBackdrop } from "@components/GradientBackdrop"
 import { SectionHeading } from "@components/SectionHeading"
-import { signInWithOtp, signInWithProvider, signOut, verifyOtp } from "@services/auth/supabase"
+import {
+	isSupabaseConfigured,
+	signInWithOtp,
+	signInWithProvider,
+	signOut,
+	verifyOtp,
+} from "@services/auth/supabase"
 import { useAuthStore } from "@stores/auth"
 
 export default function AccountSettings() {
@@ -48,13 +54,24 @@ export default function AccountSettings() {
 	return (
 		<View className="flex-1 bg-neutral-950">
 			<GradientBackdrop />
-			<ScrollView className="flex-1 px-5 pt-6">
+			<ScrollView className="flex-1 px-5 pt-6" contentInsetAdjustmentBehavior="automatic">
 				<SectionHeading title="Account" subtitle="Optional login" />
-				<View className="rounded-3xl border border-neutral-800 bg-neutral-900/70 p-5">
+				<View className="rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">
 					<Text className="text-base font-semibold text-white">Supabase account</Text>
 					<Text className="mt-2 text-sm text-neutral-400">
 						Sign in to enable sync and backups across devices.
 					</Text>
+					{!isSupabaseConfigured ? (
+						<View className="mt-3 rounded-[22px] border border-amber-500/40 bg-amber-500/10 px-4 py-3">
+							<Text className="text-xs uppercase tracking-[0.2em] text-amber-200">
+								Supabase not configured
+							</Text>
+							<Text className="mt-2 text-sm text-amber-100">
+								Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_KEY to your
+								.env to enable auth.
+							</Text>
+						</View>
+					) : null}
 					<Link
 						href="/settings/auth-help"
 						className="mt-3 rounded-full bg-neutral-800 px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.2em] text-neutral-200"

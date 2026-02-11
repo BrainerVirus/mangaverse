@@ -8,9 +8,9 @@ export default function BackupSettings() {
 	return (
 		<View className="flex-1 bg-neutral-950">
 			<GradientBackdrop />
-			<ScrollView className="flex-1 px-5 pt-6">
+			<ScrollView className="flex-1 px-5 pt-6" contentInsetAdjustmentBehavior="automatic">
 				<SectionHeading title="Backup" subtitle="Export and sync" />
-				<View className="rounded-3xl border border-neutral-800 bg-neutral-900/70 p-5">
+				<View className="rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">
 					<Text className="text-base font-semibold text-white">Local backup</Text>
 					<Text className="mt-2 text-sm text-neutral-400">
 						Export and restore your library and progress.
@@ -22,7 +22,7 @@ export default function BackupSettings() {
 						Export backup
 					</Text>
 				</View>
-				<View className="mt-4 rounded-3xl border border-neutral-800 bg-neutral-900/70 p-5">
+				<View className="mt-4 rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">
 					<Text className="text-base font-semibold text-white">Cloud sync</Text>
 					<Text className="mt-2 text-sm text-neutral-400">
 						Requires an account. Sync scope: library, progress, settings.

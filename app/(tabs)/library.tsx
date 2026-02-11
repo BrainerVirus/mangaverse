@@ -11,10 +11,10 @@ export default function Library() {
 	return (
 		<View className="flex-1 bg-neutral-950">
 			<GradientBackdrop />
-			<ScrollView className="flex-1 px-5 pt-6">
+			<ScrollView className="flex-1 px-5 pt-6" contentInsetAdjustmentBehavior="automatic">
 				<SectionHeading title="Library" subtitle="Your saved manga" />
 				{favorites.length === 0 ? (
-					<View className="rounded-3xl border border-neutral-800 bg-neutral-900/80 p-6">
+					<View className="rounded-[28px] border border-white/5 bg-neutral-900/80 p-6">
 						<Text className="text-lg font-semibold text-white">Your library is empty.</Text>
 						<Text className="mt-2 text-sm text-neutral-400">
 							Find a series in Discover or Search to add it here.
@@ -27,23 +27,40 @@ export default function Library() {
 						</Link>
 					</View>
 				) : (
-					<View className="flex-row flex-wrap gap-4 pb-10">
-						{favorites.map((item) => (
-							<Link
-								key={`${item.providerId}-${item.id}`}
-								href={{
-									pathname: "/manga/[id]",
-									params: { id: item.id, provider: item.providerId },
-								}}
-								className="w-[47%]"
-							>
-								<MangaCard
-									title={item.title}
-									subtitle={item.providerId}
-									coverUrl={item.coverUrl}
-								/>
-							</Link>
-						))}
+					<View className="rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">
+						<View className="flex-row items-center justify-between">
+							<View>
+								<Text className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+									Saved titles
+								</Text>
+								<Text className="mt-2 text-2xl font-semibold text-white">
+									{favorites.length} series
+								</Text>
+							</View>
+							<View className="rounded-full border border-white/10 bg-neutral-950/60 px-3 py-2">
+								<Text className="text-xs uppercase tracking-[0.2em] text-neutral-400">
+									Library
+								</Text>
+							</View>
+						</View>
+						<View className="mt-4 flex-row flex-wrap gap-4">
+							{favorites.map((item) => (
+								<Link
+									key={`${item.providerId}-${item.id}`}
+									href={{
+										pathname: "/manga/[id]",
+										params: { id: item.id, provider: item.providerId },
+									}}
+									className="w-[47%]"
+								>
+									<MangaCard
+										title={item.title}
+										subtitle={item.providerId}
+										coverUrl={item.coverUrl}
+									/>
+								</Link>
+							))}
+						</View>
 					</View>
 				)}
 			</ScrollView>

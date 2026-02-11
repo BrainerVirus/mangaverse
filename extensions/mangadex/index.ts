@@ -1,4 +1,5 @@
 const baseUrl = "https://api.mangadex.org"
+const siteUrl = "https://mangadex.org"
 
 const fetchJson = async (url: string) => {
 	const response = await fetch(url)
@@ -28,16 +29,31 @@ const provider = {
 		id: "mangadex",
 		name: "MangaDex",
 		version: "0.1.0",
-		baseUrl,
+		baseUrl: siteUrl,
 		supportedLanguages: ["en"],
 		supportsAuth: false,
 		icon: "https://mangadex.org/favicon.ico",
 	},
 	async getDiscoverSections() {
 		return [
-			{ id: "popular", title: "Most popular", items: [] },
-			{ id: "latest", title: "Latest updates", items: [] },
+			{ id: "popular", title: "Popular", items: [] },
+			{ id: "latest", title: "Latest Updates", items: [] },
+			{ id: "recent", title: "Recently Added", items: [] },
 		]
+	},
+	async getDiscoverGenres() {
+		const url = buildUrl("/manga/tag", ["limit=100"])
+		const data = (await fetchJson(url)) as {
+			data: Array<{ id: string; attributes: { name: Record<string, string> } }>
+		}
+		return data.data.map((tag) => {
+			const name = tag.attributes.name.en ?? Object.values(tag.attributes.name)[0] ?? "Genre"
+			return {
+				id: tag.id,
+				title: name,
+				subtitle: "Genre",
+			}
+		})
 	},
 	async getDiscoverSectionItems(sectionId: string, page: number) {
 		const limit = 12
@@ -51,7 +67,9 @@ const provider = {
 		const order =
 			sectionId === "latest"
 				? "order[latestUploadedChapter]=desc"
-				: "order[followedCount]=desc"
+				: sectionId === "recent"
+					? "order[createdAt]=desc"
+					: "order[followedCount]=desc"
 		const url = buildUrl("/manga", [order, ...baseParams])
 		const data = (await fetchJson(url)) as {
 			data: Array<{
@@ -64,10 +82,16 @@ const provider = {
 			const title = item.attributes.title.en ?? Object.values(item.attributes.title)[0] ?? "Untitled"
 			const description = item.attributes.description?.en ?? ""
 			const cover = item.relationships.find((rel) => rel.type === "cover_art")?.attributes?.fileName
+			const subtitle =
+				sectionId === "latest"
+					? "Latest"
+					: sectionId === "recent"
+						? "Recent"
+						: "Popular"
 			return {
 				id: item.id,
 				title,
-				subtitle: sectionId === "latest" ? "Latest" : "Popular",
+				subtitle,
 				description,
 				coverUrl: mapCoverUrl(item.id, cover),
 			}

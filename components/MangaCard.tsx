@@ -8,19 +8,25 @@ interface MangaCardProps {
 
 export function MangaCard({ title, coverUrl, subtitle }: MangaCardProps) {
 	return (
-		<View className="rounded-[28px] border border-white/5 bg-neutral-900/70 p-3 shadow-[0_20px_40px_rgba(0,0,0,0.35)]">
-			<View className="overflow-hidden rounded-[22px] bg-neutral-800">
+		<View>
+			<View className="relative overflow-hidden rounded-[18px] bg-card">
 				{coverUrl ? (
-					<Image source={{ uri: coverUrl }} className="h-44 w-full" resizeMode="cover" />
+					<Image
+						source={{ uri: coverUrl }}
+						className="w-full"
+						style={{ aspectRatio: 3 / 4 }}
+						resizeMode="cover"
+					/>
 				) : (
-					<View className="h-44 w-full bg-neutral-800" />
+					<View className="w-full bg-card" style={{ aspectRatio: 3 / 4 }} />
 				)}
+				<View className="absolute inset-x-0 bottom-0 h-12 bg-black/60" />
 			</View>
-			<Text className="mt-3 text-sm font-semibold text-white" numberOfLines={2}>
+			<Text className="mt-2 text-sm font-semibold text-foreground" numberOfLines={1}>
 				{title}
 			</Text>
 			{subtitle ? (
-				<Text className="mt-1 text-xs text-neutral-400" numberOfLines={1}>
+				<Text className="mt-1 text-xs text-muted" numberOfLines={1}>
 					{subtitle}
 				</Text>
 			) : null}

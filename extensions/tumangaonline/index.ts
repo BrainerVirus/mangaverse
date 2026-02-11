@@ -85,9 +85,28 @@ const provider = {
 	},
 	async getDiscoverSections() {
 		return [
-			{ id: "trending", title: "Tendencias", items: [] },
-			{ id: "recent", title: "Recientes", items: [] },
+			{ id: "popular", title: "Popular", items: [] },
+			{ id: "latest", title: "Latest Updates", items: [] },
+			{ id: "recent", title: "Recently Added", items: [] },
 		]
+	},
+	async getDiscoverGenres() {
+		const html = await fetchText(`${baseUrl}/library?genres=1`)
+		const genreRegex = /<a[^>]+href="[^"]*genre[^"]*"[^>]*>([^<]+)<\/a>/g
+		const genres: Array<{ id: string; title: string }> = []
+		let match: RegExpExecArray | null
+		while ((match = genreRegex.exec(html))) {
+			const title = stripTags(match[1])
+			const id = title.toLowerCase().replace(/\s+/g, "-")
+			if (!genres.some((item) => item.id === id)) {
+				genres.push({ id, title })
+			}
+		}
+		return genres.map((genre) => ({
+			id: genre.id,
+			title: genre.title,
+			subtitle: "Genre",
+		}))
 	},
 	async getDiscoverSectionItems(sectionId: string, page: number) {
 		const pageParam = page > 1 ? `?page=${page}` : ""

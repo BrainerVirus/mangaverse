@@ -55,9 +55,9 @@ export default function Settings() {
 	return (
 		<View className="flex-1 bg-neutral-950">
 			<GradientBackdrop />
-			<ScrollView className="flex-1 px-5 pt-6">
+			<ScrollView className="flex-1 px-5 pt-6" contentInsetAdjustmentBehavior="automatic">
 				<SectionHeading title="Settings" subtitle="Tune your experience" />
-				<View className="mb-6 rounded-3xl border border-neutral-800 bg-neutral-900/70 p-5">
+				<View className="mb-6 rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">
 					<Text className="text-sm uppercase tracking-[0.2em] text-neutral-500">Theme</Text>
 					<Text className="mt-2 text-lg font-semibold text-white">{theme}</Text>
 					<Text className="mt-1 text-sm text-neutral-400">
@@ -69,7 +69,7 @@ export default function Settings() {
 						<Link
 							key={section.id}
 							href={section.link}
-							className="rounded-3xl border border-neutral-800 bg-neutral-900/70 p-5"
+							className="rounded-[26px] border border-white/5 bg-neutral-900/70 p-5"
 						>
 							<Text className="text-lg font-semibold text-white">
 								{section.title}

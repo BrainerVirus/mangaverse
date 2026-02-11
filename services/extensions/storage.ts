@@ -1,4 +1,4 @@
-import * as FileSystem from "expo-file-system"
+import * as FileSystem from "expo-file-system/legacy"
 
 const baseDirectory = `${
 	(FileSystem as { documentDirectory?: string; cacheDirectory?: string }).documentDirectory ??

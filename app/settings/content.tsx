@@ -1,4 +1,4 @@
-import { ScrollView, Text, View } from "react-native"
+import { ScrollView, Switch, Text, View } from "react-native"
 
 import { GradientBackdrop } from "@components/GradientBackdrop"
 import { SectionHeading } from "@components/SectionHeading"
@@ -10,23 +10,24 @@ export default function ContentSettings() {
 	return (
 		<View className="flex-1 bg-neutral-950">
 			<GradientBackdrop />
-			<ScrollView className="flex-1 px-5 pt-6">
+			<ScrollView className="flex-1 px-5 pt-6" contentInsetAdjustmentBehavior="automatic">
 				<SectionHeading title="Content" subtitle="Filtering preferences" />
-				<View className="rounded-3xl border border-neutral-800 bg-neutral-900/70 p-5">
-					<Text className="text-base font-semibold text-white">Explicit content</Text>
-					<Text className="mt-2 text-sm text-neutral-400">
-						Explicit content is currently {explicitContent ? "enabled" : "disabled"}.
-					</Text>
-					<Text
-						className={`mt-3 rounded-full px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.2em] ${
-							explicitContent
-								? "bg-amber-500 text-neutral-950"
-								: "bg-neutral-800 text-neutral-300"
-						}`}
-						onPress={() => setExplicitContent(!explicitContent)}
-					>
-						{explicitContent ? "Enabled" : "Disabled"}
-					</Text>
+				<View className="rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">
+					<View className="flex-row items-center justify-between">
+						<View className="flex-1 pr-4">
+							<Text className="text-base font-semibold text-white">Explicit content</Text>
+							<Text className="mt-2 text-sm text-neutral-400">
+								Show mature series in Discover and Search.
+							</Text>
+						</View>
+						<Switch
+							value={explicitContent}
+							onValueChange={setExplicitContent}
+							trackColor={{ false: "#2b2b30", true: "#ffb14a" }}
+							thumbColor={explicitContent ? "#0b0b0c" : "#e5e5ea"}
+							ios_backgroundColor="#2b2b30"
+						/>
+					</View>
 				</View>
 			</ScrollView>
 		</View>

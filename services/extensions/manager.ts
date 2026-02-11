@@ -93,7 +93,20 @@ export async function loadProviderFromExtension(extension: InstalledExtension): 
 			return null
 		}
 		return provider
-	} catch {
+	} catch (error) {
+		try {
+			if (extension.bundleUrl) {
+				const provider = await loadProviderBundle(extension.bundleUrl)
+				if (!validateProviderContract(provider)) {
+					return null
+				}
+				return provider
+			}
+		} catch (fallbackError) {
+			console.warn("Failed to load provider", extension.id, fallbackError)
+			return null
+		}
+		console.warn("Failed to load provider", extension.id, error)
 		return null
 	}
 }

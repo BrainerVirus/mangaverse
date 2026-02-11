@@ -5,6 +5,7 @@ export function validateProviderContract(provider: ProviderContract) {
 		return false
 	}
 	const requiredFns: (keyof ProviderContract)[] = [
+		"getDiscoverGenres",
 		"getDiscoverSections",
 		"getDiscoverSectionItems",
 		"search",
@@ -25,7 +26,7 @@ export async function loadProviderBundle(bundlePathOrUrl: string) {
 		}
 		code = await response.text()
 	} else {
-		const FileSystem = await import("expo-file-system")
+		const FileSystem = await import("expo-file-system/legacy")
 		code = await FileSystem.readAsStringAsync(bundlePathOrUrl)
 	}
 	const module = { exports: {} as unknown }

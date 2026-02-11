@@ -46,6 +46,7 @@ export interface ProviderPage {
 
 export interface ProviderContract {
 	meta: ProviderMeta
+	getDiscoverGenres: () => Promise<ProviderMangaItem[]>
 	getDiscoverSections: () => Promise<ProviderDiscoverSection[]>
 	getDiscoverSectionItems: (
 		sectionId: string,

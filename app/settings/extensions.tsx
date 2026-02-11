@@ -24,10 +24,6 @@ export default function ExtensionsSettings() {
 	}, [refreshProviders, setInstalled])
 
 	useEffect(() => {
-		if (!repoUrl) {
-			setIndex([])
-			return
-		}
 		setLoading(true)
 		setError(null)
 		fetchExtensionIndex(repoUrl)

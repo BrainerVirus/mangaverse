@@ -56,7 +56,12 @@ export const useExtensionsStore = create<ExtensionsState>((set) => ({
 				if (provider) {
 					providersMap[entry.id] = provider
 				}
-				const sections = provider ? await provider.getDiscoverSections() : ([] as ProviderDiscoverSection[])
+				const sections = provider
+					? await provider.getDiscoverSections().then((base) => {
+						const hasGenres = base.some((section) => section.id === "genres")
+						return hasGenres ? base : [{ id: "genres", title: "Genres", items: [] }, ...base]
+					})
+					: ([] as ProviderDiscoverSection[])
 				return {
 					id: entry.id,
 					name: entry.name,
@@ -64,10 +69,10 @@ export const useExtensionsStore = create<ExtensionsState>((set) => ({
 						id: entry.id,
 						name: entry.name,
 						version: entry.version,
-						baseUrl: "",
+						baseUrl: provider?.meta.baseUrl ?? entry.bundleUrl,
 						supportedLanguages: entry.enabledLanguages,
 						supportsAuth: false,
-						icon: entry.icon,
+						icon: provider?.meta.icon ?? entry.icon,
 					},
 					sections,
 				}
