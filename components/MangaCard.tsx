@@ -20,9 +20,8 @@ export function MangaCard({ title, coverUrl, subtitle }: MangaCardProps) {
 				) : (
 					<View className="w-full bg-card" style={{ aspectRatio: 3 / 4 }} />
 				)}
-				<View className="absolute inset-x-0 bottom-0 h-12 bg-black/60" />
 			</View>
-			<Text className="mt-2 text-sm font-semibold text-foreground" numberOfLines={1}>
+			<Text className="mt-2 text-sm font-semibold text-foreground" numberOfLines={2}>
 				{title}
 			</Text>
 			{subtitle ? (

@@ -86,27 +86,10 @@ export async function uninstallExtension(id: string) {
 	await removeExtensionBundle(id)
 }
 
-export async function loadProviderFromExtension(extension: InstalledExtension): Promise<ProviderContract | null> {
-	try {
-		const provider = await loadProviderBundle(extension.localPath)
-		if (!validateProviderContract(provider)) {
-			return null
-		}
-		return provider
-	} catch (error) {
-		try {
-			if (extension.bundleUrl) {
-				const provider = await loadProviderBundle(extension.bundleUrl)
-				if (!validateProviderContract(provider)) {
-					return null
-				}
-				return provider
-			}
-		} catch (fallbackError) {
-			console.warn("Failed to load provider", extension.id, fallbackError)
-			return null
-		}
-		console.warn("Failed to load provider", extension.id, error)
-		return null
+export async function loadProviderFromExtension(extension: InstalledExtension): Promise<ProviderContract> {
+	const provider = await loadProviderBundle(extension.localPath)
+	if (!validateProviderContract(provider)) {
+		throw new Error("Provider bundle failed validation")
 	}
+	return provider
 }

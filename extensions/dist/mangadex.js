@@ -144,9 +144,9 @@ var provider = {
             });
         });
     },
-    getDiscoverSectionItems: function (sectionId, page) {
+    getDiscoverSectionItems: function (sectionId, page, filters) {
         return __awaiter(this, void 0, void 0, function () {
-            var limit, offset, baseParams, order, url, data;
+            var limit, offset, baseParams, genreId, order, url, data;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -158,6 +158,10 @@ var provider = {
                             "offset=".concat(offset),
                             toArrayParam(["cover_art"]),
                         ];
+                        genreId = typeof (filters === null || filters === void 0 ? void 0 : filters.genreId) === "string" ? filters.genreId : undefined;
+                        if (sectionId === "genres" && genreId) {
+                            baseParams.unshift("includedTags[]=".concat(encodeURIComponent(genreId)));
+                        }
                         order = sectionId === "latest"
                             ? "order[latestUploadedChapter]=desc"
                             : sectionId === "recent"
@@ -168,10 +172,12 @@ var provider = {
                     case 1:
                         data = (_a.sent());
                         return [2 /*return*/, data.data.map(function (item) {
-                                var _a, _b, _c, _d, _e, _f;
+                                var _a, _b, _c, _d, _e, _f, _g;
                                 var title = (_b = (_a = item.attributes.title.en) !== null && _a !== void 0 ? _a : Object.values(item.attributes.title)[0]) !== null && _b !== void 0 ? _b : "Untitled";
                                 var description = (_d = (_c = item.attributes.description) === null || _c === void 0 ? void 0 : _c.en) !== null && _d !== void 0 ? _d : "";
                                 var cover = (_f = (_e = item.relationships.find(function (rel) { return rel.type === "cover_art"; })) === null || _e === void 0 ? void 0 : _e.attributes) === null || _f === void 0 ? void 0 : _f.fileName;
+                                var lastChapter = (_g = item.attributes.lastChapter) === null || _g === void 0 ? void 0 : _g.trim();
+                                var chapterLabel = lastChapter ? "Chapter ".concat(lastChapter) : undefined;
                                 var subtitle = sectionId === "latest"
                                     ? "Latest"
                                     : sectionId === "recent"
@@ -180,7 +186,7 @@ var provider = {
                                 return {
                                     id: item.id,
                                     title: title,
-                                    subtitle: subtitle,
+                                    subtitle: chapterLabel !== null && chapterLabel !== void 0 ? chapterLabel : subtitle,
                                     description: description,
                                     coverUrl: mapCoverUrl(item.id, cover),
                                 };

@@ -52,10 +52,18 @@ const mockExtensions = {
 				{ id: "genres", title: "Genres", items: [] },
 				{ id: "popular", title: "Popular", items: [] },
 			]),
-			getDiscoverSectionItems: jest.fn(async () => [
+			getDiscoverSectionItems: jest.fn(async (sectionId: string, page: number, filters?: Record<string, unknown>) => {
+				if (sectionId === "genres" && filters?.genreId) {
+					return [
+						{ id: "genre-item-1", title: "Genre Item 1", subtitle: "Chapter 1" },
+						{ id: "genre-item-2", title: "Genre Item 2", subtitle: "Chapter 2" },
+					]
+				}
+				return [
 				{ id: "item-1", title: "Item 1", subtitle: "Popular", coverUrl: "" },
 				{ id: "item-2", title: "Item 2", subtitle: "Popular", coverUrl: "" },
-			]),
+				]
+			}),
 			search: jest.fn(async () => []),
 			getAvailableFilters: jest.fn(async () => []),
 			getMangaDetails: jest.fn(async () => ({
@@ -68,15 +76,34 @@ const mockExtensions = {
 	},
 	refreshProviders: jest.fn(async () => {}),
 	setSelectedProvider: jest.fn(),
+	loadErrors: {},
 }
 
 jest.mock("expo-router", () => ({
 	Link: ({ children }: { children: React.ReactNode }) => children,
-	useLocalSearchParams: () => ({ sectionId: "popular", provider: "mangadex", title: "Popular" }),
+	useLocalSearchParams: jest.fn(() => ({
+		sectionId: "popular",
+		provider: "mangadex",
+		title: "Popular",
+	})),
 }))
+
+afterEach(() => {
+	const { useLocalSearchParams } = jest.requireMock("expo-router")
+	useLocalSearchParams.mockReturnValue({
+		sectionId: "popular",
+		provider: "mangadex",
+		title: "Popular",
+	})
+})
 
 jest.mock("@stores/extensions", () => ({
 	useExtensionsStore: (selector: (state: typeof mockExtensions) => unknown) => selector(mockExtensions),
+}))
+
+jest.mock("@stores/settings", () => ({
+	useSettingsStore: (selector: (state: { showProviderErrors: boolean }) => unknown) =>
+		selector({ showProviderErrors: true }),
 }))
 
 jest.mock("@services/library/favorites", () => ({
@@ -111,6 +138,21 @@ describe("Discover screens", () => {
 		await waitFor(() => {
 			expect(getByText("Item 1")).toBeTruthy()
 			expect(getByText("Item 2")).toBeTruthy()
+		})
+	})
+
+	test("Discover section loads genre results", async () => {
+		const { useLocalSearchParams } = jest.requireMock("expo-router")
+		useLocalSearchParams.mockReturnValue({
+			sectionId: "genre-1",
+			provider: "mangadex",
+			title: "Action",
+		})
+		const { getByText } = render(<DiscoverSection />)
+
+		await waitFor(() => {
+			expect(getByText("Genre Item 1")).toBeTruthy()
+			expect(getByText("Genre Item 2")).toBeTruthy()
 		})
 	})
 })

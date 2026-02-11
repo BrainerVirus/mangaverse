@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react"
-import { ScrollView, Text, TextInput, View } from "react-native"
+import { ScrollView, Switch, Text, TextInput, View } from "react-native"
 
 import { GradientBackdrop } from "@components/GradientBackdrop"
 import { SectionHeading } from "@components/SectionHeading"
 import { installExtension, saveInstalledExtensions, uninstallExtension } from "@services/extensions/manager"
 import { fetchExtensionIndex } from "@services/extensions/repository"
 import { useExtensionsStore } from "@stores/extensions"
+import { useSettingsStore } from "@stores/settings"
 import type { ExtensionIndexItem } from "../../types/provider"
 
 export default function ExtensionsSettings() {
@@ -15,6 +16,8 @@ export default function ExtensionsSettings() {
 	const installed = useExtensionsStore((state) => state.installed)
 	const setInstalled = useExtensionsStore((state) => state.setInstalled)
 	const refreshProviders = useExtensionsStore((state) => state.refreshProviders)
+	const showProviderErrors = useSettingsStore((state) => state.showProviderErrors)
+	const setShowProviderErrors = useSettingsStore((state) => state.setShowProviderErrors)
 	const [index, setIndex] = useState<ExtensionIndexItem[]>([])
 	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState<string | null>(null)
@@ -82,6 +85,23 @@ export default function ExtensionsSettings() {
 						autoCapitalize="none"
 						autoCorrect={false}
 					/>
+				</View>
+				<View className="mt-4 rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">
+					<View className="flex-row items-center justify-between">
+						<View className="flex-1 pr-4">
+							<Text className="text-base font-semibold text-white">Show provider errors</Text>
+							<Text className="mt-2 text-sm text-neutral-400">
+								Display extension load failures on Discover.
+							</Text>
+						</View>
+						<Switch
+							value={showProviderErrors}
+							onValueChange={setShowProviderErrors}
+							trackColor={{ false: "#2b2b30", true: "#ffb14a" }}
+							thumbColor={showProviderErrors ? "#0b0b0c" : "#e5e5ea"}
+							ios_backgroundColor="#2b2b30"
+						/>
+					</View>
 				</View>
 				{loading ? (
 					<View className="mt-4 rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">

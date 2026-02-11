@@ -9,10 +9,12 @@ import {
 	ScrollView,
 	Text,
 	View,
+	useWindowDimensions,
 } from "react-native"
 
 import { MangaCard } from "@components/MangaCard"
 import { useExtensionsStore } from "@stores/extensions"
+import { useSettingsStore } from "@stores/settings"
 import { useFavoritesStore } from "@services/library/favorites"
 import type { ProviderDiscoverSection, ProviderMangaItem } from "../../types/provider"
 
@@ -32,6 +34,7 @@ export default function Discover() {
 	const setSelectedProvider = useExtensionsStore((state) => state.setSelectedProvider)
 	const providersMap = useExtensionsStore((state) => state.providers)
 	const refreshProviders = useExtensionsStore((state) => state.refreshProviders)
+	const loadErrors = useExtensionsStore((state) => state.loadErrors)
 	const selectedProvider = providers.find((provider) => provider.id === selectedProviderId)
 	const [sections, setSections] = useState<ProviderDiscoverSection[]>(
 		selectedProvider?.sections ?? []
@@ -47,25 +50,9 @@ export default function Discover() {
 	const indicatorWidth = useRef(new Animated.Value(0)).current
 	const indicatorReady = useRef(false)
 	const favoriteStore = useFavoritesStore()
+	const showProviderErrors = useSettingsStore((state) => state.showProviderErrors)
 	const hasProviders = providers.length > 0
-	const heroItem = useMemo(() => {
-		const preferred = ["popular", "latest", "recent"]
-		for (const id of preferred) {
-			const items = sectionItems[id]
-			if (items?.length) {
-				return items[0]
-			}
-		}
-		const firstList = Object.entries(sectionItems).find(([key, value]) =>
-			key !== "genres" && value.length > 0
-		)
-		return firstList?.[1][0]
-	}, [sectionItems])
-	const heroSubtitle = useMemo(() => getHeroSubtitle(heroItem), [heroItem])
-	const heroProvider = selectedProvider?.name ?? ""
-	const isFavorite = heroItem
-		? favoriteStore.contains(heroItem.id, selectedProviderId ?? "")
-		: false
+	const providerLoadError = selectedProviderId ? loadErrors[selectedProviderId] : undefined
 	const orderedSections = useMemo(() => {
 		const lookup = new Map(sections.map((section) => [section.id, section]))
 		const ordered = SECTION_ORDER.map((id) => lookup.get(id)).filter(
@@ -74,6 +61,49 @@ export default function Discover() {
 		const remaining = sections.filter((section) => !SECTION_ORDER.includes(section.id))
 		return [...ordered, ...remaining]
 	}, [sections])
+	const [errorDrawerOpen, setErrorDrawerOpen] = useState(false)
+	const [isDrawerExpanded, setIsDrawerExpanded] = useState(false)
+	const errorDrawerHeight = useRef(new Animated.Value(0)).current
+	const errorDrawerBaseHeight = 260
+	const errorDrawerMaxHeight = 520
+	const { width: screenWidth } = useWindowDimensions()
+	const pagePadding = 16
+	const heroSpacing = 16
+	const heroWidth = screenWidth - pagePadding * 2
+	const heroScrollX = useRef(new Animated.Value(0)).current
+	const heroScrollRef = useRef<ScrollView>(null)
+	const heroItems = useMemo(() => {
+		const firstList = sectionItems.popular ?? sectionItems.latest ?? sectionItems.recent ?? []
+		if (firstList.length > 0) {
+			return firstList
+		}
+		return Object.entries(sectionItems)
+			.filter(([key, value]) => key !== "genres" && value.length > 0)
+			.map(([, value]) => value)
+			.flat()
+	}, [sectionItems])
+	const heroProvider = selectedProvider?.name ?? ""
+
+	useEffect(() => {
+		if (!showProviderErrors || !providerLoadError) {
+			setErrorDrawerOpen(false)
+			return
+		}
+		setErrorDrawerOpen(true)
+	}, [providerLoadError, showProviderErrors])
+
+	useEffect(() => {
+		const targetHeight = errorDrawerOpen
+			? isDrawerExpanded
+				? errorDrawerMaxHeight
+				: errorDrawerBaseHeight
+			: 0
+		Animated.timing(errorDrawerHeight, {
+			toValue: targetHeight,
+			duration: 220,
+			useNativeDriver: false,
+		}).start()
+	}, [errorDrawerBaseHeight, errorDrawerHeight, errorDrawerMaxHeight, errorDrawerOpen, isDrawerExpanded])
 
 	useEffect(() => {
 		const layout = selectedProviderId ? tabLayouts[selectedProviderId] : null
@@ -168,7 +198,7 @@ export default function Discover() {
 			return
 		}
 		const provider = providersMap[providerId]
-		const url = provider?.meta.baseUrl || selectedProvider?.meta.baseUrl || ""
+		const url = provider?.meta.baseUrl || ""
 		if (!url) {
 			return
 		}
@@ -221,16 +251,16 @@ export default function Discover() {
 		setSectionLoading((current) => ({ ...current, [sectionId]: false }))
 	}
 
-	const renderSectionHeader = (section: ProviderDiscoverSection) => (
+	const renderSectionHeader = (section: ProviderDiscoverSection, title: string) => (
 		<View className="flex-row items-center justify-between">
-			<Text className="text-lg font-semibold text-foreground">{section.title}</Text>
+			<Text className="text-lg font-semibold text-foreground">{title}</Text>
 			<Link
 				href={{
 					pathname: "/discover/[sectionId]",
 					params: {
 						sectionId: section.id,
 						provider: selectedProviderId,
-						title: section.title,
+						title,
 					},
 				}}
 				className="h-10 w-10 items-center justify-center rounded-[14px] bg-accent/20"
@@ -254,12 +284,37 @@ export default function Discover() {
 		}
 	}
 
+	const handleToggleDrawerHeight = () => {
+		if (!errorDrawerOpen) {
+			setErrorDrawerOpen(true)
+			setIsDrawerExpanded(false)
+			return
+		}
+		setIsDrawerExpanded((current) => !current)
+	}
+
+	useEffect(() => {
+		if (!errorDrawerOpen) {
+			return
+		}
+		Animated.timing(errorDrawerHeight, {
+			toValue: isDrawerExpanded ? errorDrawerMaxHeight : errorDrawerBaseHeight,
+			duration: 200,
+			useNativeDriver: false,
+		}).start()
+	}, [errorDrawerBaseHeight, errorDrawerHeight, errorDrawerMaxHeight, errorDrawerOpen, isDrawerExpanded])
+
+	const handleCloseDrawer = () => {
+		setErrorDrawerOpen(false)
+		setIsDrawerExpanded(false)
+	}
+
 	return (
 		<View className="flex-1 bg-background">
 			<ScrollView
 				className="flex-1"
 				contentInsetAdjustmentBehavior="automatic"
-				contentContainerClassName="px-5 pb-12"
+				contentContainerClassName="px-4 pb-12"
 			>
 				<View className="pt-4">
 					<View className="relative items-center justify-center">
@@ -272,7 +327,7 @@ export default function Discover() {
 						</Pressable>
 					</View>
 					<View className="mt-4">
-						<View className="relative -mx-5 px-5">
+					<View className="relative -mx-4 px-4">
 							<View className="absolute bottom-0 left-0 right-0 h-[2px] bg-border" />
 							<ScrollView
 								horizontal
@@ -326,73 +381,107 @@ export default function Discover() {
 						</View>
 					</View>
 				</View>
-				{heroItem ? (
-					<View className="mt-6 overflow-hidden rounded-[26px] bg-card">
-						<View className="relative">
-							<Link
-								href={{
-									pathname: "/manga/[id]",
-									params: { id: heroItem.id, provider: selectedProviderId },
-								}}
-								asChild
-							>
-								<Pressable>
-									{heroItem.coverUrl ? (
-										<Image
-											source={{ uri: heroItem.coverUrl }}
-											className="h-56 w-full"
-											resizeMode="cover"
-										/>
-									) : (
-										<View className="h-56 w-full bg-card" />
-									)}
-									<View className="absolute inset-0 bg-black/40" />
-									<View className="absolute inset-x-0 bottom-0 p-4 pb-16">
-										<Text className="text-lg font-semibold text-white" numberOfLines={1}>
-											{heroItem.title}
-										</Text>
-										<Text className="mt-1 text-xs text-white/70" numberOfLines={2}>
-											{heroSubtitle}
-										</Text>
-										<Text className="mt-2 text-[11px] uppercase tracking-[0.2em] text-white/60">
-											{heroProvider}
-										</Text>
-									</View>
-							</Pressable>
-							</Link>
-							<View className="absolute inset-x-0 bottom-4 px-4" pointerEvents="box-none">
-								<View className="flex-row gap-3">
-									<Pressable
-										onPress={() => {
-											if (!heroItem || !selectedProviderId) {
-												return
-											}
-											if (isFavorite) {
-												favoriteStore.remove(heroItem.id, selectedProviderId)
-												return
-											}
-											favoriteStore.add(heroItem, selectedProviderId)
-										}}
-										className="flex-1 rounded-full bg-black/75 px-4 py-3"
+				{heroItems.length > 0 ? (
+					<View className="mt-6">
+						<Animated.ScrollView
+							ref={heroScrollRef}
+							horizontal
+							snapToInterval={heroWidth + heroSpacing}
+							decelerationRate="fast"
+							showsHorizontalScrollIndicator={false}
+							contentContainerStyle={{ paddingRight: heroSpacing }}
+							onScroll={Animated.event(
+								[{ nativeEvent: { contentOffset: { x: heroScrollX } } }],
+								{ useNativeDriver: false }
+							)}
+							scrollEventThrottle={16}
+						>
+							{heroItems.map((item) => {
+								const isItemFavorite = favoriteStore.contains(
+									item.id,
+									selectedProviderId ?? ""
+								)
+								return (
+									<View
+										key={item.id}
+										style={{ width: heroWidth, marginRight: heroSpacing }}
+										className="overflow-hidden rounded-[26px] bg-card"
 									>
-										<Text className="text-center text-sm font-semibold text-accent">
-											{isFavorite ? "In Library" : "Add to Library"}
-										</Text>
-									</Pressable>
-									<Link
-										href={{
-											pathname: "/manga/[id]",
-											params: { id: heroItem.id, provider: selectedProviderId },
-										}}
-										className="flex-1 rounded-full bg-black/75 px-4 py-3"
-									>
-										<Text className="text-center text-sm font-semibold text-accent">
-											Read Now
-										</Text>
-									</Link>
-								</View>
+										<View className="relative">
+											<Link
+												href={{
+													pathname: "/manga/[id]",
+													params: { id: item.id, provider: selectedProviderId },
+												}}
+												asChild
+											>
+												<Pressable>
+													{item.coverUrl ? (
+														<Image
+															source={{ uri: item.coverUrl }}
+															className="h-56 w-full"
+															resizeMode="cover"
+														/>
+													) : (
+														<View className="h-56 w-full bg-card" />
+													)}
+													<View className="absolute inset-0 bg-black/40" />
+													<View className="absolute inset-x-0 bottom-0 p-4 pb-14">
+														<Text
+															className="text-lg font-semibold text-white"
+															numberOfLines={1}
+														>
+															{item.title}
+														</Text>
+														<Text
+															className="mt-1 text-xs text-white/70"
+															numberOfLines={2}
+														>
+															{getHeroSubtitle(item)}
+														</Text>
+														<Text className="mt-2 text-[11px] uppercase tracking-[0.2em] text-white/60">
+															{heroProvider}
+														</Text>
+													</View>
+												</Pressable>
+											</Link>
+						<View className="absolute inset-x-0 bottom-3 px-4" pointerEvents="box-none">
+							<View className="flex-row gap-3">
+								<Pressable
+									onPress={() => {
+										if (!selectedProviderId) {
+											return
+										}
+										if (isItemFavorite) {
+											favoriteStore.remove(item.id, selectedProviderId)
+											return
+										}
+										favoriteStore.add(item, selectedProviderId)
+									}}
+									className="flex-1 rounded-full bg-black/75 px-4 py-3"
+								>
+									<Text className="text-center text-sm font-semibold text-accent">
+										{isItemFavorite ? "In Library" : "Add to Library"}
+									</Text>
+								</Pressable>
+								<Link
+									href={{
+										pathname: "/manga/[id]",
+										params: { id: item.id, provider: selectedProviderId },
+									}}
+									className="flex-1 rounded-full bg-black/75 px-4 py-3"
+								>
+									<Text className="text-center text-sm font-semibold text-accent">
+										Read Now
+									</Text>
+								</Link>
 							</View>
 						</View>
+										</View>
+									</View>
+								)
+							})}
+						</Animated.ScrollView>
 					</View>
 				) : null}
 				{loading ? (
@@ -429,24 +518,7 @@ export default function Discover() {
 								const genreTitle = section.title || "Genres"
 								return (
 									<View key={section.id}>
-										<View className="flex-row items-center justify-between">
-											<Text className="text-lg font-semibold text-foreground">
-												{genreTitle}
-											</Text>
-											<Link
-												href={{
-													pathname: "/discover/[sectionId]",
-													params: {
-														sectionId: "genres",
-														provider: selectedProviderId,
-														title: genreTitle,
-													},
-												}}
-												className="h-10 w-10 items-center justify-center rounded-[14px] bg-accent/20"
-											>
-												<Text className="text-sm text-accent">↗</Text>
-											</Link>
-										</View>
+										{renderSectionHeader(section, genreTitle)}
 										<ScrollView
 											horizontal
 											showsHorizontalScrollIndicator={false}
@@ -461,13 +533,13 @@ export default function Discover() {
 														<Link
 															key={item.id}
 															href={{
-																pathname: "/discover/[sectionId]",
-																params: {
-																	sectionId: section.id,
-																	provider: selectedProviderId,
-																	title: section.title,
-																},
-															}}
+														pathname: "/discover/[sectionId]",
+														params: {
+															sectionId: item.id,
+															provider: selectedProviderId,
+															title: item.title,
+														},
+													}}
 															asChild
 														>
 															<Pressable
@@ -492,7 +564,7 @@ export default function Discover() {
 							}
 							return (
 								<View key={section.id}>
-									{renderSectionHeader(section)}
+									{renderSectionHeader(section, section.title)}
 									<ScrollView
 										horizontal
 										showsHorizontalScrollIndicator={false}
@@ -527,6 +599,43 @@ export default function Discover() {
 					</View>
 				)}
 			</ScrollView>
+			{showProviderErrors && providerLoadError ? (
+				<View className="absolute inset-0" pointerEvents="box-none">
+					<View className="flex-1" pointerEvents="box-none" />
+					<Animated.View
+						style={{ height: errorDrawerHeight }}
+						className="overflow-hidden rounded-t-[28px] border border-border bg-card shadow-2xl"
+					>
+						<View className="items-center justify-center">
+							<Pressable
+								onPress={handleToggleDrawerHeight}
+								className="h-[28px] w-full items-center justify-center"
+							>
+								<View className="h-1.5 w-12 rounded-full bg-border" />
+							</Pressable>
+						</View>
+						<View className="px-5 pb-6 pt-2">
+							<View className="flex-row items-center justify-between">
+								<Text className="text-base font-semibold text-foreground">
+									Provider error
+								</Text>
+								<Pressable
+									onPress={handleCloseDrawer}
+									className="h-8 w-8 items-center justify-center rounded-full border border-border bg-background"
+								>
+									<Text className="text-sm text-muted">×</Text>
+								</Pressable>
+							</View>
+							<Text className="mt-2 text-sm text-muted">
+								The selected provider failed to load. Update the extension bundle.
+							</Text>
+							<View className="mt-4 rounded-[18px] border border-amber-500/40 bg-amber-500/10 px-4 py-3">
+								<Text className="text-sm text-amber-100">{providerLoadError}</Text>
+							</View>
+						</View>
+					</Animated.View>
+				</View>
+			) : null}
 		</View>
 	)
 }

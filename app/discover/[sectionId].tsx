@@ -7,6 +7,7 @@ import { useExtensionsStore } from "@stores/extensions"
 import type { ProviderMangaItem } from "../../types/provider"
 
 const PAGE_SIZE = 20
+const GENRE_RESULTS_PAGE_SIZE = 24
 
 export default function DiscoverSection() {
 	const params = useLocalSearchParams<{ sectionId: string; provider?: string; title?: string }>()
@@ -61,20 +62,42 @@ export default function DiscoverSection() {
 		[providerId, providers, sectionId]
 	)
 
+	const loadGenreResults = useCallback(
+		async (nextPage: number) => {
+			const provider = providers[providerId]
+			if (!provider || !sectionId) {
+				setError("Provider not available")
+				setLoading(false)
+				return
+			}
+			const data = await provider.getDiscoverSectionItems("genres", nextPage, {
+				genreId: sectionId,
+			})
+			setItems((current) => (nextPage === 1 ? data : [...current, ...data]))
+			setHasMore(data.length >= GENRE_RESULTS_PAGE_SIZE)
+			setPage(nextPage)
+		},
+		[providerId, providers, sectionId]
+	)
+
 	useEffect(() => {
 		setLoading(true)
 		setError(null)
-		loadPage(1)
+		const isGenreSelection = sectionId && sectionId !== "genres"
+		const load = isGenreSelection ? loadGenreResults : loadPage
+		load(1)
 			.catch((err) => setError(err instanceof Error ? err.message : "Failed to load"))
 			.finally(() => setLoading(false))
-	}, [loadPage])
+	}, [loadGenreResults, loadPage, sectionId])
 
 	const handleEndReached = () => {
 		if (loadingMore || loading || !hasMore) {
 			return
 		}
 		setLoadingMore(true)
-		loadPage(page + 1)
+		const isGenreSelection = sectionId && sectionId !== "genres"
+		const load = isGenreSelection ? loadGenreResults : loadPage
+		load(page + 1)
 			.catch(() => {})
 			.finally(() => setLoadingMore(false))
 	}

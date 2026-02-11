@@ -18,6 +18,7 @@ interface ExtensionsState {
 	providers: Record<string, ProviderContract>
 	enabledProviders: ProviderState[]
 	selectedProviderId?: string
+	loadErrors: Record<string, string>
 	setRepoUrl: (url: string) => void
 	setInstalled: (extensions: InstalledExtension[]) => void
 	setProvider: (id: string, provider?: ProviderContract) => void
@@ -32,6 +33,7 @@ export const useExtensionsStore = create<ExtensionsState>((set) => ({
 	providers: {},
 	enabledProviders: [],
 	selectedProviderId: undefined,
+	loadErrors: {},
 	setRepoUrl: (url) => set({ repoUrl: url }),
 	setInstalled: (extensions) => set({ installed: extensions }),
 	setProvider: (id, provider) =>
@@ -50,17 +52,22 @@ export const useExtensionsStore = create<ExtensionsState>((set) => ({
 		const installed = await loadInstalledExtensions()
 		const enabled = installed.filter((entry) => entry.enabled).sort((a, b) => a.order - b.order)
 		const providersMap: Record<string, ProviderContract> = {}
+		const loadErrors: Record<string, string> = {}
 		const enabledProviders = await Promise.all(
 			enabled.map(async (entry) => {
-				const provider = await loadProviderFromExtension(entry)
-				if (provider) {
+				let provider: ProviderContract | undefined
+				try {
+					provider = await loadProviderFromExtension(entry)
 					providersMap[entry.id] = provider
+				} catch (error) {
+					loadErrors[entry.id] =
+						error instanceof Error ? error.message : "Failed to load provider"
 				}
 				const sections = provider
 					? await provider.getDiscoverSections().then((base) => {
-						const hasGenres = base.some((section) => section.id === "genres")
-						return hasGenres ? base : [{ id: "genres", title: "Genres", items: [] }, ...base]
-					})
+							const hasGenres = base.some((section) => section.id === "genres")
+							return hasGenres ? base : [{ id: "genres", title: "Genres", items: [] }, ...base]
+						})
 					: ([] as ProviderDiscoverSection[])
 				return {
 					id: entry.id,
@@ -69,7 +76,7 @@ export const useExtensionsStore = create<ExtensionsState>((set) => ({
 						id: entry.id,
 						name: entry.name,
 						version: entry.version,
-						baseUrl: provider?.meta.baseUrl ?? entry.bundleUrl,
+						baseUrl: provider?.meta.baseUrl ?? "",
 						supportedLanguages: entry.enabledLanguages,
 						supportsAuth: false,
 						icon: provider?.meta.icon ?? entry.icon,
@@ -86,6 +93,7 @@ export const useExtensionsStore = create<ExtensionsState>((set) => ({
 				installed,
 				providers: providersMap,
 				enabledProviders,
+				loadErrors,
 				selectedProviderId: nextSelected,
 			}
 		})

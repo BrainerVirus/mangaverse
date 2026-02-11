@@ -55,7 +55,7 @@ const provider = {
 			}
 		})
 	},
-	async getDiscoverSectionItems(sectionId: string, page: number) {
+	async getDiscoverSectionItems(sectionId: string, page: number, filters?: Record<string, unknown>) {
 		const limit = 12
 		const offset = Math.max(0, page - 1) * limit
 		const baseParams = [
@@ -64,6 +64,10 @@ const provider = {
 			`offset=${offset}`,
 			toArrayParam(["cover_art"]),
 		]
+		const genreId = typeof filters?.genreId === "string" ? filters.genreId : undefined
+		if (sectionId === "genres" && genreId) {
+			baseParams.unshift(`includedTags[]=${encodeURIComponent(genreId)}`)
+		}
 		const order =
 			sectionId === "latest"
 				? "order[latestUploadedChapter]=desc"
@@ -74,27 +78,33 @@ const provider = {
 		const data = (await fetchJson(url)) as {
 			data: Array<{
 				id: string
-				attributes: { title: Record<string, string>; description?: Record<string, string> }
+				attributes: {
+					title: Record<string, string>
+					description?: Record<string, string>
+					lastChapter?: string | null
+				}
 				relationships: Array<{ type: string; attributes?: { fileName?: string } }>
 			}>
 		}
 		return data.data.map((item) => {
 			const title = item.attributes.title.en ?? Object.values(item.attributes.title)[0] ?? "Untitled"
 			const description = item.attributes.description?.en ?? ""
-			const cover = item.relationships.find((rel) => rel.type === "cover_art")?.attributes?.fileName
+		const cover = item.relationships.find((rel) => rel.type === "cover_art")?.attributes?.fileName
+		const lastChapter = item.attributes.lastChapter?.trim()
+		const chapterLabel = lastChapter ? `Chapter ${lastChapter}` : undefined
 			const subtitle =
 				sectionId === "latest"
 					? "Latest"
 					: sectionId === "recent"
 						? "Recent"
 						: "Popular"
-			return {
-				id: item.id,
-				title,
-				subtitle,
-				description,
-				coverUrl: mapCoverUrl(item.id, cover),
-			}
+		return {
+			id: item.id,
+			title,
+			subtitle: chapterLabel ?? subtitle,
+			description,
+			coverUrl: mapCoverUrl(item.id, cover),
+		}
 		})
 	},
 	async search(query: string, page: number) {

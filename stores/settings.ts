@@ -11,6 +11,7 @@ interface SettingsState {
 	readerMode: ReaderMode
 	prefetchCount: number
 	explicitContent: boolean
+	showProviderErrors: boolean
 	tapZonePreset: TapZonePreset
 	swipeEnabled: boolean
 	tapNavigationEnabled: boolean
@@ -21,6 +22,7 @@ interface SettingsState {
 	setTheme: (theme: ThemeOption) => void
 	setReaderMode: (mode: ReaderMode) => void
 	setExplicitContent: (enabled: boolean) => void
+	setShowProviderErrors: (enabled: boolean) => void
 	setTapZonePreset: (preset: TapZonePreset) => void
 	setSwipeEnabled: (enabled: boolean) => void
 	setTapNavigationEnabled: (enabled: boolean) => void
@@ -35,6 +37,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 	readerMode: "webtoon",
 	prefetchCount: 6,
 	explicitContent: false,
+	showProviderErrors: true,
 	tapZonePreset: "balanced",
 	swipeEnabled: true,
 	tapNavigationEnabled: true,
@@ -45,6 +48,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 	setTheme: (theme) => set({ theme }),
 	setReaderMode: (mode) => set({ readerMode: mode }),
 	setExplicitContent: (enabled) => set({ explicitContent: enabled }),
+	setShowProviderErrors: (enabled) => set({ showProviderErrors: enabled }),
 	setTapZonePreset: (preset) => set({ tapZonePreset: preset }),
 	setSwipeEnabled: (enabled) => set({ swipeEnabled: enabled }),
 	setTapNavigationEnabled: (enabled) => set({ tapNavigationEnabled: enabled }),
