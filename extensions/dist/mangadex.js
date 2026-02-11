@@ -71,6 +71,7 @@ typeof SuppressedError === "function" ? SuppressedError : function (error, suppr
 };
 
 var baseUrl = "https://api.mangadex.org";
+var siteUrl = "https://mangadex.org";
 var fetchJson = function (url) { return __awaiter(void 0, void 0, void 0, function () {
     var response;
     return __generator(this, function (_a) {
@@ -104,7 +105,7 @@ var provider = {
         id: "mangadex",
         name: "MangaDex",
         version: "0.1.0",
-        baseUrl: baseUrl,
+        baseUrl: siteUrl,
         supportedLanguages: ["en"],
         supportsAuth: false,
         icon: "https://mangadex.org/favicon.ico",
@@ -113,9 +114,33 @@ var provider = {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 return [2 /*return*/, [
-                        { id: "popular", title: "Most popular", items: [] },
-                        { id: "latest", title: "Latest updates", items: [] },
+                        { id: "popular", title: "Popular", items: [] },
+                        { id: "latest", title: "Latest Updates", items: [] },
+                        { id: "recent", title: "Recently Added", items: [] },
                     ]];
+            });
+        });
+    },
+    getDiscoverGenres: function () {
+        return __awaiter(this, void 0, void 0, function () {
+            var url, data;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        url = buildUrl("/manga/tag", ["limit=100"]);
+                        return [4 /*yield*/, fetchJson(url)];
+                    case 1:
+                        data = (_a.sent());
+                        return [2 /*return*/, data.data.map(function (tag) {
+                                var _a, _b;
+                                var name = (_b = (_a = tag.attributes.name.en) !== null && _a !== void 0 ? _a : Object.values(tag.attributes.name)[0]) !== null && _b !== void 0 ? _b : "Genre";
+                                return {
+                                    id: tag.id,
+                                    title: name,
+                                    subtitle: "Genre",
+                                };
+                            })];
+                }
             });
         });
     },
@@ -135,7 +160,9 @@ var provider = {
                         ];
                         order = sectionId === "latest"
                             ? "order[latestUploadedChapter]=desc"
-                            : "order[followedCount]=desc";
+                            : sectionId === "recent"
+                                ? "order[createdAt]=desc"
+                                : "order[followedCount]=desc";
                         url = buildUrl("/manga", __spreadArray([order], baseParams, true));
                         return [4 /*yield*/, fetchJson(url)];
                     case 1:
@@ -145,10 +172,15 @@ var provider = {
                                 var title = (_b = (_a = item.attributes.title.en) !== null && _a !== void 0 ? _a : Object.values(item.attributes.title)[0]) !== null && _b !== void 0 ? _b : "Untitled";
                                 var description = (_d = (_c = item.attributes.description) === null || _c === void 0 ? void 0 : _c.en) !== null && _d !== void 0 ? _d : "";
                                 var cover = (_f = (_e = item.relationships.find(function (rel) { return rel.type === "cover_art"; })) === null || _e === void 0 ? void 0 : _e.attributes) === null || _f === void 0 ? void 0 : _f.fileName;
+                                var subtitle = sectionId === "latest"
+                                    ? "Latest"
+                                    : sectionId === "recent"
+                                        ? "Recent"
+                                        : "Popular";
                                 return {
                                     id: item.id,
                                     title: title,
-                                    subtitle: sectionId === "latest" ? "Latest" : "Popular",
+                                    subtitle: subtitle,
                                     description: description,
                                     coverUrl: mapCoverUrl(item.id, cover),
                                 };

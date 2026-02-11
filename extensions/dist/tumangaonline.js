@@ -150,9 +150,39 @@ var provider = {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 return [2 /*return*/, [
-                        { id: "trending", title: "Tendencias", items: [] },
-                        { id: "recent", title: "Recientes", items: [] },
+                        { id: "popular", title: "Popular", items: [] },
+                        { id: "latest", title: "Latest Updates", items: [] },
+                        { id: "recent", title: "Recently Added", items: [] },
                     ]];
+            });
+        });
+    },
+    getDiscoverGenres: function () {
+        return __awaiter(this, void 0, void 0, function () {
+            var html, genreRegex, genres, match, _loop_1;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, fetchText("".concat(baseUrl, "/library?genres=1"))];
+                    case 1:
+                        html = _a.sent();
+                        genreRegex = /<a[^>]+href="[^"]*genre[^"]*"[^>]*>([^<]+)<\/a>/g;
+                        genres = [];
+                        _loop_1 = function () {
+                            var title = stripTags(match[1]);
+                            var id = title.toLowerCase().replace(/\s+/g, "-");
+                            if (!genres.some(function (item) { return item.id === id; })) {
+                                genres.push({ id: id, title: title });
+                            }
+                        };
+                        while ((match = genreRegex.exec(html))) {
+                            _loop_1();
+                        }
+                        return [2 /*return*/, genres.map(function (genre) { return ({
+                                id: genre.id,
+                                title: genre.title,
+                                subtitle: "Genre",
+                            }); })];
+                }
             });
         });
     },
