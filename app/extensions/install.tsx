@@ -1,6 +1,6 @@
+import { useLocalSearchParams, useRouter } from "expo-router"
 import { useMemo, useState } from "react"
 import { ActivityIndicator, ScrollView, Text, View } from "react-native"
-import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { GradientBackdrop } from "@components/GradientBackdrop"
 import {
@@ -52,8 +52,7 @@ export default function ExtensionInstall() {
 			icon: typeof params.icon === "string" ? params.icon : undefined,
 			languages: parseLanguages(params.languages),
 			nsfw: parseBoolean(params.nsfw),
-			minAppVersion:
-				typeof params.minAppVersion === "string" ? params.minAppVersion : undefined,
+			minAppVersion: typeof params.minAppVersion === "string" ? params.minAppVersion : undefined,
 		}
 	}, [params])
 
@@ -100,12 +99,11 @@ export default function ExtensionInstall() {
 					<Text className="mt-2 text-sm text-neutral-400">
 						{extensionParams.name || "Unknown extension"}
 					</Text>
-					<Text className="mt-1 text-xs uppercase tracking-[0.2em] text-neutral-500">
+					<Text className="mt-1 text-xs tracking-[0.2em] text-neutral-500 uppercase">
 						{extensionParams.id ?? ""}
 					</Text>
 					<Text className="mt-3 text-sm text-neutral-400">
-						Install this extension from a shared link. Only continue if you trust the
-						source.
+						Install this extension from a shared link. Only continue if you trust the source.
 					</Text>
 					{status === "installing" ? (
 						<View className="mt-4 flex-row items-center gap-3">
@@ -119,27 +117,23 @@ export default function ExtensionInstall() {
 						</Text>
 					) : null}
 					{status === "error" ? (
-						<Text className="mt-4 text-sm text-amber-100">
-							{message ?? "Failed to install."}
-						</Text>
+						<Text className="mt-4 text-sm text-amber-100">{message ?? "Failed to install."}</Text>
 					) : null}
 					<View className="mt-4 flex-row gap-3">
 						<Text
-							className="flex-1 rounded-full border border-neutral-700 px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.2em] text-neutral-300"
+							className="flex-1 rounded-full border border-neutral-700 px-4 py-2 text-center text-xs font-semibold tracking-[0.2em] text-neutral-300 uppercase"
 							onPress={() => router.replace("/settings/extensions")}
 						>
 							Cancel
 						</Text>
 						<Text
-							className={`flex-1 rounded-full px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.2em] ${
+							className={`flex-1 rounded-full px-4 py-2 text-center text-xs font-semibold tracking-[0.2em] uppercase ${
 								!extensionParams.bundleUrl || status === "installing"
 									? "bg-neutral-800 text-neutral-400"
 									: "bg-amber-500 text-neutral-950"
 							}`}
 							onPress={
-								!extensionParams.bundleUrl || status === "installing"
-									? undefined
-									: handleInstall
+								!extensionParams.bundleUrl || status === "installing" ? undefined : handleInstall
 							}
 						>
 							Install
@@ -147,17 +141,13 @@ export default function ExtensionInstall() {
 					</View>
 				</View>
 				<View className="mt-5 rounded-[26px] border border-white/5 bg-neutral-900/70 p-5">
-					<Text className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-						Bundle URL
-					</Text>
+					<Text className="text-xs tracking-[0.2em] text-neutral-500 uppercase">Bundle URL</Text>
 					<Text className="mt-2 text-sm text-neutral-300">
 						{extensionParams.bundleUrl || "Missing bundle URL"}
 					</Text>
 				</View>
 				<View className="mt-5 rounded-[26px] border border-white/5 bg-neutral-900/70 p-5">
-					<Text className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-						Metadata
-					</Text>
+					<Text className="text-xs tracking-[0.2em] text-neutral-500 uppercase">Metadata</Text>
 					<Text className="mt-2 text-sm text-neutral-300">
 						Version: {extensionParams.version ?? "0.0.0"}
 					</Text>

@@ -1,6 +1,6 @@
+import * as Linking from "expo-linking"
 import { useEffect } from "react"
 import { ActivityIndicator, Text, View } from "react-native"
-import * as Linking from "expo-linking"
 
 import { isSupabaseConfigured, supabase } from "@services/auth/supabase"
 

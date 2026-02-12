@@ -58,7 +58,7 @@ export default function Settings() {
 			<ScrollView className="flex-1 px-5 pt-6" contentInsetAdjustmentBehavior="automatic">
 				<SectionHeading title="Settings" subtitle="Tune your experience" />
 				<View className="mb-6 rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">
-					<Text className="text-sm uppercase tracking-[0.2em] text-neutral-500">Theme</Text>
+					<Text className="text-sm tracking-[0.2em] text-neutral-500 uppercase">Theme</Text>
 					<Text className="mt-2 text-lg font-semibold text-white">{theme}</Text>
 					<Text className="mt-1 text-sm text-neutral-400">
 						Appearance applies across the reader and library.
@@ -71,12 +71,8 @@ export default function Settings() {
 							href={section.link}
 							className="rounded-[26px] border border-white/5 bg-neutral-900/70 p-5"
 						>
-							<Text className="text-lg font-semibold text-white">
-								{section.title}
-							</Text>
-							<Text className="mt-2 text-sm text-neutral-400">
-								{section.description}
-							</Text>
+							<Text className="text-lg font-semibold text-white">{section.title}</Text>
+							<Text className="mt-2 text-sm text-neutral-400">{section.description}</Text>
 						</Link>
 					))}
 				</View>

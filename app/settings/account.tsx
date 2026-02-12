@@ -63,24 +63,24 @@ export default function AccountSettings() {
 					</Text>
 					{!isSupabaseConfigured ? (
 						<View className="mt-3 rounded-[22px] border border-amber-500/40 bg-amber-500/10 px-4 py-3">
-							<Text className="text-xs uppercase tracking-[0.2em] text-amber-200">
+							<Text className="text-xs tracking-[0.2em] text-amber-200 uppercase">
 								Supabase not configured
 							</Text>
 							<Text className="mt-2 text-sm text-amber-100">
-								Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_KEY to your
-								.env to enable auth.
+								Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_KEY to your .env to enable
+								auth.
 							</Text>
 						</View>
 					) : null}
 					<Link
 						href="/settings/auth-help"
-						className="mt-3 rounded-full bg-neutral-800 px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.2em] text-neutral-200"
+						className="mt-3 rounded-full bg-neutral-800 px-4 py-2 text-center text-xs font-semibold tracking-[0.2em] text-neutral-200 uppercase"
 					>
 						Auth setup help
 					</Link>
 					{session ? (
 						<Text
-							className="mt-4 rounded-full bg-neutral-800 px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.2em] text-neutral-200"
+							className="mt-4 rounded-full bg-neutral-800 px-4 py-2 text-center text-xs font-semibold tracking-[0.2em] text-neutral-200 uppercase"
 							onPress={() => signOut()}
 						>
 							Sign out
@@ -98,7 +98,7 @@ export default function AccountSettings() {
 								keyboardType="email-address"
 							/>
 							<Text
-								className={`rounded-full px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.2em] ${
+								className={`rounded-full px-4 py-2 text-center text-xs font-semibold tracking-[0.2em] uppercase ${
 									status === "sending"
 										? "bg-neutral-800 text-neutral-300"
 										: "bg-amber-500 text-neutral-950"
@@ -116,7 +116,7 @@ export default function AccountSettings() {
 								keyboardType="number-pad"
 							/>
 							<Text
-								className={`rounded-full px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.2em] ${
+								className={`rounded-full px-4 py-2 text-center text-xs font-semibold tracking-[0.2em] uppercase ${
 									status === "verifying"
 										? "bg-neutral-800 text-neutral-300"
 										: "bg-neutral-800 text-neutral-200"
@@ -127,31 +127,31 @@ export default function AccountSettings() {
 							</Text>
 							<View className="flex-row flex-wrap gap-2">
 								<Text
-									className="rounded-full bg-neutral-800 px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.2em] text-neutral-200"
+									className="rounded-full bg-neutral-800 px-4 py-2 text-center text-xs font-semibold tracking-[0.2em] text-neutral-200 uppercase"
 									onPress={() => signInWithProvider("google")}
 								>
 									Google
 								</Text>
 								<Text
-									className="rounded-full bg-neutral-800 px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.2em] text-neutral-200"
+									className="rounded-full bg-neutral-800 px-4 py-2 text-center text-xs font-semibold tracking-[0.2em] text-neutral-200 uppercase"
 									onPress={() => signInWithProvider("apple")}
 								>
 									Apple
 								</Text>
 								<Text
-									className="rounded-full bg-neutral-800 px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.2em] text-neutral-200"
+									className="rounded-full bg-neutral-800 px-4 py-2 text-center text-xs font-semibold tracking-[0.2em] text-neutral-200 uppercase"
 									onPress={() => signInWithProvider("facebook")}
 								>
 									Facebook
 								</Text>
 								<Text
-									className="rounded-full bg-neutral-800 px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.2em] text-neutral-200"
+									className="rounded-full bg-neutral-800 px-4 py-2 text-center text-xs font-semibold tracking-[0.2em] text-neutral-200 uppercase"
 									onPress={() => signInWithProvider("discord")}
 								>
 									Discord
 								</Text>
 								<Text
-									className="rounded-full bg-neutral-800 px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.2em] text-neutral-200"
+									className="rounded-full bg-neutral-800 px-4 py-2 text-center text-xs font-semibold tracking-[0.2em] text-neutral-200 uppercase"
 									onPress={() => signInWithProvider("github")}
 								>
 									GitHub
@@ -162,9 +162,7 @@ export default function AccountSettings() {
 									Check your email for the magic link or enter the OTP code above.
 								</Text>
 							) : null}
-							{error ? (
-								<Text className="text-xs text-red-400">{error}</Text>
-							) : null}
+							{error ? <Text className="text-xs text-red-400">{error}</Text> : null}
 						</View>
 					)}
 				</View>

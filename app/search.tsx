@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react"
 import { Link } from "expo-router"
+import { useEffect, useState } from "react"
 import { ActivityIndicator, ScrollView, Text, TextInput, View } from "react-native"
 
 import { GradientBackdrop } from "@components/GradientBackdrop"
@@ -32,12 +32,8 @@ export default function GlobalSearch() {
 		<View className="flex-1 bg-neutral-950">
 			<GradientBackdrop />
 			<View className="px-5 pt-6">
-				<Text className="text-xs uppercase tracking-[0.24em] text-neutral-500">
-					Global search
-				</Text>
-				<Text className="mt-2 text-3xl font-semibold text-[#f6f1e9]">
-					Find your next read
-				</Text>
+				<Text className="text-xs tracking-[0.24em] text-neutral-500 uppercase">Global search</Text>
+				<Text className="mt-2 text-3xl font-semibold text-[#f6f1e9]">Find your next read</Text>
 				<View className="mt-4 rounded-[24px] border border-white/5 bg-neutral-900/70 p-3">
 					<TextInput
 						className="rounded-[18px] border border-neutral-700 bg-neutral-950 px-4 py-3 text-base text-white"
@@ -73,14 +69,14 @@ export default function GlobalSearch() {
 					providers.map((provider) => {
 						const status = statusByProvider[provider.id]
 						const results = resultsByProvider[provider.id] ?? []
-						const statusLabel = status === "loading" ? "Searching" : status ?? "idle"
+						const statusLabel = status === "loading" ? "Searching" : (status ?? "idle")
 						const hasResults = results.length > 0
 						const isEmpty = hasQuery && status === "success" && !hasResults
 						return (
 							<View key={provider.id} className="border-b border-neutral-900/60 py-6">
 								<View className="mb-3 flex-row items-center justify-between">
 									<Text className="text-lg font-semibold text-white">{provider.name}</Text>
-									<Text className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+									<Text className="text-xs tracking-[0.2em] text-neutral-500 uppercase">
 										{statusLabel}
 									</Text>
 								</View>

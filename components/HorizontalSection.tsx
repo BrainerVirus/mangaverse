@@ -12,7 +12,7 @@ interface HorizontalSectionProps {
 	gap: number
 	cardWidth: number
 	renderItem: (item: ProviderMangaItem, index: number) => React.ReactNode
- 	seeAllVariant?: "primary" | "ghost"
+	seeAllVariant?: "primary" | "ghost"
 }
 
 export function HorizontalSection({
@@ -30,11 +30,12 @@ export function HorizontalSection({
 		seeAllVariant === "primary"
 			? "h-11 w-11 items-center justify-center rounded-[16px] bg-accent"
 			: "h-11 w-11 items-center justify-center rounded-[16px] bg-accent/20"
-	const seeAllTextClassName = seeAllVariant === "primary" ? "text-base text-accent-foreground" : "text-base text-accent"
+	const seeAllTextClassName =
+		seeAllVariant === "primary" ? "text-base text-accent-foreground" : "text-base text-accent"
 	return (
 		<View>
 			<View className="flex-row items-center justify-between">
-				<Text className="text-lg font-semibold text-foreground">{title}</Text>
+				<Text className="text-foreground text-lg font-semibold">{title}</Text>
 				<Link
 					href={{
 						pathname: "/discover/[sectionId]",

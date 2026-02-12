@@ -14,9 +14,7 @@ export default function AppearanceSettings() {
 				<SectionHeading title="Appearance" subtitle="Theme & layout" />
 				<View className="gap-3 pb-12">
 					<View className="rounded-[22px] bg-neutral-900/70 p-5">
-						<Text className="text-xs uppercase tracking-[0.2em] text-neutral-400">
-							Theme
-						</Text>
+						<Text className="text-xs tracking-[0.2em] text-neutral-400 uppercase">Theme</Text>
 						<View className="mt-4 gap-3">
 							{themes.map((item) => (
 								<Text

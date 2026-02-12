@@ -14,21 +14,19 @@ export default function AuthHelp() {
 					<Text className="mt-2 text-sm text-neutral-400">
 						Add redirect URLs in Supabase Auth settings for magic links and OAuth.
 					</Text>
-					<Text className="mt-4 text-xs uppercase tracking-[0.2em] text-neutral-500">
+					<Text className="mt-4 text-xs tracking-[0.2em] text-neutral-500 uppercase">
 						Production
 					</Text>
 					<Text className="mt-2 rounded-2xl border border-white/5 bg-neutral-950/70 px-3 py-2 text-xs text-neutral-200">
 						mangaverse://auth/callback
 					</Text>
-					<Text className="mt-4 text-xs uppercase tracking-[0.2em] text-neutral-500">
-						Expo dev
-					</Text>
+					<Text className="mt-4 text-xs tracking-[0.2em] text-neutral-500 uppercase">Expo dev</Text>
 					<Text className="mt-2 rounded-2xl border border-white/5 bg-neutral-950/70 px-3 py-2 text-xs text-neutral-200">
 						exp://&lt;your-dev-host&gt;/--/auth/callback
 					</Text>
 					<Text className="mt-4 text-sm text-neutral-400">
-						Enable Google, Apple, Facebook, Discord, and GitHub providers in Supabase
-						Auth settings, and set the redirect URL to the callback above.
+						Enable Google, Apple, Facebook, Discord, and GitHub providers in Supabase Auth settings,
+						and set the redirect URL to the callback above.
 					</Text>
 				</View>
 			</ScrollView>

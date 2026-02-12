@@ -3,7 +3,11 @@ import { ScrollView, Switch, Text, TextInput, View } from "react-native"
 
 import { GradientBackdrop } from "@components/GradientBackdrop"
 import { SectionHeading } from "@components/SectionHeading"
-import { installExtension, saveInstalledExtensions, uninstallExtension } from "@services/extensions/manager"
+import {
+	installExtension,
+	saveInstalledExtensions,
+	uninstallExtension,
+} from "@services/extensions/manager"
 import { fetchExtensionIndex } from "@services/extensions/repository"
 import { useExtensionsStore } from "@stores/extensions"
 import { useSettingsStore } from "@stores/settings"
@@ -73,7 +77,7 @@ export default function ExtensionsSettings() {
 			<ScrollView className="flex-1 px-5 pt-6" contentInsetAdjustmentBehavior="automatic">
 				<SectionHeading title="Extensions" subtitle="Manage providers" />
 				<View className="rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">
-					<Text className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+					<Text className="text-xs tracking-[0.2em] text-neutral-500 uppercase">
 						Repository URL
 					</Text>
 					<TextInput
@@ -116,27 +120,23 @@ export default function ExtensionsSettings() {
 				<View className="mt-6 gap-4 pb-12">
 					{providers.length === 0 ? (
 						<View className="rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">
-							<Text className="text-base font-semibold text-white">
-								No extensions installed.
-							</Text>
+							<Text className="text-base font-semibold text-white">No extensions installed.</Text>
 							<Text className="mt-2 text-sm text-neutral-400">
 								Add a repository URL to browse extensions.
 							</Text>
 						</View>
 					) : (
 						providers.map((provider) => (
-						<View
-							key={provider.id}
-							className="rounded-[26px] border border-white/5 bg-neutral-900/70 p-5"
-						>
-								<Text className="text-base font-semibold text-white">
-									{provider.name}
-								</Text>
+							<View
+								key={provider.id}
+								className="rounded-[26px] border border-white/5 bg-neutral-900/70 p-5"
+							>
+								<Text className="text-base font-semibold text-white">{provider.name}</Text>
 								<Text className="mt-2 text-sm text-neutral-400">
 									{provider.meta.supportedLanguages.join(", ") || "No languages"}
 								</Text>
 								<Text
-									className="mt-3 rounded-full bg-neutral-800 px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.2em] text-neutral-200"
+									className="mt-3 rounded-full bg-neutral-800 px-4 py-2 text-center text-xs font-semibold tracking-[0.2em] text-neutral-200 uppercase"
 									onPress={loading ? undefined : () => handleUninstall(provider.id)}
 								>
 									Uninstall
@@ -146,9 +146,7 @@ export default function ExtensionsSettings() {
 					)}
 					{index.length > 0 ? (
 						<View className="gap-4">
-							<Text className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-								Available
-							</Text>
+							<Text className="text-xs tracking-[0.2em] text-neutral-500 uppercase">Available</Text>
 							{index.map((item) => {
 								const isInstalled = installed.some((entry) => entry.id === item.id)
 								return (
@@ -156,21 +154,17 @@ export default function ExtensionsSettings() {
 										key={item.id}
 										className="rounded-[26px] border border-white/5 bg-neutral-900/70 p-5"
 									>
-										<Text className="text-base font-semibold text-white">
-											{item.name}
-										</Text>
+										<Text className="text-base font-semibold text-white">{item.name}</Text>
 										<Text className="mt-1 text-sm text-neutral-400">
 											{item.languages.join(", ") || "No languages"}
 										</Text>
 										<Text
-											className={`mt-3 rounded-full px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.2em] ${
+											className={`mt-3 rounded-full px-4 py-2 text-center text-xs font-semibold tracking-[0.2em] uppercase ${
 												isInstalled
 													? "bg-neutral-800 text-neutral-400"
 													: "bg-amber-500 text-neutral-950"
 											}`}
-											onPress={
-												isInstalled || loading ? undefined : () => handleInstall(item)
-											}
+											onPress={isInstalled || loading ? undefined : () => handleInstall(item)}
 										>
 											{isInstalled ? "Installed" : "Install"}
 										</Text>

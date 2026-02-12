@@ -4,8 +4,8 @@ import { ActivityIndicator, Image, ScrollView, Text, View } from "react-native"
 
 import { GradientBackdrop } from "@components/GradientBackdrop"
 import { SectionHeading } from "@components/SectionHeading"
-import { useExtensionsStore } from "@stores/extensions"
 import { useFavoritesStore } from "@services/library/favorites"
+import { useExtensionsStore } from "@stores/extensions"
 import type { ProviderChapter, ProviderMangaItem } from "../../types/provider"
 
 export default function MangaDetail() {
@@ -33,22 +33,14 @@ export default function MangaDetail() {
 		setChaptersError(null)
 		const loadDetails = async () => {
 			const [detailsResult, chapterResult] = await Promise.all([
-				providerInstance
-					.getMangaDetails(id)
-					.catch((err) => {
-						setDetailsError(
-							err instanceof Error ? err.message : "Failed to load details"
-						)
-						return null
-					}),
-				providerInstance
-					.getChapterList(id)
-					.catch((err) => {
-						setChaptersError(
-							err instanceof Error ? err.message : "Failed to load chapters"
-						)
-						return [] as ProviderChapter[]
-					}),
+				providerInstance.getMangaDetails(id).catch((err) => {
+					setDetailsError(err instanceof Error ? err.message : "Failed to load details")
+					return null
+				}),
+				providerInstance.getChapterList(id).catch((err) => {
+					setChaptersError(err instanceof Error ? err.message : "Failed to load chapters")
+					return [] as ProviderChapter[]
+				}),
 			])
 			setDetails(detailsResult)
 			setChapters(chapterResult)
@@ -73,16 +65,13 @@ export default function MangaDetail() {
 					) : details ? (
 						<View className="flex-row gap-4">
 							{details.coverUrl ? (
-								<Image
-									source={{ uri: details.coverUrl }}
-									className="h-40 w-28 rounded-[20px]"
-								/>
+								<Image source={{ uri: details.coverUrl }} className="h-40 w-28 rounded-[20px]" />
 							) : (
 								<View className="h-40 w-28 rounded-[20px] bg-neutral-800" />
 							)}
 							<View className="flex-1">
 								<Text className="text-base font-semibold text-white">{details.title}</Text>
-								<Text className="mt-2 text-xs uppercase tracking-[0.2em] text-neutral-500">
+								<Text className="mt-2 text-xs tracking-[0.2em] text-neutral-500 uppercase">
 									{providerId}
 								</Text>
 								<Text className="mt-3 text-sm text-neutral-400" numberOfLines={4}>
@@ -93,10 +82,8 @@ export default function MangaDetail() {
 					) : null}
 					{details ? (
 						<Text
-							className={`mt-4 rounded-full px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.2em] ${
-								isFavorite
-									? "bg-amber-500 text-neutral-950"
-									: "bg-neutral-800 text-neutral-300"
+							className={`mt-4 rounded-full px-4 py-2 text-center text-xs font-semibold tracking-[0.2em] uppercase ${
+								isFavorite ? "bg-amber-500 text-neutral-950" : "bg-neutral-800 text-neutral-300"
 							}`}
 							onPress={() => {
 								if (isFavorite) {
@@ -115,9 +102,7 @@ export default function MangaDetail() {
 					{chaptersError ? (
 						<Text className="mt-2 text-sm text-amber-100">{chaptersError}</Text>
 					) : chapters.length === 0 ? (
-						<Text className="mt-2 text-sm text-neutral-400">
-							No chapters loaded yet.
-						</Text>
+						<Text className="mt-2 text-sm text-neutral-400">No chapters loaded yet.</Text>
 					) : (
 						<View className="mt-3 gap-3">
 							{chapters.slice(0, 12).map((chapter, index) => (
@@ -125,29 +110,27 @@ export default function MangaDetail() {
 									key={chapter.id}
 									href={{
 										pathname: "/reader/[chapterId]",
-									params: {
-										chapterId: chapter.id,
-										provider: providerId,
-										mangaId: details?.id ?? "",
-										chapterTitle: chapter.title,
-										mangaTitle: details?.title ?? "",
-									},
+										params: {
+											chapterId: chapter.id,
+											provider: providerId,
+											mangaId: details?.id ?? "",
+											chapterTitle: chapter.title,
+											mangaTitle: details?.title ?? "",
+										},
 									}}
 									className="rounded-[22px] border border-white/5 bg-neutral-950/80 px-4 py-3"
 								>
 									<View className="flex-row items-center justify-between">
 										<View className="pr-4">
-											<Text className="text-sm font-semibold text-white">
-												{chapter.title}
-											</Text>
+											<Text className="text-sm font-semibold text-white">{chapter.title}</Text>
 											{chapter.language ? (
-												<Text className="mt-1 text-xs uppercase tracking-[0.2em] text-neutral-500">
+												<Text className="mt-1 text-xs tracking-[0.2em] text-neutral-500 uppercase">
 													{chapter.language}
 												</Text>
 											) : null}
 										</View>
 										<View className="rounded-full border border-white/10 bg-neutral-900/70 px-3 py-1">
-											<Text className="text-[11px] uppercase tracking-[0.2em] text-neutral-400">
+											<Text className="text-[11px] tracking-[0.2em] text-neutral-400 uppercase">
 												{index + 1}
 											</Text>
 										</View>

@@ -30,7 +30,7 @@ export default function Library() {
 					<View className="rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">
 						<View className="flex-row items-center justify-between">
 							<View>
-								<Text className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+								<Text className="text-xs tracking-[0.2em] text-neutral-500 uppercase">
 									Saved titles
 								</Text>
 								<Text className="mt-2 text-2xl font-semibold text-white">
@@ -38,9 +38,7 @@ export default function Library() {
 								</Text>
 							</View>
 							<View className="rounded-full border border-white/10 bg-neutral-950/60 px-3 py-2">
-								<Text className="text-xs uppercase tracking-[0.2em] text-neutral-400">
-									Library
-								</Text>
+								<Text className="text-xs tracking-[0.2em] text-neutral-400 uppercase">Library</Text>
 							</View>
 						</View>
 						<View className="mt-4 flex-row flex-wrap gap-4">

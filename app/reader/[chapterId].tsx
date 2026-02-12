@@ -1,16 +1,9 @@
-import * as ScreenOrientation from "expo-screen-orientation"
 import { Ionicons } from "@expo/vector-icons"
 import { Link, useLocalSearchParams } from "expo-router"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
+import * as ScreenOrientation from "expo-screen-orientation"
 import { useEffect, useMemo, useRef, useState } from "react"
-import {
-	ActivityIndicator,
-	Image,
-	Pressable,
-	ScrollView,
-	Text,
-	View,
-} from "react-native"
+import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { useExtensionsStore } from "@stores/extensions"
 import { useHistoryStore } from "@stores/history"
@@ -120,18 +113,18 @@ export default function ReaderScreen() {
 	}
 
 	const handleTapZone = (x: number) => {
-			if (!isPagedMode) {
-				if (!showSettings) {
-					setChromeVisible((value) => !value)
-				}
-				return
+		if (!isPagedMode) {
+			if (!showSettings) {
+				setChromeVisible((value) => !value)
 			}
-			if (!tapNavigationEnabled) {
-				if (!showSettings) {
-					setChromeVisible((value) => !value)
-				}
-				return
+			return
+		}
+		if (!tapNavigationEnabled) {
+			if (!showSettings) {
+				setChromeVisible((value) => !value)
 			}
+			return
+		}
 		const width = tapWidth || 1
 		const leftEdge = width * tapZones.left
 		const rightEdge = width * (1 - tapZones.right)
@@ -241,7 +234,6 @@ export default function ReaderScreen() {
 		setChromeVisible(true)
 	}
 
-
 	const handleImageLoad =
 		(url: string) => (event: { nativeEvent: { source?: { width?: number; height?: number } } }) => {
 			const width = event.nativeEvent.source?.width
@@ -273,19 +265,19 @@ export default function ReaderScreen() {
 			<View className="flex-1">
 				{chromeVisible ? (
 					<View className="px-5" style={{ paddingTop: 24 + insets.top }}>
-						<View className="rounded-[18px] bg-card px-4 py-3">
+						<View className="bg-card rounded-[18px] px-4 py-3">
 							<View className="flex-row items-center justify-between">
 								<View className="flex-1 pr-4">
-									<Text className="text-base font-semibold text-foreground" numberOfLines={1}>
+									<Text className="text-foreground text-base font-semibold" numberOfLines={1}>
 										{readerTitle}
 									</Text>
-									<Text className="text-xs text-muted" numberOfLines={1}>
+									<Text className="text-muted text-xs" numberOfLines={1}>
 										{readerSubtitle}
 									</Text>
 								</View>
 								<Pressable
 									onPress={() => setChromeVisible(false)}
-									className="h-9 w-9 items-center justify-center rounded-full bg-chip"
+									className="bg-chip h-9 w-9 items-center justify-center rounded-full"
 								>
 									<Ionicons name="close" size={18} color="#f5f5f5" />
 								</Pressable>
@@ -306,7 +298,7 @@ export default function ReaderScreen() {
 										}
 										setChromeVisible(false)
 									}}
-									className={`h-10 w-10 items-center justify-center rounded-full bg-chip ${
+									className={`bg-chip h-10 w-10 items-center justify-center rounded-full ${
 										infoMangaId ? "" : "opacity-40"
 									}`}
 								>
@@ -421,40 +413,40 @@ export default function ReaderScreen() {
 						className="absolute inset-x-0 px-5"
 						style={{ bottom: Math.max(insets.bottom, 10), paddingBottom: 12 }}
 					>
-						<View className="flex-row items-center justify-between rounded-[24px] bg-card px-4 py-3">
+						<View className="bg-card flex-row items-center justify-between rounded-[24px] px-4 py-3">
 							<Pressable
 								onPress={() => {
 									setReaderMode(readerMode === "rtl" ? "ltr" : "rtl")
 								}}
-								className="h-11 w-11 items-center justify-center rounded-full bg-chip"
+								className="bg-chip h-11 w-11 items-center justify-center rounded-full"
 							>
 								<Ionicons name="swap-horizontal" size={18} color="#f5f5f5" />
 							</Pressable>
 							<Pressable
 								onPress={() => setLockRotation(!lockRotation)}
-								className="h-11 w-11 items-center justify-center rounded-full bg-chip"
+								className="bg-chip h-11 w-11 items-center justify-center rounded-full"
 							>
 								<Ionicons name="lock-closed" size={18} color="#f5f5f5" />
 							</Pressable>
 							<Pressable
 								onPress={handleSettingsToggle}
-								className="h-11 w-11 items-center justify-center rounded-full bg-chip"
+								className="bg-chip h-11 w-11 items-center justify-center rounded-full"
 							>
 								<Ionicons name="settings-sharp" size={18} color="#f5f5f5" />
 							</Pressable>
 							<View className="flex-row items-center gap-3">
 								<Pressable
 									onPress={handlePrev}
-									className="h-11 w-11 items-center justify-center rounded-full bg-chip"
+									className="bg-chip h-11 w-11 items-center justify-center rounded-full"
 								>
 									<Ionicons name="chevron-back" size={18} color="#f5f5f5" />
 								</Pressable>
-								<Text className="text-xs uppercase tracking-[0.2em] text-foreground">
+								<Text className="text-foreground text-xs tracking-[0.2em] uppercase">
 									{pageDisplay}
 								</Text>
 								<Pressable
 									onPress={handleNext}
-									className="h-11 w-11 items-center justify-center rounded-full bg-chip"
+									className="bg-chip h-11 w-11 items-center justify-center rounded-full"
 								>
 									<Ionicons name="chevron-forward" size={18} color="#f5f5f5" />
 								</Pressable>
@@ -465,7 +457,7 @@ export default function ReaderScreen() {
 				{showSettings ? (
 					<View className="absolute inset-0 justify-end bg-black/60">
 						<Pressable className="flex-1" onPress={() => setShowSettings(false)} />
-						<View className="rounded-t-[32px] border border-white/10 bg-neutral-950 px-5 pb-8 pt-6">
+						<View className="rounded-t-[32px] border border-white/10 bg-neutral-950 px-5 pt-6 pb-8">
 							<View className="flex-row items-center justify-between">
 								<Text className="text-lg font-semibold text-white">Reader Settings</Text>
 								<Text
@@ -476,15 +468,13 @@ export default function ReaderScreen() {
 								</Text>
 							</View>
 							<View className="mt-6">
-								<Text className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+								<Text className="text-xs tracking-[0.2em] text-neutral-500 uppercase">
 									Reader type
 								</Text>
 								<View className="mt-3 flex-row overflow-hidden rounded-full border border-white/10 bg-neutral-900">
 									<Text
 										className={`flex-1 px-4 py-2 text-center text-sm font-semibold ${
-											readerMode === "webtoon"
-												? "bg-neutral-800 text-white"
-												: "text-neutral-400"
+											readerMode === "webtoon" ? "bg-neutral-800 text-white" : "text-neutral-400"
 										}`}
 										onPress={() => setReaderMode("webtoon")}
 									>
@@ -503,7 +493,7 @@ export default function ReaderScreen() {
 								</View>
 							</View>
 							<View className="mt-6">
-								<Text className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+								<Text className="text-xs tracking-[0.2em] text-neutral-500 uppercase">
 									Reader direction
 								</Text>
 								<View className="mt-3 gap-3">
@@ -529,9 +519,7 @@ export default function ReaderScreen() {
 								</View>
 							</View>
 							<View className="mt-6">
-								<Text className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-									Display
-								</Text>
+								<Text className="text-xs tracking-[0.2em] text-neutral-500 uppercase">Display</Text>
 								<View className="mt-3 gap-3">
 									{(
 										[
@@ -555,7 +543,7 @@ export default function ReaderScreen() {
 								</View>
 							</View>
 							<View className="mt-6">
-								<Text className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+								<Text className="text-xs tracking-[0.2em] text-neutral-500 uppercase">
 									Background
 								</Text>
 								<View className="mt-3 gap-3">
@@ -620,9 +608,7 @@ export default function ReaderScreen() {
 										}`}
 									>
 										<View
-											className={`h-6 w-6 rounded-full bg-white ${
-												swipeEnabled ? "ml-6" : "ml-0"
-											}`}
+											className={`h-6 w-6 rounded-full bg-white ${swipeEnabled ? "ml-6" : "ml-0"}`}
 										/>
 									</Pressable>
 								</View>
@@ -635,9 +621,7 @@ export default function ReaderScreen() {
 										}`}
 									>
 										<View
-											className={`h-6 w-6 rounded-full bg-white ${
-												lockRotation ? "ml-6" : "ml-0"
-											}`}
+											className={`h-6 w-6 rounded-full bg-white ${lockRotation ? "ml-6" : "ml-0"}`}
 										/>
 									</Pressable>
 								</View>

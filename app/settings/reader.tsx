@@ -54,7 +54,7 @@ export default function ReaderSettings() {
 				<SectionHeading title="Reader" subtitle="Defaults & gestures" />
 				<View className="gap-3 pb-12">
 					<View className="rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">
-						<Text className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+						<Text className="text-xs tracking-[0.2em] text-neutral-500 uppercase">
 							Reading direction
 						</Text>
 						<View className="mt-4 gap-3">
@@ -73,9 +73,7 @@ export default function ReaderSettings() {
 							))}
 						</View>
 						<View className="mt-6">
-							<Text className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-								Tap zones
-							</Text>
+							<Text className="text-xs tracking-[0.2em] text-neutral-500 uppercase">Tap zones</Text>
 							<View className="mt-4 gap-3">
 								{tapPresets.map((preset) => (
 									<Text
@@ -94,17 +92,15 @@ export default function ReaderSettings() {
 						</View>
 					</View>
 					<View className="rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">
-						<Text className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-							Display
-						</Text>
+						<Text className="text-xs tracking-[0.2em] text-neutral-500 uppercase">Display</Text>
 						<View className="mt-4 gap-3">
 							{fitModes.map((mode) => (
 								<Text
 									key={mode.id}
 									className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
 										fitMode === mode.id
-												? "border-amber-400/80 bg-amber-500/15 text-amber-100"
-												: "border-white/5 bg-neutral-900/70 text-neutral-300"
+											? "border-amber-400/80 bg-amber-500/15 text-amber-100"
+											: "border-white/5 bg-neutral-900/70 text-neutral-300"
 									}`}
 									onPress={() => setFitMode(mode.id)}
 								>
@@ -113,7 +109,7 @@ export default function ReaderSettings() {
 							))}
 						</View>
 						<View className="mt-6">
-							<Text className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+							<Text className="text-xs tracking-[0.2em] text-neutral-500 uppercase">
 								Background
 							</Text>
 							<View className="mt-4 gap-3">
@@ -134,9 +130,7 @@ export default function ReaderSettings() {
 						</View>
 					</View>
 					<View className="rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">
-						<Text className="text-xs uppercase tracking-[0.2em] text-neutral-500">
-							Controls
-						</Text>
+						<Text className="text-xs tracking-[0.2em] text-neutral-500 uppercase">Controls</Text>
 						<View className="mt-4 flex-row items-center justify-between">
 							<View className="flex-1 pr-4">
 								<Text className="text-base font-semibold text-white">Swipe navigation</Text>

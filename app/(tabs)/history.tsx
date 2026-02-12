@@ -39,9 +39,7 @@ export default function History() {
 				</View>
 				{privateMode ? (
 					<View className="mt-4 rounded-[28px] border border-amber-500/40 bg-amber-500/10 p-5">
-						<Text className="text-base font-semibold text-amber-100">
-							Private mode is on
-						</Text>
+						<Text className="text-base font-semibold text-amber-100">Private mode is on</Text>
 						<Text className="mt-2 text-sm text-amber-100/80">
 							History entries will not be saved while private mode is enabled.
 						</Text>
@@ -59,7 +57,7 @@ export default function History() {
 						<View className="rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">
 							<View className="flex-row items-center justify-between">
 								<View>
-									<Text className="text-xs uppercase tracking-[0.2em] text-neutral-500">
+									<Text className="text-xs tracking-[0.2em] text-neutral-500 uppercase">
 										Recent sessions
 									</Text>
 									<Text className="mt-2 text-2xl font-semibold text-white">
@@ -67,7 +65,7 @@ export default function History() {
 									</Text>
 								</View>
 								<View className="rounded-full border border-white/10 bg-neutral-950/60 px-3 py-2">
-									<Text className="text-xs uppercase tracking-[0.2em] text-neutral-400">
+									<Text className="text-xs tracking-[0.2em] text-neutral-400 uppercase">
 										History
 									</Text>
 								</View>
@@ -78,10 +76,8 @@ export default function History() {
 										key={entry.id}
 										className="rounded-[26px] border border-white/5 bg-neutral-900/70 p-5"
 									>
-										<Text className="text-base font-semibold text-white">
-											{entry.title}
-										</Text>
-										<Text className="mt-1 text-xs uppercase tracking-[0.2em] text-neutral-500">
+										<Text className="text-base font-semibold text-white">{entry.title}</Text>
+										<Text className="mt-1 text-xs tracking-[0.2em] text-neutral-500 uppercase">
 											{entry.readAtLabel}
 										</Text>
 										<Text className="mt-3 text-sm text-neutral-400">

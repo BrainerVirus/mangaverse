@@ -1,6 +1,13 @@
 import { Link, useLocalSearchParams } from "expo-router"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { ActivityIndicator, FlatList, Pressable, Text, View, useWindowDimensions } from "react-native"
+import {
+	ActivityIndicator,
+	FlatList,
+	Pressable,
+	Text,
+	View,
+	useWindowDimensions,
+} from "react-native"
 
 import { MangaCard } from "@components/MangaCard"
 import { useExtensionsStore } from "@stores/extensions"
@@ -103,7 +110,7 @@ export default function DiscoverSection() {
 	}
 
 	return (
-		<View className="flex-1 bg-background">
+		<View className="bg-background flex-1">
 			<FlatList
 				className="flex-1"
 				contentInsetAdjustmentBehavior="automatic"
@@ -112,15 +119,15 @@ export default function DiscoverSection() {
 				numColumns={columnCount}
 				keyExtractor={(item) => item.id}
 				ListHeaderComponent={
-					<View className="pb-4 pt-4">
+					<View className="pt-4 pb-4">
 						<View className="flex-row items-center justify-between">
-							<Link href="/discover" className="rounded-full bg-card px-3 py-2">
-								<Text className="text-xs font-semibold text-accent">Back</Text>
+							<Link href="/discover" className="bg-card rounded-full px-3 py-2">
+								<Text className="text-accent text-xs font-semibold">Back</Text>
 							</Link>
-							<Text className="text-base font-semibold text-foreground">{title}</Text>
+							<Text className="text-foreground text-base font-semibold">{title}</Text>
 							<View className="w-[48px]" />
 						</View>
-						<Text className="mt-3 text-sm text-muted">All titles</Text>
+						<Text className="text-muted mt-3 text-sm">All titles</Text>
 					</View>
 				}
 				ListFooterComponent={
@@ -149,34 +156,26 @@ export default function DiscoverSection() {
 									marginBottom: 16,
 								}}
 							>
-								<MangaCard
-									title={item.title}
-									subtitle={item.subtitle}
-									coverUrl={item.coverUrl}
-								/>
+								<MangaCard title={item.title} subtitle={item.subtitle} coverUrl={item.coverUrl} />
 							</Pressable>
 						</Link>
 					)
 				}}
 				ListEmptyComponent={
 					loading ? (
-						<View className="items-center justify-center rounded-[22px] bg-card p-6">
+						<View className="bg-card items-center justify-center rounded-[22px] p-6">
 							<ActivityIndicator color="#ff6b6b" />
-							<Text className="mt-3 text-sm text-muted">Loading titles…</Text>
+							<Text className="text-muted mt-3 text-sm">Loading titles…</Text>
 						</View>
 					) : error ? (
-						<View className="rounded-[22px] bg-card p-6">
-							<Text className="text-base font-semibold text-foreground">
-								Unable to load
-							</Text>
-							<Text className="mt-2 text-sm text-muted">{error}</Text>
+						<View className="bg-card rounded-[22px] p-6">
+							<Text className="text-foreground text-base font-semibold">Unable to load</Text>
+							<Text className="text-muted mt-2 text-sm">{error}</Text>
 						</View>
 					) : (
-						<View className="rounded-[22px] bg-card p-6">
-							<Text className="text-base font-semibold text-foreground">No titles found</Text>
-							<Text className="mt-2 text-sm text-muted">
-								This section has no items yet.
-							</Text>
+						<View className="bg-card rounded-[22px] p-6">
+							<Text className="text-foreground text-base font-semibold">No titles found</Text>
+							<Text className="text-muted mt-2 text-sm">This section has no items yet.</Text>
 						</View>
 					)
 				}

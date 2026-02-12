@@ -1,21 +1,23 @@
 import "../global.css"
 
 import { Stack } from "expo-router/stack"
-import { useMemo } from "react"
+import { useEffect, useMemo } from "react"
 import { View } from "react-native"
 import { SafeAreaProvider } from "react-native-safe-area-context"
-import { useEffect } from "react"
 
 import { AUTO_INSTALL_MANGADEX } from "@lib/constants"
-import { installExtension, loadInstalledExtensions, saveInstalledExtensions } from "@services/extensions/manager"
-import { fetchExtensionIndex } from "@services/extensions/repository"
-import { initializeDatabase } from "@services/db"
 import { isSupabaseConfigured, supabase } from "@services/auth/supabase"
+import { initializeDatabase } from "@services/db"
+import {
+	installExtension,
+	loadInstalledExtensions,
+	saveInstalledExtensions,
+} from "@services/extensions/manager"
+import { fetchExtensionIndex } from "@services/extensions/repository"
 import { useAuthStore } from "@stores/auth"
 import { useExtensionsStore } from "@stores/extensions"
 import { useSettingsStore } from "@stores/settings"
 
-	
 export default function Layout() {
 	const setSession = useAuthStore((state) => state.setSession)
 	const setLoading = useAuthStore((state) => state.setLoading)
@@ -79,22 +81,20 @@ export default function Layout() {
 			setSession((data as { session: unknown }).session ?? null)
 			setLoading(false)
 		})
-		const { data } = supabase.auth.onAuthStateChange(
-			(event: string, session: unknown) => {
-				if (event === "SIGNED_OUT") {
-					setSession(null)
-					return
-				}
-				setSession(session ?? null)
+		const { data } = supabase.auth.onAuthStateChange((event: string, session: unknown) => {
+			if (event === "SIGNED_OUT") {
+				setSession(null)
+				return
 			}
-		)
+			setSession(session ?? null)
+		})
 		return () => {
 			active = false
 			data.subscription.unsubscribe()
 		}
 	}, [setLoading, setSession])
 	return (
-		<View className={`flex-1 bg-background ${themeClass}`}>
+		<View className={`bg-background flex-1 ${themeClass}`}>
 			<SafeAreaProvider>
 				<Stack screenOptions={{ contentStyle: { backgroundColor: "transparent" } }}>
 					<Stack.Screen name="(tabs)" options={{ headerShown: false }} />

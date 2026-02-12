@@ -16,7 +16,7 @@ export default function BackupSettings() {
 						Export and restore your library and progress.
 					</Text>
 					<Text
-						className="mt-3 rounded-full bg-amber-500 px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.2em] text-neutral-950"
+						className="mt-3 rounded-full bg-amber-500 px-4 py-2 text-center text-xs font-semibold tracking-[0.2em] text-neutral-950 uppercase"
 						onPress={() => exportBackup({ version: 1, exportedAt: Date.now() })}
 					>
 						Export backup
