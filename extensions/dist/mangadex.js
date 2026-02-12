@@ -172,12 +172,13 @@ var provider = {
                     case 1:
                         data = (_a.sent());
                         return [2 /*return*/, data.data.map(function (item) {
-                                var _a, _b, _c, _d, _e, _f, _g;
+                                var _a, _b, _c, _d, _e, _f, _g, _h;
                                 var title = (_b = (_a = item.attributes.title.en) !== null && _a !== void 0 ? _a : Object.values(item.attributes.title)[0]) !== null && _b !== void 0 ? _b : "Untitled";
                                 var description = (_d = (_c = item.attributes.description) === null || _c === void 0 ? void 0 : _c.en) !== null && _d !== void 0 ? _d : "";
                                 var cover = (_f = (_e = item.relationships.find(function (rel) { return rel.type === "cover_art"; })) === null || _e === void 0 ? void 0 : _e.attributes) === null || _f === void 0 ? void 0 : _f.fileName;
                                 var lastChapter = (_g = item.attributes.lastChapter) === null || _g === void 0 ? void 0 : _g.trim();
                                 var chapterLabel = lastChapter ? "Chapter ".concat(lastChapter) : undefined;
+                                var tags = (_h = item.attributes.tags) === null || _h === void 0 ? void 0 : _h.map(function (tag) { var _a, _b, _c, _d, _e; return (_c = (_b = (_a = tag.attributes) === null || _a === void 0 ? void 0 : _a.name) === null || _b === void 0 ? void 0 : _b.en) !== null && _c !== void 0 ? _c : Object.values((_e = (_d = tag.attributes) === null || _d === void 0 ? void 0 : _d.name) !== null && _e !== void 0 ? _e : {})[0]; }).filter(function (tag) { return Boolean(tag); });
                                 var subtitle = sectionId === "latest"
                                     ? "Latest"
                                     : sectionId === "recent"
@@ -189,6 +190,9 @@ var provider = {
                                     subtitle: chapterLabel !== null && chapterLabel !== void 0 ? chapterLabel : subtitle,
                                     description: description,
                                     coverUrl: mapCoverUrl(item.id, cover),
+                                    tags: tags,
+                                    lastChapter: lastChapter,
+                                    language: "en",
                                 };
                             })];
                 }

@@ -11,8 +11,11 @@ import {
 	View,
 	useWindowDimensions,
 } from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { HorizontalSection } from "@components/HorizontalSection"
 import { MangaCard } from "@components/MangaCard"
+import { getDiscoverLayout } from "@lib/layout"
 import { useExtensionsStore } from "@stores/extensions"
 import { useSettingsStore } from "@stores/settings"
 import { useFavoritesStore } from "@services/library/favorites"
@@ -67,9 +70,11 @@ export default function Discover() {
 	const errorDrawerBaseHeight = 260
 	const errorDrawerMaxHeight = 520
 	const { width: screenWidth } = useWindowDimensions()
-	const pagePadding = 16
-	const heroSpacing = 16
-	const heroWidth = screenWidth - pagePadding * 2
+	const { pagePadding, gap, cardWidth, heroWidth } = useMemo(
+		() => getDiscoverLayout(screenWidth),
+		[screenWidth]
+	)
+	const heroSpacing = gap
 	const heroScrollX = useRef(new Animated.Value(0)).current
 	const heroScrollRef = useRef<ScrollView>(null)
 	const heroItems = useMemo(() => {
@@ -83,6 +88,9 @@ export default function Discover() {
 			.flat()
 	}, [sectionItems])
 	const heroProvider = selectedProvider?.name ?? ""
+	const insets = useSafeAreaInsets()
+	const [headerHeight, setHeaderHeight] = useState(0)
+	const headerOpacity = useRef(new Animated.Value(0)).current
 
 	useEffect(() => {
 		if (!showProviderErrors || !providerLoadError) {
@@ -154,37 +162,37 @@ export default function Discover() {
 		}
 		setLoading(true)
 		setError(null)
-		const loadSections = async () => {
-			const baseSections = await provider.getDiscoverSections()
-			const normalizedSections = baseSections.some((section) => section.id === "genres")
-				? baseSections
-				: [{ id: "genres", title: "Genres", items: [] }, ...baseSections]
-			setSections(normalizedSections)
-			const [genreItems, ...sectionResults] = await Promise.all([
-				provider.getDiscoverGenres(),
-				...normalizedSections
-					.filter((section) => section.id !== "genres")
-					.map(async (section) => {
-						const items = await provider.getDiscoverSectionItems(section.id, 1)
-						return { id: section.id, items }
-					}),
-			])
-			const initialItems: Record<string, ProviderMangaItem[]> = {
-				genres: genreItems.slice(0, GENRE_PAGE_SIZE),
-			}
-			const initialPages: Record<string, number> = { genres: 1 }
-			const initialHasMore: Record<string, boolean> = {
-				genres: genreItems.length > GENRE_PAGE_SIZE,
-			}
-			sectionResults.forEach((result) => {
-				initialItems[result.id] = result.items
-				initialPages[result.id] = 1
-				initialHasMore[result.id] = result.items.length >= PAGE_SIZE
-			})
-			setSectionItems(initialItems)
-			setSectionPages(initialPages)
-			setSectionHasMore(initialHasMore)
-		}
+				const loadSections = async () => {
+					const baseSections = await provider.getDiscoverSections()
+					const normalizedSections = baseSections.some((section) => section.id === "genres")
+						? baseSections
+						: [{ id: "genres", title: "Genres", items: [] }, ...baseSections]
+					setSections(normalizedSections)
+					const [genreItems, ...sectionResults] = await Promise.all([
+						provider.getDiscoverGenres(),
+						...normalizedSections
+							.filter((section) => section.id !== "genres")
+							.map(async (section) => {
+								const items = await provider.getDiscoverSectionItems(section.id, 1)
+								return { id: section.id, items }
+							}),
+					])
+					const initialItems: Record<string, ProviderMangaItem[]> = {
+						genres: genreItems,
+					}
+					const initialPages: Record<string, number> = { genres: 1 }
+					const initialHasMore: Record<string, boolean> = {
+						genres: genreItems.length > GENRE_PAGE_SIZE,
+					}
+					sectionResults.forEach((result) => {
+						initialItems[result.id] = result.items
+						initialPages[result.id] = 1
+						initialHasMore[result.id] = result.items.length >= PAGE_SIZE
+					})
+					setSectionItems(initialItems)
+					setSectionPages(initialPages)
+					setSectionHasMore(initialHasMore)
+				}
 		loadSections()
 			.catch((err) =>
 				setError(err instanceof Error ? err.message : "Failed to load discover sections")
@@ -251,25 +259,6 @@ export default function Discover() {
 		setSectionLoading((current) => ({ ...current, [sectionId]: false }))
 	}
 
-	const renderSectionHeader = (section: ProviderDiscoverSection, title: string) => (
-		<View className="flex-row items-center justify-between">
-			<Text className="text-lg font-semibold text-foreground">{title}</Text>
-			<Link
-				href={{
-					pathname: "/discover/[sectionId]",
-					params: {
-						sectionId: section.id,
-						provider: selectedProviderId,
-						title,
-					},
-				}}
-				className="h-10 w-10 items-center justify-center rounded-[14px] bg-accent/20"
-			>
-				<Text className="text-sm text-accent">↗</Text>
-			</Link>
-		</View>
-	)
-
 	const handleHorizontalScroll = (sectionId: string) => (event: {
 		nativeEvent: {
 			layoutMeasurement: { width: number }
@@ -309,33 +298,300 @@ export default function Discover() {
 		setIsDrawerExpanded(false)
 	}
 
+	const headerPaddingTop = Math.max(insets.top, 16)
 	return (
 		<View className="flex-1 bg-background">
 			<ScrollView
 				className="flex-1"
 				contentInsetAdjustmentBehavior="automatic"
-				contentContainerClassName="px-4 pb-12"
+				contentContainerStyle={{ paddingTop: headerHeight + 12, paddingBottom: 48 }}
+				onScroll={Animated.event(
+					[{ nativeEvent: { contentOffset: { y: headerOpacity } } }],
+					{ useNativeDriver: false }
+				)}
+				scrollEventThrottle={16}
 			>
-				<View className="pt-4">
+				<View style={{ paddingHorizontal: pagePadding }}>
+					{heroItems.length > 0 ? (
+						<View className="mt-6">
+							<Animated.ScrollView
+								ref={heroScrollRef}
+								horizontal
+								snapToInterval={heroWidth + heroSpacing}
+								decelerationRate="fast"
+								showsHorizontalScrollIndicator={false}
+								contentContainerStyle={{
+									paddingHorizontal: pagePadding,
+									columnGap: heroSpacing,
+								}}
+								onScroll={Animated.event(
+									[{ nativeEvent: { contentOffset: { x: heroScrollX } } }],
+									{ useNativeDriver: false }
+								)}
+								scrollEventThrottle={16}
+							>
+								{heroItems.map((item, index) => {
+									const isItemFavorite = favoriteStore.contains(
+										item.id,
+										selectedProviderId ?? ""
+									)
+									return (
+										<View
+											key={`${item.id}-${index}`}
+											style={{ width: heroWidth }}
+											className="overflow-hidden rounded-[26px] bg-card"
+										>
+											<View className="relative">
+												<Link
+													href={{
+														pathname: "/manga/[id]",
+														params: { id: item.id, provider: selectedProviderId },
+													}}
+													asChild
+												>
+													<Pressable>
+														{item.coverUrl ? (
+															<Image
+																source={{ uri: item.coverUrl }}
+																className="h-56 w-full"
+																resizeMode="cover"
+															/>
+														) : (
+															<View className="h-56 w-full bg-card" />
+														)}
+														<View className="absolute inset-0 bg-black/40" />
+														<View className="absolute inset-x-0 bottom-0 p-4 pb-14">
+															<Text
+																className="text-lg font-semibold text-white"
+																numberOfLines={1}
+															>
+																{item.title}
+															</Text>
+															<Text
+																className="mt-1 text-xs text-white/70"
+																numberOfLines={2}
+															>
+																{getHeroSubtitle(item)}
+															</Text>
+															<Text className="mt-2 text-[11px] uppercase tracking-[0.2em] text-white/60">
+																{heroProvider}
+															</Text>
+														</View>
+													</Pressable>
+												</Link>
+												<View
+													className="absolute inset-x-0 bottom-3 px-4"
+													pointerEvents="box-none"
+												>
+													<View className="flex-row gap-3">
+														<Pressable
+															onPress={() => {
+																if (!selectedProviderId) {
+																	return
+																}
+																if (isItemFavorite) {
+																	favoriteStore.remove(item.id, selectedProviderId)
+																	return
+																}
+																favoriteStore.add(item, selectedProviderId)
+															}}
+															className="flex-1 rounded-full bg-black/75 px-4 py-3"
+														>
+															<Text className="text-center text-sm font-semibold text-accent">
+																{isItemFavorite ? "In Library" : "Add to Library"}
+															</Text>
+														</Pressable>
+														<Link
+															href={{
+																pathname: "/manga/[id]",
+																params: { id: item.id, provider: selectedProviderId },
+															}}
+															className="flex-1 rounded-full bg-black/75 px-4 py-3"
+														>
+															<Text className="text-center text-sm font-semibold text-accent">
+																Read Now
+															</Text>
+														</Link>
+													</View>
+												</View>
+											</View>
+										</View>
+									)
+								})}
+							</Animated.ScrollView>
+						</View>
+					) : null}
+					{loading ? (
+						<View className="mt-6 items-center justify-center rounded-[22px] bg-card p-6">
+							<ActivityIndicator color="#ff6b6b" />
+							<Text className="mt-3 text-sm text-muted">Loading providers…</Text>
+						</View>
+					) : error ? (
+						<View className="mt-6 rounded-[22px] bg-card p-6">
+							<Text className="text-base font-semibold text-foreground">Something went wrong</Text>
+							<Text className="mt-2 text-sm text-muted">{error}</Text>
+						</View>
+					) : !hasProviders ? (
+						<View className="mt-6 rounded-[22px] bg-card p-6">
+							<Text className="text-lg font-semibold text-foreground">
+								No extensions installed
+							</Text>
+							<Text className="mt-2 text-sm text-muted">
+								Install an extension to unlock discover sections and filters.
+							</Text>
+							<Link
+								href="/settings/extensions"
+								className="mt-4 rounded-full bg-accent px-4 py-2 text-center text-sm font-semibold text-accent-foreground"
+							>
+								Go to Extensions
+							</Link>
+						</View>
+					) : (
+						<View className="mt-6 gap-6">
+							{orderedSections.map((section) => {
+								const items = sectionItems[section.id] ?? []
+								if (section.id === "genres") {
+									const genreItems = sectionItems.genres ?? []
+									const genreTitle = section.title || "Genres"
+									return (
+										<View key={section.id}>
+											<View className="flex-row items-center justify-between">
+												<Text className="text-lg font-semibold text-foreground">
+													{genreTitle}
+												</Text>
+												<Link
+													href={{
+														pathname: "/discover/[sectionId]",
+														params: {
+															sectionId: "genres",
+															provider: selectedProviderId,
+															title: genreTitle,
+														},
+													}}
+													className="h-11 w-11 items-center justify-center rounded-[16px] bg-accent"
+												>
+													<Text className="text-base text-accent-foreground">↗</Text>
+												</Link>
+											</View>
+											<ScrollView
+												horizontal
+												showsHorizontalScrollIndicator={false}
+												className="mt-4"
+												contentContainerStyle={{
+													paddingHorizontal: pagePadding,
+													columnGap: gap,
+												}}
+												scrollEventThrottle={120}
+												onScroll={handleHorizontalScroll(section.id)}
+											>
+												{genreItems.map((item, index) => {
+													const color = genreColors[index % genreColors.length]
+													return (
+														<Link
+															key={`genre-${item.id}-${index}`}
+															href={{
+																pathname: "/discover/[sectionId]",
+																params: {
+																	sectionId: item.id,
+																	provider: selectedProviderId,
+																	title: item.title,
+																},
+															}}
+															asChild
+														>
+															<Pressable
+																style={{ backgroundColor: color, width: cardWidth }}
+																className="h-[72px] overflow-hidden rounded-[18px] px-4 py-3"
+															>
+																<View className="absolute right-0 top-0 h-12 w-12 rounded-bl-[24px] bg-white/30" />
+																<View className="absolute right-3 top-2 h-7 w-7 items-center justify-center rounded-full bg-white/40">
+																	<Text className="text-xs font-semibold text-white">→</Text>
+																</View>
+																<Text className="text-sm font-semibold text-white" numberOfLines={2}>
+																	{item.title}
+																</Text>
+															</Pressable>
+														</Link>
+													)
+												})}
+											</ScrollView>
+										</View>
+									)
+								}
+								return (
+									<HorizontalSection
+										key={section.id}
+										sectionId={section.id}
+										title={section.title}
+										items={items}
+										providerId={selectedProviderId}
+										pagePadding={pagePadding}
+										gap={gap}
+										cardWidth={cardWidth}
+										renderItem={(item, index) => (
+											<Link
+												key={`${section.id}-${item.id}-${index}`}
+												href={{
+													pathname: "/manga/[id]",
+													params: { id: item.id, provider: selectedProviderId },
+												}}
+												asChild
+											>
+												<Pressable>
+													<MangaCard
+														title={item.title}
+														subtitle={item.subtitle}
+														coverUrl={item.coverUrl}
+														tags={item.tags}
+														lastChapter={item.lastChapter}
+														language={item.language}
+														inLibrary={favoriteStore.contains(
+															item.id,
+															selectedProviderId ?? ""
+														)}
+													/>
+												</Pressable>
+											</Link>
+										)}
+									/>
+								)
+							})}
+						</View>
+					)}
+				</View>
+			</ScrollView>
+			<Animated.View
+				onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}
+				style={{
+					paddingTop: headerPaddingTop,
+					opacity: headerOpacity.interpolate({
+						inputRange: [0, 60],
+						outputRange: [0, 1],
+						extrapolate: "clamp",
+					}),
+				}}
+				className="absolute left-0 right-0 top-0 border-b border-border/40 bg-background/70"
+			>
+				<View style={{ paddingHorizontal: pagePadding, paddingBottom: 12 }}>
 					<View className="relative items-center justify-center">
 						<Text className="text-base font-semibold text-foreground">Discover</Text>
 						<Pressable
 							onPress={handleOpenProvider}
-							className="absolute right-0 h-8 w-8 items-center justify-center rounded-full border border-border bg-card"
+							className="absolute right-0 h-9 w-9 items-center justify-center rounded-full border border-border bg-card"
 						>
-							<Text className="text-sm text-accent">☁</Text>
+							<Text className="text-base text-accent">☁</Text>
 						</Pressable>
 					</View>
 					<View className="mt-4">
-					<View className="relative -mx-4 px-4">
+						<View className="relative -mx-2 px-2">
 							<View className="absolute bottom-0 left-0 right-0 h-[2px] bg-border" />
 							<ScrollView
 								horizontal
 								showsHorizontalScrollIndicator={false}
 								className="pb-3"
-								contentContainerClassName="flex-row gap-6"
+								contentContainerStyle={{ columnGap: gap }}
 							>
-								<View className="relative flex-row gap-6">
+								<View className="relative flex-row" style={{ columnGap: gap }}>
 									<Animated.View
 										style={{
 											transform: [{ translateX: indicatorX }],
@@ -381,224 +637,7 @@ export default function Discover() {
 						</View>
 					</View>
 				</View>
-				{heroItems.length > 0 ? (
-					<View className="mt-6">
-						<Animated.ScrollView
-							ref={heroScrollRef}
-							horizontal
-							snapToInterval={heroWidth + heroSpacing}
-							decelerationRate="fast"
-							showsHorizontalScrollIndicator={false}
-							contentContainerStyle={{ paddingRight: heroSpacing }}
-							onScroll={Animated.event(
-								[{ nativeEvent: { contentOffset: { x: heroScrollX } } }],
-								{ useNativeDriver: false }
-							)}
-							scrollEventThrottle={16}
-						>
-							{heroItems.map((item) => {
-								const isItemFavorite = favoriteStore.contains(
-									item.id,
-									selectedProviderId ?? ""
-								)
-								return (
-									<View
-										key={item.id}
-										style={{ width: heroWidth, marginRight: heroSpacing }}
-										className="overflow-hidden rounded-[26px] bg-card"
-									>
-										<View className="relative">
-											<Link
-												href={{
-													pathname: "/manga/[id]",
-													params: { id: item.id, provider: selectedProviderId },
-												}}
-												asChild
-											>
-												<Pressable>
-													{item.coverUrl ? (
-														<Image
-															source={{ uri: item.coverUrl }}
-															className="h-56 w-full"
-															resizeMode="cover"
-														/>
-													) : (
-														<View className="h-56 w-full bg-card" />
-													)}
-													<View className="absolute inset-0 bg-black/40" />
-													<View className="absolute inset-x-0 bottom-0 p-4 pb-14">
-														<Text
-															className="text-lg font-semibold text-white"
-															numberOfLines={1}
-														>
-															{item.title}
-														</Text>
-														<Text
-															className="mt-1 text-xs text-white/70"
-															numberOfLines={2}
-														>
-															{getHeroSubtitle(item)}
-														</Text>
-														<Text className="mt-2 text-[11px] uppercase tracking-[0.2em] text-white/60">
-															{heroProvider}
-														</Text>
-													</View>
-												</Pressable>
-											</Link>
-						<View className="absolute inset-x-0 bottom-3 px-4" pointerEvents="box-none">
-							<View className="flex-row gap-3">
-								<Pressable
-									onPress={() => {
-										if (!selectedProviderId) {
-											return
-										}
-										if (isItemFavorite) {
-											favoriteStore.remove(item.id, selectedProviderId)
-											return
-										}
-										favoriteStore.add(item, selectedProviderId)
-									}}
-									className="flex-1 rounded-full bg-black/75 px-4 py-3"
-								>
-									<Text className="text-center text-sm font-semibold text-accent">
-										{isItemFavorite ? "In Library" : "Add to Library"}
-									</Text>
-								</Pressable>
-								<Link
-									href={{
-										pathname: "/manga/[id]",
-										params: { id: item.id, provider: selectedProviderId },
-									}}
-									className="flex-1 rounded-full bg-black/75 px-4 py-3"
-								>
-									<Text className="text-center text-sm font-semibold text-accent">
-										Read Now
-									</Text>
-								</Link>
-							</View>
-						</View>
-										</View>
-									</View>
-								)
-							})}
-						</Animated.ScrollView>
-					</View>
-				) : null}
-				{loading ? (
-					<View className="mt-6 items-center justify-center rounded-[22px] bg-card p-6">
-						<ActivityIndicator color="#ff6b6b" />
-						<Text className="mt-3 text-sm text-muted">Loading providers…</Text>
-					</View>
-				) : error ? (
-					<View className="mt-6 rounded-[22px] bg-card p-6">
-						<Text className="text-base font-semibold text-foreground">Something went wrong</Text>
-						<Text className="mt-2 text-sm text-muted">{error}</Text>
-					</View>
-				) : !hasProviders ? (
-					<View className="mt-6 rounded-[22px] bg-card p-6">
-						<Text className="text-lg font-semibold text-foreground">
-							No extensions installed
-						</Text>
-						<Text className="mt-2 text-sm text-muted">
-							Install an extension to unlock discover sections and filters.
-						</Text>
-						<Link
-							href="/settings/extensions"
-							className="mt-4 rounded-full bg-accent px-4 py-2 text-center text-sm font-semibold text-accent-foreground"
-						>
-							Go to Extensions
-						</Link>
-					</View>
-				) : (
-					<View className="mt-6 gap-6">
-						{orderedSections.map((section) => {
-							const items = sectionItems[section.id] ?? []
-							if (section.id === "genres") {
-								const genreItems = sectionItems.genres ?? []
-								const genreTitle = section.title || "Genres"
-								return (
-									<View key={section.id}>
-										{renderSectionHeader(section, genreTitle)}
-										<ScrollView
-											horizontal
-											showsHorizontalScrollIndicator={false}
-											className="mt-4"
-											scrollEventThrottle={120}
-											onScroll={handleHorizontalScroll(section.id)}
-										>
-											<View className="flex-row gap-3">
-												{genreItems.map((item, index) => {
-													const color = genreColors[index % genreColors.length]
-													return (
-														<Link
-															key={item.id}
-															href={{
-														pathname: "/discover/[sectionId]",
-														params: {
-															sectionId: item.id,
-															provider: selectedProviderId,
-															title: item.title,
-														},
-													}}
-															asChild
-														>
-															<Pressable
-																style={{ backgroundColor: color }}
-																className="h-[72px] w-[140px] overflow-hidden rounded-[18px] px-4 py-3"
-															>
-																<View className="absolute right-0 top-0 h-12 w-12 rounded-bl-[24px] bg-white/30" />
-																<View className="absolute right-3 top-2 h-7 w-7 items-center justify-center rounded-full bg-white/40">
-																	<Text className="text-xs font-semibold text-white">→</Text>
-																</View>
-																<Text className="text-sm font-semibold text-white" numberOfLines={2}>
-																	{item.title}
-																</Text>
-															</Pressable>
-														</Link>
-													)
-												})}
-										</View>
-									</ScrollView>
-								</View>
-							)
-							}
-							return (
-								<View key={section.id}>
-									{renderSectionHeader(section, section.title)}
-									<ScrollView
-										horizontal
-										showsHorizontalScrollIndicator={false}
-										className="mt-4"
-										scrollEventThrottle={120}
-										onScroll={handleHorizontalScroll(section.id)}
-									>
-										<View className="flex-row gap-4">
-											{items.map((item) => (
-												<Link
-													key={item.id}
-													href={{
-														pathname: "/manga/[id]",
-														params: { id: item.id, provider: selectedProviderId },
-													}}
-													asChild
-												>
-													<Pressable className="w-[150px]">
-														<MangaCard
-															title={item.title}
-															subtitle={item.subtitle}
-															coverUrl={item.coverUrl}
-														/>
-													</Pressable>
-												</Link>
-											))}
-										</View>
-									</ScrollView>
-								</View>
-							)
-						})}
-					</View>
-				)}
-			</ScrollView>
+			</Animated.View>
 			{showProviderErrors && providerLoadError ? (
 				<View className="absolute inset-0" pointerEvents="box-none">
 					<View className="flex-1" pointerEvents="box-none" />

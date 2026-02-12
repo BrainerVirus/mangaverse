@@ -82,6 +82,7 @@ const provider = {
 					title: Record<string, string>
 					description?: Record<string, string>
 					lastChapter?: string | null
+					tags?: Array<{ attributes?: { name?: Record<string, string> } }>
 				}
 				relationships: Array<{ type: string; attributes?: { fileName?: string } }>
 			}>
@@ -89,22 +90,30 @@ const provider = {
 		return data.data.map((item) => {
 			const title = item.attributes.title.en ?? Object.values(item.attributes.title)[0] ?? "Untitled"
 			const description = item.attributes.description?.en ?? ""
-		const cover = item.relationships.find((rel) => rel.type === "cover_art")?.attributes?.fileName
-		const lastChapter = item.attributes.lastChapter?.trim()
-		const chapterLabel = lastChapter ? `Chapter ${lastChapter}` : undefined
+			const cover = item.relationships.find((rel) => rel.type === "cover_art")?.attributes?.fileName
+			const lastChapter = item.attributes.lastChapter?.trim()
+			const chapterLabel = lastChapter ? `Chapter ${lastChapter}` : undefined
+			const tags = item.attributes.tags
+				?.map((tag: { attributes?: { name?: Record<string, string> } }) =>
+					tag.attributes?.name?.en ?? Object.values(tag.attributes?.name ?? {})[0]
+				)
+				.filter((tag): tag is string => Boolean(tag))
 			const subtitle =
 				sectionId === "latest"
 					? "Latest"
 					: sectionId === "recent"
 						? "Recent"
 						: "Popular"
-		return {
-			id: item.id,
-			title,
-			subtitle: chapterLabel ?? subtitle,
-			description,
-			coverUrl: mapCoverUrl(item.id, cover),
-		}
+			return {
+				id: item.id,
+				title,
+				subtitle: chapterLabel ?? subtitle,
+				description,
+				coverUrl: mapCoverUrl(item.id, cover),
+				tags,
+				lastChapter,
+				language: "en",
+			}
 		})
 	},
 	async search(query: string, page: number) {

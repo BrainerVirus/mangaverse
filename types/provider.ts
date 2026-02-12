@@ -21,6 +21,9 @@ export interface ProviderMangaItem {
 	coverUrl?: string
 	subtitle?: string
 	description?: string
+	tags?: string[]
+	lastChapter?: string | number
+	language?: string
 }
 
 export interface ProviderDiscoverSection {
