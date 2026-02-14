@@ -13,6 +13,13 @@ interface HorizontalSectionProps {
 	cardWidth: number
 	renderItem: (item: ProviderMangaItem, index: number) => React.ReactNode
 	seeAllVariant?: "primary" | "ghost"
+	onScroll?: (event: {
+		nativeEvent: {
+			layoutMeasurement: { width: number }
+			contentOffset: { x: number }
+			contentSize: { width: number }
+		}
+	}) => void
 }
 
 export function HorizontalSection({
@@ -25,6 +32,7 @@ export function HorizontalSection({
 	cardWidth,
 	renderItem,
 	seeAllVariant = "primary",
+	onScroll,
 }: HorizontalSectionProps) {
 	const seeAllClassName =
 		seeAllVariant === "primary"
@@ -56,6 +64,7 @@ export function HorizontalSection({
 				className="mt-4"
 				contentContainerStyle={{ paddingHorizontal: pagePadding, columnGap: gap }}
 				scrollEventThrottle={120}
+				onScroll={onScroll}
 			>
 				{items.map((item, index) => (
 					<View key={`${sectionId}-${item.id}-${index}`} style={{ width: cardWidth }}>
