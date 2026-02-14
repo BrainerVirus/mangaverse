@@ -42,7 +42,7 @@ export function HeroCarousel({
 				decelerationRate="fast"
 				showsHorizontalScrollIndicator={false}
 				contentContainerStyle={{
-					paddingHorizontal: pagePadding,
+					paddingRight: pagePadding,
 					columnGap: heroSpacing,
 				}}
 				onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: heroScrollX } } }], {

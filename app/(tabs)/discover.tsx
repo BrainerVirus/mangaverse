@@ -38,10 +38,12 @@ export default function Discover() {
 	const errorDrawerBaseHeight = 260
 	const errorDrawerMaxHeight = 520
 	const { width: screenWidth } = useWindowDimensions()
-	const { pagePadding, gap, cardWidth, heroWidth } = useMemo(
+	const { pagePadding, gap, cardWidth, heroWidth: baseHeroWidth } = useMemo(
 		() => getDiscoverLayout(screenWidth),
 		[screenWidth]
 	)
+	const heroPeek = 36
+	const heroWidth = Math.max(0, baseHeroWidth - heroPeek)
 	const heroSpacing = gap
 	const heroScrollX = useRef(new Animated.Value(0)).current
 	const heroScrollRef = useRef<ScrollView>(null)
