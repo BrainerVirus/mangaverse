@@ -462,7 +462,7 @@ export default function Discover() {
 															title: genreTitle,
 														},
 													}}
-													className="bg-accent h-11 w-11 items-center justify-center rounded-[16px]"
+													className="bg-accent h-11 w-11 items-center justify-center rounded-2xl"
 												>
 													<Text className="text-accent-foreground text-base">↗</Text>
 												</Link>
@@ -495,9 +495,9 @@ export default function Discover() {
 														>
 															<Pressable
 																style={{ backgroundColor: color, width: cardWidth }}
-																className="h-[72px] overflow-hidden rounded-[18px] px-4 py-3"
+																className="h-18 overflow-hidden rounded-[18px] px-4 py-3"
 															>
-																<View className="absolute top-0 right-0 h-12 w-12 rounded-bl-[24px] bg-white/30" />
+																<View className="absolute top-0 right-0 h-12 w-12 rounded-bl-3xl bg-white/30" />
 																<View className="absolute top-2 right-3 h-7 w-7 items-center justify-center rounded-full bg-white/40">
 																	<Text className="text-xs font-semibold text-white">→</Text>
 																</View>
@@ -578,7 +578,7 @@ export default function Discover() {
 					</View>
 					<View className="mt-4">
 						<View className="relative -mx-2 px-2">
-							<View className="bg-border absolute right-0 bottom-0 left-0 h-[2px]" />
+							<View className="bg-border absolute right-0 bottom-0 left-0 h-0.5" />
 							<ScrollView
 								horizontal
 								showsHorizontalScrollIndicator={false}
@@ -591,7 +591,7 @@ export default function Discover() {
 											transform: [{ translateX: indicatorX }],
 											width: indicatorWidth,
 										}}
-										className="bg-accent absolute bottom-0 h-[4px] rounded-full"
+										className="bg-accent absolute bottom-0 h-1 rounded-full"
 									/>
 									{hasProviders ? (
 										providers.map((provider) => {
@@ -642,7 +642,7 @@ export default function Discover() {
 						<View className="items-center justify-center">
 							<Pressable
 								onPress={handleToggleDrawerHeight}
-								className="h-[28px] w-full items-center justify-center"
+								className="h-7 w-full items-center justify-center"
 							>
 								<View className="bg-border h-1.5 w-12 rounded-full" />
 							</Pressable>
