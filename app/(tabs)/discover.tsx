@@ -1,6 +1,7 @@
+import { BlurView } from "expo-blur"
 import * as WebBrowser from "expo-web-browser"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Animated, ScrollView, View, useWindowDimensions } from "react-native"
+import { Animated, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { DiscoverHeader } from "@components/discover/DiscoverHeader"
@@ -46,8 +47,7 @@ export default function Discover() {
 	const heroScrollRef = useRef<ScrollView>(null)
 	const heroProvider = providers.find((provider) => provider.id === selectedProviderId)?.name ?? ""
 	const insets = useSafeAreaInsets()
-	const [headerHeight, setHeaderHeight] = useState(0)
-	const headerOpacity = useRef(new Animated.Value(0)).current
+	const scrollY = useRef(new Animated.Value(0)).current
 	const { orderedSections, sectionItems, loading, error, heroItems, loadMore } = useDiscoverData({
 		providersMap,
 		selectedProviderId,
@@ -164,17 +164,64 @@ export default function Discover() {
 	}
 
 	const headerPaddingTop = Math.max(insets.top, 16)
+	const blurOpacity = scrollY.interpolate({
+		inputRange: [0, 48],
+		outputRange: [0, 1],
+		extrapolate: "clamp",
+	})
+	const solidOpacity = scrollY.interpolate({
+		inputRange: [0, 48],
+		outputRange: [1, 0],
+		extrapolate: "clamp",
+	})
 	return (
 		<View className="bg-background flex-1">
 			<ScrollView
 				className="flex-1"
-				contentInsetAdjustmentBehavior="automatic"
-				contentContainerStyle={{ paddingTop: headerHeight + 12, paddingBottom: 48 }}
-				onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: headerOpacity } } }], {
+				contentInsetAdjustmentBehavior="never"
+				contentContainerStyle={{ paddingBottom: 48 }}
+				stickyHeaderIndices={[0]}
+				onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
 					useNativeDriver: false,
 				})}
 				scrollEventThrottle={16}
 			>
+				<View className="border-border/40 border-b">
+					<View className="relative">
+						<Animated.View
+							style={[StyleSheet.absoluteFillObject, { opacity: solidOpacity }]}
+							className="bg-background"
+						/>
+						<Animated.View
+							pointerEvents="none"
+							style={[StyleSheet.absoluteFillObject, { opacity: blurOpacity }]}
+						>
+							<BlurView intensity={60} tint="default" style={StyleSheet.absoluteFillObject} />
+							<View className="bg-background/40" style={StyleSheet.absoluteFillObject} />
+						</Animated.View>
+						<View
+							style={{
+								paddingTop: headerPaddingTop,
+								paddingHorizontal: pagePadding,
+								paddingBottom: 12,
+							}}
+						>
+							<DiscoverHeader
+								providers={providers}
+								selectedProviderId={selectedProviderId}
+								onSelectProvider={setSelectedProvider}
+								onOpenProvider={handleOpenProvider}
+								indicatorX={indicatorX}
+								indicatorWidth={indicatorWidth}
+								gap={gap}
+								loading={loading}
+								onTabLayout={(id, layout) =>
+									setTabLayouts((current) => ({ ...current, [id]: layout }))
+								}
+							/>
+						</View>
+					</View>
+				</View>
 				<View style={{ paddingHorizontal: pagePadding }}>
 					{loading ? (
 						<DiscoverSkeleton gap={gap} cardWidth={cardWidth} heroWidth={heroWidth} />
@@ -209,32 +256,6 @@ export default function Discover() {
 					) : null}
 				</View>
 			</ScrollView>
-			<Animated.View
-				onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}
-				style={{
-					paddingTop: headerPaddingTop,
-					opacity: headerOpacity.interpolate({
-						inputRange: [0, 60],
-						outputRange: [0, 1],
-						extrapolate: "clamp",
-					}),
-				}}
-				className="border-border/40 bg-background/70 absolute top-0 right-0 left-0 border-b"
-			>
-				<View style={{ paddingHorizontal: pagePadding, paddingBottom: 12 }}>
-					<DiscoverHeader
-						providers={providers}
-						selectedProviderId={selectedProviderId}
-						onSelectProvider={setSelectedProvider}
-						onOpenProvider={handleOpenProvider}
-						indicatorX={indicatorX}
-						indicatorWidth={indicatorWidth}
-						gap={gap}
-						loading={loading}
-						onTabLayout={(id, layout) => setTabLayouts((current) => ({ ...current, [id]: layout }))}
-					/>
-				</View>
-			</Animated.View>
 			{showProviderErrors && providerLoadError ? (
 				<ErrorDrawer
 					providerLoadError={providerLoadError}
