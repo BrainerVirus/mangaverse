@@ -1,8 +1,5 @@
 import { Link } from "expo-router"
-import { ArrowUpRight } from "lucide-react-native"
 import { ScrollView, Text, View } from "react-native"
-
-import { Icon } from "@components/Icon"
 
 import type { ProviderMangaItem } from "../types/provider"
 
@@ -56,11 +53,15 @@ export function HorizontalSection({
 					}}
 					className={seeAllClassName}
 				>
-					<Icon
-						icon={ArrowUpRight}
-						size={18}
-						color={seeAllVariant === "primary" ? "#120b0b" : "#ff6b6b"}
-					/>
+					<Text
+						className={
+							seeAllVariant === "primary"
+								? "text-base text-accent-foreground"
+								: "text-base text-accent"
+						}
+					>
+						↗
+					</Text>
 				</Link>
 			</View>
 			<ScrollView
