@@ -1,7 +1,6 @@
 import { BlurView } from "expo-blur"
 import * as WebBrowser from "expo-web-browser"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs"
 import { Animated, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
@@ -16,6 +15,7 @@ import { useFavoritesStore } from "@services/library/favorites"
 import { useExtensionsStore } from "@stores/extensions"
 import { useSettingsStore } from "@stores/settings"
 import { useDiscoverData } from "../../hooks/useDiscoverData"
+import { useTabBarPadding } from "../../hooks/useTabBarPadding"
 import type { ProviderMangaItem } from "../../types/provider"
 
 export default function Discover() {
@@ -52,7 +52,7 @@ export default function Discover() {
 	const heroScrollRef = useRef<ScrollView>(null)
 	const heroProvider = providers.find((provider) => provider.id === selectedProviderId)?.name ?? ""
 	const insets = useSafeAreaInsets()
-	const tabBarHeight = useBottomTabBarHeight()
+	const tabBarPadding = useTabBarPadding(16)
 	const scrollY = useRef(new Animated.Value(0)).current
 	const { orderedSections, sectionItems, loading, error, heroItems, loadMore } = useDiscoverData({
 		providersMap,
@@ -185,7 +185,7 @@ export default function Discover() {
 			<ScrollView
 				className="flex-1"
 				contentInsetAdjustmentBehavior="never"
-				contentContainerStyle={{ paddingBottom: tabBarHeight + 16 }}
+				contentContainerStyle={{ paddingBottom: tabBarPadding }}
 				stickyHeaderIndices={[0]}
 				onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
 					useNativeDriver: false,

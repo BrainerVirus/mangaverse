@@ -1,22 +1,22 @@
 import { Link } from "expo-router"
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs"
 import { ScrollView, Text, View } from "react-native"
 
 import { GradientBackdrop } from "@components/GradientBackdrop"
 import { MangaCard } from "@components/MangaCard"
 import { SectionHeading } from "@components/SectionHeading"
 import { useFavoritesStore } from "@services/library/favorites"
+import { useTabBarPadding } from "../../hooks/useTabBarPadding"
 
 export default function Library() {
 	const favorites = useFavoritesStore((state) => state.items)
-	const tabBarHeight = useBottomTabBarHeight()
+	const tabBarPadding = useTabBarPadding(24)
 	return (
 		<View className="flex-1 bg-neutral-950">
 			<GradientBackdrop />
 			<ScrollView
 				className="flex-1 px-5 pt-6"
 				contentInsetAdjustmentBehavior="automatic"
-				contentContainerStyle={{ paddingBottom: tabBarHeight + 24 }}
+				contentContainerStyle={{ paddingBottom: tabBarPadding }}
 			>
 				<SectionHeading title="Library" subtitle="Your saved manga" />
 				{favorites.length === 0 ? (

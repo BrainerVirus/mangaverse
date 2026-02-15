@@ -1,10 +1,10 @@
 import { Link } from "expo-router"
-import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs"
 import { ScrollView, Text, View } from "react-native"
 
 import { GradientBackdrop } from "@components/GradientBackdrop"
 import { SectionHeading } from "@components/SectionHeading"
 import { useSettingsStore } from "@stores/settings"
+import { useTabBarPadding } from "../../hooks/useTabBarPadding"
 
 const sections = [
 	{
@@ -53,14 +53,14 @@ const sections = [
 
 export default function Settings() {
 	const theme = useSettingsStore((state) => state.theme)
-	const tabBarHeight = useBottomTabBarHeight()
+	const tabBarPadding = useTabBarPadding(24)
 	return (
 		<View className="flex-1 bg-neutral-950">
 			<GradientBackdrop />
 			<ScrollView
 				className="flex-1 px-5 pt-6"
 				contentInsetAdjustmentBehavior="automatic"
-				contentContainerStyle={{ paddingBottom: tabBarHeight + 24 }}
+				contentContainerStyle={{ paddingBottom: tabBarPadding }}
 			>
 				<SectionHeading title="Settings" subtitle="Tune your experience" />
 				<View className="mb-6 rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">
