@@ -43,7 +43,7 @@ export function GenreSection({
 							title: sectionTitle,
 						},
 					}}
-					className="bg-accent h-11 w-11 items-center justify-center rounded-[16px]"
+					className="bg-accent h-11 w-11 items-center justify-center rounded-2xl"
 				>
 					<Text className="text-accent-foreground text-base">↗</Text>
 				</Link>
@@ -73,9 +73,9 @@ export function GenreSection({
 						>
 							<Pressable
 								style={{ backgroundColor: color, width: cardWidth }}
-								className="h-[72px] overflow-hidden rounded-[18px] px-4 py-3"
+								className="h-18 overflow-hidden rounded-[18px] px-4 py-3"
 							>
-								<View className="absolute top-0 right-0 h-12 w-12 rounded-bl-[24px] bg-white/30" />
+								<View className="absolute top-0 right-0 h-12 w-12 rounded-bl-3xl bg-white/30" />
 								<View className="absolute top-2 right-3 h-7 w-7 items-center justify-center rounded-full bg-white/40">
 									<Text className="text-xs font-semibold text-white">→</Text>
 								</View>
