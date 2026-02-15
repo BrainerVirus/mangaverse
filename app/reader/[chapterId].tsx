@@ -130,11 +130,19 @@ export default function ReaderScreen() {
 		const rightEdge = width * (1 - tapZones.right)
 		const isRtl = readerMode === "rtl"
 		if (x < leftEdge) {
-			isRtl ? handleNext() : handlePrev()
+			if (isRtl) {
+				handleNext()
+			} else {
+				handlePrev()
+			}
 			return
 		}
 		if (x > rightEdge) {
-			isRtl ? handlePrev() : handleNext()
+			if (isRtl) {
+				handlePrev()
+			} else {
+				handleNext()
+			}
 			return
 		}
 		if (!showSettings) {
@@ -148,10 +156,21 @@ export default function ReaderScreen() {
 		}
 		const isRtl = readerMode === "rtl"
 		if (direction === "left") {
-			isRtl ? handlePrev() : handleNext()
+			if (isRtl) {
+				handleNext()
+			} else {
+				handlePrev()
+			}
 			return
 		}
-		isRtl ? handleNext() : handlePrev()
+		if (direction === "right") {
+			if (isRtl) {
+				handlePrev()
+			} else {
+				handleNext()
+			}
+			return
+		}
 	}
 
 	useEffect(() => {
@@ -413,7 +432,7 @@ export default function ReaderScreen() {
 						className="absolute inset-x-0 px-5"
 						style={{ bottom: Math.max(insets.bottom, 10), paddingBottom: 12 }}
 					>
-						<View className="bg-card flex-row items-center justify-between rounded-[24px] px-4 py-3">
+						<View className="bg-card flex-row items-center justify-between rounded-3xl px-4 py-3">
 							<Pressable
 								onPress={() => {
 									setReaderMode(readerMode === "rtl" ? "ltr" : "rtl")
@@ -457,7 +476,7 @@ export default function ReaderScreen() {
 				{showSettings ? (
 					<View className="absolute inset-0 justify-end bg-black/60">
 						<Pressable className="flex-1" onPress={() => setShowSettings(false)} />
-						<View className="rounded-t-[32px] border border-white/10 bg-neutral-950 px-5 pt-6 pb-8">
+						<View className="rounded-t-4xl border border-white/10 bg-neutral-950 px-5 pt-6 pb-8">
 							<View className="flex-row items-center justify-between">
 								<Text className="text-lg font-semibold text-white">Reader Settings</Text>
 								<Text
