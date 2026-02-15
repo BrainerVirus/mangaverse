@@ -62,7 +62,7 @@ export function HorizontalSection({
 				horizontal
 				showsHorizontalScrollIndicator={false}
 				className="mt-4"
-				contentContainerStyle={{ paddingRight: pagePadding, columnGap: gap }}
+				contentContainerStyle={{ paddingRight: pagePadding, columnGap: gap, paddingTop: 8 }}
 				scrollEventThrottle={120}
 				onScroll={onScroll}
 			>
