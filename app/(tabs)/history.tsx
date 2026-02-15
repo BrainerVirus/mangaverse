@@ -1,4 +1,5 @@
 import { useEffect } from "react"
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs"
 import { ScrollView, Switch, Text, View } from "react-native"
 
 import { GradientBackdrop } from "@components/GradientBackdrop"
@@ -11,6 +12,7 @@ export default function History() {
 	const privateMode = usePreferencesStore((state) => state.privateMode)
 	const setPrivateMode = usePreferencesStore((state) => state.setPrivateMode)
 	const seedHistory = useHistoryStore((state) => state.seedHistory)
+	const tabBarHeight = useBottomTabBarHeight()
 
 	useEffect(() => {
 		seedHistory()
@@ -18,7 +20,11 @@ export default function History() {
 	return (
 		<View className="flex-1 bg-neutral-950">
 			<GradientBackdrop />
-			<ScrollView className="flex-1 px-5 pt-6" contentInsetAdjustmentBehavior="automatic">
+			<ScrollView
+				className="flex-1 px-5 pt-6"
+				contentInsetAdjustmentBehavior="automatic"
+				contentContainerStyle={{ paddingBottom: tabBarHeight + 24 }}
+			>
 				<SectionHeading title="History" subtitle="Resume where you left off" />
 				<View className="rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">
 					<View className="flex-row items-center justify-between">

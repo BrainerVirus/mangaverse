@@ -1,6 +1,7 @@
 import { BlurView } from "expo-blur"
 import * as WebBrowser from "expo-web-browser"
 import { useEffect, useMemo, useRef, useState } from "react"
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs"
 import { Animated, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
@@ -51,6 +52,7 @@ export default function Discover() {
 	const heroScrollRef = useRef<ScrollView>(null)
 	const heroProvider = providers.find((provider) => provider.id === selectedProviderId)?.name ?? ""
 	const insets = useSafeAreaInsets()
+	const tabBarHeight = useBottomTabBarHeight()
 	const scrollY = useRef(new Animated.Value(0)).current
 	const { orderedSections, sectionItems, loading, error, heroItems, loadMore } = useDiscoverData({
 		providersMap,
@@ -183,7 +185,7 @@ export default function Discover() {
 			<ScrollView
 				className="flex-1"
 				contentInsetAdjustmentBehavior="never"
-				contentContainerStyle={{ paddingBottom: 48 }}
+				contentContainerStyle={{ paddingBottom: tabBarHeight + 16 }}
 				stickyHeaderIndices={[0]}
 				onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
 					useNativeDriver: false,
@@ -218,7 +220,6 @@ export default function Discover() {
 								indicatorX={indicatorX}
 								indicatorWidth={indicatorWidth}
 								gap={gap}
-								loading={loading}
 								onTabLayout={(id, layout) =>
 									setTabLayouts((current) => ({ ...current, [id]: layout }))
 								}

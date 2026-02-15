@@ -1,4 +1,3 @@
-import { useEffect, useRef } from "react"
 import { Animated, Pressable, ScrollView, Text, View } from "react-native"
 
 interface DiscoverHeaderProps {
@@ -10,7 +9,6 @@ interface DiscoverHeaderProps {
 	indicatorWidth: Animated.Value
 	gap: number
 	onTabLayout: (id: string, layout: { x: number; width: number }) => void
-	loading?: boolean
 }
 
 export function DiscoverHeader({
@@ -22,33 +20,8 @@ export function DiscoverHeader({
 	indicatorWidth,
 	gap,
 	onTabLayout,
-	loading = false,
 }: DiscoverHeaderProps) {
 	const hasProviders = providers.length > 0
-	const pulse = useRef(new Animated.Value(0.35)).current
-
-	useEffect(() => {
-		if (!loading) {
-			pulse.setValue(1)
-			return
-		}
-		const animation = Animated.loop(
-			Animated.sequence([
-				Animated.timing(pulse, {
-					toValue: 0.85,
-					duration: 900,
-					useNativeDriver: true,
-				}),
-				Animated.timing(pulse, {
-					toValue: 0.35,
-					duration: 900,
-					useNativeDriver: true,
-				}),
-			])
-		)
-		animation.start()
-		return () => animation.stop()
-	}, [loading, pulse])
 	return (
 		<View>
 			<View className="relative items-center justify-center">
@@ -70,17 +43,7 @@ export function DiscoverHeader({
 						contentContainerStyle={{ columnGap: gap }}
 					>
 						<View className="relative flex-row" style={{ columnGap: gap }}>
-							{loading ? (
-								<>
-									{[0, 1, 2, 3].map((index) => (
-										<Animated.View
-											key={`tab-skeleton-${index}`}
-											style={{ opacity: pulse }}
-											className="bg-card h-7 w-24 rounded-full"
-										/>
-									))}
-								</>
-							) : (
+							{hasProviders ? (
 								<>
 									<Animated.View
 										style={{
@@ -89,37 +52,35 @@ export function DiscoverHeader({
 										}}
 										className="bg-accent absolute bottom-0 h-[4px] rounded-full"
 									/>
-									{hasProviders ? (
-										providers.map((provider) => {
-											const active = provider.id === selectedProviderId
-											return (
-												<Pressable
-													key={provider.id}
-													onPress={() => onSelectProvider(provider.id)}
-													onLayout={(event) => {
-														const { x, width } = event.nativeEvent.layout
-														onTabLayout(provider.id, { x, width })
-													}}
-													className="px-4 pb-3"
+									{providers.map((provider) => {
+										const active = provider.id === selectedProviderId
+										return (
+											<Pressable
+												key={provider.id}
+												onPress={() => onSelectProvider(provider.id)}
+												onLayout={(event) => {
+													const { x, width } = event.nativeEvent.layout
+													onTabLayout(provider.id, { x, width })
+												}}
+												className="px-4 pb-3"
+											>
+												<Text
+													className={`text-sm font-semibold ${
+														active ? "text-accent" : "text-muted"
+													}`}
 												>
-													<Text
-														className={`text-sm font-semibold ${
-															active ? "text-accent" : "text-muted"
-														}`}
-													>
-														{provider.name}
-													</Text>
-												</Pressable>
-											)
-										})
-									) : (
-										<View className="border-border rounded-full border px-4 py-2">
-											<Text className="text-muted text-xs tracking-[0.2em] uppercase">
-												No providers
-											</Text>
-										</View>
-									)}
+													{provider.name}
+												</Text>
+											</Pressable>
+										)
+									})}
 								</>
+							) : (
+								<View className="border-border rounded-full border px-4 py-2">
+									<Text className="text-muted text-xs tracking-[0.2em] uppercase">
+										No providers
+									</Text>
+								</View>
 							)}
 						</View>
 					</ScrollView>
