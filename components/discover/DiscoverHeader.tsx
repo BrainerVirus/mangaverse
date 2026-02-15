@@ -1,7 +1,7 @@
 import { Animated, Pressable, ScrollView, Text, View } from "react-native"
 
 interface DiscoverHeaderProps {
-	providers: Array<{ id: string; name: string }>
+	providers: { id: string; name: string }[]
 	selectedProviderId?: string
 	onSelectProvider: (id: string) => void
 	onOpenProvider: () => void
@@ -35,7 +35,7 @@ export function DiscoverHeader({
 			</View>
 			<View className="mt-4">
 				<View className="relative -mx-2 px-2">
-					<View className="bg-border absolute right-0 bottom-0 left-0 h-[2px]" />
+					<View className="bg-border absolute right-0 bottom-0 left-0 h-0.5" />
 					<ScrollView
 						horizontal
 						showsHorizontalScrollIndicator={false}
@@ -50,7 +50,7 @@ export function DiscoverHeader({
 											transform: [{ translateX: indicatorX }],
 											width: indicatorWidth,
 										}}
-										className="bg-accent absolute bottom-0 h-[4px] rounded-full"
+										className="bg-accent absolute bottom-0 h-1 rounded-full"
 									/>
 									{providers.map((provider) => {
 										const active = provider.id === selectedProviderId
