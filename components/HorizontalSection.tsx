@@ -56,8 +56,8 @@ export function HorizontalSection({
 					<Text
 						className={
 							seeAllVariant === "primary"
-								? "text-base text-accent-foreground"
-								: "text-base text-accent"
+								? "text-accent-foreground text-base"
+								: "text-accent text-base"
 						}
 					>
 						↗
@@ -68,7 +68,7 @@ export function HorizontalSection({
 				horizontal
 				showsHorizontalScrollIndicator={false}
 				className="mt-4"
-				contentContainerStyle={{ paddingRight: pagePadding, columnGap: gap }}
+				contentContainerStyle={{ paddingRight: pagePadding, columnGap: gap, paddingTop: 8 }}
 				scrollEventThrottle={120}
 				onScroll={onScroll}
 			>
