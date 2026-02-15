@@ -21,10 +21,7 @@ export function ErrorDrawer({
 				className="border-border bg-card overflow-hidden rounded-t-[28px] border shadow-2xl"
 			>
 				<View className="items-center justify-center">
-					<Pressable
-						onPress={onToggleHeight}
-						className="h-[28px] w-full items-center justify-center"
-					>
+					<Pressable onPress={onToggleHeight} className="h-7 w-full items-center justify-center">
 						<View className="bg-border h-1.5 w-12 rounded-full" />
 					</Pressable>
 				</View>
