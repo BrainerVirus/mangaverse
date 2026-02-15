@@ -125,7 +125,7 @@ export default function DiscoverSection() {
 								<Text className="text-accent text-xs font-semibold">Back</Text>
 							</Link>
 							<Text className="text-foreground text-base font-semibold">{title}</Text>
-							<View className="w-[48px]" />
+							<View className="w-12" />
 						</View>
 						<Text className="text-muted mt-3 text-sm">All titles</Text>
 					</View>
