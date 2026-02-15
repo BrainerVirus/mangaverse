@@ -1,4 +1,7 @@
+import { Bookmark } from "lucide-react-native"
 import { Image, Text, View } from "react-native"
+
+import { Icon } from "@components/Icon"
 
 interface MangaCardProps {
 	title: string
@@ -70,10 +73,10 @@ export function MangaCard({
 
 				{inLibrary && (
 					<View
-						className="bg-accent absolute -top-2 -right-2 h-7 w-7 items-center justify-center rounded-full shadow-sm"
+						className="bg-accent will-change-variable absolute -top-2 -right-2 h-7 w-7 items-center justify-center rounded-full shadow-sm"
 						style={{ elevation: 3 }} // Add elevation for Android so it sits "above"
 					>
-						<Text className="text-xs">🔖</Text>
+						<Icon icon={Bookmark} size={12} color="#120b0b" fill="#120b0b" />
 					</View>
 				)}
 			</View>

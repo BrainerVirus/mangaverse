@@ -40,6 +40,7 @@
     "expo-sqlite": "^16.0.10",
     "expo-status-bar": "~3.0.9",
     "expo-web-browser": "^15.0.10",
+    "lucide-react-native": "^0.564.0",
     "nativewind": "5.0.0-preview.2",
     "node-html-parser": "^6.1.13",
     "react": "19.1.0",

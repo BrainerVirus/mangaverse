@@ -1,5 +1,8 @@
 import { Link } from "expo-router"
+import { ArrowRight, ArrowUpRight } from "lucide-react-native"
 import { Pressable, ScrollView, Text, View } from "react-native"
+
+import { Icon } from "@components/Icon"
 
 import { GENRE_COLORS } from "@lib/discover"
 
@@ -45,7 +48,7 @@ export function GenreSection({
 					}}
 					className="bg-accent h-11 w-11 items-center justify-center rounded-2xl"
 				>
-					<Text className="text-accent-foreground text-base">↗</Text>
+					<Icon icon={ArrowUpRight} size={18} color="#120b0b" />
 				</Link>
 			</View>
 			<ScrollView
@@ -77,7 +80,7 @@ export function GenreSection({
 							>
 								<View className="absolute top-0 right-0 h-12 w-12 rounded-bl-3xl bg-white/30" />
 								<View className="absolute top-2 right-3 h-7 w-7 items-center justify-center rounded-full bg-white/40">
-									<Text className="text-xs font-semibold text-white">→</Text>
+									<Icon icon={ArrowRight} size={12} color="#ffffff" />
 								</View>
 								<Text className="text-sm font-semibold text-white" numberOfLines={2}>
 									{item.title}

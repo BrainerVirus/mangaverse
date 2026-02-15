@@ -1,4 +1,7 @@
+import { Cloud } from "lucide-react-native"
 import { Animated, Pressable, ScrollView, Text, View } from "react-native"
+
+import { Icon } from "@components/Icon"
 
 interface DiscoverHeaderProps {
 	providers: { id: string; name: string }[]
@@ -30,7 +33,7 @@ export function DiscoverHeader({
 					onPress={onOpenProvider}
 					className="border-border bg-card absolute right-0 h-9 w-9 items-center justify-center rounded-full border"
 				>
-					<Text className="text-accent text-base">☁</Text>
+					<Icon icon={Cloud} size={18} color="#ff6b6b" />
 				</Pressable>
 			</View>
 			<View className="mt-4">

@@ -1,5 +1,8 @@
 import { Link } from "expo-router"
+import { ArrowUpRight } from "lucide-react-native"
 import { ScrollView, Text, View } from "react-native"
+
+import { Icon } from "@components/Icon"
 
 import type { ProviderMangaItem } from "../types/provider"
 
@@ -38,8 +41,6 @@ export function HorizontalSection({
 		seeAllVariant === "primary"
 			? "h-11 w-11 items-center justify-center rounded-[16px] bg-accent"
 			: "h-11 w-11 items-center justify-center rounded-[16px] bg-accent/20"
-	const seeAllTextClassName =
-		seeAllVariant === "primary" ? "text-base text-accent-foreground" : "text-base text-accent"
 	return (
 		<View>
 			<View className="flex-row items-center justify-between">
@@ -55,14 +56,18 @@ export function HorizontalSection({
 					}}
 					className={seeAllClassName}
 				>
-					<Text className={seeAllTextClassName}>↗</Text>
+					<Icon
+						icon={ArrowUpRight}
+						size={18}
+						color={seeAllVariant === "primary" ? "#120b0b" : "#ff6b6b"}
+					/>
 				</Link>
 			</View>
 			<ScrollView
 				horizontal
 				showsHorizontalScrollIndicator={false}
 				className="mt-4"
-				contentContainerStyle={{ paddingRight: pagePadding, columnGap: gap, paddingTop: 8 }}
+				contentContainerStyle={{ paddingRight: pagePadding, columnGap: gap }}
 				scrollEventThrottle={120}
 				onScroll={onScroll}
 			>
