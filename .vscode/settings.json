@@ -11,14 +11,10 @@
   "editor.codeActionsOnSave": {
     "source.organizeImports": "explicit"
   },
-  "editor.quickSuggestions": {
-    "strings": "on"
-  },
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSave": true,
   "files.associations": {
-    "*.svg": "html",
-    "*.css": "tailwindcss"
+    "*.svg": "html"
   },
   "javascript.format.insertSpaceBeforeFunctionParenthesis": false,
   "typescript.format.insertSpaceBeforeFunctionParenthesis": false,
@@ -26,9 +22,8 @@
   "typescript.format.insertSpaceAfterFunctionKeywordForAnonymousFunctions": false,
   "editor.insertSpaces": false,
   "editor.detectIndentation": false,
-  "tailwindCSS.classAttributes": ["class", "className", "headerClassName"],
-  "eslint.validate": ["javascript", "javascriptreact", "astro", "typescript", "typescriptreact"],
-
-  "tailwindCSS.classFunctions": ["tw", "clsx", "cva", "cx", "tw\\.[a-z-]+", "cn"],
-  "chat.useAgentSkills": true
+  "tailwindCSS.experimental.classRegex": [
+    ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
+    ["cx\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"]
+  ]
 }

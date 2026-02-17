@@ -1,103 +1,88 @@
-import { BlurView } from "expo-blur"
-import * as WebBrowser from "expo-web-browser"
-import { useEffect, useMemo, useRef, useState } from "react"
-import { Animated, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { BlurView } from 'expo-blur';
+import * as WebBrowser from 'expo-web-browser';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { DiscoverHeader } from "@components/discover/DiscoverHeader"
-import { DiscoverSections } from "@components/discover/DiscoverSections"
-import { DiscoverSkeleton } from "@components/discover/DiscoverSkeleton"
-import { DiscoverStates } from "@components/discover/DiscoverStates"
-import { ErrorDrawer } from "@components/discover/ErrorDrawer"
-import { HeroCarousel } from "@components/discover/HeroCarousel"
-import { getDiscoverLayout } from "@lib/layout"
-import { useFavoritesStore } from "@services/library/favorites"
-import { useExtensionsStore } from "@stores/extensions"
-import { useSettingsStore } from "@stores/settings"
-import { useDiscoverData } from "../../hooks/useDiscoverData"
-import { useTabBarPadding } from "../../hooks/useTabBarPadding"
-import type { ProviderMangaItem } from "../../types/provider"
+import { DiscoverHeader } from '@components/discover/DiscoverHeader';
+import { DiscoverSections } from '@components/discover/DiscoverSections';
+import { DiscoverSkeleton } from '@components/discover/DiscoverSkeleton';
+import { DiscoverStates } from '@components/discover/DiscoverStates';
+import { ErrorDrawer } from '@components/discover/ErrorDrawer';
+import { HeroCarousel } from '@components/discover/HeroCarousel';
+import { getDiscoverLayout } from '@lib/layout';
+import { useFavoritesStore } from '@services/library/favorites';
+import { useExtensionsStore } from '@stores/extensions';
+import { useSettingsStore } from '@stores/settings';
+import { useDiscoverData } from '../../hooks/useDiscoverData';
+import { useTabBarPadding } from '../../hooks/useTabBarPadding';
+import type { ProviderMangaItem } from '../../types/provider';
 
 export default function Discover() {
-	const providers = useExtensionsStore((state) => state.enabledProviders)
-	const selectedProviderId = useExtensionsStore((state) => state.selectedProviderId)
-	const setSelectedProvider = useExtensionsStore((state) => state.setSelectedProvider)
-	const providersMap = useExtensionsStore((state) => state.providers)
-	const refreshProviders = useExtensionsStore((state) => state.refreshProviders)
-	const loadErrors = useExtensionsStore((state) => state.loadErrors)
-	const [tabLayouts, setTabLayouts] = useState<Record<string, { x: number; width: number }>>({})
-	const indicatorX = useRef(new Animated.Value(0)).current
-	const indicatorWidth = useRef(new Animated.Value(0)).current
-	const indicatorReady = useRef(false)
-	const favoriteStore = useFavoritesStore()
-	const showProviderErrors = useSettingsStore((state) => state.showProviderErrors)
-	const hasProviders = providers.length > 0
-	const providerLoadError = selectedProviderId ? loadErrors[selectedProviderId] : undefined
-	const [errorDrawerOpen, setErrorDrawerOpen] = useState(false)
-	const [isDrawerExpanded, setIsDrawerExpanded] = useState(false)
-	const errorDrawerHeight = useRef(new Animated.Value(0)).current
-	const errorDrawerBaseHeight = 260
-	const errorDrawerMaxHeight = 520
-	const { width: screenWidth } = useWindowDimensions()
-	const {
-		pagePadding,
-		gap,
-		cardWidth,
-		heroWidth: baseHeroWidth,
-	} = useMemo(() => getDiscoverLayout(screenWidth), [screenWidth])
-	const heroPeek = 36
-	const heroWidth = Math.max(0, baseHeroWidth - heroPeek)
-	const heroSpacing = gap
-	const heroScrollX = useRef(new Animated.Value(0)).current
-	const heroScrollRef = useRef<ScrollView>(null)
-	const heroProvider = providers.find((provider) => provider.id === selectedProviderId)?.name ?? ""
-	const insets = useSafeAreaInsets()
-	const tabBarPadding = useTabBarPadding(16)
-	const scrollY = useRef(new Animated.Value(0)).current
+	const providers = useExtensionsStore((state) => state.enabledProviders);
+	const selectedProviderId = useExtensionsStore((state) => state.selectedProviderId);
+	const setSelectedProvider = useExtensionsStore((state) => state.setSelectedProvider);
+	const providersMap = useExtensionsStore((state) => state.providers);
+	const refreshProviders = useExtensionsStore((state) => state.refreshProviders);
+	const loadErrors = useExtensionsStore((state) => state.loadErrors);
+	const [tabLayouts, setTabLayouts] = useState<Record<string, { x: number; width: number }>>({});
+	const indicatorX = useRef(new Animated.Value(0)).current;
+	const indicatorWidth = useRef(new Animated.Value(0)).current;
+	const indicatorReady = useRef(false);
+	const favoriteStore = useFavoritesStore();
+	const showProviderErrors = useSettingsStore((state) => state.showProviderErrors);
+	const hasProviders = providers.length > 0;
+	const providerLoadError = selectedProviderId ? loadErrors[selectedProviderId] : undefined;
+	const [errorDrawerOpen, setErrorDrawerOpen] = useState(false);
+	const [isDrawerExpanded, setIsDrawerExpanded] = useState(false);
+	const errorDrawerHeight = useRef(new Animated.Value(0)).current;
+	const errorDrawerBaseHeight = 260;
+	const errorDrawerMaxHeight = 520;
+	const { width: screenWidth } = useWindowDimensions();
+	const { pagePadding, gap, cardWidth, heroWidth: baseHeroWidth } = useMemo(() => getDiscoverLayout(screenWidth), [screenWidth]);
+	const heroPeek = 36;
+	const heroWidth = Math.max(0, baseHeroWidth - heroPeek);
+	const heroSpacing = gap;
+	const heroScrollX = useRef(new Animated.Value(0)).current;
+	const heroScrollRef = useRef<ScrollView>(null);
+	const heroProvider = providers.find((provider) => provider.id === selectedProviderId)?.name ?? '';
+	const insets = useSafeAreaInsets();
+	const tabBarPadding = useTabBarPadding(16);
+	const scrollY = useRef(new Animated.Value(0)).current;
 	const { orderedSections, sectionItems, loading, error, heroItems, loadMore } = useDiscoverData({
 		providersMap,
 		selectedProviderId,
 		refreshProviders,
-	})
+	});
 
 	useEffect(() => {
 		if (!showProviderErrors || !providerLoadError) {
-			setErrorDrawerOpen(false)
-			return
+			setErrorDrawerOpen(false);
+			return;
 		}
-		setErrorDrawerOpen(true)
-	}, [providerLoadError, showProviderErrors])
+		setErrorDrawerOpen(true);
+	}, [providerLoadError, showProviderErrors]);
 
 	useEffect(() => {
-		const targetHeight = errorDrawerOpen
-			? isDrawerExpanded
-				? errorDrawerMaxHeight
-				: errorDrawerBaseHeight
-			: 0
+		const targetHeight = errorDrawerOpen ? (isDrawerExpanded ? errorDrawerMaxHeight : errorDrawerBaseHeight) : 0;
 		Animated.timing(errorDrawerHeight, {
 			toValue: targetHeight,
 			duration: 220,
 			useNativeDriver: false,
-		}).start()
-	}, [
-		errorDrawerBaseHeight,
-		errorDrawerHeight,
-		errorDrawerMaxHeight,
-		errorDrawerOpen,
-		isDrawerExpanded,
-	])
+		}).start();
+	}, [errorDrawerBaseHeight, errorDrawerHeight, errorDrawerMaxHeight, errorDrawerOpen, isDrawerExpanded]);
 
 	useEffect(() => {
-		const layout = selectedProviderId ? tabLayouts[selectedProviderId] : null
+		const layout = selectedProviderId ? tabLayouts[selectedProviderId] : null;
 		if (!layout) {
-			return
+			return;
 		}
-		const { x, width } = layout
+		const { x, width } = layout;
 		if (!indicatorReady.current) {
-			indicatorX.setValue(x)
-			indicatorWidth.setValue(width)
-			indicatorReady.current = true
-			return
+			indicatorX.setValue(x);
+			indicatorWidth.setValue(width);
+			indicatorReady.current = true;
+			return;
 		}
 		Animated.parallel([
 			Animated.timing(indicatorX, {
@@ -110,76 +95,70 @@ export default function Discover() {
 				duration: 240,
 				useNativeDriver: false,
 			}),
-		]).start()
-	}, [indicatorWidth, indicatorX, selectedProviderId, tabLayouts])
+		]).start();
+	}, [indicatorWidth, indicatorX, selectedProviderId, tabLayouts]);
 
 	const handleOpenProvider = async () => {
-		const providerId = selectedProviderId
+		const providerId = selectedProviderId;
 		if (!providerId) {
-			return
+			return;
 		}
-		const provider = providersMap[providerId]
-		const url = provider?.meta.baseUrl || ""
+		const provider = providersMap[providerId];
+		const url = provider?.meta.baseUrl || '';
 		if (!url) {
-			return
+			return;
 		}
-		await WebBrowser.openBrowserAsync(url)
-	}
+		await WebBrowser.openBrowserAsync(url);
+	};
 
 	const handleToggleDrawerHeight = () => {
 		if (!errorDrawerOpen) {
-			setErrorDrawerOpen(true)
-			setIsDrawerExpanded(false)
-			return
+			setErrorDrawerOpen(true);
+			setIsDrawerExpanded(false);
+			return;
 		}
-		setIsDrawerExpanded((current) => !current)
-	}
+		setIsDrawerExpanded((current) => !current);
+	};
 
 	useEffect(() => {
 		if (!errorDrawerOpen) {
-			return
+			return;
 		}
 		Animated.timing(errorDrawerHeight, {
 			toValue: isDrawerExpanded ? errorDrawerMaxHeight : errorDrawerBaseHeight,
 			duration: 200,
 			useNativeDriver: false,
-		}).start()
-	}, [
-		errorDrawerBaseHeight,
-		errorDrawerHeight,
-		errorDrawerMaxHeight,
-		errorDrawerOpen,
-		isDrawerExpanded,
-	])
+		}).start();
+	}, [errorDrawerBaseHeight, errorDrawerHeight, errorDrawerMaxHeight, errorDrawerOpen, isDrawerExpanded]);
 
 	const handleCloseDrawer = () => {
-		setErrorDrawerOpen(false)
-		setIsDrawerExpanded(false)
-	}
+		setErrorDrawerOpen(false);
+		setIsDrawerExpanded(false);
+	};
 
 	const handleToggleFavorite = (item: ProviderMangaItem) => {
-		const providerId = selectedProviderId
+		const providerId = selectedProviderId;
 		if (!providerId) {
-			return
+			return;
 		}
 		if (favoriteStore.contains(item.id, providerId)) {
-			favoriteStore.remove(item.id, providerId)
-			return
+			favoriteStore.remove(item.id, providerId);
+			return;
 		}
-		favoriteStore.add(item, providerId)
-	}
+		favoriteStore.add(item, providerId);
+	};
 
-	const headerPaddingTop = Math.max(insets.top, 16)
+	const headerPaddingTop = Math.max(insets.top, 16);
 	const blurOpacity = scrollY.interpolate({
 		inputRange: [0, 48],
 		outputRange: [0, 1],
-		extrapolate: "clamp",
-	})
+		extrapolate: 'clamp',
+	});
 	const solidOpacity = scrollY.interpolate({
 		inputRange: [0, 48],
 		outputRange: [1, 0],
-		extrapolate: "clamp",
-	})
+		extrapolate: 'clamp',
+	});
 	return (
 		<View className="bg-background flex-1">
 			<ScrollView
@@ -194,14 +173,8 @@ export default function Discover() {
 			>
 				<View className="border-border/40 border-b">
 					<View className="relative">
-						<Animated.View
-							style={[StyleSheet.absoluteFillObject, { opacity: solidOpacity }]}
-							className="bg-background"
-						/>
-						<Animated.View
-							pointerEvents="none"
-							style={[StyleSheet.absoluteFillObject, { opacity: blurOpacity }]}
-						>
+						<Animated.View style={[StyleSheet.absoluteFillObject, { opacity: solidOpacity }]} className="bg-background" />
+						<Animated.View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { opacity: blurOpacity }]}>
 							<BlurView intensity={60} tint="default" style={StyleSheet.absoluteFillObject} />
 							<View className="bg-background/40" style={StyleSheet.absoluteFillObject} />
 						</Animated.View>
@@ -220,9 +193,7 @@ export default function Discover() {
 								indicatorX={indicatorX}
 								indicatorWidth={indicatorWidth}
 								gap={gap}
-								onTabLayout={(id, layout) =>
-									setTabLayouts((current) => ({ ...current, [id]: layout }))
-								}
+								onTabLayout={(id, layout) => setTabLayouts((current) => ({ ...current, [id]: layout }))}
 							/>
 						</View>
 					</View>
@@ -241,12 +212,10 @@ export default function Discover() {
 							heroScrollRef={heroScrollRef}
 							selectedProviderId={selectedProviderId}
 							onToggleFavorite={handleToggleFavorite}
-							isFavorite={(item) => favoriteStore.contains(item.id, selectedProviderId ?? "")}
+							isFavorite={(item) => favoriteStore.contains(item.id, selectedProviderId ?? '')}
 						/>
 					)}
-					{loading ? null : (
-						<DiscoverStates loading={loading} error={error} hasProviders={hasProviders} />
-					)}
+					{loading ? null : <DiscoverStates loading={loading} error={error} hasProviders={hasProviders} />}
 					{!loading && !error && hasProviders ? (
 						<DiscoverSections
 							sections={orderedSections}
@@ -256,7 +225,7 @@ export default function Discover() {
 							gap={gap}
 							cardWidth={cardWidth}
 							onLoadMore={loadMore}
-							isInLibrary={(itemId) => favoriteStore.contains(itemId, selectedProviderId ?? "")}
+							isInLibrary={(itemId) => favoriteStore.contains(itemId, selectedProviderId ?? '')}
 						/>
 					) : null}
 				</View>
@@ -270,5 +239,5 @@ export default function Discover() {
 				/>
 			) : null}
 		</View>
-	)
+	);
 }

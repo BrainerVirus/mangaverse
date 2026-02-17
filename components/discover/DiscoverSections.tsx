@@ -1,21 +1,21 @@
-import { Link } from "expo-router"
-import { Pressable, View } from "react-native"
+import { Link } from 'expo-router';
+import { Pressable, View } from 'react-native';
 
-import { HorizontalSection } from "@components/HorizontalSection"
-import { MangaCard } from "@components/MangaCard"
-import { GenreSection } from "@components/discover/GenreSection"
+import { HorizontalSection } from '@components/HorizontalSection';
+import { MangaCard } from '@components/MangaCard';
+import { GenreSection } from '@components/discover/GenreSection';
 
-import type { ProviderDiscoverSection, ProviderMangaItem } from "../../types/provider"
+import type { ProviderDiscoverSection, ProviderMangaItem } from '../../types/provider';
 
 interface DiscoverSectionsProps {
-	sections: ProviderDiscoverSection[]
-	sectionItems: Record<string, ProviderMangaItem[]>
-	providerId?: string
-	pagePadding: number
-	gap: number
-	cardWidth: number
-	onLoadMore: (sectionId: string) => void
-	isInLibrary: (itemId: string) => boolean
+	sections: ProviderDiscoverSection[];
+	sectionItems: Record<string, ProviderMangaItem[]>;
+	providerId?: string;
+	pagePadding: number;
+	gap: number;
+	cardWidth: number;
+	onLoadMore: (sectionId: string) => void;
+	isInLibrary: (itemId: string) => boolean;
 }
 
 export function DiscoverSections({
@@ -32,23 +32,23 @@ export function DiscoverSections({
 		(sectionId: string) =>
 		(event: {
 			nativeEvent: {
-				layoutMeasurement: { width: number }
-				contentOffset: { x: number }
-				contentSize: { width: number }
-			}
+				layoutMeasurement: { width: number };
+				contentOffset: { x: number };
+				contentSize: { width: number };
+			};
 		}) => {
-			const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent
-			const threshold = 120
+			const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+			const threshold = 120;
 			if (layoutMeasurement.width + contentOffset.x >= contentSize.width - threshold) {
-				onLoadMore(sectionId)
+				onLoadMore(sectionId);
 			}
-		}
+		};
 
 	return (
 		<View className="mt-6 gap-6">
 			{sections.map((section) => {
-				const items = sectionItems[section.id] ?? []
-				if (section.id === "genres") {
+				const items = sectionItems[section.id] ?? [];
+				if (section.id === 'genres') {
 					return (
 						<GenreSection
 							key={section.id}
@@ -57,10 +57,10 @@ export function DiscoverSections({
 							pagePadding={pagePadding}
 							gap={gap}
 							cardWidth={cardWidth}
-							sectionTitle={section.title || "Genres"}
+							sectionTitle={section.title || 'Genres'}
 							onScroll={handleHorizontalScroll(section.id)}
 						/>
-					)
+					);
 				}
 				return (
 					<HorizontalSection
@@ -77,7 +77,7 @@ export function DiscoverSections({
 							<Link
 								key={`${section.id}-${item.id}-${index}`}
 								href={{
-									pathname: "/manga/[id]",
+									pathname: '/manga/[id]',
 									params: { id: item.id, provider: providerId },
 								}}
 								asChild
@@ -96,8 +96,8 @@ export function DiscoverSections({
 							</Link>
 						)}
 					/>
-				)
+				);
 			})}
 		</View>
-	)
+	);
 }

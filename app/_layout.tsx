@@ -1,118 +1,106 @@
-import "../global.css"
+import '../global.css';
 
-import { Stack } from "expo-router/stack"
-import { useEffect, useMemo } from "react"
-import { View } from "react-native"
-import { SafeAreaProvider } from "react-native-safe-area-context"
+import { VariableContextProvider } from 'nativewind';
 
-import { AUTO_INSTALL_MANGADEX } from "@lib/constants"
-import { isSupabaseConfigured, supabase } from "@services/auth/supabase"
-import { initializeDatabase } from "@services/db"
-import {
-	installExtension,
-	loadInstalledExtensions,
-	saveInstalledExtensions,
-} from "@services/extensions/manager"
-import { fetchExtensionIndex } from "@services/extensions/repository"
-import { useAuthStore } from "@stores/auth"
-import { useExtensionsStore } from "@stores/extensions"
-import { useSettingsStore } from "@stores/settings"
+import { Stack } from 'expo-router/stack';
+import { useEffect, useMemo } from 'react';
+import { useColorScheme, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+import { AUTO_INSTALL_MANGADEX } from '@lib/constants';
+import { getThemeVars } from '@lib/themes/vars';
+import { isSupabaseConfigured, supabase } from '@services/auth/supabase';
+import { initializeDatabase } from '@services/db';
+import { installExtension, loadInstalledExtensions, saveInstalledExtensions } from '@services/extensions/manager';
+import { fetchExtensionIndex } from '@services/extensions/repository';
+import { useAuthStore } from '@stores/auth';
+import { useExtensionsStore } from '@stores/extensions';
+import { useSettingsStore } from '@stores/settings';
 
 export default function Layout() {
-	const setSession = useAuthStore((state) => state.setSession)
-	const setLoading = useAuthStore((state) => state.setLoading)
-	const refreshProviders = useExtensionsStore((state) => state.refreshProviders)
-	const theme = useSettingsStore((state) => state.theme)
-	const themeClass = useMemo(() => {
-		switch (theme) {
-			case "Modern":
-				return "theme-modern"
-			case "Cyberpunk":
-				return "theme-cyberpunk"
-			case "Noir":
-				return "theme-noir"
-			case "Sakura":
-				return "theme-sakura"
-			case "Forest":
-				return "theme-forest"
-			default:
-				return ""
-		}
-	}, [theme])
+	const setSession = useAuthStore((state) => state.setSession);
+	const setLoading = useAuthStore((state) => state.setLoading);
+	const refreshProviders = useExtensionsStore((state) => state.refreshProviders);
+	const theme = useSettingsStore((state) => state.theme);
+	const colorScheme = useColorScheme();
+	const resolvedScheme = colorScheme === 'light' ? 'light' : 'dark';
+	const themeVars = useMemo(() => getThemeVars(theme, resolvedScheme), [theme, resolvedScheme]);
 	useEffect(() => {
-		initializeDatabase()
-	}, [])
+		initializeDatabase();
+	}, []);
 	useEffect(() => {
-		refreshProviders().catch(() => {})
-	}, [refreshProviders])
+		refreshProviders().catch(() => {});
+	}, [refreshProviders]);
 	useEffect(() => {
 		if (!AUTO_INSTALL_MANGADEX) {
-			return
+			return;
 		}
 		const ensureMangaDex = async () => {
-			const installed = await loadInstalledExtensions()
-			if (installed.some((entry) => entry.id === "mangadex")) {
-				return
+			const installed = await loadInstalledExtensions();
+			if (installed.some((entry) => entry.id === 'mangadex')) {
+				return;
 			}
-			const index = await fetchExtensionIndex(process.env.EXPO_PUBLIC_EXTENSION_REPO)
-			const item = index.find((entry) => entry.id === "mangadex")
+			const index = await fetchExtensionIndex(process.env.EXPO_PUBLIC_EXTENSION_REPO);
+			const item = index.find((entry) => entry.id === 'mangadex');
 			if (!item) {
-				return
+				return;
 			}
-			const extension = await installExtension(item)
-			const next = [...installed, { ...extension, order: installed.length }]
-			await saveInstalledExtensions(next)
-			await refreshProviders()
-		}
-		ensureMangaDex().catch(() => {})
-	}, [refreshProviders])
+			const extension = await installExtension(item);
+			const next = [...installed, { ...extension, order: installed.length }];
+			await saveInstalledExtensions(next);
+			await refreshProviders();
+		};
+		ensureMangaDex().catch(() => {});
+	}, [refreshProviders]);
 	useEffect(() => {
 		if (!isSupabaseConfigured) {
-			setSession(null)
-			setLoading(false)
-			return
+			setSession(null);
+			setLoading(false);
+			return;
 		}
-		let active = true
+		let active = true;
 		supabase.auth.getSession().then((result: { data: { session: unknown } }) => {
-			const data = result.data
+			const data = result.data;
 			if (!active) {
-				return
+				return;
 			}
-			setSession((data as { session: unknown }).session ?? null)
-			setLoading(false)
-		})
+			setSession((data as { session: unknown }).session ?? null);
+			setLoading(false);
+		});
 		const { data } = supabase.auth.onAuthStateChange((event: string, session: unknown) => {
-			if (event === "SIGNED_OUT") {
-				setSession(null)
-				return
+			if (event === 'SIGNED_OUT') {
+				setSession(null);
+				return;
 			}
-			setSession(session ?? null)
-		})
+			setSession(session ?? null);
+		});
 		return () => {
-			active = false
-			data.subscription.unsubscribe()
-		}
-	}, [setLoading, setSession])
+			active = false;
+			data.subscription.unsubscribe();
+		};
+	}, [setLoading, setSession]);
 	return (
-		<View className={`bg-background flex-1 ${themeClass}`}>
-			<SafeAreaProvider>
-				<Stack screenOptions={{ contentStyle: { backgroundColor: "transparent" } }}>
-					<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-					<Stack.Screen name="search" options={{ presentation: "modal", title: "Search" }} />
-					<Stack.Screen name="manga/[id]" options={{ headerShown: false }} />
-					<Stack.Screen name="reader/[chapterId]" options={{ headerShown: false }} />
-					<Stack.Screen name="extensions/install" options={{ title: "Install Extension" }} />
-					<Stack.Screen name="settings/extensions" options={{ title: "Extensions" }} />
-					<Stack.Screen name="settings/appearance" options={{ title: "Appearance" }} />
-					<Stack.Screen name="settings/reader" options={{ title: "Reader" }} />
-					<Stack.Screen name="settings/content" options={{ title: "Content" }} />
-					<Stack.Screen name="settings/security" options={{ title: "Security" }} />
-					<Stack.Screen name="settings/backup" options={{ title: "Backup & Restore" }} />
-					<Stack.Screen name="settings/account" options={{ title: "Account" }} />
-					<Stack.Screen name="settings/auth-help" options={{ title: "Auth Setup" }} />
-					<Stack.Screen name="auth/callback" options={{ headerShown: false }} />
-				</Stack>
-			</SafeAreaProvider>
-		</View>
-	)
+		<VariableContextProvider value={themeVars}>
+			<View className="bg-background flex-1">
+				<SafeAreaProvider>
+					<Stack screenOptions={{ contentStyle: { backgroundColor: 'transparent' } }}>
+						<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+						<Stack.Screen name="search" options={{ presentation: 'modal', title: 'Search' }} />
+						<Stack.Screen name="manga/[id]" options={{ headerShown: false }} />
+						<Stack.Screen name="reader/[chapterId]" options={{ headerShown: false }} />
+						<Stack.Screen name="extensions/install" options={{ title: 'Install Extension' }} />
+						<Stack.Screen name="settings/extensions" options={{ title: 'Extensions' }} />
+						<Stack.Screen name="settings/appearance" options={{ title: 'Appearance' }} />
+						<Stack.Screen name="settings/reader" options={{ title: 'Reader' }} />
+						<Stack.Screen name="settings/content" options={{ title: 'Content' }} />
+						<Stack.Screen name="settings/security" options={{ title: 'Security' }} />
+						<Stack.Screen name="settings/backup" options={{ title: 'Backup & Restore' }} />
+						<Stack.Screen name="settings/account" options={{ title: 'Account' }} />
+						<Stack.Screen name="settings/auth-help" options={{ title: 'Auth Setup' }} />
+						<Stack.Screen name="auth/callback" options={{ headerShown: false }} />
+					</Stack>
+				</SafeAreaProvider>
+			</View>
+		</VariableContextProvider>
+	);
 }

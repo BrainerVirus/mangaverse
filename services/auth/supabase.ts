@@ -22,8 +22,11 @@ type NoopAuth = {
 	onAuthStateChange: (callback: (event: string, session: unknown) => void) => {
 		data: { subscription: { unsubscribe: () => void } }
 	}
-	getSessionFromUrl: (params: { url: string }) => Promise<{ data: { session: null }; error: null }>
-	setSession: (session: unknown) => Promise<{ data: { session: null }; error: null }>
+	exchangeCodeForSession: (url: string) => Promise<{ data: { session: null }; error: null }>
+	setSession: (session: { access_token: string; refresh_token: string }) => Promise<{
+		data: { session: null }
+		error: null
+	}>
 	signInWithOtp: (params: { email: string; options?: { emailRedirectTo?: string } }) => Promise<{
 		data: null
 		error: Error
@@ -42,7 +45,7 @@ type NoopAuth = {
 const createNoopAuth = (): NoopAuth => ({
 	getSession: async () => ({ data: { session: null }, error: null }),
 	onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-	getSessionFromUrl: async () => ({ data: { session: null }, error: null }),
+	exchangeCodeForSession: async () => ({ data: { session: null }, error: null }),
 	setSession: async () => ({ data: { session: null }, error: null }),
 	signInWithOtp: async () => ({ data: null, error: new Error("Supabase not configured") }),
 	verifyOtp: async () => ({ data: null, error: new Error("Supabase not configured") }),

@@ -1,113 +1,123 @@
-import { Link, useLocalSearchParams } from "expo-router"
-import { useCallback, useEffect, useMemo, useState } from "react"
-import {
-	ActivityIndicator,
-	FlatList,
-	Pressable,
-	Text,
-	View,
-	useWindowDimensions,
-} from "react-native"
+import { Link, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, Text, View, useWindowDimensions } from 'react-native';
 
-import { MangaCard } from "@components/MangaCard"
-import { useExtensionsStore } from "@stores/extensions"
-import type { ProviderMangaItem } from "../../types/provider"
+import { MangaCard } from '@components/MangaCard';
+import { useThemeColors } from '@lib/themes/vars';
+import { useExtensionsStore } from '@stores/extensions';
+import type { ProviderMangaItem } from '../../types/provider';
 
-const PAGE_SIZE = 20
-const GENRE_RESULTS_PAGE_SIZE = 24
+const PAGE_SIZE = 20;
+const GENRE_RESULTS_PAGE_SIZE = 24;
 
 export default function DiscoverSection() {
-	const params = useLocalSearchParams<{ sectionId: string; provider?: string; title?: string }>()
-	const providers = useExtensionsStore((state) => state.providers)
-	const sectionId = params.sectionId
-	const providerId = params.provider ?? ""
-	const [items, setItems] = useState<ProviderMangaItem[]>([])
-	const [page, setPage] = useState(1)
-	const [loading, setLoading] = useState(true)
-	const [loadingMore, setLoadingMore] = useState(false)
-	const [error, setError] = useState<string | null>(null)
-	const [hasMore, setHasMore] = useState(true)
-	const [genreItems, setGenreItems] = useState<ProviderMangaItem[]>([])
-	const { width } = useWindowDimensions()
-	const columnCount = 3
-	const horizontalPadding = 20
-	const columnGap = 12
-	const itemWidth = Math.floor(
-		(width - horizontalPadding * 2 - columnGap * (columnCount - 1)) / columnCount
-	)
+	const params = useLocalSearchParams<{ sectionId: string; provider?: string; title?: string }>();
+	const providers = useExtensionsStore((state) => state.providers);
+	const sectionId = params.sectionId;
+	const providerId = params.provider ?? '';
+	const [items, setItems] = useState<ProviderMangaItem[]>([]);
+	const [page, setPage] = useState(1);
+	const [loading, setLoading] = useState(true);
+	const [loadingMore, setLoadingMore] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const [hasMore, setHasMore] = useState(true);
+	const [genreItems, setGenreItems] = useState<ProviderMangaItem[]>([]);
+	const themeColors = useThemeColors();
+	const { width } = useWindowDimensions();
+	const columnCount = 3;
+	const horizontalPadding = 20;
+	const columnGap = 12;
+	const itemWidth = Math.floor((width - horizontalPadding * 2 - columnGap * (columnCount - 1)) / columnCount);
 	const title = useMemo(() => {
-		if (typeof params.title === "string" && params.title.length > 0) {
-			return params.title
+		if (typeof params.title === 'string' && params.title.length > 0) {
+			return params.title;
 		}
-		return sectionId ?? "Section"
-	}, [params.title, sectionId])
+		return sectionId ?? 'Section';
+	}, [params.title, sectionId]);
 
 	const loadPage = useCallback(
 		async (nextPage: number) => {
-			const provider = providers[providerId]
+			const provider = providers[providerId];
 			if (!provider || !sectionId) {
-				setError("Provider not available")
-				setLoading(false)
-				return
+				setError('Provider not available');
+				setLoading(false);
+				return;
 			}
-			if (sectionId === "genres") {
-				const allGenres = await provider.getDiscoverGenres()
-				const sliceStart = (nextPage - 1) * PAGE_SIZE
-				const sliceEnd = sliceStart + PAGE_SIZE
-				const data = allGenres.slice(sliceStart, sliceEnd)
-				setGenreItems(allGenres)
-				setItems((current) => (nextPage === 1 ? data : [...current, ...data]))
-				setHasMore(sliceEnd < allGenres.length)
-				setPage(nextPage)
-				return
+			if (sectionId === 'genres') {
+				const allGenres = await provider.getDiscoverGenres();
+				const sliceStart = (nextPage - 1) * PAGE_SIZE;
+				const sliceEnd = sliceStart + PAGE_SIZE;
+				const data = allGenres.slice(sliceStart, sliceEnd);
+				setGenreItems(allGenres);
+				setItems((current) => (nextPage === 1 ? data : [...current, ...data]));
+				setHasMore(sliceEnd < allGenres.length);
+				setPage(nextPage);
+				return;
 			}
-			const data = await provider.getDiscoverSectionItems(sectionId, nextPage)
-			setItems((current) => (nextPage === 1 ? data : [...current, ...data]))
-			setHasMore(data.length >= PAGE_SIZE)
-			setPage(nextPage)
+			const data = await provider.getDiscoverSectionItems(sectionId, nextPage);
+			setItems((current) => (nextPage === 1 ? data : [...current, ...data]));
+			setHasMore(data.length >= PAGE_SIZE);
+			setPage(nextPage);
 		},
-		[providerId, providers, sectionId]
-	)
+		[providerId, providers, sectionId],
+	);
 
 	const loadGenreResults = useCallback(
 		async (nextPage: number) => {
-			const provider = providers[providerId]
+			const provider = providers[providerId];
 			if (!provider || !sectionId) {
-				setError("Provider not available")
-				setLoading(false)
-				return
+				setError('Provider not available');
+				setLoading(false);
+				return;
 			}
-			const data = await provider.getDiscoverSectionItems("genres", nextPage, {
+			const data = await provider.getDiscoverSectionItems('genres', nextPage, {
 				genreId: sectionId,
-			})
-			setItems((current) => (nextPage === 1 ? data : [...current, ...data]))
-			setHasMore(data.length >= GENRE_RESULTS_PAGE_SIZE)
-			setPage(nextPage)
+			});
+			setItems((current) => (nextPage === 1 ? data : [...current, ...data]));
+			setHasMore(data.length >= GENRE_RESULTS_PAGE_SIZE);
+			setPage(nextPage);
 		},
-		[providerId, providers, sectionId]
-	)
+		[providerId, providers, sectionId],
+	);
 
 	useEffect(() => {
-		setLoading(true)
-		setError(null)
-		const isGenreSelection = sectionId && sectionId !== "genres"
-		const load = isGenreSelection ? loadGenreResults : loadPage
-		load(1)
-			.catch((err) => setError(err instanceof Error ? err.message : "Failed to load"))
-			.finally(() => setLoading(false))
-	}, [loadGenreResults, loadPage, sectionId])
+		setLoading(true);
+		setError(null);
+		const provider = providers[providerId];
+		if (!provider || !sectionId) {
+			setError('Provider not available');
+			setLoading(false);
+			return;
+		}
+		const load = async () => {
+			if (sectionId === 'genres') {
+				await loadPage(1);
+				return;
+			}
+			const sections = await provider.getDiscoverSections();
+			const isKnownSection = sections.some((section) => section.id === sectionId);
+			if (isKnownSection) {
+				await loadPage(1);
+				return;
+			}
+			await loadGenreResults(1);
+		};
+		load()
+			.catch((err) => setError(err instanceof Error ? err.message : 'Failed to load'))
+			.finally(() => setLoading(false));
+	}, [loadGenreResults, loadPage, providerId, providers, sectionId]);
 
 	const handleEndReached = () => {
 		if (loadingMore || loading || !hasMore) {
-			return
+			return;
 		}
-		setLoadingMore(true)
-		const isGenreSelection = sectionId && sectionId !== "genres"
-		const load = isGenreSelection ? loadGenreResults : loadPage
+		setLoadingMore(true);
+		const isGenreSelection = sectionId && sectionId !== 'genres';
+		const load = isGenreSelection ? loadGenreResults : loadPage;
 		load(page + 1)
 			.catch(() => {})
-			.finally(() => setLoadingMore(false))
-	}
+			.finally(() => setLoadingMore(false));
+	};
 
 	return (
 		<View className="bg-background flex-1">
@@ -122,29 +132,29 @@ export default function DiscoverSection() {
 					<View className="pt-4 pb-4">
 						<View className="flex-row items-center justify-between">
 							<Link href="/discover" className="bg-card rounded-full px-3 py-2">
-								<Text className="text-accent text-xs font-semibold">Back</Text>
+								<Text className="text-accent text-preset-1 font-heading font-semibold">Back</Text>
 							</Link>
-							<Text className="text-foreground text-base font-semibold">{title}</Text>
+							<Text className="text-foreground text-preset-3 font-heading font-semibold">{title}</Text>
 							<View className="w-12" />
 						</View>
-						<Text className="text-muted mt-3 text-sm">All titles</Text>
+						<Text className="text-muted text-preset-2 font-body mt-3">All titles</Text>
 					</View>
 				}
 				ListFooterComponent={
 					loadingMore ? (
 						<View className="items-center py-6">
-							<ActivityIndicator color="#ff6b6b" />
+							<ActivityIndicator color={themeColors.accent} />
 						</View>
 					) : null
 				}
 				onEndReached={handleEndReached}
 				onEndReachedThreshold={0.6}
 				renderItem={({ item, index }) => {
-					const isRowEnd = (index + 1) % columnCount === 0
+					const isRowEnd = (index + 1) % columnCount === 0;
 					return (
 						<Link
 							href={{
-								pathname: "/manga/[id]",
+								pathname: '/manga/[id]',
 								params: { id: item.id, provider: providerId },
 							}}
 							asChild
@@ -159,27 +169,27 @@ export default function DiscoverSection() {
 								<MangaCard title={item.title} subtitle={item.subtitle} coverUrl={item.coverUrl} />
 							</Pressable>
 						</Link>
-					)
+					);
 				}}
 				ListEmptyComponent={
 					loading ? (
 						<View className="bg-card items-center justify-center rounded-[22px] p-6">
-							<ActivityIndicator color="#ff6b6b" />
-							<Text className="text-muted mt-3 text-sm">Loading titles…</Text>
+							<ActivityIndicator color={themeColors.accent} />
+							<Text className="text-muted text-preset-2 font-body mt-3">Loading titles…</Text>
 						</View>
 					) : error ? (
 						<View className="bg-card rounded-[22px] p-6">
-							<Text className="text-foreground text-base font-semibold">Unable to load</Text>
-							<Text className="text-muted mt-2 text-sm">{error}</Text>
+							<Text className="text-foreground text-preset-3 font-heading font-semibold">Unable to load</Text>
+							<Text className="text-muted text-preset-2 font-body mt-2">{error}</Text>
 						</View>
 					) : (
 						<View className="bg-card rounded-[22px] p-6">
-							<Text className="text-foreground text-base font-semibold">No titles found</Text>
-							<Text className="text-muted mt-2 text-sm">This section has no items yet.</Text>
+							<Text className="text-foreground text-preset-3 font-heading font-semibold">No titles found</Text>
+							<Text className="text-muted text-preset-2 font-body mt-2">This section has no items yet.</Text>
 						</View>
 					)
 				}
 			/>
 		</View>
-	)
+	);
 }

@@ -1,56 +1,45 @@
-import { Image, Text, View } from "react-native"
+import { Image, Text, View } from 'react-native';
 
 interface MangaCardProps {
-	title: string
-	coverUrl?: string
-	subtitle?: string
-	tags?: string[]
-	lastChapter?: string | number
-	language?: string
-	inLibrary?: boolean
-	showMeta?: boolean
+	title: string;
+	coverUrl?: string;
+	subtitle?: string;
+	tags?: string[];
+	lastChapter?: string | number;
+	language?: string;
+	inLibrary?: boolean;
+	showMeta?: boolean;
 }
 
 const languageToFlag: Record<string, string> = {
-	en: "🇺🇸",
-	es: "🇪🇸",
-	jp: "🇯🇵",
-	ja: "🇯🇵",
-	pt: "🇵🇹",
-	fr: "🇫🇷",
-	de: "🇩🇪",
-	it: "🇮🇹",
-	ru: "🇷🇺",
-	ko: "🇰🇷",
-	zh: "🇨🇳",
-}
+	en: '🇺🇸',
+	es: '🇪🇸',
+	jp: '🇯🇵',
+	ja: '🇯🇵',
+	pt: '🇵🇹',
+	fr: '🇫🇷',
+	de: '🇩🇪',
+	it: '🇮🇹',
+	ru: '🇷🇺',
+	ko: '🇰🇷',
+	zh: '🇨🇳',
+};
 
 const formatLanguage = (value?: string) => {
 	if (!value) {
-		return undefined
+		return undefined;
 	}
-	const normalized = value.toLowerCase()
-	const flag = languageToFlag[normalized]
+	const normalized = value.toLowerCase();
+	const flag = languageToFlag[normalized];
 	if (flag) {
-		return flag
+		return flag;
 	}
-	return normalized.slice(0, 2).toUpperCase()
-}
+	return normalized.slice(0, 2).toUpperCase();
+};
 
-export function MangaCard({
-	title,
-	coverUrl,
-	subtitle,
-	lastChapter,
-	language,
-	inLibrary,
-	showMeta = true,
-}: MangaCardProps) {
-	const languageLabel = formatLanguage(language)
-	const chapterLabel =
-		lastChapter !== undefined && lastChapter !== null && String(lastChapter).length > 0
-			? `Ch. ${lastChapter}`
-			: undefined
+export function MangaCard({ title, coverUrl, subtitle, lastChapter, language, inLibrary, showMeta = true }: MangaCardProps) {
+	const languageLabel = formatLanguage(language);
+	const chapterLabel = lastChapter !== undefined && lastChapter !== null && String(lastChapter).length > 0 ? `Ch. ${lastChapter}` : undefined;
 	return (
 		<View>
 			<View className="relative">
@@ -62,8 +51,8 @@ export function MangaCard({
 					)}
 
 					{languageLabel && (
-						<View className="absolute right-2 bottom-2 rounded-full bg-black/70 px-2 py-1">
-							<Text className="text-[10px] text-white">{languageLabel}</Text>
+						<View className="absolute right-2 bottom-2 rounded-full bg-background/85 px-2 py-1">
+							<Text className="text-preset-1 font-body text-foreground">{languageLabel}</Text>
 						</View>
 					)}
 				</View>
@@ -73,21 +62,21 @@ export function MangaCard({
 						className="bg-accent will-change-variable absolute -top-2 -right-2 h-7 w-7 items-center justify-center rounded-full shadow-sm"
 						style={{ elevation: 3 }} // Add elevation for Android so it sits "above"
 					>
-						<Text className="text-xs">🔖</Text>
+						<Text className="text-preset-1 font-body">🔖</Text>
 					</View>
 				)}
 			</View>
 
-			<Text className="text-foreground mt-2 text-sm font-semibold" numberOfLines={1}>
+			<Text className="text-foreground text-preset-3 font-heading font-semibold mt-2" numberOfLines={1}>
 				{title}
 			</Text>
 
 			{showMeta && (subtitle || chapterLabel) && (
-				<Text className="text-muted mt-1 text-xs" numberOfLines={1}>
+				<Text className="text-muted text-preset-2 font-body mt-1" numberOfLines={1}>
 					{subtitle && `${subtitle} · `}
-					{chapterLabel ?? ""}
+					{chapterLabel ?? ''}
 				</Text>
 			)}
 		</View>
-	)
+	);
 }

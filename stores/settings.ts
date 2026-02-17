@@ -1,6 +1,16 @@
 import { create } from "zustand"
 
-type ThemeOption = "System" | "Modern" | "Cyberpunk" | "Noir" | "Sakura" | "Forest"
+export type ThemeOption =
+	| "Modern"
+	| "Cyberpunk"
+	| "Noir"
+	| "Sakura"
+	| "Forest"
+	| "Sunset"
+	| "Ocean"
+	| "Desert"
+	| "Lavender"
+	| "Slate"
 type ReaderMode = "rtl" | "ltr" | "vertical" | "webtoon" | "double"
 type TapZonePreset = "balanced" | "wide-center" | "classic"
 type ReaderFitMode = "contain" | "cover" | "width"
@@ -33,7 +43,7 @@ interface SettingsState {
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
-	theme: "System",
+	theme: "Modern",
 	readerMode: "webtoon",
 	prefetchCount: 6,
 	explicitContent: false,

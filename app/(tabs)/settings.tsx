@@ -1,88 +1,78 @@
-import { Link } from "expo-router"
-import { ScrollView, Text, View } from "react-native"
+import { Link } from 'expo-router';
+import { ScrollView, Text, View } from 'react-native';
 
-import { GradientBackdrop } from "@components/GradientBackdrop"
-import { SectionHeading } from "@components/SectionHeading"
-import { useSettingsStore } from "@stores/settings"
-import { useTabBarPadding } from "../../hooks/useTabBarPadding"
+import { GradientBackdrop } from '@components/GradientBackdrop';
+import { SectionHeading } from '@components/SectionHeading';
+import { useSettingsStore } from '@stores/settings';
+import { useTabBarPadding } from '../../hooks/useTabBarPadding';
 
 const sections = [
 	{
-		id: "appearance",
-		title: "Appearance",
-		description: "Theme, library layout, AMOLED",
-		link: "/settings/appearance",
+		id: 'appearance',
+		title: 'Appearance',
+		description: 'Theme, library layout, AMOLED',
+		link: '/settings/appearance',
 	},
 	{
-		id: "reader",
-		title: "Reader",
-		description: "Defaults, tap zones, prefetch",
-		link: "/settings/reader",
+		id: 'reader',
+		title: 'Reader',
+		description: 'Defaults, tap zones, prefetch',
+		link: '/settings/reader',
 	},
 	{
-		id: "content",
-		title: "Content filters",
-		description: "Safe, suggestive, explicit",
-		link: "/settings/content",
+		id: 'content',
+		title: 'Content filters',
+		description: 'Safe, suggestive, explicit',
+		link: '/settings/content',
 	},
 	{
-		id: "extensions",
-		title: "Extensions",
-		description: "Repo URL, install, languages",
-		link: "/settings/extensions",
+		id: 'extensions',
+		title: 'Extensions',
+		description: 'Repo URL, install, languages',
+		link: '/settings/extensions',
 	},
 	{
-		id: "security",
-		title: "Security",
-		description: "App lock & biometrics",
-		link: "/settings/security",
+		id: 'security',
+		title: 'Security',
+		description: 'App lock & biometrics',
+		link: '/settings/security',
 	},
 	{
-		id: "backup",
-		title: "Backup & restore",
-		description: "Export local JSON and sync",
-		link: "/settings/backup",
+		id: 'backup',
+		title: 'Backup & restore',
+		description: 'Export local JSON and sync',
+		link: '/settings/backup',
 	},
 	{
-		id: "account",
-		title: "Account",
-		description: "Optional Better Auth login",
-		link: "/settings/account",
+		id: 'account',
+		title: 'Account',
+		description: 'Optional Better Auth login',
+		link: '/settings/account',
 	},
-]
+];
 
 export default function Settings() {
-	const theme = useSettingsStore((state) => state.theme)
-	const tabBarPadding = useTabBarPadding(24)
+	const theme = useSettingsStore((state) => state.theme);
+	const tabBarPadding = useTabBarPadding(24);
 	return (
-		<View className="flex-1 bg-neutral-950">
+		<View className="flex-1 bg-background">
 			<GradientBackdrop />
-			<ScrollView
-				className="flex-1 px-5 pt-6"
-				contentInsetAdjustmentBehavior="automatic"
-				contentContainerStyle={{ paddingBottom: tabBarPadding }}
-			>
+			<ScrollView className="flex-1 px-5 pt-6" contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: tabBarPadding }}>
 				<SectionHeading title="Settings" subtitle="Tune your experience" />
-				<View className="mb-6 rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">
-					<Text className="text-sm tracking-[0.2em] text-neutral-500 uppercase">Theme</Text>
-					<Text className="mt-2 text-lg font-semibold text-white">{theme}</Text>
-					<Text className="mt-1 text-sm text-neutral-400">
-						Appearance applies across the reader and library.
-					</Text>
+				<View className="mb-6 rounded-[28px] border border-border/30 bg-card/70 p-5">
+					<Text className="text-preset-1 tracking-[0.2em] text-muted-foreground uppercase">Theme</Text>
+					<Text className="text-preset-4 font-heading font-semibold text-foreground mt-2">{theme}</Text>
+					<Text className="text-preset-2 font-body text-muted mt-1">Appearance applies across the reader and library.</Text>
 				</View>
 				<View className="gap-4 pb-12">
 					{sections.map((section) => (
-						<Link
-							key={section.id}
-							href={section.link}
-							className="rounded-[26px] border border-white/5 bg-neutral-900/70 p-5"
-						>
-							<Text className="text-lg font-semibold text-white">{section.title}</Text>
-							<Text className="mt-2 text-sm text-neutral-400">{section.description}</Text>
+						<Link key={section.id} href={section.link} className="rounded-[26px] border border-border/30 bg-card/70 p-5">
+							<Text className="text-preset-4 font-heading font-semibold text-foreground">{section.title}</Text>
+							<Text className="text-preset-2 font-body text-muted mt-2">{section.description}</Text>
 						</Link>
 					))}
 				</View>
 			</ScrollView>
 		</View>
-	)
+	);
 }

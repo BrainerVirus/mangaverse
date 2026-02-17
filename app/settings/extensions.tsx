@@ -1,142 +1,129 @@
-import { useEffect, useState } from "react"
-import { ScrollView, Switch, Text, TextInput, View } from "react-native"
+import { useEffect, useState } from 'react';
+import { ScrollView, Switch, Text, TextInput, View } from 'react-native';
 
-import { GradientBackdrop } from "@components/GradientBackdrop"
-import { SectionHeading } from "@components/SectionHeading"
-import {
-	installExtension,
-	saveInstalledExtensions,
-	uninstallExtension,
-} from "@services/extensions/manager"
-import { fetchExtensionIndex } from "@services/extensions/repository"
-import { useExtensionsStore } from "@stores/extensions"
-import { useSettingsStore } from "@stores/settings"
-import type { ExtensionIndexItem } from "../../types/provider"
+import { GradientBackdrop } from '@components/GradientBackdrop';
+import { SectionHeading } from '@components/SectionHeading';
+import { useThemeColors } from '@lib/themes/vars';
+import { installExtension, saveInstalledExtensions, uninstallExtension } from '@services/extensions/manager';
+import { fetchExtensionIndex } from '@services/extensions/repository';
+import { useExtensionsStore } from '@stores/extensions';
+import { useSettingsStore } from '@stores/settings';
+import type { ExtensionIndexItem } from '../../types/provider';
 
 export default function ExtensionsSettings() {
-	const repoUrl = useExtensionsStore((state) => state.repoUrl)
-	const setRepoUrl = useExtensionsStore((state) => state.setRepoUrl)
-	const providers = useExtensionsStore((state) => state.enabledProviders)
-	const installed = useExtensionsStore((state) => state.installed)
-	const setInstalled = useExtensionsStore((state) => state.setInstalled)
-	const refreshProviders = useExtensionsStore((state) => state.refreshProviders)
-	const showProviderErrors = useSettingsStore((state) => state.showProviderErrors)
-	const setShowProviderErrors = useSettingsStore((state) => state.setShowProviderErrors)
-	const [index, setIndex] = useState<ExtensionIndexItem[]>([])
-	const [loading, setLoading] = useState(false)
-	const [error, setError] = useState<string | null>(null)
+	const repoUrl = useExtensionsStore((state) => state.repoUrl);
+	const setRepoUrl = useExtensionsStore((state) => state.setRepoUrl);
+	const providers = useExtensionsStore((state) => state.enabledProviders);
+	const installed = useExtensionsStore((state) => state.installed);
+	const setInstalled = useExtensionsStore((state) => state.setInstalled);
+	const refreshProviders = useExtensionsStore((state) => state.refreshProviders);
+	const showProviderErrors = useSettingsStore((state) => state.showProviderErrors);
+	const setShowProviderErrors = useSettingsStore((state) => state.setShowProviderErrors);
+	const [index, setIndex] = useState<ExtensionIndexItem[]>([]);
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const themeColors = useThemeColors();
 
 	useEffect(() => {
-		refreshProviders().catch(() => {})
-	}, [refreshProviders, setInstalled])
+		refreshProviders().catch(() => {});
+	}, [refreshProviders, setInstalled]);
 
 	useEffect(() => {
-		setLoading(true)
-		setError(null)
+		setLoading(true);
+		setError(null);
 		fetchExtensionIndex(repoUrl)
 			.then((data) => setIndex(data))
-			.catch((err) => setError(err instanceof Error ? err.message : "Failed to load"))
-			.finally(() => setLoading(false))
-	}, [repoUrl])
+			.catch((err) => setError(err instanceof Error ? err.message : 'Failed to load'))
+			.finally(() => setLoading(false));
+	}, [repoUrl]);
 
 	const handleInstall = async (item: ExtensionIndexItem) => {
-		setLoading(true)
-		setError(null)
+		setLoading(true);
+		setError(null);
 		try {
-			const extension = await installExtension(item)
-			const next = [...installed, { ...extension, order: installed.length }]
-			setInstalled(next)
-			await saveInstalledExtensions(next)
-			await refreshProviders()
+			const extension = await installExtension(item);
+			const next = [...installed, { ...extension, order: installed.length }];
+			setInstalled(next);
+			await saveInstalledExtensions(next);
+			await refreshProviders();
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Failed to install")
+			setError(err instanceof Error ? err.message : 'Failed to install');
 		} finally {
-			setLoading(false)
+			setLoading(false);
 		}
-	}
+	};
 
 	const handleUninstall = async (id: string) => {
-		setLoading(true)
-		setError(null)
+		setLoading(true);
+		setError(null);
 		try {
-			await uninstallExtension(id)
-			const next = installed.filter((entry) => entry.id !== id)
-			setInstalled(next)
-			await saveInstalledExtensions(next)
-			await refreshProviders()
+			await uninstallExtension(id);
+			const next = installed.filter((entry) => entry.id !== id);
+			setInstalled(next);
+			await saveInstalledExtensions(next);
+			await refreshProviders();
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Failed to uninstall")
+			setError(err instanceof Error ? err.message : 'Failed to uninstall');
 		} finally {
-			setLoading(false)
+			setLoading(false);
 		}
-	}
+	};
 
 	return (
-		<View className="flex-1 bg-neutral-950">
+		<View className="flex-1 bg-background">
 			<GradientBackdrop />
 			<ScrollView className="flex-1 px-5 pt-6" contentInsetAdjustmentBehavior="automatic">
 				<SectionHeading title="Extensions" subtitle="Manage providers" />
-				<View className="rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">
-					<Text className="text-xs tracking-[0.2em] text-neutral-500 uppercase">
-						Repository URL
-					</Text>
+				<View className="rounded-[28px] border border-border/30 bg-card/70 p-5">
+					<Text className="text-preset-1 tracking-[0.2em] text-muted-foreground uppercase">Repository URL</Text>
 					<TextInput
 						value={repoUrl}
 						onChangeText={setRepoUrl}
 						placeholder="https://example.com/extensions.json"
-						placeholderTextColor="#7b7b88"
-						className="mt-3 rounded-2xl border border-neutral-700 bg-neutral-900 px-4 py-3 text-sm text-white"
+						placeholderTextColor={themeColors.mutedForeground}
+						className="mt-3 rounded-2xl border border-border/40 bg-background px-4 py-3 text-preset-2 font-body text-foreground"
 						autoCapitalize="none"
 						autoCorrect={false}
 					/>
 				</View>
-				<View className="mt-4 rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">
+				<View className="mt-4 rounded-[28px] border border-border/30 bg-card/70 p-5">
 					<View className="flex-row items-center justify-between">
 						<View className="flex-1 pr-4">
-							<Text className="text-base font-semibold text-white">Show provider errors</Text>
-							<Text className="mt-2 text-sm text-neutral-400">
-								Display extension load failures on Discover.
-							</Text>
+							<Text className="text-preset-3 font-heading font-semibold text-foreground">Show provider errors</Text>
+							<Text className="text-preset-2 font-body text-muted mt-2">Display extension load failures on Discover.</Text>
 						</View>
 						<Switch
 							value={showProviderErrors}
 							onValueChange={setShowProviderErrors}
-							trackColor={{ false: "#2b2b30", true: "#ffb14a" }}
-							thumbColor={showProviderErrors ? "#0b0b0c" : "#e5e5ea"}
-							ios_backgroundColor="#2b2b30"
+							trackColor={{ false: themeColors.border, true: themeColors.accent }}
+							thumbColor={showProviderErrors ? themeColors.background : themeColors.card}
+							ios_backgroundColor={themeColors.border}
 						/>
 					</View>
 				</View>
 				{loading ? (
-					<View className="mt-4 rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">
-						<Text className="text-sm text-neutral-300">Working…</Text>
+					<View className="mt-4 rounded-[28px] border border-border/30 bg-card/70 p-5">
+						<Text className="text-preset-2 font-body text-muted">Working…</Text>
 					</View>
 				) : null}
 				{error ? (
-					<View className="mt-4 rounded-[28px] border border-amber-500/40 bg-amber-500/10 p-5">
-						<Text className="text-sm text-amber-100">{error}</Text>
+					<View className="mt-4 rounded-[28px] border border-warning/40 bg-warning/10 p-5">
+						<Text className="text-preset-2 font-body text-warning">{error}</Text>
 					</View>
 				) : null}
 				<View className="mt-6 gap-4 pb-12">
 					{providers.length === 0 ? (
-						<View className="rounded-[28px] border border-white/5 bg-neutral-900/70 p-5">
-							<Text className="text-base font-semibold text-white">No extensions installed.</Text>
-							<Text className="mt-2 text-sm text-neutral-400">
-								Add a repository URL to browse extensions.
-							</Text>
+						<View className="rounded-[28px] border border-border/30 bg-card/70 p-5">
+							<Text className="text-preset-3 font-heading font-semibold text-foreground">No extensions installed.</Text>
+							<Text className="text-preset-2 font-body text-muted mt-2">Add a repository URL to browse extensions.</Text>
 						</View>
 					) : (
 						providers.map((provider) => (
-							<View
-								key={provider.id}
-								className="rounded-[26px] border border-white/5 bg-neutral-900/70 p-5"
-							>
-								<Text className="text-base font-semibold text-white">{provider.name}</Text>
-								<Text className="mt-2 text-sm text-neutral-400">
-									{provider.meta.supportedLanguages.join(", ") || "No languages"}
-								</Text>
+							<View key={provider.id} className="rounded-[26px] border border-border/30 bg-card/70 p-5">
+								<Text className="text-preset-3 font-heading font-semibold text-foreground">{provider.name}</Text>
+								<Text className="text-preset-2 font-body text-muted mt-2">{provider.meta.supportedLanguages.join(', ') || 'No languages'}</Text>
 								<Text
-									className="mt-3 rounded-full bg-neutral-800 px-4 py-2 text-center text-xs font-semibold tracking-[0.2em] text-neutral-200 uppercase"
+									className="mt-3 rounded-full bg-chip px-4 py-2 text-center text-preset-1 font-heading font-semibold tracking-[0.2em] text-foreground uppercase"
 									onPress={loading ? undefined : () => handleUninstall(provider.id)}
 								>
 									Uninstall
@@ -146,35 +133,28 @@ export default function ExtensionsSettings() {
 					)}
 					{index.length > 0 ? (
 						<View className="gap-4">
-							<Text className="text-xs tracking-[0.2em] text-neutral-500 uppercase">Available</Text>
+							<Text className="text-preset-1 tracking-[0.2em] text-muted-foreground uppercase">Available</Text>
 							{index.map((item) => {
-								const isInstalled = installed.some((entry) => entry.id === item.id)
+								const isInstalled = installed.some((entry) => entry.id === item.id);
 								return (
-									<View
-										key={item.id}
-										className="rounded-[26px] border border-white/5 bg-neutral-900/70 p-5"
-									>
-										<Text className="text-base font-semibold text-white">{item.name}</Text>
-										<Text className="mt-1 text-sm text-neutral-400">
-											{item.languages.join(", ") || "No languages"}
-										</Text>
+									<View key={item.id} className="rounded-[26px] border border-border/30 bg-card/70 p-5">
+										<Text className="text-preset-3 font-heading font-semibold text-foreground">{item.name}</Text>
+										<Text className="text-preset-2 font-body text-muted mt-1">{item.languages.join(', ') || 'No languages'}</Text>
 										<Text
-											className={`mt-3 rounded-full px-4 py-2 text-center text-xs font-semibold tracking-[0.2em] uppercase ${
-												isInstalled
-													? "bg-neutral-800 text-neutral-400"
-													: "bg-amber-500 text-neutral-950"
+											className={`mt-3 rounded-full px-4 py-2 text-center text-preset-1 font-heading font-semibold tracking-[0.2em] uppercase ${
+												isInstalled ? 'bg-chip text-muted' : 'bg-accent text-accent-foreground'
 											}`}
 											onPress={isInstalled || loading ? undefined : () => handleInstall(item)}
 										>
-											{isInstalled ? "Installed" : "Install"}
+											{isInstalled ? 'Installed' : 'Install'}
 										</Text>
 									</View>
-								)
+								);
 							})}
 						</View>
 					) : null}
 				</View>
 			</ScrollView>
 		</View>
-	)
+	);
 }

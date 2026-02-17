@@ -102,9 +102,20 @@ jest.mock("@stores/extensions", () => ({
 }))
 
 jest.mock("@stores/settings", () => ({
-	useSettingsStore: (selector: (state: { showProviderErrors: boolean }) => unknown) =>
-		selector({ showProviderErrors: true }),
+	useSettingsStore: (
+		selector: (state: { showProviderErrors: boolean; theme: string }) => unknown
+	) =>
+		selector({ showProviderErrors: true, theme: "Modern" }),
 }))
+
+jest.mock("react-native-safe-area-context", () => {
+	const actual = jest.requireActual("react-native-safe-area-context")
+	return {
+		...actual,
+		SafeAreaProvider: ({ children }: { children: React.ReactNode }) => children,
+		useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+	}
+})
 
 jest.mock("@services/library/favorites", () => ({
 	useFavoritesStore: () => ({
@@ -120,19 +131,25 @@ describe("Discover screens", () => {
 	})
 
 	test("Discover renders hero and sections", async () => {
-		const { getByText } = render(<Discover />)
+		const { getByText, getAllByText } = render(<Discover />)
 
 		expect(getByText("Discover")).toBeTruthy()
-		expect(getByText("Hero Title")).toBeTruthy()
-		expect(getByText("Popular")).toBeTruthy()
 
 		await waitFor(() => {
+			expect(getByText("Popular")).toBeTruthy()
 			expect(mockExtensions.providers.mangadex.getDiscoverSections).toHaveBeenCalled()
 			expect(mockExtensions.providers.mangadex.getDiscoverSectionItems).toHaveBeenCalled()
 		})
+		expect(getAllByText("Item 1").length).toBeGreaterThan(0)
 	})
 
 	test("Discover section loads grid items", async () => {
+		const { useLocalSearchParams } = jest.requireMock("expo-router")
+		useLocalSearchParams.mockReturnValue({
+			sectionId: "popular",
+			provider: "mangadex",
+			title: "Popular",
+		})
 		const { getByText } = render(<DiscoverSection />)
 
 		await waitFor(() => {

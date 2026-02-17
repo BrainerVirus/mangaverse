@@ -28,13 +28,17 @@ export function getDiscoverLayout(
 	const available = Math.max(0, width - pagePadding * 2)
 	const columns = Math.max(minColumns, Math.floor((available + gap) / (minCardWidth + gap)))
 	const cardWidth = Math.floor((available - gap * (columns - 1)) / columns)
-	const heroWidth = Math.max(0, width - pagePadding * 2)
+	const sizeScale = 1.1
+	const heroWidth = Math.max(0, width - pagePadding * 2) * sizeScale
 
+	const scaledCardWidth = Math.floor(cardWidth * sizeScale)
+	const totalWidth = scaledCardWidth * columns + gap * (columns - 1) + pagePadding * 2
+	const clampedCardWidth = totalWidth > width ? Math.floor(cardWidth) : scaledCardWidth
 	return {
 		pagePadding,
 		gap,
 		columns,
-		cardWidth,
+		cardWidth: clampedCardWidth,
 		heroWidth,
 	}
 }

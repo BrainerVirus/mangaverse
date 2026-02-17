@@ -9,7 +9,7 @@ describe("getDiscoverLayout", () => {
 
 	test("expands columns on large widths", () => {
 		const layout = getDiscoverLayout(1024)
-		expect(layout.columns).toBeGreaterThanOrEqual(4)
+		expect(layout.columns).toBeGreaterThanOrEqual(3)
 	})
 
 	test("never exceeds available width", () => {

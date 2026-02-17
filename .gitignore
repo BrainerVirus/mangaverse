@@ -41,6 +41,3 @@ pnpm-debug.log*
 
 # jest
 coverage/**/*
-
-# docs
-docs/

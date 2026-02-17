@@ -1,25 +1,25 @@
-import { Link } from "expo-router"
-import { ScrollView, Text, View } from "react-native"
+import { Link } from 'expo-router';
+import { ScrollView, Text, View } from 'react-native';
 
-import type { ProviderMangaItem } from "../types/provider"
+import type { ProviderMangaItem } from '../types/provider';
 
 interface HorizontalSectionProps {
-	sectionId: string
-	title: string
-	items: ProviderMangaItem[]
-	providerId?: string
-	pagePadding: number
-	gap: number
-	cardWidth: number
-	renderItem: (item: ProviderMangaItem, index: number) => React.ReactNode
-	seeAllVariant?: "primary" | "ghost"
+	sectionId: string;
+	title: string;
+	items: ProviderMangaItem[];
+	providerId?: string;
+	pagePadding: number;
+	gap: number;
+	cardWidth: number;
+	renderItem: (item: ProviderMangaItem, index: number) => React.ReactNode;
+	seeAllVariant?: 'primary' | 'ghost';
 	onScroll?: (event: {
 		nativeEvent: {
-			layoutMeasurement: { width: number }
-			contentOffset: { x: number }
-			contentSize: { width: number }
-		}
-	}) => void
+			layoutMeasurement: { width: number };
+			contentOffset: { x: number };
+			contentSize: { width: number };
+		};
+	}) => void;
 }
 
 export function HorizontalSection({
@@ -31,20 +31,20 @@ export function HorizontalSection({
 	gap,
 	cardWidth,
 	renderItem,
-	seeAllVariant = "primary",
+	seeAllVariant = 'primary',
 	onScroll,
 }: HorizontalSectionProps) {
 	const seeAllClassName =
-		seeAllVariant === "primary"
-			? "h-11 w-11 items-center justify-center rounded-[16px] bg-accent"
-			: "h-11 w-11 items-center justify-center rounded-[16px] bg-accent/20"
+		seeAllVariant === 'primary'
+			? 'h-11 w-11 items-center justify-center rounded-[16px] bg-accent'
+			: 'h-11 w-11 items-center justify-center rounded-[16px] bg-accent/20';
 	return (
 		<View>
 			<View className="flex-row items-center justify-between">
-				<Text className="text-foreground text-lg font-semibold">{title}</Text>
+				<Text className="text-foreground text-preset-4 font-heading font-semibold">{title}</Text>
 				<Link
 					href={{
-						pathname: "/discover/[sectionId]",
+						pathname: '/discover/[sectionId]',
 						params: {
 							sectionId,
 							provider: providerId,
@@ -53,13 +53,7 @@ export function HorizontalSection({
 					}}
 					className={seeAllClassName}
 				>
-					<Text
-						className={
-							seeAllVariant === "primary"
-								? "text-accent-foreground text-base"
-								: "text-accent text-base"
-						}
-					>
+					<Text className={seeAllVariant === 'primary' ? 'text-accent-foreground text-preset-3 font-body' : 'text-accent text-preset-3 font-body'}>
 						↗
 					</Text>
 				</Link>
@@ -79,5 +73,5 @@ export function HorizontalSection({
 				))}
 			</ScrollView>
 		</View>
-	)
+	);
 }

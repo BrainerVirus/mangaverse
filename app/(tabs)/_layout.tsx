@@ -1,7 +1,10 @@
-import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs"
+import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
+
+import { useThemeColors } from '@lib/themes/vars';
 export default function TabLayout() {
+	const themeColors = useThemeColors();
 	return (
-		<NativeTabs backgroundColor="#0b0b0d" disableTransparentOnScrollEdge>
+		<NativeTabs backgroundColor={themeColors.background} disableTransparentOnScrollEdge>
 			<NativeTabs.Trigger name="library">
 				<Label>Library</Label>
 				<Icon sf="books.vertical" />
@@ -19,5 +22,5 @@ export default function TabLayout() {
 				<Icon sf="gear" />
 			</NativeTabs.Trigger>
 		</NativeTabs>
-	)
+	);
 }

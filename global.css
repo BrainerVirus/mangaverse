@@ -1,99 +1,91 @@
-@import "tailwindcss/theme.css" layer(theme);
-@import "tailwindcss/preflight.css" layer(base);
-@import "tailwindcss/utilities.css";
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/preflight.css' layer(base);
+@import 'tailwindcss/utilities.css';
 
-@import "nativewind/theme";
+@import 'nativewind/theme';
 
-@custom-variant theme-modern (&:where(.theme-modern, .theme-modern *));
-@custom-variant theme-cyberpunk (&:where(.theme-cyberpunk, .theme-cyberpunk *));
-@custom-variant theme-noir (&:where(.theme-noir, .theme-noir *));
-@custom-variant theme-sakura (&:where(.theme-sakura, .theme-sakura *));
-@custom-variant theme-forest (&:where(.theme-forest, .theme-forest *));
-
+/* -------------------------------------------------------------------------- */
+/* 1. THEME CONFIGURATION                                                     */
+/* -------------------------------------------------------------------------- */
 @theme {
-	--color-background: #0b0b0d;
-	--color-foreground: #f4f4f6;
-	--color-muted: #a0a0aa;
-	--color-muted-foreground: #6f6f7b;
-	--color-card: #141418;
-	--color-card-foreground: #f4f4f6;
-	--color-border: #1f1f26;
-	--color-accent: #ff6b6b;
-	--color-accent-foreground: #160b0b;
-	--color-chip: #1b1b22;
+	/* Colors - Mapping Tailwind utilities to CSS Variables */
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+	--color-border: var(--border);
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-chip: var(--chip);
+	--color-success: var(--success);
+	--color-warning: var(--warning);
+	--color-error: var(--error);
+
+	/* Shared Radii Variables */
+	--radius-box: 0.75rem;
+	--radius-btn: 0.75rem;
+	--radius-badge: 0.75rem;
+
+	/* Font Families - Must match the names used in useFonts */
+	--font-body: var(--font-body);
+	--font-heading: var(--font-heading);
 }
 
-:root {
-	--mv-bg: #0b0b0d;
-	--mv-surface: #141418;
-	--mv-surface-strong: #1b1b22;
-	--mv-accent: #ff6b6b;
-	--mv-accent-strong: #ff5252;
-	--mv-text: #f4f4f6;
-	--mv-muted: #a0a0aa;
+/* -------------------------------------------------------------------------- */
+/* 2. CUSTOM UTILITIES (@utility is the v4 standard)                          */
+/* -------------------------------------------------------------------------- */
+
+/* Typography Presets */
+.text-preset-1 {
+	font-size: 15px;
+	line-height: 1.3;
+	letter-spacing: 0;
+}
+.text-preset-2 {
+	font-size: 17px;
+	line-height: 1.35;
+	letter-spacing: 0;
+}
+.text-preset-3 {
+	font-size: 18px;
+	line-height: 1.4;
+	letter-spacing: 0;
+}
+.text-preset-4 {
+	font-size: 20px;
+	line-height: 1.4;
+	letter-spacing: -0.01em;
+}
+.text-preset-5 {
+	font-size: 22px;
+	line-height: 1.3;
+	letter-spacing: -0.01em;
+}
+.text-preset-6 {
+	font-size: 26px;
+	line-height: 1.2;
+	letter-spacing: -0.015em;
+}
+.text-preset-7 {
+	font-size: 31px;
+	line-height: 1.15;
+	letter-spacing: -0.02em;
+}
+.text-preset-8 {
+	font-size: 35px;
+	line-height: 1.1;
+	letter-spacing: -0.02em;
 }
 
-.theme-modern {
-	--color-background: #0b0b0d;
-	--color-foreground: #f4f4f6;
-	--color-muted: #a0a0aa;
-	--color-muted-foreground: #6f6f7b;
-	--color-card: #141418;
-	--color-card-foreground: #f4f4f6;
-	--color-border: #1f1f26;
-	--color-accent: #ff6b6b;
-	--color-accent-foreground: #160b0b;
-	--color-chip: #1b1b22;
+/* Custom Radii Utilities */
+.rounded-box {
+	border-radius: var(--radius-box);
 }
-
-.theme-cyberpunk {
-	--color-background: #07070b;
-	--color-foreground: #f4f8ff;
-	--color-muted: #7a7f98;
-	--color-muted-foreground: #5b6072;
-	--color-card: #0f0f19;
-	--color-card-foreground: #f4f8ff;
-	--color-border: #1d2035;
-	--color-accent: #00f5ff;
-	--color-accent-foreground: #05060a;
-	--color-chip: #15152a;
+.rounded-btn {
+	border-radius: var(--radius-btn);
 }
-
-.theme-noir {
-	--color-background: #000000;
-	--color-foreground: #f2f2f2;
-	--color-muted: #8b8b8b;
-	--color-muted-foreground: #666666;
-	--color-card: #0a0a0a;
-	--color-card-foreground: #f2f2f2;
-	--color-border: #1a1a1a;
-	--color-accent: #f5f5f5;
-	--color-accent-foreground: #0a0a0a;
-	--color-chip: #141414;
-}
-
-.theme-sakura {
-	--color-background: #120b0e;
-	--color-foreground: #ffe9f0;
-	--color-muted: #c2a1ad;
-	--color-muted-foreground: #a07b8a;
-	--color-card: #1b1016;
-	--color-card-foreground: #ffe9f0;
-	--color-border: #2b151f;
-	--color-accent: #ff6fa1;
-	--color-accent-foreground: #1a0b10;
-	--color-chip: #24111a;
-}
-
-.theme-forest {
-	--color-background: #070c09;
-	--color-foreground: #e8f5ed;
-	--color-muted: #8aa39a;
-	--color-muted-foreground: #6f867e;
-	--color-card: #0e1511;
-	--color-card-foreground: #e8f5ed;
-	--color-border: #1c2a22;
-	--color-accent: #32d583;
-	--color-accent-foreground: #07110b;
-	--color-chip: #131c17;
+.rounded-badge {
+	border-radius: var(--radius-badge);
 }
