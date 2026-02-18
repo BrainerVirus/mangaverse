@@ -4,26 +4,31 @@
   "explorer.fileNesting.patterns": {
     "package.json": "pnpm-lock.yaml, package-lock.json, yarn.lock",
     ".prettierrc": ".prettierignore",
-    "README.md": "CONTRIBUTING.md, CHANGELOG.md",
-    ".eslintrc.json": ".eslintignore"
+    "README.md": "CONTRIBUTING.md, CHANGELOG.md"
   },
   "editor.linkedEditing": true,
   "editor.codeActionsOnSave": {
     "source.organizeImports": "explicit"
   },
+  "editor.quickSuggestions": {
+    "strings": "on"
+  },
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSave": true,
   "files.associations": {
-    "*.svg": "html"
+    "*.svg": "html",
+    "*.css": "tailwindcss"
   },
+  "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
   "javascript.format.insertSpaceBeforeFunctionParenthesis": false,
   "typescript.format.insertSpaceBeforeFunctionParenthesis": false,
   "javascript.format.insertSpaceAfterFunctionKeywordForAnonymousFunctions": false,
   "typescript.format.insertSpaceAfterFunctionKeywordForAnonymousFunctions": false,
   "editor.insertSpaces": false,
   "editor.detectIndentation": false,
-  "tailwindCSS.experimental.classRegex": [
-    ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
-    ["cx\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"]
-  ]
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "tailwindCSS.classFunctions": ["tw", "clsx", "cva", "cx", "tw\\.[a-z-]+", "cn"],
+  "chat.useAgentSkills": true
 }
