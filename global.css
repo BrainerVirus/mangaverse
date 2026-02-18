@@ -37,55 +37,62 @@
 /* 2. CUSTOM UTILITIES (@utility is the v4 standard)                          */
 /* -------------------------------------------------------------------------- */
 
-/* Typography Presets */
-.text-preset-1 {
+@utility text-preset-1 {
 	font-size: 15px;
 	line-height: 1.3;
 	letter-spacing: 0;
 }
-.text-preset-2 {
+
+@utility text-preset-2 {
 	font-size: 17px;
 	line-height: 1.35;
 	letter-spacing: 0;
 }
-.text-preset-3 {
+
+@utility text-preset-3 {
 	font-size: 18px;
 	line-height: 1.4;
 	letter-spacing: 0;
 }
-.text-preset-4 {
+
+@utility text-preset-4 {
 	font-size: 20px;
 	line-height: 1.4;
 	letter-spacing: -0.01em;
 }
-.text-preset-5 {
+
+@utility text-preset-5 {
 	font-size: 22px;
 	line-height: 1.3;
 	letter-spacing: -0.01em;
 }
-.text-preset-6 {
+
+@utility text-preset-6 {
 	font-size: 26px;
 	line-height: 1.2;
 	letter-spacing: -0.015em;
 }
-.text-preset-7 {
+
+@utility text-preset-7 {
 	font-size: 31px;
 	line-height: 1.15;
 	letter-spacing: -0.02em;
 }
-.text-preset-8 {
+
+@utility text-preset-8 {
 	font-size: 35px;
 	line-height: 1.1;
 	letter-spacing: -0.02em;
 }
 
-/* Custom Radii Utilities */
-.rounded-box {
+@utility rounded-box {
 	border-radius: var(--radius-box);
 }
-.rounded-btn {
+
+@utility rounded-btn {
 	border-radius: var(--radius-btn);
 }
-.rounded-badge {
+
+@utility rounded-badge {
 	border-radius: var(--radius-badge);
 }
