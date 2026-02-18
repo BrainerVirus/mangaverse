@@ -70,10 +70,10 @@ export function HeroCarousel({
 										)}
 										<View className="absolute inset-0 bg-black/40" />
 										<View className="absolute inset-x-0 bottom-0 p-4 pb-14">
-											<Text className="text-preset-4 font-heading font-semibold text-white" numberOfLines={1}>
+											<Text className="text-preset-2 font-heading font-semibold text-white" numberOfLines={1}>
 												{item.title}
 											</Text>
-											<Text className="text-preset-2 font-body mt-1 text-white/70" numberOfLines={2}>
+											<Text className="text-preset-1 font-body mt-1 text-white/70" numberOfLines={2}>
 												{getHeroSubtitle(item)}
 											</Text>
 											<Text className="text-preset-1 mt-2 tracking-[0.2em] text-white/60 uppercase">{heroProvider}</Text>
@@ -83,7 +83,7 @@ export function HeroCarousel({
 								<View className="absolute inset-x-0 bottom-3 px-4" pointerEvents="box-none">
 									<View className="flex-row gap-3">
 										<Pressable onPress={() => onToggleFavorite(item)} className="bg-background/85 flex-1 rounded-full px-4 py-3">
-											<Text className="text-accent text-preset-2 font-heading text-center font-semibold">
+											<Text className="text-accent text-preset-1 font-heading text-center font-semibold">
 												{isItemFavorite ? 'In Library' : 'Add to Library'}
 											</Text>
 										</Pressable>
@@ -94,7 +94,7 @@ export function HeroCarousel({
 											}}
 											className="bg-background/85 flex-1 rounded-full px-4 py-3"
 										>
-											<Text className="text-accent text-preset-2 font-heading text-center font-semibold">Read Now</Text>
+											<Text className="text-accent text-preset-1 font-heading text-center font-semibold">Read Now</Text>
 										</Link>
 									</View>
 								</View>

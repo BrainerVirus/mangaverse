@@ -61,14 +61,14 @@ export default function Settings() {
 				<SectionHeading title="Settings" subtitle="Tune your experience" />
 				<View className="mb-6 rounded-[28px] border border-border/30 bg-card/70 p-5">
 					<Text className="text-preset-1 tracking-[0.2em] text-muted-foreground uppercase">Theme</Text>
-					<Text className="text-preset-4 font-heading font-semibold text-foreground mt-2">{theme}</Text>
-					<Text className="text-preset-2 font-body text-muted mt-1">Appearance applies across the reader and library.</Text>
+					<Text className="text-preset-2 font-heading font-semibold text-foreground mt-2">{theme}</Text>
+					<Text className="text-preset-1 font-body text-muted mt-1">Appearance applies across the reader and library.</Text>
 				</View>
 				<View className="gap-4 pb-12">
 					{sections.map((section) => (
 						<Link key={section.id} href={section.link} className="rounded-[26px] border border-border/30 bg-card/70 p-5">
-							<Text className="text-preset-4 font-heading font-semibold text-foreground">{section.title}</Text>
-							<Text className="text-preset-2 font-body text-muted mt-2">{section.description}</Text>
+							<Text className="text-preset-2 font-heading font-semibold text-foreground">{section.title}</Text>
+							<Text className="text-preset-1 font-body text-muted mt-2">{section.description}</Text>
 						</Link>
 					))}
 				</View>

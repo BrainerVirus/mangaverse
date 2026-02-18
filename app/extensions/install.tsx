@@ -91,22 +91,22 @@ export default function ExtensionInstall() {
 			<GradientBackdrop />
 			<ScrollView className="flex-1 px-5 pt-6">
 				<View className="rounded-[28px] border border-border/30 bg-card/70 p-5">
-					<Text className="text-preset-3 font-heading font-semibold text-foreground">{title}</Text>
-					<Text className="mt-2 text-preset-2 font-body text-muted">{extensionParams.name || 'Unknown extension'}</Text>
+					<Text className="text-preset-2 font-heading font-semibold text-foreground">{title}</Text>
+					<Text className="mt-2 text-preset-1 font-body text-muted">{extensionParams.name || 'Unknown extension'}</Text>
 					<Text className="mt-1 text-preset-1 tracking-[0.2em] text-muted-foreground uppercase">{extensionParams.id ?? ''}</Text>
-					<Text className="mt-3 text-preset-2 font-body text-muted">
+					<Text className="mt-3 text-preset-1 font-body text-muted">
 						Install this extension from a shared link. Only continue if you trust the source.
 					</Text>
 					{status === 'installing' ? (
 						<View className="mt-4 flex-row items-center gap-3">
 							<ActivityIndicator color={themeColors.accent} />
-							<Text className="text-preset-2 font-body text-foreground">Downloading bundle…</Text>
+							<Text className="text-preset-1 font-body text-foreground">Downloading bundle…</Text>
 						</View>
 					) : null}
 					{status === 'done' ? (
-						<Text className="mt-4 text-preset-2 font-body text-success">Extension is ready. You can return to settings.</Text>
+						<Text className="mt-4 text-preset-1 font-body text-success">Extension is ready. You can return to settings.</Text>
 					) : null}
-					{status === 'error' ? <Text className="mt-4 text-preset-2 font-body text-warning">{message ?? 'Failed to install.'}</Text> : null}
+					{status === 'error' ? <Text className="mt-4 text-preset-1 font-body text-warning">{message ?? 'Failed to install.'}</Text> : null}
 					<View className="mt-4 flex-row gap-3">
 						<Text
 							className="flex-1 rounded-full border border-border/40 px-4 py-2 text-center text-preset-1 font-heading font-semibold tracking-[0.2em] text-muted uppercase"
@@ -126,17 +126,17 @@ export default function ExtensionInstall() {
 				</View>
 				<View className="mt-5 rounded-[26px] border border-border/30 bg-card/70 p-5">
 					<Text className="text-preset-1 tracking-[0.2em] text-muted-foreground uppercase">Bundle URL</Text>
-					<Text className="mt-2 text-preset-2 font-body text-foreground">{extensionParams.bundleUrl || 'Missing bundle URL'}</Text>
+					<Text className="mt-2 text-preset-1 font-body text-foreground">{extensionParams.bundleUrl || 'Missing bundle URL'}</Text>
 				</View>
 				<View className="mt-5 rounded-[26px] border border-border/30 bg-card/70 p-5">
 					<Text className="text-preset-1 tracking-[0.2em] text-muted-foreground uppercase">Metadata</Text>
-					<Text className="mt-2 text-preset-2 font-body text-foreground">Version: {extensionParams.version ?? '0.0.0'}</Text>
-					<Text className="mt-1 text-preset-2 font-body text-foreground">Languages: {extensionParams.languages.join(', ') || 'Unknown'}</Text>
-					<Text className="mt-1 text-preset-2 font-body text-foreground">
+					<Text className="mt-2 text-preset-1 font-body text-foreground">Version: {extensionParams.version ?? '0.0.0'}</Text>
+					<Text className="mt-1 text-preset-1 font-body text-foreground">Languages: {extensionParams.languages.join(', ') || 'Unknown'}</Text>
+					<Text className="mt-1 text-preset-1 font-body text-foreground">
 						NSFW: {extensionParams.nsfw === undefined ? 'Unknown' : String(extensionParams.nsfw)}
 					</Text>
 					{extensionParams.minAppVersion ? (
-						<Text className="mt-1 text-preset-2 font-body text-foreground">Min app: {extensionParams.minAppVersion}</Text>
+						<Text className="mt-1 text-preset-1 font-body text-foreground">Min app: {extensionParams.minAppVersion}</Text>
 					) : null}
 				</View>
 			</ScrollView>

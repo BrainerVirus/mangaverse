@@ -67,12 +67,12 @@ export function MangaCard({ title, coverUrl, subtitle, lastChapter, language, in
 				)}
 			</View>
 
-			<Text className="text-foreground text-preset-3 font-heading font-semibold mt-2" numberOfLines={1}>
+			<Text className="text-foreground text-preset-2 font-heading font-semibold mt-1.5" numberOfLines={1}>
 				{title}
 			</Text>
 
 			{showMeta && (subtitle || chapterLabel) && (
-				<Text className="text-muted text-preset-2 font-body mt-1" numberOfLines={1}>
+				<Text className="text-muted text-preset-1 font-body" numberOfLines={1}>
 					{subtitle && `${subtitle} · `}
 					{chapterLabel ?? ''}
 				</Text>

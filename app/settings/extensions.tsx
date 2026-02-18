@@ -81,7 +81,7 @@ export default function ExtensionsSettings() {
 						onChangeText={setRepoUrl}
 						placeholder="https://example.com/extensions.json"
 						placeholderTextColor={themeColors.mutedForeground}
-						className="mt-3 rounded-2xl border border-border/40 bg-background px-4 py-3 text-preset-2 font-body text-foreground"
+						className="mt-3 rounded-2xl border border-border/40 bg-background px-4 py-3 text-preset-1 font-body text-foreground"
 						autoCapitalize="none"
 						autoCorrect={false}
 					/>
@@ -89,8 +89,8 @@ export default function ExtensionsSettings() {
 				<View className="mt-4 rounded-[28px] border border-border/30 bg-card/70 p-5">
 					<View className="flex-row items-center justify-between">
 						<View className="flex-1 pr-4">
-							<Text className="text-preset-3 font-heading font-semibold text-foreground">Show provider errors</Text>
-							<Text className="text-preset-2 font-body text-muted mt-2">Display extension load failures on Discover.</Text>
+							<Text className="text-preset-2 font-heading font-semibold text-foreground">Show provider errors</Text>
+							<Text className="text-preset-1 font-body text-muted mt-2">Display extension load failures on Discover.</Text>
 						</View>
 						<Switch
 							value={showProviderErrors}
@@ -103,25 +103,25 @@ export default function ExtensionsSettings() {
 				</View>
 				{loading ? (
 					<View className="mt-4 rounded-[28px] border border-border/30 bg-card/70 p-5">
-						<Text className="text-preset-2 font-body text-muted">Working…</Text>
+						<Text className="text-preset-1 font-body text-muted">Working…</Text>
 					</View>
 				) : null}
 				{error ? (
 					<View className="mt-4 rounded-[28px] border border-warning/40 bg-warning/10 p-5">
-						<Text className="text-preset-2 font-body text-warning">{error}</Text>
+						<Text className="text-preset-1 font-body text-warning">{error}</Text>
 					</View>
 				) : null}
 				<View className="mt-6 gap-4 pb-12">
 					{providers.length === 0 ? (
 						<View className="rounded-[28px] border border-border/30 bg-card/70 p-5">
-							<Text className="text-preset-3 font-heading font-semibold text-foreground">No extensions installed.</Text>
-							<Text className="text-preset-2 font-body text-muted mt-2">Add a repository URL to browse extensions.</Text>
+							<Text className="text-preset-2 font-heading font-semibold text-foreground">No extensions installed.</Text>
+							<Text className="text-preset-1 font-body text-muted mt-2">Add a repository URL to browse extensions.</Text>
 						</View>
 					) : (
 						providers.map((provider) => (
 							<View key={provider.id} className="rounded-[26px] border border-border/30 bg-card/70 p-5">
-								<Text className="text-preset-3 font-heading font-semibold text-foreground">{provider.name}</Text>
-								<Text className="text-preset-2 font-body text-muted mt-2">{provider.meta.supportedLanguages.join(', ') || 'No languages'}</Text>
+								<Text className="text-preset-2 font-heading font-semibold text-foreground">{provider.name}</Text>
+								<Text className="text-preset-1 font-body text-muted mt-2">{provider.meta.supportedLanguages.join(', ') || 'No languages'}</Text>
 								<Text
 									className="mt-3 rounded-full bg-chip px-4 py-2 text-center text-preset-1 font-heading font-semibold tracking-[0.2em] text-foreground uppercase"
 									onPress={loading ? undefined : () => handleUninstall(provider.id)}
@@ -138,8 +138,8 @@ export default function ExtensionsSettings() {
 								const isInstalled = installed.some((entry) => entry.id === item.id);
 								return (
 									<View key={item.id} className="rounded-[26px] border border-border/30 bg-card/70 p-5">
-										<Text className="text-preset-3 font-heading font-semibold text-foreground">{item.name}</Text>
-										<Text className="text-preset-2 font-body text-muted mt-1">{item.languages.join(', ') || 'No languages'}</Text>
+										<Text className="text-preset-2 font-heading font-semibold text-foreground">{item.name}</Text>
+										<Text className="text-preset-1 font-body text-muted mt-1">{item.languages.join(', ') || 'No languages'}</Text>
 										<Text
 											className={`mt-3 rounded-full px-4 py-2 text-center text-preset-1 font-heading font-semibold tracking-[0.2em] uppercase ${
 												isInstalled ? 'bg-chip text-muted' : 'bg-accent text-accent-foreground'

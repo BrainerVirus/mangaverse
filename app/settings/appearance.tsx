@@ -4,18 +4,7 @@ import { SectionHeading } from '@components/SectionHeading';
 import { getThemePreview } from '@lib/themes/vars';
 import { useSettingsStore } from '@stores/settings';
 
-const themes = [
-	'Modern',
-	'Cyberpunk',
-	'Noir',
-	'Sakura',
-	'Forest',
-	'Sunset',
-	'Ocean',
-	'Desert',
-	'Lavender',
-	'Slate',
-] as const;
+const themes = ['Modern', 'Cyberpunk', 'Noir', 'Sakura', 'Forest', 'Sunset', 'Ocean', 'Desert', 'Lavender', 'Slate'] as const;
 
 export default function AppearanceSettings() {
 	const theme = useSettingsStore((state) => state.theme);
@@ -36,28 +25,15 @@ export default function AppearanceSettings() {
 								return (
 									<Pressable
 										key={item}
-										className={`rounded-2xl border px-4 py-3 ${
-											isActive ? 'border-success/80 bg-success/10' : 'border-border/30 bg-card'
-										}`}
+										className={`rounded-2xl border px-4 py-3 ${isActive ? 'border-success/80 bg-success/10' : 'border-border/30 bg-card'}`}
 										onPress={() => setTheme(item)}
 									>
 										<View className="flex-row items-center justify-between">
-											<Text className={`text-preset-2 font-heading font-semibold ${isActive ? 'text-foreground' : 'text-muted'}`}>
-												{item}
-											</Text>
+											<Text className={`text-preset-2 font-heading font-semibold ${isActive ? 'text-foreground' : 'text-muted'}`}>{item}</Text>
 											<View className="flex-row items-center gap-2">
-												<View
-													className="h-3 w-3 rounded-full"
-													style={{ backgroundColor: preview.accent }}
-												/>
-												<View
-													className="h-3 w-3 rounded-full"
-													style={{ backgroundColor: preview.background }}
-												/>
-												<View
-													className="h-3 w-3 rounded-full border"
-													style={{ backgroundColor: preview.muted, borderColor: preview.border }}
-												/>
+												<View className="h-3 w-3 rounded-full" style={{ backgroundColor: preview.accent }} />
+												<View className="h-3 w-3 rounded-full" style={{ backgroundColor: preview.background }} />
+												<View className="h-3 w-3 rounded-full border" style={{ backgroundColor: preview.muted, borderColor: preview.border }} />
 											</View>
 										</View>
 									</Pressable>

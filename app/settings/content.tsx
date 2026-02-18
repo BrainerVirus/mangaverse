@@ -17,8 +17,8 @@ export default function ContentSettings() {
 				<View className="rounded-[28px] border border-border/30 bg-card/70 p-5">
 					<View className="flex-row items-center justify-between">
 						<View className="flex-1 pr-4">
-							<Text className="text-preset-3 font-heading font-semibold text-foreground">Explicit content</Text>
-							<Text className="mt-2 text-preset-2 font-body text-muted">Show mature series in Discover and Search.</Text>
+							<Text className="text-preset-2 font-heading font-semibold text-foreground">Explicit content</Text>
+							<Text className="mt-2 text-preset-1 font-body text-muted">Show mature series in Discover and Search.</Text>
 						</View>
 						<Switch
 							value={explicitContent}

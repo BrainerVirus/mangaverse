@@ -58,11 +58,11 @@ export default function MangaDetail() {
 					{loading ? (
 						<View className="items-center justify-center py-6">
 							<ActivityIndicator color={themeColors.accent} />
-							<Text className="mt-3 text-preset-2 font-body text-muted">Loading details…</Text>
+							<Text className="mt-3 text-preset-1 font-body text-muted">Loading details…</Text>
 						</View>
 					) : detailsError ? (
 						<View className="rounded-[24px] border border-warning/40 bg-warning/10 p-4">
-							<Text className="text-preset-2 font-body text-warning">{detailsError}</Text>
+							<Text className="text-preset-1 font-body text-warning">{detailsError}</Text>
 						</View>
 					) : details ? (
 						<View className="flex-row gap-4">
@@ -72,9 +72,9 @@ export default function MangaDetail() {
 								<View className="h-40 w-28 rounded-[20px] bg-card" />
 							)}
 							<View className="flex-1">
-								<Text className="text-preset-3 font-heading font-semibold text-foreground">{details.title}</Text>
+								<Text className="text-preset-2 font-heading font-semibold text-foreground">{details.title}</Text>
 								<Text className="text-preset-1 tracking-[0.2em] text-muted-foreground uppercase mt-2">{providerId}</Text>
-								<Text className="text-preset-2 font-body text-muted mt-3" numberOfLines={4}>
+								<Text className="text-preset-1 font-body text-muted mt-3" numberOfLines={4}>
 									{details.description || 'No description yet.'}
 								</Text>
 							</View>
@@ -98,11 +98,11 @@ export default function MangaDetail() {
 					) : null}
 				</View>
 				<View className="mt-6 rounded-[28px] border border-border/30 bg-card/70 p-5">
-					<Text className="text-preset-3 font-heading font-semibold text-foreground">Chapters</Text>
+					<Text className="text-preset-2 font-heading font-semibold text-foreground">Chapters</Text>
 					{chaptersError ? (
-						<Text className="text-preset-2 font-body text-warning mt-2">{chaptersError}</Text>
+						<Text className="text-preset-1 font-body text-warning mt-2">{chaptersError}</Text>
 					) : chapters.length === 0 ? (
-						<Text className="text-preset-2 font-body text-muted mt-2">No chapters loaded yet.</Text>
+						<Text className="text-preset-1 font-body text-muted mt-2">No chapters loaded yet.</Text>
 					) : (
 						<View className="mt-3 gap-3">
 							{chapters.slice(0, 12).map((chapter, index) => (
@@ -122,7 +122,7 @@ export default function MangaDetail() {
 								>
 									<View className="flex-row items-center justify-between">
 										<View className="pr-4">
-											<Text className="text-preset-2 font-heading font-semibold text-foreground">{chapter.title}</Text>
+											<Text className="text-preset-1 font-heading font-semibold text-foreground">{chapter.title}</Text>
 											{chapter.language ? (
 												<Text className="text-preset-1 tracking-[0.2em] text-muted-foreground uppercase mt-1">{chapter.language}</Text>
 											) : null}

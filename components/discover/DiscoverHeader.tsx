@@ -25,12 +25,12 @@ export function DiscoverHeader({
 	return (
 		<View>
 			<View className="relative items-center justify-center">
-				<Text className="text-foreground text-preset-3 font-heading font-semibold">Discover</Text>
+				<Text className="text-foreground text-preset-2 font-heading font-semibold">Discover</Text>
 				<Pressable
 					onPress={onOpenProvider}
 					className="border-border bg-card absolute right-0 h-9 w-9 items-center justify-center rounded-full border"
 				>
-					<Text className="text-accent text-preset-3 font-body">☁</Text>
+					<Text className="text-accent text-preset-2 font-body">☁</Text>
 				</Pressable>
 			</View>
 			<View className="mt-4">
@@ -59,7 +59,7 @@ export function DiscoverHeader({
 												}}
 												className="px-4 pb-3"
 											>
-												<Text className={`text-preset-2 font-heading font-semibold ${active ? 'text-accent' : 'text-muted'}`}>{provider.name}</Text>
+												<Text className={`text-preset-1 font-heading font-semibold ${active ? 'text-accent' : 'text-muted'}`}>{provider.name}</Text>
 											</Pressable>
 										);
 									})}

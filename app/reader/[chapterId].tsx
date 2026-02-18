@@ -261,7 +261,7 @@ export default function ReaderScreen() {
 						<View className="bg-card rounded-[18px] px-4 py-3">
 							<View className="flex-row items-center justify-between">
 								<View className="flex-1 pr-4">
-									<Text className="text-preset-3 font-heading font-semibold text-foreground" numberOfLines={1}>
+									<Text className="text-preset-2 font-heading font-semibold text-foreground" numberOfLines={1}>
 										{readerTitle}
 									</Text>
 									<Text className="text-preset-1 font-body text-muted" numberOfLines={1}>
@@ -298,18 +298,18 @@ export default function ReaderScreen() {
 				) : null}
 				{loading ? (
 					<View className="items-center justify-center rounded-[28px] border border-border/30 bg-card/70 p-6">
-										<ActivityIndicator color={themeColors.accent} />
-						<Text className="mt-3 text-preset-2 font-body text-muted">Loading pages…</Text>
+						<ActivityIndicator color={themeColors.accent} />
+						<Text className="mt-3 text-preset-1 font-body text-muted">Loading pages…</Text>
 					</View>
 				) : error ? (
 					<View className="rounded-[28px] border border-warning/40 bg-warning/10 p-6">
-						<Text className="text-preset-3 font-heading font-semibold text-warning">Unable to load</Text>
-						<Text className="mt-2 text-preset-2 font-body text-warning">{error}</Text>
+						<Text className="text-preset-2 font-heading font-semibold text-warning">Unable to load</Text>
+						<Text className="mt-2 text-preset-1 font-body text-warning">{error}</Text>
 					</View>
 				) : pages.length === 0 ? (
 					<View className="rounded-[28px] border border-border/30 bg-card/70 p-6">
-						<Text className="text-preset-3 font-heading font-semibold text-foreground">No pages yet</Text>
-						<Text className="mt-2 text-preset-2 font-body text-muted">This chapter has no pages available.</Text>
+						<Text className="text-preset-2 font-heading font-semibold text-foreground">No pages yet</Text>
+						<Text className="mt-2 text-preset-1 font-body text-muted">This chapter has no pages available.</Text>
 					</View>
 				) : isPagedMode ? (
 					<View className="flex-1">
@@ -421,7 +421,7 @@ export default function ReaderScreen() {
 						<Pressable className="flex-1" onPress={() => setShowSettings(false)} />
 						<View className="rounded-t-4xl border border-border/40 bg-background px-5 pt-6 pb-8">
 							<View className="flex-row items-center justify-between">
-								<Text className="text-preset-4 font-heading font-semibold text-foreground">Reader Settings</Text>
+								<Text className="text-preset-2 font-heading font-semibold text-foreground">Reader Settings</Text>
 								<Text className="text-preset-2 font-heading font-semibold text-accent" onPress={() => setShowSettings(false)}>
 									Done
 								</Text>
@@ -515,7 +515,7 @@ export default function ReaderScreen() {
 							</View>
 							<View className="mt-6 gap-4">
 								<View className="flex-row items-center justify-between rounded-[20px] border border-border/40 bg-card/80 px-4 py-3">
-									<Text className="text-preset-2 font-heading font-semibold text-foreground">Tap navigation</Text>
+									<Text className="text-preset-1 font-heading font-semibold text-foreground">Tap navigation</Text>
 									<Pressable
 										onPress={() => setTapNavigationEnabled(!tapNavigationEnabled)}
 										className={`h-6 w-12 rounded-full ${tapNavigationEnabled ? 'bg-success' : 'bg-border'}`}
@@ -524,7 +524,7 @@ export default function ReaderScreen() {
 									</Pressable>
 								</View>
 								<View className="flex-row items-center justify-between rounded-[20px] border border-border/40 bg-card/80 px-4 py-3">
-									<Text className="text-preset-2 font-heading font-semibold text-foreground">Auto-hide controls</Text>
+									<Text className="text-preset-1 font-heading font-semibold text-foreground">Auto-hide controls</Text>
 									<Pressable
 										onPress={() => setAutoHideChrome(!autoHideChrome)}
 										className={`h-6 w-12 rounded-full ${autoHideChrome ? 'bg-success' : 'bg-border'}`}
@@ -533,7 +533,7 @@ export default function ReaderScreen() {
 									</Pressable>
 								</View>
 								<View className="flex-row items-center justify-between rounded-[20px] border border-border/40 bg-card/80 px-4 py-3">
-									<Text className="text-preset-2 font-heading font-semibold text-foreground">Swipe navigation</Text>
+									<Text className="text-preset-1 font-heading font-semibold text-foreground">Swipe navigation</Text>
 									<Pressable
 										onPress={() => setSwipeEnabled(!swipeEnabled)}
 										className={`h-6 w-12 rounded-full ${swipeEnabled ? 'bg-success' : 'bg-border'}`}
@@ -542,7 +542,7 @@ export default function ReaderScreen() {
 									</Pressable>
 								</View>
 								<View className="flex-row items-center justify-between rounded-[20px] border border-border/40 bg-card/80 px-4 py-3">
-									<Text className="text-preset-2 font-heading font-semibold text-foreground">Lock rotation</Text>
+									<Text className="text-preset-1 font-heading font-semibold text-foreground">Lock rotation</Text>
 									<Pressable
 										onPress={() => setLockRotation(!lockRotation)}
 										className={`h-6 w-12 rounded-full ${lockRotation ? 'bg-success' : 'bg-border'}`}

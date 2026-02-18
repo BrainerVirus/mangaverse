@@ -32,10 +32,10 @@ export default function AuthCallback() {
 			{isSupabaseConfigured ? (
 				<>
 					<ActivityIndicator color={themeColors.accent} />
-					<Text className="mt-3 text-preset-2 font-body text-muted">Signing you in…</Text>
+					<Text className="mt-3 text-preset-1 font-body text-muted">Signing you in…</Text>
 				</>
 			) : (
-				<Text className="text-preset-2 font-body text-muted">Supabase is not configured.</Text>
+				<Text className="text-preset-1 font-body text-muted">Supabase is not configured.</Text>
 			)}
 		</View>
 	);

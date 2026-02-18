@@ -123,8 +123,8 @@ export default function ReaderSettings() {
 						<Text className="text-preset-1 tracking-[0.2em] text-muted-foreground uppercase">Controls</Text>
 						<View className="mt-4 flex-row items-center justify-between">
 							<View className="flex-1 pr-4">
-								<Text className="text-preset-3 font-heading font-semibold text-foreground">Swipe navigation</Text>
-								<Text className="text-preset-2 font-body text-muted mt-2">Enable swipe gestures for page navigation.</Text>
+								<Text className="text-preset-2 font-heading font-semibold text-foreground">Swipe navigation</Text>
+								<Text className="text-preset-1 font-body text-muted mt-2">Enable swipe gestures for page navigation.</Text>
 							</View>
 							<Switch
 								value={swipeEnabled}
@@ -136,8 +136,8 @@ export default function ReaderSettings() {
 						</View>
 						<View className="mt-6 flex-row items-center justify-between">
 							<View className="flex-1 pr-4">
-								<Text className="text-preset-3 font-heading font-semibold text-foreground">Tap navigation</Text>
-								<Text className="text-preset-2 font-body text-muted mt-2">Enable tap zones to change pages.</Text>
+								<Text className="text-preset-2 font-heading font-semibold text-foreground">Tap navigation</Text>
+								<Text className="text-preset-1 font-body text-muted mt-2">Enable tap zones to change pages.</Text>
 							</View>
 							<Switch
 								value={tapNavigationEnabled}
@@ -149,8 +149,8 @@ export default function ReaderSettings() {
 						</View>
 						<View className="mt-6 flex-row items-center justify-between">
 							<View className="flex-1 pr-4">
-								<Text className="text-preset-3 font-heading font-semibold text-foreground">Auto-hide UI</Text>
-								<Text className="text-preset-2 font-body text-muted mt-2">Hide controls after a short delay while reading.</Text>
+								<Text className="text-preset-2 font-heading font-semibold text-foreground">Auto-hide UI</Text>
+								<Text className="text-preset-1 font-body text-muted mt-2">Hide controls after a short delay while reading.</Text>
 							</View>
 							<Switch
 								value={autoHideChrome}
@@ -162,8 +162,8 @@ export default function ReaderSettings() {
 						</View>
 						<View className="mt-6 flex-row items-center justify-between">
 							<View className="flex-1 pr-4">
-								<Text className="text-preset-3 font-heading font-semibold text-foreground">Lock rotation</Text>
-								<Text className="text-preset-2 font-body text-muted mt-2">Keep the reader in portrait mode.</Text>
+								<Text className="text-preset-2 font-heading font-semibold text-foreground">Lock rotation</Text>
+								<Text className="text-preset-1 font-body text-muted mt-2">Keep the reader in portrait mode.</Text>
 							</View>
 							<Switch
 								value={lockRotation}

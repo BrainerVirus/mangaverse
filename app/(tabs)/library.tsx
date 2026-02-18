@@ -17,8 +17,8 @@ export default function Library() {
 				<SectionHeading title="Library" subtitle="Your saved manga" />
 				{favorites.length === 0 ? (
 					<View className="rounded-[28px] border border-border/30 bg-card/80 p-6">
-						<Text className="text-preset-4 font-heading font-semibold text-foreground">Your library is empty.</Text>
-						<Text className="text-preset-2 font-body text-muted mt-2">Find a series in Discover or Search to add it here.</Text>
+						<Text className="text-preset-2 font-heading font-semibold text-foreground">Your library is empty.</Text>
+						<Text className="text-preset-1 font-body text-muted mt-2">Find a series in Discover or Search to add it here.</Text>
 						<Link
 							href="/discover"
 							className="mt-4 rounded-full bg-accent px-4 py-2 text-center text-preset-2 font-heading font-semibold text-accent-foreground"
@@ -31,7 +31,7 @@ export default function Library() {
 						<View className="flex-row items-center justify-between">
 							<View>
 								<Text className="text-preset-1 tracking-[0.2em] text-muted-foreground uppercase">Saved titles</Text>
-								<Text className="text-preset-6 font-heading font-semibold text-foreground mt-2">{favorites.length} series</Text>
+								<Text className="text-preset-2 font-heading font-semibold text-foreground mt-2">{favorites.length} series</Text>
 							</View>
 							<View className="rounded-full border border-border/40 bg-background/60 px-3 py-2">
 								<Text className="text-preset-1 tracking-[0.2em] text-muted uppercase">Library</Text>

@@ -53,12 +53,12 @@ export default function AccountSettings() {
 			<ScrollView className="flex-1 px-5 pt-6" contentInsetAdjustmentBehavior="automatic">
 				<SectionHeading title="Account" subtitle="Optional login" />
 				<View className="rounded-[28px] border border-border/30 bg-card/70 p-5">
-					<Text className="text-preset-3 font-heading font-semibold text-foreground">Supabase account</Text>
-					<Text className="mt-2 text-preset-2 font-body text-muted">Sign in to enable sync and backups across devices.</Text>
+					<Text className="text-preset-2 font-heading font-semibold text-foreground">Supabase account</Text>
+					<Text className="mt-2 text-preset-1 font-body text-muted">Sign in to enable sync and backups across devices.</Text>
 					{!isSupabaseConfigured ? (
 						<View className="mt-3 rounded-[22px] border border-warning/40 bg-warning/10 px-4 py-3">
 							<Text className="text-preset-1 tracking-[0.2em] text-warning uppercase">Supabase not configured</Text>
-							<Text className="mt-2 text-preset-2 font-body text-warning">
+							<Text className="mt-2 text-preset-1 font-body text-warning">
 								Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_KEY to your .env to enable auth.
 							</Text>
 						</View>
@@ -83,7 +83,7 @@ export default function AccountSettings() {
 								onChangeText={setEmail}
 								placeholder="Email"
 								placeholderTextColor={themeColors.mutedForeground}
-								className="rounded-2xl border border-border/40 bg-background px-4 py-3 text-preset-2 font-body text-foreground"
+								className="rounded-2xl border border-border/40 bg-background px-4 py-3 text-preset-1 font-body text-foreground"
 								autoCapitalize="none"
 								autoCorrect={false}
 								keyboardType="email-address"
@@ -101,7 +101,7 @@ export default function AccountSettings() {
 								onChangeText={setOtp}
 								placeholder="One-time code"
 								placeholderTextColor={themeColors.mutedForeground}
-								className="rounded-2xl border border-border/40 bg-background px-4 py-3 text-preset-2 font-body text-foreground"
+								className="rounded-2xl border border-border/40 bg-background px-4 py-3 text-preset-1 font-body text-foreground"
 								keyboardType="number-pad"
 							/>
 							<Text

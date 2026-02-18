@@ -25,7 +25,7 @@ export function GenreSection({ items, providerId, pagePadding, gap, cardWidth, s
 	return (
 		<View>
 			<View className="flex-row items-center justify-between">
-				<Text className="text-foreground text-preset-4 font-heading font-semibold">{sectionTitle}</Text>
+				<Text className="text-foreground text-preset-2 font-heading font-semibold">{sectionTitle}</Text>
 				<Link
 					href={{
 						pathname: '/discover/[sectionId]',
@@ -37,7 +37,7 @@ export function GenreSection({ items, providerId, pagePadding, gap, cardWidth, s
 					}}
 					className="bg-accent h-11 w-11 items-center justify-center rounded-2xl"
 				>
-					<Text className="text-accent-foreground text-preset-3 font-body">↗</Text>
+					<Text className="text-accent-foreground text-preset-2 font-body">↗</Text>
 				</Link>
 			</View>
 			<ScrollView
@@ -68,7 +68,7 @@ export function GenreSection({ items, providerId, pagePadding, gap, cardWidth, s
 								<View className="absolute top-2 right-3 h-7 w-7 items-center justify-center rounded-full bg-foreground/25">
 									<Text className="text-preset-1 font-body text-foreground">→</Text>
 								</View>
-								<Text className="text-preset-2 font-heading font-semibold text-foreground" numberOfLines={2}>
+								<Text className="text-preset-1 font-heading font-semibold text-foreground" numberOfLines={2}>
 									{item.title}
 								</Text>
 							</Pressable>

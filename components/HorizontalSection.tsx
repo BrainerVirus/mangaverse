@@ -41,7 +41,7 @@ export function HorizontalSection({
 	return (
 		<View>
 			<View className="flex-row items-center justify-between">
-				<Text className="text-foreground text-preset-4 font-heading font-semibold">{title}</Text>
+				<Text className="text-foreground text-preset-2 font-heading font-semibold">{title}</Text>
 				<Link
 					href={{
 						pathname: '/discover/[sectionId]',
@@ -53,7 +53,7 @@ export function HorizontalSection({
 					}}
 					className={seeAllClassName}
 				>
-					<Text className={seeAllVariant === 'primary' ? 'text-accent-foreground text-preset-3 font-body' : 'text-accent text-preset-3 font-body'}>
+					<Text className={seeAllVariant === 'primary' ? 'text-accent-foreground text-preset-2 font-body' : 'text-accent text-preset-2 font-body'}>
 						↗
 					</Text>
 				</Link>

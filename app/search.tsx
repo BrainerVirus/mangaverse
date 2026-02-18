@@ -35,10 +35,10 @@ export default function GlobalSearch() {
 			<GradientBackdrop />
 			<View className="px-5 pt-6">
 				<Text className="text-preset-1 tracking-[0.24em] text-muted-foreground uppercase">Global search</Text>
-				<Text className="text-display-1 font-heading font-semibold text-foreground mt-2">Find your next read</Text>
+				<Text className="text-preset-2 font-heading font-semibold text-foreground mt-2">Find your next read</Text>
 				<View className="mt-4 rounded-[24px] border border-border/30 bg-card/70 p-3">
 					<TextInput
-						className="rounded-[18px] border border-border/40 bg-background px-4 py-3 text-preset-2 font-body text-foreground"
+						className="rounded-[18px] border border-border/40 bg-background px-4 py-3 text-preset-1 font-body text-foreground"
 						placeholder="Search across providers"
 						placeholderTextColor={themeColors.mutedForeground}
 						value={query}
@@ -51,17 +51,17 @@ export default function GlobalSearch() {
 				{loading ? (
 					<View className="items-center justify-center rounded-[28px] border border-border/30 bg-card/80 p-6">
 						<ActivityIndicator color={themeColors.accent} />
-						<Text className="mt-3 text-preset-2 font-body text-muted">Loading providers…</Text>
+						<Text className="mt-3 text-preset-1 font-body text-muted">Loading providers…</Text>
 					</View>
 				) : !hasQuery ? (
 					<View className="rounded-[28px] border border-border/30 bg-card/70 p-6">
-						<Text className="text-preset-3 font-heading font-semibold text-foreground">Start typing to search</Text>
-						<Text className="mt-2 text-preset-2 font-body text-muted">Your results will appear grouped by provider.</Text>
+						<Text className="text-preset-2 font-heading font-semibold text-foreground">Start typing to search</Text>
+						<Text className="mt-2 text-preset-1 font-body text-muted">Your results will appear grouped by provider.</Text>
 					</View>
 				) : providers.length === 0 ? (
 					<View className="rounded-[28px] border border-border/30 bg-card/70 p-6">
-						<Text className="text-preset-4 font-heading font-semibold text-foreground">No extensions installed</Text>
-						<Text className="mt-2 text-preset-2 font-body text-muted">Install an extension to enable global search.</Text>
+						<Text className="text-preset-2 font-heading font-semibold text-foreground">No extensions installed</Text>
+						<Text className="mt-2 text-preset-1 font-body text-muted">Install an extension to enable global search.</Text>
 					</View>
 				) : (
 					providers.map((provider) => {
@@ -73,11 +73,11 @@ export default function GlobalSearch() {
 						return (
 							<View key={provider.id} className="border-b border-border/30 py-6">
 								<View className="mb-3 flex-row items-center justify-between">
-									<Text className="text-preset-4 font-heading font-semibold text-foreground">{provider.name}</Text>
+									<Text className="text-preset-2 font-heading font-semibold text-foreground">{provider.name}</Text>
 									<Text className="text-preset-1 tracking-[0.2em] text-muted-foreground uppercase">{statusLabel}</Text>
 								</View>
 								{isEmpty ? (
-									<Text className="text-preset-2 font-body text-muted-foreground">No results for "{trimmedQuery}".</Text>
+									<Text className="text-preset-1 font-body text-muted-foreground">No results for "{trimmedQuery}".</Text>
 								) : hasResults ? (
 									<View className="flex-row flex-wrap gap-4">
 										{results.map((item) => (
