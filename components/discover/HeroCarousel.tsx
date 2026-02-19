@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link } from 'expo-router';
-import { Animated, Pressable, ScrollView, Text, View } from 'react-native';
+import { Animated, Pressable, ScrollView, View } from 'react-native';
 
 import { HeroParallaxImage } from '@components/discover/HeroParallaxImage';
 import { Button } from '@components/ui/Button';
@@ -95,17 +95,17 @@ export function HeroCarousel({
 											className="h-10 flex-1"
 											onPress={() => onToggleFavorite(item)}
 										/>
-										<Link
+										<Button
+											label="Read Now"
+											variant="primary"
+											outline
+											size="sm"
+											className="h-10 flex-1"
 											href={{
 												pathname: '/manga/[id]',
 												params: { id: item.id, provider: selectedProviderId },
 											}}
-											asChild
-										>
-											<Pressable className="border-foreground/40 bg-background/20 h-10 flex-1 items-center justify-center rounded-full border-2">
-												<Text className="text-preset-1 font-heading text-foreground font-semibold">Read Now</Text>
-											</Pressable>
-										</Link>
+										/>
 									</View>
 								</View>
 							</View>
