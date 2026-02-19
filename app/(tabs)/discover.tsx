@@ -1,7 +1,7 @@
 import { BlurView } from 'expo-blur';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Animated, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DiscoverHeader } from '@components/discover/DiscoverHeader';
@@ -146,16 +146,6 @@ export default function Discover() {
 	};
 
 	const headerPaddingTop = Math.max(insets.top, 16);
-	const blurOpacity = scrollY.interpolate({
-		inputRange: [0, 48],
-		outputRange: [0, 1],
-		extrapolate: 'clamp',
-	});
-	const solidOpacity = scrollY.interpolate({
-		inputRange: [0, 48],
-		outputRange: [1, 0],
-		extrapolate: 'clamp',
-	});
 	return (
 		<View className="bg-background flex-1">
 			<ScrollView
@@ -168,18 +158,18 @@ export default function Discover() {
 				})}
 				scrollEventThrottle={16}
 			>
-				<View className="border-border/40 border-b">
-					<View className="relative">
-						<Animated.View style={[StyleSheet.absoluteFillObject, { opacity: solidOpacity }]} className="bg-background" />
-						<Animated.View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { opacity: blurOpacity }]}>
-							<BlurView intensity={60} tint="default" style={StyleSheet.absoluteFillObject} />
-							<View className="bg-background/40" style={StyleSheet.absoluteFillObject} />
-						</Animated.View>
+				<View>
+					<View className="relative overflow-hidden">
+						{Platform.OS === 'ios' ? (
+							<BlurView intensity={80} tint="systemChromeMaterialDark" style={StyleSheet.absoluteFillObject} />
+						) : (
+							<View className="bg-background/85" style={StyleSheet.absoluteFillObject} />
+						)}
 						<View
 							style={{
 								paddingTop: headerPaddingTop,
 								paddingHorizontal: pagePadding,
-								paddingBottom: 12,
+								paddingBottom: 4,
 							}}
 						>
 							<DiscoverHeader
@@ -187,12 +177,19 @@ export default function Discover() {
 								selectedProviderId={selectedProviderId}
 								onSelectProvider={setSelectedProvider}
 								onOpenProvider={handleOpenProvider}
-								indicatorX={indicatorX}
-								indicatorWidth={indicatorWidth}
 								gap={gap}
 								onTabLayout={(id, layout) => setTabLayouts((current) => ({ ...current, [id]: layout }))}
 							/>
 						</View>
+					</View>
+					<View className="bg-border/40 relative h-px">
+						<Animated.View
+							style={{
+								transform: [{ translateX: Animated.add(indicatorX, pagePadding) }],
+								width: indicatorWidth,
+							}}
+							className="bg-primary absolute -top-0.5 h-1 rounded-full"
+						/>
 					</View>
 				</View>
 				<View style={{ paddingHorizontal: pagePadding }}>

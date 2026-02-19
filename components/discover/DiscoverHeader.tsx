@@ -1,26 +1,15 @@
-import { Animated, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 interface DiscoverHeaderProps {
 	providers: { id: string; name: string }[];
 	selectedProviderId?: string;
 	onSelectProvider: (id: string) => void;
 	onOpenProvider: () => void;
-	indicatorX: Animated.Value;
-	indicatorWidth: Animated.Value;
 	gap: number;
 	onTabLayout: (id: string, layout: { x: number; width: number }) => void;
 }
 
-export function DiscoverHeader({
-	providers,
-	selectedProviderId,
-	onSelectProvider,
-	onOpenProvider,
-	indicatorX,
-	indicatorWidth,
-	gap,
-	onTabLayout,
-}: DiscoverHeaderProps) {
+export function DiscoverHeader({ providers, selectedProviderId, onSelectProvider, onOpenProvider, gap, onTabLayout }: DiscoverHeaderProps) {
 	const hasProviders = providers.length > 0;
 	return (
 		<View>
@@ -35,18 +24,10 @@ export function DiscoverHeader({
 			</View>
 			<View className="mt-4">
 				<View className="relative -mx-2 px-2">
-					<View className="bg-border absolute right-0 bottom-0 left-0 h-0.5" />
-					<ScrollView horizontal showsHorizontalScrollIndicator={false} className="pb-3" contentContainerStyle={{ columnGap: gap }}>
-						<View className="relative flex-row" style={{ columnGap: gap }}>
+					<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ columnGap: gap }}>
+						<View className="relative flex-row pb-1" style={{ columnGap: gap }}>
 							{hasProviders ? (
 								<>
-									<Animated.View
-										style={{
-											transform: [{ translateX: indicatorX }],
-											width: indicatorWidth,
-										}}
-										className="bg-primary rounded-badge absolute bottom-0 h-1"
-									/>
 									{providers.map((provider) => {
 										const active = provider.id === selectedProviderId;
 										return (
@@ -57,7 +38,7 @@ export function DiscoverHeader({
 													const { x, width } = event.nativeEvent.layout;
 													onTabLayout(provider.id, { x, width });
 												}}
-												className="px-4 pb-3"
+												className="px-4 pb-1"
 											>
 												<Text className={`text-preset-1 font-heading font-semibold ${active ? 'text-primary' : 'text-muted'}`}>{provider.name}</Text>
 											</Pressable>
