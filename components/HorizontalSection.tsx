@@ -1,5 +1,5 @@
 import { Link } from 'expo-router';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { SkeletonCard } from '@components/ui/SkeletonCard';
 
@@ -57,11 +57,15 @@ export function HorizontalSection({
 							title,
 						},
 					}}
-					className={seeAllClassName}
+					asChild
 				>
-					<Text className={seeAllVariant === 'primary' ? 'text-primary-foreground text-preset-2 font-body' : 'text-primary text-preset-2 font-body'}>
-						↗
-					</Text>
+					<Pressable className={seeAllClassName}>
+						<Text
+							className={seeAllVariant === 'primary' ? 'text-primary-foreground text-preset-2 font-body' : 'text-primary text-preset-2 font-body'}
+						>
+							↗
+						</Text>
+					</Pressable>
 				</Link>
 			</View>
 			<ScrollView

@@ -1,6 +1,6 @@
 import { Link } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { GradientBackdrop } from '@components/GradientBackdrop';
 import { MangaCard } from '@components/MangaCard';
@@ -87,9 +87,11 @@ export default function GlobalSearch() {
 													pathname: '/manga/[id]',
 													params: { id: item.id, provider: provider.id },
 												}}
-												className="w-[47%]"
+												asChild
 											>
-												<MangaCard title={item.title} subtitle={item.subtitle ?? provider.name} coverUrl={item.coverUrl} />
+												<Pressable className="w-[47%]">
+													<MangaCard title={item.title} subtitle={item.subtitle ?? provider.name} coverUrl={item.coverUrl} />
+												</Pressable>
 											</Link>
 										))}
 									</View>

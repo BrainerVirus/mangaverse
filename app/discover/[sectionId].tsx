@@ -131,8 +131,10 @@ export default function DiscoverSection() {
 				ListHeaderComponent={
 					<View className="pt-4 pb-4">
 						<View className="flex-row items-center justify-between">
-							<Link href="/discover" className="bg-card rounded-full px-3 py-2">
-								<Text className="text-primary text-preset-1 font-heading font-semibold">Back</Text>
+							<Link href="/discover" asChild>
+								<Pressable className="bg-card rounded-full px-3 py-2">
+									<Text className="text-primary text-preset-1 font-heading font-semibold">Back</Text>
+								</Pressable>
 							</Link>
 							<Text className="text-foreground text-preset-2 font-heading font-semibold">{title}</Text>
 							<View className="w-12" />

@@ -1,5 +1,5 @@
 import { Link } from 'expo-router';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { GradientBackdrop } from '@components/GradientBackdrop';
 import { MangaCard } from '@components/MangaCard';
@@ -19,11 +19,10 @@ export default function Library() {
 					<View className="border-border/30 bg-card/80 rounded-[28px] border p-6">
 						<Text className="text-preset-2 font-heading text-foreground font-semibold">Your library is empty.</Text>
 						<Text className="text-preset-1 font-body text-muted mt-2">Find a series in Discover or Search to add it here.</Text>
-						<Link
-							href="/discover"
-							className="bg-primary text-preset-2 font-heading text-primary-foreground mt-4 rounded-full px-4 py-2 text-center font-semibold"
-						>
-							Browse Discover
+						<Link href="/discover" asChild>
+							<Pressable className="bg-primary mt-4 items-center rounded-full px-4 py-2">
+								<Text className="text-preset-2 font-heading text-primary-foreground text-center font-semibold">Browse Discover</Text>
+							</Pressable>
 						</Link>
 					</View>
 				) : (
@@ -45,9 +44,11 @@ export default function Library() {
 										pathname: '/manga/[id]',
 										params: { id: item.id, provider: item.providerId },
 									}}
-									className="w-[47%]"
+									asChild
 								>
-									<MangaCard title={item.title} subtitle={item.providerId} coverUrl={item.coverUrl} />
+									<Pressable className="w-[47%]">
+										<MangaCard title={item.title} subtitle={item.providerId} coverUrl={item.coverUrl} />
+									</Pressable>
 								</Link>
 							))}
 						</View>

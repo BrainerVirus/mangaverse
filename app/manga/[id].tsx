@@ -1,6 +1,6 @@
 import { Link, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { GradientBackdrop } from '@components/GradientBackdrop';
 import { SectionHeading } from '@components/SectionHeading';
@@ -118,19 +118,21 @@ export default function MangaDetail() {
 											mangaTitle: details?.title ?? '',
 										},
 									}}
-									className="border-border/30 bg-background/80 rounded-[22px] border px-4 py-3"
+									asChild
 								>
-									<View className="flex-row items-center justify-between">
-										<View className="pr-4">
-											<Text className="text-preset-1 font-heading text-foreground font-semibold">{chapter.title}</Text>
-											{chapter.language ? (
-												<Text className="text-preset-1 text-muted-foreground mt-1 tracking-[0.2em] uppercase">{chapter.language}</Text>
-											) : null}
+									<Pressable className="border-border/30 bg-background/80 rounded-[22px] border px-4 py-3">
+										<View className="flex-row items-center justify-between">
+											<View className="pr-4">
+												<Text className="text-preset-1 font-heading text-foreground font-semibold">{chapter.title}</Text>
+												{chapter.language ? (
+													<Text className="text-preset-1 text-muted-foreground mt-1 tracking-[0.2em] uppercase">{chapter.language}</Text>
+												) : null}
+											</View>
+											<View className="border-border/40 bg-card/70 rounded-full border px-3 py-1">
+												<Text className="text-preset-1 text-muted tracking-[0.2em] uppercase">{index + 1}</Text>
+											</View>
 										</View>
-										<View className="border-border/40 bg-card/70 rounded-full border px-3 py-1">
-											<Text className="text-preset-1 text-muted tracking-[0.2em] uppercase">{index + 1}</Text>
-										</View>
-									</View>
+									</Pressable>
 								</Link>
 							))}
 						</View>

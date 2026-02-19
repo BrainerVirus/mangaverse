@@ -1,3 +1,4 @@
+import { useEffect, useMemo } from 'react';
 import { useColorScheme } from 'react-native';
 
 import { deriveGenrePalette, extendGenrePalette } from '@lib/colors/genre-palette';
@@ -21,20 +22,23 @@ export const useGenrePalette = (neededCount: number) => {
 	const desiredCount = Math.max(1, neededCount);
 	const needsNormalization = currentPalette.some((color) => !isHexColor(color));
 
-	if (!needsNormalization && desiredCount <= currentPalette.length) {
-		return currentPalette;
-	}
+	// Compute the palette synchronously so the UI never renders with stale colors.
+	// The store is persisted in a useEffect to avoid setState-during-render.
+	const resolvedPalette = useMemo(() => {
+		if (!needsNormalization && desiredCount <= currentPalette.length) {
+			return currentPalette;
+		}
+		return needsNormalization
+			? deriveGenrePalette(accent, Math.max(desiredCount, currentPalette.length))
+			: extendGenrePalette(currentPalette, accent, Math.max(desiredCount, currentPalette.length));
+	}, [accent, currentPalette, desiredCount, needsNormalization]);
 
-	const nextPalette = needsNormalization
-		? deriveGenrePalette(accent, Math.max(desiredCount, currentPalette.length))
-		: extendGenrePalette(currentPalette, accent, Math.max(desiredCount, currentPalette.length));
-	if (nextPalette.length !== currentPalette.length) {
-		setPalette(themeKey, nextPalette);
-		return nextPalette;
-	}
+	// Persist to store only when the palette actually changed
+	useEffect(() => {
+		if (resolvedPalette !== currentPalette && resolvedPalette.length > 0) {
+			setPalette(themeKey, resolvedPalette);
+		}
+	}, [resolvedPalette, currentPalette, setPalette, themeKey]);
 
-	if (needsNormalization) {
-		setPalette(themeKey, nextPalette);
-	}
-	return nextPalette;
+	return resolvedPalette;
 };

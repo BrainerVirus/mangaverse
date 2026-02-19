@@ -1,5 +1,5 @@
 import { Link } from 'expo-router';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { GradientBackdrop } from '@components/GradientBackdrop';
 import { SectionHeading } from '@components/SectionHeading';
@@ -66,9 +66,11 @@ export default function Settings() {
 				</View>
 				<View className="gap-4 pb-12">
 					{sections.map((section) => (
-						<Link key={section.id} href={section.link} className="border-border/30 bg-card/70 rounded-[26px] border p-5">
-							<Text className="text-preset-2 font-heading text-foreground font-semibold">{section.title}</Text>
-							<Text className="text-preset-1 font-body text-muted mt-2">{section.description}</Text>
+						<Link key={section.id} href={section.link} asChild>
+							<Pressable className="border-border/30 bg-card/70 rounded-[26px] border p-5">
+								<Text className="text-preset-2 font-heading text-foreground font-semibold">{section.title}</Text>
+								<Text className="text-preset-1 font-body text-muted mt-2">{section.description}</Text>
+							</Pressable>
 						</Link>
 					))}
 				</View>

@@ -1,6 +1,6 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import { GradientBackdrop } from '@components/GradientBackdrop';
 import { SectionHeading } from '@components/SectionHeading';
@@ -63,11 +63,10 @@ export default function AccountSettings() {
 							</Text>
 						</View>
 					) : null}
-					<Link
-						href="/settings/auth-help"
-						className="bg-chip text-preset-1 font-heading text-foreground mt-3 rounded-full px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"
-					>
-						Auth setup help
+					<Link href="/settings/auth-help" asChild>
+						<Pressable className="bg-chip mt-3 items-center rounded-full px-4 py-2">
+							<Text className="text-preset-1 font-heading text-foreground text-center font-semibold tracking-[0.2em] uppercase">Auth setup help</Text>
+						</Pressable>
 					</Link>
 					{session ? (
 						<Text
