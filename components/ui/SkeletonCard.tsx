@@ -10,5 +10,5 @@ interface SkeletonCardProps {
 
 export function SkeletonCard({ width, height, className }: SkeletonCardProps) {
 	const { animatedStyle } = usePulseAnimation();
-	return <Animated.View style={[{ width, height }, animatedStyle]} className={`bg-card rounded-[18px] ${className ?? ''}`} />;
+	return <Animated.View style={[{ width, height }, animatedStyle]} className={`bg-card rounded-control ${className ?? ''}`} />;
 }

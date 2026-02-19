@@ -9,15 +9,15 @@ export default function AuthHelp() {
 			<GradientBackdrop />
 			<ScrollView className="flex-1 px-5 pt-6" contentInsetAdjustmentBehavior="automatic">
 				<SectionHeading title="Auth Setup" subtitle="Supabase configuration" />
-				<View className="border-border/30 bg-card/70 rounded-[28px] border p-5">
+				<View className="border-border/30 bg-card/70 rounded-box border p-5">
 					<Text className="text-preset-2 font-heading text-foreground font-semibold">Required settings</Text>
 					<Text className="text-preset-1 font-body text-muted mt-2">Add redirect URLs in Supabase Auth settings for magic links and OAuth.</Text>
 					<Text className="text-preset-1 text-muted-foreground mt-4 tracking-[0.2em] uppercase">Production</Text>
-					<Text className="text-preset-1 font-body text-foreground border-border/30 bg-background/70 mt-2 rounded-2xl border px-3 py-2">
+					<Text className="text-preset-1 font-body text-foreground border-border/30 bg-background/70 rounded-control mt-2 border px-3 py-2">
 						mangaverse://auth/callback
 					</Text>
 					<Text className="text-preset-1 text-muted-foreground mt-4 tracking-[0.2em] uppercase">Expo dev</Text>
-					<Text className="text-preset-1 font-body text-foreground border-border/30 bg-background/70 mt-2 rounded-2xl border px-3 py-2">
+					<Text className="text-preset-1 font-body text-foreground border-border/30 bg-background/70 rounded-control mt-2 border px-3 py-2">
 						exp://&lt;your-dev-host&gt;/--/auth/callback
 					</Text>
 					<Text className="text-preset-1 font-body text-muted mt-4">

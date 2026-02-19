@@ -258,7 +258,7 @@ export default function ReaderScreen() {
 			<View className="flex-1">
 				{chromeVisible ? (
 					<View className="px-5" style={{ paddingTop: 24 + insets.top }}>
-						<View className="bg-card rounded-[18px] px-4 py-3">
+						<View className="bg-card rounded-control px-4 py-3">
 							<View className="flex-row items-center justify-between">
 								<View className="flex-1 pr-4">
 									<Text className="text-preset-2 font-heading text-foreground font-semibold" numberOfLines={1}>
@@ -268,7 +268,7 @@ export default function ReaderScreen() {
 										{readerSubtitle}
 									</Text>
 								</View>
-								<Pressable onPress={() => setChromeVisible(false)} className="bg-chip h-9 w-9 items-center justify-center rounded-full">
+								<Pressable onPress={() => setChromeVisible(false)} className="bg-chip rounded-badge h-9 w-9 items-center justify-center">
 									<Ionicons name="close" size={18} color={iconColor} />
 								</Pressable>
 							</View>
@@ -288,7 +288,7 @@ export default function ReaderScreen() {
 										}
 										setChromeVisible(false);
 									}}
-									className={`bg-chip h-10 w-10 items-center justify-center rounded-full ${infoMangaId ? '' : 'opacity-40'}`}
+									className={`bg-chip rounded-badge h-10 w-10 items-center justify-center ${infoMangaId ? '' : 'opacity-40'}`}
 								>
 									<Ionicons name="information" size={18} color={iconColor} />
 								</Pressable>
@@ -297,17 +297,17 @@ export default function ReaderScreen() {
 					</View>
 				) : null}
 				{loading ? (
-					<View className="border-border/30 bg-card/70 items-center justify-center rounded-[28px] border p-6">
+					<View className="border-border/30 bg-card/70 rounded-box items-center justify-center border p-6">
 						<ActivityIndicator color={themeColors.accent} />
 						<Text className="text-preset-1 font-body text-muted mt-3">Loading pages…</Text>
 					</View>
 				) : error ? (
-					<View className="border-warning/40 bg-warning/10 rounded-[28px] border p-6">
+					<View className="border-warning/40 bg-warning/10 rounded-box border p-6">
 						<Text className="text-preset-2 font-heading text-warning font-semibold">Unable to load</Text>
 						<Text className="text-preset-1 font-body text-warning mt-2">{error}</Text>
 					</View>
 				) : pages.length === 0 ? (
-					<View className="border-border/30 bg-card/70 rounded-[28px] border p-6">
+					<View className="border-border/30 bg-card/70 rounded-box border p-6">
 						<Text className="text-preset-2 font-heading text-foreground font-semibold">No pages yet</Text>
 						<Text className="text-preset-1 font-body text-muted mt-2">This chapter has no pages available.</Text>
 					</View>
@@ -375,7 +375,7 @@ export default function ReaderScreen() {
 								>
 									<Image
 										source={{ uri: page.url, headers: page.headers }}
-										className="bg-card w-full rounded-[26px]"
+										className="bg-card rounded-box w-full"
 										style={{
 											height: pageRatios[page.url] && contentWidth ? Math.round(contentWidth * pageRatios[page.url]) : 260,
 										}}
@@ -389,27 +389,27 @@ export default function ReaderScreen() {
 				)}
 				{chromeVisible && !showSettings ? (
 					<View className="absolute inset-x-0 px-5" style={{ bottom: Math.max(insets.bottom, 10), paddingBottom: 12 }}>
-						<View className="bg-card flex-row items-center justify-between rounded-3xl px-4 py-3">
+						<View className="bg-card rounded-box flex-row items-center justify-between px-4 py-3">
 							<Pressable
 								onPress={() => {
 									setReaderMode(readerMode === 'rtl' ? 'ltr' : 'rtl');
 								}}
-								className="bg-chip h-11 w-11 items-center justify-center rounded-full"
+								className="bg-chip rounded-badge h-11 w-11 items-center justify-center"
 							>
 								<Ionicons name="swap-horizontal" size={18} color={iconColor} />
 							</Pressable>
-							<Pressable onPress={() => setLockRotation(!lockRotation)} className="bg-chip h-11 w-11 items-center justify-center rounded-full">
+							<Pressable onPress={() => setLockRotation(!lockRotation)} className="bg-chip rounded-badge h-11 w-11 items-center justify-center">
 								<Ionicons name="lock-closed" size={18} color={iconColor} />
 							</Pressable>
-							<Pressable onPress={handleSettingsToggle} className="bg-chip h-11 w-11 items-center justify-center rounded-full">
+							<Pressable onPress={handleSettingsToggle} className="bg-chip rounded-badge h-11 w-11 items-center justify-center">
 								<Ionicons name="settings-sharp" size={18} color={iconColor} />
 							</Pressable>
 							<View className="flex-row items-center gap-3">
-								<Pressable onPress={handlePrev} className="bg-chip h-11 w-11 items-center justify-center rounded-full">
+								<Pressable onPress={handlePrev} className="bg-chip rounded-badge h-11 w-11 items-center justify-center">
 									<Ionicons name="chevron-back" size={18} color={iconColor} />
 								</Pressable>
 								<Text className="text-preset-1 text-foreground tracking-[0.2em] uppercase">{pageDisplay}</Text>
-								<Pressable onPress={handleNext} className="bg-chip h-11 w-11 items-center justify-center rounded-full">
+								<Pressable onPress={handleNext} className="bg-chip rounded-badge h-11 w-11 items-center justify-center">
 									<Ionicons name="chevron-forward" size={18} color={iconColor} />
 								</Pressable>
 							</View>
@@ -419,7 +419,7 @@ export default function ReaderScreen() {
 				{showSettings ? (
 					<View className="bg-foreground/30 absolute inset-0 justify-end">
 						<Pressable className="flex-1" onPress={() => setShowSettings(false)} />
-						<View className="border-border/40 bg-background rounded-t-4xl border px-5 pt-6 pb-8">
+						<View className="border-border/40 bg-background rounded-t-box border px-5 pt-6 pb-8">
 							<View className="flex-row items-center justify-between">
 								<Text className="text-preset-2 font-heading text-foreground font-semibold">Reader Settings</Text>
 								<Text className="text-preset-2 font-heading text-primary font-semibold" onPress={() => setShowSettings(false)}>
@@ -428,7 +428,7 @@ export default function ReaderScreen() {
 							</View>
 							<View className="mt-6">
 								<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Reader type</Text>
-								<View className="border-border/40 bg-card mt-3 flex-row overflow-hidden rounded-full border">
+								<View className="border-border/40 bg-card rounded-badge mt-3 flex-row overflow-hidden border">
 									<Text
 										className={`text-preset-2 font-heading flex-1 px-4 py-2 text-center font-semibold ${
 											readerMode === 'webtoon' ? 'bg-chip text-foreground' : 'text-muted'
@@ -459,7 +459,7 @@ export default function ReaderScreen() {
 									).map((mode) => (
 										<Text
 											key={mode.id}
-											className={`text-preset-2 font-heading rounded-2xl border px-4 py-3 font-semibold ${
+											className={`text-preset-2 font-heading rounded-control border px-4 py-3 font-semibold ${
 												readerMode === mode.id ? 'border-primary/80 bg-primary/15 text-primary' : 'border-border/30 bg-card/70 text-muted'
 											}`}
 											onPress={() => setReaderMode(mode.id)}
@@ -481,7 +481,7 @@ export default function ReaderScreen() {
 									).map((mode) => (
 										<Text
 											key={mode.id}
-											className={`text-preset-2 font-heading rounded-2xl border px-4 py-3 font-semibold ${
+											className={`text-preset-2 font-heading rounded-control border px-4 py-3 font-semibold ${
 												fitMode === mode.id ? 'border-primary/80 bg-primary/15 text-primary' : 'border-border/30 bg-card/70 text-muted'
 											}`}
 											onPress={() => setFitMode(mode.id)}
@@ -503,7 +503,7 @@ export default function ReaderScreen() {
 									).map((tone) => (
 										<Text
 											key={tone.id}
-											className={`text-preset-2 font-heading rounded-2xl border px-4 py-3 font-semibold ${
+											className={`text-preset-2 font-heading rounded-control border px-4 py-3 font-semibold ${
 												background === tone.id ? 'border-primary/80 bg-primary/15 text-primary' : 'border-border/30 bg-card/70 text-muted'
 											}`}
 											onPress={() => setBackground(tone.id)}
@@ -514,40 +514,40 @@ export default function ReaderScreen() {
 								</View>
 							</View>
 							<View className="mt-6 gap-4">
-								<View className="border-border/40 bg-card/80 flex-row items-center justify-between rounded-[20px] border px-4 py-3">
+								<View className="border-border/40 bg-card/80 rounded-box flex-row items-center justify-between border px-4 py-3">
 									<Text className="text-preset-1 font-heading text-foreground font-semibold">Tap navigation</Text>
 									<Pressable
 										onPress={() => setTapNavigationEnabled(!tapNavigationEnabled)}
-										className={`h-6 w-12 rounded-full ${tapNavigationEnabled ? 'bg-success' : 'bg-border'}`}
+										className={`rounded-badge h-6 w-12 ${tapNavigationEnabled ? 'bg-success' : 'bg-border'}`}
 									>
-										<View className={`bg-background h-6 w-6 rounded-full ${tapNavigationEnabled ? 'ml-6' : 'ml-0'}`} />
+										<View className={`bg-background rounded-badge h-6 w-6 ${tapNavigationEnabled ? 'ml-6' : 'ml-0'}`} />
 									</Pressable>
 								</View>
-								<View className="border-border/40 bg-card/80 flex-row items-center justify-between rounded-[20px] border px-4 py-3">
+								<View className="border-border/40 bg-card/80 rounded-box flex-row items-center justify-between border px-4 py-3">
 									<Text className="text-preset-1 font-heading text-foreground font-semibold">Auto-hide controls</Text>
 									<Pressable
 										onPress={() => setAutoHideChrome(!autoHideChrome)}
-										className={`h-6 w-12 rounded-full ${autoHideChrome ? 'bg-success' : 'bg-border'}`}
+										className={`rounded-badge h-6 w-12 ${autoHideChrome ? 'bg-success' : 'bg-border'}`}
 									>
-										<View className={`bg-background h-6 w-6 rounded-full ${autoHideChrome ? 'ml-6' : 'ml-0'}`} />
+										<View className={`bg-background rounded-badge h-6 w-6 ${autoHideChrome ? 'ml-6' : 'ml-0'}`} />
 									</Pressable>
 								</View>
-								<View className="border-border/40 bg-card/80 flex-row items-center justify-between rounded-[20px] border px-4 py-3">
+								<View className="border-border/40 bg-card/80 rounded-box flex-row items-center justify-between border px-4 py-3">
 									<Text className="text-preset-1 font-heading text-foreground font-semibold">Swipe navigation</Text>
 									<Pressable
 										onPress={() => setSwipeEnabled(!swipeEnabled)}
-										className={`h-6 w-12 rounded-full ${swipeEnabled ? 'bg-success' : 'bg-border'}`}
+										className={`rounded-badge h-6 w-12 ${swipeEnabled ? 'bg-success' : 'bg-border'}`}
 									>
-										<View className={`bg-background h-6 w-6 rounded-full ${swipeEnabled ? 'ml-6' : 'ml-0'}`} />
+										<View className={`bg-background rounded-badge h-6 w-6 ${swipeEnabled ? 'ml-6' : 'ml-0'}`} />
 									</Pressable>
 								</View>
-								<View className="border-border/40 bg-card/80 flex-row items-center justify-between rounded-[20px] border px-4 py-3">
+								<View className="border-border/40 bg-card/80 rounded-box flex-row items-center justify-between border px-4 py-3">
 									<Text className="text-preset-1 font-heading text-foreground font-semibold">Lock rotation</Text>
 									<Pressable
 										onPress={() => setLockRotation(!lockRotation)}
-										className={`h-6 w-12 rounded-full ${lockRotation ? 'bg-success' : 'bg-border'}`}
+										className={`rounded-badge h-6 w-12 ${lockRotation ? 'bg-success' : 'bg-border'}`}
 									>
-										<View className={`bg-background h-6 w-6 rounded-full ${lockRotation ? 'ml-6' : 'ml-0'}`} />
+										<View className={`bg-background rounded-badge h-6 w-6 ${lockRotation ? 'ml-6' : 'ml-0'}`} />
 									</Pressable>
 								</View>
 							</View>

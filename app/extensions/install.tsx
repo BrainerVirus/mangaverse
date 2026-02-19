@@ -90,7 +90,7 @@ export default function ExtensionInstall() {
 		<View className="bg-background flex-1">
 			<GradientBackdrop />
 			<ScrollView className="flex-1 px-5 pt-6">
-				<View className="border-border/30 bg-card/70 rounded-[28px] border p-5">
+				<View className="border-border/30 bg-card/70 rounded-box border p-5">
 					<Text className="text-preset-2 font-heading text-foreground font-semibold">{title}</Text>
 					<Text className="text-preset-1 font-body text-muted mt-2">{extensionParams.name || 'Unknown extension'}</Text>
 					<Text className="text-preset-1 text-muted-foreground mt-1 tracking-[0.2em] uppercase">{extensionParams.id ?? ''}</Text>
@@ -109,13 +109,13 @@ export default function ExtensionInstall() {
 					{status === 'error' ? <Text className="text-preset-1 font-body text-warning mt-4">{message ?? 'Failed to install.'}</Text> : null}
 					<View className="mt-4 flex-row gap-3">
 						<Text
-							className="border-border/40 text-preset-1 font-heading text-muted flex-1 rounded-full border px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"
+							className="border-border/40 text-preset-1 font-heading text-muted rounded-badge flex-1 border px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"
 							onPress={() => router.replace('/settings/extensions')}
 						>
 							Cancel
 						</Text>
 						<Text
-							className={`text-preset-1 font-heading flex-1 rounded-full px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase ${
+							className={`text-preset-1 font-heading rounded-badge flex-1 px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase ${
 								!extensionParams.bundleUrl || status === 'installing' ? 'bg-chip text-muted' : 'bg-primary text-primary-foreground'
 							}`}
 							onPress={!extensionParams.bundleUrl || status === 'installing' ? undefined : handleInstall}
@@ -124,11 +124,11 @@ export default function ExtensionInstall() {
 						</Text>
 					</View>
 				</View>
-				<View className="border-border/30 bg-card/70 mt-5 rounded-[26px] border p-5">
+				<View className="border-border/30 bg-card/70 rounded-box mt-5 border p-5">
 					<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Bundle URL</Text>
 					<Text className="text-preset-1 font-body text-foreground mt-2">{extensionParams.bundleUrl || 'Missing bundle URL'}</Text>
 				</View>
-				<View className="border-border/30 bg-card/70 mt-5 rounded-[26px] border p-5">
+				<View className="border-border/30 bg-card/70 rounded-box mt-5 border p-5">
 					<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Metadata</Text>
 					<Text className="text-preset-1 font-body text-foreground mt-2">Version: {extensionParams.version ?? '0.0.0'}</Text>
 					<Text className="text-preset-1 font-body text-foreground mt-1">Languages: {extensionParams.languages.join(', ') || 'Unknown'}</Text>

@@ -36,9 +36,9 @@ export default function GlobalSearch() {
 			<View className="px-5 pt-6">
 				<Text className="text-preset-1 text-muted-foreground tracking-[0.24em] uppercase">Global search</Text>
 				<Text className="text-preset-2 font-heading text-foreground mt-2 font-semibold">Find your next read</Text>
-				<View className="border-border/30 bg-card/70 mt-4 rounded-[24px] border p-3">
+				<View className="border-border/30 bg-card/70 rounded-box mt-4 border p-3">
 					<TextInput
-						className="border-border/40 bg-background text-preset-1 font-body text-foreground rounded-[18px] border px-4 py-3"
+						className="border-border/40 bg-background text-preset-1 font-body text-foreground rounded-control border px-4 py-3"
 						placeholder="Search across providers"
 						placeholderTextColor={themeColors.mutedForeground}
 						value={query}
@@ -49,17 +49,17 @@ export default function GlobalSearch() {
 			</View>
 			<ScrollView className="flex-1 px-5 pt-4 pb-6" contentInsetAdjustmentBehavior="automatic">
 				{loading ? (
-					<View className="border-border/30 bg-card/80 items-center justify-center rounded-[28px] border p-6">
+					<View className="border-border/30 bg-card/80 rounded-box items-center justify-center border p-6">
 						<ActivityIndicator color={themeColors.accent} />
 						<Text className="text-preset-1 font-body text-muted mt-3">Loading providers…</Text>
 					</View>
 				) : !hasQuery ? (
-					<View className="border-border/30 bg-card/70 rounded-[28px] border p-6">
+					<View className="border-border/30 bg-card/70 rounded-box border p-6">
 						<Text className="text-preset-2 font-heading text-foreground font-semibold">Start typing to search</Text>
 						<Text className="text-preset-1 font-body text-muted mt-2">Your results will appear grouped by provider.</Text>
 					</View>
 				) : providers.length === 0 ? (
-					<View className="border-border/30 bg-card/70 rounded-[28px] border p-6">
+					<View className="border-border/30 bg-card/70 rounded-box border p-6">
 						<Text className="text-preset-2 font-heading text-foreground font-semibold">No extensions installed</Text>
 						<Text className="text-preset-1 font-body text-muted mt-2">Install an extension to enable global search.</Text>
 					</View>

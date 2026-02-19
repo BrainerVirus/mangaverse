@@ -55,13 +55,13 @@ export default function ReaderSettings() {
 			<ScrollView className="flex-1 px-5 pt-6" contentInsetAdjustmentBehavior="automatic">
 				<SectionHeading title="Reader" subtitle="Defaults & gestures" />
 				<View className="gap-3 pb-12">
-					<View className="border-border/30 bg-card/70 rounded-[28px] border p-5">
+					<View className="border-border/30 bg-card/70 rounded-box border p-5">
 						<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Reading direction</Text>
 						<View className="mt-4 gap-3">
 							{modes.map((mode) => (
 								<Text
 									key={mode.id}
-									className={`text-preset-2 font-heading rounded-2xl border px-4 py-3 font-semibold ${
+									className={`text-preset-2 font-heading rounded-control border px-4 py-3 font-semibold ${
 										readerMode === mode.id ? 'border-primary/80 bg-primary/15 text-primary' : 'border-border/30 bg-card/70 text-muted'
 									}`}
 									onPress={() => setReaderMode(mode.id)}
@@ -76,7 +76,7 @@ export default function ReaderSettings() {
 								{tapPresets.map((preset) => (
 									<Text
 										key={preset.id}
-										className={`text-preset-2 font-heading rounded-2xl border px-4 py-3 font-semibold ${
+										className={`text-preset-2 font-heading rounded-control border px-4 py-3 font-semibold ${
 											tapZonePreset === preset.id ? 'border-primary/80 bg-primary/15 text-primary' : 'border-border/30 bg-card/70 text-muted'
 										}`}
 										onPress={() => setTapZonePreset(preset.id)}
@@ -87,13 +87,13 @@ export default function ReaderSettings() {
 							</View>
 						</View>
 					</View>
-					<View className="border-border/30 bg-card/70 rounded-[28px] border p-5">
+					<View className="border-border/30 bg-card/70 rounded-box border p-5">
 						<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Display</Text>
 						<View className="mt-4 gap-3">
 							{fitModes.map((mode) => (
 								<Text
 									key={mode.id}
-									className={`text-preset-2 font-heading rounded-2xl border px-4 py-3 font-semibold ${
+									className={`text-preset-2 font-heading rounded-control border px-4 py-3 font-semibold ${
 										fitMode === mode.id ? 'border-primary/80 bg-primary/15 text-primary' : 'border-border/30 bg-card/70 text-muted'
 									}`}
 									onPress={() => setFitMode(mode.id)}
@@ -108,7 +108,7 @@ export default function ReaderSettings() {
 								{backgrounds.map((tone) => (
 									<Text
 										key={tone.id}
-										className={`text-preset-2 font-heading rounded-2xl border px-4 py-3 font-semibold ${
+										className={`text-preset-2 font-heading rounded-control border px-4 py-3 font-semibold ${
 											background === tone.id ? 'border-primary/80 bg-primary/15 text-primary' : 'border-border/30 bg-card/70 text-muted'
 										}`}
 										onPress={() => setBackground(tone.id)}
@@ -119,7 +119,7 @@ export default function ReaderSettings() {
 							</View>
 						</View>
 					</View>
-					<View className="border-border/30 bg-card/70 rounded-[28px] border p-5">
+					<View className="border-border/30 bg-card/70 rounded-box border p-5">
 						<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Controls</Text>
 						<View className="mt-4 flex-row items-center justify-between">
 							<View className="flex-1 pr-4">

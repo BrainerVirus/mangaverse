@@ -74,19 +74,19 @@ export default function ExtensionsSettings() {
 			<GradientBackdrop />
 			<ScrollView className="flex-1 px-5 pt-6" contentInsetAdjustmentBehavior="automatic">
 				<SectionHeading title="Extensions" subtitle="Manage providers" />
-				<View className="border-border/30 bg-card/70 rounded-[28px] border p-5">
+				<View className="border-border/30 bg-card/70 rounded-box border p-5">
 					<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Repository URL</Text>
 					<TextInput
 						value={repoUrl}
 						onChangeText={setRepoUrl}
 						placeholder="https://example.com/extensions.json"
 						placeholderTextColor={themeColors.mutedForeground}
-						className="border-border/40 bg-background text-preset-1 font-body text-foreground mt-3 rounded-2xl border px-4 py-3"
+						className="border-border/40 bg-background text-preset-1 font-body text-foreground rounded-control mt-3 border px-4 py-3"
 						autoCapitalize="none"
 						autoCorrect={false}
 					/>
 				</View>
-				<View className="border-border/30 bg-card/70 mt-4 rounded-[28px] border p-5">
+				<View className="border-border/30 bg-card/70 rounded-box mt-4 border p-5">
 					<View className="flex-row items-center justify-between">
 						<View className="flex-1 pr-4">
 							<Text className="text-preset-2 font-heading text-foreground font-semibold">Show provider errors</Text>
@@ -102,28 +102,28 @@ export default function ExtensionsSettings() {
 					</View>
 				</View>
 				{loading ? (
-					<View className="border-border/30 bg-card/70 mt-4 rounded-[28px] border p-5">
+					<View className="border-border/30 bg-card/70 rounded-box mt-4 border p-5">
 						<Text className="text-preset-1 font-body text-muted">Working…</Text>
 					</View>
 				) : null}
 				{error ? (
-					<View className="border-warning/40 bg-warning/10 mt-4 rounded-[28px] border p-5">
+					<View className="border-warning/40 bg-warning/10 rounded-box mt-4 border p-5">
 						<Text className="text-preset-1 font-body text-warning">{error}</Text>
 					</View>
 				) : null}
 				<View className="mt-6 gap-4 pb-12">
 					{providers.length === 0 ? (
-						<View className="border-border/30 bg-card/70 rounded-[28px] border p-5">
+						<View className="border-border/30 bg-card/70 rounded-box border p-5">
 							<Text className="text-preset-2 font-heading text-foreground font-semibold">No extensions installed.</Text>
 							<Text className="text-preset-1 font-body text-muted mt-2">Add a repository URL to browse extensions.</Text>
 						</View>
 					) : (
 						providers.map((provider) => (
-							<View key={provider.id} className="border-border/30 bg-card/70 rounded-[26px] border p-5">
+							<View key={provider.id} className="border-border/30 bg-card/70 rounded-box border p-5">
 								<Text className="text-preset-2 font-heading text-foreground font-semibold">{provider.name}</Text>
 								<Text className="text-preset-1 font-body text-muted mt-2">{provider.meta.supportedLanguages.join(', ') || 'No languages'}</Text>
 								<Text
-									className="bg-chip text-preset-1 font-heading text-foreground mt-3 rounded-full px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"
+									className="bg-chip text-preset-1 font-heading text-foreground rounded-badge mt-3 px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"
 									onPress={loading ? undefined : () => handleUninstall(provider.id)}
 								>
 									Uninstall
@@ -137,11 +137,11 @@ export default function ExtensionsSettings() {
 							{index.map((item) => {
 								const isInstalled = installed.some((entry) => entry.id === item.id);
 								return (
-									<View key={item.id} className="border-border/30 bg-card/70 rounded-[26px] border p-5">
+									<View key={item.id} className="border-border/30 bg-card/70 rounded-box border p-5">
 										<Text className="text-preset-2 font-heading text-foreground font-semibold">{item.name}</Text>
 										<Text className="text-preset-1 font-body text-muted mt-1">{item.languages.join(', ') || 'No languages'}</Text>
 										<Text
-											className={`text-preset-1 font-heading mt-3 rounded-full px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase ${
+											className={`text-preset-1 font-heading rounded-badge mt-3 px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase ${
 												isInstalled ? 'bg-chip text-muted' : 'bg-primary text-primary-foreground'
 											}`}
 											onPress={isInstalled || loading ? undefined : () => handleInstall(item)}

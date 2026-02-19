@@ -8,8 +8,8 @@ interface GenreCardProps {
 
 export function GenreCard({ label, backgroundColor, width }: GenreCardProps) {
 	return (
-		<View style={{ backgroundColor, width }} className="h-22 overflow-hidden rounded-[18px] px-4 py-3">
-			<View className="bg-foreground/15 absolute top-0 right-0 h-8 w-10 items-center justify-center rounded-bl-2xl">
+		<View style={{ backgroundColor, width }} className="rounded-control h-22 overflow-hidden px-4 py-3">
+			<View className="bg-foreground/15 rounded-bl-control absolute top-0 right-0 h-8 w-10 items-center justify-center">
 				<Text className="text-preset-2 font-body" style={{ color: backgroundColor }}>
 					→
 				</Text>

@@ -16,7 +16,7 @@ export default function AppearanceSettings() {
 			<ScrollView className="flex-1 px-5 pt-6" contentInsetAdjustmentBehavior="automatic">
 				<SectionHeading title="Appearance" subtitle="Theme & layout" />
 				<View className="gap-3 pb-12">
-					<View className="bg-card/70 rounded-[22px] p-5">
+					<View className="bg-card/70 rounded-box p-5">
 						<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Theme</Text>
 						<View className="mt-4 gap-3">
 							{themes.map((item) => {
@@ -25,15 +25,15 @@ export default function AppearanceSettings() {
 								return (
 									<Pressable
 										key={item}
-										className={`rounded-2xl border px-4 py-3 ${isActive ? 'border-success/80 bg-success/10' : 'border-border/30 bg-card'}`}
+										className={`rounded-control border px-4 py-3 ${isActive ? 'border-success/80 bg-success/10' : 'border-border/30 bg-card'}`}
 										onPress={() => setTheme(item)}
 									>
 										<View className="flex-row items-center justify-between">
 											<Text className={`text-preset-2 font-heading font-semibold ${isActive ? 'text-foreground' : 'text-muted'}`}>{item}</Text>
 											<View className="flex-row items-center gap-2">
-												<View className="h-3 w-3 rounded-full" style={{ backgroundColor: preview.accent }} />
-												<View className="h-3 w-3 rounded-full" style={{ backgroundColor: preview.background }} />
-												<View className="h-3 w-3 rounded-full border" style={{ backgroundColor: preview.muted, borderColor: preview.border }} />
+												<View className="rounded-badge h-3 w-3" style={{ backgroundColor: preview.accent }} />
+												<View className="rounded-badge h-3 w-3" style={{ backgroundColor: preview.background }} />
+												<View className="rounded-badge h-3 w-3 border" style={{ backgroundColor: preview.muted, borderColor: preview.border }} />
 											</View>
 										</View>
 									</Pressable>

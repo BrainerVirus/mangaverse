@@ -52,11 +52,11 @@ export default function AccountSettings() {
 			<GradientBackdrop />
 			<ScrollView className="flex-1 px-5 pt-6" contentInsetAdjustmentBehavior="automatic">
 				<SectionHeading title="Account" subtitle="Optional login" />
-				<View className="border-border/30 bg-card/70 rounded-[28px] border p-5">
+				<View className="border-border/30 bg-card/70 rounded-box border p-5">
 					<Text className="text-preset-2 font-heading text-foreground font-semibold">Supabase account</Text>
 					<Text className="text-preset-1 font-body text-muted mt-2">Sign in to enable sync and backups across devices.</Text>
 					{!isSupabaseConfigured ? (
-						<View className="border-warning/40 bg-warning/10 mt-3 rounded-[22px] border px-4 py-3">
+						<View className="border-warning/40 bg-warning/10 rounded-box mt-3 border px-4 py-3">
 							<Text className="text-preset-1 text-warning tracking-[0.2em] uppercase">Supabase not configured</Text>
 							<Text className="text-preset-1 font-body text-warning mt-2">
 								Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_KEY to your .env to enable auth.
@@ -64,13 +64,13 @@ export default function AccountSettings() {
 						</View>
 					) : null}
 					<Link href="/settings/auth-help" asChild>
-						<Pressable className="bg-chip mt-3 items-center rounded-full px-4 py-2">
+						<Pressable className="bg-chip rounded-badge mt-3 items-center px-4 py-2">
 							<Text className="text-preset-1 font-heading text-foreground text-center font-semibold tracking-[0.2em] uppercase">Auth setup help</Text>
 						</Pressable>
 					</Link>
 					{session ? (
 						<Text
-							className="bg-chip text-preset-1 font-heading text-foreground mt-4 rounded-full px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"
+							className="bg-chip text-preset-1 font-heading text-foreground rounded-badge mt-4 px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"
 							onPress={() => signOut()}
 						>
 							Sign out
@@ -82,13 +82,13 @@ export default function AccountSettings() {
 								onChangeText={setEmail}
 								placeholder="Email"
 								placeholderTextColor={themeColors.mutedForeground}
-								className="border-border/40 bg-background text-preset-1 font-body text-foreground rounded-2xl border px-4 py-3"
+								className="border-border/40 bg-background text-preset-1 font-body text-foreground rounded-control border px-4 py-3"
 								autoCapitalize="none"
 								autoCorrect={false}
 								keyboardType="email-address"
 							/>
 							<Text
-								className={`text-preset-1 font-heading rounded-full px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase ${
+								className={`text-preset-1 font-heading rounded-badge px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase ${
 									status === 'sending' ? 'bg-chip text-muted' : 'bg-primary text-primary-foreground'
 								}`}
 								onPress={status === 'sending' ? undefined : handleMagicLink}
@@ -100,11 +100,11 @@ export default function AccountSettings() {
 								onChangeText={setOtp}
 								placeholder="One-time code"
 								placeholderTextColor={themeColors.mutedForeground}
-								className="border-border/40 bg-background text-preset-1 font-body text-foreground rounded-2xl border px-4 py-3"
+								className="border-border/40 bg-background text-preset-1 font-body text-foreground rounded-control border px-4 py-3"
 								keyboardType="number-pad"
 							/>
 							<Text
-								className={`text-preset-1 font-heading rounded-full px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase ${
+								className={`text-preset-1 font-heading rounded-badge px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase ${
 									status === 'verifying' ? 'bg-chip text-muted' : 'bg-chip text-foreground'
 								}`}
 								onPress={status === 'verifying' ? undefined : handleVerify}
@@ -113,31 +113,31 @@ export default function AccountSettings() {
 							</Text>
 							<View className="flex-row flex-wrap gap-2">
 								<Text
-									className="bg-chip text-preset-1 font-heading text-foreground rounded-full px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"
+									className="bg-chip text-preset-1 font-heading text-foreground rounded-badge px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"
 									onPress={() => signInWithProvider('google')}
 								>
 									Google
 								</Text>
 								<Text
-									className="bg-chip text-preset-1 font-heading text-foreground rounded-full px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"
+									className="bg-chip text-preset-1 font-heading text-foreground rounded-badge px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"
 									onPress={() => signInWithProvider('apple')}
 								>
 									Apple
 								</Text>
 								<Text
-									className="bg-chip text-preset-1 font-heading text-foreground rounded-full px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"
+									className="bg-chip text-preset-1 font-heading text-foreground rounded-badge px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"
 									onPress={() => signInWithProvider('facebook')}
 								>
 									Facebook
 								</Text>
 								<Text
-									className="bg-chip text-preset-1 font-heading text-foreground rounded-full px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"
+									className="bg-chip text-preset-1 font-heading text-foreground rounded-badge px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"
 									onPress={() => signInWithProvider('discord')}
 								>
 									Discord
 								</Text>
 								<Text
-									className="bg-chip text-preset-1 text-foreground rounded-full px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"
+									className="bg-chip text-preset-1 text-foreground rounded-badge px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"
 									onPress={() => signInWithProvider('github')}
 								>
 									GitHub

@@ -43,7 +43,7 @@ export function MangaCard({ title, coverUrl, subtitle, lastChapter, language, in
 	return (
 		<View>
 			<View className="relative">
-				<View className="bg-card overflow-hidden rounded-lg">
+				<View className="bg-card rounded-btn overflow-hidden">
 					{coverUrl ? (
 						<Image source={{ uri: coverUrl }} className="aspect-3/4 w-full" resizeMode="cover" />
 					) : (
@@ -51,14 +51,14 @@ export function MangaCard({ title, coverUrl, subtitle, lastChapter, language, in
 					)}
 
 					{languageLabel && (
-						<View className="bg-background/85 absolute right-2 bottom-2 rounded-full px-2 py-1">
+						<View className="bg-background/85 rounded-badge absolute right-2 bottom-2 px-2 py-1">
 							<Text className="text-preset-1 font-body text-foreground">{languageLabel}</Text>
 						</View>
 					)}
 				</View>
 
 				{inLibrary && (
-					<View className="bg-primary absolute -top-2 -right-2 h-7 w-7 items-center justify-center rounded-full shadow-sm" style={{ elevation: 3 }}>
+					<View className="bg-primary rounded-badge absolute -top-2 -right-2 h-7 w-7 items-center justify-center shadow-sm" style={{ elevation: 3 }}>
 						<Text className="text-preset-1 font-body text-primary-foreground">★</Text>
 					</View>
 				)}

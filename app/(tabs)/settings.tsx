@@ -59,7 +59,7 @@ export default function Settings() {
 			<GradientBackdrop />
 			<ScrollView className="flex-1 px-5 pt-6" contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: tabBarPadding }}>
 				<SectionHeading title="Settings" subtitle="Tune your experience" />
-				<View className="border-border/30 bg-card/70 mb-6 rounded-[28px] border p-5">
+				<View className="border-border/30 bg-card/70 rounded-box mb-6 border p-5">
 					<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Theme</Text>
 					<Text className="text-preset-2 font-heading text-foreground mt-2 font-semibold">{theme}</Text>
 					<Text className="text-preset-1 font-body text-muted mt-1">Appearance applies across the reader and library.</Text>
@@ -67,7 +67,7 @@ export default function Settings() {
 				<View className="gap-4 pb-12">
 					{sections.map((section) => (
 						<Link key={section.id} href={section.link} asChild>
-							<Pressable className="border-border/30 bg-card/70 rounded-[26px] border p-5">
+							<Pressable className="border-border/30 bg-card/70 rounded-box border p-5">
 								<Text className="text-preset-2 font-heading text-foreground font-semibold">{section.title}</Text>
 								<Text className="text-preset-1 font-body text-muted mt-2">{section.description}</Text>
 							</Pressable>

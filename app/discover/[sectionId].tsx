@@ -132,7 +132,7 @@ export default function DiscoverSection() {
 					<View className="pt-4 pb-4">
 						<View className="flex-row items-center justify-between">
 							<Link href="/discover" asChild>
-								<Pressable className="bg-card rounded-full px-3 py-2">
+								<Pressable className="bg-card rounded-badge px-3 py-2">
 									<Text className="text-primary text-preset-1 font-heading font-semibold">Back</Text>
 								</Pressable>
 							</Link>
@@ -175,17 +175,17 @@ export default function DiscoverSection() {
 				}}
 				ListEmptyComponent={
 					loading ? (
-						<View className="bg-card items-center justify-center rounded-[22px] p-6">
+						<View className="bg-card rounded-box items-center justify-center p-6">
 							<ActivityIndicator color={themeColors.accent} />
 							<Text className="text-muted text-preset-1 font-body mt-3">Loading titles…</Text>
 						</View>
 					) : error ? (
-						<View className="bg-card rounded-[22px] p-6">
+						<View className="bg-card rounded-box p-6">
 							<Text className="text-foreground text-preset-2 font-heading font-semibold">Unable to load</Text>
 							<Text className="text-muted text-preset-1 font-body mt-2">{error}</Text>
 						</View>
 					) : (
-						<View className="bg-card rounded-[22px] p-6">
+						<View className="bg-card rounded-box p-6">
 							<Text className="text-foreground text-preset-2 font-heading font-semibold">No titles found</Text>
 							<Text className="text-muted text-preset-1 font-body mt-2">This section has no items yet.</Text>
 						</View>

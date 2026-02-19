@@ -30,6 +30,7 @@
 
 	/* Shared Radii Variables */
 	--radius-box: 1.25rem;
+	--radius-control: 1rem;
 	--radius-btn: 0.625rem;
 	--radius-badge: 9999px;
 
@@ -98,6 +99,20 @@
 	border-radius: var(--radius-btn);
 }
 
+@utility rounded-control {
+	border-radius: var(--radius-control);
+}
+
 @utility rounded-badge {
 	border-radius: var(--radius-badge);
+}
+
+/* Directional variants for sheets and corner badges */
+@utility rounded-t-box {
+	border-top-left-radius: var(--radius-box);
+	border-top-right-radius: var(--radius-box);
+}
+
+@utility rounded-bl-control {
+	border-bottom-left-radius: var(--radius-control);
 }

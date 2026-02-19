@@ -54,22 +54,22 @@ export default function MangaDetail() {
 			<GradientBackdrop />
 			<ScrollView className="flex-1 px-5 pt-6" contentInsetAdjustmentBehavior="automatic">
 				<SectionHeading title="Manga" subtitle={details?.title ?? 'Loading'} />
-				<View className="border-border/30 bg-card/70 rounded-[28px] border p-5">
+				<View className="border-border/30 bg-card/70 rounded-box border p-5">
 					{loading ? (
 						<View className="items-center justify-center py-6">
 							<ActivityIndicator color={themeColors.accent} />
 							<Text className="text-preset-1 font-body text-muted mt-3">Loading details…</Text>
 						</View>
 					) : detailsError ? (
-						<View className="border-warning/40 bg-warning/10 rounded-[24px] border p-4">
+						<View className="border-warning/40 bg-warning/10 rounded-box border p-4">
 							<Text className="text-preset-1 font-body text-warning">{detailsError}</Text>
 						</View>
 					) : details ? (
 						<View className="flex-row gap-4">
 							{details.coverUrl ? (
-								<Image source={{ uri: details.coverUrl }} className="h-40 w-28 rounded-[20px]" />
+								<Image source={{ uri: details.coverUrl }} className="rounded-box h-40 w-28" />
 							) : (
-								<View className="bg-card h-40 w-28 rounded-[20px]" />
+								<View className="bg-card rounded-box h-40 w-28" />
 							)}
 							<View className="flex-1">
 								<Text className="text-preset-2 font-heading text-foreground font-semibold">{details.title}</Text>
@@ -82,7 +82,7 @@ export default function MangaDetail() {
 					) : null}
 					{details ? (
 						<Text
-							className={`text-preset-1 font-heading mt-4 rounded-full px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase ${
+							className={`text-preset-1 font-heading rounded-badge mt-4 px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase ${
 								isFavorite ? 'bg-primary text-primary-foreground' : 'bg-chip text-muted'
 							}`}
 							onPress={() => {
@@ -97,7 +97,7 @@ export default function MangaDetail() {
 						</Text>
 					) : null}
 				</View>
-				<View className="border-border/30 bg-card/70 mt-6 rounded-[28px] border p-5">
+				<View className="border-border/30 bg-card/70 rounded-box mt-6 border p-5">
 					<Text className="text-preset-2 font-heading text-foreground font-semibold">Chapters</Text>
 					{chaptersError ? (
 						<Text className="text-preset-1 font-body text-warning mt-2">{chaptersError}</Text>
@@ -120,7 +120,7 @@ export default function MangaDetail() {
 									}}
 									asChild
 								>
-									<Pressable className="border-border/30 bg-background/80 rounded-[22px] border px-4 py-3">
+									<Pressable className="border-border/30 bg-background/80 rounded-box border px-4 py-3">
 										<View className="flex-row items-center justify-between">
 											<View className="pr-4">
 												<Text className="text-preset-1 font-heading text-foreground font-semibold">{chapter.title}</Text>
@@ -128,7 +128,7 @@ export default function MangaDetail() {
 													<Text className="text-preset-1 text-muted-foreground mt-1 tracking-[0.2em] uppercase">{chapter.language}</Text>
 												) : null}
 											</View>
-											<View className="border-border/40 bg-card/70 rounded-full border px-3 py-1">
+											<View className="border-border/40 bg-card/70 rounded-badge border px-3 py-1">
 												<Text className="text-preset-1 text-muted tracking-[0.2em] uppercase">{index + 1}</Text>
 											</View>
 										</View>

@@ -28,7 +28,7 @@ export function DiscoverHeader({
 				<Text className="text-foreground text-preset-2 font-heading font-semibold">Discover</Text>
 				<Pressable
 					onPress={onOpenProvider}
-					className="border-border bg-card absolute right-0 h-9 w-9 items-center justify-center rounded-full border"
+					className="border-border bg-card rounded-badge absolute right-0 h-9 w-9 items-center justify-center border"
 				>
 					<Text className="text-primary text-preset-2 font-body">☁</Text>
 				</Pressable>
@@ -45,7 +45,7 @@ export function DiscoverHeader({
 											transform: [{ translateX: indicatorX }],
 											width: indicatorWidth,
 										}}
-										className="bg-primary absolute bottom-0 h-1 rounded-full"
+										className="bg-primary rounded-badge absolute bottom-0 h-1"
 									/>
 									{providers.map((provider) => {
 										const active = provider.id === selectedProviderId;
@@ -65,7 +65,7 @@ export function DiscoverHeader({
 									})}
 								</>
 							) : (
-								<View className="border-border rounded-full border px-4 py-2">
+								<View className="border-border rounded-badge border px-4 py-2">
 									<Text className="text-muted text-preset-1 tracking-[0.2em] uppercase">No providers</Text>
 								</View>
 							)}

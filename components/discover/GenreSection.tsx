@@ -42,7 +42,7 @@ export function GenreSection({ items, providerId, pagePadding, gap, cardWidth, p
 					}}
 					asChild
 				>
-					<Pressable className="bg-primary h-11 w-11 items-center justify-center rounded-2xl">
+					<Pressable className="bg-primary rounded-control h-11 w-11 items-center justify-center">
 						<Text className="text-primary-foreground text-preset-2 font-body">↗</Text>
 					</Pressable>
 				</Link>
