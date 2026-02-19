@@ -1,7 +1,7 @@
 import { BlurView } from 'expo-blur';
 import * as WebBrowser from 'expo-web-browser';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Platform, RefreshControl, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, LayoutChangeEvent, Platform, RefreshControl, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DiscoverHeader } from '@components/discover/DiscoverHeader';
@@ -48,6 +48,10 @@ export default function Discover() {
 	const tabBarPadding = useTabBarPadding(16);
 	const scrollY = useRef(new Animated.Value(0)).current;
 	const themeColors = useThemeColors();
+	const [headerHeight, setHeaderHeight] = useState(0);
+	const onHeaderLayout = useCallback((e: LayoutChangeEvent) => {
+		setHeaderHeight(e.nativeEvent.layout.height);
+	}, []);
 	const { orderedSections, sectionItems, loading, refreshing, error, heroItems, loadMore, sectionLoading, refetch } = useDiscoverData({
 		providersMap,
 		selectedProviderId,
@@ -150,11 +154,12 @@ export default function Discover() {
 	const headerPaddingTop = Math.max(insets.top, 16);
 	return (
 		<View className="bg-background flex-1">
+			{/* Scrollable content — sits behind the fixed header */}
 			<ScrollView
-				className="bg-background flex-1"
+				className="flex-1"
+				style={{ backgroundColor: themeColors.background }}
 				contentInsetAdjustmentBehavior="never"
-				contentContainerStyle={{ paddingBottom: tabBarPadding }}
-				stickyHeaderIndices={[0]}
+				contentContainerStyle={{ paddingTop: headerHeight, paddingBottom: tabBarPadding }}
 				onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
 					useNativeDriver: false,
 				})}
@@ -166,43 +171,10 @@ export default function Discover() {
 						tintColor={themeColors.primary}
 						colors={[themeColors.primary]}
 						progressBackgroundColor={themeColors.card}
+						progressViewOffset={headerHeight}
 					/>
 				}
 			>
-				<View>
-					<View className="relative overflow-hidden">
-						{Platform.OS === 'ios' ? (
-							<BlurView intensity={80} tint="systemChromeMaterialDark" style={StyleSheet.absoluteFillObject} />
-						) : (
-							<View className="bg-background/85" style={StyleSheet.absoluteFillObject} />
-						)}
-						<View
-							style={{
-								paddingTop: headerPaddingTop,
-								paddingHorizontal: pagePadding,
-								paddingBottom: 4,
-							}}
-						>
-							<DiscoverHeader
-								providers={providers}
-								selectedProviderId={selectedProviderId}
-								onSelectProvider={setSelectedProvider}
-								onOpenProvider={handleOpenProvider}
-								gap={gap}
-								onTabLayout={(id, layout) => setTabLayouts((current) => ({ ...current, [id]: layout }))}
-							/>
-						</View>
-					</View>
-					<View className="bg-border/40 relative h-px">
-						<Animated.View
-							style={{
-								transform: [{ translateX: Animated.add(indicatorX, pagePadding) }],
-								width: indicatorWidth,
-							}}
-							className="bg-primary absolute -top-0.5 h-1 rounded-full"
-						/>
-					</View>
-				</View>
 				<View style={{ paddingHorizontal: pagePadding }}>
 					{loading ? (
 						<DiscoverSkeleton gap={gap} cardWidth={cardWidth} heroWidth={heroWidth} peek={peek} />
@@ -237,6 +209,43 @@ export default function Discover() {
 					) : null}
 				</View>
 			</ScrollView>
+
+			{/* Fixed header — overlays the top of the screen */}
+			<View className="absolute top-0 right-0 left-0" style={{ zIndex: 1 }} onLayout={onHeaderLayout}>
+				<View className="relative overflow-hidden">
+					{Platform.OS === 'ios' ? (
+						<BlurView intensity={80} tint="systemChromeMaterialDark" style={StyleSheet.absoluteFillObject} />
+					) : (
+						<View className="bg-background/85" style={StyleSheet.absoluteFillObject} />
+					)}
+					<View
+						style={{
+							paddingTop: headerPaddingTop,
+							paddingHorizontal: pagePadding,
+							paddingBottom: 4,
+						}}
+					>
+						<DiscoverHeader
+							providers={providers}
+							selectedProviderId={selectedProviderId}
+							onSelectProvider={setSelectedProvider}
+							onOpenProvider={handleOpenProvider}
+							gap={gap}
+							onTabLayout={(id, layout) => setTabLayouts((current) => ({ ...current, [id]: layout }))}
+						/>
+					</View>
+				</View>
+				<View className="bg-border/40 relative h-px">
+					<Animated.View
+						style={{
+							transform: [{ translateX: Animated.add(indicatorX, pagePadding) }],
+							width: indicatorWidth,
+						}}
+						className="bg-primary absolute -top-0.5 h-1 rounded-full"
+					/>
+				</View>
+			</View>
+
 			{showProviderErrors && providerLoadError ? (
 				<ErrorDrawer
 					providerLoadError={providerLoadError}
