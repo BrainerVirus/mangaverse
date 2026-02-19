@@ -27,7 +27,7 @@ export function getDiscoverLayout(width: number, options: DiscoverLayoutOptions 
 	const columns = Math.max(minColumns, Math.floor((available + gap) / (minCardWidth + gap)));
 	const cardWidth = Math.floor((available - gap * (columns - 1)) / columns);
 	const peek = Math.max(18, Math.round(width * 0.05));
-	const heroWidth = Math.max(0, available - peek);
+	const heroWidth = available;
 	return {
 		pagePadding,
 		gap,

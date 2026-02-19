@@ -37,8 +37,8 @@ export function HeroCarousel({
 	const heroHeight = 224;
 	const themeColors = useThemeColors();
 	const overlayStart = withAlpha(themeColors.overlay, 0);
-	const overlayMid = withAlpha(themeColors.overlay, 0.22);
-	const overlayEnd = withAlpha(themeColors.overlay, 0.72);
+	const overlayMid = withAlpha(themeColors.overlay, 0.38);
+	const overlayEnd = withAlpha(themeColors.overlay, 0.85);
 
 	if (heroItems.length === 0) {
 		return null;
@@ -53,7 +53,8 @@ export function HeroCarousel({
 				showsHorizontalScrollIndicator={false}
 				style={{ marginHorizontal: -pagePadding }}
 				contentContainerStyle={{
-					paddingHorizontal: pagePadding + Math.round(peek / 2),
+					paddingLeft: pagePadding,
+					paddingRight: pagePadding + peek,
 					columnGap: heroSpacing,
 				}}
 				onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: heroScrollX } } }], {

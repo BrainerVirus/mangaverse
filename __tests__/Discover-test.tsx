@@ -79,14 +79,25 @@ const mockExtensions = {
 	loadErrors: {},
 };
 
-jest.mock('expo-router', () => ({
-	Link: ({ children }: { children: React.ReactNode }) => children,
-	useLocalSearchParams: jest.fn(() => ({
-		sectionId: 'popular',
-		provider: 'mangadex',
-		title: 'Popular',
-	})),
-}));
+jest.mock('expo-router', () => {
+	const React = require('react');
+	const MockLink = React.forwardRef(function MockLink({ children, asChild, ...rest }: any, ref: any) {
+		if (asChild && React.isValidElement(children)) {
+			return React.cloneElement(children, { ref });
+		}
+		return React.createElement('Text', rest, children);
+	});
+	MockLink.displayName = 'MockLink';
+	return {
+		Link: MockLink,
+		useRouter: () => ({ push: jest.fn(), back: jest.fn(), replace: jest.fn() }),
+		useLocalSearchParams: jest.fn(() => ({
+			sectionId: 'popular',
+			provider: 'mangadex',
+			title: 'Popular',
+		})),
+	};
+});
 
 afterEach(() => {
 	const { useLocalSearchParams } = jest.requireMock('expo-router');
@@ -116,6 +127,22 @@ jest.mock('@stores/settings', () => ({
 			genrePaletteByTheme: {},
 			setGenrePalette: jest.fn(),
 		}),
+}));
+
+jest.mock('expo-blur', () => {
+	const React = require('react');
+	const { View } = require('react-native');
+	return { BlurView: (props: any) => React.createElement(View, props) };
+});
+
+jest.mock('expo-linear-gradient', () => {
+	const React = require('react');
+	const { View } = require('react-native');
+	return { LinearGradient: (props: any) => React.createElement(View, props) };
+});
+
+jest.mock('expo-web-browser', () => ({
+	openBrowserAsync: jest.fn(),
 }));
 
 jest.mock('react-native-safe-area-context', () => {
