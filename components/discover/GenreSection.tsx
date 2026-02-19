@@ -40,9 +40,9 @@ export function GenreSection({ items, providerId, pagePadding, gap, cardWidth, p
 							title: sectionTitle,
 						},
 					}}
-					className="bg-accent h-11 w-11 items-center justify-center rounded-2xl"
+					className="bg-primary h-11 w-11 items-center justify-center rounded-2xl"
 				>
-					<Text className="text-accent-foreground text-preset-2 font-body">↗</Text>
+					<Text className="text-primary-foreground text-preset-2 font-body">↗</Text>
 				</Link>
 			</View>
 			<ScrollView

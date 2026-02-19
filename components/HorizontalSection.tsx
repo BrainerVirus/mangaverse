@@ -42,8 +42,8 @@ export function HorizontalSection({
 }: HorizontalSectionProps) {
 	const seeAllClassName =
 		seeAllVariant === 'primary'
-			? 'h-11 w-11 items-center justify-center rounded-[16px] bg-accent'
-			: 'h-11 w-11 items-center justify-center rounded-[16px] bg-accent/20';
+			? 'h-11 w-11 items-center justify-center rounded-[16px] bg-primary'
+			: 'h-11 w-11 items-center justify-center rounded-[16px] bg-primary/20';
 	return (
 		<View>
 			<View className="flex-row items-center justify-between">
@@ -59,7 +59,7 @@ export function HorizontalSection({
 					}}
 					className={seeAllClassName}
 				>
-					<Text className={seeAllVariant === 'primary' ? 'text-accent-foreground text-preset-2 font-body' : 'text-accent text-preset-2 font-body'}>
+					<Text className={seeAllVariant === 'primary' ? 'text-primary-foreground text-preset-2 font-body' : 'text-primary text-preset-2 font-body'}>
 						↗
 					</Text>
 				</Link>
