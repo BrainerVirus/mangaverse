@@ -16,22 +16,6 @@
 			"options": {
 				"useTabs": false
 			}
-		},
-		{
-			"files": ["*.jsx", "*.tsx"],
-			"options": {
-				"plugins": ["prettier-plugin-organize-imports"],
-				"importOrder": ["^react$", "^next$", "^@?\\w", "^[./]"],
-				"importOrderSeparation": false,
-				"importOrderSortSpecifiers": true,
-				"importOrderParserPlugins": ["typescript", "jsx", "decorators-legacy"],
-				"importOrderParserPluginsByFileExtension": {
-					".tsx": ["typescript", "jsx"]
-				},
-				"importOrderCaseInsensitive": true,
-				"importOrderMergeDuplicateImports": true,
-				"importOrderGroupNamespaceSpecifiers": true
-			}
 		}
 	]
 }
