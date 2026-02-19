@@ -17,7 +17,7 @@ export const useGenrePalette = (neededCount: number) => {
 	const mode: ThemeMode = colorScheme === 'light' ? 'light' : 'dark';
 	const themeKey = getThemeKey(theme, mode);
 	const currentPalette = paletteByTheme[themeKey] ?? [];
-	const accent = THEME_VARS[theme][mode]['--accent'];
+	const accent = THEME_VARS[theme][mode]['--primary'];
 	const desiredCount = Math.max(1, neededCount);
 	const needsNormalization = currentPalette.some((color) => !isHexColor(color));
 
