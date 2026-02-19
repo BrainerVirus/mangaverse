@@ -1,7 +1,7 @@
 import type { PressableProps, TextProps } from 'react-native';
 import { Pressable, Text } from 'react-native';
 
-import { Link, type Href } from 'expo-router';
+import { type Href, useRouter } from 'expo-router';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -16,7 +16,7 @@ interface ButtonBaseProps {
 }
 
 type ButtonAsButton = ButtonBaseProps & { href?: undefined } & PressableProps;
-type ButtonAsLink = ButtonBaseProps & { href: Href; onPress?: undefined };
+type ButtonAsLink = ButtonBaseProps & { href: Href } & Omit<PressableProps, 'onPress'>;
 type ButtonProps = ButtonAsButton | ButtonAsLink;
 
 const baseStyles = 'rounded-btn items-center justify-center';
@@ -69,18 +69,13 @@ function useButtonStyles(variant: ButtonVariant, size: ButtonSize, outline: bool
 }
 
 export function Button({ label, variant = 'primary', size = 'md', outline = false, className, textClassName, href, ...props }: ButtonProps) {
+	const router = useRouter();
 	const styles = useButtonStyles(variant, size, outline, className, textClassName);
 
-	if (href) {
-		return (
-			<Link href={href} className={styles.containerClassName}>
-				<Text className={styles.textClassName}>{label}</Text>
-			</Link>
-		);
-	}
+	const handlePress = href ? () => router.push(href) : (props as PressableProps).onPress;
 
 	return (
-		<Pressable className={styles.containerClassName} {...(props as PressableProps)}>
+		<Pressable className={styles.containerClassName} {...(props as PressableProps)} onPress={handlePress}>
 			<Text className={styles.textClassName}>{label}</Text>
 		</Pressable>
 	);
