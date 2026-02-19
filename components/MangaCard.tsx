@@ -51,7 +51,7 @@ export function MangaCard({ title, coverUrl, subtitle, lastChapter, language, in
 					)}
 
 					{languageLabel && (
-						<View className="absolute right-2 bottom-2 rounded-full bg-background/85 px-2 py-1">
+						<View className="bg-background/85 absolute right-2 bottom-2 rounded-full px-2 py-1">
 							<Text className="text-preset-1 font-body text-foreground">{languageLabel}</Text>
 						</View>
 					)}
@@ -64,7 +64,7 @@ export function MangaCard({ title, coverUrl, subtitle, lastChapter, language, in
 				)}
 			</View>
 
-			<Text className="text-foreground text-preset-2 font-heading font-semibold mt-1.5" numberOfLines={1}>
+			<Text className="text-foreground text-preset-2 font-heading mt-1.5 font-semibold" numberOfLines={1}>
 				{title}
 			</Text>
 

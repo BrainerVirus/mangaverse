@@ -12,12 +12,12 @@ export default function AppearanceSettings() {
 	const colorScheme = useColorScheme();
 	const previewMode = colorScheme === 'light' ? 'light' : 'dark';
 	return (
-		<View className="flex-1 bg-background">
+		<View className="bg-background flex-1">
 			<ScrollView className="flex-1 px-5 pt-6" contentInsetAdjustmentBehavior="automatic">
 				<SectionHeading title="Appearance" subtitle="Theme & layout" />
 				<View className="gap-3 pb-12">
-					<View className="rounded-[22px] bg-card/70 p-5">
-						<Text className="text-preset-1 tracking-[0.2em] text-muted-foreground uppercase">Theme</Text>
+					<View className="bg-card/70 rounded-[22px] p-5">
+						<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Theme</Text>
 						<View className="mt-4 gap-3">
 							{themes.map((item) => {
 								const isActive = theme === item;

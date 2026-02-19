@@ -50,18 +50,18 @@ export default function MangaDetail() {
 		loadDetails().finally(() => setLoading(false));
 	}, [id, providerId, providers]);
 	return (
-		<View className="flex-1 bg-background">
+		<View className="bg-background flex-1">
 			<GradientBackdrop />
 			<ScrollView className="flex-1 px-5 pt-6" contentInsetAdjustmentBehavior="automatic">
 				<SectionHeading title="Manga" subtitle={details?.title ?? 'Loading'} />
-				<View className="rounded-[28px] border border-border/30 bg-card/70 p-5">
+				<View className="border-border/30 bg-card/70 rounded-[28px] border p-5">
 					{loading ? (
 						<View className="items-center justify-center py-6">
 							<ActivityIndicator color={themeColors.accent} />
-							<Text className="mt-3 text-preset-1 font-body text-muted">Loading details…</Text>
+							<Text className="text-preset-1 font-body text-muted mt-3">Loading details…</Text>
 						</View>
 					) : detailsError ? (
-						<View className="rounded-[24px] border border-warning/40 bg-warning/10 p-4">
+						<View className="border-warning/40 bg-warning/10 rounded-[24px] border p-4">
 							<Text className="text-preset-1 font-body text-warning">{detailsError}</Text>
 						</View>
 					) : details ? (
@@ -69,11 +69,11 @@ export default function MangaDetail() {
 							{details.coverUrl ? (
 								<Image source={{ uri: details.coverUrl }} className="h-40 w-28 rounded-[20px]" />
 							) : (
-								<View className="h-40 w-28 rounded-[20px] bg-card" />
+								<View className="bg-card h-40 w-28 rounded-[20px]" />
 							)}
 							<View className="flex-1">
-								<Text className="text-preset-2 font-heading font-semibold text-foreground">{details.title}</Text>
-								<Text className="text-preset-1 tracking-[0.2em] text-muted-foreground uppercase mt-2">{providerId}</Text>
+								<Text className="text-preset-2 font-heading text-foreground font-semibold">{details.title}</Text>
+								<Text className="text-preset-1 text-muted-foreground mt-2 tracking-[0.2em] uppercase">{providerId}</Text>
 								<Text className="text-preset-1 font-body text-muted mt-3" numberOfLines={4}>
 									{details.description || 'No description yet.'}
 								</Text>
@@ -82,7 +82,7 @@ export default function MangaDetail() {
 					) : null}
 					{details ? (
 						<Text
-							className={`mt-4 rounded-full px-4 py-2 text-center text-preset-1 font-heading font-semibold tracking-[0.2em] uppercase ${
+							className={`text-preset-1 font-heading mt-4 rounded-full px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase ${
 								isFavorite ? 'bg-primary text-primary-foreground' : 'bg-chip text-muted'
 							}`}
 							onPress={() => {
@@ -97,8 +97,8 @@ export default function MangaDetail() {
 						</Text>
 					) : null}
 				</View>
-				<View className="mt-6 rounded-[28px] border border-border/30 bg-card/70 p-5">
-					<Text className="text-preset-2 font-heading font-semibold text-foreground">Chapters</Text>
+				<View className="border-border/30 bg-card/70 mt-6 rounded-[28px] border p-5">
+					<Text className="text-preset-2 font-heading text-foreground font-semibold">Chapters</Text>
 					{chaptersError ? (
 						<Text className="text-preset-1 font-body text-warning mt-2">{chaptersError}</Text>
 					) : chapters.length === 0 ? (
@@ -118,17 +118,17 @@ export default function MangaDetail() {
 											mangaTitle: details?.title ?? '',
 										},
 									}}
-									className="rounded-[22px] border border-border/30 bg-background/80 px-4 py-3"
+									className="border-border/30 bg-background/80 rounded-[22px] border px-4 py-3"
 								>
 									<View className="flex-row items-center justify-between">
 										<View className="pr-4">
-											<Text className="text-preset-1 font-heading font-semibold text-foreground">{chapter.title}</Text>
+											<Text className="text-preset-1 font-heading text-foreground font-semibold">{chapter.title}</Text>
 											{chapter.language ? (
-												<Text className="text-preset-1 tracking-[0.2em] text-muted-foreground uppercase mt-1">{chapter.language}</Text>
+												<Text className="text-preset-1 text-muted-foreground mt-1 tracking-[0.2em] uppercase">{chapter.language}</Text>
 											) : null}
 										</View>
-										<View className="rounded-full border border-border/40 bg-card/70 px-3 py-1">
-											<Text className="text-preset-1 tracking-[0.2em] text-muted uppercase">{index + 1}</Text>
+										<View className="border-border/40 bg-card/70 rounded-full border px-3 py-1">
+											<Text className="text-preset-1 text-muted tracking-[0.2em] uppercase">{index + 1}</Text>
 										</View>
 									</View>
 								</Link>

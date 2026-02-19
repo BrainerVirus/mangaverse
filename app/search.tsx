@@ -31,14 +31,14 @@ export default function GlobalSearch() {
 	}, [hasQuery, providers, searchAll, trimmedQuery]);
 
 	return (
-		<View className="flex-1 bg-background">
+		<View className="bg-background flex-1">
 			<GradientBackdrop />
 			<View className="px-5 pt-6">
-				<Text className="text-preset-1 tracking-[0.24em] text-muted-foreground uppercase">Global search</Text>
-				<Text className="text-preset-2 font-heading font-semibold text-foreground mt-2">Find your next read</Text>
-				<View className="mt-4 rounded-[24px] border border-border/30 bg-card/70 p-3">
+				<Text className="text-preset-1 text-muted-foreground tracking-[0.24em] uppercase">Global search</Text>
+				<Text className="text-preset-2 font-heading text-foreground mt-2 font-semibold">Find your next read</Text>
+				<View className="border-border/30 bg-card/70 mt-4 rounded-[24px] border p-3">
 					<TextInput
-						className="rounded-[18px] border border-border/40 bg-background px-4 py-3 text-preset-1 font-body text-foreground"
+						className="border-border/40 bg-background text-preset-1 font-body text-foreground rounded-[18px] border px-4 py-3"
 						placeholder="Search across providers"
 						placeholderTextColor={themeColors.mutedForeground}
 						value={query}
@@ -49,19 +49,19 @@ export default function GlobalSearch() {
 			</View>
 			<ScrollView className="flex-1 px-5 pt-4 pb-6" contentInsetAdjustmentBehavior="automatic">
 				{loading ? (
-					<View className="items-center justify-center rounded-[28px] border border-border/30 bg-card/80 p-6">
+					<View className="border-border/30 bg-card/80 items-center justify-center rounded-[28px] border p-6">
 						<ActivityIndicator color={themeColors.accent} />
-						<Text className="mt-3 text-preset-1 font-body text-muted">Loading providers…</Text>
+						<Text className="text-preset-1 font-body text-muted mt-3">Loading providers…</Text>
 					</View>
 				) : !hasQuery ? (
-					<View className="rounded-[28px] border border-border/30 bg-card/70 p-6">
-						<Text className="text-preset-2 font-heading font-semibold text-foreground">Start typing to search</Text>
-						<Text className="mt-2 text-preset-1 font-body text-muted">Your results will appear grouped by provider.</Text>
+					<View className="border-border/30 bg-card/70 rounded-[28px] border p-6">
+						<Text className="text-preset-2 font-heading text-foreground font-semibold">Start typing to search</Text>
+						<Text className="text-preset-1 font-body text-muted mt-2">Your results will appear grouped by provider.</Text>
 					</View>
 				) : providers.length === 0 ? (
-					<View className="rounded-[28px] border border-border/30 bg-card/70 p-6">
-						<Text className="text-preset-2 font-heading font-semibold text-foreground">No extensions installed</Text>
-						<Text className="mt-2 text-preset-1 font-body text-muted">Install an extension to enable global search.</Text>
+					<View className="border-border/30 bg-card/70 rounded-[28px] border p-6">
+						<Text className="text-preset-2 font-heading text-foreground font-semibold">No extensions installed</Text>
+						<Text className="text-preset-1 font-body text-muted mt-2">Install an extension to enable global search.</Text>
 					</View>
 				) : (
 					providers.map((provider) => {
@@ -71,10 +71,10 @@ export default function GlobalSearch() {
 						const hasResults = results.length > 0;
 						const isEmpty = hasQuery && status === 'success' && !hasResults;
 						return (
-							<View key={provider.id} className="border-b border-border/30 py-6">
+							<View key={provider.id} className="border-border/30 border-b py-6">
 								<View className="mb-3 flex-row items-center justify-between">
-									<Text className="text-preset-2 font-heading font-semibold text-foreground">{provider.name}</Text>
-									<Text className="text-preset-1 tracking-[0.2em] text-muted-foreground uppercase">{statusLabel}</Text>
+									<Text className="text-preset-2 font-heading text-foreground font-semibold">{provider.name}</Text>
+									<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">{statusLabel}</Text>
 								</View>
 								{isEmpty ? (
 									<Text className="text-preset-1 font-body text-muted-foreground">No results for "{trimmedQuery}".</Text>

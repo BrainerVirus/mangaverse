@@ -34,7 +34,7 @@ export function DiscoverStates({ loading, error, hasProviders }: DiscoverStatesP
 				<Text className="text-muted text-preset-1 font-body mt-2">Install an extension to unlock discover sections and filters.</Text>
 				<Link
 					href="/settings/extensions"
-					className="bg-primary text-primary-foreground text-preset-1 font-heading font-semibold mt-4 rounded-full px-4 py-2 text-center"
+					className="bg-primary text-primary-foreground text-preset-1 font-heading mt-4 rounded-full px-4 py-2 text-center font-semibold"
 				>
 					Go to Extensions
 				</Link>

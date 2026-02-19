@@ -70,26 +70,26 @@ export default function ExtensionsSettings() {
 	};
 
 	return (
-		<View className="flex-1 bg-background">
+		<View className="bg-background flex-1">
 			<GradientBackdrop />
 			<ScrollView className="flex-1 px-5 pt-6" contentInsetAdjustmentBehavior="automatic">
 				<SectionHeading title="Extensions" subtitle="Manage providers" />
-				<View className="rounded-[28px] border border-border/30 bg-card/70 p-5">
-					<Text className="text-preset-1 tracking-[0.2em] text-muted-foreground uppercase">Repository URL</Text>
+				<View className="border-border/30 bg-card/70 rounded-[28px] border p-5">
+					<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Repository URL</Text>
 					<TextInput
 						value={repoUrl}
 						onChangeText={setRepoUrl}
 						placeholder="https://example.com/extensions.json"
 						placeholderTextColor={themeColors.mutedForeground}
-						className="mt-3 rounded-2xl border border-border/40 bg-background px-4 py-3 text-preset-1 font-body text-foreground"
+						className="border-border/40 bg-background text-preset-1 font-body text-foreground mt-3 rounded-2xl border px-4 py-3"
 						autoCapitalize="none"
 						autoCorrect={false}
 					/>
 				</View>
-				<View className="mt-4 rounded-[28px] border border-border/30 bg-card/70 p-5">
+				<View className="border-border/30 bg-card/70 mt-4 rounded-[28px] border p-5">
 					<View className="flex-row items-center justify-between">
 						<View className="flex-1 pr-4">
-							<Text className="text-preset-2 font-heading font-semibold text-foreground">Show provider errors</Text>
+							<Text className="text-preset-2 font-heading text-foreground font-semibold">Show provider errors</Text>
 							<Text className="text-preset-1 font-body text-muted mt-2">Display extension load failures on Discover.</Text>
 						</View>
 						<Switch
@@ -102,28 +102,28 @@ export default function ExtensionsSettings() {
 					</View>
 				</View>
 				{loading ? (
-					<View className="mt-4 rounded-[28px] border border-border/30 bg-card/70 p-5">
+					<View className="border-border/30 bg-card/70 mt-4 rounded-[28px] border p-5">
 						<Text className="text-preset-1 font-body text-muted">Working…</Text>
 					</View>
 				) : null}
 				{error ? (
-					<View className="mt-4 rounded-[28px] border border-warning/40 bg-warning/10 p-5">
+					<View className="border-warning/40 bg-warning/10 mt-4 rounded-[28px] border p-5">
 						<Text className="text-preset-1 font-body text-warning">{error}</Text>
 					</View>
 				) : null}
 				<View className="mt-6 gap-4 pb-12">
 					{providers.length === 0 ? (
-						<View className="rounded-[28px] border border-border/30 bg-card/70 p-5">
-							<Text className="text-preset-2 font-heading font-semibold text-foreground">No extensions installed.</Text>
+						<View className="border-border/30 bg-card/70 rounded-[28px] border p-5">
+							<Text className="text-preset-2 font-heading text-foreground font-semibold">No extensions installed.</Text>
 							<Text className="text-preset-1 font-body text-muted mt-2">Add a repository URL to browse extensions.</Text>
 						</View>
 					) : (
 						providers.map((provider) => (
-							<View key={provider.id} className="rounded-[26px] border border-border/30 bg-card/70 p-5">
-								<Text className="text-preset-2 font-heading font-semibold text-foreground">{provider.name}</Text>
+							<View key={provider.id} className="border-border/30 bg-card/70 rounded-[26px] border p-5">
+								<Text className="text-preset-2 font-heading text-foreground font-semibold">{provider.name}</Text>
 								<Text className="text-preset-1 font-body text-muted mt-2">{provider.meta.supportedLanguages.join(', ') || 'No languages'}</Text>
 								<Text
-									className="mt-3 rounded-full bg-chip px-4 py-2 text-center text-preset-1 font-heading font-semibold tracking-[0.2em] text-foreground uppercase"
+									className="bg-chip text-preset-1 font-heading text-foreground mt-3 rounded-full px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"
 									onPress={loading ? undefined : () => handleUninstall(provider.id)}
 								>
 									Uninstall
@@ -133,15 +133,15 @@ export default function ExtensionsSettings() {
 					)}
 					{index.length > 0 ? (
 						<View className="gap-4">
-							<Text className="text-preset-1 tracking-[0.2em] text-muted-foreground uppercase">Available</Text>
+							<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Available</Text>
 							{index.map((item) => {
 								const isInstalled = installed.some((entry) => entry.id === item.id);
 								return (
-									<View key={item.id} className="rounded-[26px] border border-border/30 bg-card/70 p-5">
-										<Text className="text-preset-2 font-heading font-semibold text-foreground">{item.name}</Text>
+									<View key={item.id} className="border-border/30 bg-card/70 rounded-[26px] border p-5">
+										<Text className="text-preset-2 font-heading text-foreground font-semibold">{item.name}</Text>
 										<Text className="text-preset-1 font-body text-muted mt-1">{item.languages.join(', ') || 'No languages'}</Text>
 										<Text
-											className={`mt-3 rounded-full px-4 py-2 text-center text-preset-1 font-heading font-semibold tracking-[0.2em] uppercase ${
+											className={`text-preset-1 font-heading mt-3 rounded-full px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase ${
 												isInstalled ? 'bg-chip text-muted' : 'bg-primary text-primary-foreground'
 											}`}
 											onPress={isInstalled || loading ? undefined : () => handleInstall(item)}

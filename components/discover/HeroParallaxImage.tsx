@@ -1,22 +1,22 @@
-import { useEffect, useRef } from "react"
-import { Animated, Easing, View } from "react-native"
+import { useEffect, useRef } from 'react';
+import { Animated, Easing, View } from 'react-native';
 
 interface HeroParallaxImageProps {
-	imageUri: string
-	height: number
-	overflow?: number
+	imageUri: string;
+	height: number;
+	overflow?: number;
 }
 
 export function HeroParallaxImage({ imageUri, height, overflow = 20 }: HeroParallaxImageProps) {
-	const translateX = useRef(new Animated.Value(0)).current
-	const translateY = useRef(new Animated.Value(0)).current
+	const translateX = useRef(new Animated.Value(0)).current;
+	const translateY = useRef(new Animated.Value(0)).current;
 
 	useEffect(() => {
 		const sharedConfig = {
 			duration: 8000,
 			easing: Easing.inOut(Easing.ease),
 			useNativeDriver: true,
-		}
+		};
 		const animation = Animated.loop(
 			Animated.sequence([
 				Animated.parallel([
@@ -27,15 +27,15 @@ export function HeroParallaxImage({ imageUri, height, overflow = 20 }: HeroParal
 					Animated.timing(translateX, { toValue: 0, ...sharedConfig }),
 					Animated.timing(translateY, { toValue: 0, ...sharedConfig }),
 				]),
-			])
-		)
-		animation.start()
+			]),
+		);
+		animation.start();
 		return () => {
-			translateX.stopAnimation()
-			translateY.stopAnimation()
-			animation.stop()
-		}
-	}, [overflow, translateX, translateY])
+			translateX.stopAnimation();
+			translateY.stopAnimation();
+			animation.stop();
+		};
+	}, [overflow, translateX, translateY]);
 
 	return (
 		<View className="absolute inset-0 overflow-hidden">
@@ -43,7 +43,7 @@ export function HeroParallaxImage({ imageUri, height, overflow = 20 }: HeroParal
 				source={{ uri: imageUri }}
 				resizeMode="cover"
 				style={{
-					position: "absolute",
+					position: 'absolute',
 					top: -overflow,
 					left: -overflow,
 					right: -overflow,
@@ -53,5 +53,5 @@ export function HeroParallaxImage({ imageUri, height, overflow = 20 }: HeroParal
 				}}
 			/>
 		</View>
-	)
+	);
 }

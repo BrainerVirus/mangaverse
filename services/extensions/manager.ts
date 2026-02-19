@@ -1,27 +1,27 @@
-import AsyncStorage from "@react-native-async-storage/async-storage"
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import type { InstalledExtension } from "../../types/extension"
-import type { ExtensionIndexItem, ProviderContract } from "../../types/provider"
+import type { InstalledExtension } from '../../types/extension';
+import type { ExtensionIndexItem, ProviderContract } from '../../types/provider';
 
-import { loadProviderBundle, validateProviderContract } from "./runtime"
-import { downloadExtensionBundle, removeExtensionBundle } from "./storage"
+import { loadProviderBundle, validateProviderContract } from './runtime';
+import { downloadExtensionBundle, removeExtensionBundle } from './storage';
 
-const storageKey = "extensions.installed"
+const storageKey = 'extensions.installed';
 
 export async function loadInstalledExtensions(): Promise<InstalledExtension[]> {
-	const raw = await AsyncStorage.getItem(storageKey)
+	const raw = await AsyncStorage.getItem(storageKey);
 	if (!raw) {
-		return []
+		return [];
 	}
 	try {
-		return JSON.parse(raw) as InstalledExtension[]
+		return JSON.parse(raw) as InstalledExtension[];
 	} catch {
-		return []
+		return [];
 	}
 }
 
 export async function saveInstalledExtensions(extensions: InstalledExtension[]) {
-	await AsyncStorage.setItem(storageKey, JSON.stringify(extensions))
+	await AsyncStorage.setItem(storageKey, JSON.stringify(extensions));
 }
 
 export function toInstalledExtension(item: ExtensionIndexItem, bundlePath: string): InstalledExtension {
@@ -39,57 +39,57 @@ export function toInstalledExtension(item: ExtensionIndexItem, bundlePath: strin
 		order: 0,
 		installedAt: Date.now(),
 		enabledLanguages: item.languages,
-	}
+	};
 }
 
 export async function installExtension(item: ExtensionIndexItem): Promise<InstalledExtension> {
-	const bundlePath = await downloadExtensionBundle(item.bundleUrl, item.id)
-	return toInstalledExtension(item, bundlePath)
+	const bundlePath = await downloadExtensionBundle(item.bundleUrl, item.id);
+	return toInstalledExtension(item, bundlePath);
 }
 
 const getIdFromBundleUrl = (bundleUrl: string) => {
 	try {
-		const url = new URL(bundleUrl)
-		const last = url.pathname.split("/").pop() ?? "extension"
-		const normalized = last.replace(/\.js$/i, "")
-		return normalized || "extension"
+		const url = new URL(bundleUrl);
+		const last = url.pathname.split('/').pop() ?? 'extension';
+		const normalized = last.replace(/\.js$/i, '');
+		return normalized || 'extension';
 	} catch {
-		return "extension"
+		return 'extension';
 	}
-}
+};
 
 export async function installExtensionFromUrl(params: {
-	bundleUrl: string
-	id?: string
-	name?: string
-	version?: string
-	icon?: string
-	languages?: string[]
-	nsfw?: boolean
-	minAppVersion?: string
+	bundleUrl: string;
+	id?: string;
+	name?: string;
+	version?: string;
+	icon?: string;
+	languages?: string[];
+	nsfw?: boolean;
+	minAppVersion?: string;
 }): Promise<InstalledExtension> {
-	const id = params.id?.trim() || getIdFromBundleUrl(params.bundleUrl)
+	const id = params.id?.trim() || getIdFromBundleUrl(params.bundleUrl);
 	const item: ExtensionIndexItem = {
 		id,
 		name: params.name?.trim() || id,
-		version: params.version?.trim() || "0.0.0",
+		version: params.version?.trim() || '0.0.0',
 		icon: params.icon?.trim() || undefined,
 		languages: params.languages?.length ? params.languages : [],
 		nsfw: params.nsfw ?? true,
 		bundleUrl: params.bundleUrl,
 		minAppVersion: params.minAppVersion?.trim() || undefined,
-	}
-	return installExtension(item)
+	};
+	return installExtension(item);
 }
 
 export async function uninstallExtension(id: string) {
-	await removeExtensionBundle(id)
+	await removeExtensionBundle(id);
 }
 
 export async function loadProviderFromExtension(extension: InstalledExtension): Promise<ProviderContract> {
-	const provider = await loadProviderBundle(extension.localPath)
+	const provider = await loadProviderBundle(extension.localPath);
 	if (!validateProviderContract(provider)) {
-		throw new Error("Provider bundle failed validation")
+		throw new Error('Provider bundle failed validation');
 	}
-	return provider
+	return provider;
 }

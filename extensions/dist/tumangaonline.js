@@ -28,7 +28,7 @@ function __awaiter(thisArg, _arguments, P, generator) {
 }
 
 function __generator(thisArg, body) {
-    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
+    let _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
@@ -56,13 +56,13 @@ function __generator(thisArg, body) {
 }
 
 typeof SuppressedError === "function" ? SuppressedError : function (error, suppressed, message) {
-    var e = new Error(message);
+    let e = new Error(message);
     return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
 };
 
-var baseUrl = "https://zonatmo.com";
-var fetchText = function (url) { return __awaiter(void 0, void 0, void 0, function () {
-    var response;
+let baseUrl = "https://zonatmo.com";
+let fetchText = function (url) { return __awaiter(void 0, void 0, void 0, function () {
+    let response;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0: return [4 /*yield*/, fetch(url)];
@@ -75,7 +75,7 @@ var fetchText = function (url) { return __awaiter(void 0, void 0, void 0, functi
         }
     });
 }); };
-var decodeHtml = function (value) {
+let decodeHtml = function (value) {
     return value
         .replace(/&quot;/g, "\"")
         .replace(/&#039;/g, "'")
@@ -83,35 +83,35 @@ var decodeHtml = function (value) {
         .replace(/&lt;/g, "<")
         .replace(/&gt;/g, ">");
 };
-var stripTags = function (value) { return decodeHtml(value.replace(/<[^>]+>/g, " ").trim()); };
-var mapLibraryItems = function (html) {
-    var items = [];
-    var cardRegex = /<a[^>]+href="([^"]+\/library\/[^\"]+)"[^>]*>([\s\S]*?)<\/a>/g;
-    var match;
+let stripTags = function (value) { return decodeHtml(value.replace(/<[^>]+>/g, " ").trim()); };
+let mapLibraryItems = function (html) {
+    let items = [];
+    let cardRegex = /<a[^>]+href="([^"]+\/library\/[^\"]+)"[^>]*>([\s\S]*?)<\/a>/g;
+    let match;
     while ((match = cardRegex.exec(html))) {
-        var href = match[1];
-        var block = match[2];
-        var idMatch = href.match(/\/library\/[^/]+\/(\d+)/);
+        let href = match[1];
+        let block = match[2];
+        let idMatch = href.match(/\/library\/[^/]+\/(\d+)/);
         if (!idMatch) {
             continue;
         }
-        var titleMatch = block.match(/title="([^"]+)"/);
-        var altMatch = block.match(/alt="([^"]+)"/);
-        var imgMatch = block.match(/<img[^>]+src="([^"]+)"/);
-        var title = decodeHtml((titleMatch === null || titleMatch === void 0 ? void 0 : titleMatch[1]) || (altMatch === null || altMatch === void 0 ? void 0 : altMatch[1]) || "Unknown");
-        var coverUrl = imgMatch === null || imgMatch === void 0 ? void 0 : imgMatch[1];
+        let titleMatch = block.match(/title="([^"]+)"/);
+        let altMatch = block.match(/alt="([^"]+)"/);
+        let imgMatch = block.match(/<img[^>]+src="([^"]+)"/);
+        let title = decodeHtml((titleMatch === null || titleMatch === void 0 ? void 0 : titleMatch[1]) || (altMatch === null || altMatch === void 0 ? void 0 : altMatch[1]) || "Unknown");
+        let coverUrl = imgMatch === null || imgMatch === void 0 ? void 0 : imgMatch[1];
         items.push({ id: idMatch[1], title: title, coverUrl: coverUrl });
     }
     return items;
 };
-var mapMangaDetails = function (html, providerMangaId) {
-    var titleMatch = html.match(/<h1[^>]*class="[^"]*manga-title[^"]*"[^>]*>([\s\S]*?)<\/h1>/);
-    var altTitleMatch = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/);
-    var descriptionMatch = html.match(/<div[^>]*class="[^"]*description[^"]*"[^>]*>([\s\S]*?)<\/div>/);
-    var coverMatch = html.match(/<img[^>]+class="[^"]*cover[^"]*"[^>]+src="([^"]+)"/);
-    var title = stripTags((titleMatch === null || titleMatch === void 0 ? void 0 : titleMatch[1]) || (altTitleMatch === null || altTitleMatch === void 0 ? void 0 : altTitleMatch[1]) || "Unknown");
-    var description = descriptionMatch ? stripTags(descriptionMatch[1]) : "";
-    var coverUrl = coverMatch === null || coverMatch === void 0 ? void 0 : coverMatch[1];
+let mapMangaDetails = function (html, providerMangaId) {
+    let titleMatch = html.match(/<h1[^>]*class="[^"]*manga-title[^"]*"[^>]*>([\s\S]*?)<\/h1>/);
+    let altTitleMatch = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/);
+    let descriptionMatch = html.match(/<div[^>]*class="[^"]*description[^"]*"[^>]*>([\s\S]*?)<\/div>/);
+    let coverMatch = html.match(/<img[^>]+class="[^"]*cover[^"]*"[^>]+src="([^"]+)"/);
+    let title = stripTags((titleMatch === null || titleMatch === void 0 ? void 0 : titleMatch[1]) || (altTitleMatch === null || altTitleMatch === void 0 ? void 0 : altTitleMatch[1]) || "Unknown");
+    let description = descriptionMatch ? stripTags(descriptionMatch[1]) : "";
+    let coverUrl = coverMatch === null || coverMatch === void 0 ? void 0 : coverMatch[1];
     return {
         id: providerMangaId,
         title: title,
@@ -120,14 +120,14 @@ var mapMangaDetails = function (html, providerMangaId) {
         coverUrl: coverUrl,
     };
 };
-var mapChapterList = function (html) {
-    var chapters = [];
-    var chapterRegex = /href="([^"]+\/view_uploads\/(\d+)[^"]*)"[^>]*>([\s\S]*?)<\/a>/g;
-    var match;
+let mapChapterList = function (html) {
+    let chapters = [];
+    let chapterRegex = /href="([^"]+\/view_uploads\/(\d+)[^"]*)"[^>]*>([\s\S]*?)<\/a>/g;
+    let match;
     while ((match = chapterRegex.exec(html))) {
-        var id = match[2];
-        var label = stripTags(match[3]);
-        var numberMatch = label.match(/(?:Cap\.?|Chapter)\s*([0-9]+(?:\.[0-9]+)?)/i);
+        let id = match[2];
+        let label = stripTags(match[3]);
+        let numberMatch = label.match(/(?:Cap\.?|Chapter)\s*([0-9]+(?:\.[0-9]+)?)/i);
         chapters.push({
             id: id,
             title: label || "Chapter ".concat(id),
@@ -136,7 +136,7 @@ var mapChapterList = function (html) {
     }
     return chapters;
 };
-var provider = {
+let provider = {
     meta: {
         id: "tumangaonline",
         name: "TuMangaOnline",
@@ -159,7 +159,7 @@ var provider = {
     },
     getDiscoverGenres: function () {
         return __awaiter(this, void 0, void 0, function () {
-            var html, genreRegex, genres, match, _loop_1;
+            let html, genreRegex, genres, match, _loop_1;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0: return [4 /*yield*/, fetchText("".concat(baseUrl, "/library?genres=1"))];
@@ -168,8 +168,8 @@ var provider = {
                         genreRegex = /<a[^>]+href="[^"]*genre[^"]*"[^>]*>([^<]+)<\/a>/g;
                         genres = [];
                         _loop_1 = function () {
-                            var title = stripTags(match[1]);
-                            var id = title.toLowerCase().replace(/\s+/g, "-");
+                            let title = stripTags(match[1]);
+                            let id = title.toLowerCase().replace(/\s+/g, "-");
                             if (!genres.some(function (item) { return item.id === id; })) {
                                 genres.push({ id: id, title: title });
                             }
@@ -188,7 +188,7 @@ var provider = {
     },
     getDiscoverSectionItems: function (sectionId, page) {
         return __awaiter(this, void 0, void 0, function () {
-            var pageParam, path, html, items;
+            let pageParam, path, html, items;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -211,7 +211,7 @@ var provider = {
     },
     search: function (query, page) {
         return __awaiter(this, void 0, void 0, function () {
-            var pageParam, html, items;
+            let pageParam, html, items;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -240,7 +240,7 @@ var provider = {
     },
     getMangaDetails: function (providerMangaId) {
         return __awaiter(this, void 0, void 0, function () {
-            var html;
+            let html;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0: return [4 /*yield*/, fetchText("".concat(baseUrl, "/library/manga/").concat(providerMangaId))];
@@ -253,7 +253,7 @@ var provider = {
     },
     getChapterList: function (providerMangaId) {
         return __awaiter(this, void 0, void 0, function () {
-            var html;
+            let html;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0: return [4 /*yield*/, fetchText("".concat(baseUrl, "/library/manga/").concat(providerMangaId))];

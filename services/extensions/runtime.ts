@@ -1,36 +1,36 @@
-import type { ProviderContract } from "../../types/provider"
+import type { ProviderContract } from '../../types/provider';
 
 export function validateProviderContract(provider: ProviderContract) {
 	if (!provider?.meta?.id || !provider.meta?.name) {
-		return false
+		return false;
 	}
 	const requiredFns: (keyof ProviderContract)[] = [
-		"getDiscoverGenres",
-		"getDiscoverSections",
-		"getDiscoverSectionItems",
-		"search",
-		"getAvailableFilters",
-		"getMangaDetails",
-		"getChapterList",
-		"getChapterPages",
-	]
-	return requiredFns.every((fn) => typeof provider[fn] === "function")
+		'getDiscoverGenres',
+		'getDiscoverSections',
+		'getDiscoverSectionItems',
+		'search',
+		'getAvailableFilters',
+		'getMangaDetails',
+		'getChapterList',
+		'getChapterPages',
+	];
+	return requiredFns.every((fn) => typeof provider[fn] === 'function');
 }
 
 export async function loadProviderBundle(bundlePathOrUrl: string) {
-	let code = ""
-	if (bundlePathOrUrl.startsWith("http")) {
-		const response = await fetch(bundlePathOrUrl)
+	let code = '';
+	if (bundlePathOrUrl.startsWith('http')) {
+		const response = await fetch(bundlePathOrUrl);
 		if (!response.ok) {
-			throw new Error("Failed to download provider bundle")
+			throw new Error('Failed to download provider bundle');
 		}
-		code = await response.text()
+		code = await response.text();
 	} else {
-		const FileSystem = await import("expo-file-system/legacy")
-		code = await FileSystem.readAsStringAsync(bundlePathOrUrl)
+		const FileSystem = await import('expo-file-system/legacy');
+		code = await FileSystem.readAsStringAsync(bundlePathOrUrl);
 	}
-	const module = { exports: {} as unknown }
-	const factory = new Function("module", "exports", code)
-	factory(module, (module as { exports: unknown }).exports)
-	return (module as { exports: ProviderContract }).exports
+	const module = { exports: {} as unknown };
+	const factory = new Function('module', 'exports', code);
+	factory(module, (module as { exports: unknown }).exports);
+	return (module as { exports: ProviderContract }).exports;
 }

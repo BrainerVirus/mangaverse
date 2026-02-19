@@ -48,30 +48,30 @@ export default function AccountSettings() {
 		}
 	};
 	return (
-		<View className="flex-1 bg-background">
+		<View className="bg-background flex-1">
 			<GradientBackdrop />
 			<ScrollView className="flex-1 px-5 pt-6" contentInsetAdjustmentBehavior="automatic">
 				<SectionHeading title="Account" subtitle="Optional login" />
-				<View className="rounded-[28px] border border-border/30 bg-card/70 p-5">
-					<Text className="text-preset-2 font-heading font-semibold text-foreground">Supabase account</Text>
-					<Text className="mt-2 text-preset-1 font-body text-muted">Sign in to enable sync and backups across devices.</Text>
+				<View className="border-border/30 bg-card/70 rounded-[28px] border p-5">
+					<Text className="text-preset-2 font-heading text-foreground font-semibold">Supabase account</Text>
+					<Text className="text-preset-1 font-body text-muted mt-2">Sign in to enable sync and backups across devices.</Text>
 					{!isSupabaseConfigured ? (
-						<View className="mt-3 rounded-[22px] border border-warning/40 bg-warning/10 px-4 py-3">
-							<Text className="text-preset-1 tracking-[0.2em] text-warning uppercase">Supabase not configured</Text>
-							<Text className="mt-2 text-preset-1 font-body text-warning">
+						<View className="border-warning/40 bg-warning/10 mt-3 rounded-[22px] border px-4 py-3">
+							<Text className="text-preset-1 text-warning tracking-[0.2em] uppercase">Supabase not configured</Text>
+							<Text className="text-preset-1 font-body text-warning mt-2">
 								Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_KEY to your .env to enable auth.
 							</Text>
 						</View>
 					) : null}
 					<Link
 						href="/settings/auth-help"
-						className="mt-3 rounded-full bg-chip px-4 py-2 text-center text-preset-1 font-heading font-semibold tracking-[0.2em] text-foreground uppercase"
+						className="bg-chip text-preset-1 font-heading text-foreground mt-3 rounded-full px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"
 					>
 						Auth setup help
 					</Link>
 					{session ? (
 						<Text
-							className="mt-4 rounded-full bg-chip px-4 py-2 text-center text-preset-1 font-heading font-semibold tracking-[0.2em] text-foreground uppercase"
+							className="bg-chip text-preset-1 font-heading text-foreground mt-4 rounded-full px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"
 							onPress={() => signOut()}
 						>
 							Sign out
@@ -83,13 +83,13 @@ export default function AccountSettings() {
 								onChangeText={setEmail}
 								placeholder="Email"
 								placeholderTextColor={themeColors.mutedForeground}
-								className="rounded-2xl border border-border/40 bg-background px-4 py-3 text-preset-1 font-body text-foreground"
+								className="border-border/40 bg-background text-preset-1 font-body text-foreground rounded-2xl border px-4 py-3"
 								autoCapitalize="none"
 								autoCorrect={false}
 								keyboardType="email-address"
 							/>
 							<Text
-								className={`rounded-full px-4 py-2 text-center text-preset-1 font-heading font-semibold tracking-[0.2em] uppercase ${
+								className={`text-preset-1 font-heading rounded-full px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase ${
 									status === 'sending' ? 'bg-chip text-muted' : 'bg-primary text-primary-foreground'
 								}`}
 								onPress={status === 'sending' ? undefined : handleMagicLink}
@@ -101,11 +101,11 @@ export default function AccountSettings() {
 								onChangeText={setOtp}
 								placeholder="One-time code"
 								placeholderTextColor={themeColors.mutedForeground}
-								className="rounded-2xl border border-border/40 bg-background px-4 py-3 text-preset-1 font-body text-foreground"
+								className="border-border/40 bg-background text-preset-1 font-body text-foreground rounded-2xl border px-4 py-3"
 								keyboardType="number-pad"
 							/>
 							<Text
-								className={`rounded-full px-4 py-2 text-center text-preset-1 font-heading font-semibold tracking-[0.2em] uppercase ${
+								className={`text-preset-1 font-heading rounded-full px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase ${
 									status === 'verifying' ? 'bg-chip text-muted' : 'bg-chip text-foreground'
 								}`}
 								onPress={status === 'verifying' ? undefined : handleVerify}
@@ -114,31 +114,31 @@ export default function AccountSettings() {
 							</Text>
 							<View className="flex-row flex-wrap gap-2">
 								<Text
-									className="rounded-full bg-chip px-4 py-2 text-center text-preset-1 font-heading font-semibold tracking-[0.2em] text-foreground uppercase"
+									className="bg-chip text-preset-1 font-heading text-foreground rounded-full px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"
 									onPress={() => signInWithProvider('google')}
 								>
 									Google
 								</Text>
 								<Text
-									className="rounded-full bg-chip px-4 py-2 text-center text-preset-1 font-heading font-semibold tracking-[0.2em] text-foreground uppercase"
+									className="bg-chip text-preset-1 font-heading text-foreground rounded-full px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"
 									onPress={() => signInWithProvider('apple')}
 								>
 									Apple
 								</Text>
 								<Text
-									className="rounded-full bg-chip px-4 py-2 text-center text-preset-1 font-heading font-semibold tracking-[0.2em] text-foreground uppercase"
+									className="bg-chip text-preset-1 font-heading text-foreground rounded-full px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"
 									onPress={() => signInWithProvider('facebook')}
 								>
 									Facebook
 								</Text>
 								<Text
-									className="rounded-full bg-chip px-4 py-2 text-center text-preset-1 font-heading font-semibold tracking-[0.2em] text-foreground uppercase"
+									className="bg-chip text-preset-1 font-heading text-foreground rounded-full px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"
 									onPress={() => signInWithProvider('discord')}
 								>
 									Discord
 								</Text>
 								<Text
-									className="rounded-full bg-chip px-4 py-2 text-center text-preset-1 font-semibold tracking-[0.2em] text-foreground uppercase"
+									className="bg-chip text-preset-1 text-foreground rounded-full px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"
 									onPress={() => signInWithProvider('github')}
 								>
 									GitHub

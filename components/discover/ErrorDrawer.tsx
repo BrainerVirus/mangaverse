@@ -25,7 +25,7 @@ export function ErrorDrawer({ providerLoadError, height, onToggleHeight, onClose
 						</Pressable>
 					</View>
 					<Text className="text-muted text-preset-1 font-body mt-2">The selected provider failed to load. Update the extension bundle.</Text>
-					<View className="mt-4 rounded-[18px] border border-warning/40 bg-warning/10 px-4 py-3">
+					<View className="border-warning/40 bg-warning/10 mt-4 rounded-[18px] border px-4 py-3">
 						<Text className="text-warning text-preset-1 font-body">{providerLoadError}</Text>
 					</View>
 				</View>

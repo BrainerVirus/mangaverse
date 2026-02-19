@@ -30,5 +30,8 @@
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "tailwindCSS.classFunctions": ["tw", "clsx", "cva", "cx", "tw\\.[a-z-]+", "cn"],
-  "chat.useAgentSkills": true
+  "chat.useAgentSkills": true,
+  "chat.tools.terminal.autoApprove": {
+    "Set-Content": true
+  }
 }

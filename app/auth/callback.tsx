@@ -28,11 +28,11 @@ export default function AuthCallback() {
 		handleAuth().catch(() => {});
 	}, []);
 	return (
-		<View className="flex-1 items-center justify-center bg-background">
+		<View className="bg-background flex-1 items-center justify-center">
 			{isSupabaseConfigured ? (
 				<>
 					<ActivityIndicator color={themeColors.accent} />
-					<Text className="mt-3 text-preset-1 font-body text-muted">Signing you in…</Text>
+					<Text className="text-preset-1 font-body text-muted mt-3">Signing you in…</Text>
 				</>
 			) : (
 				<Text className="text-preset-1 font-body text-muted">Supabase is not configured.</Text>

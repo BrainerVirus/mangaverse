@@ -55,19 +55,19 @@ export default function Settings() {
 	const theme = useSettingsStore((state) => state.theme);
 	const tabBarPadding = useTabBarPadding(24);
 	return (
-		<View className="flex-1 bg-background">
+		<View className="bg-background flex-1">
 			<GradientBackdrop />
 			<ScrollView className="flex-1 px-5 pt-6" contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingBottom: tabBarPadding }}>
 				<SectionHeading title="Settings" subtitle="Tune your experience" />
-				<View className="mb-6 rounded-[28px] border border-border/30 bg-card/70 p-5">
-					<Text className="text-preset-1 tracking-[0.2em] text-muted-foreground uppercase">Theme</Text>
-					<Text className="text-preset-2 font-heading font-semibold text-foreground mt-2">{theme}</Text>
+				<View className="border-border/30 bg-card/70 mb-6 rounded-[28px] border p-5">
+					<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Theme</Text>
+					<Text className="text-preset-2 font-heading text-foreground mt-2 font-semibold">{theme}</Text>
 					<Text className="text-preset-1 font-body text-muted mt-1">Appearance applies across the reader and library.</Text>
 				</View>
 				<View className="gap-4 pb-12">
 					{sections.map((section) => (
-						<Link key={section.id} href={section.link} className="rounded-[26px] border border-border/30 bg-card/70 p-5">
-							<Text className="text-preset-2 font-heading font-semibold text-foreground">{section.title}</Text>
+						<Link key={section.id} href={section.link} className="border-border/30 bg-card/70 rounded-[26px] border p-5">
+							<Text className="text-preset-2 font-heading text-foreground font-semibold">{section.title}</Text>
 							<Text className="text-preset-1 font-body text-muted mt-2">{section.description}</Text>
 						</Link>
 					))}

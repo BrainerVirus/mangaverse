@@ -1,58 +1,58 @@
-import * as FileSystem from "expo-file-system"
+import * as FileSystem from 'expo-file-system';
 
-type DownloadStatus = "idle" | "queued" | "downloading" | "complete" | "error"
+type DownloadStatus = 'idle' | 'queued' | 'downloading' | 'complete' | 'error';
 
 export interface DownloadTask {
-	id: string
-	chapterId: string
-	url: string
-	filePath: string
+	id: string;
+	chapterId: string;
+	url: string;
+	filePath: string;
 }
 
 interface DownloadState {
-	status: DownloadStatus
-	progress: number
-	message?: string
+	status: DownloadStatus;
+	progress: number;
+	message?: string;
 }
 
-const queue: DownloadTask[] = []
-let active = false
-const listeners = new Map<string, (state: DownloadState) => void>()
+const queue: DownloadTask[] = [];
+let active = false;
+const listeners = new Map<string, (state: DownloadState) => void>();
 
 export function subscribeDownload(id: string, handler: (state: DownloadState) => void) {
-	listeners.set(id, handler)
-	return () => listeners.delete(id)
+	listeners.set(id, handler);
+	return () => listeners.delete(id);
 }
 
 function emit(id: string, state: DownloadState) {
-	listeners.get(id)?.(state)
+	listeners.get(id)?.(state);
 }
 
 export function enqueueDownload(task: DownloadTask) {
-	queue.push(task)
-	emit(task.id, { status: "queued", progress: 0 })
-	processQueue()
+	queue.push(task);
+	emit(task.id, { status: 'queued', progress: 0 });
+	processQueue();
 }
 
 async function processQueue() {
 	if (active) {
-		return
+		return;
 	}
-	active = true
+	active = true;
 	while (queue.length > 0) {
-		const task = queue.shift()
+		const task = queue.shift();
 		if (!task) {
-			continue
+			continue;
 		}
 		try {
-			emit(task.id, { status: "downloading", progress: 0 })
-			const download = FileSystem.createDownloadResumable(task.url, task.filePath)
-			await download.downloadAsync()
-			emit(task.id, { status: "complete", progress: 1 })
+			emit(task.id, { status: 'downloading', progress: 0 });
+			const download = FileSystem.createDownloadResumable(task.url, task.filePath);
+			await download.downloadAsync();
+			emit(task.id, { status: 'complete', progress: 1 });
 		} catch (error) {
-			const message = error instanceof Error ? error.message : "Download failed"
-			emit(task.id, { status: "error", progress: 0, message })
+			const message = error instanceof Error ? error.message : 'Download failed';
+			emit(task.id, { status: 'error', progress: 0, message });
 		}
 	}
-	active = false
+	active = false;
 }

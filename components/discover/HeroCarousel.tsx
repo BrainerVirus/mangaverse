@@ -64,7 +64,7 @@ export function HeroCarousel({
 				{heroItems.map((item, index) => {
 					const isItemFavorite = isFavorite(item);
 					return (
-						<View key={`${item.id}-${index}`} style={{ width: heroWidth }} className="bg-card overflow-hidden rounded-box">
+						<View key={`${item.id}-${index}`} style={{ width: heroWidth }} className="bg-card rounded-box overflow-hidden">
 							<View className="relative" style={{ height: heroHeight }}>
 								<Link
 									href={{
@@ -102,8 +102,8 @@ export function HeroCarousel({
 											}}
 											asChild
 										>
-											<Pressable className="h-10 flex-1 items-center justify-center rounded-full border-2 border-foreground/40 bg-background/20">
-												<Text className="text-preset-1 font-heading font-semibold text-foreground">Read Now</Text>
+											<Pressable className="border-foreground/40 bg-background/20 h-10 flex-1 items-center justify-center rounded-full border-2">
+												<Text className="text-preset-1 font-heading text-foreground font-semibold">Read Now</Text>
 											</Pressable>
 										</Link>
 									</View>

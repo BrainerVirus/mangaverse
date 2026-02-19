@@ -28,7 +28,7 @@ function __awaiter(thisArg, _arguments, P, generator) {
 }
 
 function __generator(thisArg, body) {
-    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
+    let _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
@@ -66,14 +66,14 @@ function __spreadArray(to, from, pack) {
 }
 
 typeof SuppressedError === "function" ? SuppressedError : function (error, suppressed, message) {
-    var e = new Error(message);
+    let e = new Error(message);
     return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
 };
 
-var baseUrl = "https://api.mangadex.org";
-var siteUrl = "https://mangadex.org";
-var fetchJson = function (url) { return __awaiter(void 0, void 0, void 0, function () {
-    var response;
+let baseUrl = "https://api.mangadex.org";
+let siteUrl = "https://mangadex.org";
+let fetchJson = function (url) { return __awaiter(void 0, void 0, void 0, function () {
+    let response;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0: return [4 /*yield*/, fetch(url)];
@@ -86,21 +86,21 @@ var fetchJson = function (url) { return __awaiter(void 0, void 0, void 0, functi
         }
     });
 }); };
-var buildUrl = function (path, params) {
+let buildUrl = function (path, params) {
     if (params === void 0) { params = []; }
-    var query = params.filter(Boolean).join("&");
+    let query = params.filter(Boolean).join("&");
     return "".concat(baseUrl).concat(path).concat(query ? "?".concat(query) : "");
 };
-var toArrayParam = function (values) {
+let toArrayParam = function (values) {
     return values.map(function (value) { return "includes[]=".concat(encodeURIComponent(value)); }).join("&");
 };
-var mapCoverUrl = function (mangaId, fileName) {
+let mapCoverUrl = function (mangaId, fileName) {
     if (!fileName) {
         return undefined;
     }
     return "https://uploads.mangadex.org/covers/".concat(mangaId, "/").concat(fileName, ".256.jpg");
 };
-var provider = {
+let provider = {
     meta: {
         id: "mangadex",
         name: "MangaDex",
@@ -123,7 +123,7 @@ var provider = {
     },
     getDiscoverGenres: function () {
         return __awaiter(this, void 0, void 0, function () {
-            var url, data;
+            let url, data;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -132,8 +132,8 @@ var provider = {
                     case 1:
                         data = (_a.sent());
                         return [2 /*return*/, data.data.map(function (tag) {
-                                var _a, _b;
-                                var name = (_b = (_a = tag.attributes.name.en) !== null && _a !== void 0 ? _a : Object.values(tag.attributes.name)[0]) !== null && _b !== void 0 ? _b : "Genre";
+                                let _a, _b;
+                                let name = (_b = (_a = tag.attributes.name.en) !== null && _a !== void 0 ? _a : Object.values(tag.attributes.name)[0]) !== null && _b !== void 0 ? _b : "Genre";
                                 return {
                                     id: tag.id,
                                     title: name,
@@ -146,7 +146,7 @@ var provider = {
     },
     getDiscoverSectionItems: function (sectionId, page, filters) {
         return __awaiter(this, void 0, void 0, function () {
-            var limit, offset, baseParams, genreId, order, url, data;
+            let limit, offset, baseParams, genreId, order, url, data;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -172,14 +172,14 @@ var provider = {
                     case 1:
                         data = (_a.sent());
                         return [2 /*return*/, data.data.map(function (item) {
-                                var _a, _b, _c, _d, _e, _f, _g, _h;
-                                var title = (_b = (_a = item.attributes.title.en) !== null && _a !== void 0 ? _a : Object.values(item.attributes.title)[0]) !== null && _b !== void 0 ? _b : "Untitled";
-                                var description = (_d = (_c = item.attributes.description) === null || _c === void 0 ? void 0 : _c.en) !== null && _d !== void 0 ? _d : "";
-                                var cover = (_f = (_e = item.relationships.find(function (rel) { return rel.type === "cover_art"; })) === null || _e === void 0 ? void 0 : _e.attributes) === null || _f === void 0 ? void 0 : _f.fileName;
-                                var lastChapter = (_g = item.attributes.lastChapter) === null || _g === void 0 ? void 0 : _g.trim();
-                                var chapterLabel = lastChapter ? "Chapter ".concat(lastChapter) : undefined;
-                                var tags = (_h = item.attributes.tags) === null || _h === void 0 ? void 0 : _h.map(function (tag) { var _a, _b, _c, _d, _e; return (_c = (_b = (_a = tag.attributes) === null || _a === void 0 ? void 0 : _a.name) === null || _b === void 0 ? void 0 : _b.en) !== null && _c !== void 0 ? _c : Object.values((_e = (_d = tag.attributes) === null || _d === void 0 ? void 0 : _d.name) !== null && _e !== void 0 ? _e : {})[0]; }).filter(function (tag) { return Boolean(tag); });
-                                var subtitle = sectionId === "latest"
+                                let _a, _b, _c, _d, _e, _f, _g, _h;
+                                let title = (_b = (_a = item.attributes.title.en) !== null && _a !== void 0 ? _a : Object.values(item.attributes.title)[0]) !== null && _b !== void 0 ? _b : "Untitled";
+                                let description = (_d = (_c = item.attributes.description) === null || _c === void 0 ? void 0 : _c.en) !== null && _d !== void 0 ? _d : "";
+                                let cover = (_f = (_e = item.relationships.find(function (rel) { return rel.type === "cover_art"; })) === null || _e === void 0 ? void 0 : _e.attributes) === null || _f === void 0 ? void 0 : _f.fileName;
+                                let lastChapter = (_g = item.attributes.lastChapter) === null || _g === void 0 ? void 0 : _g.trim();
+                                let chapterLabel = lastChapter ? "Chapter ".concat(lastChapter) : undefined;
+                                let tags = (_h = item.attributes.tags) === null || _h === void 0 ? void 0 : _h.map(function (tag) { let _a, _b, _c, _d, _e; return (_c = (_b = (_a = tag.attributes) === null || _a === void 0 ? void 0 : _a.name) === null || _b === void 0 ? void 0 : _b.en) !== null && _c !== void 0 ? _c : Object.values((_e = (_d = tag.attributes) === null || _d === void 0 ? void 0 : _d.name) !== null && _e !== void 0 ? _e : {})[0]; }).filter(function (tag) { return Boolean(tag); });
+                                let subtitle = sectionId === "latest"
                                     ? "Latest"
                                     : sectionId === "recent"
                                         ? "Recent"
@@ -201,7 +201,7 @@ var provider = {
     },
     search: function (query, page) {
         return __awaiter(this, void 0, void 0, function () {
-            var limit, offset, url, data;
+            let limit, offset, url, data;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -218,10 +218,10 @@ var provider = {
                     case 1:
                         data = (_a.sent());
                         return [2 /*return*/, data.data.map(function (item) {
-                                var _a, _b, _c, _d, _e, _f;
-                                var title = (_b = (_a = item.attributes.title.en) !== null && _a !== void 0 ? _a : Object.values(item.attributes.title)[0]) !== null && _b !== void 0 ? _b : "Untitled";
-                                var description = (_d = (_c = item.attributes.description) === null || _c === void 0 ? void 0 : _c.en) !== null && _d !== void 0 ? _d : "";
-                                var cover = (_f = (_e = item.relationships.find(function (rel) { return rel.type === "cover_art"; })) === null || _e === void 0 ? void 0 : _e.attributes) === null || _f === void 0 ? void 0 : _f.fileName;
+                                let _a, _b, _c, _d, _e, _f;
+                                let title = (_b = (_a = item.attributes.title.en) !== null && _a !== void 0 ? _a : Object.values(item.attributes.title)[0]) !== null && _b !== void 0 ? _b : "Untitled";
+                                let description = (_d = (_c = item.attributes.description) === null || _c === void 0 ? void 0 : _c.en) !== null && _d !== void 0 ? _d : "";
+                                let cover = (_f = (_e = item.relationships.find(function (rel) { return rel.type === "cover_art"; })) === null || _e === void 0 ? void 0 : _e.attributes) === null || _f === void 0 ? void 0 : _f.fileName;
                                 return {
                                     id: item.id,
                                     title: title,
@@ -243,8 +243,8 @@ var provider = {
     },
     getMangaDetails: function (providerMangaId) {
         return __awaiter(this, void 0, void 0, function () {
-            var url, data, title, description, cover;
-            var _a, _b, _c, _d, _e, _f;
+            let url, data, title, description, cover;
+            let _a, _b, _c, _d, _e, _f;
             return __generator(this, function (_g) {
                 switch (_g.label) {
                     case 0:
@@ -268,7 +268,7 @@ var provider = {
     },
     getChapterList: function (providerMangaId_1) {
         return __awaiter(this, arguments, void 0, function (providerMangaId, languages) {
-            var params, url, data;
+            let params, url, data;
             if (languages === void 0) { languages = ["en"]; }
             return __generator(this, function (_a) {
                 switch (_a.label) {
@@ -283,7 +283,7 @@ var provider = {
                     case 1:
                         data = (_a.sent());
                         return [2 /*return*/, data.data.map(function (chapter) {
-                                var _a;
+                                let _a;
                                 return ({
                                     id: chapter.id,
                                     title: chapter.attributes.title || "Chapter ".concat((_a = chapter.attributes.chapter) !== null && _a !== void 0 ? _a : "?"),
@@ -301,7 +301,7 @@ var provider = {
     },
     getChapterPages: function (providerChapterId) {
         return __awaiter(this, void 0, void 0, function () {
-            var url, data;
+            let url, data;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
