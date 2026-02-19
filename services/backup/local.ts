@@ -3,6 +3,7 @@ import * as FileSystem from 'expo-file-system';
 const backupFileName = 'mangaverse-backup.json';
 
 export async function exportBackup(payload: unknown) {
+	// eslint-disable-next-line import/namespace -- expo-file-system re-exports these at runtime
 	const directory = FileSystem.documentDirectory ?? FileSystem.cacheDirectory;
 	if (!directory) {
 		throw new Error('No writable directory available');

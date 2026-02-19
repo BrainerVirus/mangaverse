@@ -50,9 +50,9 @@ export function GenreSection({ items, providerId, pagePadding, gap, cardWidth, p
 			<ScrollView
 				horizontal
 				showsHorizontalScrollIndicator={false}
-				className="mt-4"
 				style={{ marginHorizontal: -pagePadding }}
 				contentContainerStyle={{
+					paddingTop: 8,
 					paddingLeft: pagePadding,
 					paddingRight: pagePadding + peek,
 					columnGap: gap,

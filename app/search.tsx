@@ -77,7 +77,7 @@ export default function GlobalSearch() {
 									<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">{statusLabel}</Text>
 								</View>
 								{isEmpty ? (
-									<Text className="text-preset-1 font-body text-muted-foreground">No results for "{trimmedQuery}".</Text>
+									<Text className="text-preset-1 font-body text-muted-foreground">No results for &ldquo;{trimmedQuery}&rdquo;.</Text>
 								) : hasResults ? (
 									<View className="flex-row flex-wrap gap-4">
 										{results.map((item) => (

@@ -71,7 +71,6 @@ export function HorizontalSection({
 			<ScrollView
 				horizontal
 				showsHorizontalScrollIndicator={false}
-				className="mt-4"
 				style={{ marginHorizontal: -pagePadding }}
 				contentContainerStyle={{
 					paddingTop: 8,
