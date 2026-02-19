@@ -83,7 +83,7 @@ export default function MangaDetail() {
 					{details ? (
 						<Text
 							className={`mt-4 rounded-full px-4 py-2 text-center text-preset-1 font-heading font-semibold tracking-[0.2em] uppercase ${
-								isFavorite ? 'bg-accent text-accent-foreground' : 'bg-chip text-muted'
+								isFavorite ? 'bg-primary text-primary-foreground' : 'bg-chip text-muted'
 							}`}
 							onPress={() => {
 								if (isFavorite) {

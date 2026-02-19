@@ -14,7 +14,7 @@ export default function BackupSettings() {
 					<Text className="text-preset-2 font-heading font-semibold text-foreground">Local backup</Text>
 					<Text className="text-preset-1 font-body text-muted mt-2">Export and restore your library and progress.</Text>
 					<Text
-						className="mt-3 rounded-full bg-accent px-4 py-2 text-center text-preset-1 font-heading font-semibold tracking-[0.2em] text-accent-foreground uppercase"
+						className="mt-3 rounded-full bg-primary px-4 py-2 text-center text-preset-1 font-heading font-semibold tracking-[0.2em] text-primary-foreground uppercase"
 						onPress={() => exportBackup({ version: 1, exportedAt: Date.now() })}
 					>
 						Export backup

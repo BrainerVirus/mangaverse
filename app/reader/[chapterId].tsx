@@ -422,7 +422,7 @@ export default function ReaderScreen() {
 						<View className="rounded-t-4xl border border-border/40 bg-background px-5 pt-6 pb-8">
 							<View className="flex-row items-center justify-between">
 								<Text className="text-preset-2 font-heading font-semibold text-foreground">Reader Settings</Text>
-								<Text className="text-preset-2 font-heading font-semibold text-accent" onPress={() => setShowSettings(false)}>
+								<Text className="text-preset-2 font-heading font-semibold text-primary" onPress={() => setShowSettings(false)}>
 									Done
 								</Text>
 							</View>
@@ -460,7 +460,7 @@ export default function ReaderScreen() {
 										<Text
 											key={mode.id}
 											className={`rounded-2xl border px-4 py-3 text-preset-2 font-heading font-semibold ${
-												readerMode === mode.id ? 'border-accent/80 bg-accent/15 text-accent' : 'border-border/30 bg-card/70 text-muted'
+												readerMode === mode.id ? 'border-primary/80 bg-primary/15 text-primary' : 'border-border/30 bg-card/70 text-muted'
 											}`}
 											onPress={() => setReaderMode(mode.id)}
 										>
@@ -482,7 +482,7 @@ export default function ReaderScreen() {
 										<Text
 											key={mode.id}
 											className={`rounded-2xl border px-4 py-3 text-preset-2 font-heading font-semibold ${
-												fitMode === mode.id ? 'border-accent/80 bg-accent/15 text-accent' : 'border-border/30 bg-card/70 text-muted'
+												fitMode === mode.id ? 'border-primary/80 bg-primary/15 text-primary' : 'border-border/30 bg-card/70 text-muted'
 											}`}
 											onPress={() => setFitMode(mode.id)}
 										>
@@ -504,7 +504,7 @@ export default function ReaderScreen() {
 										<Text
 											key={tone.id}
 											className={`rounded-2xl border px-4 py-3 text-preset-2 font-heading font-semibold ${
-												background === tone.id ? 'border-accent/80 bg-accent/15 text-accent' : 'border-border/30 bg-card/70 text-muted'
+												background === tone.id ? 'border-primary/80 bg-primary/15 text-primary' : 'border-border/30 bg-card/70 text-muted'
 											}`}
 											onPress={() => setBackground(tone.id)}
 										>

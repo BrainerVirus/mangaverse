@@ -90,7 +90,7 @@ export default function AccountSettings() {
 							/>
 							<Text
 								className={`rounded-full px-4 py-2 text-center text-preset-1 font-heading font-semibold tracking-[0.2em] uppercase ${
-									status === 'sending' ? 'bg-chip text-muted' : 'bg-accent text-accent-foreground'
+									status === 'sending' ? 'bg-chip text-muted' : 'bg-primary text-primary-foreground'
 								}`}
 								onPress={status === 'sending' ? undefined : handleMagicLink}
 							>

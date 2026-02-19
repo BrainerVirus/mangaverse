@@ -116,7 +116,7 @@ export default function ExtensionInstall() {
 						</Text>
 						<Text
 							className={`flex-1 rounded-full px-4 py-2 text-center text-preset-1 font-heading font-semibold tracking-[0.2em] uppercase ${
-								!extensionParams.bundleUrl || status === 'installing' ? 'bg-chip text-muted' : 'bg-accent text-accent-foreground'
+								!extensionParams.bundleUrl || status === 'installing' ? 'bg-chip text-muted' : 'bg-primary text-primary-foreground'
 							}`}
 							onPress={!extensionParams.bundleUrl || status === 'installing' ? undefined : handleInstall}
 						>

@@ -21,7 +21,7 @@ export default function Library() {
 						<Text className="text-preset-1 font-body text-muted mt-2">Find a series in Discover or Search to add it here.</Text>
 						<Link
 							href="/discover"
-							className="mt-4 rounded-full bg-accent px-4 py-2 text-center text-preset-2 font-heading font-semibold text-accent-foreground"
+							className="mt-4 rounded-full bg-primary px-4 py-2 text-center text-preset-2 font-heading font-semibold text-primary-foreground"
 						>
 							Browse Discover
 						</Link>

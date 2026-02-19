@@ -62,7 +62,7 @@ export default function ReaderSettings() {
 								<Text
 									key={mode.id}
 									className={`rounded-2xl border px-4 py-3 text-preset-2 font-heading font-semibold ${
-										readerMode === mode.id ? 'border-accent/80 bg-accent/15 text-accent' : 'border-border/30 bg-card/70 text-muted'
+										readerMode === mode.id ? 'border-primary/80 bg-primary/15 text-primary' : 'border-border/30 bg-card/70 text-muted'
 									}`}
 									onPress={() => setReaderMode(mode.id)}
 								>
@@ -77,7 +77,7 @@ export default function ReaderSettings() {
 									<Text
 										key={preset.id}
 										className={`rounded-2xl border px-4 py-3 text-preset-2 font-heading font-semibold ${
-											tapZonePreset === preset.id ? 'border-accent/80 bg-accent/15 text-accent' : 'border-border/30 bg-card/70 text-muted'
+											tapZonePreset === preset.id ? 'border-primary/80 bg-primary/15 text-primary' : 'border-border/30 bg-card/70 text-muted'
 										}`}
 										onPress={() => setTapZonePreset(preset.id)}
 									>
@@ -94,7 +94,7 @@ export default function ReaderSettings() {
 								<Text
 									key={mode.id}
 									className={`rounded-2xl border px-4 py-3 text-preset-2 font-heading font-semibold ${
-										fitMode === mode.id ? 'border-accent/80 bg-accent/15 text-accent' : 'border-border/30 bg-card/70 text-muted'
+										fitMode === mode.id ? 'border-primary/80 bg-primary/15 text-primary' : 'border-border/30 bg-card/70 text-muted'
 									}`}
 									onPress={() => setFitMode(mode.id)}
 								>
@@ -109,7 +109,7 @@ export default function ReaderSettings() {
 									<Text
 										key={tone.id}
 										className={`rounded-2xl border px-4 py-3 text-preset-2 font-heading font-semibold ${
-											background === tone.id ? 'border-accent/80 bg-accent/15 text-accent' : 'border-border/30 bg-card/70 text-muted'
+											background === tone.id ? 'border-primary/80 bg-primary/15 text-primary' : 'border-border/30 bg-card/70 text-muted'
 										}`}
 										onPress={() => setBackground(tone.id)}
 									>

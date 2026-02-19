@@ -142,7 +142,7 @@ export default function ExtensionsSettings() {
 										<Text className="text-preset-1 font-body text-muted mt-1">{item.languages.join(', ') || 'No languages'}</Text>
 										<Text
 											className={`mt-3 rounded-full px-4 py-2 text-center text-preset-1 font-heading font-semibold tracking-[0.2em] uppercase ${
-												isInstalled ? 'bg-chip text-muted' : 'bg-accent text-accent-foreground'
+												isInstalled ? 'bg-chip text-muted' : 'bg-primary text-primary-foreground'
 											}`}
 											onPress={isInstalled || loading ? undefined : () => handleInstall(item)}
 										>
