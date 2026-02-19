@@ -13,6 +13,7 @@ import { HeroCarousel } from '@components/discover/HeroCarousel';
 import { useDiscoverData } from '@hooks/useDiscoverData';
 import { useTabBarPadding } from '@hooks/useTabBarPadding';
 import { getDiscoverLayout } from '@lib/layout';
+import { useThemeColors } from '@lib/themes/vars';
 import { useFavoritesStore } from '@services/library/favorites';
 import { useExtensionsStore } from '@stores/extensions';
 import { useSettingsStore } from '@stores/settings';
@@ -46,6 +47,7 @@ export default function Discover() {
 	const insets = useSafeAreaInsets();
 	const tabBarPadding = useTabBarPadding(16);
 	const scrollY = useRef(new Animated.Value(0)).current;
+	const themeColors = useThemeColors();
 	const { orderedSections, sectionItems, loading, refreshing, error, heroItems, loadMore, sectionLoading, refetch } = useDiscoverData({
 		providersMap,
 		selectedProviderId,
@@ -149,7 +151,7 @@ export default function Discover() {
 	return (
 		<View className="bg-background flex-1">
 			<ScrollView
-				className="flex-1"
+				className="bg-background flex-1"
 				contentInsetAdjustmentBehavior="never"
 				contentContainerStyle={{ paddingBottom: tabBarPadding }}
 				stickyHeaderIndices={[0]}
@@ -157,12 +159,18 @@ export default function Discover() {
 					useNativeDriver: false,
 				})}
 				scrollEventThrottle={16}
-				refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refetch} progressViewOffset={headerPaddingTop + 60} />}
+				refreshControl={
+					<RefreshControl
+						refreshing={refreshing}
+						onRefresh={refetch}
+						tintColor={themeColors.primary}
+						colors={[themeColors.primary]}
+						progressBackgroundColor={themeColors.card}
+					/>
+				}
 			>
 				<View>
 					<View className="relative overflow-hidden">
-						{/* Extend background above header to cover overscroll */}
-						<View className="bg-background absolute top-0 right-0 left-0" style={{ height: 1000, transform: [{ translateY: -1000 }] }} />
 						{Platform.OS === 'ios' ? (
 							<BlurView intensity={80} tint="systemChromeMaterialDark" style={StyleSheet.absoluteFillObject} />
 						) : (
