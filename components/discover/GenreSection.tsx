@@ -1,7 +1,9 @@
 import { Link } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
-import { GENRE_COLORS } from '@lib/discover';
+import { GenreCard } from '@components/ui/GenreCard';
+import { SkeletonCard } from '@components/ui/SkeletonCard';
+import { useGenrePalette } from '@hooks/useGenrePalette';
 
 import type { ProviderMangaItem } from '../../types/provider';
 
@@ -11,6 +13,8 @@ interface GenreSectionProps {
 	pagePadding: number;
 	gap: number;
 	cardWidth: number;
+	peek: number;
+	isLoading?: boolean;
 	sectionTitle: string;
 	onScroll: (event: {
 		nativeEvent: {
@@ -21,7 +25,8 @@ interface GenreSectionProps {
 	}) => void;
 }
 
-export function GenreSection({ items, providerId, pagePadding, gap, cardWidth, sectionTitle, onScroll }: GenreSectionProps) {
+export function GenreSection({ items, providerId, pagePadding, gap, cardWidth, peek, isLoading, sectionTitle, onScroll }: GenreSectionProps) {
+	const palette = useGenrePalette(Math.max(1, items.length));
 	return (
 		<View>
 			<View className="flex-row items-center justify-between">
@@ -44,12 +49,17 @@ export function GenreSection({ items, providerId, pagePadding, gap, cardWidth, s
 				horizontal
 				showsHorizontalScrollIndicator={false}
 				className="mt-4"
-				contentContainerStyle={{ paddingRight: pagePadding, columnGap: gap }}
+				style={{ marginHorizontal: -pagePadding }}
+				contentContainerStyle={{
+					paddingLeft: pagePadding,
+					paddingRight: pagePadding + peek,
+					columnGap: gap,
+				}}
 				scrollEventThrottle={120}
 				onScroll={onScroll}
 			>
 				{items.map((item, index) => {
-					const color = GENRE_COLORS[index % GENRE_COLORS.length];
+					const color = palette[index % palette.length] ?? palette[0];
 					return (
 						<Link
 							key={`genre-${item.id}-${index}`}
@@ -63,18 +73,13 @@ export function GenreSection({ items, providerId, pagePadding, gap, cardWidth, s
 							}}
 							asChild
 						>
-							<Pressable style={{ backgroundColor: color, width: cardWidth }} className="h-18 overflow-hidden rounded-[18px] px-4 py-3">
-								<View className="absolute top-0 right-0 h-12 w-12 rounded-bl-3xl bg-foreground/20" />
-								<View className="absolute top-2 right-3 h-7 w-7 items-center justify-center rounded-full bg-foreground/25">
-									<Text className="text-preset-1 font-body text-foreground">→</Text>
-								</View>
-								<Text className="text-preset-1 font-heading font-semibold text-foreground" numberOfLines={2}>
-									{item.title}
-								</Text>
+							<Pressable>
+								<GenreCard label={item.title} backgroundColor={color} width={cardWidth} />
 							</Pressable>
 						</Link>
 					);
 				})}
+				{isLoading ? [0, 1].map((index) => <SkeletonCard key={`genre-skeleton-${index}`} width={cardWidth} height={72} />) : null}
 			</ScrollView>
 		</View>
 	);

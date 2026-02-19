@@ -8,6 +8,7 @@
 			"@assets/*": ["assets/*"],
 			"@components/*": ["components/*"],
 			"@constants/*": ["constants/*"],
+			"@hooks/*": ["hooks/*"],
 			"@lib/*": ["lib/*"],
 			"@services/*": ["services/*"],
 			"@stores/*": ["stores/*"],

@@ -18,6 +18,7 @@
 	--color-border: var(--border);
 	--color-accent: var(--accent);
 	--color-accent-foreground: var(--accent-foreground);
+	--color-overlay: var(--overlay);
 	--color-chip: var(--chip);
 	--color-success: var(--success);
 	--color-warning: var(--warning);

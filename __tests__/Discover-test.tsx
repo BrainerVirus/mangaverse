@@ -103,9 +103,19 @@ jest.mock("@stores/extensions", () => ({
 
 jest.mock("@stores/settings", () => ({
 	useSettingsStore: (
-		selector: (state: { showProviderErrors: boolean; theme: string }) => unknown
+		selector: (state: {
+			showProviderErrors: boolean
+			theme: string
+			genrePaletteByTheme: Record<string, string[]>
+			setGenrePalette: () => void
+		}) => unknown
 	) =>
-		selector({ showProviderErrors: true, theme: "Modern" }),
+		selector({
+			showProviderErrors: true,
+			theme: "Modern",
+			genrePaletteByTheme: {},
+			setGenrePalette: jest.fn(),
+		}),
 }))
 
 jest.mock("react-native-safe-area-context", () => {
@@ -136,7 +146,7 @@ describe("Discover screens", () => {
 		expect(getByText("Discover")).toBeTruthy()
 
 		await waitFor(() => {
-			expect(getByText("Popular")).toBeTruthy()
+			expect(getAllByText("Popular").length).toBeGreaterThan(0)
 			expect(mockExtensions.providers.mangadex.getDiscoverSections).toHaveBeenCalled()
 			expect(mockExtensions.providers.mangadex.getDiscoverSectionItems).toHaveBeenCalled()
 		})

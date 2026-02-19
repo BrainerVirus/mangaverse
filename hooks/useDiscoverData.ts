@@ -17,6 +17,7 @@ interface UseDiscoverDataResult {
 	loading: boolean
 	error: string | null
 	heroItems: ProviderMangaItem[]
+	sectionLoading: Record<string, boolean>
 	loadMore: (sectionId: string) => Promise<void>
 }
 
@@ -147,33 +148,35 @@ export function useDiscoverData({
 		}
 		setSectionLoading((current) => ({ ...current, [sectionId]: true }))
 		const nextPage = (sectionPages[sectionId] ?? 1) + 1
-		if (sectionId === "genres") {
-			const sliceStart = (nextPage - 1) * GENRE_PAGE_SIZE
-			const sliceEnd = sliceStart + GENRE_PAGE_SIZE
-			const nextItems = genreItems.slice(sliceStart, sliceEnd)
+		try {
+			if (sectionId === "genres") {
+				const sliceStart = (nextPage - 1) * GENRE_PAGE_SIZE
+				const sliceEnd = sliceStart + GENRE_PAGE_SIZE
+				const nextItems = genreItems.slice(sliceStart, sliceEnd)
+				setSectionItems((current) => ({
+					...current,
+					[sectionId]: [...(current[sectionId] ?? []), ...nextItems],
+				}))
+				setSectionPages((current) => ({ ...current, [sectionId]: nextPage }))
+				setSectionHasMore((current) => ({
+					...current,
+					[sectionId]: sliceEnd < genreItems.length,
+				}))
+				return
+			}
+			const items = await provider.getDiscoverSectionItems(sectionId, nextPage)
 			setSectionItems((current) => ({
 				...current,
-				[sectionId]: [...(current[sectionId] ?? []), ...nextItems],
+				[sectionId]: [...(current[sectionId] ?? []), ...items],
 			}))
 			setSectionPages((current) => ({ ...current, [sectionId]: nextPage }))
 			setSectionHasMore((current) => ({
 				...current,
-				[sectionId]: sliceEnd < genreItems.length,
+				[sectionId]: items.length >= PAGE_SIZE,
 			}))
+		} finally {
 			setSectionLoading((current) => ({ ...current, [sectionId]: false }))
-			return
 		}
-		const items = await provider.getDiscoverSectionItems(sectionId, nextPage)
-		setSectionItems((current) => ({
-			...current,
-			[sectionId]: [...(current[sectionId] ?? []), ...items],
-		}))
-		setSectionPages((current) => ({ ...current, [sectionId]: nextPage }))
-		setSectionHasMore((current) => ({
-			...current,
-			[sectionId]: items.length >= PAGE_SIZE,
-		}))
-		setSectionLoading((current) => ({ ...current, [sectionId]: false }))
 	}
 
 	return {
@@ -183,6 +186,7 @@ export function useDiscoverData({
 		loading,
 		error,
 		heroItems,
+		sectionLoading,
 		loadMore,
 	}
 }

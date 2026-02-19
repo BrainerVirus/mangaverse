@@ -520,7 +520,7 @@ export default function ReaderScreen() {
 										onPress={() => setTapNavigationEnabled(!tapNavigationEnabled)}
 										className={`h-6 w-12 rounded-full ${tapNavigationEnabled ? 'bg-success' : 'bg-border'}`}
 									>
-										<View className={`h-6 w-6 rounded-full bg-white ${tapNavigationEnabled ? 'ml-6' : 'ml-0'}`} />
+										<View className={`h-6 w-6 rounded-full bg-background ${tapNavigationEnabled ? 'ml-6' : 'ml-0'}`} />
 									</Pressable>
 								</View>
 								<View className="flex-row items-center justify-between rounded-[20px] border border-border/40 bg-card/80 px-4 py-3">
@@ -529,7 +529,7 @@ export default function ReaderScreen() {
 										onPress={() => setAutoHideChrome(!autoHideChrome)}
 										className={`h-6 w-12 rounded-full ${autoHideChrome ? 'bg-success' : 'bg-border'}`}
 									>
-										<View className={`h-6 w-6 rounded-full bg-white ${autoHideChrome ? 'ml-6' : 'ml-0'}`} />
+										<View className={`h-6 w-6 rounded-full bg-background ${autoHideChrome ? 'ml-6' : 'ml-0'}`} />
 									</Pressable>
 								</View>
 								<View className="flex-row items-center justify-between rounded-[20px] border border-border/40 bg-card/80 px-4 py-3">
@@ -538,7 +538,7 @@ export default function ReaderScreen() {
 										onPress={() => setSwipeEnabled(!swipeEnabled)}
 										className={`h-6 w-12 rounded-full ${swipeEnabled ? 'bg-success' : 'bg-border'}`}
 									>
-										<View className={`h-6 w-6 rounded-full bg-white ${swipeEnabled ? 'ml-6' : 'ml-0'}`} />
+										<View className={`h-6 w-6 rounded-full bg-background ${swipeEnabled ? 'ml-6' : 'ml-0'}`} />
 									</Pressable>
 								</View>
 								<View className="flex-row items-center justify-between rounded-[20px] border border-border/40 bg-card/80 px-4 py-3">
@@ -547,7 +547,7 @@ export default function ReaderScreen() {
 										onPress={() => setLockRotation(!lockRotation)}
 										className={`h-6 w-12 rounded-full ${lockRotation ? 'bg-success' : 'bg-border'}`}
 									>
-										<View className={`h-6 w-6 rounded-full bg-white ${lockRotation ? 'ml-6' : 'ml-0'}`} />
+										<View className={`h-6 w-6 rounded-full bg-background ${lockRotation ? 'ml-6' : 'ml-0'}`} />
 									</Pressable>
 								</View>
 							</View>

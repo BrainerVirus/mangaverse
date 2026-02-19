@@ -1,4 +1,4 @@
-import { oklchToHex } from "@lib/themes/vars"
+import { oklchToHex } from "@lib/colors/oklch"
 
 describe("theme vars", () => {
 	test("converts oklch to hex", () => {

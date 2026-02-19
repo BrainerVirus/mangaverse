@@ -10,12 +10,12 @@ import { DiscoverSkeleton } from '@components/discover/DiscoverSkeleton';
 import { DiscoverStates } from '@components/discover/DiscoverStates';
 import { ErrorDrawer } from '@components/discover/ErrorDrawer';
 import { HeroCarousel } from '@components/discover/HeroCarousel';
+import { useDiscoverData } from '@hooks/useDiscoverData';
+import { useTabBarPadding } from '@hooks/useTabBarPadding';
 import { getDiscoverLayout } from '@lib/layout';
 import { useFavoritesStore } from '@services/library/favorites';
 import { useExtensionsStore } from '@stores/extensions';
 import { useSettingsStore } from '@stores/settings';
-import { useDiscoverData } from '../../hooks/useDiscoverData';
-import { useTabBarPadding } from '../../hooks/useTabBarPadding';
 import type { ProviderMangaItem } from '../../types/provider';
 
 export default function Discover() {
@@ -39,17 +39,14 @@ export default function Discover() {
 	const errorDrawerBaseHeight = 260;
 	const errorDrawerMaxHeight = 520;
 	const { width: screenWidth } = useWindowDimensions();
-	const { pagePadding, gap, cardWidth, heroWidth: baseHeroWidth } = useMemo(() => getDiscoverLayout(screenWidth), [screenWidth]);
-	const heroPeek = 36;
-	const heroWidth = Math.max(0, baseHeroWidth - heroPeek);
+	const { pagePadding, gap, cardWidth, heroWidth, peek } = useMemo(() => getDiscoverLayout(screenWidth), [screenWidth]);
 	const heroSpacing = gap;
 	const heroScrollX = useRef(new Animated.Value(0)).current;
 	const heroScrollRef = useRef<ScrollView>(null);
-	const heroProvider = providers.find((provider) => provider.id === selectedProviderId)?.name ?? '';
 	const insets = useSafeAreaInsets();
 	const tabBarPadding = useTabBarPadding(16);
 	const scrollY = useRef(new Animated.Value(0)).current;
-	const { orderedSections, sectionItems, loading, error, heroItems, loadMore } = useDiscoverData({
+	const { orderedSections, sectionItems, loading, error, heroItems, loadMore, sectionLoading } = useDiscoverData({
 		providersMap,
 		selectedProviderId,
 		refreshProviders,
@@ -200,14 +197,14 @@ export default function Discover() {
 				</View>
 				<View style={{ paddingHorizontal: pagePadding }}>
 					{loading ? (
-						<DiscoverSkeleton gap={gap} cardWidth={cardWidth} heroWidth={heroWidth} />
+						<DiscoverSkeleton gap={gap} cardWidth={cardWidth} heroWidth={heroWidth} peek={peek} />
 					) : (
 						<HeroCarousel
 							heroItems={heroItems}
 							heroWidth={heroWidth}
 							heroSpacing={heroSpacing}
-							heroProvider={heroProvider}
 							pagePadding={pagePadding}
+							peek={peek}
 							heroScrollX={heroScrollX}
 							heroScrollRef={heroScrollRef}
 							selectedProviderId={selectedProviderId}
@@ -224,6 +221,8 @@ export default function Discover() {
 							pagePadding={pagePadding}
 							gap={gap}
 							cardWidth={cardWidth}
+							peek={peek}
+							sectionLoading={sectionLoading}
 							onLoadMore={loadMore}
 							isInLibrary={(itemId) => favoriteStore.contains(itemId, selectedProviderId ?? '')}
 						/>

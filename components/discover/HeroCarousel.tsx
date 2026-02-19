@@ -1,7 +1,11 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { Link } from 'expo-router';
-import { Animated, Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { Animated, Pressable, ScrollView, View } from 'react-native';
 
-import { getHeroSubtitle } from '@lib/discover';
+import { HeroParallaxImage } from '@components/discover/HeroParallaxImage';
+import { Button } from '@components/ui/Button';
+import { withAlpha } from '@lib/colors/hex';
+import { useThemeColors } from '@lib/themes/vars';
 
 import type { ProviderMangaItem } from '../../types/provider';
 
@@ -9,8 +13,8 @@ interface HeroCarouselProps {
 	heroItems: ProviderMangaItem[];
 	heroWidth: number;
 	heroSpacing: number;
-	heroProvider: string;
 	pagePadding: number;
+	peek: number;
 	heroScrollX: Animated.Value;
 	heroScrollRef: React.RefObject<ScrollView | null>;
 	selectedProviderId?: string;
@@ -22,8 +26,8 @@ export function HeroCarousel({
 	heroItems,
 	heroWidth,
 	heroSpacing,
-	heroProvider,
 	pagePadding,
+	peek,
 	heroScrollX,
 	heroScrollRef,
 	selectedProviderId,
@@ -33,6 +37,11 @@ export function HeroCarousel({
 	if (heroItems.length === 0) {
 		return null;
 	}
+	const heroHeight = 224;
+	const themeColors = useThemeColors();
+	const overlayStart = withAlpha(themeColors.overlay, 0);
+	const overlayMid = withAlpha(themeColors.overlay, 0.22);
+	const overlayEnd = withAlpha(themeColors.overlay, 0.72);
 	return (
 		<View className="mt-6">
 			<Animated.ScrollView
@@ -41,8 +50,10 @@ export function HeroCarousel({
 				snapToInterval={heroWidth + heroSpacing}
 				decelerationRate="fast"
 				showsHorizontalScrollIndicator={false}
+				style={{ marginHorizontal: -pagePadding }}
 				contentContainerStyle={{
-					paddingRight: pagePadding,
+					paddingLeft: pagePadding,
+					paddingRight: pagePadding + peek,
 					columnGap: heroSpacing,
 				}}
 				onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: heroScrollX } } }], {
@@ -54,7 +65,7 @@ export function HeroCarousel({
 					const isItemFavorite = isFavorite(item);
 					return (
 						<View key={`${item.id}-${index}`} style={{ width: heroWidth }} className="bg-card overflow-hidden rounded-box">
-							<View className="relative">
+							<View className="relative" style={{ height: heroHeight }}>
 								<Link
 									href={{
 										pathname: '/manga/[id]',
@@ -62,39 +73,36 @@ export function HeroCarousel({
 									}}
 									asChild
 								>
-									<Pressable>
+									<Pressable style={{ height: heroHeight }}>
 										{item.coverUrl ? (
-											<Image source={{ uri: item.coverUrl }} className="h-56 w-full" resizeMode="cover" />
+											<HeroParallaxImage imageUri={item.coverUrl} height={heroHeight} />
 										) : (
-											<View className="bg-card h-56 w-full" />
+											<View className="bg-card" style={{ height: heroHeight, width: '100%' }} />
 										)}
-										<View className="absolute inset-0 bg-black/40" />
-										<View className="absolute inset-x-0 bottom-0 p-4 pb-14">
-											<Text className="text-preset-2 font-heading font-semibold text-white" numberOfLines={1}>
-												{item.title}
-											</Text>
-											<Text className="text-preset-1 font-body mt-1 text-white/70" numberOfLines={2}>
-												{getHeroSubtitle(item)}
-											</Text>
-											<Text className="text-preset-1 mt-2 tracking-[0.2em] text-white/60 uppercase">{heroProvider}</Text>
-										</View>
+										<LinearGradient
+											colors={[overlayStart, overlayMid, overlayEnd]}
+											locations={[0, 0.58, 1]}
+											style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}
+										/>
 									</Pressable>
 								</Link>
 								<View className="absolute inset-x-0 bottom-3 px-4" pointerEvents="box-none">
-									<View className="flex-row gap-3">
-										<Pressable onPress={() => onToggleFavorite(item)} className="bg-background/85 flex-1 rounded-full px-4 py-3">
-											<Text className="text-accent text-preset-1 font-heading text-center font-semibold">
-												{isItemFavorite ? 'In Library' : 'Add to Library'}
-											</Text>
-										</Pressable>
+									<View className="flex-row flex-wrap gap-3">
+										<Button
+											label={isItemFavorite ? 'In Library' : 'Add to Library'}
+											variant="primary"
+											size="sm"
+											className="min-w-35 flex-1"
+											onPress={() => onToggleFavorite(item)}
+										/>
 										<Link
 											href={{
 												pathname: '/manga/[id]',
 												params: { id: item.id, provider: selectedProviderId },
 											}}
-											className="bg-background/85 flex-1 rounded-full px-4 py-3"
+											asChild
 										>
-											<Text className="text-accent text-preset-1 font-heading text-center font-semibold">Read Now</Text>
+											<Button label="Read Now" variant="secondary" size="sm" className="min-w-35 flex-1" />
 										</Link>
 									</View>
 								</View>

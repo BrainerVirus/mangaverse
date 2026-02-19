@@ -14,6 +14,8 @@ interface DiscoverSectionsProps {
 	pagePadding: number;
 	gap: number;
 	cardWidth: number;
+	peek: number;
+	sectionLoading: Record<string, boolean>;
 	onLoadMore: (sectionId: string) => void;
 	isInLibrary: (itemId: string) => boolean;
 }
@@ -25,6 +27,8 @@ export function DiscoverSections({
 	pagePadding,
 	gap,
 	cardWidth,
+	peek,
+	sectionLoading,
 	onLoadMore,
 	isInLibrary,
 }: DiscoverSectionsProps) {
@@ -57,6 +61,8 @@ export function DiscoverSections({
 							pagePadding={pagePadding}
 							gap={gap}
 							cardWidth={cardWidth}
+							peek={peek}
+							isLoading={sectionLoading[section.id]}
 							sectionTitle={section.title || 'Genres'}
 							onScroll={handleHorizontalScroll(section.id)}
 						/>
@@ -72,6 +78,8 @@ export function DiscoverSections({
 						pagePadding={pagePadding}
 						gap={gap}
 						cardWidth={cardWidth}
+						peek={peek}
+						isLoading={sectionLoading[section.id]}
 						onScroll={handleHorizontalScroll(section.id)}
 						renderItem={(item, index) => (
 							<Link

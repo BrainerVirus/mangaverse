@@ -59,10 +59,10 @@ export function MangaCard({ title, coverUrl, subtitle, lastChapter, language, in
 
 				{inLibrary && (
 					<View
-						className="bg-accent will-change-variable absolute -top-2 -right-2 h-7 w-7 items-center justify-center rounded-full shadow-sm"
-						style={{ elevation: 3 }} // Add elevation for Android so it sits "above"
+						className="bg-accent absolute -top-2 -right-2 h-7 w-7 items-center justify-center rounded-full shadow-sm"
+						style={{ elevation: 3 }}
 					>
-						<Text className="text-preset-1 font-body">🔖</Text>
+						<Text className="text-preset-1 font-body text-accent-foreground">★</Text>
 					</View>
 				)}
 			</View>
