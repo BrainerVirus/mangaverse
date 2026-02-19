@@ -15,10 +15,12 @@ interface UseDiscoverDataResult {
 	orderedSections: ProviderDiscoverSection[];
 	sectionItems: Record<string, ProviderMangaItem[]>;
 	loading: boolean;
+	refreshing: boolean;
 	error: string | null;
 	heroItems: ProviderMangaItem[];
 	sectionLoading: Record<string, boolean>;
 	loadMore: (sectionId: string) => Promise<void>;
+	refetch: () => void;
 }
 
 export function useDiscoverData({ providersMap, selectedProviderId, refreshProviders }: UseDiscoverDataOptions): UseDiscoverDataResult {
@@ -30,6 +32,8 @@ export function useDiscoverData({ providersMap, selectedProviderId, refreshProvi
 	const [sectionPages, setSectionPages] = useState<Record<string, number>>({});
 	const [sectionLoading, setSectionLoading] = useState<Record<string, boolean>>({});
 	const [sectionHasMore, setSectionHasMore] = useState<Record<string, boolean>>({});
+	const [refreshing, setRefreshing] = useState(false);
+	const [refreshCounter, setRefreshCounter] = useState(0);
 	const loadRequestId = useRef(0);
 
 	useEffect(() => {
@@ -46,6 +50,10 @@ export function useDiscoverData({ providersMap, selectedProviderId, refreshProvi
 		setError(null);
 	}, [selectedProviderId]);
 
+	const refetch = () => {
+		setRefreshCounter((c) => c + 1);
+	};
+
 	useEffect(() => {
 		const providerId = selectedProviderId;
 		if (!providerId) {
@@ -55,9 +63,14 @@ export function useDiscoverData({ providersMap, selectedProviderId, refreshProvi
 		if (!provider) {
 			return;
 		}
+		const isRefresh = refreshCounter > 0 && !loading;
 		const requestId = loadRequestId.current + 1;
 		loadRequestId.current = requestId;
-		setLoading(true);
+		if (isRefresh) {
+			setRefreshing(true);
+		} else {
+			setLoading(true);
+		}
 		setError(null);
 		const loadSections = async () => {
 			const baseSections = await provider.getDiscoverSections();
@@ -99,9 +112,11 @@ export function useDiscoverData({ providersMap, selectedProviderId, refreshProvi
 			.finally(() => {
 				if (loadRequestId.current === requestId) {
 					setLoading(false);
+					setRefreshing(false);
 				}
 			});
-	}, [providersMap, selectedProviderId]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [providersMap, selectedProviderId, refreshCounter]);
 
 	const orderedSections = useMemo(() => {
 		const lookup = new Map(sections.map((section) => [section.id, section]));
@@ -174,9 +189,11 @@ export function useDiscoverData({ providersMap, selectedProviderId, refreshProvi
 		orderedSections,
 		sectionItems,
 		loading,
+		refreshing,
 		error,
 		heroItems,
 		sectionLoading,
 		loadMore,
+		refetch,
 	};
 }

@@ -1,7 +1,7 @@
 import { BlurView } from 'expo-blur';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Platform, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Animated, Platform, RefreshControl, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DiscoverHeader } from '@components/discover/DiscoverHeader';
@@ -46,7 +46,7 @@ export default function Discover() {
 	const insets = useSafeAreaInsets();
 	const tabBarPadding = useTabBarPadding(16);
 	const scrollY = useRef(new Animated.Value(0)).current;
-	const { orderedSections, sectionItems, loading, error, heroItems, loadMore, sectionLoading } = useDiscoverData({
+	const { orderedSections, sectionItems, loading, refreshing, error, heroItems, loadMore, sectionLoading, refetch } = useDiscoverData({
 		providersMap,
 		selectedProviderId,
 		refreshProviders,
@@ -157,9 +157,12 @@ export default function Discover() {
 					useNativeDriver: false,
 				})}
 				scrollEventThrottle={16}
+				refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refetch} progressViewOffset={headerPaddingTop + 60} />}
 			>
 				<View>
 					<View className="relative overflow-hidden">
+						{/* Extend background above header to cover overscroll */}
+						<View className="bg-background absolute top-0 right-0 left-0" style={{ height: 1000, transform: [{ translateY: -1000 }] }} />
 						{Platform.OS === 'ios' ? (
 							<BlurView intensity={80} tint="systemChromeMaterialDark" style={StyleSheet.absoluteFillObject} />
 						) : (
