@@ -29,9 +29,9 @@
 	--color-error: var(--error);
 
 	/* Shared Radii Variables */
-	--radius-box: var(--rad-box);
-	--radius-btn: var(--rad-btn);
-	--radius-badge: var(--rad-badge);
+	--radius-box: 1.25rem;
+	--radius-btn: 0.625rem;
+	--radius-badge: 9999px;
 
 	/* Font Families - Must match the names used in useFonts */
 	--font-body: var(--font-body);
