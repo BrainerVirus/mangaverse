@@ -16,6 +16,10 @@
 	--color-card: var(--card);
 	--color-card-foreground: var(--card-foreground);
 	--color-border: var(--border);
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
 	--color-accent: var(--accent);
 	--color-accent-foreground: var(--accent-foreground);
 	--color-overlay: var(--overlay);
@@ -25,9 +29,9 @@
 	--color-error: var(--error);
 
 	/* Shared Radii Variables */
-	--radius-box: 0.75rem;
-	--radius-btn: 0.75rem;
-	--radius-badge: 0.75rem;
+	--radius-box: 1.25rem;
+	--radius-btn: 0.625rem;
+	--radius-badge: 9999px;
 
 	/* Font Families - Must match the names used in useFonts */
 	--font-body: var(--font-body);
