@@ -32,6 +32,7 @@
   "tailwindCSS.classFunctions": ["tw", "clsx", "cva", "cx", "tw\\.[a-z-]+", "cn"],
   "chat.useAgentSkills": true,
   "chat.tools.terminal.autoApprove": {
-    "Set-Content": true
+    "Set-Content": true,
+    "npx prettier": true
   }
 }
