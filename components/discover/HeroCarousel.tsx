@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link } from 'expo-router';
-import { Animated, Pressable, ScrollView, View } from 'react-native';
+import { Animated, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { HeroParallaxImage } from '@components/discover/HeroParallaxImage';
 import { Button } from '@components/ui/Button';
@@ -34,14 +34,15 @@ export function HeroCarousel({
 	onToggleFavorite,
 	isFavorite,
 }: HeroCarouselProps) {
-	if (heroItems.length === 0) {
-		return null;
-	}
 	const heroHeight = 224;
 	const themeColors = useThemeColors();
 	const overlayStart = withAlpha(themeColors.overlay, 0);
 	const overlayMid = withAlpha(themeColors.overlay, 0.22);
 	const overlayEnd = withAlpha(themeColors.overlay, 0.72);
+
+	if (heroItems.length === 0) {
+		return null;
+	}
 	return (
 		<View className="mt-6">
 			<Animated.ScrollView
@@ -52,8 +53,7 @@ export function HeroCarousel({
 				showsHorizontalScrollIndicator={false}
 				style={{ marginHorizontal: -pagePadding }}
 				contentContainerStyle={{
-					paddingLeft: pagePadding,
-					paddingRight: pagePadding + peek,
+					paddingHorizontal: pagePadding + Math.round(peek / 2),
 					columnGap: heroSpacing,
 				}}
 				onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: heroScrollX } } }], {
@@ -87,12 +87,12 @@ export function HeroCarousel({
 									</Pressable>
 								</Link>
 								<View className="absolute inset-x-0 bottom-3 px-4" pointerEvents="box-none">
-									<View className="flex-row flex-wrap gap-3">
+									<View className="flex-row gap-3">
 										<Button
 											label={isItemFavorite ? 'In Library' : 'Add to Library'}
 											variant="primary"
 											size="sm"
-											className="min-w-35 flex-1"
+											className="h-10 flex-1"
 											onPress={() => onToggleFavorite(item)}
 										/>
 										<Link
@@ -102,7 +102,9 @@ export function HeroCarousel({
 											}}
 											asChild
 										>
-											<Button label="Read Now" variant="secondary" size="sm" className="min-w-35 flex-1" />
+											<Pressable className="h-10 flex-1 items-center justify-center rounded-full border-2 border-foreground/40 bg-background/20">
+												<Text className="text-preset-1 font-heading font-semibold text-foreground">Read Now</Text>
+											</Pressable>
 										</Link>
 									</View>
 								</View>
