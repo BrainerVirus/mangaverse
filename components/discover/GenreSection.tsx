@@ -79,7 +79,7 @@ export function GenreSection({ items, providerId, pagePadding, gap, cardWidth, p
 						</Link>
 					);
 				})}
-				{isLoading ? [0, 1].map((index) => <SkeletonCard key={`genre-skeleton-${index}`} width={cardWidth} height={72} />) : null}
+				{isLoading ? [0, 1].map((index) => <SkeletonCard key={`genre-skeleton-${index}`} width={cardWidth} height={88} />) : null}
 			</ScrollView>
 		</View>
 	);
