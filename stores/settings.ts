@@ -21,7 +21,6 @@ interface SettingsState {
 	fitMode: ReaderFitMode;
 	background: ReaderBackground;
 	lockRotation: boolean;
-	genrePaletteByTheme: Record<string, string[]>;
 	setTheme: (theme: ThemeOption) => void;
 	setReaderMode: (mode: ReaderMode) => void;
 	setExplicitContent: (enabled: boolean) => void;
@@ -33,7 +32,6 @@ interface SettingsState {
 	setFitMode: (mode: ReaderFitMode) => void;
 	setBackground: (background: ReaderBackground) => void;
 	setLockRotation: (enabled: boolean) => void;
-	setGenrePalette: (key: string, palette: string[]) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -51,7 +49,6 @@ export const useSettingsStore = create<SettingsState>()(
 			fitMode: 'contain',
 			background: 'ink',
 			lockRotation: false,
-			genrePaletteByTheme: {},
 			setTheme: (theme) => set({ theme }),
 			setReaderMode: (mode) => set({ readerMode: mode }),
 			setExplicitContent: (enabled) => set({ explicitContent: enabled }),
@@ -63,10 +60,6 @@ export const useSettingsStore = create<SettingsState>()(
 			setFitMode: (mode) => set({ fitMode: mode }),
 			setBackground: (background) => set({ background }),
 			setLockRotation: (enabled) => set({ lockRotation: enabled }),
-			setGenrePalette: (key, palette) =>
-				set((state) => ({
-					genrePaletteByTheme: { ...state.genrePaletteByTheme, [key]: palette },
-				})),
 		}),
 		{
 			name: 'mangaverse-settings',
@@ -83,7 +76,6 @@ export const useSettingsStore = create<SettingsState>()(
 				fitMode: state.fitMode,
 				background: state.background,
 				lockRotation: state.lockRotation,
-				genrePaletteByTheme: state.genrePaletteByTheme,
 			}),
 			storage: {
 				getItem: async (name) => {

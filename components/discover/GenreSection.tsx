@@ -3,7 +3,6 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { GenreCard } from '@components/ui/GenreCard';
 import { SkeletonCard } from '@components/ui/SkeletonCard';
-import { useGenrePalette } from '@hooks/useGenrePalette';
 
 import type { ProviderMangaItem } from '../../types/provider';
 
@@ -26,7 +25,6 @@ interface GenreSectionProps {
 }
 
 export function GenreSection({ items, providerId, pagePadding, gap, cardWidth, peek, isLoading, sectionTitle, onScroll }: GenreSectionProps) {
-	const palette = useGenrePalette(Math.max(1, items.length));
 	return (
 		<View>
 			<View className="flex-row items-center justify-between">
@@ -61,7 +59,6 @@ export function GenreSection({ items, providerId, pagePadding, gap, cardWidth, p
 				onScroll={onScroll}
 			>
 				{items.map((item, index) => {
-					const color = palette[index % palette.length] ?? palette[0];
 					return (
 						<Link
 							key={`genre-${item.id}-${index}`}
@@ -76,7 +73,7 @@ export function GenreSection({ items, providerId, pagePadding, gap, cardWidth, p
 							asChild
 						>
 							<Pressable>
-								<GenreCard label={item.title} backgroundColor={color} width={cardWidth} />
+								<GenreCard label={item.title} width={cardWidth} />
 							</Pressable>
 						</Link>
 					);
