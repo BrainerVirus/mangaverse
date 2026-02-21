@@ -2,17 +2,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { ScrollView as GHScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomChromeOverlay } from '@components/reader/BottomChromeOverlay';
 import { SettingsDrawer } from '@components/reader/SettingsDrawer';
 import { TopChromeOverlay } from '@components/reader/TopChromeOverlay';
+import { ZoomableImage } from '@components/reader/ZoomableImage';
 import { useThemeColors } from '@lib/themes/vars';
 import { useHistoryStore } from '@stores/history';
 import { useSettingsStore } from '@stores/settings';
 import { useReaderChrome } from '../../hooks/useReaderChrome';
 import { useReaderData } from '../../hooks/useReaderData';
+import type { ZoomState } from '../../hooks/useZoomGesture';
 import type { ProviderChapter } from '../../types/provider';
 
 export default function ReaderScreen() {
@@ -66,9 +69,8 @@ export default function ReaderScreen() {
 	const [currentIndex, setCurrentIndex] = useState(0);
 	const [pageRatios, setPageRatios] = useState<Record<string, number>>({});
 	const [tapWidth, setTapWidth] = useState(0);
-	const [swipeStartX, setSwipeStartX] = useState<number | null>(null);
-	const scrollViewRef = useRef<ScrollView>(null);
-	const zoomScrollRef = useRef<ScrollView>(null);
+	const scrollViewRef = useRef<GHScrollView>(null);
+	const zoomStatesRef = useRef(new Map<string, ZoomState>());
 
 	// Chrome
 	const { chromeVisible, setChromeVisible, chromeOpacity, toggleChrome } = useReaderChrome({
@@ -113,6 +115,7 @@ export default function ReaderScreen() {
 		setCurrentIndex(0);
 		setPageRatios({});
 		setChromeVisible(false);
+		zoomStatesRef.current.clear();
 	}, [chapterId, providerId, setChromeVisible]);
 
 	/* ─── Navigation ─── */
@@ -136,7 +139,6 @@ export default function ReaderScreen() {
 		const next = Math.max(currentIndex - 1, 0);
 		setCurrentIndex(next);
 		if (!isPaged) scrollToPage(next);
-		else zoomScrollRef.current?.scrollTo({ x: 0, y: 0, animated: false });
 	}, [totalPages, currentIndex, isPaged, scrollToPage]);
 
 	const handleNext = useCallback(() => {
@@ -144,7 +146,6 @@ export default function ReaderScreen() {
 		const next = Math.min(currentIndex + 1, totalPages - 1);
 		setCurrentIndex(next);
 		if (!isPaged) scrollToPage(next);
-		else zoomScrollRef.current?.scrollTo({ x: 0, y: 0, animated: false });
 	}, [totalPages, currentIndex, isPaged, scrollToPage]);
 
 	const handleTapZone = useCallback(
@@ -290,81 +291,34 @@ export default function ReaderScreen() {
 				</View>
 			) : isPaged ? (
 				<View className="flex-1" onLayout={(e) => setTapWidth(e.nativeEvent.layout.width)}>
-					{pinchToZoomEnabled ? (
-						<ScrollView
-							ref={zoomScrollRef}
-							className="flex-1"
-							maximumZoomScale={3}
-							minimumZoomScale={1}
-							showsHorizontalScrollIndicator={false}
-							showsVerticalScrollIndicator={false}
-							bouncesZoom
-							centerContent
-						>
-							<Pressable
-								style={{ width: screenWidth, height: screenHeight }}
-								onPress={(e) => handleTapZone(e.nativeEvent.locationX)}
-								onTouchStart={(e) => {
-									if (!swipeEnabled) return;
-									setSwipeStartX(e.nativeEvent.pageX);
-								}}
-								onTouchEnd={(e) => {
-									if (!swipeEnabled || swipeStartX === null) return;
-									const delta = e.nativeEvent.pageX - swipeStartX;
-									if (Math.abs(delta) > 40) {
-										const dir = delta < 0 ? 'left' : 'right';
-										if (dir === 'left') {
-											if (isRtl) handlePrev();
-											else handleNext();
-										} else {
-											if (isRtl) handleNext();
-											else handlePrev();
-										}
-									}
-									setSwipeStartX(null);
-								}}
-							>
-								{currentPage ? (
-									<Image
-										source={{ uri: currentPage.url, headers: currentPage.headers }}
-										style={{ width: screenWidth, height: screenHeight }}
-										resizeMode="contain"
-									/>
-								) : null}
-							</Pressable>
-						</ScrollView>
-					) : (
-						<Pressable
-							className="flex-1"
-							onPress={(e) => handleTapZone(e.nativeEvent.locationX)}
-							onTouchStart={(e) => {
+					{currentPage ? (
+						<ZoomableImage
+							source={{ uri: currentPage.url, headers: currentPage.headers }}
+							containerWidth={screenWidth}
+							containerHeight={screenHeight}
+							imageAspectRatio={pageRatios[currentPage.url] ? 1 / pageRatios[currentPage.url] : 1 / 1.5}
+							mode="paged"
+							enabled={pinchToZoomEnabled}
+							pageKey={currentPage.url}
+							zoomStatesRef={zoomStatesRef}
+							resizeMode="contain"
+							onImageLoad={handleImageLoad(currentPage.url)}
+							onSingleTap={(x) => handleTapZone(x)}
+							onSwipe={(direction) => {
 								if (!swipeEnabled) return;
-								setSwipeStartX(e.nativeEvent.pageX);
-							}}
-							onTouchEnd={(e) => {
-								if (!swipeEnabled || swipeStartX === null) return;
-								const delta = e.nativeEvent.pageX - swipeStartX;
-								if (Math.abs(delta) > 40) {
-									const dir = delta < 0 ? 'left' : 'right';
-									if (dir === 'left') {
-										if (isRtl) handlePrev();
-										else handleNext();
-									} else {
-										if (isRtl) handleNext();
-										else handlePrev();
-									}
+								if (direction === 'left') {
+									if (isRtl) handlePrev();
+									else handleNext();
+								} else {
+									if (isRtl) handleNext();
+									else handlePrev();
 								}
-								setSwipeStartX(null);
 							}}
-						>
-							{currentPage ? (
-								<Image source={{ uri: currentPage.url, headers: currentPage.headers }} className="h-full w-full" resizeMode="contain" />
-							) : null}
-						</Pressable>
-					)}
+						/>
+					) : null}
 				</View>
 			) : (
-				<ScrollView
+				<GHScrollView
 					ref={scrollViewRef}
 					className="flex-1"
 					contentInsetAdjustmentBehavior="never"
@@ -372,25 +326,27 @@ export default function ReaderScreen() {
 					scrollEventThrottle={100}
 					showsVerticalScrollIndicator={false}
 				>
-					<Pressable onPress={toggleChrome}>
-						{orderedPages.map((page) => {
-							const ratio = pageRatios[page.url];
-							const imgHeight = ratio ? Math.round(imageWidth * ratio) : Math.round(imageWidth * 1.5);
-							return (
-								<Image
-									key={page.url}
-									source={{ uri: page.url, headers: page.headers }}
-									style={{
-										width: imageWidth,
-										height: imgHeight,
-										marginHorizontal: paddingH,
-									}}
-									resizeMode="cover"
-									onLoad={handleImageLoad(page.url)}
-								/>
-							);
-						})}
-					</Pressable>
+					{orderedPages.map((page) => {
+						const ratio = pageRatios[page.url];
+						const imgHeight = ratio ? Math.round(imageWidth * ratio) : Math.round(imageWidth * 1.5);
+						return (
+							<ZoomableImage
+								key={page.url}
+								source={{ uri: page.url, headers: page.headers }}
+								containerWidth={imageWidth}
+								containerHeight={imgHeight}
+								imageAspectRatio={ratio ? 1 / ratio : 1 / 1.5}
+								mode="webtoon"
+								enabled={pinchToZoomEnabled}
+								pageKey={page.url}
+								zoomStatesRef={zoomStatesRef}
+								resizeMode="cover"
+								onImageLoad={handleImageLoad(page.url)}
+								onSingleTap={() => toggleChrome()}
+								style={{ marginHorizontal: paddingH }}
+							/>
+						);
+					})}
 
 					<View className="items-center py-8" style={{ paddingHorizontal: 20 }}>
 						<Text className="text-preset-1 font-body mb-4" style={{ color: themeColors.muted }}>
@@ -417,7 +373,7 @@ export default function ReaderScreen() {
 							)}
 						</View>
 					</View>
-				</ScrollView>
+				</GHScrollView>
 			)}
 
 			<TopChromeOverlay

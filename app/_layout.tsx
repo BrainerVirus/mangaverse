@@ -5,6 +5,7 @@ import { VariableContextProvider } from 'nativewind';
 import { Stack } from 'expo-router/stack';
 import { useEffect, useMemo } from 'react';
 import { useColorScheme, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AUTO_INSTALL_MANGADEX } from '@lib/constants';
@@ -81,27 +82,29 @@ export default function Layout() {
 	}, [setLoading, setSession]);
 	return (
 		<VariableContextProvider value={themeVars}>
-			<View className="bg-background flex-1">
-				<SafeAreaProvider>
-					<Stack screenOptions={{ contentStyle: { backgroundColor: 'transparent' } }}>
-						<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-						<Stack.Screen name="search" options={{ headerShown: false }} />
-						<Stack.Screen name="discover/[sectionId]" options={{ headerShown: false }} />
-						<Stack.Screen name="manga/[id]" options={{ headerShown: false }} />
-						<Stack.Screen name="reader/[chapterId]" options={{ headerShown: false }} />
-						<Stack.Screen name="extensions/install" options={{ title: 'Install Extension' }} />
-						<Stack.Screen name="settings/extensions" options={{ title: 'Extensions' }} />
-						<Stack.Screen name="settings/appearance" options={{ title: 'Appearance' }} />
-						<Stack.Screen name="settings/reader" options={{ title: 'Reader' }} />
-						<Stack.Screen name="settings/content" options={{ title: 'Content' }} />
-						<Stack.Screen name="settings/security" options={{ title: 'Security' }} />
-						<Stack.Screen name="settings/backup" options={{ title: 'Backup & Restore' }} />
-						<Stack.Screen name="settings/account" options={{ title: 'Account' }} />
-						<Stack.Screen name="settings/auth-help" options={{ title: 'Auth Setup' }} />
-						<Stack.Screen name="auth/callback" options={{ headerShown: false }} />
-					</Stack>
-				</SafeAreaProvider>
-			</View>
+			<GestureHandlerRootView style={{ flex: 1 }}>
+				<View className="bg-background flex-1">
+					<SafeAreaProvider>
+						<Stack screenOptions={{ contentStyle: { backgroundColor: 'transparent' } }}>
+							<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+							<Stack.Screen name="search" options={{ headerShown: false }} />
+							<Stack.Screen name="discover/[sectionId]" options={{ headerShown: false }} />
+							<Stack.Screen name="manga/[id]" options={{ headerShown: false }} />
+							<Stack.Screen name="reader/[chapterId]" options={{ headerShown: false }} />
+							<Stack.Screen name="extensions/install" options={{ title: 'Install Extension' }} />
+							<Stack.Screen name="settings/extensions" options={{ title: 'Extensions' }} />
+							<Stack.Screen name="settings/appearance" options={{ title: 'Appearance' }} />
+							<Stack.Screen name="settings/reader" options={{ title: 'Reader' }} />
+							<Stack.Screen name="settings/content" options={{ title: 'Content' }} />
+							<Stack.Screen name="settings/security" options={{ title: 'Security' }} />
+							<Stack.Screen name="settings/backup" options={{ title: 'Backup & Restore' }} />
+							<Stack.Screen name="settings/account" options={{ title: 'Account' }} />
+							<Stack.Screen name="settings/auth-help" options={{ title: 'Auth Setup' }} />
+							<Stack.Screen name="auth/callback" options={{ headerShown: false }} />
+						</Stack>
+					</SafeAreaProvider>
+				</View>
+			</GestureHandlerRootView>
 		</VariableContextProvider>
 	);
 }
