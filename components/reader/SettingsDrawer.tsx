@@ -41,6 +41,7 @@ export function SettingsDrawer({ visible, onClose }: { visible: boolean; onClose
 	const chevronButtonLocation = useSettingsStore((s) => s.chevronButtonLocation);
 	const settingsButtonLocation = useSettingsStore((s) => s.settingsButtonLocation);
 	const pillarboxAmount = useSettingsStore((s) => s.pillarboxAmount);
+	const pinchToZoomEnabled = useSettingsStore((s) => s.pinchToZoomEnabled);
 	const setReaderMode = useSettingsStore((s) => s.setReaderMode);
 	const setLockRotation = useSettingsStore((s) => s.setLockRotation);
 	const setTapNavigationEnabled = useSettingsStore((s) => s.setTapNavigationEnabled);
@@ -51,6 +52,7 @@ export function SettingsDrawer({ visible, onClose }: { visible: boolean; onClose
 	const setChevronButtonLocation = useSettingsStore((s) => s.setChevronButtonLocation);
 	const setSettingsButtonLocation = useSettingsStore((s) => s.setSettingsButtonLocation);
 	const setPillarboxAmount = useSettingsStore((s) => s.setPillarboxAmount);
+	const setPinchToZoomEnabled = useSettingsStore((s) => s.setPinchToZoomEnabled);
 
 	const isVertical = readerMode === 'webtoon';
 
@@ -398,6 +400,8 @@ export function SettingsDrawer({ visible, onClose }: { visible: boolean; onClose
 						<ToggleRow label="Lock Rotation" value={lockRotation} onToggle={setLockRotation} trackColors={trackColors} />
 						<View className="bg-border/20 h-px" />
 						<ToggleRow label="Enable Tap Navigation" value={tapNavigationEnabled} onToggle={setTapNavigationEnabled} trackColors={trackColors} />
+						<View className="bg-border/20 h-px" />
+						<ToggleRow label="Pinch to Zoom" value={pinchToZoomEnabled} onToggle={setPinchToZoomEnabled} trackColors={trackColors} />
 						<View className="bg-border/20 h-px" />
 						<ToggleRow label="Enable Page Saving" value={enablePageSaving} onToggle={setEnablePageSaving} trackColors={trackColors} />
 						<View className="bg-border/20 h-px" />

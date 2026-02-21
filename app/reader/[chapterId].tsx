@@ -26,7 +26,7 @@ export default function ReaderScreen() {
 	const chapterId = params.chapterId;
 	const providerId = params.provider ?? '';
 	const router = useRouter();
-	const { width: screenWidth } = useWindowDimensions();
+	const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 	const insets = useSafeAreaInsets();
 	const themeColors = useThemeColors();
 
@@ -43,6 +43,7 @@ export default function ReaderScreen() {
 	const pillarboxAmount = useSettingsStore((s) => s.pillarboxAmount);
 	const chevronButtonLocation = useSettingsStore((s) => s.chevronButtonLocation);
 	const settingsButtonLocation = useSettingsStore((s) => s.settingsButtonLocation);
+	const pinchToZoomEnabled = useSettingsStore((s) => s.pinchToZoomEnabled);
 	const setReaderMode = useSettingsStore((s) => s.setReaderMode);
 	const setLockRotation = useSettingsStore((s) => s.setLockRotation);
 	const addHistory = useHistoryStore((s) => s.addEntry);
@@ -67,6 +68,7 @@ export default function ReaderScreen() {
 	const [tapWidth, setTapWidth] = useState(0);
 	const [swipeStartX, setSwipeStartX] = useState<number | null>(null);
 	const scrollViewRef = useRef<ScrollView>(null);
+	const zoomScrollRef = useRef<ScrollView>(null);
 
 	// Chrome
 	const { chromeVisible, setChromeVisible, chromeOpacity, toggleChrome } = useReaderChrome({
@@ -134,6 +136,7 @@ export default function ReaderScreen() {
 		const next = Math.max(currentIndex - 1, 0);
 		setCurrentIndex(next);
 		if (!isPaged) scrollToPage(next);
+		else zoomScrollRef.current?.scrollTo({ x: 0, y: 0, animated: false });
 	}, [totalPages, currentIndex, isPaged, scrollToPage]);
 
 	const handleNext = useCallback(() => {
@@ -141,6 +144,7 @@ export default function ReaderScreen() {
 		const next = Math.min(currentIndex + 1, totalPages - 1);
 		setCurrentIndex(next);
 		if (!isPaged) scrollToPage(next);
+		else zoomScrollRef.current?.scrollTo({ x: 0, y: 0, animated: false });
 	}, [totalPages, currentIndex, isPaged, scrollToPage]);
 
 	const handleTapZone = useCallback(
@@ -285,34 +289,80 @@ export default function ReaderScreen() {
 					</Text>
 				</View>
 			) : isPaged ? (
-				<Pressable
-					className="flex-1"
-					onLayout={(e) => setTapWidth(e.nativeEvent.layout.width)}
-					onPress={(e) => handleTapZone(e.nativeEvent.locationX)}
-					onTouchStart={(e) => {
-						if (!swipeEnabled) return;
-						setSwipeStartX(e.nativeEvent.pageX);
-					}}
-					onTouchEnd={(e) => {
-						if (!swipeEnabled || swipeStartX === null) return;
-						const delta = e.nativeEvent.pageX - swipeStartX;
-						if (Math.abs(delta) > 40) {
-							const dir = delta < 0 ? 'left' : 'right';
-							if (dir === 'left') {
-								if (isRtl) handlePrev();
-								else handleNext();
-							} else {
-								if (isRtl) handleNext();
-								else handlePrev();
-							}
-						}
-						setSwipeStartX(null);
-					}}
-				>
-					{currentPage ? (
-						<Image source={{ uri: currentPage.url, headers: currentPage.headers }} className="h-full w-full" resizeMode="contain" />
-					) : null}
-				</Pressable>
+				<View className="flex-1" onLayout={(e) => setTapWidth(e.nativeEvent.layout.width)}>
+					{pinchToZoomEnabled ? (
+						<ScrollView
+							ref={zoomScrollRef}
+							className="flex-1"
+							maximumZoomScale={3}
+							minimumZoomScale={1}
+							showsHorizontalScrollIndicator={false}
+							showsVerticalScrollIndicator={false}
+							bouncesZoom
+							centerContent
+						>
+							<Pressable
+								style={{ width: screenWidth, height: screenHeight }}
+								onPress={(e) => handleTapZone(e.nativeEvent.locationX)}
+								onTouchStart={(e) => {
+									if (!swipeEnabled) return;
+									setSwipeStartX(e.nativeEvent.pageX);
+								}}
+								onTouchEnd={(e) => {
+									if (!swipeEnabled || swipeStartX === null) return;
+									const delta = e.nativeEvent.pageX - swipeStartX;
+									if (Math.abs(delta) > 40) {
+										const dir = delta < 0 ? 'left' : 'right';
+										if (dir === 'left') {
+											if (isRtl) handlePrev();
+											else handleNext();
+										} else {
+											if (isRtl) handleNext();
+											else handlePrev();
+										}
+									}
+									setSwipeStartX(null);
+								}}
+							>
+								{currentPage ? (
+									<Image
+										source={{ uri: currentPage.url, headers: currentPage.headers }}
+										style={{ width: screenWidth, height: screenHeight }}
+										resizeMode="contain"
+									/>
+								) : null}
+							</Pressable>
+						</ScrollView>
+					) : (
+						<Pressable
+							className="flex-1"
+							onPress={(e) => handleTapZone(e.nativeEvent.locationX)}
+							onTouchStart={(e) => {
+								if (!swipeEnabled) return;
+								setSwipeStartX(e.nativeEvent.pageX);
+							}}
+							onTouchEnd={(e) => {
+								if (!swipeEnabled || swipeStartX === null) return;
+								const delta = e.nativeEvent.pageX - swipeStartX;
+								if (Math.abs(delta) > 40) {
+									const dir = delta < 0 ? 'left' : 'right';
+									if (dir === 'left') {
+										if (isRtl) handlePrev();
+										else handleNext();
+									} else {
+										if (isRtl) handleNext();
+										else handlePrev();
+									}
+								}
+								setSwipeStartX(null);
+							}}
+						>
+							{currentPage ? (
+								<Image source={{ uri: currentPage.url, headers: currentPage.headers }} className="h-full w-full" resizeMode="contain" />
+							) : null}
+						</Pressable>
+					)}
+				</View>
 			) : (
 				<ScrollView
 					ref={scrollViewRef}

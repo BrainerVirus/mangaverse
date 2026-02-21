@@ -3,6 +3,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { Animated, Pressable, Text, View } from 'react-native';
 
+const BTN_BG = 'rgba(255,255,255,0.2)';
+
 interface BottomChromeOverlayProps {
 	chromeOpacity: Animated.Value;
 	chromeVisible: boolean;
@@ -38,18 +40,34 @@ export function BottomChromeOverlay({
 }: BottomChromeOverlayProps) {
 	const modeRotation = (
 		<React.Fragment key="mode-rotation">
-			<Pressable onPress={onToggleReaderMode} hitSlop={8}>
-				<Ionicons name={isPaged ? 'swap-vertical' : 'book-outline'} size={22} color="#fff" />
+			<Pressable
+				onPress={onToggleReaderMode}
+				className="h-9 w-9 items-center justify-center rounded-full"
+				style={{ backgroundColor: BTN_BG }}
+				hitSlop={4}
+			>
+				<Ionicons name={isPaged ? 'swap-vertical' : 'book-outline'} size={18} color="#fff" />
 			</Pressable>
-			<Pressable onPress={onToggleRotation} hitSlop={8}>
-				<Ionicons name={lockRotation ? 'lock-closed' : 'lock-open-outline'} size={22} color={lockRotation ? themeColors.primary : '#fff'} />
+			<Pressable
+				onPress={onToggleRotation}
+				className="h-9 w-9 items-center justify-center rounded-full"
+				style={{ backgroundColor: lockRotation ? themeColors.primary : BTN_BG }}
+				hitSlop={4}
+			>
+				<Ionicons name={lockRotation ? 'lock-closed' : 'lock-open-outline'} size={18} color="#fff" />
 			</Pressable>
 		</React.Fragment>
 	);
 
 	const settingsButton = (
-		<Pressable key="settings" onPress={onOpenSettings} hitSlop={8}>
-			<Ionicons name="settings-sharp" size={22} color="#fff" />
+		<Pressable
+			key="settings"
+			onPress={onOpenSettings}
+			className="h-9 w-9 items-center justify-center rounded-full"
+			style={{ backgroundColor: BTN_BG }}
+			hitSlop={4}
+		>
+			<Ionicons name="settings-sharp" size={18} color="#fff" />
 		</Pressable>
 	);
 
@@ -95,8 +113,8 @@ export function BottomChromeOverlay({
 				style={{ paddingBottom: Math.max(insets.bottom, 12) + 8, paddingTop: 32, paddingHorizontal: 16 }}
 			>
 				<View className="flex-row items-center justify-between">
-					<View className="flex-row items-center gap-4">{leftItems}</View>
-					<View className="flex-row items-center gap-4">{rightItems}</View>
+					<View className="flex-row items-center gap-5">{leftItems}</View>
+					<View className="flex-row items-center gap-5">{rightItems}</View>
 				</View>
 			</LinearGradient>
 		</Animated.View>

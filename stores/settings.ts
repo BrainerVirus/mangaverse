@@ -30,6 +30,7 @@ interface SettingsState {
 	chevronButtonLocation: ButtonLocation;
 	settingsButtonLocation: ButtonLocation;
 	pillarboxAmount: number;
+	pinchToZoomEnabled: boolean;
 	setTheme: (theme: ThemeOption) => void;
 	setReaderMode: (mode: ReaderMode) => void;
 	setReaderDirection: (direction: ReaderDirection) => void;
@@ -48,6 +49,7 @@ interface SettingsState {
 	setChevronButtonLocation: (loc: ButtonLocation) => void;
 	setSettingsButtonLocation: (loc: ButtonLocation) => void;
 	setPillarboxAmount: (amount: number) => void;
+	setPinchToZoomEnabled: (enabled: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -72,6 +74,7 @@ export const useSettingsStore = create<SettingsState>()(
 			chevronButtonLocation: 'right',
 			settingsButtonLocation: 'right',
 			pillarboxAmount: 0,
+			pinchToZoomEnabled: true,
 			setTheme: (theme) => set({ theme }),
 			setReaderMode: (mode) => set({ readerMode: mode }),
 			setReaderDirection: (direction) => set({ readerDirection: direction }),
@@ -90,6 +93,7 @@ export const useSettingsStore = create<SettingsState>()(
 			setChevronButtonLocation: (loc) => set({ chevronButtonLocation: loc }),
 			setSettingsButtonLocation: (loc) => set({ settingsButtonLocation: loc }),
 			setPillarboxAmount: (amount) => set({ pillarboxAmount: amount }),
+			setPinchToZoomEnabled: (enabled) => set({ pinchToZoomEnabled: enabled }),
 		}),
 		{
 			name: 'mangaverse-settings',
@@ -113,6 +117,7 @@ export const useSettingsStore = create<SettingsState>()(
 				chevronButtonLocation: state.chevronButtonLocation,
 				settingsButtonLocation: state.settingsButtonLocation,
 				pillarboxAmount: state.pillarboxAmount,
+				pinchToZoomEnabled: state.pinchToZoomEnabled,
 			}),
 			storage: {
 				getItem: async (name) => {
