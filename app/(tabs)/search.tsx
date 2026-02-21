@@ -23,7 +23,7 @@ import { useThemeColors } from '@lib/themes/vars';
 import { useExtensionsStore } from '@stores/extensions';
 import { useSearchStore } from '@stores/search';
 
-import type { ProviderMangaItem } from '../types/provider';
+import type { ProviderMangaItem } from '../../types/provider';
 
 export default function Search() {
 	const [query, setQuery] = useState('');
@@ -237,7 +237,6 @@ export default function Search() {
 							onChangeText={setQuery}
 							onSubmitEditing={handleSubmit}
 							returnKeyType="search"
-							autoFocus
 						/>
 						{query.length > 0 && (
 							<Pressable onPress={() => setQuery('')} hitSlop={8}>

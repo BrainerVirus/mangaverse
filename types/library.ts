@@ -9,6 +9,7 @@ export interface LibraryManga {
 export interface HistoryEntry {
 	id: string;
 	title: string;
+	coverUrl?: string;
 	chapter: string;
 	page: number;
 	readAt: number;

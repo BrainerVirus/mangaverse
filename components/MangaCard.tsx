@@ -13,6 +13,8 @@ interface MangaCardProps {
 	inLibrary?: boolean;
 	showMeta?: boolean;
 	focused?: boolean;
+	unreadCount?: number;
+	titleLines?: number;
 }
 
 const languageToFlag: Record<string, string> = {
@@ -41,8 +43,19 @@ const formatLanguage = (value?: string) => {
 	return normalized.slice(0, 2).toUpperCase();
 };
 
-export function MangaCard({ title, coverUrl, subtitle, lastChapter, language, inLibrary, showMeta = true, focused = false }: MangaCardProps) {
-	const { primary } = useThemeColors();
+export function MangaCard({
+	title,
+	coverUrl,
+	subtitle,
+	lastChapter,
+	language,
+	inLibrary,
+	showMeta = true,
+	focused = false,
+	unreadCount,
+	titleLines = 1,
+}: MangaCardProps) {
+	const { primary, error: errorColor } = useThemeColors();
 	const scale = useRef(new Animated.Value(1)).current;
 	const languageLabel = formatLanguage(language);
 	const chapterLabel = lastChapter !== undefined && lastChapter !== null && String(lastChapter).length > 0 ? `Ch. ${lastChapter}` : undefined;
@@ -85,7 +98,7 @@ export function MangaCard({ title, coverUrl, subtitle, lastChapter, language, in
 						)}
 					</View>
 
-					{inLibrary && (
+					{inLibrary && !unreadCount && (
 						<View
 							className="bg-primary rounded-badge absolute -top-2 -right-2 h-7 w-7 items-center justify-center shadow-sm"
 							style={{ elevation: 3 }}
@@ -93,9 +106,20 @@ export function MangaCard({ title, coverUrl, subtitle, lastChapter, language, in
 							<Text className="text-preset-1 font-body text-primary-foreground">★</Text>
 						</View>
 					)}
+
+					{unreadCount !== undefined && unreadCount > 0 && (
+						<View
+							className="rounded-badge absolute -top-1 -right-1 min-w-7 items-center justify-center px-1.5 py-0.5 shadow-sm"
+							style={{ backgroundColor: errorColor, elevation: 4 }}
+						>
+							<Text className="text-center font-semibold text-white" style={{ fontSize: 12, lineHeight: 16 }}>
+								{unreadCount}
+							</Text>
+						</View>
+					)}
 				</View>
 
-				<Text className="text-foreground text-preset-2 font-heading mt-1.5 font-semibold" numberOfLines={1}>
+				<Text className="text-foreground text-preset-2 font-heading mt-1.5 font-semibold" numberOfLines={titleLines}>
 					{title}
 				</Text>
 

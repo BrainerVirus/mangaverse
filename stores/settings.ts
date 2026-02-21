@@ -3,14 +3,17 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 export type ThemeOption = 'Modern' | 'Cyberpunk' | 'Noir' | 'Sakura' | 'Forest' | 'Sunset' | 'Ocean' | 'Desert' | 'Lavender' | 'Slate';
-type ReaderMode = 'rtl' | 'ltr' | 'vertical' | 'webtoon' | 'double';
+export type ReaderMode = 'webtoon' | 'paged';
+export type ReaderDirection = 'ltr' | 'rtl';
 type TapZonePreset = 'balanced' | 'wide-center' | 'classic';
 type ReaderFitMode = 'contain' | 'cover' | 'width';
-type ReaderBackground = 'ink' | 'graphite' | 'parchment';
+type ChapterBackground = 'theme' | 'black' | 'white';
+type ButtonLocation = 'left' | 'right';
 
 interface SettingsState {
 	theme: ThemeOption;
 	readerMode: ReaderMode;
+	readerDirection: ReaderDirection;
 	prefetchCount: number;
 	explicitContent: boolean;
 	showProviderErrors: boolean;
@@ -19,10 +22,17 @@ interface SettingsState {
 	tapNavigationEnabled: boolean;
 	autoHideChrome: boolean;
 	fitMode: ReaderFitMode;
-	background: ReaderBackground;
 	lockRotation: boolean;
+	pagePadding: boolean;
+	downsamplePages: boolean;
+	enablePageSaving: boolean;
+	chapterBackground: ChapterBackground;
+	chevronButtonLocation: ButtonLocation;
+	settingsButtonLocation: ButtonLocation;
+	pillarboxAmount: number;
 	setTheme: (theme: ThemeOption) => void;
 	setReaderMode: (mode: ReaderMode) => void;
+	setReaderDirection: (direction: ReaderDirection) => void;
 	setExplicitContent: (enabled: boolean) => void;
 	setShowProviderErrors: (enabled: boolean) => void;
 	setTapZonePreset: (preset: TapZonePreset) => void;
@@ -30,8 +40,14 @@ interface SettingsState {
 	setTapNavigationEnabled: (enabled: boolean) => void;
 	setAutoHideChrome: (enabled: boolean) => void;
 	setFitMode: (mode: ReaderFitMode) => void;
-	setBackground: (background: ReaderBackground) => void;
 	setLockRotation: (enabled: boolean) => void;
+	setPagePadding: (enabled: boolean) => void;
+	setDownsamplePages: (enabled: boolean) => void;
+	setEnablePageSaving: (enabled: boolean) => void;
+	setChapterBackground: (bg: ChapterBackground) => void;
+	setChevronButtonLocation: (loc: ButtonLocation) => void;
+	setSettingsButtonLocation: (loc: ButtonLocation) => void;
+	setPillarboxAmount: (amount: number) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -39,6 +55,7 @@ export const useSettingsStore = create<SettingsState>()(
 		(set) => ({
 			theme: 'Modern',
 			readerMode: 'webtoon',
+			readerDirection: 'rtl',
 			prefetchCount: 6,
 			explicitContent: false,
 			showProviderErrors: true,
@@ -47,10 +64,17 @@ export const useSettingsStore = create<SettingsState>()(
 			tapNavigationEnabled: true,
 			autoHideChrome: true,
 			fitMode: 'contain',
-			background: 'ink',
 			lockRotation: false,
+			pagePadding: false,
+			downsamplePages: false,
+			enablePageSaving: true,
+			chapterBackground: 'theme',
+			chevronButtonLocation: 'right',
+			settingsButtonLocation: 'right',
+			pillarboxAmount: 0,
 			setTheme: (theme) => set({ theme }),
 			setReaderMode: (mode) => set({ readerMode: mode }),
+			setReaderDirection: (direction) => set({ readerDirection: direction }),
 			setExplicitContent: (enabled) => set({ explicitContent: enabled }),
 			setShowProviderErrors: (enabled) => set({ showProviderErrors: enabled }),
 			setTapZonePreset: (preset) => set({ tapZonePreset: preset }),
@@ -58,14 +82,21 @@ export const useSettingsStore = create<SettingsState>()(
 			setTapNavigationEnabled: (enabled) => set({ tapNavigationEnabled: enabled }),
 			setAutoHideChrome: (enabled) => set({ autoHideChrome: enabled }),
 			setFitMode: (mode) => set({ fitMode: mode }),
-			setBackground: (background) => set({ background }),
 			setLockRotation: (enabled) => set({ lockRotation: enabled }),
+			setPagePadding: (enabled) => set({ pagePadding: enabled }),
+			setDownsamplePages: (enabled) => set({ downsamplePages: enabled }),
+			setEnablePageSaving: (enabled) => set({ enablePageSaving: enabled }),
+			setChapterBackground: (bg) => set({ chapterBackground: bg }),
+			setChevronButtonLocation: (loc) => set({ chevronButtonLocation: loc }),
+			setSettingsButtonLocation: (loc) => set({ settingsButtonLocation: loc }),
+			setPillarboxAmount: (amount) => set({ pillarboxAmount: amount }),
 		}),
 		{
 			name: 'mangaverse-settings',
 			partialize: (state) => ({
 				theme: state.theme,
 				readerMode: state.readerMode,
+				readerDirection: state.readerDirection,
 				prefetchCount: state.prefetchCount,
 				explicitContent: state.explicitContent,
 				showProviderErrors: state.showProviderErrors,
@@ -74,8 +105,14 @@ export const useSettingsStore = create<SettingsState>()(
 				tapNavigationEnabled: state.tapNavigationEnabled,
 				autoHideChrome: state.autoHideChrome,
 				fitMode: state.fitMode,
-				background: state.background,
 				lockRotation: state.lockRotation,
+				pagePadding: state.pagePadding,
+				downsamplePages: state.downsamplePages,
+				enablePageSaving: state.enablePageSaving,
+				chapterBackground: state.chapterBackground,
+				chevronButtonLocation: state.chevronButtonLocation,
+				settingsButtonLocation: state.settingsButtonLocation,
+				pillarboxAmount: state.pillarboxAmount,
 			}),
 			storage: {
 				getItem: async (name) => {

@@ -1,16 +1,397 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Link, useLocalSearchParams } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Image, PanResponder, Pressable, ScrollView, Switch, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useThemeColors } from '@lib/themes/vars';
 import { useExtensionsStore } from '@stores/extensions';
 import { useHistoryStore } from '@stores/history';
 import { useSettingsStore } from '@stores/settings';
-import type { ProviderPage } from '../../types/provider';
+import type { ProviderChapter, ProviderPage } from '../../types/provider';
 
+/* ─── Settings Drawer ─── */
+const DRAWER_COLLAPSED = 0.55; // 55% of screen height
+const DRAWER_FULL = 1.0; // 100% of screen height
+const DISMISS_THRESHOLD = 100; // px to drag down before dismissing
+const SNAP_VELOCITY = 0.5; // velocity threshold for snap
+
+function SettingsDrawer({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+	const themeColors = useThemeColors();
+	const { height: screenHeight } = useWindowDimensions();
+	const insets = useSafeAreaInsets();
+
+	const readerMode = useSettingsStore((s) => s.readerMode);
+	const readerDirection = useSettingsStore((s) => s.readerDirection);
+	const lockRotation = useSettingsStore((s) => s.lockRotation);
+	const tapNavigationEnabled = useSettingsStore((s) => s.tapNavigationEnabled);
+	const pagePadding = useSettingsStore((s) => s.pagePadding);
+	const downsamplePages = useSettingsStore((s) => s.downsamplePages);
+	const enablePageSaving = useSettingsStore((s) => s.enablePageSaving);
+	const chapterBackground = useSettingsStore((s) => s.chapterBackground);
+	const chevronButtonLocation = useSettingsStore((s) => s.chevronButtonLocation);
+	const settingsButtonLocation = useSettingsStore((s) => s.settingsButtonLocation);
+	const pillarboxAmount = useSettingsStore((s) => s.pillarboxAmount);
+	const setReaderMode = useSettingsStore((s) => s.setReaderMode);
+	const setReaderDirection = useSettingsStore((s) => s.setReaderDirection);
+	const setLockRotation = useSettingsStore((s) => s.setLockRotation);
+	const setTapNavigationEnabled = useSettingsStore((s) => s.setTapNavigationEnabled);
+	const setPagePadding = useSettingsStore((s) => s.setPagePadding);
+	const setDownsamplePages = useSettingsStore((s) => s.setDownsamplePages);
+	const setEnablePageSaving = useSettingsStore((s) => s.setEnablePageSaving);
+	const setChapterBackground = useSettingsStore((s) => s.setChapterBackground);
+	const setChevronButtonLocation = useSettingsStore((s) => s.setChevronButtonLocation);
+	const setSettingsButtonLocation = useSettingsStore((s) => s.setSettingsButtonLocation);
+	const setPillarboxAmount = useSettingsStore((s) => s.setPillarboxAmount);
+
+	const isVertical = readerMode === 'webtoon';
+
+	// Animation values
+	const collapsedHeight = screenHeight * DRAWER_COLLAPSED;
+	const fullHeight = screenHeight * DRAWER_FULL;
+	const translateY = useRef(new Animated.Value(screenHeight)).current;
+	const backdropOpacity = useRef(new Animated.Value(0)).current;
+	const [isExpanded, setIsExpanded] = useState(false);
+	const [mounted, setMounted] = useState(false);
+	const scrollRef = useRef<ScrollView>(null);
+
+	// Keep refs in sync for PanResponder closure
+	const isExpandedRef = useRef(isExpanded);
+	const screenHeightRef = useRef(screenHeight);
+	const collapsedHeightRef = useRef(collapsedHeight);
+	const fullHeightRef = useRef(fullHeight);
+	isExpandedRef.current = isExpanded;
+	screenHeightRef.current = screenHeight;
+	collapsedHeightRef.current = collapsedHeight;
+	fullHeightRef.current = fullHeight;
+
+	// Slide in when visible becomes true, slide out when false
+	useEffect(() => {
+		if (visible) {
+			setMounted(true);
+			setIsExpanded(false);
+			isExpandedRef.current = false;
+			translateY.setValue(screenHeight);
+			Animated.parallel([
+				Animated.spring(translateY, {
+					toValue: screenHeight - collapsedHeight,
+					useNativeDriver: true,
+					damping: 25,
+					stiffness: 200,
+				}),
+				Animated.timing(backdropOpacity, {
+					toValue: 1,
+					duration: 250,
+					useNativeDriver: true,
+				}),
+			]).start();
+		} else if (mounted) {
+			Animated.parallel([
+				Animated.spring(translateY, {
+					toValue: screenHeight,
+					useNativeDriver: true,
+					damping: 25,
+					stiffness: 200,
+				}),
+				Animated.timing(backdropOpacity, {
+					toValue: 0,
+					duration: 200,
+					useNativeDriver: true,
+				}),
+			]).start(() => setMounted(false));
+		}
+	}, [visible, screenHeight, collapsedHeight, translateY, backdropOpacity, mounted]);
+
+	const dismissRef = useRef(() => {});
+	dismissRef.current = () => {
+		Animated.parallel([
+			Animated.spring(translateY, {
+				toValue: screenHeight,
+				useNativeDriver: true,
+				damping: 25,
+				stiffness: 200,
+			}),
+			Animated.timing(backdropOpacity, {
+				toValue: 0,
+				duration: 200,
+				useNativeDriver: true,
+			}),
+		]).start(() => {
+			setMounted(false);
+			onClose();
+		});
+	};
+
+	const dismiss = useCallback(() => dismissRef.current(), []);
+
+	const panResponder = useRef(
+		PanResponder.create({
+			onStartShouldSetPanResponder: () => true,
+			onMoveShouldSetPanResponder: (_, gestureState) => {
+				return Math.abs(gestureState.dy) > 5 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+			},
+			onPanResponderMove: (_, gestureState) => {
+				const sh = screenHeightRef.current;
+				const ch = collapsedHeightRef.current;
+				const fh = fullHeightRef.current;
+				const expanded = isExpandedRef.current;
+				const currentTarget = expanded ? sh - fh : sh - ch;
+				const newY = currentTarget + gestureState.dy;
+				const minY = sh - fh;
+				const clampedY = Math.max(minY, newY);
+				translateY.setValue(clampedY);
+
+				const progress = 1 - Math.max(0, (clampedY - minY) / sh);
+				backdropOpacity.setValue(Math.min(1, progress + 0.3));
+			},
+			onPanResponderRelease: (_, gestureState) => {
+				const sh = screenHeightRef.current;
+				const ch = collapsedHeightRef.current;
+				const fh = fullHeightRef.current;
+				const expanded = isExpandedRef.current;
+				const currentTarget = expanded ? sh - fh : sh - ch;
+				const currentY = currentTarget + gestureState.dy;
+				const vy = gestureState.vy;
+
+				// Fast swipe down → dismiss or collapse
+				if (vy > SNAP_VELOCITY) {
+					if (expanded) {
+						setIsExpanded(false);
+						isExpandedRef.current = false;
+						Animated.spring(translateY, { toValue: sh - ch, useNativeDriver: true, damping: 25, stiffness: 200 }).start();
+						Animated.timing(backdropOpacity, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+					} else {
+						dismissRef.current();
+					}
+					return;
+				}
+
+				// Fast swipe up → expand
+				if (vy < -SNAP_VELOCITY) {
+					setIsExpanded(true);
+					isExpandedRef.current = true;
+					Animated.spring(translateY, { toValue: sh - fh, useNativeDriver: true, damping: 25, stiffness: 200 }).start();
+					Animated.timing(backdropOpacity, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+					return;
+				}
+
+				// Slow drag — snap based on position
+				const distFromDismiss = currentY - (sh - ch);
+				if (distFromDismiss > DISMISS_THRESHOLD) {
+					dismissRef.current();
+					return;
+				}
+
+				const midpoint = sh - (ch + fh) / 2;
+				if (currentY < midpoint) {
+					setIsExpanded(true);
+					isExpandedRef.current = true;
+					Animated.spring(translateY, { toValue: sh - fh, useNativeDriver: true, damping: 25, stiffness: 200 }).start();
+				} else {
+					setIsExpanded(false);
+					isExpandedRef.current = false;
+					Animated.spring(translateY, { toValue: sh - ch, useNativeDriver: true, damping: 25, stiffness: 200 }).start();
+				}
+				Animated.timing(backdropOpacity, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+			},
+		}),
+	).current;
+
+	const ToggleRow = ({ label, value, onToggle }: { label: string; value: boolean; onToggle: (v: boolean) => void }) => (
+		<View className="flex-row items-center justify-between py-3">
+			<Text className="text-preset-2 font-body text-foreground">{label}</Text>
+			<Switch value={value} onValueChange={onToggle} trackColor={{ false: themeColors.border, true: themeColors.primary }} thumbColor="#fff" />
+		</View>
+	);
+
+	const SegmentOption = ({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) => (
+		<Pressable onPress={onPress} className={`flex-1 items-center rounded-lg py-2.5 ${active ? 'bg-primary' : ''}`}>
+			<Text className={`text-preset-2 font-heading font-semibold ${active ? 'text-primary-foreground' : 'text-muted'}`}>{label}</Text>
+		</Pressable>
+	);
+
+	const DropdownRow = ({
+		label,
+		value,
+		options,
+		onSelect,
+	}: {
+		label: string;
+		value: string;
+		options: { id: string; label: string }[];
+		onSelect: (id: string) => void;
+	}) => {
+		const [open, setOpen] = useState(false);
+		const current = options.find((o) => o.id === value);
+		return (
+			<View className="py-3">
+				<Pressable className="flex-row items-center justify-between" onPress={() => setOpen(!open)}>
+					<Text className="text-preset-2 font-body text-foreground">{label}</Text>
+					<View className="flex-row items-center gap-1">
+						<Text className="text-preset-1 font-body text-muted">{current?.label ?? value}</Text>
+						<Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={14} color={themeColors.muted} />
+					</View>
+				</Pressable>
+				{open && (
+					<View className="bg-card/80 mt-2 overflow-hidden rounded-xl">
+						{options.map((opt) => (
+							<Pressable
+								key={opt.id}
+								className={`px-4 py-2.5 ${opt.id === value ? 'bg-primary/15' : ''}`}
+								onPress={() => {
+									onSelect(opt.id);
+									setOpen(false);
+								}}
+							>
+								<Text className={`text-preset-2 font-body ${opt.id === value ? 'text-primary font-semibold' : 'text-foreground'}`}>{opt.label}</Text>
+							</Pressable>
+						))}
+					</View>
+				)}
+			</View>
+		);
+	};
+
+	if (!mounted) return null;
+
+	return (
+		<View className="absolute inset-0" style={{ zIndex: 30 }} pointerEvents="box-none">
+			{/* Backdrop */}
+			<Animated.View className="absolute inset-0" style={{ opacity: backdropOpacity }}>
+				<Pressable className="flex-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={dismiss} />
+			</Animated.View>
+
+			{/* Drawer */}
+			<Animated.View
+				className="bg-background absolute right-0 bottom-0 left-0 rounded-t-3xl"
+				style={{
+					height: fullHeight,
+					transform: [{ translateY }],
+					paddingBottom: insets.bottom,
+				}}
+			>
+				{/* Drag Handle Area */}
+				<View {...panResponder.panHandlers} className="items-center pt-3 pb-2">
+					<View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: themeColors.border }} />
+				</View>
+
+				{/* Content */}
+				<ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} bounces={true} className="flex-1 px-5">
+					{/* Header */}
+					<View className="mb-4 flex-row items-center justify-between">
+						<Text className="text-preset-4 font-heading text-foreground font-semibold">Reader Settings</Text>
+						<Pressable onPress={dismiss}>
+							<Text className="text-preset-2 font-heading text-primary font-semibold">Done</Text>
+						</Pressable>
+					</View>
+
+					{/* Reader Type */}
+					<Text className="text-preset-1 text-muted-foreground mb-2 tracking-widest uppercase">Reader Type</Text>
+					<View className="bg-card/60 mb-6 flex-row overflow-hidden rounded-xl p-1">
+						<SegmentOption label="Vertical" active={isVertical} onPress={() => setReaderMode('webtoon')} />
+						<SegmentOption label="Horizontal" active={!isVertical} onPress={() => setReaderMode('paged')} />
+					</View>
+
+					{/* Vertical Reader Settings */}
+					{isVertical && (
+						<>
+							<Text className="text-preset-1 text-muted-foreground mb-2 tracking-widest uppercase">Vertical Reader Settings</Text>
+							<View className="bg-card/60 mb-6 rounded-xl px-4">
+								{/* Pillarbox */}
+								<View className="flex-row items-center justify-between py-3">
+									<Text className="text-preset-2 font-body text-foreground">Pillarbox Amount</Text>
+									<View className="flex-row items-center gap-3">
+										<Pressable
+											onPress={() => setPillarboxAmount(Math.max(0, pillarboxAmount - 1))}
+											className="bg-card h-8 w-8 items-center justify-center rounded-lg"
+										>
+											<Ionicons name="remove" size={16} color={themeColors.foreground} />
+										</Pressable>
+										<Text className="text-preset-2 font-body text-foreground w-6 text-center">{pillarboxAmount}</Text>
+										<Pressable
+											onPress={() => setPillarboxAmount(pillarboxAmount + 1)}
+											className="bg-card h-8 w-8 items-center justify-center rounded-lg"
+										>
+											<Ionicons name="add" size={16} color={themeColors.foreground} />
+										</Pressable>
+									</View>
+								</View>
+							</View>
+						</>
+					)}
+
+					{/* General Settings */}
+					<Text className="text-preset-1 text-muted-foreground mb-2 tracking-widest uppercase">General Settings</Text>
+					<View className="bg-card/60 mb-6 rounded-xl px-4">
+						<DropdownRow
+							label="Reader Direction"
+							value={readerDirection}
+							options={[
+								{ id: 'rtl', label: 'Right to Left (Manga)' },
+								{ id: 'ltr', label: 'Left to Right (Comic)' },
+							]}
+							onSelect={(id) => setReaderDirection(id as 'ltr' | 'rtl')}
+						/>
+						<View className="bg-border/20 h-px" />
+						<ToggleRow label="Downsample Pages" value={downsamplePages} onToggle={setDownsamplePages} />
+						<View className="bg-border/20 h-px" />
+						<ToggleRow label="Page Padding" value={pagePadding} onToggle={setPagePadding} />
+						<View className="bg-border/20 h-px" />
+						<ToggleRow label="Lock Rotation" value={lockRotation} onToggle={setLockRotation} />
+						<View className="bg-border/20 h-px" />
+						<ToggleRow label="Enable Tap Navigation" value={tapNavigationEnabled} onToggle={setTapNavigationEnabled} />
+						<View className="bg-border/20 h-px" />
+						<ToggleRow label="Enable Page Saving" value={enablePageSaving} onToggle={setEnablePageSaving} />
+						<View className="bg-border/20 h-px" />
+						<DropdownRow
+							label="Chapter Background"
+							value={chapterBackground}
+							options={[
+								{ id: 'theme', label: 'Theme' },
+								{ id: 'black', label: 'Black' },
+								{ id: 'white', label: 'White' },
+							]}
+							onSelect={(id) => setChapterBackground(id as 'theme' | 'black' | 'white')}
+						/>
+					</View>
+
+					{/* Action Buttons Settings */}
+					<Text className="text-preset-1 text-muted-foreground mb-2 tracking-widest uppercase">Action Buttons Settings</Text>
+					<View className="bg-card/60 mb-6 rounded-xl px-4">
+						<DropdownRow
+							label="Chevron Button Location"
+							value={chevronButtonLocation}
+							options={[
+								{ id: 'right', label: 'Right' },
+								{ id: 'left', label: 'Left' },
+							]}
+							onSelect={(id) => setChevronButtonLocation(id as 'left' | 'right')}
+						/>
+						<View className="bg-border/20 h-px" />
+						<DropdownRow
+							label="Settings Button Location"
+							value={settingsButtonLocation}
+							options={[
+								{ id: 'right', label: 'Right' },
+								{ id: 'left', label: 'Left' },
+							]}
+							onSelect={(id) => setSettingsButtonLocation(id as 'left' | 'right')}
+						/>
+					</View>
+
+					{/* Apply Globally */}
+					<Pressable className="bg-primary mb-8 items-center rounded-xl py-3.5">
+						<Text className="text-primary-foreground text-preset-2 font-heading font-semibold">Apply Globally</Text>
+					</Pressable>
+				</ScrollView>
+			</Animated.View>
+		</View>
+	);
+}
+
+/* ─── Main Reader ─── */
 export default function ReaderScreen() {
 	const params = useLocalSearchParams<{
 		chapterId: string;
@@ -20,154 +401,163 @@ export default function ReaderScreen() {
 		mangaId?: string;
 	}>();
 	const chapterId = params.chapterId;
-	const provider = params.provider;
-	const providers = useExtensionsStore((state) => state.providers);
-	const readerMode = useSettingsStore((state) => state.readerMode);
-	const tapZonePreset = useSettingsStore((state) => state.tapZonePreset);
-	const swipeEnabled = useSettingsStore((state) => state.swipeEnabled);
-	const tapNavigationEnabled = useSettingsStore((state) => state.tapNavigationEnabled);
-	const autoHideChrome = useSettingsStore((state) => state.autoHideChrome);
-	const fitMode = useSettingsStore((state) => state.fitMode);
-	const background = useSettingsStore((state) => state.background);
-	const lockRotation = useSettingsStore((state) => state.lockRotation);
-	const setReaderMode = useSettingsStore((state) => state.setReaderMode);
-	const setFitMode = useSettingsStore((state) => state.setFitMode);
-	const setBackground = useSettingsStore((state) => state.setBackground);
-	const setSwipeEnabled = useSettingsStore((state) => state.setSwipeEnabled);
-	const setTapNavigationEnabled = useSettingsStore((state) => state.setTapNavigationEnabled);
-	const setAutoHideChrome = useSettingsStore((state) => state.setAutoHideChrome);
-	const setLockRotation = useSettingsStore((state) => state.setLockRotation);
+	const providerId = params.provider ?? '';
+	const router = useRouter();
+	const { width: screenWidth } = useWindowDimensions();
+	const insets = useSafeAreaInsets();
+	const themeColors = useThemeColors();
+
+	// Stores
+	const providers = useExtensionsStore((s) => s.providers);
+	const readerMode = useSettingsStore((s) => s.readerMode);
+	const readerDirection = useSettingsStore((s) => s.readerDirection);
+	const tapZonePreset = useSettingsStore((s) => s.tapZonePreset);
+	const swipeEnabled = useSettingsStore((s) => s.swipeEnabled);
+	const tapNavigationEnabled = useSettingsStore((s) => s.tapNavigationEnabled);
+	const autoHideChrome = useSettingsStore((s) => s.autoHideChrome);
+	const lockRotation = useSettingsStore((s) => s.lockRotation);
+	const chapterBackground = useSettingsStore((s) => s.chapterBackground);
+	const pagePadding = useSettingsStore((s) => s.pagePadding);
+	const setReaderDirection = useSettingsStore((s) => s.setReaderDirection);
+	const setLockRotation = useSettingsStore((s) => s.setLockRotation);
+	const addHistory = useHistoryStore((s) => s.addEntry);
+
+	// State
 	const [pages, setPages] = useState<ProviderPage[]>([]);
+	const [chapters, setChapters] = useState<ProviderChapter[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
-	const [chromeVisible, setChromeVisible] = useState(true);
+	const [chromeVisible, setChromeVisible] = useState(false);
+	const [showSettings, setShowSettings] = useState(false);
 	const [currentIndex, setCurrentIndex] = useState(0);
+	const [pageRatios, setPageRatios] = useState<Record<string, number>>({});
 	const [tapWidth, setTapWidth] = useState(0);
 	const [swipeStartX, setSwipeStartX] = useState<number | null>(null);
-	const [showSettings, setShowSettings] = useState(false);
-	const [contentWidth, setContentWidth] = useState(0);
-	const [pageRatios, setPageRatios] = useState<Record<string, number>>({});
+
 	const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-	const providerId = provider ?? '';
-	const addHistory = useHistoryStore((state) => state.addEntry);
-	const themeColors = useThemeColors();
-	const iconColor = themeColors.foreground;
-	const pageSequence = useMemo(() => {
-		if (readerMode === 'rtl') {
-			return [...pages].reverse();
-		}
+	const scrollViewRef = useRef<ScrollView>(null);
+	const chromeOpacity = useRef(new Animated.Value(0)).current;
+
+	const isPaged = readerMode === 'paged';
+	const isRtl = readerDirection === 'rtl';
+
+	// Pages in display order (reversed for RTL in paged mode)
+	const orderedPages = useMemo(() => {
+		if (isPaged && isRtl) return [...pages].reverse();
 		return pages;
-	}, [pages, readerMode]);
-	const isDoubleMode = readerMode === 'double';
-	const spreadSequence = useMemo(() => {
-		if (!isDoubleMode) {
-			return [] as ProviderPage[][];
-		}
-		const spreads: ProviderPage[][] = [];
-		for (let index = 0; index < pageSequence.length; index += 2) {
-			spreads.push(pageSequence.slice(index, index + 2));
-		}
-		return spreads;
-	}, [isDoubleMode, pageSequence]);
-	const totalPages = isDoubleMode ? spreadSequence.length : pageSequence.length;
+	}, [pages, isPaged, isRtl]);
+
+	const totalPages = orderedPages.length;
 	const clampedIndex = Math.min(currentIndex, Math.max(totalPages - 1, 0));
-	const currentPage = pageSequence[clampedIndex];
-	const currentSpread = isDoubleMode ? spreadSequence[clampedIndex] : undefined;
-	const isPagedMode = readerMode === 'ltr' || readerMode === 'rtl' || readerMode === 'double';
-	const pageLabel = isDoubleMode
-		? `${Math.min(clampedIndex * 2 + 1, pageSequence.length)}-${Math.min(clampedIndex * 2 + 2, pageSequence.length)}/${pageSequence.length}`
-		: `${clampedIndex + 1}/${totalPages || 0}`;
-	const pageDisplay = pageLabel.includes('/') ? pageLabel.replace('/', ' of ') : pageLabel;
-	const insets = useSafeAreaInsets();
+	const currentPage = orderedPages[clampedIndex];
+
+	// Chapter navigation
+	const currentChapterIdx = useMemo(() => chapters.findIndex((c) => c.id === chapterId), [chapters, chapterId]);
+	const nextChapter = currentChapterIdx > 0 ? chapters[currentChapterIdx - 1] : null;
+	const prevChapter = currentChapterIdx < chapters.length - 1 ? chapters[currentChapterIdx + 1] : null;
+
+	// Background color
+	const bgStyle = useMemo(() => {
+		if (chapterBackground === 'black') return { backgroundColor: '#000' };
+		if (chapterBackground === 'white') return { backgroundColor: '#fff' };
+		return { backgroundColor: themeColors.background };
+	}, [chapterBackground, themeColors.background]);
+
+	// Tap zones
 	const tapZones = useMemo(() => {
 		switch (tapZonePreset) {
 			case 'wide-center':
-				return { left: 0.2, center: 0.6, right: 0.2 };
+				return { left: 0.2, right: 0.2 };
 			case 'classic':
-				return { left: 0.3, center: 0.4, right: 0.3 };
+				return { left: 0.3, right: 0.3 };
 			default:
-				return { left: 0.33, center: 0.34, right: 0.33 };
+				return { left: 0.33, right: 0.33 };
 		}
 	}, [tapZonePreset]);
-	const fitModeValue = fitMode === 'cover' ? 'cover' : fitMode === 'width' ? 'cover' : 'contain';
-	const backgroundClassName = background === 'graphite' ? 'bg-card' : background === 'parchment' ? 'bg-chip' : 'bg-background';
-	const orderedPages = pageSequence;
 
-	const handlePrev = () => {
-		if (totalPages === 0) {
-			return;
-		}
-		setCurrentIndex((index) => Math.max(index - 1, 0));
-	};
+	const readerTitle = typeof params.mangaTitle === 'string' && params.mangaTitle.length > 0 ? params.mangaTitle : 'Reader';
+	const readerSubtitle =
+		typeof params.chapterTitle === 'string' && params.chapterTitle.length > 0 ? params.chapterTitle : `Chapter ${chapterId ?? ''}`;
+	const infoMangaId = typeof params.mangaId === 'string' ? params.mangaId : '';
+	const pageDisplay = `${clampedIndex + 1} of ${totalPages || 0}`;
 
-	const handleNext = () => {
-		if (totalPages === 0) {
-			return;
-		}
-		setCurrentIndex((index) => Math.min(index + 1, totalPages - 1));
-	};
+	/* ─── Navigation ─── */
+	const scrollToPage = useCallback(
+		(pageIdx: number) => {
+			if (!scrollViewRef.current || isPaged) return;
+			let y = 0;
+			for (let i = 0; i < pageIdx; i++) {
+				const ratio = pageRatios[orderedPages[i]?.url] || 1.5;
+				y += Math.round((screenWidth - (pagePadding ? 32 : 0)) * ratio);
+			}
+			scrollViewRef.current.scrollTo({ y, animated: true });
+		},
+		[isPaged, pageRatios, orderedPages, screenWidth, pagePadding],
+	);
 
-	const handleTapZone = (x: number) => {
-		if (!isPagedMode) {
-			if (!showSettings) {
-				setChromeVisible((value) => !value);
-			}
-			return;
-		}
-		if (!tapNavigationEnabled) {
-			if (!showSettings) {
-				setChromeVisible((value) => !value);
-			}
-			return;
-		}
-		const width = tapWidth || 1;
-		const leftEdge = width * tapZones.left;
-		const rightEdge = width * (1 - tapZones.right);
-		const isRtl = readerMode === 'rtl';
-		if (x < leftEdge) {
-			if (isRtl) {
-				handleNext();
-			} else {
-				handlePrev();
-			}
-			return;
-		}
-		if (x > rightEdge) {
-			if (isRtl) {
-				handlePrev();
-			} else {
-				handleNext();
-			}
-			return;
-		}
-		if (!showSettings) {
-			setChromeVisible((value) => !value);
-		}
-	};
+	const handlePrev = useCallback(() => {
+		if (totalPages === 0) return;
+		const next = Math.max(currentIndex - 1, 0);
+		setCurrentIndex(next);
+		if (!isPaged) scrollToPage(next);
+	}, [totalPages, currentIndex, isPaged, scrollToPage]);
 
-	const handleSwipe = (direction: 'left' | 'right') => {
-		if (!swipeEnabled || !isPagedMode) {
-			return;
-		}
-		const isRtl = readerMode === 'rtl';
-		if (direction === 'left') {
-			if (isRtl) {
-				handleNext();
-			} else {
-				handlePrev();
-			}
-			return;
-		}
-		if (direction === 'right') {
-			if (isRtl) {
-				handlePrev();
-			} else {
-				handleNext();
-			}
-			return;
-		}
-	};
+	const handleNext = useCallback(() => {
+		if (totalPages === 0) return;
+		const next = Math.min(currentIndex + 1, totalPages - 1);
+		setCurrentIndex(next);
+		if (!isPaged) scrollToPage(next);
+	}, [totalPages, currentIndex, isPaged, scrollToPage]);
 
+	const toggleChrome = useCallback(() => {
+		if (showSettings) return;
+		setChromeVisible((v) => !v);
+	}, [showSettings]);
+
+	const handleTapZone = useCallback(
+		(x: number) => {
+			if (!isPaged) {
+				toggleChrome();
+				return;
+			}
+			if (!tapNavigationEnabled) {
+				toggleChrome();
+				return;
+			}
+			const w = tapWidth || 1;
+			const leftEdge = w * tapZones.left;
+			const rightEdge = w * (1 - tapZones.right);
+			if (x < leftEdge) {
+				isRtl ? handleNext() : handlePrev();
+				return;
+			}
+			if (x > rightEdge) {
+				isRtl ? handlePrev() : handleNext();
+				return;
+			}
+			toggleChrome();
+		},
+		[isPaged, tapNavigationEnabled, tapWidth, tapZones, isRtl, handleNext, handlePrev, toggleChrome],
+	);
+
+	const navigateToChapter = useCallback(
+		(chapter: ProviderChapter) => {
+			router.replace({
+				pathname: '/reader/[chapterId]',
+				params: {
+					chapterId: chapter.id,
+					provider: providerId,
+					mangaId: infoMangaId,
+					chapterTitle: chapter.title,
+					mangaTitle: params.mangaTitle ?? '',
+				},
+			});
+		},
+		[router, providerId, infoMangaId, params.mangaTitle],
+	);
+
+	/* ─── Effects ─── */
+	// Load pages and chapter list
 	useEffect(() => {
 		const providerInstance = providers[providerId];
 		if (!providerInstance || !chapterId) {
@@ -177,46 +567,58 @@ export default function ReaderScreen() {
 		}
 		setLoading(true);
 		setError(null);
-		providerInstance
-			.getChapterPages(chapterId)
-			.then((data) => {
-				setPages(data);
-				setCurrentIndex(0);
-				setPageRatios({});
-			})
-			.catch((err) => setError(err instanceof Error ? err.message : 'Failed to load'))
-			.finally(() => setLoading(false));
-	}, [chapterId, providerId, providers]);
+		setCurrentIndex(0);
+		setPageRatios({});
+		setChromeVisible(false);
 
+		const mangaId = typeof params.mangaId === 'string' ? params.mangaId : '';
+
+		Promise.all([
+			providerInstance.getChapterPages(chapterId).catch((err) => {
+				setError(err instanceof Error ? err.message : 'Failed to load');
+				return [] as ProviderPage[];
+			}),
+			mangaId ? providerInstance.getChapterList(mangaId).catch(() => [] as ProviderChapter[]) : Promise.resolve([] as ProviderChapter[]),
+		]).then(([pageData, chapterData]) => {
+			setPages(pageData);
+			setChapters(chapterData);
+			setLoading(false);
+		});
+	}, [chapterId, providerId, providers, params.mangaId]);
+
+	// History tracking
 	useEffect(() => {
-		if (!currentPage || !chapterId || totalPages === 0) {
-			return;
-		}
+		if (!currentPage || !chapterId || totalPages === 0) return;
 		addHistory({
-			id: `${providerId}-${chapterId}-${clampedIndex}`,
+			id: `${providerId}-${infoMangaId || chapterId}`,
 			title: typeof params.mangaTitle === 'string' && params.mangaTitle.length > 0 ? params.mangaTitle : `Chapter ${chapterId}`,
 			chapter: typeof params.chapterTitle === 'string' && params.chapterTitle.length > 0 ? params.chapterTitle : chapterId,
 			page: clampedIndex + 1,
 			readAt: Date.now(),
 			readAtLabel: 'Just now',
 		});
-	}, [addHistory, chapterId, clampedIndex, currentPage, params.chapterTitle, params.mangaTitle, providerId, totalPages]);
+	}, [addHistory, chapterId, clampedIndex, currentPage, params.chapterTitle, params.mangaTitle, providerId, totalPages, infoMangaId]);
 
+	// Chrome auto-hide
 	useEffect(() => {
-		if (!autoHideChrome || !chromeVisible || showSettings) {
-			return;
-		}
-		if (hideTimerRef.current) {
-			clearTimeout(hideTimerRef.current);
-		}
+		if (!autoHideChrome || !chromeVisible || showSettings) return;
+		if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
 		hideTimerRef.current = setTimeout(() => setChromeVisible(false), 3000);
 		return () => {
-			if (hideTimerRef.current) {
-				clearTimeout(hideTimerRef.current);
-			}
+			if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
 		};
 	}, [autoHideChrome, chromeVisible, clampedIndex, showSettings]);
 
+	// Animate chrome
+	useEffect(() => {
+		Animated.timing(chromeOpacity, {
+			toValue: chromeVisible ? 1 : 0,
+			duration: 200,
+			useNativeDriver: true,
+		}).start();
+	}, [chromeVisible, chromeOpacity]);
+
+	// Screen orientation lock
 	useEffect(() => {
 		if (!lockRotation) {
 			ScreenOrientation.unlockAsync().catch(() => {});
@@ -228,51 +630,194 @@ export default function ReaderScreen() {
 		};
 	}, [lockRotation]);
 
-	const handleSettingsToggle = () => {
-		setShowSettings((value) => !value);
-		setChromeVisible(true);
-	};
-
+	// Image aspect ratio tracking
 	const handleImageLoad = (url: string) => (event: { nativeEvent: { source?: { width?: number; height?: number } } }) => {
-		const width = event.nativeEvent.source?.width;
-		const height = event.nativeEvent.source?.height;
-		if (!width || !height) {
-			return;
-		}
-		const ratio = height / width;
+		const w = event.nativeEvent.source?.width;
+		const h = event.nativeEvent.source?.height;
+		if (!w || !h) return;
 		setPageRatios((current) => {
-			if (current[url]) {
-				return current;
-			}
-			return { ...current, [url]: ratio };
+			if (current[url]) return current;
+			return { ...current, [url]: h / w };
 		});
 	};
 
-	const readerTitle = typeof params.mangaTitle === 'string' && params.mangaTitle.length > 0 ? params.mangaTitle : 'Reader';
-	const readerSubtitle =
-		typeof params.chapterTitle === 'string' && params.chapterTitle.length > 0 ? params.chapterTitle : `Chapter ${chapterId ?? ''}`;
-	const infoMangaId = typeof params.mangaId === 'string' ? params.mangaId : '';
+	// Vertical scroll page tracking
+	const handleVerticalScroll = useCallback(
+		(event: { nativeEvent: { contentOffset: { y: number }; layoutMeasurement: { height: number }; contentSize: { height: number } } }) => {
+			const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+			const scrollY = contentOffset.y;
+
+			// Track which page is currently visible
+			let accHeight = 0;
+			for (let i = 0; i < orderedPages.length; i++) {
+				const ratio = pageRatios[orderedPages[i].url] || 1.5;
+				const imgHeight = screenWidth * ratio;
+				accHeight += imgHeight;
+				if (accHeight > scrollY + layoutMeasurement.height / 2) {
+					if (i !== currentIndex) setCurrentIndex(i);
+					break;
+				}
+			}
+		},
+		[orderedPages, pageRatios, screenWidth, currentIndex],
+	);
+
+	/* ─── Render ─── */
+	const paddingH = pagePadding ? 16 : 0;
+	const imageWidth = screenWidth - paddingH * 2;
 
 	return (
-		<View className={`flex-1 ${backgroundClassName}`}>
-			<View className="flex-1">
-				{chromeVisible ? (
-					<View className="px-5" style={{ paddingTop: 24 + insets.top }}>
-						<View className="bg-card rounded-control px-4 py-3">
-							<View className="flex-row items-center justify-between">
-								<View className="flex-1 pr-4">
-									<Text className="text-preset-2 font-heading text-foreground font-semibold" numberOfLines={1}>
-										{readerTitle}
+		<View className="flex-1" style={bgStyle}>
+			{/* ─── Page Content ─── */}
+			{loading ? (
+				<View className="flex-1 items-center justify-center">
+					<ActivityIndicator size="large" color={themeColors.primary} />
+					<Text className="text-preset-1 font-body mt-3" style={{ color: themeColors.muted }}>
+						Loading pages…
+					</Text>
+				</View>
+			) : error ? (
+				<View className="flex-1 items-center justify-center px-8">
+					<Ionicons name="alert-circle-outline" size={48} color={themeColors.warning} />
+					<Text className="text-preset-3 font-heading mt-4 text-center font-semibold" style={{ color: themeColors.foreground }}>
+						Unable to load
+					</Text>
+					<Text className="text-preset-2 font-body mt-2 text-center" style={{ color: themeColors.muted }}>
+						{error}
+					</Text>
+					<Pressable onPress={() => router.back()} className="bg-primary mt-6 rounded-xl px-6 py-3">
+						<Text className="text-primary-foreground text-preset-2 font-heading font-semibold">Go Back</Text>
+					</Pressable>
+				</View>
+			) : pages.length === 0 ? (
+				<View className="flex-1 items-center justify-center px-8">
+					<Ionicons name="document-outline" size={48} color={themeColors.muted} />
+					<Text className="text-preset-3 font-heading mt-4 font-semibold" style={{ color: themeColors.foreground }}>
+						No pages
+					</Text>
+					<Text className="text-preset-2 font-body mt-2 text-center" style={{ color: themeColors.muted }}>
+						This chapter has no pages available.
+					</Text>
+				</View>
+			) : isPaged ? (
+				/* ─── Horizontal Paged Mode ─── */
+				<Pressable
+					className="flex-1"
+					onLayout={(e) => setTapWidth(e.nativeEvent.layout.width)}
+					onPress={(e) => handleTapZone(e.nativeEvent.locationX)}
+					onTouchStart={(e) => {
+						if (!swipeEnabled) return;
+						setSwipeStartX(e.nativeEvent.pageX);
+					}}
+					onTouchEnd={(e) => {
+						if (!swipeEnabled || swipeStartX === null) return;
+						const delta = e.nativeEvent.pageX - swipeStartX;
+						if (Math.abs(delta) > 40) {
+							const dir = delta < 0 ? 'left' : 'right';
+							if (dir === 'left') {
+								isRtl ? handlePrev() : handleNext();
+							} else {
+								isRtl ? handleNext() : handlePrev();
+							}
+						}
+						setSwipeStartX(null);
+					}}
+				>
+					{currentPage ? (
+						<Image source={{ uri: currentPage.url, headers: currentPage.headers }} className="h-full w-full" resizeMode="contain" />
+					) : null}
+				</Pressable>
+			) : (
+				/* ─── Vertical Webtoon Mode ─── */
+				<ScrollView
+					ref={scrollViewRef}
+					className="flex-1"
+					contentInsetAdjustmentBehavior="never"
+					onScroll={handleVerticalScroll}
+					scrollEventThrottle={100}
+					showsVerticalScrollIndicator={false}
+				>
+					<Pressable onPress={toggleChrome}>
+						{orderedPages.map((page) => {
+							const ratio = pageRatios[page.url];
+							const imgHeight = ratio ? Math.round(imageWidth * ratio) : Math.round(imageWidth * 1.5);
+							return (
+								<Image
+									key={page.url}
+									source={{ uri: page.url, headers: page.headers }}
+									style={{
+										width: imageWidth,
+										height: imgHeight,
+										marginHorizontal: paddingH,
+									}}
+									resizeMode="cover"
+									onLoad={handleImageLoad(page.url)}
+								/>
+							);
+						})}
+					</Pressable>
+
+					{/* Chapter Navigation at bottom */}
+					<View className="items-center py-8" style={{ paddingHorizontal: 20 }}>
+						<Text className="text-preset-1 font-body mb-4" style={{ color: themeColors.muted }}>
+							End of {readerSubtitle}
+						</Text>
+						<View className="w-full flex-row gap-3">
+							{prevChapter && (
+								<Pressable onPress={() => navigateToChapter(prevChapter)} className="border-border/40 flex-1 items-center rounded-xl border py-3">
+									<Text className="text-preset-1 font-body" style={{ color: themeColors.muted }}>
+										Previous
 									</Text>
-									<Text className="text-preset-1 font-body text-muted" numberOfLines={1}>
-										{readerSubtitle}
+									<Text className="text-preset-2 font-heading mt-0.5 font-semibold" style={{ color: themeColors.foreground }} numberOfLines={1}>
+										{prevChapter.title}
 									</Text>
-								</View>
-								<Pressable onPress={() => setChromeVisible(false)} className="bg-chip rounded-badge h-9 w-9 items-center justify-center">
-									<Ionicons name="close" size={18} color={iconColor} />
 								</Pressable>
-							</View>
+							)}
+							{nextChapter && (
+								<Pressable onPress={() => navigateToChapter(nextChapter)} className="bg-primary flex-1 items-center rounded-xl py-3">
+									<Text className="text-preset-1 font-body text-primary-foreground">Next</Text>
+									<Text className="text-preset-2 font-heading text-primary-foreground mt-0.5 font-semibold" numberOfLines={1}>
+										{nextChapter.title}
+									</Text>
+								</Pressable>
+							)}
 						</View>
+					</View>
+				</ScrollView>
+			)}
+
+			{/* ─── Top Chrome Overlay ─── */}
+			<Animated.View
+				className="absolute top-0 right-0 left-0"
+				style={{ opacity: chromeOpacity, zIndex: chromeVisible ? 20 : -1 }}
+				pointerEvents={chromeVisible ? 'auto' : 'none'}
+			>
+				<LinearGradient
+					colors={['rgba(0,0,0,0.92)', 'rgba(0,0,0,0)']}
+					style={{ paddingTop: insets.top + 8, paddingBottom: 32, paddingHorizontal: 16 }}
+				>
+					{/* Title row */}
+					<View className="flex-row items-center">
+						<View className="flex-1 pr-3">
+							<Text className="text-preset-2 font-heading font-semibold" style={{ color: '#fff' }} numberOfLines={1}>
+								{readerTitle}
+							</Text>
+							<Text className="text-preset-1 font-body mt-0.5" style={{ color: 'rgba(255,255,255,0.7)' }} numberOfLines={1}>
+								{readerSubtitle}
+							</Text>
+						</View>
+						<Pressable
+							onPress={() => router.back()}
+							className="h-9 w-9 items-center justify-center rounded-full"
+							style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+							hitSlop={8}
+						>
+							<Ionicons name="close" size={20} color="#fff" />
+						</Pressable>
+					</View>
+
+					{/* Info button */}
+					{infoMangaId ? (
 						<View className="mt-3">
 							<Link
 								href={{
@@ -282,279 +827,67 @@ export default function ReaderScreen() {
 								asChild
 							>
 								<Pressable
-									onPress={() => {
-										if (!infoMangaId) {
-											return;
-										}
-										setChromeVisible(false);
-									}}
-									className={`bg-chip rounded-badge h-10 w-10 items-center justify-center ${infoMangaId ? '' : 'opacity-40'}`}
+									className="h-10 w-10 items-center justify-center rounded-full"
+									style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+									hitSlop={8}
 								>
-									<Ionicons name="information" size={18} color={iconColor} />
+									<Ionicons name="information" size={20} color="#fff" />
 								</Pressable>
 							</Link>
 						</View>
-					</View>
-				) : null}
-				{loading ? (
-					<View className="border-border/30 bg-card/70 rounded-box items-center justify-center border p-6">
-						<ActivityIndicator color={themeColors.accent} />
-						<Text className="text-preset-1 font-body text-muted mt-3">Loading pages…</Text>
-					</View>
-				) : error ? (
-					<View className="border-warning/40 bg-warning/10 rounded-box border p-6">
-						<Text className="text-preset-2 font-heading text-warning font-semibold">Unable to load</Text>
-						<Text className="text-preset-1 font-body text-warning mt-2">{error}</Text>
-					</View>
-				) : pages.length === 0 ? (
-					<View className="border-border/30 bg-card/70 rounded-box border p-6">
-						<Text className="text-preset-2 font-heading text-foreground font-semibold">No pages yet</Text>
-						<Text className="text-preset-1 font-body text-muted mt-2">This chapter has no pages available.</Text>
-					</View>
-				) : isPagedMode ? (
-					<View className="flex-1">
-						<Pressable
-							className="flex-1"
-							onLayout={(event) => setTapWidth(event.nativeEvent.layout.width)}
-							onPress={(event) => handleTapZone(event.nativeEvent.locationX)}
-							onTouchStart={(event) => {
-								if (!swipeEnabled) {
-									return;
-								}
-								setSwipeStartX(event.nativeEvent.pageX);
-							}}
-							onTouchEnd={(event) => {
-								if (!swipeEnabled || swipeStartX === null) {
-									return;
-								}
-								const delta = event.nativeEvent.pageX - swipeStartX;
-								if (Math.abs(delta) > 40) {
-									handleSwipe(delta < 0 ? 'left' : 'right');
-								}
-								setSwipeStartX(null);
-							}}
-							onTouchMove={() => {
-								if (chromeVisible) {
-									setChromeVisible(false);
-								}
-							}}
-						>
-							{isDoubleMode ? (
-								<View className="h-full w-full flex-row">
-									{currentSpread?.map((page, index) => (
-										<Image
-											key={`${page.url}-${index}`}
-											source={{ uri: page.url, headers: page.headers }}
-											className="h-full flex-1"
-											resizeMode={fitModeValue}
-										/>
-									))}
-								</View>
-							) : currentPage ? (
-								<Image source={{ uri: currentPage.url, headers: currentPage.headers }} className="h-full w-full" resizeMode={fitModeValue} />
-							) : null}
-						</Pressable>
-					</View>
-				) : (
-					<ScrollView
-						className="flex-1 px-5"
-						contentInsetAdjustmentBehavior="automatic"
-						onLayout={(event) => setContentWidth(event.nativeEvent.layout.width)}
-						onScrollBeginDrag={() => setChromeVisible(false)}
-						scrollEventThrottle={16}
-					>
-						<View className="gap-4 pb-12">
-							{orderedPages.map((page) => (
-								<Pressable
-									key={page.url}
-									onPress={() => {
-										if (!showSettings) {
-											setChromeVisible((value) => !value);
-										}
-									}}
-								>
-									<Image
-										source={{ uri: page.url, headers: page.headers }}
-										className="bg-card rounded-box w-full"
-										style={{
-											height: pageRatios[page.url] && contentWidth ? Math.round(contentWidth * pageRatios[page.url]) : 260,
-										}}
-										resizeMode={fitModeValue}
-										onLoad={handleImageLoad(page.url)}
-									/>
-								</Pressable>
-							))}
-						</View>
-					</ScrollView>
-				)}
-				{chromeVisible && !showSettings ? (
-					<View className="absolute inset-x-0 px-5" style={{ bottom: Math.max(insets.bottom, 10), paddingBottom: 12 }}>
-						<View className="bg-card rounded-box flex-row items-center justify-between px-4 py-3">
+					) : null}
+				</LinearGradient>
+			</Animated.View>
+
+			{/* ─── Bottom Chrome Overlay ─── */}
+			<Animated.View
+				className="absolute right-0 bottom-0 left-0"
+				style={{ opacity: chromeOpacity, zIndex: chromeVisible ? 20 : -1 }}
+				pointerEvents={chromeVisible ? 'auto' : 'none'}
+			>
+				<LinearGradient
+					colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.92)']}
+					style={{ paddingBottom: Math.max(insets.bottom, 12) + 8, paddingTop: 32, paddingHorizontal: 16 }}
+				>
+					<View className="flex-row items-center justify-between">
+						{/* Left actions */}
+						<View className="flex-row items-center gap-4">
+							<Pressable onPress={() => setReaderDirection(isRtl ? 'ltr' : 'rtl')} className="items-center" hitSlop={8}>
+								<Ionicons name={isRtl ? 'arrow-back' : 'arrow-forward'} size={22} color="#fff" />
+								<Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 9, marginTop: 2 }}>{isRtl ? 'RTL' : 'LTR'}</Text>
+							</Pressable>
+							<Pressable onPress={() => setLockRotation(!lockRotation)} hitSlop={8}>
+								<Ionicons name={lockRotation ? 'lock-closed' : 'lock-open-outline'} size={22} color={lockRotation ? themeColors.primary : '#fff'} />
+							</Pressable>
 							<Pressable
 								onPress={() => {
-									setReaderMode(readerMode === 'rtl' ? 'ltr' : 'rtl');
+									setShowSettings(true);
+									setChromeVisible(false);
 								}}
-								className="bg-chip rounded-badge h-11 w-11 items-center justify-center"
+								hitSlop={8}
 							>
-								<Ionicons name="swap-horizontal" size={18} color={iconColor} />
+								<Ionicons name="settings-sharp" size={22} color="#fff" />
 							</Pressable>
-							<Pressable onPress={() => setLockRotation(!lockRotation)} className="bg-chip rounded-badge h-11 w-11 items-center justify-center">
-								<Ionicons name="lock-closed" size={18} color={iconColor} />
+						</View>
+
+						{/* Pagination */}
+						<View className="flex-row items-center gap-3">
+							<Pressable onPress={handlePrev} hitSlop={8}>
+								<Ionicons name="chevron-back" size={22} color="#fff" />
 							</Pressable>
-							<Pressable onPress={handleSettingsToggle} className="bg-chip rounded-badge h-11 w-11 items-center justify-center">
-								<Ionicons name="settings-sharp" size={18} color={iconColor} />
+							<Text className="text-preset-1 font-body" style={{ color: '#fff', minWidth: 60, textAlign: 'center' }}>
+								{pageDisplay}
+							</Text>
+							<Pressable onPress={handleNext} hitSlop={8}>
+								<Ionicons name="chevron-forward" size={22} color="#fff" />
 							</Pressable>
-							<View className="flex-row items-center gap-3">
-								<Pressable onPress={handlePrev} className="bg-chip rounded-badge h-11 w-11 items-center justify-center">
-									<Ionicons name="chevron-back" size={18} color={iconColor} />
-								</Pressable>
-								<Text className="text-preset-1 text-foreground tracking-[0.2em] uppercase">{pageDisplay}</Text>
-								<Pressable onPress={handleNext} className="bg-chip rounded-badge h-11 w-11 items-center justify-center">
-									<Ionicons name="chevron-forward" size={18} color={iconColor} />
-								</Pressable>
-							</View>
 						</View>
 					</View>
-				) : null}
-				{showSettings ? (
-					<View className="bg-foreground/30 absolute inset-0 justify-end">
-						<Pressable className="flex-1" onPress={() => setShowSettings(false)} />
-						<View className="border-border/40 bg-background rounded-t-box border px-5 pt-6 pb-8">
-							<View className="flex-row items-center justify-between">
-								<Text className="text-preset-2 font-heading text-foreground font-semibold">Reader Settings</Text>
-								<Text className="text-preset-2 font-heading text-primary font-semibold" onPress={() => setShowSettings(false)}>
-									Done
-								</Text>
-							</View>
-							<View className="mt-6">
-								<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Reader type</Text>
-								<View className="border-border/40 bg-card rounded-badge mt-3 flex-row overflow-hidden border">
-									<Text
-										className={`text-preset-2 font-heading flex-1 px-4 py-2 text-center font-semibold ${
-											readerMode === 'webtoon' ? 'bg-chip text-foreground' : 'text-muted'
-										}`}
-										onPress={() => setReaderMode('webtoon')}
-									>
-										Vertical
-									</Text>
-									<Text
-										className={`text-preset-2 font-heading flex-1 px-4 py-2 text-center font-semibold ${
-											readerMode === 'ltr' || readerMode === 'rtl' || readerMode === 'double' ? 'bg-chip text-foreground' : 'text-muted'
-										}`}
-										onPress={() => setReaderMode('ltr')}
-									>
-										Horizontal
-									</Text>
-								</View>
-							</View>
-							<View className="mt-6">
-								<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Reader direction</Text>
-								<View className="mt-3 gap-3">
-									{(
-										[
-											{ id: 'ltr', label: 'Left to right' },
-											{ id: 'rtl', label: 'Right to left' },
-											{ id: 'double', label: 'Double page' },
-										] as const
-									).map((mode) => (
-										<Text
-											key={mode.id}
-											className={`text-preset-2 font-heading rounded-control border px-4 py-3 font-semibold ${
-												readerMode === mode.id ? 'border-primary/80 bg-primary/15 text-primary' : 'border-border/30 bg-card/70 text-muted'
-											}`}
-											onPress={() => setReaderMode(mode.id)}
-										>
-											{mode.label}
-										</Text>
-									))}
-								</View>
-							</View>
-							<View className="mt-6">
-								<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Display</Text>
-								<View className="mt-3 gap-3">
-									{(
-										[
-											{ id: 'contain', label: 'Fit screen' },
-											{ id: 'cover', label: 'Fill screen' },
-											{ id: 'width', label: 'Fit width' },
-										] as const
-									).map((mode) => (
-										<Text
-											key={mode.id}
-											className={`text-preset-2 font-heading rounded-control border px-4 py-3 font-semibold ${
-												fitMode === mode.id ? 'border-primary/80 bg-primary/15 text-primary' : 'border-border/30 bg-card/70 text-muted'
-											}`}
-											onPress={() => setFitMode(mode.id)}
-										>
-											{mode.label}
-										</Text>
-									))}
-								</View>
-							</View>
-							<View className="mt-6">
-								<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Background</Text>
-								<View className="mt-3 gap-3">
-									{(
-										[
-											{ id: 'ink', label: 'Ink' },
-											{ id: 'graphite', label: 'Graphite' },
-											{ id: 'parchment', label: 'Parchment' },
-										] as const
-									).map((tone) => (
-										<Text
-											key={tone.id}
-											className={`text-preset-2 font-heading rounded-control border px-4 py-3 font-semibold ${
-												background === tone.id ? 'border-primary/80 bg-primary/15 text-primary' : 'border-border/30 bg-card/70 text-muted'
-											}`}
-											onPress={() => setBackground(tone.id)}
-										>
-											{tone.label}
-										</Text>
-									))}
-								</View>
-							</View>
-							<View className="mt-6 gap-4">
-								<View className="border-border/40 bg-card/80 rounded-box flex-row items-center justify-between border px-4 py-3">
-									<Text className="text-preset-1 font-heading text-foreground font-semibold">Tap navigation</Text>
-									<Pressable
-										onPress={() => setTapNavigationEnabled(!tapNavigationEnabled)}
-										className={`rounded-badge h-6 w-12 ${tapNavigationEnabled ? 'bg-success' : 'bg-border'}`}
-									>
-										<View className={`bg-background rounded-badge h-6 w-6 ${tapNavigationEnabled ? 'ml-6' : 'ml-0'}`} />
-									</Pressable>
-								</View>
-								<View className="border-border/40 bg-card/80 rounded-box flex-row items-center justify-between border px-4 py-3">
-									<Text className="text-preset-1 font-heading text-foreground font-semibold">Auto-hide controls</Text>
-									<Pressable
-										onPress={() => setAutoHideChrome(!autoHideChrome)}
-										className={`rounded-badge h-6 w-12 ${autoHideChrome ? 'bg-success' : 'bg-border'}`}
-									>
-										<View className={`bg-background rounded-badge h-6 w-6 ${autoHideChrome ? 'ml-6' : 'ml-0'}`} />
-									</Pressable>
-								</View>
-								<View className="border-border/40 bg-card/80 rounded-box flex-row items-center justify-between border px-4 py-3">
-									<Text className="text-preset-1 font-heading text-foreground font-semibold">Swipe navigation</Text>
-									<Pressable
-										onPress={() => setSwipeEnabled(!swipeEnabled)}
-										className={`rounded-badge h-6 w-12 ${swipeEnabled ? 'bg-success' : 'bg-border'}`}
-									>
-										<View className={`bg-background rounded-badge h-6 w-6 ${swipeEnabled ? 'ml-6' : 'ml-0'}`} />
-									</Pressable>
-								</View>
-								<View className="border-border/40 bg-card/80 rounded-box flex-row items-center justify-between border px-4 py-3">
-									<Text className="text-preset-1 font-heading text-foreground font-semibold">Lock rotation</Text>
-									<Pressable
-										onPress={() => setLockRotation(!lockRotation)}
-										className={`rounded-badge h-6 w-12 ${lockRotation ? 'bg-success' : 'bg-border'}`}
-									>
-										<View className={`bg-background rounded-badge h-6 w-6 ${lockRotation ? 'ml-6' : 'ml-0'}`} />
-									</Pressable>
-								</View>
-							</View>
-						</View>
-					</View>
-				) : null}
-			</View>
+				</LinearGradient>
+			</Animated.View>
+
+			{/* ─── Settings Drawer ─── */}
+			<SettingsDrawer visible={showSettings} onClose={() => setShowSettings(false)} />
 		</View>
 	);
 }

@@ -85,7 +85,8 @@ export default function Layout() {
 				<SafeAreaProvider>
 					<Stack screenOptions={{ contentStyle: { backgroundColor: 'transparent' } }}>
 						<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-						<Stack.Screen name="search" options={{ presentation: 'modal', title: 'Search' }} />
+						<Stack.Screen name="search" options={{ headerShown: false }} />
+						<Stack.Screen name="discover/[sectionId]" options={{ headerShown: false }} />
 						<Stack.Screen name="manga/[id]" options={{ headerShown: false }} />
 						<Stack.Screen name="reader/[chapterId]" options={{ headerShown: false }} />
 						<Stack.Screen name="extensions/install" options={{ title: 'Install Extension' }} />

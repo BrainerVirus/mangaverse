@@ -1,9 +1,13 @@
-import { Link, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
+import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, FlatList, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MangaCard } from '@components/MangaCard';
 import { useThemeColors } from '@lib/themes/vars';
+import { useFavoritesStore } from '@services/library/favorites';
 import { useExtensionsStore } from '@stores/extensions';
 import type { ProviderMangaItem } from '../../types/provider';
 
@@ -11,8 +15,14 @@ const PAGE_SIZE = 20;
 const GENRE_RESULTS_PAGE_SIZE = 24;
 
 export default function DiscoverSection() {
-	const params = useLocalSearchParams<{ sectionId: string; provider?: string; title?: string }>();
+	const params = useLocalSearchParams<{
+		sectionId: string;
+		provider?: string;
+		title?: string;
+	}>();
+	const router = useRouter();
 	const providers = useExtensionsStore((state) => state.providers);
+	const favoriteStore = useFavoritesStore();
 	const sectionId = params.sectionId;
 	const providerId = params.provider ?? '';
 	const [items, setItems] = useState<ProviderMangaItem[]>([]);
@@ -21,13 +31,15 @@ export default function DiscoverSection() {
 	const [loadingMore, setLoadingMore] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [hasMore, setHasMore] = useState(true);
-	const [genreItems, setGenreItems] = useState<ProviderMangaItem[]>([]);
 	const themeColors = useThemeColors();
 	const { width } = useWindowDimensions();
+	const insets = useSafeAreaInsets();
 	const columnCount = 3;
-	const horizontalPadding = 20;
-	const columnGap = 12;
+	const horizontalPadding = 16;
+	const columnGap = 10;
 	const itemWidth = Math.floor((width - horizontalPadding * 2 - columnGap * (columnCount - 1)) / columnCount);
+	const headerHeight = 44 + insets.top;
+
 	const title = useMemo(() => {
 		if (typeof params.title === 'string' && params.title.length > 0) {
 			return params.title;
@@ -48,7 +60,6 @@ export default function DiscoverSection() {
 				const sliceStart = (nextPage - 1) * PAGE_SIZE;
 				const sliceEnd = sliceStart + PAGE_SIZE;
 				const data = allGenres.slice(sliceStart, sliceEnd);
-				setGenreItems(allGenres);
 				setItems((current) => (nextPage === 1 ? data : [...current, ...data]));
 				setHasMore(sliceEnd < allGenres.length);
 				setPage(nextPage);
@@ -123,75 +134,97 @@ export default function DiscoverSection() {
 		<View className="bg-background flex-1">
 			<FlatList
 				className="flex-1"
-				contentInsetAdjustmentBehavior="automatic"
-				contentContainerStyle={{ paddingHorizontal: horizontalPadding, paddingBottom: 24 }}
+				contentContainerStyle={{
+					paddingHorizontal: horizontalPadding,
+					paddingTop: headerHeight + 12,
+					paddingBottom: 24,
+				}}
 				data={items}
 				numColumns={columnCount}
 				keyExtractor={(item) => item.id}
-				ListHeaderComponent={
-					<View className="pt-4 pb-4">
-						<View className="flex-row items-center justify-between">
-							<Link href="/discover" asChild>
-								<Pressable className="bg-card rounded-badge px-3 py-2">
-									<Text className="text-primary text-preset-1 font-heading font-semibold">Back</Text>
-								</Pressable>
-							</Link>
-							<Text className="text-foreground text-preset-2 font-heading font-semibold">{title}</Text>
-							<View className="w-12" />
-						</View>
-						<Text className="text-muted text-preset-1 font-body mt-3">All titles</Text>
-					</View>
-				}
+				columnWrapperStyle={{ columnGap }}
 				ListFooterComponent={
 					loadingMore ? (
 						<View className="items-center py-6">
-							<ActivityIndicator color={themeColors.accent} />
+							<ActivityIndicator color={themeColors.primary} />
 						</View>
 					) : null
 				}
 				onEndReached={handleEndReached}
 				onEndReachedThreshold={0.6}
-				renderItem={({ item, index }) => {
-					const isRowEnd = (index + 1) % columnCount === 0;
-					return (
-						<Link
-							href={{
-								pathname: '/manga/[id]',
-								params: { id: item.id, provider: providerId },
+				renderItem={({ item }) => (
+					<Link
+						href={{
+							pathname: '/manga/[id]',
+							params: { id: item.id, provider: providerId },
+						}}
+						asChild
+					>
+						<Pressable
+							style={{
+								width: itemWidth,
+								marginBottom: 16,
 							}}
-							asChild
 						>
-							<Pressable
-								style={{
-									width: itemWidth,
-									marginRight: isRowEnd ? 0 : columnGap,
-									marginBottom: 16,
-								}}
-							>
-								<MangaCard title={item.title} subtitle={item.subtitle} coverUrl={item.coverUrl} />
-							</Pressable>
-						</Link>
-					);
-				}}
+							<MangaCard
+								title={item.title}
+								subtitle={item.subtitle}
+								coverUrl={item.coverUrl}
+								inLibrary={favoriteStore.contains(item.id, providerId)}
+							/>
+						</Pressable>
+					</Link>
+				)}
 				ListEmptyComponent={
 					loading ? (
-						<View className="bg-card rounded-box items-center justify-center p-6">
-							<ActivityIndicator color={themeColors.accent} />
-							<Text className="text-muted text-preset-1 font-body mt-3">Loading titles…</Text>
+						<View className="items-center justify-center py-20">
+							<ActivityIndicator size="large" color={themeColors.primary} />
+							<Text className="text-muted text-preset-1 font-body mt-4">Loading titles…</Text>
 						</View>
 					) : error ? (
-						<View className="bg-card rounded-box p-6">
+						<View className="bg-card/70 rounded-box border-border/30 border p-6">
 							<Text className="text-foreground text-preset-2 font-heading font-semibold">Unable to load</Text>
 							<Text className="text-muted text-preset-1 font-body mt-2">{error}</Text>
 						</View>
 					) : (
-						<View className="bg-card rounded-box p-6">
+						<View className="bg-card/70 rounded-box border-border/30 border p-6">
 							<Text className="text-foreground text-preset-2 font-heading font-semibold">No titles found</Text>
 							<Text className="text-muted text-preset-1 font-body mt-2">This section has no items yet.</Text>
 						</View>
 					)
 				}
 			/>
+
+			{/* Fixed header with blur */}
+			<View className="absolute top-0 right-0 left-0" style={{ zIndex: 10 }}>
+				<View className="relative overflow-hidden">
+					{Platform.OS === 'ios' ? (
+						<BlurView intensity={80} tint="systemChromeMaterialDark" style={StyleSheet.absoluteFillObject} />
+					) : (
+						<View className="bg-background/90" style={StyleSheet.absoluteFillObject} />
+					)}
+					<View
+						style={{
+							paddingTop: insets.top,
+							height: headerHeight,
+						}}
+						className="flex-row items-center px-4"
+					>
+						<Pressable onPress={() => router.back()} className="flex-row items-center" hitSlop={8}>
+							<Ionicons name="chevron-back" size={22} color={themeColors.primary} />
+							<Text className="text-primary text-preset-2 font-body">Discover</Text>
+						</Pressable>
+						<Text
+							className="text-foreground text-preset-2 font-heading absolute right-0 left-0 text-center font-semibold"
+							style={{ top: insets.top + 10 }}
+							numberOfLines={1}
+						>
+							{title}
+						</Text>
+					</View>
+				</View>
+				<View className="bg-border/20 h-px" />
+			</View>
 		</View>
 	);
 }

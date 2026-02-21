@@ -5,12 +5,14 @@ import { SectionHeading } from '@components/SectionHeading';
 import { useThemeColors } from '@lib/themes/vars';
 import { useSettingsStore } from '@stores/settings';
 
-const modes = [
-	{ id: 'rtl', label: 'Right to left' },
-	{ id: 'ltr', label: 'Left to right' },
-	{ id: 'vertical', label: 'Vertical paged' },
-	{ id: 'webtoon', label: 'Webtoon' },
-	{ id: 'double', label: 'Double page' },
+const readerModes = [
+	{ id: 'webtoon', label: 'Vertical (Webtoon)' },
+	{ id: 'paged', label: 'Horizontal (Paged)' },
+] as const;
+
+const directions = [
+	{ id: 'rtl', label: 'Right to left (Manga)' },
+	{ id: 'ltr', label: 'Left to right (Comic)' },
 ] as const;
 
 const tapPresets = [
@@ -26,14 +28,16 @@ const fitModes = [
 ] as const;
 
 const backgrounds = [
-	{ id: 'ink', label: 'Ink' },
-	{ id: 'graphite', label: 'Graphite' },
-	{ id: 'parchment', label: 'Parchment' },
+	{ id: 'theme', label: 'Theme' },
+	{ id: 'black', label: 'Black' },
+	{ id: 'white', label: 'White' },
 ] as const;
 
 export default function ReaderSettings() {
 	const readerMode = useSettingsStore((state) => state.readerMode);
 	const setReaderMode = useSettingsStore((state) => state.setReaderMode);
+	const readerDirection = useSettingsStore((state) => state.readerDirection);
+	const setReaderDirection = useSettingsStore((state) => state.setReaderDirection);
 	const tapZonePreset = useSettingsStore((state) => state.tapZonePreset);
 	const setTapZonePreset = useSettingsStore((state) => state.setTapZonePreset);
 	const swipeEnabled = useSettingsStore((state) => state.swipeEnabled);
@@ -44,8 +48,8 @@ export default function ReaderSettings() {
 	const setAutoHideChrome = useSettingsStore((state) => state.setAutoHideChrome);
 	const fitMode = useSettingsStore((state) => state.fitMode);
 	const setFitMode = useSettingsStore((state) => state.setFitMode);
-	const background = useSettingsStore((state) => state.background);
-	const setBackground = useSettingsStore((state) => state.setBackground);
+	const chapterBackground = useSettingsStore((state) => state.chapterBackground);
+	const setChapterBackground = useSettingsStore((state) => state.setChapterBackground);
 	const lockRotation = useSettingsStore((state) => state.lockRotation);
 	const setLockRotation = useSettingsStore((state) => state.setLockRotation);
 	const themeColors = useThemeColors();
@@ -56,9 +60,9 @@ export default function ReaderSettings() {
 				<SectionHeading title="Reader" subtitle="Defaults & gestures" />
 				<View className="gap-3 pb-12">
 					<View className="border-border/30 bg-card/70 rounded-box border p-5">
-						<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Reading direction</Text>
+						<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Reader mode</Text>
 						<View className="mt-4 gap-3">
-							{modes.map((mode) => (
+							{readerModes.map((mode) => (
 								<Text
 									key={mode.id}
 									className={`text-preset-2 font-heading rounded-control border px-4 py-3 font-semibold ${
@@ -69,6 +73,22 @@ export default function ReaderSettings() {
 									{mode.label}
 								</Text>
 							))}
+						</View>
+						<View className="mt-6">
+							<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Reading direction</Text>
+							<View className="mt-4 gap-3">
+								{directions.map((dir) => (
+									<Text
+										key={dir.id}
+										className={`text-preset-2 font-heading rounded-control border px-4 py-3 font-semibold ${
+											readerDirection === dir.id ? 'border-primary/80 bg-primary/15 text-primary' : 'border-border/30 bg-card/70 text-muted'
+										}`}
+										onPress={() => setReaderDirection(dir.id)}
+									>
+										{dir.label}
+									</Text>
+								))}
+							</View>
 						</View>
 						<View className="mt-6">
 							<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Tap zones</Text>
@@ -103,15 +123,15 @@ export default function ReaderSettings() {
 							))}
 						</View>
 						<View className="mt-6">
-							<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Background</Text>
+							<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Chapter background</Text>
 							<View className="mt-4 gap-3">
 								{backgrounds.map((tone) => (
 									<Text
 										key={tone.id}
 										className={`text-preset-2 font-heading rounded-control border px-4 py-3 font-semibold ${
-											background === tone.id ? 'border-primary/80 bg-primary/15 text-primary' : 'border-border/30 bg-card/70 text-muted'
+											chapterBackground === tone.id ? 'border-primary/80 bg-primary/15 text-primary' : 'border-border/30 bg-card/70 text-muted'
 										}`}
-										onPress={() => setBackground(tone.id)}
+										onPress={() => setChapterBackground(tone.id)}
 									>
 										{tone.label}
 									</Text>

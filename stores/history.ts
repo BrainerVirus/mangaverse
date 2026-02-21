@@ -6,6 +6,7 @@ import type { HistoryEntry } from '../types/library';
 interface HistoryState {
 	entries: HistoryEntry[];
 	addEntry: (entry: HistoryEntry) => void;
+	removeEntry: (id: string) => void;
 	clear: () => void;
 	seedHistory: () => void;
 }
@@ -16,8 +17,11 @@ export const useHistoryStore = create<HistoryState>((set) => ({
 		if (usePreferencesStore.getState().privateMode) {
 			return;
 		}
-		set((state) => ({ entries: [entry, ...state.entries] }));
+		set((state) => ({
+			entries: [entry, ...state.entries.filter((e) => e.id !== entry.id)],
+		}));
 	},
+	removeEntry: (id) => set((state) => ({ entries: state.entries.filter((e) => e.id !== id) })),
 	clear: () => set({ entries: [] }),
 	seedHistory: () =>
 		set((state) => {
@@ -33,7 +37,7 @@ export const useHistoryStore = create<HistoryState>((set) => ({
 						chapter: '32',
 						page: 11,
 						readAt: Date.now() - 1000 * 60 * 20,
-						readAtLabel: 'Today · 20 min ago',
+						readAtLabel: 'Today',
 					},
 					{
 						id: 'history-2',
@@ -41,7 +45,7 @@ export const useHistoryStore = create<HistoryState>((set) => ({
 						chapter: '18',
 						page: 3,
 						readAt: Date.now() - 1000 * 60 * 60 * 6,
-						readAtLabel: 'Today · 6h ago',
+						readAtLabel: 'Today',
 					},
 					{
 						id: 'history-3',
