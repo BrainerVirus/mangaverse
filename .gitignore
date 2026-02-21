@@ -45,3 +45,7 @@ coverage/**/*
 
 # Docs
 docs/
+
+
+# tmp claude
+tmpclaude-*
