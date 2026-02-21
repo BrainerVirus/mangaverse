@@ -3,7 +3,21 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Image, PanResponder, Pressable, ScrollView, Switch, Text, View, useWindowDimensions } from 'react-native';
+import {
+	ActivityIndicator,
+	Animated,
+	Easing,
+	Image,
+	NativeScrollEvent,
+	NativeSyntheticEvent,
+	PanResponder,
+	Pressable,
+	ScrollView,
+	Switch,
+	Text,
+	View,
+	useWindowDimensions,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useThemeColors } from '@lib/themes/vars';
@@ -14,9 +28,107 @@ import type { ProviderChapter, ProviderPage } from '../../types/provider';
 
 /* ─── Settings Drawer ─── */
 const DRAWER_COLLAPSED = 0.55; // 55% of screen height
-const DRAWER_FULL = 1.0; // 100% of screen height
+const DRAWER_FULL = 1.0; // 100% of screen height (full page when expanded)
 const DISMISS_THRESHOLD = 100; // px to drag down before dismissing
 const SNAP_VELOCITY = 0.5; // velocity threshold for snap
+const TITLE_SCROLL_THRESHOLD = 28; // px scrolled before title moves to header
+
+/* ─── Animated Segment Control ─── */
+function AnimatedSegmentControl({
+	options,
+	value,
+	onSelect,
+}: {
+	options: { id: string; label: string }[];
+	value: string;
+	onSelect: (id: string) => void;
+}) {
+	const activeIndex = options.findIndex((o) => o.id === value);
+	const indicatorX = useRef(new Animated.Value(0)).current;
+	const [segmentWidth, setSegmentWidth] = useState(0);
+
+	useEffect(() => {
+		if (segmentWidth > 0) {
+			Animated.spring(indicatorX, {
+				toValue: activeIndex * segmentWidth,
+				useNativeDriver: true,
+				damping: 20,
+				stiffness: 280,
+				mass: 0.8,
+			}).start();
+		}
+	}, [activeIndex, segmentWidth, indicatorX]);
+
+	const handleLayout = useCallback(
+		(e: { nativeEvent: { layout: { width: number } } }) => {
+			const w = Math.round(e.nativeEvent.layout.width / options.length - 2 / options.length);
+			setSegmentWidth((prev) => (prev === w ? prev : w));
+		},
+		[options.length],
+	);
+
+	return (
+		<View className="flex-row overflow-hidden rounded-lg p-1" style={{ backgroundColor: 'rgba(120,120,128,0.16)' }} onLayout={handleLayout}>
+			{/* Animated indicator */}
+			{segmentWidth > 0 && (
+				<Animated.View
+					className="bg-primary absolute top-1 bottom-1 rounded-md"
+					style={{
+						width: segmentWidth,
+						left: 1,
+						transform: [{ translateX: indicatorX }],
+					}}
+				/>
+			)}
+			{options.map((opt) => (
+				<Pressable key={opt.id} onPress={() => onSelect(opt.id)} className="flex-1 items-center rounded-md py-2.5" style={{ zIndex: 1 }}>
+					<Text className={`text-preset-2 font-heading font-semibold ${opt.id === value ? 'text-primary-foreground' : 'text-muted'}`}>
+						{opt.label}
+					</Text>
+				</Pressable>
+			))}
+		</View>
+	);
+}
+
+/* ─── Extracted Sub-components (stable references, no flicker) ─── */
+function ToggleRow({
+	label,
+	value,
+	onToggle,
+	trackColors,
+}: {
+	label: string;
+	value: boolean;
+	onToggle: (v: boolean) => void;
+	trackColors: { false: string; true: string };
+}) {
+	return (
+		<View className="flex-row items-center justify-between py-3">
+			<Text className="text-preset-2 font-body text-foreground">{label}</Text>
+			<Switch value={value} onValueChange={onToggle} trackColor={trackColors} thumbColor="#fff" />
+		</View>
+	);
+}
+
+function SegmentRow({
+	label,
+	value,
+	options,
+	onSelect,
+}: {
+	label: string;
+	value: string;
+	options: { id: string; label: string }[];
+	onSelect: (id: string) => void;
+}) {
+	return (
+		<View className="py-3">
+			<Text className="text-preset-2 font-body text-foreground mb-2">{label}</Text>
+			<AnimatedSegmentControl options={options} value={value} onSelect={onSelect} />
+		</View>
+	);
+}
 
 function SettingsDrawer({ visible, onClose }: { visible: boolean; onClose: () => void }) {
 	const themeColors = useThemeColors();
@@ -24,7 +136,6 @@ function SettingsDrawer({ visible, onClose }: { visible: boolean; onClose: () =>
 	const insets = useSafeAreaInsets();
 
 	const readerMode = useSettingsStore((s) => s.readerMode);
-	const readerDirection = useSettingsStore((s) => s.readerDirection);
 	const lockRotation = useSettingsStore((s) => s.lockRotation);
 	const tapNavigationEnabled = useSettingsStore((s) => s.tapNavigationEnabled);
 	const pagePadding = useSettingsStore((s) => s.pagePadding);
@@ -35,7 +146,6 @@ function SettingsDrawer({ visible, onClose }: { visible: boolean; onClose: () =>
 	const settingsButtonLocation = useSettingsStore((s) => s.settingsButtonLocation);
 	const pillarboxAmount = useSettingsStore((s) => s.pillarboxAmount);
 	const setReaderMode = useSettingsStore((s) => s.setReaderMode);
-	const setReaderDirection = useSettingsStore((s) => s.setReaderDirection);
 	const setLockRotation = useSettingsStore((s) => s.setLockRotation);
 	const setTapNavigationEnabled = useSettingsStore((s) => s.setTapNavigationEnabled);
 	const setPagePadding = useSettingsStore((s) => s.setPagePadding);
@@ -57,6 +167,19 @@ function SettingsDrawer({ visible, onClose }: { visible: boolean; onClose: () =>
 	const [mounted, setMounted] = useState(false);
 	const scrollRef = useRef<ScrollView>(null);
 
+	// Scroll-aware title: animate opacity instead of LayoutAnimation (avoids global parpadeo)
+	const headerTitleOpacity = useRef(new Animated.Value(0)).current;
+	const contentTitleOpacity = useRef(new Animated.Value(1)).current;
+	const titleInHeaderRef = useRef(false);
+
+	// Toast state
+	const [toastVisible, setToastVisible] = useState(false);
+	const toastOpacity = useRef(new Animated.Value(0)).current;
+	const toastTranslateY = useRef(new Animated.Value(20)).current;
+
+	// Apply Globally button animation
+	const applyScale = useRef(new Animated.Value(1)).current;
+
 	// Keep refs in sync for PanResponder closure
 	const isExpandedRef = useRef(isExpanded);
 	const screenHeightRef = useRef(screenHeight);
@@ -73,6 +196,9 @@ function SettingsDrawer({ visible, onClose }: { visible: boolean; onClose: () =>
 			setMounted(true);
 			setIsExpanded(false);
 			isExpandedRef.current = false;
+			headerTitleOpacity.setValue(0);
+			contentTitleOpacity.setValue(1);
+			titleInHeaderRef.current = false;
 			translateY.setValue(screenHeight);
 			Animated.parallel([
 				Animated.spring(translateY, {
@@ -102,7 +228,7 @@ function SettingsDrawer({ visible, onClose }: { visible: boolean; onClose: () =>
 				}),
 			]).start(() => setMounted(false));
 		}
-	}, [visible, screenHeight, collapsedHeight, translateY, backdropOpacity, mounted]);
+	}, [visible, screenHeight, collapsedHeight, translateY, backdropOpacity, mounted, headerTitleOpacity, contentTitleOpacity]);
 
 	const dismissRef = useRef(() => {});
 	dismissRef.current = () => {
@@ -199,99 +325,121 @@ function SettingsDrawer({ visible, onClose }: { visible: boolean; onClose: () =>
 		}),
 	).current;
 
-	const ToggleRow = ({ label, value, onToggle }: { label: string; value: boolean; onToggle: (v: boolean) => void }) => (
-		<View className="flex-row items-center justify-between py-3">
-			<Text className="text-preset-2 font-body text-foreground">{label}</Text>
-			<Switch value={value} onValueChange={onToggle} trackColor={{ false: themeColors.border, true: themeColors.primary }} thumbColor="#fff" />
-		</View>
+	const handleScroll = useCallback(
+		(e: NativeSyntheticEvent<NativeScrollEvent>) => {
+			const y = e.nativeEvent.contentOffset.y;
+			const shouldShow = y > TITLE_SCROLL_THRESHOLD;
+			if (shouldShow !== titleInHeaderRef.current) {
+				titleInHeaderRef.current = shouldShow;
+				Animated.parallel([
+					Animated.timing(headerTitleOpacity, {
+						toValue: shouldShow ? 1 : 0,
+						duration: 200,
+						useNativeDriver: true,
+					}),
+					Animated.timing(contentTitleOpacity, {
+						toValue: shouldShow ? 0 : 1,
+						duration: 200,
+						useNativeDriver: true,
+					}),
+				]).start();
+			}
+		},
+		[headerTitleOpacity, contentTitleOpacity],
 	);
 
-	const SegmentOption = ({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) => (
-		<Pressable onPress={onPress} className={`flex-1 items-center rounded-lg py-2.5 ${active ? 'bg-primary' : ''}`}>
-			<Text className={`text-preset-2 font-heading font-semibold ${active ? 'text-primary-foreground' : 'text-muted'}`}>{label}</Text>
-		</Pressable>
-	);
+	const showToast = useCallback(() => {
+		setToastVisible(true);
+		toastOpacity.setValue(0);
+		toastTranslateY.setValue(20);
+		Animated.parallel([
+			Animated.timing(toastOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+			Animated.spring(toastTranslateY, { toValue: 0, useNativeDriver: true, damping: 15, stiffness: 200 }),
+		]).start();
+		setTimeout(() => {
+			Animated.parallel([
+				Animated.timing(toastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+				Animated.timing(toastTranslateY, { toValue: -10, duration: 300, useNativeDriver: true }),
+			]).start(() => setToastVisible(false));
+		}, 2000);
+	}, [toastOpacity, toastTranslateY]);
 
-	const DropdownRow = ({
-		label,
-		value,
-		options,
-		onSelect,
-	}: {
-		label: string;
-		value: string;
-		options: { id: string; label: string }[];
-		onSelect: (id: string) => void;
-	}) => {
-		const [open, setOpen] = useState(false);
-		const current = options.find((o) => o.id === value);
-		return (
-			<View className="py-3">
-				<Pressable className="flex-row items-center justify-between" onPress={() => setOpen(!open)}>
-					<Text className="text-preset-2 font-body text-foreground">{label}</Text>
-					<View className="flex-row items-center gap-1">
-						<Text className="text-preset-1 font-body text-muted">{current?.label ?? value}</Text>
-						<Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={14} color={themeColors.muted} />
-					</View>
-				</Pressable>
-				{open && (
-					<View className="bg-card/80 mt-2 overflow-hidden rounded-xl">
-						{options.map((opt) => (
-							<Pressable
-								key={opt.id}
-								className={`px-4 py-2.5 ${opt.id === value ? 'bg-primary/15' : ''}`}
-								onPress={() => {
-									onSelect(opt.id);
-									setOpen(false);
-								}}
-							>
-								<Text className={`text-preset-2 font-body ${opt.id === value ? 'text-primary font-semibold' : 'text-foreground'}`}>{opt.label}</Text>
-							</Pressable>
-						))}
-					</View>
-				)}
-			</View>
-		);
-	};
+	const handleApplyGlobally = useCallback(() => {
+		// Press animation
+		Animated.sequence([
+			Animated.timing(applyScale, { toValue: 0.95, duration: 80, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+			Animated.timing(applyScale, { toValue: 1, duration: 120, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+		]).start();
+		showToast();
+	}, [applyScale, showToast]);
+
+	const trackColors = useMemo(() => ({ false: themeColors.border, true: themeColors.primary }), [themeColors.border, themeColors.primary]);
 
 	if (!mounted) return null;
 
 	return (
 		<View className="absolute inset-0" style={{ zIndex: 30 }} pointerEvents="box-none">
-			{/* Backdrop */}
-			<Animated.View className="absolute inset-0" style={{ opacity: backdropOpacity }}>
-				<Pressable className="flex-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={dismiss} />
-			</Animated.View>
+			{/* Backdrop (hidden when expanded) */}
+			{!isExpanded && (
+				<Animated.View className="absolute inset-0" style={{ opacity: backdropOpacity }}>
+					<Pressable className="flex-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={dismiss} />
+				</Animated.View>
+			)}
 
 			{/* Drawer */}
 			<Animated.View
-				className="bg-background absolute right-0 bottom-0 left-0 rounded-t-3xl"
+				className={`bg-background absolute right-0 bottom-0 left-0 ${isExpanded ? '' : 'rounded-t-3xl'}`}
 				style={{
 					height: fullHeight,
 					transform: [{ translateY }],
 					paddingBottom: insets.bottom,
+					paddingTop: isExpanded ? insets.top : 0,
 				}}
 			>
-				{/* Drag Handle Area */}
-				<View {...panResponder.panHandlers} className="items-center pt-3 pb-2">
-					<View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: themeColors.border }} />
+				{/* Drag Handle Area (hidden when expanded) */}
+				{!isExpanded ? (
+					<View {...panResponder.panHandlers} className="items-center pt-3 pb-1">
+						<View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: themeColors.border }} />
+					</View>
+				) : (
+					<View {...panResponder.panHandlers} className="h-3" />
+				)}
+
+				{/* Sticky Header — title fades in when scrolled past content title */}
+				<View className="flex-row items-center justify-between px-5 pt-2 pb-3">
+					<Animated.Text className="text-preset-4 font-heading text-foreground font-semibold" style={{ opacity: headerTitleOpacity }}>
+						Reader Settings
+					</Animated.Text>
+					<Pressable onPress={dismiss}>
+						<Text className="text-preset-2 font-heading text-primary font-semibold">Done</Text>
+					</Pressable>
 				</View>
 
-				{/* Content */}
-				<ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} bounces={true} className="flex-1 px-5">
-					{/* Header */}
-					<View className="mb-4 flex-row items-center justify-between">
-						<Text className="text-preset-4 font-heading text-foreground font-semibold">Reader Settings</Text>
-						<Pressable onPress={dismiss}>
-							<Text className="text-preset-2 font-heading text-primary font-semibold">Done</Text>
-						</Pressable>
-					</View>
+				{/* Scrollable Content */}
+				<ScrollView
+					ref={scrollRef}
+					showsVerticalScrollIndicator={false}
+					bounces={true}
+					className="flex-1 px-5"
+					onScroll={handleScroll}
+					scrollEventThrottle={16}
+				>
+					{/* Title in content — fades out as it scrolls into header */}
+					<Animated.Text className="text-preset-6 font-heading text-foreground mb-4 font-bold" style={{ opacity: contentTitleOpacity }}>
+						Reader Settings
+					</Animated.Text>
 
 					{/* Reader Type */}
 					<Text className="text-preset-1 text-muted-foreground mb-2 tracking-widest uppercase">Reader Type</Text>
-					<View className="bg-card/60 mb-6 flex-row overflow-hidden rounded-xl p-1">
-						<SegmentOption label="Vertical" active={isVertical} onPress={() => setReaderMode('webtoon')} />
-						<SegmentOption label="Horizontal" active={!isVertical} onPress={() => setReaderMode('paged')} />
+					<View className="mb-6">
+						<AnimatedSegmentControl
+							options={[
+								{ id: 'webtoon', label: 'Vertical' },
+								{ id: 'paged', label: 'Horizontal' },
+							]}
+							value={readerMode}
+							onSelect={(id) => setReaderMode(id as 'webtoon' | 'paged')}
+						/>
 					</View>
 
 					{/* Vertical Reader Settings */}
@@ -325,27 +473,17 @@ function SettingsDrawer({ visible, onClose }: { visible: boolean; onClose: () =>
 					{/* General Settings */}
 					<Text className="text-preset-1 text-muted-foreground mb-2 tracking-widest uppercase">General Settings</Text>
 					<View className="bg-card/60 mb-6 rounded-xl px-4">
-						<DropdownRow
-							label="Reader Direction"
-							value={readerDirection}
-							options={[
-								{ id: 'rtl', label: 'Right to Left (Manga)' },
-								{ id: 'ltr', label: 'Left to Right (Comic)' },
-							]}
-							onSelect={(id) => setReaderDirection(id as 'ltr' | 'rtl')}
-						/>
+						<ToggleRow label="Downsample Pages" value={downsamplePages} onToggle={setDownsamplePages} trackColors={trackColors} />
 						<View className="bg-border/20 h-px" />
-						<ToggleRow label="Downsample Pages" value={downsamplePages} onToggle={setDownsamplePages} />
+						<ToggleRow label="Page Padding" value={pagePadding} onToggle={setPagePadding} trackColors={trackColors} />
 						<View className="bg-border/20 h-px" />
-						<ToggleRow label="Page Padding" value={pagePadding} onToggle={setPagePadding} />
+						<ToggleRow label="Lock Rotation" value={lockRotation} onToggle={setLockRotation} trackColors={trackColors} />
 						<View className="bg-border/20 h-px" />
-						<ToggleRow label="Lock Rotation" value={lockRotation} onToggle={setLockRotation} />
+						<ToggleRow label="Enable Tap Navigation" value={tapNavigationEnabled} onToggle={setTapNavigationEnabled} trackColors={trackColors} />
 						<View className="bg-border/20 h-px" />
-						<ToggleRow label="Enable Tap Navigation" value={tapNavigationEnabled} onToggle={setTapNavigationEnabled} />
+						<ToggleRow label="Enable Page Saving" value={enablePageSaving} onToggle={setEnablePageSaving} trackColors={trackColors} />
 						<View className="bg-border/20 h-px" />
-						<ToggleRow label="Enable Page Saving" value={enablePageSaving} onToggle={setEnablePageSaving} />
-						<View className="bg-border/20 h-px" />
-						<DropdownRow
+						<SegmentRow
 							label="Chapter Background"
 							value={chapterBackground}
 							options={[
@@ -360,32 +498,57 @@ function SettingsDrawer({ visible, onClose }: { visible: boolean; onClose: () =>
 					{/* Action Buttons Settings */}
 					<Text className="text-preset-1 text-muted-foreground mb-2 tracking-widest uppercase">Action Buttons Settings</Text>
 					<View className="bg-card/60 mb-6 rounded-xl px-4">
-						<DropdownRow
+						<SegmentRow
 							label="Chevron Button Location"
 							value={chevronButtonLocation}
 							options={[
-								{ id: 'right', label: 'Right' },
 								{ id: 'left', label: 'Left' },
+								{ id: 'right', label: 'Right' },
 							]}
 							onSelect={(id) => setChevronButtonLocation(id as 'left' | 'right')}
 						/>
 						<View className="bg-border/20 h-px" />
-						<DropdownRow
+						<SegmentRow
 							label="Settings Button Location"
 							value={settingsButtonLocation}
 							options={[
-								{ id: 'right', label: 'Right' },
 								{ id: 'left', label: 'Left' },
+								{ id: 'right', label: 'Right' },
 							]}
 							onSelect={(id) => setSettingsButtonLocation(id as 'left' | 'right')}
 						/>
 					</View>
 
 					{/* Apply Globally */}
-					<Pressable className="bg-primary mb-8 items-center rounded-xl py-3.5">
-						<Text className="text-primary-foreground text-preset-2 font-heading font-semibold">Apply Globally</Text>
+					<Pressable onPress={handleApplyGlobally}>
+						<Animated.View className="bg-primary mb-8 items-center rounded-xl py-3.5" style={{ transform: [{ scale: applyScale }] }}>
+							<Text className="text-primary-foreground text-preset-2 font-heading font-semibold">Apply Globally</Text>
+						</Animated.View>
 					</Pressable>
 				</ScrollView>
+
+				{/* Toast */}
+				{toastVisible && (
+					<Animated.View
+						className="absolute right-5 left-5 items-center rounded-xl px-4 py-3"
+						style={{
+							bottom: insets.bottom + 16,
+							backgroundColor: themeColors.card,
+							opacity: toastOpacity,
+							transform: [{ translateY: toastTranslateY }],
+							shadowColor: '#000',
+							shadowOffset: { width: 0, height: 4 },
+							shadowOpacity: 0.3,
+							shadowRadius: 8,
+							elevation: 6,
+						}}
+					>
+						<View className="flex-row items-center gap-2">
+							<Ionicons name="checkmark-circle" size={18} color={themeColors.primary} />
+							<Text className="text-preset-2 font-body text-foreground font-medium">Settings applied globally</Text>
+						</View>
+					</Animated.View>
+				)}
 			</Animated.View>
 		</View>
 	);
@@ -418,7 +581,7 @@ export default function ReaderScreen() {
 	const lockRotation = useSettingsStore((s) => s.lockRotation);
 	const chapterBackground = useSettingsStore((s) => s.chapterBackground);
 	const pagePadding = useSettingsStore((s) => s.pagePadding);
-	const setReaderDirection = useSettingsStore((s) => s.setReaderDirection);
+	const setReaderMode = useSettingsStore((s) => s.setReaderMode);
 	const setLockRotation = useSettingsStore((s) => s.setLockRotation);
 	const addHistory = useHistoryStore((s) => s.addEntry);
 
@@ -852,9 +1015,9 @@ export default function ReaderScreen() {
 					<View className="flex-row items-center justify-between">
 						{/* Left actions */}
 						<View className="flex-row items-center gap-4">
-							<Pressable onPress={() => setReaderDirection(isRtl ? 'ltr' : 'rtl')} className="items-center" hitSlop={8}>
-								<Ionicons name={isRtl ? 'arrow-back' : 'arrow-forward'} size={22} color="#fff" />
-								<Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 9, marginTop: 2 }}>{isRtl ? 'RTL' : 'LTR'}</Text>
+							<Pressable onPress={() => setReaderMode(isPaged ? 'webtoon' : 'paged')} className="items-center" hitSlop={8}>
+								<Ionicons name={isPaged ? 'swap-vertical' : 'book-outline'} size={22} color="#fff" />
+								<Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 9, marginTop: 2 }}>{isPaged ? 'Scroll' : 'Paged'}</Text>
 							</Pressable>
 							<Pressable onPress={() => setLockRotation(!lockRotation)} hitSlop={8}>
 								<Ionicons name={lockRotation ? 'lock-closed' : 'lock-open-outline'} size={22} color={lockRotation ? themeColors.primary : '#fff'} />
