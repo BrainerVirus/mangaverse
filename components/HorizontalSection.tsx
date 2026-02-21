@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { SkeletonCard } from '@components/ui/SkeletonCard';
@@ -40,6 +40,7 @@ export function HorizontalSection({
 	seeAllVariant = 'primary',
 	onScroll,
 }: HorizontalSectionProps) {
+	const router = useRouter();
 	const seeAllClassName =
 		seeAllVariant === 'primary'
 			? 'h-11 w-11 items-center justify-center rounded-control bg-primary'
@@ -48,32 +49,27 @@ export function HorizontalSection({
 		<View>
 			<View className="flex-row items-center justify-between">
 				<Text className="text-foreground text-preset-2 font-heading font-semibold">{title}</Text>
-				<Link
-					href={{
-						pathname: '/discover/[sectionId]',
-						params: {
-							sectionId,
-							provider: providerId,
-							title,
-						},
-					}}
-					asChild
+				<Pressable
+					className={seeAllClassName}
+					onPress={() =>
+						router.push({
+							pathname: '/discover/[sectionId]',
+							params: { sectionId, provider: providerId, title },
+						})
+					}
 				>
-					<Pressable className={seeAllClassName}>
-						<Text
-							className={seeAllVariant === 'primary' ? 'text-primary-foreground text-preset-2 font-body' : 'text-primary text-preset-2 font-body'}
-						>
-							↗
-						</Text>
-					</Pressable>
-				</Link>
+					<Text className={seeAllVariant === 'primary' ? 'text-primary-foreground text-preset-2 font-body' : 'text-primary text-preset-2 font-body'}>
+						↗
+					</Text>
+				</Pressable>
 			</View>
 			<ScrollView
 				horizontal
 				showsHorizontalScrollIndicator={false}
-				style={{ marginHorizontal: -pagePadding }}
+				style={{ marginHorizontal: -pagePadding, marginTop: -16, marginBottom: -24 }}
 				contentContainerStyle={{
-					paddingTop: 8,
+					paddingTop: 24,
+					paddingBottom: 24,
 					paddingLeft: pagePadding,
 					paddingRight: pagePadding + peek,
 					columnGap: gap,

@@ -1,4 +1,7 @@
-import { Image, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Easing, Image, Text, View } from 'react-native';
+
+import { useThemeColors } from '@lib/themes/vars';
 
 interface MangaCardProps {
 	title: string;
@@ -9,6 +12,7 @@ interface MangaCardProps {
 	language?: string;
 	inLibrary?: boolean;
 	showMeta?: boolean;
+	focused?: boolean;
 }
 
 const languageToFlag: Record<string, string> = {
@@ -37,43 +41,71 @@ const formatLanguage = (value?: string) => {
 	return normalized.slice(0, 2).toUpperCase();
 };
 
-export function MangaCard({ title, coverUrl, subtitle, lastChapter, language, inLibrary, showMeta = true }: MangaCardProps) {
+export function MangaCard({ title, coverUrl, subtitle, lastChapter, language, inLibrary, showMeta = true, focused = false }: MangaCardProps) {
+	const { primary } = useThemeColors();
+	const scale = useRef(new Animated.Value(1)).current;
 	const languageLabel = formatLanguage(language);
 	const chapterLabel = lastChapter !== undefined && lastChapter !== null && String(lastChapter).length > 0 ? `Ch. ${lastChapter}` : undefined;
-	return (
-		<View>
-			<View className="relative">
-				<View className="bg-card rounded-btn overflow-hidden">
-					{coverUrl ? (
-						<Image source={{ uri: coverUrl }} className="aspect-3/4 w-full" resizeMode="cover" />
-					) : (
-						<View className="bg-card aspect-3/4 w-full" />
-					)}
 
-					{languageLabel && (
-						<View className="bg-background/85 rounded-badge absolute right-2 bottom-2 px-2 py-1">
-							<Text className="text-preset-1 font-body text-foreground">{languageLabel}</Text>
+	useEffect(() => {
+		Animated.timing(scale, {
+			toValue: focused ? 1.06 : 1,
+			duration: 150,
+			easing: Easing.out(Easing.ease),
+			useNativeDriver: true,
+		}).start();
+	}, [focused, scale]);
+
+	return (
+		<Animated.View
+			style={{
+				transform: [{ scale }],
+				zIndex: focused ? 10 : 0,
+				borderRadius: 16,
+				shadowColor: focused ? primary : 'transparent',
+				shadowOffset: { width: 0, height: 0 },
+				shadowOpacity: focused ? 0.5 : 0,
+				shadowRadius: focused ? 12 : 0,
+				elevation: focused ? 8 : 0,
+			}}
+		>
+			<View>
+				<View className="relative">
+					<View className="bg-card rounded-btn overflow-hidden">
+						{coverUrl ? (
+							<Image source={{ uri: coverUrl }} className="aspect-3/4 w-full" resizeMode="cover" />
+						) : (
+							<View className="bg-card aspect-3/4 w-full" />
+						)}
+
+						{languageLabel && (
+							<View className="bg-background/85 rounded-badge absolute right-2 bottom-2 px-2 py-1">
+								<Text className="text-preset-1 font-body text-foreground">{languageLabel}</Text>
+							</View>
+						)}
+					</View>
+
+					{inLibrary && (
+						<View
+							className="bg-primary rounded-badge absolute -top-2 -right-2 h-7 w-7 items-center justify-center shadow-sm"
+							style={{ elevation: 3 }}
+						>
+							<Text className="text-preset-1 font-body text-primary-foreground">★</Text>
 						</View>
 					)}
 				</View>
 
-				{inLibrary && (
-					<View className="bg-primary rounded-badge absolute -top-2 -right-2 h-7 w-7 items-center justify-center shadow-sm" style={{ elevation: 3 }}>
-						<Text className="text-preset-1 font-body text-primary-foreground">★</Text>
-					</View>
+				<Text className="text-foreground text-preset-2 font-heading mt-1.5 font-semibold" numberOfLines={1}>
+					{title}
+				</Text>
+
+				{showMeta && (subtitle || chapterLabel) && (
+					<Text className="text-muted text-preset-1 font-body" numberOfLines={1}>
+						{subtitle && `${subtitle} · `}
+						{chapterLabel ?? ''}
+					</Text>
 				)}
 			</View>
-
-			<Text className="text-foreground text-preset-2 font-heading mt-1.5 font-semibold" numberOfLines={1}>
-				{title}
-			</Text>
-
-			{showMeta && (subtitle || chapterLabel) && (
-				<Text className="text-muted text-preset-1 font-body" numberOfLines={1}>
-					{subtitle && `${subtitle} · `}
-					{chapterLabel ?? ''}
-				</Text>
-			)}
-		</View>
+		</Animated.View>
 	);
 }

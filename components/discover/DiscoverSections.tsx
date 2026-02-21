@@ -1,4 +1,5 @@
-import { Link } from 'expo-router';
+import { useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { HorizontalSection } from '@components/HorizontalSection';
@@ -32,6 +33,9 @@ export function DiscoverSections({
 	onLoadMore,
 	isInLibrary,
 }: DiscoverSectionsProps) {
+	const router = useRouter();
+	const [focusedKey, setFocusedKey] = useState<string | null>(null);
+
 	const handleHorizontalScroll =
 		(sectionId: string) =>
 		(event: {
@@ -47,6 +51,27 @@ export function DiscoverSections({
 				onLoadMore(sectionId);
 			}
 		};
+
+	const handleMangaPressIn = useCallback(
+		(sectionId: string, item: ProviderMangaItem) => {
+			const key = `${sectionId}-${item.id}`;
+			if (focusedKey !== key) {
+				setFocusedKey(key);
+			}
+		},
+		[focusedKey],
+	);
+
+	const handleMangaPress = useCallback(
+		(item: ProviderMangaItem) => {
+			setFocusedKey(null);
+			router.push({
+				pathname: '/manga/[id]',
+				params: { id: item.id, provider: providerId },
+			});
+		},
+		[providerId, router],
+	);
 
 	return (
 		<View className="mt-6 gap-6">
@@ -64,6 +89,8 @@ export function DiscoverSections({
 							peek={peek}
 							isLoading={sectionLoading[section.id]}
 							sectionTitle={section.title || 'Genres'}
+							focusedKey={focusedKey}
+							onFocus={setFocusedKey}
 							onScroll={handleHorizontalScroll(section.id)}
 						/>
 					);
@@ -81,27 +108,19 @@ export function DiscoverSections({
 						peek={peek}
 						isLoading={sectionLoading[section.id]}
 						onScroll={handleHorizontalScroll(section.id)}
-						renderItem={(item, index) => (
-							<Link
-								key={`${section.id}-${item.id}-${index}`}
-								href={{
-									pathname: '/manga/[id]',
-									params: { id: item.id, provider: providerId },
-								}}
-								asChild
-							>
-								<Pressable>
-									<MangaCard
-										title={item.title}
-										subtitle={item.subtitle}
-										coverUrl={item.coverUrl}
-										tags={item.tags}
-										lastChapter={item.lastChapter}
-										language={item.language}
-										inLibrary={isInLibrary(item.id)}
-									/>
-								</Pressable>
-							</Link>
+						renderItem={(item) => (
+							<Pressable onPressIn={() => handleMangaPressIn(section.id, item)} onPress={() => handleMangaPress(item)}>
+								<MangaCard
+									title={item.title}
+									subtitle={item.subtitle}
+									coverUrl={item.coverUrl}
+									tags={item.tags}
+									lastChapter={item.lastChapter}
+									language={item.language}
+									inLibrary={isInLibrary(item.id)}
+									focused={focusedKey === `${section.id}-${item.id}`}
+								/>
+							</Pressable>
 						)}
 					/>
 				);
