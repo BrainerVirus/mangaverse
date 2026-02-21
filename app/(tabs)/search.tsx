@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { Link, useRouter } from 'expo-router';
+import { Link } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
 	ActivityIndicator,
@@ -33,7 +33,6 @@ export default function Search() {
 	const { resultsByProvider, searchAll, statusByProvider } = useSearchStore();
 	const themeColors = useThemeColors();
 	const insets = useSafeAreaInsets();
-	const router = useRouter();
 	const { width } = useWindowDimensions();
 	const headerHeight = 44 + insets.top;
 	const trimmedQuery = debouncedQuery.trim();

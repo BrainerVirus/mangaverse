@@ -38,9 +38,8 @@ export function BottomChromeOverlay({
 }: BottomChromeOverlayProps) {
 	const modeRotation = (
 		<React.Fragment key="mode-rotation">
-			<Pressable onPress={onToggleReaderMode} className="items-center" hitSlop={8}>
+			<Pressable onPress={onToggleReaderMode} hitSlop={8}>
 				<Ionicons name={isPaged ? 'swap-vertical' : 'book-outline'} size={22} color="#fff" />
-				<Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 9, marginTop: 2 }}>{isPaged ? 'Scroll' : 'Paged'}</Text>
 			</Pressable>
 			<Pressable onPress={onToggleRotation} hitSlop={8}>
 				<Ionicons name={lockRotation ? 'lock-closed' : 'lock-open-outline'} size={22} color={lockRotation ? themeColors.primary : '#fff'} />

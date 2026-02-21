@@ -80,6 +80,7 @@ const mockExtensions = {
 };
 
 jest.mock('expo-router', () => {
+	// eslint-disable-next-line @typescript-eslint/no-require-imports
 	const React = require('react');
 	const MockLink = React.forwardRef(function MockLink({ children, asChild, ...rest }: any, ref: any) {
 		if (asChild && React.isValidElement(children)) {
@@ -130,13 +131,17 @@ jest.mock('@stores/settings', () => ({
 }));
 
 jest.mock('expo-blur', () => {
+	// eslint-disable-next-line @typescript-eslint/no-require-imports
 	const React = require('react');
+	// eslint-disable-next-line @typescript-eslint/no-require-imports
 	const { View } = require('react-native');
 	return { BlurView: (props: any) => React.createElement(View, props) };
 });
 
 jest.mock('expo-linear-gradient', () => {
+	// eslint-disable-next-line @typescript-eslint/no-require-imports
 	const React = require('react');
+	// eslint-disable-next-line @typescript-eslint/no-require-imports
 	const { View } = require('react-native');
 	return { LinearGradient: (props: any) => React.createElement(View, props) };
 });

@@ -179,13 +179,14 @@ export function SettingsDrawer({ visible, onClose }: { visible: boolean; onClose
 
 				if (vy > SNAP_VELOCITY) {
 					if (expanded) {
+						setIsExpanded(false);
 						isExpandedRef.current = false;
 						Animated.spring(translateY, {
 							toValue: sh - ch,
 							useNativeDriver: true,
 							damping: 25,
 							stiffness: 200,
-						}).start(() => setIsExpanded(false));
+						}).start();
 						Animated.timing(backdropOpacity, { toValue: 1, duration: 150, useNativeDriver: true }).start();
 					} else {
 						dismissRef.current();
@@ -194,13 +195,15 @@ export function SettingsDrawer({ visible, onClose }: { visible: boolean; onClose
 				}
 
 				if (vy < -SNAP_VELOCITY) {
+					setIsExpanded(true);
 					isExpandedRef.current = true;
+					scrollRef.current?.scrollTo({ y: 0, animated: false });
 					Animated.spring(translateY, {
 						toValue: sh - fh,
 						useNativeDriver: true,
 						damping: 25,
 						stiffness: 200,
-					}).start(() => setIsExpanded(true));
+					}).start();
 					Animated.timing(backdropOpacity, { toValue: 1, duration: 150, useNativeDriver: true }).start();
 					return;
 				}
@@ -213,21 +216,24 @@ export function SettingsDrawer({ visible, onClose }: { visible: boolean; onClose
 
 				const midpoint = sh - (ch + fh) / 2;
 				if (currentY < midpoint) {
+					setIsExpanded(true);
 					isExpandedRef.current = true;
+					scrollRef.current?.scrollTo({ y: 0, animated: false });
 					Animated.spring(translateY, {
 						toValue: sh - fh,
 						useNativeDriver: true,
 						damping: 25,
 						stiffness: 200,
-					}).start(() => setIsExpanded(true));
+					}).start();
 				} else {
+					setIsExpanded(false);
 					isExpandedRef.current = false;
 					Animated.spring(translateY, {
 						toValue: sh - ch,
 						useNativeDriver: true,
 						damping: 25,
 						stiffness: 200,
-					}).start(() => setIsExpanded(false));
+					}).start();
 				}
 				Animated.timing(backdropOpacity, { toValue: 1, duration: 150, useNativeDriver: true }).start();
 			},
@@ -306,13 +312,15 @@ export function SettingsDrawer({ visible, onClose }: { visible: boolean; onClose
 					{...panResponder.panHandlers}
 					style={{
 						alignItems: 'center',
-						paddingTop: isExpanded ? 6 : 12,
-						paddingBottom: isExpanded ? 6 : 4,
+						justifyContent: 'center',
+						paddingTop: isExpanded ? 10 : 14,
+						paddingBottom: isExpanded ? 10 : 8,
+						paddingHorizontal: 40,
 					}}
 				>
 					<View
 						style={{
-							width: 36,
+							width: 48,
 							height: 5,
 							borderRadius: 3,
 							backgroundColor: themeColors.border,

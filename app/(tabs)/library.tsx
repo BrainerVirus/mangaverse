@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { Link, useRouter } from 'expo-router';
+import { Link } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Platform, Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,7 +16,6 @@ export default function Library() {
 	const tabBarPadding = useTabBarPadding(16);
 	const themeColors = useThemeColors();
 	const insets = useSafeAreaInsets();
-	const router = useRouter();
 	const { width } = useWindowDimensions();
 	const [query, setQuery] = useState('');
 	const debouncedQuery = useDebouncedValue(query, 300);

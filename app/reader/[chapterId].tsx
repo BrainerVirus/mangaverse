@@ -157,11 +157,13 @@ export default function ReaderScreen() {
 			const leftEdge = w * tapZones.left;
 			const rightEdge = w * (1 - tapZones.right);
 			if (x < leftEdge) {
-				isRtl ? handleNext() : handlePrev();
+				if (isRtl) handleNext();
+				else handlePrev();
 				return;
 			}
 			if (x > rightEdge) {
-				isRtl ? handlePrev() : handleNext();
+				if (isRtl) handlePrev();
+				else handleNext();
 				return;
 			}
 			toggleChrome();
@@ -297,9 +299,11 @@ export default function ReaderScreen() {
 						if (Math.abs(delta) > 40) {
 							const dir = delta < 0 ? 'left' : 'right';
 							if (dir === 'left') {
-								isRtl ? handlePrev() : handleNext();
+								if (isRtl) handlePrev();
+								else handleNext();
 							} else {
-								isRtl ? handleNext() : handlePrev();
+								if (isRtl) handleNext();
+								else handlePrev();
 							}
 						}
 						setSwipeStartX(null);
