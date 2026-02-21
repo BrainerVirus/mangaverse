@@ -179,9 +179,13 @@ export function SettingsDrawer({ visible, onClose }: { visible: boolean; onClose
 
 				if (vy > SNAP_VELOCITY) {
 					if (expanded) {
-						setIsExpanded(false);
 						isExpandedRef.current = false;
-						Animated.spring(translateY, { toValue: sh - ch, useNativeDriver: true, damping: 25, stiffness: 200 }).start();
+						Animated.spring(translateY, {
+							toValue: sh - ch,
+							useNativeDriver: true,
+							damping: 25,
+							stiffness: 200,
+						}).start(() => setIsExpanded(false));
 						Animated.timing(backdropOpacity, { toValue: 1, duration: 150, useNativeDriver: true }).start();
 					} else {
 						dismissRef.current();
@@ -190,9 +194,13 @@ export function SettingsDrawer({ visible, onClose }: { visible: boolean; onClose
 				}
 
 				if (vy < -SNAP_VELOCITY) {
-					setIsExpanded(true);
 					isExpandedRef.current = true;
-					Animated.spring(translateY, { toValue: sh - fh, useNativeDriver: true, damping: 25, stiffness: 200 }).start();
+					Animated.spring(translateY, {
+						toValue: sh - fh,
+						useNativeDriver: true,
+						damping: 25,
+						stiffness: 200,
+					}).start(() => setIsExpanded(true));
 					Animated.timing(backdropOpacity, { toValue: 1, duration: 150, useNativeDriver: true }).start();
 					return;
 				}
@@ -205,13 +213,21 @@ export function SettingsDrawer({ visible, onClose }: { visible: boolean; onClose
 
 				const midpoint = sh - (ch + fh) / 2;
 				if (currentY < midpoint) {
-					setIsExpanded(true);
 					isExpandedRef.current = true;
-					Animated.spring(translateY, { toValue: sh - fh, useNativeDriver: true, damping: 25, stiffness: 200 }).start();
+					Animated.spring(translateY, {
+						toValue: sh - fh,
+						useNativeDriver: true,
+						damping: 25,
+						stiffness: 200,
+					}).start(() => setIsExpanded(true));
 				} else {
-					setIsExpanded(false);
 					isExpandedRef.current = false;
-					Animated.spring(translateY, { toValue: sh - ch, useNativeDriver: true, damping: 25, stiffness: 200 }).start();
+					Animated.spring(translateY, {
+						toValue: sh - ch,
+						useNativeDriver: true,
+						damping: 25,
+						stiffness: 200,
+					}).start(() => setIsExpanded(false));
 				}
 				Animated.timing(backdropOpacity, { toValue: 1, duration: 150, useNativeDriver: true }).start();
 			},
@@ -271,28 +287,39 @@ export function SettingsDrawer({ visible, onClose }: { visible: boolean; onClose
 
 	return (
 		<View className="absolute inset-0" style={{ zIndex: 30 }} pointerEvents="box-none">
-			{!isExpanded && (
-				<Animated.View className="absolute inset-0" style={{ opacity: backdropOpacity }}>
-					<Pressable className="flex-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={dismiss} />
-				</Animated.View>
-			)}
+			<Animated.View className="absolute inset-0" style={{ opacity: backdropOpacity }} pointerEvents={isExpanded ? 'none' : 'auto'}>
+				<Pressable className="flex-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={dismiss} />
+			</Animated.View>
 
 			<Animated.View
-				className={`bg-background absolute right-0 bottom-0 left-0 ${isExpanded ? '' : 'rounded-t-3xl'}`}
+				className="bg-background absolute right-0 bottom-0 left-0"
 				style={{
 					height: fullHeight,
 					transform: [{ translateY }],
 					paddingBottom: insets.bottom,
 					paddingTop: isExpanded ? insets.top : 0,
+					borderTopLeftRadius: isExpanded ? 0 : 24,
+					borderTopRightRadius: isExpanded ? 0 : 24,
 				}}
 			>
-				{!isExpanded ? (
-					<View {...panResponder.panHandlers} className="items-center pt-3 pb-1">
-						<View style={{ width: 36, height: 5, borderRadius: 3, backgroundColor: themeColors.border }} />
-					</View>
-				) : (
-					<View {...panResponder.panHandlers} className="h-3" />
-				)}
+				<View
+					{...panResponder.panHandlers}
+					style={{
+						alignItems: 'center',
+						paddingTop: isExpanded ? 6 : 12,
+						paddingBottom: isExpanded ? 6 : 4,
+					}}
+				>
+					<View
+						style={{
+							width: 36,
+							height: 5,
+							borderRadius: 3,
+							backgroundColor: themeColors.border,
+							opacity: isExpanded ? 0 : 1,
+						}}
+					/>
+				</View>
 
 				<View className="flex-row items-center justify-between px-5 pt-2 pb-3">
 					<Animated.Text className="text-preset-4 font-heading text-foreground font-semibold" style={{ opacity: headerTitleOpacity }}>
@@ -310,6 +337,7 @@ export function SettingsDrawer({ visible, onClose }: { visible: boolean; onClose
 					className="flex-1 px-5"
 					onScroll={handleScroll}
 					scrollEventThrottle={16}
+					contentContainerStyle={{ paddingBottom: isExpanded ? 0 : fullHeight - collapsedHeight }}
 				>
 					<Animated.Text className="text-preset-6 font-heading text-foreground mb-4 font-bold" style={{ opacity: contentTitleOpacity }}>
 						Reader Settings

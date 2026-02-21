@@ -40,6 +40,9 @@ export default function ReaderScreen() {
 	const lockRotation = useSettingsStore((s) => s.lockRotation);
 	const chapterBackground = useSettingsStore((s) => s.chapterBackground);
 	const pagePadding = useSettingsStore((s) => s.pagePadding);
+	const pillarboxAmount = useSettingsStore((s) => s.pillarboxAmount);
+	const chevronButtonLocation = useSettingsStore((s) => s.chevronButtonLocation);
+	const settingsButtonLocation = useSettingsStore((s) => s.settingsButtonLocation);
 	const setReaderMode = useSettingsStore((s) => s.setReaderMode);
 	const setLockRotation = useSettingsStore((s) => s.setLockRotation);
 	const addHistory = useHistoryStore((s) => s.addEntry);
@@ -114,14 +117,16 @@ export default function ReaderScreen() {
 	const scrollToPage = useCallback(
 		(pageIdx: number) => {
 			if (!scrollViewRef.current || isPaged) return;
+			const pillarPx = pillarboxAmount * 8;
+			const pad = (pagePadding ? 16 : 0) + pillarPx;
 			let y = 0;
 			for (let i = 0; i < pageIdx; i++) {
 				const ratio = pageRatios[orderedPages[i]?.url] || 1.5;
-				y += Math.round((screenWidth - (pagePadding ? 32 : 0)) * ratio);
+				y += Math.round((screenWidth - pad * 2) * ratio);
 			}
 			scrollViewRef.current.scrollTo({ y, animated: true });
 		},
-		[isPaged, pageRatios, orderedPages, screenWidth, pagePadding],
+		[isPaged, pageRatios, orderedPages, screenWidth, pagePadding, pillarboxAmount],
 	);
 
 	const handlePrev = useCallback(() => {
@@ -222,23 +227,27 @@ export default function ReaderScreen() {
 		(event: { nativeEvent: { contentOffset: { y: number }; layoutMeasurement: { height: number }; contentSize: { height: number } } }) => {
 			const { contentOffset, layoutMeasurement } = event.nativeEvent;
 			const scrollY = contentOffset.y;
+			const pillarPx = pillarboxAmount * 8;
+			const pad = (pagePadding ? 16 : 0) + pillarPx;
+			const imgW = screenWidth - pad * 2;
 
 			let accHeight = 0;
 			for (let i = 0; i < orderedPages.length; i++) {
 				const ratio = pageRatios[orderedPages[i].url] || 1.5;
-				const imgHeight = screenWidth * ratio;
-				accHeight += imgHeight;
+				accHeight += imgW * ratio;
 				if (accHeight > scrollY + layoutMeasurement.height / 2) {
 					if (i !== currentIndex) setCurrentIndex(i);
 					break;
 				}
 			}
 		},
-		[orderedPages, pageRatios, screenWidth, currentIndex],
+		[orderedPages, pageRatios, screenWidth, currentIndex, pagePadding, pillarboxAmount],
 	);
 
 	/* ─── Render ─── */
-	const paddingH = pagePadding ? 16 : 0;
+	const PILLARBOX_UNIT_PX = 8;
+	const pillarboxPx = isPaged ? 0 : pillarboxAmount * PILLARBOX_UNIT_PX;
+	const paddingH = (pagePadding ? 16 : 0) + pillarboxPx;
 	const imageWidth = screenWidth - paddingH * 2;
 
 	return (
@@ -376,6 +385,8 @@ export default function ReaderScreen() {
 				lockRotation={lockRotation}
 				pageDisplay={pageDisplay}
 				themeColors={themeColors}
+				chevronButtonLocation={chevronButtonLocation}
+				settingsButtonLocation={settingsButtonLocation}
 				onToggleReaderMode={() => setReaderMode(isPaged ? 'webtoon' : 'paged')}
 				onToggleRotation={() => setLockRotation(!lockRotation)}
 				onOpenSettings={() => {
