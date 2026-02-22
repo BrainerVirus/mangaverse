@@ -1,5 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
 import type { PressableProps, TextProps } from 'react-native';
-import { Pressable, Text } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import { type Href, useRouter } from 'expo-router';
 
@@ -10,6 +11,9 @@ interface ButtonBaseProps {
 	variant?: ButtonVariant;
 	size?: ButtonSize;
 	outline?: boolean;
+	disabled?: boolean;
+	icon?: keyof typeof Ionicons.glyphMap;
+	iconSize?: number;
 	className?: string;
 	textClassName?: string;
 	label: string;
@@ -68,15 +72,39 @@ function useButtonStyles(variant: ButtonVariant, size: ButtonSize, outline: bool
 	};
 }
 
-export function Button({ label, variant = 'primary', size = 'md', outline = false, className, textClassName, href, ...props }: ButtonProps) {
+export function Button({
+	label,
+	variant = 'primary',
+	size = 'md',
+	outline = false,
+	disabled = false,
+	icon,
+	iconSize,
+	className,
+	textClassName,
+	href,
+	...props
+}: ButtonProps) {
 	const router = useRouter();
 	const styles = useButtonStyles(variant, size, outline, className, textClassName);
 
 	const handlePress = href ? () => router.push(href) : (props as PressableProps).onPress;
 
 	return (
-		<Pressable className={styles.containerClassName} {...(props as PressableProps)} onPress={handlePress}>
-			<Text className={styles.textClassName}>{label}</Text>
+		<Pressable
+			className={styles.containerClassName}
+			{...(props as PressableProps)}
+			onPress={disabled ? undefined : handlePress}
+			style={[disabled && { opacity: 0.5 }]}
+		>
+			{icon ? (
+				<View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+					<Ionicons name={icon} size={iconSize ?? 18} className={styles.textClassName} />
+					<Text className={styles.textClassName}>{label}</Text>
+				</View>
+			) : (
+				<Text className={styles.textClassName}>{label}</Text>
+			)}
 		</Pressable>
 	);
 }

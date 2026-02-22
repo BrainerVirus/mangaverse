@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Link, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, Share, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Button } from '@components/ui/Button';
 import { withAlpha } from '@lib/colors/hex';
 import { useThemeColors } from '@lib/themes/vars';
 import { useFavoritesStore } from '@services/library/favorites';
@@ -199,31 +200,28 @@ export default function MangaDetail() {
 						<>
 							{/* Action buttons row */}
 							<View className="flex-row items-center gap-3">
-								{firstChapter ? (
-									<Link
-										href={{
-											pathname: '/reader/[chapterId]',
-											params: {
-												chapterId: firstChapter.id,
-												provider: providerId,
-												mangaId: details.id,
-												chapterTitle: firstChapter.title,
-												mangaTitle: details.title,
-											},
-										}}
-										asChild
-									>
-										<Pressable className="bg-primary rounded-control flex-1 flex-row items-center justify-center gap-2 py-3.5">
-											<Ionicons name="book" size={18} color={themeColors.primaryForeground} />
-											<Text className="text-primary-foreground text-preset-2 font-heading font-semibold">Read Now</Text>
-										</Pressable>
-									</Link>
-								) : (
-									<View className="bg-primary/50 rounded-control flex-1 flex-row items-center justify-center gap-2 py-3.5">
-										<Ionicons name="book" size={18} color={themeColors.primaryForeground} />
-										<Text className="text-primary-foreground/70 text-preset-2 font-heading font-semibold">Read Now</Text>
-									</View>
-								)}
+								<Button
+									label="Read Now"
+									variant="primary"
+									size="lg"
+									icon="book"
+									className="flex-1"
+									disabled={!firstChapter}
+									href={
+										firstChapter
+											? {
+													pathname: '/reader/[chapterId]',
+													params: {
+														chapterId: firstChapter.id,
+														provider: providerId,
+														mangaId: details.id,
+														chapterTitle: firstChapter.title,
+														mangaTitle: details.title,
+													},
+												}
+											: undefined
+									}
+								/>
 								<Pressable
 									className={`rounded-control items-center justify-center p-3.5 ${isFavorite ? 'bg-primary' : 'bg-card/70 border-border/30 border'}`}
 									onPress={() => {
