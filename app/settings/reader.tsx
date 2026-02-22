@@ -1,37 +1,40 @@
-import { ScrollView, Switch, Text, View } from 'react-native';
+import { useMemo } from 'react';
+import { ScrollView, Text, View } from 'react-native';
 
 import { GradientBackdrop } from '@components/GradientBackdrop';
 import { SectionHeading } from '@components/SectionHeading';
+import { SegmentRow } from '@components/ui/SegmentRow';
+import { ToggleRow } from '@components/ui/ToggleRow';
 import { useThemeColors } from '@lib/themes/vars';
 import { useSettingsStore } from '@stores/settings';
 
 const readerModes = [
-	{ id: 'webtoon', label: 'Vertical (Webtoon)' },
-	{ id: 'paged', label: 'Horizontal (Paged)' },
-] as const;
+	{ id: 'webtoon', label: 'Vertical' },
+	{ id: 'paged', label: 'Horizontal' },
+];
 
 const directions = [
-	{ id: 'rtl', label: 'Right to left (Manga)' },
-	{ id: 'ltr', label: 'Left to right (Comic)' },
-] as const;
+	{ id: 'rtl', label: 'RTL (Manga)' },
+	{ id: 'ltr', label: 'LTR (Comic)' },
+];
 
 const tapPresets = [
 	{ id: 'balanced', label: 'Balanced' },
-	{ id: 'wide-center', label: 'Wide center' },
+	{ id: 'wide-center', label: 'Wide' },
 	{ id: 'classic', label: 'Classic' },
-] as const;
+];
 
 const fitModes = [
 	{ id: 'contain', label: 'Fit screen' },
 	{ id: 'width', label: 'Fit width' },
-	{ id: 'cover', label: 'Fill screen' },
-] as const;
+	{ id: 'cover', label: 'Fill' },
+];
 
 const backgrounds = [
 	{ id: 'theme', label: 'Theme' },
 	{ id: 'black', label: 'Black' },
 	{ id: 'white', label: 'White' },
-] as const;
+];
 
 export default function ReaderSettings() {
 	const readerMode = useSettingsStore((state) => state.readerMode);
@@ -53,6 +56,8 @@ export default function ReaderSettings() {
 	const lockRotation = useSettingsStore((state) => state.lockRotation);
 	const setLockRotation = useSettingsStore((state) => state.setLockRotation);
 	const themeColors = useThemeColors();
+	const trackColors = useMemo(() => ({ false: themeColors.border, true: themeColors.primary }), [themeColors.border, themeColors.primary]);
+
 	return (
 		<View className="bg-background flex-1">
 			<GradientBackdrop />
@@ -61,137 +66,37 @@ export default function ReaderSettings() {
 				<View className="gap-3 pb-12">
 					<View className="border-border/30 bg-card/70 rounded-box border p-5">
 						<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Reader mode</Text>
-						<View className="mt-4 gap-3">
-							{readerModes.map((mode) => (
-								<Text
-									key={mode.id}
-									className={`text-preset-2 font-heading rounded-control border px-4 py-3 font-semibold ${
-										readerMode === mode.id ? 'border-primary/80 bg-primary/15 text-primary' : 'border-border/30 bg-card/70 text-muted'
-									}`}
-									onPress={() => setReaderMode(mode.id)}
-								>
-									{mode.label}
-								</Text>
-							))}
-						</View>
-						<View className="mt-6">
-							<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Reading direction</Text>
-							<View className="mt-4 gap-3">
-								{directions.map((dir) => (
-									<Text
-										key={dir.id}
-										className={`text-preset-2 font-heading rounded-control border px-4 py-3 font-semibold ${
-											readerDirection === dir.id ? 'border-primary/80 bg-primary/15 text-primary' : 'border-border/30 bg-card/70 text-muted'
-										}`}
-										onPress={() => setReaderDirection(dir.id)}
-									>
-										{dir.label}
-									</Text>
-								))}
-							</View>
-						</View>
-						<View className="mt-6">
-							<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Tap zones</Text>
-							<View className="mt-4 gap-3">
-								{tapPresets.map((preset) => (
-									<Text
-										key={preset.id}
-										className={`text-preset-2 font-heading rounded-control border px-4 py-3 font-semibold ${
-											tapZonePreset === preset.id ? 'border-primary/80 bg-primary/15 text-primary' : 'border-border/30 bg-card/70 text-muted'
-										}`}
-										onPress={() => setTapZonePreset(preset.id)}
-									>
-										{preset.label}
-									</Text>
-								))}
-							</View>
-						</View>
+						<SegmentRow label="Reader type" value={readerMode} options={readerModes} onSelect={(id) => setReaderMode(id as 'webtoon' | 'paged')} />
+						<SegmentRow
+							label="Reading direction"
+							value={readerDirection}
+							options={directions}
+							onSelect={(id) => setReaderDirection(id as 'rtl' | 'ltr')}
+						/>
+						<SegmentRow
+							label="Tap zones"
+							value={tapZonePreset}
+							options={tapPresets}
+							onSelect={(id) => setTapZonePreset(id as 'balanced' | 'wide-center' | 'classic')}
+						/>
 					</View>
 					<View className="border-border/30 bg-card/70 rounded-box border p-5">
 						<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Display</Text>
-						<View className="mt-4 gap-3">
-							{fitModes.map((mode) => (
-								<Text
-									key={mode.id}
-									className={`text-preset-2 font-heading rounded-control border px-4 py-3 font-semibold ${
-										fitMode === mode.id ? 'border-primary/80 bg-primary/15 text-primary' : 'border-border/30 bg-card/70 text-muted'
-									}`}
-									onPress={() => setFitMode(mode.id)}
-								>
-									{mode.label}
-								</Text>
-							))}
-						</View>
-						<View className="mt-6">
-							<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Chapter background</Text>
-							<View className="mt-4 gap-3">
-								{backgrounds.map((tone) => (
-									<Text
-										key={tone.id}
-										className={`text-preset-2 font-heading rounded-control border px-4 py-3 font-semibold ${
-											chapterBackground === tone.id ? 'border-primary/80 bg-primary/15 text-primary' : 'border-border/30 bg-card/70 text-muted'
-										}`}
-										onPress={() => setChapterBackground(tone.id)}
-									>
-										{tone.label}
-									</Text>
-								))}
-							</View>
-						</View>
+						<SegmentRow label="Page fit" value={fitMode} options={fitModes} onSelect={(id) => setFitMode(id as 'contain' | 'width' | 'cover')} />
+						<SegmentRow
+							label="Chapter background"
+							value={chapterBackground}
+							options={backgrounds}
+							onSelect={(id) => setChapterBackground(id as 'theme' | 'black' | 'white')}
+						/>
 					</View>
 					<View className="border-border/30 bg-card/70 rounded-box border p-5">
 						<Text className="text-preset-1 text-muted-foreground tracking-[0.2em] uppercase">Controls</Text>
-						<View className="mt-4 flex-row items-center justify-between">
-							<View className="flex-1 pr-4">
-								<Text className="text-preset-2 font-heading text-foreground font-semibold">Swipe navigation</Text>
-								<Text className="text-preset-1 font-body text-muted mt-2">Enable swipe gestures for page navigation.</Text>
-							</View>
-							<Switch
-								value={swipeEnabled}
-								onValueChange={setSwipeEnabled}
-								trackColor={{ false: themeColors.border, true: themeColors.accent }}
-								thumbColor={swipeEnabled ? themeColors.background : themeColors.card}
-								ios_backgroundColor={themeColors.border}
-							/>
-						</View>
-						<View className="mt-6 flex-row items-center justify-between">
-							<View className="flex-1 pr-4">
-								<Text className="text-preset-2 font-heading text-foreground font-semibold">Tap navigation</Text>
-								<Text className="text-preset-1 font-body text-muted mt-2">Enable tap zones to change pages.</Text>
-							</View>
-							<Switch
-								value={tapNavigationEnabled}
-								onValueChange={setTapNavigationEnabled}
-								trackColor={{ false: themeColors.border, true: themeColors.accent }}
-								thumbColor={tapNavigationEnabled ? themeColors.background : themeColors.card}
-								ios_backgroundColor={themeColors.border}
-							/>
-						</View>
-						<View className="mt-6 flex-row items-center justify-between">
-							<View className="flex-1 pr-4">
-								<Text className="text-preset-2 font-heading text-foreground font-semibold">Auto-hide UI</Text>
-								<Text className="text-preset-1 font-body text-muted mt-2">Hide controls after a short delay while reading.</Text>
-							</View>
-							<Switch
-								value={autoHideChrome}
-								onValueChange={setAutoHideChrome}
-								trackColor={{ false: themeColors.border, true: themeColors.accent }}
-								thumbColor={autoHideChrome ? themeColors.background : themeColors.card}
-								ios_backgroundColor={themeColors.border}
-							/>
-						</View>
-						<View className="mt-6 flex-row items-center justify-between">
-							<View className="flex-1 pr-4">
-								<Text className="text-preset-2 font-heading text-foreground font-semibold">Lock rotation</Text>
-								<Text className="text-preset-1 font-body text-muted mt-2">Keep the reader in portrait mode.</Text>
-							</View>
-							<Switch
-								value={lockRotation}
-								onValueChange={setLockRotation}
-								trackColor={{ false: themeColors.border, true: themeColors.accent }}
-								thumbColor={lockRotation ? themeColors.background : themeColors.card}
-								ios_backgroundColor={themeColors.border}
-							/>
+						<View className="mt-3">
+							<ToggleRow label="Swipe navigation" value={swipeEnabled} onToggle={setSwipeEnabled} trackColors={trackColors} />
+							<ToggleRow label="Tap navigation" value={tapNavigationEnabled} onToggle={setTapNavigationEnabled} trackColors={trackColors} />
+							<ToggleRow label="Auto-hide UI" value={autoHideChrome} onToggle={setAutoHideChrome} trackColors={trackColors} />
+							<ToggleRow label="Lock rotation" value={lockRotation} onToggle={setLockRotation} trackColors={trackColors} />
 						</View>
 					</View>
 				</View>

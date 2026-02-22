@@ -51,9 +51,10 @@ export function useReaderData({ chapterId, providerId, mangaId }: UseReaderDataO
 		});
 	}, [chapterId, providerId, providers, mangaId]);
 
-	const currentChapterIdx = useMemo(() => chapters.findIndex((c) => c.id === chapterId), [chapters, chapterId]);
-	const nextChapter = currentChapterIdx < chapters.length - 1 ? chapters[currentChapterIdx + 1] : null;
-	const prevChapter = currentChapterIdx > 0 ? chapters[currentChapterIdx - 1] : null;
+	const sortedChapters = useMemo(() => [...chapters].sort((a, b) => (a.chapterNumber ?? 0) - (b.chapterNumber ?? 0)), [chapters]);
+	const currentChapterIdx = useMemo(() => sortedChapters.findIndex((c) => c.id === chapterId), [sortedChapters, chapterId]);
+	const nextChapter = currentChapterIdx < sortedChapters.length - 1 ? sortedChapters[currentChapterIdx + 1] : null;
+	const prevChapter = currentChapterIdx > 0 ? sortedChapters[currentChapterIdx - 1] : null;
 
-	return { pages, chapters, loading, error, nextChapter, prevChapter };
+	return { pages, chapters: sortedChapters, loading, error, nextChapter, prevChapter };
 }
