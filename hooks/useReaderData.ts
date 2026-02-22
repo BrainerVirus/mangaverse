@@ -52,8 +52,8 @@ export function useReaderData({ chapterId, providerId, mangaId }: UseReaderDataO
 	}, [chapterId, providerId, providers, mangaId]);
 
 	const currentChapterIdx = useMemo(() => chapters.findIndex((c) => c.id === chapterId), [chapters, chapterId]);
-	const nextChapter = currentChapterIdx > 0 ? chapters[currentChapterIdx - 1] : null;
-	const prevChapter = currentChapterIdx < chapters.length - 1 ? chapters[currentChapterIdx + 1] : null;
+	const nextChapter = currentChapterIdx < chapters.length - 1 ? chapters[currentChapterIdx + 1] : null;
+	const prevChapter = currentChapterIdx > 0 ? chapters[currentChapterIdx - 1] : null;
 
 	return { pages, chapters, loading, error, nextChapter, prevChapter };
 }
