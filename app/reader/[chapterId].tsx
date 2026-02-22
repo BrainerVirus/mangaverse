@@ -102,11 +102,11 @@ export default function ReaderScreen() {
 	const tapZones = useMemo(() => {
 		switch (tapZonePreset) {
 			case 'wide-center':
-				return { left: 0.2, right: 0.2 };
+				return { left: 0.1, right: 0.1 };
 			case 'classic':
-				return { left: 0.3, right: 0.3 };
+				return { left: 0.15, right: 0.15 };
 			default:
-				return { left: 0.33, right: 0.33 };
+				return { left: 0.15, right: 0.15 };
 		}
 	}, [tapZonePreset]);
 
