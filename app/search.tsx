@@ -191,7 +191,7 @@ export default function Search() {
 											<Ionicons name="time-outline" size={18} color={themeColors.muted} style={{ marginRight: 12 }} />
 											<Text className="text-foreground text-preset-2 font-body flex-1">{term}</Text>
 										</Pressable>
-										{index < recentSearches.length - 1 && <View className="bg-border/30 ml-[42px] h-px" />}
+										{index < recentSearches.length - 1 && <View className="bg-border/30 ml-10.5 h-px" />}
 									</View>
 								))}
 							</View>
