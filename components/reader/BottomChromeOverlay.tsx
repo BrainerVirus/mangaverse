@@ -42,19 +42,19 @@ export function BottomChromeOverlay({
 		<React.Fragment key="mode-rotation">
 			<Pressable
 				onPress={onToggleReaderMode}
-				className="h-9 w-9 items-center justify-center rounded-full"
+				className="h-10 w-10 items-center justify-center rounded-full"
 				style={{ backgroundColor: BTN_BG }}
 				hitSlop={4}
 			>
-				<Ionicons name={isPaged ? 'swap-vertical' : 'book-outline'} size={18} color="#fff" />
+				<Ionicons name={isPaged ? 'swap-vertical' : 'book-outline'} size={20} color="#fff" />
 			</Pressable>
 			<Pressable
 				onPress={onToggleRotation}
-				className="h-9 w-9 items-center justify-center rounded-full"
+				className="h-10 w-10 items-center justify-center rounded-full"
 				style={{ backgroundColor: lockRotation ? themeColors.primary : BTN_BG }}
 				hitSlop={4}
 			>
-				<Ionicons name={lockRotation ? 'lock-closed' : 'lock-open-outline'} size={18} color="#fff" />
+				<Ionicons name={lockRotation ? 'lock-closed' : 'lock-open-outline'} size={20} color="#fff" />
 			</Pressable>
 		</React.Fragment>
 	);
@@ -63,24 +63,24 @@ export function BottomChromeOverlay({
 		<Pressable
 			key="settings"
 			onPress={onOpenSettings}
-			className="h-9 w-9 items-center justify-center rounded-full"
+			className="h-10 w-10 items-center justify-center rounded-full"
 			style={{ backgroundColor: BTN_BG }}
 			hitSlop={4}
 		>
-			<Ionicons name="settings-sharp" size={18} color="#fff" />
+			<Ionicons name="settings-sharp" size={20} color="#fff" />
 		</Pressable>
 	);
 
 	const pagination = (
-		<View key="pagination" className="flex-row items-center gap-3">
-			<Pressable onPress={onPrev} hitSlop={8}>
-				<Ionicons name="chevron-back" size={22} color="#fff" />
+		<View key="pagination" className="flex-row items-center gap-2">
+			<Pressable onPress={onPrev} className="h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: BTN_BG }} hitSlop={4}>
+				<Ionicons name="chevron-back" size={20} color="#fff" />
 			</Pressable>
 			<Text className="text-preset-1 font-body" style={{ color: '#fff', minWidth: 60, textAlign: 'center' }}>
 				{pageDisplay}
 			</Text>
-			<Pressable onPress={onNext} hitSlop={8}>
-				<Ionicons name="chevron-forward" size={22} color="#fff" />
+			<Pressable onPress={onNext} className="h-10 w-10 items-center justify-center rounded-full" style={{ backgroundColor: BTN_BG }} hitSlop={4}>
+				<Ionicons name="chevron-forward" size={20} color="#fff" />
 			</Pressable>
 		</View>
 	);
@@ -113,8 +113,8 @@ export function BottomChromeOverlay({
 				style={{ paddingBottom: Math.max(insets.bottom, 12) + 8, paddingTop: 32, paddingHorizontal: 16 }}
 			>
 				<View className="flex-row items-center justify-between">
-					<View className="flex-row items-center gap-5">{leftItems}</View>
-					<View className="flex-row items-center gap-5">{rightItems}</View>
+					<View className="flex-row items-center gap-3">{leftItems}</View>
+					<View className="flex-row items-center gap-3">{rightItems}</View>
 				</View>
 			</LinearGradient>
 		</Animated.View>
