@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
@@ -15,6 +15,7 @@ export default function AccountSettings() {
 	const [error, setError] = useState<string | null>(null);
 	const session = useAuthStore((state) => state.session);
 	const themeColors = useThemeColors();
+	const router = useRouter();
 
 	const handleMagicLink = async () => {
 		setError(null);
@@ -63,11 +64,9 @@ export default function AccountSettings() {
 							</Text>
 						</View>
 					) : null}
-					<Link href="/settings/auth-help" asChild>
-						<Pressable className="bg-chip rounded-badge mt-3 items-center px-4 py-2">
-							<Text className="text-preset-1 font-heading text-foreground text-center font-semibold tracking-[0.2em] uppercase">Auth setup help</Text>
-						</Pressable>
-					</Link>
+					<Pressable className="bg-chip rounded-badge mt-3 items-center px-4 py-2" onPress={() => router.push('/settings/auth-help')}>
+						<Text className="text-preset-1 font-heading text-foreground text-center font-semibold tracking-[0.2em] uppercase">Auth setup help</Text>
+					</Pressable>
 					{session ? (
 						<Text
 							className="bg-chip text-preset-1 font-heading text-foreground rounded-badge mt-4 px-4 py-2 text-center font-semibold tracking-[0.2em] uppercase"

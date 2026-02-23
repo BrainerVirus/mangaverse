@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { Link, useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -153,27 +153,15 @@ export default function DiscoverSection() {
 				onEndReached={handleEndReached}
 				onEndReachedThreshold={0.6}
 				renderItem={({ item }) => (
-					<Link
-						href={{
-							pathname: '/manga/[id]',
-							params: { id: item.id, provider: providerId },
+					<Pressable
+						style={{
+							width: itemWidth,
+							marginBottom: 16,
 						}}
-						asChild
+						onPress={() => router.push({ pathname: '/manga/[id]', params: { id: item.id, provider: providerId } })}
 					>
-						<Pressable
-							style={{
-								width: itemWidth,
-								marginBottom: 16,
-							}}
-						>
-							<MangaCard
-								title={item.title}
-								subtitle={item.subtitle}
-								coverUrl={item.coverUrl}
-								inLibrary={favoriteStore.contains(item.id, providerId)}
-							/>
-						</Pressable>
-					</Link>
+						<MangaCard title={item.title} subtitle={item.subtitle} coverUrl={item.coverUrl} inLibrary={favoriteStore.contains(item.id, providerId)} />
+					</Pressable>
 				)}
 				ListEmptyComponent={
 					loading ? (

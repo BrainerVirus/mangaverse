@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { Link } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -37,6 +37,7 @@ const settingsGroup: { title: string; rows: SettingsRow[] }[] = [
 ];
 
 function SettingsGroupSection({ title, rows, themeColors }: { title: string; rows: SettingsRow[]; themeColors: ReturnType<typeof useThemeColors> }) {
+	const router = useRouter();
 	return (
 		<View className="mb-6">
 			<Text className="text-muted-foreground text-preset-1 mb-2 px-4 tracking-[0.15em] uppercase">{title}</Text>
@@ -44,13 +45,11 @@ function SettingsGroupSection({ title, rows, themeColors }: { title: string; row
 				{rows.map((row, index) => (
 					<View key={row.label}>
 						{row.type === 'link' ? (
-							<Link href={row.href} asChild>
-								<Pressable className="flex-row items-center px-4 py-3.5">
-									<Ionicons name={row.icon} size={20} color={themeColors.foreground} style={{ width: 28 }} />
-									<Text className="text-foreground text-preset-2 font-body flex-1">{row.label}</Text>
-									<Ionicons name="chevron-forward" size={18} color={themeColors.muted} />
-								</Pressable>
-							</Link>
+							<Pressable className="flex-row items-center px-4 py-3.5" onPress={() => router.push(row.href)}>
+								<Ionicons name={row.icon} size={20} color={themeColors.foreground} style={{ width: 28 }} />
+								<Text className="text-foreground text-preset-2 font-body flex-1">{row.label}</Text>
+								<Ionicons name="chevron-forward" size={18} color={themeColors.muted} />
+							</Pressable>
 						) : (
 							<Pressable className="flex-row items-center px-4 py-3.5" onPress={row.onPress}>
 								<Text className={`text-preset-2 font-body flex-1 ${row.destructive ? 'text-error' : 'text-foreground'}`}>{row.label}</Text>

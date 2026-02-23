@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { Link } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
 	ActivityIndicator,
@@ -32,6 +32,7 @@ export default function Search() {
 	const providers = useExtensionsStore((state) => state.enabledProviders);
 	const { resultsByProvider, searchAll, statusByProvider } = useSearchStore();
 	const themeColors = useThemeColors();
+	const router = useRouter();
 	const insets = useSafeAreaInsets();
 	const { width } = useWindowDimensions();
 	const headerHeight = 44 + insets.top;
@@ -101,17 +102,12 @@ export default function Search() {
 					keyExtractor={(item) => `${item.providerId}-${item.id}`}
 					columnWrapperStyle={{ columnGap }}
 					renderItem={({ item }) => (
-						<Link
-							href={{
-								pathname: '/manga/[id]',
-								params: { id: item.id, provider: item.providerId },
-							}}
-							asChild
+						<Pressable
+							style={{ width: itemWidth, marginBottom: 16 }}
+							onPress={() => router.push({ pathname: '/manga/[id]', params: { id: item.id, provider: item.providerId } })}
 						>
-							<Pressable style={{ width: itemWidth, marginBottom: 16 }}>
-								<MangaCard title={item.title} coverUrl={item.coverUrl} subtitle={item.subtitle} />
-							</Pressable>
-						</Link>
+							<MangaCard title={item.title} coverUrl={item.coverUrl} subtitle={item.subtitle} />
+						</Pressable>
 					)}
 				/>
 			) : (

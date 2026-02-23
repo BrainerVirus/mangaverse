@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Link } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Animated, Pressable, Text, View } from 'react-native';
 
 interface TopChromeOverlayProps {
@@ -24,6 +24,7 @@ export function TopChromeOverlay({
 	providerId,
 	onClose,
 }: TopChromeOverlayProps) {
+	const router = useRouter();
 	return (
 		<Animated.View
 			className="absolute top-0 right-0 left-0"
@@ -52,21 +53,14 @@ export function TopChromeOverlay({
 
 				{infoMangaId ? (
 					<View className="mt-3">
-						<Link
-							href={{
-								pathname: '/manga/[id]',
-								params: { id: infoMangaId, provider: providerId },
-							}}
-							asChild
+						<Pressable
+							className="h-10 w-10 items-center justify-center rounded-full"
+							style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+							hitSlop={8}
+							onPress={() => router.push({ pathname: '/manga/[id]', params: { id: infoMangaId, provider: providerId } })}
 						>
-							<Pressable
-								className="h-10 w-10 items-center justify-center rounded-full"
-								style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
-								hitSlop={8}
-							>
-								<Ionicons name="information" size={20} color="#fff" />
-							</Pressable>
-						</Link>
+							<Ionicons name="information" size={20} color="#fff" />
+						</Pressable>
 					</View>
 				) : null}
 			</LinearGradient>

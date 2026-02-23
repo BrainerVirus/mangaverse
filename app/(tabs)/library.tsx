@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { Link } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Platform, Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,6 +15,7 @@ export default function Library() {
 	const favorites = useFavoritesStore((state) => state.items);
 	const tabBarPadding = useTabBarPadding(16);
 	const themeColors = useThemeColors();
+	const router = useRouter();
 	const insets = useSafeAreaInsets();
 	const { width } = useWindowDimensions();
 	const [query, setQuery] = useState('');
@@ -35,19 +36,14 @@ export default function Library() {
 
 	const renderItem = useCallback(
 		({ item }: { item: (typeof favorites)[0] }) => (
-			<Link
-				href={{
-					pathname: '/manga/[id]',
-					params: { id: item.id, provider: item.providerId },
-				}}
-				asChild
+			<Pressable
+				style={{ width: itemWidth, marginBottom: 16 }}
+				onPress={() => router.push({ pathname: '/manga/[id]', params: { id: item.id, provider: item.providerId } })}
 			>
-				<Pressable style={{ width: itemWidth, marginBottom: 16 }}>
-					<MangaCard title={item.title} coverUrl={item.coverUrl} subtitle={item.subtitle} titleLines={2} />
-				</Pressable>
-			</Link>
+				<MangaCard title={item.title} coverUrl={item.coverUrl} subtitle={item.subtitle} titleLines={2} />
+			</Pressable>
 		),
-		[itemWidth],
+		[itemWidth, router],
 	);
 
 	return (
@@ -57,11 +53,9 @@ export default function Library() {
 					<Ionicons name="book-outline" size={64} color={themeColors.muted} />
 					<Text className="text-foreground text-preset-4 font-heading mt-6 text-center font-semibold">Your library is empty</Text>
 					<Text className="text-muted text-preset-2 font-body mt-2 text-center">Find a series in Discover or Search to add it here.</Text>
-					<Link href="/(tabs)/discover" asChild>
-						<Pressable className="bg-primary rounded-badge mt-6 px-6 py-3">
-							<Text className="text-primary-foreground text-preset-2 font-heading text-center font-semibold">Browse Discover</Text>
-						</Pressable>
-					</Link>
+					<Pressable className="bg-primary rounded-badge mt-6 px-6 py-3" onPress={() => router.push('/(tabs)/discover')}>
+						<Text className="text-primary-foreground text-preset-2 font-heading text-center font-semibold">Browse Discover</Text>
+					</Pressable>
 				</View>
 			) : (
 				<FlatList
