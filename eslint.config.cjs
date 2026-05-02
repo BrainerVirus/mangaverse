@@ -3,7 +3,7 @@ const prettier = require('eslint-plugin-prettier');
 const testingLibrary = require('eslint-plugin-testing-library');
 
 module.exports = [
-	{ ignores: ['.agents/**', 'extensions/dist/**', 'coverage/**'] },
+	{ ignores: ['.agents/**', 'extensions/dist/**', 'coverage/**', 'dist/**', 'apps/**/dist/**'] },
 	...expoConfig,
 	{
 		plugins: {
