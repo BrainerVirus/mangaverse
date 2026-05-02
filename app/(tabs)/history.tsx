@@ -1,7 +1,7 @@
+import BlurBackground from '@components/ui/BlurBackground';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import { useEffect, useMemo } from 'react';
-import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useThemeColors } from '@lib/themes/vars';
@@ -122,7 +122,7 @@ export default function History() {
 					paddingTop: headerHeight + 8,
 					paddingBottom: tabBarPadding,
 				}}
-				contentInsetAdjustmentBehavior="never"
+				contentInsetAdjustmentBehavior="automatic"
 			>
 				{privateMode && (
 					<View className="border-warning/40 bg-warning/10 rounded-box mx-4 mb-4 border p-4">
@@ -168,11 +168,7 @@ export default function History() {
 			{/* Fixed header */}
 			<View className="absolute top-0 right-0 left-0" style={{ zIndex: 10 }}>
 				<View className="relative overflow-hidden">
-					{Platform.OS === 'ios' ? (
-						<BlurView intensity={80} tint="systemChromeMaterialDark" style={StyleSheet.absoluteFillObject} />
-					) : (
-						<View className="bg-background/90" style={StyleSheet.absoluteFillObject} />
-					)}
+					<BlurBackground intensity={80} />
 					<View style={{ paddingTop: insets.top, height: headerHeight }} className="flex-row items-center justify-between px-4">
 						<Pressable onPress={() => setPrivateMode(!privateMode)} hitSlop={8}>
 							<Ionicons name={privateMode ? 'eye-off' : 'eye'} size={24} color={privateMode ? themeColors.warning : themeColors.foreground} />

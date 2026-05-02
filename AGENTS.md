@@ -5,10 +5,12 @@ This file is the operational guide for agentic coding tools working in this repo
 ## Project Snapshot
 
 - Framework: Expo SDK 54 + React Native 0.81 + Expo Router 6.
+- **Target platforms: Web (primary) + Desktop (Tauri) + Mobile (legacy).**
 - Language: TypeScript (strict).
 - Styling: NativeWind v5 (`nativewind` preview + `react-native-css`) with Tailwind v4.
 - State: Zustand v5 (stores in `stores/`).
-- Database: expo-sqlite (local) + optional Supabase (auth/cloud).
+- Database: sql.js (web/desktop) / expo-sqlite (mobile) + optional Supabase (auth/cloud).
+- Desktop: Tauri v2 wrapping the Expo web export.
 - Tests: Jest + jest-expo + @testing-library/react-native.
 - Lint/format: ESLint (flat config via eslint-config-expo) + Prettier.
 
@@ -30,6 +32,9 @@ The app entry point is `expo-router/entry` (set in `package.json` `main`).
 - Android: `npm run android`
 - iOS (macOS): `npm run ios`
 - Web: `npm run web`
+- Web export (static build): `npm run web:export`
+- Desktop dev (Tauri): `npm run desktop:dev`
+- Desktop build (Tauri): `npm run desktop:build`
 
 ## Build / Lint / Test Commands
 
@@ -67,6 +72,7 @@ Source scraping extensions live in `extensions/`. Each extension (e.g. `extensio
 - `hooks/`: Custom React hooks.
 - `lib/`: Shared utilities, constants, theme vars.
 - `services/`: Data layer (auth/supabase, db, extensions manager, scraping).
+- `services/platform/`: Platform abstraction layer — storage, filesystem, secureStore, database adapters.
 - `stores/`: Zustand stores (auth, extensions, settings, etc.).
 - `types/`: TypeScript type definitions.
 - `extensions/`: Source scraping extensions + Rollup build config.
@@ -133,7 +139,33 @@ Defined in both `tsconfig.json` and `babel.config.js` (module-resolver):
 - `nativewind` v5 preview: requires `react-native-css` v3. Both versions are pinned in `overrides`.
 - `package.json` `overrides` field pins critical versions (`hermes-parser`, `metro-runtime`, `lightningcss`, etc.). Do not change these without understanding the NativeWind/Tailwind v4 integration.
 - `zustand` v5 for state management — stores follow the `create(...)` pattern.
-- `expo-sqlite` for local DB — initialized in `@services/db`.
+- `sql.js` for local DB on web/desktop — same SQL schema as expo-sqlite, initialized in `@services/db`.
+- `idb-keyval` for IndexedDB key-value storage on web/desktop.
+- `@tauri-apps/api` v2 — runtime Tauri APIs for desktop window management, file dialogs, etc.
+
+## Platform Abstraction
+
+Use `@lib/platform` (`PlatformInfo`) instead of `Platform` from react-native:
+
+```ts
+import { PlatformInfo } from '@lib/platform';
+
+if (PlatformInfo.isWeb) { /* browser code */ }
+if (PlatformInfo.isDesktop) { /* Tauri code */ }
+if (PlatformInfo.isMobile) { /* iOS/Android code */ }
+```
+
+Platform-specific service implementations use file extension convention:
+
+- `file.native.ts` — loaded on iOS/Android (Metro auto-resolves)
+- `file.web.ts` — loaded on web (browser or Tauri webview)
+- `file.ts` — shared barrel that re-exports platform-specific impl
+
+Services in `services/platform/` provide:
+- `storage` — key-value persistence (AsyncStorage / idb-keyval)
+- `filesystem` — file I/O (expo-file-system / IndexedDB + File System Access API)
+- `secureStore` — secure token storage (expo-secure-store / localStorage with encryption)
+- `database` — SQLite (expo-sqlite / sql.js WASM)
 
 ## Git Hooks
 

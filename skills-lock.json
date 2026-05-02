@@ -144,6 +144,11 @@
       "sourceType": "autoskills-registry",
       "computedHash": "8fd534b64b3f305ade80c207e2f9ba4338d5e409e355af9f724c36764b6709c1"
     },
+    "tauri-v2": {
+      "source": "nodnarbnitram/claude-code-extensions",
+      "sourceType": "autoskills-registry",
+      "computedHash": "2a14a5e08e521136f42265bf52cc297e49c5d877ecd4179b563ad85957bbbc07"
+    },
     "test-driven-development": {
       "source": "obra/superpowers",
       "sourceType": "github",

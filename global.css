@@ -116,3 +116,54 @@
 @utility rounded-bl-control {
 	border-bottom-left-radius: var(--radius-control);
 }
+
+/* -------------------------------------------------------------------------- */
+/* 3. WEB & DESKTOP ENHANCEMENTS                                              */
+/* -------------------------------------------------------------------------- */
+
+/* Scrollbar styling */
+@media (pointer: fine) {
+	html {
+		scrollbar-width: thin;
+		scrollbar-color: var(--muted) transparent;
+	}
+
+	::-webkit-scrollbar {
+		width: 8px;
+		height: 8px;
+	}
+
+	::-webkit-scrollbar-track {
+		background: transparent;
+	}
+
+	::-webkit-scrollbar-thumb {
+		background: var(--muted);
+		border-radius: 4px;
+	}
+
+	::-webkit-scrollbar-thumb:hover {
+		background: var(--muted-foreground);
+	}
+}
+
+/* Selection color */
+::selection {
+	background-color: var(--primary);
+	color: var(--primary-foreground);
+}
+
+/* Disable text selection on UI elements (add class .no-select) */
+.no-select {
+	-webkit-user-select: none;
+	user-select: none;
+}
+
+/* Drag region for Tauri custom title bar */
+.tauri-drag-region {
+	-webkit-app-region: drag;
+}
+
+.tauri-no-drag {
+	-webkit-app-region: no-drag;
+}

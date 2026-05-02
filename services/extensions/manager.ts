@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getItem, setItem } from '@services/platform/storage';
 
 import type { InstalledExtension } from '../../types/extension';
 import type { ExtensionIndexItem, ProviderContract } from '../../types/provider';
@@ -9,7 +9,7 @@ import { downloadExtensionBundle, removeExtensionBundle } from './storage';
 const storageKey = 'extensions.installed';
 
 export async function loadInstalledExtensions(): Promise<InstalledExtension[]> {
-	const raw = await AsyncStorage.getItem(storageKey);
+	const raw = await getItem(storageKey);
 	if (!raw) {
 		return [];
 	}
@@ -21,7 +21,7 @@ export async function loadInstalledExtensions(): Promise<InstalledExtension[]> {
 }
 
 export async function saveInstalledExtensions(extensions: InstalledExtension[]) {
-	await AsyncStorage.setItem(storageKey, JSON.stringify(extensions));
+	await setItem(storageKey, JSON.stringify(extensions));
 }
 
 export function toInstalledExtension(item: ExtensionIndexItem, bundlePath: string): InstalledExtension {

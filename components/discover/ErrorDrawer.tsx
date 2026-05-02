@@ -9,8 +9,8 @@ interface ErrorDrawerProps {
 
 export function ErrorDrawer({ providerLoadError, height, onToggleHeight, onClose }: ErrorDrawerProps) {
 	return (
-		<View className="absolute inset-0" pointerEvents="box-none">
-			<View className="flex-1" pointerEvents="box-none" />
+		<View className="absolute inset-0" style={{ pointerEvents: 'box-none' }}>
+			<View className="flex-1" style={{ pointerEvents: 'box-none' }} />
 			<Animated.View style={{ height }} className="border-border bg-card rounded-t-box overflow-hidden border shadow-2xl">
 				<View className="items-center justify-center">
 					<Pressable onPress={onToggleHeight} className="h-7 w-full items-center justify-center">

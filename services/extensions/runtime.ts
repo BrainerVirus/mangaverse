@@ -1,3 +1,5 @@
+import { readFile } from '@services/platform/filesystem';
+
 import type { ProviderContract } from '../../types/provider';
 
 export function validateProviderContract(provider: ProviderContract) {
@@ -26,8 +28,7 @@ export async function loadProviderBundle(bundlePathOrUrl: string) {
 		}
 		code = await response.text();
 	} else {
-		const FileSystem = await import('expo-file-system/legacy');
-		code = await FileSystem.readAsStringAsync(bundlePathOrUrl);
+		code = await readFile(bundlePathOrUrl);
 	}
 	const module = { exports: {} as unknown };
 	const factory = new Function('module', 'exports', code);

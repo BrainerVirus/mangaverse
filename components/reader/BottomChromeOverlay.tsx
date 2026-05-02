@@ -1,5 +1,5 @@
+import GradientWrapper from '@components/ui/GradientWrapper';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { Animated, Pressable, Text, View } from 'react-native';
 
@@ -105,18 +105,15 @@ export function BottomChromeOverlay({
 	return (
 		<Animated.View
 			className="absolute right-0 bottom-0 left-0"
-			style={{ opacity: chromeOpacity, zIndex: chromeVisible ? 20 : -1 }}
-			pointerEvents={chromeVisible ? 'auto' : 'none'}
+			style={{ opacity: chromeOpacity, zIndex: chromeVisible ? 20 : -1, pointerEvents: chromeVisible ? 'auto' : 'none' }}
 		>
-			<LinearGradient
-				colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.92)']}
-				style={{ paddingBottom: Math.max(insets.bottom, 12) + 8, paddingTop: 32, paddingHorizontal: 16 }}
-			>
+			<View style={{ paddingBottom: Math.max(insets.bottom, 12) + 8, paddingTop: 32, paddingHorizontal: 16 }}>
+				<GradientWrapper colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.92)']} />
 				<View className="flex-row items-center justify-between">
 					<View className="flex-row items-center gap-3">{leftItems}</View>
 					<View className="flex-row items-center gap-3">{rightItems}</View>
 				</View>
-			</LinearGradient>
+			</View>
 		</Animated.View>
 	);
 }

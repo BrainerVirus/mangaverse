@@ -1,20 +1,21 @@
-import * as SQLite from 'expo-sqlite';
-
 import { schemaStatements } from '@services/db/schema';
+import { openDatabase } from '@services/platform/database';
 
-let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
+import type { DatabaseAdapter } from '@services/platform/types';
 
-export async function getDatabase() {
-	if (!dbPromise) {
-		dbPromise = SQLite.openDatabaseAsync('mangaverse.db');
+let dbAdapter: DatabaseAdapter | null = null;
+
+export async function getDatabase(): Promise<DatabaseAdapter> {
+	if (!dbAdapter) {
+		dbAdapter = await openDatabase('mangaverse.db');
 	}
-	return dbPromise;
+	return dbAdapter;
 }
 
-export async function initializeDatabase() {
+export async function initializeDatabase(): Promise<DatabaseAdapter> {
 	const db = await getDatabase();
 	for (const statement of schemaStatements) {
-		await db.execAsync(statement);
+		await db.exec(statement);
 	}
 	return db;
 }

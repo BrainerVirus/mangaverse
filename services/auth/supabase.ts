@@ -1,20 +1,21 @@
-import 'react-native-url-polyfill/auto';
-
 import { createClient } from '@supabase/supabase-js';
-import * as Linking from 'expo-linking';
-import * as SecureStore from 'expo-secure-store';
-import * as WebBrowser from 'expo-web-browser';
 
-WebBrowser.maybeCompleteAuthSession();
+import { PlatformInfo } from '@lib/platform';
+import { deleteItemAsync, getItemAsync, setItemAsync } from '@services/platform/secureStore';
+
+if (PlatformInfo.isNative) {
+	// eslint-disable-next-line @typescript-eslint/no-require-imports
+	require('react-native-url-polyfill/auto');
+}
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_KEY ?? '';
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseKey);
 
 const storage = {
-	getItem: (key: string) => SecureStore.getItemAsync(key),
-	setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
-	removeItem: (key: string) => SecureStore.deleteItemAsync(key),
+	getItem: (key: string) => getItemAsync(key),
+	setItem: (key: string, value: string) => setItemAsync(key, value),
+	removeItem: (key: string) => deleteItemAsync(key),
 };
 
 type NoopAuth = {
@@ -70,6 +71,12 @@ const createSupabaseClient = () => {
 export const supabase = createSupabaseClient();
 
 export function getRedirectUrl(path = 'auth/callback') {
+	if (PlatformInfo.isWeb) {
+		const origin = typeof window !== 'undefined' ? window.location.origin : '';
+		return `${origin}/${path}`;
+	}
+	// eslint-disable-next-line @typescript-eslint/no-require-imports
+	const Linking = require('expo-linking');
 	return Linking.createURL(path);
 }
 
@@ -109,6 +116,14 @@ export async function signInWithProvider(provider: 'google' | 'apple' | 'faceboo
 	if (error || !data?.url) {
 		throw error ?? new Error('Failed to start OAuth');
 	}
+
+	if (PlatformInfo.isWeb) {
+		window.location.href = data.url;
+		return { type: 'success' as const };
+	}
+
+	// eslint-disable-next-line @typescript-eslint/no-require-imports
+	const WebBrowser = require('expo-web-browser');
 	const result = await WebBrowser.openAuthSessionAsync(data.url, getRedirectUrl());
 	if (result.type !== 'success') {
 		throw new Error('OAuth cancelled');

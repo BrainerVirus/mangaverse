@@ -1,6 +1,7 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+
+import { getItem, removeItem, setItem } from '@services/platform/storage';
 
 export type ThemeOption = 'Modern' | 'Cyberpunk' | 'Noir' | 'Sakura' | 'Forest' | 'Sunset' | 'Ocean' | 'Desert' | 'Lavender' | 'Slate';
 export type ReaderMode = 'webtoon' | 'paged';
@@ -121,14 +122,14 @@ export const useSettingsStore = create<SettingsState>()(
 			}),
 			storage: {
 				getItem: async (name) => {
-					const value = await AsyncStorage.getItem(name);
+					const value = await getItem(name);
 					return value ? JSON.parse(value) : null;
 				},
 				setItem: async (name, value) => {
-					await AsyncStorage.setItem(name, JSON.stringify(value));
+					await setItem(name, JSON.stringify(value));
 				},
 				removeItem: async (name) => {
-					await AsyncStorage.removeItem(name);
+					await removeItem(name);
 				},
 			},
 		},

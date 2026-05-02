@@ -1,5 +1,5 @@
+import GradientWrapper from '@components/ui/GradientWrapper';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, Share, Text, View, useWindowDimensions } from 'react-native';
@@ -159,7 +159,7 @@ export default function MangaDetail() {
 
 	return (
 		<View className="bg-background flex-1">
-			<ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} contentInsetAdjustmentBehavior="never">
+			<ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }} contentInsetAdjustmentBehavior="automatic">
 				{/* Hero section */}
 				<View style={{ width, height: heroHeight }}>
 					{details?.coverUrl ? (
@@ -167,11 +167,7 @@ export default function MangaDetail() {
 					) : (
 						<View className="bg-card" style={{ width, height: heroHeight }} />
 					)}
-					<LinearGradient
-						colors={[heroGradientStart, heroGradientMid, heroGradientEnd]}
-						locations={[0, 0.5, 1]}
-						style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}
-					/>
+					<GradientWrapper colors={[heroGradientStart, heroGradientMid, heroGradientEnd]} locations={[0, 0.5, 1]} />
 					{!loading && details ? (
 						<View className="absolute inset-x-0 bottom-0 px-4 pb-4">
 							<Text className="text-foreground text-preset-6 font-heading font-semibold" numberOfLines={2}>

@@ -1,7 +1,7 @@
-import * as Linking from 'expo-linking';
 import { useEffect } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 
+import { PlatformInfo } from '@lib/platform';
 import { useThemeColors } from '@lib/themes/vars';
 import { isSupabaseConfigured, supabase } from '@services/auth/supabase';
 
@@ -12,7 +12,16 @@ export default function AuthCallback() {
 			return;
 		}
 		const handleAuth = async () => {
-			const url = await Linking.getInitialURL();
+			let url: string | null = null;
+
+			if (PlatformInfo.isWeb) {
+				url = window.location.href;
+			} else {
+				// eslint-disable-next-line @typescript-eslint/no-require-imports
+				const Linking = require('expo-linking');
+				url = await Linking.getInitialURL();
+			}
+
 			if (!url) {
 				return;
 			}

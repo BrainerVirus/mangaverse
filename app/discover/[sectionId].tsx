@@ -1,8 +1,8 @@
+import BlurBackground from '@components/ui/BlurBackground';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MangaCard } from '@components/MangaCard';
@@ -186,11 +186,7 @@ export default function DiscoverSection() {
 			{/* Fixed header with blur */}
 			<View className="absolute top-0 right-0 left-0" style={{ zIndex: 10 }}>
 				<View className="relative overflow-hidden">
-					{Platform.OS === 'ios' ? (
-						<BlurView intensity={80} tint="systemChromeMaterialDark" style={StyleSheet.absoluteFillObject} />
-					) : (
-						<View className="bg-background/90" style={StyleSheet.absoluteFillObject} />
-					)}
+					<BlurBackground intensity={80} />
 					<View
 						style={{
 							paddingTop: insets.top,
