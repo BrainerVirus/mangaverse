@@ -3,13 +3,27 @@
 This file is the operational guide for agentic coding tools working in this repo.
 
 ## Project Snapshot
-- Framework: Expo + React Native + Expo Router.
+
+- Framework: Expo SDK 54 + React Native 0.81 + Expo Router 6.
 - Language: TypeScript (strict).
-- Styling: NativeWind + Tailwind v4 (className on RN components).
-- Tests: Jest + @testing-library/react-native.
-- Lint/format: ESLint (flat config) + Prettier (tabs, no semicolons).
+- Styling: NativeWind v5 (`nativewind` preview + `react-native-css`) with Tailwind v4.
+- State: Zustand v5 (stores in `stores/`).
+- Database: expo-sqlite (local) + optional Supabase (auth/cloud).
+- Tests: Jest + jest-expo + @testing-library/react-native.
+- Lint/format: ESLint (flat config via eslint-config-expo) + Prettier.
+
+## Environment
+
+Copy `.env.example` to `.env` and set:
+
+- `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_KEY` — Supabase is optional; the app checks `isSupabaseConfigured` before using it.
+- `EXPO_PUBLIC_EXTENSION_REPO` — URL to `extensions.json` manifest.
+- `EXPO_PUBLIC_AUTO_INSTALL_MANGADEX` — auto-installs MangaDex extension on first launch.
+
+The app entry point is `expo-router/entry` (set in `package.json` `main`).
 
 ## Install and Run
+
 - Install deps: `npm install`
 - Start dev server: `npm start`
 - Clear cache: `npm run start:fresh`
@@ -18,6 +32,7 @@ This file is the operational guide for agentic coding tools working in this repo
 - Web: `npm run web`
 
 ## Build / Lint / Test Commands
+
 - Lint: `npm run lint`
 - Lint (fix): `npm run lint:fix`
 - Format: `npm run format`
@@ -25,90 +40,115 @@ This file is the operational guide for agentic coding tools working in this repo
 - Tests (no coverage): `npm test`
 - Tests (watch): `npm run test:watch`
 - Tests (focused watch): `npm run test:debug`
-- Update snapshots: `npm run update:snapshots`
 - Full test run w/ coverage: `npm run test:final`
+- Update snapshots: `npm run update:snapshots`
 
-### Single Test (preferred)
+### Single Test
+
 Use npm script pass-through to Jest:
+
 - By file: `npm test -- __tests__/HomeScreen-test.tsx`
 - By test name: `npm test -- -t "Redirects to discover"`
 - By file + name: `npm test -- __tests__/HomeScreen-test.tsx -t "Redirects to discover"`
 
-## Repo Layout (common)
-- `app/`: Expo Router screens and layouts.
-- `components/`: Reusable UI components.
-- `constants/`, `lib/`, `utils/`: Shared modules (not all exist yet).
+## Extension System
+
+Source scraping extensions live in `extensions/`. Each extension (e.g. `extensions/mangadex/index.ts`) is compiled to a CJS bundle via Rollup:
+
+- Build extensions: `npm run extensions:build`
+- Output goes to `extensions/dist/`
+- Extensions are loaded at runtime from a remote URL, not bundled with the app.
+- The manifest is `extensions/extensions.json`.
+
+## Repo Layout
+
+- `app/`: Expo Router screens and layouts (file-based routing).
+- `components/`: Reusable UI components (`ui/`, `discover/`, `reader/` subdirs).
+- `hooks/`: Custom React hooks.
+- `lib/`: Shared utilities, constants, theme vars.
+- `services/`: Data layer (auth/supabase, db, extensions manager, scraping).
+- `stores/`: Zustand stores (auth, extensions, settings, etc.).
+- `types/`: TypeScript type definitions.
+- `extensions/`: Source scraping extensions + Rollup build config.
 - `__tests__/`: Jest tests.
-- `global.css`: Tailwind + NativeWind imports.
+- `global.css`: Tailwind v4 config, NativeWind theme, custom utilities.
 
 ## Linting and Formatting Rules
-Sources:
-- ESLint: `eslint.config.cjs`
-- Prettier: `.prettierrc`
-- Lint staged: `.lintstagedrc`
 
-Key conventions:
-- Tabs for indentation in TS/TSX (Prettier `useTabs: true`).
-- Line width 100, no semicolons, double quotes.
-- JSON/MD/YAML/TOML use spaces (Prettier override).
-- Line endings: LF enforced by ESLint + Prettier.
-- Imports are organized by `prettier-plugin-organize-imports`.
-- Tailwind class ordering is handled by `prettier-plugin-tailwindcss`.
+Sources: `eslint.config.cjs`, `.prettierrc`, `.lintstagedrc`
 
-## TypeScript and Imports
-- `tsconfig.json` uses `strict: true`.
-- Prefer explicit types for public APIs and shared utilities.
-- Path aliases:
-  - `@app/*` -> `app/*`
-  - `@assets/*` -> `assets/*`
-  - `@components/*` -> `components/*`
-  - `@constants/*` -> `constants/*`
+**Prettier (`.prettierrc`)**:
 
-Import guidance:
-- Prefer absolute aliases over long relative paths when available.
+- `printWidth: 150`
+- `useTabs: true`, `tabWidth: 2`
+- `semi: true`, `singleQuote: true`
+- `trailingComma: "all"`, `arrowParens: "always"`
+- `endOfLine: "lf"`
+- JSON/MD/YAML/TOML override: spaces (not tabs)
+- Plugins: `prettier-plugin-organize-imports`, `prettier-plugin-tailwindcss`
+- NOTE: `.editorconfig` specifies spaces, but Prettier overrides for TS/TSX with tabs.
+
+**Pre-commit** (husky + lint-staged):
+
+- Targets: `app/`, `components/`, `constants/`, `hooks/`, `lib/`, `services/`, `stores/`, `types/`, `utils/`
+- Runs `eslint --fix` then `prettier --write` on staged files.
+
+## TypeScript and Path Aliases
+
+Defined in both `tsconfig.json` and `babel.config.js` (module-resolver):
+
+| Alias           | Path           |
+| --------------- | -------------- |
+| `@app/*`        | `app/*`        |
+| `@assets/*`     | `assets/*`     |
+| `@components/*` | `components/*` |
+| `@constants/*`  | `constants/*`  |
+| `@hooks/*`      | `hooks/*`      |
+| `@lib/*`        | `lib/*`        |
+| `@services/*`   | `services/*`   |
+| `@stores/*`     | `stores/*`     |
+| `@types/*`      | `types/*`      |
+
+- Prefer absolute aliases over long relative paths.
 - Keep side-effect imports (like `"../global.css"`) at top of file.
-- Avoid unused imports; organize imports via Prettier.
 
 ## React / Expo Router Conventions
+
 - Screen files in `app/` must `export default` a component.
-- Layout files are named `_layout.tsx` and should remain lightweight.
+- Layout files are named `_layout.tsx`.
 - Prefer function components and hooks.
-- Use `className` with NativeWind for styling (see `global.css`).
-- Keep components pure; avoid work in render where possible.
+- Use `className` with NativeWind for styling (see `global.css` for theme tokens and custom utilities like `text-preset-*`).
+- The tabs layout uses `expo-router/unstable-native-tabs` (`NativeTabs` component).
+- App root layout (`app/_layout.tsx`) initializes DB, Supabase auth, extensions, and wraps in theme context.
 
 ## Testing Conventions
+
 - Use `@testing-library/react-native` render helpers.
 - Prefer testing behavior, not internal implementation.
 - Use `jest.mock` for Expo Router/navigation when needed.
-- Current tests live under `__tests__/`.
+- Tests live under `__tests__/`.
 
-## Error Handling and Logging
-- Prefer early returns and guard clauses.
-- Use `try/catch` around async effects and service calls.
-- Avoid swallowing errors; surface user-friendly messages and log details.
-- Keep logs lightweight; remove debug logs before final PRs.
+## Important Dependency Notes
 
-## Naming and File Conventions
-- Component names: `PascalCase`.
-- Hooks: `useSomething`.
-- Test files: `*-test.tsx` in `__tests__/`.
-- Route segments under `app/` are lowercase (Expo Router convention).
+- `nativewind` v5 preview: requires `react-native-css` v3. Both versions are pinned in `overrides`.
+- `package.json` `overrides` field pins critical versions (`hermes-parser`, `metro-runtime`, `lightningcss`, etc.). Do not change these without understanding the NativeWind/Tailwind v4 integration.
+- `zustand` v5 for state management — stores follow the `create(...)` pattern.
+- `expo-sqlite` for local DB — initialized in `@services/db`.
 
-## Git Hooks (informational)
-- `husky` runs `lint-staged` on pre-commit.
-- Lint-staged targets TS/JS files under `app/`, `components/`, `constants/`,
-  `lib/`, `utils/` and runs ESLint + Prettier.
+## Git Hooks
 
-## CI Notes
-- README indicates GitHub Actions runs lint and tests on push/PR.
+- `husky` runs `lint-staged` on pre-commit (configured in `.lintstagedrc`).
+
+## CI
+
+- GitHub Actions (`.github/workflows/ci.yml`) triggers on push to `main` and all PRs.
+- Runs lint + test on Node 24.13.0.
 - Keep lint/test passing before finishing work.
 
 ## If You Add New Code
+
 - Add tests for critical logic in `__tests__/`.
 - Keep TS strictness happy (no `any` unless truly necessary).
 - Follow formatting rules; run `npm run format` after changes.
 - Respect existing Expo Router file structure.
-
-## Cursor/Copilot Rules
-- No `.cursor/rules`, `.cursorrules`, or `.github/copilot-instructions.md` found
-  at the time this file was generated.
+- If adding a new path alias, update both `tsconfig.json` and `babel.config.js`.
