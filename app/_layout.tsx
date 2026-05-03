@@ -93,12 +93,34 @@ export default function Layout() {
 	}, [setLoading, setSession]);
 	return (
 		<VariableContextProvider value={themeVars}>
-			<GestureHandlerRootView style={{ flex: 1 }}>
-				<SafeAreaProvider>
-					{isDesktopLayout ? (
-						<View className="bg-background flex-1 flex-row">
-							<Sidebar collapsed={sidebarCollapsed} onCollapse={setSidebarCollapsed} />
-							<View className="flex-1">
+			<View style={{ height: '100vh', display: 'flex', flexDirection: 'column' } as never}>
+				<GestureHandlerRootView style={{ flex: 1 }}>
+					<SafeAreaProvider>
+						{isDesktopLayout ? (
+							<View className="bg-background flex-1 flex-row">
+								<Sidebar collapsed={sidebarCollapsed} onCollapse={setSidebarCollapsed} />
+								<View className="flex-1">
+									<Stack screenOptions={{ contentStyle: { backgroundColor: 'transparent' } }}>
+										<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+										<Stack.Screen name="search" options={{ headerShown: false }} />
+										<Stack.Screen name="discover/[sectionId]" options={{ headerShown: false }} />
+										<Stack.Screen name="manga/[id]" options={{ headerShown: false }} />
+										<Stack.Screen name="reader/[chapterId]" options={{ headerShown: false }} />
+										<Stack.Screen name="extensions/install" options={{ title: 'Install Extension' }} />
+										<Stack.Screen name="settings/extensions" options={{ title: 'Extensions' }} />
+										<Stack.Screen name="settings/appearance" options={{ title: 'Appearance' }} />
+										<Stack.Screen name="settings/reader" options={{ title: 'Reader' }} />
+										<Stack.Screen name="settings/content" options={{ title: 'Content' }} />
+										<Stack.Screen name="settings/security" options={{ title: 'Security' }} />
+										<Stack.Screen name="settings/backup" options={{ title: 'Backup & Restore' }} />
+										<Stack.Screen name="settings/account" options={{ title: 'Account' }} />
+										<Stack.Screen name="settings/auth-help" options={{ title: 'Auth Setup' }} />
+										<Stack.Screen name="auth/callback" options={{ headerShown: false }} />
+									</Stack>
+								</View>
+							</View>
+						) : (
+							<View className="bg-background flex-1">
 								<Stack screenOptions={{ contentStyle: { backgroundColor: 'transparent' } }}>
 									<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 									<Stack.Screen name="search" options={{ headerShown: false }} />
@@ -117,30 +139,10 @@ export default function Layout() {
 									<Stack.Screen name="auth/callback" options={{ headerShown: false }} />
 								</Stack>
 							</View>
-						</View>
-					) : (
-						<View className="bg-background flex-1">
-							<Stack screenOptions={{ contentStyle: { backgroundColor: 'transparent' } }}>
-								<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-								<Stack.Screen name="search" options={{ headerShown: false }} />
-								<Stack.Screen name="discover/[sectionId]" options={{ headerShown: false }} />
-								<Stack.Screen name="manga/[id]" options={{ headerShown: false }} />
-								<Stack.Screen name="reader/[chapterId]" options={{ headerShown: false }} />
-								<Stack.Screen name="extensions/install" options={{ title: 'Install Extension' }} />
-								<Stack.Screen name="settings/extensions" options={{ title: 'Extensions' }} />
-								<Stack.Screen name="settings/appearance" options={{ title: 'Appearance' }} />
-								<Stack.Screen name="settings/reader" options={{ title: 'Reader' }} />
-								<Stack.Screen name="settings/content" options={{ title: 'Content' }} />
-								<Stack.Screen name="settings/security" options={{ title: 'Security' }} />
-								<Stack.Screen name="settings/backup" options={{ title: 'Backup & Restore' }} />
-								<Stack.Screen name="settings/account" options={{ title: 'Account' }} />
-								<Stack.Screen name="settings/auth-help" options={{ title: 'Auth Setup' }} />
-								<Stack.Screen name="auth/callback" options={{ headerShown: false }} />
-							</Stack>
-						</View>
-					)}
-				</SafeAreaProvider>
-			</GestureHandlerRootView>
+						)}
+					</SafeAreaProvider>
+				</GestureHandlerRootView>
+			</View>
 		</VariableContextProvider>
 	);
 }
