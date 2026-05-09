@@ -40,6 +40,12 @@
       "skillPath": "skills/dispatching-parallel-agents/SKILL.md",
       "computedHash": "e21044ae7496fc285f1df9ff3fb518a3a20bea6f5216c1f59f4987e12c769a0a"
     },
+    "electron": {
+      "source": "teachingai/full-stack-skills",
+      "sourceType": "github",
+      "skillPath": "skills/electron-skills/electron/SKILL.md",
+      "computedHash": "9d82126e6c46dd626fc6b1d2e259687d1b64ad61900166b8fc5a3b661c243cf4"
+    },
     "enhance-prompt": {
       "source": "google-labs-code/stitch-skills",
       "sourceType": "github",

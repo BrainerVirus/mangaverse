@@ -42,10 +42,5 @@ pnpm-debug.log*
 # jest
 coverage/**/*
 
-
-# Docs
-docs/
-
-
 # tmp claude
 tmpclaude-*

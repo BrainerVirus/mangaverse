@@ -2,185 +2,189 @@
 
 This file is the operational guide for agentic coding tools working in this repo.
 
-## Project Snapshot
+## Required Reading
 
-- Framework: Expo SDK 54 + React Native 0.81 + Expo Router 6.
-- **Target platforms: Web (primary) + Desktop (Tauri) + Mobile (legacy).**
-- Language: TypeScript (strict).
-- Styling: NativeWind v5 (`nativewind` preview + `react-native-css`) with Tailwind v4.
-- State: Zustand v5 (stores in `stores/`).
-- Database: sql.js (web/desktop) / expo-sqlite (mobile) + optional Supabase (auth/cloud).
-- Desktop: Tauri v2 wrapping the Expo web export.
-- Tests: Jest + jest-expo + @testing-library/react-native.
-- Lint/format: ESLint (flat config via eslint-config-expo) + Prettier.
+Agents must read the relevant rewrite docs before implementation:
 
-## Environment
+- Read `docs/SPEC.md` before implementing or changing product behavior.
+- Read `docs/PLAN.md` before selecting or sequencing implementation tasks.
+- Read `docs/ARCHITECTURE.md` before changing package boundaries, data flow, database access, provider runtime, reader internals, platform adapters, app shell structure, or motion architecture.
+- Read `docs/Design.md` before creating or modifying UI, styling, layouts, themes, interactions, reader chrome, empty states, loading states, error states, or motion.
 
-Copy `.env.example` to `.env` and set:
+## Project Direction
 
-- `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_KEY` — Supabase is optional; the app checks `isSupabaseConfigured` before using it.
-- `EXPO_PUBLIC_EXTENSION_REPO` — URL to `extensions.json` manifest.
-- `EXPO_PUBLIC_AUTO_INSTALL_MANGADEX` — auto-installs MangaDex extension on first launch.
+MangaVerse is being rewritten from an Expo-first app into a web-native, local-first manga, comic, and webtoon reader that can also ship as an Electron desktop app for Windows, macOS, and Linux.
 
-The app entry point is `expo-router/entry` (set in `package.json` `main`).
+The current Expo codebase is feature inventory and migration reference. Do not rescue unstable code solely for parity. Port behavior only after package contracts and tests exist.
 
-## Install and Run
+## Target Stack
 
-- Install deps: `npm install`
-- Start dev server: `npm start`
-- Clear cache: `npm run start:fresh`
-- Android: `npm run android`
-- iOS (macOS): `npm run ios`
-- Web: `npm run web`
-- Web export (static build): `npm run web:export`
-- Desktop dev (Tauri): `npm run desktop:dev`
-- Desktop build (Tauri): `npm run desktop:build`
+- Framework: React + TanStack Start for the web app.
+- Routing: TanStack Router.
+- Remote/server-state and provider-call caching: TanStack Query.
+- Client/UI state: Zustand.
+- Language: TypeScript throughout apps and packages.
+- Desktop: Electron.
+- Desktop-local APIs: Express.js where a local HTTP boundary is useful.
+- Database: SQLite with Drizzle ORM.
+- Web database runtime: browser SQLite/WASM.
+- Desktop database runtime: Electron-compatible SQLite driver selected during implementation.
+- UI: shadcn/ui through `@app/design-system` wrappers.
+- Motion: GSAP, `@gsap/react`, timelines, and ScrollTrigger through `@app/motion`.
+- Architecture: monorepo with reusable packages.
+- Future sync: Supabase or similar cloud sync only after local-first behavior is stable.
 
-## Build / Lint / Test Commands
+## Planned Monorepo Layout
 
-- Lint: `npm run lint`
-- Lint (fix): `npm run lint:fix`
-- Format: `npm run format`
-- Format (check): `npm run format:check`
-- Tests (no coverage): `npm test`
-- Tests (watch): `npm run test:watch`
-- Tests (focused watch): `npm run test:debug`
-- Full test run w/ coverage: `npm run test:final`
-- Update snapshots: `npm run update:snapshots`
-
-### Single Test
-
-Use npm script pass-through to Jest:
-
-- By file: `npm test -- __tests__/HomeScreen-test.tsx`
-- By test name: `npm test -- -t "Redirects to discover"`
-- By file + name: `npm test -- __tests__/HomeScreen-test.tsx -t "Redirects to discover"`
-
-## Extension System
-
-Source scraping extensions live in `extensions/`. Each extension (e.g. `extensions/mangadex/index.ts`) is compiled to a CJS bundle via Rollup:
-
-- Build extensions: `npm run extensions:build`
-- Output goes to `extensions/dist/`
-- Extensions are loaded at runtime from a remote URL, not bundled with the app.
-- The manifest is `extensions/extensions.json`.
-
-## Repo Layout
-
-- `app/`: Expo Router screens and layouts (file-based routing).
-- `components/`: Reusable UI components (`ui/`, `discover/`, `reader/` subdirs).
-- `hooks/`: Custom React hooks.
-- `lib/`: Shared utilities, constants, theme vars.
-- `services/`: Data layer (auth/supabase, db, extensions manager, scraping).
-- `services/platform/`: Platform abstraction layer — storage, filesystem, secureStore, database adapters.
-- `stores/`: Zustand stores (auth, extensions, settings, etc.).
-- `types/`: TypeScript type definitions.
-- `extensions/`: Source scraping extensions + Rollup build config.
-- `__tests__/`: Jest tests.
-- `global.css`: Tailwind v4 config, NativeWind theme, custom utilities.
-
-## Linting and Formatting Rules
-
-Sources: `eslint.config.cjs`, `.prettierrc`, `.lintstagedrc`
-
-**Prettier (`.prettierrc`)**:
-
-- `printWidth: 150`
-- `useTabs: true`, `tabWidth: 2`
-- `semi: true`, `singleQuote: true`
-- `trailingComma: "all"`, `arrowParens: "always"`
-- `endOfLine: "lf"`
-- JSON/MD/YAML/TOML override: spaces (not tabs)
-- Plugins: `prettier-plugin-organize-imports`, `prettier-plugin-tailwindcss`
-- NOTE: `.editorconfig` specifies spaces, but Prettier overrides for TS/TSX with tabs.
-
-**Pre-commit** (husky + lint-staged):
-
-- Targets: `app/`, `components/`, `constants/`, `hooks/`, `lib/`, `services/`, `stores/`, `types/`, `utils/`
-- Runs `eslint --fix` then `prettier --write` on staged files.
-
-## TypeScript and Path Aliases
-
-Defined in both `tsconfig.json` and `babel.config.js` (module-resolver):
-
-| Alias           | Path           |
-| --------------- | -------------- |
-| `@app/*`        | `app/*`        |
-| `@assets/*`     | `assets/*`     |
-| `@components/*` | `components/*` |
-| `@constants/*`  | `constants/*`  |
-| `@hooks/*`      | `hooks/*`      |
-| `@lib/*`        | `lib/*`        |
-| `@services/*`   | `services/*`   |
-| `@stores/*`     | `stores/*`     |
-| `@types/*`      | `types/*`      |
-
-- Prefer absolute aliases over long relative paths.
-- Keep side-effect imports (like `"../global.css"`) at top of file.
-
-## React / Expo Router Conventions
-
-- Screen files in `app/` must `export default` a component.
-- Layout files are named `_layout.tsx`.
-- Prefer function components and hooks.
-- Use `className` with NativeWind for styling (see `global.css` for theme tokens and custom utilities like `text-preset-*`).
-- The tabs layout uses `expo-router/unstable-native-tabs` (`NativeTabs` component).
-- App root layout (`app/_layout.tsx`) initializes DB, Supabase auth, extensions, and wraps in theme context.
-
-## Testing Conventions
-
-- Use `@testing-library/react-native` render helpers.
-- Prefer testing behavior, not internal implementation.
-- Use `jest.mock` for Expo Router/navigation when needed.
-- Tests live under `__tests__/`.
-
-## Important Dependency Notes
-
-- `nativewind` v5 preview: requires `react-native-css` v3. Both versions are pinned in `overrides`.
-- `package.json` `overrides` field pins critical versions (`hermes-parser`, `metro-runtime`, `lightningcss`, etc.). Do not change these without understanding the NativeWind/Tailwind v4 integration.
-- `zustand` v5 for state management — stores follow the `create(...)` pattern.
-- `sql.js` for local DB on web/desktop — same SQL schema as expo-sqlite, initialized in `@services/db`.
-- `idb-keyval` for IndexedDB key-value storage on web/desktop.
-- `@tauri-apps/api` v2 — runtime Tauri APIs for desktop window management, file dialogs, etc.
-
-## Platform Abstraction
-
-Use `@lib/platform` (`PlatformInfo`) instead of `Platform` from react-native:
-
-```ts
-import { PlatformInfo } from '@lib/platform';
-
-if (PlatformInfo.isWeb) { /* browser code */ }
-if (PlatformInfo.isDesktop) { /* Tauri code */ }
-if (PlatformInfo.isMobile) { /* iOS/Android code */ }
+```txt
+apps/
+  web/
+  desktop/
+packages/
+  reader/
+  extensions-core/
+  extensions-sdk/
+  db/
+  design-system/
+  motion/
+  library/
+  search/
+  migration/
+  settings/
+  theme/
+  platform/
+  shared/
+  test-utils/
+docs/
+  SPEC.md
+  PLAN.md
+  ARCHITECTURE.md
+  Design.md
 ```
 
-Platform-specific service implementations use file extension convention:
+## Package Boundary Rules
 
-- `file.native.ts` — loaded on iOS/Android (Metro auto-resolves)
-- `file.web.ts` — loaded on web (browser or Tauri webview)
-- `file.ts` — shared barrel that re-exports platform-specific impl
+- App features consume stable package APIs.
+- Features must not reach directly into provider internals, database internals, reader internals, platform internals, or Electron internals.
+- Do not add raw SQL outside `@app/db`.
+- Do not add provider-specific hacks outside `@app/extensions-core`, `@app/extensions-sdk`, or provider extension packages.
+- Do not place business logic inside visual components when it belongs in a feature service, domain package, repository, or shared model.
+- Do not place business logic inside animation code.
+- `@app/motion` must not contain business logic.
+- `@app/design-system` must not import feature packages.
+- `@app/shared` must stay generic and must not import app shells, feature packages, database implementation, provider runtime, or UI.
 
-Services in `services/platform/` provide:
-- `storage` — key-value persistence (AsyncStorage / idb-keyval)
-- `filesystem` — file I/O (expo-file-system / IndexedDB + File System Access API)
-- `secureStore` — secure token storage (expo-secure-store / localStorage with encryption)
-- `database` — SQLite (expo-sqlite / sql.js WASM)
+## Design System Rules
 
-## Git Hooks
+- Read `docs/Design.md` before UI work.
+- Do not bypass the design system for one-off styling unless a missing primitive is documented.
+- Use shadcn/ui components and composition patterns where available.
+- Use semantic tokens instead of raw colors in UI code.
+- Keep layouts responsive across desktop, tablet, and mobile web.
+- Reader UI must remain calm, stable, and distraction-free.
+- Themes may be visually distinct, but accessibility and component semantics must remain consistent.
 
-- `husky` runs `lint-staged` on pre-commit (configured in `.lintstagedrc`).
+## Motion Rules
 
-## CI
+- Use GSAP through `@app/motion` helpers or cleanup-safe local patterns.
+- React GSAP code must use `useGSAP()` from `@gsap/react` or an equivalent `gsap.context()` cleanup.
+- Always scope GSAP selectors to a component ref.
+- Wrap event-created GSAP animations with `contextSafe()` or a package helper.
+- Respect `prefers-reduced-motion`.
+- Do not run GSAP during SSR.
+- Do not use ScrollTrigger in core reader scrolling unless explicitly designed and tested as a reader-safe enhancement.
+- Do not animate layout-heavy properties when transform or opacity can achieve the effect.
+- Remove ScrollTrigger markers from production.
 
-- GitHub Actions (`.github/workflows/ci.yml`) triggers on push to `main` and all PRs.
-- Runs lint + test on Node 24.13.0.
-- Keep lint/test passing before finishing work.
+## Reader Performance Rules
 
-## If You Add New Code
+- Reader interactions must stay stable and performant.
+- Keep tap zones reliable with zoom, scroll, and overlays.
+- Do not let reader gestures, zoom, tap zones, or page preloading depend on global app rerenders.
+- High-frequency reader state should stay local or in refs, not broad Zustand stores.
+- Progress persistence should be debounced, batched, or checkpoint-based.
+- Reader motion is limited to chrome transitions, safe page transitions, settings panels, and explicit feedback.
+- Avoid decorative animation during actual reading.
 
-- Add tests for critical logic in `__tests__/`.
-- Keep TS strictness happy (no `any` unless truly necessary).
-- Follow formatting rules; run `npm run format` after changes.
-- Respect existing Expo Router file structure.
-- If adding a new path alias, update both `tsconfig.json` and `babel.config.js`.
+## Extension Security Rules
+
+- Do not bundle third-party source extensions in the core app by default unless explicitly approved.
+- Keep provider distribution separate from the app shell.
+- Require explicit user confirmation before installing provider code.
+- Validate extension manifests before install.
+- Show provider source URL, version, permissions, capabilities, languages, and content flags before install.
+- Support user-provided registries and manual URL installs.
+- Support checksums or signatures where feasible.
+- Allow disabling broken or dangerous providers.
+- Provider code must not import app internals directly.
+- Provider errors must be normalized and isolated from the rest of the app.
+
+## Local-First Performance Rules
+
+- Local UI should render from SQLite/cache first whenever possible.
+- Provider calls and cloud sync should hydrate local state asynchronously.
+- Use TanStack Query for provider call caching, cancellation, retries, prefetching, and optimistic updates.
+- Use TanStack Router intent preloading where useful.
+- Virtualize long library grids, search results, chapter lists, and long reader lists.
+- Track slow and failed provider calls.
+- Support low-memory mode for constrained devices.
+
+## Testing Expectations
+
+- Add or update tests for core behavior.
+- Prefer behavior tests over implementation-detail tests.
+- Add unit tests for pure packages.
+- Add integration tests for DB repositories and migrations.
+- Add contract tests for provider SDK behavior.
+- Add reader interaction tests for tap zones, modes, keyboard navigation, progress, and gesture-sensitive logic.
+- Add migration safety tests.
+- Add search aggregation tests.
+- Add accessibility tests for new UI flows.
+- Add reduced-motion checks for motion-heavy components.
+
+Critical flows to test:
+
+- Add provider.
+- Search provider.
+- Add manga to library.
+- Open manga details.
+- Start reading.
+- Continue reading.
+- Change reader mode.
+- Use tap zones.
+- Switch provider for manga.
+- Migrate manga.
+- Backup.
+- Restore.
+- Change theme.
+- Reduced-motion mode.
+
+## Current Legacy Repo Notes
+
+The existing repo still contains Expo, React Native, NativeWind, Expo Router, Tauri, and legacy service/store structures. These are not the target architecture for the rewrite unless a task explicitly asks to maintain legacy code.
+
+If working on legacy code before the rewrite replaces it:
+
+- Respect existing files and user changes.
+- Do not revert unrelated changes.
+- Keep fixes minimal.
+- Run the existing relevant commands when practical.
+
+## Existing Legacy Commands
+
+- Install deps: `npm install`
+- Start Expo dev server: `npm start`
+- Clear Expo cache: `npm run start:fresh`
+- Legacy web: `npm run web`
+- Legacy web export: `npm run web:export`
+- Legacy Tauri dev: `npm run desktop:dev`
+- Legacy Tauri build: `npm run desktop:build`
+- Lint: `npm run lint`
+- Lint fix: `npm run lint:fix`
+- Format: `npm run format`
+- Format check: `npm run format:check`
+- Tests: `npm test`
+- Full test with coverage: `npm run test:final`
+- Build legacy extensions: `npm run extensions:build`
+
+These commands may change as the monorepo rewrite is implemented. Update this file and `docs/PLAN.md` when the canonical commands change.
