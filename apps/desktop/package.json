@@ -10,16 +10,23 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.preload.json",
     "typecheck:main": "tsc --noEmit -p tsconfig.json",
     "typecheck:preload": "tsc --noEmit -p tsconfig.preload.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "oxlint src scripts",
     "lint:fix": "oxlint src scripts --fix",
     "clean": "rm -rf dist out"
   },
   "dependencies": {
-    "electron": "^34.0.0"
+    "@app/platform": "workspace:*",
+    "@app/shared": "workspace:*",
+    "electron": "^34.0.0",
+    "express": "^4.21.0"
   },
   "devDependencies": {
+    "@types/express": "^4.17.21",
     "@types/node": "^22.0.0",
     "oxlint": "^0.16.0",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^3.0.0"
   }
 }
