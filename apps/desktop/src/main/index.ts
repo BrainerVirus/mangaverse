@@ -1,7 +1,25 @@
 import { fork, type ChildProcess } from 'node:child_process';
-import { app, BrowserWindow, shell } from 'electron';
+import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  app,
+  BrowserWindow,
+  clipboard,
+  dialog,
+  ipcMain,
+  safeStorage,
+  shell,
+} from 'electron';
+import { detectElectronCapabilities, isSafeExternalUrl, type PlatformCapabilities } from '@app/platform';
+import { createDesktopLocalService } from './local-service.js';
+import {
+  createInstallProtocolStore,
+  ingestArgvForInstallUrls,
+  registerInstallProtocolAppEvents,
+} from './protocol-handoff.js';
+import { registerPlatformIpc } from './platform-ipc.js';
+import { createSecureStorageModel } from './secure-storage.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -11,6 +29,21 @@ const rendererPort = process.env.MANGAVERSE_RENDERER_PORT ?? '45123';
 let mainWindow: BrowserWindow | null = null;
 let nitroProcess: ChildProcess | null = null;
 let productionRendererUrl: string | null = null;
+
+const installProtocolStore = createInstallProtocolStore();
+registerInstallProtocolAppEvents({ app, store: installProtocolStore });
+
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+  process.exit(0);
+}
+
+let snapshotForHttp: () => Record<string, unknown> = () => ({ status: 'boot' });
+
+const desktopLocalService = createDesktopLocalService({
+  getDiagnosticsPayload: () => snapshotForHttp(),
+});
 
 async function waitForHttpOk(url: string) {
   for (let attempt = 1; attempt <= 60; attempt += 1) {
@@ -48,6 +81,12 @@ function startProductionRenderer(): Promise<string> {
   return waitForHttpOk(url).then(() => url);
 }
 
+function buildCapabilities(): PlatformCapabilities {
+  return detectElectronCapabilities({
+    secureStorage: safeStorage.isEncryptionAvailable(),
+  });
+}
+
 function createWindow(url: string) {
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -79,7 +118,9 @@ function createWindow(url: string) {
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url: target }: { url: string }) => {
-    shell.openExternal(target);
+    if (isSafeExternalUrl(target)) {
+      void shell.openExternal(target);
+    }
     return { action: 'deny' };
   });
 }
@@ -94,21 +135,75 @@ async function bootstrap() {
   createWindow(url);
 }
 
-app.whenReady().then(() => {
-  bootstrap().catch((err) => {
+app.whenReady().then(async () => {
+  try {
+    try {
+      app.setAsDefaultProtocolClient('mangaverse');
+    } catch {
+      // Protocol registration can fail in some dev setups; deep links remain best-effort.
+    }
+
+    ingestArgvForInstallUrls(process.argv, installProtocolStore);
+
+    const buildDiagnosticsSnapshot = () => {
+      const caps = buildCapabilities();
+      const { runtime: _r, ...capabilityFlags } = caps;
+      return {
+        appVersion: app.getVersion(),
+        electronVersion: process.versions.electron,
+        chromeVersion: process.versions.chrome,
+        nodeVersion: process.versions.node,
+        platform: process.platform,
+        arch: process.arch,
+        userDataConfigured: true,
+        localService: desktopLocalService.getInfo(),
+        capabilityFlags,
+      };
+    };
+
+    snapshotForHttp = () => ({ ...buildDiagnosticsSnapshot() });
+
+    await desktopLocalService.start();
+
+    const secureModel = createSecureStorageModel({
+      safeStorage,
+      storePath: join(app.getPath('userData'), 'secure-storage.json'),
+      readFile: (p) => readFile(p, 'utf8'),
+      writeFile: (p, data) => writeFile(p, data, 'utf8'),
+    });
+
+    registerPlatformIpc({
+      ipcMain,
+      getTargetWindow: () => mainWindow,
+      dialog,
+      clipboard,
+      shell,
+      readFileUtf8: (p) => readFile(p, 'utf8'),
+      writeFileUtf8: (p, c) => writeFile(p, c, 'utf8'),
+      getCapabilities: () => buildCapabilities(),
+      protocolTakePendingInstallUrl: () => installProtocolStore.take(),
+      secureStorage: secureModel,
+      getLocalServiceInfo: () => desktopLocalService.getInfo(),
+      buildDiagnosticsSnapshot,
+    });
+
+    await bootstrap();
+  } catch (err) {
     console.error(err);
     app.quit();
-  });
+  }
 });
 
 app.on('before-quit', () => {
   nitroProcess?.kill();
   nitroProcess = null;
+  void desktopLocalService.stop();
 });
 
 app.on('window-all-closed', () => {
   nitroProcess?.kill();
   nitroProcess = null;
+  void desktopLocalService.stop();
   if (process.platform !== 'darwin') {
     app.quit();
   }
