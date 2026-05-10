@@ -66,6 +66,12 @@
 - Packages can compile independently.
 - CI commands are documented.
 
+### Phase 1.1 Correction Gate
+
+Phase 1 is not accepted until the web app uses TanStack Start, Electron postinstall is allowlisted and verified, package builds emit real `dist` outputs, `pnpm-lock.yaml` is tracked, CI uses pnpm 11, and lint/typecheck/test/build pass for the new monorepo scope.
+
+Current TanStack Start uses Vite plus Nitro for SSR output. Nitro is an app framework adapter, not a MangaVerse feature package, and should remain isolated to `apps/web`/desktop renderer packaging.
+
 ### Testing Gate
 
 - Run lint.

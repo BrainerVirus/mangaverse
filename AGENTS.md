@@ -172,19 +172,30 @@ If working on legacy code before the rewrite replaces it:
 
 ## Existing Legacy Commands
 
-- Install deps: `npm install`
-- Start Expo dev server: `npm start`
-- Clear Expo cache: `npm run start:fresh`
-- Legacy web: `npm run web`
-- Legacy web export: `npm run web:export`
-- Legacy Tauri dev: `npm run desktop:dev`
-- Legacy Tauri build: `npm run desktop:build`
-- Lint: `npm run lint`
-- Lint fix: `npm run lint:fix`
-- Format: `npm run format`
-- Format check: `npm run format:check`
-- Tests: `npm test`
-- Full test with coverage: `npm run test:final`
-- Build legacy extensions: `npm run extensions:build`
+Legacy Expo/Tauri commands (prefixed with `legacy:` to avoid accidental use):
+- Legacy install: `npm install` (use `pnpm install`)
+- Legacy start: `npm run legacy:start`
+- Legacy web: `npm run legacy:web`
+- Legacy desktop dev: `npm run legacy:desktop:dev`
+- Legacy desktop build: `npm run legacy:desktop:build`
+- Legacy lint: `npm run lint` (old eslint)
+- Legacy tests: `npm test` (old jest)
+
+## New Canonical Commands
+
+- Install deps: `pnpm install`
+- Start web dev: `pnpm dev:web`
+- Start desktop dev: `pnpm dev:desktop`
+- Start default dev target: `pnpm dev` (web only)
+- Lint: `pnpm lint`
+- Lint fix: `pnpm lint:fix`
+- Format: `pnpm format`
+- Format check: `pnpm format:check`
+- Typecheck: `pnpm typecheck`
+- Tests: `pnpm test`
+- Build all: `pnpm build`
+- Build web: `pnpm --filter @app/web build`
+- Build desktop: `pnpm --filter @app/desktop build`
+- Clean: `pnpm clean`
 
 These commands may change as the monorepo rewrite is implemented. Update this file and `docs/PLAN.md` when the canonical commands change.
