@@ -1,0 +1,25 @@
+{
+  "name": "@app/desktop",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.preload.json",
+    "typecheck:main": "tsc --noEmit -p tsconfig.json",
+    "typecheck:preload": "tsc --noEmit -p tsconfig.preload.json",
+    "lint": "oxlint src scripts",
+    "lint:fix": "oxlint src scripts --fix",
+    "clean": "rm -rf dist out"
+  },
+  "dependencies": {
+    "electron": "^34.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "oxlint": "^0.16.0",
+    "typescript": "^5.9.2"
+  }
+}
