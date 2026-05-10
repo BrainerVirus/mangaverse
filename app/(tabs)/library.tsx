@@ -48,7 +48,7 @@ export default function Library() {
 
 	return (
 		<View className="bg-background flex-1">
-			{favorites.length === 0 ? (
+			{false ? (
 				<View className="flex-1 items-center justify-center px-8" style={{ paddingTop: headerHeight }}>
 					<Ionicons name="book-outline" size={64} color={themeColors.muted} />
 					<Text className="text-foreground text-preset-4 font-heading mt-6 text-center font-semibold">Your library is empty</Text>
