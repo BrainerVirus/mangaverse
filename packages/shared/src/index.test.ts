@@ -1,8 +1,21 @@
-import { describe, it, expect } from 'vitest';
-import { PACKAGE_NAME } from './index';
+import { describe, expect, it } from 'vitest';
+import {
+  PACKAGE_NAME,
+  createAppError,
+  getDefaultReaderSettings,
+  ok,
+  validateProviderManifest,
+} from './index';
 
-describe('smoke', () => {
-  it('should export PACKAGE_NAME', () => {
+describe('@app/shared public exports', () => {
+  it('exports PACKAGE_NAME', () => {
     expect(PACKAGE_NAME).toBe('@app/shared');
+  });
+
+  it('exports core domain helpers', () => {
+    expect(typeof ok).toBe('function');
+    expect(typeof createAppError).toBe('function');
+    expect(typeof getDefaultReaderSettings).toBe('function');
+    expect(typeof validateProviderManifest).toBe('function');
   });
 });
