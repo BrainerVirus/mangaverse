@@ -1,0 +1,36 @@
+{
+  "name": "@app/web",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev --port 5173",
+    "build": "vite build && tsc --noEmit",
+    "start": "node .output/server/index.mjs",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint app server.ts vite.config.ts",
+    "lint:fix": "oxlint app server.ts vite.config.ts --fix",
+    "clean": "rm -rf .vinxi .output dist"
+  },
+  "dependencies": {
+    "@app/design-system": "workspace:*",
+    "@app/motion": "workspace:*",
+    "@app/platform": "workspace:*",
+    "@app/shared": "workspace:*",
+    "@tanstack/react-router": "^1.169.2",
+    "@tanstack/react-start": "^1.167.65",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^6.0.1",
+    "vite-tsconfig-paths": "^5.1.0",
+    "nitro": "^3.0.260311-beta",
+    "oxlint": "^0.16.0",
+    "typescript": "^5.9.2",
+    "vite": "^8.0.0"
+  }
+}
