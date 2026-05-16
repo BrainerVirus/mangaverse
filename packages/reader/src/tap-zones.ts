@@ -10,6 +10,10 @@ import type {
 function getNavigationMapping(input: ReaderSessionInput): { leftAction: TapZoneAction; rightAction: TapZoneAction } {
   const { readingMode, navigationDirection } = input.settings;
 
+  if (readingMode === 'vertical') {
+    return { leftAction: { type: 'none' }, rightAction: { type: 'none' } };
+  }
+
   const isInverted = navigationDirection === 'inverted';
   const isRtl = readingMode === 'rtl';
 
@@ -266,12 +270,13 @@ export function resolveTapZoneAction(
 export function createTapZoneDebugModel(
   input: ReaderSessionInput,
   zones: TapZoneRegion[],
-  zoomState?: ZoomStateSummary
+  zoomState?: ZoomStateSummary,
+  overlayInsets?: ReaderOverlayInsets
 ): TapZoneDebugModel {
   return {
     regions: zones,
     viewport: input.viewport,
-    overlayInsets: { top: 0, right: 0, bottom: 0, left: 0 },
+    overlayInsets: overlayInsets ?? { top: 0, right: 0, bottom: 0, left: 0 },
     readingMode: input.settings.readingMode,
     zoomState: zoomState ?? {
       scale: 1,

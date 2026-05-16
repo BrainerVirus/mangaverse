@@ -128,6 +128,17 @@ describe('calculateTapZones', () => {
       }
     }
   });
+
+  it('should return none for side zones in vertical mode', () => {
+    const input = makeInput({ readingMode: 'vertical' });
+    const zones = calculateTapZones(input, { top: 0, right: 0, bottom: 0, left: 0 });
+
+    const leftZone = zones.find(z => z.id === 'left');
+    const rightZone = zones.find(z => z.id === 'right');
+
+    expect(leftZone?.action.type).toBe('none');
+    expect(rightZone?.action.type).toBe('none');
+  });
 });
 
 describe('resolveTapZoneAction', () => {
@@ -172,5 +183,14 @@ describe('createTapZoneDebugModel', () => {
     const model = createTapZoneDebugModel(input, zones, zoomState);
 
     expect(model.zoomState.scale).toBe(1.5);
+  });
+
+  it('should preserve non-zero overlay insets in debug model', () => {
+    const input = makeInput();
+    const zones = calculateTapZones(input, { top: 0, right: 0, bottom: 0, left: 0 });
+    const insets = { top: 12, right: 16, bottom: 20, left: 24 };
+    const model = createTapZoneDebugModel(input, zones, undefined, insets);
+
+    expect(model.overlayInsets).toEqual(insets);
   });
 });
