@@ -89,4 +89,54 @@ describe('provider manifest', () => {
   it('type: capability map keys align with manifest field', () => {
     expectTypeOf<ProviderManifest['capabilities']>().toEqualTypeOf<ProviderCapabilityMap>();
   });
+
+  it('validateProviderManifest rejects javascript: scheme in source.url', () => {
+    const res = validateProviderManifest({
+      ...validManifestInput,
+      source: { url: 'javascript:alert(1)' },
+    });
+    expect(res.ok).toBe(false);
+  });
+
+  it('validateProviderManifest rejects file: scheme in source.homepageUrl', () => {
+    const res = validateProviderManifest({
+      ...validManifestInput,
+      source: { url: 'https://example.com', homepageUrl: 'file:///tmp/x' },
+    });
+    expect(res.ok).toBe(false);
+  });
+
+  it('validateProviderManifest rejects ftp: scheme in source.manifestUrl', () => {
+    const res = validateProviderManifest({
+      ...validManifestInput,
+      source: { url: 'https://example.com', manifestUrl: 'ftp://example.com/m.json' },
+    });
+    expect(res.ok).toBe(false);
+  });
+
+  it('validateProviderManifest accepts http: and https: in source.homepageUrl', () => {
+    const res1 = validateProviderManifest({
+      ...validManifestInput,
+      source: { url: 'https://example.com', homepageUrl: 'http://example.com' },
+    });
+    expect(res1.ok).toBe(true);
+
+    const res2 = validateProviderManifest({
+      ...validManifestInput,
+      source: { url: 'https://example.com', manifestUrl: 'https://example.com/manifest.json' },
+    });
+    expect(res2.ok).toBe(true);
+  });
+
+  it('validateProviderManifest rejects malformed http source URLs', () => {
+    expect(validateProviderManifest({
+      ...validManifestInput,
+      source: { url: 'https://' },
+    }).ok).toBe(false);
+
+    expect(validateProviderManifest({
+      ...validManifestInput,
+      source: { url: 'https:// bad' },
+    }).ok).toBe(false);
+  });
 });

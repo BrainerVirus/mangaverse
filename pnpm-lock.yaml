@@ -318,6 +318,19 @@ importers:
         version: 3.2.4(@types/node@22.19.18)(jiti@2.7.0)(jsdom@20.0.3)(lightningcss@1.32.0)(terser@5.47.1)(yaml@2.8.4)
 
   packages/extensions-core:
+    dependencies:
+      '@app/db':
+        specifier: workspace:*
+        version: link:../db
+      '@app/extensions-sdk':
+        specifier: workspace:*
+        version: link:../extensions-sdk
+      '@app/platform':
+        specifier: workspace:*
+        version: link:../platform
+      '@app/shared':
+        specifier: workspace:*
+        version: link:../shared
     devDependencies:
       oxlint:
         specifier: ^0.16.0
@@ -330,6 +343,13 @@ importers:
         version: 3.2.4(@types/node@22.19.18)(jiti@2.7.0)(jsdom@20.0.3)(lightningcss@1.32.0)(terser@5.47.1)(yaml@2.8.4)
 
   packages/extensions-sdk:
+    dependencies:
+      '@app/shared':
+        specifier: workspace:*
+        version: link:../shared
+      node-html-parser:
+        specifier: ^6.1.13
+        version: 6.1.13
     devDependencies:
       oxlint:
         specifier: ^0.16.0

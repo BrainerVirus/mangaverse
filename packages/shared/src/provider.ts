@@ -104,6 +104,16 @@ function isNonEmptyString(v: unknown): v is string {
   return typeof v === 'string' && v.trim().length > 0;
 }
 
+function isHttpUrl(v: unknown): v is string {
+  if (typeof v !== 'string') return false;
+  try {
+    const parsed = new URL(v);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
@@ -209,11 +219,29 @@ export function validateProviderManifest(input: unknown): AppResult<ProviderMani
   }
 
   const source = input['source'];
-  if (!isPlainObject(source) || !isNonEmptyString(source['url'])) {
+  if (!isPlainObject(source) || !isNonEmptyString(source['url']) || !isHttpUrl(source['url'])) {
     return err(
       createAppError({
         code: 'provider.manifest.invalid',
-        message: 'Manifest source.url is required.',
+        message: 'Manifest source.url must be a valid http/https URL.',
+      }),
+    );
+  }
+
+  if (source['homepageUrl'] !== undefined && !isHttpUrl(source['homepageUrl'])) {
+    return err(
+      createAppError({
+        code: 'provider.manifest.invalid',
+        message: 'Manifest source.homepageUrl must be a valid http/https URL.',
+      }),
+    );
+  }
+
+  if (source['manifestUrl'] !== undefined && !isHttpUrl(source['manifestUrl'])) {
+    return err(
+      createAppError({
+        code: 'provider.manifest.invalid',
+        message: 'Manifest source.manifestUrl must be a valid http/https URL.',
       }),
     );
   }
