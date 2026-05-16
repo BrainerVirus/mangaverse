@@ -62,13 +62,43 @@ describe('calculatePageSlots', () => {
     const input = makeInput({ pageLayout: 'double', readingMode: 'ltr' });
     const slots = calculatePageSlots(input);
 
+    // Double layout pairs mechanically - even pages are left, odd are right
     expect(slots[0].pageIndex).toBe(0);
     expect(slots[0].isLeftPage).toBe(true);
     expect(slots[0].isRightPage).toBe(false);
-
     expect(slots[1].pageIndex).toBe(1);
     expect(slots[1].isLeftPage).toBe(false);
     expect(slots[1].isRightPage).toBe(true);
+  });
+
+  it('should pair pages mechanically for double layout without dimensions', () => {
+    const noDimPages = [
+      { id: 'p1', index: 0, image: { url: 'http://example.com/1.jpg' } },
+      { id: 'p2', index: 1, image: { url: 'http://example.com/2.jpg' } },
+      { id: 'p3', index: 2, image: { url: 'http://example.com/3.jpg' } },
+      { id: 'p4', index: 3, image: { url: 'http://example.com/4.jpg' } },
+    ];
+    const noDimChapter = {
+      id: 'ch1',
+      mangaId: 'm1',
+      title: 'No Dimensions',
+      pages: noDimPages,
+      pageCount: 4,
+    };
+    const input = makeInput({ pageLayout: 'double' });
+    input.chapter = noDimChapter as any;
+
+    const slots = calculatePageSlots(input);
+
+    // Double layout should pair mechanically regardless of dimensions
+    expect(slots[0].pageIndex).toBe(0);
+    expect(slots[0].isLeftPage).toBe(true);
+    expect(slots[1].pageIndex).toBe(1);
+    expect(slots[1].isRightPage).toBe(true);
+    expect(slots[2].pageIndex).toBe(2);
+    expect(slots[2].isLeftPage).toBe(true);
+    expect(slots[3].pageIndex).toBe(3);
+    expect(slots[3].isRightPage).toBe(true);
   });
 
   it('should leave cover page alone when treatFirstPageAsCover is true', () => {
@@ -77,8 +107,37 @@ describe('calculatePageSlots', () => {
 
     expect(slots[0].pageIndex).toBe(0);
     expect(slots[0].isCover).toBe(true);
+  });
+
+  it('should correctly pair pages for double layout with treatFirstPageAsCover', () => {
+    const fivePageChapter = {
+      id: 'ch1',
+      mangaId: 'm1',
+      title: 'Chapter 1',
+      pages: [
+        { id: 'p1', index: 0, image: { url: 'http://example.com/1.jpg' } },
+        { id: 'p2', index: 1, image: { url: 'http://example.com/2.jpg' } },
+        { id: 'p3', index: 2, image: { url: 'http://example.com/3.jpg' } },
+        { id: 'p4', index: 3, image: { url: 'http://example.com/4.jpg' } },
+        { id: 'p5', index: 4, image: { url: 'http://example.com/5.jpg' } },
+      ],
+      pageCount: 5,
+    };
+    const input = makeInput({ pageLayout: 'double', treatFirstPageAsCover: true });
+    input.chapter = fivePageChapter as any;
+
+    const slots = calculatePageSlots(input);
+
+    expect(slots[0].pageIndex).toBe(0);
+    expect(slots[0].isCover).toBe(true);
     expect(slots[1].pageIndex).toBe(1);
     expect(slots[1].isLeftPage).toBe(true);
+    expect(slots[2].pageIndex).toBe(2);
+    expect(slots[2].isRightPage).toBe(true);
+    expect(slots[3].pageIndex).toBe(3);
+    expect(slots[3].isLeftPage).toBe(true);
+    expect(slots[4].pageIndex).toBe(4);
+    expect(slots[4].isRightPage).toBe(true);
   });
 
   it('should handle odd page count in double layout', () => {
@@ -106,6 +165,106 @@ describe('calculatePageSlots', () => {
       expect(slot.isLeftPage).toBe(false);
       expect(slot.isRightPage).toBe(false);
     }
+  });
+
+  it('should pair portrait pages in smartSpread', () => {
+    const portraitPages = [
+      { id: 'p1', index: 0, image: { url: 'http://example.com/1.jpg', width: 600, height: 1000 } },
+      { id: 'p2', index: 1, image: { url: 'http://example.com/2.jpg', width: 600, height: 1000 } },
+      { id: 'p3', index: 2, image: { url: 'http://example.com/3.jpg', width: 600, height: 1000 } },
+    ];
+    const portraitChapter = {
+      id: 'ch1',
+      mangaId: 'm1',
+      title: 'Portrait Chapter',
+      pages: portraitPages,
+      pageCount: 3,
+    };
+    const input = makeInput({ pageLayout: 'smartSpread' });
+    input.chapter = portraitChapter as any;
+
+    const slots = calculatePageSlots(input);
+
+    // Both pages are portrait (height > width), so they should pair
+    expect(slots[0].pageIndex).toBe(0);
+    expect(slots[0].isLeftPage).toBe(true);
+    expect(slots[0].isRightPage).toBe(false);
+    expect(slots[1].pageIndex).toBe(1);
+    expect(slots[1].isLeftPage).toBe(false);
+    expect(slots[1].isRightPage).toBe(true);
+  });
+
+  it('should keep landscape pages standalone in smartSpread', () => {
+    const landscapePages = [
+      { id: 'p1', index: 0, image: { url: 'http://example.com/1.jpg', width: 1600, height: 900 } },
+      { id: 'p2', index: 1, image: { url: 'http://example.com/2.jpg', width: 1600, height: 900 } },
+      { id: 'p3', index: 2, image: { url: 'http://example.com/3.jpg', width: 1600, height: 900 } },
+    ];
+    const landscapeChapter = {
+      id: 'ch1',
+      mangaId: 'm1',
+      title: 'Landscape Chapter',
+      pages: landscapePages,
+      pageCount: 3,
+    };
+    const input = makeInput({ pageLayout: 'smartSpread' });
+    input.chapter = landscapeChapter as any;
+
+    const slots = calculatePageSlots(input);
+
+    // Landscape pages (width > height) should stand alone
+    expect(slots).toHaveLength(3);
+    for (const slot of slots) {
+      expect(slot.isLeftPage).toBe(false);
+      expect(slot.isRightPage).toBe(false);
+    }
+  });
+
+  it('should keep pages with missing dimensions standalone in smartSpread', () => {
+    const mixedPages = [
+      { id: 'p1', index: 0, image: { url: 'http://example.com/1.jpg' } },
+      { id: 'p2', index: 1, image: { url: 'http://example.com/2.jpg', width: 600, height: 1000 } },
+    ];
+    const mixedChapter = {
+      id: 'ch1',
+      mangaId: 'm1',
+      title: 'Mixed Chapter',
+      pages: mixedPages,
+      pageCount: 2,
+    };
+    const input = makeInput({ pageLayout: 'smartSpread' });
+    input.chapter = mixedChapter as any;
+
+    const slots = calculatePageSlots(input);
+
+    // Missing dimensions = can't pair, so standalone
+    expect(slots).toHaveLength(2);
+    for (const slot of slots) {
+      expect(slot.isLeftPage).toBe(false);
+      expect(slot.isRightPage).toBe(false);
+    }
+  });
+
+  it('should pair first cover with second page in smartSpread when cover is portrait', () => {
+    const coverAndPortrait = [
+      { id: 'p1', index: 0, image: { url: 'http://example.com/1.jpg', width: 600, height: 1000 } },
+      { id: 'p2', index: 1, image: { url: 'http://example.com/2.jpg', width: 600, height: 1000 } },
+    ];
+    const coverChapter = {
+      id: 'ch1',
+      mangaId: 'm1',
+      title: 'Cover Portrait',
+      pages: coverAndPortrait,
+      pageCount: 2,
+    };
+    const input = makeInput({ pageLayout: 'smartSpread', treatFirstPageAsCover: false });
+    input.chapter = coverChapter as any;
+
+    const slots = calculatePageSlots(input);
+
+    // Both are portrait, so they pair
+    expect(slots[0].isLeftPage).toBe(true);
+    expect(slots[1].isRightPage).toBe(true);
   });
 });
 
