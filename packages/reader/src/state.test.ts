@@ -141,4 +141,74 @@ describe('createReaderState', () => {
 
     expect(state.mode).toBe('page');
   });
+
+  it('should return paired pages for double layout at page 0', () => {
+    const input: ReaderSessionInput = {
+      chapter: mockChapter as any,
+      viewport: mockViewport,
+      settings: { ...defaultSettings, pageLayout: 'double' },
+      initialPageIndex: 0,
+    };
+
+    const state = createReaderState(input);
+
+    // Page 0 is left page of pair [0,1]
+    expect(state.visiblePageIndexes).toEqual([0, 1]);
+  });
+
+  it('should return paired pages for double layout at page 1', () => {
+    const input: ReaderSessionInput = {
+      chapter: mockChapter as any,
+      viewport: mockViewport,
+      settings: { ...defaultSettings, pageLayout: 'double' },
+      initialPageIndex: 1,
+    };
+
+    const state = createReaderState(input);
+
+    // Page 1 is right page of pair [0,1]
+    expect(state.visiblePageIndexes).toEqual([0, 1]);
+  });
+
+  it('should return second pair for double layout at page 2', () => {
+    const sixPageChapter = {
+      id: 'ch1',
+      mangaId: 'm1',
+      title: 'Chapter 1',
+      pages: [
+        { id: 'p1', index: 0, image: { url: 'http://example.com/1.jpg' } },
+        { id: 'p2', index: 1, image: { url: 'http://example.com/2.jpg' } },
+        { id: 'p3', index: 2, image: { url: 'http://example.com/3.jpg' } },
+        { id: 'p4', index: 3, image: { url: 'http://example.com/4.jpg' } },
+        { id: 'p5', index: 4, image: { url: 'http://example.com/5.jpg' } },
+        { id: 'p6', index: 5, image: { url: 'http://example.com/6.jpg' } },
+      ],
+      pageCount: 6,
+    };
+    const input: ReaderSessionInput = {
+      chapter: sixPageChapter as any,
+      viewport: mockViewport,
+      settings: { ...defaultSettings, pageLayout: 'double' },
+      initialPageIndex: 2,
+    };
+
+    const state = createReaderState(input);
+
+    // Page 2 is left page of pair [2,3]
+    expect(state.visiblePageIndexes).toEqual([2, 3]);
+  });
+
+  it('should return cover alone for smartSpread with treatFirstPageAsCover', () => {
+    const input: ReaderSessionInput = {
+      chapter: mockChapter as any,
+      viewport: mockViewport,
+      settings: { ...defaultSettings, pageLayout: 'smartSpread', treatFirstPageAsCover: true },
+      initialPageIndex: 0,
+    };
+
+    const state = createReaderState(input);
+
+    // Cover page 0 stands alone
+    expect(state.visiblePageIndexes).toEqual([0]);
+  });
 });

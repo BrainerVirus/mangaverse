@@ -3,7 +3,37 @@ import type {
   ReaderState,
   ZoomStateSummary,
   ReaderDiagnosticsSnapshot,
+  PageSlot,
 } from './types.js';
+import { calculatePageSlots } from './spreads.js';
+
+function findActiveSpreadSlots(slots: readonly PageSlot[], activePageIndex: number): readonly PageSlot[] {
+  const targetSlot = slots.find(s => s.pageIndex === activePageIndex);
+  if (!targetSlot) return [];
+
+  if (targetSlot.isCover || (!targetSlot.isLeftPage && !targetSlot.isRightPage)) {
+    return [targetSlot];
+  }
+
+  const isLeftSlot = targetSlot.isLeftPage;
+  const startIndex = slots.indexOf(targetSlot);
+
+  const result: PageSlot[] = [targetSlot];
+
+  if (isLeftSlot && startIndex + 1 < slots.length) {
+    const nextSlot = slots[startIndex + 1];
+    if (nextSlot && nextSlot.pageIndex === activePageIndex + 1) {
+      result.push(nextSlot);
+    }
+  } else if (!isLeftSlot && startIndex - 1 >= 0) {
+    const prevSlot = slots[startIndex - 1];
+    if (prevSlot && prevSlot.pageIndex === activePageIndex - 1) {
+      result.unshift(prevSlot);
+    }
+  }
+
+  return result;
+}
 
 export function createReaderState(input: ReaderSessionInput): ReaderState {
   const { chapter, settings, initialPageIndex = 0 } = input;
@@ -13,7 +43,19 @@ export function createReaderState(input: ReaderSessionInput): ReaderState {
 
   const mode = settings.readingMode === 'vertical' ? 'scroll' : 'page';
 
-  const visiblePageIndexes = [clampedPageIndex];
+  let visiblePageIndexes: readonly number[];
+
+  if (mode === 'scroll') {
+    visiblePageIndexes = [clampedPageIndex];
+  } else {
+    const slots = calculatePageSlots(input);
+    const visibleSlots = findActiveSpreadSlots(slots, clampedPageIndex);
+    if (visibleSlots.length > 1) {
+      visiblePageIndexes = visibleSlots.map(s => s.pageIndex);
+    } else {
+      visiblePageIndexes = [clampedPageIndex];
+    }
+  }
 
   const preloadQueue = calculatePreloadQueue(
     clampedPageIndex,
