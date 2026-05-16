@@ -21,7 +21,9 @@
     "test:watch": "vitest",
     "build": "tsc -p tsconfig.json"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@app/shared": "workspace:*"
+  },
   "devDependencies": {
     "oxlint": "^0.16.0",
     "typescript": "^5.9.2",

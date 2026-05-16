@@ -252,7 +252,6 @@ export function resolveTapZoneAction(
   params: { zoneId: string; pageIndex: number }
 ): TapZoneAction {
   const { zoneId } = params;
-  const { tapZoneLayout } = input.settings;
 
   if (zoneId === 'center') {
     return { type: 'toggleChrome' };

@@ -10,7 +10,7 @@ export function calculatePageSlots(input: ReaderSessionInput): readonly PageSlot
   const pages = chapter.pages;
 
   if (readingMode === 'vertical') {
-    return pages.map((page, index) => ({
+    return pages.map((_page, index) => ({
       pageIndex: index,
       isCover: false,
       isLeftPage: false,

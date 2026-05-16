@@ -22,7 +22,7 @@ export function createPreloadPlan(
     const pageIndex = activePageIndex + i;
     if (pageIndex >= pages.length) continue;
 
-    const page = pages[pageIndex];
+    const page = pages[pageIndex]!;
     const distance = i;
     const priority = Math.max(0, 100 - distance * 10);
 
@@ -53,7 +53,7 @@ export function createDecodeQueue(
     const pageIndex = activePageIndex + i;
     if (pageIndex >= pages.length) continue;
 
-    const page = pages[pageIndex];
+    const page = pages[pageIndex]!;
     const distance = i;
     const priority = Math.max(0, 100 - distance * 10);
 
@@ -75,10 +75,10 @@ export function createDecodeQueue(
 
 export function recordPageLoadResult(
   result: PageLoadResult,
-  pages: readonly ReaderPage[],
-  activePageIndex: number,
+  _pages: readonly ReaderPage[],
+  _activePageIndex: number,
   failedPages: readonly number[],
-  preloadAhead: number,
+  _preloadAhead: number,
 ): {
   failedPages: readonly number[];
   preloadQueue: readonly number[];

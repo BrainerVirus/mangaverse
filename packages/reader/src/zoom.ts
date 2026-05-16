@@ -20,17 +20,12 @@ export function createZoomState(settings: ZoomSettings): ZoomStateSummary {
 export function applyDoubleTapZoom(
   state: ZoomStateSummary,
   tapPosition: { x: number; y: number },
-  viewportWidth: number,
-  viewportHeight: number,
+  _viewportWidth: number,
+  _viewportHeight: number,
   doubleTapZoom: number
 ): ZoomStateSummary {
   const targetScale = state.scale === 1 ? doubleTapZoom : 1;
   const scale = targetScale;
-
-  const currentWidth = viewportWidth;
-  const currentHeight = viewportHeight;
-  const scaledWidth = currentWidth * scale;
-  const scaledHeight = currentHeight * scale;
 
   const centerX = tapPosition.x;
   const centerY = tapPosition.y;
@@ -51,7 +46,7 @@ export function applyDoubleTapZoom(
 
 export function applyPinchZoom(
   state: ZoomStateSummary,
-  currentScale: number,
+  _currentScale: number,
   targetScale: number,
   center: { centerX: number; centerY: number }
 ): ZoomStateSummary {

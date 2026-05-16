@@ -6,7 +6,7 @@ import type {
 } from './types.js';
 
 export function createReaderState(input: ReaderSessionInput): ReaderState {
-  const { chapter, viewport, settings, initialPageIndex = 0 } = input;
+  const { chapter, settings, initialPageIndex = 0 } = input;
   const pageCount = chapter.pageCount;
 
   const clampedPageIndex = Math.max(0, Math.min(initialPageIndex, pageCount - 1));
