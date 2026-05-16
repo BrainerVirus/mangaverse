@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   PACKAGE_NAME,
+  READER_ERROR_CODES,
   // Types
   type ReaderPage,
   type ReaderChapter,
@@ -10,6 +11,7 @@ import {
   type ReaderProgressEvent,
   type ReaderNavigationAction,
   type ReaderDiagnosticsSnapshot,
+  type PreloadRetryState,
   // Layout/spread
   createReaderState,
   calculatePageSlots,
@@ -49,6 +51,17 @@ describe('public API', () => {
     expect(PACKAGE_NAME).toBe('@app/reader');
   });
 
+  it('should export READER_ERROR_CODES as runtime constant', () => {
+    expect(READER_ERROR_CODES).toBeDefined();
+    expect(typeof READER_ERROR_CODES).toBe('object');
+    expect(READER_ERROR_CODES.INPUT_INVALID).toBe('reader.input.invalid');
+    expect(READER_ERROR_CODES.PAGE_MISSING).toBe('reader.page.missing');
+    expect(READER_ERROR_CODES.LAYOUT_INVALID).toBe('reader.layout.invalid');
+    expect(READER_ERROR_CODES.NAVIGATION_INVALID).toBe('reader.navigation.invalid');
+    expect(READER_ERROR_CODES.IMAGE_FAILED).toBe('reader.image.failed');
+    expect(READER_ERROR_CODES.PRELOAD_FAILED).toBe('reader.preload.failed');
+  });
+
   it('should export all public types', () => {
     const _page: ReaderPage = {} as any;
     const _chapter: ReaderChapter = {} as any;
@@ -57,6 +70,7 @@ describe('public API', () => {
     const _event: ReaderProgressEvent = {} as any;
     const _action: ReaderNavigationAction = {} as any;
     const _snapshot: ReaderDiagnosticsSnapshot = {} as any;
+    const _retryState: PreloadRetryState = {} as any;
   });
 
   it('should export all public functions', () => {

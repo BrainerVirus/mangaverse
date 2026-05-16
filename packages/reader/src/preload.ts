@@ -5,9 +5,8 @@ import type {
   DecodeQueueItem,
   DecodeQueue,
   PageLoadResult,
+  PreloadRetryState,
 } from './types';
-
-const MAX_RETRIES = 3;
 
 export function createPreloadPlan(
   pages: readonly ReaderPage[],
@@ -78,40 +77,44 @@ export function recordPageLoadResult(
   _pages: readonly ReaderPage[],
   _activePageIndex: number,
   failedPages: readonly number[],
-  _preloadAhead: number,
+  maxRetries: number,
+  retryState: PreloadRetryState = {},
 ): {
   failedPages: readonly number[];
   preloadQueue: readonly number[];
+  retryState: PreloadRetryState;
 } {
   const newFailedPages = [...failedPages];
   let preloadQueue: readonly number[] = [];
+  const newRetryState = { ...retryState };
 
   if (result.success) {
+    const { [result.pageIndex]: _removed, ...rest } = newRetryState;
     return {
-      failedPages: newFailedPages as unknown as readonly number[],
+      failedPages: newFailedPages.filter(p => p !== result.pageIndex) as unknown as readonly number[],
       preloadQueue,
+      retryState: rest,
     };
   }
 
   if (!newFailedPages.includes(result.pageIndex)) {
     newFailedPages.push(result.pageIndex);
-  } else {
-    return {
-      failedPages: newFailedPages,
-      preloadQueue: [],
-    };
   }
 
-  const retriesForPage = newFailedPages.filter(
-    (p) => p === result.pageIndex,
-  ).length;
+  const currentRetry = newRetryState[result.pageIndex] ?? 0;
+  const newRetry = currentRetry < maxRetries ? currentRetry + 1 : currentRetry;
 
-  if (retriesForPage <= MAX_RETRIES) {
+  if (newRetry > currentRetry) {
+    newRetryState[result.pageIndex] = newRetry;
+  }
+
+  if (newRetry < maxRetries) {
     preloadQueue = [result.pageIndex];
   }
 
   return {
-    failedPages: newFailedPages,
+    failedPages: newFailedPages as unknown as readonly number[],
     preloadQueue,
+    retryState: newRetryState,
   };
 }

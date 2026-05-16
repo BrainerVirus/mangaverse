@@ -173,6 +173,8 @@ export interface PageLoadResult {
   readonly bytesLoaded?: number;
 }
 
+export type PreloadRetryState = Readonly<Record<string, number>>;
+
 export const READER_ERROR_CODES = {
   INPUT_INVALID: 'reader.input.invalid',
   PAGE_MISSING: 'reader.page.missing',

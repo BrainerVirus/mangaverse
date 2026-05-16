@@ -1,5 +1,6 @@
 // @app/reader
 export const PACKAGE_NAME = '@app/reader' as const;
+export { READER_ERROR_CODES } from './types.js';
 
 // Types
 export type {
@@ -23,11 +24,11 @@ export type {
   PageLayoutMode,
   PreloadItem,
   PreloadPlan,
+  PreloadRetryState,
   DecodeQueueItem,
   DecodeQueue,
   PageLoadResult,
   DiagnosticEvent,
-  READER_ERROR_CODES,
 } from './types.js';
 
 // Layout/spread functions (from state.ts - includes createReaderState)
@@ -55,3 +56,6 @@ export { createProgressEvent, shouldPersistProgress } from './progress.js';
 
 // Diagnostics
 export { createReaderDiagnostics } from './diagnostics.js';
+
+// Error validation
+export { createReaderError, validateReaderSessionInput, validatePageIndex } from './errors.js';

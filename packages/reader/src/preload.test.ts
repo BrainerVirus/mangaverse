@@ -105,7 +105,7 @@ describe('recordPageLoadResult', () => {
       bytesLoaded: 50000,
     };
 
-    const updated = recordPageLoadResult(result, mockPages, 0, [], 3);
+    const updated = recordPageLoadResult(result, mockPages, 0, [], 3, {});
 
     expect(updated.failedPages).toHaveLength(0);
   });
@@ -117,7 +117,7 @@ describe('recordPageLoadResult', () => {
       errorCode: 'reader.image.failed',
     };
 
-    const updated = recordPageLoadResult(result, mockPages, 0, [], 3);
+    const updated = recordPageLoadResult(result, mockPages, 0, [], 3, {});
 
     expect(updated.failedPages).toContain(2);
   });
@@ -129,7 +129,7 @@ describe('recordPageLoadResult', () => {
       errorCode: 'reader.image.failed',
     };
 
-    const updated = recordPageLoadResult(result, mockPages, 0, [2], 3);
+    const updated = recordPageLoadResult(result, mockPages, 0, [2], 3, { 2: 3 });
 
     expect(updated.failedPages).toContain(2);
     expect(updated.preloadQueue).not.toContain(2);
@@ -139,9 +139,61 @@ describe('recordPageLoadResult', () => {
     const result1: PageLoadResult = { pageIndex: 1, success: true };
     const result2: PageLoadResult = { pageIndex: 2, success: true };
 
-    const updated1 = recordPageLoadResult(result1, mockPages, 0, [], 3);
-    const updated2 = recordPageLoadResult(result2, mockPages, 0, [], 3);
+    const updated1 = recordPageLoadResult(result1, mockPages, 0, [], 3, {});
+    const updated2 = recordPageLoadResult(result2, mockPages, 0, [], 3, {});
 
     expect(updated1.preloadQueue.length).toBe(updated2.preloadQueue.length);
+  });
+
+  it('should increment retry count on repeated failure', () => {
+    const result: PageLoadResult = {
+      pageIndex: 2,
+      success: false,
+      errorCode: 'reader.image.failed',
+    };
+
+    const updated1 = recordPageLoadResult(result, mockPages, 0, [], 3, {});
+    const updated2 = recordPageLoadResult(result, mockPages, 0, [2], 3, updated1.retryState);
+
+    expect(updated2.retryState).toHaveProperty('2');
+    expect(updated2.retryState[2]).toBe(2);
+    expect(updated2.preloadQueue).toContain(2);
+  });
+
+  it('should clear retry state on successful load', () => {
+    const failResult: PageLoadResult = {
+      pageIndex: 2,
+      success: false,
+      errorCode: 'reader.image.failed',
+    };
+    const successResult: PageLoadResult = {
+      pageIndex: 2,
+      success: true,
+    };
+
+    const afterFail = recordPageLoadResult(failResult, mockPages, 0, [], 3, {});
+    const afterSuccess = recordPageLoadResult(successResult, mockPages, 0, [2], 3, afterFail.retryState);
+
+    expect(afterSuccess.retryState).not.toHaveProperty('2');
+    expect(afterSuccess.failedPages).not.toContain(2);
+  });
+
+  it('should stop scheduling retries after maxRetries attempts', () => {
+    const result: PageLoadResult = {
+      pageIndex: 2,
+      success: false,
+      errorCode: 'reader.image.failed',
+    };
+
+    const after1 = recordPageLoadResult(result, mockPages, 0, [], 2, {});
+    const after2 = recordPageLoadResult(result, mockPages, 0, [2], 2, after1.retryState);
+    const after3 = recordPageLoadResult(result, mockPages, 0, [2], 2, after2.retryState);
+
+    expect(after1.retryState[2]).toBe(1);
+    expect(after1.preloadQueue).toContain(2);
+    expect(after2.retryState[2]).toBe(2);
+    expect(after2.preloadQueue).not.toContain(2);
+    expect(after3.retryState[2]).toBe(2);
+    expect(after3.preloadQueue).not.toContain(2);
   });
 });
