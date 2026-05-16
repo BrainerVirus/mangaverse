@@ -17,6 +17,8 @@
     "clean": "rm -rf dist out"
   },
   "dependencies": {
+    "@app/design-system": "workspace:*",
+    "@app/motion": "workspace:*",
     "@app/platform": "workspace:*",
     "@app/shared": "workspace:*",
     "electron": "^34.0.0",

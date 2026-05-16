@@ -16,7 +16,7 @@
     "commit": "git-cz",
     "postinstall": "node scripts/patch-zustand.cjs",
     "prepare": "echo 'husky removed - monorepo migration in progress'",
-    "test": "vitest run",
+    "test": "turbo run test",
     "test:watch": "vitest watch",
     "bootstrap": "pnpm install",
     "lint": "oxlint apps packages vitest.config.ts",

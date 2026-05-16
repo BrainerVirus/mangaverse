@@ -181,6 +181,38 @@ Legacy Expo/Tauri commands (prefixed with `legacy:` to avoid accidental use):
 - Legacy lint: `npm run lint` (old eslint)
 - Legacy tests: `npm test` (old jest)
 
+## Phase Status
+
+| Phase | Status | Notes |
+|-------|--------|-------|
+| Phase 0: Documentation Foundation | ✅ Complete | SPEC.md, PLAN.md, ARCHITECTURE.md, Design.md |
+| Phase 1: Monorepo Foundation | ✅ Complete | TanStack Start web app, Electron desktop app |
+| Phase 7: Design System & Motion System | ✅ Complete | `@app/motion` and `@app/design-system` implemented and tested |
+
+### Phase 7 Completed Deliverables
+
+**`@app/motion`** — GSAP animation foundation:
+- `registerGsapPlugins()`, `useGsapContext()`, `useReducedMotion()`, `useIsClient()`
+- `DURATION` and `EASING` tokens per Design.md
+- Animation helpers: `fadeIn/Out`, `slideUp/Down`, `scaleIn`, `staggerIn`, `createTimeline`
+- Reader-safe helpers: `chromeShow/Hide`, `pageTurn`, `settingsDrawerTransition`
+- Route transitions: `routeEnter`, `routeExit`
+- All helpers respect `prefers-reduced-motion`
+- 45 tests passing
+
+**`@app/design-system`** — CSS tokens + shadcn wrappers + domain primitives:
+- `styles/globals.css` with Tailwind v4 `@theme`, shadcn CSS vars, light/dark variants
+- `cn()` utility (clsx + tailwind-merge)
+- 16 shadcn wrappers: Button, Card, Dialog, Sheet, Command, Badge, Skeleton, Input, Label, Switch, Select, Slider, Tabs, Alert, Separator, Tooltip
+- 7 domain primitives: MangaCard, EmptyState, LoadingState, ErrorState, SettingsSection, ReaderChrome, ThemePreview
+- 106 tests passing
+
+**Integration:**
+- Tailwind CSS v4 wired in web app (`@tailwindcss/vite`)
+- Design-system CSS imported in `__root.tsx`
+- ThemeProvider with `.dark` class toggle
+- Desktop app has `@app/design-system` and `@app/motion` deps
+
 ## New Canonical Commands
 
 - Install deps: `pnpm install`

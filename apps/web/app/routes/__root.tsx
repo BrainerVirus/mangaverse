@@ -2,7 +2,8 @@
 
 import * as React from 'react';
 import { createRootRoute, HeadContent, Scripts } from '@tanstack/react-router';
-import appCss from '../global.css?url';
+import { ThemeProvider } from '../providers/theme-provider.js';
+import '@app/design-system/styles/globals.css';
 
 export const Route = createRootRoute({
   head: () => ({
@@ -12,7 +13,6 @@ export const Route = createRootRoute({
       { title: 'MangaVerse' },
     ],
     links: [
-      { rel: 'stylesheet', href: appCss },
       { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
     ],
   }),
@@ -35,10 +35,12 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body>
-        {children}
-        <Scripts />
-      </body>
+      <ThemeProvider>
+        <body>
+          {children}
+          <Scripts />
+        </body>
+      </ThemeProvider>
     </html>
   );
 }

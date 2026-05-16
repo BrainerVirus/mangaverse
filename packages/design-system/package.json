@@ -22,11 +22,24 @@
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@app/motion": "workspace:*",
+    "@app/shared": "workspace:*",
+    "@gsap/react": "^2.1.1",
     "clsx": "^2.1.1",
+    "gsap": "^3.12.5",
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
     "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.0.0",
+    "@testing-library/jest-dom": "^6.6.0",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/user-event": "^14.5.0",
+    "jsdom": "^25.0.0",
     "oxlint": "^0.16.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "typescript": "^5.9.2",
     "vitest": "^3.0.0"
   }

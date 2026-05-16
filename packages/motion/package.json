@@ -22,9 +22,11 @@
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@gsap/react": "^2.1.0",
     "gsap": "^3.12.7"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.0.0",
     "oxlint": "^0.16.0",
     "typescript": "^5.9.2",
     "vitest": "^3.0.0"
