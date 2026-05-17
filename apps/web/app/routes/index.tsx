@@ -6,12 +6,8 @@ export const Route = createFileRoute('/')({
 
 function HomeRoute() {
   return (
-    <main className="app-shell">
-      <section className="hero-card">
-        <p className="eyebrow">Phase 1.1</p>
-        <h1>MangaVerse</h1>
-        <p>TanStack Start monorepo foundation is online.</p>
-      </section>
+    <main className="p-6">
+      <h1 className="text-2xl font-bold">Home</h1>
     </main>
   );
 }

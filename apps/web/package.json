@@ -18,10 +18,14 @@
     "@app/motion": "workspace:*",
     "@app/platform": "workspace:*",
     "@app/shared": "workspace:*",
+    "@gsap/react": "^2.1.2",
+    "@tanstack/react-query": "^5.62.0",
     "@tanstack/react-router": "^1.169.2",
     "@tanstack/react-start": "^1.167.65",
+    "lucide-react": "^0.468.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "zustand": "^5.0.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",

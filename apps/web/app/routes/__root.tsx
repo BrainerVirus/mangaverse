@@ -1,8 +1,8 @@
 /// <reference types="vite/client" />
 
-import * as React from 'react';
-import { createRootRoute, HeadContent, Scripts } from '@tanstack/react-router';
-import { ThemeProvider } from '../providers/theme-provider.js';
+import { createRootRoute, HeadContent, Scripts, Outlet, useRouter } from '@tanstack/react-router';
+import type { PlatformCapabilities } from '@app/platform';
+import { ShellProviders } from '../components/ShellProviders.js';
 import '@app/design-system/styles/globals.css';
 
 export const Route = createRootRoute({
@@ -16,31 +16,24 @@ export const Route = createRootRoute({
       { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
     ],
   }),
-  errorComponent: () => (
-    <main className="app-shell">
-      Internal Server Error
-    </main>
-  ),
-  notFoundComponent: () => (
-    <main className="app-shell">
-      Page Not Found
-    </main>
-  ),
-  shellComponent: RootDocument,
+  component: RootDocument,
 });
 
-function RootDocument({ children }: { children: React.ReactNode }) {
+function RootDocument() {
+  const router = useRouter();
+  const detectFn = (router.options.context as { platformDetectFn?: () => PlatformCapabilities })?.platformDetectFn;
+
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>
-      <ThemeProvider>
-        <body>
-          {children}
-          <Scripts />
-        </body>
-      </ThemeProvider>
+      <body>
+        <ShellProviders detectFn={detectFn}>
+          <Outlet />
+        </ShellProviders>
+        <Scripts />
+      </body>
     </html>
   );
 }
