@@ -1,8 +1,9 @@
+import { RouterProvider } from '@tanstack/react-router';
+import { getRouter } from '@app/web/app/router.js';
+import { detectDesktopCapabilities } from './bootstrap.js';
+
+const router = getRouter({ platformDetectFn: detectDesktopCapabilities });
+
 export function App() {
-  return (
-    <div>
-      <h1>MangaVerse — Desktop</h1>
-      <p>Phase 1 — Electron shell</p>
-    </div>
-  );
+  return <RouterProvider router={router} />;
 }
