@@ -286,3 +286,12 @@ export async function getLibraryEntry(db: AppDrizzleDb, entryId: LibraryEntryId)
   if (row === undefined) return undefined;
   return toLibraryEntry(db, row);
 }
+
+export async function getLibraryEntryForManga(
+  db: AppDrizzleDb,
+  mangaId: MangaId,
+): Promise<LibraryEntry | undefined> {
+  const row = await db.select().from(libraryEntries).where(eq(libraryEntries.mangaId, mangaId)).get();
+  if (row === undefined) return undefined;
+  return toLibraryEntry(db, row);
+}
