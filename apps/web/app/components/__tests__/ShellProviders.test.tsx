@@ -1,6 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderToString } from 'react-dom/server';
+import { createRoot, type Root } from 'react-dom/client';
+import { act } from 'react';
 import { ThemeProvider } from '../../providers/theme-provider.js';
+import { useCommandPaletteStore } from '../../stores/useCommandPaletteStore';
 
 Object.defineProperty(globalThis, 'localStorage', {
   value: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
@@ -47,6 +50,23 @@ vi.mock('@app/design-system', async (importOriginal) => {
 });
 
 describe('ShellProviders', () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    useCommandPaletteStore.setState({ isOpen: false, query: '', selectedIndex: 0 });
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(() => {
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
   it('renders children without crashing', async () => {
     const { ShellProviders } = await import('../ShellProviders.js');
     const html = renderToString(
@@ -57,5 +77,27 @@ describe('ShellProviders', () => {
       </ThemeProvider>
     );
     expect(html).toContain('Hello');
+  });
+
+  it('opens the command palette on Cmd+K', async () => {
+    const { ShellProviders } = await import('../ShellProviders.js');
+
+    await act(async () => {
+      root.render(
+        <ThemeProvider>
+          <ShellProviders>
+            <div>Hello</div>
+          </ShellProviders>
+        </ThemeProvider>,
+      );
+    });
+
+    await act(async () => {
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }),
+      );
+    });
+
+    expect(useCommandPaletteStore.getState().isOpen).toBe(true);
   });
 });

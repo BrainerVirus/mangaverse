@@ -11,6 +11,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "oxlint app server.ts vite.config.ts",
     "lint:fix": "oxlint app server.ts vite.config.ts --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "clean": "rm -rf .vinxi .output dist"
   },
   "dependencies": {
@@ -37,6 +39,8 @@
     "tailwindcss": "^4.0.0",
     "typescript": "^5.9.2",
     "vite": "^8.0.0",
-    "vite-tsconfig-paths": "^5.1.0"
+    "vite-tsconfig-paths": "^5.1.0",
+    "vitest": "^3.2.4",
+    "jsdom": "^26.0.0"
   }
 }
