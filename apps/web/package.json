@@ -23,6 +23,7 @@
     "@app/extensions": "workspace:*",
     "@app/library": "workspace:*",
     "@app/migration": "workspace:*",
+    "@app/onboarding": "workspace:*",
     "@app/search": "workspace:*",
     "@app/settings": "workspace:*",
     "@app/theme": "workspace:*",
