@@ -16,10 +16,13 @@
     "clean": "rm -rf .vinxi .output dist"
   },
   "dependencies": {
+    "@app/db": "workspace:*",
     "@app/design-system": "workspace:*",
+    "@app/library": "workspace:*",
     "@app/motion": "workspace:*",
     "@app/platform": "workspace:*",
     "@app/shared": "workspace:*",
+    "sql.js": "^1.12.0",
     "@gsap/react": "^2.1.2",
     "@tanstack/react-query": "^5.62.0",
     "@tanstack/react-router": "^1.169.2",
@@ -31,6 +34,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
+    "@types/sql.js": "^1.4.9",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^6.0.1",

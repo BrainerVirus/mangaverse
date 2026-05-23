@@ -241,9 +241,15 @@ importers:
 
   apps/web:
     dependencies:
+      '@app/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@app/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
+      '@app/library':
+        specifier: workspace:*
+        version: link:../../packages/library
       '@app/motion':
         specifier: workspace:*
         version: link:../../packages/motion
@@ -274,6 +280,9 @@ importers:
       react-dom:
         specifier: ^19.1.0
         version: 19.1.0(react@19.1.0)
+      sql.js:
+        specifier: ^1.12.0
+        version: 1.14.1
       zustand:
         specifier: ^5.0.0
         version: 5.0.13(@types/react@19.1.17)(react@19.1.0)(use-sync-external-store@1.6.0(react@19.1.0))
@@ -287,6 +296,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.1.0
         version: 19.2.3(@types/react@19.1.17)
+      '@types/sql.js':
+        specifier: ^1.4.9
+        version: 1.4.11
       '@vitejs/plugin-react':
         specifier: ^6.0.1
         version: 6.0.1(babel-plugin-react-compiler@1.0.0)(vite@8.0.11(@types/node@22.19.18)(esbuild@0.27.7)(jiti@2.7.0)(terser@5.47.1)(yaml@2.8.4))
@@ -446,7 +458,38 @@ importers:
         version: 3.2.4(@types/node@22.19.18)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.47.1)(yaml@2.8.4)
 
   packages/library:
+    dependencies:
+      '@app/db':
+        specifier: workspace:*
+        version: link:../db
+      '@app/design-system':
+        specifier: workspace:*
+        version: link:../design-system
+      '@app/shared':
+        specifier: workspace:*
+        version: link:../shared
+      lucide-react:
+        specifier: ^0.468.0
+        version: 0.468.0(react@19.1.0)
+      react:
+        specifier: ^19.1.0
+        version: 19.1.0
     devDependencies:
+      '@testing-library/dom':
+        specifier: ^10.0.0
+        version: 10.4.1
+      '@testing-library/jest-dom':
+        specifier: ^6.6.0
+        version: 6.9.1
+      '@testing-library/react':
+        specifier: ^16.0.0
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.1.17))(@types/react@19.1.17)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@types/react':
+        specifier: ^19.1.0
+        version: 19.1.17
+      jsdom:
+        specifier: ^26.0.0
+        version: 26.1.0
       oxlint:
         specifier: ^0.16.0
         version: 0.16.12

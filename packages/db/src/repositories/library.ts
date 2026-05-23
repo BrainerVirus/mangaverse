@@ -10,6 +10,7 @@ import {
   toMangaId,
   toProviderMappingId,
   type CategoryId,
+  type LibraryCategory,
   type LibraryEntry,
   type LibraryEntryId,
   type LibraryFilter,
@@ -86,6 +87,28 @@ function sortLibraryRows(
   });
 
   return Promise.all(sorted.map((r) => toLibraryEntry(db, r)));
+}
+
+export async function listLibraryCategories(db: AppDrizzleDb): Promise<LibraryCategory[]> {
+  const rows = await db.select().from(categories).all();
+  return rows
+    .map((row) => ({
+      id: toCategoryId(row.id),
+      name: row.name,
+      ...(row.color !== null && row.color !== undefined && row.color !== ''
+        ? { color: row.color }
+        : {}),
+      ...(row.sortIndex !== null && row.sortIndex !== undefined
+        ? { sortIndex: row.sortIndex }
+        : {}),
+      ...(row.createdAt !== null && row.createdAt !== undefined && row.createdAt !== ''
+        ? { createdAt: row.createdAt }
+        : {}),
+      ...(row.updatedAt !== null && row.updatedAt !== undefined && row.updatedAt !== ''
+        ? { updatedAt: row.updatedAt }
+        : {}),
+    }))
+    .sort((a, b) => (a.sortIndex ?? 0) - (b.sortIndex ?? 0));
 }
 
 export async function listLibraryEntries(

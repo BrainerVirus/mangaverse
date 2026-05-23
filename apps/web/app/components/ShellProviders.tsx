@@ -3,6 +3,7 @@ import { useLocation, useRouter } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import type { PlatformCapabilities } from '@app/platform';
 import { QueryProvider } from '../providers/query-provider.js';
+import { LocalDbProvider } from '../providers/local-db-provider.js';
 import { PlatformProvider } from '../providers/platform-provider.js';
 import { ThemeProvider } from '../providers/theme-provider.js';
 import { AppShellLayout } from '../layouts/AppShellLayout.js';
@@ -63,14 +64,16 @@ function NavigationTracker() {
 export function ShellProviders({ children, detectFn }: ShellProvidersProps) {
   return (
     <QueryProvider>
-      <PlatformProvider detectFn={detectFn}>
-        <ThemeProvider>
+      <LocalDbProvider>
+        <PlatformProvider detectFn={detectFn}>
+          <ThemeProvider>
           <KeyboardShortcuts />
           <NavigationTracker />
           <CommandPalette />
           <AppShellOrReaderLayout>{children}</AppShellOrReaderLayout>
-        </ThemeProvider>
-      </PlatformProvider>
+          </ThemeProvider>
+        </PlatformProvider>
+      </LocalDbProvider>
     </QueryProvider>
   );
 }

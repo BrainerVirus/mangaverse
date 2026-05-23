@@ -1,8 +1,10 @@
-import { describe, it, expect } from 'vitest';
-import { PACKAGE_NAME } from './index';
+import { describe, expect, it } from 'vitest';
+import { DEFAULT_LIBRARY_VIEW_STATE, fetchLibraryPage, LibraryPage } from './index.js';
 
-describe('smoke', () => {
-  it('should export PACKAGE_NAME', () => {
-    expect(PACKAGE_NAME).toBe('@app/library');
+describe('@app/library', () => {
+  it('exports library page building blocks', () => {
+    expect(typeof LibraryPage).toBe('function');
+    expect(typeof fetchLibraryPage).toBe('function');
+    expect(DEFAULT_LIBRARY_VIEW_STATE.layout).toBe('grid');
   });
 });
