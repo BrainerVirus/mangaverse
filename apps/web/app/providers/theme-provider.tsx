@@ -1,39 +1,123 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, use, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  applyThemeToRoot,
+  getDefaultThemeSettings,
+  resolveThemeAppearance,
+  type ThemeSettings,
+} from '@app/theme';
 
 type Theme = 'light' | 'dark';
+type ThemeSettingsPersistence = (settings: ThemeSettings) => void;
 
 interface ThemeContextValue {
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  settings: ThemeSettings;
+  setThemeSettings: (settings: ThemeSettings) => void;
+  hydrateThemeSettings: (settings: ThemeSettings) => void;
+  registerThemeSettingsPersistence: (persist: ThemeSettingsPersistence | null) => void;
+  isSaving: boolean;
+  setThemeSaving: (isSaving: boolean) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function useTheme() {
-  const ctx = useContext(ThemeContext);
+  const ctx = use(ThemeContext);
   if (!ctx) throw new Error('useTheme must be used within ThemeProvider');
   return ctx;
 }
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('theme') as Theme | null;
-      if (stored === 'light' || stored === 'dark') return stored;
+function readInitialSettings(): ThemeSettings {
+  if (typeof window === 'undefined') {
+    return getDefaultThemeSettings();
+  }
+
+  try {
+    const storedPreset = localStorage.getItem('theme-preset-id');
+    const storedDark = localStorage.getItem('theme-dark');
+    if (storedPreset && (storedDark === 'true' || storedDark === 'false')) {
+      return {
+        presetId: storedPreset,
+        dark: storedDark === 'true',
+      };
     }
-    return 'light';
-  });
+  } catch {
+    // Ignore storage failures in private browsing.
+  }
+
+  return getDefaultThemeSettings();
+}
+
+function persistThemeLocally(settings: ThemeSettings): void {
+  try {
+    localStorage.setItem('theme-preset-id', settings.presetId);
+    localStorage.setItem('theme-dark', String(settings.dark));
+    localStorage.setItem('theme', resolveThemeAppearance(settings));
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [settings, setSettings] = useState<ThemeSettings>(readInitialSettings);
+  const [isSaving, setThemeSaving] = useState(false);
+  const hydratedRef = useRef(false);
+  const persistRef = useRef<ThemeSettingsPersistence | null>(null);
+
+  const theme = resolveThemeAppearance(settings);
 
   useEffect(() => {
-    const root = document.documentElement;
-    root.classList.remove('light', 'dark');
-    root.classList.add(theme);
-    localStorage.setItem('theme', theme);
-  }, [theme]);
+    applyThemeToRoot(document.documentElement, settings);
+    persistThemeLocally(settings);
+  }, [settings]);
 
-  return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
-      {children}
-    </ThemeContext.Provider>
+  useEffect(() => {
+    if (settings.presetId !== 'system') {
+      return;
+    }
+
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = () => {
+      applyThemeToRoot(document.documentElement, settings);
+    };
+
+    media.addEventListener('change', handleChange);
+    return () => media.removeEventListener('change', handleChange);
+  }, [settings]);
+
+  const updateSettings = (nextSettings: ThemeSettings) => {
+    setSettings(nextSettings);
+    persistRef.current?.(nextSettings);
+  };
+
+  const value = useMemo<ThemeContextValue>(
+    () => ({
+      theme,
+      setTheme: (nextTheme) => {
+        updateSettings({
+          ...settings,
+          presetId: settings.presetId === 'system' ? 'default' : settings.presetId,
+          dark: nextTheme === 'dark',
+        });
+      },
+      settings,
+      setThemeSettings: updateSettings,
+      hydrateThemeSettings: (nextSettings) => {
+        if (hydratedRef.current) {
+          return;
+        }
+        hydratedRef.current = true;
+        setSettings(nextSettings);
+      },
+      registerThemeSettingsPersistence: (persist) => {
+        persistRef.current = persist;
+      },
+      isSaving,
+      setThemeSaving,
+    }),
+    [isSaving, settings, theme],
   );
+
+  return <ThemeContext value={value}>{children}</ThemeContext>;
 }
