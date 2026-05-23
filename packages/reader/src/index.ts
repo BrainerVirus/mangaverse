@@ -59,3 +59,12 @@ export { createReaderDiagnostics } from './diagnostics.js';
 
 // Error validation
 export { createReaderError, validateReaderSessionInput, validatePageIndex } from './errors.js';
+
+// Feature page integration
+export { ReaderScreen, type ReaderScreenProps } from './components/ReaderScreen.js';
+export { fetchReaderPage } from './fetch-reader-page.js';
+export { mapChapterToReaderChapter } from './map-chapter.js';
+export { buildProgressEvent, persistReaderProgress } from './persist-reader-progress.js';
+export { readerQueryKeys } from './query-keys.js';
+export { toReaderEngineSettings } from './to-reader-engine-settings.js';
+export type { ReaderPageData } from './reader-page-data.js';

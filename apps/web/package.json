@@ -22,6 +22,7 @@
     "@app/search": "workspace:*",
     "@app/motion": "workspace:*",
     "@app/platform": "workspace:*",
+    "@app/reader": "workspace:*",
     "@app/shared": "workspace:*",
     "sql.js": "^1.12.0",
     "@gsap/react": "^2.1.2",
