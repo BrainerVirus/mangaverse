@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AppSettingsPage, fetchAppSettings, saveAppSettings, settingsQueryKeys } from '@app/settings';
+import { AppSettingsPage, saveAppSettings, settingsQueryKeys } from '@app/settings';
+import { appSettingsQueryOptions } from '../queries/settings-query-options.js';
 import type { AppSettings } from '@app/shared';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 
@@ -14,8 +15,7 @@ function SettingsAppRoute() {
   const dbStatus = useLocalDbStatus();
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: settingsQueryKeys.app(),
-    queryFn: () => fetchAppSettings(db!),
+    ...appSettingsQueryOptions(db!),
     enabled: dbStatus === 'ready' && db !== null,
   });
 

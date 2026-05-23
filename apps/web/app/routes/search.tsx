@@ -3,11 +3,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import {
   DEFAULT_SEARCH_VIEW_STATE,
-  fetchSearchPage,
   recordSearchQuery,
   SearchPage,
   searchQueryKeys,
 } from '@app/search';
+import { searchPageQueryOptions } from '../queries/search-query-options.js';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 
 export const Route = createFileRoute('/search')({
@@ -23,8 +23,7 @@ function SearchRoute() {
   const lastRecordedQuery = useRef('');
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: searchQueryKeys.page(viewState),
-    queryFn: () => fetchSearchPage(db!, viewState),
+    ...searchPageQueryOptions(db!, viewState),
     enabled: dbStatus === 'ready' && db !== null,
   });
 

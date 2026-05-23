@@ -1,11 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  fetchReaderSettings,
-  ReaderSettingsPage,
-  saveReaderSettings,
-  settingsQueryKeys,
-} from '@app/settings';
+import { ReaderSettingsPage, saveReaderSettings, settingsQueryKeys } from '@app/settings';
+import { readerSettingsQueryOptions } from '../queries/settings-query-options.js';
 import type { ReaderSettings } from '@app/shared';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 
@@ -19,8 +15,7 @@ function SettingsReaderRoute() {
   const dbStatus = useLocalDbStatus();
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: settingsQueryKeys.reader(),
-    queryFn: () => fetchReaderSettings(db!),
+    ...readerSettingsQueryOptions(db!),
     enabled: dbStatus === 'ready' && db !== null,
   });
 
