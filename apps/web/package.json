@@ -21,6 +21,7 @@
     "@app/design-system": "workspace:*",
     "@app/extensions": "workspace:*",
     "@app/library": "workspace:*",
+    "@app/migration": "workspace:*",
     "@app/search": "workspace:*",
     "@app/settings": "workspace:*",
     "@app/theme": "workspace:*",

@@ -19,3 +19,4 @@ export * from './repositories/cache.js';
 export { exportBackupDocumentV1 } from './backup/export.js';
 export { applyBackupRestore } from './backup/restore-apply.js';
 export * from './backup/restore-preview.js';
+export * from './migration/provider-migration.js';
