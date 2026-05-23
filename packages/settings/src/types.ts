@@ -1,7 +1,11 @@
-import type { AppSettings } from '@app/shared';
+import type { AppSettings, ReaderSettings } from '@app/shared';
 
-export type { AppSettings };
+export type { AppSettings, ReaderSettings };
 
 export interface AppSettingsPageData {
   readonly settings: AppSettings;
+}
+
+export interface ReaderSettingsPageData {
+  readonly settings: ReaderSettings;
 }
