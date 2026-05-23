@@ -15,6 +15,7 @@ export * from './repositories/extensions.js';
 export * from './repositories/search-history.js';
 export * from './repositories/migration-history.js';
 export * from './repositories/cache.js';
+export * from './repositories/diagnostics.js';
 
 export { exportBackupDocumentV1 } from './backup/export.js';
 export { applyBackupRestore } from './backup/restore-apply.js';
