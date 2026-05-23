@@ -17,4 +17,5 @@ export * from './repositories/migration-history.js';
 export * from './repositories/cache.js';
 
 export { exportBackupDocumentV1 } from './backup/export.js';
+export { applyBackupRestore } from './backup/restore-apply.js';
 export * from './backup/restore-preview.js';
