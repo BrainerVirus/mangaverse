@@ -19,6 +19,7 @@
     "@app/backup": "workspace:*",
     "@app/db": "workspace:*",
     "@app/design-system": "workspace:*",
+    "@app/diagnostics": "workspace:*",
     "@app/extensions": "workspace:*",
     "@app/library": "workspace:*",
     "@app/migration": "workspace:*",
