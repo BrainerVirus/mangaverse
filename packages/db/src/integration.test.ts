@@ -18,6 +18,7 @@ import {
   appendSearchHistory,
   createMangaIdentityWithInitialMapping,
   exportBackupDocumentV1,
+  applyBackupRestore,
   getMangaIdentity,
   getReaderSettings,
   listLibraryEntries,
@@ -398,5 +399,55 @@ describe('@app/db', () => {
         updatedAt: new Date().toISOString(),
       }),
     ).rejects.toThrow();
+  });
+
+  it('applies a valid backup to an empty database', async () => {
+    const { db: sourceDb } = await createSqlJsHarness();
+    const created = await createMangaIdentityWithInitialMapping(sourceDb, {
+      canonicalTitle: 'Restore Me',
+      status: 'ongoing',
+      contentRating: 'safe',
+      providerId: 'prov-restore',
+      providerMangaId: 'remote-restore',
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    await addLibraryEntry(sourceDb, { mangaId: created.value.mangaId, status: 'reading' });
+
+    const doc = await exportBackupDocumentV1(sourceDb, {
+      createdAt: new Date().toISOString(),
+      appVersion: '0.0.0-test',
+    });
+
+    const { db: targetDb } = await createSqlJsHarness();
+    const result = await applyBackupRestore(targetDb, doc);
+    expect(result.ok).toBe(true);
+
+    const entries = await listLibraryEntries(targetDb);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.status).toBe('reading');
+
+    const identity = await getMangaIdentity(targetDb, created.value.mangaId);
+    expect(identity?.canonicalTitle).toBe('Restore Me');
+  });
+
+  it('blocks restore when preview reports error severity issues', async () => {
+    const { db } = await createSqlJsHarness();
+    const doc = {
+      schemaVersion: BACKUP_SCHEMA_VERSION,
+      metadata: { createdAt: new Date().toISOString(), appVersion: 't' },
+      library: [{ id: 'le1', mangaId: 'missing', favorite: false, categoryIds: [], status: 'reading', unreadCount: 0 }],
+      mangaIdentities: [],
+      installedExtensions: [],
+      readerSettings: getDefaultReaderSettings(),
+      providerSettings: { providerSnapshots: [] },
+      themeSettings: { presetId: 'default', dark: false },
+    };
+
+    const result = await applyBackupRestore(db, doc);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('backup.restore.blocked');
   });
 });
