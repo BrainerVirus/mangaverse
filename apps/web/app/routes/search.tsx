@@ -1,13 +1,57 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
+import {
+  DEFAULT_SEARCH_VIEW_STATE,
+  fetchSearchPage,
+  recordSearchQuery,
+  SearchPage,
+  searchQueryKeys,
+} from '@app/search';
+import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 
 export const Route = createFileRoute('/search')({
   component: SearchRoute,
 });
 
 function SearchRoute() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const db = useLocalDb();
+  const dbStatus = useLocalDbStatus();
+  const [viewState, setViewState] = useState(DEFAULT_SEARCH_VIEW_STATE);
+  const lastRecordedQuery = useRef('');
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: searchQueryKeys.page(viewState),
+    queryFn: () => fetchSearchPage(db!, viewState),
+    enabled: dbStatus === 'ready' && db !== null,
+  });
+
+  useEffect(() => {
+    const trimmed = viewState.query.trim();
+    if (trimmed.length === 0 || db === null || dbStatus !== 'ready') {
+      return;
+    }
+    if (trimmed === lastRecordedQuery.current) {
+      return;
+    }
+
+    lastRecordedQuery.current = trimmed;
+    void recordSearchQuery(db, trimmed).then(() => {
+      void queryClient.invalidateQueries({ queryKey: searchQueryKeys.all });
+    });
+  }, [db, dbStatus, queryClient, viewState.query]);
+
   return (
-    <main className="p-6">
-      <h1 className="text-2xl font-bold">Search</h1>
-    </main>
+    <SearchPage
+      data={data}
+      isLoading={dbStatus === 'loading' || isLoading}
+      isError={dbStatus === 'error' || isError}
+      viewState={viewState}
+      onViewStateChange={setViewState}
+      onOpenManga={(mangaId) => navigate({ to: '/manga/$id', params: { id: mangaId } })}
+      onBrowseProviders={() => void navigate({ to: '/extensions' })}
+    />
   );
 }
