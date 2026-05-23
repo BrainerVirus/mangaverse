@@ -1,7 +1,8 @@
-import { EmptyState, ErrorState, LoadingState, MangaCard } from '@app/design-system';
+import { EmptyState, ErrorState, LoadingState } from '@app/design-system';
 import type { LibraryViewState, MangaId } from '@app/shared';
 import type { LibraryPageData } from '../types.js';
 import { LibraryToolbar } from './LibraryToolbar.js';
+import { VirtualLibraryGrid } from './VirtualLibraryGrid.js';
 
 export interface LibraryPageProps {
   data: LibraryPageData | undefined;
@@ -54,25 +55,11 @@ export function LibraryPage({
       ) : null}
 
       {!isLoading && !isError && itemCount > 0 ? (
-        <section
-          aria-label="Library titles"
-          className={
-            viewState.layout === 'grid'
-              ? 'grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'
-              : viewState.layout === 'list'
-                ? 'flex flex-col gap-3'
-                : 'grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3'
-          }
-        >
-          {items.map(({ entry, manga }) => (
-            <MangaCard
-              key={entry.id}
-              manga={manga}
-              variant={viewState.layout}
-              onClick={() => onOpenManga(manga.id)}
-            />
-          ))}
-        </section>
+        <VirtualLibraryGrid
+          items={items}
+          layout={viewState.layout}
+          onOpenManga={onOpenManga}
+        />
       ) : null}
     </main>
   );
