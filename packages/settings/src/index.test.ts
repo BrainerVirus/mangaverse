@@ -1,8 +1,18 @@
-import { describe, it, expect } from 'vitest';
-import { PACKAGE_NAME } from './index';
+import { describe, expect, it } from 'vitest';
+import {
+  AppSettingsPage,
+  fetchAppSettings,
+  saveAppSettings,
+  SETTINGS_NAV_SECTIONS,
+  SettingsIndexPage,
+} from './index.js';
 
-describe('smoke', () => {
-  it('should export PACKAGE_NAME', () => {
-    expect(PACKAGE_NAME).toBe('@app/settings');
+describe('@app/settings', () => {
+  it('exports the settings feature surface', () => {
+    expect(fetchAppSettings).toBeTypeOf('function');
+    expect(saveAppSettings).toBeTypeOf('function');
+    expect(SettingsIndexPage).toBeTypeOf('function');
+    expect(AppSettingsPage).toBeTypeOf('function');
+    expect(SETTINGS_NAV_SECTIONS.length).toBeGreaterThan(0);
   });
 });

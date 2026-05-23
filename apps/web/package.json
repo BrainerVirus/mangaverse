@@ -21,6 +21,7 @@
     "@app/extensions": "workspace:*",
     "@app/library": "workspace:*",
     "@app/search": "workspace:*",
+    "@app/settings": "workspace:*",
     "@app/motion": "workspace:*",
     "@app/platform": "workspace:*",
     "@app/reader": "workspace:*",

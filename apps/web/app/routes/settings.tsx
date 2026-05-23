@@ -1,13 +1,17 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { SETTINGS_NAV_SECTIONS, SettingsIndexPage } from '@app/settings';
 
 export const Route = createFileRoute('/settings')({
   component: SettingsRoute,
 });
 
 function SettingsRoute() {
+  const navigate = useNavigate();
+
   return (
-    <main className="p-6">
-      <h1 className="text-2xl font-bold">Settings</h1>
-    </main>
+    <SettingsIndexPage
+      sections={SETTINGS_NAV_SECTIONS}
+      onNavigate={(to) => void navigate({ to })}
+    />
   );
 }
