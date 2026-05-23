@@ -3,8 +3,12 @@ import type { AppResult } from '@app/shared';
 import {
   err,
   ok,
+  APP_SETTINGS_STORAGE_KEY,
+  getDefaultAppSettings,
   getDefaultReaderSettings,
+  validateAppSettings,
   validateReaderSettings,
+  type AppSettings,
   type ReaderSettings,
   type ThemeSettings,
 } from '@app/shared';
@@ -52,6 +56,33 @@ export async function upsertThemeSettings(db: AppDrizzleDb, settings: ThemeSetti
       target: themePreferences.id,
       set: { presetId: settings.presetId, dark: settings.dark, updatedAt: now },
     });
+}
+
+export async function getAppSettings(db: AppDrizzleDb): Promise<AppSettings> {
+  const row = await db
+    .select()
+    .from(appSettings)
+    .where(eq(appSettings.key, APP_SETTINGS_STORAGE_KEY))
+    .get();
+  if (row === undefined) return getDefaultAppSettings();
+  const parsed = validateAppSettings(row.valueJson);
+  if (!parsed.ok) return getDefaultAppSettings();
+  return parsed.value;
+}
+
+export async function upsertAppSettings(db: AppDrizzleDb, settings: AppSettings): Promise<AppResult<void>> {
+  const parsed = validateAppSettings(settings);
+  if (!parsed.ok) return err(parsed.error);
+
+  const now = new Date().toISOString();
+  await db
+    .insert(appSettings)
+    .values({ key: APP_SETTINGS_STORAGE_KEY, valueJson: parsed.value, updatedAt: now })
+    .onConflictDoUpdate({
+      target: appSettings.key,
+      set: { valueJson: parsed.value, updatedAt: now },
+    });
+  return ok(undefined);
 }
 
 export async function getAppSetting(db: AppDrizzleDb, key: string): Promise<unknown | undefined> {

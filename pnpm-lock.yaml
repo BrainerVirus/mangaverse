@@ -265,6 +265,9 @@ importers:
       '@app/search':
         specifier: workspace:*
         version: link:../../packages/search
+      '@app/settings':
+        specifier: workspace:*
+        version: link:../../packages/settings
       '@app/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -662,6 +665,22 @@ importers:
         version: 3.2.4(@types/node@22.19.18)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.47.1)(yaml@2.8.4)
 
   packages/settings:
+    dependencies:
+      '@app/db':
+        specifier: workspace:*
+        version: link:../db
+      '@app/design-system':
+        specifier: workspace:*
+        version: link:../design-system
+      '@app/shared':
+        specifier: workspace:*
+        version: link:../shared
+      lucide-react:
+        specifier: ^0.468.0
+        version: 0.468.0(react@19.1.0)
+      react:
+        specifier: ^19.1.0
+        version: 19.1.0
     devDependencies:
       oxlint:
         specifier: ^0.16.0
