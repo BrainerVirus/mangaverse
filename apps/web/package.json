@@ -19,6 +19,7 @@
     "@app/db": "workspace:*",
     "@app/design-system": "workspace:*",
     "@app/library": "workspace:*",
+    "@app/search": "workspace:*",
     "@app/motion": "workspace:*",
     "@app/platform": "workspace:*",
     "@app/shared": "workspace:*",

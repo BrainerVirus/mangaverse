@@ -256,6 +256,9 @@ importers:
       '@app/platform':
         specifier: workspace:*
         version: link:../../packages/platform
+      '@app/search':
+        specifier: workspace:*
+        version: link:../../packages/search
       '@app/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -567,7 +570,23 @@ importers:
         version: 3.2.4(@types/node@22.19.18)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.47.1)(yaml@2.8.4)
 
   packages/search:
+    dependencies:
+      '@app/db':
+        specifier: workspace:*
+        version: link:../db
+      '@app/design-system':
+        specifier: workspace:*
+        version: link:../design-system
+      '@app/shared':
+        specifier: workspace:*
+        version: link:../shared
+      react:
+        specifier: ^19.1.0
+        version: 19.1.0
     devDependencies:
+      '@types/react':
+        specifier: ^19.1.0
+        version: 19.1.17
       oxlint:
         specifier: ^0.16.0
         version: 0.16.12

@@ -1,8 +1,16 @@
-import { describe, it, expect } from 'vitest';
-import { PACKAGE_NAME } from './index';
+import { describe, expect, it } from 'vitest';
+import {
+  DEFAULT_SEARCH_VIEW_STATE,
+  fetchSearchPage,
+  SearchPage,
+  searchQueryKeys,
+} from './index.js';
 
-describe('smoke', () => {
-  it('should export PACKAGE_NAME', () => {
-    expect(PACKAGE_NAME).toBe('@app/search');
+describe('@app/search', () => {
+  it('exports search page building blocks', () => {
+    expect(typeof SearchPage).toBe('function');
+    expect(typeof fetchSearchPage).toBe('function');
+    expect(DEFAULT_SEARCH_VIEW_STATE.query).toBe('');
+    expect(searchQueryKeys.page({ query: 'test' })).toEqual(['search', 'page', { query: 'test' }]);
   });
 });
