@@ -2,13 +2,19 @@ import { describe, it, expect } from 'vitest';
 import { detectElectronCapabilities } from '@app/platform';
 
 describe('desktop renderer shell', () => {
-  it('exports App and bootstrap for web router integration', async () => {
-    const { App } = await import('./App.js');
-    const { detectDesktopCapabilities } = await import('./bootstrap.js');
+  it(
+    'exports App and bootstrap for web router integration',
+    async () => {
+      const [{ App }, { detectDesktopCapabilities }] = await Promise.all([
+        import('./App.js'),
+        import('./bootstrap.js'),
+      ]);
 
-    expect(typeof App).toBe('function');
-    expect(typeof detectDesktopCapabilities).toBe('function');
-  });
+      expect(typeof App).toBe('function');
+      expect(typeof detectDesktopCapabilities).toBe('function');
+    },
+    15_000,
+  );
 
   it('detects electron platform capabilities for ShellProviders', async () => {
     const { detectDesktopCapabilities } = await import('./bootstrap.js');

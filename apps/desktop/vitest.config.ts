@@ -4,5 +4,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.{test,spec}.ts'],
+    // App import pulls the web router graph; CI runners can exceed the default 5s.
+    testTimeout: 15_000,
   },
 });
