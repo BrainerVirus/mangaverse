@@ -17,6 +17,8 @@ export {
   prepareRegistryExtensionInstall,
 } from './prepare-install.js';
 export type { RegistryProviderEntry } from './prepare-install.js';
+export type { ExtensionInstallPolicy } from './install-policy.js';
+export { validateManifestInstallPolicy } from './install-policy.js';
 export { confirmExtensionInstall } from './confirm-install.js';
 export type { ExtensionCoreDependencies } from './confirm-install.js';
 export { importExtensionRegistry } from './registry-import.js';

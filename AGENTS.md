@@ -187,7 +187,23 @@ Legacy Expo/Tauri commands (prefixed with `legacy:` to avoid accidental use):
 |-------|--------|-------|
 | Phase 0: Documentation Foundation | ✅ Complete | SPEC.md, PLAN.md, ARCHITECTURE.md, Design.md |
 | Phase 1: Monorepo Foundation | ✅ Complete | TanStack Start web app, Electron desktop app |
+| Phase 5: Extensions Core And SDK | ✅ Complete | `@app/extensions-sdk` + `@app/extensions-core`; contract-first, no provider execution |
 | Phase 7: Design System & Motion System | ✅ Complete | `@app/motion` and `@app/design-system` implemented and tested |
+
+### Phase 5 Completed Deliverables
+
+**`@app/extensions-sdk`** — provider contract and helpers:
+- Manifest URL validation, capability guards, `validateProviderContract`, `providerMethodGuard`
+- Request client, rate limiter, HTML parse, error normalization + URL redaction
+- `createMockProvider`, async `runProviderContractTests` with runtime smoke calls
+- 29 tests passing (`vitest.config.ts`)
+
+**`@app/extensions-core`** — install and provider ops (no arbitrary code execution):
+- Install session reducer, manifest fetch with size limits + checksum `rawText`
+- Manual, registry, and protocol prepare flows; optional `validateManifestInstallPolicy`
+- Registry import, confirm install (deterministic ID by `manifest.id`), provider enable/disable/broken/uninstall/update
+- Settings persistence via `@app/db`; capability/permission display
+- 55 tests passing (`vitest.config.ts`)
 
 ### Phase 7 Completed Deliverables
 

@@ -84,7 +84,7 @@ describe('Sheet Focus Trap', () => {
 
   it('renders sheet with proper structure', () => {
     render(
-      <Sheet>
+      <Sheet open>
         <SheetContent>
           <SheetTitle>Test Sheet</SheetTitle>
           <SheetDescription>Sheet description</SheetDescription>
@@ -98,7 +98,7 @@ describe('Sheet Focus Trap', () => {
 
   it('contains focusable elements', () => {
     render(
-      <Sheet>
+      <Sheet open>
         <SheetContent>
           <SheetTitle>Sheet Title</SheetTitle>
           <button>Action 1</button>
@@ -113,7 +113,7 @@ describe('Sheet Focus Trap', () => {
 
   it('sheet content is positioned on the right', () => {
     const { container } = render(
-      <Sheet>
+      <Sheet open>
         <SheetContent>
           <SheetTitle>Position Test</SheetTitle>
         </SheetContent>
@@ -126,7 +126,7 @@ describe('Sheet Focus Trap', () => {
 
   it('sheet has proper role for navigation', () => {
     render(
-      <Sheet>
+      <Sheet open>
         <SheetContent>
           <SheetTitle>Sheet</SheetTitle>
         </SheetContent>
@@ -138,7 +138,7 @@ describe('Sheet Focus Trap', () => {
 
   it('sheet content has full height', () => {
     const { container } = render(
-      <Sheet>
+      <Sheet open>
         <SheetContent>
           <SheetTitle>Full Height Test</SheetTitle>
         </SheetContent>
@@ -151,7 +151,7 @@ describe('Sheet Focus Trap', () => {
 
   it('sheet has shadow styling', () => {
     const { container } = render(
-      <Sheet>
+      <Sheet open>
         <SheetContent>
           <SheetTitle>Shadow Test</SheetTitle>
         </SheetContent>
