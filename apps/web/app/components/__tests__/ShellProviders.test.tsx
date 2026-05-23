@@ -24,6 +24,12 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
   };
 });
 
+vi.mock('../../providers/local-db-provider.js', () => ({
+  LocalDbProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useLocalDb: () => null,
+  useLocalDbStatus: () => 'ready' as const,
+}));
+
 vi.mock('@app/design-system', async (importOriginal) => {
   const actual = await importOriginal() as Record<string, unknown>;
   return {

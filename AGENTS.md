@@ -190,6 +190,19 @@ Legacy Expo/Tauri commands (prefixed with `legacy:` to avoid accidental use):
 | Phase 5: Extensions Core And SDK | ✅ Complete | `@app/extensions-sdk` + `@app/extensions-core`; contract-first, no provider execution |
 | Phase 7: Design System & Motion System | ✅ Complete | `@app/motion` and `@app/design-system` implemented and tested |
 | Phase 8: App Shell | ✅ Complete | TanStack Router shell, layouts, command palette, providers, desktop renderer integration |
+| Phase 9: Feature Pages | 🚧 In progress | Library page slice: `@app/library` + local SQLite + design-system grid |
+
+### Phase 9 Started (library slice)
+
+**`@app/library`** — local library feature package:
+- `fetchLibraryPage` loads entries + manga identities from `@app/db`
+- `LibraryPage` + `LibraryToolbar` (grid/list/compact, search) via `@app/design-system`
+- Query keys, view-state defaults, unit tests with sql.js harness
+
+**`apps/web` library route:**
+- Browser SQLite via `sql.js` + `LocalDbProvider`
+- TanStack Query wired to `@app/library`
+- Navigate to manga detail on card click
 
 ### Phase 8 Completed Deliverables
 
