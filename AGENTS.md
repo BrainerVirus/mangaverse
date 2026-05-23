@@ -189,6 +189,22 @@ Legacy Expo/Tauri commands (prefixed with `legacy:` to avoid accidental use):
 | Phase 1: Monorepo Foundation | ✅ Complete | TanStack Start web app, Electron desktop app |
 | Phase 5: Extensions Core And SDK | ✅ Complete | `@app/extensions-sdk` + `@app/extensions-core`; contract-first, no provider execution |
 | Phase 7: Design System & Motion System | ✅ Complete | `@app/motion` and `@app/design-system` implemented and tested |
+| Phase 8: App Shell | ✅ Complete | TanStack Router shell, layouts, command palette, providers, desktop renderer integration |
+
+### Phase 8 Completed Deliverables
+
+**`apps/web` app shell:**
+- TanStack Router: 8 core routes + 7 lazy stub routes with `defaultPreload: 'intent'` and scroll restoration
+- `ShellProviders`, `AppShellLayout`, `ReaderLayout` with responsive sidebar / bottom nav
+- Zustand: `useLayoutStore`, `useCommandPaletteStore`, `useNavigationStore`
+- `CommandRegistry` + `CommandPalette` (`Cmd/Ctrl+K`, arrow navigation, Enter to execute)
+- `QueryProvider`, `PlatformProvider`, `ThemeProvider` in root
+- Route transitions via `@app/motion` `routeEnter` with reduced-motion support
+- Shell unit/integration tests (router, stores, command palette keyboard, a11y smoke)
+
+**`apps/desktop` renderer:**
+- Imports web `getRouter()` and `detectDesktopCapabilities()` from `@app/platform`
+- `RouterProvider` wired through root `ShellProviders` via TanStack Start `__root.tsx`
 
 ### Phase 5 Completed Deliverables
 

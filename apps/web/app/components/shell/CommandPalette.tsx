@@ -5,6 +5,7 @@ import { useCommandPaletteStore } from '../../stores/useCommandPaletteStore';
 import { useLayoutStore } from '../../stores/useLayoutStore';
 import { registry } from './CommandRegistry';
 import { useTheme } from '../../providers/theme-provider.js';
+import { usePlatform } from '../../providers/platform-provider.js';
 
 function useBuiltInCommands() {
   const navigate = useNavigate();
@@ -92,6 +93,7 @@ function groupBySection(commands: ReturnType<typeof registry.search>) {
 
 export function CommandPalette() {
   const { deviceLayout } = useLayoutStore();
+  const { runtime } = usePlatform();
   const { isOpen, query, selectedIndex, close, setQuery, moveSelection, setSelectedIndex } = useCommandPaletteStore();
 
   useBuiltInCommands();
@@ -126,7 +128,7 @@ export function CommandPalette() {
     [close, moveSelection, results, selectedIndex]
   );
 
-  if (deviceLayout !== 'desktop') return null;
+  if (deviceLayout !== 'desktop' && runtime !== 'electron') return null;
   if (!isOpen) return null;
 
   return (

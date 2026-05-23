@@ -10,5 +10,5 @@
     "noEmit": true
   },
   "include": ["app/", "server.ts", "vite.config.ts"],
-  "exclude": ["dist", "node_modules", ".vinxi", ".output"]
+  "exclude": ["dist", "node_modules", ".vinxi", ".output", "app/**/__tests__/**"]
 }

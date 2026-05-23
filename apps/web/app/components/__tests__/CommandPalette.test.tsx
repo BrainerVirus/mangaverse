@@ -1,5 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
+import { createRoot, type Root } from 'react-dom/client';
+import { act } from 'react';
 import { ThemeProvider } from '../../providers/theme-provider.js';
 
 const storeState = vi.hoisted(() => ({
@@ -38,6 +40,10 @@ vi.mock('../../stores/useCommandPaletteStore', () => ({
   useCommandPaletteStore: () => storeState.palette,
 }));
 
+vi.mock('../../providers/platform-provider.js', () => ({
+  usePlatform: () => ({ capabilities: {}, runtime: 'web' as const }),
+}));
+
 Object.defineProperty(globalThis, 'localStorage', {
   value: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
   writable: true,
@@ -48,6 +54,9 @@ function renderWithProviders(ui: React.ReactElement) {
 }
 
 describe('CommandPalette', () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
   beforeEach(() => {
     storeState.layout.deviceLayout = 'desktop';
     storeState.palette.isOpen = false;
@@ -57,6 +66,16 @@ describe('CommandPalette', () => {
     storeState.palette.setQuery.mockClear();
     storeState.palette.moveSelection.mockClear();
     storeState.palette.setSelectedIndex.mockClear();
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(() => {
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
   });
 
   it('does not render when closed', async () => {
@@ -83,5 +102,30 @@ describe('CommandPalette', () => {
     const { CommandPalette } = await import('../shell/CommandPalette.js');
     const html = renderWithProviders(<CommandPalette />);
     expect(html).toContain('Type a command');
+  });
+
+  it('closes on Escape and moves selection with arrow keys', async () => {
+    storeState.palette.isOpen = true;
+    storeState.palette.query = '';
+    storeState.palette.selectedIndex = 0;
+    storeState.layout.deviceLayout = 'desktop';
+    const { CommandPalette } = await import('../shell/CommandPalette.js');
+
+    await act(async () => {
+      root.render(<ThemeProvider><CommandPalette /></ThemeProvider>);
+    });
+
+    const overlay = container.querySelector('.fixed.inset-0');
+    expect(overlay).toBeTruthy();
+
+    await act(async () => {
+      overlay?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    });
+    expect(storeState.palette.moveSelection).toHaveBeenCalledWith(1, expect.any(Number));
+
+    await act(async () => {
+      overlay?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    expect(storeState.palette.close).toHaveBeenCalled();
   });
 });
