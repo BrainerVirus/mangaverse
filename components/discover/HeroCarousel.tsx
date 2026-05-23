@@ -1,4 +1,4 @@
-import { LinearGradient } from 'expo-linear-gradient';
+import GradientWrapper from '@components/ui/GradientWrapper';
 import { useRouter } from 'expo-router';
 import { Animated, Pressable, ScrollView, View } from 'react-native';
 
@@ -77,13 +77,9 @@ export function HeroCarousel({
 									) : (
 										<View className="bg-card" style={{ height: heroHeight, width: '100%' }} />
 									)}
-									<LinearGradient
-										colors={[overlayStart, overlayMid, overlayEnd]}
-										locations={[0, 0.58, 1]}
-										style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }}
-									/>
+									<GradientWrapper colors={[overlayStart, overlayMid, overlayEnd]} locations={[0, 0.58, 1]} />
 								</Pressable>
-								<View className="absolute inset-x-0 bottom-3 px-4" pointerEvents="box-none">
+								<View className="absolute inset-x-0 bottom-3 px-4" style={{ pointerEvents: 'box-none' }}>
 									<View className="flex-row gap-3">
 										<Button
 											label={isItemFavorite ? 'In Library' : 'Add to Library'}

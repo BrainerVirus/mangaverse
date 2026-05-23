@@ -1,0 +1,71 @@
+{
+  "$schema": "https://oxc.rs/schema.json",
+
+  // Categories: high-signal only by default
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "pedantic": "off",
+    "perf": "warn",
+    "style": "off",
+    "restriction": "off",
+    "nursery": "warn"
+  },
+
+  // Plugins
+  "plugins": ["typescript", "react", "jsx-a11y", "vitest"],
+
+  // Rules
+  "rules": {
+    "typescript/consistent-type-imports": "error",
+    "typescript/no-explicit-any": "warn",
+    "react-hooks/exhaustive-deps": "warn",
+    "react/react-in-jsx-scope": "off",
+    "no-console": "warn",
+    "no-debugger": "error",
+    "no-unused-vars": "error"
+  },
+
+  // Environment
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2022": true
+  },
+
+  // File overrides
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
+      "rules": {
+        "no-console": "off",
+        "no-unused-vars": "off"
+      }
+    },
+    {
+      "files": ["apps/web/app/routes/**", "apps/desktop/src/renderer/src/**"],
+      "rules": {
+        "no-console": "off"
+      }
+    },
+    {
+      "files": ["apps/**/scripts/**", "apps/**/*.mjs"],
+      "rules": {
+        "no-console": "off",
+        "no-await-in-loop": "off"
+      }
+    },
+    {
+      "files": ["apps/desktop/src/main/**"],
+      "rules": {
+        "no-await-in-loop": "off",
+        "no-console": "off"
+      }
+    }
+  ],
+
+  // Type-aware linting (requires tsconfig)
+  "options": {
+    "typeAware": true
+  }
+}

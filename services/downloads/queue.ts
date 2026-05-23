@@ -1,4 +1,5 @@
-import * as FileSystem from 'expo-file-system';
+import { PlatformInfo } from '@lib/platform';
+import { downloadFile } from '@services/platform/filesystem';
 
 type DownloadStatus = 'idle' | 'queued' | 'downloading' | 'complete' | 'error';
 
@@ -46,8 +47,16 @@ async function processQueue() {
 		}
 		try {
 			emit(task.id, { status: 'downloading', progress: 0 });
-			const download = FileSystem.createDownloadResumable(task.url, task.filePath);
-			await download.downloadAsync();
+
+			if (PlatformInfo.isWeb) {
+				await downloadFile(task.url, task.filePath);
+			} else {
+				// eslint-disable-next-line @typescript-eslint/no-require-imports
+				const FileSystem = require('expo-file-system');
+				const download = FileSystem.createDownloadResumable(task.url, task.filePath);
+				await download.downloadAsync();
+			}
+
 			emit(task.id, { status: 'complete', progress: 1 });
 		} catch (error) {
 			const message = error instanceof Error ? error.message : 'Download failed';

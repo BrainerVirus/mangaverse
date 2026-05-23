@@ -1,20 +1,8 @@
+import BlurBackground from '@components/ui/BlurBackground';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-	ActivityIndicator,
-	FlatList,
-	Image,
-	Platform,
-	Pressable,
-	ScrollView,
-	StyleSheet,
-	Text,
-	TextInput,
-	View,
-	useWindowDimensions,
-} from 'react-native';
+import { ActivityIndicator, FlatList, Image, Pressable, ScrollView, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MangaCard } from '@components/MangaCard';
@@ -117,7 +105,7 @@ export default function Search() {
 						paddingTop: headerHeight + 60,
 						paddingBottom: 24,
 					}}
-					contentInsetAdjustmentBehavior="never"
+					contentInsetAdjustmentBehavior="automatic"
 					keyboardShouldPersistTaps="handled"
 				>
 					{/* Provider icons */}
@@ -199,11 +187,7 @@ export default function Search() {
 			{/* Fixed header with search */}
 			<View className="absolute top-0 right-0 left-0" style={{ zIndex: 10 }}>
 				<View className="relative overflow-hidden">
-					{Platform.OS === 'ios' ? (
-						<BlurView intensity={80} tint="systemChromeMaterialDark" style={StyleSheet.absoluteFillObject} />
-					) : (
-						<View className="bg-background/90" style={StyleSheet.absoluteFillObject} />
-					)}
+					<BlurBackground intensity={80} />
 					<View style={{ paddingTop: insets.top, height: headerHeight }} className="flex-row items-center justify-between px-4">
 						<Text className="text-foreground text-preset-2 font-heading flex-1 text-center font-semibold">Search Everything</Text>
 						{hasQuery && (
@@ -215,13 +199,8 @@ export default function Search() {
 				</View>
 
 				{/* Search bar */}
-				<View
-					className="px-4 pb-3"
-					style={{
-						backgroundColor: Platform.OS === 'ios' ? 'transparent' : themeColors.background + 'E6',
-					}}
-				>
-					{Platform.OS === 'ios' ? <BlurView intensity={60} tint="systemChromeMaterialDark" style={StyleSheet.absoluteFillObject} /> : null}
+				<View className="relative overflow-hidden px-4 pb-3">
+					<BlurBackground intensity={60} />
 					<View className="bg-card/80 rounded-control flex-row items-center px-3 py-2.5">
 						<Ionicons name="search" size={18} color={themeColors.mutedForeground} />
 						<TextInput

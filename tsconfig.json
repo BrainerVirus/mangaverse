@@ -1,18 +1,22 @@
 {
-  "extends": "expo/tsconfig.base",
-	"compilerOptions": {
-		"strict": true,
-		"baseUrl": "./",
-		"paths": {
-			"@app/*": ["app/*"],
-			"@assets/*": ["assets/*"],
-			"@components/*": ["components/*"],
-			"@constants/*": ["constants/*"],
-			"@hooks/*": ["hooks/*"],
-			"@lib/*": ["lib/*"],
-			"@services/*": ["services/*"],
-			"@stores/*": ["stores/*"],
-			"@types/*": ["types/*"]
-		}
-	}
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.base.json" },
+    { "path": "./apps/web" },
+    { "path": "./apps/desktop" },
+    { "path": "./packages/shared" },
+    { "path": "./packages/test-utils" },
+    { "path": "./packages/reader" },
+    { "path": "./packages/extensions-core" },
+    { "path": "./packages/extensions-sdk" },
+    { "path": "./packages/db" },
+    { "path": "./packages/design-system" },
+    { "path": "./packages/motion" },
+    { "path": "./packages/library" },
+    { "path": "./packages/search" },
+    { "path": "./packages/migration" },
+    { "path": "./packages/settings" },
+    { "path": "./packages/theme" },
+    { "path": "./packages/platform" }
+  ]
 }

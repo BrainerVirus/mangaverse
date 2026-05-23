@@ -1,7 +1,6 @@
-import { BlurView } from 'expo-blur';
-import * as WebBrowser from 'expo-web-browser';
+import BlurBackground from '@components/ui/BlurBackground';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, LayoutChangeEvent, Platform, RefreshControl, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Animated, LayoutChangeEvent, RefreshControl, ScrollView, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DiscoverHeader } from '@components/discover/DiscoverHeader';
@@ -13,6 +12,7 @@ import { HeroCarousel } from '@components/discover/HeroCarousel';
 import { useDiscoverData } from '@hooks/useDiscoverData';
 import { useTabBarPadding } from '@hooks/useTabBarPadding';
 import { getDiscoverLayout } from '@lib/layout';
+import { PlatformInfo } from '@lib/platform';
 import { useThemeColors } from '@lib/themes/vars';
 import { useFavoritesStore } from '@services/library/favorites';
 import { useExtensionsStore } from '@stores/extensions';
@@ -111,7 +111,13 @@ export default function Discover() {
 		if (!url) {
 			return;
 		}
-		await WebBrowser.openBrowserAsync(url);
+		if (PlatformInfo.isWeb) {
+			window.open(url, '_blank');
+		} else {
+			// eslint-disable-next-line @typescript-eslint/no-require-imports
+			const WebBrowser = require('expo-web-browser');
+			await WebBrowser.openBrowserAsync(url);
+		}
 	};
 
 	const handleToggleDrawerHeight = () => {
@@ -158,7 +164,7 @@ export default function Discover() {
 			<ScrollView
 				className="flex-1"
 				style={{ backgroundColor: themeColors.background }}
-				contentInsetAdjustmentBehavior="never"
+				contentInsetAdjustmentBehavior="automatic"
 				contentContainerStyle={{ paddingTop: headerHeight, paddingBottom: tabBarPadding }}
 				onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
 					useNativeDriver: false,
@@ -213,11 +219,7 @@ export default function Discover() {
 			{/* Fixed header — overlays the top of the screen */}
 			<View className="absolute top-0 right-0 left-0" style={{ zIndex: 1 }} onLayout={onHeaderLayout}>
 				<View className="relative overflow-hidden">
-					{Platform.OS === 'ios' ? (
-						<BlurView intensity={80} tint="systemChromeMaterialDark" style={StyleSheet.absoluteFillObject} />
-					) : (
-						<View className="bg-background/85" style={StyleSheet.absoluteFillObject} />
-					)}
+					<BlurBackground intensity={80} />
 					<View
 						style={{
 							paddingTop: headerPaddingTop,

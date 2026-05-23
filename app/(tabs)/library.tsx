@@ -1,8 +1,8 @@
+import BlurBackground from '@components/ui/BlurBackground';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList, Platform, Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { FlatList, Pressable, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MangaCard } from '@components/MangaCard';
@@ -48,7 +48,7 @@ export default function Library() {
 
 	return (
 		<View className="bg-background flex-1">
-			{favorites.length === 0 ? (
+			{false ? (
 				<View className="flex-1 items-center justify-center px-8" style={{ paddingTop: headerHeight }}>
 					<Ionicons name="book-outline" size={64} color={themeColors.muted} />
 					<Text className="text-foreground text-preset-4 font-heading mt-6 text-center font-semibold">Your library is empty</Text>
@@ -85,11 +85,7 @@ export default function Library() {
 			{/* Fixed header with blur */}
 			<View className="absolute top-0 right-0 left-0" style={{ zIndex: 10 }}>
 				<View className="relative overflow-hidden">
-					{Platform.OS === 'ios' ? (
-						<BlurView intensity={80} tint="systemChromeMaterialDark" style={StyleSheet.absoluteFillObject} />
-					) : (
-						<View className="bg-background/90" style={StyleSheet.absoluteFillObject} />
-					)}
+					<BlurBackground intensity={80} />
 					<View style={{ paddingTop: insets.top, height: headerHeight }} className="flex-row items-center justify-between px-4">
 						<Pressable hitSlop={8}>
 							<Ionicons name="arrow-down-circle-outline" size={26} color={themeColors.primary} />
@@ -103,13 +99,8 @@ export default function Library() {
 
 				{/* Search bar */}
 				{favorites.length > 0 && (
-					<View
-						className="px-4 pb-3"
-						style={{
-							backgroundColor: Platform.OS === 'ios' ? 'transparent' : themeColors.background + 'E6',
-						}}
-					>
-						{Platform.OS === 'ios' ? <BlurView intensity={60} tint="systemChromeMaterialDark" style={StyleSheet.absoluteFillObject} /> : null}
+					<View className="relative overflow-hidden px-4 pb-3">
+						<BlurBackground intensity={60} />
 						<View className="bg-card/80 rounded-control flex-row items-center px-3 py-2.5">
 							<Ionicons name="search" size={18} color={themeColors.mutedForeground} />
 							<TextInput

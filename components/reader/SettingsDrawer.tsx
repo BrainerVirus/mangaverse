@@ -294,8 +294,8 @@ export function SettingsDrawer({ visible, onClose }: { visible: boolean; onClose
 	if (!mounted) return null;
 
 	return (
-		<View className="absolute inset-0" style={{ zIndex: 30 }} pointerEvents="box-none">
-			<Animated.View className="absolute inset-0" style={{ opacity: backdropOpacity }} pointerEvents={isExpanded ? 'none' : 'auto'}>
+		<View className="absolute inset-0" style={{ zIndex: 30, pointerEvents: 'box-none' }}>
+			<Animated.View className="absolute inset-0" style={{ opacity: backdropOpacity, pointerEvents: isExpanded ? 'none' : 'auto' }}>
 				<Pressable className="flex-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={dismiss} />
 			</Animated.View>
 

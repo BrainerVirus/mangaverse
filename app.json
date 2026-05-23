@@ -3,7 +3,7 @@
     "name": "mangaverse",
     "slug": "mangaverse",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "mangaverse",
@@ -23,8 +23,17 @@
     },
     "web": {
       "bundler": "metro",
-      "favicon": "./assets/favicon.png"
+      "output": "single",
+      "favicon": "./assets/favicon.png",
+      "name": "Mangaverse",
+      "shortName": "Mangaverse",
+      "themeColor": "#000000",
+      "backgroundColor": "#000000",
+      "lang": "en"
     },
-    "plugins": ["expo-router"]
+    "plugins": ["expo-router"],
+    "extra": {
+      "supportsDesktop": true
+    }
   }
 }

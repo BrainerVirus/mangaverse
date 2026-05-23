@@ -1,37 +1,25 @@
-import * as FileSystem from 'expo-file-system/legacy';
+import { deleteFile, downloadFile, ensureDir, fileExists } from '@services/platform/filesystem';
 
-const baseDirectory = `${
-	(FileSystem as { documentDirectory?: string; cacheDirectory?: string }).documentDirectory ??
-	(FileSystem as { cacheDirectory?: string }).cacheDirectory ??
-	''
-}extensions/`;
+const baseDirectory = 'extensions/';
 
 export async function ensureExtensionsDir() {
-	if (!baseDirectory) {
-		throw new Error('No writable directory available');
-	}
-	const info = await FileSystem.getInfoAsync(baseDirectory);
-	if (!info.exists) {
-		await FileSystem.makeDirectoryAsync(baseDirectory, { intermediates: true });
-	}
-	return baseDirectory;
+	return ensureDir(baseDirectory);
 }
 
 export async function getExtensionPath(id: string) {
-	const directory = await ensureExtensionsDir();
-	return `${directory}${id}.js`;
+	await ensureExtensionsDir();
+	return `${baseDirectory}${id}.js`;
 }
 
 export async function removeExtensionBundle(id: string) {
 	const path = await getExtensionPath(id);
-	const info = await FileSystem.getInfoAsync(path);
-	if (info.exists) {
-		await FileSystem.deleteAsync(path, { idempotent: true });
+	const exists = await fileExists(path);
+	if (exists) {
+		await deleteFile(path);
 	}
 }
 
 export async function downloadExtensionBundle(bundleUrl: string, id: string) {
 	const path = await getExtensionPath(id);
-	const result = await FileSystem.downloadAsync(bundleUrl, path);
-	return result.uri;
+	return downloadFile(bundleUrl, path);
 }

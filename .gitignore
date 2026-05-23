@@ -3,6 +3,9 @@
 # dependencies
 node_modules/
 
+# pnpm local store
+.pnpm-store/
+
 # Expo
 .expo/
 dist/
@@ -42,10 +45,21 @@ pnpm-debug.log*
 # jest
 coverage/**/*
 
-
-# Docs
-docs/
-
-
 # tmp claude
 tmpclaude-*
+
+# Build outputs
+dist/
+.turbo/
+apps/web/dist/
+apps/web/.output/
+apps/web/.vinxi/
+apps/desktop/dist/
+apps/desktop/out/
+packages/*/dist/
+
+# Lock files
+package-lock.json
+
+# Test coverage
+coverage/

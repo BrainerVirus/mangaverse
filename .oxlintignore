@@ -1,0 +1,13 @@
+node_modules
+dist
+.turbo
+coverage
+.pnpm-store
+.expo
+src-tauri
+apps/web/.vinxi
+apps/web/.output
+apps/web/dist
+apps/desktop/dist
+apps/desktop/out
+packages/*/dist

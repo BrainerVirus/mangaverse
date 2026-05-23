@@ -1,7 +1,7 @@
+import BlurBackground from '@components/ui/BlurBackground';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useThemeColors } from '@lib/themes/vars';
@@ -78,7 +78,7 @@ export default function Settings() {
 					paddingTop: headerHeight + 8,
 					paddingBottom: tabBarPadding,
 				}}
-				contentInsetAdjustmentBehavior="never"
+				contentInsetAdjustmentBehavior="automatic"
 			>
 				{/* Theme preview card */}
 				<View className="bg-card/50 mx-4 mb-6 overflow-hidden rounded-2xl p-4">
@@ -108,11 +108,7 @@ export default function Settings() {
 			{/* Fixed header */}
 			<View className="absolute top-0 right-0 left-0" style={{ zIndex: 10 }}>
 				<View className="relative overflow-hidden">
-					{Platform.OS === 'ios' ? (
-						<BlurView intensity={80} tint="systemChromeMaterialDark" style={StyleSheet.absoluteFillObject} />
-					) : (
-						<View className="bg-background/90" style={StyleSheet.absoluteFillObject} />
-					)}
+					<BlurBackground intensity={80} />
 					<View style={{ paddingTop: insets.top, height: headerHeight }} className="flex-row items-center justify-center px-4">
 						<Text className="text-foreground text-preset-2 font-heading font-semibold">Settings</Text>
 					</View>

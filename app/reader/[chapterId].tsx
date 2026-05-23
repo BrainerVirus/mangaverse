@@ -321,7 +321,7 @@ export default function ReaderScreen() {
 				<GHScrollView
 					ref={scrollViewRef}
 					className="flex-1"
-					contentInsetAdjustmentBehavior="never"
+					contentInsetAdjustmentBehavior="automatic"
 					onScroll={handleVerticalScroll}
 					scrollEventThrottle={100}
 					showsVerticalScrollIndicator={false}

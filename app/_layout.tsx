@@ -3,12 +3,15 @@ import '../global.css';
 import { VariableContextProvider } from 'nativewind';
 
 import { Stack } from 'expo-router/stack';
-import { useEffect, useMemo } from 'react';
-import { useColorScheme, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { useColorScheme, useWindowDimensions, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import Sidebar from '@components/ui/Sidebar';
+import { useKeyboardShortcuts } from '@hooks/useKeyboardShortcuts';
 import { AUTO_INSTALL_MANGADEX } from '@lib/constants';
+import { PlatformInfo } from '@lib/platform';
 import { getThemeVars } from '@lib/themes/vars';
 import { isSupabaseConfigured, supabase } from '@services/auth/supabase';
 import { initializeDatabase } from '@services/db';
@@ -26,6 +29,14 @@ export default function Layout() {
 	const colorScheme = useColorScheme();
 	const resolvedScheme = colorScheme === 'light' ? 'light' : 'dark';
 	const themeVars = useMemo(() => getThemeVars(theme, resolvedScheme), [theme, resolvedScheme]);
+	const { width } = useWindowDimensions();
+	const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+	const isDesktopLayout = PlatformInfo.isWeb && width >= 1024;
+
+	useKeyboardShortcuts({
+		onToggleSidebar: () => setSidebarCollapsed((prev) => !prev),
+		onRefreshDiscover: () => refreshProviders().catch(() => {}),
+	});
 	useEffect(() => {
 		initializeDatabase();
 	}, []);
@@ -82,29 +93,56 @@ export default function Layout() {
 	}, [setLoading, setSession]);
 	return (
 		<VariableContextProvider value={themeVars}>
-			<GestureHandlerRootView style={{ flex: 1 }}>
-				<View className="bg-background flex-1">
+			<View style={{ height: '100vh', display: 'flex', flexDirection: 'column' } as never}>
+				<GestureHandlerRootView style={{ flex: 1 }}>
 					<SafeAreaProvider>
-						<Stack screenOptions={{ contentStyle: { backgroundColor: 'transparent' } }}>
-							<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-							<Stack.Screen name="search" options={{ headerShown: false }} />
-							<Stack.Screen name="discover/[sectionId]" options={{ headerShown: false }} />
-							<Stack.Screen name="manga/[id]" options={{ headerShown: false }} />
-							<Stack.Screen name="reader/[chapterId]" options={{ headerShown: false }} />
-							<Stack.Screen name="extensions/install" options={{ title: 'Install Extension' }} />
-							<Stack.Screen name="settings/extensions" options={{ title: 'Extensions' }} />
-							<Stack.Screen name="settings/appearance" options={{ title: 'Appearance' }} />
-							<Stack.Screen name="settings/reader" options={{ title: 'Reader' }} />
-							<Stack.Screen name="settings/content" options={{ title: 'Content' }} />
-							<Stack.Screen name="settings/security" options={{ title: 'Security' }} />
-							<Stack.Screen name="settings/backup" options={{ title: 'Backup & Restore' }} />
-							<Stack.Screen name="settings/account" options={{ title: 'Account' }} />
-							<Stack.Screen name="settings/auth-help" options={{ title: 'Auth Setup' }} />
-							<Stack.Screen name="auth/callback" options={{ headerShown: false }} />
-						</Stack>
+						{isDesktopLayout ? (
+							<View className="bg-background flex-1 flex-row">
+								<Sidebar collapsed={sidebarCollapsed} onCollapse={setSidebarCollapsed} />
+								<View className="flex-1">
+									<Stack screenOptions={{ contentStyle: { backgroundColor: 'transparent' } }}>
+										<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+										<Stack.Screen name="search" options={{ headerShown: false }} />
+										<Stack.Screen name="discover/[sectionId]" options={{ headerShown: false }} />
+										<Stack.Screen name="manga/[id]" options={{ headerShown: false }} />
+										<Stack.Screen name="reader/[chapterId]" options={{ headerShown: false }} />
+										<Stack.Screen name="extensions/install" options={{ title: 'Install Extension' }} />
+										<Stack.Screen name="settings/extensions" options={{ title: 'Extensions' }} />
+										<Stack.Screen name="settings/appearance" options={{ title: 'Appearance' }} />
+										<Stack.Screen name="settings/reader" options={{ title: 'Reader' }} />
+										<Stack.Screen name="settings/content" options={{ title: 'Content' }} />
+										<Stack.Screen name="settings/security" options={{ title: 'Security' }} />
+										<Stack.Screen name="settings/backup" options={{ title: 'Backup & Restore' }} />
+										<Stack.Screen name="settings/account" options={{ title: 'Account' }} />
+										<Stack.Screen name="settings/auth-help" options={{ title: 'Auth Setup' }} />
+										<Stack.Screen name="auth/callback" options={{ headerShown: false }} />
+									</Stack>
+								</View>
+							</View>
+						) : (
+							<View className="bg-background flex-1">
+								<Stack screenOptions={{ contentStyle: { backgroundColor: 'transparent' } }}>
+									<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+									<Stack.Screen name="search" options={{ headerShown: false }} />
+									<Stack.Screen name="discover/[sectionId]" options={{ headerShown: false }} />
+									<Stack.Screen name="manga/[id]" options={{ headerShown: false }} />
+									<Stack.Screen name="reader/[chapterId]" options={{ headerShown: false }} />
+									<Stack.Screen name="extensions/install" options={{ title: 'Install Extension' }} />
+									<Stack.Screen name="settings/extensions" options={{ title: 'Extensions' }} />
+									<Stack.Screen name="settings/appearance" options={{ title: 'Appearance' }} />
+									<Stack.Screen name="settings/reader" options={{ title: 'Reader' }} />
+									<Stack.Screen name="settings/content" options={{ title: 'Content' }} />
+									<Stack.Screen name="settings/security" options={{ title: 'Security' }} />
+									<Stack.Screen name="settings/backup" options={{ title: 'Backup & Restore' }} />
+									<Stack.Screen name="settings/account" options={{ title: 'Account' }} />
+									<Stack.Screen name="settings/auth-help" options={{ title: 'Auth Setup' }} />
+									<Stack.Screen name="auth/callback" options={{ headerShown: false }} />
+								</Stack>
+							</View>
+						)}
 					</SafeAreaProvider>
-				</View>
-			</GestureHandlerRootView>
+				</GestureHandlerRootView>
+			</View>
 		</VariableContextProvider>
 	);
 }

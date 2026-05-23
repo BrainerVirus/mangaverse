@@ -1,0 +1,40 @@
+{
+  "name": "@app/desktop",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.preload.json",
+    "typecheck:main": "tsc --noEmit -p tsconfig.json",
+    "typecheck:preload": "tsc --noEmit -p tsconfig.preload.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "oxlint src scripts",
+    "lint:fix": "oxlint src scripts --fix",
+    "clean": "rm -rf dist out"
+  },
+  "dependencies": {
+    "@app/design-system": "workspace:*",
+    "@app/motion": "workspace:*",
+    "@app/platform": "workspace:*",
+    "@app/shared": "workspace:*",
+    "@app/web": "workspace:*",
+    "@tanstack/react-query": "^5.62.0",
+    "@tanstack/react-router": "^1.169.2",
+    "electron": "^34.0.0",
+    "express": "^4.21.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.0.0",
+    "oxlint": "^0.16.0",
+    "typescript": "^5.9.2",
+    "vitest": "^3.0.0"
+  }
+}

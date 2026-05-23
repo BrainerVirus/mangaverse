@@ -1,30 +1,63 @@
-import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
+import { Tabs } from 'expo-router/tabs';
+import { useWindowDimensions } from 'react-native';
 
+import { Ionicons } from '@components/icons';
+import { PlatformInfo } from '@lib/platform';
 import { useThemeColors } from '@lib/themes/vars';
+
 export default function TabLayout() {
 	const themeColors = useThemeColors();
+	const { width } = useWindowDimensions();
+	const isDesktop = PlatformInfo.isWeb && width >= 1024;
+
 	return (
-		<NativeTabs backgroundColor={themeColors.background} disableTransparentOnScrollEdge>
-			<NativeTabs.Trigger name="discover">
-				<Label>Discover</Label>
-				<Icon sf="book" />
-			</NativeTabs.Trigger>
-			<NativeTabs.Trigger name="search">
-				<Label>Search</Label>
-				<Icon sf="magnifyingglass" />
-			</NativeTabs.Trigger>
-			<NativeTabs.Trigger name="library">
-				<Label>Library</Label>
-				<Icon sf="bookmark" />
-			</NativeTabs.Trigger>
-			<NativeTabs.Trigger name="history">
-				<Label>History</Label>
-				<Icon sf="clock" />
-			</NativeTabs.Trigger>
-			<NativeTabs.Trigger name="settings">
-				<Label>Settings</Label>
-				<Icon sf="gear" />
-			</NativeTabs.Trigger>
-		</NativeTabs>
+		<Tabs
+			screenOptions={{
+				tabBarActiveTintColor: themeColors.primary,
+				tabBarInactiveTintColor: themeColors.mutedForeground,
+				tabBarStyle: {
+					backgroundColor: themeColors.background,
+					borderTopColor: themeColors.border,
+					display: isDesktop ? 'none' : 'flex',
+				},
+				headerShown: false,
+			}}
+		>
+			<Tabs.Screen
+				name="discover"
+				options={{
+					title: 'Discover',
+					tabBarIcon: ({ color, size }) => <Ionicons name="compass" size={size} color={color} />,
+				}}
+			/>
+			<Tabs.Screen
+				name="search"
+				options={{
+					title: 'Search',
+					tabBarIcon: ({ color, size }) => <Ionicons name="search" size={size} color={color} />,
+				}}
+			/>
+			<Tabs.Screen
+				name="library"
+				options={{
+					title: 'Library',
+					tabBarIcon: ({ color, size }) => <Ionicons name="bookmarks" size={size} color={color} />,
+				}}
+			/>
+			<Tabs.Screen
+				name="history"
+				options={{
+					title: 'History',
+					tabBarIcon: ({ color, size }) => <Ionicons name="time" size={size} color={color} />,
+				}}
+			/>
+			<Tabs.Screen
+				name="settings"
+				options={{
+					title: 'Settings',
+					tabBarIcon: ({ color, size }) => <Ionicons name="settings" size={size} color={color} />,
+				}}
+			/>
+		</Tabs>
 	);
 }
