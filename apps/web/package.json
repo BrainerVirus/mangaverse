@@ -18,6 +18,7 @@
   "dependencies": {
     "@app/db": "workspace:*",
     "@app/design-system": "workspace:*",
+    "@app/extensions": "workspace:*",
     "@app/library": "workspace:*",
     "@app/search": "workspace:*",
     "@app/motion": "workspace:*",
