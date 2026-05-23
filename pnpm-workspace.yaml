@@ -2,5 +2,6 @@ packages:
   - 'apps/*'
   - 'packages/*'
 allowBuilds:
-  electron: set this to true or false
+  '@parcel/watcher': true
+  electron: true
   esbuild: true
