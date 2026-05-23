@@ -190,7 +190,26 @@ Legacy Expo/Tauri commands (prefixed with `legacy:` to avoid accidental use):
 | Phase 5: Extensions Core And SDK | ✅ Complete | `@app/extensions-sdk` + `@app/extensions-core`; contract-first, no provider execution |
 | Phase 7: Design System & Motion System | ✅ Complete | `@app/motion` and `@app/design-system` implemented and tested |
 | Phase 8: App Shell | ✅ Complete | TanStack Router shell, layouts, command palette, providers, desktop renderer integration |
-| Phase 9: Feature Pages | 🚧 In progress | Library page slice: `@app/library` + local SQLite + design-system grid |
+| Phase 9: Feature Pages | ✅ Complete | Library, search, manga detail, reader, extensions, settings, theme, backup, migration, diagnostics, onboarding, storage management, first-run redirect |
+
+### Phase 9 Completed Deliverables
+
+**Feature packages and routes:**
+- `@app/library`, `@app/search`, `@app/extensions`, `@app/settings`, `@app/theme`, `@app/backup`, `@app/migration`, `@app/diagnostics`, `@app/onboarding`, `@app/storage`
+- Web routes wired with TanStack Query + local SQLite via `LocalDbProvider`
+- Manga detail, reader, extension manager, global/reader settings, theme customization, backup/restore, migration tool, diagnostics/about, onboarding, storage management
+
+**`@app/storage`** — storage management feature package:
+- `fetchStorageSummary` combines platform storage estimates with local cache/search counts from `@app/db`
+- Safe clear actions for provider cache metadata and search history via `@app/platform` persist request
+- `StoragePage` with confirmation dialogs via `@app/design-system`
+- Unit/integration tests with sql.js harness
+
+**First-run onboarding:**
+- `OnboardingGate` in app shell redirects to `/onboarding` when onboarding is not completed/skipped
+
+**`@app/db` storage helpers:**
+- `summarizeCacheStorage`, `clearAllCacheEntries`, `countSearchHistory`, `clearSearchHistory`, `countSavedSearches`
 
 ### Phase 9 Started (library slice)
 

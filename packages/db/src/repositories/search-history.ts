@@ -79,3 +79,23 @@ export async function listSavedSearches(db: AppDrizzleDb): Promise<SavedSearchEn
     ...(r.createdAt !== null && r.createdAt !== undefined && r.createdAt !== '' ? { createdAt: r.createdAt } : {}),
   }));
 }
+
+export async function countSearchHistory(db: AppDrizzleDb): Promise<number> {
+  const rows = await db.select({ id: searchHistory.id }).from(searchHistory).all();
+  return rows.length;
+}
+
+export async function countSavedSearches(db: AppDrizzleDb): Promise<number> {
+  const rows = await db.select({ id: savedSearches.id }).from(savedSearches).all();
+  return rows.length;
+}
+
+export async function clearSearchHistory(db: AppDrizzleDb): Promise<number> {
+  const rows = await db.select({ id: searchHistory.id }).from(searchHistory).all();
+  if (rows.length === 0) {
+    return 0;
+  }
+
+  await db.delete(searchHistory);
+  return rows.length;
+}

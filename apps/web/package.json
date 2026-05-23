@@ -26,6 +26,7 @@
     "@app/onboarding": "workspace:*",
     "@app/search": "workspace:*",
     "@app/settings": "workspace:*",
+    "@app/storage": "workspace:*",
     "@app/theme": "workspace:*",
     "@app/motion": "workspace:*",
     "@app/platform": "workspace:*",

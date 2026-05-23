@@ -7,6 +7,7 @@ import { LocalDbProvider } from '../providers/local-db-provider.js';
 import { PlatformProvider } from '../providers/platform-provider.js';
 import { ThemeProvider } from '../providers/theme-provider.js';
 import { ThemeSettingsBridge } from '../providers/theme-settings-bridge.js';
+import { OnboardingGate } from './OnboardingGate.js';
 import { AppShellLayout } from '../layouts/AppShellLayout.js';
 import { ReaderLayout } from '../layouts/ReaderLayout.js';
 import { useCommandPaletteStore } from '../stores/useCommandPaletteStore';
@@ -72,7 +73,9 @@ export function ShellProviders({ children, detectFn }: ShellProvidersProps) {
           <KeyboardShortcuts />
           <NavigationTracker />
           <CommandPalette />
-          <AppShellOrReaderLayout>{children}</AppShellOrReaderLayout>
+          <OnboardingGate>
+            <AppShellOrReaderLayout>{children}</AppShellOrReaderLayout>
+          </OnboardingGate>
           </ThemeProvider>
         </PlatformProvider>
       </LocalDbProvider>
