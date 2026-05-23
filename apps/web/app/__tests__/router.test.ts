@@ -15,6 +15,7 @@ const PHASE_8_ROUTES = [
   '/extensions/$providerId',
   '/backup',
   '/migration',
+  '/storage',
   '/theme',
   '/diagnostics',
   '/onboarding',

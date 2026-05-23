@@ -1,6 +1,14 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import type { AppDrizzleDb } from '../adapter.js';
 import { cacheEntries } from '../schema.js';
+
+export interface CacheStorageSummary {
+  readonly totalCount: number;
+  readonly byProvider: readonly {
+    readonly providerId: string;
+    readonly count: number;
+  }[];
+}
 
 export interface CacheEntryRecord {
   readonly id: string;
@@ -73,4 +81,32 @@ export async function listCacheEntriesForManga(
     lastAccessAt: r.lastAccessAt,
     ...(r.metadataJson !== null && r.metadataJson !== undefined ? { metadata: r.metadataJson as Record<string, unknown> } : {}),
   }));
+}
+
+export async function summarizeCacheStorage(db: AppDrizzleDb): Promise<CacheStorageSummary> {
+  const rows = await db
+    .select({
+      providerId: cacheEntries.providerId,
+      count: sql<number>`count(*)`.mapWith(Number),
+    })
+    .from(cacheEntries)
+    .groupBy(cacheEntries.providerId)
+    .all();
+
+  const byProvider = rows
+    .map((row) => ({ providerId: row.providerId, count: row.count }))
+    .sort((left, right) => right.count - left.count);
+  const totalCount = byProvider.reduce((sum, row) => sum + row.count, 0);
+
+  return { totalCount, byProvider };
+}
+
+export async function clearAllCacheEntries(db: AppDrizzleDb): Promise<number> {
+  const rows = await db.select({ id: cacheEntries.id }).from(cacheEntries).all();
+  if (rows.length === 0) {
+    return 0;
+  }
+
+  await db.delete(cacheEntries);
+  return rows.length;
 }

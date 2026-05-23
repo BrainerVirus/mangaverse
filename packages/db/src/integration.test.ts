@@ -16,9 +16,12 @@ import {
   addProviderMapping,
   appendReadingHistory,
   appendSearchHistory,
+  applyBackupRestore,
+  clearAllCacheEntries,
+  clearSearchHistory,
+  countSearchHistory,
   createMangaIdentityWithInitialMapping,
   exportBackupDocumentV1,
-  applyBackupRestore,
   getMangaIdentity,
   getReaderSettings,
   listLibraryEntries,
@@ -26,6 +29,8 @@ import {
   migrateDatabaseToLatest,
   previewBackupRestore,
   setLibraryEntryActiveProviderMapping,
+  summarizeCacheStorage,
+  upsertCacheEntry,
   upsertChapterReadState,
   upsertChapterWithPages,
   upsertInstalledExtension,
@@ -449,5 +454,34 @@ describe('@app/db', () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.code).toBe('backup.restore.blocked');
+  });
+
+  it('summarizes and clears cache metadata and search history', async () => {
+    const { db } = await createSqlJsHarness();
+
+    await upsertCacheEntry(db, {
+      providerId: 'prov-a',
+      mangaId: 'manga-1',
+      cacheKind: 'chapter',
+    });
+    await upsertCacheEntry(db, {
+      providerId: 'prov-b',
+      mangaId: 'manga-2',
+      cacheKind: 'chapter',
+    });
+    await appendSearchHistory(db, { query: 'chainsaw man' });
+
+    const summary = await summarizeCacheStorage(db);
+    expect(summary.totalCount).toBe(2);
+    expect(summary.byProvider).toEqual([
+      { providerId: 'prov-a', count: 1 },
+      { providerId: 'prov-b', count: 1 },
+    ]);
+
+    expect(await countSearchHistory(db)).toBe(1);
+    expect(await clearAllCacheEntries(db)).toBe(2);
+    expect(await clearSearchHistory(db)).toBe(1);
+    expect((await summarizeCacheStorage(db)).totalCount).toBe(0);
+    expect(await countSearchHistory(db)).toBe(0);
   });
 });

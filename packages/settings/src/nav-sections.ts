@@ -42,6 +42,11 @@ export const SETTINGS_NAV_SECTIONS: readonly {
         description: 'Move titles between providers.',
         to: '/migration',
       },
+      {
+        label: 'Storage',
+        description: 'Review usage and clear safe local cache data.',
+        to: '/storage',
+      },
     ],
   },
   {

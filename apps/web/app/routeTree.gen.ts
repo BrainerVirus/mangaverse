@@ -23,6 +23,7 @@ import { Route as MangaIdRouteImport } from './routes/manga.$id'
 import { Route as ExtensionsProviderIdRouteImport } from './routes/extensions.$providerId'
 
 const ThemeLazyRouteImport = createFileRoute('/theme')()
+const StorageLazyRouteImport = createFileRoute('/storage')()
 const OnboardingLazyRouteImport = createFileRoute('/onboarding')()
 const MigrationLazyRouteImport = createFileRoute('/migration')()
 const DiagnosticsLazyRouteImport = createFileRoute('/diagnostics')()
@@ -33,6 +34,11 @@ const ThemeLazyRoute = ThemeLazyRouteImport.update({
   path: '/theme',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/theme.lazy').then((d) => d.Route))
+const StorageLazyRoute = StorageLazyRouteImport.update({
+  id: '/storage',
+  path: '/storage',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/storage.lazy').then((d) => d.Route))
 const OnboardingLazyRoute = OnboardingLazyRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/diagnostics': typeof DiagnosticsLazyRoute
   '/migration': typeof MigrationLazyRoute
   '/onboarding': typeof OnboardingLazyRoute
+  '/storage': typeof StorageLazyRoute
   '/theme': typeof ThemeLazyRoute
   '/extensions/$providerId': typeof ExtensionsProviderIdRoute
   '/manga/$id': typeof MangaIdRoute
@@ -131,6 +138,7 @@ export interface FileRoutesByTo {
   '/diagnostics': typeof DiagnosticsLazyRoute
   '/migration': typeof MigrationLazyRoute
   '/onboarding': typeof OnboardingLazyRoute
+  '/storage': typeof StorageLazyRoute
   '/theme': typeof ThemeLazyRoute
   '/extensions/$providerId': typeof ExtensionsProviderIdRoute
   '/manga/$id': typeof MangaIdRoute
@@ -149,6 +157,7 @@ export interface FileRoutesById {
   '/diagnostics': typeof DiagnosticsLazyRoute
   '/migration': typeof MigrationLazyRoute
   '/onboarding': typeof OnboardingLazyRoute
+  '/storage': typeof StorageLazyRoute
   '/theme': typeof ThemeLazyRoute
   '/extensions/$providerId': typeof ExtensionsProviderIdRoute
   '/manga/$id': typeof MangaIdRoute
@@ -168,6 +177,7 @@ export interface FileRouteTypes {
     | '/diagnostics'
     | '/migration'
     | '/onboarding'
+    | '/storage'
     | '/theme'
     | '/extensions/$providerId'
     | '/manga/$id'
@@ -185,6 +195,7 @@ export interface FileRouteTypes {
     | '/diagnostics'
     | '/migration'
     | '/onboarding'
+    | '/storage'
     | '/theme'
     | '/extensions/$providerId'
     | '/manga/$id'
@@ -202,6 +213,7 @@ export interface FileRouteTypes {
     | '/diagnostics'
     | '/migration'
     | '/onboarding'
+    | '/storage'
     | '/theme'
     | '/extensions/$providerId'
     | '/manga/$id'
@@ -220,6 +232,7 @@ export interface RootRouteChildren {
   DiagnosticsLazyRoute: typeof DiagnosticsLazyRoute
   MigrationLazyRoute: typeof MigrationLazyRoute
   OnboardingLazyRoute: typeof OnboardingLazyRoute
+  StorageLazyRoute: typeof StorageLazyRoute
   ThemeLazyRoute: typeof ThemeLazyRoute
   MangaIdRoute: typeof MangaIdRoute
   ReaderChapterIdRoute: typeof ReaderChapterIdRoute
@@ -232,6 +245,13 @@ declare module '@tanstack/react-router' {
       path: '/theme'
       fullPath: '/theme'
       preLoaderRoute: typeof ThemeLazyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/storage': {
+      id: '/storage'
+      path: '/storage'
+      fullPath: '/storage'
+      preLoaderRoute: typeof StorageLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -371,6 +391,7 @@ const rootRouteChildren: RootRouteChildren = {
   DiagnosticsLazyRoute: DiagnosticsLazyRoute,
   MigrationLazyRoute: MigrationLazyRoute,
   OnboardingLazyRoute: OnboardingLazyRoute,
+  StorageLazyRoute: StorageLazyRoute,
   ThemeLazyRoute: ThemeLazyRoute,
   MangaIdRoute: MangaIdRoute,
   ReaderChapterIdRoute: ReaderChapterIdRoute,
