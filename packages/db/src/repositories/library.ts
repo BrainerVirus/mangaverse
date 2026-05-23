@@ -10,6 +10,7 @@ import {
   toMangaId,
   toProviderMappingId,
   type CategoryId,
+  type ChapterId,
   type LibraryCategory,
   type LibraryEntry,
   type LibraryEntryId,
@@ -294,4 +295,23 @@ export async function getLibraryEntryForManga(
   const row = await db.select().from(libraryEntries).where(eq(libraryEntries.mangaId, mangaId)).get();
   if (row === undefined) return undefined;
   return toLibraryEntry(db, row);
+}
+
+export async function updateLibraryEntryReadingProgress(
+  db: AppDrizzleDb,
+  input: {
+    readonly mangaId: MangaId;
+    readonly chapterId: ChapterId;
+    readonly progressPercent: number;
+  },
+): Promise<void> {
+  const now = new Date().toISOString();
+  await db
+    .update(libraryEntries)
+    .set({
+      lastReadChapterId: input.chapterId,
+      progressPercent: input.progressPercent,
+      updatedAt: now,
+    })
+    .where(eq(libraryEntries.mangaId, input.mangaId));
 }
