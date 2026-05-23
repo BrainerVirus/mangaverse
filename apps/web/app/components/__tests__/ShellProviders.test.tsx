@@ -4,6 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react';
 import { ThemeProvider } from '../../providers/theme-provider.js';
 import { useCommandPaletteStore } from '../../stores/useCommandPaletteStore';
+import { ShellProviders } from '../ShellProviders.js';
 
 Object.defineProperty(globalThis, 'localStorage', {
   value: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
@@ -73,8 +74,7 @@ describe('ShellProviders', () => {
     container.remove();
   });
 
-  it('renders children without crashing', async () => {
-    const { ShellProviders } = await import('../ShellProviders.js');
+  it('renders children without crashing', () => {
     const html = renderToString(
       <ThemeProvider>
         <ShellProviders>
@@ -86,8 +86,6 @@ describe('ShellProviders', () => {
   });
 
   it('opens the command palette on Cmd+K', async () => {
-    const { ShellProviders } = await import('../ShellProviders.js');
-
     await act(async () => {
       root.render(
         <ThemeProvider>
