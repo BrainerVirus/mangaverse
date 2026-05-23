@@ -6,6 +6,7 @@ import { QueryProvider } from '../providers/query-provider.js';
 import { LocalDbProvider } from '../providers/local-db-provider.js';
 import { PlatformProvider } from '../providers/platform-provider.js';
 import { ThemeProvider } from '../providers/theme-provider.js';
+import { ThemeSettingsBridge } from '../providers/theme-settings-bridge.js';
 import { AppShellLayout } from '../layouts/AppShellLayout.js';
 import { ReaderLayout } from '../layouts/ReaderLayout.js';
 import { useCommandPaletteStore } from '../stores/useCommandPaletteStore';
@@ -67,6 +68,7 @@ export function ShellProviders({ children, detectFn }: ShellProvidersProps) {
       <LocalDbProvider>
         <PlatformProvider detectFn={detectFn}>
           <ThemeProvider>
+          <ThemeSettingsBridge />
           <KeyboardShortcuts />
           <NavigationTracker />
           <CommandPalette />

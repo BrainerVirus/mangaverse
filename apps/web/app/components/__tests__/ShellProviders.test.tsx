@@ -2,9 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react';
-import { ThemeProvider } from '../../providers/theme-provider.js';
-import { useCommandPaletteStore } from '../../stores/useCommandPaletteStore';
 import { ShellProviders } from '../ShellProviders.js';
+import { useCommandPaletteStore } from '../../stores/useCommandPaletteStore';
 
 Object.defineProperty(globalThis, 'localStorage', {
   value: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
@@ -76,11 +75,9 @@ describe('ShellProviders', () => {
 
   it('renders children without crashing', () => {
     const html = renderToString(
-      <ThemeProvider>
-        <ShellProviders>
-          <div>Hello</div>
-        </ShellProviders>
-      </ThemeProvider>
+      <ShellProviders>
+        <div>Hello</div>
+      </ShellProviders>,
     );
     expect(html).toContain('Hello');
   });
@@ -88,11 +85,9 @@ describe('ShellProviders', () => {
   it('opens the command palette on Cmd+K', async () => {
     await act(async () => {
       root.render(
-        <ThemeProvider>
-          <ShellProviders>
-            <div>Hello</div>
-          </ShellProviders>
-        </ThemeProvider>,
+        <ShellProviders>
+          <div>Hello</div>
+        </ShellProviders>,
       );
     });
 
