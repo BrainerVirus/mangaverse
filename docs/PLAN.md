@@ -366,6 +366,40 @@ Current TanStack Start uses Vite plus Nitro for SSR output. Nitro is an app fram
 - Optimistic rollback tests.
 - Memory behavior manual test on constrained browser profile.
 
+## Phase 10.5: App Stability And Repo Cleanup
+
+### Goals
+
+- Fix SSR/hydration mismatches and Electron dev warnings before polish work.
+- Remove superseded Expo, React Native, and Tauri legacy trees from the monorepo root.
+
+### Tasks
+
+- Fix `AppShellLayout` hydration by using CSS breakpoints for shell chrome instead of client-only device detection on first paint.
+- Add Electron Content-Security-Policy headers (dev allows Vite HMR; production stays strict).
+- Move route tests out of `apps/web/app/routes/` so TanStack Router file scanning ignores them.
+- Remove duplicate Nitro/Vite SSR entry configuration and adopt Vite native `resolve.tsconfigPaths`.
+- Delete legacy Expo Router app, NativeWind, root services/stores, bundled `extensions/`, and `src-tauri/`.
+- Slim root `package.json` to monorepo scripts and dev tooling only.
+
+### Acceptance Criteria
+
+- No hydration mismatch in Electron or web shell on first load.
+- Electron dev console no longer warns about missing CSP.
+- Route tree generation excludes test files.
+- Legacy Expo/Tauri code paths are removed; monorepo apps/packages remain intact.
+- Lint, typecheck, test, and build pass.
+
+### Testing Gate
+
+- Shell layout SSR test still passes.
+- Desktop CSP unit tests pass.
+- Full CI pipeline green.
+
+### Known benign noise
+
+- Chromium/Electron DevTools Autofill protocol errors are harmless and can be ignored during local dev.
+
 ## Phase 11: Polish And Premium Experience
 
 ### Goals

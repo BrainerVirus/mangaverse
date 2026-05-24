@@ -20,6 +20,7 @@ import {
 } from './protocol-handoff.js';
 import { registerPlatformIpc } from './platform-ipc.js';
 import { createSecureStorageModel } from './secure-storage.js';
+import { registerContentSecurityPolicy } from './content-security-policy.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -164,6 +165,8 @@ app.whenReady().then(async () => {
     snapshotForHttp = () => ({ ...buildDiagnosticsSnapshot() });
 
     await desktopLocalService.start();
+
+    registerContentSecurityPolicy(Boolean(process.env.VITE_DEV_SERVER_URL));
 
     const secureModel = createSecureStorageModel({
       safeStorage,

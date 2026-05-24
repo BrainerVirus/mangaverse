@@ -1,8 +1,7 @@
 import { create } from 'zustand';
 
-const initialDeviceLayout = typeof window !== 'undefined'
-  ? detectDeviceLayout()
-  : 'desktop';
+// Always start with a stable SSR/client default; layout chrome uses CSS breakpoints.
+const initialDeviceLayout = 'desktop' as const;
 
 export function detectDeviceLayout(): 'desktop' | 'tablet' | 'mobile' {
   if (typeof window === 'undefined') return 'desktop';

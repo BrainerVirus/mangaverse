@@ -161,25 +161,7 @@ Critical flows to test:
 
 ## Current Legacy Repo Notes
 
-The existing repo still contains Expo, React Native, NativeWind, Expo Router, Tauri, and legacy service/store structures. These are not the target architecture for the rewrite unless a task explicitly asks to maintain legacy code.
-
-If working on legacy code before the rewrite replaces it:
-
-- Respect existing files and user changes.
-- Do not revert unrelated changes.
-- Keep fixes minimal.
-- Run the existing relevant commands when practical.
-
-## Existing Legacy Commands
-
-Legacy Expo/Tauri commands (prefixed with `legacy:` to avoid accidental use):
-- Legacy install: `npm install` (use `pnpm install`)
-- Legacy start: `npm run legacy:start`
-- Legacy web: `npm run legacy:web`
-- Legacy desktop dev: `npm run legacy:desktop:dev`
-- Legacy desktop build: `npm run legacy:desktop:build`
-- Legacy lint: `npm run lint` (old eslint)
-- Legacy tests: `npm test` (old jest)
+The Expo, React Native, NativeWind, Expo Router, and Tauri legacy trees were removed in Phase 10.5. The monorepo under `apps/` and `packages/` is the canonical codebase.
 
 ## Phase Status
 
@@ -191,6 +173,8 @@ Legacy Expo/Tauri commands (prefixed with `legacy:` to avoid accidental use):
 | Phase 7: Design System & Motion System | ✅ Complete | `@app/motion` and `@app/design-system` implemented and tested |
 | Phase 8: App Shell | ✅ Complete | TanStack Router shell, layouts, command palette, providers, desktop renderer integration |
 | Phase 9: Feature Pages | ✅ Complete | Library, search, manga detail, reader, extensions, settings, theme, backup, migration, diagnostics, onboarding, storage management, first-run redirect |
+| Phase 10: Local-First Performance Pass | ✅ Complete | Virtual search grid, query prefetch, layout metrics (PR #21) |
+| Phase 10.5: App Stability & Repo Cleanup | ✅ Complete | Hydration fix, Electron CSP, route test isolation, legacy tree removal |
 
 ### Phase 9 Completed Deliverables
 
