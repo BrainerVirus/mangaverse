@@ -1,6 +1,8 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
+import { useGSAP } from '@gsap/react';
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@app/design-system';
+import { commandPaletteEnter, commandPaletteExit, useReducedMotion } from '@app/motion';
 import { useCommandPaletteStore } from '../../stores/useCommandPaletteStore';
 import { useLayoutStore } from '../../stores/useLayoutStore';
 import { registry } from './CommandRegistry';
@@ -95,8 +97,36 @@ export function CommandPalette() {
   const { deviceLayout } = useLayoutStore();
   const { runtime } = usePlatform();
   const { isOpen, query, selectedIndex, close, setQuery, moveSelection, setSelectedIndex } = useCommandPaletteStore();
+  const reducedMotion = useReducedMotion();
+  const [rendered, setRendered] = useState(isOpen);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useBuiltInCommands();
+
+  useEffect(() => {
+    if (isOpen) {
+      setRendered(true);
+    }
+  }, [isOpen]);
+
+  useGSAP(
+    () => {
+      if (!rendered || !backdropRef.current || !panelRef.current) return;
+
+      if (isOpen) {
+        commandPaletteEnter(backdropRef.current, panelRef.current, { reducedMotion });
+        return;
+      }
+
+      commandPaletteExit(backdropRef.current, panelRef.current, {
+        reducedMotion,
+        onComplete: () => setRendered(false),
+      });
+    },
+    { scope: overlayRef, dependencies: [isOpen, rendered, reducedMotion] },
+  );
 
   const results = registry.search(query);
   const grouped = groupBySection(results);
@@ -125,19 +155,25 @@ export function CommandPalette() {
         }
       }
     },
-    [close, moveSelection, results, selectedIndex]
+    [close, moveSelection, results, selectedIndex],
   );
 
   if (deviceLayout !== 'desktop' && runtime !== 'electron') return null;
-  if (!isOpen) return null;
+  if (!rendered) return null;
 
   return (
     <div
+      ref={overlayRef}
       className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]"
       onKeyDown={handleKeyDown}
     >
-      <div className="fixed inset-0 bg-black/50" onClick={close} onKeyDown={(e) => e.key === 'Escape' && close()} />
-      <Command className="w-full max-w-lg">
+      <div
+        ref={backdropRef}
+        className="fixed inset-0 bg-black/50"
+        onClick={close}
+        onKeyDown={(e) => e.key === 'Escape' && close()}
+      />
+      <Command ref={panelRef} className="relative z-10 w-full max-w-lg">
         <div className="flex items-center border-b border-border px-3">
           <CommandInput
             placeholder="Type a command..."

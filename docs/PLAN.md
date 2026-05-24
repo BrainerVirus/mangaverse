@@ -402,6 +402,8 @@ Current TanStack Start uses Vite plus Nitro for SSR output. Nitro is an app fram
 
 ## Phase 11: Polish And Premium Experience
 
+**First slice (in progress):** Shell route transitions via `AnimatedRouteOutlet`, command palette enter/exit motion, library grid stagger reveal on load — all respecting reduced-motion tokens from `@app/motion`.
+
 ### Goals
 
 - Add the wow effect without harming the reader.

@@ -48,6 +48,10 @@ vi.mock('@app/design-system', () => ({
   ),
 }));
 
+vi.mock('@app/motion', () => ({
+  useGridStaggerReveal: () => ({ current: null }),
+}));
+
 const createManga = (id: string, title: string): MangaIdentity => ({
   id: id as MangaId,
   canonicalTitle: title,
