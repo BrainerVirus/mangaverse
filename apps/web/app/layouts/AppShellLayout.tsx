@@ -4,7 +4,7 @@ import { DesktopSidebar } from '../components/shell/DesktopSidebar.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.js';
 
 export function AppShellLayout({ children }: { children: React.ReactNode }) {
-  const { deviceLayout, toggleSidebar } = useLayoutStore();
+  const toggleSidebar = useLayoutStore((s) => s.toggleSidebar);
   const setDeviceLayout = useLayoutStore((s) => s.setDeviceLayout);
 
   useEffect(() => {
@@ -30,25 +30,17 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [toggleSidebar]);
 
-  const isDesktopOrTablet = deviceLayout === 'desktop' || deviceLayout === 'tablet';
-
-  if (isDesktopOrTablet) {
-    return (
-      <div className="flex h-screen overflow-hidden">
-        <DesktopSidebar />
-        <main className="flex-1 overflow-auto">
-          {children}
-        </main>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col h-screen">
-      <main className="flex-1 overflow-auto pb-16">
+    <div className="flex h-screen overflow-hidden max-md:flex-col max-md:overflow-visible">
+      <div className="hidden md:contents">
+        <DesktopSidebar />
+      </div>
+      <main className="flex-1 overflow-auto max-md:pb-16">
         {children}
       </main>
-      <MobileBottomNav />
+      <div className="md:hidden">
+        <MobileBottomNav />
+      </div>
     </div>
   );
 }
