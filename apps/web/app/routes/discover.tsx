@@ -12,9 +12,9 @@ import { fetchAppSettings, settingsQueryKeys } from '@app/settings';
 import { useLocalDb, useLocalDbStatus, useLocalDbRetry } from '../providers/local-db-provider.js';
 import {
   DEV_MANGADEX_SECTION_DEFINITIONS,
-  DEV_MANGADEX_SECTION_PREVIEW_SIZE,
   DEV_MANGADEX_SECTION_PAGE_SIZE,
   fetchDevMangaDexSectionPage,
+  fetchDevMangaDexSectionPreviews,
   getDevMangaDexSectionTitle,
   getEnabledMangaDexSections,
   getInstalledMangaDexManifest,
@@ -44,21 +44,9 @@ async function buildDiscoverPageData(
   }
 
   const sectionDefinitions = getEnabledMangaDexSections(manifest);
-  const sectionResults = await Promise.all(
-    sectionDefinitions.map(async (definition) => {
-      const page = await fetchDevMangaDexSectionPage(
-        definition.id,
-        0,
-        DEV_MANGADEX_SECTION_PREVIEW_SIZE,
-        explicitContent,
-      );
-      return {
-        id: definition.id,
-        title: getDevMangaDexSectionTitle(definition.id),
-        capability: definition.capability,
-        results: page.results,
-      } satisfies DiscoverSection;
-    }),
+  const sectionResults = await fetchDevMangaDexSectionPreviews(
+    sectionDefinitions,
+    explicitContent,
   );
 
   return {
@@ -66,7 +54,7 @@ async function buildDiscoverPageData(
       {
         providerId: 'mangadex',
         providerName: manifest.name,
-        sections: sectionResults.filter((section) => section.results.length > 0),
+        sections: sectionResults satisfies readonly DiscoverSection[],
       },
     ],
   };

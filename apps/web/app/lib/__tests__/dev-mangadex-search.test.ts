@@ -1,9 +1,11 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import { toMangaId } from '@app/shared';
 import {
+  DEV_MANGADEX_SECTION_DEFINITIONS,
   fetchDevMangaDetail,
   fetchDevMangaDexChapters,
   fetchDevMangaDexSectionPage,
+  fetchDevMangaDexSectionPreviews,
   getCurrentAnimeSeason,
   getDevMangaDexSectionTitle,
   getSeasonalSectionTitle,
@@ -179,7 +181,7 @@ describe('fetchDevMangaDexSectionPage', () => {
   });
 
   it.each([
-    ['recommended', 'order%5Brating%5D'],
+    ['recommended', 'order%5Brelevance%5D'],
     ['selfPublished', 'includedTags'],
     ['seasonal', 'createdAtSince'],
     ['latest', 'latestUploadedChapter'],
@@ -194,6 +196,49 @@ describe('fetchDevMangaDexSectionPage', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await fetchDevMangaDexSectionPage(sectionId, 0, 6, true);
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain(expectedParam);
+    const url = String(fetchMock.mock.calls[0]?.[0]);
+    expect(url).toContain(expectedParam);
+    if (sectionId === 'seasonal') {
+      expect(url).toContain('createdAtSince=2026-04-01T00%3A00%3A00');
+      expect(url).not.toContain('.000Z');
+    }
+  });
+});
+
+describe('fetchDevMangaDexSectionPreviews', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('returns successful sections when one section request fails', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('createdAtSince')) {
+        return new Response('bad request', { status: 400 });
+      }
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: '00000000-0000-0000-0000-000000000001',
+              attributes: { title: { en: 'Popular Title' }, contentRating: 'safe', status: 'ongoing' },
+              relationships: [],
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const sections = await fetchDevMangaDexSectionPreviews(
+      DEV_MANGADEX_SECTION_DEFINITIONS,
+      true,
+      1,
+    );
+
+    expect(sections.some((section) => section.id === 'popular')).toBe(true);
+    expect(sections.some((section) => section.id === 'seasonal')).toBe(false);
+    expect(sections.length).toBeGreaterThan(0);
   });
 });

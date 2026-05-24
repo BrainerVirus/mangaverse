@@ -80,7 +80,7 @@ async function mockMangaDexApi(page: Page) {
 
     const body = includesExplicit
       ? mangadexExplicitFixture
-      : url.includes('order%5Brating%5D') || url.includes('order[rating]')
+      : url.includes('order%5Brelevance%5D') || url.includes('order[relevance]')
         ? mangadexRecommendedFixture
         : url.includes('includedTags') || url.includes('891cf039-b895-47f0-9229-bef4c96eccd4')
           ? mangadexSelfPublishedFixture

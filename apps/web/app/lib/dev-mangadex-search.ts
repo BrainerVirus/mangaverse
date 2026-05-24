@@ -162,7 +162,7 @@ function applySectionOrdering(params: URLSearchParams, sectionId: DevMangaDexSec
       params.set('order[createdAt]', 'desc');
       break;
     case 'recommended':
-      params.set('order[rating]', 'desc');
+      params.set('order[relevance]', 'desc');
       break;
     case 'selfPublished':
       params.append('includedTags[]', MANGADEX_SELF_PUBLISHED_TAG_ID);
@@ -201,16 +201,17 @@ export function getSeasonalSectionTitle(date = new Date()): string {
   return `Seasonal: ${season.name} ${season.year}`;
 }
 
+/** MangaDex expects `YYYY-MM-DDTHH:MM:SS` without milliseconds or timezone suffix. */
 function getSeasonStartIso(season: AnimeSeason): string {
   switch (season.name) {
     case 'Winter':
-      return `${season.year}-01-01T00:00:00.000Z`;
+      return `${season.year}-01-01T00:00:00`;
     case 'Spring':
-      return `${season.year}-04-01T00:00:00.000Z`;
+      return `${season.year}-04-01T00:00:00`;
     case 'Summer':
-      return `${season.year}-07-01T00:00:00.000Z`;
+      return `${season.year}-07-01T00:00:00`;
     case 'Fall':
-      return `${season.year}-10-01T00:00:00.000Z`;
+      return `${season.year}-10-01T00:00:00`;
   }
 }
 
@@ -306,6 +307,44 @@ async function fetchMangaDexCollection(
   return results.filter(
     (item) => item.contentRating !== 'explicit' && item.contentRating !== 'unknown',
   );
+}
+
+export interface DevMangaDexSectionPreview {
+  readonly id: DevMangaDexSectionId;
+  readonly title: string;
+  readonly capability: ProviderCapabilityKey;
+  readonly results: readonly MangaIdentity[];
+}
+
+export async function fetchDevMangaDexSectionPreviews(
+  sectionDefinitions: readonly DevMangaDexSectionDefinition[],
+  explicitContent: boolean,
+  previewSize = DEV_MANGADEX_SECTION_PREVIEW_SIZE,
+): Promise<readonly DevMangaDexSectionPreview[]> {
+  const settled = await Promise.allSettled(
+    sectionDefinitions.map(async (definition) => {
+      const page = await fetchDevMangaDexSectionPage(
+        definition.id,
+        0,
+        previewSize,
+        explicitContent,
+      );
+      return {
+        id: definition.id,
+        title: getDevMangaDexSectionTitle(definition.id),
+        capability: definition.capability,
+        results: page.results,
+      } satisfies DevMangaDexSectionPreview;
+    }),
+  );
+
+  return settled
+    .filter(
+      (result): result is PromiseFulfilledResult<DevMangaDexSectionPreview> =>
+        result.status === 'fulfilled',
+    )
+    .map((result) => result.value)
+    .filter((section) => section.results.length > 0);
 }
 
 export async function fetchDevMangaDexSectionPage(
