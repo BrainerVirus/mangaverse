@@ -8,6 +8,7 @@ describe('buildContentSecurityPolicy', () => {
     expect(csp).toContain("'unsafe-eval'");
     expect(csp).toContain("'wasm-unsafe-eval'");
     expect(csp).toContain('http://localhost:5173');
+    expect(csp).toContain('style-src \'self\' \'unsafe-inline\' http://localhost:5173');
     expect(csp).toContain('ws://localhost:5173');
     expect(csp).toContain('https://api.mangadex.org');
   });

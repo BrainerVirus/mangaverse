@@ -1,5 +1,9 @@
 @import 'tailwindcss';
 
+/* Monorepo: Tailwind must scan app + feature package templates, not only this file tree. */
+@source '../../../../apps/web/app/**/*.{ts,tsx}';
+@source '../../../../packages/*/src/**/*.{ts,tsx}';
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

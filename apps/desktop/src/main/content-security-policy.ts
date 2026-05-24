@@ -12,7 +12,7 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
     return [
       "default-src 'self'",
       `script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' ${origin}`,
-      "style-src 'self' 'unsafe-inline'",
+      `style-src 'self' 'unsafe-inline' ${origin}`,
       "img-src 'self' data: blob: https:",
       `connect-src 'self' ${origin} ${wsOrigin} ws: wss: https://api.mangadex.org`,
       "font-src 'self' data:",

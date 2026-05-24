@@ -57,6 +57,14 @@ describe('OnboardingPage', () => {
     expect(screen.getByText('Step 1 of 5')).toBeInTheDocument();
   });
 
+  it('renders design-system Button classes on primary actions', () => {
+    render(<OnboardingPage {...baseProps} />);
+
+    const continueButton = screen.getByRole('button', { name: 'Continue' });
+    expect(continueButton.className).toContain('inline-flex');
+    expect(continueButton.className).toContain('rounded-[var(--radius-btn)]');
+  });
+
   it('exposes skip and continue actions on the first step', async () => {
     const user = userEvent.setup();
     const onSkip = vi.fn();
