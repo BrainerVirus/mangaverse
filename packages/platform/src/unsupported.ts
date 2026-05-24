@@ -3,6 +3,7 @@ import { createUnknownCapabilities } from './capabilities.js';
 import { platformUnsupported } from './errors.js';
 import type {
   PlatformAdapter,
+  PlatformBlobRecord,
   PlatformDiagnosticsSnapshot,
   PlatformFileOpenOptions,
   PlatformFileSaveOptions,
@@ -63,6 +64,16 @@ export function createUnsupportedPlatformAdapter(reason: string): PlatformAdapte
       deleteItem: async () => deny<void>(),
       estimate: async () => deny<PlatformStorageEstimate>(),
       persist: async () => deny<boolean>(),
+    },
+    blobStorage: {
+      put: async () => deny<void>(),
+      get: async () => deny<PlatformBlobRecord | undefined>(),
+      delete: async () => deny<void>(),
+      createObjectUrl: async () => deny<string>(),
+      revokeObjectUrl: async () => deny<void>(),
+    },
+    network: {
+      fetchBytes: async () => deny<undefined>(),
     },
   };
 }

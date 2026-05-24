@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import type { PlatformCapabilities } from '@app/platform';
 import { QueryProvider } from '../providers/query-provider.js';
 import { LocalDbProvider } from '../providers/local-db-provider.js';
+import { CoverCacheBridge } from '../providers/cover-cache-bridge.js';
 import { PlatformProvider } from '../providers/platform-provider.js';
 import { ThemeProvider } from '../providers/theme-provider.js';
 import { ThemeSettingsBridge } from '../providers/theme-settings-bridge.js';
@@ -27,18 +28,26 @@ function AppShellOrReaderLayout({ children }: { children: ReactNode }) {
 }
 
 function KeyboardShortcuts() {
-  const openPalette = useCommandPaletteStore((s) => s.open);
+  const isOpen = useCommandPaletteStore((s) => s.isOpen);
+  const open = useCommandPaletteStore((s) => s.open);
+  const close = useCommandPaletteStore((s) => s.close);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        openPalette();
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'k') {
+        return;
+      }
+
+      e.preventDefault();
+      if (isOpen) {
+        close();
+      } else {
+        open();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [openPalette]);
+  }, [isOpen, open, close]);
 
   return null;
 }
@@ -68,6 +77,7 @@ export function ShellProviders({ children, detectFn }: ShellProvidersProps) {
   return (
     <QueryProvider>
       <LocalDbProvider>
+        <CoverCacheBridge>
         <PlatformProvider detectFn={detectFn}>
           <ThemeProvider>
           <ThemeSettingsBridge />
@@ -80,6 +90,7 @@ export function ShellProviders({ children, detectFn }: ShellProvidersProps) {
           </OnboardingGate>
           </ThemeProvider>
         </PlatformProvider>
+        </CoverCacheBridge>
       </LocalDbProvider>
     </QueryProvider>
   );

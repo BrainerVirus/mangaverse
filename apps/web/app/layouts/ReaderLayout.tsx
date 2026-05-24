@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useLayoutStore } from '../stores/useLayoutStore.js';
+import { AnimatedRouteOutlet } from '../components/shell/AnimatedRouteOutlet.js';
 
 export function ReaderLayout({ children }: { children: React.ReactNode }) {
   const { toggleReaderChrome, setReaderChrome } = useLayoutStore();
@@ -20,7 +21,7 @@ export function ReaderLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="fixed inset-0 overflow-hidden">
-      {children}
+      <AnimatedRouteOutlet variant="reader">{children}</AnimatedRouteOutlet>
     </div>
   );
 }

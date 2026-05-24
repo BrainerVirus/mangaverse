@@ -1,14 +1,17 @@
 import { gsap } from 'gsap';
 import { DURATION } from '../tokens/duration.js';
 import { EASING } from '../tokens/easing.js';
-import { useReducedMotion } from '../hooks/use-reduced-motion.js';
+
+export interface SettingsDrawerOptions extends gsap.TweenVars {
+  reducedMotion?: boolean;
+}
 
 export function settingsDrawerTransition(
   target: gsap.TweenTarget,
   action: 'open' | 'close' = 'open',
-  vars?: gsap.TweenVars
+  vars?: SettingsDrawerOptions,
 ): gsap.core.Tween {
-  const reducedMotion = useReducedMotion();
+  const { reducedMotion = false, ...tweenVars } = vars ?? {};
 
   if (action === 'open') {
     if (reducedMotion) {
@@ -23,8 +26,8 @@ export function settingsDrawerTransition(
         opacity: 1,
         duration: DURATION.expressive / 1000,
         ease: EASING.emphasizedOut,
-        ...vars,
-      }
+        ...tweenVars,
+      },
     );
   }
 
@@ -37,6 +40,6 @@ export function settingsDrawerTransition(
     opacity: 0,
     duration: DURATION.standard / 1000,
     ease: EASING.standardOut,
-    ...vars,
+    ...tweenVars,
   });
 }

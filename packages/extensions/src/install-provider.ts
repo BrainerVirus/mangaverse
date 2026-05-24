@@ -1,4 +1,10 @@
 import type { AppDrizzleDb } from '@app/db';
+import {
+  confirmExtensionInstall,
+  createExtensionInstallSession as createSession,
+  prepareManualExtensionInstall,
+  transitionExtensionInstall as transitionSession,
+} from '@app/extensions-core';
 import type {
   ExtensionFetchEnvironment,
   ExtensionInstallAction,
@@ -8,24 +14,21 @@ import type { AppResult } from '@app/shared';
 
 export type { ExtensionInstallSession };
 
-export async function createExtensionInstallSession(): Promise<ExtensionInstallSession> {
-  const { createExtensionInstallSession: createSession } = await import('@app/extensions-core');
+export function createExtensionInstallSession(): ExtensionInstallSession {
   return createSession();
 }
 
-export async function transitionExtensionInstall(
+export function transitionExtensionInstall(
   session: ExtensionInstallSession,
   action: ExtensionInstallAction,
-): Promise<ExtensionInstallSession> {
-  const { transitionExtensionInstall: transition } = await import('@app/extensions-core');
-  return transition(session, action);
+): ExtensionInstallSession {
+  return transitionSession(session, action);
 }
 
 export async function prepareManualProviderInstall(
   url: string,
   environment: ExtensionFetchEnvironment,
 ): Promise<AppResult<ExtensionInstallSession>> {
-  const { prepareManualExtensionInstall } = await import('@app/extensions-core');
   return prepareManualExtensionInstall(url, environment);
 }
 
@@ -33,6 +36,5 @@ export async function confirmProviderInstall(
   db: AppDrizzleDb,
   session: ExtensionInstallSession,
 ): Promise<AppResult<ExtensionInstallSession>> {
-  const { confirmExtensionInstall } = await import('@app/extensions-core');
   return confirmExtensionInstall(session, { db });
 }

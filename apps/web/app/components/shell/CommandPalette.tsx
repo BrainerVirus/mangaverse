@@ -1,6 +1,8 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
+import { useGSAP } from '@gsap/react';
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@app/design-system';
+import { commandPaletteEnter, commandPaletteExit, useReducedMotion } from '@app/motion';
 import { useCommandPaletteStore } from '../../stores/useCommandPaletteStore';
 import { useLayoutStore } from '../../stores/useLayoutStore';
 import { registry } from './CommandRegistry';
@@ -14,10 +16,18 @@ function useBuiltInCommands() {
 
   useEffect(() => {
     registry.register({
+      id: 'nav-discover',
+      label: 'Go to Discover',
+      section: 'Navigation',
+      keywords: ['discover', 'browse', 'catalog', 'home'],
+      handler: () => navigate({ to: '/discover' } as const),
+    });
+
+    registry.register({
       id: 'nav-library',
       label: 'Go to Library',
       section: 'Navigation',
-      keywords: ['library', 'home'],
+      keywords: ['library', 'saved'],
       handler: () => navigate({ to: '/library' } as const),
     });
 
@@ -70,6 +80,7 @@ function useBuiltInCommands() {
     });
 
     return () => {
+      registry.unregister('nav-discover');
       registry.unregister('nav-library');
       registry.unregister('nav-search');
       registry.unregister('nav-settings');
@@ -95,8 +106,45 @@ export function CommandPalette() {
   const { deviceLayout } = useLayoutStore();
   const { runtime } = usePlatform();
   const { isOpen, query, selectedIndex, close, setQuery, moveSelection, setSelectedIndex } = useCommandPaletteStore();
+  const reducedMotion = useReducedMotion();
+  const [rendered, setRendered] = useState(isOpen);
+  const scopeRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useBuiltInCommands();
+
+  useEffect(() => {
+    if (isOpen) {
+      setRendered(true);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !rendered) return;
+    const frame = requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isOpen, rendered]);
+
+  useGSAP(
+    () => {
+      if (!rendered || !backdropRef.current || !panelRef.current) return;
+
+      if (isOpen) {
+        commandPaletteEnter(backdropRef.current, panelRef.current, { reducedMotion });
+        return;
+      }
+
+      commandPaletteExit(backdropRef.current, panelRef.current, {
+        reducedMotion,
+        onComplete: () => setRendered(false),
+      });
+    },
+    { scope: scopeRef, dependencies: [isOpen, rendered, reducedMotion] },
+  );
 
   const results = registry.search(query);
   const grouped = groupBySection(results);
@@ -104,6 +152,7 @@ export function CommandPalette() {
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === 'Escape') {
+        e.preventDefault();
         close();
         return;
       }
@@ -125,23 +174,35 @@ export function CommandPalette() {
         }
       }
     },
-    [close, moveSelection, results, selectedIndex]
+    [close, moveSelection, results, selectedIndex],
   );
 
   if (deviceLayout !== 'desktop' && runtime !== 'electron') return null;
-  if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]"
-      onKeyDown={handleKeyDown}
-    >
-      <div className="fixed inset-0 bg-black/50" onClick={close} onKeyDown={(e) => e.key === 'Escape' && close()} />
-      <Command className="w-full max-w-lg">
+    <div ref={scopeRef}>
+      {rendered ? (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[12vh]"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Command palette"
+          onKeyDown={handleKeyDown}
+        >
+      <div
+        ref={backdropRef}
+        className="fixed inset-0 bg-black/55 backdrop-blur-[2px]"
+        onClick={close}
+        aria-hidden="true"
+      />
+      <Command ref={panelRef} className="relative z-10 w-full max-w-xl">
         <div className="flex items-center border-b border-border px-3">
           <CommandInput
-            placeholder="Type a command..."
+            ref={inputRef}
+            placeholder="Search commands…"
+            aria-label="Search commands"
             value={query}
+            onKeyDown={handleKeyDown}
             onChange={(e) => {
               setQuery(e.target.value);
               setSelectedIndex(0);
@@ -154,17 +215,22 @@ export function CommandPalette() {
           ) : (
             Object.entries(grouped).map(([section, cmds]) => (
               <CommandGroup key={section}>
-                <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground">{section}</div>
+                <div className="px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {section}
+                </div>
                 {cmds.map((cmd) => {
                   const globalIndex = results.indexOf(cmd);
+                  const selected = globalIndex === selectedIndex;
                   return (
                     <CommandItem
                       key={cmd.id}
+                      data-selected={selected}
+                      aria-selected={selected}
+                      onMouseEnter={() => setSelectedIndex(globalIndex)}
                       onSelect={() => {
                         cmd.handler();
                         close();
                       }}
-                      className={globalIndex === selectedIndex ? 'bg-accent text-accent-foreground' : ''}
                     >
                       {cmd.label}
                     </CommandItem>
@@ -175,6 +241,8 @@ export function CommandPalette() {
           )}
         </CommandList>
       </Command>
+        </div>
+      ) : null}
     </div>
   );
 }

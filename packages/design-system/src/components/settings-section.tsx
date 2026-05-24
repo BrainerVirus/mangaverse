@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/cn.js';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card.js';
 import { Separator } from './ui/separator.js';
 
 export interface SettingsSectionProps {
@@ -21,33 +22,32 @@ export function SettingsSection({
   const [isOpen, setIsOpen] = React.useState(!collapsed);
 
   return (
-    <div className={cn('w-full', danger && 'rounded-[var(--radius-box)] border border-destructive/50 p-4')}>
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className={cn(
-          'flex w-full items-center justify-between py-2 text-left',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] rounded-[var(--radius-control)]'
-        )}
-        aria-expanded={isOpen}
-      >
-        <div className="flex items-center gap-2">
-          {danger && <AlertTriangle className="h-4 w-4 text-destructive" />}
-          <h3 className={cn('text-base font-semibold', danger && 'text-destructive')}>{title}</h3>
-        </div>
-        {collapsed && (isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />)}
-      </button>
+    <Card className={cn('w-full', danger && 'border-destructive/40')}>
+      <CardHeader className="pb-4">
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className={cn(
+            'flex w-full items-center justify-between text-left',
+            'rounded-[var(--radius-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]',
+          )}
+          aria-expanded={isOpen}
+        >
+          <div className="flex items-center gap-2">
+            {danger ? <AlertTriangle className="h-4 w-4 text-destructive" /> : null}
+            <CardTitle className={cn('text-base', danger && 'text-destructive')}>{title}</CardTitle>
+          </div>
+          {collapsed ? (isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />) : null}
+        </button>
+        {description && isOpen ? <CardDescription>{description}</CardDescription> : null}
+      </CardHeader>
 
-      {description && isOpen && (
-        <p className="mb-3 text-sm text-muted-foreground">{description}</p>
-      )}
-
-      {isOpen && (
-        <>
+      {isOpen ? (
+        <CardContent className="pt-0">
           {children}
           <Separator className="mt-4" />
-        </>
-      )}
-    </div>
+        </CardContent>
+      ) : null}
+    </Card>
   );
 }

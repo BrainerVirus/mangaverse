@@ -12,6 +12,7 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
   const actual = await importOriginal() as Record<string, unknown>;
   return {
     ...actual,
+    useLocation: () => ({ pathname: '/library' }),
     useRouterState: () => ({ location: { pathname: '/library' } }),
     useRouter: () => ({ navigate: vi.fn(), subscribe: () => () => {} }),
     useNavigate: () => vi.fn(),
@@ -20,6 +21,15 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
     ),
   };
 });
+
+vi.mock('@app/motion', () => ({
+  useReducedMotion: () => false,
+  routeEnter: vi.fn(),
+}));
+
+vi.mock('@gsap/react', () => ({
+  useGSAP: (callback: () => void) => callback(),
+}));
 
 vi.mock('@app/design-system', async (importOriginal) => {
   const actual = await importOriginal() as Record<string, unknown>;

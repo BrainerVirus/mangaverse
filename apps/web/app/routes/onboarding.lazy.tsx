@@ -157,8 +157,13 @@ function OnboardingRoute() {
     appSettingsQuery.isError ||
     readerSettingsQuery.isError;
 
-  const updateOnboarding = (nextState: Parameters<typeof saveOnboardingState>[1]) => {
-    persistOnboarding.mutate(nextState);
+  const updateOnboarding = (
+    nextState: Parameters<typeof saveOnboardingState>[1],
+    onSaved?: () => void,
+  ) => {
+    persistOnboarding.mutate(nextState, {
+      ...(onSaved !== undefined ? { onSuccess: onSaved } : {}),
+    });
   };
 
   const finishOnboarding = () => {
@@ -167,9 +172,9 @@ function OnboardingRoute() {
       return;
     }
 
-    const completed = completeOnboarding(current);
-    updateOnboarding(completed);
-    void navigate({ to: '/library' });
+    updateOnboarding(completeOnboarding(current), () => {
+      void navigate({ to: '/library' });
+    });
   };
 
   return (
@@ -192,8 +197,9 @@ function OnboardingRoute() {
         if (current === undefined) {
           return;
         }
-        updateOnboarding(skipOnboarding(current));
-        void navigate({ to: '/library' });
+        updateOnboarding(skipOnboarding(current), () => {
+          void navigate({ to: '/library' });
+        });
       }}
       onBack={() => {
         const current = onboardingQuery.data;
@@ -211,10 +217,12 @@ function OnboardingRoute() {
       }}
       onInstallProvider={() => {
         const current = onboardingQuery.data;
-        if (current !== undefined) {
-          updateOnboarding(completeOnboarding(current));
+        if (current === undefined) {
+          return;
         }
-        void navigate({ to: '/extensions' });
+        updateOnboarding(completeOnboarding(current), () => {
+          void navigate({ to: '/extensions', search: { install: true } });
+        });
       }}
       onFinish={finishOnboarding}
     />

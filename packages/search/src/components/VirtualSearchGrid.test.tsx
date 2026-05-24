@@ -32,6 +32,7 @@ vi.mock('@tanstack/react-virtual', () => ({
 }));
 
 vi.mock('@app/design-system', () => ({
+  cn: (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' '),
   MangaCard: ({
     manga,
     onClick,
@@ -83,6 +84,22 @@ describe('VirtualSearchGrid', () => {
     expect(screen.getByRole('region', { name: 'Search results' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Title 1' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Title 2' })).toBeInTheDocument();
+  });
+
+  it('renders static grid inside a scroll container for typical result sizes', () => {
+    render(
+      <div style={{ width: 1200, height: 240, overflow: 'auto' }}>
+        <VirtualSearchGrid
+          results={Array.from({ length: 24 }, (_, index) =>
+            createManga(String(index + 1), `Title ${index + 1}`),
+          )}
+          onOpenManga={vi.fn()}
+        />
+      </div>,
+    );
+
+    expect(screen.getByTestId('search-results-grid')).toHaveClass('grid');
+    expect(screen.getAllByRole('button', { name: /Title \d+/ }).length).toBe(24);
   });
 
   it('renders only virtual rows for large result sets once scroll metrics are available', () => {

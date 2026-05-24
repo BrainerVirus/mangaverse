@@ -1,6 +1,5 @@
 import { useRef, useCallback } from 'react';
 import { useGSAP } from '@gsap/react';
-import { gsap } from 'gsap';
 import { Maximize2, Settings, SkipBack, SkipForward } from 'lucide-react';
 import { cn } from '../lib/cn.js';
 import { chromeShow, chromeHide } from '@app/motion';
@@ -46,20 +45,12 @@ export function ReaderChrome({
       if (!ref.current) return;
 
       if (visible) {
-        if (!reducedMotion) {
-          chromeShow(ref.current);
-        } else {
-          gsap.set(ref.current, { opacity: 1, y: 0 });
-        }
+        chromeShow(ref.current, { reducedMotion });
       } else {
-        if (!reducedMotion) {
-          chromeHide(ref.current);
-        } else {
-          gsap.set(ref.current, { opacity: 0, y: -8 });
-        }
+        chromeHide(ref.current, { reducedMotion });
       }
     },
-    { scope: ref, dependencies: [visible, reducedMotion] }
+    { scope: ref, dependencies: [visible, reducedMotion] },
   );
 
   const handlePrevious = useCallback(() => {

@@ -10,3 +10,7 @@ export * from './capabilities.js';
 export * from './web.js';
 export * from './electron.js';
 export * from './unsupported.js';
+export * from './blob-storage-idb.js';
+export * from './network-fetch.js';
+export * from './main-process-fetch.js';
+export * from './app-adapter.js';

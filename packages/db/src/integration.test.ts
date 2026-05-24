@@ -26,7 +26,6 @@ import {
   getReaderSettings,
   listLibraryEntries,
   listRecentReadingHistory,
-  migrateDatabaseToLatest,
   previewBackupRestore,
   setLibraryEntryActiveProviderMapping,
   summarizeCacheStorage,
@@ -36,6 +35,7 @@ import {
   upsertInstalledExtension,
   withTransaction,
 } from './index.js';
+import { migrateDatabaseToLatest } from './node.js';
 import { createSqlJsHarness } from './testing/sqljs-harness.js';
 import { libraryEntries, readerPreferences } from './schema.js';
 
@@ -474,8 +474,8 @@ describe('@app/db', () => {
     const summary = await summarizeCacheStorage(db);
     expect(summary.totalCount).toBe(2);
     expect(summary.byProvider).toEqual([
-      { providerId: 'prov-a', count: 1 },
-      { providerId: 'prov-b', count: 1 },
+      { providerId: 'prov-a', count: 1, bytes: 0 },
+      { providerId: 'prov-b', count: 1, bytes: 0 },
     ]);
 
     expect(await countSearchHistory(db)).toBe(1);

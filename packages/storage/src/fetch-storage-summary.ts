@@ -27,6 +27,7 @@ export async function fetchStorageSummary(input: FetchStorageSummaryInput): Prom
     generatedAt: new Date().toISOString(),
     platformEstimate,
     cacheEntryCount: cacheSummary.totalCount,
+    cacheTotalBytes: cacheSummary.totalBytes,
     cacheByProvider: cacheSummary.byProvider,
     searchHistoryCount,
     savedSearchCount,

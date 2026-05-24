@@ -31,6 +31,7 @@ export async function fetchReaderPage(
     chapter: mapChapterToReaderChapter(chapter),
     mangaId: chapter.mangaId,
     chapterId: chapter.id,
+    providerId: String(chapter.providerId ?? 'unknown'),
     initialPageIndex,
     settings,
     engineSettings,

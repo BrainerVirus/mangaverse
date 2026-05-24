@@ -15,6 +15,7 @@ export const PLATFORM_IPC = {
   SECURE_STORAGE_DELETE: 'platform:secure-storage:delete',
   DIAGNOSTICS_GET: 'platform:diagnostics:get',
   LOCAL_SERVICE_GET_INFO: 'platform:local-service:get-info',
+  NETWORK_FETCH_BYTES: 'platform:network:fetch-bytes',
 } as const;
 
 export type PlatformIpcChannel = (typeof PLATFORM_IPC)[keyof typeof PLATFORM_IPC];

@@ -1,5 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { getCoverCacheUsage } from '@app/cache';
+import { searchQueryKeys } from '@app/search';
 import { AppSettingsPage, saveAppSettings, settingsQueryKeys } from '@app/settings';
 import { appSettingsQueryOptions } from '../queries/settings-query-options.js';
 import type { AppSettings } from '@app/shared';
@@ -16,6 +18,12 @@ function SettingsAppRoute() {
 
   const { data, isLoading, isError } = useQuery({
     ...appSettingsQueryOptions(db!),
+    enabled: dbStatus === 'ready' && db !== null,
+  });
+
+  const cacheUsageQuery = useQuery({
+    queryKey: ['cache', 'usage'],
+    queryFn: () => getCoverCacheUsage(db!),
     enabled: dbStatus === 'ready' && db !== null,
   });
 
@@ -39,6 +47,8 @@ function SettingsAppRoute() {
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: settingsQueryKeys.app() });
+      void queryClient.invalidateQueries({ queryKey: searchQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ['discover'] });
     },
   });
 
@@ -48,6 +58,9 @@ function SettingsAppRoute() {
       isLoading={dbStatus === 'loading' || isLoading}
       isError={dbStatus === 'error' || isError}
       isSaving={saveMutation.isPending}
+      {...(cacheUsageQuery.data !== undefined
+        ? { cacheUsageBytes: cacheUsageQuery.data.totalBytes }
+        : {})}
       onChange={(next) => saveMutation.mutate(next)}
     />
   );

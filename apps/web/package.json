@@ -13,10 +13,13 @@
     "lint:fix": "oxlint app server.ts vite.config.ts --fix",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "clean": "rm -rf .vinxi .output dist"
   },
   "dependencies": {
     "@app/backup": "workspace:*",
+    "@app/cache": "workspace:*",
     "@app/db": "workspace:*",
     "@app/design-system": "workspace:*",
     "@app/diagnostics": "workspace:*",
@@ -54,6 +57,7 @@
     "typescript": "^5.9.2",
     "vite": "^8.0.0",
     "vitest": "^3.2.4",
-    "jsdom": "^26.0.0"
+    "jsdom": "^26.0.0",
+    "@playwright/test": "^1.52.0"
   }
 }

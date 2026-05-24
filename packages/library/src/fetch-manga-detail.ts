@@ -5,12 +5,12 @@ import type { MangaDetailData } from './types.js';
 export async function fetchMangaDetail(
   db: AppDrizzleDb,
   mangaId: MangaId,
-): Promise<MangaDetailData | undefined> {
+): Promise<MangaDetailData | null> {
   const { getLibraryEntryForManga, getMangaIdentity, listChaptersForManga } = await import('@app/db');
 
   const manga = await getMangaIdentity(db, mangaId);
   if (manga === undefined) {
-    return undefined;
+    return null;
   }
 
   const [chapters, libraryEntry] = await Promise.all([

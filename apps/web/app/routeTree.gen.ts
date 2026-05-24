@@ -15,6 +15,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as ExtensionsRouteImport } from './routes/extensions'
+import { Route as DiscoverRouteImport } from './routes/discover'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsReaderRouteImport } from './routes/settings.reader'
 import { Route as SettingsAppRouteImport } from './routes/settings.app'
@@ -79,6 +80,11 @@ const ExtensionsRoute = ExtensionsRouteImport.update({
   path: '/extensions',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DiscoverRoute = DiscoverRouteImport.update({
+  id: '/discover',
+  path: '/discover',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -112,6 +118,7 @@ const ExtensionsProviderIdRoute = ExtensionsProviderIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/discover': typeof DiscoverRoute
   '/extensions': typeof ExtensionsRouteWithChildren
   '/library': typeof LibraryRoute
   '/search': typeof SearchRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/discover': typeof DiscoverRoute
   '/extensions': typeof ExtensionsRouteWithChildren
   '/library': typeof LibraryRoute
   '/search': typeof SearchRoute
@@ -149,6 +157,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/discover': typeof DiscoverRoute
   '/extensions': typeof ExtensionsRouteWithChildren
   '/library': typeof LibraryRoute
   '/search': typeof SearchRoute
@@ -169,6 +178,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/discover'
     | '/extensions'
     | '/library'
     | '/search'
@@ -187,6 +197,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/discover'
     | '/extensions'
     | '/library'
     | '/search'
@@ -205,6 +216,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/discover'
     | '/extensions'
     | '/library'
     | '/search'
@@ -224,6 +236,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DiscoverRoute: typeof DiscoverRoute
   ExtensionsRoute: typeof ExtensionsRouteWithChildren
   LibraryRoute: typeof LibraryRoute
   SearchRoute: typeof SearchRoute
@@ -310,6 +323,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExtensionsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/discover': {
+      id: '/discover'
+      path: '/discover'
+      fullPath: '/discover'
+      preLoaderRoute: typeof DiscoverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -383,6 +403,7 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DiscoverRoute: DiscoverRoute,
   ExtensionsRoute: ExtensionsRouteWithChildren,
   LibraryRoute: LibraryRoute,
   SearchRoute: SearchRoute,

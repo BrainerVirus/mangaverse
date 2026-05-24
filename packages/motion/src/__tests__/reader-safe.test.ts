@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { gsap } from 'gsap';
 import { chromeShow, chromeHide } from '../reader-safe/chrome.js';
 import { pageTurn } from '../reader-safe/page-turn.js';
@@ -12,10 +12,6 @@ vi.mock('gsap', () => ({
   },
 }));
 
-vi.mock('../hooks/use-reduced-motion.js', () => ({
-  useReducedMotion: () => false,
-}));
-
 describe('chromeShow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -23,7 +19,7 @@ describe('chromeShow', () => {
 
   it('should call gsap.fromTo with correct properties', () => {
     const target = '.element';
-    chromeShow(target);
+    chromeShow(target, { reducedMotion: false });
 
     expect(gsap.fromTo).toHaveBeenCalledWith(
       target,
@@ -33,8 +29,14 @@ describe('chromeShow', () => {
         y: 0,
         duration: 0.14,
         ease: 'power1.out',
-      })
+      }),
     );
+  });
+
+  it('should snap to visible state when reduced motion is enabled', () => {
+    chromeShow('.element', { reducedMotion: true });
+    expect(gsap.set).toHaveBeenCalledWith('.element', { autoAlpha: 1, y: 0 });
+    expect(gsap.fromTo).not.toHaveBeenCalled();
   });
 });
 
@@ -45,7 +47,7 @@ describe('chromeHide', () => {
 
   it('should call gsap.to with correct properties', () => {
     const target = '.element';
-    chromeHide(target);
+    chromeHide(target, { reducedMotion: false });
 
     expect(gsap.to).toHaveBeenCalledWith(
       target,
@@ -54,8 +56,14 @@ describe('chromeHide', () => {
         y: -8,
         duration: 0.09,
         ease: 'power2.out',
-      })
+      }),
     );
+  });
+
+  it('should snap to hidden state when reduced motion is enabled', () => {
+    chromeHide('.element', { reducedMotion: true });
+    expect(gsap.set).toHaveBeenCalledWith('.element', { autoAlpha: 0, y: -8 });
+    expect(gsap.to).not.toHaveBeenCalled();
   });
 });
 
@@ -66,7 +74,7 @@ describe('pageTurn', () => {
 
   it('should call gsap.fromTo with forward direction', () => {
     const target = '.element';
-    pageTurn(target, 'forward');
+    pageTurn(target, 'forward', { reducedMotion: false });
 
     expect(gsap.fromTo).toHaveBeenCalledWith(
       target,
@@ -76,13 +84,13 @@ describe('pageTurn', () => {
         opacity: 0,
         duration: 0.52,
         ease: 'power3.inOut',
-      })
+      }),
     );
   });
 
   it('should call gsap.fromTo with backward direction', () => {
     const target = '.element';
-    pageTurn(target, 'backward');
+    pageTurn(target, 'backward', { reducedMotion: false });
 
     expect(gsap.fromTo).toHaveBeenCalledWith(
       target,
@@ -92,7 +100,7 @@ describe('pageTurn', () => {
         opacity: 0,
         duration: 0.52,
         ease: 'power3.inOut',
-      })
+      }),
     );
   });
 });
@@ -104,7 +112,7 @@ describe('settingsDrawerTransition', () => {
 
   it('should call gsap.fromTo with open action', () => {
     const target = '.element';
-    settingsDrawerTransition(target, 'open');
+    settingsDrawerTransition(target, 'open', { reducedMotion: false });
 
     expect(gsap.fromTo).toHaveBeenCalledWith(
       target,
@@ -114,13 +122,13 @@ describe('settingsDrawerTransition', () => {
         opacity: 1,
         duration: 0.36,
         ease: 'expo.out',
-      })
+      }),
     );
   });
 
   it('should call gsap.to with close action', () => {
     const target = '.element';
-    settingsDrawerTransition(target, 'close');
+    settingsDrawerTransition(target, 'close', { reducedMotion: false });
 
     expect(gsap.to).toHaveBeenCalledWith(
       target,
@@ -129,7 +137,7 @@ describe('settingsDrawerTransition', () => {
         opacity: 0,
         duration: 0.22,
         ease: 'power2.out',
-      })
+      }),
     );
   });
 });
