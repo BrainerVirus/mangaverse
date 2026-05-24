@@ -4,6 +4,7 @@ export { registerGsapPlugins } from './plugins.js';
 
 export { useGsapContext } from './hooks/use-gsap-context.js';
 export { useReducedMotion } from './hooks/use-reduced-motion.js';
+export { getReducedMotionPreference } from './utils/reduced-motion-preference.js';
 export { useIsClient } from './hooks/use-is-client.js';
 export { useGridStaggerReveal } from './hooks/use-grid-stagger-reveal.js';
 

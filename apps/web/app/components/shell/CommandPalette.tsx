@@ -99,7 +99,7 @@ export function CommandPalette() {
   const { isOpen, query, selectedIndex, close, setQuery, moveSelection, setSelectedIndex } = useCommandPaletteStore();
   const reducedMotion = useReducedMotion();
   const [rendered, setRendered] = useState(isOpen);
-  const overlayRef = useRef<HTMLDivElement>(null);
+  const scopeRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -134,7 +134,7 @@ export function CommandPalette() {
         onComplete: () => setRendered(false),
       });
     },
-    { scope: overlayRef, dependencies: [isOpen, rendered, reducedMotion] },
+    { scope: scopeRef, dependencies: [isOpen, rendered, reducedMotion] },
   );
 
   const results = registry.search(query);
@@ -169,17 +169,17 @@ export function CommandPalette() {
   );
 
   if (deviceLayout !== 'desktop' && runtime !== 'electron') return null;
-  if (!rendered) return null;
 
   return (
-    <div
-      ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[12vh]"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Command palette"
-      onKeyDown={handleKeyDown}
-    >
+    <div ref={scopeRef}>
+      {rendered ? (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[12vh]"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Command palette"
+          onKeyDown={handleKeyDown}
+        >
       <div
         ref={backdropRef}
         className="fixed inset-0 bg-black/55 backdrop-blur-[2px]"
@@ -232,6 +232,8 @@ export function CommandPalette() {
           )}
         </CommandList>
       </Command>
+        </div>
+      ) : null}
     </div>
   );
 }

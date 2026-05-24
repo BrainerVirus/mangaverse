@@ -11,7 +11,6 @@ import {
 import { fadeIn, useReducedMotion } from '@app/motion';
 import type { AppSettings, ReaderSettings, ThemeSettings } from '@app/shared';
 import { useGSAP } from '@gsap/react';
-import { gsap } from 'gsap';
 import { useRef, type ReactNode } from 'react';
 import {
   getThemePreset,
@@ -88,11 +87,7 @@ function StepPanel({ step, children }: { step: OnboardingStepId; children: React
   useGSAP(
     () => {
       if (!ref.current) return;
-      if (reducedMotion) {
-        gsap.set(ref.current, { autoAlpha: 1, y: 0 });
-        return;
-      }
-      fadeIn(ref.current);
+      fadeIn(ref.current, { reducedMotion });
     },
     { scope: ref, dependencies: [step, reducedMotion] },
   );

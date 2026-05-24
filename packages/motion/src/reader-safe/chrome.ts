@@ -1,13 +1,16 @@
 import { gsap } from 'gsap';
 import { DURATION } from '../tokens/duration.js';
 import { EASING } from '../tokens/easing.js';
-import { useReducedMotion } from '../hooks/use-reduced-motion.js';
+
+export interface ChromeMotionOptions extends gsap.TweenVars {
+  reducedMotion?: boolean;
+}
 
 export function chromeShow(
   target: gsap.TweenTarget,
-  vars?: gsap.TweenVars
+  vars?: ChromeMotionOptions,
 ): gsap.core.Tween {
-  const reducedMotion = useReducedMotion();
+  const { reducedMotion = false, ...tweenVars } = vars ?? {};
 
   if (reducedMotion) {
     return gsap.set(target, { autoAlpha: 1, y: 0 });
@@ -21,16 +24,16 @@ export function chromeShow(
       y: 0,
       duration: DURATION.quick / 1000,
       ease: EASING.softEntrance,
-      ...vars,
-    }
+      ...tweenVars,
+    },
   );
 }
 
 export function chromeHide(
   target: gsap.TweenTarget,
-  vars?: gsap.TweenVars
+  vars?: ChromeMotionOptions,
 ): gsap.core.Tween {
-  const reducedMotion = useReducedMotion();
+  const { reducedMotion = false, ...tweenVars } = vars ?? {};
 
   if (reducedMotion) {
     return gsap.set(target, { autoAlpha: 0, y: -8 });
@@ -41,6 +44,6 @@ export function chromeHide(
     y: -8,
     duration: DURATION.micro / 1000,
     ease: EASING.standardOut,
-    ...vars,
+    ...tweenVars,
   });
 }
