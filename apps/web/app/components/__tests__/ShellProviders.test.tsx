@@ -30,6 +30,17 @@ vi.mock('../../providers/local-db-provider.js', () => ({
   useLocalDbStatus: () => 'ready' as const,
 }));
 
+vi.mock('@app/motion', () => ({
+  useReducedMotion: () => false,
+  routeEnter: vi.fn(),
+  commandPaletteEnter: vi.fn(),
+  commandPaletteExit: vi.fn(),
+}));
+
+vi.mock('@gsap/react', () => ({
+  useGSAP: (callback: () => void) => callback(),
+}));
+
 vi.mock('@app/design-system', async (importOriginal) => {
   const actual = await importOriginal() as Record<string, unknown>;
   return {

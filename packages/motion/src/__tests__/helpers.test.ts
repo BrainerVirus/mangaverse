@@ -129,7 +129,7 @@ describe('motion helpers - gsap integration', () => {
     });
 
     it('staggerIn should call gsap.fromTo with correct stagger properties', () => {
-      staggerIn('.element');
+      staggerIn('.element', { reducedMotion: false });
       expect(gsap.fromTo).toHaveBeenCalledWith(
         '.element',
         { y: 16, opacity: 0 },
@@ -185,7 +185,7 @@ describe('motion helpers - gsap integration', () => {
     });
 
     it('staggerIn should use gsap.set (instant transition)', () => {
-      staggerIn('.element');
+      staggerIn('.element', { reducedMotion: true });
       expect(gsap.set).toHaveBeenCalledWith('.element', { y: 0, opacity: 1 });
       expect(gsap.fromTo).not.toHaveBeenCalled();
     });

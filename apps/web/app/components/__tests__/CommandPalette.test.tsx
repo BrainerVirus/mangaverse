@@ -44,6 +44,16 @@ vi.mock('../../providers/platform-provider.js', () => ({
   usePlatform: () => ({ capabilities: {}, runtime: 'web' as const }),
 }));
 
+vi.mock('@app/motion', () => ({
+  useReducedMotion: () => false,
+  commandPaletteEnter: vi.fn(),
+  commandPaletteExit: vi.fn(),
+}));
+
+vi.mock('@gsap/react', () => ({
+  useGSAP: (callback: () => void) => callback(),
+}));
+
 Object.defineProperty(globalThis, 'localStorage', {
   value: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
   writable: true,
