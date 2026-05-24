@@ -84,7 +84,7 @@ describe('reduced motion behavior', () => {
   });
 
   it('staggerIn should use gsap.set (instant) when reduced motion is active', () => {
-    staggerIn('.element');
+    staggerIn('.element', { reducedMotion: true });
     expect(gsap.set).toHaveBeenCalledWith('.element', { y: 0, opacity: 1 });
     expect(gsap.fromTo).not.toHaveBeenCalled();
   });

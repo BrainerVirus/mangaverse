@@ -455,6 +455,9 @@ importers:
       '@app/design-system':
         specifier: workspace:*
         version: link:../design-system
+      '@app/motion':
+        specifier: workspace:*
+        version: link:../motion
       '@app/shared':
         specifier: workspace:*
         version: link:../shared
@@ -468,9 +471,6 @@ importers:
         specifier: ^19.1.0
         version: 19.1.0
     devDependencies:
-      '@app/motion':
-        specifier: workspace:*
-        version: link:../motion
       '@tanstack/react-query':
         specifier: ^5.90.2
         version: 5.100.10(react@19.1.0)

@@ -29,7 +29,7 @@ export function SearchPage({
   const resultCount = results.length;
 
   return (
-    <main className="flex flex-col gap-6 p-6">
+    <main className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 p-6 md:p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Search</h1>

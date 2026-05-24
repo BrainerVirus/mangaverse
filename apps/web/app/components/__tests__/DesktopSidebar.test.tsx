@@ -60,7 +60,7 @@ describe('DesktopSidebar', () => {
     useLayoutStore.setState({ sidebarOpen: true, sidebarExpanded: false });
     const { DesktopSidebar } = await import('../shell/DesktopSidebar.js');
     const html = renderWithProviders(<DesktopSidebar />);
-    expect(html).toContain('w-[48px]');
+    expect(html).toContain('w-[52px]');
   });
 
   it('has aria-labels on nav links', async () => {

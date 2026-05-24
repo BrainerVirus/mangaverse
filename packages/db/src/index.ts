@@ -4,6 +4,13 @@ export const PACKAGE_NAME = '@app/db' as const;
 export type { AppDrizzleDb } from './adapter.js';
 export { createDrizzleFromSqlJs } from './client.js';
 export { migrateDatabaseToLatest, getMigrationsFolder } from './migrations.js';
+export {
+  migrateDatabaseFromBundled,
+  parseBundledMigrationFiles,
+  type BundledMigrationFile,
+  type BundledMigrationJournal,
+  type BundledMigrationJournalEntry,
+} from './bundled-migrations.js';
 export { withTransaction } from './transactions.js';
 
 export * from './repositories/identities.js';

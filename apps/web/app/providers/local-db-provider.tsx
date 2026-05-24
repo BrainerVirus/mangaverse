@@ -25,8 +25,11 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
           setValue({ status: 'ready', db: handle });
         }
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!cancelled) {
+          if (import.meta.env.DEV) {
+            console.error('[LocalDbProvider] Failed to initialize local database:', error);
+          }
           setValue({ status: 'error', db: null });
         }
       });
