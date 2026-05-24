@@ -58,7 +58,7 @@ function SettingToggleRow({
         checked={checked}
         disabled={disabled}
         aria-label={label}
-        onClick={() => onCheckedChange(!checked)}
+        onCheckedChange={onCheckedChange}
       />
     </div>
   );

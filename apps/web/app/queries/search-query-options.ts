@@ -12,9 +12,10 @@ import { fetchDevMangaDexSearchResults, isMangaDexInstalled } from '../lib/dev-m
 export function searchPageQueryOptions(
   db: AppDrizzleDb,
   viewState: SearchViewState = DEFAULT_SEARCH_VIEW_STATE,
+  explicitContent = false,
 ) {
   return queryOptions({
-    queryKey: searchQueryKeys.page(viewState),
+    queryKey: searchQueryKeys.page(viewState, explicitContent),
     queryFn: async () => {
       const local = await fetchSearchPage(db, viewState);
       const trimmed = viewState.query.trim();
@@ -29,7 +30,7 @@ export function searchPageQueryOptions(
       }
 
       try {
-        const remote = await fetchDevMangaDexSearchResults(trimmed);
+        const remote = await fetchDevMangaDexSearchResults(trimmed, explicitContent);
         const localIds = new Set(local.results.map((item) => item.canonicalTitle.toLowerCase()));
         const merged = [
           ...local.results,

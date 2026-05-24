@@ -186,7 +186,7 @@ function ThemeStep({
           checked={settings.dark}
           disabled={disabled}
           aria-label="Dark appearance"
-          onClick={() => onChange({ ...settings, dark: !settings.dark })}
+          onCheckedChange={(dark) => onChange({ ...settings, dark })}
         />
       </div>
 
@@ -373,7 +373,7 @@ function PreferencesStep({
             checked={settings.explicitContent}
             disabled={disabled}
             aria-label="Allow explicit content"
-            onClick={() => onChange({ ...settings, explicitContent: !settings.explicitContent })}
+            onCheckedChange={(explicitContent) => onChange({ ...settings, explicitContent })}
           />
         </div>
       </div>

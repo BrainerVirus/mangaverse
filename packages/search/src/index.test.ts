@@ -13,6 +13,7 @@ describe('@app/search', () => {
     expect(typeof VirtualSearchGrid).toBe('function');
     expect(typeof fetchSearchPage).toBe('function');
     expect(DEFAULT_SEARCH_VIEW_STATE.query).toBe('');
-    expect(searchQueryKeys.page({ query: 'test' })).toEqual(['search', 'page', { query: 'test' }]);
+    expect(searchQueryKeys.page({ query: 'test' })).toEqual(['search', 'page', { query: 'test' }, false]);
+    expect(searchQueryKeys.page({ query: 'test' }, true)).toEqual(['search', 'page', { query: 'test' }, true]);
   });
 });

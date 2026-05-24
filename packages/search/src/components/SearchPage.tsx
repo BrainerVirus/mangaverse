@@ -47,6 +47,7 @@ export function SearchPage({
             type="search"
             placeholder="Search manga…"
             aria-label="Search manga"
+            data-testid="search-input"
             value={viewState.query}
             onChange={(event) => onViewStateChange({ query: event.target.value })}
             className="w-full sm:w-80"

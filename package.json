@@ -5,6 +5,7 @@
   "packageManager": "pnpm@11.0.0",
   "scripts": {
     "test": "turbo run test",
+    "test:e2e": "pnpm --filter @app/web test:e2e",
     "test:watch": "vitest watch",
     "bootstrap": "pnpm install",
     "lint": "oxlint apps packages vitest.config.ts",

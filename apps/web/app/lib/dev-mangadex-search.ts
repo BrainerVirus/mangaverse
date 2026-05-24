@@ -84,12 +84,18 @@ function pickLocalizedText(value: MangaDexTitleMap | string | undefined): string
   return value.en ?? value['ja-ro'] ?? value.ja ?? Object.values(value)[0];
 }
 
-function buildMangaDexParams(includes: readonly string[]): URLSearchParams {
+function buildMangaDexParams(
+  includes: readonly string[],
+  explicitContent: boolean,
+): URLSearchParams {
   const params = new URLSearchParams();
   for (const include of includes) {
     params.append('includes[]', include);
   }
-  for (const rating of ['safe', 'suggestive', 'erotica', 'pornographic']) {
+  const ratings = explicitContent
+    ? (['safe', 'suggestive', 'erotica', 'pornographic'] as const)
+    : (['safe', 'suggestive'] as const);
+  for (const rating of ratings) {
     params.append('contentRating[]', rating);
   }
   return params;
@@ -138,6 +144,7 @@ export function isDevMangaDexId(mangaId: MangaId): boolean {
 
 async function fetchMangaDexCollection(
   params: URLSearchParams,
+  explicitContent: boolean,
 ): Promise<readonly MangaIdentity[]> {
   const response = await fetch(`${MANGADEX_API}/manga?${params.toString()}`);
   if (!response.ok) {
@@ -145,25 +152,56 @@ async function fetchMangaDexCollection(
   }
 
   const payload = (await response.json()) as MangaDexSearchResponse;
-  return (payload.data ?? []).map((entry) => toDevMangaIdentity(payload, entry));
+  const results = (payload.data ?? []).map((entry) => toDevMangaIdentity(payload, entry));
+  if (explicitContent) {
+    return results;
+  }
+  return results.filter(
+    (item) => item.contentRating !== 'explicit' && item.contentRating !== 'unknown',
+  );
 }
 
-export async function fetchDevMangaDexSearchResults(query: string): Promise<readonly MangaIdentity[]> {
+export async function fetchDevMangaDexSearchResults(
+  query: string,
+  explicitContent = true,
+): Promise<readonly MangaIdentity[]> {
   const trimmed = query.trim();
   if (trimmed.length === 0) return [];
 
-  const params = buildMangaDexParams(['cover_art']);
+  const params = buildMangaDexParams(['cover_art'], explicitContent);
   params.set('title', trimmed);
   params.set('limit', '24');
 
-  return fetchMangaDexCollection(params);
+  return fetchMangaDexCollection(params, explicitContent);
 }
 
-export async function fetchDevMangaDexDiscoverResults(): Promise<readonly MangaIdentity[]> {
-  const params = buildMangaDexParams(['cover_art']);
+export async function fetchDevMangaDexDiscoverResults(
+  explicitContent = true,
+): Promise<readonly MangaIdentity[]> {
+  const params = buildMangaDexParams(['cover_art'], explicitContent);
   params.set('limit', '24');
   params.set('order[followedCount]', 'desc');
-  return fetchMangaDexCollection(params);
+  return fetchMangaDexCollection(params, explicitContent);
+}
+
+export async function fetchDevMangaDexPopularResults(
+  limit = 12,
+  explicitContent = true,
+): Promise<readonly MangaIdentity[]> {
+  const params = buildMangaDexParams(['cover_art'], explicitContent);
+  params.set('limit', String(limit));
+  params.set('order[followedCount]', 'desc');
+  return fetchMangaDexCollection(params, explicitContent);
+}
+
+export async function fetchDevMangaDexLatestResults(
+  limit = 12,
+  explicitContent = true,
+): Promise<readonly MangaIdentity[]> {
+  const params = buildMangaDexParams(['cover_art'], explicitContent);
+  params.set('limit', String(limit));
+  params.set('order[updatedAt]', 'desc');
+  return fetchMangaDexCollection(params, explicitContent);
 }
 
 interface MangaDexDetailResponse {
@@ -180,7 +218,7 @@ export async function fetchDevMangaDetail(mangaId: MangaId): Promise<MangaDetail
     return null;
   }
 
-  const params = buildMangaDexParams(['cover_art', 'author', 'artist']);
+  const params = buildMangaDexParams(['cover_art', 'author', 'artist'], true);
   const response = await fetch(`${MANGADEX_API}/manga/${mangadexId}?${params.toString()}`);
   if (!response.ok) {
     return null;
