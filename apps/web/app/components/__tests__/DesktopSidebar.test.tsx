@@ -53,9 +53,18 @@ describe('DesktopSidebar', () => {
     useLayoutStore.setState({ sidebarOpen: true, sidebarExpanded: false });
     const { DesktopSidebar } = await import('../shell/DesktopSidebar.js');
     const html = renderWithProviders(<DesktopSidebar />);
+    expect(html).toContain('Discover');
     expect(html).toContain('Library');
     expect(html).toContain('Search');
     expect(html).toContain('Settings');
+  });
+
+  it('renders stable light-theme toggle icon during SSR', async () => {
+    useLayoutStore.setState({ sidebarOpen: true, sidebarExpanded: true });
+    const { DesktopSidebar } = await import('../shell/DesktopSidebar.js');
+    const html = renderWithProviders(<DesktopSidebar />);
+    expect(html).toContain('aria-label="Toggle theme"');
+    expect(html).toContain('lucide-moon');
   });
 
   it('renders secondary nav items when expanded', async () => {

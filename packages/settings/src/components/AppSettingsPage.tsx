@@ -4,6 +4,11 @@ import {
   Label,
   LoadingState,
   Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   SettingsSection,
   Switch,
 } from '@app/design-system';
@@ -169,16 +174,22 @@ export function AppSettingsPage({
           <div className="grid gap-2">
             <Label htmlFor="locale">Locale</Label>
             <Select
-              id="locale"
               value={settings.locale}
               disabled={isSaving}
-              onChange={(event) => update({ locale: event.target.value })}
+              onValueChange={(value) => update({ locale: value })}
             >
-              {LOCALE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
+              <SelectTrigger id="locale" aria-label="Locale">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {LOCALE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
             </Select>
           </div>
         </div>

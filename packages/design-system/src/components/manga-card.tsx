@@ -64,17 +64,17 @@ export function MangaCard({ manga, onClick, variant = 'grid' }: MangaCardProps) 
         'hover:border-accent hover:shadow-md',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]',
         {
+          'flex flex-col aspect-[3/4]': isGrid,
           'flex gap-4 p-3': variant === 'list',
-          'aspect-[3/4] w-full': isGrid,
           'flex-row gap-3 p-2': isCompact,
         }
       )}
     >
-      {manga.coverImageUrl && (
+      {manga.coverImageUrl ? (
         <div
           className={cn(
             'overflow-hidden rounded-[var(--radius-control)] bg-muted',
-            isGrid ? 'w-full flex-1' : 'h-20 w-14 shrink-0',
+            isGrid ? 'min-h-0 w-full flex-1' : 'h-20 w-14 shrink-0',
             isCompact && 'h-16 w-12'
           )}
         >
@@ -83,9 +83,12 @@ export function MangaCard({ manga, onClick, variant = 'grid' }: MangaCardProps) 
             alt={manga.canonicalTitle}
             className="h-full w-full object-cover"
             loading="lazy"
+            referrerPolicy="no-referrer"
           />
         </div>
-      )}
+      ) : isGrid ? (
+        <div className="min-h-0 w-full flex-1 rounded-[var(--radius-control)] bg-muted" aria-hidden />
+      ) : null}
 
       <div
         className={cn(

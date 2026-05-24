@@ -16,10 +16,18 @@ function useBuiltInCommands() {
 
   useEffect(() => {
     registry.register({
+      id: 'nav-discover',
+      label: 'Go to Discover',
+      section: 'Navigation',
+      keywords: ['discover', 'browse', 'catalog', 'home'],
+      handler: () => navigate({ to: '/discover' } as const),
+    });
+
+    registry.register({
       id: 'nav-library',
       label: 'Go to Library',
       section: 'Navigation',
-      keywords: ['library', 'home'],
+      keywords: ['library', 'saved'],
       handler: () => navigate({ to: '/library' } as const),
     });
 
@@ -72,6 +80,7 @@ function useBuiltInCommands() {
     });
 
     return () => {
+      registry.unregister('nav-discover');
       registry.unregister('nav-library');
       registry.unregister('nav-search');
       registry.unregister('nav-settings');

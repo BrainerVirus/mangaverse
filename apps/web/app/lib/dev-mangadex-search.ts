@@ -1,5 +1,6 @@
 import type { AppDrizzleDb } from '@app/db/browser';
-import type { MangaIdentity } from '@app/shared';
+import type { MangaDetailData } from '@app/library';
+import type { MangaIdentity, MangaId } from '@app/shared';
 import {
   toMangaId,
   toProviderId,
@@ -16,6 +17,10 @@ interface MangaDexTitleMap {
 
 interface MangaDexMangaAttributes {
   readonly title: MangaDexTitleMap;
+  readonly description?: MangaDexTitleMap | string;
+  readonly status?: string;
+  readonly contentRating?: string;
+  readonly tags?: readonly { readonly attributes?: { readonly name?: MangaDexTitleMap } }[];
 }
 
 interface MangaDexEntity {
@@ -44,6 +49,52 @@ function resolveCoverUrl(payload: MangaDexSearchResponse, manga: MangaDexEntity)
   return `https://uploads.mangadex.org/covers/${manga.id}/${fileName}.256.jpg`;
 }
 
+function mapContentRating(rating: string | undefined): MangaIdentity['contentRating'] {
+  switch (rating) {
+    case 'safe':
+      return 'safe';
+    case 'suggestive':
+      return 'suggestive';
+    case 'erotica':
+    case 'pornographic':
+      return 'explicit';
+    default:
+      return 'unknown';
+  }
+}
+
+function mapStatus(status: string | undefined): MangaIdentity['status'] {
+  switch (status) {
+    case 'ongoing':
+      return 'ongoing';
+    case 'completed':
+      return 'completed';
+    case 'hiatus':
+      return 'hiatus';
+    case 'cancelled':
+      return 'cancelled';
+    default:
+      return 'unknown';
+  }
+}
+
+function pickLocalizedText(value: MangaDexTitleMap | string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value === 'string') return value;
+  return value.en ?? value['ja-ro'] ?? value.ja ?? Object.values(value)[0];
+}
+
+function buildMangaDexParams(includes: readonly string[]): URLSearchParams {
+  const params = new URLSearchParams();
+  for (const include of includes) {
+    params.append('includes[]', include);
+  }
+  for (const rating of ['safe', 'suggestive', 'erotica', 'pornographic']) {
+    params.append('contentRating[]', rating);
+  }
+  return params;
+}
+
 function toDevMangaIdentity(payload: MangaDexSearchResponse, manga: MangaDexEntity): MangaIdentity {
   const mappingId = toProviderMappingId(`dev-md-map-${manga.id}`);
   const title = pickTitle(manga.attributes.title);
@@ -56,8 +107,8 @@ function toDevMangaIdentity(payload: MangaDexSearchResponse, manga: MangaDexEnti
     authors: [],
     artists: [],
     tags: [],
-    status: 'unknown',
-    contentRating: 'unknown',
+    status: mapStatus(manga.attributes.status),
+    contentRating: mapContentRating(manga.attributes.contentRating),
     ...(coverImageUrl !== undefined ? { coverImageUrl } : {}),
     providerMappings: [
       {
@@ -73,29 +124,95 @@ function toDevMangaIdentity(payload: MangaDexSearchResponse, manga: MangaDexEnti
   };
 }
 
-export async function isMangaDexInstalled(db: AppDrizzleDb): Promise<boolean> {
-  const { listInstalledExtensions } = await import('@app/db/browser');
-  const installed = await listInstalledExtensions(db);
-  return installed.some((entry) => String(entry.manifest.id) === 'mangadex' && entry.enabled);
+export function parseDevMangaDexId(mangaId: MangaId): string | null {
+  const raw = String(mangaId);
+  if (!raw.startsWith('dev-md-')) {
+    return null;
+  }
+  return raw.slice('dev-md-'.length);
+}
+
+export function isDevMangaDexId(mangaId: MangaId): boolean {
+  return parseDevMangaDexId(mangaId) !== null;
+}
+
+async function fetchMangaDexCollection(
+  params: URLSearchParams,
+): Promise<readonly MangaIdentity[]> {
+  const response = await fetch(`${MANGADEX_API}/manga?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(`MangaDex request failed (${response.status})`);
+  }
+
+  const payload = (await response.json()) as MangaDexSearchResponse;
+  return (payload.data ?? []).map((entry) => toDevMangaIdentity(payload, entry));
 }
 
 export async function fetchDevMangaDexSearchResults(query: string): Promise<readonly MangaIdentity[]> {
   const trimmed = query.trim();
   if (trimmed.length === 0) return [];
 
-  const params = new URLSearchParams();
+  const params = buildMangaDexParams(['cover_art']);
   params.set('title', trimmed);
   params.set('limit', '24');
-  params.append('includes[]', 'cover_art');
-  for (const rating of ['safe', 'suggestive', 'erotica', 'pornographic']) {
-    params.append('contentRating[]', rating);
+
+  return fetchMangaDexCollection(params);
+}
+
+export async function fetchDevMangaDexDiscoverResults(): Promise<readonly MangaIdentity[]> {
+  const params = buildMangaDexParams(['cover_art']);
+  params.set('limit', '24');
+  params.set('order[followedCount]', 'desc');
+  return fetchMangaDexCollection(params);
+}
+
+interface MangaDexDetailResponse {
+  readonly data?: MangaDexEntity;
+  readonly included?: readonly {
+    readonly id: string;
+    readonly attributes?: { readonly fileName?: string };
+  }[];
+}
+
+export async function fetchDevMangaDetail(mangaId: MangaId): Promise<MangaDetailData | null> {
+  const mangadexId = parseDevMangaDexId(mangaId);
+  if (mangadexId === null) {
+    return null;
   }
 
-  const response = await fetch(`${MANGADEX_API}/manga?${params.toString()}`);
+  const params = buildMangaDexParams(['cover_art', 'author', 'artist']);
+  const response = await fetch(`${MANGADEX_API}/manga/${mangadexId}?${params.toString()}`);
   if (!response.ok) {
-    throw new Error(`MangaDex search failed (${response.status})`);
+    return null;
   }
 
-  const payload = (await response.json()) as MangaDexSearchResponse;
-  return (payload.data ?? []).map((entry) => toDevMangaIdentity(payload, entry));
+  const payload = (await response.json()) as MangaDexDetailResponse;
+  const entity = payload.data;
+  if (entity === undefined) {
+    return null;
+  }
+
+  const listPayload: MangaDexSearchResponse = {
+    data: [entity],
+    ...(payload.included !== undefined ? { included: payload.included } : {}),
+  };
+
+  const identity = toDevMangaIdentity(listPayload, entity);
+  const description = pickLocalizedText(entity.attributes.description);
+
+  return {
+    manga: {
+      ...identity,
+      ...(description !== undefined ? { description } : {}),
+    },
+    chapters: [],
+    libraryEntry: undefined,
+    continueChapterId: undefined,
+  };
+}
+
+export async function isMangaDexInstalled(db: AppDrizzleDb): Promise<boolean> {
+  const { listInstalledExtensions } = await import('@app/db/browser');
+  const installed = await listInstalledExtensions(db);
+  return installed.some((entry) => String(entry.manifest.id) === 'mangadex' && entry.enabled);
 }

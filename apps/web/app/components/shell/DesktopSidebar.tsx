@@ -12,6 +12,7 @@ import {
   ArrowRightLeft,
   Zap,
   Play,
+  Compass,
 } from "lucide-react";
 import { Button, Tooltip, Separator, cn, buttonVariants } from "@app/design-system";
 import { useLayoutStore } from "../../stores/useLayoutStore.js";
@@ -21,6 +22,7 @@ import { useTheme } from "../../providers/theme-provider.js";
 const EXPAND_DELAY = 200;
 
 const primaryNavItems = [
+  { label: "Discover", to: "/discover", icon: Compass },
   { label: "Library", to: "/library", icon: BookOpen },
   { label: "Search", to: "/search", icon: Search },
   { label: "Settings", to: "/settings", icon: Settings },
@@ -196,16 +198,19 @@ export function DesktopSidebar() {
             size="sm"
             onClick={toggleTheme}
             aria-label="Toggle theme"
+            suppressHydrationWarning
             className={cn(
               "h-9 w-full justify-start gap-3 px-2.5 text-muted-foreground",
               !visuallyExpanded && "justify-center px-0",
             )}
           >
-            {theme === "light" ? (
-              <Moon className="h-5 w-5 shrink-0" />
-            ) : (
-              <Sun className="h-5 w-5 shrink-0" />
-            )}
+            <span suppressHydrationWarning className="inline-flex shrink-0">
+              {theme === "light" ? (
+                <Moon className="h-5 w-5 shrink-0" />
+              ) : (
+                <Sun className="h-5 w-5 shrink-0" />
+              )}
+            </span>
             {visuallyExpanded ? <span className="truncate">Theme</span> : null}
           </Button>
         </Tooltip>

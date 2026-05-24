@@ -4,6 +4,11 @@ import {
   Label,
   LoadingState,
   Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   SettingsSection,
   Slider,
   Switch,
@@ -132,12 +137,19 @@ function SettingSelectRow({
     <div className="grid gap-2">
       <Label htmlFor={id}>{label}</Label>
       {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
-      <Select id={id} value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
+      <Select value={value} onValueChange={onChange} {...(disabled !== undefined ? { disabled } : {})}>
+        <SelectTrigger id={id} aria-label={label}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            {options.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
       </Select>
     </div>
   );

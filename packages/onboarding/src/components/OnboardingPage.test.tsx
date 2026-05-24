@@ -79,6 +79,24 @@ describe('OnboardingPage', () => {
     expect(onNext).toHaveBeenCalledOnce();
   });
 
+  it('uses design-system Select triggers instead of native select on reading step', () => {
+    render(
+      <OnboardingPage
+        {...baseProps}
+        state={{
+          ...getDefaultOnboardingState(),
+          status: 'in_progress',
+          currentStep: 'reading',
+          completedSteps: ['welcome', 'theme'],
+        }}
+      />,
+    );
+
+    expect(document.querySelector('select')).toBeNull();
+    expect(screen.getByLabelText('Reading direction')).toBeInTheDocument();
+    expect(screen.getByLabelText('Page layout')).toBeInTheDocument();
+  });
+
   it('renders provider install actions on the final step', async () => {
     const user = userEvent.setup();
     const onInstallProvider = vi.fn();

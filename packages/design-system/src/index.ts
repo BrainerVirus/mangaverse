@@ -13,7 +13,14 @@ export { Skeleton } from './components/ui/skeleton.js';
 export { Input } from './components/ui/input.js';
 export { Label } from './components/ui/label.js';
 export { Switch } from './components/ui/switch.js';
-export { Select } from './components/ui/select.js';
+export {
+  Select,
+  SelectGroup,
+  SelectValue,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+} from './components/ui/select.js';
 export { Slider } from './components/ui/slider.js';
 export { Tabs, TabsList, TabsTrigger, TabsContent } from './components/ui/tabs.js';
 export { Alert, AlertTitle, AlertDescription } from './components/ui/alert.js';

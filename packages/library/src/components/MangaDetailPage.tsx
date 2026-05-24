@@ -11,7 +11,7 @@ import type { MangaDetailData } from '../types.js';
 
 export interface MangaDetailPageProps {
   mangaId: MangaId;
-  data: MangaDetailData | undefined;
+  data: MangaDetailData | null | undefined;
   isLoading: boolean;
   isError: boolean;
   onBack?: () => void;
@@ -57,7 +57,7 @@ export function MangaDetailPage({
     );
   }
 
-  if (data === undefined) {
+  if (data === undefined || data === null) {
     return (
       <main className="p-6">
         <EmptyState type="no-results" />
