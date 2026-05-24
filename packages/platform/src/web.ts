@@ -1,6 +1,11 @@
 import { err, ok, type AppResult } from '@app/shared';
 import { detectWebCapabilities } from './capabilities.js';
 import {
+  deleteIndexedDbBlob,
+  getIndexedDbBlob,
+  putIndexedDbBlob,
+} from './blob-storage-idb.js';
+import {
   platformInvalidUrl,
   platformPermissionDenied,
   platformUnsupported,
@@ -104,6 +109,7 @@ function resolveWebEnvironment(environment?: WebPlatformEnvironment): WebPlatfor
           },
         }
       : {}),
+    ...(typeof globalThis.indexedDB !== 'undefined' ? { indexedDB: globalThis.indexedDB } : {}),
   };
 }
 
@@ -333,6 +339,64 @@ export function createWebPlatformAdapter(environment?: WebPlatformEnvironment): 
           return err(platformUnsupported('Persistent storage is not available.'));
         }
         return ok(await env.storageManager.persist());
+      },
+    },
+
+    blobStorage: {
+      put: async (key: string, data: ArrayBuffer, mimeType: string) => {
+        if (!env.indexedDB) {
+          return err(platformUnsupported('Blob storage is not available in this environment.'));
+        }
+        try {
+          await putIndexedDbBlob(key, data, mimeType, { indexedDB: env.indexedDB });
+          return ok(undefined);
+        } catch {
+          return err(platformUnsupported('Could not store blob.'));
+        }
+      },
+      get: async (key: string) => {
+        if (!env.indexedDB) {
+          return err(platformUnsupported('Blob storage is not available in this environment.'));
+        }
+        try {
+          const record = await getIndexedDbBlob(key, { indexedDB: env.indexedDB });
+          return ok(record);
+        } catch {
+          return err(platformUnsupported('Could not read blob.'));
+        }
+      },
+      delete: async (key: string) => {
+        if (!env.indexedDB) {
+          return err(platformUnsupported('Blob storage is not available in this environment.'));
+        }
+        try {
+          await deleteIndexedDbBlob(key, { indexedDB: env.indexedDB });
+          return ok(undefined);
+        } catch {
+          return err(platformUnsupported('Could not delete blob.'));
+        }
+      },
+      createObjectUrl: async (data: ArrayBuffer, mimeType: string) => {
+        if (!env.createObjectUrl) {
+          return err(platformUnsupported('Object URLs are not available in this environment.'));
+        }
+        try {
+          const blob = new Blob([data], { type: mimeType });
+          return ok(env.createObjectUrl(blob));
+        } catch {
+          return err(platformUnsupported('Could not create object URL.'));
+        }
+      },
+      revokeObjectUrl: async (url: string) => {
+        if (!env.revokeObjectUrl) {
+          return err(platformUnsupported('Object URLs are not available in this environment.'));
+        }
+        try {
+          env.revokeObjectUrl(url);
+          return ok(undefined);
+        } catch {
+          return err(platformUnsupported('Could not revoke object URL.'));
+        }
       },
     },
   };

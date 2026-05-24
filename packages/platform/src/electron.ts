@@ -1,5 +1,10 @@
 import { err, ok, type AppResult } from '@app/shared';
 import { platformInvalidUrl, platformUnexpected, platformUnsupported } from './errors.js';
+import {
+  deleteIndexedDbBlob,
+  getIndexedDbBlob,
+  putIndexedDbBlob,
+} from './blob-storage-idb.js';
 import { isValidSecureStorageKey } from './secure-storage-key.js';
 import type {
   DesktopPlatformBridge,
@@ -91,6 +96,64 @@ export function createElectronPlatformAdapter(bridge: DesktopPlatformBridge): Pl
       deleteItem: async () => err(platformUnsupported('General storage is not yet available on desktop.')),
       estimate: async () => err(platformUnsupported('General storage is not yet available on desktop.')),
       persist: async () => err(platformUnsupported('General storage is not yet available on desktop.')),
+    },
+
+    blobStorage: {
+      put: async (key: string, data: ArrayBuffer, mimeType: string) => {
+        if (typeof globalThis.indexedDB === 'undefined') {
+          return err(platformUnsupported('Blob storage is not available on desktop.'));
+        }
+        try {
+          await putIndexedDbBlob(key, data, mimeType, { indexedDB: globalThis.indexedDB });
+          return ok(undefined);
+        } catch {
+          return err(platformUnsupported('Could not store blob on desktop.'));
+        }
+      },
+      get: async (key: string) => {
+        if (typeof globalThis.indexedDB === 'undefined') {
+          return err(platformUnsupported('Blob storage is not available on desktop.'));
+        }
+        try {
+          const record = await getIndexedDbBlob(key, { indexedDB: globalThis.indexedDB });
+          return ok(record);
+        } catch {
+          return err(platformUnsupported('Could not read blob on desktop.'));
+        }
+      },
+      delete: async (key: string) => {
+        if (typeof globalThis.indexedDB === 'undefined') {
+          return err(platformUnsupported('Blob storage is not available on desktop.'));
+        }
+        try {
+          await deleteIndexedDbBlob(key, { indexedDB: globalThis.indexedDB });
+          return ok(undefined);
+        } catch {
+          return err(platformUnsupported('Could not delete blob on desktop.'));
+        }
+      },
+      createObjectUrl: async (data: ArrayBuffer, mimeType: string) => {
+        if (typeof URL === 'undefined' || typeof Blob === 'undefined') {
+          return err(platformUnsupported('Object URLs are not available on desktop.'));
+        }
+        try {
+          const blob = new Blob([data], { type: mimeType });
+          return ok(URL.createObjectURL(blob));
+        } catch {
+          return err(platformUnsupported('Could not create object URL on desktop.'));
+        }
+      },
+      revokeObjectUrl: async (url: string) => {
+        if (typeof URL === 'undefined') {
+          return err(platformUnsupported('Object URLs are not available on desktop.'));
+        }
+        try {
+          URL.revokeObjectURL(url);
+          return ok(undefined);
+        } catch {
+          return err(platformUnsupported('Could not revoke object URL on desktop.'));
+        }
+      },
     },
   };
 }

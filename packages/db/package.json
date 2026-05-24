@@ -21,6 +21,7 @@
       "default": "./dist/testing/sqljs-harness.js"
     },
     "./migrations/0000_initial.sql": "./migrations/0000_initial.sql",
+    "./migrations/0001_cache_asset_metadata.sql": "./migrations/0001_cache_asset_metadata.sql",
     "./migrations/meta/_journal.json": "./migrations/meta/_journal.json"
   },
   "main": "./dist/index.js",

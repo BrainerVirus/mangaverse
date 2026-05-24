@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import type { PlatformCapabilities } from '@app/platform';
 import { QueryProvider } from '../providers/query-provider.js';
 import { LocalDbProvider } from '../providers/local-db-provider.js';
+import { CoverCacheBridge } from '../providers/cover-cache-bridge.js';
 import { PlatformProvider } from '../providers/platform-provider.js';
 import { ThemeProvider } from '../providers/theme-provider.js';
 import { ThemeSettingsBridge } from '../providers/theme-settings-bridge.js';
@@ -76,6 +77,7 @@ export function ShellProviders({ children, detectFn }: ShellProvidersProps) {
   return (
     <QueryProvider>
       <LocalDbProvider>
+        <CoverCacheBridge>
         <PlatformProvider detectFn={detectFn}>
           <ThemeProvider>
           <ThemeSettingsBridge />
@@ -88,6 +90,7 @@ export function ShellProviders({ children, detectFn }: ShellProvidersProps) {
           </OnboardingGate>
           </ThemeProvider>
         </PlatformProvider>
+        </CoverCacheBridge>
       </LocalDbProvider>
     </QueryProvider>
   );

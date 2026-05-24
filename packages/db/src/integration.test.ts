@@ -474,8 +474,8 @@ describe('@app/db', () => {
     const summary = await summarizeCacheStorage(db);
     expect(summary.totalCount).toBe(2);
     expect(summary.byProvider).toEqual([
-      { providerId: 'prov-a', count: 1 },
-      { providerId: 'prov-b', count: 1 },
+      { providerId: 'prov-a', count: 1, bytes: 0 },
+      { providerId: 'prov-b', count: 1, bytes: 0 },
     ]);
 
     expect(await countSearchHistory(db)).toBe(1);

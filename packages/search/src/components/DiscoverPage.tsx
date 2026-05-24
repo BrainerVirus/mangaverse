@@ -4,9 +4,9 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
-  MangaCard,
   PageHeader,
 } from '@app/design-system';
+import { CachedMangaCard } from '@app/cache';
 import type { MangaId, MangaIdentity } from '@app/shared';
 import { useInfiniteScrollSentinel } from '../hooks/use-infinite-scroll-sentinel.js';
 import { VirtualSearchGrid } from './VirtualSearchGrid.js';
@@ -87,7 +87,7 @@ function DiscoverSectionPreview({
         className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6"
       >
         {section.results.slice(0, 6).map((manga) => (
-          <MangaCard key={manga.id} manga={manga} onClick={() => onOpenManga(manga.id)} />
+          <CachedMangaCard key={manga.id} manga={manga} onClick={() => onOpenManga(manga.id)} />
         ))}
       </div>
     </section>

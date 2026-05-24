@@ -10,9 +10,10 @@ export interface MangaCardProps {
   manga: MangaIdentity;
   onClick?: () => void;
   variant?: 'grid' | 'list' | 'compact';
+  coverSlot?: React.ReactNode;
 }
 
-export function MangaCard({ manga, onClick, variant = 'grid' }: MangaCardProps) {
+export function MangaCard({ manga, onClick, variant = 'grid', coverSlot }: MangaCardProps) {
   const isGrid = variant === 'grid';
   const isCompact = variant === 'compact';
   const containerRef = useRef<HTMLDivElement>(null);
@@ -70,7 +71,7 @@ export function MangaCard({ manga, onClick, variant = 'grid' }: MangaCardProps) 
         }
       )}
     >
-      {manga.coverImageUrl ? (
+      {coverSlot ?? (manga.coverImageUrl ? (
         <div
           className={cn(
             'overflow-hidden rounded-[var(--radius-control)] bg-muted',
@@ -88,7 +89,7 @@ export function MangaCard({ manga, onClick, variant = 'grid' }: MangaCardProps) 
         </div>
       ) : isGrid ? (
         <div className="min-h-0 w-full flex-1 rounded-[var(--radius-control)] bg-muted" aria-hidden />
-      ) : null}
+      ) : null)}
 
       <div
         className={cn(

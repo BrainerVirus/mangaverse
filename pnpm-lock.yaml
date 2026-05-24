@@ -90,6 +90,9 @@ importers:
       '@app/backup':
         specifier: workspace:*
         version: link:../../packages/backup
+      '@app/cache':
+        specifier: workspace:*
+        version: link:../../packages/cache
       '@app/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -236,6 +239,55 @@ importers:
       oxlint:
         specifier: ^0.16.0
         version: 0.16.12
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.4(@types/node@22.19.18)(jiti@2.7.0)(jsdom@26.1.0)(lightningcss@1.32.0)
+
+  packages/cache:
+    dependencies:
+      '@app/db':
+        specifier: workspace:*
+        version: link:../db
+      '@app/design-system':
+        specifier: workspace:*
+        version: link:../design-system
+      '@app/platform':
+        specifier: workspace:*
+        version: link:../platform
+      '@app/shared':
+        specifier: workspace:*
+        version: link:../shared
+      react:
+        specifier: ^19.1.0
+        version: 19.1.0
+    devDependencies:
+      '@testing-library/dom':
+        specifier: ^10.0.0
+        version: 10.4.1
+      '@testing-library/jest-dom':
+        specifier: ^6.6.0
+        version: 6.9.1
+      '@testing-library/react':
+        specifier: ^16.0.0
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.1.11(@types/react@19.1.17))(@types/react@19.1.17)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@types/react':
+        specifier: ^19.1.0
+        version: 19.1.17
+      '@types/react-dom':
+        specifier: ^19.1.0
+        version: 19.1.11(@types/react@19.1.17)
+      jsdom:
+        specifier: ^26.0.0
+        version: 26.1.0
+      oxlint:
+        specifier: ^0.16.0
+        version: 0.16.12
+      react-dom:
+        specifier: ^19.1.0
+        version: 19.1.0(react@19.1.0)
       typescript:
         specifier: ^5.9.2
         version: 5.9.3
@@ -458,6 +510,9 @@ importers:
 
   packages/library:
     dependencies:
+      '@app/cache':
+        specifier: workspace:*
+        version: link:../cache
       '@app/db':
         specifier: workspace:*
         version: link:../db
@@ -707,6 +762,9 @@ importers:
 
   packages/search:
     dependencies:
+      '@app/cache':
+        specifier: workspace:*
+        version: link:../cache
       '@app/db':
         specifier: workspace:*
         version: link:../db
@@ -756,6 +814,9 @@ importers:
 
   packages/settings:
     dependencies:
+      '@app/cache':
+        specifier: workspace:*
+        version: link:../cache
       '@app/db':
         specifier: workspace:*
         version: link:../db
@@ -796,6 +857,9 @@ importers:
 
   packages/storage:
     dependencies:
+      '@app/cache':
+        specifier: workspace:*
+        version: link:../cache
       '@app/db':
         specifier: workspace:*
         version: link:../db
@@ -5862,6 +5926,16 @@ snapshots:
       dom-accessibility-api: 0.6.3
       picocolors: 1.1.1
       redent: 3.0.0
+
+  '@testing-library/react@16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.1.11(@types/react@19.1.17))(@types/react@19.1.17)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
+    dependencies:
+      '@babel/runtime': 7.29.2
+      '@testing-library/dom': 10.4.1
+      react: 19.1.0
+      react-dom: 19.1.0(react@19.1.0)
+    optionalDependencies:
+      '@types/react': 19.1.17
+      '@types/react-dom': 19.1.11(@types/react@19.1.17)
 
   '@testing-library/react@16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.1.17))(@types/react@19.1.17)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
     dependencies:

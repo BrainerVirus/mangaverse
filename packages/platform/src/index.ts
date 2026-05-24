@@ -10,3 +10,4 @@ export * from './capabilities.js';
 export * from './web.js';
 export * from './electron.js';
 export * from './unsupported.js';
+export * from './blob-storage-idb.js';

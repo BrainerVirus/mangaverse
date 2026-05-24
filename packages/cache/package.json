@@ -1,5 +1,5 @@
 {
-  "name": "@app/storage",
+  "name": "@app/cache",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -22,7 +22,6 @@
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@app/cache": "workspace:*",
     "@app/db": "workspace:*",
     "@app/design-system": "workspace:*",
     "@app/platform": "workspace:*",
@@ -30,8 +29,15 @@
     "react": "^19.1.0"
   },
   "devDependencies": {
+    "@app/db": "workspace:*",
+    "@testing-library/dom": "^10.0.0",
+    "@testing-library/jest-dom": "^6.6.0",
+    "@testing-library/react": "^16.0.0",
     "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "jsdom": "^26.0.0",
     "oxlint": "^0.16.0",
+    "react-dom": "^19.1.0",
     "typescript": "^5.9.2",
     "vitest": "^3.0.0"
   }

@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react';
 import { useGridStaggerReveal } from '@app/motion';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { MangaCard } from '@app/design-system';
+import { CachedMangaCard } from '@app/cache';
 import type { LibraryLayoutMode, MangaId } from '@app/shared';
 import type { LibraryItem } from '../types.js';
 import {
@@ -63,7 +63,7 @@ export function VirtualLibraryGrid({ items, layout, onOpenManga }: VirtualLibrar
       >
         {items.map(({ entry, manga }) => (
           <div key={entry.id} data-library-card>
-            <MangaCard
+            <CachedMangaCard
               manga={manga}
               variant={layout}
               onClick={() => onOpenManga(manga.id)}
@@ -111,7 +111,7 @@ export function VirtualLibraryGrid({ items, layout, onOpenManga }: VirtualLibrar
             >
               {rowItems.map(({ entry, manga }) => (
                 <div key={entry.id} data-library-card>
-                  <MangaCard
+                  <CachedMangaCard
                     manga={manga}
                     variant={layout}
                     onClick={() => onOpenManga(manga.id)}

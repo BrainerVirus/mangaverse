@@ -13,12 +13,14 @@ import {
   Switch,
 } from '@app/design-system';
 import type { AppSettings } from '@app/shared';
+import { bytesToMegabytes, formatCacheBytes, megabytesToBytes } from '@app/cache';
 
 export interface AppSettingsPageProps {
   readonly settings: AppSettings | undefined;
   readonly isLoading: boolean;
   readonly isError: boolean;
   readonly isSaving?: boolean;
+  readonly cacheUsageBytes?: number;
   onChange: (next: AppSettings) => void;
 }
 
@@ -77,6 +79,7 @@ export function AppSettingsPage({
   isLoading,
   isError,
   isSaving = false,
+  cacheUsageBytes,
   onChange,
 }: AppSettingsPageProps) {
   if (isLoading) {
@@ -146,6 +149,32 @@ export function AppSettingsPage({
           disabled={isSaving}
           onCheckedChange={(lowMemoryMode) => update({ lowMemoryMode })}
         />
+        <div className="grid gap-2 rounded-[var(--radius-control)] border border-[var(--border)] p-4">
+          <Label htmlFor="image-cache-limit">Image cache limit</Label>
+          <Input
+            id="image-cache-limit"
+            type="number"
+            min={50}
+            max={10240}
+            step={50}
+            disabled={isSaving}
+            value={bytesToMegabytes(settings.imageCacheLimitBytes)}
+            onChange={(event) => {
+              const megabytes = Number(event.target.value);
+              if (!Number.isFinite(megabytes)) {
+                return;
+              }
+              update({ imageCacheLimitBytes: megabytesToBytes(megabytes) });
+            }}
+          />
+          <p className="text-sm text-muted-foreground">
+            Cached cover images are stored locally and reused on later visits. Limit:{' '}
+            {formatCacheBytes(settings.imageCacheLimitBytes)}
+            {cacheUsageBytes !== undefined
+              ? ` · Used: ${formatCacheBytes(cacheUsageBytes)}`
+              : null}
+          </p>
+        </div>
       </SettingsSection>
 
       <SettingsSection

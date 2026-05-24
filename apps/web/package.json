@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@app/backup": "workspace:*",
+    "@app/cache": "workspace:*",
     "@app/db": "workspace:*",
     "@app/design-system": "workspace:*",
     "@app/diagnostics": "workspace:*",

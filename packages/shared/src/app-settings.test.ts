@@ -10,6 +10,7 @@ describe('app settings', () => {
       preferredLanguages: ['en'],
       lowMemoryMode: false,
       locale: 'system',
+      imageCacheLimitBytes: 524_288_000,
     });
   });
 
@@ -20,6 +21,7 @@ describe('app settings', () => {
       preferredLanguages: ['en', 'ja'],
       lowMemoryMode: true,
       locale: 'pt-BR',
+      imageCacheLimitBytes: 524_288_000,
     });
 
     expect(result.ok).toBe(true);

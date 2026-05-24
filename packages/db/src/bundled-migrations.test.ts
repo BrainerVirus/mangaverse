@@ -7,6 +7,7 @@ import { migrateDatabaseToLatest } from './node.js';
 
 const migrationsRoot = fileURLToPath(new URL('../migrations', import.meta.url));
 const initialSql = readFileSync(`${migrationsRoot}/0000_initial.sql`, 'utf8');
+const cacheAssetSql = readFileSync(`${migrationsRoot}/0001_cache_asset_metadata.sql`, 'utf8');
 const journal = JSON.parse(readFileSync(`${migrationsRoot}/meta/_journal.json`, 'utf8'));
 
 describe('bundled migrations', () => {
@@ -18,6 +19,11 @@ describe('bundled migrations', () => {
         tag: '0000_initial',
         sql: initialSql,
         hash: '975ad6e194cffda2f81ec7effd5535768834630dc7df0145821e717bb5b624ea',
+      },
+      {
+        tag: '0001_cache_asset_metadata',
+        sql: cacheAssetSql,
+        hash: 'be8c129e37327e353096a7daf815a2963471cbc0429ca76b2b5a2129251fd175',
       },
     ]);
 

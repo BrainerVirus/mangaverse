@@ -7,6 +7,9 @@ let dbPromise: Promise<AppDrizzleDb> | undefined;
 const INITIAL_MIGRATION_HASH =
   '975ad6e194cffda2f81ec7effd5535768834630dc7df0145821e717bb5b624ea';
 
+const CACHE_ASSET_MIGRATION_HASH =
+  'be8c129e37327e353096a7daf815a2963471cbc0429ca76b2b5a2129251fd175';
+
 type InitSqlJs = (config?: { locateFile?: (file: string) => string }) => Promise<SqlJsStatic>;
 
 export type SqlJsDynamicModule = {
@@ -67,12 +70,14 @@ export function getLocalDb(): Promise<AppDrizzleDb> {
           wasmModule,
           { migrateDatabaseFromBundled, createDrizzleFromSqlJs },
           { default: initialMigrationSql },
+          { default: cacheAssetMigrationSql },
           { default: migrationJournal },
         ] = await Promise.all([
           import('sql.js'),
           import('sql.js/dist/sql-wasm.wasm?url'),
           import('@app/db/browser'),
           import('@app/db/migrations/0000_initial.sql?raw'),
+          import('@app/db/migrations/0001_cache_asset_metadata.sql?raw'),
           import('@app/db/migrations/meta/_journal.json'),
         ]);
 
@@ -88,6 +93,11 @@ export function getLocalDb(): Promise<AppDrizzleDb> {
             tag: '0000_initial',
             sql: initialMigrationSql,
             hash: INITIAL_MIGRATION_HASH,
+          },
+          {
+            tag: '0001_cache_asset_metadata',
+            sql: cacheAssetMigrationSql,
+            hash: CACHE_ASSET_MIGRATION_HASH,
           },
         ]);
         return createDrizzleFromSqlJs(raw);

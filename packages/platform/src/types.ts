@@ -8,6 +8,17 @@ export interface PlatformStorageEstimate {
   readonly persisted?: boolean;
 }
 
+export interface PlatformBlobRecord {
+  readonly data: ArrayBuffer;
+  readonly mimeType: string;
+}
+
+export interface PlatformBlobStorageEnvironment {
+  readonly indexedDB?: IDBFactory;
+  readonly createObjectUrl?: (blob: Blob) => string;
+  readonly revokeObjectUrl?: (url: string) => void;
+}
+
 export interface PlatformCapabilities {
   readonly runtime: PlatformRuntime;
   readonly clipboardRead: boolean;
@@ -116,6 +127,13 @@ export interface PlatformAdapter {
     estimate(): Promise<AppResult<PlatformStorageEstimate>>;
     persist(): Promise<AppResult<boolean>>;
   };
+  readonly blobStorage: {
+    put(key: string, data: ArrayBuffer, mimeType: string): Promise<AppResult<void>>;
+    get(key: string): Promise<AppResult<PlatformBlobRecord | undefined>>;
+    delete(key: string): Promise<AppResult<void>>;
+    createObjectUrl(data: ArrayBuffer, mimeType: string): Promise<AppResult<string>>;
+    revokeObjectUrl(url: string): Promise<AppResult<void>>;
+  };
 }
 
 export interface DesktopPlatformBridge {
@@ -181,6 +199,7 @@ export interface WebPlatformEnvironment {
     persist?: () => Promise<boolean>;
     persisted?: () => Promise<boolean>;
   };
+  readonly indexedDB?: IDBFactory;
 }
 
 export interface ElectronCapabilityInput extends Partial<PlatformCapabilities> {

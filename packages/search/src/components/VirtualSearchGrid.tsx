@@ -1,6 +1,6 @@
 import { useMemo, useRef, type RefObject } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { MangaCard } from '@app/design-system';
+import { CachedMangaCard } from '@app/cache';
 import type { MangaId, MangaIdentity } from '@app/shared';
 import { useContainerWidth } from '../hooks/use-container-width.js';
 import { useScrollMargin } from '../hooks/use-scroll-margin.js';
@@ -33,7 +33,7 @@ function StaticSearchGrid({
       className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
     >
       {results.map((manga) => (
-        <MangaCard key={manga.id} manga={manga} onClick={() => onOpenManga(manga.id)} />
+        <CachedMangaCard key={manga.id} manga={manga} onClick={() => onOpenManga(manga.id)} />
       ))}
     </section>
   );
@@ -102,7 +102,7 @@ export function VirtualSearchGrid({ results, onOpenManga }: VirtualSearchGridPro
               }}
             >
               {rowItems.map((manga) => (
-                <MangaCard key={manga.id} manga={manga} onClick={() => onOpenManga(manga.id)} />
+                <CachedMangaCard key={manga.id} manga={manga} onClick={() => onOpenManga(manga.id)} />
               ))}
             </div>
           );
