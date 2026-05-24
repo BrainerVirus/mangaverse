@@ -32,7 +32,9 @@ async function searchManga(_ctx, input) {
 function resolveCover(payload, manga) {
   const rel = manga.relationships?.find((item) => item.type === 'cover_art');
   if (!rel) return undefined;
-  const file = payload.included?.find((item) => item.id === rel.id)?.attributes?.fileName;
+  const file =
+    rel.attributes?.fileName ??
+    payload.included?.find((item) => item.id === rel.id)?.attributes?.fileName;
   return file ? `https://uploads.mangadex.org/covers/${manga.id}/${file}.256.jpg` : undefined;
 }
 

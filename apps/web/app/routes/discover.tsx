@@ -1,13 +1,23 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
-import { DiscoverPage, type DiscoverPageData } from '@app/search';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useCallback, useMemo, useState } from 'react';
+import type { AppDrizzleDb } from '@app/db/browser';
+import {
+  DiscoverPage,
+  type DiscoverPageData,
+  type DiscoverSection,
+  discoverQueryKeys,
+} from '@app/search';
 import { fetchAppSettings, settingsQueryKeys } from '@app/settings';
 import { useLocalDb, useLocalDbStatus, useLocalDbRetry } from '../providers/local-db-provider.js';
 import {
-  fetchDevMangaDexLatestResults,
-  fetchDevMangaDexPopularResults,
-  isMangaDexInstalled,
+  DEV_MANGADEX_SECTION_DEFINITIONS,
+  DEV_MANGADEX_SECTION_PREVIEW_SIZE,
+  DEV_MANGADEX_SECTION_PAGE_SIZE,
+  fetchDevMangaDexSectionPage,
+  getEnabledMangaDexSections,
+  getInstalledMangaDexManifest,
+  type DevMangaDexSectionId,
 } from '../lib/dev-mangadex-search.js';
 
 type DiscoverSearch = {
@@ -23,35 +33,39 @@ export const Route = createFileRoute('/discover')({
   component: DiscoverRoute,
 });
 
-const discoverQueryKey = ['discover', 'providers'] as const;
-
-async function fetchDiscoverPageData(
+async function buildDiscoverPageData(
+  db: AppDrizzleDb,
   explicitContent: boolean,
 ): Promise<DiscoverPageData> {
-  const [popular, latest] = await Promise.all([
-    fetchDevMangaDexPopularResults(12, explicitContent),
-    fetchDevMangaDexLatestResults(12, explicitContent),
-  ]);
+  const manifest = await getInstalledMangaDexManifest(db);
+  if (manifest === null) {
+    return { providers: [] };
+  }
+
+  const sectionDefinitions = getEnabledMangaDexSections(manifest);
+  const sectionResults = await Promise.all(
+    sectionDefinitions.map(async (definition) => {
+      const page = await fetchDevMangaDexSectionPage(
+        definition.id,
+        0,
+        DEV_MANGADEX_SECTION_PREVIEW_SIZE,
+        explicitContent,
+      );
+      return {
+        id: definition.id,
+        title: definition.title,
+        capability: definition.capability,
+        results: page.results,
+      } satisfies DiscoverSection;
+    }),
+  );
 
   return {
     providers: [
       {
         providerId: 'mangadex',
-        providerName: 'MangaDex',
-        sections: [
-          {
-            id: 'popular',
-            title: 'Popular',
-            capability: 'discovery.popular',
-            results: popular,
-          },
-          {
-            id: 'latest',
-            title: 'Latest updates',
-            capability: 'discovery.latest',
-            results: latest,
-          },
-        ],
+        providerName: manifest.name,
+        sections: sectionResults.filter((section) => section.results.length > 0),
       },
     ],
   };
@@ -74,16 +88,16 @@ function DiscoverRoute() {
   const explicitContent = appSettingsQuery.data?.settings.explicitContent ?? false;
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: [...discoverQueryKey, explicitContent],
+    queryKey: discoverQueryKeys.providers(explicitContent),
     queryFn: async () => {
       if (!import.meta.env.DEV || db === null) {
         return { providers: [] } satisfies DiscoverPageData;
       }
-      const installed = await isMangaDexInstalled(db);
-      if (!installed) {
+      const manifest = await getInstalledMangaDexManifest(db);
+      if (manifest === null) {
         return { providers: [] } satisfies DiscoverPageData;
       }
-      return fetchDiscoverPageData(explicitContent);
+      return buildDiscoverPageData(db, explicitContent);
     },
     enabled: dbStatus === 'ready' && db !== null && appSettingsQuery.isSuccess,
   });
@@ -95,13 +109,83 @@ function DiscoverRoute() {
       ? { providerId: search.provider, sectionId: search.section }
       : null;
 
+  const expandedSectionMeta = useMemo(() => {
+    if (expandedSection === null) {
+      return null;
+    }
+
+    const provider = providers.find((entry) => entry.providerId === expandedSection.providerId);
+    const section = provider?.sections.find((entry) => entry.id === expandedSection.sectionId);
+    if (section !== undefined) {
+      return { title: section.title, sectionId: section.id as DevMangaDexSectionId };
+    }
+
+    const fallback = DEV_MANGADEX_SECTION_DEFINITIONS.find(
+      (entry) => entry.id === expandedSection.sectionId,
+    );
+    if (fallback !== undefined && expandedSection.providerId === 'mangadex') {
+      return { title: fallback.title, sectionId: fallback.id };
+    }
+
+    return null;
+  }, [expandedSection, providers]);
+
+  const sectionInfiniteQuery = useInfiniteQuery({
+    queryKey:
+      expandedSection !== null
+        ? discoverQueryKeys.section(
+            expandedSection.providerId,
+            expandedSection.sectionId,
+            explicitContent,
+          )
+        : ['discover', 'section', 'idle'],
+    queryFn: ({ pageParam }) =>
+      fetchDevMangaDexSectionPage(
+        expandedSectionMeta!.sectionId,
+        pageParam,
+        DEV_MANGADEX_SECTION_PAGE_SIZE,
+        explicitContent,
+      ),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.offset + DEV_MANGADEX_SECTION_PAGE_SIZE : undefined,
+    enabled:
+      dbStatus === 'ready' &&
+      expandedSection !== null &&
+      expandedSectionMeta !== null &&
+      import.meta.env.DEV,
+  });
+
+  const expandedResults = useMemo(
+    () => sectionInfiniteQuery.data?.pages.flatMap((page) => page.results) ?? [],
+    [sectionInfiniteQuery.data?.pages],
+  );
+
+  const handleLoadMoreSection = useCallback(() => {
+    if (sectionInfiniteQuery.hasNextPage && !sectionInfiniteQuery.isFetchingNextPage) {
+      void sectionInfiniteQuery.fetchNextPage();
+    }
+  }, [sectionInfiniteQuery]);
+
+  const expandedSectionState =
+    expandedSection !== null && expandedSectionMeta !== null
+      ? {
+          title: expandedSectionMeta.title,
+          results: expandedResults,
+          isLoading: sectionInfiniteQuery.isLoading,
+          isFetchingNextPage: sectionInfiniteQuery.isFetchingNextPage,
+          hasNextPage: sectionInfiniteQuery.hasNextPage ?? false,
+        }
+      : undefined;
+
   return (
     <DiscoverPage
       data={data}
       selectedProviderId={selectedProviderId}
       expandedSection={expandedSection}
+      {...(expandedSectionState !== undefined ? { expandedSectionState } : {})}
       isLoading={dbStatus === 'loading' || isLoading || appSettingsQuery.isLoading}
-      isError={dbStatus === 'error' || isError}
+      isError={dbStatus === 'error' || isError || sectionInfiniteQuery.isError}
       showProviderHint={showProviderHint}
       onSelectProvider={(providerId) => {
         setSelectedProviderId(providerId);
@@ -118,6 +202,7 @@ function DiscoverRoute() {
         }
         void navigate({ search: {} });
       }}
+      onLoadMoreSection={handleLoadMoreSection}
       onBrowseProviders={() => void navigate({ to: '/extensions' })}
       {...(dbStatus === 'error' ? { onRetry: retryDb } : {})}
     />

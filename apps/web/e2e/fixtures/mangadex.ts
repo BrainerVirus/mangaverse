@@ -1,3 +1,5 @@
+export const mangadexCoverBaseUrl = 'https://uploads.mangadex.org/covers';
+
 export const mangadexListFixture = {
   data: [
     {
@@ -7,7 +9,13 @@ export const mangadexListFixture = {
         status: 'ongoing',
         contentRating: 'safe',
       },
-      relationships: [{ type: 'cover_art', id: 'cover-1' }],
+      relationships: [
+        {
+          type: 'cover_art',
+          id: 'cover-1',
+          attributes: { fileName: 'cover-1.jpg' },
+        },
+      ],
     },
     {
       id: '00000000-0000-0000-0000-000000000002',
@@ -16,13 +24,40 @@ export const mangadexListFixture = {
         status: 'ongoing',
         contentRating: 'suggestive',
       },
-      relationships: [{ type: 'cover_art', id: 'cover-2' }],
+      relationships: [
+        {
+          type: 'cover_art',
+          id: 'cover-2',
+          attributes: { fileName: 'cover-2.jpg' },
+        },
+      ],
     },
   ],
   included: [
-    { id: 'cover-1', attributes: { fileName: 'cover-1' } },
-    { id: 'cover-2', attributes: { fileName: 'cover-2' } },
+    { id: 'cover-1', attributes: { fileName: 'cover-1.jpg' } },
+    { id: 'cover-2', attributes: { fileName: 'cover-2.jpg' } },
   ],
+};
+
+export const mangadexRecentFixture = {
+  data: [
+    {
+      id: '00000000-0000-0000-0000-000000000004',
+      attributes: {
+        title: { en: 'Recent Title' },
+        status: 'ongoing',
+        contentRating: 'safe',
+      },
+      relationships: [
+        {
+          type: 'cover_art',
+          id: 'cover-4',
+          attributes: { fileName: 'cover-4.jpg' },
+        },
+      ],
+    },
+  ],
+  included: [{ id: 'cover-4', attributes: { fileName: 'cover-4.jpg' } }],
 };
 
 export const mangadexExplicitFixture = {
@@ -34,10 +69,16 @@ export const mangadexExplicitFixture = {
         status: 'ongoing',
         contentRating: 'pornographic',
       },
-      relationships: [{ type: 'cover_art', id: 'cover-3' }],
+      relationships: [
+        {
+          type: 'cover_art',
+          id: 'cover-3',
+          attributes: { fileName: 'cover-3.jpg' },
+        },
+      ],
     },
   ],
-  included: [{ id: 'cover-3', attributes: { fileName: 'cover-3' } }],
+  included: [{ id: 'cover-3', attributes: { fileName: 'cover-3.jpg' } }],
 };
 
 export const devManifestFixture = {
@@ -58,6 +99,7 @@ export const devManifestFixture = {
     'discovery.search': true,
     'discovery.latest': true,
     'discovery.popular': true,
+    'discovery.browse': true,
     'metadata.details': true,
     'metadata.chapters': true,
     'metadata.pages': true,

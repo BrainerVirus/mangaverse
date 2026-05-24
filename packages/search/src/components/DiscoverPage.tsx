@@ -1,11 +1,14 @@
+import { useRef } from 'react';
 import {
   Button,
   EmptyState,
   ErrorState,
   LoadingState,
+  MangaCard,
   PageHeader,
 } from '@app/design-system';
 import type { MangaId, MangaIdentity } from '@app/shared';
+import { useInfiniteScrollSentinel } from '../hooks/use-infinite-scroll-sentinel.js';
 import { VirtualSearchGrid } from './VirtualSearchGrid.js';
 
 export interface DiscoverSection {
@@ -25,10 +28,19 @@ export interface DiscoverPageData {
   readonly providers: readonly DiscoverProviderFeed[];
 }
 
+export interface DiscoverExpandedSectionState {
+  readonly title: string;
+  readonly results: readonly MangaIdentity[];
+  readonly isLoading: boolean;
+  readonly isFetchingNextPage: boolean;
+  readonly hasNextPage: boolean;
+}
+
 export interface DiscoverPageProps {
   readonly data: DiscoverPageData | undefined;
   readonly selectedProviderId: string | null;
   readonly expandedSection: { providerId: string; sectionId: string } | null;
+  readonly expandedSectionState?: DiscoverExpandedSectionState;
   readonly isLoading: boolean;
   readonly isError: boolean;
   readonly showProviderHint?: boolean;
@@ -36,6 +48,7 @@ export interface DiscoverPageProps {
   onOpenManga: (mangaId: MangaId) => void;
   onSeeAllSection: (providerId: string, sectionId: string) => void;
   onBackFromSection: () => void;
+  onLoadMoreSection?: () => void;
   onBrowseProviders?: () => void;
   onRetry?: () => void;
 }
@@ -59,7 +72,13 @@ function DiscoverSectionPreview({
         <h2 id={`discover-section-${section.id}`} className="text-lg font-semibold text-foreground">
           {section.title}
         </h2>
-        <Button type="button" variant="ghost" size="sm" onClick={onSeeAll}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          data-testid={`discover-section-${section.id}-see-all`}
+          onClick={onSeeAll}
+        >
           See all
         </Button>
       </div>
@@ -68,40 +87,58 @@ function DiscoverSectionPreview({
         className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6"
       >
         {section.results.slice(0, 6).map((manga) => (
-          <MangaCardPreview key={manga.id} manga={manga} onOpen={() => onOpenManga(manga.id)} />
+          <MangaCard key={manga.id} manga={manga} onClick={() => onOpenManga(manga.id)} />
         ))}
       </div>
     </section>
   );
 }
 
-function MangaCardPreview({
-  manga,
-  onOpen,
+function DiscoverExpandedSectionView({
+  state,
+  onOpenManga,
+  onBackFromSection,
+  onLoadMoreSection,
 }: {
-  manga: MangaIdentity;
-  onOpen: () => void;
+  state: DiscoverExpandedSectionState;
+  onOpenManga: (mangaId: MangaId) => void;
+  onBackFromSection: () => void;
+  onLoadMoreSection?: () => void;
 }) {
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const canLoadMore = state.hasNextPage && !state.isFetchingNextPage;
+
+  useInfiniteScrollSentinel(
+    sentinelRef,
+    onLoadMoreSection,
+    canLoadMore && onLoadMoreSection !== undefined,
+  );
+
   return (
-    <button
-      type="button"
-      data-testid={`manga-card-${manga.id}`}
-      onClick={onOpen}
-      className="group flex cursor-pointer flex-col gap-2 rounded-[var(--radius-box)] border border-[var(--border)] bg-card p-2 text-left transition-colors hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-    >
-      <div className="aspect-[3/4] overflow-hidden rounded-[var(--radius-control)] bg-muted">
-        {manga.coverImageUrl ? (
-          <img
-            src={manga.coverImageUrl}
-            alt=""
-            className="h-full w-full object-cover"
-            loading="lazy"
-            referrerPolicy="no-referrer"
-          />
-        ) : null}
+    <div className="flex flex-col gap-4" data-testid="discover-expanded-section">
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="button" variant="ghost" size="sm" onClick={onBackFromSection}>
+          Back to discover
+        </Button>
+        <h2 className="text-lg font-semibold text-foreground">{state.title}</h2>
       </div>
-      <span className="line-clamp-2 text-sm font-medium text-card-foreground">{manga.canonicalTitle}</span>
-    </button>
+
+      {state.isLoading && state.results.length === 0 ? (
+        <LoadingState type="grid" count={12} />
+      ) : null}
+
+      {!state.isLoading && state.results.length === 0 ? (
+        <EmptyState type="no-results" />
+      ) : null}
+
+      {state.results.length > 0 ? (
+        <>
+          <VirtualSearchGrid results={state.results} onOpenManga={onOpenManga} />
+          {state.isFetchingNextPage ? <LoadingState type="grid" count={6} /> : null}
+          {canLoadMore ? <div ref={sentinelRef} aria-hidden className="h-px w-full" /> : null}
+        </>
+      ) : null}
+    </div>
   );
 }
 
@@ -109,6 +146,7 @@ export function DiscoverPage({
   data,
   selectedProviderId,
   expandedSection,
+  expandedSectionState,
   isLoading,
   isError,
   showProviderHint = false,
@@ -116,16 +154,17 @@ export function DiscoverPage({
   onOpenManga,
   onSeeAllSection,
   onBackFromSection,
+  onLoadMoreSection,
   onBrowseProviders,
   onRetry,
 }: DiscoverPageProps) {
   const providers = data?.providers ?? [];
   const activeProviderId = selectedProviderId ?? providers[0]?.providerId ?? null;
   const activeProvider = providers.find((provider) => provider.providerId === activeProviderId);
-  const expandedSectionData =
-    expandedSection !== null && activeProvider !== undefined
-      ? activeProvider.sections.find((section) => section.id === expandedSection.sectionId)
-      : undefined;
+  const isExpandedView =
+    expandedSection !== null &&
+    expandedSectionState !== undefined &&
+    expandedSection.providerId === activeProviderId;
 
   const totalTitles = providers.reduce(
     (count, provider) =>
@@ -138,12 +177,12 @@ export function DiscoverPage({
       <PageHeader
         title="Discover"
         description="Browse popular and latest manga from your enabled providers."
-        {...(totalTitles > 0 && expandedSectionData === undefined
+        {...(!isExpandedView && totalTitles > 0
           ? { count: totalTitles, countLabel: 'titles' }
           : {})}
       />
 
-      {isLoading ? <LoadingState type="grid" /> : null}
+      {isLoading && !isExpandedView ? <LoadingState type="grid" /> : null}
 
       {isError ? (
         <ErrorState
@@ -162,7 +201,7 @@ export function DiscoverPage({
         />
       ) : null}
 
-      {!isLoading && !isError && providers.length > 0 && activeProvider !== undefined ? (
+      {!isError && providers.length > 0 && activeProvider !== undefined ? (
         <div className="flex flex-col gap-6">
           <div
             role="tablist"
@@ -191,17 +230,13 @@ export function DiscoverPage({
           </div>
 
           <div role="tabpanel" className="flex flex-col gap-8">
-            {expandedSectionData !== undefined &&
-            expandedSection?.providerId === activeProvider.providerId ? (
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button type="button" variant="ghost" size="sm" onClick={onBackFromSection}>
-                    Back to discover
-                  </Button>
-                  <h2 className="text-lg font-semibold text-foreground">{expandedSectionData.title}</h2>
-                </div>
-                <VirtualSearchGrid results={expandedSectionData.results} onOpenManga={onOpenManga} />
-              </div>
+            {isExpandedView ? (
+              <DiscoverExpandedSectionView
+                state={expandedSectionState}
+                onOpenManga={onOpenManga}
+                onBackFromSection={onBackFromSection}
+                {...(onLoadMoreSection !== undefined ? { onLoadMoreSection } : {})}
+              />
             ) : (
               activeProvider.sections.map((section) => (
                 <DiscoverSectionPreview

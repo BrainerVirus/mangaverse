@@ -1,6 +1,6 @@
 import type { AppDrizzleDb } from '@app/db/browser';
 import type { MangaDetailData } from '@app/library';
-import type { MangaIdentity, MangaId } from '@app/shared';
+import type { MangaIdentity, MangaId, ProviderCapabilityKey, ProviderManifest } from '@app/shared';
 import {
   toMangaId,
   toProviderId,
@@ -10,6 +10,29 @@ import {
 
 const MANGADEX_API = 'https://api.mangadex.org';
 const MANGADEX_PROVIDER_ID = toProviderId('mangadex');
+
+export const DEV_MANGADEX_SECTION_PAGE_SIZE = 24;
+export const DEV_MANGADEX_SECTION_PREVIEW_SIZE = 6;
+
+export type DevMangaDexSectionId = 'popular' | 'latest' | 'recent';
+
+export interface DevMangaDexSectionDefinition {
+  readonly id: DevMangaDexSectionId;
+  readonly title: string;
+  readonly capability: ProviderCapabilityKey;
+}
+
+export const DEV_MANGADEX_SECTION_DEFINITIONS: readonly DevMangaDexSectionDefinition[] = [
+  { id: 'popular', title: 'Popular', capability: 'discovery.popular' },
+  { id: 'latest', title: 'Latest updates', capability: 'discovery.latest' },
+  { id: 'recent', title: 'Recently added', capability: 'discovery.browse' },
+];
+
+export interface DevMangaDexSectionPage {
+  readonly results: readonly MangaIdentity[];
+  readonly hasMore: boolean;
+  readonly offset: number;
+}
 
 interface MangaDexTitleMap {
   readonly [locale: string]: string;
@@ -23,10 +46,16 @@ interface MangaDexMangaAttributes {
   readonly tags?: readonly { readonly attributes?: { readonly name?: MangaDexTitleMap } }[];
 }
 
+interface MangaDexRelationship {
+  readonly type: string;
+  readonly id: string;
+  readonly attributes?: { readonly fileName?: string };
+}
+
 interface MangaDexEntity {
   readonly id: string;
   readonly attributes: MangaDexMangaAttributes;
-  readonly relationships?: readonly { readonly type: string; readonly id: string }[];
+  readonly relationships?: readonly MangaDexRelationship[];
 }
 
 interface MangaDexSearchResponse {
@@ -41,11 +70,19 @@ function pickTitle(titleMap: MangaDexTitleMap): string {
   return titleMap.en ?? titleMap['ja-ro'] ?? titleMap.ja ?? Object.values(titleMap)[0] ?? 'Untitled';
 }
 
-function resolveCoverUrl(payload: MangaDexSearchResponse, manga: MangaDexEntity): string | undefined {
+/** MangaDex embeds cover filenames on relationships; included[] is often empty. */
+export function resolveMangaDexCoverUrl(
+  payload: MangaDexSearchResponse,
+  manga: MangaDexEntity,
+): string | undefined {
   const coverRel = manga.relationships?.find((rel) => rel.type === 'cover_art');
   if (!coverRel) return undefined;
-  const fileName = payload.included?.find((item) => item.id === coverRel.id)?.attributes?.fileName;
+
+  const fileName =
+    coverRel.attributes?.fileName ??
+    payload.included?.find((item) => item.id === coverRel.id)?.attributes?.fileName;
   if (!fileName) return undefined;
+
   return `https://uploads.mangadex.org/covers/${manga.id}/${fileName}.256.jpg`;
 }
 
@@ -101,10 +138,24 @@ function buildMangaDexParams(
   return params;
 }
 
+function applySectionOrdering(params: URLSearchParams, sectionId: DevMangaDexSectionId): void {
+  switch (sectionId) {
+    case 'popular':
+      params.set('order[followedCount]', 'desc');
+      break;
+    case 'latest':
+      params.set('order[latestUploadedChapter]', 'desc');
+      break;
+    case 'recent':
+      params.set('order[createdAt]', 'desc');
+      break;
+  }
+}
+
 function toDevMangaIdentity(payload: MangaDexSearchResponse, manga: MangaDexEntity): MangaIdentity {
   const mappingId = toProviderMappingId(`dev-md-map-${manga.id}`);
   const title = pickTitle(manga.attributes.title);
-  const coverImageUrl = resolveCoverUrl(payload, manga);
+  const coverImageUrl = resolveMangaDexCoverUrl(payload, manga);
 
   return {
     id: toMangaId(`dev-md-${manga.id}`),
@@ -128,6 +179,14 @@ function toDevMangaIdentity(payload: MangaDexSearchResponse, manga: MangaDexEnti
     defaultProviderMappingId: mappingId,
     merged: false,
   };
+}
+
+export function getEnabledMangaDexSections(
+  manifest: ProviderManifest,
+): readonly DevMangaDexSectionDefinition[] {
+  return DEV_MANGADEX_SECTION_DEFINITIONS.filter(
+    (section) => manifest.capabilities[section.capability] === true,
+  );
 }
 
 export function parseDevMangaDexId(mangaId: MangaId): string | null {
@@ -161,6 +220,25 @@ async function fetchMangaDexCollection(
   );
 }
 
+export async function fetchDevMangaDexSectionPage(
+  sectionId: DevMangaDexSectionId,
+  offset: number,
+  limit: number,
+  explicitContent = true,
+): Promise<DevMangaDexSectionPage> {
+  const params = buildMangaDexParams(['cover_art'], explicitContent);
+  params.set('limit', String(limit));
+  params.set('offset', String(offset));
+  applySectionOrdering(params, sectionId);
+
+  const results = await fetchMangaDexCollection(params, explicitContent);
+  return {
+    results,
+    hasMore: results.length >= limit,
+    offset,
+  };
+}
+
 export async function fetchDevMangaDexSearchResults(
   query: string,
   explicitContent = true,
@@ -178,30 +256,29 @@ export async function fetchDevMangaDexSearchResults(
 export async function fetchDevMangaDexDiscoverResults(
   explicitContent = true,
 ): Promise<readonly MangaIdentity[]> {
-  const params = buildMangaDexParams(['cover_art'], explicitContent);
-  params.set('limit', '24');
-  params.set('order[followedCount]', 'desc');
-  return fetchMangaDexCollection(params, explicitContent);
+  const page = await fetchDevMangaDexSectionPage(
+    'popular',
+    0,
+    DEV_MANGADEX_SECTION_PAGE_SIZE,
+    explicitContent,
+  );
+  return page.results;
 }
 
 export async function fetchDevMangaDexPopularResults(
   limit = 12,
   explicitContent = true,
 ): Promise<readonly MangaIdentity[]> {
-  const params = buildMangaDexParams(['cover_art'], explicitContent);
-  params.set('limit', String(limit));
-  params.set('order[followedCount]', 'desc');
-  return fetchMangaDexCollection(params, explicitContent);
+  const page = await fetchDevMangaDexSectionPage('popular', 0, limit, explicitContent);
+  return page.results;
 }
 
 export async function fetchDevMangaDexLatestResults(
   limit = 12,
   explicitContent = true,
 ): Promise<readonly MangaIdentity[]> {
-  const params = buildMangaDexParams(['cover_art'], explicitContent);
-  params.set('limit', String(limit));
-  params.set('order[updatedAt]', 'desc');
-  return fetchMangaDexCollection(params, explicitContent);
+  const page = await fetchDevMangaDexSectionPage('latest', 0, limit, explicitContent);
+  return page.results;
 }
 
 interface MangaDexDetailResponse {
@@ -253,4 +330,15 @@ export async function isMangaDexInstalled(db: AppDrizzleDb): Promise<boolean> {
   const { listInstalledExtensions } = await import('@app/db/browser');
   const installed = await listInstalledExtensions(db);
   return installed.some((entry) => String(entry.manifest.id) === 'mangadex' && entry.enabled);
+}
+
+export async function getInstalledMangaDexManifest(
+  db: AppDrizzleDb,
+): Promise<ProviderManifest | null> {
+  const { listInstalledExtensions } = await import('@app/db/browser');
+  const installed = await listInstalledExtensions(db);
+  const entry = installed.find(
+    (item) => String(item.manifest.id) === 'mangadex' && item.enabled,
+  );
+  return entry?.manifest ?? null;
 }

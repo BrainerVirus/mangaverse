@@ -64,7 +64,7 @@ export function MangaCard({ manga, onClick, variant = 'grid' }: MangaCardProps) 
         'hover:border-accent hover:shadow-md',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]',
         {
-          'flex flex-col aspect-[3/4]': isGrid,
+          'relative flex flex-col aspect-[3/4]': isGrid,
           'flex gap-4 p-3': variant === 'list',
           'flex-row gap-3 p-2': isCompact,
         }
@@ -93,7 +93,7 @@ export function MangaCard({ manga, onClick, variant = 'grid' }: MangaCardProps) 
       <div
         className={cn(
           'flex flex-col justify-between',
-          isGrid ? 'absolute bottom-0 left-0 right-0 p-3' : 'flex-1 py-1',
+          isGrid ? 'absolute bottom-0 left-0 right-0 z-10 p-3' : 'flex-1 py-1',
           isCompact && 'min-w-0 py-0.5'
         )}
       >

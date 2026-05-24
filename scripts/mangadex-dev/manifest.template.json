@@ -16,6 +16,7 @@
     "discovery.search": true,
     "discovery.latest": true,
     "discovery.popular": true,
+    "discovery.browse": true,
     "metadata.details": true,
     "metadata.chapters": true,
     "metadata.pages": true,
