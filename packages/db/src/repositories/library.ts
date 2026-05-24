@@ -185,6 +185,24 @@ export async function removeLibraryEntry(db: AppDrizzleDb, entryId: LibraryEntry
   await db.delete(libraryEntries).where(eq(libraryEntries.id, entryId));
 }
 
+export async function setLibraryEntryFavorite(
+  db: AppDrizzleDb,
+  entryId: LibraryEntryId,
+  favorite: boolean,
+): Promise<AppResult<void>> {
+  const entry = await db.select({ id: libraryEntries.id }).from(libraryEntries).where(eq(libraryEntries.id, entryId)).get();
+  if (entry === undefined) {
+    return err(createAppError({ code: 'db.library.entry_missing', message: 'Library entry not found.' }));
+  }
+
+  await db
+    .update(libraryEntries)
+    .set({ favorite, updatedAt: new Date().toISOString() })
+    .where(eq(libraryEntries.id, entryId));
+
+  return ok(undefined);
+}
+
 export async function setLibraryEntryCategories(
   db: AppDrizzleDb,
   entryId: LibraryEntryId,

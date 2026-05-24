@@ -6,6 +6,7 @@ import {
   LoadingState,
 } from '@app/design-system';
 import type { ChapterId, MangaId } from '@app/shared';
+import { Heart, Library, Trash2 } from 'lucide-react';
 import type { MangaDetailData } from '../types.js';
 
 export interface MangaDetailPageProps {
@@ -15,6 +16,10 @@ export interface MangaDetailPageProps {
   isError: boolean;
   onBack?: () => void;
   onOpenChapter: (chapterId: ChapterId) => void;
+  onAddToLibrary?: () => void;
+  onRemoveFromLibrary?: () => void;
+  onToggleFavorite?: () => void;
+  isLibraryActionPending?: boolean;
 }
 
 function formatPeople(names: readonly { name: string }[]): string | undefined {
@@ -28,6 +33,10 @@ export function MangaDetailPage({
   isError,
   onBack,
   onOpenChapter,
+  onAddToLibrary,
+  onRemoveFromLibrary,
+  onToggleFavorite,
+  isLibraryActionPending = false,
 }: MangaDetailPageProps) {
   if (isLoading) {
     return (
@@ -63,6 +72,9 @@ export function MangaDetailPage({
     (mapping) => mapping.id === manga.defaultProviderMappingId,
   );
   const hasContinue = continueChapterId !== undefined;
+  const inLibrary = libraryEntry !== undefined;
+  const isFavorite = libraryEntry?.favorite === true;
+  const libraryActionsDisabled = isLibraryActionPending;
 
   return (
     <main className="flex flex-col gap-8 p-6">
@@ -149,6 +161,48 @@ export function MangaDetailPage({
                 </Button>
               </div>
             ) : null}
+
+            <div className="flex flex-wrap gap-3">
+              {!inLibrary && onAddToLibrary !== undefined ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={libraryActionsDisabled}
+                  onClick={onAddToLibrary}
+                >
+                  <Library aria-hidden className="size-4" />
+                  Add to library
+                </Button>
+              ) : null}
+
+              {inLibrary && onToggleFavorite !== undefined ? (
+                <Button
+                  type="button"
+                  variant={isFavorite ? 'default' : 'outline'}
+                  disabled={libraryActionsDisabled}
+                  onClick={onToggleFavorite}
+                  aria-pressed={isFavorite}
+                >
+                  <Heart
+                    aria-hidden
+                    className={`size-4 ${isFavorite ? 'fill-current' : ''}`}
+                  />
+                  {isFavorite ? 'Favorited' : 'Favorite'}
+                </Button>
+              ) : null}
+
+              {inLibrary && onRemoveFromLibrary !== undefined ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={libraryActionsDisabled}
+                  onClick={onRemoveFromLibrary}
+                >
+                  <Trash2 aria-hidden className="size-4" />
+                  Remove from library
+                </Button>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
