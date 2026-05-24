@@ -1,6 +1,7 @@
-import { EmptyState, ErrorState, Input, LoadingState, MangaCard } from '@app/design-system';
+import { EmptyState, ErrorState, Input, LoadingState } from '@app/design-system';
 import type { MangaId } from '@app/shared';
 import type { SearchPageData, SearchViewState } from '../types.js';
+import { VirtualSearchGrid } from './VirtualSearchGrid.js';
 
 export interface SearchPageProps {
   data: SearchPageData | undefined;
@@ -92,14 +93,7 @@ export function SearchPage({
       ) : null}
 
       {!isLoading && !isError && hasQuery && resultCount > 0 ? (
-        <section
-          aria-label="Search results"
-          className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
-        >
-          {results.map((manga) => (
-            <MangaCard key={manga.id} manga={manga} onClick={() => onOpenManga(manga.id)} />
-          ))}
-        </section>
+        <VirtualSearchGrid results={results} onOpenManga={onOpenManga} />
       ) : null}
     </main>
   );
