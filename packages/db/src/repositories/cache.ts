@@ -105,6 +105,14 @@ export async function touchCacheEntry(db: AppDrizzleDb, id: string): Promise<voi
   await db.update(cacheEntries).set({ lastAccessAt: now }).where(eq(cacheEntries.id, id));
 }
 
+export async function getCacheEntryById(
+  db: AppDrizzleDb,
+  id: string,
+): Promise<CacheEntryRecord | undefined> {
+  const row = await db.select().from(cacheEntries).where(eq(cacheEntries.id, id)).get();
+  return row === undefined ? undefined : mapCacheRow(row);
+}
+
 export async function getCacheEntryByKey(
   db: AppDrizzleDb,
   input: {

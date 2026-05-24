@@ -155,5 +155,9 @@ export function createElectronPlatformAdapter(bridge: DesktopPlatformBridge): Pl
         }
       },
     },
+
+    network: {
+      fetchBytes: (url: string) => asResult(() => bridge.networkFetchBytes(url)),
+    },
   };
 }

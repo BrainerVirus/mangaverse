@@ -113,21 +113,15 @@ export async function storeCoverInCache(
   return { objectUrl, fromCache: false };
 }
 
-async function fetchRemoteCover(remoteUrl: string): Promise<{ data: ArrayBuffer; mimeType: string } | undefined> {
-  try {
-    const response = await fetch(remoteUrl, { referrerPolicy: 'no-referrer' });
-    if (!response.ok) {
-      return undefined;
-    }
-    const mimeType = response.headers.get('content-type') ?? 'image/jpeg';
-    const data = await response.arrayBuffer();
-    if (data.byteLength === 0) {
-      return undefined;
-    }
-    return { data, mimeType };
-  } catch {
+async function fetchRemoteCover(
+  adapter: PlatformAdapter,
+  remoteUrl: string,
+): Promise<{ data: ArrayBuffer; mimeType: string } | undefined> {
+  const result = await adapter.network.fetchBytes(remoteUrl);
+  if (!result.ok || result.value === undefined) {
     return undefined;
   }
+  return result.value;
 }
 
 export async function resolveCoverObjectUrl(
@@ -146,7 +140,7 @@ export async function resolveCoverObjectUrl(
   }
 
   const fetchPromise = (async () => {
-    const remote = await fetchRemoteCover(input.remoteUrl);
+    const remote = await fetchRemoteCover(input.adapter, input.remoteUrl);
     if (remote === undefined) {
       return undefined;
     }
@@ -190,6 +184,10 @@ export async function evictCoverCacheToLimit(
       break;
     }
 
+    if (entry.metadata?.retention === 'read') {
+      continue;
+    }
+
     if (entry.blobKey !== undefined) {
       await adapter.blobStorage.delete(entry.blobKey);
     }
@@ -209,4 +207,12 @@ export async function runCoverCacheMaintenance(
   const evictedCount = await evictCoverCacheToLimit(db, adapter, limitBytes);
   const usage = await getCoverCacheUsage(db);
   return { evictedCount, totalBytes: usage.totalBytes };
+}
+
+/** Returns a local blob URL for a cover, or undefined while loading / on cache miss. Never returns remote URLs. */
+export async function resolveCoverUrl(
+  input: CoverCacheLookupInput,
+): Promise<string | undefined> {
+  const result = await resolveCoverObjectUrl(input);
+  return result?.objectUrl;
 }

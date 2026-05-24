@@ -72,5 +72,8 @@ export function createUnsupportedPlatformAdapter(reason: string): PlatformAdapte
       createObjectUrl: async () => deny<string>(),
       revokeObjectUrl: async () => deny<void>(),
     },
+    network: {
+      fetchBytes: async () => deny<undefined>(),
+    },
   };
 }

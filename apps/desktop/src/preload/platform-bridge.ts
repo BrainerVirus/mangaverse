@@ -24,6 +24,7 @@ const bridge: DesktopPlatformBridge = {
     ipcRenderer.invoke(PLATFORM_IPC.SECURE_STORAGE_DELETE, key),
   diagnosticsGetSnapshot: () => ipcRenderer.invoke(PLATFORM_IPC.DIAGNOSTICS_GET),
   localServiceGetInfo: () => ipcRenderer.invoke(PLATFORM_IPC.LOCAL_SERVICE_GET_INFO),
+  networkFetchBytes: (url: string) => ipcRenderer.invoke(PLATFORM_IPC.NETWORK_FETCH_BYTES, url),
 };
 
 contextBridge.exposeInMainWorld('mangaversePlatform', bridge);

@@ -8,6 +8,7 @@ import {
   clipboard,
   dialog,
   ipcMain,
+  net,
   safeStorage,
   shell,
 } from 'electron';
@@ -181,6 +182,7 @@ app.whenReady().then(async () => {
       dialog,
       clipboard,
       shell,
+      net,
       readFileUtf8: (p) => readFile(p, 'utf8'),
       writeFileUtf8: (p, c) => writeFile(p, c, 'utf8'),
       getCapabilities: () => buildCapabilities(),

@@ -35,6 +35,7 @@ vi.mock('@tanstack/react-virtual', () => ({
 }));
 
 vi.mock('@app/design-system', () => ({
+  cn: (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' '),
   MangaCard: ({
     manga,
     onClick,

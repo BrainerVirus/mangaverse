@@ -37,6 +37,7 @@ describe('createElectronPlatformAdapter', () => {
       secureStorageDelete: async () => ok(undefined),
       diagnosticsGetSnapshot: async () => ok({}),
       localServiceGetInfo: async () => ok({ running: true, host: '127.0.0.1', port: 9 }),
+      networkFetchBytes: async () => ok(undefined),
     };
     const adapter = createElectronPlatformAdapter(bridge);
     const r = await adapter.capabilities();
@@ -60,6 +61,7 @@ describe('createElectronPlatformAdapter', () => {
       secureStorageDelete: vi.fn(async () => ok(undefined)),
       diagnosticsGetSnapshot: vi.fn(async () => ok({ platform: 'darwin' })),
       localServiceGetInfo: vi.fn(async () => ok({ running: true, host: '127.0.0.1', port: 123 })),
+      networkFetchBytes: vi.fn(async () => ok(undefined)),
     };
     const adapter = createElectronPlatformAdapter(bridge);
 
@@ -109,6 +111,7 @@ describe('createElectronPlatformAdapter', () => {
       secureStorageDelete: async () => ok(undefined),
       diagnosticsGetSnapshot: async () => ok({}),
       localServiceGetInfo: async () => ok({ running: false, host: null, port: null }),
+      networkFetchBytes: async () => ok(undefined),
     };
     const adapter = createElectronPlatformAdapter(bridge);
     const bad = await adapter.externalLinks.open('file:///etc/passwd');
@@ -135,6 +138,7 @@ describe('createElectronPlatformAdapter', () => {
       secureStorageDelete: async () => ok(undefined),
       diagnosticsGetSnapshot: async () => ok({}),
       localServiceGetInfo: async () => ok({ running: false, host: null, port: null }),
+      networkFetchBytes: async () => ok(undefined),
     };
     const adapter = createElectronPlatformAdapter(bridge);
     const r = await adapter.capabilities();
@@ -161,6 +165,7 @@ describe('createElectronPlatformAdapter', () => {
       secureStorageDelete: vi.fn(async () => ok(undefined)),
       diagnosticsGetSnapshot: async () => ok({}),
       localServiceGetInfo: async () => ok({ running: false, host: null, port: null }),
+      networkFetchBytes: async () => ok(undefined),
     };
     const adapter = createElectronPlatformAdapter(bridge);
     const badKey = await adapter.secureStorage.get('bad key!');
@@ -185,6 +190,7 @@ describe('createElectronPlatformAdapter', () => {
       secureStorageDelete: async () => ok(undefined),
       diagnosticsGetSnapshot: async () => ok({}),
       localServiceGetInfo: async () => ok({ running: false, host: null, port: null }),
+      networkFetchBytes: async () => ok(undefined),
     };
     const adapter = createElectronPlatformAdapter(bridge);
     const r = await adapter.storage.getItem('reader.preference');

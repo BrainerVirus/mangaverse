@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CoverCacheProvider } from '@app/cache';
-import { createWebPlatformAdapter } from '@app/platform';
+import { createAppPlatformAdapter } from '@app/platform';
 import { fetchAppSettings, settingsQueryKeys } from '@app/settings';
 import { DEFAULT_IMAGE_CACHE_LIMIT_BYTES } from '@app/shared';
 
@@ -15,7 +15,7 @@ interface CoverCacheBridgeProps {
 export function CoverCacheBridge({ children }: CoverCacheBridgeProps) {
   const db = useLocalDb();
   const dbStatus = useLocalDbStatus();
-  const adapter = useMemo(() => createWebPlatformAdapter(), []);
+  const adapter = useMemo(() => createAppPlatformAdapter(), []);
 
   const appSettingsQuery = useQuery({
     queryKey: settingsQueryKeys.app(),

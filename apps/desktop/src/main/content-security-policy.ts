@@ -5,6 +5,9 @@ function devServerOrigin(): string {
   return url.replace(/\/$/, '');
 }
 
+const MANGADEX_CONNECT_SRC =
+  'https://api.mangadex.org https://uploads.mangadex.org';
+
 export function buildContentSecurityPolicy(isDev: boolean): string {
   if (isDev) {
     const origin = devServerOrigin();
@@ -14,7 +17,7 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
       `script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' ${origin}`,
       `style-src 'self' 'unsafe-inline' ${origin}`,
       "img-src 'self' data: blob: https:",
-      `connect-src 'self' ${origin} ${wsOrigin} ws: wss: https://api.mangadex.org`,
+      `connect-src 'self' ${origin} ${wsOrigin} ws: wss: ${MANGADEX_CONNECT_SRC}`,
       "font-src 'self' data:",
       "worker-src 'self' blob:",
     ].join('; ');
@@ -25,7 +28,7 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
     "script-src 'self' 'wasm-unsafe-eval'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
-    "connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:* https://api.mangadex.org",
+    `connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:* ${MANGADEX_CONNECT_SRC}`,
     "font-src 'self' data:",
     "worker-src 'self' blob:",
   ].join('; ');

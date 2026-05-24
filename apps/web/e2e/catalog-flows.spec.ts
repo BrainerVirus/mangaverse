@@ -1,9 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
   devManifestFixture,
-  mangadexCoverBaseUrl,
-  mangadexExplicitFixture,
   mangadexListFixture,
+  mangadexExplicitFixture,
   mangadexRecentFixture,
 } from './fixtures/mangadex.js';
 
@@ -108,7 +107,7 @@ async function navigateViaSidebar(page: Page, label: string) {
 }
 
 async function expectCoverImagesVisible(page: Page, scope = page) {
-  const images = scope.locator('img[src*="uploads.mangadex.org"]');
+  const images = scope.locator('img[src^="blob:"]');
   await expect(images.first()).toBeVisible({ timeout: 20_000 });
   const count = await images.count();
   expect(count).toBeGreaterThan(0);
@@ -206,17 +205,19 @@ test('onboarding install opens extensions install dialog in one click', async ({
   await expect(page.getByLabel('Manifest URL')).not.toHaveValue('');
 });
 
-test('discover cover URLs use MangaDex CDN pattern', async ({ page }) => {
+test('discover cover images are served from local blob cache', async ({ page }) => {
   await resetClientState(page);
   await mockMangaDexApi(page);
   await mockMangaDexCovers(page);
   await mockDevManifest(page);
   await finishOnboardingQuick(page);
   await navigateViaSidebar(page, 'Discover');
+  await expect(page.getByTestId('discover-section-popular')).toBeVisible({ timeout: 20_000 });
   const src = await page
     .getByTestId('discover-section-popular')
     .locator('img')
     .first()
     .getAttribute('src');
-  expect(src).toContain(mangadexCoverBaseUrl);
+  expect(src).toMatch(/^blob:/);
+  expect(src).not.toContain('uploads.mangadex.org');
 });

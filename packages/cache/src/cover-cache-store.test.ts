@@ -7,6 +7,7 @@ import {
   evictCoverCacheToLimit,
   getCachedCoverObjectUrl,
   getCoverCacheUsage,
+  resolveCoverObjectUrl,
   storeCoverInCache,
 } from './cover-cache-store.js';
 import { buildCoverBlobKey } from './constants.js';
@@ -70,6 +71,14 @@ function createMockAdapter(store = new Map<string, { data: ArrayBuffer; mimeType
       revokeObjectUrl: async (url) => {
         objectUrls.delete(url);
         return ok(undefined);
+      },
+    },
+    network: {
+      fetchBytes: async (url) => {
+        if (url.includes('fail')) {
+          return ok(undefined);
+        }
+        return ok({ data: new Uint8Array([9, 8, 7]).buffer, mimeType: 'image/jpeg' });
       },
     },
   };
@@ -142,6 +151,33 @@ describe('cover cache store', () => {
     expect(usage.totalBytes).toBe(200);
     expect(blobStore.has(buildCoverBlobKey('mangadex', 'dev-md-old'))).toBe(false);
     expect(blobStore.has(buildCoverBlobKey('mangadex', 'dev-md-new'))).toBe(true);
+  });
+
+  it('downloads remote cover bytes via platform network and stores blob URL', async () => {
+    const { db } = await createSqlJsHarness();
+    const blobStore = new Map<string, { data: ArrayBuffer; mimeType: string }>();
+    const adapter = createMockAdapter(blobStore);
+
+    const resolved = await resolveCoverObjectUrl({
+      db,
+      adapter,
+      providerId: 'mangadex',
+      mangaId: 'dev-md-remote',
+      remoteUrl: 'https://uploads.mangadex.org/covers/remote.jpg',
+    });
+
+    expect(resolved?.fromCache).toBe(false);
+    expect(resolved?.objectUrl).toMatch(/^blob:mock-/);
+    expect(blobStore.has(buildCoverBlobKey('mangadex', 'dev-md-remote'))).toBe(true);
+
+    const cachedAgain = await resolveCoverObjectUrl({
+      db,
+      adapter,
+      providerId: 'mangadex',
+      mangaId: 'dev-md-remote',
+      remoteUrl: 'https://uploads.mangadex.org/covers/remote.jpg',
+    });
+    expect(cachedAgain?.fromCache).toBe(true);
   });
 });
 

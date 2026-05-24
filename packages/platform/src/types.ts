@@ -13,6 +13,11 @@ export interface PlatformBlobRecord {
   readonly mimeType: string;
 }
 
+export interface PlatformNetworkFetchResult {
+  readonly data: ArrayBuffer;
+  readonly mimeType: string;
+}
+
 export interface PlatformBlobStorageEnvironment {
   readonly indexedDB?: IDBFactory;
   readonly createObjectUrl?: (blob: Blob) => string;
@@ -134,6 +139,9 @@ export interface PlatformAdapter {
     createObjectUrl(data: ArrayBuffer, mimeType: string): Promise<AppResult<string>>;
     revokeObjectUrl(url: string): Promise<AppResult<void>>;
   };
+  readonly network: {
+    fetchBytes(url: string): Promise<AppResult<PlatformNetworkFetchResult | undefined>>;
+  };
 }
 
 export interface DesktopPlatformBridge {
@@ -152,6 +160,7 @@ export interface DesktopPlatformBridge {
   secureStorageDelete(key: string): Promise<AppResult<void>>;
   diagnosticsGetSnapshot(): Promise<AppResult<PlatformDiagnosticsSnapshot>>;
   localServiceGetInfo(): Promise<AppResult<LocalServiceInfo>>;
+  networkFetchBytes(url: string): Promise<AppResult<PlatformNetworkFetchResult | undefined>>;
 }
 
 export interface WebCapabilityEnvironment {

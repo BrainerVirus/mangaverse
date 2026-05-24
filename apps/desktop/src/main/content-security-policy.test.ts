@@ -11,6 +11,7 @@ describe('buildContentSecurityPolicy', () => {
     expect(csp).toContain('style-src \'self\' \'unsafe-inline\' http://localhost:5173');
     expect(csp).toContain('ws://localhost:5173');
     expect(csp).toContain('https://api.mangadex.org');
+    expect(csp).toContain('https://uploads.mangadex.org');
   });
 
   it('uses a strict policy in production', () => {
@@ -20,5 +21,6 @@ describe('buildContentSecurityPolicy', () => {
     expect(csp).toContain("script-src 'self'");
     expect(csp).toContain('http://127.0.0.1:*');
     expect(csp).toContain('https://api.mangadex.org');
+    expect(csp).toContain('https://uploads.mangadex.org');
   });
 });

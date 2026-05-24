@@ -719,6 +719,9 @@ importers:
 
   packages/reader:
     dependencies:
+      '@app/cache':
+        specifier: workspace:*
+        version: link:../cache
       '@app/db':
         specifier: workspace:*
         version: link:../db

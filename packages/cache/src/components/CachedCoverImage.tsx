@@ -22,15 +22,18 @@ export function CachedCoverImage({
 }: CachedCoverImageProps) {
   const context = useCoverCacheContext();
   const [src, setSrc] = useState<string | undefined>(undefined);
+  const [failed, setFailed] = useState(false);
   const objectUrlRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     if (context === null) {
       setSrc(undefined);
+      setFailed(true);
       return;
     }
 
     let cancelled = false;
+    setFailed(false);
 
     void (async () => {
       const result = await resolveCoverObjectUrl({
@@ -41,7 +44,13 @@ export function CachedCoverImage({
         remoteUrl,
       });
 
-      if (cancelled || result === undefined) {
+      if (cancelled) {
+        return;
+      }
+
+      if (result === undefined) {
+        setFailed(true);
+        setSrc(undefined);
         return;
       }
 
@@ -66,8 +75,13 @@ export function CachedCoverImage({
     };
   }, [context, mangaId, providerId, remoteUrl]);
 
-  if (src === undefined) {
-    return <div className={cn('animate-pulse bg-muted', className)} aria-hidden />;
+  if (failed || src === undefined) {
+    return (
+      <div
+        className={cn('bg-muted', failed ? 'animate-none' : 'animate-pulse', className)}
+        aria-hidden
+      />
+    );
   }
 
   return <img src={src} alt={alt} className={className} loading="lazy" />;
@@ -92,7 +106,7 @@ export interface CachedMangaCardCoverProps {
 
 export function CachedMangaCardCover({ manga, className }: CachedMangaCardCoverProps) {
   if (manga.coverImageUrl === undefined) {
-    return null;
+    return <div className={cn('bg-muted', className)} aria-hidden />;
   }
 
   return (

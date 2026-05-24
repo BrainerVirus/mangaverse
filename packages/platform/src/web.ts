@@ -5,6 +5,7 @@ import {
   getIndexedDbBlob,
   putIndexedDbBlob,
 } from './blob-storage-idb.js';
+import { fetchNetworkBytes } from './network-fetch.js';
 import {
   platformInvalidUrl,
   platformPermissionDenied,
@@ -398,6 +399,10 @@ export function createWebPlatformAdapter(environment?: WebPlatformEnvironment): 
           return err(platformUnsupported('Could not revoke object URL.'));
         }
       },
+    },
+
+    network: {
+      fetchBytes: async (url: string) => ok(await fetchNetworkBytes(url)),
     },
   };
 }
