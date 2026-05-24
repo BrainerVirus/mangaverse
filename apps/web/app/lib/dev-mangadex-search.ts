@@ -1,7 +1,8 @@
 import type { AppDrizzleDb } from '@app/db/browser';
 import type { MangaDetailData } from '@app/library';
-import type { MangaIdentity, MangaId, ProviderCapabilityKey, ProviderManifest } from '@app/shared';
+import type { Chapter, ChapterId, MangaIdentity, MangaId, ProviderCapabilityKey, ProviderManifest } from '@app/shared';
 import {
+  toChapterId,
   toMangaId,
   toProviderId,
   toProviderMappingId,
@@ -10,11 +11,19 @@ import {
 
 const MANGADEX_API = 'https://api.mangadex.org';
 const MANGADEX_PROVIDER_ID = toProviderId('mangadex');
+const MANGADEX_SELF_PUBLISHED_TAG_ID = '891cf039-b895-47f0-9229-bef4c96eccd4';
+const MANGADEX_CHAPTER_FEED_LIMIT = 100;
 
 export const DEV_MANGADEX_SECTION_PAGE_SIZE = 24;
 export const DEV_MANGADEX_SECTION_PREVIEW_SIZE = 6;
 
-export type DevMangaDexSectionId = 'popular' | 'latest' | 'recent';
+export type DevMangaDexSectionId =
+  | 'latest'
+  | 'recommended'
+  | 'selfPublished'
+  | 'seasonal'
+  | 'recent'
+  | 'popular';
 
 export interface DevMangaDexSectionDefinition {
   readonly id: DevMangaDexSectionId;
@@ -23,9 +32,12 @@ export interface DevMangaDexSectionDefinition {
 }
 
 export const DEV_MANGADEX_SECTION_DEFINITIONS: readonly DevMangaDexSectionDefinition[] = [
-  { id: 'popular', title: 'Popular', capability: 'discovery.popular' },
   { id: 'latest', title: 'Latest updates', capability: 'discovery.latest' },
+  { id: 'recommended', title: 'Recommended', capability: 'metadata.recommendations' },
+  { id: 'selfPublished', title: 'Self-Published', capability: 'content.tagFilter' },
+  { id: 'seasonal', title: 'Seasonal', capability: 'content.tagFilter' },
   { id: 'recent', title: 'Recently added', capability: 'discovery.browse' },
+  { id: 'popular', title: 'Popular', capability: 'discovery.popular' },
 ];
 
 export interface DevMangaDexSectionPage {
@@ -149,7 +161,71 @@ function applySectionOrdering(params: URLSearchParams, sectionId: DevMangaDexSec
     case 'recent':
       params.set('order[createdAt]', 'desc');
       break;
+    case 'recommended':
+      params.set('order[rating]', 'desc');
+      break;
+    case 'selfPublished':
+      params.append('includedTags[]', MANGADEX_SELF_PUBLISHED_TAG_ID);
+      params.set('order[latestUploadedChapter]', 'desc');
+      break;
+    case 'seasonal':
+      applySeasonalFilters(params);
+      params.set('order[latestUploadedChapter]', 'desc');
+      break;
   }
+}
+
+export interface AnimeSeason {
+  readonly name: 'Winter' | 'Spring' | 'Summer' | 'Fall';
+  readonly year: number;
+}
+
+export function getCurrentAnimeSeason(date = new Date()): AnimeSeason {
+  const month = date.getUTCMonth() + 1;
+  const year = date.getUTCFullYear();
+
+  if (month >= 1 && month <= 3) {
+    return { name: 'Winter', year };
+  }
+  if (month >= 4 && month <= 6) {
+    return { name: 'Spring', year };
+  }
+  if (month >= 7 && month <= 9) {
+    return { name: 'Summer', year };
+  }
+  return { name: 'Fall', year };
+}
+
+export function getSeasonalSectionTitle(date = new Date()): string {
+  const season = getCurrentAnimeSeason(date);
+  return `Seasonal: ${season.name} ${season.year}`;
+}
+
+function getSeasonStartIso(season: AnimeSeason): string {
+  switch (season.name) {
+    case 'Winter':
+      return `${season.year}-01-01T00:00:00.000Z`;
+    case 'Spring':
+      return `${season.year}-04-01T00:00:00.000Z`;
+    case 'Summer':
+      return `${season.year}-07-01T00:00:00.000Z`;
+    case 'Fall':
+      return `${season.year}-10-01T00:00:00.000Z`;
+  }
+}
+
+function applySeasonalFilters(params: URLSearchParams, date = new Date()): void {
+  const season = getCurrentAnimeSeason(date);
+  params.set('year', String(season.year));
+  params.set('createdAtSince', getSeasonStartIso(season));
+}
+
+export function getDevMangaDexSectionTitle(sectionId: DevMangaDexSectionId, date = new Date()): string {
+  if (sectionId === 'seasonal') {
+    return getSeasonalSectionTitle(date);
+  }
+  const definition = DEV_MANGADEX_SECTION_DEFINITIONS.find((section) => section.id === sectionId);
+  return definition?.title ?? sectionId;
 }
 
 function toDevMangaIdentity(payload: MangaDexSearchResponse, manga: MangaDexEntity): MangaIdentity {
@@ -195,6 +271,18 @@ export function parseDevMangaDexId(mangaId: MangaId): string | null {
     return null;
   }
   return raw.slice('dev-md-'.length);
+}
+
+export function toDevMangaDexChapterId(mangadexChapterId: string): ChapterId {
+  return toChapterId(`dev-md-ch-${mangadexChapterId}`);
+}
+
+export function parseDevMangaDexChapterId(chapterId: ChapterId): string | null {
+  const raw = String(chapterId);
+  if (!raw.startsWith('dev-md-ch-')) {
+    return null;
+  }
+  return raw.slice('dev-md-ch-'.length);
 }
 
 export function isDevMangaDexId(mangaId: MangaId): boolean {
@@ -289,6 +377,128 @@ interface MangaDexDetailResponse {
   }[];
 }
 
+interface MangaDexChapterAttributes {
+  readonly volume?: string | null;
+  readonly chapter?: string | null;
+  readonly title?: string | null;
+  readonly translatedLanguage?: string;
+  readonly publishAt?: string;
+  readonly pages?: number;
+}
+
+interface MangaDexChapterEntity {
+  readonly id: string;
+  readonly attributes: MangaDexChapterAttributes;
+}
+
+interface MangaDexChapterFeedResponse {
+  readonly data?: readonly MangaDexChapterEntity[];
+  readonly limit?: number;
+  readonly offset?: number;
+  readonly total?: number;
+}
+
+function formatChapterTitle(attributes: MangaDexChapterAttributes): string {
+  const chapterNumber = attributes.chapter?.trim();
+  const chapterTitle = attributes.title?.trim();
+
+  if (chapterNumber !== undefined && chapterNumber.length > 0 && chapterTitle !== undefined && chapterTitle.length > 0) {
+    return `Ch. ${chapterNumber} - ${chapterTitle}`;
+  }
+  if (chapterTitle !== undefined && chapterTitle.length > 0) {
+    return chapterTitle;
+  }
+  if (chapterNumber !== undefined && chapterNumber.length > 0) {
+    return `Chapter ${chapterNumber}`;
+  }
+  return 'Chapter';
+}
+
+function parseChapterIndex(attributes: MangaDexChapterAttributes, fallback: number): number {
+  const parsed = Number.parseFloat(attributes.chapter ?? '');
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+async function fetchDevMangaDexChapterFeedPage(
+  mangadexMangaId: string,
+  offset: number,
+  explicitContent: boolean,
+): Promise<readonly MangaDexChapterEntity[]> {
+  const params = buildMangaDexParams([], explicitContent);
+  params.set('limit', String(MANGADEX_CHAPTER_FEED_LIMIT));
+  params.set('offset', String(offset));
+  params.set('order[chapter]', 'asc');
+  params.append('translatedLanguage[]', 'en');
+
+  const response = await fetch(`${MANGADEX_API}/manga/${mangadexMangaId}/feed?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(`MangaDex chapter feed failed (${response.status})`);
+  }
+
+  const payload = (await response.json()) as MangaDexChapterFeedResponse;
+  return payload.data ?? [];
+}
+
+function mapMangaDexChapterEntity(
+  entry: MangaDexChapterEntity,
+  mangaId: MangaId,
+  fallbackIndex: number,
+): Chapter {
+  const attrs = entry.attributes;
+  return {
+    id: toDevMangaDexChapterId(entry.id),
+    mangaId,
+    providerId: MANGADEX_PROVIDER_ID,
+    providerChapterId: entry.id,
+    title: formatChapterTitle(attrs),
+    index: parseChapterIndex(attrs, fallbackIndex),
+    ...(attrs.volume !== null && attrs.volume !== undefined && attrs.volume !== ''
+      ? { volume: attrs.volume }
+      : {}),
+    ...(attrs.publishAt !== undefined ? { publishedAt: attrs.publishAt } : {}),
+    pages: [],
+  };
+}
+
+async function fetchDevMangaDexChapterFeed(
+  mangadexMangaId: string,
+  offset: number,
+  explicitContent: boolean,
+  accumulated: readonly Chapter[],
+): Promise<readonly Chapter[]> {
+  const batch = await fetchDevMangaDexChapterFeedPage(mangadexMangaId, offset, explicitContent);
+  if (batch.length === 0) {
+    return accumulated;
+  }
+
+  const mapped = batch.map((entry, index) =>
+    mapMangaDexChapterEntity(entry, toMangaId(`dev-md-${mangadexMangaId}`), offset + index + 1),
+  );
+  const next = [...accumulated, ...mapped];
+
+  if (batch.length < MANGADEX_CHAPTER_FEED_LIMIT) {
+    return next;
+  }
+
+  return fetchDevMangaDexChapterFeed(
+    mangadexMangaId,
+    offset + MANGADEX_CHAPTER_FEED_LIMIT,
+    explicitContent,
+    next,
+  );
+}
+
+export async function fetchDevMangaDexChapters(
+  mangadexMangaId: string,
+  mangaId: MangaId,
+  explicitContent = true,
+): Promise<readonly Chapter[]> {
+  const chapters = await fetchDevMangaDexChapterFeed(mangadexMangaId, 0, explicitContent, []);
+  return [...chapters]
+    .map((chapter) => ({ ...chapter, mangaId }))
+    .sort((a, b) => a.index - b.index);
+}
+
 export async function fetchDevMangaDetail(mangaId: MangaId): Promise<MangaDetailData | null> {
   const mangadexId = parseDevMangaDexId(mangaId);
   if (mangadexId === null) {
@@ -314,16 +524,31 @@ export async function fetchDevMangaDetail(mangaId: MangaId): Promise<MangaDetail
 
   const identity = toDevMangaIdentity(listPayload, entity);
   const description = pickLocalizedText(entity.attributes.description);
+  const chapters = await fetchDevMangaDexChapters(mangadexId, mangaId, true);
 
   return {
     manga: {
       ...identity,
       ...(description !== undefined ? { description } : {}),
     },
-    chapters: [],
+    chapters,
     libraryEntry: undefined,
-    continueChapterId: undefined,
+    continueChapterId: chapters[0]?.id,
   };
+}
+
+export async function fetchAndPersistDevMangaDetail(
+  db: AppDrizzleDb,
+  mangaId: MangaId,
+): Promise<MangaDetailData | null> {
+  const detail = await fetchDevMangaDetail(mangaId);
+  if (detail === null) {
+    return null;
+  }
+
+  const { persistDevMangaDetailToDb } = await import('./dev-mangadex-persist.js');
+  await persistDevMangaDetailToDb(db, detail);
+  return detail;
 }
 
 export async function isMangaDexInstalled(db: AppDrizzleDb): Promise<boolean> {

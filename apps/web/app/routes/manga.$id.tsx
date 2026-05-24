@@ -17,6 +17,10 @@ import {
   isDevMangaDexId,
   isMangaDexInstalled,
 } from '../lib/dev-mangadex-search.js';
+import {
+  mergeMangaDetailWithLibrary,
+  shouldRefreshDevMangaDetail,
+} from '../lib/dev-mangadex-persist.js';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 
 export const Route = createFileRoute('/manga/$id')({
@@ -25,20 +29,30 @@ export const Route = createFileRoute('/manga/$id')({
 
 async function resolveMangaDetail(db: AppDrizzleDb, mangaId: MangaId) {
   const local = await fetchMangaDetail(db, mangaId);
-  if (local !== null) {
-    return local;
-  }
 
   if (!import.meta.env.DEV || !isDevMangaDexId(mangaId)) {
-    return null;
+    return local;
   }
 
   const mangadexInstalled = await isMangaDexInstalled(db);
   if (!mangadexInstalled) {
-    return null;
+    return local;
   }
 
-  return fetchDevMangaDetail(mangaId);
+  if (!shouldRefreshDevMangaDetail(local)) {
+    return local;
+  }
+
+  const remote = await fetchDevMangaDetail(mangaId);
+  if (remote === null) {
+    return local;
+  }
+
+  const { persistDevMangaDetailToDb } = await import('../lib/dev-mangadex-persist.js');
+  await persistDevMangaDetailToDb(db, remote);
+
+  const refreshed = await fetchMangaDetail(db, mangaId);
+  return mergeMangaDetailWithLibrary(refreshed ?? remote, local);
 }
 
 function MangaDetailRoute() {

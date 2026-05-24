@@ -81,6 +81,104 @@ export const mangadexExplicitFixture = {
   included: [{ id: 'cover-3', attributes: { fileName: 'cover-3.jpg' } }],
 };
 
+export const mangadexRecommendedFixture = {
+  data: [
+    {
+      id: '00000000-0000-0000-0000-000000000005',
+      attributes: {
+        title: { en: 'Recommended Title' },
+        status: 'ongoing',
+        contentRating: 'safe',
+      },
+      relationships: [
+        {
+          type: 'cover_art',
+          id: 'cover-5',
+          attributes: { fileName: 'cover-5.jpg' },
+        },
+      ],
+    },
+  ],
+  included: [{ id: 'cover-5', attributes: { fileName: 'cover-5.jpg' } }],
+};
+
+export const mangadexSelfPublishedFixture = {
+  data: [
+    {
+      id: '00000000-0000-0000-0000-000000000006',
+      attributes: {
+        title: { en: 'Self Published Title' },
+        status: 'ongoing',
+        contentRating: 'safe',
+      },
+      relationships: [
+        {
+          type: 'cover_art',
+          id: 'cover-6',
+          attributes: { fileName: 'cover-6.jpg' },
+        },
+      ],
+    },
+  ],
+  included: [{ id: 'cover-6', attributes: { fileName: 'cover-6.jpg' } }],
+};
+
+export const mangadexSeasonalFixture = {
+  data: [
+    {
+      id: '00000000-0000-0000-0000-000000000007',
+      attributes: {
+        title: { en: 'Seasonal Title' },
+        status: 'ongoing',
+        contentRating: 'safe',
+      },
+      relationships: [
+        {
+          type: 'cover_art',
+          id: 'cover-7',
+          attributes: { fileName: 'cover-7.jpg' },
+        },
+      ],
+    },
+  ],
+  included: [{ id: 'cover-7', attributes: { fileName: 'cover-7.jpg' } }],
+};
+
+export const mangadexRenchiDetailFixture = {
+  data: {
+    id: 'a34cf998-e065-441b-acf4-0132527abf96',
+    attributes: {
+      title: { en: 'Renchi to Kudamono' },
+      description: { en: 'Tools and fruit.' },
+      status: 'ongoing',
+      contentRating: 'safe',
+    },
+    relationships: [
+      {
+        type: 'cover_art',
+        id: 'cover-renchi',
+        attributes: { fileName: 'cover-renchi.jpg' },
+      },
+    ],
+  },
+  included: [{ id: 'cover-renchi', attributes: { fileName: 'cover-renchi.jpg' } }],
+};
+
+export const mangadexRenchiFeedFixture = {
+  data: [
+    {
+      id: 'ad5ae837-5e47-4c90-bb69-50f1c9a08518',
+      attributes: {
+        chapter: '1',
+        title: 'The End and The Beginning',
+        publishAt: '2026-05-24T16:08:45+00:00',
+        pages: 51,
+      },
+    },
+  ],
+  total: 1,
+};
+
 export const devManifestFixture = {
   id: 'mangadex',
   name: 'MangaDex (Local Dev)',
@@ -103,6 +201,8 @@ export const devManifestFixture = {
     'metadata.details': true,
     'metadata.chapters': true,
     'metadata.pages': true,
+    'metadata.recommendations': true,
+    'content.tagFilter': true,
     'ops.officialApi': true,
   },
   permissions: ['network.http', 'storage.local'],

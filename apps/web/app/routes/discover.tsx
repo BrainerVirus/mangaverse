@@ -15,6 +15,7 @@ import {
   DEV_MANGADEX_SECTION_PREVIEW_SIZE,
   DEV_MANGADEX_SECTION_PAGE_SIZE,
   fetchDevMangaDexSectionPage,
+  getDevMangaDexSectionTitle,
   getEnabledMangaDexSections,
   getInstalledMangaDexManifest,
   type DevMangaDexSectionId,
@@ -53,7 +54,7 @@ async function buildDiscoverPageData(
       );
       return {
         id: definition.id,
-        title: definition.title,
+        title: getDevMangaDexSectionTitle(definition.id),
         capability: definition.capability,
         results: page.results,
       } satisfies DiscoverSection;
@@ -124,7 +125,7 @@ function DiscoverRoute() {
       (entry) => entry.id === expandedSection.sectionId,
     );
     if (fallback !== undefined && expandedSection.providerId === 'mangadex') {
-      return { title: fallback.title, sectionId: fallback.id };
+      return { title: getDevMangaDexSectionTitle(fallback.id), sectionId: fallback.id };
     }
 
     return null;

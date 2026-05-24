@@ -321,3 +321,72 @@ export async function listMangaIdentities(db: AppDrizzleDb): Promise<MangaIdenti
   const loaded = await Promise.all(rows.map((row) => getMangaIdentity(db, toMangaId(row.id))));
   return loaded.filter((x): x is MangaIdentity => x !== undefined);
 }
+
+/** Insert or update a manga identity and its provider mappings (metadata fields only). */
+export async function upsertMangaIdentity(db: AppDrizzleDb, identity: MangaIdentity): Promise<void> {
+  const now = new Date().toISOString();
+  const existing = await db
+    .select({ id: mangaIdentities.id })
+    .from(mangaIdentities)
+    .where(eq(mangaIdentities.id, identity.id))
+    .get();
+
+  if (existing === undefined) {
+    await db.insert(mangaIdentities).values({
+      id: identity.id,
+      canonicalTitle: identity.canonicalTitle,
+      status: identity.status,
+      contentRating: identity.contentRating,
+      merged: identity.merged,
+      defaultProviderMappingId: identity.defaultProviderMappingId,
+      ...(identity.language !== undefined ? { language: identity.language } : {}),
+      ...(identity.description !== undefined ? { description: identity.description } : {}),
+      ...(identity.coverImageUrl !== undefined ? { coverImageUrl: identity.coverImageUrl } : {}),
+      createdAt: identity.createdAt ?? now,
+      updatedAt: now,
+    });
+  } else {
+    await db
+      .update(mangaIdentities)
+      .set({
+        canonicalTitle: identity.canonicalTitle,
+        status: identity.status,
+        contentRating: identity.contentRating,
+        ...(identity.description !== undefined ? { description: identity.description } : {}),
+        ...(identity.coverImageUrl !== undefined ? { coverImageUrl: identity.coverImageUrl } : {}),
+        updatedAt: now,
+      })
+      .where(eq(mangaIdentities.id, identity.id));
+  }
+
+  await Promise.all(
+    identity.providerMappings.map(async (mapping) => {
+      const mappingRow = await db
+        .select({ id: mangaProviderMappings.id })
+        .from(mangaProviderMappings)
+        .where(eq(mangaProviderMappings.id, mapping.id))
+        .get();
+
+      if (mappingRow === undefined) {
+        await db.insert(mangaProviderMappings).values({
+          id: mapping.id,
+          mangaId: identity.id,
+          providerId: mapping.providerId,
+          providerMangaId: mapping.providerMangaId,
+          ...(mapping.providerTitle !== undefined ? { providerTitle: mapping.providerTitle } : {}),
+          ...(mapping.providerUrl !== undefined ? { providerUrl: mapping.providerUrl } : {}),
+          lastSyncedAt: now,
+        });
+      } else {
+        await db
+          .update(mangaProviderMappings)
+          .set({
+            ...(mapping.providerTitle !== undefined ? { providerTitle: mapping.providerTitle } : {}),
+            ...(mapping.providerUrl !== undefined ? { providerUrl: mapping.providerUrl } : {}),
+            lastSyncedAt: now,
+          })
+          .where(eq(mangaProviderMappings.id, mapping.id));
+      }
+    }),
+  );
+}

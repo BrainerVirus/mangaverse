@@ -4,6 +4,11 @@ import {
   mangadexListFixture,
   mangadexExplicitFixture,
   mangadexRecentFixture,
+  mangadexRecommendedFixture,
+  mangadexSelfPublishedFixture,
+  mangadexSeasonalFixture,
+  mangadexRenchiDetailFixture,
+  mangadexRenchiFeedFixture,
 } from './fixtures/mangadex.js';
 
 const TINY_JPEG = Buffer.from(
@@ -22,13 +27,32 @@ async function mockMangaDexCovers(page: Page) {
 }
 
 async function mockMangaDexApi(page: Page) {
-  await page.route('**/api.mangadex.org/manga**', async (route) => {
+  await page.route('**/api.mangadex.org/**', async (route) => {
     const url = route.request().url();
     const includesExplicit = url.includes('pornographic') || url.includes('erotica');
     const detailMatch = url.match(/\/manga\/([0-9a-f-]{36})(?:\?|$)/i);
+    const feedMatch = url.match(/\/manga\/([0-9a-f-]{36})\/feed/i);
+
+    if (feedMatch !== null) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mangadexRenchiFeedFixture),
+      });
+      return;
+    }
 
     if (detailMatch !== null) {
       const mangaId = detailMatch[1]!;
+      if (mangaId === mangadexRenchiDetailFixture.data.id) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(mangadexRenchiDetailFixture),
+        });
+        return;
+      }
+
       const entry =
         mangadexListFixture.data.find((item) => item.id === mangaId) ?? mangadexListFixture.data[0]!;
       await route.fulfill({
@@ -42,11 +66,29 @@ async function mockMangaDexApi(page: Page) {
       return;
     }
 
+    if (url.includes('title=') && url.toLowerCase().includes('renchi')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          data: [mangadexRenchiDetailFixture.data],
+          included: mangadexRenchiDetailFixture.included,
+        }),
+      });
+      return;
+    }
+
     const body = includesExplicit
       ? mangadexExplicitFixture
-      : url.includes('order%5BcreatedAt%5D') || url.includes('order[createdAt]')
-        ? mangadexRecentFixture
-        : mangadexListFixture;
+      : url.includes('order%5Brating%5D') || url.includes('order[rating]')
+        ? mangadexRecommendedFixture
+        : url.includes('includedTags') || url.includes('891cf039-b895-47f0-9229-bef4c96eccd4')
+          ? mangadexSelfPublishedFixture
+          : url.includes('createdAtSince') || url.includes('year=')
+            ? mangadexSeasonalFixture
+            : url.includes('order%5BcreatedAt%5D') || url.includes('order[createdAt]')
+              ? mangadexRecentFixture
+              : mangadexListFixture;
 
     await route.fulfill({
       status: 200,
@@ -137,6 +179,9 @@ test.describe('catalog flows', () => {
 
     await expect(page.getByTestId('discover-section-popular')).toBeVisible({ timeout: 20_000 });
     await expect(page.getByTestId('discover-section-latest')).toBeVisible();
+    await expect(page.getByTestId('discover-section-recommended')).toBeVisible();
+    await expect(page.getByTestId('discover-section-selfPublished')).toBeVisible();
+    await expect(page.getByTestId('discover-section-seasonal')).toBeVisible();
     await expect(page.getByTestId('discover-section-recent')).toBeVisible();
 
     const popular = page.getByTestId('discover-section-popular');
@@ -173,6 +218,20 @@ test.describe('catalog flows', () => {
     await expect(page).toHaveURL(/\/manga\//);
     await expect(page.getByRole('heading', { name: 'Berserk' })).toBeVisible();
     await expectCoverImagesVisible(page);
+  });
+
+  test('manga detail shows chapters for Renchi to Kudamono', async ({ page }) => {
+    await navigateViaSidebar(page, 'Search');
+    await page.getByRole('searchbox', { name: 'Search manga' }).fill('renchi');
+    await expect(page.getByRole('button', { name: 'Renchi to Kudamono' })).toBeVisible({
+      timeout: 20_000,
+    });
+    await page.getByRole('button', { name: 'Renchi to Kudamono' }).click();
+    await expect(page).toHaveURL(/\/manga\/dev-md-a34cf998-e065-441b-acf4-0132527abf96/);
+    await expect(page.getByRole('heading', { name: 'Renchi to Kudamono' })).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: /The End and The Beginning/i }),
+    ).toBeVisible({ timeout: 20_000 });
   });
 
   test('explicit content switch toggles aria state in app settings', async ({ page }) => {

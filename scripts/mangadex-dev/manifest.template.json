@@ -20,6 +20,8 @@
     "metadata.details": true,
     "metadata.chapters": true,
     "metadata.pages": true,
+    "metadata.recommendations": true,
+    "content.tagFilter": true,
     "ops.officialApi": true
   },
   "permissions": ["network.http", "storage.local"],
