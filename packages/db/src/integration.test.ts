@@ -26,7 +26,6 @@ import {
   getReaderSettings,
   listLibraryEntries,
   listRecentReadingHistory,
-  migrateDatabaseToLatest,
   previewBackupRestore,
   setLibraryEntryActiveProviderMapping,
   summarizeCacheStorage,
@@ -36,6 +35,7 @@ import {
   upsertInstalledExtension,
   withTransaction,
 } from './index.js';
+import { migrateDatabaseToLatest } from './node.js';
 import { createSqlJsHarness } from './testing/sqljs-harness.js';
 import { libraryEntries, readerPreferences } from './schema.js';
 

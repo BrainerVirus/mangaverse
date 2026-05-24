@@ -1,5 +1,5 @@
-import type { AppDrizzleDb } from '@app/db';
-import { upsertInstalledExtension } from '@app/db';
+import type { AppDrizzleDb } from '@app/db/browser';
+import { upsertInstalledExtension } from '@app/db/browser';
 import type { ProviderManifest } from '@app/shared';
 import { toExtensionInstallId } from '@app/shared';
 import { isMangaDexInstalled } from './dev-mangadex-search.js';

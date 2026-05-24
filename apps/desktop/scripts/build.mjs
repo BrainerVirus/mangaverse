@@ -22,7 +22,7 @@ execFileSync('pnpm', ['exec', 'tsc', '-p', 'tsconfig.json'], {
 });
 
 console.log('Building Electron preload...');
-execFileSync('pnpm', ['exec', 'tsc', '-p', 'tsconfig.preload.json'], {
+execFileSync('node', ['scripts/bundle-preload.mjs'], {
   cwd: root,
   stdio: 'inherit',
 });

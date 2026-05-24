@@ -1,6 +1,4 @@
-// @app/db — server/test entry. Browser clients must use `@app/db/browser`.
-export const PACKAGE_NAME = '@app/db' as const;
-
+// Browser-safe @app/db entry — no Node fs/url migration path.
 export type { AppDrizzleDb } from './adapter.js';
 export { createDrizzleFromSqlJs } from './client.js';
 export {

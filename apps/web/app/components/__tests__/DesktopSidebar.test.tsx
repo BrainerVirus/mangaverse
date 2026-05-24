@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { createRoot } from 'react-dom/client';
+import { flushSync } from 'react-dom';
 import { renderToString } from 'react-dom/server';
 import { useLayoutStore } from '../../stores/useLayoutStore.js';
 import { ThemeProvider } from '../../providers/theme-provider.js';
@@ -42,7 +44,7 @@ describe('DesktopSidebar', () => {
     currentPath = '/library';
     useLayoutStore.setState({
       sidebarOpen: true,
-      sidebarExpanded: false,
+      sidebarExpanded: true,
       deviceLayout: 'desktop',
     });
   });
@@ -64,11 +66,26 @@ describe('DesktopSidebar', () => {
     expect(html).toContain('href="/migration"');
   });
 
+  it('renders with expanded width by default on desktop', async () => {
+    useLayoutStore.setState({ sidebarOpen: true, sidebarExpanded: true });
+    const { DesktopSidebar } = await import('../shell/DesktopSidebar.js');
+    const html = renderWithProviders(<DesktopSidebar />);
+    expect(html).toContain('w-[220px]');
+  });
+
   it('renders with collapsed width when not expanded', async () => {
     useLayoutStore.setState({ sidebarOpen: true, sidebarExpanded: false });
     const { DesktopSidebar } = await import('../shell/DesktopSidebar.js');
-    const html = renderWithProviders(<DesktopSidebar />);
-    expect(html).toContain('w-[52px]');
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    flushSync(() => {
+      root.render(<ThemeProvider><DesktopSidebar /></ThemeProvider>);
+    });
+    const asideClass = container.querySelector('aside')?.className ?? '';
+    expect(asideClass).toContain('w-[52px]');
+    root.unmount();
+    container.remove();
   });
 
   it('has aria-labels on nav links', async () => {

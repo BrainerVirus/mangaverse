@@ -47,7 +47,8 @@ export default defineConfig({
     external: ['sql.js'],
   },
   optimizeDeps: {
-    exclude: ['sql.js'],
+    // Pre-bundle sql.js so Vite emits a browser ESM default export (raw CJS has no ESM exports).
+    include: ['sql.js'],
   },
   plugins: [
     tailwindcss(),

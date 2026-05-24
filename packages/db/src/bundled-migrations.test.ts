@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import initSqlJs from 'sql.js';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { migrateDatabaseFromBundled, migrateDatabaseToLatest } from './index.js';
+import { migrateDatabaseFromBundled } from './browser.js';
+import { migrateDatabaseToLatest } from './node.js';
 
 const migrationsRoot = fileURLToPath(new URL('../migrations', import.meta.url));
 const initialSql = readFileSync(`${migrationsRoot}/0000_initial.sql`, 'utf8');

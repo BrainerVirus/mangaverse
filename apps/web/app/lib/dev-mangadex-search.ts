@@ -1,4 +1,4 @@
-import type { AppDrizzleDb } from '@app/db';
+import type { AppDrizzleDb } from '@app/db/browser';
 import type { MangaIdentity } from '@app/shared';
 import {
   toMangaId,
@@ -74,7 +74,7 @@ function toDevMangaIdentity(payload: MangaDexSearchResponse, manga: MangaDexEnti
 }
 
 export async function isMangaDexInstalled(db: AppDrizzleDb): Promise<boolean> {
-  const { listInstalledExtensions } = await import('@app/db');
+  const { listInstalledExtensions } = await import('@app/db/browser');
   const installed = await listInstalledExtensions(db);
   return installed.some((entry) => String(entry.manifest.id) === 'mangadex' && entry.enabled);
 }
