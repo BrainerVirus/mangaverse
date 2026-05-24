@@ -32,11 +32,11 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
   }, [toggleSidebar]);
 
   return (
-    <div className="flex h-screen overflow-hidden max-md:flex-col max-md:overflow-visible">
+    <div className="flex h-screen overflow-hidden bg-background max-md:flex-col max-md:overflow-visible">
       <div className="hidden md:contents">
         <DesktopSidebar />
       </div>
-      <main className="flex-1 overflow-auto max-md:pb-16">
+      <main className="flex-1 overflow-auto bg-background max-md:pb-16">
         <AnimatedRouteOutlet>{children}</AnimatedRouteOutlet>
       </main>
       <div className="md:hidden">

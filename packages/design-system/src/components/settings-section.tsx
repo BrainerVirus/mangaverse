@@ -21,7 +21,7 @@ export function SettingsSection({
   const [isOpen, setIsOpen] = React.useState(!collapsed);
 
   return (
-    <div className={cn('w-full', danger && 'rounded-[var(--radius-box)] border border-destructive/50 p-4')}>
+    <div className={cn('surface-panel w-full p-4 md:p-5', danger && 'border-destructive/40')}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}

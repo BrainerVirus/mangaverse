@@ -11,21 +11,23 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
     const wsOrigin = origin.replace(/^http/, 'ws');
     return [
       "default-src 'self'",
-      `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${origin}`,
+      `script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' ${origin}`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
-      `connect-src 'self' ${origin} ${wsOrigin} ws: wss:`,
+      `connect-src 'self' ${origin} ${wsOrigin} ws: wss: https://api.mangadex.org`,
       "font-src 'self' data:",
+      "worker-src 'self' blob:",
     ].join('; ');
   }
 
   return [
     "default-src 'self'",
-    "script-src 'self'",
+    "script-src 'self' 'wasm-unsafe-eval'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
-    "connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:*",
+    "connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:* https://api.mangadex.org",
     "font-src 'self' data:",
+    "worker-src 'self' blob:",
   ].join('; ');
 }
 

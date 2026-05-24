@@ -111,7 +111,7 @@ describe('CommandPalette', () => {
     storeState.layout.deviceLayout = 'desktop';
     const { CommandPalette } = await import('../shell/CommandPalette.js');
     const html = renderWithProviders(<CommandPalette />);
-    expect(html).toContain('Type a command');
+    expect(html).toContain('Search commands');
   });
 
   it('closes on Escape and moves selection with arrow keys', async () => {

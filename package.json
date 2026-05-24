@@ -15,6 +15,7 @@
     "build": "turbo run build",
     "dev:web": "pnpm --filter @app/web dev",
     "dev:desktop": "pnpm --filter @app/desktop dev",
+    "dev:install-mangadex": "node scripts/dev-install-mangadex.mjs",
     "dev": "pnpm dev:web",
     "clean": "turbo run clean"
   },

@@ -71,10 +71,22 @@ export function DesktopSidebar() {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       className={cn(
-        "relative z-40 flex h-full shrink-0 flex-col border-r border-border bg-background transition-all duration-200 ease-out",
-        visuallyExpanded ? "w-[220px]" : "w-[48px]"
+        "relative z-40 flex h-full shrink-0 flex-col border-r border-border bg-surface transition-all duration-200 ease-out",
+        visuallyExpanded ? "w-[240px]" : "w-[52px]"
       )}
     >
+      <div className="flex items-center gap-2 border-b border-border px-3 py-4">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
+          MV
+        </div>
+        {visuallyExpanded ? (
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold tracking-tight">MangaVerse</p>
+            <p className="truncate text-xs text-muted-foreground">Reading room</p>
+          </div>
+        ) : null}
+      </div>
+
       <div className="flex flex-1 flex-col gap-1 px-2 py-3">
         {primaryNavItems.map(({ label, to, icon: Icon }) => {
           const active = isActive(to);
@@ -87,8 +99,8 @@ export function DesktopSidebar() {
                 "flex items-center gap-3 rounded-md px-2 py-2 text-sm font-medium transition-colors",
                 visuallyExpanded ? "justify-start" : "justify-center",
                 active
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "bg-muted text-foreground ring-1 ring-border"
+                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
               )}
             >
               <Icon className="h-5 w-5 shrink-0" />
@@ -120,8 +132,8 @@ export function DesktopSidebar() {
                 "flex items-center gap-3 rounded-md px-2 py-2 text-sm font-medium transition-colors",
                 visuallyExpanded ? "justify-start" : "justify-center",
                 active
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "bg-muted text-foreground ring-1 ring-border"
+                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
               )}
             >
               <Icon className="h-5 w-5 shrink-0" />

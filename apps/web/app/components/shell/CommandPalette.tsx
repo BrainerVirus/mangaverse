@@ -102,6 +102,7 @@ export function CommandPalette() {
   const overlayRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useBuiltInCommands();
 
@@ -110,6 +111,14 @@ export function CommandPalette() {
       setRendered(true);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !rendered) return;
+    const frame = requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isOpen, rendered]);
 
   useGSAP(
     () => {
@@ -134,6 +143,7 @@ export function CommandPalette() {
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === 'Escape') {
+        e.preventDefault();
         close();
         return;
       }
@@ -164,19 +174,24 @@ export function CommandPalette() {
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]"
+      className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[12vh]"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Command palette"
       onKeyDown={handleKeyDown}
     >
       <div
         ref={backdropRef}
-        className="fixed inset-0 bg-black/50"
+        className="fixed inset-0 bg-black/55 backdrop-blur-[2px]"
         onClick={close}
-        onKeyDown={(e) => e.key === 'Escape' && close()}
+        aria-hidden="true"
       />
-      <Command ref={panelRef} className="relative z-10 w-full max-w-lg">
+      <Command ref={panelRef} className="relative z-10 w-full max-w-xl">
         <div className="flex items-center border-b border-border px-3">
           <CommandInput
-            placeholder="Type a command..."
+            ref={inputRef}
+            placeholder="Search commands…"
+            aria-label="Search commands"
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -190,17 +205,22 @@ export function CommandPalette() {
           ) : (
             Object.entries(grouped).map(([section, cmds]) => (
               <CommandGroup key={section}>
-                <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground">{section}</div>
+                <div className="px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {section}
+                </div>
                 {cmds.map((cmd) => {
                   const globalIndex = results.indexOf(cmd);
+                  const selected = globalIndex === selectedIndex;
                   return (
                     <CommandItem
                       key={cmd.id}
+                      data-selected={selected}
+                      aria-selected={selected}
+                      onMouseEnter={() => setSelectedIndex(globalIndex)}
                       onSelect={() => {
                         cmd.handler();
                         close();
                       }}
-                      className={globalIndex === selectedIndex ? 'bg-accent text-accent-foreground' : ''}
                     >
                       {cmd.label}
                     </CommandItem>
