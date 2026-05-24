@@ -193,6 +193,7 @@ export function CommandPalette() {
             placeholder="Search commands…"
             aria-label="Search commands"
             value={query}
+            onKeyDown={handleKeyDown}
             onChange={(e) => {
               setQuery(e.target.value);
               setSelectedIndex(0);

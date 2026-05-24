@@ -8,7 +8,7 @@ import {
   searchQueryKeys,
 } from '@app/search';
 import { searchPageQueryOptions } from '../queries/search-query-options.js';
-import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
+import { useLocalDb, useLocalDbStatus, useLocalDbRetry } from '../providers/local-db-provider.js';
 
 export const Route = createFileRoute('/search')({
   component: SearchRoute,
@@ -19,6 +19,7 @@ function SearchRoute() {
   const queryClient = useQueryClient();
   const db = useLocalDb();
   const dbStatus = useLocalDbStatus();
+  const retryDb = useLocalDbRetry();
   const [viewState, setViewState] = useState(DEFAULT_SEARCH_VIEW_STATE);
   const lastRecordedQuery = useRef('');
 
@@ -51,6 +52,7 @@ function SearchRoute() {
       onViewStateChange={setViewState}
       onOpenManga={(mangaId) => navigate({ to: '/manga/$id', params: { id: mangaId } })}
       onBrowseProviders={() => void navigate({ to: '/extensions' })}
+      {...(dbStatus === 'error' ? { onRetry: retryDb } : {})}
     />
   );
 }

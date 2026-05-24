@@ -25,6 +25,11 @@
   --color-warning: var(--warning);
   --color-ring: var(--ring);
   --color-reader-background: var(--reader-background);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --radius-box: 0.625rem;
   --radius-control: 0.4375rem;
   --radius-btn: 0.5rem;
@@ -60,6 +65,11 @@
   --warning: #d97706;
   --ring: #a8a29e;
   --reader-background: #faf8f5;
+  --sidebar: #f0ece6;
+  --sidebar-foreground: #141210;
+  --sidebar-border: #e3ddd4;
+  --sidebar-accent: #e8e2d9;
+  --sidebar-accent-foreground: #1c1917;
 }
 
 .dark {
@@ -87,6 +97,11 @@
   --warning: #f59e0b;
   --ring: #57534e;
   --reader-background: #0c0b0a;
+  --sidebar: #0f0e0d;
+  --sidebar-foreground: #f5f2eb;
+  --sidebar-border: #2a2724;
+  --sidebar-accent: #1c1917;
+  --sidebar-accent-foreground: #f5f2eb;
 }
 
 @layer base {
@@ -147,5 +162,17 @@
 
   .dark .surface-panel {
     box-shadow: 0 1px 2px rgb(0 0 0 / 0.35), inset 0 1px 0 rgb(255 255 255 / 0.03);
+  }
+
+  .bg-sidebar {
+    background-color: var(--sidebar);
+  }
+
+  .text-sidebar-foreground {
+    color: var(--sidebar-foreground);
+  }
+
+  .border-sidebar-border {
+    border-color: var(--sidebar-border);
   }
 }

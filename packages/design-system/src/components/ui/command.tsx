@@ -61,7 +61,7 @@ const CommandItem = React.forwardRef<
       'flex cursor-pointer items-center rounded-[var(--radius-control)] px-2.5 py-2 text-sm outline-none transition-colors',
       'hover:bg-muted/70 hover:text-foreground',
       'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-popover',
-      'data-[selected=true]:bg-muted data-[selected=true]:text-foreground data-[selected=true]:ring-1 data-[selected=true]:ring-border',
+      'data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground data-[selected=true]:ring-1 data-[selected=true]:ring-border/80',
       className
     )}
     {...props}

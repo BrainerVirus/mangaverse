@@ -13,7 +13,7 @@ import {
   Zap,
   Play,
 } from "lucide-react";
-import { Tooltip, Separator, cn } from "@app/design-system";
+import { Button, Tooltip, Separator, cn, buttonVariants } from "@app/design-system";
 import { useLayoutStore } from "../../stores/useLayoutStore.js";
 import { useCommandPaletteStore } from "../../stores/useCommandPaletteStore.js";
 import { useTheme } from "../../providers/theme-provider.js";
@@ -33,6 +33,46 @@ const secondaryNavItems = [
   { label: "Diagnostics", to: "/diagnostics", icon: Zap },
   { label: "Onboarding", to: "/onboarding", icon: Play },
 ] as const;
+
+function SidebarNavLink({
+  label,
+  to,
+  icon: Icon,
+  active,
+  expanded,
+}: {
+  label: string;
+  to: string;
+  icon: typeof BookOpen;
+  active: boolean;
+  expanded: boolean;
+}) {
+  const content = (
+    <Link
+      to={to}
+      aria-label={label}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        buttonVariants[active ? "secondary" : "ghost"],
+        "h-9 w-full justify-start gap-3 px-2.5",
+        !expanded && "justify-center px-0",
+      )}
+    >
+      <Icon className="h-5 w-5 shrink-0" />
+      {expanded ? <span className="truncate">{label}</span> : null}
+    </Link>
+  );
+
+  if (!expanded) {
+    return (
+      <Tooltip content={label}>
+        {content}
+      </Tooltip>
+    );
+  }
+
+  return content;
+}
 
 export function DesktopSidebar() {
   const { sidebarOpen, sidebarExpanded, toggleSidebarExpand } = useLayoutStore();
@@ -71,96 +111,43 @@ export function DesktopSidebar() {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       className={cn(
-        "relative z-40 flex h-full shrink-0 flex-col border-r border-border bg-surface transition-all duration-200 ease-out",
-        visuallyExpanded ? "w-[240px]" : "w-[52px]"
+        "relative z-40 flex h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-200 ease-out",
+        visuallyExpanded ? "w-[220px]" : "w-[52px]"
       )}
     >
-      <div className="flex items-center gap-2 border-b border-border px-3 py-4">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
-          MV
-        </div>
-        {visuallyExpanded ? (
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold tracking-tight">MangaVerse</p>
-            <p className="truncate text-xs text-muted-foreground">Reading room</p>
-          </div>
-        ) : null}
-      </div>
-
       <div className="flex flex-1 flex-col gap-1 px-2 py-3">
-        {primaryNavItems.map(({ label, to, icon: Icon }) => {
-          const active = isActive(to);
-          const content = (
-            <Link
-              to={to}
-              aria-label={label}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "flex items-center gap-3 rounded-md px-2 py-2 text-sm font-medium transition-colors",
-                visuallyExpanded ? "justify-start" : "justify-center",
-                active
-                  ? "bg-muted text-foreground ring-1 ring-border"
-                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-              )}
-            >
-              <Icon className="h-5 w-5 shrink-0" />
-              {visuallyExpanded && <span className="truncate">{label}</span>}
-            </Link>
-          );
+        {primaryNavItems.map((item) => (
+          <SidebarNavLink
+            key={item.to}
+            {...item}
+            active={isActive(item.to)}
+            expanded={visuallyExpanded}
+          />
+        ))}
 
-          if (!visuallyExpanded) {
-            return (
-              <Tooltip key={to} content={label}>
-                {content}
-              </Tooltip>
-            );
-          }
+        <Separator className="my-2 bg-sidebar-border" />
 
-          return <div key={to}>{content}</div>;
-        })}
-
-        <Separator className="my-2" />
-
-        {secondaryNavItems.map(({ label, to, icon: Icon }) => {
-          const active = isActive(to);
-          const content = (
-            <Link
-              to={to}
-              aria-label={label}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "flex items-center gap-3 rounded-md px-2 py-2 text-sm font-medium transition-colors",
-                visuallyExpanded ? "justify-start" : "justify-center",
-                active
-                  ? "bg-muted text-foreground ring-1 ring-border"
-                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-              )}
-            >
-              <Icon className="h-5 w-5 shrink-0" />
-              {visuallyExpanded && <span className="truncate">{label}</span>}
-            </Link>
-          );
-
-          if (!visuallyExpanded) {
-            return (
-              <Tooltip key={to} content={label}>
-                {content}
-              </Tooltip>
-            );
-          }
-
-          return <div key={to}>{content}</div>;
-        })}
+        {secondaryNavItems.map((item) => (
+          <SidebarNavLink
+            key={item.to}
+            {...item}
+            active={isActive(item.to)}
+            expanded={visuallyExpanded}
+          />
+        ))}
       </div>
 
-      <div className="flex flex-col border-t border-border px-2 py-3">
+      <div className="flex flex-col gap-1 border-t border-sidebar-border px-2 py-3">
         <Tooltip content="Toggle Sidebar">
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
             onClick={toggleSidebarExpand}
             aria-label="Collapse sidebar"
             className={cn(
-              "flex items-center gap-3 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-              visuallyExpanded ? "justify-start" : "justify-center"
+              "h-9 w-full justify-start gap-3 px-2.5 text-muted-foreground",
+              !visuallyExpanded && "justify-center px-0",
             )}
           >
             <ChevronLeft
@@ -169,38 +156,49 @@ export function DesktopSidebar() {
                 sidebarExpanded && "rotate-180"
               )}
             />
-            {visuallyExpanded && <span className="truncate">Collapse</span>}
-          </button>
+            {visuallyExpanded ? <span className="truncate">Collapse</span> : null}
+          </Button>
         </Tooltip>
 
-        <div
-          className={cn(
-            "flex items-center gap-3 rounded-md px-2 py-2 text-xs text-muted-foreground",
-            visuallyExpanded ? "justify-start" : "justify-center"
-          )}
-        >
-          <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border border-border bg-muted px-1.5 font-mono text-[10px] font-medium">
-            <span>⌘</span>
-            <span>K</span>
-          </kbd>
-          {visuallyExpanded && (
-<button
-                onClick={openCommandPalette}
-                aria-label="Open command palette"
-                className="truncate hover:text-foreground"
-              >
-              Search
-            </button>
-          )}
-        </div>
+        {visuallyExpanded ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={openCommandPalette}
+            aria-label="Open command palette"
+            className="h-9 w-full justify-start gap-3 px-2.5 text-muted-foreground"
+          >
+            <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded border border-sidebar-border bg-sidebar-accent px-1 font-mono text-[10px] font-medium">
+              ⌘K
+            </kbd>
+            <span className="truncate">Commands</span>
+          </Button>
+        ) : (
+          <Tooltip content="Command palette (⌘K)">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={openCommandPalette}
+              aria-label="Open command palette"
+              className="mx-auto text-muted-foreground"
+            >
+              <Search className="h-5 w-5" />
+            </Button>
+          </Tooltip>
+        )}
 
         <Tooltip content={theme === "light" ? "Dark Mode" : "Light Mode"}>
-          <button
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
             onClick={toggleTheme}
             aria-label="Toggle theme"
             className={cn(
-              "flex items-center gap-3 rounded-md px-2 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-              visuallyExpanded ? "justify-start" : "justify-center"
+              "h-9 w-full justify-start gap-3 px-2.5 text-muted-foreground",
+              !visuallyExpanded && "justify-center px-0",
             )}
           >
             {theme === "light" ? (
@@ -208,8 +206,8 @@ export function DesktopSidebar() {
             ) : (
               <Sun className="h-5 w-5 shrink-0" />
             )}
-            {visuallyExpanded && <span className="truncate">Theme</span>}
-          </button>
+            {visuallyExpanded ? <span className="truncate">Theme</span> : null}
+          </Button>
         </Tooltip>
       </div>
     </aside>

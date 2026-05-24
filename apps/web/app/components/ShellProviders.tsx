@@ -27,18 +27,26 @@ function AppShellOrReaderLayout({ children }: { children: ReactNode }) {
 }
 
 function KeyboardShortcuts() {
-  const openPalette = useCommandPaletteStore((s) => s.open);
+  const isOpen = useCommandPaletteStore((s) => s.isOpen);
+  const open = useCommandPaletteStore((s) => s.open);
+  const close = useCommandPaletteStore((s) => s.close);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        openPalette();
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'k') {
+        return;
+      }
+
+      e.preventDefault();
+      if (isOpen) {
+        close();
+      } else {
+        open();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [openPalette]);
+  }, [isOpen, open, close]);
 
   return null;
 }

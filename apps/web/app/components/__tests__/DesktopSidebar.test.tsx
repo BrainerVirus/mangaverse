@@ -22,6 +22,14 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('@app/design-system', () => ({
   Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   Separator: () => null,
+  Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button {...props}>{children}</button>
+  ),
+  buttonVariants: {
+    default: 'btn-default',
+    ghost: 'btn-ghost',
+    secondary: 'btn-secondary',
+  },
   cn: (...args: (string | undefined)[]) => args.filter(Boolean).join(' '),
 }));
 

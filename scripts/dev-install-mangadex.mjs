@@ -33,6 +33,7 @@ console.log('  2. Open Extensions → Install provider');
 console.log(`  3. Paste manifest URL: ${manifestUrl}`);
 console.log('');
 console.log('After install, use Search with a query to fetch live MangaDex results (dev mode only).');
+console.log('Tip: `pnpm dev:desktop` auto-registers MangaDex on first load when the manifest is served.');
 console.log('');
 
 if (!existsSync(join(workspaceRoot, 'local-dev/.gitkeep'))) {

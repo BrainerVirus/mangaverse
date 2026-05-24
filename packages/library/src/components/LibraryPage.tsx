@@ -12,6 +12,7 @@ export interface LibraryPageProps {
   onViewStateChange: (next: LibraryViewState) => void;
   onOpenManga: (mangaId: MangaId) => void;
   onBrowse?: () => void;
+  onRetry?: () => void;
 }
 
 export function LibraryPage({
@@ -22,6 +23,7 @@ export function LibraryPage({
   onViewStateChange,
   onOpenManga,
   onBrowse,
+  onRetry,
 }: LibraryPageProps) {
   const items = data?.items ?? [];
   const itemCount = items.length;
@@ -42,6 +44,7 @@ export function LibraryPage({
         <ErrorState
           title="Could not load library"
           message="Local data failed to load. Try again in a moment."
+          {...(onRetry !== undefined ? { onRetry } : {})}
         />
       ) : null}
 
