@@ -11,6 +11,14 @@ export default defineConfig({
   resolve: {
     tsconfigPaths: true,
   },
+  assetsInclude: ['**/*.wasm'],
+  ssr: {
+    // sql.js ships a browser WASM build; keep it out of Nitro/unwasm SSR transforms.
+    external: ['sql.js'],
+  },
+  optimizeDeps: {
+    exclude: ['sql.js'],
+  },
   plugins: [
     tailwindcss(),
     tanstackStart({
