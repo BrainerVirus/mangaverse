@@ -197,6 +197,8 @@ export async function syncLocalDbFromOtherTab(): Promise<AppDrizzleDb | null> {
   // a live handle nothing owns.
   if (openedAt !== generation) return null;
   await session.syncFromStore();
+  // Re-check: a reset can also land while syncFromStore was in flight.
+  if (openedAt !== generation) return null;
   return session.db;
 }
 
