@@ -97,12 +97,13 @@ cleanup can erase. Add focused database persistence tests and
       only removing query invalidation makes it fail. The retirement bound is now
       pinned separately by a unit test (see below); the spec is behavior coverage,
       not proof of the specific fix mechanism.
-- [ ] Durability window: writes flush ~400 ms after the last mutation; a reload or
-      navigation inside that window can lose the final write because the `pagehide`
-      flush is not awaited (observed in the two-tab spec before the checkpoint was
-      added). Fix by flushing before intentional navigation in the UI layer and/or
-      awaiting the flush in the finish/save handlers. `<shortcut: 400 ms coalesced
-      flush, upgrade when navigation-time flush lands>`.
+- [x] Navigation-time flush: the onboarding finish/skip/install-provider navigations
+      await `flushLocalDb()` before sending the user on, pinned by a discriminating
+      E2E (quiescent session → finish → navigation implies a new committed ping;
+      confirmed failing when the flush await is planted away). Remaining window is
+      dirty-exit only (crash or hard close inside ~400 ms), where the unload flush
+      stays best-effort. `<shortcut: 400 ms coalesced flush for non-navigating
+      mutations, upgrade if dirty-exit loss is ever observed>`.
 - [ ] CAS conflict policy: a losing tab's uncommitted local writes are replaced by
       the store snapshot (`persistent-database.test.ts` conflict case). Accepted for
       now: committed snapshots never lose data, and the losing tab converges. Revisit
