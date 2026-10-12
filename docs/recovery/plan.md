@@ -91,6 +91,14 @@ cleanup can erase. Add focused database persistence tests and
       for this slice is the reload that previously reset the app.
 - [ ] Write a red two-tab scenario where tab A commits a library change and tab B,
       opened before it, later commits a different change; both changes must survive.
+      First independent review found the cross-tab handle swap could leave a tab
+      holding a closed database; the provider now replaces the handle before
+      invalidating queries and only syncs while visible. The two-tab regression test
+      is still missing and is the next required evidence.
+- [x] Attach the flush to mutations, not unload: `openPersistentDatabase` gained an
+      `onMutation` update hook (re-attached after each sync swap) wired to the 400 ms
+      coalesced flush; `pagehide` remains a fallback. Review finding confirmed the
+      earlier design was unload-only.
 - [ ] Test denied/quota writes, invalid bytes, migration failure, rollback, interleaved
       two-tab commits and recovery. Original bytes must remain recoverable on failure.
       Corrupt-byte quarantine has a unit test; quota/denial paths do not.
