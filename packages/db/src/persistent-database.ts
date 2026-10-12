@@ -71,9 +71,16 @@ export async function openPersistentDatabase(
 ): Promise<PersistentDatabase> {
   const { store, sqlModule, migrations, onMutation } = input;
 
-  const attachMutationHook = (raw: Database): void => {
+  /**
+   * `sql.js` `export()` detaches the update hook and resets `PRAGMA
+   * foreign_keys`; every export and every stored-bytes open must re-establish
+   * both, or later writes run without FK enforcement and without scheduling
+   * durable flushes.
+   */
+  const enforceConnectionInvariants = (rawDb: Database): void => {
+    rawDb.run('PRAGMA foreign_keys = ON');
     if (onMutation !== undefined) {
-      raw.updateHook(() => {
+      rawDb.updateHook(() => {
         onMutation();
       });
     }
@@ -91,7 +98,7 @@ export async function openPersistentDatabase(
   }
 
   raw ??= openFreshDatabase(sqlModule, migrations);
-  attachMutationHook(raw);
+  enforceConnectionInvariants(raw);
   // Retired handles stay open for one further sync so a fetch that captured the
   // previous handle usually finishes. A consumer that outlives two syncs can
   // still be closed under it: the buffer keeps memory bounded to one generation.
@@ -102,7 +109,9 @@ export async function openPersistentDatabase(
     db: createDrizzleFromSqlJs(raw),
     quarantinedBytes,
     flush: async (): Promise<FlushResult> => {
-      const committed = await store.write(session.raw.export(), baseVersion);
+      const bytes = session.raw.export();
+      enforceConnectionInvariants(session.raw);
+      const committed = await store.write(bytes, baseVersion);
       if (committed === null) {
         return { status: 'reloaded' };
       }
@@ -121,7 +130,7 @@ export async function openPersistentDatabase(
       if (latest.version === baseVersion) return;
       const next = tryOpenStoredDatabase(sqlModule, latest.bytes);
       if (next === null) return;
-      attachMutationHook(next);
+      enforceConnectionInvariants(next);
       retired.push(session.raw);
       if (retired.length > 1) {
         retired.shift()?.close();
