@@ -223,10 +223,16 @@ dependency.
       branches to be deletable, but `main` is never a candidate). Retain active
       recovery, anything with unique unmerged work, tags, and any branch a live PR
       targets. Ask before closing PRs or deleting refs.
-- [ ] After approval, delete only the named merged branches via `workit git push`/
-      native tools (prefer PR auto-delete for future merges); observe remote refs and
-      PR state afterward. No history rewrite, force push, broad wildcard deletion or
-      local user-work removal.
+- [x] First cleanup executed 2026-10-12: deleted 14 merged/superseded remote
+      branches (`feat/phase-8-app-shell`, `feat/phase-9-*` ×10,
+      `feat/web-desktop-migration`, `chore/update-dependencies`,
+      `feature/add-discover-page`) after per-branch evidence review; remote refs
+      re-read afterward. Open PRs #24–#26 and their branches remain.
+- [ ] `develop` deletion is blocked by the host's protected-branch guard; the user
+      must delete it from their own terminal (`git push origin --delete develop`)
+      or GitHub settings. Zero unique commits, so it is safe once unblocked.
+- [ ] Never apply history rewrite, force push, broad wildcard deletion or local
+      user-work removal to this cleanup; only named, evidence-backed refs.
 
 ## S7: Publication readiness
 
