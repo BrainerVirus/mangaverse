@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, afterEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { toMangaId } from '@app/shared';
 import {
   DEV_MANGADEX_SECTION_DEFINITIONS,
@@ -176,7 +176,13 @@ describe('fetchDevMangaDexChapters', () => {
 });
 
 describe('fetchDevMangaDexSectionPage', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-05-24T00:00:00.000Z'));
+  });
+
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 

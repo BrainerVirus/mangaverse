@@ -44,7 +44,8 @@ export default defineConfig({
   assetsInclude: ['**/*.wasm'],
   ssr: {
     // sql.js ships a browser WASM build; keep it out of Nitro/unwasm SSR transforms.
-    external: ['sql.js'],
+    // Keep tslib external to avoid CJS helper interop in the SSR bundle.
+    external: ['sql.js', 'tslib'],
   },
   optimizeDeps: {
     // Pre-bundle sql.js so Vite emits a browser ESM default export (raw CJS has no ESM exports).
