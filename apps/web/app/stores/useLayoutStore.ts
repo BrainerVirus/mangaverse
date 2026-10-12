@@ -30,7 +30,7 @@ type LayoutStore = LayoutState & LayoutActions;
 
 export const useLayoutStore = create<LayoutStore>((set) => ({
   sidebarOpen: true,
-  sidebarExpanded: false,
+  sidebarExpanded: true,
   deviceLayout: initialDeviceLayout,
   readerChromeVisible: true,
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),

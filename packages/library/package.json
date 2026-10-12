@@ -22,15 +22,16 @@
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@app/cache": "workspace:*",
     "@app/db": "workspace:*",
     "@app/design-system": "workspace:*",
+    "@app/motion": "workspace:*",
     "@app/shared": "workspace:*",
     "@tanstack/react-virtual": "^3.13.12",
     "lucide-react": "^0.468.0",
     "react": "^19.1.0"
   },
   "devDependencies": {
-    "@app/motion": "workspace:*",
     "@tanstack/react-query": "^5.90.2",
     "@testing-library/dom": "^10.0.0",
     "@testing-library/jest-dom": "^6.6.0",

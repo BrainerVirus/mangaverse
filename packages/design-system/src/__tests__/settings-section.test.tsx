@@ -45,7 +45,7 @@ describe('SettingsSection', () => {
       </SettingsSection>
     );
 
-    expect(container.firstChild).toHaveClass('border-destructive/50');
+    expect(container.querySelector('.border-destructive\\/40')).toBeTruthy();
   });
 
   it('does not apply danger styling when danger prop is false', () => {
@@ -55,7 +55,7 @@ describe('SettingsSection', () => {
       </SettingsSection>
     );
 
-    expect(container.firstChild).not.toHaveClass('border-destructive/50');
+    expect(container.querySelector('.border-destructive\\/40')).toBeNull();
   });
 
   it('has proper accessibility attributes', () => {

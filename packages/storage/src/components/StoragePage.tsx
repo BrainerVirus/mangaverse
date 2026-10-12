@@ -14,6 +14,7 @@ import {
   LoadingState,
   SettingsSection,
 } from '@app/design-system';
+import { formatCacheBytes } from '@app/cache';
 import type { PlatformCapabilities } from '@app/platform';
 import { useState } from 'react';
 
@@ -180,6 +181,7 @@ export function StoragePage({
       >
         <dl className="divide-y divide-[var(--border)]">
           <InfoRow label="Cache entries" value={String(summary.cacheEntryCount)} />
+          <InfoRow label="Cached image data" value={formatCacheBytes(summary.cacheTotalBytes)} />
         </dl>
 
         {summary.cacheByProvider.length > 0 ? (

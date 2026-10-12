@@ -9,10 +9,17 @@ import { toChapterId, toMangaId, toProviderId } from '@app/shared';
 import { fetchMangaDetail } from './fetch-manga-detail.js';
 
 describe('fetchMangaDetail', () => {
-  it('returns undefined when manga identity is missing', async () => {
+  it('returns null when manga identity is missing', async () => {
     const { db } = await createSqlJsHarness();
     const detail = await fetchMangaDetail(db, toMangaId('missing-manga'));
-    expect(detail).toBeUndefined();
+    expect(detail).toBeNull();
+  });
+
+  it('never returns undefined for dev-style ids missing from local db', async () => {
+    const { db } = await createSqlJsHarness();
+    const detail = await fetchMangaDetail(db, toMangaId('dev-md-801513ba-test'));
+    expect(detail).not.toBeUndefined();
+    expect(detail).toBeNull();
   });
 
   it('returns manga identity, chapters, and library entry from local db', async () => {

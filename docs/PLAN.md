@@ -10,6 +10,34 @@
 
 ---
 
+## Web-First Recovery (2026-10-12)
+
+Active handoff: [recovery specification](recovery/spec.md) and
+[slice-by-slice implementation plan](recovery/plan.md). Follow those before the
+historical phase sequence below.
+
+Web is the primary delivery and acceptance platform. Retain Electron, but defer
+desktop-specific improvements until the production web reading flow is reliable.
+Historical phase completion below is not proof that these flows work today.
+
+Recovery slices, in order:
+
+1. Production startup: build and run the Node server, verify browser hydration
+   and interactive onboarding with `pnpm test:e2e:production`. Nitro must use the
+   TanStack Start SSR environment, not a second root `server.ts` entry.
+2. Durable browser storage: preserve library, installed providers, settings and
+   reading progress across reloads; test storage failures and concurrent tabs.
+3. Production MangaDex provider: replace development-only wiring with the existing
+   SDK contract and official API; validate responses and preserve existing IDs.
+4. Reading journey: search, details, decoded chapter images, navigation, progress,
+   restart/resume, retry and cached offline reopening. Deterministic fixtures run
+   in CI; live MangaDex smoke tests remain separate.
+5. Targeted documentation/test cleanup and remote branch cleanup. Never delete
+   unique remote work or treat an old phase label as acceptance evidence.
+
+Publishing requires a later hosting choice. No cloud sync or new scraper is
+required for these recovery slices.
+
 ## Planning Rules
 
 - Do not rescue failing Expo migration code unless a specific behavior is needed as reference.
@@ -401,6 +429,8 @@ Current TanStack Start uses Vite plus Nitro for SSR output. Nitro is an app fram
 - Chromium/Electron DevTools Autofill protocol errors are harmless and can be ignored during local dev.
 
 ## Phase 11: Polish And Premium Experience
+
+**First slice (in progress):** Shell route transitions via `AnimatedRouteOutlet`, command palette enter/exit motion, library grid stagger reveal on load — all respecting reduced-motion tokens from `@app/motion`.
 
 ### Goals
 

@@ -5,7 +5,7 @@ describe('useLayoutStore', () => {
   beforeEach(() => {
     useLayoutStore.setState({
       sidebarOpen: true,
-      sidebarExpanded: false,
+      sidebarExpanded: true,
       deviceLayout: 'desktop',
       readerChromeVisible: true,
     });
@@ -15,7 +15,7 @@ describe('useLayoutStore', () => {
     it('has correct initial values', () => {
       const state = useLayoutStore.getState();
       expect(state.sidebarOpen).toBe(true);
-      expect(state.sidebarExpanded).toBe(false);
+      expect(state.sidebarExpanded).toBe(true);
       expect(state.deviceLayout).toBe('desktop');
       expect(state.readerChromeVisible).toBe(true);
     });
@@ -35,15 +35,15 @@ describe('useLayoutStore', () => {
   });
 
   describe('toggleSidebarExpand', () => {
-    it('toggles sidebarExpanded from false to true', () => {
-      useLayoutStore.getState().toggleSidebarExpand();
-      expect(useLayoutStore.getState().sidebarExpanded).toBe(true);
-    });
-
     it('toggles sidebarExpanded from true to false', () => {
-      useLayoutStore.setState({ sidebarExpanded: true });
       useLayoutStore.getState().toggleSidebarExpand();
       expect(useLayoutStore.getState().sidebarExpanded).toBe(false);
+    });
+
+    it('toggles sidebarExpanded from false to true', () => {
+      useLayoutStore.setState({ sidebarExpanded: false });
+      useLayoutStore.getState().toggleSidebarExpand();
+      expect(useLayoutStore.getState().sidebarExpanded).toBe(true);
     });
   });
 

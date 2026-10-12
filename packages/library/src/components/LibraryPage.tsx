@@ -12,6 +12,7 @@ export interface LibraryPageProps {
   onViewStateChange: (next: LibraryViewState) => void;
   onOpenManga: (mangaId: MangaId) => void;
   onBrowse?: () => void;
+  onRetry?: () => void;
 }
 
 export function LibraryPage({
@@ -22,12 +23,13 @@ export function LibraryPage({
   onViewStateChange,
   onOpenManga,
   onBrowse,
+  onRetry,
 }: LibraryPageProps) {
   const items = data?.items ?? [];
   const itemCount = items.length;
 
   return (
-    <main className="flex flex-col gap-6 p-6">
+    <main className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 p-6 md:p-8">
       <LibraryToolbar
         viewState={viewState}
         itemCount={itemCount}
@@ -42,6 +44,7 @@ export function LibraryPage({
         <ErrorState
           title="Could not load library"
           message="Local data failed to load. Try again in a moment."
+          {...(onRetry !== undefined ? { onRetry } : {})}
         />
       ) : null}
 

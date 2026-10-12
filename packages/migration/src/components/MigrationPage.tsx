@@ -17,6 +17,11 @@ import {
   Label,
   LoadingState,
   Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   SettingsSection,
 } from '@app/design-system';
 
@@ -190,38 +195,44 @@ export function MigrationPage({
           <div className="space-y-2">
             <Label htmlFor="migration-source-provider">Source provider</Label>
             <Select
-              id="migration-source-provider"
-              value={sourceProviderId ?? ''}
-              onChange={(event) => onSourceProviderChange(event.target.value)}
+              onValueChange={(value) => onSourceProviderChange(value)}
+              {...(sourceProviderId !== null ? { value: sourceProviderId } : {})}
             >
-              <option value="" disabled>
-                Select source provider
-              </option>
-              {providers.map((provider) => (
-                <option key={provider.id} value={provider.id}>
-                  {provider.name}
-                </option>
-              ))}
+              <SelectTrigger id="migration-source-provider" aria-label="Source provider">
+                <SelectValue placeholder="Select source provider" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {providers.map((provider) => (
+                    <SelectItem key={provider.id} value={provider.id}>
+                      {provider.name}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="migration-target-provider">Target provider</Label>
             <Select
-              id="migration-target-provider"
-              value={targetProviderId ?? ''}
-              onChange={(event) => onTargetProviderChange(event.target.value)}
+              onValueChange={(value) => onTargetProviderChange(value)}
               disabled={sourceProviderId === null}
+              {...(targetProviderId !== null ? { value: targetProviderId } : {})}
             >
-              <option value="" disabled>
-                Select target provider
-              </option>
-              {providers
-                .filter((provider) => provider.id !== sourceProviderId)
-                .map((provider) => (
-                  <option key={provider.id} value={provider.id}>
-                    {provider.name}
-                  </option>
-                ))}
+              <SelectTrigger id="migration-target-provider" aria-label="Target provider">
+                <SelectValue placeholder="Select target provider" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {providers
+                    .filter((provider) => provider.id !== sourceProviderId)
+                    .map((provider) => (
+                      <SelectItem key={provider.id} value={provider.id}>
+                        {provider.name}
+                      </SelectItem>
+                    ))}
+                </SelectGroup>
+              </SelectContent>
             </Select>
           </div>
         </div>

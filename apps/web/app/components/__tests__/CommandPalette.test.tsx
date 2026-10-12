@@ -44,6 +44,16 @@ vi.mock('../../providers/platform-provider.js', () => ({
   usePlatform: () => ({ capabilities: {}, runtime: 'web' as const }),
 }));
 
+vi.mock('@app/motion', () => ({
+  useReducedMotion: () => false,
+  commandPaletteEnter: vi.fn(),
+  commandPaletteExit: vi.fn(),
+}));
+
+vi.mock('@gsap/react', () => ({
+  useGSAP: (callback: () => void) => callback(),
+}));
+
 Object.defineProperty(globalThis, 'localStorage', {
   value: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
   writable: true,
@@ -101,7 +111,7 @@ describe('CommandPalette', () => {
     storeState.layout.deviceLayout = 'desktop';
     const { CommandPalette } = await import('../shell/CommandPalette.js');
     const html = renderWithProviders(<CommandPalette />);
-    expect(html).toContain('Type a command');
+    expect(html).toContain('Search commands');
   });
 
   it('closes on Escape and moves selection with arrow keys', async () => {

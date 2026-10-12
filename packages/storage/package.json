@@ -22,6 +22,7 @@
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@app/cache": "workspace:*",
     "@app/db": "workspace:*",
     "@app/design-system": "workspace:*",
     "@app/platform": "workspace:*",

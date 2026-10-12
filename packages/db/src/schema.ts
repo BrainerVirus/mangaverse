@@ -333,6 +333,10 @@ export const cacheEntries = sqliteTable(
     chapterId: text('chapter_id'),
     cacheKind: text('cache_kind').notNull(),
     lastAccessAt: text('last_access_at').notNull(),
+    sourceUrl: text('source_url'),
+    mimeType: text('mime_type'),
+    byteSize: integer('byte_size').notNull().default(0),
+    blobKey: text('blob_key'),
     metadataJson: text('metadata_json', { mode: 'json' }).$type<Record<string, unknown> | null>(),
   },
   (t) => [
@@ -342,6 +346,7 @@ export const cacheEntries = sqliteTable(
       t.chapterId,
       t.lastAccessAt,
     ),
+    index('cache_entries_kind_access_idx').on(t.cacheKind, t.lastAccessAt),
   ],
 );
 

@@ -31,7 +31,7 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (location.pathname === '/onboarding') {
+    if (location.pathname.startsWith('/onboarding')) {
       return;
     }
 

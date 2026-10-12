@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { createRoot } from 'react-dom/client';
+import { flushSync } from 'react-dom';
 import { renderToString } from 'react-dom/server';
 import { useLayoutStore } from '../../stores/useLayoutStore.js';
 import { ThemeProvider } from '../../providers/theme-provider.js';
@@ -22,6 +24,14 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('@app/design-system', () => ({
   Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   Separator: () => null,
+  Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+    <button {...props}>{children}</button>
+  ),
+  buttonVariants: {
+    default: 'btn-default',
+    ghost: 'btn-ghost',
+    secondary: 'btn-secondary',
+  },
   cn: (...args: (string | undefined)[]) => args.filter(Boolean).join(' '),
 }));
 
@@ -34,7 +44,7 @@ describe('DesktopSidebar', () => {
     currentPath = '/library';
     useLayoutStore.setState({
       sidebarOpen: true,
-      sidebarExpanded: false,
+      sidebarExpanded: true,
       deviceLayout: 'desktop',
     });
   });
@@ -43,9 +53,18 @@ describe('DesktopSidebar', () => {
     useLayoutStore.setState({ sidebarOpen: true, sidebarExpanded: false });
     const { DesktopSidebar } = await import('../shell/DesktopSidebar.js');
     const html = renderWithProviders(<DesktopSidebar />);
+    expect(html).toContain('Discover');
     expect(html).toContain('Library');
     expect(html).toContain('Search');
     expect(html).toContain('Settings');
+  });
+
+  it('renders stable light-theme toggle icon during SSR', async () => {
+    useLayoutStore.setState({ sidebarOpen: true, sidebarExpanded: true });
+    const { DesktopSidebar } = await import('../shell/DesktopSidebar.js');
+    const html = renderWithProviders(<DesktopSidebar />);
+    expect(html).toContain('aria-label="Toggle theme"');
+    expect(html).toContain('lucide-moon');
   });
 
   it('renders secondary nav items when expanded', async () => {
@@ -56,11 +75,26 @@ describe('DesktopSidebar', () => {
     expect(html).toContain('href="/migration"');
   });
 
+  it('renders with expanded width by default on desktop', async () => {
+    useLayoutStore.setState({ sidebarOpen: true, sidebarExpanded: true });
+    const { DesktopSidebar } = await import('../shell/DesktopSidebar.js');
+    const html = renderWithProviders(<DesktopSidebar />);
+    expect(html).toContain('w-[220px]');
+  });
+
   it('renders with collapsed width when not expanded', async () => {
     useLayoutStore.setState({ sidebarOpen: true, sidebarExpanded: false });
     const { DesktopSidebar } = await import('../shell/DesktopSidebar.js');
-    const html = renderWithProviders(<DesktopSidebar />);
-    expect(html).toContain('w-[48px]');
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    flushSync(() => {
+      root.render(<ThemeProvider><DesktopSidebar /></ThemeProvider>);
+    });
+    const asideClass = container.querySelector('aside')?.className ?? '';
+    expect(asideClass).toContain('w-[52px]');
+    root.unmount();
+    container.remove();
   });
 
   it('has aria-labels on nav links', async () => {

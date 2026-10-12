@@ -8,10 +8,21 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "default": "./dist/browser.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "default": "./dist/node.js"
+    },
     "./testing": {
       "types": "./dist/testing/sqljs-harness.d.ts",
       "default": "./dist/testing/sqljs-harness.js"
-    }
+    },
+    "./migrations/0000_initial.sql": "./migrations/0000_initial.sql",
+    "./migrations/0001_cache_asset_metadata.sql": "./migrations/0001_cache_asset_metadata.sql",
+    "./migrations/meta/_journal.json": "./migrations/meta/_journal.json"
   },
   "main": "./dist/index.js",
   "module": "./dist/index.js",

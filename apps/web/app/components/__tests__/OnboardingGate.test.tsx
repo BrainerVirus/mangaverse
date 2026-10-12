@@ -95,4 +95,18 @@ describe('OnboardingGate', () => {
 
     expect(navigate).not.toHaveBeenCalled();
   });
+
+  it('does not redirect on nested onboarding paths', () => {
+    pathname = '/onboarding/onboarding';
+
+    act(() => {
+      root.render(
+        <OnboardingGate>
+          <div>Onboarding content</div>
+        </OnboardingGate>,
+      );
+    });
+
+    expect(navigate).not.toHaveBeenCalled();
+  });
 });

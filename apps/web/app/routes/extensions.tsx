@@ -1,10 +1,10 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ExtensionInstallSession } from '@app/extensions';
 import {
-  createExtensionInstallSession,
   confirmProviderInstall,
+  createExtensionInstallSession,
   ExtensionsPage,
   extensionsQueryKeys,
   fetchExtensionsPage,
@@ -13,14 +13,23 @@ import {
   setProviderEnabled,
   transitionExtensionInstall,
 } from '@app/extensions';
+import { getDevMangaDexManifestUrl } from '../lib/dev-seed-mangadex.js';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 
+type ExtensionsSearch = {
+  install?: boolean;
+};
+
 export const Route = createFileRoute('/extensions')({
+  validateSearch: (search: Record<string, unknown>): ExtensionsSearch => ({
+    install: search.install === true || search.install === '1' || search.install === 1,
+  }),
   component: ExtensionsRoute,
 });
 
 function ExtensionsRoute() {
-  const navigate = useNavigate();
+  const navigate = useNavigate({ from: '/extensions' });
+  const search = Route.useSearch();
   const queryClient = useQueryClient();
   const db = useLocalDb();
   const dbStatus = useLocalDbStatus();
@@ -29,6 +38,7 @@ function ExtensionsRoute() {
   const [installSession, setInstallSession] = useState<ExtensionInstallSession | null>(null);
   const [installError, setInstallError] = useState<string | null>(null);
   const [pendingProviderId, setPendingProviderId] = useState<string | undefined>(undefined);
+  const autoInstallStarted = useRef(false);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: extensionsQueryKeys.page(),
@@ -62,7 +72,7 @@ function ExtensionsRoute() {
       if (db === null) {
         throw new Error('Database is not ready.');
       }
-      let next = await transitionExtensionInstall(session, { type: 'confirm' });
+      let next = transitionExtensionInstall(session, { type: 'confirm' });
       setInstallSession(next);
       const result = await confirmProviderInstall(db, next);
       if (!result.ok) {
@@ -73,6 +83,7 @@ function ExtensionsRoute() {
     onSuccess: () => {
       resetInstallState();
       void queryClient.invalidateQueries({ queryKey: extensionsQueryKeys.all });
+      void navigate({ search: {} });
     },
     onError: (error: Error) => {
       setInstallError(error.message);
@@ -101,7 +112,34 @@ function ExtensionsRoute() {
     setManifestUrl('');
     setInstallSession(null);
     setInstallError(null);
+    autoInstallStarted.current = false;
   }
+
+  function openInstallDialog(prefillUrl?: string) {
+    setInstallSession(createExtensionInstallSession());
+    setInstallError(null);
+    setInstallOpen(true);
+    if (prefillUrl !== undefined) {
+      setManifestUrl(prefillUrl);
+    }
+  }
+
+  useEffect(() => {
+    if (!search.install) {
+      autoInstallStarted.current = false;
+      return;
+    }
+    if (dbStatus !== 'ready' || autoInstallStarted.current) {
+      return;
+    }
+
+    autoInstallStarted.current = true;
+    const devManifestUrl = import.meta.env.DEV ? getDevMangaDexManifestUrl() : undefined;
+    openInstallDialog(devManifestUrl);
+    if (devManifestUrl !== undefined) {
+      fetchManifestMutation.mutate(devManifestUrl);
+    }
+  }, [search.install, dbStatus]);
 
   return (
     <>
@@ -114,11 +152,7 @@ function ExtensionsRoute() {
           void navigate({ to: '/extensions/$providerId', params: { providerId } })
         }
         onInstallProvider={() => {
-          void createExtensionInstallSession().then((session) => {
-            setInstallSession(session);
-            setInstallError(null);
-            setInstallOpen(true);
-          });
+          void navigate({ search: { install: true } });
         }}
         onToggleEnabled={(providerId, enabled) => {
           toggleEnabledMutation.mutate({ providerId, enabled });
@@ -130,6 +164,7 @@ function ExtensionsRoute() {
         onOpenChange={(open) => {
           if (!open) {
             resetInstallState();
+            void navigate({ search: {} });
             return;
           }
           setInstallOpen(true);
@@ -137,7 +172,7 @@ function ExtensionsRoute() {
         manifestUrl={manifestUrl}
         onManifestUrlChange={setManifestUrl}
         session={installSession}
-        isLoading={fetchManifestMutation.isPending}
+        isLoading={fetchManifestMutation.isPending || confirmInstallMutation.isPending}
         errorMessage={installError}
         onFetchManifest={() => {
           fetchManifestMutation.mutate(manifestUrl.trim());
@@ -147,7 +182,10 @@ function ExtensionsRoute() {
             confirmInstallMutation.mutate(installSession);
           }
         }}
-        onCancel={resetInstallState}
+        onCancel={() => {
+          resetInstallState();
+          void navigate({ search: {} });
+        }}
       />
     </>
   );

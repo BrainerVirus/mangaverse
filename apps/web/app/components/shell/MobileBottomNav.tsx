@@ -10,6 +10,7 @@ import {
   ArrowRightLeft,
   Zap,
   Play,
+  Compass,
 } from "lucide-react";
 import {
   Button,
@@ -23,6 +24,7 @@ import {
 } from "@app/design-system";
 
 const primaryTabs = [
+  { label: "Discover", to: "/discover", icon: Compass },
   { label: "Library", to: "/library", icon: BookOpen },
   { label: "Search", to: "/search", icon: Search },
   { label: "Settings", to: "/settings", icon: Settings },

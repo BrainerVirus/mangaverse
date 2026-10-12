@@ -3,12 +3,19 @@ import { createAppError, err, ok } from './result.js';
 
 export const APP_SETTINGS_STORAGE_KEY = 'global' as const;
 
+/** Default image cache limit: 500 MiB */
+export const DEFAULT_IMAGE_CACHE_LIMIT_BYTES = 524_288_000 as const;
+
+export const MIN_IMAGE_CACHE_LIMIT_BYTES = 52_428_800 as const; // 50 MiB
+export const MAX_IMAGE_CACHE_LIMIT_BYTES = 10_737_418_240 as const; // 10 GiB
+
 export interface AppSettings {
   readonly explicitContent: boolean;
   readonly showProviderErrors: boolean;
   readonly preferredLanguages: readonly string[];
   readonly lowMemoryMode: boolean;
   readonly locale: string;
+  readonly imageCacheLimitBytes: number;
 }
 
 const LOCALE_PATTERN = /^[a-z]{2}(-[A-Z]{2})?$/;
@@ -20,6 +27,7 @@ export function getDefaultAppSettings(): AppSettings {
     preferredLanguages: ['en'],
     lowMemoryMode: false,
     locale: 'system',
+    imageCacheLimitBytes: DEFAULT_IMAGE_CACHE_LIMIT_BYTES,
   };
 }
 
@@ -67,6 +75,21 @@ export function validateAppSettings(input: unknown): AppResult<AppSettings> {
     return err(createAppError({ code: 'app.settings.invalid', message: 'lowMemoryMode must be boolean.' }));
   }
 
+  const imageCacheLimitBytes = settings['imageCacheLimitBytes'];
+  if (
+    typeof imageCacheLimitBytes !== 'number' ||
+    !Number.isFinite(imageCacheLimitBytes) ||
+    imageCacheLimitBytes < MIN_IMAGE_CACHE_LIMIT_BYTES ||
+    imageCacheLimitBytes > MAX_IMAGE_CACHE_LIMIT_BYTES
+  ) {
+    return err(
+      createAppError({
+        code: 'app.settings.invalid',
+        message: 'imageCacheLimitBytes must be a number within the allowed cache size range.',
+      }),
+    );
+  }
+
   const locale = settings['locale'];
   if (typeof locale !== 'string' || (locale !== 'system' && !LOCALE_PATTERN.test(locale))) {
     return err(createAppError({ code: 'app.settings.invalid', message: 'locale must be system or a valid locale code.' }));
@@ -78,5 +101,6 @@ export function validateAppSettings(input: unknown): AppResult<AppSettings> {
     preferredLanguages,
     lowMemoryMode: settings['lowMemoryMode'],
     locale,
+    imageCacheLimitBytes,
   });
 }

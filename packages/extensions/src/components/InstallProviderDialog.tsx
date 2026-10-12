@@ -108,6 +108,7 @@ export function InstallProviderDialog({
       role="dialog"
       aria-modal="true"
       aria-labelledby="install-provider-title"
+      data-testid="install-provider-dialog"
       onClick={() => onOpenChange(false)}
     >
       <DialogContent className="max-w-xl" onClick={(event) => event.stopPropagation()}>

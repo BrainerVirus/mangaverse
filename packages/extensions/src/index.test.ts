@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
+// Static import so the feature graph loads at collection time; a lazy import
+// exceeded the 5s per-test budget on cold CI runners.
+import * as extensions from './index.js';
 
 describe('@app/extensions', () => {
-  it('exports the extensions feature surface', async () => {
-    const module = await import('./index.js');
-    expect(module.fetchExtensionsPage).toBeTypeOf('function');
-    expect(module.fetchProviderDetail).toBeTypeOf('function');
-    expect(module.ExtensionsPage).toBeTypeOf('function');
-    expect(module.ProviderDetailPage).toBeTypeOf('function');
-    expect(module.InstallProviderDialog).toBeTypeOf('function');
+  it('exports the extensions feature surface', () => {
+    expect(extensions.fetchExtensionsPage).toBeTypeOf('function');
+    expect(extensions.fetchProviderDetail).toBeTypeOf('function');
+    expect(extensions.ExtensionsPage).toBeTypeOf('function');
+    expect(extensions.ProviderDetailPage).toBeTypeOf('function');
+    expect(extensions.InstallProviderDialog).toBeTypeOf('function');
   });
 });

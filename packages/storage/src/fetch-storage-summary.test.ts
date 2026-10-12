@@ -60,9 +60,10 @@ describe('storage services', () => {
     });
 
     expect(summary.cacheEntryCount).toBe(3);
+    expect(summary.cacheTotalBytes).toBe(0);
     expect(summary.cacheByProvider).toEqual([
-      { providerId: 'prov-a', count: 2 },
-      { providerId: 'prov-b', count: 1 },
+      { providerId: 'prov-a', count: 2, bytes: 0 },
+      { providerId: 'prov-b', count: 1, bytes: 0 },
     ]);
     expect(summary.searchHistoryCount).toBe(2);
     expect(summary.platformEstimate?.usage).toBe(512 * 1024);

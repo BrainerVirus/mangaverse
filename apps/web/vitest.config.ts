@@ -4,6 +4,7 @@ export default defineConfig({
   resolve: {
     tsconfigPaths: true,
   },
+  assetsInclude: ['**/*.wasm'],
   test: {
     environment: 'jsdom',
     include: [

@@ -4,9 +4,11 @@ export interface StorageSummary {
   readonly generatedAt: string;
   readonly platformEstimate: PlatformStorageEstimate | null;
   readonly cacheEntryCount: number;
+  readonly cacheTotalBytes: number;
   readonly cacheByProvider: readonly {
     readonly providerId: string;
     readonly count: number;
+    readonly bytes: number;
   }[];
   readonly searchHistoryCount: number;
   readonly savedSearchCount: number;

@@ -1,13 +1,16 @@
 import { gsap } from 'gsap';
 import { DURATION } from '../tokens/duration.js';
 import { EASING } from '../tokens/easing.js';
-import { useReducedMotion } from '../hooks/use-reduced-motion.js';
+
+export interface ScaleOptions extends gsap.TweenVars {
+  reducedMotion?: boolean;
+}
 
 export function scaleIn(
   target: gsap.TweenTarget,
-  vars?: gsap.TweenVars
+  vars?: ScaleOptions,
 ): gsap.core.Tween {
-  const reducedMotion = useReducedMotion();
+  const { reducedMotion = false, ...tweenVars } = vars ?? {};
 
   if (reducedMotion) {
     return gsap.set(target, { scale: 1, opacity: 1 });
@@ -21,7 +24,7 @@ export function scaleIn(
       opacity: 1,
       duration: DURATION.standard / 1000,
       ease: EASING.emphasizedOut,
-      ...vars,
-    }
+      ...tweenVars,
+    },
   );
 }

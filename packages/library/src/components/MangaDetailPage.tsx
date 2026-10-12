@@ -5,13 +5,14 @@ import {
   ErrorState,
   LoadingState,
 } from '@app/design-system';
+import { CachedCoverImage, getDefaultProviderId } from '@app/cache';
 import type { ChapterId, MangaId } from '@app/shared';
 import { Heart, Library, Trash2 } from 'lucide-react';
 import type { MangaDetailData } from '../types.js';
 
 export interface MangaDetailPageProps {
   mangaId: MangaId;
-  data: MangaDetailData | undefined;
+  data: MangaDetailData | null | undefined;
   isLoading: boolean;
   isError: boolean;
   onBack?: () => void;
@@ -57,7 +58,7 @@ export function MangaDetailPage({
     );
   }
 
-  if (data === undefined) {
+  if (data === undefined || data === null) {
     return (
       <main className="p-6">
         <EmptyState type="no-results" />
@@ -88,8 +89,10 @@ export function MangaDetailPage({
         <div className="flex flex-1 flex-col gap-6 md:flex-row">
           {manga.coverImageUrl ? (
             <div className="mx-auto w-40 shrink-0 overflow-hidden rounded-[var(--radius-box)] border border-[var(--border)] bg-muted md:mx-0 md:w-48">
-              <img
-                src={manga.coverImageUrl}
+              <CachedCoverImage
+                providerId={getDefaultProviderId(manga)}
+                mangaId={manga.id}
+                remoteUrl={manga.coverImageUrl}
                 alt={manga.canonicalTitle}
                 className="aspect-[3/4] w-full object-cover"
               />

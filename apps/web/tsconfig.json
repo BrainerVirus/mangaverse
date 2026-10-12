@@ -9,6 +9,6 @@
     "types": ["vite/client"],
     "noEmit": true
   },
-  "include": ["app/", "server.ts", "vite.config.ts"],
+  "include": ["app/", "vite.config.ts"],
   "exclude": ["dist", "node_modules", ".vinxi", ".output", "app/**/__tests__/**"]
 }

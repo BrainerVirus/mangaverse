@@ -1,0 +1,34 @@
+{
+  "id": "mangadex",
+  "name": "MangaDex (Local Dev)",
+  "version": "0.1.0-dev",
+  "description": "Minimal MangaDex provider for local development and manual testing.",
+  "source": {
+    "url": "https://mangadex.org",
+    "homepageUrl": "https://mangadex.org",
+    "manifestUrl": "http://localhost:5173/__dev/providers/mangadex/manifest.json",
+    "publisher": "MangaVerse Local Dev"
+  },
+  "compatibility": {
+    "platforms": ["web", "desktop"]
+  },
+  "capabilities": {
+    "discovery.search": true,
+    "discovery.latest": true,
+    "discovery.popular": true,
+    "discovery.browse": true,
+    "metadata.details": true,
+    "metadata.chapters": true,
+    "metadata.pages": true,
+    "metadata.recommendations": true,
+    "content.tagFilter": true,
+    "ops.officialApi": true
+  },
+  "permissions": ["network.http", "storage.local"],
+  "languages": ["en", "ja", "es", "pt-br"],
+  "contentFlags": {
+    "nsfw": true,
+    "suggestive": true,
+    "violence": true
+  }
+}

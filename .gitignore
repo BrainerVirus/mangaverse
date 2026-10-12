@@ -39,5 +39,13 @@ apps/desktop/out/
 packages/*/dist/
 src-tauri/
 
+# Local dev-only provider installs (MangaDex, etc.)
+local-dev/
+
+# Playwright
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/blob-report/
+
 # Lock files (npm legacy)
 package-lock.json

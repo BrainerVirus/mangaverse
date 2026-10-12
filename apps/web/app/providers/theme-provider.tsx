@@ -28,9 +28,9 @@ export function useTheme() {
   return ctx;
 }
 
-function readInitialSettings(): ThemeSettings {
+function readStoredThemeSettings(): ThemeSettings | null {
   if (typeof window === 'undefined') {
-    return getDefaultThemeSettings();
+    return null;
   }
 
   try {
@@ -46,7 +46,7 @@ function readInitialSettings(): ThemeSettings {
     // Ignore storage failures in private browsing.
   }
 
-  return getDefaultThemeSettings();
+  return null;
 }
 
 function persistThemeLocally(settings: ThemeSettings): void {
@@ -60,12 +60,19 @@ function persistThemeLocally(settings: ThemeSettings): void {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [settings, setSettings] = useState<ThemeSettings>(readInitialSettings);
+  const [settings, setSettings] = useState<ThemeSettings>(getDefaultThemeSettings);
   const [isSaving, setThemeSaving] = useState(false);
   const hydratedRef = useRef(false);
   const persistRef = useRef<ThemeSettingsPersistence | null>(null);
 
   const theme = resolveThemeAppearance(settings);
+
+  useEffect(() => {
+    const stored = readStoredThemeSettings();
+    if (stored !== null && !hydratedRef.current) {
+      setSettings(stored);
+    }
+  }, []);
 
   useEffect(() => {
     applyThemeToRoot(document.documentElement, settings);

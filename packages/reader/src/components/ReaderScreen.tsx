@@ -7,6 +7,12 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import { EmptyState, ErrorState, LoadingState, ReaderChrome } from '@app/design-system';
+import {
+  CachedPageImage,
+  markChapterPagesAsRead,
+  prefetchChapterPages,
+  useCoverCacheContext,
+} from '@app/cache';
 import { applyNavigationAction, resolveKeyboardAction, resolveNavigationAction } from '../navigation.js';
 import { createProgressEvent, shouldPersistProgress } from '../progress.js';
 import type { ReaderPageData } from '../reader-page-data.js';
@@ -88,6 +94,7 @@ export function ReaderScreen({
   onToggleChrome,
   onPersistProgress,
 }: ReaderScreenProps) {
+  const cacheContext = useCoverCacheContext();
   const { containerRef, viewport } = useReaderViewport();
   const [readerState, setReaderState] = useState<ReaderState | null>(null);
   const lastPersistedRef = useRef<ReturnType<typeof createProgressEvent> | null>(null);
@@ -158,6 +165,33 @@ export function ReaderScreen({
       }
     };
   }, [data, onPersistProgress, readerState]);
+
+  useEffect(() => {
+    if (!data || cacheContext === null) {
+      return;
+    }
+
+    const pages = data.chapter.pages.map((page, pageIndex) => ({
+      pageIndex,
+      remoteUrl: page.image.url,
+    }));
+
+    void prefetchChapterPages({
+      db: cacheContext.db,
+      adapter: cacheContext.adapter,
+      providerId: data.providerId,
+      mangaId: data.mangaId,
+      chapterId: data.chapterId,
+      pages,
+      retention: 'read',
+    }).then(() =>
+      markChapterPagesAsRead(cacheContext.db, {
+        providerId: data.providerId,
+        mangaId: data.mangaId,
+        chapterId: data.chapterId,
+      }),
+    );
+  }, [cacheContext, data]);
 
   useEffect(() => {
     if (!sessionInput) return;
@@ -239,13 +273,24 @@ export function ReaderScreen({
 
       <div className="flex h-full w-full items-center justify-center gap-2 px-2 pt-24 pb-12">
         {visiblePages.map((page) => (
-          <img
-            key={page.id}
-            src={page.image.url}
-            alt=""
-            className="max-h-full max-w-full object-contain select-none"
-            draggable={false}
-          />
+          cacheContext !== null ? (
+            <CachedPageImage
+              key={page.id}
+              providerId={data.providerId}
+              mangaId={data.mangaId}
+              chapterId={data.chapterId}
+              pageIndex={page.index}
+              remoteUrl={page.image.url}
+              className="max-h-full max-w-full object-contain select-none"
+              retention="read"
+            />
+          ) : (
+            <div
+              key={page.id}
+              className="max-h-full max-w-full flex-1 animate-pulse bg-muted/80 object-contain select-none"
+              aria-hidden
+            />
+          )
         ))}
       </div>
 

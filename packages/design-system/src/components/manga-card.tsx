@@ -10,9 +10,10 @@ export interface MangaCardProps {
   manga: MangaIdentity;
   onClick?: () => void;
   variant?: 'grid' | 'list' | 'compact';
+  coverSlot?: React.ReactNode;
 }
 
-export function MangaCard({ manga, onClick, variant = 'grid' }: MangaCardProps) {
+export function MangaCard({ manga, onClick, variant = 'grid', coverSlot }: MangaCardProps) {
   const isGrid = variant === 'grid';
   const isCompact = variant === 'compact';
   const containerRef = useRef<HTMLDivElement>(null);
@@ -64,17 +65,17 @@ export function MangaCard({ manga, onClick, variant = 'grid' }: MangaCardProps) 
         'hover:border-accent hover:shadow-md',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]',
         {
+          'relative flex flex-col aspect-[3/4]': isGrid,
           'flex gap-4 p-3': variant === 'list',
-          'aspect-[3/4] w-full': isGrid,
           'flex-row gap-3 p-2': isCompact,
         }
       )}
     >
-      {manga.coverImageUrl && (
+      {coverSlot ?? (manga.coverImageUrl ? (
         <div
           className={cn(
             'overflow-hidden rounded-[var(--radius-control)] bg-muted',
-            isGrid ? 'w-full flex-1' : 'h-20 w-14 shrink-0',
+            isGrid ? 'min-h-0 w-full flex-1' : 'h-20 w-14 shrink-0',
             isCompact && 'h-16 w-12'
           )}
         >
@@ -83,14 +84,17 @@ export function MangaCard({ manga, onClick, variant = 'grid' }: MangaCardProps) 
             alt={manga.canonicalTitle}
             className="h-full w-full object-cover"
             loading="lazy"
+            referrerPolicy="no-referrer"
           />
         </div>
-      )}
+      ) : isGrid ? (
+        <div className="min-h-0 w-full flex-1 rounded-[var(--radius-control)] bg-muted" aria-hidden />
+      ) : null)}
 
       <div
         className={cn(
           'flex flex-col justify-between',
-          isGrid ? 'absolute bottom-0 left-0 right-0 p-3' : 'flex-1 py-1',
+          isGrid ? 'absolute bottom-0 left-0 right-0 z-10 p-3' : 'flex-1 py-1',
           isCompact && 'min-w-0 py-0.5'
         )}
       >

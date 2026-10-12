@@ -35,6 +35,7 @@ vi.mock('@tanstack/react-virtual', () => ({
 }));
 
 vi.mock('@app/design-system', () => ({
+  cn: (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' '),
   MangaCard: ({
     manga,
     onClick,
@@ -46,6 +47,10 @@ vi.mock('@app/design-system', () => ({
       {manga.canonicalTitle}
     </button>
   ),
+}));
+
+vi.mock('@app/motion', () => ({
+  useGridStaggerReveal: () => ({ current: null }),
 }));
 
 const createManga = (id: string, title: string): MangaIdentity => ({

@@ -5,13 +5,17 @@ import {
   Label,
   LoadingState,
   Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Switch,
   ThemePreview,
 } from '@app/design-system';
 import { fadeIn, useReducedMotion } from '@app/motion';
 import type { AppSettings, ReaderSettings, ThemeSettings } from '@app/shared';
 import { useGSAP } from '@gsap/react';
-import { gsap } from 'gsap';
 import { useRef, type ReactNode } from 'react';
 import {
   getThemePreset,
@@ -88,11 +92,7 @@ function StepPanel({ step, children }: { step: OnboardingStepId; children: React
   useGSAP(
     () => {
       if (!ref.current) return;
-      if (reducedMotion) {
-        gsap.set(ref.current, { autoAlpha: 1, y: 0 });
-        return;
-      }
-      fadeIn(ref.current);
+      fadeIn(ref.current, { reducedMotion });
     },
     { scope: ref, dependencies: [step, reducedMotion] },
   );
@@ -186,7 +186,7 @@ function ThemeStep({
           checked={settings.dark}
           disabled={disabled}
           aria-label="Dark appearance"
-          onClick={() => onChange({ ...settings, dark: !settings.dark })}
+          onCheckedChange={(dark) => onChange({ ...settings, dark })}
         />
       </div>
 
@@ -227,6 +227,42 @@ function ThemeStep({
   );
 }
 
+function SettingsSelectField({
+  id,
+  label,
+  value,
+  disabled = false,
+  options,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  disabled?: boolean;
+  options: readonly { value: string; label: string }[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <Select value={value} onValueChange={onChange} disabled={disabled}>
+        <SelectTrigger id={id} aria-label={label}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            {options.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 function ReadingStep({
   settings,
   disabled,
@@ -248,41 +284,27 @@ function ReadingStep({
       </header>
 
       <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="onboarding-reading-mode">Reading direction</Label>
-          <Select
-            id="onboarding-reading-mode"
-            value={settings.readingMode}
-            disabled={disabled}
-            onChange={(event) =>
-              onChange({ ...settings, readingMode: event.target.value as ReaderSettings['readingMode'] })
-            }
-          >
-            {READING_MODE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
-        </div>
+        <SettingsSelectField
+          id="onboarding-reading-mode"
+          label="Reading direction"
+          value={settings.readingMode}
+          disabled={disabled === true}
+          options={READING_MODE_OPTIONS}
+          onChange={(value) =>
+            onChange({ ...settings, readingMode: value as ReaderSettings['readingMode'] })
+          }
+        />
 
-        <div className="space-y-2">
-          <Label htmlFor="onboarding-page-layout">Page layout</Label>
-          <Select
-            id="onboarding-page-layout"
-            value={settings.pageLayout}
-            disabled={disabled}
-            onChange={(event) =>
-              onChange({ ...settings, pageLayout: event.target.value as ReaderSettings['pageLayout'] })
-            }
-          >
-            {PAGE_LAYOUT_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
-        </div>
+        <SettingsSelectField
+          id="onboarding-page-layout"
+          label="Page layout"
+          value={settings.pageLayout}
+          disabled={disabled === true}
+          options={PAGE_LAYOUT_OPTIONS}
+          onChange={(value) =>
+            onChange({ ...settings, pageLayout: value as ReaderSettings['pageLayout'] })
+          }
+        />
       </div>
     </>
   );
@@ -309,21 +331,14 @@ function PreferencesStep({
       </header>
 
       <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="onboarding-locale">App language</Label>
-          <Select
-            id="onboarding-locale"
-            value={settings.locale}
-            disabled={disabled}
-            onChange={(event) => onChange({ ...settings, locale: event.target.value })}
-          >
-            {LOCALE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
-        </div>
+        <SettingsSelectField
+          id="onboarding-locale"
+          label="App language"
+          value={settings.locale}
+          disabled={disabled === true}
+          options={LOCALE_OPTIONS}
+          onChange={(value) => onChange({ ...settings, locale: value })}
+        />
 
         <div className="space-y-2">
           <Label htmlFor="onboarding-preferred-languages">Preferred content languages</Label>
@@ -358,7 +373,7 @@ function PreferencesStep({
             checked={settings.explicitContent}
             disabled={disabled}
             aria-label="Allow explicit content"
-            onClick={() => onChange({ ...settings, explicitContent: !settings.explicitContent })}
+            onCheckedChange={(explicitContent) => onChange({ ...settings, explicitContent })}
           />
         </div>
       </div>

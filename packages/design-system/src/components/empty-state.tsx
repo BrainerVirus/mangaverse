@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { useRef } from 'react';
 import { useGSAP } from '@gsap/react';
-import { gsap } from 'gsap';
 import { fadeIn } from '@app/motion';
 import { useReducedMotion } from '@app/motion';
 import { BookX, Database, Search, ChevronRight, Archive } from 'lucide-react';
@@ -57,13 +56,9 @@ export function EmptyState({ type, action }: EmptyStateProps) {
   useGSAP(
     () => {
       if (!ref.current) return;
-      if (reducedMotion) {
-        gsap.set(ref.current, { autoAlpha: 1, y: 0 });
-        return;
-      }
-      fadeIn(ref.current);
+      fadeIn(ref.current, { reducedMotion });
     },
-    { scope: ref }
+    { scope: ref, dependencies: [reducedMotion, type] },
   );
 
   return (

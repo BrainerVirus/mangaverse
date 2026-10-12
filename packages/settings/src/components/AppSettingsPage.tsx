@@ -4,16 +4,23 @@ import {
   Label,
   LoadingState,
   Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   SettingsSection,
   Switch,
 } from '@app/design-system';
 import type { AppSettings } from '@app/shared';
+import { bytesToMegabytes, formatCacheBytes, megabytesToBytes } from '@app/cache';
 
 export interface AppSettingsPageProps {
   readonly settings: AppSettings | undefined;
   readonly isLoading: boolean;
   readonly isError: boolean;
   readonly isSaving?: boolean;
+  readonly cacheUsageBytes?: number;
   onChange: (next: AppSettings) => void;
 }
 
@@ -53,7 +60,7 @@ function SettingToggleRow({
         checked={checked}
         disabled={disabled}
         aria-label={label}
-        onClick={() => onCheckedChange(!checked)}
+        onCheckedChange={onCheckedChange}
       />
     </div>
   );
@@ -72,6 +79,7 @@ export function AppSettingsPage({
   isLoading,
   isError,
   isSaving = false,
+  cacheUsageBytes,
   onChange,
 }: AppSettingsPageProps) {
   if (isLoading) {
@@ -141,6 +149,32 @@ export function AppSettingsPage({
           disabled={isSaving}
           onCheckedChange={(lowMemoryMode) => update({ lowMemoryMode })}
         />
+        <div className="grid gap-2 rounded-[var(--radius-control)] border border-[var(--border)] p-4">
+          <Label htmlFor="image-cache-limit">Image cache limit</Label>
+          <Input
+            id="image-cache-limit"
+            type="number"
+            min={50}
+            max={10240}
+            step={50}
+            disabled={isSaving}
+            value={bytesToMegabytes(settings.imageCacheLimitBytes)}
+            onChange={(event) => {
+              const megabytes = Number(event.target.value);
+              if (!Number.isFinite(megabytes)) {
+                return;
+              }
+              update({ imageCacheLimitBytes: megabytesToBytes(megabytes) });
+            }}
+          />
+          <p className="text-sm text-muted-foreground">
+            Cached cover images are stored locally and reused on later visits. Limit:{' '}
+            {formatCacheBytes(settings.imageCacheLimitBytes)}
+            {cacheUsageBytes !== undefined
+              ? ` · Used: ${formatCacheBytes(cacheUsageBytes)}`
+              : null}
+          </p>
+        </div>
       </SettingsSection>
 
       <SettingsSection
@@ -169,16 +203,22 @@ export function AppSettingsPage({
           <div className="grid gap-2">
             <Label htmlFor="locale">Locale</Label>
             <Select
-              id="locale"
               value={settings.locale}
               disabled={isSaving}
-              onChange={(event) => update({ locale: event.target.value })}
+              onValueChange={(value) => update({ locale: value })}
             >
-              {LOCALE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
+              <SelectTrigger id="locale" aria-label="Locale">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {LOCALE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
             </Select>
           </div>
         </div>

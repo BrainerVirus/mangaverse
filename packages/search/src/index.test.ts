@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_SEARCH_VIEW_STATE,
+  DiscoverPage,
+  discoverQueryKeys,
   fetchSearchPage,
   SearchPage,
   searchQueryKeys,
@@ -10,9 +12,12 @@ import {
 describe('@app/search', () => {
   it('exports search page building blocks', () => {
     expect(typeof SearchPage).toBe('function');
+    expect(typeof DiscoverPage).toBe('function');
     expect(typeof VirtualSearchGrid).toBe('function');
     expect(typeof fetchSearchPage).toBe('function');
     expect(DEFAULT_SEARCH_VIEW_STATE.query).toBe('');
-    expect(searchQueryKeys.page({ query: 'test' })).toEqual(['search', 'page', { query: 'test' }]);
+    expect(searchQueryKeys.page({ query: 'test' })).toEqual(['search', 'page', { query: 'test' }, false]);
+    expect(searchQueryKeys.page({ query: 'test' }, true)).toEqual(['search', 'page', { query: 'test' }, true]);
+    expect(discoverQueryKeys.providers(true)).toEqual(['discover', 'providers', true]);
   });
 });

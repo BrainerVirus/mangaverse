@@ -25,6 +25,11 @@ const CSS_VAR_KEYS = [
   '--warning',
   '--ring',
   '--reader-background',
+  '--sidebar',
+  '--sidebar-foreground',
+  '--sidebar-border',
+  '--sidebar-accent',
+  '--sidebar-accent-foreground',
 ] as const;
 
 export function buildThemeCssVariables(settings: ThemeSettings): Record<string, string> {
@@ -59,6 +64,11 @@ export function buildThemeCssVariables(settings: ThemeSettings): Record<string, 
     '--warning': tokens.warning,
     '--ring': tokens.primary,
     '--reader-background': tokens.readerBackground,
+    '--sidebar': appearance === 'dark' ? tokens.surface : muted,
+    '--sidebar-foreground': tokens.foreground,
+    '--sidebar-border': tokens.border,
+    '--sidebar-accent': tokens.accent,
+    '--sidebar-accent-foreground': accentForeground,
   };
 }
 

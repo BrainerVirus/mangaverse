@@ -1,7 +1,8 @@
 import { err, ok, type AppError, type AppResult } from '@app/shared';
-import type { BrowserWindow, Clipboard, Dialog, IpcMain, SaveDialogOptions, Shell } from 'electron';
+import type { BrowserWindow, Clipboard, Dialog, IpcMain, Net, SaveDialogOptions, Shell } from 'electron';
 import {
   PLATFORM_IPC,
+  fetchMainProcessBytes,
   isSafeExternalUrl,
   isValidSecureStorageKey,
   platformInvalidUrl,
@@ -43,6 +44,7 @@ export interface PlatformIpcDeps {
   readonly dialog: Dialog;
   readonly clipboard: Clipboard;
   readonly shell: Shell;
+  readonly net: Net;
   readonly readFileUtf8: (path: string) => Promise<string>;
   readonly writeFileUtf8: (path: string, content: string) => Promise<void>;
   readonly getCapabilities: () => PlatformCapabilities;
@@ -227,4 +229,16 @@ export function registerPlatformIpc(deps: PlatformIpcDeps): void {
   ipcMain.handle(PLATFORM_IPC.LOCAL_SERVICE_GET_INFO, async () =>
     toIpcAppResult(ok(deps.getLocalServiceInfo())),
   );
+
+  ipcMain.handle(PLATFORM_IPC.NETWORK_FETCH_BYTES, async (_e, url: unknown) => {
+    if (typeof url !== 'string' || !isSafeExternalUrl(url)) {
+      return toIpcAppResult(err(platformInvalidUrl('Only http and https URLs are allowed.')));
+    }
+    try {
+      const result = await fetchMainProcessBytes(deps.net.fetch.bind(deps.net), url);
+      return toIpcAppResult(ok(result));
+    } catch (e) {
+      return toIpcAppResult(err(platformIoFailed('Network fetch failed.', e)));
+    }
+  });
 }

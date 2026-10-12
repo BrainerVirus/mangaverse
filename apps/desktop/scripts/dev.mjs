@@ -108,7 +108,7 @@ async function waitForRenderer(url) {
 
 console.log('Compiling Electron main and preload...');
 execFileSync('pnpm', ['exec', 'tsc', '-p', 'tsconfig.json'], { cwd: desktopRoot, stdio: 'inherit' });
-execFileSync('pnpm', ['exec', 'tsc', '-p', 'tsconfig.preload.json'], { cwd: desktopRoot, stdio: 'inherit' });
+execFileSync('node', ['scripts/bundle-preload.mjs'], { cwd: desktopRoot, stdio: 'inherit' });
 
 console.log('Starting TanStack Start renderer (Vite)...');
 const { child: web, rendererUrl } = await startWebDevServer();

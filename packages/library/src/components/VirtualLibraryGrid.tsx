@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react';
+import { useGridStaggerReveal } from '@app/motion';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { MangaCard } from '@app/design-system';
+import { CachedMangaCard } from '@app/cache';
 import type { LibraryLayoutMode, MangaId } from '@app/shared';
 import type { LibraryItem } from '../types.js';
 import {
@@ -22,6 +23,7 @@ export function VirtualLibraryGrid({ items, layout, onOpenManga }: VirtualLibrar
   const containerRef = useRef<HTMLElement>(null);
   const scrollParent = useScrollParent(containerRef);
   const containerWidth = useContainerWidth(containerRef);
+  const itemsKey = items.map((item) => item.entry.id).join(',');
 
   const columnCount = getColumnCount(layout, containerWidth);
   const rowGap = getRowGap(layout);
@@ -41,11 +43,15 @@ export function VirtualLibraryGrid({ items, layout, onOpenManga }: VirtualLibrar
   });
 
   const isVirtualized = scrollParent !== null && containerWidth > 0;
+  const revealRef = useGridStaggerReveal(itemsKey, items.length > 0);
 
   if (!isVirtualized) {
     return (
       <section
-        ref={containerRef}
+        ref={(node) => {
+          containerRef.current = node;
+          revealRef.current = node;
+        }}
         aria-label="Library titles"
         className={
           layout === 'grid'
@@ -56,19 +62,26 @@ export function VirtualLibraryGrid({ items, layout, onOpenManga }: VirtualLibrar
         }
       >
         {items.map(({ entry, manga }) => (
-          <MangaCard
-            key={entry.id}
-            manga={manga}
-            variant={layout}
-            onClick={() => onOpenManga(manga.id)}
-          />
+          <div key={entry.id} data-library-card>
+            <CachedMangaCard
+              manga={manga}
+              variant={layout}
+              onClick={() => onOpenManga(manga.id)}
+            />
+          </div>
         ))}
       </section>
     );
   }
 
   return (
-    <section ref={containerRef} aria-label="Library titles">
+    <section
+      ref={(node) => {
+        containerRef.current = node;
+        revealRef.current = node;
+      }}
+      aria-label="Library titles"
+    >
       <div
         style={{
           height: `${virtualizer.getTotalSize()}px`,
@@ -97,12 +110,13 @@ export function VirtualLibraryGrid({ items, layout, onOpenManga }: VirtualLibrar
               }}
             >
               {rowItems.map(({ entry, manga }) => (
-                <MangaCard
-                  key={entry.id}
-                  manga={manga}
-                  variant={layout}
-                  onClick={() => onOpenManga(manga.id)}
-                />
+                <div key={entry.id} data-library-card>
+                  <CachedMangaCard
+                    manga={manga}
+                    variant={layout}
+                    onClick={() => onOpenManga(manga.id)}
+                  />
+                </div>
               ))}
             </div>
           );

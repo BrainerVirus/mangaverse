@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
 import { SETTINGS_NAV_SECTIONS, SettingsIndexPage } from '@app/settings';
 
 export const Route = createFileRoute('/settings')({
@@ -7,6 +7,12 @@ export const Route = createFileRoute('/settings')({
 
 function SettingsRoute() {
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const isIndex = pathname === '/settings' || pathname === '/settings/';
+
+  if (!isIndex) {
+    return <Outlet />;
+  }
 
   return (
     <SettingsIndexPage
