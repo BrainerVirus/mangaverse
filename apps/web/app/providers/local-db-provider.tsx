@@ -44,6 +44,7 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
     errorMessage: null,
   });
   const [attempt, setAttempt] = useState(0);
+  const [handleVersion, setHandleVersion] = useState(0);
   const queryClient = useQueryClient();
 
   const retry = useCallback(() => {
@@ -89,10 +90,10 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
     if (value.status !== 'ready') return;
 
     const unsubscribe = watchLocalDbForExternalChanges((handle) => {
-      // Replace the closed handle before refetching so no consumer queries a
-      // stale database.
+      // Replace the handle on the next render; invalidation happens in the
+      // effect below so observers refetch with the fresh handle.
       setValue({ status: 'ready', db: handle, errorMessage: null });
-      void queryClient.invalidateQueries();
+      setHandleVersion((version) => version + 1);
     });
 
     const handlePageHide = () => {
@@ -106,7 +107,12 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
       // Best-effort final flush; committed writes already flushed after mutation.
       void flushLocalDb();
     };
-  }, [queryClient, value.status]);
+  }, [value.status]);
+
+  useEffect(() => {
+    if (value.status !== 'ready' || handleVersion === 0) return;
+    void queryClient.invalidateQueries();
+  }, [handleVersion, queryClient, value.status]);
 
   return (
     <LocalDbContext value={{ ...value, retry }}>{children}</LocalDbContext>
