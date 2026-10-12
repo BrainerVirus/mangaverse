@@ -198,7 +198,8 @@ the June MangaDex spec, and only tests with triaged audit findings.
 - [ ] Move judgment rules behind topic pointers only when useful; encode mechanical
       package-import/provider-location rules as executable checks, not repeated prose.
 - [ ] Run `workit knowledge lint` before/after each instruction commit; no new finding.
-      Update canonical commands for production build/start/E2E.
+      Canonical commands for production build/start/E2E already exist in
+      `apps/web/package.json` and the root scripts; keep them current.
 - [ ] Audit targeted suites and triage every finding by naming the production break.
       Remove only assertion-free or truly duplicate tests after checking coverage;
       replace bad oracles and prove replacements fail on planted bugs.
@@ -228,9 +229,10 @@ dependency.
       `feat/web-desktop-migration`, `chore/update-dependencies`,
       `feature/add-discover-page`) after per-branch evidence review; remote refs
       re-read afterward. Open PRs #24–#26 and their branches remain.
-- [ ] `develop` deletion is blocked by the host's protected-branch guard; the user
-      must delete it from their own terminal (`git push origin --delete develop`)
-      or GitHub settings. Zero unique commits, so it is safe once unblocked.
+- [ ] `develop` deletion is blocked by the host's protected-branch guard. It has
+      zero unique commits and is safe to remove once the user deletes it from
+      their own terminal (`git push origin --delete develop`) or GitHub settings.
+      Do not treat it as deleted until observed gone from `git ls-remote`.
 - [ ] Never apply history rewrite, force push, broad wildcard deletion or local
       user-work removal to this cleanup; only named, evidence-backed refs.
 
