@@ -3,6 +3,7 @@ import { useLayoutStore, detectDeviceLayout } from '../stores/useLayoutStore.js'
 import { DesktopSidebar } from '../components/shell/DesktopSidebar.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.js';
 import { AnimatedRouteOutlet } from '../components/shell/AnimatedRouteOutlet.js';
+import { PersistenceErrorBanner } from '../components/PersistenceErrorBanner.js';
 
 export function AppShellLayout({ children }: { children: React.ReactNode }) {
   const toggleSidebar = useLayoutStore((s) => s.toggleSidebar);
@@ -37,6 +38,7 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
         <DesktopSidebar />
       </div>
       <main className="flex-1 overflow-auto bg-background max-md:pb-16">
+        <PersistenceErrorBanner />
         <AnimatedRouteOutlet>{children}</AnimatedRouteOutlet>
       </main>
       <div className="md:hidden">

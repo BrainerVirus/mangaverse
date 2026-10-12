@@ -6,6 +6,7 @@ import {
   flushLocalDb,
   getLocalDb,
   resetLocalDb,
+  setPersistenceErrorHandler,
   watchLocalDbForExternalChanges,
 } from '../lib/local-db.js';
 
@@ -15,14 +16,19 @@ interface LocalDbContextValue {
   readonly status: LocalDbStatus;
   readonly db: AppDrizzleDb | null;
   readonly errorMessage: string | null;
+  /** Last durable-write failure, surfaced by the shell banner. */
+  readonly persistenceError: string | null;
   readonly retry: () => void;
+  readonly retryPersistence: () => void;
 }
 
 const LocalDbContext = createContext<LocalDbContextValue>({
   status: 'loading',
   db: null,
   errorMessage: null,
+  persistenceError: null,
   retry: () => {},
+  retryPersistence: () => {},
 });
 
 function formatDbError(error: unknown): string {
@@ -38,10 +44,11 @@ function logDbInitFailure(error: unknown): void {
 }
 
 export function LocalDbProvider({ children }: { children: ReactNode }) {
-  const [value, setValue] = useState<Omit<LocalDbContextValue, 'retry'>>({
+  const [value, setValue] = useState<Omit<LocalDbContextValue, 'retry' | 'retryPersistence'>>({
     status: 'loading',
     db: null,
     errorMessage: null,
+    persistenceError: null,
   });
   const [attempt, setAttempt] = useState(0);
   const [handleVersion, setHandleVersion] = useState(0);
@@ -49,8 +56,13 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
 
   const retry = useCallback(() => {
     resetLocalDb();
-    setValue({ status: 'loading', db: null, errorMessage: null });
+    setValue({ status: 'loading', db: null, errorMessage: null, persistenceError: null });
     setAttempt((current) => current + 1);
+  }, []);
+
+  const retryPersistence = useCallback(() => {
+    setValue((current) => ({ ...current, persistenceError: null }));
+    void flushLocalDb();
   }, []);
 
   useEffect(() => {
@@ -67,17 +79,18 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
         }
 
         if (!cancelled) {
-          setValue({ status: 'ready', db: handle, errorMessage: null });
+          setValue((current) => ({ ...current, status: 'ready', db: handle, errorMessage: null }));
         }
       })
       .catch((error: unknown) => {
         logDbInitFailure(error);
         if (!cancelled) {
-          setValue({
+          setValue((current) => ({
+            ...current,
             status: 'error',
             db: null,
             errorMessage: formatDbError(error),
-          });
+          }));
         }
       });
 
@@ -87,12 +100,21 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
   }, [attempt]);
 
   useEffect(() => {
+    setPersistenceErrorHandler((message) => {
+      setValue((current) => ({ ...current, persistenceError: message }));
+    });
+    return () => {
+      setPersistenceErrorHandler(null);
+    };
+  }, []);
+
+  useEffect(() => {
     if (value.status !== 'ready') return;
 
     const unsubscribe = watchLocalDbForExternalChanges((handle) => {
       // Replace the handle on the next render; invalidation happens in the
       // effect below so observers refetch with the fresh handle.
-      setValue({ status: 'ready', db: handle, errorMessage: null });
+      setValue((current) => ({ ...current, status: 'ready', db: handle, errorMessage: null }));
       setHandleVersion((version) => version + 1);
     });
 
@@ -115,7 +137,7 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
   }, [handleVersion, queryClient, value.status]);
 
   return (
-    <LocalDbContext value={{ ...value, retry }}>{children}</LocalDbContext>
+    <LocalDbContext value={{ ...value, retry, retryPersistence }}>{children}</LocalDbContext>
   );
 }
 
@@ -134,4 +156,12 @@ export function useLocalDbError(): string | null {
 
 export function useLocalDbRetry(): () => void {
   return use(LocalDbContext).retry;
+}
+
+export function usePersistenceError(): string | null {
+  return use(LocalDbContext).persistenceError;
+}
+
+export function useRetryPersistence(): () => void {
+  return use(LocalDbContext).retryPersistence;
 }
