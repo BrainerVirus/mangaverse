@@ -92,6 +92,9 @@ export async function openPersistentDatabase(
 
   raw ??= openFreshDatabase(sqlModule, migrations);
   attachMutationHook(raw);
+  // Retired handles stay open for one generation so a fetch that captured the
+  // previous handle can still finish; older generations are closed.
+  const retired: Database[] = [];
   const session = {
     raw,
     db: createDrizzleFromSqlJs(raw),
@@ -110,13 +113,20 @@ export async function openPersistentDatabase(
       const next = tryOpenStoredDatabase(sqlModule, latest.bytes);
       if (next === null) return;
       attachMutationHook(next);
-      session.raw.close();
+      retired.push(session.raw);
+      if (retired.length > 1) {
+        retired.shift()?.close();
+      }
       session.raw = next;
       session.db = createDrizzleFromSqlJs(next);
       baseVersion = latest.version;
     },
     close: () => {
       session.raw.close();
+      for (const handle of retired) {
+        handle.close();
+      }
+      retired.length = 0;
     },
   };
 
