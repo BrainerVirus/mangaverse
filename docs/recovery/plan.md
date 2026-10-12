@@ -65,23 +65,27 @@ cleanup can erase. Add focused database persistence tests and
 - [ ] Probe SQL.js export/import with real repositories and IndexedDB in Chromium.
       Compare existing synchronous Drizzle semantics against durable acknowledgement;
       do not return success before a storage transaction completes.
-- [ ] Settle the concurrent-tab UX choice in the spec before writing its policy.
+- [ ] Design transparent multi-tab convergence with a safe merge/replay strategy
+      before wiring byte storage (D5: no lockout). A later-opened tab must observe
+      earlier committed changes without a manual reload.
 - [ ] Write a red browser scenario saving onboarding, a library item, provider
       enable state, preferences and page 2, then reload/reopen the context and assert
       literal record IDs and page 2. Use public operations, not an exported test hook.
+- [ ] Write a red two-tab scenario where tab A commits a library change and tab B,
+      opened before it, later commits a different change; both changes must survive.
 - [ ] Implement opening/importing/migrating and durable mutation acknowledgement
       centrally. Keep synchronous SQLite transaction callbacks synchronous.
-- [ ] Test denied/quota writes, invalid bytes, migration failure, rollback, second-tab
-      ownership and recovery. Original bytes must remain recoverable on failure.
+- [ ] Test denied/quota writes, invalid bytes, migration failure, rollback, interleaved
+      two-tab commits and recovery. Original bytes must remain recoverable on failure.
 - [ ] Expose persistence errors through the existing provider/error-state pattern;
       checkpoint pending reader writes before intentional navigation.
 - [ ] Run targeted tests, configured test/lint/typecheck and production E2E; inspect
       storage after browser restart, not only component remount. Commit S1 alone.
 
 Reject: unload-only saving, periodic exports without acknowledged durability,
-silent empty-DB fallback, and unsynchronized whole-snapshot writes from two tabs.
-If the driver changes, explicitly migrate repository/transaction interfaces and
-tests in this slice rather than hiding asynchronous behavior behind casts.
+silent empty-DB fallback, last-write-wins whole-snapshot replacement between tabs,
+and a lockout screen. If the driver changes, explicitly migrate repository/transaction
+interfaces and tests in this slice rather than hiding asynchronous behavior behind casts.
 
 ## S2: Real provider contract (R3 request behavior)
 
@@ -133,7 +137,10 @@ Read the five `apps/web/app/lib/dev-mangadex-*`/`dev-seed-mangadex.ts` files and
 - [ ] Preserve `dev-md-`/`dev-md-ch-` identity relationships or migrate them explicitly
       with tests preserving library/progress. Do not duplicate existing titles.
 - [ ] Probe actual API/image CORS from a production browser, not Electron/Node fetch.
-      If blocked, stop for the constrained proxy/deployment choice in the spec.
+      Direct calls first (MangaDex currently sends permissive CORS headers). If a probe
+      fails, implement the same-domain rewrite (`/api/mangadex/*` shape) in both dev
+      and the eventual Vercel config; stop and confirm the rewrite shape with the user.
+      Never ship an unrestricted URL proxy.
 - [ ] Migrate routes in small complete batches; delete old dev paths only after the
       replacement passes its production flow. Preserve useful fixtures while moving
       their ownership; the June spec's blanket fixture deletion is not required.
@@ -203,26 +210,33 @@ the June MangaDex spec, and only tests with triaged audit findings.
 
 ## S6: Remote hygiene (R6 remote)
 
-Separate reversible inventory from destructive deletion. No implementation dependency.
+GitHub flow: short-lived branches, PR into `main`, delete branches once merged
+(D7). Separate reversible inventory from destructive deletion. No implementation
+dependency.
 
-- [ ] Read current branches (`git ls-remote --heads origin`), open PRs and protected
-      branch/default-branch configuration. Reconcile both local-only commits first.
+- [ ] Read current branches (`git ls-remote --heads origin`), open PRs and the
+      default branch (`main`). Reconcile both local-only commits first.
 - [ ] For each candidate, show current tip, related PR, merge/superseding commit and
-      unique commits relative to the accepted recovery tip and main. Names/age do
-      not prove a branch is dead; squash merges need content/PR reconciliation.
-- [ ] Present an exact keep/delete/archive table. Retain main, develop, tags, active
-      recovery and unmerged unique work. Ask before closing PRs or deleting refs.
-- [ ] After approval, mutate only named refs with native tools; observe remote refs
-      and PR state afterward. No history rewrite, force push, broad wildcard deletion
-      or local user-work removal. Use Workit verbs wherever they implement the action.
+      unique commits relative to the accepted recovery tip and `main`. Names and age
+      do not prove a branch is dead; squash merges need content/PR reconciliation.
+- [ ] Present an exact keep/delete/archive table (user expects most abandoned phase
+      branches to be deletable, but `main` is never a candidate). Retain active
+      recovery, anything with unique unmerged work, tags, and any branch a live PR
+      targets. Ask before closing PRs or deleting refs.
+- [ ] After approval, delete only the named merged branches via `workit git push`/
+      native tools (prefer PR auto-delete for future merges); observe remote refs and
+      PR state afterward. No history rewrite, force push, broad wildcard deletion or
+      local user-work removal.
 
 ## S7: Publication readiness
 
-Depends on S1–S4 and truthful docs. Choose the hosting target with the user, then
-validate its runtime/static assets, HTTPS/browser storage, any constrained proxy,
-security headers, first-run flow and image access at the deployed origin. Keep
-Electron unchanged unless a shared-package regression requires a compatibility fix.
-Deployment is not authorized by approval of this plan; respect host/workspace grants.
+Depends on S1–S4 and truthful docs. Vercel is the likely free target (D8), but
+confirm the plan/domain before deploying, then validate its runtime/static assets,
+HTTPS/browser storage, the same-domain rewrite if one was needed in S3, security
+headers, first-run flow and image access at the deployed origin. Browser-local data
+is origin-scoped, so state what carries over. Keep Electron unchanged unless a
+shared-package regression requires a compatibility fix. Deployment is not authorized
+by approval of this plan; respect host/workspace grants.
 
 ## Exit criteria per implementing session
 

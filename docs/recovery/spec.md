@@ -40,10 +40,15 @@ Measured in this planning session:
 | D2 | Use the existing MangaDex official API approach first. | Prove one real source without adding HTML-scraping breakage. |
 | D3 | Finish planning here; another model implements the remaining slices. | User explicitly requested a cheaper-model handoff. |
 | D4 | Repair incrementally; preserve existing data, IDs and unique Git work. | A clean restart means a trustworthy baseline, not destructive reset. |
+| D5 | Multi-tab is transparent: concurrent tabs must converge safely with no lockout screen. | User decision; a lockout UX is rejected for this app. |
+| D6 | Keep app and any needed network proxy same-origin (Vercel rewrite); no permissive third-party proxy. | User decision; same-domain requests avoid CORS entirely. |
+| D7 | Follow GitHub flow: short-lived branches, PR into `main`, delete merged branches. | Matches the user's other repository workflow. |
+| D8 | Publication is a later Vercel target, decided after the full local feature set works. | User decision; not part of recovery acceptance. |
 
 D1/D2 are recorded in Workit decision `8b698970-0510-4d4c-b107-df4804591e60`;
-D3 is recorded in `3d7956bc-6c33-40ac-adc5-9765b24b09c6`. D4 is the safety constraint
-for this plan; exact remote deletion candidates need confirmation separately.
+D3 in `3d7956bc-6c33-40ac-adc5-9765b24b09c6`; D5–D8 in
+`e95ea9c2-21cb-4179-bb10-f02192e06cbc`. D4 is the safety constraint for this plan;
+exact remote deletion candidates still need per-branch confirmation.
 
 ## Required behavior
 
@@ -69,8 +74,10 @@ on durable storage and is not yet accepted.
 - Given corrupt stored data or a migration failure, when startup runs, then it
   reports recovery guidance without overwriting the original bytes with an empty
   database. Export/recovery access must remain possible.
-- Given two tabs, when both attempt changes, then an explicit concurrency policy
-  prevents last-writer snapshot replacement from silently losing data.
+- Given two open tabs, when both make changes, then both tabs converge to a safe
+  merged state, no tab is locked out, and neither tab's committed writes are
+  silently discarded. A tab opened later must see changes committed by an earlier
+  one without a manual reload.
 - Given a transaction that rolls back, when reopened, then none of its partial
   writes are present. Committed writes must not rely solely on unload callbacks.
 
@@ -141,11 +148,23 @@ clearing caches must not erase library/progress/settings. Page URLs are refresha
 metadata, not permanently valid offline resources.
 
 Do not freeze a database driver or persistence algorithm without a small browser
-proof. Recommended first evaluation: retain SQL.js and existing repository contracts,
-use IndexedDB for durable bytes, and enforce single-writer ownership across tabs.
-This is a proposal, not an approved concurrency UX. If it cannot safely acknowledge
-writes through the present interfaces, compare a persistent WASM driver before
-committing to a fragile method-interception layer.
+proof. Recommended first evaluation: retain SQL.js and existing repository contracts
+and use IndexedDB for durable bytes. Because the machine is a whole-snapshot store,
+concurrent tabs must merge safely rather than last-write-win: every committed
+operation must be journaled or replayed so two tabs do not discard each other's
+committed work, and a later tab must observe earlier committed changes without a
+reload. If snapshot storage cannot satisfy that transparent convergence through the
+present interfaces, compare a persistent WASM driver before committing to a fragile
+method-interception layer. No lockout screen: multi-tab is a supported path, not an
+error state.
+
+Network access must stay same-origin wherever providers are called from production
+browser code. MangaDex's public API and image host currently send permissive CORS
+headers, so direct calls are the first probe; a same-domain rewrite (for example a
+Vercel rewrite from `/api/mangadex/*` to the MangaDex host) is the preferred fix if a
+probe fails (regional block, header change, image host difference) or if a later
+provider requires it. Never add an unrestricted proxy: restrict targets and redirects,
+block private addresses, validate input, bound sizes/timeouts and rate-limit access.
 
 Built-in MangaDex approval does not authorize arbitrary third-party code execution.
 Make its bundled origin, capabilities and disable control visible. Community
@@ -153,16 +172,14 @@ provider installation continues to require explicit confirmation.
 
 ## Remaining consequential choices
 
-1. Concurrent tabs: recommend one active writer with a clear second-tab message
-   for the first release; ask before choosing that UX over transparent multi-tab use.
-2. Browser network path: probe live API and image CORS from the production browser.
-   If a server proxy is necessary, agree its deployment/security scope; never add an
-   arbitrary-URL proxy. Restrict targets and redirects, block private addresses,
-   validate input, bound sizes/timeouts and rate-limit access.
-3. Publication host and domain: decide only after the core journey works; origin
-   changes affect browser-local data. Do not promise existing data transfers between
-   domains automatically.
-4. Remote cleanup: present exact branches/PRs and their unique commits for approval.
+1. Browser network path: probe live API and image CORS from the production browser
+   first. Only if a probe fails, choose the same-domain rewrite shape (rewrite target,
+   dev-server equivalent, size/timeout/rate limits). Never an arbitrary-URL proxy.
+2. Publication specifics: the Vercel target is intent, not a decision. Confirm the
+   hosting plan, domain and whether local data should move when the origin is fixed;
+   browser-local data is origin-scoped, so do not promise automatic transfer.
+3. Remote cleanup: the GitHub-flow convention is set; the exact per-branch
+   keep/delete table still requires user approval before deletion.
 
 ## Out of scope
 
