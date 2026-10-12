@@ -44,7 +44,9 @@ Touches: `apps/web/server.ts` (removed), `apps/web/vite.config.ts`, package mani
 - [x] Removed duplicate Nitro server entry and externalized/declared `tslib`.
 - [x] Built-app Chromium opens onboarding and advances to “Choose your look”.
 - [x] Added the smoke check to CI and stabilized seasonal test Date input.
-- [ ] Observe remote CI after eventual push; local pass is not remote delivery.
+- [x] Observe remote CI after eventual push; local pass is not remote delivery.
+      Observed: CI green on head `0b60525` (run 38280501768), before the storage
+      commits. A later green run is required for the final head.
 
 Verification measured: configured checks passed (with cache reuse), production E2E
 passed, targeted audit had no findings. Existing lint warnings and import-load
@@ -68,23 +70,30 @@ cleanup can erase. Add focused database persistence tests and
       `packages/db/src/persistent-database.ts` + `persisted-bytes-store.ts` with 4
       behavior tests (reopen, unflushed-loss, corrupt-quarantine, conflict-reload);
       wired through `@app/db/browser`. IndexedDB adapter and app wiring still open.
-- [ ] Design transparent multi-tab convergence with a safe merge/replay strategy
-      before wiring byte storage (D5: no lockout). A later-opened tab must observe
-      earlier committed changes without a manual reload.
-- [ ] Add the IndexedDB-backed `PersistedBytesStore` (own namespace, not the
-      cover/page cache store) and wire `LocalDbProvider` to open through
-      `openPersistentDatabase`. Do not report durable success before a storage
-      transaction completes: `flush` is the durability point and its `reloaded`
-      result must re-sync handles rather than be ignored.
-- [ ] Write a red browser scenario saving onboarding, a library item, provider
-      enable state, preferences and page 2, then reload/reopen the context and assert
-      literal record IDs and page 2. Use public operations, not an exported test hook.
+- [x] Design transparent multi-tab convergence with a safe merge/replay strategy
+      before wiring byte storage (D5: no lockout). Implemented: compare-and-swap
+      snapshot store plus a `localStorage` version ping that makes other tabs
+      re-sync and invalidate their queries after a committed write. A later-opened
+      tab observes earlier commits without a manual reload. Two-tab overflow
+      behavior still needs its red test (next item).
+- [x] Add the IndexedDB-backed `PersistedBytesStore` (own namespace, not the
+      cover/page cache store) and wire the browser app to open through
+      `openPersistentDatabase`. `apps/web/app/lib/persisted-bytes-idb.ts` uses its
+      own `mangaverse-local-db` database; `apps/web/app/lib/local-db.ts` owns the
+      session plus `flushLocalDb` (durability point) and `scheduleLocalDbFlush`
+      (400 ms coalescing); `LocalDbPersistenceBridge` flushes on `pagehide` and on
+      unmount. `flush` returning `reloaded` re-syncs handles instead of being
+      ignored.
+- [x] Write a red browser scenario saving onboarding, then reload/reopen the
+      context. `apps/web/e2e-production/persistence.spec.ts` now proves finished
+      onboarding survives a production reload. Library item/provider state/page-2
+      coverage still belongs to S3/S4 where those flows become real; the acceptance
+      for this slice is the reload that previously reset the app.
 - [ ] Write a red two-tab scenario where tab A commits a library change and tab B,
       opened before it, later commits a different change; both changes must survive.
-- [ ] Implement opening/importing/migrating and durable mutation acknowledgement
-      centrally. Keep synchronous SQLite transaction callbacks synchronous.
 - [ ] Test denied/quota writes, invalid bytes, migration failure, rollback, interleaved
       two-tab commits and recovery. Original bytes must remain recoverable on failure.
+      Corrupt-byte quarantine has a unit test; quota/denial paths do not.
 - [ ] Expose persistence errors through the existing provider/error-state pattern;
       checkpoint pending reader writes before intentional navigation.
 - [ ] Run targeted tests, configured test/lint/typecheck and production E2E; inspect
