@@ -13,6 +13,11 @@ export interface OpenPersistentDatabaseInput {
   readonly store: PersistedBytesStore;
   readonly sqlModule: SqlJsStatic;
   readonly migrations: PersistentDatabaseMigrations;
+  /**
+   * Called after every write statement, synchronously. Used to schedule a
+   * debounced flush so durability never depends on unload callbacks alone.
+   */
+  readonly onMutation?: () => void;
 }
 
 export type FlushResult = { readonly status: 'saved' | 'reloaded' | 'unchanged' };
@@ -64,7 +69,16 @@ function tryOpenStoredDatabase(sqlModule: SqlJsStatic, bytes: Uint8Array): Datab
 export async function openPersistentDatabase(
   input: OpenPersistentDatabaseInput,
 ): Promise<PersistentDatabase> {
-  const { store, sqlModule, migrations } = input;
+  const { store, sqlModule, migrations, onMutation } = input;
+
+  const attachMutationHook = (raw: Database): void => {
+    if (onMutation !== undefined) {
+      raw.updateHook(() => {
+        onMutation();
+      });
+    }
+  };
+
   const stored = await store.read();
   let baseVersion = stored?.version ?? 0;
   let quarantinedBytes = false;
@@ -77,6 +91,7 @@ export async function openPersistentDatabase(
   }
 
   raw ??= openFreshDatabase(sqlModule, migrations);
+  attachMutationHook(raw);
   const session = {
     raw,
     db: createDrizzleFromSqlJs(raw),
@@ -94,6 +109,7 @@ export async function openPersistentDatabase(
       if (latest === undefined) return;
       const next = tryOpenStoredDatabase(sqlModule, latest.bytes);
       if (next === null) return;
+      attachMutationHook(next);
       session.raw.close();
       session.raw = next;
       session.db = createDrizzleFromSqlJs(next);

@@ -1,6 +1,6 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
-async function clickContinue(page: import('@playwright/test').Page) {
+async function clickContinue(page: Page) {
   const button = page.getByRole('button', { name: 'Continue', exact: true });
   await expect(button).toBeEnabled({ timeout: 20_000 });
   await button.click();

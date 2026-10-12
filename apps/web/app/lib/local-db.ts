@@ -96,6 +96,9 @@ export function getLocalDbSession(): Promise<PersistentDatabase> {
         return openPersistentDatabase({
           sqlModule: SQL,
           store: createIndexedDbPersistedBytesStore(),
+          // Coalesced snapshot writes after every mutation; unload is a fallback,
+          // not the only durability point.
+          onMutation: () => scheduleLocalDbFlush(),
           migrations: {
             journal: migrationJournal as BundledMigrationJournal,
             files: [
@@ -161,25 +164,38 @@ export async function flushLocalDb(): Promise<void> {
 
 /**
  * Re-syncs the in-memory database after another tab committed a snapshot.
- * Returns true when the working copy was replaced and callers should refetch.
+ * Returns the fresh handle (the previous one is closed), or null when there is
+ * nothing to sync. Callers must replace any handle they were holding.
  */
-export async function syncLocalDbFromOtherTab(): Promise<boolean> {
-  if (dbPromise === undefined) return false;
+export async function syncLocalDbFromOtherTab(): Promise<AppDrizzleDb | null> {
+  if (dbPromise === undefined) return null;
   const session = await dbPromise;
   await session.syncFromStore();
-  return true;
+  return session.db;
 }
 
 /** Invokes `onExternalChange` when another tab commits a snapshot. */
-export function watchLocalDbForExternalChanges(onExternalChange: () => void): () => void {
-  const listener = (event: StorageEvent) => {
-    if (event.key !== SYNC_NOTIFY_KEY) return;
-    void syncLocalDbFromOtherTab().then((changed) => {
-      if (changed) onExternalChange();
+export function watchLocalDbForExternalChanges(onExternalChange: (db: AppDrizzleDb) => void): () => void {
+  // Only swap handles while the tab is visible: a background tab can be
+  // mid-query and must not have its database closed underneath it.
+  const trySync = () => {
+    if (document.visibilityState === 'hidden') return;
+    void syncLocalDbFromOtherTab().then((handle) => {
+      if (handle !== null) onExternalChange(handle);
     });
   };
-  window.addEventListener('storage', listener);
-  return () => window.removeEventListener('storage', listener);
+  const storageListener = (event: StorageEvent) => {
+    if (event.key === SYNC_NOTIFY_KEY) trySync();
+  };
+  const visibilityListener = () => {
+    if (document.visibilityState === 'visible') trySync();
+  };
+  window.addEventListener('storage', storageListener);
+  document.addEventListener('visibilitychange', visibilityListener);
+  return () => {
+    window.removeEventListener('storage', storageListener);
+    document.removeEventListener('visibilitychange', visibilityListener);
+  };
 }
 
 /** Coalesces bursts of mutations into one snapshot write. */

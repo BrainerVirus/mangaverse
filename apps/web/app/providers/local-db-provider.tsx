@@ -1,7 +1,13 @@
 import { createContext, use, useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import type { AppDrizzleDb } from '@app/db';
 import { seedDevMangaDexProvider } from '../lib/dev-seed-mangadex.js';
-import { getLocalDb, resetLocalDb } from '../lib/local-db.js';
+import {
+  flushLocalDb,
+  getLocalDb,
+  resetLocalDb,
+  watchLocalDbForExternalChanges,
+} from '../lib/local-db.js';
 
 export type LocalDbStatus = 'loading' | 'ready' | 'error';
 
@@ -38,6 +44,7 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
     errorMessage: null,
   });
   const [attempt, setAttempt] = useState(0);
+  const queryClient = useQueryClient();
 
   const retry = useCallback(() => {
     resetLocalDb();
@@ -77,6 +84,29 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [attempt]);
+
+  useEffect(() => {
+    if (value.status !== 'ready') return;
+
+    const unsubscribe = watchLocalDbForExternalChanges((handle) => {
+      // Replace the closed handle before refetching so no consumer queries a
+      // stale database.
+      setValue({ status: 'ready', db: handle, errorMessage: null });
+      void queryClient.invalidateQueries();
+    });
+
+    const handlePageHide = () => {
+      void flushLocalDb();
+    };
+    window.addEventListener('pagehide', handlePageHide);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('pagehide', handlePageHide);
+      // Best-effort final flush; committed writes already flushed after mutation.
+      void flushLocalDb();
+    };
+  }, [queryClient, value.status]);
 
   return (
     <LocalDbContext value={{ ...value, retry }}>{children}</LocalDbContext>
