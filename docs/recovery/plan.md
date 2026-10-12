@@ -62,12 +62,20 @@ Do not store database bytes under the cover/page-cache namespace that storage
 cleanup can erase. Add focused database persistence tests and
 `apps/web/e2e-production/persistence.spec.ts`.
 
-- [ ] Probe SQL.js export/import with real repositories and IndexedDB in Chromium.
-      Compare existing synchronous Drizzle semantics against durable acknowledgement;
-      do not return success before a storage transaction completes.
+- [x] Probe SQL.js export/import with real repositories and IndexedDB in Chromium.
+      Probe confirmed: `export()` returns `Uint8Array`, the constructor reloads it,
+      and sql.js ships an `updateHook` on `Database`. Core landed as
+      `packages/db/src/persistent-database.ts` + `persisted-bytes-store.ts` with 4
+      behavior tests (reopen, unflushed-loss, corrupt-quarantine, conflict-reload);
+      wired through `@app/db/browser`. IndexedDB adapter and app wiring still open.
 - [ ] Design transparent multi-tab convergence with a safe merge/replay strategy
       before wiring byte storage (D5: no lockout). A later-opened tab must observe
       earlier committed changes without a manual reload.
+- [ ] Add the IndexedDB-backed `PersistedBytesStore` (own namespace, not the
+      cover/page cache store) and wire `LocalDbProvider` to open through
+      `openPersistentDatabase`. Do not report durable success before a storage
+      transaction completes: `flush` is the durability point and its `reloaded`
+      result must re-sync handles rather than be ignored.
 - [ ] Write a red browser scenario saving onboarding, a library item, provider
       enable state, preferences and page 2, then reload/reopen the context and assert
       literal record IDs and page 2. Use public operations, not an exported test hook.
@@ -207,7 +215,12 @@ the June MangaDex spec, and only tests with triaged audit findings.
       treat a constant-only flag alone as permission to delete. Add a real command
       palette interaction test before claiming navigation coverage.
 - [ ] Address import-time timeouts with the established static-import pattern if
-      reproduced; do not merely raise all timeouts. Run configured gates and commit.
+      reproduced; do not merely raise all timeouts. Converted so far:
+      `packages/db/src/browser.test.ts` and `packages/extensions/src/index.test.ts`.
+      Remaining lazy imports (`migration`, `reader` tests importing `@app/db`;
+      `cache` importing its own constants) load small graphs and have passed
+      repeated CI runs; convert them only if they actually time out. Run configured
+      gates and commit.
 
 ## S6: Remote hygiene (R6 remote)
 
