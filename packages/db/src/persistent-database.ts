@@ -92,8 +92,9 @@ export async function openPersistentDatabase(
 
   raw ??= openFreshDatabase(sqlModule, migrations);
   attachMutationHook(raw);
-  // Retired handles stay open for one generation so a fetch that captured the
-  // previous handle can still finish; older generations are closed.
+  // Retired handles stay open for one further sync so a fetch that captured the
+  // previous handle usually finishes. A consumer that outlives two syncs can
+  // still be closed under it: the buffer keeps memory bounded to one generation.
   const retired: Database[] = [];
   const session = {
     raw,
@@ -110,6 +111,9 @@ export async function openPersistentDatabase(
     syncFromStore: async (): Promise<void> => {
       const latest = await store.read();
       if (latest === undefined) return;
+      // Nothing changed since the last load; re-swapping would retire a handle
+      // for no reason and burn the one-generation buffer.
+      if (latest.version === baseVersion) return;
       const next = tryOpenStoredDatabase(sqlModule, latest.bytes);
       if (next === null) return;
       attachMutationHook(next);
