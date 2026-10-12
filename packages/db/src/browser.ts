@@ -9,6 +9,18 @@ export {
   type BundledMigrationJournalEntry,
 } from './bundled-migrations.js';
 export { withTransaction } from './transactions.js';
+export {
+  openPersistentDatabase,
+  type FlushResult,
+  type OpenPersistentDatabaseInput,
+  type PersistentDatabase,
+  type PersistentDatabaseMigrations,
+} from './persistent-database.js';
+export {
+  createMemoryPersistedBytesStore,
+  type PersistedBytesStore,
+  type PersistedSnapshot,
+} from './persisted-bytes-store.js';
 
 export * from './repositories/identities.js';
 export * from './repositories/library.js';
