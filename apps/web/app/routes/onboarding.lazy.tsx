@@ -23,6 +23,7 @@ import { saveThemeSettings } from '@app/theme';
 
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 import { useTheme } from '../providers/theme-provider.js';
+import { flushLocalDb } from '../lib/local-db.js';
 
 export const Route = createLazyFileRoute('/onboarding')({
   component: OnboardingRoute,
@@ -162,7 +163,15 @@ function OnboardingRoute() {
     onSaved?: () => void,
   ) => {
     persistOnboarding.mutate(nextState, {
-      ...(onSaved !== undefined ? { onSuccess: onSaved } : {}),
+      onSuccess: () => {
+        if (onSaved === undefined) return;
+        // Checkpoint before intentional navigation: the coalesced flush window
+        // would otherwise drop this save if the user reloads right after being
+        // sent to the next screen.
+        void flushLocalDb().then(() => {
+          onSaved();
+        });
+      },
     });
   };
 
