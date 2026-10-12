@@ -140,9 +140,15 @@ cleanup can erase. Add focused database persistence tests and
 - [x] Persistence failures are surfaced (R2): `flushLocalDb` reports the failure to
       a UI handler and clears it on the next successful flush; the shell renders a
       destructive banner with Retry (`apps/web/app/components/PersistenceErrorBanner.tsx`)
-      so the app never implies a save is durable when it is not. Covered by component
-      tests for the banner; a forced browser-quota test is still not practical, so
-      denial paths rely on the same error path as any flush failure.
+      so the app never implies a save is durable when it is not. The whole wiring is
+      pinned by three tests that go red when planted away: error report and
+      success-clear through the real `local-db` module (mocked session/store), and
+      provider registration/unregistration driving the real banner through the real
+      context (verifier finding caf7eefe). A forced browser-quota test is still not
+      practical; denial paths share the error path with any flush failure.
+- [ ] Reader-mode persistence failures are silent (`ReaderLayout` renders no banner).
+      Deferred: the reader keeps progress in its own debounce and will get explicit
+      checkpoint/error handling in S4; decide there whether it reuses this banner.
 - [x] Attach the flush to mutations, not unload: `openPersistentDatabase` gained an
       `onMutation` update hook (re-attached after each sync swap) wired to the 400 ms
       coalesced flush; `pagehide` remains a fallback. Review finding confirmed the
