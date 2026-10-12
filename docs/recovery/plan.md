@@ -104,6 +104,18 @@ cleanup can erase. Add focused database persistence tests and
       dirty-exit only (crash or hard close inside ~400 ms), where the unload flush
       stays best-effort. `<shortcut: 400 ms coalesced flush for non-navigating
       mutations, upgrade if dirty-exit loss is ever observed>`.
+- [x] Connection invariants after export (found while pinning navigation-time
+      durability): `sql.js` `Database.export()` detaches the `updateHook` and resets
+      `PRAGMA foreign_keys`, so after the first flush later writes scheduled no
+      debounced flush and ran without FK enforcement, and every stored-bytes open
+      started with FKs off. `openPersistentDatabase` now re-establishes both after
+      every export and on every open (including the sync swap), pinned by three
+      tests that fail when the re-establishment is removed.
+- [x] Flush completeness (verifier finding 7276faee): `flushLocalDb` no longer
+      settles on an in-flight flush that predates the latest write. The coordination
+      moved to `apps/web/app/lib/local-db-flush.ts` with injected `flushOnce`/
+      `currentSeq`; a test proves a request arriving during a parked flush triggers a
+      second flush, and fails against the old early-return (planted).
 - [ ] CAS conflict policy: a losing tab's uncommitted local writes are replaced by
       the store snapshot (`persistent-database.test.ts` conflict case). Accepted for
       now: committed snapshots never lose data, and the losing tab converges. Revisit

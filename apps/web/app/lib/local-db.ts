@@ -2,6 +2,7 @@ import type { AppDrizzleDb } from '@app/db/browser';
 import type { BundledMigrationJournal } from '@app/db/browser';
 import type { PersistentDatabase } from '@app/db/browser';
 import type { SqlJsStatic } from 'sql.js';
+import { createFlushCoordinator } from './local-db-flush.js';
 
 let dbPromise: Promise<PersistentDatabase> | undefined;
 let generation = 0;
@@ -106,7 +107,10 @@ export function getLocalDbSession(): Promise<PersistentDatabase> {
           store: createIndexedDbPersistedBytesStore(),
           // Coalesced snapshot writes after every mutation; unload is a fallback,
           // not the only durability point.
-          onMutation: () => scheduleLocalDbFlush(),
+          onMutation: () => {
+            mutationSeq += 1;
+            scheduleLocalDbFlush();
+          },
           migrations: {
             journal: migrationJournal as BundledMigrationJournal,
             files: [
@@ -144,43 +148,43 @@ export async function getLocalDb(): Promise<AppDrizzleDb> {
   return session.db;
 }
 
-let pendingFlush: Promise<void> | null = null;
-
 const SYNC_NOTIFY_KEY = 'mangaverse.local-db.version';
+let mutationSeq = 0;
 
-/** Durability point; awaits the storage transaction before returning. */
-export async function flushLocalDb(): Promise<void> {
-  if (pendingFlush !== null) {
-    await pendingFlush;
-    return;
+async function flushOnce(): Promise<{ status: 'saved' | 'reloaded' }> {
+  if (dbPromise === undefined) return { status: 'saved' };
+  const openedAt = generation;
+  const session = await dbPromise;
+  // A reset while this flush awaited replaces the session; skip the stale one.
+  if (openedAt !== generation) return { status: 'saved' };
+  const result = await session.flush();
+  if (result.status === 'reloaded') {
+    await session.syncFromStore();
+    return { status: 'reloaded' };
   }
-  pendingFlush = (async () => {
-    const openedAt = generation;
-    try {
-      if (dbPromise === undefined) return;
-      const session = await dbPromise;
-      // A reset while this flush awaited replaces the session; skip the stale one.
-      if (openedAt !== generation) return;
-      const result = await session.flush();
-      if (result.status === 'reloaded') {
-        await session.syncFromStore();
-      } else if (result.status === 'saved') {
-        // Ping other tabs; storage events do not fire in the writing tab.
-        try {
-          localStorage.setItem(SYNC_NOTIFY_KEY, String(Date.now()));
-        } catch {
-          // A blocked storage notification must not fail the committed write.
-        }
-      }
-    } catch (error) {
-      // Never leave a rejected promise unobserved; quota and denial errors are
-      // surfaced here until the UI error-state wiring lands.
-      console.error('[local-db] Failed to persist database snapshot:', error);
-    } finally {
-      pendingFlush = null;
-    }
-  })();
-  await pendingFlush;
+  // Ping other tabs; storage events do not fire in the writing tab.
+  try {
+    localStorage.setItem(SYNC_NOTIFY_KEY, String(Date.now()));
+  } catch {
+    // A blocked storage notification must not fail the committed write.
+  }
+  return { status: 'saved' };
+}
+
+const flushCoordinator = createFlushCoordinator({
+  flushOnce,
+  currentSeq: () => mutationSeq,
+});
+
+/** Durability point; resolves only once writes known at call time are durable. */
+export async function flushLocalDb(): Promise<void> {
+  try {
+    await flushCoordinator.request();
+  } catch (error) {
+    // Never leave a rejected promise unobserved; quota and denial errors are
+    // surfaced here until the UI error-state wiring lands.
+    console.error('[local-db] Failed to persist database snapshot:', error);
+  }
 }
 
 /**

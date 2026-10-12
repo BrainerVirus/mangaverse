@@ -172,6 +172,59 @@ describe('persistent database', () => {
     expect(session.db).toBe(before);
   });
 
+  it('Given a flush, When a later write happens, Then the mutation hook still fires', async () => {
+    const store = createMemoryPersistedBytesStore();
+    const SQL = await initSqlJs();
+    let mutations = 0;
+    const session = await openPersistentDatabase({
+      store,
+      sqlModule: SQL,
+      migrations: { journal: JOURNAL, files: FILES },
+      onMutation: () => {
+        mutations += 1;
+      },
+    });
+
+    session.db.run(sql`INSERT INTO notes (id, body) VALUES ('a', '1')`);
+    await session.flush();
+    // sql.js export() detaches the update hook; the session must re-attach it.
+    session.db.run(sql`INSERT INTO notes (id, body) VALUES ('b', '2')`);
+    expect(mutations).toBe(2);
+    session.close();
+  });
+
+  it('Given a flush, When it completes, Then foreign keys stay enforced', async () => {
+    const store = createMemoryPersistedBytesStore();
+    const SQL = await initSqlJs();
+    const session = await openPersistentDatabase({
+      store,
+      sqlModule: SQL,
+      migrations: { journal: JOURNAL, files: FILES },
+    });
+
+    await session.flush();
+    const pragma = session.raw.exec('PRAGMA foreign_keys');
+    expect(pragma[0]?.values[0]?.[0]).toBe(1);
+    session.close();
+  });
+
+  it('Given a stored snapshot, When it opens, Then foreign keys are enforced', async () => {
+    const store = createMemoryPersistedBytesStore();
+    const SQL = await initSqlJs();
+    const seed = new SQL.Database();
+    migrateDatabaseFromBundled(seed, JOURNAL, FILES);
+    await store.write(seed.export(), 0);
+
+    const session = await openPersistentDatabase({
+      store,
+      sqlModule: SQL,
+      migrations: { journal: JOURNAL, files: FILES },
+    });
+    const pragma = session.raw.exec('PRAGMA foreign_keys');
+    expect(pragma[0]?.values[0]?.[0]).toBe(1);
+    session.close();
+  });
+
   it('Given another writer advanced the store, When this session flushes, Then it reloads instead of overwriting', async () => {
     const store = createMemoryPersistedBytesStore();
     const session = await openOn(store);
