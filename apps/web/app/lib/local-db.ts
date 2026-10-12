@@ -56,7 +56,12 @@ export function resolveWasmAssetUrl(wasmModule: { default?: unknown }): string {
 }
 
 export function resetLocalDb(): void {
+  const session = dbPromise;
   dbPromise = undefined;
+  if (session !== undefined) {
+    // Close the WASM database so retries do not leak memory.
+    void session.then((handle) => handle.close()).catch(() => {});
+  }
 }
 
 /** Opens (or returns) the durable local database session. */
@@ -155,6 +160,10 @@ export async function flushLocalDb(): Promise<void> {
           // A blocked storage notification must not fail the committed write.
         }
       }
+    } catch (error) {
+      // Never leave a rejected promise unobserved; quota and denial errors are
+      // surfaced here until the UI error-state wiring lands.
+      console.error('[local-db] Failed to persist database snapshot:', error);
     } finally {
       pendingFlush = null;
     }
@@ -176,10 +185,9 @@ export async function syncLocalDbFromOtherTab(): Promise<AppDrizzleDb | null> {
 
 /** Invokes `onExternalChange` when another tab commits a snapshot. */
 export function watchLocalDbForExternalChanges(onExternalChange: (db: AppDrizzleDb) => void): () => void {
-  // Only swap handles while the tab is visible: a background tab can be
-  // mid-query and must not have its database closed underneath it.
+  // Retired handles stay open for one generation (see openPersistentDatabase),
+  // so syncing while hidden cannot break an in-flight query.
   const trySync = () => {
-    if (document.visibilityState === 'hidden') return;
     void syncLocalDbFromOtherTab().then((handle) => {
       if (handle !== null) onExternalChange(handle);
     });
