@@ -151,6 +151,13 @@ export async function getLocalDb(): Promise<AppDrizzleDb> {
 const SYNC_NOTIFY_KEY = 'mangaverse.local-db.version';
 let mutationSeq = 0;
 
+let persistenceErrorHandler: ((message: string | null) => void) | null = null;
+
+/** Registers the UI sink for durable-write failures; pass null to clear. */
+export function setPersistenceErrorHandler(handler: ((message: string | null) => void) | null): void {
+  persistenceErrorHandler = handler;
+}
+
 async function flushOnce(): Promise<{ status: 'saved' | 'reloaded' }> {
   if (dbPromise === undefined) return { status: 'saved' };
   const openedAt = generation;
@@ -180,9 +187,10 @@ const flushCoordinator = createFlushCoordinator({
 export async function flushLocalDb(): Promise<void> {
   try {
     await flushCoordinator.request();
+    persistenceErrorHandler?.(null);
   } catch (error) {
-    // Never leave a rejected promise unobserved; quota and denial errors are
-    // surfaced here until the UI error-state wiring lands.
+    // Surface the failure for the UI and keep it out of unhandled rejections.
+    persistenceErrorHandler?.(error instanceof Error ? error.message : String(error));
     console.error('[local-db] Failed to persist database snapshot:', error);
   }
 }

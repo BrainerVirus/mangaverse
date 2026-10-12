@@ -225,6 +225,34 @@ describe('persistent database', () => {
     session.close();
   });
 
+  it('Given a sync swap, When writes follow, Then FK enforcement and the hook survive', async () => {
+    const store = createMemoryPersistedBytesStore();
+    const SQL = await initSqlJs();
+    let mutations = 0;
+    const session = await openPersistentDatabase({
+      store,
+      sqlModule: SQL,
+      migrations: { journal: JOURNAL, files: FILES },
+      onMutation: () => {
+        mutations += 1;
+      },
+    });
+
+    // Force a swap: another writer advances the store, this session syncs.
+    const other = new SQL.Database();
+    migrateDatabaseFromBundled(other, JOURNAL, FILES);
+    other.run("INSERT INTO notes (id, body) VALUES ('peer', 'p')");
+    await store.write(other.export(), 0);
+    await session.syncFromStore();
+
+    const pragma = session.raw.exec('PRAGMA foreign_keys');
+    expect(pragma[0]?.values[0]?.[0]).toBe(1);
+    const before = mutations;
+    session.db.run(sql`INSERT INTO notes (id, body) VALUES ('after-swap', 'a')`);
+    expect(mutations).toBe(before + 1);
+    session.close();
+  });
+
   it('Given another writer advanced the store, When this session flushes, Then it reloads instead of overwriting', async () => {
     const store = createMemoryPersistedBytesStore();
     const session = await openOn(store);

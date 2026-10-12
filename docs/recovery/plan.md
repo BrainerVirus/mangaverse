@@ -109,8 +109,9 @@ cleanup can erase. Add focused database persistence tests and
       `PRAGMA foreign_keys`, so after the first flush later writes scheduled no
       debounced flush and ran without FK enforcement, and every stored-bytes open
       started with FKs off. `openPersistentDatabase` now re-establishes both after
-      every export and on every open (including the sync swap), pinned by three
-      tests that fail when the re-establishment is removed.
+      every export and on every open (including the sync swap), pinned by four tests
+      that fail when the re-establishment is removed (the sync-swap one was added
+      after the #31 verifier flagged the line as untested).
 - [x] Flush completeness (verifier finding 7276faee): `flushLocalDb` no longer
       settles on an in-flight flush that predates the latest write. The coordination
       moved to `apps/web/app/lib/local-db-flush.ts` with injected `flushOnce`/
@@ -136,9 +137,12 @@ cleanup can erase. Add focused database persistence tests and
       fails when the guard is removed. A failed open only clears the shared promise
       slot when it is still the current attempt; cross-tab sync failures are caught
       and logged instead of becoming unhandled rejections.
-- [ ] Test denied/quota writes, invalid bytes, migration failure and recovery.
-      Corrupt-byte quarantine has a unit test; quota/IndexedDB denial paths remain
-      untested and are logged only until the UI error-state wiring lands.
+- [x] Persistence failures are surfaced (R2): `flushLocalDb` reports the failure to
+      a UI handler and clears it on the next successful flush; the shell renders a
+      destructive banner with Retry (`apps/web/app/components/PersistenceErrorBanner.tsx`)
+      so the app never implies a save is durable when it is not. Covered by component
+      tests for the banner; a forced browser-quota test is still not practical, so
+      denial paths rely on the same error path as any flush failure.
 - [x] Attach the flush to mutations, not unload: `openPersistentDatabase` gained an
       `onMutation` update hook (re-attached after each sync swap) wired to the 400 ms
       coalesced flush; `pagehide` remains a fallback. Review finding confirmed the

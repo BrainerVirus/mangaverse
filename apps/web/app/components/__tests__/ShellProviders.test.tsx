@@ -28,6 +28,8 @@ vi.mock('../../providers/local-db-provider.js', () => ({
   LocalDbProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useLocalDb: () => null,
   useLocalDbStatus: () => 'ready' as const,
+  usePersistenceError: () => null,
+  useRetryPersistence: () => vi.fn(),
 }));
 
 vi.mock('@app/motion', () => ({
