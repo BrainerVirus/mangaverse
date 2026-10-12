@@ -9,6 +9,7 @@ import { PlatformProvider } from '../providers/platform-provider.js';
 import { ThemeProvider } from '../providers/theme-provider.js';
 import { ThemeSettingsBridge } from '../providers/theme-settings-bridge.js';
 import { LocalDataPrefetch } from './LocalDataPrefetch.js';
+import { LocalDbPersistenceBridge } from './LocalDbPersistenceBridge.js';
 import { OnboardingGate } from './OnboardingGate.js';
 import { AppShellLayout } from '../layouts/AppShellLayout.js';
 import { ReaderLayout } from '../layouts/ReaderLayout.js';
@@ -82,6 +83,7 @@ export function ShellProviders({ children, detectFn }: ShellProvidersProps) {
           <ThemeProvider>
           <ThemeSettingsBridge />
           <LocalDataPrefetch />
+          <LocalDbPersistenceBridge />
           <KeyboardShortcuts />
           <NavigationTracker />
           <CommandPalette />
