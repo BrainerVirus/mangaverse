@@ -12,6 +12,10 @@
 
 ## Web-First Recovery (2026-10-12)
 
+Active handoff: [recovery specification](recovery/spec.md) and
+[slice-by-slice implementation plan](recovery/plan.md). Follow those before the
+historical phase sequence below.
+
 Web is the primary delivery and acceptance platform. Retain Electron, but defer
 desktop-specific improvements until the production web reading flow is reliable.
 Historical phase completion below is not proof that these flows work today.
