@@ -108,15 +108,21 @@ cleanup can erase. Add focused database persistence tests and
       now: committed snapshots never lose data, and the losing tab converges. Revisit
       if interleaved edits become common.
 - [x] Retirement bound pinned: `persistent-database.test.ts` proves a retired handle
-      survives exactly one sync generation and the next sync closes it (verifier
-      finding 8a9b50de); `syncFromStore` is a no-op when the store version is
-      unchanged, so redundant pings cannot burn the buffer. Residual limit: a
-      consumer outliving two syncs can still be closed under it.
-- [x] Session lifecycle hardening (verifier finding f78dcbbc): `resetLocalDb` bumps
-      a generation, and both flush and sync bail out when a reset happened while
-      they awaited; a failed open only clears the shared promise slot when it is
-      still the current attempt; cross-tab sync failures are caught and logged
-      instead of becoming unhandled rejections.
+      survives exactly one sync generation and the next sync closes it, and a second
+      test seeds a committed snapshot at the loaded version and asserts the working
+      handle is not retired (that test fails when the version no-op check is removed;
+      the earlier empty-store version was vacuous — verifier finding 8a9b50de).
+      `syncFromStore` is a no-op when the store version is unchanged, so redundant
+      pings cannot burn the buffer. Residual limit: a consumer outliving two syncs
+      can still be closed under it.
+- [x] Session lifecycle hardening (verifier finding f78dcbbc plus #28 follow-ups):
+      `resetLocalDb` bumps a generation; flush and sync bail out when a reset landed
+      during the session-promise await, and the session refuses syncs after close
+      (closed flag checked before and after the store read), so a sync parked in
+      `read` cannot revive an orphan session — pinned by a gated-store test that
+      fails when the guard is removed. A failed open only clears the shared promise
+      slot when it is still the current attempt; cross-tab sync failures are caught
+      and logged instead of becoming unhandled rejections.
 - [ ] Test denied/quota writes, invalid bytes, migration failure and recovery.
       Corrupt-byte quarantine has a unit test; quota/IndexedDB denial paths remain
       untested and are logged only until the UI error-state wiring lands.
