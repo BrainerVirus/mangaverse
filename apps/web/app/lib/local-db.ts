@@ -4,6 +4,7 @@ import type { PersistentDatabase } from '@app/db/browser';
 import type { SqlJsStatic } from 'sql.js';
 
 let dbPromise: Promise<PersistentDatabase> | undefined;
+let generation = 0;
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
 const INITIAL_MIGRATION_HASH =
@@ -58,6 +59,7 @@ export function resolveWasmAssetUrl(wasmModule: { default?: unknown }): string {
 export function resetLocalDb(): void {
   const session = dbPromise;
   dbPromise = undefined;
+  generation += 1;
   if (session !== undefined) {
     // Close the WASM database so retries do not leak memory.
     void session.then((handle) => handle.close()).catch(() => {});
@@ -71,7 +73,8 @@ export function getLocalDbSession(): Promise<PersistentDatabase> {
   }
 
   if (dbPromise === undefined) {
-    dbPromise = (async () => {
+    const holder: { current?: Promise<PersistentDatabase> } = {};
+    const attempt = (async () => {
       try {
         const [
           sqlModule,
@@ -121,10 +124,16 @@ export function getLocalDbSession(): Promise<PersistentDatabase> {
           },
         });
       } catch (error) {
-        dbPromise = undefined;
+        // Only clear the slot when this attempt is still the current one; a
+        // retry that created a newer promise must not be clobbered.
+        if (dbPromise === holder.current) {
+          dbPromise = undefined;
+        }
         throw error;
       }
     })();
+    holder.current = attempt;
+    dbPromise = attempt;
   }
   return dbPromise;
 }
@@ -146,9 +155,12 @@ export async function flushLocalDb(): Promise<void> {
     return;
   }
   pendingFlush = (async () => {
+    const openedAt = generation;
     try {
       if (dbPromise === undefined) return;
       const session = await dbPromise;
+      // A reset while this flush awaited replaces the session; skip the stale one.
+      if (openedAt !== generation) return;
       const result = await session.flush();
       if (result.status === 'reloaded') {
         await session.syncFromStore();
@@ -173,12 +185,17 @@ export async function flushLocalDb(): Promise<void> {
 
 /**
  * Re-syncs the in-memory database after another tab committed a snapshot.
- * Returns the fresh handle (the previous one is closed), or null when there is
- * nothing to sync. Callers must replace any handle they were holding.
+ * Returns the fresh handle, or null when there is nothing to sync. Callers
+ * must replace any handle they were holding; the previous one stays usable for
+ * one further sync generation (see openPersistentDatabase).
  */
 export async function syncLocalDbFromOtherTab(): Promise<AppDrizzleDb | null> {
   if (dbPromise === undefined) return null;
+  const openedAt = generation;
   const session = await dbPromise;
+  // A reset while this sync awaited closes the session; reviving it would leak
+  // a live handle nothing owns.
+  if (openedAt !== generation) return null;
   await session.syncFromStore();
   return session.db;
 }
@@ -188,9 +205,14 @@ export function watchLocalDbForExternalChanges(onExternalChange: (db: AppDrizzle
   // Retired handles stay open for one generation (see openPersistentDatabase),
   // so syncing while hidden cannot break an in-flight query.
   const trySync = () => {
-    void syncLocalDbFromOtherTab().then((handle) => {
-      if (handle !== null) onExternalChange(handle);
-    });
+    void syncLocalDbFromOtherTab()
+      .then((handle) => {
+        if (handle !== null) onExternalChange(handle);
+      })
+      .catch((error: unknown) => {
+        // A rejected store read must not become an unhandled rejection.
+        console.error('[local-db] Cross-tab sync failed:', error);
+      });
   };
   const storageListener = (event: StorageEvent) => {
     if (event.key === SYNC_NOTIFY_KEY) trySync();

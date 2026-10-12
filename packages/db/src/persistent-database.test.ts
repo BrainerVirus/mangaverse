@@ -66,6 +66,55 @@ describe('persistent database', () => {
     opened.close();
   });
 
+  it('Given a synced session, When handles age out, Then the previous handle survives one sync and closes on the next', async () => {
+    const store = createMemoryPersistedBytesStore();
+    const session = await openOn(store);
+    const firstHandle = session.db;
+
+    // Another writer advances the store twice, forcing two sync generations.
+    const SQL = await initSqlJs();
+    const other = new SQL.Database();
+    migrateDatabaseFromBundled(other, JOURNAL, FILES);
+
+    other.run("INSERT INTO notes (id, body) VALUES ('gen1', 'a')");
+    await store.write(other.export(), 0);
+    await session.flush(); // reloaded (conflict)
+    const sync1 = await session.syncFromStore();
+    expect(sync1).toBeUndefined();
+    // One-generation buffer: the retired handle still answers queries.
+    let retiredHandleThrew = false;
+    try {
+      firstHandle.all(sql`SELECT 1`);
+    } catch {
+      retiredHandleThrew = true;
+    }
+    expect(retiredHandleThrew).toBe(false);
+
+    other.run("INSERT INTO notes (id, body) VALUES ('gen2', 'b')");
+    await store.write(other.export(), 1);
+    await session.flush(); // reloaded again
+    await session.syncFromStore();
+    // The oldest generation is closed now (sync or async throw both count).
+    let closedHandleThrew = false;
+    try {
+      await firstHandle.all(sql`SELECT 1`);
+    } catch {
+      closedHandleThrew = true;
+    }
+    expect(closedHandleThrew).toBe(true);
+
+    session.close();
+  });
+
+  it('Given no store change, When sync runs again, Then the working handle is not retired', async () => {
+    const store = createMemoryPersistedBytesStore();
+    const session = await openOn(store);
+    const before = session.db;
+    await session.syncFromStore();
+    expect(session.db).toBe(before);
+    session.close();
+  });
+
   it('Given another writer advanced the store, When this session flushes, Then it reloads instead of overwriting', async () => {
     const store = createMemoryPersistedBytesStore();
     const session = await openOn(store);
