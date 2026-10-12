@@ -106,13 +106,70 @@ describe('persistent database', () => {
     session.close();
   });
 
-  it('Given no store change, When sync runs again, Then the working handle is not retired', async () => {
+  it('Given a committed snapshot at the loaded version, When sync runs, Then the working handle is not retired', async () => {
     const store = createMemoryPersistedBytesStore();
-    const session = await openOn(store);
+    const SQL = await initSqlJs();
+    const seed = new SQL.Database();
+    migrateDatabaseFromBundled(seed, JOURNAL, FILES);
+    seed.run("INSERT INTO notes (id, body) VALUES ('seed', 's')");
+    await store.write(seed.export(), 0); // version 1, equal to the session's base
+
+    const session = await openPersistentDatabase({
+      store,
+      sqlModule: SQL,
+      migrations: { journal: JOURNAL, files: FILES },
+    });
     const before = session.db;
     await session.syncFromStore();
+    // Without the version no-op check this swap would replace the handle.
     expect(session.db).toBe(before);
     session.close();
+  });
+
+  it('Given a closed session, When a sync is in flight, Then it does not revive the database', async () => {
+    const inner = createMemoryPersistedBytesStore();
+    const SQL = await initSqlJs();
+    const seed = new SQL.Database();
+    migrateDatabaseFromBundled(seed, JOURNAL, FILES);
+    seed.run("INSERT INTO notes (id, body) VALUES ('seed', 's')");
+    await inner.write(seed.export(), 0);
+
+    let gate: Promise<void> | null = null;
+    let release: (() => void) | null = null;
+    const gatedStore = {
+      read: async () => {
+        if (gate !== null) await gate;
+        return inner.read();
+      },
+      write: inner.write,
+      clear: inner.clear,
+    };
+
+    const session = await openPersistentDatabase({
+      store: gatedStore,
+      sqlModule: SQL,
+      migrations: { journal: JOURNAL, files: FILES },
+    });
+    const before = session.db;
+
+    // A newer committed snapshot waits behind the gate, so without the closed
+    // guard the parked sync would swap it into the closed session.
+    const newer = new SQL.Database();
+    migrateDatabaseFromBundled(newer, JOURNAL, FILES);
+    newer.run("INSERT INTO notes (id, body) VALUES ('newer', 'n')");
+    await inner.write(newer.export(), 1);
+
+    gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const syncing = session.syncFromStore();
+    session.close();
+    release?.();
+    gate = null;
+    await syncing;
+
+    // A sync that was parked in `read` must not swap a live handle back in.
+    expect(session.db).toBe(before);
   });
 
   it('Given another writer advanced the store, When this session flushes, Then it reloads instead of overwriting', async () => {

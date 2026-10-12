@@ -96,6 +96,7 @@ export async function openPersistentDatabase(
   // previous handle usually finishes. A consumer that outlives two syncs can
   // still be closed under it: the buffer keeps memory bounded to one generation.
   const retired: Database[] = [];
+  let closed = false;
   const session = {
     raw,
     db: createDrizzleFromSqlJs(raw),
@@ -109,7 +110,11 @@ export async function openPersistentDatabase(
       return { status: 'saved' };
     },
     syncFromStore: async (): Promise<void> => {
+      if (closed) return;
       const latest = await store.read();
+      // The session may have been closed while `read` was in flight; swapping
+      // a fresh handle into it would revive a database nothing owns.
+      if (closed) return;
       if (latest === undefined) return;
       // Nothing changed since the last load; re-swapping would retire a handle
       // for no reason and burn the one-generation buffer.
@@ -126,6 +131,8 @@ export async function openPersistentDatabase(
       baseVersion = latest.version;
     },
     close: () => {
+      if (closed) return;
+      closed = true;
       session.raw.close();
       for (const handle of retired) {
         handle.close();
