@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.preload.json",
     "typecheck:main": "tsc --noEmit -p tsconfig.json",
     "typecheck:preload": "tsc --noEmit -p tsconfig.preload.json",
+    "pretest": "node scripts/bundle-preload.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "oxlint src scripts",
