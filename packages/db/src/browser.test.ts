@@ -2,6 +2,9 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+// Static import so the browser entry graph loads at collection time; the dynamic
+// import exceeded the 5s per-test budget on cold CI runners.
+import * as browserEntry from './browser.js';
 
 const srcRoot = dirname(fileURLToPath(import.meta.url));
 
@@ -60,10 +63,9 @@ describe('@app/db/browser entry', () => {
     }
   });
 
-  it('exports bundled migration helpers used by the web client', async () => {
-    const browser = await import('./browser.js');
-    expect(typeof browser.migrateDatabaseFromBundled).toBe('function');
-    expect(typeof browser.createDrizzleFromSqlJs).toBe('function');
-    expect(typeof browser.upsertInstalledExtension).toBe('function');
+  it('exports bundled migration helpers used by the web client', () => {
+    expect(typeof browserEntry.migrateDatabaseFromBundled).toBe('function');
+    expect(typeof browserEntry.createDrizzleFromSqlJs).toBe('function');
+    expect(typeof browserEntry.upsertInstalledExtension).toBe('function');
   });
 });
