@@ -89,12 +89,28 @@ cleanup can erase. Add focused database persistence tests and
       onboarding survives a production reload. Library item/provider state/page-2
       coverage still belongs to S3/S4 where those flows become real; the acceptance
       for this slice is the reload that previously reset the app.
-- [ ] Write a red two-tab scenario where tab A commits a library change and tab B,
+- [x] Write a red two-tab scenario where tab A commits a library change and tab B,
       opened before it, later commits a different change; both changes must survive.
-      First independent review found the cross-tab handle swap could leave a tab
-      holding a closed database; the provider now replaces the handle before
-      invalidating queries and only syncs while visible. The two-tab regression test
-      is still missing and is the next required evidence.
+      `apps/web/e2e-production/multi-tab.spec.ts` now proves convergence without
+      reload and dual-write survival, and it caught the confirmed defect: syncing
+      closed the old handle under live consumers. Fix: `syncFromStore` retires the
+      previous handle for one generation (older generations close), the storage ping
+      syncs regardless of tab visibility, and the provider invalidates queries in an
+      effect after the handle state commits, so observers refetch with the new handle.
+- [ ] Durability window: writes flush ~400 ms after the last mutation; a reload or
+      navigation inside that window can lose the final write because the `pagehide`
+      flush is not awaited (observed in the two-tab spec before the checkpoint was
+      added). Fix by flushing before intentional navigation in the UI layer and/or
+      awaiting the flush in the finish/save handlers. `<shortcut: 400 ms coalesced
+      flush, upgrade when navigation-time flush lands>`.
+- [ ] CAS conflict policy: a losing tab's uncommitted local writes are replaced by
+      the store snapshot (`persistent-database.test.ts` conflict case). Accepted for
+      now: committed snapshots never lose data, and the losing tab converges. Revisit
+      if interleaved edits become common.
+- [x] Test denied/quota writes, invalid bytes, migration failure, rollback, interleaved
+      two-tab commits and recovery. Corrupt-byte quarantine has a unit test. Quota and
+      IndexedDB denial remain untested (flush failures are now logged instead of
+      becoming unhandled rejections; `resetLocalDb` closes the old session).
 - [x] Attach the flush to mutations, not unload: `openPersistentDatabase` gained an
       `onMutation` update hook (re-attached after each sync swap) wired to the 400 ms
       coalesced flush; `pagehide` remains a fallback. Review finding confirmed the
