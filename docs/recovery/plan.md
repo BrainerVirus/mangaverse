@@ -91,12 +91,12 @@ cleanup can erase. Add focused database persistence tests and
       for this slice is the reload that previously reset the app.
 - [x] Write a red two-tab scenario where tab A commits a library change and tab B,
       opened before it, later commits a different change; both changes must survive.
-      `apps/web/e2e-production/multi-tab.spec.ts` now proves convergence without
-      reload and dual-write survival, and it caught the confirmed defect: syncing
-      closed the old handle under live consumers. Fix: `syncFromStore` retires the
-      previous handle for one generation (older generations close), the storage ping
-      syncs regardless of tab visibility, and the provider invalidates queries in an
-      effect after the handle state commits, so observers refetch with the new handle.
+      `apps/web/e2e-production/multi-tab.spec.ts` proves convergence without reload
+      and dual-write survival. Independent verification (finding 479cd7a3) showed
+      the spec passes with the pre-fix retirement/ordering/visibility code restored;
+      only removing query invalidation makes it fail. The retirement bound is now
+      pinned separately by a unit test (see below); the spec is behavior coverage,
+      not proof of the specific fix mechanism.
 - [ ] Durability window: writes flush ~400 ms after the last mutation; a reload or
       navigation inside that window can lose the final write because the `pagehide`
       flush is not awaited (observed in the two-tab spec before the checkpoint was
@@ -107,17 +107,23 @@ cleanup can erase. Add focused database persistence tests and
       the store snapshot (`persistent-database.test.ts` conflict case). Accepted for
       now: committed snapshots never lose data, and the losing tab converges. Revisit
       if interleaved edits become common.
-- [x] Test denied/quota writes, invalid bytes, migration failure, rollback, interleaved
-      two-tab commits and recovery. Corrupt-byte quarantine has a unit test. Quota and
-      IndexedDB denial remain untested (flush failures are now logged instead of
-      becoming unhandled rejections; `resetLocalDb` closes the old session).
+- [x] Retirement bound pinned: `persistent-database.test.ts` proves a retired handle
+      survives exactly one sync generation and the next sync closes it (verifier
+      finding 8a9b50de); `syncFromStore` is a no-op when the store version is
+      unchanged, so redundant pings cannot burn the buffer. Residual limit: a
+      consumer outliving two syncs can still be closed under it.
+- [x] Session lifecycle hardening (verifier finding f78dcbbc): `resetLocalDb` bumps
+      a generation, and both flush and sync bail out when a reset happened while
+      they awaited; a failed open only clears the shared promise slot when it is
+      still the current attempt; cross-tab sync failures are caught and logged
+      instead of becoming unhandled rejections.
+- [ ] Test denied/quota writes, invalid bytes, migration failure and recovery.
+      Corrupt-byte quarantine has a unit test; quota/IndexedDB denial paths remain
+      untested and are logged only until the UI error-state wiring lands.
 - [x] Attach the flush to mutations, not unload: `openPersistentDatabase` gained an
       `onMutation` update hook (re-attached after each sync swap) wired to the 400 ms
       coalesced flush; `pagehide` remains a fallback. Review finding confirmed the
       earlier design was unload-only.
-- [ ] Test denied/quota writes, invalid bytes, migration failure, rollback, interleaved
-      two-tab commits and recovery. Original bytes must remain recoverable on failure.
-      Corrupt-byte quarantine has a unit test; quota/denial paths do not.
 - [ ] Expose persistence errors through the existing provider/error-state pattern;
       checkpoint pending reader writes before intentional navigation.
 - [ ] Run targeted tests, configured test/lint/typecheck and production E2E; inspect
