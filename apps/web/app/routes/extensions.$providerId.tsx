@@ -8,6 +8,7 @@ import {
   setProviderEnabled,
 } from '@app/extensions';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
+import { flushLocalDb } from '../lib/local-db.js';
 
 export const Route = createFileRoute('/extensions/$providerId')({
   component: ProviderDetailRoute,
@@ -35,6 +36,9 @@ function ProviderDetailRoute() {
       if (!result.ok) {
         throw result.error;
       }
+      // Durability point, mirroring the list route: a lost disable silently
+      // resumes remote provider calls after a quick reload.
+      await flushLocalDb();
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: extensionsQueryKeys.all });
@@ -50,6 +54,7 @@ function ProviderDetailRoute() {
       if (!result.ok) {
         throw result.error;
       }
+      await flushLocalDb();
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: extensionsQueryKeys.all });
