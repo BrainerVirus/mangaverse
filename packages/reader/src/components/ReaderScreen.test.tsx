@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react';
-import { getDefaultReaderSettings } from '@app/shared';
+import { getDefaultReaderSettings, toChapterPageId } from '@app/shared';
 
 vi.mock('@app/cache', () => ({
   CachedPageImage: () => null,
@@ -51,7 +51,7 @@ import type { ReaderPageData } from '../reader-page-data.js';
 function buildData(): ReaderPageData {
   const settings = getDefaultReaderSettings();
   const pages = Array.from({ length: 37 }, (_value, index) => ({
-    id: `page-${index}`,
+    id: toChapterPageId(`page-${index}`),
     index,
     image: { url: `https://example.com/${index}.jpg` },
   }));

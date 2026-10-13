@@ -5,7 +5,7 @@ import {
   resolveKeyboardAction,
   resolveWheelAction,
 } from './navigation';
-import type { ReaderState, ReaderNavigationAction, ZoomStateSummary } from './types';
+import type { ReaderState, ZoomStateSummary } from './types';
 
 const mockPages = [
   { id: 'p1', index: 0, image: { url: 'http://example.com/1.jpg' } },
@@ -139,8 +139,8 @@ describe('applyNavigationAction', () => {
   });
 
   it('should reset zoom on page navigation', () => {
-    const state = makeState({ activePageIndex: 0 });
-    state.zoom.scale = 2;
+    const base = makeState({ activePageIndex: 0 });
+    const state = { ...base, zoom: { ...base.zoom, scale: 2 } };
 
     const newState = applyNavigationAction(state, { type: 'goToPage', pageIndex: 1 });
 

@@ -81,25 +81,27 @@ describe('validateThemeSettings', () => {
 
 describe('applyThemeToRoot', () => {
   it('applies css variables and appearance class', () => {
+    const classNames = new Set<string>();
+    const cssVars = new Map<string, string>();
     const root = {
       classList: {
-        values: new Set<string>(),
+        values: classNames,
         remove: (...tokens: string[]) => {
-          for (const token of tokens) root.classList.values.delete(token);
+          for (const token of tokens) classNames.delete(token);
         },
         add: (...tokens: string[]) => {
-          for (const token of tokens) root.classList.values.add(token);
+          for (const token of tokens) classNames.add(token);
         },
-        contains: (token: string) => root.classList.values.has(token),
+        contains: (token: string) => classNames.has(token),
       },
       style: {
-        values: new Map<string, string>(),
+        values: cssVars,
         setProperty: (key: string, value: string) => {
-          root.style.values.set(key, value);
+          cssVars.set(key, value);
         },
-        getPropertyValue: (key: string) => root.style.values.get(key) ?? '',
+        getPropertyValue: (key: string) => cssVars.get(key) ?? '',
         removeProperty: (key: string) => {
-          root.style.values.delete(key);
+          cssVars.delete(key);
         },
       },
     } as unknown as HTMLElement;

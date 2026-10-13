@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { toProviderId, type ContentRating } from '@app/shared';
+import { toProviderId } from '@app/shared';
 import type { ProviderManifest } from '@app/shared';
 import { createSqlJsHarness } from '@app/db/testing';
 
 import { getProviderSettings, saveProviderSettings } from './settings-persistence';
 import { recordToSettings } from './settings-persistence.js';
-
-const VALID_RATINGS: ContentRating[] = ['unknown', 'safe', 'suggestive', 'mature', 'explicit'];
 
 function makeBaseRecord(): Record<string, unknown> {
   return {

@@ -53,7 +53,7 @@ describe('prepareRegistryExtensionInstall', () => {
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.value.step).toBe('awaitingConfirmation');
-      expect(r.value.source.manifestUrl).toBe('https://example.com/manifest.json');
+      expect(r.value.source?.manifestUrl).toBe('https://example.com/manifest.json');
     }
   });
 });

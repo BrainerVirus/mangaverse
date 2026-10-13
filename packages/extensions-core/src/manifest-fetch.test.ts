@@ -19,14 +19,14 @@ describe('fetchManifestFromUrl', () => {
     const fetch = vi.fn(async () => new Response('{}', { status: 200, headers: { 'content-type': 'application/javascript' } }));
     const r = await fetchManifestFromUrl('https://example.com/m.json', { fetch });
     expect(r.ok).toBe(false);
-    expect(r.error.code).toBe('extensions.core.fetch.code_response');
+    if (!r.ok) expect(r.error.code).toBe('extensions.core.fetch.code_response');
   });
 
   it('rejects ecmascript content-type', async () => {
     const fetch = vi.fn(async () => new Response('{}', { status: 200, headers: { 'content-type': 'text/ecmascript' } }));
     const r = await fetchManifestFromUrl('https://example.com/m.json', { fetch });
     expect(r.ok).toBe(false);
-    expect(r.error.code).toBe('extensions.core.fetch.code_response');
+    if (!r.ok) expect(r.error.code).toBe('extensions.core.fetch.code_response');
   });
 
   it('returns json body', async () => {
@@ -40,7 +40,7 @@ describe('fetchManifestFromUrl', () => {
     const fetch = vi.fn(async () => new Response('not valid json', { status: 200 }));
     const r = await fetchManifestFromUrl('https://example.com/m.json', { fetch });
     expect(r.ok).toBe(false);
-    expect(r.error.code).toBe('extensions.core.fetch.invalid_json');
+    if (!r.ok) expect(r.error.code).toBe('extensions.core.fetch.invalid_json');
   });
 
   it('rejects oversized body exceeding default 256000 bytes', async () => {
@@ -48,7 +48,7 @@ describe('fetchManifestFromUrl', () => {
     const fetch = vi.fn(async () => new Response(largeBody, { status: 200 }));
     const r = await fetchManifestFromUrl('https://example.com/m.json', { fetch });
     expect(r.ok).toBe(false);
-    expect(r.error.code).toBe('extensions.core.fetch.body_too_large');
+    if (!r.ok) expect(r.error.code).toBe('extensions.core.fetch.body_too_large');
   });
 
   it('rejects oversized body exceeding custom maxManifestBytes', async () => {
@@ -56,7 +56,7 @@ describe('fetchManifestFromUrl', () => {
     const fetch = vi.fn(async () => new Response(body, { status: 200 }));
     const r = await fetchManifestFromUrl('https://example.com/m.json', { fetch, maxManifestBytes: 100 });
     expect(r.ok).toBe(false);
-    expect(r.error.code).toBe('extensions.core.fetch.body_too_large');
+    if (!r.ok) expect(r.error.code).toBe('extensions.core.fetch.body_too_large');
   });
 
   it('rejects body by UTF-8 byte length, not string length', async () => {
@@ -106,6 +106,6 @@ describe('fetchAndValidateManifestFromUrl', () => {
     const fetch = vi.fn(async () => new Response(largeBody, { status: 200 }));
     const r = await fetchAndValidateManifestFromUrl('https://example.com/m.json', { fetch });
     expect(r.ok).toBe(false);
-    expect(r.error.code).toBe('extensions.core.fetch.body_too_large');
+    if (!r.ok) expect(r.error.code).toBe('extensions.core.fetch.body_too_large');
   });
 });

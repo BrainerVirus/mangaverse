@@ -39,7 +39,7 @@ describe('createProviderRequestClient', () => {
   });
 
   it('respects abort signal', async () => {
-    const fetchImpl = vi.fn((_url: string, init?: RequestInit) => {
+    const fetchImpl = vi.fn((_url: string | URL | Request, init?: RequestInit) => {
       return new Promise<Response>((_resolve, reject) => {
         const sig = init?.signal;
         if (!sig) {
@@ -64,7 +64,7 @@ describe('createProviderRequestClient', () => {
   });
 
   it('times out slow responses', async () => {
-    const fetchImpl = vi.fn((_url: string, init?: RequestInit) => {
+    const fetchImpl = vi.fn((_url: string | URL | Request, init?: RequestInit) => {
       return new Promise<Response>((resolve, reject) => {
         const sig = init?.signal;
         const timer = setTimeout(() => resolve(new Response('ok', { status: 200 })), 10_000);

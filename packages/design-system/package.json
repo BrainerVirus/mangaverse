@@ -15,7 +15,7 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "clean": "rm -rf dist",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "test": "vitest run",

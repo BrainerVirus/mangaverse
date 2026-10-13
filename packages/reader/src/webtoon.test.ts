@@ -1,17 +1,18 @@
 import { describe, it, expect } from 'vitest';
+import { toChapterId, toChapterPageId, toMangaId } from '@app/shared';
 import {
   calculateWebtoonWindow,
   estimateWebtoonLayout,
 } from './webtoon';
-import type { ReaderSessionInput } from './types';
+import type { ReaderChapter, ReaderEngineSettings, ReaderPage, ReaderSessionInput } from './types';
 
-const mockPages = Array.from({ length: 100 }, (_, i) => ({
-  id: `p${i}`,
+const mockPages: ReaderPage[] = Array.from({ length: 100 }, (_, i) => ({
+  id: toChapterPageId(`p${i}`),
   index: i,
   image: { url: `http://example.com/${i}.jpg`, width: 800, height: 1200 },
 }));
 
-const mockChapter = {
+const mockChapter: ReaderChapter = {
   id: 'ch1',
   mangaId: 'm1',
   title: 'Long Chapter',
@@ -21,11 +22,11 @@ const mockChapter = {
 
 const mockViewport = { width: 800, height: 600, orientation: 'portrait' as const };
 
-const defaultSettings = {
-  readingMode: 'vertical' as const,
-  pageLayout: 'single' as const,
-  tapZoneLayout: 'leftRight' as const,
-  navigationDirection: 'default' as const,
+const defaultSettings: ReaderEngineSettings = {
+  readingMode: 'vertical',
+  pageLayout: 'single',
+  tapZoneLayout: 'leftRight',
+  navigationDirection: 'default',
   tapZoneDebugOverlay: false,
   minZoom: 1,
   maxZoom: 3,
@@ -34,12 +35,16 @@ const defaultSettings = {
   treatFirstPageAsCover: false,
   preloadAhead: 5,
   lowMemoryMode: false,
+  wheelBehavior: 'scroll',
   verticalGapPx: 8,
 };
 
-function makeInput(overrides: Partial<typeof defaultSettings> = {}): ReaderSessionInput {
+function makeInput(
+  overrides: Partial<ReaderEngineSettings> = {},
+  chapter: ReaderChapter = mockChapter,
+): ReaderSessionInput {
   return {
-    chapter: mockChapter as any,
+    chapter,
     viewport: mockViewport,
     settings: { ...defaultSettings, ...overrides },
   };
@@ -80,19 +85,18 @@ describe('calculateWebtoonWindow', () => {
 
   it('should handle gaps between pages for variable heights', () => {
     const pagesWithHeights = Array.from({ length: 20 }, (_, i) => ({
-      id: `p${i}`,
+      id: toChapterPageId(`p${i}`),
       index: i,
       image: { url: `http://example.com/${i}.jpg`, width: 800, height: i % 2 === 0 ? 1200 : 800 },
     }));
     const chapterWithHeights = {
-      id: 'ch1',
-      mangaId: 'm1',
+      id: toChapterId('ch1'),
+      mangaId: toMangaId('m1'),
       title: 'Variable Heights',
       pages: pagesWithHeights,
       pageCount: 20,
     };
-    const input = makeInput();
-    input.chapter = chapterWithHeights as any;
+    const input = makeInput({}, chapterWithHeights);
 
     const window = calculateWebtoonWindow(input, 0, 0);
 
@@ -114,8 +118,8 @@ describe('estimateWebtoonLayout', () => {
     const layout = estimateWebtoonLayout(input);
 
     expect(layout.pagePositions).toHaveLength(100);
-    expect(layout.pagePositions[0].top).toBe(0);
-    expect(layout.pagePositions[0].index).toBe(0);
+    expect(layout.pagePositions[0]!.top).toBe(0);
+    expect(layout.pagePositions[0]!.index).toBe(0);
   });
 
   it('should account for vertical gap between pages', () => {
@@ -123,30 +127,29 @@ describe('estimateWebtoonLayout', () => {
     const layout = estimateWebtoonLayout(input);
 
     if (layout.pagePositions.length > 1) {
-      const firstPageBottom = layout.pagePositions[0].top + layout.pagePositions[0].height;
-      const secondPageTop = layout.pagePositions[1].top;
+      const firstPageBottom = layout.pagePositions[0]!.top + layout.pagePositions[0]!.height;
+      const secondPageTop = layout.pagePositions[1]!.top;
       expect(secondPageTop - firstPageBottom).toBe(16);
     }
   });
 
   it('should handle missing page dimensions', () => {
     const pagesWithoutDimensions = Array.from({ length: 5 }, (_, i) => ({
-      id: `p${i}`,
+      id: toChapterPageId(`p${i}`),
       index: i,
       image: { url: `http://example.com/${i}.jpg` },
     }));
     const chapterNoDims = {
-      id: 'ch1',
-      mangaId: 'm1',
+      id: toChapterId('ch1'),
+      mangaId: toMangaId('m1'),
       title: 'No Dimensions',
       pages: pagesWithoutDimensions,
       pageCount: 5,
     };
-    const input = makeInput();
-    input.chapter = chapterNoDims as any;
+    const input = makeInput({}, chapterNoDims);
 
     const layout = estimateWebtoonLayout(input);
 
-    expect(layout.pagePositions[0].height).toBe(mockViewport.height);
+    expect(layout.pagePositions[0]!.height).toBe(mockViewport.height);
   });
 });

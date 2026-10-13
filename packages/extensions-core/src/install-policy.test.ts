@@ -76,7 +76,8 @@ describe('validateManifestInstallPolicy', () => {
   });
 
   it('passes when manifest has no version constraints', () => {
-    const manifest = makeManifest({ minAppVersion: undefined, maxAppVersion: undefined });
+    const { compatibility: _withVersions, ...rest } = makeManifest();
+    const manifest: ProviderManifest = { ...rest, compatibility: { platforms: ['web', 'desktop'] } };
     const policy: ExtensionInstallPolicy = { runtime: 'web', appVersion: '99.0.0' };
     const result = validateManifestInstallPolicy(manifest, policy);
     expect(result.ok).toBe(true);

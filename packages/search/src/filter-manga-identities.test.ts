@@ -6,7 +6,7 @@ function makeIdentity(title: string, alt?: string): MangaIdentity {
   return {
     id: `manga-${title}` as MangaIdentity['id'],
     canonicalTitle: title,
-    alternativeTitles: alt ? [{ value: alt, language: 'en' }] : [],
+    alternativeTitles: alt ? [{ value: alt, locale: 'en' }] : [],
     authors: [],
     artists: [],
     tags: [],

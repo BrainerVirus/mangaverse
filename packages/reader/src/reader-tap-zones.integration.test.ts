@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { toChapterPageId } from '@app/shared';
 import { calculateTapZones } from './tap-zones.js';
 import type { ReaderSessionInput } from './types.js';
 
@@ -9,8 +10,8 @@ const sessionInput: ReaderSessionInput = {
     title: 'Chapter 1',
     pageCount: 2,
     pages: [
-      { id: 'page-1', index: 0, image: { url: 'https://example.com/1.jpg' } },
-      { id: 'page-2', index: 1, image: { url: 'https://example.com/2.jpg' } },
+      { id: toChapterPageId('page-1'), index: 0, image: { url: 'https://example.com/1.jpg' } },
+      { id: toChapterPageId('page-2'), index: 1, image: { url: 'https://example.com/2.jpg' } },
     ],
   },
   viewport: { width: 900, height: 600, orientation: 'landscape' },
