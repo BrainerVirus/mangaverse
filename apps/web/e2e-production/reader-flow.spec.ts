@@ -35,15 +35,23 @@ test('Given an open chapter, When navigating by keyboard and buttons, Then pages
   await expect(page.getByText('1 / 37')).toBeVisible();
 });
 
-// The two tests below are blocked by a Playwright-environment issue, not by the
-// product: in this harness the reader route component is unmounted and remounted
-// ~60–70 ms after any reader navigation (layout re-render + fresh instance,
-// no router navigation events). The same production build driven with real
-// input in a real browser does not remount, and progress persists and resumes
-// correctly there; the DB round-trip is unit-covered
-// (packages/reader fetch-reader-page/persist-reader-progress tests). Resume and
-// unmount-checkpoint behavior is therefore verified live and in unit tests;
-// these E2E assertions are parked until the harness remount is understood.
+// The two assertions below are parked (deterministic in-harness failures, three
+// consecutive runs each), both root-cause-open and NEITHER reproduced when the
+// same production build is driven live in a real browser (where progress
+// persists and a manual reload resumes correctly):
+//   1. Resume after reload: the reloaded reader renders its ErrorState
+//      ("Could not load chapter") instead of the chapter — the reader query
+//      never enters its body (no query error is logged) and the local-db
+//      provider logs no init failure, so the failing layer is not yet known.
+//      Possible lead: reopen shortly after a flush.
+//   2. Checkpoint on client-side return: returning to the reader shows the
+//      stale cached page (`1 / 37`), so the unmount checkpoint is not what is
+//      being observed — likely the reader query's staleTime serving pre-write
+//      data. `page.goto` variants cannot exercise the checkpoint at all
+//      (full-page navigation never runs React cleanups).
+// Un-park both after root-causing; the DB round-trip is unit-pinned
+// (packages/reader fetch-reader-page/persist-reader-progress tests) and the
+// reader durability fixes were live-verified.
 test.fixme('Given the reader advanced a page, When the page reloads, Then it resumes on the saved page', async ({ page }) => {
   await openReader(page);
 
@@ -53,18 +61,13 @@ test.fixme('Given the reader advanced a page, When the page reloads, Then it res
   await expect(page.getByText('2 / 37')).toBeVisible({ timeout: 30_000 });
 });
 
-test.fixme('Given the reader advanced a page, When leaving immediately, Then the pending page is checkpointed', async ({ page }) => {
+test.fixme('Given the reader advanced a page, When leaving client-side immediately, Then the pending page is checkpointed', async ({ page }) => {
   await openReader(page);
 
   await page.getByRole('button', { name: 'Next page' }).click();
   await expect(page.getByText('2 / 37')).toBeVisible();
-  // Leave before the 750 ms progress debounce fires: the unmount checkpoint
-  // must persist the page.
-  await page.goto('/library');
-
-  await page.goto(`/manga/${MANGADEX_APP_MANGA_ID}`);
-  const chapter = page.getByRole('button', { name: CHAPTER_BUTTON });
-  await expect(chapter).toBeVisible({ timeout: 30_000 });
-  await chapter.click({ force: true });
+  // Client-side back (router pop) so React actually runs the unmount checkpoint.
+  await page.goBack();
+  await page.goForward();
   await expect(page.getByText('2 / 37')).toBeVisible({ timeout: 30_000 });
 });
