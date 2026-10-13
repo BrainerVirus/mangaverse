@@ -6,7 +6,18 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { EmptyState, ErrorState, LoadingState, ReaderChrome } from '@app/design-system';
+import {
+  Button,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  ReaderChrome,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@app/design-system';
+import type { ReaderSettings } from '@app/shared';
 import {
   CachedPageImage,
   markChapterPagesAsRead,
@@ -37,6 +48,7 @@ export interface ReaderScreenProps {
   chromeVisible: boolean;
   onToggleChrome: () => void;
   onPersistProgress?: (event: ReturnType<typeof createProgressEvent>) => void;
+  onChangeSettings?: (patch: Partial<ReaderSettings>) => void;
 }
 
 function findTapZone(
@@ -56,7 +68,7 @@ function findTapZone(
 }
 
 function useReaderViewport() {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [node, setNode] = useState<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState<ReaderViewport>({
     width: 800,
     height: 600,
@@ -64,7 +76,6 @@ function useReaderViewport() {
   });
 
   useEffect(() => {
-    const node = containerRef.current;
     if (!node) return;
 
     const update = () => {
@@ -81,9 +92,12 @@ function useReaderViewport() {
     const observer = new ResizeObserver(update);
     observer.observe(node);
     return () => observer.disconnect();
-  }, []);
+  }, [node]);
 
-  return { containerRef, viewport };
+  // Callback ref, not a mount effect: the surface only renders after loading, so
+  // an effect with `[]` deps ran while the ref was still null and never observed
+  // the real container — leaving tap zones computed against the 800x600 default.
+  return { containerRef: setNode, viewport };
 }
 
 export function ReaderScreen({
@@ -93,7 +107,9 @@ export function ReaderScreen({
   chromeVisible,
   onToggleChrome,
   onPersistProgress,
+  onChangeSettings,
 }: ReaderScreenProps) {
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const cacheContext = useCoverCacheContext();
   const { containerRef, viewport } = useReaderViewport();
   const [readerState, setReaderState] = useState<ReaderState | null>(null);
@@ -265,6 +281,35 @@ export function ReaderScreen({
     [navigate, onToggleChrome, readerState, sessionInput],
   );
 
+  const settings = data?.settings;
+  const chromeMode: 'single' | 'double' | 'scroll' =
+    settings?.readingMode === 'vertical' ? 'scroll' : settings?.pageLayout === 'double' ? 'double' : 'single';
+
+  const handleModeChange = useCallback(
+    (mode: 'single' | 'double' | 'scroll' | 'webtoon') => {
+      if (!onChangeSettings) return;
+      if (mode === 'scroll') {
+        onChangeSettings({ readingMode: 'vertical' });
+        return;
+      }
+      const pageLayout = mode === 'double' ? 'double' : 'single';
+      // Returning from vertical scroll needs a page reading mode again.
+      onChangeSettings(
+        settings?.readingMode === 'vertical' ? { readingMode: 'ltr', pageLayout } : { pageLayout },
+      );
+    },
+    [onChangeSettings, settings?.readingMode],
+  );
+
+  const handleToggleFullscreen = useCallback(() => {
+    if (typeof document === 'undefined') return;
+    if (document.fullscreenElement) {
+      void document.exitFullscreen();
+      return;
+    }
+    void document.documentElement.requestFullscreen?.();
+  }, []);
+
   if (isLoading) {
     return <LoadingState type="detail" />;
   }
@@ -304,7 +349,87 @@ export function ReaderScreen({
         currentPage={currentPage}
         totalPages={data.chapter.pageCount}
         onPageChange={(page) => navigate({ type: 'goToPage', pageIndex: page - 1 })}
+        mode={chromeMode}
+        onModeChange={handleModeChange}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onToggleFullscreen={handleToggleFullscreen}
       />
+
+      {settingsOpen && settings ? (
+        <Sheet open onOpenChange={(open) => { if (!open) setSettingsOpen(false); }}>
+          <SheetContent side="right" role="dialog" aria-label="Reader settings">
+            <SheetHeader>
+              <SheetTitle>Reader settings</SheetTitle>
+            </SheetHeader>
+            <div className="mt-6 space-y-6">
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Reading direction</p>
+                <div className="flex flex-wrap gap-2">
+                  {(
+                    [
+                      ['ltr', 'Left to right'],
+                      ['rtl', 'Right to left'],
+                      ['vertical', 'Vertical scroll'],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <Button
+                      key={value}
+                      size="sm"
+                      variant={settings.readingMode === value ? 'default' : 'outline'}
+                      aria-pressed={settings.readingMode === value}
+                      onClick={() => onChangeSettings?.({ readingMode: value })}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Page layout</p>
+                <div className="flex flex-wrap gap-2">
+                  {(
+                    [
+                      ['single', 'Single page'],
+                      ['double', 'Double page'],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <Button
+                      key={value}
+                      size="sm"
+                      variant={settings.pageLayout === value ? 'default' : 'outline'}
+                      aria-pressed={settings.pageLayout === value}
+                      onClick={() => onChangeSettings?.({ pageLayout: value })}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Tap zones</p>
+                <div className="flex flex-wrap gap-2">
+                  {(
+                    [
+                      ['leftRight', 'Left / right'],
+                      ['grid', 'Grid'],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <Button
+                      key={value}
+                      size="sm"
+                      variant={settings.tapZoneLayout === value ? 'default' : 'outline'}
+                      aria-pressed={settings.tapZoneLayout === value}
+                      onClick={() => onChangeSettings?.({ tapZoneLayout: value })}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : null}
 
       <div className="flex h-full w-full items-center justify-center gap-2 px-2 pt-24 pb-12">
         {visiblePages.map((page) => (

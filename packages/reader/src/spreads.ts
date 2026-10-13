@@ -35,11 +35,15 @@ export function calculatePageSlots(input: ReaderSessionInput): readonly PageSlot
   }
 
   if (pageLayout === 'single') {
+    // Deliberately NOT marked as left/right pages: the spread pairing in
+    // findActiveSpreadSlots would otherwise pair every single-mode page with its
+    // neighbour and render a two-page spread, making the Single/Double switch
+    // look inert.
     return pages.map((_, index) => ({
       pageIndex: index,
       isCover: false,
-      isLeftPage: index % 2 === 0,
-      isRightPage: index % 2 === 1,
+      isLeftPage: false,
+      isRightPage: false,
     }));
   }
 

@@ -21,7 +21,11 @@ export function ReaderLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="fixed inset-0 overflow-hidden">
-      <AnimatedRouteOutlet variant="reader">{children}</AnimatedRouteOutlet>
+      {/* h-full, not the default min-h-full: the reader surface sizes with
+          percentage heights, and an indefinite parent collapses it. */}
+      <AnimatedRouteOutlet variant="reader" className="h-full">
+        {children}
+      </AnimatedRouteOutlet>
     </div>
   );
 }

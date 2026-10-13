@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
+import { upsertReaderSettings } from '@app/db/browser';
+import type { ReaderSettings } from '@app/shared';
 import {
   fetchReaderPage,
   persistReaderProgress,
@@ -19,6 +21,7 @@ export const Route = createFileRoute('/reader/$chapterId')({
 function ReaderRoute() {
   const { chapterId: chapterIdParam } = Route.useParams();
   const chapterId = toChapterId(chapterIdParam);
+  const queryClient = useQueryClient();
   const db = useLocalDb();
   const dbStatus = useLocalDbStatus();
   const { readerChromeVisible, toggleReaderChrome } = useLayoutStore();
@@ -31,6 +34,16 @@ function ReaderRoute() {
     },
     enabled: dbStatus === 'ready' && db !== null,
   });
+
+  const handleChangeSettings = useCallback(
+    (patch: Partial<ReaderSettings>) => {
+      if (db === null || data?.settings === undefined) return;
+      void upsertReaderSettings(db, { ...data.settings, ...patch }).then(() => {
+        void queryClient.invalidateQueries({ queryKey: readerQueryKeys.chapter(chapterId) });
+      });
+    },
+    [chapterId, data?.settings, db, queryClient],
+  );
 
   const handlePersistProgress = useCallback(
     (event: Parameters<typeof persistReaderProgress>[1]) => {
@@ -48,6 +61,7 @@ function ReaderRoute() {
       chromeVisible={readerChromeVisible}
       onToggleChrome={toggleReaderChrome}
       onPersistProgress={handlePersistProgress}
+      onChangeSettings={handleChangeSettings}
     />
   );
 }

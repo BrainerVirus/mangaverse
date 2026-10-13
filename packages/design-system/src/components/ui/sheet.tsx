@@ -9,6 +9,19 @@ interface SheetProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const Sheet = React.forwardRef<HTMLDivElement, SheetProps>(
   ({ className, open, onOpenChange, children, ...props }, ref) => {
+    // Escape must close the sheet regardless of where focus is; the overlay's own
+    // onKeyDown only fires when the event targets inside it.
+    React.useEffect(() => {
+      if (!open) return;
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key === 'Escape') {
+          onOpenChange?.(false);
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown, { capture: true });
+      return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
+    }, [open, onOpenChange]);
+
     if (!open) return null;
     return (
       <div
