@@ -20,8 +20,8 @@
     "clean": "turbo run clean"
   },
   "devDependencies": {
-    "@types/react": "~19.1.10",
-    "@types/react-dom": "~19.1.0",
+    "@types/react": "~19.3.0",
+    "@types/react-dom": "~19.3.0",
     "oxlint": "^1.87.0",
     "oxlint-tsgolint": "^7.0.2004",
     "turbo": "^2.11.7",

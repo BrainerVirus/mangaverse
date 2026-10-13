@@ -27,7 +27,7 @@
     "@app/extensions-core": "workspace:*",
     "@app/shared": "workspace:*",
     "lucide-react": "^0.468.0",
-    "react": "^19.1.0"
+    "react": "^19.3.0"
   },
   "devDependencies": {
     "oxlint": "^1.87.0",
