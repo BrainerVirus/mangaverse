@@ -99,6 +99,7 @@ export function ReaderScreen({
   const [readerState, setReaderState] = useState<ReaderState | null>(null);
   const lastPersistedRef = useRef<ReturnType<typeof createProgressEvent> | null>(null);
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingEventRef = useRef<ReturnType<typeof createProgressEvent> | null>(null);
 
   const sessionInput = useMemo<ReaderSessionInput | null>(() => {
     if (!data) return null;
@@ -110,12 +111,29 @@ export function ReaderScreen({
     };
   }, [data, viewport]);
 
+  const sessionChapterRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!sessionInput) {
       setReaderState(null);
+      sessionChapterRef.current = null;
       return;
     }
-    setReaderState(createReaderState(sessionInput));
+    // Resize ticks recreate `sessionInput` with a new viewport object. Recreating
+    // the state with the original initial index would jump the reader back to the
+    // start (and drop the pending progress), so keep the current page for the same
+    // chapter and only use `initialPageIndex` for first creation or a new chapter.
+    const chapterChanged = sessionChapterRef.current !== sessionInput.chapter.id;
+    sessionChapterRef.current = sessionInput.chapter.id;
+    setReaderState((current) => {
+      return createReaderState({
+        ...sessionInput,
+        initialPageIndex:
+          chapterChanged || current === null
+            ? (sessionInput.initialPageIndex ?? 0)
+            : current.activePageIndex,
+      });
+    });
   }, [sessionInput]);
 
   const navigate = useCallback(
@@ -150,21 +168,38 @@ export function ReaderScreen({
       return;
     }
 
+    pendingEventRef.current = nextEvent;
     if (persistTimerRef.current) {
       clearTimeout(persistTimerRef.current);
     }
 
     persistTimerRef.current = setTimeout(() => {
+      persistTimerRef.current = null;
       lastPersistedRef.current = nextEvent;
+      pendingEventRef.current = null;
       onPersistProgress(nextEvent);
     }, PROGRESS_DEBOUNCE_MS);
 
     return () => {
       if (persistTimerRef.current) {
         clearTimeout(persistTimerRef.current);
+        persistTimerRef.current = null;
       }
     };
   }, [data, onPersistProgress, readerState]);
+
+  // Navigating away must not drop the last page change: checkpoint the pending
+  // event on unmount instead of leaving it to the cleared debounce timer.
+  useEffect(
+    () => () => {
+      const pending = pendingEventRef.current;
+      if (pending !== null && onPersistProgress) {
+        pendingEventRef.current = null;
+        onPersistProgress(pending);
+      }
+    },
+    [onPersistProgress],
+  );
 
   useEffect(() => {
     if (!data || cacheContext === null) {
