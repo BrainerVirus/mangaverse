@@ -26,7 +26,7 @@ function ReaderRoute() {
   const dbStatus = useLocalDbStatus();
   const { readerChromeVisible, toggleReaderChrome } = useLayoutStore();
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, fetchStatus } = useQuery({
     queryKey: readerQueryKeys.chapter(chapterId),
     queryFn: async ({ signal }) => {
       await ensureMangadexChapterPages(db!, chapterId, signal);
@@ -67,6 +67,7 @@ function ReaderRoute() {
       onToggleChrome={toggleReaderChrome}
       onPersistProgress={handlePersistProgress}
       onChangeSettings={handleChangeSettings}
+      isOffline={fetchStatus === 'paused'}
       onRetry={() => {
         void queryClient.invalidateQueries({ queryKey: readerQueryKeys.chapter(chapterId) });
       }}

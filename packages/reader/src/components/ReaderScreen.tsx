@@ -50,6 +50,8 @@ export interface ReaderScreenProps {
   onPersistProgress?: (event: ReturnType<typeof createProgressEvent>) => void;
   onChangeSettings?: (patch: Partial<ReaderSettings>) => void;
   onRetry?: () => void;
+  /** True when the data fetch is paused because the browser is offline. */
+  isOffline?: boolean;
 }
 
 function findTapZone(
@@ -110,6 +112,7 @@ export function ReaderScreen({
   onPersistProgress,
   onChangeSettings,
   onRetry,
+  isOffline = false,
 }: ReaderScreenProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const cacheContext = useCoverCacheContext();
@@ -327,6 +330,16 @@ export function ReaderScreen({
       <ErrorState
         title="Could not load chapter"
         message="Local chapter data failed to load. Try again in a moment."
+        {...(onRetry !== undefined ? { onRetry } : {})}
+      />
+    );
+  }
+
+  if (isOffline && (!data || !readerState)) {
+    return (
+      <ErrorState
+        title="You are offline"
+        message="This chapter is not saved locally yet. Reconnect and retry."
         {...(onRetry !== undefined ? { onRetry } : {})}
       />
     );
