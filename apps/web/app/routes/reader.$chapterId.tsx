@@ -11,6 +11,7 @@ import {
 } from '@app/reader';
 import { toChapterId } from '@app/shared';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
+import { useOnlineStatus } from '../lib/use-online-status.js';
 import { useLayoutStore } from '../stores/useLayoutStore.js';
 import { ensureMangadexChapterPages } from '../queries/mangadex-query-options.js';
 
@@ -26,7 +27,8 @@ function ReaderRoute() {
   const dbStatus = useLocalDbStatus();
   const { readerChromeVisible, toggleReaderChrome } = useLayoutStore();
 
-  const { data, isLoading, isError, fetchStatus } = useQuery({
+  const isOnline = useOnlineStatus();
+  const { data, isLoading, isError } = useQuery({
     queryKey: readerQueryKeys.chapter(chapterId),
     queryFn: async ({ signal }) => {
       await ensureMangadexChapterPages(db!, chapterId, signal);
@@ -67,7 +69,7 @@ function ReaderRoute() {
       onToggleChrome={toggleReaderChrome}
       onPersistProgress={handlePersistProgress}
       onChangeSettings={handleChangeSettings}
-      isOffline={fetchStatus === 'paused'}
+      isOffline={!isOnline}
       onRetry={() => {
         void queryClient.invalidateQueries({ queryKey: readerQueryKeys.chapter(chapterId) });
       }}

@@ -340,10 +340,18 @@ Add `apps/web/e2e-production/reading.spec.ts` and focused reader integration tes
       reader-controls trusted-click tests.
 - [x] Cached offline reopening: leaving and returning to a cached chapter with
       the browser offline and every provider host aborted renders the cached
-      pages (E2E). The paused-query offline UI ("You are offline" + Retry) is
-      wired and component-pinned; its E2E needs a second, uncached chapter fixture
-      (the recorded feed's only readable chapter is cached by the time the state
-      can be observed) — recorded as a follow-up.
+      pages (E2E). The test proves its own environment (navigator.onLine false and
+      a failing provider fetch) — removing the offline setup fails it. The offline
+      UI ("You are offline" + Retry) uses subscribed browser connectivity
+      (`useOnlineStatus`), not query fetchStatus: with networkMode 'offlineFirst'
+      a query also pauses when the page is merely unfocused, which the #45 review
+      reproduced as a false offline diagnosis. A pending/paused fetch with no data
+      now shows Loading instead of 'No chapters'. Component-pinned; its E2E still
+      needs a second, uncached chapter fixture — recorded as a follow-up.
+- [ ] Pre-existing gap found by the #45 review (static, untested): provider
+      resolution can return early with no page metadata
+      (`mangadex-query-options.ts`), which would surface as 'No chapters' in the
+      reader. Reproduce before fixing.
 - [ ] Follow-ups from the #44 review: DB-init errors cannot be recovered by the
       reader's query invalidation (the query is disabled while the DB is in
       error); wire the DB retry handler for that case.

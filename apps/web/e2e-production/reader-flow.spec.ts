@@ -80,6 +80,17 @@ test('Given a cached chapter, When the network is gone and the reader is reopene
   await page.route('**/*.mangadex.network/**', (route) => route.abort('failed'));
 
   await page.goForward();
+  // Prove the environment, not just the assertions: the browser reports offline
+  // and a provider-host fetch genuinely fails.
+  expect(await page.evaluate(() => navigator.onLine)).toBe(false);
+  expect(
+    await page.evaluate(() =>
+      fetch('https://api.mangadex.org/ping')
+        .then(() => 'ok')
+        .catch(() => 'failed'),
+    ),
+  ).toBe('failed');
+
   await expect(page.getByText('1 / 37')).toBeVisible({ timeout: 30_000 });
   const image = page.getByTestId('reader-surface').locator('img').first();
   await expect(image).toBeVisible({ timeout: 20_000 });

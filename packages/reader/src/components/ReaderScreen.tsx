@@ -346,7 +346,9 @@ export function ReaderScreen({
   }
 
   if (!data || !readerState) {
-    return <EmptyState type="no-chapters" />;
+    // A pending or paused (unfocused/online) fetch with no data is still loading;
+    // a genuinely empty chapter has data with pageCount 0 and is handled below.
+    return <LoadingState type="detail" />;
   }
 
   if (data.chapter.pageCount === 0) {
