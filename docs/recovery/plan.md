@@ -310,15 +310,22 @@ Add `apps/web/e2e-production/reading.spec.ts` and focused reader integration tes
       at `3 / 37`.
 - [x] Rider from #37's verification: the install-confirmation mutation now awaits
       `flushLocalDb()` like the toggle/remove mutations.
-- [ ] Parked E2E (harness-specific, documented in `reader-flow.spec.ts` as
-      `test.fixme`): in the Playwright-driven production app the reader route
-      unmounts and remounts ~60–70 ms after ANY reader navigation (layout
-      re-render + fresh ReaderScreen instance; no router navigation events; not
-      input-type or reduced-motion specific; absent when the same build is driven
-      with real input in a real browser). Resume and unmount-checkpoint are
-      therefore verified live + unit-pinned, and the two E2E assertions stay parked
-      until the harness remount is understood. Repro: `reader-flow.spec.ts` with
-      the fixme removed.
+- [ ] Parked E2E (documented in `reader-flow.spec.ts` as `test.fixme`, red
+      deterministically — 3/3 consecutive runs per assertion — while the same
+      production build driven live in a real browser persists and resumes
+      correctly): two root-cause-open findings needing their own debug slice.
+      (a) Resume after reload: the reloaded reader renders its ErrorState
+      ("Could not load chapter"); the reader query never enters its body (no query
+      error logged) and the local-db provider logs no init failure, so the failing
+      layer is unknown. Lead: reopen shortly after a flush (the reload follows a
+      committed snapshot by ~1.5 s). (b) Checkpoint on client-side return:
+      returning to the reader shows the stale cached page (`1 / 37`), likely the
+      reader query's staleTime serving pre-write data — the unmount checkpoint is
+      not being observed by this test either way. Also: `page.goto` variants
+      cannot exercise the checkpoint at all (full-page navigation never runs React
+      cleanups); the parked variant uses client-side `goBack`/`goForward`.
+      When root-causing, re-add `waitForPingQuiet` (helpers.ts) for durable-write
+      waits.
 - [ ] Still open from this slice: offline reopening with explicit retry, save-failure
       surfacing in reader mode, tap-zone result assertion, prefetch bounds and
       partial-cache reporting, chrome click isolation e2e, and a deliberate wrong-
