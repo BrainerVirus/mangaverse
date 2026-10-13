@@ -135,6 +135,7 @@ describe('ReaderChrome Accessibility', () => {
 
   it('reader mode buttons are keyboard accessible', async () => {
     const user = userEvent.setup();
+    const onModeChange = vi.fn();
 
     render(
       <ReaderChrome
@@ -142,7 +143,7 @@ describe('ReaderChrome Accessibility', () => {
         currentPage={5}
         totalPages={10}
         mode="single"
-        onModeChange={vi.fn()}
+        onModeChange={onModeChange}
       />
     );
 
@@ -150,6 +151,8 @@ describe('ReaderChrome Accessibility', () => {
     doubleButton.focus();
 
     await user.keyboard('{Enter}');
+
+    expect(onModeChange).toHaveBeenCalledWith('double');
   });
 
   it('chapter title is displayed correctly', () => {

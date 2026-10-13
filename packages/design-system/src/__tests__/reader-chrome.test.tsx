@@ -28,18 +28,6 @@ describe('ReaderChrome', () => {
     vi.clearAllMocks();
   });
 
-  it('renders with visible prop', () => {
-    render(
-      <ReaderChrome
-        visible={true}
-        currentPage={1}
-        totalPages={10}
-      />
-    );
-
-    expect(screen.getByLabelText('Reader controls')).toBeInTheDocument();
-  });
-
   it('displays chapter title when provided', () => {
     render(
       <ReaderChrome
@@ -182,18 +170,6 @@ describe('ReaderChrome', () => {
 
     await user.click(screen.getByText('Double'));
     expect(onModeChange).toHaveBeenCalledWith('double');
-  });
-
-  it('has toolbar role for accessibility', () => {
-    render(
-      <ReaderChrome
-        visible={true}
-        currentPage={1}
-        totalPages={10}
-      />
-    );
-
-    expect(screen.getByLabelText('Reader controls')).toHaveAttribute('role', 'toolbar');
   });
 
   it('fills the rail proportionally to the current page', () => {
