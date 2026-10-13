@@ -369,11 +369,17 @@ the June MangaDex spec, and only tests with triaged audit findings.
       `CommandPalette.test.tsx`'s over-mocking (3 internal modules) is mitigated by
       the real command-palette E2E added above, so it stays as the fast unit net;
       the assertion-free `should export all public types` test in
-      `packages/reader/src/index.test.ts` was deleted — its type imports remain in
-      the file and stay compile-checked, and the neighbouring runtime-export test
-      still asserts the surface. Note for future runs: `workit check test` does
-      not cover lint — CI runs lint+typecheck+test+build, so run
-      `npx oxlint apps packages` before pushing.
+      `packages/reader/src/index.test.ts` was deleted: it asserted nothing and —
+      as the #43 review established with a plant — package tsconfigs exclude test
+      files, so its type imports were never typechecked either. The neighbouring
+      runtime-export test still asserts the surface.
+- [ ] Repo-wide typecheck gap surfaced by the #43 review: every package tsconfig
+      excludes `src/**/*.test.ts`, so package test code is never typechecked (only
+      the web app includes its tests). Cost unknown until tried; candidate slice:
+      stop excluding tests from package typecheck, fix whatever it surfaces, and
+      keep it as a check. Note for future runs: `workit check test` does not cover
+      lint — CI runs lint+typecheck+test+build, so run `npx oxlint apps packages`
+      before pushing.
       Remove only assertion-free or truly duplicate tests after checking coverage;
       replace bad oracles and prove replacements fail on planted bugs.
 - [x] Real command palette interaction coverage added:
