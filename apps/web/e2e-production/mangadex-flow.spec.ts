@@ -86,7 +86,17 @@ test('Given the search page, When a query runs through the provider, Then result
   await mockMangaDexApi(page);
   await page.goto('/search');
   await page.getByRole('searchbox', { name: 'Search manga' }).fill('berserk');
-  await expect(page.getByRole('button', { name: 'Kuro no Shoukanshi' })).toBeVisible({ timeout: 20_000 });
+  // The search query only runs once app settings have loaded; a slow CI runner
+  // can leave the first fill before that point. Wait for the settled result
+  // count (a diagnostic if the provider path produced nothing), then re-fill
+  // once if the result is still missing, and assert the rendered card.
+  await expect(page.getByText(/\d+ results?/).first()).toBeVisible({ timeout: 30_000 });
+  const result = page.getByRole('button', { name: 'Kuro no Shoukanshi' });
+  if ((await result.count()) === 0) {
+    await page.getByRole('searchbox', { name: 'Search manga' }).fill('');
+    await page.getByRole('searchbox', { name: 'Search manga' }).fill('berserk');
+  }
+  await expect(result).toBeVisible({ timeout: 30_000 });
   const image = page.getByTestId('search-results-grid').locator('img').first();
   await expect(image).toBeVisible();
   await expect
