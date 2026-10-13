@@ -345,17 +345,21 @@ this expand into rewriting the whole repository before S1–S4.
 Touches: `AGENTS.md`, `docs/PLAN.md`, `docs/SPEC.md`, `docs/ARCHITECTURE.md`,
 the June MangaDex spec, and only tests with triaged audit findings.
 
-- [ ] Remove duplicated phase history, stale “tests passing” counts and no-op prose.
-      Retain security/data-loss/accessibility constraints. Put historical status in
-      existing docs or Git rather than adding a second completion ledger.
-- [ ] Add short pointers to this spec/plan and correct current-vs-target platform
-      wording. Each added instruction names the content it replaces; stay under 8 KB.
+- [x] Phase history removed from `AGENTS.md`: the phase table and per-phase
+      "tests passing" counts are gone (Git retains them; this plan is the single
+      ledger). AGENTS.md went from 13,429 B (over budget — `workit knowledge lint`
+      finding) to 8,191 B; lint re-run shows 0 findings.
+- [x] Recovery pointers added to AGENTS.md Required Reading plus a compact
+      "Recovery State (current)" section that names exactly what it replaces.
 - [ ] Move judgment rules behind topic pointers only when useful; encode mechanical
       package-import/provider-location rules as executable checks, not repeated prose.
 - [ ] Run `workit knowledge lint` before/after each instruction commit; no new finding.
       Canonical commands for production build/start/E2E already exist in
       `apps/web/package.json` and the root scripts; keep them current.
 - [ ] Audit targeted suites and triage every finding by naming the production break.
+      Not started; the command-palette interaction test below is the first item.
+      Note for future runs: `workit check test` does not cover lint — CI runs
+      lint+typecheck+test+build, so run `npx oxlint apps packages` before pushing.
       Remove only assertion-free or truly duplicate tests after checking coverage;
       replace bad oracles and prove replacements fail on planted bugs.
 - [ ] Keep constant export tests until a replacement/removal fits audit rules; don't
@@ -389,10 +393,16 @@ dependency.
       `feat/web-desktop-migration`, `chore/update-dependencies`,
       `feature/add-discover-page`) after per-branch evidence review; remote refs
       re-read afterward. Open PRs #24–#26 and their branches remain.
-- [ ] `develop` deletion is blocked by the host's protected-branch guard. It has
-      zero unique commits and is safe to remove once the user deletes it from
-      their own terminal (`git push origin --delete develop`) or GitHub settings.
-      Do not treat it as deleted until observed gone from `git ls-remote`.
+- [x] Second cleanup executed 2026-10-13 (user pre-authorized): every remaining
+      branch reconciled by PR/evidence. Remote now holds only `main` (branches of
+      merged PRs #34–#38 auto-deleted on merge). PRs #24 and #25 closed as
+      superseded with evidence comments (the recovery reimplemented their areas;
+      #25's dev scaffold was retired by #36) and their branches deleted. All 17
+      stale local branches pruned after per-branch reconciliation; only `main`
+      remains locally.
+- [x] `develop`: observed gone from `git ls-remote --heads origin` on 2026-10-13
+      (deleted by the user from their own terminal); no longer blocked. #26 also
+      merged, so the earlier "open PRs #24–#26 remain" note is fully resolved.
 - [ ] Never apply history rewrite, force push, broad wildcard deletion or local
       user-work removal to this cleanup; only named, evidence-backed refs.
 

@@ -1,7 +1,10 @@
 # MangaDex Real Provider Design Spec
 
 **Date:** 2026-06-07
-**Status:** Approved (pending user review of written spec)
+**Status:** Superseded (2026-10-13). Implemented during the web-first recovery —
+see `docs/recovery/spec.md`. Deviations from this document: no Zod dependency
+(hand-rolled narrow validators), the package lives at `packages/extensions-mangadex`,
+and the `dev-mangadex-*` scaffold this spec replaces was deleted in S3b.
 **Scope:** Replace the `apps/web/app/lib/dev-mangadex-*` dev hacks with a proper `@app/extensions-mangadex` provider package, validate MangaDex API responses with Zod, route provider calls through TanStack Query, and auto-install MangaDex as a first-party provider on first DB init.
 
 ## Problem
