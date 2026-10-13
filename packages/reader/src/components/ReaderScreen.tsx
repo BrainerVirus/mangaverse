@@ -282,23 +282,14 @@ export function ReaderScreen({
   );
 
   const settings = data?.settings;
-  const chromeMode: 'single' | 'double' | 'scroll' =
-    settings?.readingMode === 'vertical' ? 'scroll' : settings?.pageLayout === 'double' ? 'double' : 'single';
+  const chromeMode: 'single' | 'double' = settings?.pageLayout === 'double' ? 'double' : 'single';
 
   const handleModeChange = useCallback(
     (mode: 'single' | 'double' | 'scroll' | 'webtoon') => {
       if (!onChangeSettings) return;
-      if (mode === 'scroll') {
-        onChangeSettings({ readingMode: 'vertical' });
-        return;
-      }
-      const pageLayout = mode === 'double' ? 'double' : 'single';
-      // Returning from vertical scroll needs a page reading mode again.
-      onChangeSettings(
-        settings?.readingMode === 'vertical' ? { readingMode: 'ltr', pageLayout } : { pageLayout },
-      );
+      onChangeSettings({ pageLayout: mode === 'double' ? 'double' : 'single' });
     },
-    [onChangeSettings, settings?.readingMode],
+    [onChangeSettings],
   );
 
   const handleToggleFullscreen = useCallback(() => {
@@ -337,12 +328,46 @@ export function ReaderScreen({
     .filter((page) => page !== undefined);
 
   return (
-    <div
-      ref={containerRef}
-      className="relative h-full w-full bg-black"
-      onPointerUp={handlePointerUp}
-      data-testid="reader-surface"
-    >
+    <>
+      {/*
+        The tap handler lives on the surface alone: the chrome and the settings
+        sheet are siblings, so their pointer events can never reach the tap-zone
+        logic and skip a page while the user adjusts settings.
+      */}
+      <div
+        ref={containerRef}
+        className="relative h-full w-full bg-black"
+        onPointerUp={handlePointerUp}
+        data-testid="reader-surface"
+      >
+        <div className="flex h-full w-full items-center justify-center gap-2 px-2 pt-24 pb-12">
+          {visiblePages.map((page) =>
+            cacheContext !== null ? (
+              <CachedPageImage
+                key={page.id}
+                providerId={data.providerId}
+                mangaId={data.mangaId}
+                chapterId={data.chapterId}
+                pageIndex={page.index}
+                remoteUrl={page.image.url}
+                className="max-h-full max-w-full object-contain select-none"
+                retention="read"
+              />
+            ) : (
+              <div
+                key={page.id}
+                className="max-h-full max-w-full flex-1 animate-pulse bg-muted/80 object-contain select-none"
+                aria-hidden
+              />
+            ),
+          )}
+        </div>
+
+        {data.engineSettings.tapZoneDebugOverlay && sessionInput ? (
+          <TapZoneDebugOverlay input={sessionInput} zoom={readerState.zoom} />
+        ) : null}
+      </div>
+
       <ReaderChrome
         visible={chromeVisible}
         chapterTitle={data.chapter.title}
@@ -369,7 +394,6 @@ export function ReaderScreen({
                     [
                       ['ltr', 'Left to right'],
                       ['rtl', 'Right to left'],
-                      ['vertical', 'Vertical scroll'],
                     ] as const
                   ).map(([value, label]) => (
                     <Button
@@ -430,34 +454,7 @@ export function ReaderScreen({
           </SheetContent>
         </Sheet>
       ) : null}
-
-      <div className="flex h-full w-full items-center justify-center gap-2 px-2 pt-24 pb-12">
-        {visiblePages.map((page) => (
-          cacheContext !== null ? (
-            <CachedPageImage
-              key={page.id}
-              providerId={data.providerId}
-              mangaId={data.mangaId}
-              chapterId={data.chapterId}
-              pageIndex={page.index}
-              remoteUrl={page.image.url}
-              className="max-h-full max-w-full object-contain select-none"
-              retention="read"
-            />
-          ) : (
-            <div
-              key={page.id}
-              className="max-h-full max-w-full flex-1 animate-pulse bg-muted/80 object-contain select-none"
-              aria-hidden
-            />
-          )
-        ))}
-      </div>
-
-      {data.engineSettings.tapZoneDebugOverlay && sessionInput ? (
-        <TapZoneDebugOverlay input={sessionInput} zoom={readerState.zoom} />
-      ) : null}
-    </div>
+    </>
   );
 }
 
