@@ -7,8 +7,24 @@ export async function persistReaderProgress(
   db: AppDrizzleDb,
   event: ReaderProgressEvent,
 ): Promise<void> {
-  const { appendReadingHistory, updateLibraryEntryReadingProgress, upsertChapterReadState } =
-    await import('@app/db');
+  const {
+    appendReadingHistory,
+    getChapterReadState,
+    updateLibraryEntryReadingProgress,
+    upsertChapterReadState,
+  } = await import('@app/db');
+
+  // A stale event must never roll progress back: a duplicated reader instance
+  // (or a late unmount checkpoint) can carry an event created before the stored
+  // one. Legitimate events are always created after the write they follow.
+  const existing = await getChapterReadState(db, event.chapterId as ChapterId);
+  if (
+    existing !== undefined &&
+    existing.progress.updatedAt !== undefined &&
+    existing.progress.updatedAt > event.timestamp
+  ) {
+    return;
+  }
 
   const now = new Date().toISOString();
   const progress = {
