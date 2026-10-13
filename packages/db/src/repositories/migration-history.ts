@@ -49,7 +49,7 @@ export async function findMigrationHistoryByProviders(
     readonly targetProviderMangaId: string;
   },
 ): Promise<MigrationHistoryEntry | undefined> {
-  const row = await db
+  const row = db
     .select()
     .from(migrationHistory)
     .where(

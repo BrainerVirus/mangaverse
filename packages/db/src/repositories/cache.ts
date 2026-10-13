@@ -109,7 +109,7 @@ export async function getCacheEntryById(
   db: AppDrizzleDb,
   id: string,
 ): Promise<CacheEntryRecord | undefined> {
-  const row = await db.select().from(cacheEntries).where(eq(cacheEntries.id, id)).get();
+  const row = db.select().from(cacheEntries).where(eq(cacheEntries.id, id)).get();
   return row === undefined ? undefined : mapCacheRow(row);
 }
 
@@ -132,7 +132,7 @@ export async function getCacheEntryByKey(
     conditions.push(eq(cacheEntries.chapterId, input.chapterId));
   }
 
-  const row = await db
+  const row = db
     .select()
     .from(cacheEntries)
     .where(and(...conditions))
@@ -147,7 +147,7 @@ export async function listCacheEntriesForManga(
   providerId: string,
   mangaId: string,
 ): Promise<CacheEntryRecord[]> {
-  const rows = await db
+  const rows = db
     .select()
     .from(cacheEntries)
     .where(and(eq(cacheEntries.providerId, providerId), eq(cacheEntries.mangaId, mangaId)))
@@ -161,7 +161,7 @@ export async function listCacheEntriesByKind(
   db: AppDrizzleDb,
   cacheKind: string,
 ): Promise<CacheEntryRecord[]> {
-  const rows = await db
+  const rows = db
     .select()
     .from(cacheEntries)
     .where(eq(cacheEntries.cacheKind, cacheKind))
@@ -172,7 +172,7 @@ export async function listCacheEntriesByKind(
 }
 
 export async function deleteCacheEntry(db: AppDrizzleDb, id: string): Promise<CacheEntryRecord | undefined> {
-  const row = await db.select().from(cacheEntries).where(eq(cacheEntries.id, id)).get();
+  const row = db.select().from(cacheEntries).where(eq(cacheEntries.id, id)).get();
   if (row === undefined) {
     return undefined;
   }
@@ -181,7 +181,7 @@ export async function deleteCacheEntry(db: AppDrizzleDb, id: string): Promise<Ca
 }
 
 export async function summarizeCacheStorage(db: AppDrizzleDb): Promise<CacheStorageSummary> {
-  const rows = await db
+  const rows = db
     .select({
       providerId: cacheEntries.providerId,
       count: sql<number>`count(*)`.mapWith(Number),
@@ -201,7 +201,7 @@ export async function summarizeCacheStorage(db: AppDrizzleDb): Promise<CacheStor
 }
 
 export async function clearAllCacheEntries(db: AppDrizzleDb): Promise<number> {
-  const rows = await db.select({ id: cacheEntries.id }).from(cacheEntries).all();
+  const rows = db.select({ id: cacheEntries.id }).from(cacheEntries).all();
   if (rows.length === 0) {
     return 0;
   }

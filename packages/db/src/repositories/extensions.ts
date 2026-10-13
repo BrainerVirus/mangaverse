@@ -17,7 +17,7 @@ function newId(): string {
 }
 
 export async function listInstalledExtensions(db: AppDrizzleDb): Promise<ExtensionInstallMetadata[]> {
-  const rows = await db.select().from(installedExtensions).all();
+  const rows = db.select().from(installedExtensions).all();
   const out: ExtensionInstallMetadata[] = [];
   for (const row of rows) {
     const manifestResult = validateProviderManifest(row.manifestJson);
@@ -96,7 +96,7 @@ export async function upsertInstalledExtension(
 }
 
 export async function listExtensionRegistries(db: AppDrizzleDb): Promise<ExtensionRegistryEntry[]> {
-  const rows = await db.select().from(extensionRegistries).all();
+  const rows = db.select().from(extensionRegistries).all();
   return rows.map((r) => ({
     name: r.name,
     registryUrl: r.registryUrl,

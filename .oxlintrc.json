@@ -26,16 +26,16 @@
     "no-unused-vars": "error",
 
     // shortcut: rules oxlint 1.x newly promotes to `error` (plus the type-aware set that
-    // only started running once oxlint-tsgolint was installed). 481 findings today:
-    // 367 in tests, 114 in production code (the #48 review measured this — triage the
-    // production share first, starting with typescript/await-thenable in packages/db,
-    // then react/refs + react/purity in the reader hot path). Own lint-debt slice.
+    // only started running once oxlint-tsgolint was installed). 458 findings today with
+    // this list forced to `error`: 93 in production code, 365 in tests (measured
+    // 2026-10-13). typescript/await-thenable is enabled now — packages/db is clean —
+    // and the #48 review's next triage is react/refs + react/purity in the reader hot
+    // path. Own lint-debt slice.
     "vitest/require-mock-type-parameters": "off",
     "vitest/no-conditional-expect": "off",
     "vitest/valid-expect": "off",
     "vitest/require-to-throw-message": "off",
     "vitest/expect-expect": "off",
-    "typescript/await-thenable": "off",
     "typescript/unbound-method": "off",
     "typescript/no-base-to-string": "off",
     "typescript/no-useless-empty-export": "off",

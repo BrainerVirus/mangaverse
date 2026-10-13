@@ -187,7 +187,7 @@ describe('@app/db', () => {
       });
     }).toThrow('abort transaction');
 
-    const row = await db
+    const row = db
       .select({ id: readerPreferences.id })
       .from(readerPreferences)
       .where(eq(readerPreferences.id, 'doomed'))
