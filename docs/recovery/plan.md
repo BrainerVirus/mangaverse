@@ -253,7 +253,10 @@ Read the five `apps/web/app/lib/dev-mangadex-*`/`dev-seed-mangadex.ts` files and
       `scripts/dev-install-mangadex.mjs`, the obsolete dev E2E suite and its
       Playwright config. Review-finding fixes land with it: the disable E2E now
       waits for the query to settle ('0 results' visible) before asserting zero
-      remote calls — confirmed failing when the resolver ignores `enabled`; and
+      remote calls — the settle point is the post-query empty state, confirmed
+      failing when the resolver ignores `enabled` (an earlier '0 results' settle
+      was a loading transient and passed the plant; the #36 verifier caught it);
+      and
       `installFirstPartyProviders` refresh-path plus unknown/disabled-id resolver
       tests are added, both plant-verified red. Open product question recorded:
       a bundled provider re-installs after 'Uninstall' on next load (disable is

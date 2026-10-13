@@ -146,9 +146,15 @@ test('Given a disabled provider, When searching, Then no provider request is mad
 
   await page.goto('/search');
   await page.getByRole('searchbox', { name: 'Search manga' }).fill('berserk');
-  // Wait for the search query to settle before asserting, otherwise the checks
-  // outrun the async query and pass even when a remote call would happen.
-  await expect(page.getByText('0 results').first()).toBeVisible({ timeout: 20_000 });
+  // Settle on the empty state the search query reaches only after its work is
+  // done. With a wrongly enabled provider the query yields results instead, so
+  // this wait itself fails — '0 results' during loading was a false settle.
+  await expect(page.getByRole('heading', { name: 'No results found' })).toBeVisible({
+    timeout: 20_000,
+  });
+  // The provider request (when wrongly enabled) fires right after the local
+  // search resolves; this bounded window makes the zero-call assertion real.
+  await page.waitForTimeout(1_500);
   await expect(page.getByRole('button', { name: 'Kuro no Shoukanshi' })).toHaveCount(0);
   expect(calls.count).toBe(0);
 });
