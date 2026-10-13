@@ -25,6 +25,24 @@ export function createProgressEvent(
   };
 }
 
+export interface UnmountCheckpointPolicy {
+  initialPageIndex: number;
+  lifetimeMs: number;
+  debounceMs: number;
+}
+
+/**
+ * Unmount checkpoint guard: a router "blip" instance (mount+unmount around a
+ * transition) or a user pressing Back right after opening must not persist its
+ * initial page over newer progress from another instance.
+ */
+export function shouldCheckpointOnUnmount(
+  pendingPageIndex: number,
+  policy: UnmountCheckpointPolicy
+): boolean {
+  return pendingPageIndex !== policy.initialPageIndex || policy.lifetimeMs >= policy.debounceMs;
+}
+
 export function shouldPersistProgress(
   previous: ReaderProgressEvent,
   next: ReaderProgressEvent,

@@ -1,13 +1,15 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import { upsertReaderSettings } from '@app/db/browser';
+import { saveReaderSettings, settingsQueryKeys } from '@app/settings';
 import type { ReaderSettings } from '@app/shared';
 import {
   fetchReaderPage,
   persistReaderProgress,
   ReaderScreen,
   readerQueryKeys,
+  toReaderEngineSettings,
+  type ReaderPageData,
 } from '@app/reader';
 import { toChapterId } from '@app/shared';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
@@ -42,14 +44,42 @@ function ReaderRoute() {
     refetchOnMount: 'always',
   });
 
+  const { mutate: saveSettings } = useMutation({
+    mutationFn: async (next: ReaderSettings) => {
+      const result = await saveReaderSettings(db!, next);
+      if (!result.ok) {
+        throw new Error(result.error.message);
+      }
+    },
+    onMutate: async (next) => {
+      await queryClient.cancelQueries({ queryKey: readerQueryKeys.chapter(chapterId) });
+      const previous = queryClient.getQueryData<ReaderPageData>(
+        readerQueryKeys.chapter(chapterId),
+      );
+      queryClient.setQueryData<ReaderPageData>(readerQueryKeys.chapter(chapterId), (current) =>
+        current === undefined
+          ? current
+          : { ...current, settings: next, engineSettings: toReaderEngineSettings(next) },
+      );
+      return { previous };
+    },
+    onError: (_error, _next, context) => {
+      if (context?.previous !== undefined) {
+        queryClient.setQueryData(readerQueryKeys.chapter(chapterId), context.previous);
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: readerQueryKeys.chapter(chapterId) });
+      void queryClient.invalidateQueries({ queryKey: settingsQueryKeys.reader() });
+    },
+  });
+
   const handleChangeSettings = useCallback(
     (patch: Partial<ReaderSettings>) => {
       if (db === null || data?.settings === undefined) return;
-      void upsertReaderSettings(db, { ...data.settings, ...patch }).then(() => {
-        void queryClient.invalidateQueries({ queryKey: readerQueryKeys.chapter(chapterId) });
-      });
+      saveSettings({ ...data.settings, ...patch });
     },
-    [chapterId, data?.settings, db, queryClient],
+    [data?.settings, db, saveSettings],
   );
 
   const handlePersistProgress = useCallback(

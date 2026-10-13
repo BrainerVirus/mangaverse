@@ -52,7 +52,7 @@ export { calculateWebtoonWindow, estimateWebtoonLayout } from './webtoon.js';
 export { createPreloadPlan, createDecodeQueue, recordPageLoadResult } from './preload.js';
 
 // Progress functions
-export { createProgressEvent, shouldPersistProgress } from './progress.js';
+export { createProgressEvent, shouldCheckpointOnUnmount, shouldPersistProgress } from './progress.js';
 
 // Diagnostics
 export { createReaderDiagnostics } from './diagnostics.js';

@@ -1,21 +1,15 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 import {
-  Button,
   EmptyState,
   ErrorState,
   LoadingState,
   ReaderChrome,
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
 } from '@app/design-system';
 import { useReducedMotion } from '@app/motion';
 import type { ReaderSettings } from '@app/shared';
@@ -25,15 +19,16 @@ import {
   prefetchChapterPages,
   useCoverCacheContext,
 } from '@app/cache';
-import { applyNavigationAction, resolveKeyboardAction, resolveNavigationAction } from '../navigation.js';
-import { createProgressEvent, shouldPersistProgress } from '../progress.js';
+import { resolveKeyboardAction } from '../navigation.js';
 import type { ReaderPageData } from '../reader-page-data.js';
-import { createReaderState } from '../state.js';
 import { ReaderScrollView, type ReaderScrollViewHandle } from './ReaderScrollView.js';
+import { ReaderSettingsSheet } from './reader-settings-sheet.js';
+import { useReaderProgress } from './use-reader-progress.js';
+import { useReaderSession } from './use-reader-session.js';
 import { calculateTapZones } from '../tap-zones.js';
 import type {
-  ReaderNavigationAction,
   ReaderOverlayInsets,
+  ReaderProgressEvent,
   ReaderSessionInput,
   ReaderState,
   ReaderViewport,
@@ -41,7 +36,6 @@ import type {
 } from '../types.js';
 
 const CHROME_INSETS: ReaderOverlayInsets = { top: 96, right: 0, bottom: 48, left: 0 };
-const PROGRESS_DEBOUNCE_MS = 750;
 
 export interface ReaderScreenProps {
   data: ReaderPageData | undefined;
@@ -49,7 +43,7 @@ export interface ReaderScreenProps {
   isError: boolean;
   chromeVisible: boolean;
   onToggleChrome: () => void;
-  onPersistProgress?: (event: ReturnType<typeof createProgressEvent>) => void;
+  onPersistProgress?: (event: ReaderProgressEvent) => void;
   onChangeSettings?: (patch: Partial<ReaderSettings>) => void;
   onRetry?: () => void;
   /** True when the data fetch is paused because the browser is offline. */
@@ -123,125 +117,8 @@ export function ReaderScreen({
   const reducedMotion = useReducedMotion();
   const cacheContext = useCoverCacheContext();
   const { containerRef, viewport } = useReaderViewport();
-  const [readerState, setReaderState] = useState<ReaderState | null>(null);
-  const lastPersistedRef = useRef<ReturnType<typeof createProgressEvent> | null>(null);
-  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingEventRef = useRef<ReturnType<typeof createProgressEvent> | null>(null);
-
-  const sessionInput = useMemo<ReaderSessionInput | null>(() => {
-    if (!data) return null;
-    return {
-      chapter: data.chapter,
-      viewport,
-      settings: data.engineSettings,
-      initialPageIndex: data.initialPageIndex,
-    };
-  }, [data, viewport]);
-
-  const sessionChapterRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!sessionInput) {
-      setReaderState(null);
-      sessionChapterRef.current = null;
-      return;
-    }
-    // Resize ticks recreate `sessionInput` with a new viewport object. Recreating
-    // the state with the original initial index would jump the reader back to the
-    // start (and drop the pending progress), so keep the current page for the same
-    // chapter and only use `initialPageIndex` for first creation or a new chapter.
-    const chapterChanged = sessionChapterRef.current !== sessionInput.chapter.id;
-    sessionChapterRef.current = sessionInput.chapter.id;
-    setReaderState((current) => {
-      return createReaderState({
-        ...sessionInput,
-        initialPageIndex:
-          chapterChanged || current === null
-            ? (sessionInput.initialPageIndex ?? 0)
-            : current.activePageIndex,
-      });
-    });
-  }, [sessionInput]);
-
-  const navigate = useCallback(
-    (action: ReaderNavigationAction) => {
-      if (!sessionInput) return;
-
-      setReaderState((current) => {
-        if (!current) return current;
-        const resolved = resolveNavigationAction(current, action);
-        const applied = applyNavigationAction(current, resolved);
-        return createReaderState({
-          ...sessionInput,
-          initialPageIndex: applied.activePageIndex,
-        });
-      });
-    },
-    [sessionInput],
-  );
-
-  useEffect(() => {
-    if (!data || !readerState || !onPersistProgress) return;
-
-    const nextEvent = createProgressEvent(
-      data.chapterId,
-      data.mangaId,
-      readerState.activePageIndex,
-      data.chapter.pageCount,
-    );
-
-    const previous = lastPersistedRef.current;
-    if (previous !== null && !shouldPersistProgress(previous, nextEvent, { minPagesBetweenPersists: 1 })) {
-      return;
-    }
-
-    pendingEventRef.current = nextEvent;
-    if (persistTimerRef.current) {
-      clearTimeout(persistTimerRef.current);
-    }
-
-    persistTimerRef.current = setTimeout(() => {
-      persistTimerRef.current = null;
-      lastPersistedRef.current = nextEvent;
-      pendingEventRef.current = null;
-      onPersistProgress(nextEvent);
-    }, PROGRESS_DEBOUNCE_MS);
-
-    return () => {
-      if (persistTimerRef.current) {
-        clearTimeout(persistTimerRef.current);
-        persistTimerRef.current = null;
-      }
-    };
-  }, [data, onPersistProgress, readerState]);
-
-  // Navigating away must not drop the last page change: checkpoint the pending
-  // event on unmount instead of leaving it to the cleared debounce timer. Refs
-  // for the callback and initial index keep this effect unmount-only, and the
-  // blip guard keeps a router transition remount (or a user pressing Back right
-  // after opening) from persisting its initial page over newer progress.
-  const initialIndexRef = useRef(0);
-  initialIndexRef.current = data?.initialPageIndex ?? 0;
-  const onPersistRef = useRef(onPersistProgress);
-  onPersistRef.current = onPersistProgress;
-  const mountedAtRef = useRef(Date.now());
-
-  useEffect(
-    () => () => {
-      const pending = pendingEventRef.current;
-      const persist = onPersistRef.current;
-      if (pending === null || persist === undefined) return;
-
-      const lifetimeMs = Date.now() - mountedAtRef.current;
-      if (pending.pageIndex === initialIndexRef.current && lifetimeMs < PROGRESS_DEBOUNCE_MS) {
-        return;
-      }
-
-      pendingEventRef.current = null;
-      persist(pending);
-    },
-    [],
-  );
+  const { sessionInput, readerState, setReaderState, navigate } = useReaderSession(data, viewport);
+  useReaderProgress(data, readerState, onPersistProgress);
 
   useEffect(() => {
     if (!data || cacheContext === null) {
@@ -487,95 +364,14 @@ export function ReaderScreen({
         onToggleFullscreen={handleToggleFullscreen}
       />
 
-      {settingsOpen && settings ? (
-        <Sheet open onOpenChange={(open) => { if (!open) setSettingsOpen(false); }}>
-          <SheetContent
-            side="right"
-            role="dialog"
-            aria-label="Reader settings"
-            onCloseAutoFocus={(event) => {
-              event.preventDefault();
-              settingsButtonRef.current?.focus();
-            }}
-          >
-            <SheetHeader>
-              <SheetTitle>Reader settings</SheetTitle>
-            </SheetHeader>
-            <div className="mt-6 space-y-6">
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Reading direction</p>
-                <div className="flex flex-wrap gap-2">
-                  {(
-                    [
-                      ['ltr', 'Left to right'],
-                      ['rtl', 'Right to left'],
-                      ['vertical', 'Vertical scroll'],
-                    ] as const
-                  ).map(([value, label]) => (
-                    <Button
-                      key={value}
-                      size="sm"
-                      variant={settings.readingMode === value ? 'default' : 'outline'}
-                      aria-pressed={settings.readingMode === value}
-                      onClick={() => onChangeSettings?.({ readingMode: value })}
-                    >
-                      {label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Page layout</p>
-                <div className="flex flex-wrap gap-2">
-                  {(
-                    [
-                      ['single', 'Single page'],
-                      ['double', 'Double page'],
-                    ] as const
-                  ).map(([value, label]) => (
-                    <Button
-                      key={value}
-                      size="sm"
-                      variant={settings.pageLayout === value ? 'default' : 'outline'}
-                      aria-pressed={settings.pageLayout === value}
-                      onClick={() =>
-                        // Choosing a page layout leaves the vertical strip: the
-                        // two would otherwise contradict each other.
-                        onChangeSettings?.({
-                          pageLayout: value,
-                          ...(settings.readingMode === 'vertical' ? { readingMode: 'ltr' as const } : {}),
-                        })
-                      }
-                    >
-                      {label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Tap zones</p>
-                <div className="flex flex-wrap gap-2">
-                  {(
-                    [
-                      ['leftRight', 'Left / right'],
-                      ['grid', 'Grid'],
-                    ] as const
-                  ).map(([value, label]) => (
-                    <Button
-                      key={value}
-                      size="sm"
-                      variant={settings.tapZoneLayout === value ? 'default' : 'outline'}
-                      aria-pressed={settings.tapZoneLayout === value}
-                      onClick={() => onChangeSettings?.({ tapZoneLayout: value })}
-                    >
-                      {label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </SheetContent>
-        </Sheet>
+      {settings ? (
+        <ReaderSettingsSheet
+          open={settingsOpen}
+          settings={settings}
+          onChangeSettings={onChangeSettings}
+          onClose={() => setSettingsOpen(false)}
+          settingsButtonRef={settingsButtonRef}
+        />
       ) : null}
     </>
   );
