@@ -38,10 +38,10 @@ export function CoverCacheProvider({
     void runCoverCacheMaintenance(value.db, value.adapter, value.cacheLimitBytes);
   }, [value]);
 
-  if (value === null) {
-    return children;
-  }
-
+  // Always render the same tree shape: switching between bare children and a
+  // context wrapper changes the children's position, which makes React unmount
+  // and remount the whole subtree (wiping in-progress input) every time `value`
+  // flips. Readiness is exposed through the context value instead.
   return <CoverCacheContext value={value}>{children}</CoverCacheContext>;
 }
 

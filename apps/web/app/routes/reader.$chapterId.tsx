@@ -10,8 +10,7 @@ import {
 import { toChapterId } from '@app/shared';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 import { useLayoutStore } from '../stores/useLayoutStore.js';
-import { hydrateDevReaderChapterIfNeeded } from '../lib/dev-mangadex-reader.js';
-import { parseDevMangaDexChapterId } from '../lib/dev-mangadex-search.js';
+import { ensureMangadexChapterPages } from '../queries/mangadex-query-options.js';
 
 export const Route = createFileRoute('/reader/$chapterId')({
   component: ReaderRoute,
@@ -26,10 +25,8 @@ function ReaderRoute() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: readerQueryKeys.chapter(chapterId),
-    queryFn: async () => {
-      if (parseDevMangaDexChapterId(chapterId) !== null) {
-        await hydrateDevReaderChapterIfNeeded(db!, chapterId);
-      }
+    queryFn: async ({ signal }) => {
+      await ensureMangadexChapterPages(db!, chapterId, signal);
       return fetchReaderPage(db!, chapterId);
     },
     enabled: dbStatus === 'ready' && db !== null,

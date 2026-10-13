@@ -31,6 +31,8 @@ export interface MdChapterEntity {
     readonly volume?: string | null;
     readonly translatedLanguage?: string;
     readonly publishAt?: string;
+    /** Page count; 0 marks an unreadable/external entry on MangaDex. */
+    readonly pages?: number;
   };
 }
 
@@ -181,6 +183,7 @@ export function parseFeedResponse(json: unknown, endpoint: string): MdFeed {
     const attributes = asRecord(chapter['attributes'], endpoint, 'chapter.attributes');
     const translatedLanguage = asOptionalString(attributes['translatedLanguage']);
     const publishAt = asOptionalString(attributes['publishAt']);
+    const pages = attributes['pages'];
     return {
       id: asString(chapter['id'], endpoint, 'chapter.id'),
       attributes: {
@@ -189,6 +192,7 @@ export function parseFeedResponse(json: unknown, endpoint: string): MdFeed {
         volume: typeof attributes['volume'] === 'string' ? attributes['volume'] : null,
         ...(translatedLanguage !== undefined ? { translatedLanguage } : {}),
         ...(publishAt !== undefined ? { publishAt } : {}),
+        ...(typeof pages === 'number' ? { pages } : {}),
       },
     };
   });

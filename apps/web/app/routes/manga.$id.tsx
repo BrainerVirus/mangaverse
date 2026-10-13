@@ -12,47 +12,28 @@ import {
   createRemoveFromLibraryMutationOptions,
   createToggleFavoriteMutationOptions,
 } from '../queries/library-mutation-options.js';
-import {
-  fetchDevMangaDetail,
-  isDevMangaDexId,
-  isMangaDexInstalled,
-} from '../lib/dev-mangadex-search.js';
-import {
-  mergeMangaDetailWithLibrary,
-  shouldRefreshDevMangaDetail,
-} from '../lib/dev-mangadex-persist.js';
+import { fetchMangadexMangaDetail } from '../queries/mangadex-query-options.js';
+import { isMangadexAppMangaId } from '../lib/mangadex-ids.js';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 
 export const Route = createFileRoute('/manga/$id')({
   component: MangaDetailRoute,
 });
 
-async function resolveMangaDetail(db: AppDrizzleDb, mangaId: MangaId) {
+async function resolveMangaDetail(db: AppDrizzleDb, mangaId: MangaId, signal?: AbortSignal) {
   const local = await fetchMangaDetail(db, mangaId);
 
-  if (!import.meta.env.DEV || !isDevMangaDexId(mangaId)) {
+  if (!isMangadexAppMangaId(mangaId)) {
     return local;
   }
 
-  const mangadexInstalled = await isMangaDexInstalled(db);
-  if (!mangadexInstalled) {
+  try {
+    const refreshed = await fetchMangadexMangaDetail(db, mangaId, local, signal);
+    return refreshed ?? local;
+  } catch {
+    // Provider failure must not blank a locally available detail page.
     return local;
   }
-
-  if (!shouldRefreshDevMangaDetail(local)) {
-    return local;
-  }
-
-  const remote = await fetchDevMangaDetail(mangaId);
-  if (remote === null) {
-    return local;
-  }
-
-  const { persistDevMangaDetailToDb } = await import('../lib/dev-mangadex-persist.js');
-  await persistDevMangaDetailToDb(db, remote);
-
-  const refreshed = await fetchMangaDetail(db, mangaId);
-  return mergeMangaDetailWithLibrary(refreshed ?? remote, local);
 }
 
 function MangaDetailRoute() {
@@ -65,7 +46,7 @@ function MangaDetailRoute() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: libraryQueryKeys.detail(mangaId),
-    queryFn: () => resolveMangaDetail(db!, mangaId),
+    queryFn: ({ signal }) => resolveMangaDetail(db!, mangaId, signal),
     enabled: dbStatus === 'ready' && db !== null,
   });
 

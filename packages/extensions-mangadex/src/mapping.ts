@@ -121,11 +121,17 @@ export function formatChapterTitle(attributes: MdChapterEntity['attributes']): s
   return 'Chapter';
 }
 
+/**
+ * Maps feed entities to chapters. Unreadable entries (`pages: 0`) are dropped —
+ * they cannot be opened — and duplicate chapter indices are collapsed because
+ * the app stores one chapter per (provider mapping, index).
+ */
 export function toChapters(
   entities: readonly MdChapterEntity[],
   fallbackStart = 1,
 ): readonly ProviderChapter[] {
-  return entities
+  const sorted = entities
+    .filter((entity) => (entity.attributes.pages ?? 1) > 0)
     .map((entity, offset) => {
       const parsed = Number.parseFloat(entity.attributes.chapter ?? '');
       const publishedAt = entity.attributes.publishAt;
@@ -137,6 +143,13 @@ export function toChapters(
       } satisfies ProviderChapter;
     })
     .sort((a, b) => a.index - b.index);
+
+  const seenIndices = new Set<number>();
+  return sorted.filter((chapter) => {
+    if (seenIndices.has(chapter.index)) return false;
+    seenIndices.add(chapter.index);
+    return true;
+  });
 }
 
 /**

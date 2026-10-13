@@ -213,21 +213,41 @@ Read/modify: `packages/extensions-core/src/index.ts` and provider operations;
 Read the five `apps/web/app/lib/dev-mangadex-*`/`dev-seed-mangadex.ts` files and
 `apps/web/vite.config.ts` before replacing their callers.
 
-- [ ] Write red production E2Es for fresh provider availability, search/detail,
+- [x] Write red production E2Es for fresh provider availability, search/detail,
       restart preservation and provider disable blocking all remote operations.
-- [ ] Implement one explicit built-in registration path and provider resolution
+      `apps/web/e2e-production/mangadex-flow.spec.ts` (5 tests, fixture-mocked API +
+      at-home CDN) covers install/enabled, provider search with rendered covers,
+      detail with feed chapters, reader with 37 decoded pages, and disable blocking
+      all remote calls (request counter stays 0). Detail and reader tests navigate
+      by id directly: clicking an animated grid card never passes Playwright's
+      stability check on slow CI runners, so the card click is covered by the
+      search test instead.
+- [x] Implement one explicit built-in registration path and provider resolution
       through installed/enabled state. Community manifests still require consent.
-- [ ] Wire Query keys to source ID, query, language/content settings and page input;
-      propagate invocation cancellation and prevent stale writes.
-- [ ] Preserve `dev-md-`/`dev-md-ch-` identity relationships or migrate them explicitly
-      with tests preserving library/progress. Do not duplicate existing titles.
-- [ ] Probe actual API/image CORS from a production browser, not Electron/Node fetch.
-      Direct calls first (MangaDex currently sends permissive CORS headers). If a probe
-      fails, implement the same-domain rewrite (`/api/mangadex/*` shape) in both dev
-      and the eventual Vercel config; stop and confirm the rewrite shape with the user.
-      Never ship an unrestricted URL proxy.
-- [ ] Migrate routes in small complete batches; delete old dev paths only after the
-      replacement passes its production flow. Preserve useful fixtures while moving
+      `installFirstPartyProviders` upserts the bundled manifest without network and
+      never re-enables a disabled provider; `resolveInstalledProvider` returns null
+      for disabled/unknown ids so no remote call can happen through them.
+- [x] Wire Query keys to source ID, query, language/content settings and page input;
+      propagate invocation cancellation and prevent stale writes. Query fns receive
+      `signal` and forward it through the provider context; the app-level
+      `dev-md-`/`dev-md-ch-` id conventions are preserved by `mangadex-ids.ts` so
+      existing library/progress rows keep working.
+- [x] Probe actual API/image CORS from a production browser, not Electron/Node fetch.
+      Probed: MangaDex reflects the requesting origin (`acao=http://localhost:5184`),
+      so direct calls work and no rewrite/proxy is needed for v1.
+- [x] Found and fixed a product bug while migrating search: `CoverCacheProvider`
+      returned bare `children` before the database was ready and a context wrapper
+      after, and the tree-shape flip made React remount the entire app subtree —
+      wiping in-progress input and aborting provider queries mid-flight. It now
+      always renders the same shape and exposes readiness through the context value;
+      pinned by a cache-package regression test that fails on the old shape.
+- [x] Chapter feed normalization: unreadable `pages: 0` entries are dropped and
+      duplicate chapter indices collapse, because the app stores one chapter per
+      (provider mapping, index) — a real recorded feed contained both and aborted
+      detail persistence with a UNIQUE constraint error. Pinned by provider tests.
+- [ ] S3b: migrate `discover.tsx` off `dev-mangadex-search.ts`, then delete the
+      remaining `dev-mangadex-*` files and the dev-only `/__dev` Vite middleware.
+      Preserve useful fixtures while moving
       their ownership; the June spec's blanket fixture deletion is not required.
 - [ ] Verify install/disable/search/detail/chapter selection against the built app,
       including normalized failure and retry. Run gates, audit and commit.

@@ -26,11 +26,13 @@ describe('MangaDex mapping', () => {
     expect(details.contentRating).toMatch(/^(safe|suggestive|explicit|unknown)$/);
   });
 
-  it('Given feed entities, When mapped, Then chapters are sorted ascending with parsed indices', () => {
+  it('Given feed entities, When mapped, Then readable chapters are sorted with unique parsed indices', () => {
     const chapters = toChapters(feed.chapters);
-    expect(chapters.length).toBe(feed.chapters.length);
-    const indices = chapters.map((chapter) => chapter.index);
-    expect([...indices].sort((a, b) => a - b)).toEqual(indices);
+    // The recorded feed contains a duplicate chapter number with pages: 0;
+    // only the readable unique chapter survives.
+    expect(chapters).toHaveLength(1);
+    expect(chapters[0]?.index).toBe(1);
+    expect(chapters[0]?.title).toBe('Ch. 1 - The Summoner');
     for (const chapter of chapters) {
       expect(chapter.id).toMatch(/^[0-9a-f-]{36}$/);
       expect(chapter.title.length).toBeGreaterThan(0);
