@@ -262,6 +262,15 @@ Read the five `apps/web/app/lib/dev-mangadex-*`/`dev-seed-mangadex.ts` files and
       a bundled provider re-installs after 'Uninstall' on next load (disable is
       the intended off-switch) — decide whether the UI should offer uninstall for
       bundled providers at all.
+- [x] Disable durability (found by the #36 re-verification): the extensions
+      enable/disable toggle awaited nothing before the UI reported the new state,
+      so a navigation within the ~400 ms coalesced window silently lost the
+      disable and remote provider calls resumed on reload. The toggle now awaits
+      `flushLocalDb()` before settling, the same pattern as the onboarding
+      navigations; the disable E2E is deterministic again and fails when the
+      resolver ignores `enabled` (plant-verified). Open: other user-visible
+      toggles (library add/remove/favorite, settings saves) still rely on the
+      debounce — apply flush-on-success there if dirty-exit loss is ever observed.
 - [x] Preserve useful fixtures while moving
       their ownership; the June spec's blanket fixture deletion is not required.
 - [ ] Verify install/disable/search/detail/chapter selection against the built app,
