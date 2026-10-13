@@ -94,8 +94,6 @@ export function ReaderScreen({
   onToggleChrome,
   onPersistProgress,
 }: ReaderScreenProps) {
-  useEffect(() => {
-  }, []);
   const cacheContext = useCoverCacheContext();
   const { containerRef, viewport } = useReaderViewport();
   const [readerState, setReaderState] = useState<ReaderState | null>(null);
