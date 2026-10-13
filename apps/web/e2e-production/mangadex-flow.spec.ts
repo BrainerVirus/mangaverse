@@ -4,6 +4,13 @@ import { expect, test, type Page } from '@playwright/test';
 
 test.describe.configure({ timeout: 90_000 });
 
+// GSAP stagger reveals hide grid items via autoAlpha until the animation runs;
+// reduced motion sets them visible immediately, keeping these flow tests
+// deterministic on slow CI runners without changing what is exercised.
+test.beforeEach(async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+});
+
 const fixturesDir = fileURLToPath(
   new URL('../../../packages/extensions-mangadex/src/fixtures/', import.meta.url),
 );
