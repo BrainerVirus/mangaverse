@@ -6,6 +6,8 @@ This file is the operational guide for agentic coding tools working in this repo
 
 Agents must read the relevant rewrite docs before implementation:
 
+- Read `docs/recovery/spec.md` and `docs/recovery/plan.md` before recovery work;
+  they supersede the historical phase sequence.
 - Read `docs/SPEC.md` before implementing or changing product behavior.
 - Read `docs/PLAN.md` before selecting or sequencing implementation tasks.
 - Read `docs/ARCHITECTURE.md` before changing package boundaries, data flow, database access, provider runtime, reader internals, platform adapters, app shell structure, or motion architecture.
@@ -159,110 +161,20 @@ Critical flows to test:
 - Change theme.
 - Reduced-motion mode.
 
-## Current Legacy Repo Notes
+## Recovery State (current)
 
-The Expo, React Native, NativeWind, Expo Router, and Tauri legacy trees were removed in Phase 10.5. The monorepo under `apps/` and `packages/` is the canonical codebase.
+Web-first recovery is the active workstream: read `docs/recovery/spec.md` and
+`docs/recovery/plan.md` before any historical phase plan. Slices S0–S4 are
+merged (startup, durable storage, MangaDex provider, provider runtime, reader
+durability); S5–S7 cover test/doc cleanup, remote hygiene, publication.
+Electron is retained but deferred until the web flow is proven.
 
-## Phase Status
+The historical phase table and per-phase test counts were removed by the S5
+cleanup: Git retains them and `docs/recovery/plan.md` is the single ledger. The
+legacy Expo/React Native/Expo Router/Tauri trees were removed in Phase 10.5;
+`apps/` and `packages/` are canonical.
 
-| Phase | Status | Notes |
-|-------|--------|-------|
-| Phase 0: Documentation Foundation | ✅ Complete | SPEC.md, PLAN.md, ARCHITECTURE.md, Design.md |
-| Phase 1: Monorepo Foundation | ✅ Complete | TanStack Start web app, Electron desktop app |
-| Phase 5: Extensions Core And SDK | ✅ Complete | `@app/extensions-sdk` + `@app/extensions-core`; contract-first, no provider execution |
-| Phase 7: Design System & Motion System | ✅ Complete | `@app/motion` and `@app/design-system` implemented and tested |
-| Phase 8: App Shell | ✅ Complete | TanStack Router shell, layouts, command palette, providers, desktop renderer integration |
-| Phase 9: Feature Pages | ✅ Complete | Library, search, manga detail, reader, extensions, settings, theme, backup, migration, diagnostics, onboarding, storage management, first-run redirect |
-| Phase 10: Local-First Performance Pass | ✅ Complete | Virtual search grid, query prefetch, layout metrics (PR #21) |
-| Phase 10.5: App Stability & Repo Cleanup | ✅ Complete | Hydration fix, Electron CSP, route test isolation, legacy tree removal |
-| Phase 11: Polish And Premium Experience | 🚧 In progress | First slice: route transitions, command palette animation, library grid stagger reveal |
-
-### Phase 9 Completed Deliverables
-
-**Feature packages and routes:**
-- `@app/library`, `@app/search`, `@app/extensions`, `@app/settings`, `@app/theme`, `@app/backup`, `@app/migration`, `@app/diagnostics`, `@app/onboarding`, `@app/storage`
-- Web routes wired with TanStack Query + local SQLite via `LocalDbProvider`
-- Manga detail, reader, extension manager, global/reader settings, theme customization, backup/restore, migration tool, diagnostics/about, onboarding, storage management
-
-**`@app/storage`** — storage management feature package:
-- `fetchStorageSummary` combines platform storage estimates with local cache/search counts from `@app/db`
-- Safe clear actions for provider cache metadata and search history via `@app/platform` persist request
-- `StoragePage` with confirmation dialogs via `@app/design-system`
-- Unit/integration tests with sql.js harness
-
-**First-run onboarding:**
-- `OnboardingGate` in app shell redirects to `/onboarding` when onboarding is not completed/skipped
-
-**`@app/db` storage helpers:**
-- `summarizeCacheStorage`, `clearAllCacheEntries`, `countSearchHistory`, `clearSearchHistory`, `countSavedSearches`
-
-### Phase 9 Started (library slice)
-
-**`@app/library`** — local library feature package:
-- `fetchLibraryPage` loads entries + manga identities from `@app/db`
-- `LibraryPage` + `LibraryToolbar` (grid/list/compact, search) via `@app/design-system`
-- Query keys, view-state defaults, unit tests with sql.js harness
-
-**`apps/web` library route:**
-- Browser SQLite via `sql.js` + `LocalDbProvider`
-- TanStack Query wired to `@app/library`
-- Navigate to manga detail on card click
-
-### Phase 8 Completed Deliverables
-
-**`apps/web` app shell:**
-- TanStack Router: 8 core routes + 7 lazy stub routes with `defaultPreload: 'intent'` and scroll restoration
-- `ShellProviders`, `AppShellLayout`, `ReaderLayout` with responsive sidebar / bottom nav
-- Zustand: `useLayoutStore`, `useCommandPaletteStore`, `useNavigationStore`
-- `CommandRegistry` + `CommandPalette` (`Cmd/Ctrl+K`, arrow navigation, Enter to execute)
-- `QueryProvider`, `PlatformProvider`, `ThemeProvider` in root
-- Route transitions via `@app/motion` `routeEnter` with reduced-motion support
-- Shell unit/integration tests (router, stores, command palette keyboard, a11y smoke)
-
-**`apps/desktop` renderer:**
-- Imports web `getRouter()` and `detectDesktopCapabilities()` from `@app/platform`
-- `RouterProvider` wired through root `ShellProviders` via TanStack Start `__root.tsx`
-
-### Phase 5 Completed Deliverables
-
-**`@app/extensions-sdk`** — provider contract and helpers:
-- Manifest URL validation, capability guards, `validateProviderContract`, `providerMethodGuard`
-- Request client, rate limiter, HTML parse, error normalization + URL redaction
-- `createMockProvider`, async `runProviderContractTests` with runtime smoke calls
-- 29 tests passing (`vitest.config.ts`)
-
-**`@app/extensions-core`** — install and provider ops (no arbitrary code execution):
-- Install session reducer, manifest fetch with size limits + checksum `rawText`
-- Manual, registry, and protocol prepare flows; optional `validateManifestInstallPolicy`
-- Registry import, confirm install (deterministic ID by `manifest.id`), provider enable/disable/broken/uninstall/update
-- Settings persistence via `@app/db`; capability/permission display
-- 55 tests passing (`vitest.config.ts`)
-
-### Phase 7 Completed Deliverables
-
-**`@app/motion`** — GSAP animation foundation:
-- `registerGsapPlugins()`, `useGsapContext()`, `useReducedMotion()`, `useIsClient()`
-- `DURATION` and `EASING` tokens per Design.md
-- Animation helpers: `fadeIn/Out`, `slideUp/Down`, `scaleIn`, `staggerIn`, `createTimeline`
-- Reader-safe helpers: `chromeShow/Hide`, `pageTurn`, `settingsDrawerTransition`
-- Route transitions: `routeEnter`, `routeExit`
-- All helpers respect `prefers-reduced-motion`
-- 45 tests passing
-
-**`@app/design-system`** — CSS tokens + shadcn wrappers + domain primitives:
-- `styles/globals.css` with Tailwind v4 `@theme`, shadcn CSS vars, light/dark variants
-- `cn()` utility (clsx + tailwind-merge)
-- 16 shadcn wrappers: Button, Card, Dialog, Sheet, Command, Badge, Skeleton, Input, Label, Switch, Select, Slider, Tabs, Alert, Separator, Tooltip
-- 7 domain primitives: MangaCard, EmptyState, LoadingState, ErrorState, SettingsSection, ReaderChrome, ThemePreview
-- 106 tests passing
-
-**Integration:**
-- Tailwind CSS v4 wired in web app (`@tailwindcss/vite`)
-- Design-system CSS imported in `__root.tsx`
-- ThemeProvider with `.dark` class toggle
-- Desktop app has `@app/design-system` and `@app/motion` deps
-
-## New Canonical Commands
+## Canonical Commands
 
 - Install deps: `pnpm install`
 - Start web dev: `pnpm dev:web`
