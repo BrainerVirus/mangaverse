@@ -39,11 +39,19 @@ test('Given an open chapter, When changing settings, Then the layout changes and
   await expect(dialog.getByRole('button', { name: 'Left to right' })).toBeFocused();
 
   const images = page.getByTestId('reader-surface').locator('img');
-  await dialog.getByRole('button', { name: 'Double page' }).click();
+  const doubleButton = dialog.getByRole('button', { name: 'Double page' });
+  const singleButton = dialog.getByRole('button', { name: 'Single page' });
+
+  // aria-pressed flips only after the write commits and the refetch returns the
+  // new settings, so the count assertions below run against the settled layout
+  // instead of a transient mid-transition frame.
+  await doubleButton.click();
+  await expect(doubleButton).toHaveAttribute('aria-pressed', 'true');
   await expect(images).toHaveCount(2, { timeout: 20_000 });
   await expect(page.getByText('2 / 37')).toBeVisible();
 
-  await dialog.getByRole('button', { name: 'Single page' }).click();
+  await singleButton.click();
+  await expect(singleButton).toHaveAttribute('aria-pressed', 'true');
   await expect(images).toHaveCount(1, { timeout: 20_000 });
   // Using the settings controls must never leak into the tap zones and page.
   await expect(page.getByText('2 / 37')).toBeVisible();
