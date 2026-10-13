@@ -1,13 +1,11 @@
-import { expect, test } from '@playwright/test';
-import { MANGADEX_APP_MANGA_ID, finishOnboardingQuick, mockMangaDexApi } from './helpers.js';
+import { expect } from '@playwright/test';
+import { MANGADEX_APP_MANGA_ID, test } from './helpers.js';
 
 test.describe.configure({ timeout: 90_000 });
 
 const CHAPTER_BUTTON = /Ch\. 1 - The Summoner/;
 
-test('Given an open chapter, When switching to Scroll, Then the strip renders and scrolling drives the page', async ({ page }) => {
-  await finishOnboardingQuick(page);
-  await mockMangaDexApi(page);
+test('Given an open chapter, When switching to Scroll, Then the strip renders and scrolling drives the page', async ({ page, quickOnboarding, mockMangaDex }) => {
   await page.goto(`/manga/${MANGADEX_APP_MANGA_ID}`);
   const chapter = page.getByRole('button', { name: CHAPTER_BUTTON });
   await expect(chapter).toBeVisible({ timeout: 30_000 });
