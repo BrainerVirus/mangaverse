@@ -115,4 +115,107 @@ describe('persistReaderProgress', () => {
     const readState = await getChapterReadState(db, chapterId);
     expect(readState?.progress.lastPageIndex).toBe(1);
   });
+  async function seedChapter(db: Awaited<ReturnType<typeof createSqlJsHarness>>['db'], suffix: string) {
+    const created = await createMangaIdentityWithInitialMapping(db, {
+      canonicalTitle: `Progress ${suffix}`,
+      status: 'ongoing',
+      contentRating: 'safe',
+      providerId: toProviderId('prov-a'),
+      providerMangaId: `progress-${suffix}`,
+      language: 'en',
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error('seed failed');
+    const { mangaId, mappingId } = created.value;
+    const chapterId = toChapterId(`chapter-${suffix}`);
+    await upsertChapterWithPages(db, {
+      chapterId,
+      mangaId,
+      providerMappingId: mappingId,
+      title: 'Chapter 1',
+      index: 1,
+      pages: [{ id: toChapterPageId(`page-${suffix}`), index: 0, image: { url: 'https://example.com/1.jpg' } }],
+    });
+    return { mangaId, chapterId };
+  }
+
+  it('Given an event created after an earlier one but written later, When persisted, Then it wins', async () => {
+    const { db } = await createSqlJsHarness();
+    const { mangaId, chapterId } = await seedChapter(db, 'write-order');
+
+    // The first write commits "now" (a real, later wall-clock time). Its stored
+    // ordering timestamp must be the event's own creation time, or the second
+    // event (created later than the first, yet before that commit) is rejected.
+    await persistReaderProgress(db, {
+      chapterId,
+      mangaId,
+      pageIndex: 0,
+      readPercent: 3,
+      completed: false,
+      timestamp: '2026-10-13T12:00:00.000Z',
+    });
+    await persistReaderProgress(db, {
+      chapterId,
+      mangaId,
+      pageIndex: 1,
+      readPercent: 5,
+      completed: false,
+      timestamp: '2026-10-13T12:00:00.500Z',
+    });
+
+    const readState = await getChapterReadState(db, chapterId);
+    expect(readState?.progress.lastPageIndex).toBe(1);
+  });
+
+  it('Given two events with the same timestamp, When persisted, Then the furthest progress wins', async () => {
+    const { db } = await createSqlJsHarness();
+    const { mangaId, chapterId } = await seedChapter(db, 'tie');
+
+    await persistReaderProgress(db, {
+      chapterId,
+      mangaId,
+      pageIndex: 1,
+      readPercent: 5,
+      completed: false,
+      timestamp: '2026-10-13T12:00:00.000Z',
+    });
+    // A stale checkpoint in the same millisecond must not roll the page back.
+    await persistReaderProgress(db, {
+      chapterId,
+      mangaId,
+      pageIndex: 0,
+      readPercent: 3,
+      completed: false,
+      timestamp: '2026-10-13T12:00:00.000Z',
+    });
+
+    const readState = await getChapterReadState(db, chapterId);
+    expect(readState?.progress.lastPageIndex).toBe(1);
+  });
+
+  it('Given racing writes, When both persist, Then the newer event ends up stored', async () => {
+    const { db } = await createSqlJsHarness();
+    const { mangaId, chapterId } = await seedChapter(db, 'race');
+
+    const older = persistReaderProgress(db, {
+      chapterId,
+      mangaId,
+      pageIndex: 1,
+      readPercent: 5,
+      completed: false,
+      timestamp: '2026-10-13T12:00:00.000Z',
+    });
+    const newer = persistReaderProgress(db, {
+      chapterId,
+      mangaId,
+      pageIndex: 2,
+      readPercent: 8,
+      completed: false,
+      timestamp: '2026-10-13T12:00:01.000Z',
+    });
+    await Promise.all([older, newer]);
+
+    const readState = await getChapterReadState(db, chapterId);
+    expect(readState?.progress.lastPageIndex).toBe(2);
+  });
 });

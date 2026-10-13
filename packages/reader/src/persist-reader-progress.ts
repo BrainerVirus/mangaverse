@@ -3,10 +3,14 @@ import type { ChapterId, MangaId } from '@app/shared';
 import { createProgressEvent } from './progress.js';
 import type { ReaderProgressEvent } from './types.js';
 
-export async function persistReaderProgress(
-  db: AppDrizzleDb,
-  event: ReaderProgressEvent,
-): Promise<void> {
+/**
+ * Per-chapter write chains: the read-check-write below must be atomic, or two
+ * concurrent persists (a duplicated reader instance, a late unmount checkpoint)
+ * can both pass the ordering check and let the older write win.
+ */
+const progressChains = new Map<string, Promise<void>>();
+
+async function persistOnce(db: AppDrizzleDb, event: ReaderProgressEvent): Promise<void> {
   const {
     appendReadingHistory,
     getChapterReadState,
@@ -14,25 +18,32 @@ export async function persistReaderProgress(
     upsertChapterReadState,
   } = await import('@app/db');
 
-  // A stale event must never roll progress back: a duplicated reader instance
-  // (or a late unmount checkpoint) can carry an event created before the stored
-  // one. Legitimate events are always created after the write they follow.
   const existing = await getChapterReadState(db, event.chapterId as ChapterId);
-  if (
-    existing !== undefined &&
-    existing.progress.updatedAt !== undefined &&
-    existing.progress.updatedAt > event.timestamp
-  ) {
-    return;
+  const existingUpdatedAt = existing?.progress.updatedAt;
+
+  if (existing !== undefined && existingUpdatedAt !== undefined) {
+    // Ordering is event-vs-event: the stored timestamp is the creating event's
+    // own timestamp. A stored write time would wrongly reject a newer event that
+    // was created before an older event finished writing.
+    if (existingUpdatedAt > event.timestamp) {
+      return;
+    }
+    // Same instant: keep the furthest progress so a stale checkpoint in the same
+    // millisecond cannot roll the page back.
+    if (
+      existingUpdatedAt === event.timestamp &&
+      event.pageIndex < (existing.progress.lastPageIndex ?? 0)
+    ) {
+      return;
+    }
   }
 
-  const now = new Date().toISOString();
   const progress = {
     readPercent: event.readPercent,
     lastPageIndex: event.pageIndex,
     completed: event.completed,
-    updatedAt: now,
-    startedAt: now,
+    updatedAt: event.timestamp,
+    startedAt: existing?.progress.startedAt ?? event.timestamp,
   };
 
   await upsertChapterReadState(db, {
@@ -51,6 +62,18 @@ export async function persistReaderProgress(
     mangaId: event.mangaId as MangaId,
     chapterId: event.chapterId as ChapterId,
   });
+}
+
+export async function persistReaderProgress(
+  db: AppDrizzleDb,
+  event: ReaderProgressEvent,
+): Promise<void> {
+  const key = String(event.chapterId);
+  const previous = progressChains.get(key) ?? Promise.resolve();
+  const run = previous.then(() => persistOnce(db, event));
+  // Keep the chain alive on failure; the caller still observes the rejection.
+  progressChains.set(key, run.catch(() => undefined));
+  return run;
 }
 
 export function buildProgressEvent(
