@@ -193,6 +193,35 @@ describe('persistReaderProgress', () => {
     expect(readState?.progress.lastPageIndex).toBe(1);
   });
 
+  it('Given a newer write issued before an older event, When both persist concurrently, Then the newer event is stored', async () => {
+    const { db } = await createSqlJsHarness();
+    const { mangaId, chapterId } = await seedChapter(db, 'race-reversed');
+
+    // The newer event is issued first and the older one right after: without
+    // per-chapter serialization both reads see no stored state and the older
+    // write can land last.
+    const newer = persistReaderProgress(db, {
+      chapterId,
+      mangaId,
+      pageIndex: 2,
+      readPercent: 8,
+      completed: false,
+      timestamp: '2026-10-13T12:00:01.000Z',
+    });
+    const older = persistReaderProgress(db, {
+      chapterId,
+      mangaId,
+      pageIndex: 1,
+      readPercent: 5,
+      completed: false,
+      timestamp: '2026-10-13T12:00:00.000Z',
+    });
+    await Promise.all([newer, older]);
+
+    const readState = await getChapterReadState(db, chapterId);
+    expect(readState?.progress.lastPageIndex).toBe(2);
+  });
+
   it('Given racing writes, When both persist, Then the newer event ends up stored', async () => {
     const { db } = await createSqlJsHarness();
     const { mangaId, chapterId } = await seedChapter(db, 'race');
