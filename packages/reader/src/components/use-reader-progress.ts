@@ -3,7 +3,7 @@ import { createProgressEvent, shouldCheckpointOnUnmount, shouldPersistProgress }
 import type { ReaderPageData } from '../reader-page-data.js';
 import type { ReaderProgressEvent, ReaderState } from '../types.js';
 
-export const PROGRESS_DEBOUNCE_MS = 750;
+const PROGRESS_DEBOUNCE_MS = 750;
 
 /**
  * Debounced progress persistence plus the unmount checkpoint. The timer and
