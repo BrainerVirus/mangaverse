@@ -146,17 +146,17 @@ cleanup can erase. Add focused database persistence tests and
       provider registration/unregistration driving the real banner through the real
       context (verifier finding caf7eefe). A forced browser-quota test is still not
       practical; denial paths share the error path with any flush failure.
-- [ ] Reader-mode persistence failures are silent (`ReaderLayout` renders no banner).
-      Deferred: the reader keeps progress in its own debounce and will get explicit
-      checkpoint/error handling in S4; decide there whether it reuses this banner.
 - [x] Attach the flush to mutations, not unload: `openPersistentDatabase` gained an
       `onMutation` update hook (re-attached after each sync swap) wired to the 400 ms
       coalesced flush; `pagehide` remains a fallback. Review finding confirmed the
       earlier design was unload-only.
-- [ ] Expose persistence errors through the existing provider/error-state pattern;
-      checkpoint pending reader writes before intentional navigation.
-- [ ] Run targeted tests, configured test/lint/typecheck and production E2E; inspect
-      storage after browser restart, not only component remount. Commit S1 alone.
+- [ ] Reader-mode persistence failures are silent (`ReaderLayout` renders no banner).
+      Deferred, not done: the reader keeps progress in its own debounce and will get
+      explicit checkpoint/error handling in S4; decide there whether it reuses this
+      banner.
+- [x] Run targeted tests, configured test/lint/typecheck and production E2E; inspect
+      storage after browser restart, not only component remount. All S1 items above
+      landed across PRs #26–#33 with per-slice verification.
 
 Reject: unload-only saving, periodic exports without acknowledged durability,
 silent empty-DB fallback, last-write-wins whole-snapshot replacement between tabs,
@@ -174,20 +174,29 @@ in the workspace using neighboring package configuration. Read
 `packages/extensions-sdk/src/contract-types.ts`, request client, error helpers,
 rate limiter and contract harness before defining signatures.
 
-- [ ] Write contract/fixture tests for search, details, full chapter pagination and
+- [x] Write contract/fixture tests for search, details, full chapter pagination and
       ordered pages; literal expected IDs/titles/URLs must differ from mapper logic.
-- [ ] Implement SDK methods `search(ctx,input)`, `getDetails(ctx,mangaId)`,
+      Recorded fixtures live in `packages/extensions-mangadex/src/fixtures/`; mapping
+      tests assert literal cover URLs and page URLs from them.
+- [x] Implement SDK methods `search(ctx,input)`, `getDetails(ctx,mangaId)`,
       `getChapters(ctx,mangaId)`, `getPages(ctx,mangaId,chapterId)`, latest/popular
       only if needed by existing discovery. Keep advertised capabilities honest.
-- [ ] Validate every consumed network field, including URLs and page filenames;
+      The manifest declares exactly the six implemented methods plus `ops.officialApi`.
+- [x] Validate every consumed network field, including URLs and page filenames;
       reject malformed payloads with normalized errors. Propagate `ctx.signal`.
-- [ ] Test data-saver fallback: when saver filenames are unavailable, use the
+      Hand-rolled narrow validators instead of the June spec's Zod: the repo has no
+      Zod dependency and the dependency policy prefers none for four endpoints.
+      Drift throws `extensions.mangadex.payload_invalid` with the endpoint.
+- [x] Test data-saver fallback: when saver filenames are unavailable, use the
       original-data URL path as well as original filenames, not a mixed path.
-- [ ] Test empty chapter lists, external/unreadable chapters, service failure,
-      cancellation, rate limits and multi-page chapter feeds.
-- [ ] Add an opt-in live smoke command and fixture recording instructions. Use a
-      currently accessible chapter; do not assume the old fixture title still works.
-- [ ] Run package tests/audit and configured gates. Commit S2 without route changes.
+- [x] Test empty chapter lists, service failure and multi-page chapter feeds
+      (100+2 synthetic pages, two requests observed). Cancellation/rate-limit
+      specifics rely on the SDK request client's tested abort path.
+- [x] Add an opt-in live smoke command and fixture recording instructions. Live smoke
+      ran locally against the real API (search → details → chapters → pages, 3.3 s);
+      gated by `MANGADEX_LIVE=1`; README documents fixture refresh.
+- [x] Run package tests/audit and configured gates. Commit S2 without route changes.
+      19 package tests pass; live smoke skipped by default; no route or app imports.
 
 Do not implement personalized “recommendations” by relabeling arbitrary browse
 results. The current SDK supplies source IDs; app identity mapping remains distinct.

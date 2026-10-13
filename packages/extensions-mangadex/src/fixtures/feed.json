@@ -1,0 +1,73 @@
+{
+  "result": "ok",
+  "response": "collection",
+  "data": [
+    {
+      "id": "c7649b69-6d7a-466c-a428-ab9b086ebe35",
+      "type": "chapter",
+      "attributes": {
+        "volume": "1",
+        "chapter": "1",
+        "title": "The Summoner",
+        "translatedLanguage": "en",
+        "externalUrl": null,
+        "isUnavailable": false,
+        "publishAt": "2018-01-30T06:52:54+00:00",
+        "readableAt": "2018-01-30T06:52:54+00:00",
+        "createdAt": "2018-01-30T06:52:54+00:00",
+        "updatedAt": "2018-01-30T06:52:54+00:00",
+        "version": 1,
+        "pages": 37
+      },
+      "relationships": [
+        {
+          "id": "24adf288-d0e3-4d34-b342-bf8c189aacaa",
+          "type": "scanlation_group"
+        },
+        {
+          "id": "dc332d04-d3b0-413c-a767-70f5e451b031",
+          "type": "manga"
+        },
+        {
+          "id": "6e8c05f8-c837-47ff-8377-9b36bd48bc54",
+          "type": "user"
+        }
+      ]
+    },
+    {
+      "id": "50164f0f-49e2-42d2-a677-981a3b71f4ef",
+      "type": "chapter",
+      "attributes": {
+        "volume": "1",
+        "chapter": "1",
+        "title": "Summoner",
+        "translatedLanguage": "en",
+        "externalUrl": "https://j-novel.club/read/black-summoner-manga-volume-1-chapter-1",
+        "isUnavailable": false,
+        "publishAt": "2023-08-26T19:12:45+00:00",
+        "readableAt": "2023-08-26T19:12:45+00:00",
+        "createdAt": "2023-08-26T19:12:44+00:00",
+        "updatedAt": "2023-08-26T19:12:45+00:00",
+        "version": 2,
+        "pages": 0
+      },
+      "relationships": [
+        {
+          "id": "4ba19c33-6cc2-43ff-b157-5501b057fce7",
+          "type": "scanlation_group"
+        },
+        {
+          "id": "dc332d04-d3b0-413c-a767-70f5e451b031",
+          "type": "manga"
+        },
+        {
+          "id": "e29214b2-9bd4-4e01-9c65-c75b3b0c95ef",
+          "type": "user"
+        }
+      ]
+    }
+  ],
+  "limit": 2,
+  "offset": 0,
+  "total": 219
+}
