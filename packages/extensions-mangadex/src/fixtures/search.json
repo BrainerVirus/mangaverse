@@ -1,0 +1,264 @@
+{
+  "result": "ok",
+  "response": "collection",
+  "data": [
+    {
+      "id": "dc332d04-d3b0-413c-a767-70f5e451b031",
+      "type": "manga",
+      "attributes": {
+        "title": {
+          "ja-ro": "Kuro no Shoukanshi"
+        },
+        "altTitles": [
+          {
+            "ja": "黒の召喚士"
+          },
+          {
+            "en": "Black Summoner"
+          },
+          {
+            "en": "The Berserker Rises to Greatness."
+          },
+          {
+            "ko": "흑의 소환사"
+          },
+          {
+            "zh": "黑之召唤士"
+          },
+          {
+            "ru": "Черный призыватель"
+          },
+          {
+            "zh-hk": "黑之召喚士"
+          }
+        ],
+        "description": {
+          "en": "\"If you truly want to get stronger, you have to challenge and defeat those stronger than yourself.\"\n\nWhile being transmigrated to another world, Kelvin bartered away his memories for a collection of powerful new abilities. Setting out on the ultimate adventure as the world’s strongest Summoner — with his first Follower being the very goddess who brought him over! — he soon discovers his true nature as a battle junkie. Someone wants to pick a fight? Sure, bring it on!\n\nFacing off against one formidable foe after another, Kelvin can hardly contain his delight as he revels in the absolute exhilaration of a good fight! The curtain rises on the start of an epic saga as this black-clad warrior and his allies carve their way into the annals of history! \n___\n**Character Designer:** [Kurogin (DIGS)](https://mangadex.org/author/ad469135-32c7-4fcc-b490-d0ebc07eea16)\n\n**Additional Links:**  \n- [Official Raw Web Novel](https://ncode.syosetu.com/n1222ci/)\n- [Official English Light Novel](https://j-novel.club/series/black-summoner)",
+          "ja": "「自分より強いやつに勝て――それができなきゃ、弱者だぜ」\n\nケルヴィン――異世界転移してこの世界にやってきた彼は転移時に、自分の記憶を代償にしてまで理想のスキル構成を実現させた。そして――最強の“召喚士”として冒険を開始させる。挑みかかる相手は、異世界の強者ばかり。黒衣を纏う戦闘狂と、彼の召喚により集いし配下たちが紡ぐ爽快バトルファンタジー、第一幕。",
+          "ru": "Он очнулся в мире ничего не помня о себе, даже имени. Зато это мир меча и магии, а он призыватель. Ну, вперед, осваиваться в новом мире!",
+          "pt-br": "As cortinas dessa história se abrem quando nosso protagonista troca suas memórias por um poder imensurável em um novo mundo. Agora, com o nome de Kelvin, ele precisa evoluir, dominar novos subordinados e se tornar o maior invocador de todos os tempos. Mas e então, até onde essa jornada vai nos levar?"
+        },
+        "isLocked": false,
+        "links": {
+          "al": "101746",
+          "ap": "black-summoner",
+          "bl": "526029",
+          "bw": "series/164413",
+          "kt": "40521",
+          "mu": "ii7msyi",
+          "nu": "black-summoner",
+          "amz": "https://www.amazon.co.jp/dp/B07M6TVPPV",
+          "ebj": "https://ebookjapan.yahoo.co.jp/books/462122/",
+          "mal": "112121",
+          "raw": "https://comic-gardo.com/episode/10834108156661710394"
+        },
+        "officialLinks": null,
+        "originalLanguage": "ja",
+        "lastVolume": "",
+        "lastChapter": "",
+        "publicationDemographic": "shounen",
+        "status": "ongoing",
+        "year": 2018,
+        "contentRating": "suggestive",
+        "tags": [
+          {
+            "id": "0bc90acb-ccc1-44ca-a34a-b9f3a73259d0",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Reincarnation"
+              },
+              "description": {},
+              "group": "theme",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "36fd93ea-e8b8-445e-b836-358f02b3d33d",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Monsters"
+              },
+              "description": {},
+              "group": "theme",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "391b0423-d847-456f-aff0-8b0cfc03066b",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Action"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "39730448-9a5f-48a2-85b0-a70db87b1233",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Demons"
+              },
+              "description": {},
+              "group": "theme",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "87cc87cd-a395-47af-b27a-93258283bbc6",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Adventure"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "a1f53773-c69a-4ce5-8cab-fffcd90b1565",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Magic"
+              },
+              "description": {},
+              "group": "theme",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "aafb99c1-7f60-43fa-b75f-fc9502ce29c7",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Harem"
+              },
+              "description": {},
+              "group": "theme",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "ace04997-f6bd-436e-b261-779182193d3d",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Isekai"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "b29d6a3d-1569-4e7a-8caf-7557bc92cd5d",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Gore"
+              },
+              "description": {},
+              "group": "content",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "cdc58593-87dd-415e-bbc0-2ec27bf404cc",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Fantasy"
+              },
+              "description": {},
+              "group": "genre",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "dd1f77c5-dea9-4e2b-97ae-224af09caf99",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Monster Girls"
+              },
+              "description": {},
+              "group": "theme",
+              "version": 1
+            },
+            "relationships": []
+          },
+          {
+            "id": "f4122d1c-3b44-44d0-9936-ff7502c39ad3",
+            "type": "tag",
+            "attributes": {
+              "name": {
+                "en": "Adaptation"
+              },
+              "description": {},
+              "group": "format",
+              "version": 1
+            },
+            "relationships": []
+          }
+        ],
+        "state": "published",
+        "chapterNumbersResetOnNewVolume": false,
+        "createdAt": "2019-03-10T23:30:18+00:00",
+        "updatedAt": "2026-07-02T20:36:01+00:00",
+        "version": 51,
+        "availableTranslatedLanguages": [
+          "en",
+          "fr",
+          "ru",
+          "pt-br",
+          "it",
+          "es-la"
+        ],
+        "latestUploadedChapter": "2a4030b2-69f4-4fad-9f56-68ce06f5c118"
+      },
+      "relationships": [
+        {
+          "id": "329324a7-7961-4c3a-853c-4094d5f2c9d9",
+          "type": "author"
+        },
+        {
+          "id": "ef998675-b09d-4470-80ce-fbf8581b5329",
+          "type": "artist"
+        },
+        {
+          "id": "3b5a22c6-6db8-4949-af77-c62537d58a7a",
+          "type": "cover_art",
+          "attributes": {
+            "description": "",
+            "volume": "26",
+            "fileName": "211feb24-05f1-456f-99af-0f16d890e96c.jpg",
+            "locale": "ja",
+            "createdAt": "2026-10-10T15:21:11+00:00",
+            "updatedAt": "2026-10-10T15:21:11+00:00",
+            "version": 1
+          }
+        }
+      ]
+    }
+  ],
+  "limit": 1,
+  "offset": 0,
+  "total": 20
+}
