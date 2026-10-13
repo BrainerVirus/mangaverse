@@ -54,6 +54,10 @@ const Sheet = React.forwardRef<HTMLDivElement, SheetProps>(
 
       const handleKeyDown = (event: KeyboardEvent) => {
         if (event.key === 'Escape') {
+          // Consume the Escape the sheet handles: the reader layout also listens
+          // for Escape (chrome toggle), and a sheet-close must not hide the chrome.
+          event.preventDefault();
+          event.stopPropagation();
           onOpenChangeRef.current?.(false);
           return;
         }
