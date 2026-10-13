@@ -105,6 +105,12 @@ importers:
       '@app/extensions':
         specifier: workspace:*
         version: link:../../packages/extensions
+      '@app/extensions-mangadex':
+        specifier: workspace:*
+        version: link:../../packages/extensions-mangadex
+      '@app/extensions-sdk':
+        specifier: workspace:*
+        version: link:../../packages/extensions-sdk
       '@app/library':
         specifier: workspace:*
         version: link:../../packages/library
