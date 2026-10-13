@@ -290,21 +290,40 @@ helpers; `packages/cache/src/components/CachedPageImage.tsx`, `page-cache-store.
 `prefetch-manga.ts`; `apps/web/app/routes/reader.$chapterId.tsx` and manga detail.
 Add `apps/web/e2e-production/reading.spec.ts` and focused reader integration tests.
 
-- [ ] Create strict network fixtures for details/feed/at-home and distinguishable
-      image pages. Reject unexpected endpoints; the catalog's broad catch-all mock
-      can otherwise disguise a missing at-home implementation.
-- [ ] Observe a red decoded-image/page-order test before repairing the reader.
-      Assert `naturalWidth > 0`, page indicator, expected image identity, keyboard
-      direction and tap result, not only a blob URL or absence of empty state.
-- [ ] Cover resizing without position reset, chrome click isolation, immediate
-      navigation away before the debounce expires, restart/resume and save failure.
-- [ ] Preserve good cached images; refresh expired source URLs on retry and report
-      partial caching accurately. Bound prefetch memory/concurrency.
-- [ ] Prove fully cached offline reopening in a fresh context and first-open offline
-      failure with an explicit retry. Do not mark cache completeness after failed fetches.
-- [ ] Run deterministic production E2Es, gates and test audit; plant one wrong
-      navigation/page-order change, observe failure, restore it, rerun. Commit.
-- [ ] Run/document a separate live reading journey from a real production browser.
+- [x] Strict fixtures and decoded-image assertions: `reader-flow.spec.ts` and the
+      S3a flow assert `naturalWidth > 0`, page indicators and keyboard direction
+      against fixture-mocked API/at-home hosts. Open nit: the shared mock still has
+      a catch-all for `/manga?` browse URLs (needed by discover) — tighten to an
+      explicit reject list when the offline work lands.
+- [x] Reader position survives session/viewport recreation: `ReaderScreen`'s
+      recreation effect used to rebuild state from `data.initialPageIndex`, so any
+      ResizeObserver tick reset the reader to the start. It now keeps the current
+      page for the same chapter and only uses `initialPageIndex` for first creation
+      or a chapter change; live-verified (`chapterChanged=false current=1` keeps
+      the page).
+- [x] Navigating away before the 750 ms debounce no longer drops the page: the
+      pending progress event is checkpointed on unmount instead of being discarded
+      with the cleared timer.
+- [x] Live reading journey (real production browser against real MangaDex):
+      onboarding → real search → detail → chapter 1 → reader (`1 / 37`) → keyboard
+      and trusted-click navigation to page 3 (`persist called/ok`) → reload resumes
+      at `3 / 37`.
+- [x] Rider from #37's verification: the install-confirmation mutation now awaits
+      `flushLocalDb()` like the toggle/remove mutations.
+- [ ] Parked E2E (harness-specific, documented in `reader-flow.spec.ts` as
+      `test.fixme`): in the Playwright-driven production app the reader route
+      unmounts and remounts ~60–70 ms after ANY reader navigation (layout
+      re-render + fresh ReaderScreen instance; no router navigation events; not
+      input-type or reduced-motion specific; absent when the same build is driven
+      with real input in a real browser). Resume and unmount-checkpoint are
+      therefore verified live + unit-pinned, and the two E2E assertions stay parked
+      until the harness remount is understood. Repro: `reader-flow.spec.ts` with
+      the fixme removed.
+- [ ] Still open from this slice: offline reopening with explicit retry, save-failure
+      surfacing in reader mode, tap-zone result assertion, prefetch bounds and
+      partial-cache reporting, chrome click isolation e2e, and a deliberate wrong-
+      navigation plant on the (passing) navigation test.
+- [ ] Run deterministic production E2Es, gates and test audit; commit.
 
 Audit leads, not confirmed runtime diagnoses: ReaderScreen reinitializes on changed
 viewport/session input, cancels debounce on cleanup, and observes pointer events
