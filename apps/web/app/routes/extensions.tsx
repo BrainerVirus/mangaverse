@@ -14,6 +14,7 @@ import {
   transitionExtensionInstall,
 } from '@app/extensions';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
+import { flushLocalDb } from '../lib/local-db.js';
 
 type ExtensionsSearch = {
   install?: boolean;
@@ -99,6 +100,10 @@ function ExtensionsRoute() {
       if (!result.ok) {
         throw result.error;
       }
+      // Durability point: the user must not be able to navigate away and lose
+      // the disable to the coalesced flush window — a lost disable silently
+      // resumes remote provider calls.
+      await flushLocalDb();
     },
     onSettled: () => {
       setPendingProviderId(undefined);

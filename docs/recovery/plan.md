@@ -245,9 +245,33 @@ Read the five `apps/web/app/lib/dev-mangadex-*`/`dev-seed-mangadex.ts` files and
       duplicate chapter indices collapse, because the app stores one chapter per
       (provider mapping, index) — a real recorded feed contained both and aborted
       detail persistence with a UNIQUE constraint error. Pinned by provider tests.
-- [ ] S3b: migrate `discover.tsx` off `dev-mangadex-search.ts`, then delete the
-      remaining `dev-mangadex-*` files and the dev-only `/__dev` Vite middleware.
-      Preserve useful fixtures while moving
+- [x] S3b: `discover.tsx` runs through the provider (`mangadex-discover.ts`,
+      capability-driven sections: Latest and Popular only, per-section failure
+      isolation), covered by a new production E2E asserting both sections render
+      with decoded covers. The entire dev scaffold is deleted: `dev-mangadex-*`
+      files and tests, the `/__dev` Vite middleware, `scripts/mangadex-dev/*`,
+      `scripts/dev-install-mangadex.mjs`, the obsolete dev E2E suite and its
+      Playwright config. Review-finding fixes land with it: the disable E2E now
+      waits for the query to settle ('0 results' visible) before asserting zero
+      remote calls — the settle point is the post-query empty state, confirmed
+      failing when the resolver ignores `enabled` (an earlier '0 results' settle
+      was a loading transient and passed the plant; the #36 verifier caught it);
+      and
+      `installFirstPartyProviders` refresh-path plus unknown/disabled-id resolver
+      tests are added, both plant-verified red. Open product question recorded:
+      a bundled provider re-installs after 'Uninstall' on next load (disable is
+      the intended off-switch) — decide whether the UI should offer uninstall for
+      bundled providers at all.
+- [x] Disable durability (found by the #36 re-verification): the extensions
+      enable/disable toggle awaited nothing before the UI reported the new state,
+      so a navigation within the ~400 ms coalesced window silently lost the
+      disable and remote provider calls resumed on reload. The toggle now awaits
+      `flushLocalDb()` before settling, the same pattern as the onboarding
+      navigations; the disable E2E is deterministic again and fails when the
+      resolver ignores `enabled` (plant-verified). Open: other user-visible
+      toggles (library add/remove/favorite, settings saves) still rely on the
+      debounce — apply flush-on-success there if dirty-exit loss is ever observed.
+- [x] Preserve useful fixtures while moving
       their ownership; the June spec's blanket fixture deletion is not required.
 - [ ] Verify install/disable/search/detail/chapter selection against the built app,
       including normalized failure and retry. Run gates, audit and commit.

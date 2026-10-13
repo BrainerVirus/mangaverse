@@ -1,25 +1,20 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
-import type { AppDrizzleDb } from '@app/db/browser';
 import {
   DiscoverPage,
-  type DiscoverPageData,
-  type DiscoverSection,
   discoverQueryKeys,
 } from '@app/search';
 import { fetchAppSettings, settingsQueryKeys } from '@app/settings';
 import { useLocalDb, useLocalDbStatus, useLocalDbRetry } from '../providers/local-db-provider.js';
 import {
-  DEV_MANGADEX_SECTION_DEFINITIONS,
-  DEV_MANGADEX_SECTION_PAGE_SIZE,
-  fetchDevMangaDexSectionPage,
-  fetchDevMangaDexSectionPreviews,
-  getDevMangaDexSectionTitle,
-  getEnabledMangaDexSections,
-  getInstalledMangaDexManifest,
-  type DevMangaDexSectionId,
-} from '../lib/dev-mangadex-search.js';
+  fetchMangadexDiscoverData,
+  fetchMangadexSectionPage,
+  getMangadexSectionTitle,
+  MANGADEX_SECTION_DEFINITIONS,
+  MANGADEX_SECTION_PAGE_SIZE,
+  type MangadexSectionId,
+} from '../queries/mangadex-discover.js';
 
 type DiscoverSearch = {
   provider?: string;
@@ -33,32 +28,6 @@ export const Route = createFileRoute('/discover')({
   }),
   component: DiscoverRoute,
 });
-
-async function buildDiscoverPageData(
-  db: AppDrizzleDb,
-  explicitContent: boolean,
-): Promise<DiscoverPageData> {
-  const manifest = await getInstalledMangaDexManifest(db);
-  if (manifest === null) {
-    return { providers: [] };
-  }
-
-  const sectionDefinitions = getEnabledMangaDexSections(manifest);
-  const sectionResults = await fetchDevMangaDexSectionPreviews(
-    sectionDefinitions,
-    explicitContent,
-  );
-
-  return {
-    providers: [
-      {
-        providerId: 'mangadex',
-        providerName: manifest.name,
-        sections: sectionResults satisfies readonly DiscoverSection[],
-      },
-    ],
-  };
-}
 
 function DiscoverRoute() {
   const navigate = useNavigate({ from: '/discover' });
@@ -78,16 +47,7 @@ function DiscoverRoute() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: discoverQueryKeys.providers(explicitContent),
-    queryFn: async () => {
-      if (!import.meta.env.DEV || db === null) {
-        return { providers: [] } satisfies DiscoverPageData;
-      }
-      const manifest = await getInstalledMangaDexManifest(db);
-      if (manifest === null) {
-        return { providers: [] } satisfies DiscoverPageData;
-      }
-      return buildDiscoverPageData(db, explicitContent);
-    },
+    queryFn: ({ signal }) => fetchMangadexDiscoverData(db!, signal),
     enabled: dbStatus === 'ready' && db !== null && appSettingsQuery.isSuccess,
   });
 
@@ -106,14 +66,14 @@ function DiscoverRoute() {
     const provider = providers.find((entry) => entry.providerId === expandedSection.providerId);
     const section = provider?.sections.find((entry) => entry.id === expandedSection.sectionId);
     if (section !== undefined) {
-      return { title: section.title, sectionId: section.id as DevMangaDexSectionId };
+      return { title: section.title, sectionId: section.id as MangadexSectionId };
     }
 
-    const fallback = DEV_MANGADEX_SECTION_DEFINITIONS.find(
+    const fallback = MANGADEX_SECTION_DEFINITIONS.find(
       (entry) => entry.id === expandedSection.sectionId,
     );
     if (fallback !== undefined && expandedSection.providerId === 'mangadex') {
-      return { title: getDevMangaDexSectionTitle(fallback.id), sectionId: fallback.id };
+      return { title: getMangadexSectionTitle(fallback.id) ?? fallback.title, sectionId: fallback.id };
     }
 
     return null;
@@ -128,21 +88,18 @@ function DiscoverRoute() {
             explicitContent,
           )
         : ['discover', 'section', 'idle'],
-    queryFn: ({ pageParam }) =>
-      fetchDevMangaDexSectionPage(
+    queryFn: ({ pageParam, signal }) =>
+      fetchMangadexSectionPage(
+        db!,
         expandedSectionMeta!.sectionId,
         pageParam,
-        DEV_MANGADEX_SECTION_PAGE_SIZE,
-        explicitContent,
+        MANGADEX_SECTION_PAGE_SIZE,
+        signal,
       ),
     initialPageParam: 0,
     getNextPageParam: (lastPage) =>
-      lastPage.hasMore ? lastPage.offset + DEV_MANGADEX_SECTION_PAGE_SIZE : undefined,
-    enabled:
-      dbStatus === 'ready' &&
-      expandedSection !== null &&
-      expandedSectionMeta !== null &&
-      import.meta.env.DEV,
+      lastPage.hasMore ? lastPage.offset + MANGADEX_SECTION_PAGE_SIZE : undefined,
+    enabled: dbStatus === 'ready' && db !== null && expandedSection !== null && expandedSectionMeta !== null,
   });
 
   const expandedResults = useMemo(

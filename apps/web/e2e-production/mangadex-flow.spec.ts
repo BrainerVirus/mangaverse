@@ -120,6 +120,20 @@ test('Given a provider-backed chapter id, When the reader opens, Then decoded pa
   await expect(page.getByText('1 / 37')).toBeVisible({ timeout: 20_000 });
 });
 
+test('Given an enabled provider, When Discover opens, Then capability sections render with covers', async ({ page }) => {
+  await finishOnboardingQuick(page);
+  await mockMangaDexApi(page);
+  await page.goto('/discover');
+  await expect(page.getByTestId('discover-section-latest')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('discover-section-popular')).toBeVisible();
+  const popular = page.getByTestId('discover-section-popular');
+  await expect(popular.getByRole('button', { name: 'Kuro no Shoukanshi' })).toBeVisible();
+  const image = popular.locator('img').first();
+  await expect
+    .poll(async () => image.evaluate((img: HTMLImageElement) => img.naturalWidth > 0), { timeout: 20_000 })
+    .toBe(true);
+});
+
 test('Given a disabled provider, When searching, Then no provider request is made', async ({ page }) => {
   await finishOnboardingQuick(page);
   const calls: ApiCalls = { count: 0 };
@@ -132,8 +146,15 @@ test('Given a disabled provider, When searching, Then no provider request is mad
 
   await page.goto('/search');
   await page.getByRole('searchbox', { name: 'Search manga' }).fill('berserk');
-  await expect(page.getByRole('button', { name: 'Kuro no Shoukanshi' })).toHaveCount(0, {
-    timeout: 5_000,
+  // Settle on the empty state the search query reaches only after its work is
+  // done. With a wrongly enabled provider the query yields results instead, so
+  // this wait itself fails — '0 results' during loading was a false settle.
+  await expect(page.getByRole('heading', { name: 'No results found' })).toBeVisible({
+    timeout: 20_000,
   });
+  // The provider request (when wrongly enabled) fires right after the local
+  // search resolves; this bounded window makes the zero-call assertion real.
+  await page.waitForTimeout(1_500);
+  await expect(page.getByRole('button', { name: 'Kuro no Shoukanshi' })).toHaveCount(0);
   expect(calls.count).toBe(0);
 });
