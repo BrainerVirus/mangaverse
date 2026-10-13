@@ -74,7 +74,7 @@ export function registerPlatformIpc(deps: PlatformIpcDeps): void {
       return toIpcAppResult(err(platformInvalidUrl('Clipboard payload invalid.')));
     }
     try {
-      deps.clipboard.writeText(text);
+      await deps.clipboard.writeText(text);
       return toIpcAppResult(ok(undefined));
     } catch {
       return toIpcAppResult(err(platformPermissionDenied('Could not write clipboard.')));

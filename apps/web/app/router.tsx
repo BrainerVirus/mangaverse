@@ -37,7 +37,7 @@ export function getRouter(options: { platformDetectFn?: () => PlatformCapabiliti
       <main className="app-shell">
         <ErrorState
           title="Something went wrong"
-          message={error?.message || 'An unexpected error occurred'}
+          message={error instanceof Error ? error.message : 'An unexpected error occurred'}
         />
       </main>
     ),

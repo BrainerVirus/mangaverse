@@ -27,12 +27,12 @@
     "@app/design-system": "workspace:*",
     "@app/platform": "workspace:*",
     "@app/shared": "workspace:*",
-    "react": "^19.1.0"
+    "react": "^19.3.0"
   },
   "devDependencies": {
-    "@types/react": "^19.1.0",
-    "oxlint": "^0.16.0",
-    "typescript": "^5.9.2",
-    "vitest": "^3.0.0"
+    "@types/react": "^19.3.0",
+    "oxlint": "^1.87.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.4"
   }
 }

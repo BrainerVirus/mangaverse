@@ -23,11 +23,11 @@
   },
   "dependencies": {
     "@app/shared": "workspace:*",
-    "node-html-parser": "^6.1.13"
+    "node-html-parser": "^9.0.4"
   },
   "devDependencies": {
-    "oxlint": "^0.16.0",
-    "typescript": "^5.9.2",
-    "vitest": "^3.0.0"
+    "oxlint": "^1.87.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.4"
   }
 }

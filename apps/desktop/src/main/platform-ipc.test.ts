@@ -232,4 +232,37 @@ describe('registerPlatformIpc', () => {
     });
     expect(JSON.stringify(wrapped.error).includes('SECRET')).toBe(false);
   });
+
+  // Electron 44's clipboard.writeText returns a promise; without the await the
+  // handler reported success even when the write rejected.
+  it('reports a clipboard write failure instead of success', async () => {
+    const { ipcMain, handlers } = createMockIpc();
+    registerPlatformIpc({
+      ipcMain: ipcMain as never,
+      getTargetWindow: () => null,
+      dialog: {} as never,
+      clipboard: {
+        readText: () => '',
+        writeText: async () => {
+          throw new Error('denied');
+        },
+      } as never,
+      shell: { openExternal: vi.fn() } as never,
+      net: { fetch: vi.fn() } as never,
+      readFileUtf8: vi.fn(),
+      writeFileUtf8: vi.fn(),
+      getCapabilities: () => detectElectronCapabilities(),
+      protocolTakePendingInstallUrl: () => null,
+      secureStorage: {
+        get: async () => ok(undefined),
+        set: async () => ok(undefined),
+        delete: async () => ok(undefined),
+      },
+      getLocalServiceInfo: () => ({ running: false, host: null, port: null }),
+      buildDiagnosticsSnapshot: () => ({}),
+    });
+    const fn = handlers.get(PLATFORM_IPC.CLIPBOARD_WRITE_TEXT)!;
+    const r = (await fn(null, 'x')) as ReturnType<typeof toIpcAppResult>;
+    expect(r.ok).toBe(false);
+  });
 });

@@ -109,7 +109,7 @@ function createWindow(url: string) {
     mainWindow?.show();
   });
 
-  mainWindow.loadURL(url);
+  void mainWindow.loadURL(url);
 
   if (process.env.VITE_DEV_SERVER_URL) {
     mainWindow.webContents.openDevTools();
@@ -137,7 +137,7 @@ async function bootstrap() {
   createWindow(url);
 }
 
-app.whenReady().then(async () => {
+void app.whenReady().then(async () => {
   try {
     try {
       app.setAsDefaultProtocolClient('mangaverse');

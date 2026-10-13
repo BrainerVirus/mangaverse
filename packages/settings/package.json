@@ -26,12 +26,12 @@
     "@app/db": "workspace:*",
     "@app/design-system": "workspace:*",
     "@app/shared": "workspace:*",
-    "lucide-react": "^0.468.0",
-    "react": "^19.1.0"
+    "lucide-react": "^1.56.0",
+    "react": "^19.3.0"
   },
   "devDependencies": {
-    "oxlint": "^0.16.0",
-    "typescript": "^5.9.2",
-    "vitest": "^3.0.0"
+    "oxlint": "^1.87.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.4"
   }
 }

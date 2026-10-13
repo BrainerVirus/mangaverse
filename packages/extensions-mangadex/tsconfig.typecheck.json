@@ -7,5 +7,10 @@
     "dist",
     "node_modules",
     "src/testing"
-  ]
+  ],
+  "compilerOptions": {
+    "types": [
+      "node"
+    ]
+  }
 }

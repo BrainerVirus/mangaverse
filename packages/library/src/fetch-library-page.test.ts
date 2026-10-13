@@ -31,7 +31,7 @@ describe('fetchLibraryPage', () => {
 
     const page = await fetchLibraryPage(db, DEFAULT_LIBRARY_VIEW_STATE);
     expect(page.items).toHaveLength(2);
-    expect(page.items.map((item) => item.manga.canonicalTitle).sort()).toEqual([
+    expect(page.items.map((item) => item.manga.canonicalTitle).sort((a, b) => a.localeCompare(b))).toEqual([
       'Alpha Series',
       'Beta Chronicles',
     ]);
