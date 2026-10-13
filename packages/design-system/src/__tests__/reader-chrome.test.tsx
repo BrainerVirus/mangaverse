@@ -144,9 +144,10 @@ describe('ReaderChrome', () => {
       />
     );
 
-    const slider = screen.getByLabelText('Page slider') as HTMLInputElement;
-    expect(slider.min).toBe('1');
-    expect(slider.max).toBe('20');
+    const slider = screen.getByRole('slider', { name: 'Page slider' });
+    expect(slider).toHaveAttribute('aria-valuemin', '1');
+    expect(slider).toHaveAttribute('aria-valuemax', '20');
+    expect(slider).toHaveAttribute('aria-valuenow', '5');
   });
 
   it('renders all reader mode buttons', () => {
@@ -195,7 +196,7 @@ describe('ReaderChrome', () => {
     expect(screen.getByLabelText('Reader controls')).toHaveAttribute('role', 'toolbar');
   });
 
-  it('renders progress bar', () => {
+  it('fills the rail proportionally to the current page', () => {
     render(
       <ReaderChrome
         visible={true}
@@ -204,7 +205,6 @@ describe('ReaderChrome', () => {
       />
     );
 
-    const progressBar = document.querySelector('[class*="bg-white"]');
-    expect(progressBar).toBeInTheDocument();
+    expect(screen.getByTestId('reader-rail-fill').style.transform).toBe('scaleX(0.4444444444444444)');
   });
 });

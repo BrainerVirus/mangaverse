@@ -1,11 +1,12 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, type ReactNode } from 'react';
 import { useGSAP } from '@gsap/react';
+import { gsap } from 'gsap';
 import { Maximize2, Settings, SkipBack, SkipForward } from 'lucide-react';
 import { cn } from '../lib/cn.js';
 import { chromeShow, chromeHide } from '@app/motion';
 import { useReducedMotion } from '@app/motion';
 import { Button } from './ui/button.js';
-import { Slider } from './ui/slider.js';
+import { ReaderProgressRail } from './reader-progress-rail.js';
 import { Badge } from './ui/badge.js';
 
 export type ReaderMode = 'single' | 'double' | 'scroll' | 'webtoon';
@@ -20,6 +21,10 @@ export interface ReaderChromeProps {
   onModeChange?: (mode: ReaderMode) => void;
   onOpenSettings?: () => void;
   onToggleFullscreen?: () => void;
+  /** Small page thumbnail for the rail's hover/drag preview. */
+  renderPagePreview?: (page: number) => ReactNode;
+  /** Ref for the settings button so sheets can restore focus to it on close. */
+  settingsButtonRef?: React.Ref<HTMLButtonElement>;
 }
 
 const readerModes: { value: ReaderMode; label: string }[] = [
@@ -38,10 +43,35 @@ export function ReaderChrome({
   onModeChange,
   onOpenSettings,
   onToggleFullscreen,
+  renderPagePreview,
+  settingsButtonRef,
 }: ReaderChromeProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const modeBarRef = useRef<HTMLDivElement>(null);
+  const modeHighlightRef = useRef<HTMLDivElement>(null);
+  const modeButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const reducedMotion = useReducedMotion();
+
+  // The active-mode pill morphs between options instead of blinking: one
+  // highlight element is tweened to the active button's box (transform + width).
+  useGSAP(
+    () => {
+      const highlight = modeHighlightRef.current;
+      const active = mode ? modeButtonRefs.current[mode] : null;
+      const bar = modeBarRef.current;
+      if (!highlight || !active || !bar) return;
+      const barRect = bar.getBoundingClientRect();
+      const rect = active.getBoundingClientRect();
+      const x = rect.left - barRect.left;
+      if (reducedMotion) {
+        gsap.set(highlight, { x, width: rect.width, autoAlpha: 1 });
+        return;
+      }
+      gsap.to(highlight, { x, width: rect.width, autoAlpha: 1, duration: 0.28, ease: 'power3.out' });
+    },
+    { scope: modeBarRef, dependencies: [mode, reducedMotion] },
+  );
 
   useGSAP(
     () => {
@@ -68,8 +98,6 @@ export function ReaderChrome({
     }
   }, [currentPage, totalPages, onPageChange]);
 
-  const progress = totalPages > 0 ? (currentPage / totalPages) * 100 : 0;
-
   return (
     <div
       ref={ref}
@@ -93,14 +121,23 @@ export function ReaderChrome({
 
         <div className="flex items-center gap-2">
           {mode && onModeChange && (
-            <div className="flex items-center gap-1 rounded-full bg-white/10 p-1">
+            <div ref={modeBarRef} className="relative flex items-center gap-1 rounded-full bg-white/10 p-1">
+              <div
+                ref={modeHighlightRef}
+                aria-hidden
+                className="pointer-events-none absolute top-1 bottom-1 left-0 rounded-full bg-white opacity-0"
+                style={{ width: 0 }}
+              />
               {readerModes.map((m) => (
                 <button
                   key={m.value}
+                  ref={(node) => {
+                    modeButtonRefs.current[m.value] = node;
+                  }}
                   onClick={() => onModeChange(m.value)}
                   className={cn(
-                    'rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                    mode === m.value ? 'bg-white text-black' : 'text-white/70 hover:text-white'
+                    'relative z-10 rounded-full px-3 py-1 text-xs font-medium transition-colors',
+                    mode === m.value ? 'text-black' : 'text-white/70 hover:text-white'
                   )}
                 >
                   {m.label}
@@ -114,6 +151,7 @@ export function ReaderChrome({
             className="text-white hover:bg-white/20"
             aria-label="Settings"
             onClick={onOpenSettings}
+            ref={settingsButtonRef}
           >
             <Settings className="h-5 w-5" />
           </Button>
@@ -143,19 +181,13 @@ export function ReaderChrome({
 
         <div className="flex flex-1 items-center gap-4 px-4">
           <span className="text-xs text-white/70">{currentPage}</span>
-          <Slider
-            value={String(currentPage)}
+          <ReaderProgressRail
+            value={currentPage}
             min={1}
             max={totalPages}
-            step={1}
-            onChange={(e) => {
-              const val = parseInt((e.target as HTMLInputElement).value, 10);
-              if (onPageChange && !isNaN(val)) {
-                onPageChange(val);
-              }
-            }}
-            className="flex-1 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-runnable-track]:bg-white/30"
-            aria-label="Page slider"
+            onChange={(next) => onPageChange?.(next)}
+            reducedMotion={reducedMotion}
+            {...(renderPagePreview !== undefined ? { renderPreview: renderPagePreview } : {})}
           />
           <span className="text-xs text-white/70">{totalPages}</span>
         </div>
@@ -170,13 +202,6 @@ export function ReaderChrome({
         >
           <SkipForward className="h-5 w-5" />
         </Button>
-      </div>
-
-      <div className="mx-4 mb-2 h-1 overflow-hidden rounded-full bg-white/20">
-        <div
-          className="h-full rounded-full bg-white transition-all duration-150"
-          style={{ width: `${progress}%` }}
-        />
       </div>
     </div>
   );
