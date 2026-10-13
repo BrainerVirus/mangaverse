@@ -15,7 +15,7 @@ Agents must read the relevant rewrite docs before implementation:
 
 ## Project Direction
 
-MangaVerse is being rewritten from an Expo-first app into a web-native, local-first manga, comic, and webtoon reader that can also ship as an Electron desktop app for Windows, macOS, and Linux.
+MangaVerse is a web-native, local-first manga, comic, and webtoon reader that also ships as an Electron desktop app for Windows, macOS, and Linux, replacing an Expo-first app.
 
 The legacy Expo tree was removed (Phase 10.5); `apps/` and `packages/` are the canonical codebase. Do not rescue unstable code solely for parity; port behavior only after package contracts and tests exist.
 
@@ -143,6 +143,7 @@ docs/
 - Add search aggregation tests.
 - Add accessibility tests for new UI flows.
 - Add reduced-motion checks for motion-heavy components.
+- The production E2E serves `packages/*/dist`: rebuild after editing package sources.
 
 Critical flows to test:
 
@@ -166,7 +167,7 @@ Critical flows to test:
 Web-first recovery is the active workstream: read `docs/recovery/spec.md` and
 `docs/recovery/plan.md` before any historical phase plan. Slices S0–S4 are
 merged (startup, durable storage, MangaDex provider, provider runtime, reader
-durability); S5–S7 cover test/doc cleanup, remote hygiene, publication.
+durability); S5–S6 done; S7 covers publication.
 Electron is retained but deferred until the web flow is proven.
 
 The historical phase table and per-phase test counts were removed by the S5
@@ -176,30 +177,10 @@ legacy Expo/React Native/Expo Router/Tauri trees were removed in Phase 10.5;
 
 ## Canonical Commands
 
-- Install deps: `pnpm install`
-- Start web dev: `pnpm dev:web`
-- Start desktop dev: `pnpm dev:desktop`
-- Start default dev target: `pnpm dev` (web only)
-- Lint: `pnpm lint`
-- Lint fix: `pnpm lint:fix`
-- Format: `pnpm format`
-- Format check: `pnpm format:check`
-- Typecheck: `pnpm typecheck`
-- Tests: `pnpm test`
-- Build all: `pnpm build`
-- Build web: `pnpm --filter @app/web build`
-- Build desktop: `pnpm --filter @app/desktop build`
-- Clean: `pnpm clean`
+- Install: `pnpm install`
+- Dev: `pnpm dev` (web), `pnpm dev:web`, `pnpm dev:desktop`
+- Checks: `pnpm lint` / `lint:fix`, `pnpm format` / `format:check`, `pnpm typecheck`, `pnpm test`
+- Builds: `pnpm build`, `pnpm --filter @app/web build`, `pnpm --filter @app/desktop build`; clean with `pnpm clean`
 
 These commands may change as the monorepo rewrite is implemented. Update this file and `docs/PLAN.md` when the canonical commands change.
 
-<!-- BEGIN:turborepo-agent-rules -->
-
-# This is NOT the Turborepo you know
-
-Turborepo configuration, task behavior, and CLI commands can vary between installed versions and may differ from your training data. Resolve the `turbo` package from this file's directory or relevant workspace; in monorepos, it may not be visible from the repository root. For example, run `node -p "require.resolve('turbo/package.json')"` from a workspace that depends on `turbo`.
-
-Read `docs/README.md` inside that installed package first, then read the relevant pages from its `docs/` directory before changing Turborepo configuration or commands. Heed deprecation notices. These bundled docs match the installed package version and are available without network access.
-
-This block is written and re-added by `turbo` before repository-scoped commands when an AI agent is detected. In the Turborepo source repository, its template is defined in `crates/turborepo-cli/src/cli/agent_guidance.rs`. Removing the managed block while updates are enabled means a later qualifying invocation will add it again. Set `"agentGuidance": false` in the root `turbo.json` or `turbo.jsonc` to opt out; this does not remove an existing block. Keep the block committed with your work to avoid an uncommitted change on the next agent invocation.
-<!-- END:turborepo-agent-rules -->

@@ -12,6 +12,12 @@
 
 ## Web-First Recovery (2026-10-12)
 
+> **The phase sequence below is historical.** It records how the rewrite was
+> planned and built; the phases are complete or superseded, and the legacy Expo
+> and Tauri trees are gone. Current work follows
+> [recovery/spec.md](recovery/spec.md) and [recovery/plan.md](recovery/plan.md),
+> and the phase plans live in [archive/superpowers/](archive/superpowers/).
+
 Active handoff: [recovery specification](recovery/spec.md) and
 [slice-by-slice implementation plan](recovery/plan.md). Follow those before the
 historical phase sequence below.
@@ -40,7 +46,7 @@ required for these recovery slices.
 
 ## Planning Rules
 
-- Do not rescue failing Expo migration code unless a specific behavior is needed as reference.
+- The legacy Expo/Tauri trees were removed in Phase 10.5; do not reintroduce them.
 - Do not write implementation code without checking `SPEC.md`, `ARCHITECTURE.md`, and `Design.md` for relevant constraints.
 - Before each phase, create a focused implementation plan with test cases and exact files.
 - Prefer small package contracts and tests before UI.
@@ -496,7 +502,7 @@ Current TanStack Start uses Vite plus Nitro for SSR output. Nitro is an app fram
 - Mark each item as reuse, redesign, or discard.
 - Reuse concepts and behavior, not unstable implementation.
 - Port only after package contracts and tests exist.
-- Keep old Expo code separate until replacement flows pass tests.
+- Replacement flows were validated before the legacy trees were deleted (Phase 10.5).
 - Delete old code only after equivalent new flow is accepted.
 
 ## Risk Areas

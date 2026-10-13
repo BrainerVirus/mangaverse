@@ -2,9 +2,9 @@
 
 ## Purpose
 
-MangaVerse is being rewritten from an Expo-first app into a web-native, local-first manga, comic, and webtoon reader that can also ship as a desktop app for Windows, macOS, and Linux. The rewrite should preserve the strongest product ideas from the current app while replacing unstable architecture with reusable packages, clear boundaries, safe extension loading, robust reader behavior, and a premium user experience.
+MangaVerse is a web-native, local-first manga, comic, and webtoon reader that also ships as a desktop app for Windows, macOS, and Linux. It replaced an Expo-first app: the rewrite kept the strongest product ideas while replacing unstable architecture with reusable packages, clear boundaries, safe extension loading, robust reader behavior, and a premium user experience.
 
-The current Expo codebase is feature inventory and migration reference. It is not the implementation target.
+The legacy Expo code was removed in the recovery (Phase 10.5); `apps/` and `packages/` are the implementation target. `docs/recovery/plan.md` tracks current state.
 
 ## Product Goals
 
