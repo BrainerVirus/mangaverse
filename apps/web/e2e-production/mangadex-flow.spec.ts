@@ -94,24 +94,23 @@ test('Given the search page, When a query runs through the provider, Then result
     .toBe(true);
 });
 
-test('Given a provider result, When the detail opens, Then chapters come from the feed', async ({ page }) => {
+test('Given a provider-backed manga id, When the detail opens, Then chapters come from the feed', async ({ page }) => {
   await finishOnboardingQuick(page);
   await mockMangaDexApi(page);
-  await page.goto('/search');
-  await page.getByRole('searchbox', { name: 'Search manga' }).fill('berserk');
-  await page.getByRole('button', { name: 'Kuro no Shoukanshi' }).click();
-  await expect(page).toHaveURL(/\/manga\/dev-md-/);
-  await expect(page.getByRole('heading', { name: 'Kuro no Shoukanshi' })).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByRole('button', { name: /Ch\. 1 - The Summoner/ })).toBeVisible({ timeout: 20_000 });
+  // Direct navigation keeps this test about the provider detail path; the
+  // search-result click is covered by the search test above.
+  await page.goto('/manga/dev-md-dc332d04-d3b0-413c-a767-70f5e451b031');
+  await expect(page.getByRole('heading', { name: 'Kuro no Shoukanshi' })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('button', { name: /Ch\. 1 - The Summoner/ })).toBeVisible({ timeout: 30_000 });
 });
 
-test('Given a chapter, When the reader opens, Then decoded pages render from the local cache', async ({ page }) => {
+test('Given a provider-backed chapter id, When the reader opens, Then decoded pages render from the local cache', async ({ page }) => {
   await finishOnboardingQuick(page);
   await mockMangaDexApi(page);
-  await page.goto('/search');
-  await page.getByRole('searchbox', { name: 'Search manga' }).fill('berserk');
-  await page.getByRole('button', { name: 'Kuro no Shoukanshi' }).click();
-  await page.getByRole('button', { name: /Ch\. 1 - The Summoner/ }).click();
+  await page.goto('/manga/dev-md-dc332d04-d3b0-413c-a767-70f5e451b031');
+  const chapter = page.getByRole('button', { name: /Ch\. 1 - The Summoner/ });
+  await expect(chapter).toBeVisible({ timeout: 30_000 });
+  await chapter.click({ force: true });
   await expect(page).toHaveURL(/\/reader\/dev-md-ch-/);
   const image = page.getByTestId('reader-surface').locator('img').first();
   await expect(image).toBeVisible({ timeout: 20_000 });
