@@ -1,160 +1,127 @@
 import * as React from 'react';
+import * as SheetPrimitive from '@radix-ui/react-dialog';
+import { X } from 'lucide-react';
 import { cn } from '../../lib/cn.js';
 
-interface SheetProps extends React.HTMLAttributes<HTMLDivElement> {
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
-  children?: React.ReactNode;
+/**
+ * shadcn-style sheet built on Radix Dialog: focus trap, Escape and focus return
+ * come from the primitive, and open/close are animated (slide from the side with
+ * a fading overlay) through tw-animate-css classes.
+ */
+const Sheet = SheetPrimitive.Root;
+
+const SheetTrigger = SheetPrimitive.Trigger;
+
+const SheetClose = SheetPrimitive.Close;
+
+const SheetPortal = SheetPrimitive.Portal;
+
+const SheetOverlay = React.forwardRef<
+  React.ComponentRef<typeof SheetPrimitive.Overlay>,
+  React.ComponentPropsWithoutRef<typeof SheetPrimitive.Overlay>
+>(({ className, ...props }, ref) => (
+  <SheetPrimitive.Overlay
+    ref={ref}
+    className={cn(
+      'fixed inset-0 z-50 bg-black/60 backdrop-blur-sm',
+      'data-[state=open]:animate-in data-[state=open]:fade-in-0',
+      'data-[state=closed]:animate-out data-[state=closed]:fade-out-0',
+      className,
+    )}
+    {...props}
+  />
+));
+SheetOverlay.displayName = 'SheetOverlay';
+
+const sideClasses = {
+  top: 'inset-x-0 top-0 h-auto rounded-b-2xl border-b data-[state=open]:slide-in-from-top data-[state=closed]:slide-out-to-top',
+  bottom:
+    'inset-x-0 bottom-0 h-auto rounded-t-2xl border-t data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom',
+  left: 'inset-y-0 left-0 h-full w-3/4 max-w-sm border-r data-[state=open]:slide-in-from-left data-[state=closed]:slide-out-to-left',
+  right:
+    'inset-y-0 right-0 h-full w-3/4 max-w-sm border-l data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right',
+} as const;
+
+interface SheetContentProps
+  extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content> {
+  side?: keyof typeof sideClasses;
 }
 
-const Sheet = React.forwardRef<HTMLDivElement, SheetProps>(
-  ({ className, open, onOpenChange, children, ...props }, ref) => {
-    const innerRef = React.useRef<HTMLDivElement | null>(null);
-
-    const setRefs = React.useCallback(
-      (node: HTMLDivElement | null) => {
-        innerRef.current = node;
-        if (typeof ref === 'function') {
-          ref(node);
-        } else if (ref !== null && ref !== undefined) {
-          ref.current = node;
-        }
-      },
-      [ref],
-    );
-
-    const onOpenChangeRef = React.useRef(onOpenChange);
-    onOpenChangeRef.current = onOpenChange;
-
-    // Focus management per the reader/settings accessibility rules: focus moves
-    // into the sheet on open, Tab wraps inside it, Escape closes it from
-    // anywhere, and focus returns to the trigger on close. The callback is read
-    // through a ref so this effect's cleanup (which restores focus) only runs
-    // when `open` changes — an inline callback identity would otherwise restore
-    // focus on every parent render and fight the user's interaction.
-    React.useEffect(() => {
-      if (!open) return;
-
-      const previouslyFocused =
-        document.activeElement instanceof HTMLElement ? document.activeElement : null;
-      const node = innerRef.current;
-
-      const focusables = () => {
-        if (!node) return [];
-        return Array.from(
-          node.querySelectorAll<HTMLElement>(
-            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-          ),
-        ).filter((element) => !element.hasAttribute('disabled'));
-      };
-
-      const focusTimer = window.setTimeout(() => {
-        focusables()[0]?.focus();
-      }, 0);
-
-      const handleKeyDown = (event: KeyboardEvent) => {
-        if (event.key === 'Escape') {
-          // Consume the Escape the sheet handles: the reader layout also listens
-          // for Escape (chrome toggle), and a sheet-close must not hide the chrome.
-          event.preventDefault();
-          event.stopPropagation();
-          onOpenChangeRef.current?.(false);
-          return;
-        }
-        if (event.key !== 'Tab') return;
-
-        const elements = focusables();
-        const first = elements[0];
-        const last = elements[elements.length - 1];
-        if (first === undefined || last === undefined) return;
-        const active = document.activeElement;
-
-        if (event.shiftKey && active === first) {
-          event.preventDefault();
-          last.focus();
-        } else if (!event.shiftKey && active === last) {
-          event.preventDefault();
-          first.focus();
-        }
-      };
-
-      window.addEventListener('keydown', handleKeyDown, { capture: true });
-      return () => {
-        window.clearTimeout(focusTimer);
-        window.removeEventListener('keydown', handleKeyDown, { capture: true });
-        previouslyFocused?.focus();
-      };
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- ref-stabilized callback
-    }, [open]);
-
-    if (!open) return null;
-    return (
-      <div
-        ref={setRefs}
-        className={cn('fixed inset-0 z-50', className)}
-        onClick={() => onOpenChange?.(false)}
-        onKeyDown={(e) => e.key === 'Escape' && onOpenChange?.(false)}
-        {...props}
+const SheetContent = React.forwardRef<
+  React.ComponentRef<typeof SheetPrimitive.Content>,
+  SheetContentProps
+>(({ className, children, side = 'right', ...props }, ref) => (
+  <SheetPortal>
+    <SheetOverlay />
+    <SheetPrimitive.Content
+      ref={ref}
+      className={cn(
+        'fixed z-50 flex flex-col gap-4 bg-popover p-6 shadow-lg',
+        'data-[state=open]:animate-in data-[state=closed]:animate-out',
+        'data-[state=open]:duration-300 data-[state=closed]:duration-200',
+        sideClasses[side],
+        className,
+      )}
+      {...props}
+      // After the spread: the reader layout also listens for Escape (chrome
+      // toggle), so the sheet's Escape must stop propagating to keep the chrome
+      // visible, while still running any caller-provided handler.
+      onEscapeKeyDown={(event) => {
+        event.stopPropagation();
+        props.onEscapeKeyDown?.(event);
+      }}
+    >
+      {children}
+      <SheetPrimitive.Close
+        className="absolute top-4 right-4 rounded-sm text-muted-foreground opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none"
+        aria-label="Close"
       >
-        {children}
-      </div>
-    );
-  }
-);
-Sheet.displayName = 'Sheet';
-
-interface SheetContentProps extends React.HTMLAttributes<HTMLDivElement> {
-  side?: 'top' | 'bottom' | 'left' | 'right';
-}
-
-const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
-  ({ className, side = 'right', children, ...props }, ref) => {
-    const sideClasses = {
-      top: 'inset-x-0 top-0 rounded-b-2xl',
-      bottom: 'inset-x-0 bottom-0 rounded-t-2xl',
-      left: 'inset-y-0 left-0 h-full w-3/4 max-w-sm border-r',
-      right: 'inset-y-0 right-0 h-full w-3/4 max-w-sm border-l',
-    };
-    return (
-      <div
-        ref={ref}
-        className={cn(
-          'fixed bg-popover p-6 shadow-lg',
-          sideClasses[side],
-          className
-        )}
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
-        {...props}
-      >
-        {children}
-      </div>
-    );
-  }
-);
+        <X className="h-4 w-4" />
+      </SheetPrimitive.Close>
+    </SheetPrimitive.Content>
+  </SheetPortal>
+));
 SheetContent.displayName = 'SheetContent';
 
 const SheetHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
     <div ref={ref} className={cn('flex flex-col space-y-1.5', className)} {...props} />
-  )
+  ),
 );
 SheetHeader.displayName = 'SheetHeader';
 
-const SheetTitle = React.forwardRef<HTMLHeadingElement, React.HTMLAttributes<HTMLHeadingElement>>(
-  ({ className, children, ...props }, ref) => (
-    <h3 ref={ref} className={cn('text-lg font-semibold leading-none tracking-tight', className)} {...props}>
-      {children}
-    </h3>
-  )
-);
+const SheetTitle = React.forwardRef<
+  React.ComponentRef<typeof SheetPrimitive.Title>,
+  React.ComponentPropsWithoutRef<typeof SheetPrimitive.Title>
+>(({ className, ...props }, ref) => (
+  <SheetPrimitive.Title
+    ref={ref}
+    className={cn('text-lg font-semibold leading-none tracking-tight', className)}
+    {...props}
+  />
+));
 SheetTitle.displayName = 'SheetTitle';
 
-const SheetDescription = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLParagraphElement>>(
-  ({ className, ...props }, ref) => (
-    <p ref={ref} className={cn('text-sm text-muted-foreground', className)} {...props} />
-  )
-);
+const SheetDescription = React.forwardRef<
+  React.ComponentRef<typeof SheetPrimitive.Description>,
+  React.ComponentPropsWithoutRef<typeof SheetPrimitive.Description>
+>(({ className, ...props }, ref) => (
+  <SheetPrimitive.Description
+    ref={ref}
+    className={cn('text-sm text-muted-foreground', className)}
+    {...props}
+  />
+));
 SheetDescription.displayName = 'SheetDescription';
 
-export { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription };
+export {
+  Sheet,
+  SheetTrigger,
+  SheetClose,
+  SheetPortal,
+  SheetOverlay,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+};

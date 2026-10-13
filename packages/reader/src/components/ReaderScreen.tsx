@@ -118,6 +118,7 @@ export function ReaderScreen({
 }: ReaderScreenProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const scrollHandleRef = useRef<ReaderScrollViewHandle | null>(null);
+  const settingsButtonRef = useRef<HTMLButtonElement | null>(null);
   const activeIndexRef = useRef(0);
   const reducedMotion = useReducedMotion();
   const cacheContext = useCoverCacheContext();
@@ -462,15 +463,41 @@ export function ReaderScreen({
             ? scrollHandleRef.current?.scrollToPage(page - 1)
             : navigate({ type: 'goToPage', pageIndex: page - 1 })
         }
+        renderPagePreview={(page) => {
+          const target = data.chapter.pages[page - 1];
+          if (target === undefined || cacheContext === null) {
+            return <div className="h-24 w-16 animate-pulse bg-white/10" aria-hidden />;
+          }
+          return (
+            <CachedPageImage
+              providerId={data.providerId}
+              mangaId={data.mangaId}
+              chapterId={data.chapterId}
+              pageIndex={target.index}
+              remoteUrl={target.image.url}
+              className="h-24 w-auto select-none"
+              retention="read"
+            />
+          );
+        }}
         mode={chromeMode}
         onModeChange={handleModeChange}
         onOpenSettings={() => setSettingsOpen(true)}
+        settingsButtonRef={settingsButtonRef}
         onToggleFullscreen={handleToggleFullscreen}
       />
 
       {settingsOpen && settings ? (
         <Sheet open onOpenChange={(open) => { if (!open) setSettingsOpen(false); }}>
-          <SheetContent side="right" role="dialog" aria-label="Reader settings">
+          <SheetContent
+            side="right"
+            role="dialog"
+            aria-label="Reader settings"
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              settingsButtonRef.current?.focus();
+            }}
+          >
             <SheetHeader>
               <SheetTitle>Reader settings</SheetTitle>
             </SheetHeader>

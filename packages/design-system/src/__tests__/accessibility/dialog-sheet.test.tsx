@@ -112,7 +112,7 @@ describe('Sheet Focus Trap', () => {
   });
 
   it('sheet content is positioned on the right', () => {
-    const { container } = render(
+    render(
       <Sheet open>
         <SheetContent>
           <SheetTitle>Position Test</SheetTitle>
@@ -120,7 +120,7 @@ describe('Sheet Focus Trap', () => {
       </Sheet>
     );
 
-    const content = container.querySelector('[class*="right-0"]');
+    const content = document.body.querySelector('[class*="right-0"]');
     expect(content).toBeInTheDocument();
   });
 
@@ -137,7 +137,7 @@ describe('Sheet Focus Trap', () => {
   });
 
   it('sheet content has full height', () => {
-    const { container } = render(
+    render(
       <Sheet open>
         <SheetContent>
           <SheetTitle>Full Height Test</SheetTitle>
@@ -145,12 +145,12 @@ describe('Sheet Focus Trap', () => {
       </Sheet>
     );
 
-    const content = container.querySelector('[class*="h-full"]');
+    const content = document.body.querySelector('[class*="h-full"]');
     expect(content).toBeInTheDocument();
   });
 
   it('sheet has shadow styling', () => {
-    const { container } = render(
+    render(
       <Sheet open>
         <SheetContent>
           <SheetTitle>Shadow Test</SheetTitle>
@@ -158,7 +158,7 @@ describe('Sheet Focus Trap', () => {
       </Sheet>
     );
 
-    const content = container.querySelector('[class*="shadow"]');
+    const content = document.body.querySelector('[class*="shadow"]');
     expect(content).toBeInTheDocument();
   });
 });
