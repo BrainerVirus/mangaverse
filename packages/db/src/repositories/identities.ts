@@ -34,19 +34,19 @@ function newId(): string {
 }
 
 export async function getMangaIdentity(db: AppDrizzleDb, mangaId: MangaId): Promise<MangaIdentity | undefined> {
-  const row = await db.select().from(mangaIdentities).where(eq(mangaIdentities.id, mangaId)).get();
+  const row = db.select().from(mangaIdentities).where(eq(mangaIdentities.id, mangaId)).get();
   if (row === undefined) return undefined;
 
-  const mappingsRows = await db
+  const mappingsRows = db
     .select()
     .from(mangaProviderMappings)
     .where(eq(mangaProviderMappings.mangaId, mangaId))
     .all();
 
-  const titlesRows = await db.select().from(mangaTitles).where(eq(mangaTitles.mangaId, mangaId)).all();
-  const peopleRows = await db.select().from(mangaPeople).where(eq(mangaPeople.mangaId, mangaId)).all();
+  const titlesRows = db.select().from(mangaTitles).where(eq(mangaTitles.mangaId, mangaId)).all();
+  const peopleRows = db.select().from(mangaPeople).where(eq(mangaPeople.mangaId, mangaId)).all();
 
-  const tagMemberships = await db
+  const tagMemberships = db
     .select({ tagId: mangaTagMemberships.tagId })
     .from(mangaTagMemberships)
     .where(eq(mangaTagMemberships.mangaId, mangaId))
@@ -55,7 +55,7 @@ export async function getMangaIdentity(db: AppDrizzleDb, mangaId: MangaId): Prom
   let tags: MangaTag[] = [];
   if (tagMemberships.length > 0) {
     const tagIds = tagMemberships.map((m) => m.tagId);
-    const tagRows = await db.select().from(mangaTags).where(inArray(mangaTags.id, tagIds)).all();
+    const tagRows = db.select().from(mangaTags).where(inArray(mangaTags.id, tagIds)).all();
     tags = tagRows.map((t) => ({
       id: t.id,
       label: t.label,
@@ -65,7 +65,7 @@ export async function getMangaIdentity(db: AppDrizzleDb, mangaId: MangaId): Prom
     }));
   }
 
-  const trackingRows = await db.select().from(trackingLinks).where(eq(trackingLinks.mangaId, mangaId)).all();
+  const trackingRows = db.select().from(trackingLinks).where(eq(trackingLinks.mangaId, mangaId)).all();
 
   const providerMappings: MangaProviderMapping[] = mappingsRows.map((m) => ({
     id: toProviderMappingId(m.id),
@@ -175,7 +175,7 @@ export async function createMangaIdentityWithInitialMapping(
   const mappingId = toProviderMappingId(newId());
   const now = new Date().toISOString();
 
-  const existing = await db
+  const existing = db
     .select({ id: mangaProviderMappings.id })
     .from(mangaProviderMappings)
     .where(
@@ -229,7 +229,7 @@ export async function addProviderMapping(
   db: AppDrizzleDb,
   input: AddProviderMappingInput,
 ): Promise<AppResult<ProviderMappingId>> {
-  const existing = await db
+  const existing = db
     .select({ id: mangaProviderMappings.id })
     .from(mangaProviderMappings)
     .where(
@@ -267,7 +267,7 @@ export async function setDefaultProviderMapping(
   mangaId: MangaId,
   mappingId: ProviderMappingId,
 ): Promise<AppResult<void>> {
-  const mapping = await db
+  const mapping = db
     .select({ id: mangaProviderMappings.id })
     .from(mangaProviderMappings)
     .where(and(eq(mangaProviderMappings.id, mappingId), eq(mangaProviderMappings.mangaId, mangaId)))
@@ -317,7 +317,7 @@ export async function clearIdentityMergeMetadata(db: AppDrizzleDb, mangaId: Mang
 }
 
 export async function listMangaIdentities(db: AppDrizzleDb): Promise<MangaIdentity[]> {
-  const rows = await db.select({ id: mangaIdentities.id }).from(mangaIdentities).all();
+  const rows = db.select({ id: mangaIdentities.id }).from(mangaIdentities).all();
   const loaded = await Promise.all(rows.map((row) => getMangaIdentity(db, toMangaId(row.id))));
   return loaded.filter((x): x is MangaIdentity => x !== undefined);
 }
@@ -325,7 +325,7 @@ export async function listMangaIdentities(db: AppDrizzleDb): Promise<MangaIdenti
 /** Insert or update a manga identity and its provider mappings (metadata fields only). */
 export async function upsertMangaIdentity(db: AppDrizzleDb, identity: MangaIdentity): Promise<void> {
   const now = new Date().toISOString();
-  const existing = await db
+  const existing = db
     .select({ id: mangaIdentities.id })
     .from(mangaIdentities)
     .where(eq(mangaIdentities.id, identity.id))
@@ -361,7 +361,7 @@ export async function upsertMangaIdentity(db: AppDrizzleDb, identity: MangaIdent
 
   await Promise.all(
     identity.providerMappings.map(async (mapping) => {
-      const mappingRow = await db
+      const mappingRow = db
         .select({ id: mangaProviderMappings.id })
         .from(mangaProviderMappings)
         .where(eq(mangaProviderMappings.id, mapping.id))

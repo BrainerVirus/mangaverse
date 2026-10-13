@@ -19,7 +19,7 @@ const GLOBAL_READER_ID = 'global' as const;
 const GLOBAL_THEME_ID = 'global' as const;
 
 export async function getReaderSettings(db: AppDrizzleDb): Promise<ReaderSettings> {
-  const row = await db.select().from(readerPreferences).where(eq(readerPreferences.id, GLOBAL_READER_ID)).get();
+  const row = db.select().from(readerPreferences).where(eq(readerPreferences.id, GLOBAL_READER_ID)).get();
   if (row === undefined) return getDefaultReaderSettings();
   const parsed = validateReaderSettings(row.settingsJson);
   if (!parsed.ok) return getDefaultReaderSettings();
@@ -42,7 +42,7 @@ export async function upsertReaderSettings(db: AppDrizzleDb, settings: ReaderSet
 }
 
 export async function getThemeSettings(db: AppDrizzleDb): Promise<ThemeSettings> {
-  const row = await db.select().from(themePreferences).where(eq(themePreferences.id, GLOBAL_THEME_ID)).get();
+  const row = db.select().from(themePreferences).where(eq(themePreferences.id, GLOBAL_THEME_ID)).get();
   if (row === undefined) return { presetId: 'default', dark: false };
   return { presetId: row.presetId, dark: row.dark };
 }
@@ -59,7 +59,7 @@ export async function upsertThemeSettings(db: AppDrizzleDb, settings: ThemeSetti
 }
 
 export async function getAppSettings(db: AppDrizzleDb): Promise<AppSettings> {
-  const row = await db
+  const row = db
     .select()
     .from(appSettings)
     .where(eq(appSettings.key, APP_SETTINGS_STORAGE_KEY))
@@ -86,7 +86,7 @@ export async function upsertAppSettings(db: AppDrizzleDb, settings: AppSettings)
 }
 
 export async function getAppSetting(db: AppDrizzleDb, key: string): Promise<unknown | undefined> {
-  const row = await db.select().from(appSettings).where(eq(appSettings.key, key)).get();
+  const row = db.select().from(appSettings).where(eq(appSettings.key, key)).get();
   return row?.valueJson;
 }
 
@@ -105,7 +105,7 @@ export async function getProviderSettingsRecord(
   db: AppDrizzleDb,
   providerId: string,
 ): Promise<{ readonly label?: string; readonly settings: Record<string, unknown> } | undefined> {
-  const row = await db.select().from(providerSettings).where(eq(providerSettings.providerId, providerId)).get();
+  const row = db.select().from(providerSettings).where(eq(providerSettings.providerId, providerId)).get();
   if (row === undefined) return undefined;
   return {
     ...(row.label !== null && row.label !== undefined && row.label !== '' ? { label: row.label } : {}),

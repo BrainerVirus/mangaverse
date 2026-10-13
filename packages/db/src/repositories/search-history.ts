@@ -34,7 +34,7 @@ export async function appendSearchHistory(
 }
 
 export async function listSearchHistory(db: AppDrizzleDb, limit: number): Promise<SearchHistoryEntry[]> {
-  const rows = await db.select().from(searchHistory).orderBy(desc(searchHistory.searchedAt)).limit(limit).all();
+  const rows = db.select().from(searchHistory).orderBy(desc(searchHistory.searchedAt)).limit(limit).all();
   return rows.map((r) => ({
     id: r.id,
     query: r.query,
@@ -70,7 +70,7 @@ export async function upsertSavedSearch(
 }
 
 export async function listSavedSearches(db: AppDrizzleDb): Promise<SavedSearchEntry[]> {
-  const rows = await db.select().from(savedSearches).all();
+  const rows = db.select().from(savedSearches).all();
   return rows.map((r) => ({
     id: r.id,
     name: r.name,
@@ -81,17 +81,17 @@ export async function listSavedSearches(db: AppDrizzleDb): Promise<SavedSearchEn
 }
 
 export async function countSearchHistory(db: AppDrizzleDb): Promise<number> {
-  const rows = await db.select({ id: searchHistory.id }).from(searchHistory).all();
+  const rows = db.select({ id: searchHistory.id }).from(searchHistory).all();
   return rows.length;
 }
 
 export async function countSavedSearches(db: AppDrizzleDb): Promise<number> {
-  const rows = await db.select({ id: savedSearches.id }).from(savedSearches).all();
+  const rows = db.select({ id: savedSearches.id }).from(savedSearches).all();
   return rows.length;
 }
 
 export async function clearSearchHistory(db: AppDrizzleDb): Promise<number> {
-  const rows = await db.select({ id: searchHistory.id }).from(searchHistory).all();
+  const rows = db.select({ id: searchHistory.id }).from(searchHistory).all();
   if (rows.length === 0) {
     return 0;
   }

@@ -61,7 +61,7 @@ export async function previewBackupRestore(db: AppDrizzleDb, input: unknown): Pr
     }
   }
 
-  const dbMappings = await db.select().from(mangaProviderMappings).all();
+  const dbMappings = db.select().from(mangaProviderMappings).all();
   const dbRemoteToMapping = new Map<string, typeof dbMappings[number]>();
   for (const row of dbMappings) {
     dbRemoteToMapping.set(remoteKey(row.providerId, row.providerMangaId), row);
@@ -113,7 +113,7 @@ export async function previewBackupRestore(db: AppDrizzleDb, input: unknown): Pr
     }
   }
 
-  const currentIdentityRows = await db.select({ id: mangaIdentities.id, canonicalTitle: mangaIdentities.canonicalTitle }).from(mangaIdentities).all();
+  const currentIdentityRows = db.select({ id: mangaIdentities.id, canonicalTitle: mangaIdentities.canonicalTitle }).from(mangaIdentities).all();
   const currentById = new Map(currentIdentityRows.map((r) => [r.id, r.canonicalTitle]));
 
   for (const identity of doc.mangaIdentities) {
@@ -128,7 +128,7 @@ export async function previewBackupRestore(db: AppDrizzleDb, input: unknown): Pr
     }
   }
 
-  const currentLibraryMangaIds = new Set((await db.select({ mangaId: libraryEntries.mangaId }).from(libraryEntries).all()).map((r) => r.mangaId));
+  const currentLibraryMangaIds = new Set((db.select({ mangaId: libraryEntries.mangaId }).from(libraryEntries).all()).map((r) => r.mangaId));
   const backupLibraryMangaIds = new Set(doc.library.map((e) => String(e.mangaId)));
   for (const mangaId of currentLibraryMangaIds) {
     if (!backupLibraryMangaIds.has(mangaId)) {

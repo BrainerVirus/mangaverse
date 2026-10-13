@@ -19,7 +19,7 @@ export async function exportBackupDocumentV1(
     getThemeSettings(db),
   ]);
 
-  const providerRows = await db.select().from(providerSettings).all();
+  const providerRows = db.select().from(providerSettings).all();
   const providerSnapshots = providerRows.map((r) => ({
     providerId: toProviderId(r.providerId),
     ...(r.label !== null && r.label !== undefined && r.label !== '' ? { label: r.label } : {}),

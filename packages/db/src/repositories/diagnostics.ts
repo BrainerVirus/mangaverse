@@ -18,19 +18,14 @@ export interface LocalDatabaseSummary {
 }
 
 export async function summarizeLocalDatabase(db: AppDrizzleDb): Promise<LocalDatabaseSummary> {
-  const [
-    libraryRows,
-    identityRows,
-    extensionRows,
-    categoryRows,
-    providerSettingsRows,
-  ] = await Promise.all([
-    db.select({ id: libraryEntries.id }).from(libraryEntries).all(),
-    db.select({ id: mangaIdentities.id }).from(mangaIdentities).all(),
-    db.select({ enabled: installedExtensions.enabled, health: installedExtensions.health }).from(installedExtensions).all(),
-    db.select({ id: categories.id }).from(categories).all(),
-    db.select({ providerId: providerSettings.providerId }).from(providerSettings).all(),
-  ]);
+  const libraryRows = db.select({ id: libraryEntries.id }).from(libraryEntries).all();
+  const identityRows = db.select({ id: mangaIdentities.id }).from(mangaIdentities).all();
+  const extensionRows = db
+    .select({ enabled: installedExtensions.enabled, health: installedExtensions.health })
+    .from(installedExtensions)
+    .all();
+  const categoryRows = db.select({ id: categories.id }).from(categories).all();
+  const providerSettingsRows = db.select({ providerId: providerSettings.providerId }).from(providerSettings).all();
 
   return {
     libraryEntryCount: libraryRows.length,

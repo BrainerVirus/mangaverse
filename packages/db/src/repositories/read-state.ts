@@ -24,7 +24,7 @@ export async function upsertChapterReadState(
   db: AppDrizzleDb,
   input: ChapterReadState,
 ): Promise<AppResult<void>> {
-  const chapter = await db
+  const chapter = db
     .select({ id: chapters.id, mangaId: chapters.mangaId })
     .from(chapters)
     .where(eq(chapters.id, input.chapterId))
@@ -69,7 +69,7 @@ export async function getChapterReadState(
   db: AppDrizzleDb,
   chapterId: ChapterId,
 ): Promise<ChapterReadState | undefined> {
-  const row = await db.select().from(chapterReadState).where(eq(chapterReadState.chapterId, chapterId)).get();
+  const row = db.select().from(chapterReadState).where(eq(chapterReadState.chapterId, chapterId)).get();
   if (row === undefined) return undefined;
 
   const progress: ReadingProgress = {
@@ -113,7 +113,7 @@ export async function listRecentReadingHistory(
   db: AppDrizzleDb,
   limit: number,
 ): Promise<{ readonly mangaId: MangaId; readonly chapterId: ChapterId; readonly readAt: string }[]> {
-  const rows = await db
+  const rows = db
     .select()
     .from(readingHistory)
     .orderBy(desc(readingHistory.readAt))

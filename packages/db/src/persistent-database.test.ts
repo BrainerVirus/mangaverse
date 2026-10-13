@@ -31,12 +31,12 @@ describe('persistent database', () => {
   it('Given a saved note, When the database is reopened, Then the note is still stored', async () => {
     const store = createMemoryPersistedBytesStore();
     const first = await openOn(store);
-    await first.db.run(sql`INSERT INTO notes (id, body) VALUES ('n1', 'first')`);
+    first.db.run(sql`INSERT INTO notes (id, body) VALUES ('n1', 'first')`);
     await first.flush();
     first.close();
 
     const second = await openOn(store);
-    const rows = await second.db.all<{ id: string; body: string }>(sql`SELECT id, body FROM notes`);
+    const rows = second.db.all<{ id: string; body: string }>(sql`SELECT id, body FROM notes`);
     expect(rows).toEqual([{ id: 'n1', body: 'first' }]);
     second.close();
   });
@@ -44,11 +44,11 @@ describe('persistent database', () => {
   it('Given unwritten changes, When the database is reopened without a flush, Then they are gone', async () => {
     const store = createMemoryPersistedBytesStore();
     const first = await openOn(store);
-    await first.db.run(sql`INSERT INTO notes (id, body) VALUES ('n1', 'first')`);
+    first.db.run(sql`INSERT INTO notes (id, body) VALUES ('n1', 'first')`);
     first.close();
 
     const second = await openOn(store);
-    const rows = await second.db.all(sql`SELECT id FROM notes`);
+    const rows = second.db.all(sql`SELECT id FROM notes`);
     expect(rows).toEqual([]);
     second.close();
   });
@@ -59,7 +59,7 @@ describe('persistent database', () => {
       version: 1,
     });
     const opened = await openOn(store);
-    const rows = await opened.db.all(sql`SELECT name FROM sqlite_master WHERE type = 'table'`);
+    const rows = opened.db.all(sql`SELECT name FROM sqlite_master WHERE type = 'table'`);
     expect(rows.length).toBeGreaterThan(0);
     expect(opened.quarantinedBytes).toBe(true);
     opened.close();
@@ -96,7 +96,7 @@ describe('persistent database', () => {
     // The oldest generation is closed now (sync or async throw both count).
     let closedHandleThrew = false;
     try {
-      await firstHandle.all(sql`SELECT 1`);
+      firstHandle.all(sql`SELECT 1`);
     } catch {
       closedHandleThrew = true;
     }
@@ -255,7 +255,7 @@ describe('persistent database', () => {
   it('Given another writer advanced the store, When this session flushes, Then it reloads instead of overwriting', async () => {
     const store = createMemoryPersistedBytesStore();
     const session = await openOn(store);
-    await session.db.run(sql`INSERT INTO notes (id, body) VALUES ('local', 'mine')`);
+    session.db.run(sql`INSERT INTO notes (id, body) VALUES ('local', 'mine')`);
 
     const SQL = await initSqlJs();
     const other = new SQL.Database();
@@ -269,7 +269,7 @@ describe('persistent database', () => {
 
     // A reload replaces handles; re-read `session.db` before querying.
     await session.syncFromStore();
-    const rows = await session.db.all<{ id: string }>(sql`SELECT id FROM notes ORDER BY id`);
+    const rows = session.db.all<{ id: string }>(sql`SELECT id FROM notes ORDER BY id`);
     expect(rows.map((row) => row.id)).toEqual(['remote']);
 
     // The session now converges with the store instead of fighting it.

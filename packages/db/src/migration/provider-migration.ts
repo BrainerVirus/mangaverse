@@ -86,7 +86,7 @@ export async function listMigratableLibraryEntries(
   db: AppDrizzleDb,
   sourceProviderId: string,
 ): Promise<MigratableLibraryEntry[]> {
-  const rows = await db.select().from(libraryEntries).all();
+  const rows = db.select().from(libraryEntries).all();
   const out: MigratableLibraryEntry[] = [];
 
   for (const row of rows) {
@@ -162,7 +162,7 @@ async function buildPreviewItem(
     });
   }
 
-  const existingTarget = await db
+  const existingTarget = db
     .select()
     .from(mangaProviderMappings)
     .where(
@@ -196,7 +196,7 @@ async function buildPreviewItem(
     sourceMapping === undefined
       ? 0
       : (
-          await db
+          db
             .select({ id: chapters.id })
             .from(chapters)
             .where(eq(chapters.providerMappingId, sourceMapping.id))
@@ -294,7 +294,7 @@ async function applySingleMigration(
   }
 
   let targetMappingId: ProviderMappingId;
-  const existingTarget = await db
+  const existingTarget = db
     .select()
     .from(mangaProviderMappings)
     .where(

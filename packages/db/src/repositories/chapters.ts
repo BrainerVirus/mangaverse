@@ -36,7 +36,7 @@ export async function upsertChapterWithPages(
     readonly pages: readonly ChapterPage[];
   },
 ): Promise<AppResult<ChapterId>> {
-  const mapping = await db
+  const mapping = db
     .select({ id: mangaProviderMappings.id, mangaId: mangaProviderMappings.mangaId })
     .from(mangaProviderMappings)
     .where(eq(mangaProviderMappings.id, input.providerMappingId))
@@ -51,7 +51,7 @@ export async function upsertChapterWithPages(
   const chapterId = input.chapterId ?? toChapterId(newId());
   const now = new Date().toISOString();
 
-  const existing = await db
+  const existing = db
     .select({ id: chapters.id })
     .from(chapters)
     .where(and(eq(chapters.providerMappingId, input.providerMappingId), eq(chapters.chapterIndex, input.index)))
@@ -111,10 +111,10 @@ export async function upsertChapterWithPages(
 }
 
 export async function getChapter(db: AppDrizzleDb, chapterId: ChapterId): Promise<Chapter | undefined> {
-  const row = await db.select().from(chapters).where(eq(chapters.id, chapterId)).get();
+  const row = db.select().from(chapters).where(eq(chapters.id, chapterId)).get();
   if (row === undefined) return undefined;
 
-  const pages = await db.select().from(chapterPages).where(eq(chapterPages.chapterId, chapterId)).all();
+  const pages = db.select().from(chapterPages).where(eq(chapterPages.chapterId, chapterId)).all();
   const sorted = [...pages].sort((a, b) => a.pageIndex - b.pageIndex);
 
   const chapterPagesOut: ChapterPage[] = sorted.map((p) => ({
@@ -158,7 +158,7 @@ export async function getChapter(db: AppDrizzleDb, chapterId: ChapterId): Promis
 }
 
 export async function listChaptersForManga(db: AppDrizzleDb, mangaId: MangaId): Promise<Chapter[]> {
-  const rows = await db.select().from(chapters).where(eq(chapters.mangaId, mangaId)).all();
+  const rows = db.select().from(chapters).where(eq(chapters.mangaId, mangaId)).all();
   const sorted = [...rows].sort((a, b) => a.chapterIndex - b.chapterIndex);
   const loaded = await Promise.all(sorted.map((row) => getChapter(db, toChapterId(row.id))));
   return loaded.filter((c): c is Chapter => c !== undefined);
