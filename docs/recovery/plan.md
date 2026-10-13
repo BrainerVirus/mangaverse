@@ -363,10 +363,17 @@ the June MangaDex spec, and only tests with triaged audit findings.
 - [ ] Run `workit knowledge lint` before/after each instruction commit; no new finding.
       Canonical commands for production build/start/E2E already exist in
       `apps/web/package.json` and the root scripts; keep them current.
-- [ ] Audit targeted suites and triage every finding by naming the production break.
-      Not started; the command-palette interaction test below is the first item.
-      Note for future runs: `workit check test` does not cover lint — CI runs
-      lint+typecheck+test+build, so run `npx oxlint apps packages` before pushing.
+- [x] Test audit triaged (`workit test-audit apps packages --min-severity medium`):
+      seven constants-only `PACKAGE_NAME`/token tests stay per policy (no
+      replacement fits yet — they are the SDK surface contract);
+      `CommandPalette.test.tsx`'s over-mocking (3 internal modules) is mitigated by
+      the real command-palette E2E added above, so it stays as the fast unit net;
+      the assertion-free `should export all public types` test in
+      `packages/reader/src/index.test.ts` was deleted — its type imports remain in
+      the file and stay compile-checked, and the neighbouring runtime-export test
+      still asserts the surface. Note for future runs: `workit check test` does
+      not cover lint — CI runs lint+typecheck+test+build, so run
+      `npx oxlint apps packages` before pushing.
       Remove only assertion-free or truly duplicate tests after checking coverage;
       replace bad oracles and prove replacements fail on planted bugs.
 - [x] Real command palette interaction coverage added:
