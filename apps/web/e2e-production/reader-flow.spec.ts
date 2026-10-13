@@ -1,8 +1,10 @@
+import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 
 import {
   MANGADEX_APP_MANGA_ID,
   finishOnboardingQuick,
+  fixturesDir,
   mockMangaDexApi,
   waitForPingQuiet,
 } from './helpers.js';
@@ -34,6 +36,36 @@ test('Given an open chapter, When navigating by keyboard and buttons, Then pages
   await expect(page.getByText('2 / 37')).toBeVisible();
   await page.getByRole('button', { name: 'Previous page' }).click();
   await expect(page.getByText('1 / 37')).toBeVisible();
+});
+
+test('Given the chapter pages cannot be fetched, When retrying after the network returns, Then the chapter loads', async ({ page }) => {
+  await finishOnboardingQuick(page);
+  await mockMangaDexApi(page);
+  // Registered after the shared mock so it wins for the at-home route only.
+  let failing = true;
+  await page.route('**/api.mangadex.org/at-home/**', async (route) => {
+    if (failing) {
+      await route.abort('failed');
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: readFileSync(fixturesDir + '/at-home.json', 'utf8'),
+    });
+  });
+
+  await page.goto(`/manga/${MANGADEX_APP_MANGA_ID}`);
+  const chapter = page.getByRole('button', { name: CHAPTER_BUTTON });
+  await expect(chapter).toBeVisible({ timeout: 30_000 });
+  await chapter.click({ force: true });
+  await expect(page.getByText('Could not load chapter')).toBeVisible({ timeout: 30_000 });
+
+  failing = false;
+  await page.getByRole('button', { name: 'Retry' }).click();
+  await expect(page.getByText('1 / 37')).toBeVisible({ timeout: 30_000 });
+  const image = page.getByTestId('reader-surface').locator('img').first();
+  await expect(image).toBeVisible({ timeout: 20_000 });
 });
 
 test('Given the reader advanced a page, When the page reloads, Then it resumes on the saved page', async ({ page }) => {
