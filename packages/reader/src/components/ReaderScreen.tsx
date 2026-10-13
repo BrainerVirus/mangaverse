@@ -17,6 +17,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@app/design-system';
+import { useReducedMotion } from '@app/motion';
 import type { ReaderSettings } from '@app/shared';
 import {
   CachedPageImage,
@@ -28,6 +29,7 @@ import { applyNavigationAction, resolveKeyboardAction, resolveNavigationAction }
 import { createProgressEvent, shouldPersistProgress } from '../progress.js';
 import type { ReaderPageData } from '../reader-page-data.js';
 import { createReaderState } from '../state.js';
+import { ReaderScrollView, type ReaderScrollViewHandle } from './ReaderScrollView.js';
 import { calculateTapZones } from '../tap-zones.js';
 import type {
   ReaderNavigationAction,
@@ -115,6 +117,9 @@ export function ReaderScreen({
   isOffline = false,
 }: ReaderScreenProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const scrollHandleRef = useRef<ReaderScrollViewHandle | null>(null);
+  const activeIndexRef = useRef(0);
+  const reducedMotion = useReducedMotion();
   const cacheContext = useCoverCacheContext();
   const { containerRef, viewport } = useReaderViewport();
   const [readerState, setReaderState] = useState<ReaderState | null>(null);
@@ -271,6 +276,15 @@ export function ReaderScreen({
       const action = resolveKeyboardAction(event, sessionInput.settings);
       if (action.type === 'none') return;
       event.preventDefault();
+      if (sessionInput.settings.readingMode === 'vertical') {
+        // In the continuous strip, next/prev move the scroll position.
+        if (action.type === 'nextPage') {
+          scrollHandleRef.current?.scrollToPage(activeIndexRef.current + 1);
+        } else if (action.type === 'prevPage') {
+          scrollHandleRef.current?.scrollToPage(Math.max(0, activeIndexRef.current - 1));
+        }
+        return;
+      }
       navigate(action);
     };
 
@@ -302,14 +316,28 @@ export function ReaderScreen({
   );
 
   const settings = data?.settings;
-  const chromeMode: 'single' | 'double' = settings?.pageLayout === 'double' ? 'double' : 'single';
+  const isScrollMode = readerState?.mode === 'scroll';
+  activeIndexRef.current = readerState?.activePageIndex ?? 0;
+  const chromeMode: 'single' | 'double' | 'scroll' = isScrollMode
+    ? 'scroll'
+    : settings?.pageLayout === 'double'
+      ? 'double'
+      : 'single';
 
   const handleModeChange = useCallback(
     (mode: 'single' | 'double' | 'scroll' | 'webtoon') => {
       if (!onChangeSettings) return;
-      onChangeSettings({ pageLayout: mode === 'double' ? 'double' : 'single' });
+      if (mode === 'scroll') {
+        onChangeSettings({ readingMode: 'vertical' });
+        return;
+      }
+      const pageLayout = mode === 'double' ? 'double' : 'single';
+      // Returning from the strip needs a page reading mode again.
+      onChangeSettings(
+        settings?.readingMode === 'vertical' ? { readingMode: 'ltr', pageLayout } : { pageLayout },
+      );
     },
-    [onChangeSettings],
+    [onChangeSettings, settings?.readingMode],
   );
 
   const handleToggleFullscreen = useCallback(() => {
@@ -373,6 +401,28 @@ export function ReaderScreen({
         onPointerUp={handlePointerUp}
         data-testid="reader-surface"
       >
+        {isScrollMode ? (
+          <ReaderScrollView
+            pages={data.chapter.pages}
+            gapPx={data.engineSettings.verticalGapPx}
+            activePageIndex={readerState.activePageIndex}
+            onActivePageChange={(index) =>
+              setReaderState((previous) =>
+                previous === null
+                  ? previous
+                  : { ...previous, activePageIndex: index, visiblePageIndexes: [index] },
+              )
+            }
+            providerId={data.providerId}
+            mangaId={data.mangaId}
+            chapterId={data.chapterId}
+            cacheReady={cacheContext !== null}
+            reducedMotion={reducedMotion}
+            onHandle={(handle) => {
+              scrollHandleRef.current = handle;
+            }}
+          />
+        ) : (
         <div className="flex h-full w-full items-center justify-center gap-2 px-2 pt-24 pb-12">
           {visiblePages.map((page) =>
             cacheContext !== null ? (
@@ -395,6 +445,7 @@ export function ReaderScreen({
             ),
           )}
         </div>
+        )}
 
         {data.engineSettings.tapZoneDebugOverlay && sessionInput ? (
           <TapZoneDebugOverlay input={sessionInput} zoom={readerState.zoom} />
@@ -406,7 +457,11 @@ export function ReaderScreen({
         chapterTitle={data.chapter.title}
         currentPage={currentPage}
         totalPages={data.chapter.pageCount}
-        onPageChange={(page) => navigate({ type: 'goToPage', pageIndex: page - 1 })}
+        onPageChange={(page) =>
+          isScrollMode
+            ? scrollHandleRef.current?.scrollToPage(page - 1)
+            : navigate({ type: 'goToPage', pageIndex: page - 1 })
+        }
         mode={chromeMode}
         onModeChange={handleModeChange}
         onOpenSettings={() => setSettingsOpen(true)}
@@ -427,6 +482,7 @@ export function ReaderScreen({
                     [
                       ['ltr', 'Left to right'],
                       ['rtl', 'Right to left'],
+                      ['vertical', 'Vertical scroll'],
                     ] as const
                   ).map(([value, label]) => (
                     <Button
@@ -455,7 +511,14 @@ export function ReaderScreen({
                       size="sm"
                       variant={settings.pageLayout === value ? 'default' : 'outline'}
                       aria-pressed={settings.pageLayout === value}
-                      onClick={() => onChangeSettings?.({ pageLayout: value })}
+                      onClick={() =>
+                        // Choosing a page layout leaves the vertical strip: the
+                        // two would otherwise contradict each other.
+                        onChangeSettings?.({
+                          pageLayout: value,
+                          ...(settings.readingMode === 'vertical' ? { readingMode: 'ltr' as const } : {}),
+                        })
+                      }
                     >
                       {label}
                     </Button>

@@ -22,11 +22,10 @@ export interface ReaderChromeProps {
   onToggleFullscreen?: () => void;
 }
 
-// Only modes the reader can actually render: 'scroll'/'webtoon' need the
-// vertical renderer, which does not exist yet, so they are not offered.
 const readerModes: { value: ReaderMode; label: string }[] = [
   { value: 'single', label: 'Single' },
   { value: 'double', label: 'Double' },
+  { value: 'scroll', label: 'Scroll' },
 ];
 
 export function ReaderChrome({
