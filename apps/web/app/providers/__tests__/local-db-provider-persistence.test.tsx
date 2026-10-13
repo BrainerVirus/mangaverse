@@ -20,8 +20,8 @@ vi.mock('../../lib/local-db.js', () => ({
   },
 }));
 
-vi.mock('../../lib/dev-seed-mangadex.js', () => ({
-  seedDevMangaDexProvider: vi.fn(async () => {}),
+vi.mock('../../lib/first-party-providers.js', () => ({
+  installFirstPartyProviders: vi.fn(async () => {}),
 }));
 
 describe('LocalDbProvider persistence wiring', () => {

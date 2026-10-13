@@ -13,7 +13,6 @@ import {
   setProviderEnabled,
   transitionExtensionInstall,
 } from '@app/extensions';
-import { getDevMangaDexManifestUrl } from '../lib/dev-seed-mangadex.js';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 
 type ExtensionsSearch = {
@@ -134,11 +133,9 @@ function ExtensionsRoute() {
     }
 
     autoInstallStarted.current = true;
-    const devManifestUrl = import.meta.env.DEV ? getDevMangaDexManifestUrl() : undefined;
-    openInstallDialog(devManifestUrl);
-    if (devManifestUrl !== undefined) {
-      fetchManifestMutation.mutate(devManifestUrl);
-    }
+    // MangaDex is bundled first-party now; community installs start from a
+    // user-provided manifest URL.
+    openInstallDialog();
   }, [search.install, dbStatus]);
 
   return (

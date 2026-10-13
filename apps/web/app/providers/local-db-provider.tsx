@@ -1,7 +1,7 @@
 import { createContext, use, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { AppDrizzleDb } from '@app/db';
-import { seedDevMangaDexProvider } from '../lib/dev-seed-mangadex.js';
+import { installFirstPartyProviders } from '../lib/first-party-providers.js';
 import {
   flushLocalDb,
   getLocalDb,
@@ -70,12 +70,10 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
 
     void getLocalDb()
       .then(async (handle) => {
-        if (import.meta.env.DEV) {
-          try {
-            await seedDevMangaDexProvider(handle);
-          } catch (seedError) {
-            console.warn('[LocalDbProvider] Dev MangaDex seed skipped:', seedError);
-          }
+        try {
+          await installFirstPartyProviders(handle);
+        } catch (seedError) {
+          console.warn('[LocalDbProvider] First-party provider install skipped:', seedError);
         }
 
         if (!cancelled) {
