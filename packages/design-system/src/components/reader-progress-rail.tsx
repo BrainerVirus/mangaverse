@@ -155,7 +155,9 @@ export function ReaderProgressRail({
         />
         <div
           className="absolute top-1/2 h-4 w-4 rounded-full bg-white shadow"
-          style={{ transform: `translate(-50%, -50%) translateX(${percent}%)`, left: 0, transition }}
+          // A percentage translate resolves against the thumb's own 16px box, so
+          // the position must come from `left`; translate only centers it.
+          style={{ left: `${percent}%`, transform: 'translate(-50%, -50%)', transition }}
           data-testid="reader-rail-thumb"
         />
       </div>

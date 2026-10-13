@@ -112,7 +112,7 @@ describe('Sheet Focus Trap', () => {
   });
 
   it('sheet content is positioned on the right', () => {
-    const { container } = render(
+    render(
       <Sheet open>
         <SheetContent>
           <SheetTitle>Position Test</SheetTitle>
@@ -137,7 +137,7 @@ describe('Sheet Focus Trap', () => {
   });
 
   it('sheet content has full height', () => {
-    const { container } = render(
+    render(
       <Sheet open>
         <SheetContent>
           <SheetTitle>Full Height Test</SheetTitle>
@@ -150,7 +150,7 @@ describe('Sheet Focus Trap', () => {
   });
 
   it('sheet has shadow styling', () => {
-    const { container } = render(
+    render(
       <Sheet open>
         <SheetContent>
           <SheetTitle>Shadow Test</SheetTitle>

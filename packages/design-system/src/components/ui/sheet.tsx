@@ -62,13 +62,14 @@ const SheetContent = React.forwardRef<
         sideClasses[side],
         className,
       )}
-      // The reader layout also listens for Escape (chrome toggle); the sheet's
-      // Escape must close the sheet without also hiding the chrome.
+      {...props}
+      // After the spread: the reader layout also listens for Escape (chrome
+      // toggle), so the sheet's Escape must stop propagating to keep the chrome
+      // visible, while still running any caller-provided handler.
       onEscapeKeyDown={(event) => {
         event.stopPropagation();
         props.onEscapeKeyDown?.(event);
       }}
-      {...props}
     >
       {children}
       <SheetPrimitive.Close

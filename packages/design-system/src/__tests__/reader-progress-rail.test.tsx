@@ -29,6 +29,13 @@ describe('ReaderProgressRail', () => {
     expect(screen.getByTestId('reader-rail-fill').style.transform).toBe('scaleX(0.4444444444444444)');
   });
 
+  it('Given a half-progress value, When rendered, Then the thumb sits at that fraction of the track', () => {
+    render(<ReaderProgressRail value={5} min={1} max={10} onChange={vi.fn()} />);
+    // (5 - 1) / (10 - 1) = 44.44% — a percentage translate would only move the
+    // thumb by its own 16px box, which this pins against.
+    expect(screen.getByTestId('reader-rail-thumb').style.left).toBe('44.44444444444444%');
+  });
+
   it('Given a pointer at a quarter of the track, When pressed, Then the value follows the position', () => {
     const onChange = vi.fn();
     render(<ReaderProgressRail value={1} min={1} max={11} onChange={onChange} />);
