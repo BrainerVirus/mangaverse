@@ -26,8 +26,8 @@
     "node-html-parser": "^6.1.13"
   },
   "devDependencies": {
-    "oxlint": "^0.16.0",
-    "typescript": "^5.9.2",
+    "oxlint": "^1.87.0",
+    "typescript": "^7.0.2",
     "vitest": "^3.0.0"
   }
 }

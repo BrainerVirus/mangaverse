@@ -35,8 +35,8 @@
     "@types/express": "^4.17.21",
     "@types/node": "^22.0.0",
     "esbuild": "^0.25.0",
-    "oxlint": "^0.16.0",
-    "typescript": "^5.9.2",
+    "oxlint": "^1.87.0",
+    "typescript": "^7.0.2",
     "vitest": "^3.0.0"
   }
 }

@@ -39,9 +39,9 @@
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "jsdom": "^26.0.0",
-    "oxlint": "^0.16.0",
+    "oxlint": "^1.87.0",
     "react-dom": "^19.1.0",
-    "typescript": "^5.9.2",
+    "typescript": "^7.0.2",
     "vitest": "^3.0.0"
   }
 }

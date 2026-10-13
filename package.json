@@ -22,9 +22,10 @@
   "devDependencies": {
     "@types/react": "~19.1.10",
     "@types/react-dom": "~19.1.0",
-    "oxlint": "^0.16.5",
-    "turbo": "^2.9.10",
-    "typescript": "~5.9.2",
+    "oxlint": "^1.87.0",
+    "oxlint-tsgolint": "^7.0.2004",
+    "turbo": "^2.11.7",
+    "typescript": "~7.0.2",
     "vitest": "^3.2.4"
   }
 }
