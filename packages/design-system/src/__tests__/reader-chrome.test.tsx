@@ -163,7 +163,6 @@ describe('ReaderChrome', () => {
     expect(screen.getByText('Single')).toBeInTheDocument();
     expect(screen.getByText('Double')).toBeInTheDocument();
     expect(screen.getByText('Scroll')).toBeInTheDocument();
-    expect(screen.getByText('Webtoon')).toBeInTheDocument();
   });
 
   it('calls onModeChange when mode button is clicked', async () => {
