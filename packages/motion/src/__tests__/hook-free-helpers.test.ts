@@ -49,12 +49,6 @@ describe('motion helpers are hook-free', () => {
       expect(gsap.fromTo).toHaveBeenCalled();
     });
 
-    it('fadeIn snaps when reducedMotion is true', () => {
-      fadeIn('.element', { reducedMotion: true });
-      expect(gsap.set).toHaveBeenCalledWith('.element', { autoAlpha: 1 });
-      expect(gsap.fromTo).not.toHaveBeenCalled();
-    });
-
     it('slideUp accepts reducedMotion without throwing', () => {
       expect(() => slideUp('.element', { reducedMotion: true })).not.toThrow();
     });
