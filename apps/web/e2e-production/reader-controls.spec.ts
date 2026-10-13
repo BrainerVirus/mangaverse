@@ -1,9 +1,9 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { MANGADEX_APP_MANGA_ID, finishOnboardingQuick, mockMangaDexApi } from './helpers.js';
 
 test.describe.configure({ timeout: 90_000 });
 
-async function openReader(page: import('@playwright/test').Page) {
+async function openReader(page: Page) {
   await finishOnboardingQuick(page);
   await mockMangaDexApi(page);
   await page.goto(`/manga/${MANGADEX_APP_MANGA_ID}`);
@@ -25,21 +25,33 @@ test('Given an open chapter, When tapping the page edges, Then the page advances
   await expect(page.getByText('1 / 37')).toBeVisible();
 });
 
-test('Given an open chapter, When opening reader settings, Then reading controls change the layout', async ({ page }) => {
+test('Given an open chapter, When changing settings, Then the layout changes and the page does not', async ({ page }) => {
   await openReader(page);
+  // Page 1 is the cover (treatFirstPageAsCover), so it renders alone in double
+  // layout too; advance to page 2 where a real spread exists.
+  await page.getByRole('button', { name: 'Next page' }).click();
+  await expect(page.getByText('2 / 37')).toBeVisible();
 
   await page.getByRole('button', { name: 'Settings' }).click();
   const dialog = page.getByRole('dialog', { name: 'Reader settings' });
   await expect(dialog).toBeVisible();
+  // Focus moves into the sheet on open.
+  await expect(dialog.getByRole('button', { name: 'Left to right' })).toBeFocused();
 
+  const images = page.getByTestId('reader-surface').locator('img');
   await dialog.getByRole('button', { name: 'Double page' }).click();
-  await expect(page.getByTestId('reader-surface').locator('img')).toHaveCount(2, { timeout: 20_000 });
+  await expect(images).toHaveCount(2, { timeout: 20_000 });
+  await expect(page.getByText('2 / 37')).toBeVisible();
 
   await dialog.getByRole('button', { name: 'Single page' }).click();
-  await expect(page.getByTestId('reader-surface').locator('img')).toHaveCount(1, { timeout: 20_000 });
+  await expect(images).toHaveCount(1, { timeout: 20_000 });
+  // Using the settings controls must never leak into the tap zones and page.
+  await expect(page.getByText('2 / 37')).toBeVisible();
 
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
+  // Focus returns to the trigger.
+  await expect(page.getByRole('button', { name: 'Settings' })).toBeFocused();
 });
 
 test('Given an open chapter, When clicking Maximize, Then the document goes fullscreen', async ({ page }) => {
