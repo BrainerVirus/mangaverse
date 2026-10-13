@@ -52,6 +52,7 @@ function buildLeftRightZones(
   const top = insets.top;
   const bottom = height - insets.bottom;
   const availableHeight = bottom - top;
+  const centerWidth = width - insets.left - insets.right - leftWidth - rightWidth;
 
   return [
     {
@@ -61,6 +62,14 @@ function buildLeftRightZones(
       width: Math.max(0, leftWidth),
       height: availableHeight,
       action: leftAction,
+    },
+    {
+      id: 'center',
+      x: insets.left + Math.max(0, leftWidth),
+      y: top,
+      width: Math.max(0, centerWidth),
+      height: availableHeight,
+      action: { type: 'toggleChrome' },
     },
     {
       id: 'right',

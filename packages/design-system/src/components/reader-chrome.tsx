@@ -18,13 +18,15 @@ export interface ReaderChromeProps {
   onPageChange?: (page: number) => void;
   mode?: ReaderMode;
   onModeChange?: (mode: ReaderMode) => void;
+  onOpenSettings?: () => void;
+  onToggleFullscreen?: () => void;
 }
 
+// Only modes the reader can actually render: 'scroll'/'webtoon' need the
+// vertical renderer, which does not exist yet, so they are not offered.
 const readerModes: { value: ReaderMode; label: string }[] = [
   { value: 'single', label: 'Single' },
   { value: 'double', label: 'Double' },
-  { value: 'scroll', label: 'Scroll' },
-  { value: 'webtoon', label: 'Webtoon' },
 ];
 
 export function ReaderChrome({
@@ -35,6 +37,8 @@ export function ReaderChrome({
   onPageChange,
   mode = 'single',
   onModeChange,
+  onOpenSettings,
+  onToggleFullscreen,
 }: ReaderChromeProps) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -105,10 +109,22 @@ export function ReaderChrome({
               ))}
             </div>
           )}
-          <Button size="icon" variant="ghost" className="text-white hover:bg-white/20" aria-label="Settings">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="text-white hover:bg-white/20"
+            aria-label="Settings"
+            onClick={onOpenSettings}
+          >
             <Settings className="h-5 w-5" />
           </Button>
-          <Button size="icon" variant="ghost" className="text-white hover:bg-white/20" aria-label="Maximize">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="text-white hover:bg-white/20"
+            aria-label="Maximize"
+            onClick={onToggleFullscreen}
+          >
             <Maximize2 className="h-5 w-5" />
           </Button>
         </div>

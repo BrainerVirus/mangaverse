@@ -7,9 +7,14 @@ import { routeEnter, useReducedMotion, type RouteTransitionVariant } from '@app/
 interface AnimatedRouteOutletProps {
   children: ReactNode;
   variant?: RouteTransitionVariant;
+  className?: string;
 }
 
-export function AnimatedRouteOutlet({ children, variant = 'default' }: AnimatedRouteOutletProps) {
+export function AnimatedRouteOutlet({
+  children,
+  variant = 'default',
+  className = 'min-h-full',
+}: AnimatedRouteOutletProps) {
   const location = useLocation();
   const ref = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
@@ -23,7 +28,7 @@ export function AnimatedRouteOutlet({ children, variant = 'default' }: AnimatedR
   );
 
   return (
-    <div ref={ref} className="min-h-full">
+    <div ref={ref} className={className}>
       {children}
     </div>
   );

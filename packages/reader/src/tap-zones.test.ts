@@ -51,9 +51,10 @@ describe('calculateTapZones', () => {
     const input = makeInput();
     const zones = calculateTapZones(input, { top: 0, right: 0, bottom: 0, left: 0 });
 
-    expect(zones).toHaveLength(2);
+    expect(zones).toHaveLength(3);
     expect(zones.find(z => z.id === 'left')).toBeDefined();
     expect(zones.find(z => z.id === 'right')).toBeDefined();
+    expect(zones.find(z => z.id === 'center')?.action.type).toBe('toggleChrome');
   });
 
   it('should return 9 zones for grid layout', () => {
@@ -170,7 +171,7 @@ describe('createTapZoneDebugModel', () => {
     const zones = calculateTapZones(input, { top: 0, right: 0, bottom: 0, left: 0 });
     const model = createTapZoneDebugModel(input, zones);
 
-    expect(model.regions).toHaveLength(2);
+    expect(model.regions).toHaveLength(3);
     expect(model.viewport).toBeDefined();
     expect(model.overlayInsets).toBeDefined();
     expect(model.readingMode).toBe('ltr');
