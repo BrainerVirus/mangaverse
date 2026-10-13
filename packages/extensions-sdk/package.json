@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@app/shared": "workspace:*",
-    "node-html-parser": "^6.1.13"
+    "node-html-parser": "^9.0.4"
   },
   "devDependencies": {
     "oxlint": "^1.87.0",

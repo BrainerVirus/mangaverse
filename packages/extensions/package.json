@@ -26,7 +26,7 @@
     "@app/design-system": "workspace:*",
     "@app/extensions-core": "workspace:*",
     "@app/shared": "workspace:*",
-    "lucide-react": "^0.468.0",
+    "lucide-react": "^1.56.0",
     "react": "^19.3.0"
   },
   "devDependencies": {

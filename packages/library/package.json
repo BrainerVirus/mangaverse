@@ -28,7 +28,7 @@
     "@app/motion": "workspace:*",
     "@app/shared": "workspace:*",
     "@tanstack/react-virtual": "^3.14.17",
-    "lucide-react": "^0.468.0",
+    "lucide-react": "^1.56.0",
     "react": "^19.3.0"
   },
   "devDependencies": {

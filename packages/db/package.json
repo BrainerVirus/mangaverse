@@ -38,14 +38,14 @@
   },
   "dependencies": {
     "@app/shared": "workspace:*",
-    "drizzle-orm": "^0.40.0"
+    "drizzle-orm": "^0.45.4"
   },
   "devDependencies": {
-    "@types/node": "^22.10.0",
-    "@types/sql.js": "^1.4.9",
-    "drizzle-kit": "^0.30.0",
+    "@types/node": "^26.6.5",
+    "@types/sql.js": "^1.4.11",
+    "drizzle-kit": "^0.31.11",
     "oxlint": "^1.87.0",
-    "sql.js": "^1.12.0",
+    "sql.js": "^1.14.2",
     "typescript": "^7.0.2",
     "vitest": "^5.0.4"
   }
