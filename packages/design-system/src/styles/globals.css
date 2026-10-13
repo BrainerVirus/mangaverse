@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import 'tw-animate-css';
 
 /* Monorepo: Tailwind must scan app + feature package templates, not only this file tree. */
 @source '../../../../apps/web/app/**/*.{ts,tsx}';

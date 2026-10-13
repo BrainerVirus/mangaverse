@@ -120,7 +120,7 @@ describe('Sheet Focus Trap', () => {
       </Sheet>
     );
 
-    const content = container.querySelector('[class*="right-0"]');
+    const content = document.body.querySelector('[class*="right-0"]');
     expect(content).toBeInTheDocument();
   });
 
@@ -145,7 +145,7 @@ describe('Sheet Focus Trap', () => {
       </Sheet>
     );
 
-    const content = container.querySelector('[class*="h-full"]');
+    const content = document.body.querySelector('[class*="h-full"]');
     expect(content).toBeInTheDocument();
   });
 
@@ -158,7 +158,7 @@ describe('Sheet Focus Trap', () => {
       </Sheet>
     );
 
-    const content = container.querySelector('[class*="shadow"]');
+    const content = document.body.querySelector('[class*="shadow"]');
     expect(content).toBeInTheDocument();
   });
 });
