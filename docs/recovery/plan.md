@@ -325,6 +325,14 @@ Add `apps/web/e2e-production/reading.spec.ts` and focused reader integration tes
       the guard is removed). The resume-after-reload ErrorState was the
       react-query "data is undefined" throw on a stale/racy read path, resolved
       by (a)+(c).
+- [ ] Progress-ordering follow-ups from the #41 review rounds (tracked, not yet
+      fixed): the ordering guard is chapter-local, so an older event for another
+      chapter can still replace newer library resume metadata; the snapshot CAS
+      protects committed bytes but does not merge by event timestamp, so an older
+      tab flushing first can drop newer uncommitted progress; equal-timestamp
+      events deliberately keep the furthest page, which is conservative against
+      stale checkpoints but not strict last-action-wins for backward navigation
+      in the same millisecond.
 - [ ] Still open from this slice: offline reopening with explicit retry, save-failure
       surfacing in reader mode, tap-zone result assertion, prefetch bounds and
       partial-cache reporting, chrome click isolation e2e, and a deliberate wrong-
@@ -361,9 +369,11 @@ the June MangaDex spec, and only tests with triaged audit findings.
       lint+typecheck+test+build, so run `npx oxlint apps packages` before pushing.
       Remove only assertion-free or truly duplicate tests after checking coverage;
       replace bad oracles and prove replacements fail on planted bugs.
-- [ ] Keep constant export tests until a replacement/removal fits audit rules; don't
-      treat a constant-only flag alone as permission to delete. Add a real command
-      palette interaction test before claiming navigation coverage.
+- [x] Real command palette interaction coverage added:
+      `apps/web/e2e-production/shell-interactions.spec.ts` drives Cmd/Ctrl+K,
+      filters to a navigation command, runs it and asserts the route, and checks
+      Escape closes without navigating. Constant export tests stay until an audit
+      replacement fits the rules.
 - [ ] Address import-time timeouts with the established static-import pattern if
       reproduced; do not merely raise all timeouts. Converted so far:
       `packages/db/src/browser.test.ts` and `packages/extensions/src/index.test.ts`.
