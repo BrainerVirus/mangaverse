@@ -120,6 +120,20 @@ test('Given a provider-backed chapter id, When the reader opens, Then decoded pa
   await expect(page.getByText('1 / 37')).toBeVisible({ timeout: 20_000 });
 });
 
+test('Given an enabled provider, When Discover opens, Then capability sections render with covers', async ({ page }) => {
+  await finishOnboardingQuick(page);
+  await mockMangaDexApi(page);
+  await page.goto('/discover');
+  await expect(page.getByTestId('discover-section-latest')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('discover-section-popular')).toBeVisible();
+  const popular = page.getByTestId('discover-section-popular');
+  await expect(popular.getByRole('button', { name: 'Kuro no Shoukanshi' })).toBeVisible();
+  const image = popular.locator('img').first();
+  await expect
+    .poll(async () => image.evaluate((img: HTMLImageElement) => img.naturalWidth > 0), { timeout: 20_000 })
+    .toBe(true);
+});
+
 test('Given a disabled provider, When searching, Then no provider request is made', async ({ page }) => {
   await finishOnboardingQuick(page);
   const calls: ApiCalls = { count: 0 };
@@ -132,8 +146,9 @@ test('Given a disabled provider, When searching, Then no provider request is mad
 
   await page.goto('/search');
   await page.getByRole('searchbox', { name: 'Search manga' }).fill('berserk');
-  await expect(page.getByRole('button', { name: 'Kuro no Shoukanshi' })).toHaveCount(0, {
-    timeout: 5_000,
-  });
+  // Wait for the search query to settle before asserting, otherwise the checks
+  // outrun the async query and pass even when a remote call would happen.
+  await expect(page.getByText('0 results').first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole('button', { name: 'Kuro no Shoukanshi' })).toHaveCount(0);
   expect(calls.count).toBe(0);
 });
