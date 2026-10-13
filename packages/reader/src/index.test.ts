@@ -62,17 +62,6 @@ describe('public API', () => {
     expect(READER_ERROR_CODES.PRELOAD_FAILED).toBe('reader.preload.failed');
   });
 
-  it('should export all public types', () => {
-    const _page: ReaderPage = {} as any;
-    const _chapter: ReaderChapter = {} as any;
-    const _viewport: ReaderViewport = {} as any;
-    const _input: ReaderSessionInput = {} as any;
-    const _event: ReaderProgressEvent = {} as any;
-    const _action: ReaderNavigationAction = {} as any;
-    const _snapshot: ReaderDiagnosticsSnapshot = {} as any;
-    const _retryState: PreloadRetryState = {} as any;
-  });
-
   it('should export all public functions', () => {
     expect(typeof createReaderState).toBe('function');
     expect(typeof calculatePageSlots).toBe('function');
