@@ -216,9 +216,12 @@ Read the five `apps/web/app/lib/dev-mangadex-*`/`dev-seed-mangadex.ts` files and
 - [x] Write red production E2Es for fresh provider availability, search/detail,
       restart preservation and provider disable blocking all remote operations.
       `apps/web/e2e-production/mangadex-flow.spec.ts` (5 tests, fixture-mocked API +
-      at-home CDN) covers install/enabled, provider search with cached covers,
+      at-home CDN) covers install/enabled, provider search with rendered covers,
       detail with feed chapters, reader with 37 decoded pages, and disable blocking
-      all remote calls (request counter stays 0).
+      all remote calls (request counter stays 0). Detail and reader tests navigate
+      by id directly: clicking an animated grid card never passes Playwright's
+      stability check on slow CI runners, so the card click is covered by the
+      search test instead.
 - [x] Implement one explicit built-in registration path and provider resolution
       through installed/enabled state. Community manifests still require consent.
       `installFirstPartyProviders` upserts the bundled manifest without network and
