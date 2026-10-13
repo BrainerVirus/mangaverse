@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { DURATION } from '../tokens/duration.js';
+import type { DurationKey } from '../tokens/duration.js';
 import { EASING } from '../tokens/easing.js';
 
 describe('DURATION tokens', () => {
@@ -28,7 +29,7 @@ describe('DURATION tokens', () => {
   });
 
   it('should export DurationKey type', () => {
-    const key: DURATION = 'instant';
+    const key: DurationKey = 'instant';
     expect(DURATION[key]).toBe(0);
   });
 });

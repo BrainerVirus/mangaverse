@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import initSqlJs from 'sql.js';
-import { createDrizzleFromSqlJs } from './client.js';
 import { createMemoryPersistedBytesStore } from './persisted-bytes-store.js';
 import { openPersistentDatabase } from './persistent-database.js';
 import { migrateDatabaseFromBundled, type BundledMigrationFile, type BundledMigrationJournal } from './bundled-migrations.js';
@@ -135,7 +134,7 @@ describe('persistent database', () => {
     await inner.write(seed.export(), 0);
 
     let gate: Promise<void> | null = null;
-    let release: (() => void) | null = null;
+    let release: () => void = () => {};
     const gatedStore = {
       read: async () => {
         if (gate !== null) await gate;
@@ -164,7 +163,7 @@ describe('persistent database', () => {
     });
     const syncing = session.syncFromStore();
     session.close();
-    release?.();
+    release();
     gate = null;
     await syncing;
 

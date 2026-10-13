@@ -1,13 +1,14 @@
 import { describe, it, expect } from 'vitest';
+import { toChapterPageId } from '@app/shared';
 import {
   createPreloadPlan,
   createDecodeQueue,
   recordPageLoadResult,
 } from './preload';
-import type { PageLoadResult } from './types';
+import type { PageLoadResult, ReaderPage } from './types';
 
-const mockPages = Array.from({ length: 10 }, (_, i) => ({
-  id: `p${i}`,
+const mockPages: ReaderPage[] = Array.from({ length: 10 }, (_, i) => ({
+  id: toChapterPageId(`p${i}`),
   index: i,
   image: { url: `http://example.com/${i}.jpg` },
 }));
@@ -18,9 +19,9 @@ describe('createPreloadPlan', () => {
     const plan = createPreloadPlan(pages, 0, 2, false);
 
     expect(plan.items).toHaveLength(2);
-    expect(plan.items[0].pageIndex).toBe(1);
-    expect(plan.items[1].pageIndex).toBe(2);
-    expect(plan.items[0].priority).toBeGreaterThan(plan.items[1].priority);
+    expect(plan.items[0]!.pageIndex).toBe(1);
+    expect(plan.items[1]!.pageIndex).toBe(2);
+    expect(plan.items[0]!.priority).toBeGreaterThan(plan.items[1]!.priority);
   });
 
   it('should use preload count from settings', () => {
@@ -58,8 +59,8 @@ describe('createPreloadPlan', () => {
     const pages = mockPages;
     const plan = createPreloadPlan(pages, 0, 2, false);
 
-    expect(plan.items[0].url).toBeDefined();
-    expect(plan.items[0].url).toContain('example.com');
+    expect(plan.items[0]!.url).toBeDefined();
+    expect(plan.items[0]!.url).toContain('example.com');
   });
 });
 
@@ -78,7 +79,9 @@ describe('createDecodeQueue', () => {
 
     const priorities = queue.items.map(item => item.priority);
     for (let i = 1; i < priorities.length; i++) {
-      expect(priorities[i - 1]).toBeGreaterThanOrEqual(priorities[i]);
+      const previous = priorities[i - 1]!;
+      const current = priorities[i]!;
+      expect(previous).toBeGreaterThanOrEqual(current);
     }
   });
 
@@ -93,7 +96,7 @@ describe('createDecodeQueue', () => {
     const pages = mockPages;
     const queue = createDecodeQueue(pages, 0, 3, false);
 
-    expect(queue.items[0].retryCount).toBe(0);
+    expect(queue.items[0]!.retryCount).toBe(0);
   });
 });
 

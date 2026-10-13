@@ -6,7 +6,7 @@ import {
   upsertChapterWithPages,
 } from '@app/db';
 import { createSqlJsHarness } from '@app/db/testing';
-import { toChapterId, toChapterPageId, toMangaId, toProviderId } from '@app/shared';
+import { toChapterId, toChapterPageId, toProviderId } from '@app/shared';
 import { fetchReaderPage } from './fetch-reader-page.js';
 
 describe('fetchReaderPage', () => {

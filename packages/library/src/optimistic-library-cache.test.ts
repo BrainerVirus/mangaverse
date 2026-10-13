@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
-import { toMangaId, toProviderId, toProviderMappingId } from '@app/shared';
+import { toMangaId, toProviderId, toProviderMangaId, toProviderMappingId } from '@app/shared';
+import type { MangaIdentity } from '@app/shared';
 import { DEFAULT_LIBRARY_VIEW_STATE } from './view-state.js';
 import { libraryQueryKeys } from './query-keys.js';
 import type { LibraryPageData, MangaDetailData } from './types.js';
@@ -14,21 +15,20 @@ import {
 
 const mangaId = toMangaId('manga-1');
 
-const manga = {
+const manga: MangaIdentity = {
   id: mangaId,
   canonicalTitle: 'Optimistic Manga',
   alternativeTitles: [],
   authors: [],
   artists: [],
   tags: [],
-  status: 'ongoing' as const,
-  contentRating: 'safe' as const,
+  status: 'ongoing',
+  contentRating: 'safe',
   providerMappings: [
     {
       id: toProviderMappingId('mapping-1'),
       providerId: toProviderId('prov-a'),
-      providerMangaId: 'remote-1',
-      language: 'en',
+      providerMangaId: toProviderMangaId('remote-1'),
     },
   ],
   defaultProviderMappingId: toProviderMappingId('mapping-1'),

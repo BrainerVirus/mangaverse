@@ -63,7 +63,7 @@ function createMockAdapter(store = new Map<string, { data: ArrayBuffer; mimeType
         store.delete(key);
         return ok(undefined);
       },
-      createObjectUrl: async (data, mimeType) => {
+      createObjectUrl: async (_data, mimeType) => {
         const url = `blob:mock-${urlCounter++}`;
         objectUrls.set(url, mimeType);
         return ok(url);

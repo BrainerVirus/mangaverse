@@ -1,21 +1,22 @@
 import { describe, it, expect } from 'vitest';
+import { toChapterPageId } from '@app/shared';
 import {
   calculatePageSlots,
   calculateSpreadPlan,
   resolveInitialPageIndex,
 } from './spreads';
-import type { ReaderSessionInput } from './types';
+import type { ReaderChapter, ReaderEngineSettings, ReaderPage, ReaderSessionInput } from './types';
 
-const mockPages = [
-  { id: 'p1', index: 0, image: { url: 'http://example.com/1.jpg' } },
-  { id: 'p2', index: 1, image: { url: 'http://example.com/2.jpg' } },
-  { id: 'p3', index: 2, image: { url: 'http://example.com/3.jpg' } },
-  { id: 'p4', index: 3, image: { url: 'http://example.com/4.jpg' } },
-  { id: 'p5', index: 4, image: { url: 'http://example.com/5.jpg' } },
-  { id: 'p6', index: 5, image: { url: 'http://example.com/6.jpg' } },
+const mockPages: ReaderPage[] = [
+  { id: toChapterPageId('p1'), index: 0, image: { url: 'http://example.com/1.jpg' } },
+  { id: toChapterPageId('p2'), index: 1, image: { url: 'http://example.com/2.jpg' } },
+  { id: toChapterPageId('p3'), index: 2, image: { url: 'http://example.com/3.jpg' } },
+  { id: toChapterPageId('p4'), index: 3, image: { url: 'http://example.com/4.jpg' } },
+  { id: toChapterPageId('p5'), index: 4, image: { url: 'http://example.com/5.jpg' } },
+  { id: toChapterPageId('p6'), index: 5, image: { url: 'http://example.com/6.jpg' } },
 ];
 
-const mockChapter = {
+const mockChapter: ReaderChapter = {
   id: 'ch1',
   mangaId: 'm1',
   title: 'Chapter 1',
@@ -25,11 +26,11 @@ const mockChapter = {
 
 const mockViewport = { width: 1200, height: 800, orientation: 'landscape' as const };
 
-const defaultSettings = {
-  readingMode: 'ltr' as const,
-  pageLayout: 'single' as const,
-  tapZoneLayout: 'leftRight' as const,
-  navigationDirection: 'default' as const,
+const defaultSettings: ReaderEngineSettings = {
+  readingMode: 'ltr',
+  pageLayout: 'single',
+  tapZoneLayout: 'leftRight',
+  navigationDirection: 'default',
   tapZoneDebugOverlay: false,
   minZoom: 1,
   maxZoom: 3,
@@ -38,11 +39,16 @@ const defaultSettings = {
   treatFirstPageAsCover: false,
   preloadAhead: 2,
   lowMemoryMode: false,
+  wheelBehavior: 'scroll',
+  verticalGapPx: 0,
 };
 
-function makeInput(settings: Partial<typeof defaultSettings> = {}): ReaderSessionInput {
+function makeInput(
+  settings: Partial<ReaderEngineSettings> = {},
+  chapter: ReaderChapter = mockChapter,
+): ReaderSessionInput {
   return {
-    chapter: mockChapter as any,
+    chapter,
     viewport: mockViewport,
     settings: { ...defaultSettings, ...settings },
   };
@@ -54,8 +60,8 @@ describe('calculatePageSlots', () => {
     const slots = calculatePageSlots(input);
 
     expect(slots).toHaveLength(6);
-    expect(slots[0].pageIndex).toBe(0);
-    expect(slots[0].isCover).toBe(false);
+    expect(slots[0]!.pageIndex).toBe(0);
+    expect(slots[0]!.isCover).toBe(false);
   });
 
   it('should pair pages for double layout in LTR', () => {
@@ -63,20 +69,20 @@ describe('calculatePageSlots', () => {
     const slots = calculatePageSlots(input);
 
     // Double layout pairs mechanically - even pages are left, odd are right
-    expect(slots[0].pageIndex).toBe(0);
-    expect(slots[0].isLeftPage).toBe(true);
-    expect(slots[0].isRightPage).toBe(false);
-    expect(slots[1].pageIndex).toBe(1);
-    expect(slots[1].isLeftPage).toBe(false);
-    expect(slots[1].isRightPage).toBe(true);
+    expect(slots[0]!.pageIndex).toBe(0);
+    expect(slots[0]!.isLeftPage).toBe(true);
+    expect(slots[0]!.isRightPage).toBe(false);
+    expect(slots[1]!.pageIndex).toBe(1);
+    expect(slots[1]!.isLeftPage).toBe(false);
+    expect(slots[1]!.isRightPage).toBe(true);
   });
 
   it('should pair pages mechanically for double layout without dimensions', () => {
     const noDimPages = [
-      { id: 'p1', index: 0, image: { url: 'http://example.com/1.jpg' } },
-      { id: 'p2', index: 1, image: { url: 'http://example.com/2.jpg' } },
-      { id: 'p3', index: 2, image: { url: 'http://example.com/3.jpg' } },
-      { id: 'p4', index: 3, image: { url: 'http://example.com/4.jpg' } },
+      { id: toChapterPageId('p1'), index: 0, image: { url: 'http://example.com/1.jpg' } },
+      { id: toChapterPageId('p2'), index: 1, image: { url: 'http://example.com/2.jpg' } },
+      { id: toChapterPageId('p3'), index: 2, image: { url: 'http://example.com/3.jpg' } },
+      { id: toChapterPageId('p4'), index: 3, image: { url: 'http://example.com/4.jpg' } },
     ];
     const noDimChapter = {
       id: 'ch1',
@@ -85,28 +91,27 @@ describe('calculatePageSlots', () => {
       pages: noDimPages,
       pageCount: 4,
     };
-    const input = makeInput({ pageLayout: 'double' });
-    input.chapter = noDimChapter as any;
+    const input = makeInput({ pageLayout: 'double' }, noDimChapter);
 
     const slots = calculatePageSlots(input);
 
     // Double layout should pair mechanically regardless of dimensions
-    expect(slots[0].pageIndex).toBe(0);
-    expect(slots[0].isLeftPage).toBe(true);
-    expect(slots[1].pageIndex).toBe(1);
-    expect(slots[1].isRightPage).toBe(true);
-    expect(slots[2].pageIndex).toBe(2);
-    expect(slots[2].isLeftPage).toBe(true);
-    expect(slots[3].pageIndex).toBe(3);
-    expect(slots[3].isRightPage).toBe(true);
+    expect(slots[0]!.pageIndex).toBe(0);
+    expect(slots[0]!.isLeftPage).toBe(true);
+    expect(slots[1]!.pageIndex).toBe(1);
+    expect(slots[1]!.isRightPage).toBe(true);
+    expect(slots[2]!.pageIndex).toBe(2);
+    expect(slots[2]!.isLeftPage).toBe(true);
+    expect(slots[3]!.pageIndex).toBe(3);
+    expect(slots[3]!.isRightPage).toBe(true);
   });
 
   it('should leave cover page alone when treatFirstPageAsCover is true', () => {
     const input = makeInput({ pageLayout: 'smartSpread', treatFirstPageAsCover: true });
     const slots = calculatePageSlots(input);
 
-    expect(slots[0].pageIndex).toBe(0);
-    expect(slots[0].isCover).toBe(true);
+    expect(slots[0]!.pageIndex).toBe(0);
+    expect(slots[0]!.isCover).toBe(true);
   });
 
   it('should correctly pair pages for double layout with treatFirstPageAsCover', () => {
@@ -115,29 +120,28 @@ describe('calculatePageSlots', () => {
       mangaId: 'm1',
       title: 'Chapter 1',
       pages: [
-        { id: 'p1', index: 0, image: { url: 'http://example.com/1.jpg' } },
-        { id: 'p2', index: 1, image: { url: 'http://example.com/2.jpg' } },
-        { id: 'p3', index: 2, image: { url: 'http://example.com/3.jpg' } },
-        { id: 'p4', index: 3, image: { url: 'http://example.com/4.jpg' } },
-        { id: 'p5', index: 4, image: { url: 'http://example.com/5.jpg' } },
+        { id: toChapterPageId('p1'), index: 0, image: { url: 'http://example.com/1.jpg' } },
+        { id: toChapterPageId('p2'), index: 1, image: { url: 'http://example.com/2.jpg' } },
+        { id: toChapterPageId('p3'), index: 2, image: { url: 'http://example.com/3.jpg' } },
+        { id: toChapterPageId('p4'), index: 3, image: { url: 'http://example.com/4.jpg' } },
+        { id: toChapterPageId('p5'), index: 4, image: { url: 'http://example.com/5.jpg' } },
       ],
       pageCount: 5,
     };
-    const input = makeInput({ pageLayout: 'double', treatFirstPageAsCover: true });
-    input.chapter = fivePageChapter as any;
+    const input = makeInput({ pageLayout: 'double', treatFirstPageAsCover: true }, fivePageChapter);
 
     const slots = calculatePageSlots(input);
 
-    expect(slots[0].pageIndex).toBe(0);
-    expect(slots[0].isCover).toBe(true);
-    expect(slots[1].pageIndex).toBe(1);
-    expect(slots[1].isLeftPage).toBe(true);
-    expect(slots[2].pageIndex).toBe(2);
-    expect(slots[2].isRightPage).toBe(true);
-    expect(slots[3].pageIndex).toBe(3);
-    expect(slots[3].isLeftPage).toBe(true);
-    expect(slots[4].pageIndex).toBe(4);
-    expect(slots[4].isRightPage).toBe(true);
+    expect(slots[0]!.pageIndex).toBe(0);
+    expect(slots[0]!.isCover).toBe(true);
+    expect(slots[1]!.pageIndex).toBe(1);
+    expect(slots[1]!.isLeftPage).toBe(true);
+    expect(slots[2]!.pageIndex).toBe(2);
+    expect(slots[2]!.isRightPage).toBe(true);
+    expect(slots[3]!.pageIndex).toBe(3);
+    expect(slots[3]!.isLeftPage).toBe(true);
+    expect(slots[4]!.pageIndex).toBe(4);
+    expect(slots[4]!.isRightPage).toBe(true);
   });
 
   it('should handle odd page count in double layout', () => {
@@ -148,12 +152,11 @@ describe('calculatePageSlots', () => {
       pages: mockPages.slice(0, 5),
       pageCount: 5,
     };
-    const input = makeInput({ pageLayout: 'double' });
-    input.chapter = oddChapter as any;
+    const input = makeInput({ pageLayout: 'double' }, oddChapter);
 
     const slots = calculatePageSlots(input);
 
-    expect(slots[slots.length - 1].pageIndex).toBe(4);
+    expect(slots.at(-1)!.pageIndex).toBe(4);
   });
 
   it('should skip spread pairing for vertical mode', () => {
@@ -169,9 +172,9 @@ describe('calculatePageSlots', () => {
 
   it('should pair portrait pages in smartSpread', () => {
     const portraitPages = [
-      { id: 'p1', index: 0, image: { url: 'http://example.com/1.jpg', width: 600, height: 1000 } },
-      { id: 'p2', index: 1, image: { url: 'http://example.com/2.jpg', width: 600, height: 1000 } },
-      { id: 'p3', index: 2, image: { url: 'http://example.com/3.jpg', width: 600, height: 1000 } },
+      { id: toChapterPageId('p1'), index: 0, image: { url: 'http://example.com/1.jpg', width: 600, height: 1000 } },
+      { id: toChapterPageId('p2'), index: 1, image: { url: 'http://example.com/2.jpg', width: 600, height: 1000 } },
+      { id: toChapterPageId('p3'), index: 2, image: { url: 'http://example.com/3.jpg', width: 600, height: 1000 } },
     ];
     const portraitChapter = {
       id: 'ch1',
@@ -180,25 +183,24 @@ describe('calculatePageSlots', () => {
       pages: portraitPages,
       pageCount: 3,
     };
-    const input = makeInput({ pageLayout: 'smartSpread' });
-    input.chapter = portraitChapter as any;
+    const input = makeInput({ pageLayout: 'smartSpread' }, portraitChapter);
 
     const slots = calculatePageSlots(input);
 
     // Both pages are portrait (height > width), so they should pair
-    expect(slots[0].pageIndex).toBe(0);
-    expect(slots[0].isLeftPage).toBe(true);
-    expect(slots[0].isRightPage).toBe(false);
-    expect(slots[1].pageIndex).toBe(1);
-    expect(slots[1].isLeftPage).toBe(false);
-    expect(slots[1].isRightPage).toBe(true);
+    expect(slots[0]!.pageIndex).toBe(0);
+    expect(slots[0]!.isLeftPage).toBe(true);
+    expect(slots[0]!.isRightPage).toBe(false);
+    expect(slots[1]!.pageIndex).toBe(1);
+    expect(slots[1]!.isLeftPage).toBe(false);
+    expect(slots[1]!.isRightPage).toBe(true);
   });
 
   it('should keep landscape pages standalone in smartSpread', () => {
     const landscapePages = [
-      { id: 'p1', index: 0, image: { url: 'http://example.com/1.jpg', width: 1600, height: 900 } },
-      { id: 'p2', index: 1, image: { url: 'http://example.com/2.jpg', width: 1600, height: 900 } },
-      { id: 'p3', index: 2, image: { url: 'http://example.com/3.jpg', width: 1600, height: 900 } },
+      { id: toChapterPageId('p1'), index: 0, image: { url: 'http://example.com/1.jpg', width: 1600, height: 900 } },
+      { id: toChapterPageId('p2'), index: 1, image: { url: 'http://example.com/2.jpg', width: 1600, height: 900 } },
+      { id: toChapterPageId('p3'), index: 2, image: { url: 'http://example.com/3.jpg', width: 1600, height: 900 } },
     ];
     const landscapeChapter = {
       id: 'ch1',
@@ -207,8 +209,7 @@ describe('calculatePageSlots', () => {
       pages: landscapePages,
       pageCount: 3,
     };
-    const input = makeInput({ pageLayout: 'smartSpread' });
-    input.chapter = landscapeChapter as any;
+    const input = makeInput({ pageLayout: 'smartSpread' }, landscapeChapter);
 
     const slots = calculatePageSlots(input);
 
@@ -222,8 +223,8 @@ describe('calculatePageSlots', () => {
 
   it('should keep pages with missing dimensions standalone in smartSpread', () => {
     const mixedPages = [
-      { id: 'p1', index: 0, image: { url: 'http://example.com/1.jpg' } },
-      { id: 'p2', index: 1, image: { url: 'http://example.com/2.jpg', width: 600, height: 1000 } },
+      { id: toChapterPageId('p1'), index: 0, image: { url: 'http://example.com/1.jpg' } },
+      { id: toChapterPageId('p2'), index: 1, image: { url: 'http://example.com/2.jpg', width: 600, height: 1000 } },
     ];
     const mixedChapter = {
       id: 'ch1',
@@ -232,8 +233,7 @@ describe('calculatePageSlots', () => {
       pages: mixedPages,
       pageCount: 2,
     };
-    const input = makeInput({ pageLayout: 'smartSpread' });
-    input.chapter = mixedChapter as any;
+    const input = makeInput({ pageLayout: 'smartSpread' }, mixedChapter);
 
     const slots = calculatePageSlots(input);
 
@@ -247,8 +247,8 @@ describe('calculatePageSlots', () => {
 
   it('should pair first cover with second page in smartSpread when cover is portrait', () => {
     const coverAndPortrait = [
-      { id: 'p1', index: 0, image: { url: 'http://example.com/1.jpg', width: 600, height: 1000 } },
-      { id: 'p2', index: 1, image: { url: 'http://example.com/2.jpg', width: 600, height: 1000 } },
+      { id: toChapterPageId('p1'), index: 0, image: { url: 'http://example.com/1.jpg', width: 600, height: 1000 } },
+      { id: toChapterPageId('p2'), index: 1, image: { url: 'http://example.com/2.jpg', width: 600, height: 1000 } },
     ];
     const coverChapter = {
       id: 'ch1',
@@ -257,14 +257,13 @@ describe('calculatePageSlots', () => {
       pages: coverAndPortrait,
       pageCount: 2,
     };
-    const input = makeInput({ pageLayout: 'smartSpread', treatFirstPageAsCover: false });
-    input.chapter = coverChapter as any;
+    const input = makeInput({ pageLayout: 'smartSpread', treatFirstPageAsCover: false }, coverChapter);
 
     const slots = calculatePageSlots(input);
 
     // Both are portrait, so they pair
-    expect(slots[0].isLeftPage).toBe(true);
-    expect(slots[1].isRightPage).toBe(true);
+    expect(slots[0]!.isLeftPage).toBe(true);
+    expect(slots[1]!.isRightPage).toBe(true);
   });
 });
 

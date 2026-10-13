@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   PACKAGE_NAME,
-  createElectronPlatformAdapter,
   createWebPlatformAdapter,
   createUnsupportedPlatformAdapter,
   detectElectronCapabilities,

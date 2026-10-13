@@ -58,7 +58,7 @@ describe('migration orchestration', () => {
     expect(created.ok).toBe(true);
     if (!created.ok) return;
 
-    await addLibraryEntry(db, { mangaId: created.value.mangaId, status: 'plan_to_read' });
+    await addLibraryEntry(db, { mangaId: created.value.mangaId, status: 'planned' });
 
     const candidates = await fetchMigrationCandidates(db, 'source-a');
     expect(candidates).toHaveLength(1);

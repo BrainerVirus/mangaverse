@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -7,25 +7,6 @@ import { describe, expect, it } from 'vitest';
 import * as browserEntry from './browser.js';
 
 const srcRoot = dirname(fileURLToPath(import.meta.url));
-
-function collectSourceFiles(dir: string): string[] {
-  const entries = readdirSync(dir, { withFileTypes: true });
-  const files: string[] = [];
-
-  for (const entry of entries) {
-    const fullPath = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (entry.name === 'testing') continue;
-      files.push(...collectSourceFiles(fullPath));
-      continue;
-    }
-    if (entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts')) {
-      files.push(fullPath);
-    }
-  }
-
-  return files;
-}
 
 function browserReachableSources(): string[] {
   const browserEntry = join(srcRoot, 'browser.ts');

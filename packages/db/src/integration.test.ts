@@ -13,7 +13,6 @@ import {
 import {
   PACKAGE_NAME,
   addLibraryEntry,
-  addProviderMapping,
   appendReadingHistory,
   appendSearchHistory,
   applyBackupRestore,

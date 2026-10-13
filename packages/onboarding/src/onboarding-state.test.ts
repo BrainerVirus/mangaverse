@@ -11,6 +11,7 @@ import {
   startOnboarding,
   validateOnboardingState,
 } from './onboarding-state.js';
+import type { OnboardingState } from './types.js';
 
 describe('onboarding state machine', () => {
   it('returns stable defaults', () => {
@@ -36,11 +37,11 @@ describe('onboarding state machine', () => {
   });
 
   it('completes on the final step', () => {
-    let state = {
+    let state: OnboardingState = {
       ...getDefaultOnboardingState(),
-      status: 'in_progress' as const,
-      currentStep: 'provider' as const,
-      completedSteps: ['welcome', 'theme', 'reading', 'preferences'] as const,
+      status: 'in_progress',
+      currentStep: 'provider',
+      completedSteps: ['welcome', 'theme', 'reading', 'preferences'],
       startedAt: '2026-05-23T00:00:00.000Z',
     };
 

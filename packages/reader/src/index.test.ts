@@ -2,16 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   PACKAGE_NAME,
   READER_ERROR_CODES,
-  // Types
-  type ReaderPage,
-  type ReaderChapter,
-  type ReaderViewport,
-  type ReaderOverlayInsets,
-  type ReaderSessionInput,
-  type ReaderProgressEvent,
-  type ReaderNavigationAction,
-  type ReaderDiagnosticsSnapshot,
-  type PreloadRetryState,
   // Layout/spread
   createReaderState,
   calculatePageSlots,

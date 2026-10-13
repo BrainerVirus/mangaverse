@@ -18,6 +18,8 @@ describe('createElectronPlatformAdapter', () => {
     diagnostics: true,
     localService: true,
     sqliteRuntime: true,
+    persistentStorage: true,
+    storageEstimate: true,
   };
 
   it('reads capabilities from fake bridge', async () => {

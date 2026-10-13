@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { clearStorageData } from './clear-storage-data.js';
 import { fetchStorageSummary } from './fetch-storage-summary.js';
 import { createSqlJsHarness } from '@app/db/testing';
+import type { PlatformAdapter, PlatformCapabilities } from '@app/platform';
 import {
   appendSearchHistory,
   upsertCacheEntry,
@@ -15,7 +16,25 @@ const adapter = {
       value: { quota: 1024 * 1024, usage: 512 * 1024, persisted: false },
     }),
   },
-} as const;
+} as unknown as PlatformAdapter;
+
+const webCapabilities: PlatformCapabilities = {
+  runtime: 'web',
+  storageEstimate: true,
+  clipboardRead: false,
+  clipboardWrite: false,
+  nativeFileOpen: false,
+  nativeFileSave: false,
+  nativeFullscreen: false,
+  protocolInstallHandoff: false,
+  installPrompt: false,
+  externalLinks: true,
+  secureStorage: false,
+  persistentStorage: false,
+  diagnostics: false,
+  localService: false,
+  sqliteRuntime: false,
+};
 
 describe('storage services', () => {
   it('summarizes cache and search data with platform estimates', async () => {
@@ -42,21 +61,7 @@ describe('storage services', () => {
     const summary = await fetchStorageSummary({
       db,
       adapter,
-      capabilities: {
-        runtime: 'web',
-        storageEstimate: true,
-        clipboardRead: false,
-        clipboardWrite: false,
-        fileImport: false,
-        fileExport: false,
-        fullscreen: false,
-        customProtocol: false,
-        installPrompt: false,
-        externalLinks: true,
-        secureStorage: false,
-        diagnostics: false,
-        localService: false,
-      },
+      capabilities: webCapabilities,
     });
 
     expect(summary.cacheEntryCount).toBe(3);
@@ -88,21 +93,7 @@ describe('storage services', () => {
     const summary = await fetchStorageSummary({
       db,
       adapter,
-      capabilities: {
-        runtime: 'web',
-        storageEstimate: false,
-        clipboardRead: false,
-        clipboardWrite: false,
-        fileImport: false,
-        fileExport: false,
-        fullscreen: false,
-        customProtocol: false,
-        installPrompt: false,
-        externalLinks: true,
-        secureStorage: false,
-        diagnostics: false,
-        localService: false,
-      },
+      capabilities: { ...webCapabilities, storageEstimate: false },
     });
 
     expect(summary.cacheEntryCount).toBe(0);

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createReaderState } from './state';
-import type { ReaderSessionInput } from './types';
+import type { ReaderEngineSettings, ReaderSessionInput } from './types';
 
 const mockPages = [
   { id: 'p1', index: 0, image: { url: 'http://example.com/1.jpg' } },
@@ -19,11 +19,11 @@ const mockChapter = {
 
 const mockViewport = { width: 800, height: 600, orientation: 'landscape' as const };
 
-const defaultSettings = {
-  readingMode: 'ltr' as const,
-  pageLayout: 'single' as const,
-  tapZoneLayout: 'leftRight' as const,
-  navigationDirection: 'default' as const,
+const defaultSettings: ReaderEngineSettings = {
+  readingMode: 'ltr',
+  pageLayout: 'single',
+  tapZoneLayout: 'leftRight',
+  navigationDirection: 'default',
   tapZoneDebugOverlay: false,
   minZoom: 1,
   maxZoom: 3,
@@ -32,6 +32,8 @@ const defaultSettings = {
   treatFirstPageAsCover: false,
   preloadAhead: 2,
   lowMemoryMode: false,
+  wheelBehavior: 'scroll',
+  verticalGapPx: 0,
 };
 
 describe('createReaderState', () => {
