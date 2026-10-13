@@ -67,6 +67,9 @@ function ReaderRoute() {
       onToggleChrome={toggleReaderChrome}
       onPersistProgress={handlePersistProgress}
       onChangeSettings={handleChangeSettings}
+      onRetry={() => {
+        void queryClient.invalidateQueries({ queryKey: readerQueryKeys.chapter(chapterId) });
+      }}
     />
   );
 }

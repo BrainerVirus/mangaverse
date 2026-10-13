@@ -49,6 +49,7 @@ export interface ReaderScreenProps {
   onToggleChrome: () => void;
   onPersistProgress?: (event: ReturnType<typeof createProgressEvent>) => void;
   onChangeSettings?: (patch: Partial<ReaderSettings>) => void;
+  onRetry?: () => void;
 }
 
 function findTapZone(
@@ -108,6 +109,7 @@ export function ReaderScreen({
   onToggleChrome,
   onPersistProgress,
   onChangeSettings,
+  onRetry,
 }: ReaderScreenProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const cacheContext = useCoverCacheContext();
@@ -325,6 +327,7 @@ export function ReaderScreen({
       <ErrorState
         title="Could not load chapter"
         message="Local chapter data failed to load. Try again in a moment."
+        {...(onRetry !== undefined ? { onRetry } : {})}
       />
     );
   }

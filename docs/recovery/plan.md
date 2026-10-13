@@ -333,9 +333,14 @@ Add `apps/web/e2e-production/reading.spec.ts` and focused reader integration tes
       events deliberately keep the furthest page, which is conservative against
       stale checkpoints but not strict last-action-wins for backward navigation
       in the same millisecond.
-- [ ] Still open from this slice: offline reopening with explicit retry, save-failure
-      surfacing in reader mode, tap-zone result assertion, prefetch bounds and
-      partial-cache reporting, chrome click isolation e2e, and a deliberate wrong-
+- [x] First-open failure offers an explicit retry: the reader's ErrorState is
+      wired to a reader-query refetch and pinned by an E2E that fails the at-home
+      route, observes 'Could not load chapter', restores the network, retries and
+      asserts decoded pages. Tap-zone result assertions are also covered by the
+      reader-controls trusted-click tests.
+- [ ] Still open from this slice: fully cached offline reopening in a fresh
+      context, save-failure surfacing in reader mode, prefetch bounds and partial-
+      cache reporting, chrome click isolation e2e, and a deliberate wrong-
       navigation plant on the (passing) navigation test.
 - [ ] Run deterministic production E2Es, gates and test audit; commit.
 
