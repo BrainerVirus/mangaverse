@@ -50,6 +50,8 @@ export interface ReaderScreenProps {
   onPersistProgress?: (event: ReturnType<typeof createProgressEvent>) => void;
   onChangeSettings?: (patch: Partial<ReaderSettings>) => void;
   onRetry?: () => void;
+  /** True when the data fetch is paused because the browser is offline. */
+  isOffline?: boolean;
 }
 
 function findTapZone(
@@ -110,6 +112,7 @@ export function ReaderScreen({
   onPersistProgress,
   onChangeSettings,
   onRetry,
+  isOffline = false,
 }: ReaderScreenProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const cacheContext = useCoverCacheContext();
@@ -332,8 +335,20 @@ export function ReaderScreen({
     );
   }
 
+  if (isOffline && (!data || !readerState)) {
+    return (
+      <ErrorState
+        title="You are offline"
+        message="This chapter is not saved locally yet. Reconnect and retry."
+        {...(onRetry !== undefined ? { onRetry } : {})}
+      />
+    );
+  }
+
   if (!data || !readerState) {
-    return <EmptyState type="no-chapters" />;
+    // A pending or paused (unfocused/online) fetch with no data is still loading;
+    // a genuinely empty chapter has data with pageCount 0 and is handled below.
+    return <LoadingState type="detail" />;
   }
 
   if (data.chapter.pageCount === 0) {

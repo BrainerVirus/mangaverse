@@ -68,6 +68,39 @@ test('Given the chapter pages cannot be fetched, When retrying after the network
   await expect(image).toBeVisible({ timeout: 20_000 });
 });
 
+test('Given a cached chapter, When the network is gone and the reader is reopened, Then cached pages render', async ({ page }) => {
+  await openReader(page);
+  await waitForPingQuiet(page);
+
+  // Leave client-side, then cut every provider host before returning.
+  await page.goBack();
+  await page.context().setOffline(true);
+  await page.route('**/api.mangadex.org/**', (route) => route.abort('failed'));
+  await page.route('**/uploads.mangadex.org/**', (route) => route.abort('failed'));
+  await page.route('**/*.mangadex.network/**', (route) => route.abort('failed'));
+
+  await page.goForward();
+  // Prove the environment, not just the assertions: the browser reports offline
+  // and a provider-host fetch genuinely fails.
+  expect(await page.evaluate(() => navigator.onLine)).toBe(false);
+  expect(
+    await page.evaluate(() =>
+      fetch('https://api.mangadex.org/ping')
+        .then(() => 'ok')
+        .catch(() => 'failed'),
+    ),
+  ).toBe('failed');
+
+  await expect(page.getByText('1 / 37')).toBeVisible({ timeout: 30_000 });
+  const image = page.getByTestId('reader-surface').locator('img').first();
+  await expect(image).toBeVisible({ timeout: 20_000 });
+  await expect
+    .poll(async () => image.evaluate((img: HTMLImageElement) => img.naturalWidth > 0), { timeout: 20_000 })
+    .toBe(true);
+
+  await page.context().setOffline(false);
+});
+
 test('Given the reader advanced a page, When the page reloads, Then it resumes on the saved page', async ({ page }) => {
   await openReader(page);
   await waitForPingQuiet(page);

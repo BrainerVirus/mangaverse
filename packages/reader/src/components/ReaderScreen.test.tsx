@@ -14,7 +14,21 @@ vi.mock('@app/cache', () => ({
 vi.mock('@app/design-system', () => ({
   Button: () => null,
   EmptyState: () => null,
-  ErrorState: () => null,
+  ErrorState: ({
+    title,
+    message,
+    onRetry,
+  }: {
+    title: string;
+    message: string;
+    onRetry?: () => void;
+  }) => (
+    <div>
+      <span>{title}</span>
+      <span>{message}</span>
+      {onRetry ? <button onClick={onRetry}>Retry</button> : null}
+    </div>
+  ),
   LoadingState: () => null,
   ReaderChrome: () => null,
   Sheet: () => null,
@@ -76,6 +90,43 @@ function mount(onPersist: (event: { pageIndex: number }) => void): { root: Root;
   });
   return { root, container };
 }
+
+describe('ReaderScreen offline state', () => {
+  it('Given no data and a paused offline fetch, When rendered, Then an offline message with Retry appears', () => {
+    const onRetry = vi.fn();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => {
+      root.render(
+        <ReaderScreen
+          data={undefined}
+          isLoading={false}
+          isError={false}
+          isOffline={true}
+          chromeVisible={true}
+          onToggleChrome={() => {}}
+          onRetry={onRetry}
+        />,
+      );
+    });
+
+    expect(container.textContent).toContain('You are offline');
+    const retry = [...container.querySelectorAll('button')].find((b) =>
+      (b.textContent ?? '').includes('Retry'),
+    );
+    expect(retry).toBeDefined();
+    act(() => {
+      retry?.click();
+    });
+    expect(onRetry).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
+});
 
 describe('ReaderScreen progress checkpoint', () => {
   it('Given a reader that mounted and left immediately, When unmounting, Then the initial page is not persisted', () => {

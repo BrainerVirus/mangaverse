@@ -338,10 +338,26 @@ Add `apps/web/e2e-production/reading.spec.ts` and focused reader integration tes
       route, observes 'Could not load chapter', restores the network, retries and
       asserts decoded pages. Tap-zone result assertions are also covered by the
       reader-controls trusted-click tests.
-- [ ] Still open from this slice: fully cached offline reopening in a fresh
-      context, save-failure surfacing in reader mode, prefetch bounds and partial-
-      cache reporting, chrome click isolation e2e, and a deliberate wrong-
-      navigation plant on the (passing) navigation test.
+- [x] Cached offline reopening: leaving and returning to a cached chapter with
+      the browser offline and every provider host aborted renders the cached
+      pages (E2E). The test proves its own environment (navigator.onLine false and
+      a failing provider fetch) — removing the offline setup fails it. The offline
+      UI ("You are offline" + Retry) uses subscribed browser connectivity
+      (`useOnlineStatus`), not query fetchStatus: with networkMode 'offlineFirst'
+      a query also pauses when the page is merely unfocused, which the #45 review
+      reproduced as a false offline diagnosis. A pending/paused fetch with no data
+      now shows Loading instead of 'No chapters'. Component-pinned; its E2E still
+      needs a second, uncached chapter fixture — recorded as a follow-up.
+- [ ] Pre-existing gap found by the #45 review (static, untested): provider
+      resolution can return early with no page metadata
+      (`mangadex-query-options.ts`), which would surface as 'No chapters' in the
+      reader. Reproduce before fixing.
+- [ ] Follow-ups from the #44 review: DB-init errors cannot be recovered by the
+      reader's query invalidation (the query is disabled while the DB is in
+      error); wire the DB retry handler for that case.
+- [ ] Still open from this slice: save-failure surfacing in reader mode, prefetch
+      bounds and partial-cache reporting, chrome click isolation e2e, and a
+      deliberate wrong-navigation plant on the (passing) navigation test.
 - [ ] Run deterministic production E2Es, gates and test audit; commit.
 
 Audit leads, not confirmed runtime diagnoses: ReaderScreen reinitializes on changed
