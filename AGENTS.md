@@ -15,7 +15,7 @@ Agents must read the relevant rewrite docs before implementation:
 
 ## Project Direction
 
-MangaVerse is being rewritten from an Expo-first app into a web-native, local-first manga, comic, and webtoon reader that can also ship as an Electron desktop app for Windows, macOS, and Linux.
+MangaVerse is a web-native, local-first manga, comic, and webtoon reader that also ships as an Electron desktop app for Windows, macOS, and Linux, replacing an Expo-first app.
 
 The legacy Expo tree was removed (Phase 10.5); `apps/` and `packages/` are the canonical codebase. Do not rescue unstable code solely for parity; port behavior only after package contracts and tests exist.
 
@@ -166,7 +166,7 @@ Critical flows to test:
 Web-first recovery is the active workstream: read `docs/recovery/spec.md` and
 `docs/recovery/plan.md` before any historical phase plan. Slices S0–S4 are
 merged (startup, durable storage, MangaDex provider, provider runtime, reader
-durability); S5–S7 cover test/doc cleanup, remote hygiene, publication.
+durability); S5–S6 done; S7 covers publication.
 Electron is retained but deferred until the web flow is proven.
 
 The historical phase table and per-phase test counts were removed by the S5
