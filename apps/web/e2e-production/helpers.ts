@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { expect, type Page } from '@playwright/test';
+import { expect, test as base, type Page } from '@playwright/test';
 
 export const fixturesDir = fileURLToPath(
   new URL('../../../packages/extensions-mangadex/src/fixtures/', import.meta.url),
@@ -54,17 +54,34 @@ export async function clickContinue(page: Page) {
   await button.click();
 }
 
-export async function finishOnboardingQuick(page: Page) {
+async function advanceOnboarding(page: Page) {
   await page.goto('/onboarding');
   await clickContinue(page);
   await clickContinue(page);
   await clickContinue(page);
   await clickContinue(page);
+}
+
+export async function finishOnboardingQuick(page: Page) {
+  await advanceOnboarding(page);
   await page.getByRole('button', { name: 'Finish without provider' }).click();
   await expect(page).toHaveURL(/\/library/, { timeout: 20_000 });
 }
 
 export const PING_KEY = 'mangaverse.local-db.version';
+
+export async function currentPing(page: Page): Promise<string | null> {
+  return page.evaluate((key) => localStorage.getItem(key), PING_KEY);
+}
+
+/** Waits until a new committed snapshot ping appears, i.e. the write is durable. */
+export async function waitForNewPing(page: Page, previousPing: string | null) {
+  await page.waitForFunction(
+    ({ key, previous }) => localStorage.getItem(key) !== previous,
+    { key: PING_KEY, previous: previousPing },
+    { timeout: 20_000 },
+  );
+}
 
 /**
  * Waits until no snapshot ping has changed for `quietMs`. A stable ping is
@@ -96,3 +113,37 @@ export async function waitForPingQuiet(page: Page, quietMs = 1500) {
     { timeout: 20_000 },
   );
 }
+
+/**
+ * The suite's shared test: recorded MangaDex routes and provider-less
+ * onboarding as fixtures, so specs only carry their own flow assertions.
+ */
+export const test = base.extend<{
+  /** Recorded MangaDex responses plus the count of API calls they served. */
+  mockMangaDex: ApiCalls;
+  /** Completes onboarding without a provider and lands on /library. */
+  quickOnboarding: void;
+  /** Quick onboarding plus a durable-write checkpoint and reload. */
+  durableOnboarding: void;
+}>({
+  mockMangaDex: async ({ page }, use) => {
+    const calls: ApiCalls = { count: 0 };
+    await mockMangaDexApi(page, calls);
+    await use(calls);
+  },
+  quickOnboarding: async ({ page }, use) => {
+    await finishOnboardingQuick(page);
+    await use();
+  },
+  durableOnboarding: async ({ page }, use) => {
+    await advanceOnboarding(page);
+    const pingBefore = await currentPing(page);
+    await page.getByRole('button', { name: 'Finish without provider' }).click();
+    await expect(page).toHaveURL(/\/library/, { timeout: 20_000 });
+    // Durability checkpoint: finish-state must be committed before reloading.
+    await waitForNewPing(page, pingBefore);
+    await page.reload();
+    await expect(page).toHaveURL(/\/library/, { timeout: 20_000 });
+    await use();
+  },
+});
