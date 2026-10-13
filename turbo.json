@@ -30,6 +30,12 @@
         "^build"
       ]
     },
+    "test:e2e:production": {
+      "dependsOn": [
+        "^build"
+      ],
+      "cache": false
+    },
     "clean": {
       "cache": false
     }
