@@ -121,6 +121,19 @@ export function CommandPalette() {
     }
   }, [isOpen]);
 
+  // Escape must close the palette from anywhere: the input's own handler only
+  // fires once it holds focus, and focus lands a frame after the palette opens.
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        close();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
+  }, [isOpen, close]);
+
   useEffect(() => {
     if (!isOpen || !rendered) return;
     const frame = requestAnimationFrame(() => {

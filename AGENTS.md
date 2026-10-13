@@ -17,7 +17,7 @@ Agents must read the relevant rewrite docs before implementation:
 
 MangaVerse is being rewritten from an Expo-first app into a web-native, local-first manga, comic, and webtoon reader that can also ship as an Electron desktop app for Windows, macOS, and Linux.
 
-The current Expo codebase is feature inventory and migration reference. Do not rescue unstable code solely for parity. Port behavior only after package contracts and tests exist.
+The legacy Expo tree was removed (Phase 10.5); `apps/` and `packages/` are the canonical codebase. Do not rescue unstable code solely for parity; port behavior only after package contracts and tests exist.
 
 ## Target Stack
 
