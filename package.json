@@ -5,7 +5,6 @@
   "packageManager": "pnpm@11.0.0",
   "scripts": {
     "test": "turbo run test",
-    "test:e2e": "pnpm --filter @app/web test:e2e",
     "test:e2e:production": "pnpm --filter @app/web test:e2e:production",
     "test:watch": "vitest watch",
     "bootstrap": "pnpm install",
@@ -17,7 +16,6 @@
     "build": "turbo run build",
     "dev:web": "pnpm --filter @app/web dev",
     "dev:desktop": "pnpm --filter @app/desktop dev",
-    "dev:install-mangadex": "node scripts/dev-install-mangadex.mjs",
     "dev": "pnpm dev:web",
     "clean": "turbo run clean"
   },
