@@ -63,3 +63,36 @@ export async function finishOnboardingQuick(page: Page) {
   await page.getByRole('button', { name: 'Finish without provider' }).click();
   await expect(page).toHaveURL(/\/library/, { timeout: 20_000 });
 }
+
+export const PING_KEY = 'mangaverse.local-db.version';
+
+/**
+ * Waits until no snapshot ping has changed for `quietMs`. A stable ping is
+ * stronger than "a ping happened": the reader's 750 ms progress debounce plus
+ * the 400 ms coalesced flush both land inside the quiet window, so quiescence
+ * means any pending progress write is already durable.
+ */
+export async function waitForPingQuiet(page: Page, quietMs = 1500) {
+  // Arm a fresh window on every call: measuring from the last *observed* change
+  // makes a second call return immediately, which once let the caller reload
+  // before the 750 ms progress debounce had fired and the write never landed.
+  await page.evaluate((key) => {
+    const w = window as unknown as { __pingSeen?: string | null; __pingSince?: number };
+    w.__pingSeen = localStorage.getItem(key);
+    w.__pingSince = Date.now();
+  }, PING_KEY);
+  await page.waitForFunction(
+    ({ key, quiet }) => {
+      const w = window as unknown as { __pingSeen?: string | null; __pingSince?: number };
+      const current = localStorage.getItem(key);
+      if (w.__pingSeen !== current) {
+        w.__pingSeen = current;
+        w.__pingSince = Date.now();
+        return false;
+      }
+      return Date.now() - (w.__pingSince ?? 0) > quiet;
+    },
+    { key: PING_KEY, quiet: quietMs },
+    { timeout: 20_000 },
+  );
+}

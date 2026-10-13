@@ -85,8 +85,26 @@ test('Given the search page, When a query runs through the provider, Then result
   await finishOnboardingQuick(page);
   await mockMangaDexApi(page);
   await page.goto('/search');
-  await page.getByRole('searchbox', { name: 'Search manga' }).fill('berserk');
-  await expect(page.getByRole('button', { name: 'Kuro no Shoukanshi' })).toBeVisible({ timeout: 20_000 });
+  const searchbox = page.getByRole('searchbox', { name: 'Search manga' });
+  const resultCount = page.getByText(/\d+ results?/).first();
+  await expect(searchbox).toBeVisible({ timeout: 30_000 });
+
+  // Slow CI runners can hydrate the search route after the first fill, which
+  // drops it (no query ever runs). Retry the type-and-settle cycle a bounded
+  // number of times; the settled count also tells the final assertion apart
+  // from "query never ran".
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    await searchbox.fill('berserk');
+    try {
+      await expect(resultCount).toBeVisible({ timeout: 5_000 });
+      break;
+    } catch {
+      await searchbox.fill('');
+    }
+  }
+
+  const result = page.getByRole('button', { name: 'Kuro no Shoukanshi' });
+  await expect(result).toBeVisible({ timeout: 30_000 });
   const image = page.getByTestId('search-results-grid').locator('img').first();
   await expect(image).toBeVisible();
   await expect

@@ -205,16 +205,31 @@ export function ReaderScreen({
   }, [data, onPersistProgress, readerState]);
 
   // Navigating away must not drop the last page change: checkpoint the pending
-  // event on unmount instead of leaving it to the cleared debounce timer.
+  // event on unmount instead of leaving it to the cleared debounce timer. Refs
+  // for the callback and initial index keep this effect unmount-only, and the
+  // blip guard keeps a router transition remount (or a user pressing Back right
+  // after opening) from persisting its initial page over newer progress.
+  const initialIndexRef = useRef(0);
+  initialIndexRef.current = data?.initialPageIndex ?? 0;
+  const onPersistRef = useRef(onPersistProgress);
+  onPersistRef.current = onPersistProgress;
+  const mountedAtRef = useRef(Date.now());
+
   useEffect(
     () => () => {
       const pending = pendingEventRef.current;
-      if (pending !== null && onPersistProgress) {
-        pendingEventRef.current = null;
-        onPersistProgress(pending);
+      const persist = onPersistRef.current;
+      if (pending === null || persist === undefined) return;
+
+      const lifetimeMs = Date.now() - mountedAtRef.current;
+      if (pending.pageIndex === initialIndexRef.current && lifetimeMs < PROGRESS_DEBOUNCE_MS) {
+        return;
       }
+
+      pendingEventRef.current = null;
+      persist(pending);
     },
-    [onPersistProgress],
+    [],
   );
 
   useEffect(() => {

@@ -310,22 +310,21 @@ Add `apps/web/e2e-production/reading.spec.ts` and focused reader integration tes
       at `3 / 37`.
 - [x] Rider from #37's verification: the install-confirmation mutation now awaits
       `flushLocalDb()` like the toggle/remove mutations.
-- [ ] Parked E2E (documented in `reader-flow.spec.ts` as `test.fixme`, red
-      deterministically — 3/3 consecutive runs per assertion — while the same
-      production build driven live in a real browser persists and resumes
-      correctly): two root-cause-open findings needing their own debug slice.
-      (a) Resume after reload: the reloaded reader renders its ErrorState
-      ("Could not load chapter"); the reader query never enters its body (no query
-      error logged) and the local-db provider logs no init failure, so the failing
-      layer is unknown. Lead: reopen shortly after a flush (the reload follows a
-      committed snapshot by ~1.5 s). (b) Checkpoint on client-side return:
-      returning to the reader shows the stale cached page (`1 / 37`), likely the
-      reader query's staleTime serving pre-write data — the unmount checkpoint is
-      not being observed by this test either way. Also: `page.goto` variants
-      cannot exercise the checkpoint at all (full-page navigation never runs React
-      cleanups); the parked variant uses client-side `goBack`/`goForward`.
-      When root-causing, re-add `waitForPingQuiet` (helpers.ts) for durable-write
-      waits.
+- [x] Reader resume/checkpoint E2E un-parked and green (production suite 17/17,
+      zero skips). Four root causes, each fixed and pinned:
+      (a) the harness helper `waitForPingQuiet` armed its quiet window from the
+      last observed ping change, so a second call returned immediately and the
+      reload raced the 750 ms progress debounce — it now arms a full window per
+      call; (b) a router "blip" instance (mount+unmount around the transition —
+      also reachable when a user presses Back right after opening) persisted its
+      initial page over newer progress — the unmount checkpoint skips a
+      short-lived instance whose pending event equals its initial page;
+      (c) the reader query served a stale cached page on remount — `staleTime 0`,
+      `gcTime 0`, `refetchOnMount: 'always'`; (d) progress writes are ordered:
+      an older event can never roll stored progress back (unit test fails when
+      the guard is removed). The resume-after-reload ErrorState was the
+      react-query "data is undefined" throw on a stale/racy read path, resolved
+      by (a)+(c).
 - [ ] Still open from this slice: offline reopening with explicit retry, save-failure
       surfacing in reader mode, tap-zone result assertion, prefetch bounds and
       partial-cache reporting, chrome click isolation e2e, and a deliberate wrong-

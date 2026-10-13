@@ -33,6 +33,11 @@ function ReaderRoute() {
       return fetchReaderPage(db!, chapterId);
     },
     enabled: dbStatus === 'ready' && db !== null,
+    // Progress and chapter data change behind the reader's back (checkpoint on
+    // leave, another tab); a cached mount must never show a stale page.
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
   });
 
   const handleChangeSettings = useCallback(
