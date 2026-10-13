@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createProgressEvent,
+  shouldCheckpointOnUnmount,
   shouldPersistProgress,
 } from './progress';
 import type { ReaderProgressEvent } from './types';
@@ -43,6 +44,32 @@ describe('createProgressEvent', () => {
 
     expect(event.readPercent).toBe(100);
     expect(event.completed).toBe(true);
+  });
+});
+
+describe('shouldCheckpointOnUnmount', () => {
+  it('should not checkpoint an unmoved page before the debounce elapses', () => {
+    expect(
+      shouldCheckpointOnUnmount(0, { initialPageIndex: 0, lifetimeMs: 100, debounceMs: 750 }),
+    ).toBe(false);
+  });
+
+  it('should checkpoint a page that moved before the debounce elapses', () => {
+    expect(
+      shouldCheckpointOnUnmount(1, { initialPageIndex: 0, lifetimeMs: 100, debounceMs: 750 }),
+    ).toBe(true);
+  });
+
+  it('should checkpoint an unmoved page once the lifetime reaches the debounce', () => {
+    expect(
+      shouldCheckpointOnUnmount(0, { initialPageIndex: 0, lifetimeMs: 750, debounceMs: 750 }),
+    ).toBe(true);
+  });
+
+  it('should checkpoint a moved page after the debounce', () => {
+    expect(
+      shouldCheckpointOnUnmount(2, { initialPageIndex: 0, lifetimeMs: 900, debounceMs: 750 }),
+    ).toBe(true);
   });
 });
 
