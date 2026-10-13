@@ -78,6 +78,8 @@ function ExtensionsRoute() {
       if (!result.ok) {
         throw result.error;
       }
+      // Durability point: a confirmed install must survive an immediate reload.
+      await flushLocalDb();
       return result.value;
     },
     onSuccess: () => {
