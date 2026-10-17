@@ -19,7 +19,7 @@ import {
   prefetchChapterPages,
   useCoverCacheContext,
 } from '@app/cache';
-import { resolveKeyboardAction } from '../navigation.js';
+import { resolveKeyboardAction, resolveWheelAction } from '../navigation.js';
 import { isDoubleTap, PAN_THRESHOLD_PX, pinchScale, pointerDistance } from '../gestures.js';
 import { resolvePageFit } from '../page-fit.js';
 import type { ReaderPageData } from '../reader-page-data.js';
@@ -144,6 +144,7 @@ export function ReaderScreen({
   isOffline = false,
 }: ReaderScreenProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [zoomLayer, setZoomLayer] = useState<HTMLDivElement | null>(null);
   const scrollHandleRef = useRef<ReaderScrollViewHandle | null>(null);
   const settingsButtonRef = useRef<HTMLButtonElement | null>(null);
   // Vertical navigation resolves from the last target, not the centre-based
@@ -231,6 +232,36 @@ export function ReaderScreen({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [navigate, reducedMotion, sessionInput]);
+
+  // Ctrl+wheel zoom (wheelBehavior 'zoom'). The paged layer owns the listener, so
+  // the scroll strip keeps native wheel scrolling, and passive: false lets the
+  // handler cancel the browser's own page zoom.
+  useEffect(() => {
+    if (zoomLayer === null || sessionInput === null) return;
+
+    const handleWheel = (event: WheelEvent) => {
+      const action = resolveWheelAction(event, sessionInput.settings);
+      if (action.type !== 'zoom') return;
+      event.preventDefault();
+      const rect = zoomLayer.getBoundingClientRect();
+      // One ~100px wheel notch is ~22%; trackpads send many small deltas.
+      updateZoom((zoom) =>
+        clampZoomTransform(
+          applyPinchZoom(zoom, zoom.scale, zoom.scale * Math.exp(-(action.delta ?? 0) * 0.002), {
+            centerX: event.clientX - rect.left,
+            centerY: event.clientY - rect.top,
+          }),
+          rect.width,
+          rect.height,
+          rect.width,
+          rect.height,
+        ),
+      );
+    };
+
+    zoomLayer.addEventListener('wheel', handleWheel, { passive: false });
+    return () => zoomLayer.removeEventListener('wheel', handleWheel);
+  }, [sessionInput, updateZoom, zoomLayer]);
 
   const handleZoomPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const gesture = pointerRef.current;
@@ -491,6 +522,7 @@ export function ReaderScreen({
             the same dimensions the helpers receive.
           */
           <div
+            ref={setZoomLayer}
             className="absolute inset-0 flex items-center justify-center"
             data-testid="reader-zoom-layer"
             style={{

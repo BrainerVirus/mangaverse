@@ -146,12 +146,18 @@ function pointerEvent(
   return event;
 }
 
-function doubleTap(layer: HTMLElement) {
+function doubleTap(layer: HTMLElement, x = 400, y = 300) {
   act(() => {
-    layer.dispatchEvent(pointerEvent('pointerdown', { pointerId: 1, clientX: 400, clientY: 300 }));
-    layer.dispatchEvent(pointerEvent('pointerup', { pointerId: 1, clientX: 400, clientY: 300 }));
-    layer.dispatchEvent(pointerEvent('pointerdown', { pointerId: 2, clientX: 400, clientY: 300 }));
-    layer.dispatchEvent(pointerEvent('pointerup', { pointerId: 2, clientX: 400, clientY: 300 }));
+    layer.dispatchEvent(pointerEvent('pointerdown', { pointerId: 1, clientX: x, clientY: y }));
+    layer.dispatchEvent(pointerEvent('pointerup', { pointerId: 1, clientX: x, clientY: y }));
+    layer.dispatchEvent(pointerEvent('pointerdown', { pointerId: 2, clientX: x, clientY: y }));
+    layer.dispatchEvent(pointerEvent('pointerup', { pointerId: 2, clientX: x, clientY: y }));
+  });
+}
+
+function wheel(layer: HTMLElement, init: { deltaY: number; ctrlKey?: boolean }) {
+  act(() => {
+    layer.dispatchEvent(new WheelEvent('wheel', { ...init, bubbles: true, cancelable: true }));
   });
 }
 
@@ -232,6 +238,55 @@ describe('ReaderScreen zoom and pan', () => {
 
     expect(scaleOf(mounted.layer)).toBeGreaterThanOrEqual(1.2);
     unmount(mounted);
+  });
+
+  it('Given minZoom above 1, When double-tapping twice, Then the reset never drops below minZoom', () => {
+    const mounted = mount({ minZoom: 1.2, maxZoom: 3, doubleTapZoom: 1.5 });
+
+    doubleTap(mounted.layer);
+    expect(scaleOf(mounted.layer)).toBe(1.5);
+
+    // The second pair starts 100px away, so its first tap is not a third tap of
+    // the first pair; its second tap is the zoom-out double tap.
+    doubleTap(mounted.layer, 500, 300);
+
+    expect(scaleOf(mounted.layer)).toBe(1.2);
+    unmount(mounted);
+  });
+
+  it('Given wheelBehavior zoom, When Ctrl+wheel, Then the view zooms in', () => {
+    const mounted = mount({ wheelBehavior: 'zoom' });
+
+    wheel(mounted.layer, { deltaY: -100, ctrlKey: true });
+
+    expect(scaleOf(mounted.layer)).toBeGreaterThan(1);
+    unmount(mounted);
+  });
+
+  it('Given wheelBehavior zoom, When Ctrl+wheel repeats, Then the scale stays within minZoom and maxZoom', () => {
+    const mounted = mount({ wheelBehavior: 'zoom', minZoom: 1.2, maxZoom: 1.5 });
+
+    for (let index = 0; index < 10; index += 1) {
+      wheel(mounted.layer, { deltaY: -100, ctrlKey: true });
+    }
+    expect(scaleOf(mounted.layer)).toBe(1.5);
+
+    for (let index = 0; index < 20; index += 1) {
+      wheel(mounted.layer, { deltaY: 100, ctrlKey: true });
+    }
+    expect(scaleOf(mounted.layer)).toBe(1.2);
+    unmount(mounted);
+  });
+
+  it('Given wheelBehavior none or scroll, When Ctrl+wheel, Then the zoom does not change', () => {
+    for (const wheelBehavior of ['none', 'scroll'] as const) {
+      const mounted = mount({ wheelBehavior });
+
+      wheel(mounted.layer, { deltaY: -100, ctrlKey: true });
+
+      expect(scaleOf(mounted.layer)).toBe(1);
+      unmount(mounted);
+    }
   });
 
   it('Given a zoomed view, When dragging, Then the view pans and stays clamped', () => {
