@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useGSAP } from '@gsap/react';
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@app/design-system';
@@ -115,11 +115,11 @@ export function CommandPalette() {
 
   useBuiltInCommands();
 
-  useEffect(() => {
-    if (isOpen) {
-      setRendered(true);
-    }
-  }, [isOpen]);
+  // Opening must paint the panel in the same commit as `isOpen` flips true; an
+  // effect would paint one frame without it (and would cascade a render).
+  if (isOpen && !rendered) {
+    setRendered(true);
+  }
 
   // Escape must close the palette from anywhere: the input's own handler only
   // fires once it holds focus, and focus lands a frame after the palette opens.
@@ -162,33 +162,33 @@ export function CommandPalette() {
   const results = registry.search(query);
   const grouped = groupBySection(results);
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
+  // Not memoized on purpose: `results` is rebuilt every render, so a manual
+  // dependency list cannot be preserved (react/preserve-manual-memoization),
+  // and nothing memoized consumes this handler.
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      close();
+      return;
+    }
+    const maxIndex = Math.max(0, results.length - 1);
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      moveSelection(1, maxIndex);
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      moveSelection(-1, maxIndex);
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const cmd = results[selectedIndex];
+      if (cmd) {
+        cmd.handler();
         close();
-        return;
       }
-      const maxIndex = Math.max(0, results.length - 1);
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        moveSelection(1, maxIndex);
-      }
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        moveSelection(-1, maxIndex);
-      }
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        const cmd = results[selectedIndex];
-        if (cmd) {
-          cmd.handler();
-          close();
-        }
-      }
-    },
-    [close, moveSelection, results, selectedIndex],
-  );
+    }
+  };
 
   if (deviceLayout !== 'desktop' && runtime !== 'electron') return null;
 

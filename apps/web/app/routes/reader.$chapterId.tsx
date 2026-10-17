@@ -79,7 +79,7 @@ function ReaderRoute() {
       if (db === null || data?.settings === undefined) return;
       saveSettings({ ...data.settings, ...patch });
     },
-    [data?.settings, db, saveSettings],
+    [data, db, saveSettings],
   );
 
   const handlePersistProgress = useCallback(

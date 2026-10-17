@@ -60,10 +60,20 @@ export function useReaderProgress(
   // blip guard keeps a router transition remount (or a user pressing Back right
   // after opening) from persisting its initial page over newer progress.
   const initialIndexRef = useRef(0);
-  initialIndexRef.current = data?.initialPageIndex ?? 0;
   const onPersistRef = useRef(onPersistProgress);
-  onPersistRef.current = onPersistProgress;
-  const mountedAtRef = useRef(Date.now());
+  const mountedAtRef = useRef(0);
+
+  // Latest-value refs are written after commit, not while rendering
+  // (react/refs); the unmount checkpoint below only runs after a commit, so it
+  // always sees the values of the last committed render.
+  useEffect(() => {
+    initialIndexRef.current = data?.initialPageIndex ?? 0;
+    onPersistRef.current = onPersistProgress;
+  });
+
+  useEffect(() => {
+    mountedAtRef.current = Date.now();
+  }, []);
 
   useEffect(
     () => () => {

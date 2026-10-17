@@ -28,5 +28,3 @@ const bridge: DesktopPlatformBridge = {
 };
 
 contextBridge.exposeInMainWorld('mangaversePlatform', bridge);
-
-export {};

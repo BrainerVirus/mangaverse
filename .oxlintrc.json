@@ -26,25 +26,28 @@
     "no-unused-vars": "error",
 
     // shortcut: rules oxlint 1.x newly promotes to `error` (plus the type-aware set that
-    // only started running once oxlint-tsgolint was installed). 458 findings today with
-    // this list forced to `error`: 93 in production code, 365 in tests (measured
-    // 2026-10-13). typescript/await-thenable is enabled now — packages/db is clean —
-    // and the #48 review's next triage is react/refs + react/purity in the reader hot
-    // path. Own lint-debt slice.
+    // only started running once oxlint-tsgolint was installed). The react/typescript
+    // block is enabled now and clean: typescript/unbound-method, no-base-to-string,
+    // no-useless-empty-export, no-redundant-type-constituents, react/set-state-in-effect,
+    // react/preserve-manual-memoization, react/refs, react/incompatible-library and
+    // react/purity all report 0 findings (43 fixed, measured 2026-10-17). Four keeps are
+    // inline ignores with recorded rulings: react/set-state-in-effect on the two SSR
+    // hooks (use-is-client, use-reduced-motion) and react/incompatible-library on the two
+    // TanStack Virtual grids. Still pinned here, measured 2026-10-17 with this list forced
+    // to `error`: 363 findings — 14 in production / 349 in tests. vitest family (later
+    // slice): require-mock-type-parameters 248, no-conditional-expect 99, valid-expect 1,
+    // require-to-throw-message 1, expect-expect 0. jsx-a11y (unrelated slice):
+    // prefer-tag-over-role 12, no-noninteractive-element-interactions 2,
+    // no-static-element-interactions 0. The two clean rules stay pinned with their family
+    // so the list is re-measured in one go. Note for the record: ruling #552 counted 64
+    // production typescript/no-redundant-type-constituents findings; the real count is 1 —
+    // the other 63 were "error type" artifacts of linting a tree whose packages/*/dist was
+    // not built yet.
     "vitest/require-mock-type-parameters": "off",
     "vitest/no-conditional-expect": "off",
     "vitest/valid-expect": "off",
     "vitest/require-to-throw-message": "off",
     "vitest/expect-expect": "off",
-    "typescript/unbound-method": "off",
-    "typescript/no-base-to-string": "off",
-    "typescript/no-useless-empty-export": "off",
-    "typescript/no-redundant-type-constituents": "off",
-    "react/set-state-in-effect": "off",
-    "react/preserve-manual-memoization": "off",
-    "react/refs": "off",
-    "react/incompatible-library": "off",
-    "react/purity": "off",
     "jsx-a11y/prefer-tag-over-role": "off",
     "jsx-a11y/no-static-element-interactions": "off",
     "jsx-a11y/no-noninteractive-element-interactions": "off"

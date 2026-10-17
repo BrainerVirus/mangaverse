@@ -51,7 +51,7 @@ describe('MangaDex chapter feed pagination', () => {
     const requests: string[] = [];
     const provider = createMangaDexProvider({
       fetchImpl: async (input) => {
-        const url = String(input);
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
         requests.push(url);
         const offset = Number(new URL(url).searchParams.get('offset') ?? '0');
         const data = offset === 0 ? first : second;

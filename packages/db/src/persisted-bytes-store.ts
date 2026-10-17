@@ -12,15 +12,15 @@ export interface PersistedSnapshot {
 
 export interface PersistedBytesStore {
   /** Returns the stored snapshot, or undefined when nothing is stored yet. */
-  read(): Promise<PersistedSnapshot | undefined>;
+  read: () => Promise<PersistedSnapshot | undefined>;
   /**
    * Stores bytes only when `expectedVersion` still matches the stored version.
    * `expectedVersion` is 0 for the first write (empty store).
    * Returns the committed snapshot, or null when another writer advanced first.
    */
-  write(bytes: Uint8Array, expectedVersion: number): Promise<PersistedSnapshot | null>;
+  write: (bytes: Uint8Array, expectedVersion: number) => Promise<PersistedSnapshot | null>;
   /** Removes the stored snapshot. Used after quarantining unreadable bytes. */
-  clear(): Promise<void>;
+  clear: () => Promise<void>;
 }
 
 /** In-memory store used by tests and non-browser hosts. */

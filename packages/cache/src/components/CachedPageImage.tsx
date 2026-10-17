@@ -28,18 +28,19 @@ export function CachedPageImage({
 }: CachedPageImageProps) {
   const context = useCoverCacheContext();
   const [src, setSrc] = useState<string | undefined>(undefined);
-  const [failed, setFailed] = useState(false);
+  // The failure is tracked by request key, not a boolean: a new source must show
+  // the loading placeholder again, and the effect may only touch state from its
+  // async continuation. `src` is kept so the previous image stays on screen
+  // until the new one resolves.
+  const [failedRequest, setFailedRequest] = useState<string | null>(null);
   const objectUrlRef = useRef<string | undefined>(undefined);
+  const requestKey = `${providerId}\u0000${mangaId}\u0000${chapterId}\u0000${String(pageIndex)}\u0000${remoteUrl}\u0000${retention}`;
+  const failed = failedRequest === requestKey;
 
   useEffect(() => {
-    if (context === null) {
-      setSrc(undefined);
-      setFailed(true);
-      return;
-    }
+    if (context === null) return;
 
     let cancelled = false;
-    setFailed(false);
 
     void (async () => {
       const result = await resolvePageObjectUrl({
@@ -58,7 +59,7 @@ export function CachedPageImage({
       }
 
       if (result === undefined) {
-        setFailed(true);
+        setFailedRequest(requestKey);
         setSrc(undefined);
         return;
       }
@@ -68,6 +69,7 @@ export function CachedPageImage({
       }
 
       objectUrlRef.current = result.objectUrl;
+      setFailedRequest(null);
       setSrc(result.objectUrl);
     })();
 
@@ -78,12 +80,12 @@ export function CachedPageImage({
         objectUrlRef.current = undefined;
       }
     };
-  }, [chapterId, context, mangaId, pageIndex, providerId, remoteUrl, retention]);
+  }, [chapterId, context, mangaId, pageIndex, providerId, remoteUrl, requestKey, retention]);
 
-  if (failed || src === undefined) {
+  if (context === null || failed || src === undefined) {
     return (
       <div
-        className={cn('animate-pulse bg-muted/80', failed && 'animate-none', className)}
+        className={cn('animate-pulse bg-muted/80', (context === null || failed) && 'animate-none', className)}
         aria-hidden={alt === ''}
         role={alt === '' ? undefined : 'img'}
         aria-label={alt === '' ? undefined : alt}

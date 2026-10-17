@@ -56,6 +56,7 @@ export function VirtualSearchGrid({ results, onOpenManga }: VirtualSearchGridPro
   const shouldVirtualize =
     results.length >= VIRTUALIZE_MIN_ITEMS && scrollParent !== null && containerWidth > 0;
 
+  // oxlint-disable-next-line react/incompatible-library -- TanStack Virtual returns imperative measure/getVirtualItems closures; skipping compiler memoization of this grid is the intended, documented behaviour (ruling recorded)
   const virtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => scrollParent,

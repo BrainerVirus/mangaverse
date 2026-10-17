@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 import { detectWebCapabilities, type PlatformCapabilities, type PlatformRuntime } from '@app/platform';
 
 interface PlatformContextValue {
@@ -35,17 +35,18 @@ function getInitialCapabilities(detectFn?: () => PlatformCapabilities): Platform
 }
 
 export function PlatformProvider({ children, detectFn }: PlatformProviderProps) {
-  const [capabilities, setCapabilities] = useState<PlatformCapabilities | null>(() =>
-    getInitialCapabilities(detectFn)
-  );
-
-  useEffect(() => {
-    if (detectFn) {
-      setCapabilities(detectFn());
-    } else {
-      setCapabilities(detectWebCapabilities());
-    }
-  }, [detectFn]);
+  // Capabilities are detected during render, which is what both the SSR snapshot
+  // and the first client render use. Re-detecting in an effect would cascade a
+  // render (react/set-state-in-effect), so a changed detector is a render-phase
+  // state update instead.
+  const [detected, setDetected] = useState(() => ({
+    detector: detectFn,
+    capabilities: getInitialCapabilities(detectFn),
+  }));
+  if (detected.detector !== detectFn) {
+    setDetected({ detector: detectFn, capabilities: getInitialCapabilities(detectFn) });
+  }
+  const capabilities = detected.capabilities;
 
   if (!capabilities) {
     return null;

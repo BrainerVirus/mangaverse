@@ -23,7 +23,7 @@ function fixtures() {
  */
 export function createFixtureFetch(): typeof fetch {
   return async (input: RequestInfo | URL): Promise<Response> => {
-    const url = String(input);
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     let body: string | null = null;
     if (url.includes('/at-home/server/')) {
       body = fixtures().atHome;

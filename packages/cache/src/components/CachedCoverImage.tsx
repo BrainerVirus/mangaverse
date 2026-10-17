@@ -22,18 +22,19 @@ export function CachedCoverImage({
 }: CachedCoverImageProps) {
   const context = useCoverCacheContext();
   const [src, setSrc] = useState<string | undefined>(undefined);
-  const [failed, setFailed] = useState(false);
+  // The failure is tracked by request key, not a boolean: a new source must show
+  // the loading placeholder again, and the effect may only touch state from its
+  // async continuation. `src` is kept so the previous image stays on screen
+  // until the new one resolves.
+  const [failedRequest, setFailedRequest] = useState<string | null>(null);
   const objectUrlRef = useRef<string | undefined>(undefined);
+  const requestKey = `${providerId}\u0000${mangaId}\u0000${remoteUrl}`;
+  const failed = failedRequest === requestKey;
 
   useEffect(() => {
-    if (context === null) {
-      setSrc(undefined);
-      setFailed(true);
-      return;
-    }
+    if (context === null) return;
 
     let cancelled = false;
-    setFailed(false);
 
     void (async () => {
       const result = await resolveCoverObjectUrl({
@@ -49,7 +50,7 @@ export function CachedCoverImage({
       }
 
       if (result === undefined) {
-        setFailed(true);
+        setFailedRequest(requestKey);
         setSrc(undefined);
         return;
       }
@@ -59,6 +60,7 @@ export function CachedCoverImage({
       }
 
       objectUrlRef.current = result.objectUrl;
+      setFailedRequest(null);
       setSrc(result.objectUrl);
 
       if (!result.fromCache) {
@@ -73,12 +75,12 @@ export function CachedCoverImage({
         objectUrlRef.current = undefined;
       }
     };
-  }, [context, mangaId, providerId, remoteUrl]);
+  }, [context, mangaId, providerId, remoteUrl, requestKey]);
 
-  if (failed || src === undefined) {
+  if (context === null || failed || src === undefined) {
     return (
       <div
-        className={cn('bg-muted', failed ? 'animate-none' : 'animate-pulse', className)}
+        className={cn('bg-muted', context === null || failed ? 'animate-none' : 'animate-pulse', className)}
         aria-hidden
       />
     );
