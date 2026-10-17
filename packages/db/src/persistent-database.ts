@@ -2,6 +2,7 @@ import type { Database, SqlJsStatic } from 'sql.js';
 import { createDrizzleFromSqlJs } from './client.js';
 import type { AppDrizzleDb } from './adapter.js';
 import { migrateDatabaseFromBundled, type BundledMigrationFile, type BundledMigrationJournal } from './bundled-migrations.js';
+import { mergeUncommittedProgress } from './merge-uncommitted-progress.js';
 import type { PersistedBytesStore } from './persisted-bytes-store.js';
 
 export interface PersistentDatabaseMigrations {
@@ -112,11 +113,27 @@ export async function openPersistentDatabase(
       const bytes = session.raw.export();
       enforceConnectionInvariants(session.raw);
       const committed = await store.write(bytes, baseVersion);
-      if (committed === null) {
+      if (committed !== null) {
+        baseVersion = committed.version;
+        return { status: 'saved' };
+      }
+      // Another writer advanced first. Merge the local uncommitted progress rows
+      // into its snapshot instead of dropping them, then retry once against the
+      // version we just observed.
+      const latest = await store.read();
+      if (latest === undefined) {
         return { status: 'reloaded' };
       }
-      baseVersion = committed.version;
-      return { status: 'saved' };
+      const merged = mergeUncommittedProgress(latest.bytes, session.raw, sqlModule);
+      if (merged === null) {
+        return { status: 'reloaded' };
+      }
+      const retried = await store.write(merged, latest.version);
+      if (retried === null) {
+        return { status: 'reloaded' };
+      }
+      baseVersion = retried.version;
+      return { status: 'reloaded' };
     },
     syncFromStore: async (): Promise<void> => {
       if (closed) return;

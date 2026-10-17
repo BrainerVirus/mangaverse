@@ -12,30 +12,30 @@ const progressChains = new Map<string, Promise<void>>();
 
 async function persistOnce(db: AppDrizzleDb, event: ReaderProgressEvent): Promise<void> {
   const {
+    acceptChapterReadState,
+    acceptLibraryResumeMetadata,
     appendReadingHistory,
-    getChapterReadState,
+    getChapterReadStateOrdering,
+    getLibraryResumeOrdering,
     updateLibraryEntryReadingProgress,
     upsertChapterReadState,
   } = await import('@app/db');
 
-  const existing = await getChapterReadState(db, event.chapterId as ChapterId);
-  const existingUpdatedAt = existing?.progress.updatedAt;
+  const existing = await getChapterReadStateOrdering(db, event.chapterId as ChapterId);
 
-  if (existing !== undefined && existingUpdatedAt !== undefined) {
-    // Ordering is event-vs-event: the stored timestamp is the creating event's
-    // own timestamp. A stored write time would wrongly reject a newer event that
-    // was created before an older event finished writing.
-    if (existingUpdatedAt > event.timestamp) {
-      return;
-    }
-    // Same instant: keep the furthest progress so a stale checkpoint in the same
-    // millisecond cannot roll the page back.
-    if (
-      existingUpdatedAt === event.timestamp &&
-      event.pageIndex < (existing.progress.lastPageIndex ?? 0)
-    ) {
-      return;
-    }
+  // Ordering is event-vs-event: the stored timestamp is the creating event's
+  // own timestamp. A stored write time would wrongly reject a newer event that
+  // was created before an older event finished writing. Same-instant events keep
+  // the furthest progress so a stale checkpoint cannot roll the page back.
+  if (
+    !acceptChapterReadState(existing, {
+      timestamp: event.timestamp,
+      pageIndex: event.pageIndex,
+      readPercent: event.readPercent,
+      completed: event.completed,
+    })
+  ) {
+    return;
   }
 
   const progress = {
@@ -43,7 +43,7 @@ async function persistOnce(db: AppDrizzleDb, event: ReaderProgressEvent): Promis
     lastPageIndex: event.pageIndex,
     completed: event.completed,
     updatedAt: event.timestamp,
-    startedAt: existing?.progress.startedAt ?? event.timestamp,
+    startedAt: existing?.startedAt ?? event.timestamp,
   };
 
   await upsertChapterReadState(db, {
@@ -52,11 +52,23 @@ async function persistOnce(db: AppDrizzleDb, event: ReaderProgressEvent): Promis
     progress,
   });
 
-  await updateLibraryEntryReadingProgress(db, {
-    mangaId: event.mangaId as MangaId,
-    chapterId: event.chapterId as ChapterId,
-    progressPercent: event.readPercent,
-  });
+  // The chapter guard is chapter-local, so a stale event for *another* chapter
+  // would still move "continue reading". The library entry carries the same
+  // event-timestamp ordering, which rejects it.
+  const libraryResume = await getLibraryResumeOrdering(db, event.mangaId as MangaId);
+  if (
+    acceptLibraryResumeMetadata(libraryResume, {
+      timestamp: event.timestamp,
+      readPercent: event.readPercent,
+    })
+  ) {
+    await updateLibraryEntryReadingProgress(db, {
+      mangaId: event.mangaId as MangaId,
+      chapterId: event.chapterId as ChapterId,
+      progressPercent: event.readPercent,
+      updatedAt: event.timestamp,
+    });
+  }
 
   await appendReadingHistory(db, {
     mangaId: event.mangaId as MangaId,

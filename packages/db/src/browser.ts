@@ -26,6 +26,7 @@ export * from './repositories/identities.js';
 export * from './repositories/library.js';
 export * from './repositories/chapters.js';
 export * from './repositories/read-state.js';
+export * from './repositories/progress-ordering.js';
 export * from './repositories/settings.js';
 export * from './repositories/extensions.js';
 export * from './repositories/search-history.js';
