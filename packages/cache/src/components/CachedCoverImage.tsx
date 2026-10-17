@@ -22,14 +22,22 @@ export function CachedCoverImage({
 }: CachedCoverImageProps) {
   const context = useCoverCacheContext();
   const [src, setSrc] = useState<string | undefined>(undefined);
-  // The failure is tracked by request key, not a boolean: a new source must show
-  // the loading placeholder again, and the effect may only touch state from its
-  // async continuation. `src` is kept so the previous image stays on screen
-  // until the new one resolves.
-  const [failedRequest, setFailedRequest] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
   const objectUrlRef = useRef<string | undefined>(undefined);
   const requestKey = `${providerId}\u0000${mangaId}\u0000${remoteUrl}`;
-  const failed = failedRequest === requestKey;
+
+  // A new source (or a new cache context) clears an earlier failure during
+  // render: the effect below may only touch state from its async continuation
+  // (react/set-state-in-effect), and `src` is kept so the previous image stays
+  // on screen until the new one resolves.
+  const [resetKey, setResetKey] = useState<{ readonly context: unknown; readonly request: string }>({
+    context,
+    request: requestKey,
+  });
+  if (resetKey.context !== context || resetKey.request !== requestKey) {
+    setResetKey({ context, request: requestKey });
+    setFailed(false);
+  }
 
   useEffect(() => {
     if (context === null) return;
@@ -50,7 +58,7 @@ export function CachedCoverImage({
       }
 
       if (result === undefined) {
-        setFailedRequest(requestKey);
+        setFailed(true);
         setSrc(undefined);
         return;
       }
@@ -60,7 +68,6 @@ export function CachedCoverImage({
       }
 
       objectUrlRef.current = result.objectUrl;
-      setFailedRequest(null);
       setSrc(result.objectUrl);
 
       if (!result.fromCache) {
@@ -75,7 +82,7 @@ export function CachedCoverImage({
         objectUrlRef.current = undefined;
       }
     };
-  }, [context, mangaId, providerId, remoteUrl, requestKey]);
+  }, [context, mangaId, providerId, remoteUrl]);
 
   if (context === null || failed || src === undefined) {
     return (
