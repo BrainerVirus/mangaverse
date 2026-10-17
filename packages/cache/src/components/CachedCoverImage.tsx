@@ -24,16 +24,25 @@ export function CachedCoverImage({
   const [src, setSrc] = useState<string | undefined>(undefined);
   const [failed, setFailed] = useState(false);
   const objectUrlRef = useRef<string | undefined>(undefined);
+  const requestKey = `${providerId}\u0000${mangaId}\u0000${remoteUrl}`;
+
+  // A new source (or a new cache context) clears an earlier failure during
+  // render: the effect below may only touch state from its async continuation
+  // (react/set-state-in-effect), and `src` is kept so the previous image stays
+  // on screen until the new one resolves.
+  const [resetKey, setResetKey] = useState<{ readonly context: unknown; readonly request: string }>({
+    context,
+    request: requestKey,
+  });
+  if (resetKey.context !== context || resetKey.request !== requestKey) {
+    setResetKey({ context, request: requestKey });
+    setFailed(false);
+  }
 
   useEffect(() => {
-    if (context === null) {
-      setSrc(undefined);
-      setFailed(true);
-      return;
-    }
+    if (context === null) return;
 
     let cancelled = false;
-    setFailed(false);
 
     void (async () => {
       const result = await resolveCoverObjectUrl({
@@ -75,10 +84,10 @@ export function CachedCoverImage({
     };
   }, [context, mangaId, providerId, remoteUrl]);
 
-  if (failed || src === undefined) {
+  if (context === null || failed || src === undefined) {
     return (
       <div
-        className={cn('bg-muted', failed ? 'animate-none' : 'animate-pulse', className)}
+        className={cn('bg-muted', context === null || failed ? 'animate-none' : 'animate-pulse', className)}
         aria-hidden
       />
     );

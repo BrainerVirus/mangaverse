@@ -5,15 +5,15 @@ function probeBrowserEnvironment(): WebCapabilityEnvironment {
   const doc = globalThis.document as Document | undefined;
 
   return {
-    hasClipboardRead: Boolean(nav?.clipboard?.readText),
-    hasClipboardWrite: Boolean(nav?.clipboard?.writeText),
+    hasClipboardRead: typeof nav?.clipboard?.readText === 'function',
+    hasClipboardWrite: typeof nav?.clipboard?.writeText === 'function',
     fullscreenEnabled: Boolean(doc?.fullscreenEnabled),
     hasRegisterProtocolHandler: Boolean(nav && 'registerProtocolHandler' in nav),
     installPromptObservable: typeof globalThis.window !== 'undefined',
     isSecureContext: Boolean(globalThis.isSecureContext),
     hasLocalStorage: typeof globalThis.localStorage !== 'undefined',
-    hasStorageEstimate: Boolean(nav && 'storage' in nav && nav.storage?.estimate),
-    hasStoragePersist: Boolean(nav && 'storage' in nav && nav.storage?.persist),
+    hasStorageEstimate: typeof nav?.storage?.estimate === 'function',
+    hasStoragePersist: typeof nav?.storage?.persist === 'function',
     hasDownload:
       typeof globalThis.Blob !== 'undefined' &&
       typeof globalThis.URL?.createObjectURL === 'function' &&

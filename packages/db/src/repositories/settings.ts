@@ -85,7 +85,7 @@ export async function upsertAppSettings(db: AppDrizzleDb, settings: AppSettings)
   return ok(undefined);
 }
 
-export async function getAppSetting(db: AppDrizzleDb, key: string): Promise<unknown | undefined> {
+export async function getAppSetting(db: AppDrizzleDb, key: string): Promise<unknown> {
   const row = db.select().from(appSettings).where(eq(appSettings.key, key)).get();
   return row?.valueJson;
 }

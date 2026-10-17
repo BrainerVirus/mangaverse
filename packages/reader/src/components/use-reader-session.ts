@@ -40,7 +40,9 @@ export function useReaderSession(
 
   useEffect(() => {
     if (!sessionInput) {
-      setReaderState(null);
+      // No state to rebuild: the returned state is derived as null below.
+      // Clearing the chapter marker keeps a chapter that returns later counted
+      // as fresh, exactly as the previous reset did.
       sessionChapterRef.current = null;
       return;
     }
@@ -78,5 +80,12 @@ export function useReaderSession(
     [sessionInput],
   );
 
-  return { sessionInput, readerState, setReaderState, navigate };
+  return {
+    sessionInput,
+    // No chapter data means no session; deriving the null here keeps the effect
+    // above free of a synchronous setState (react/set-state-in-effect).
+    readerState: sessionInput === null ? null : readerState,
+    setReaderState,
+    navigate,
+  };
 }

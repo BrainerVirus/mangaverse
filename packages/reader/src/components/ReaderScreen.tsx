@@ -146,7 +146,6 @@ export function ReaderScreen({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const scrollHandleRef = useRef<ReaderScrollViewHandle | null>(null);
   const settingsButtonRef = useRef<HTMLButtonElement | null>(null);
-  const activeIndexRef = useRef(0);
   // Vertical navigation resolves from the last target, not the centre-based
   // active page: during a smooth scroll the active page lags behind and rapid
   // presses would otherwise all resolve to the same index. `verticalTargetPending`
@@ -358,7 +357,6 @@ export function ReaderScreen({
 
   const settings = data?.settings;
   const isScrollMode = readerState?.mode === 'scroll';
-  activeIndexRef.current = readerState?.activePageIndex ?? 0;
   const chromeMode: 'single' | 'double' | 'scroll' = isScrollMode
     ? 'scroll'
     : settings?.pageLayout === 'double'

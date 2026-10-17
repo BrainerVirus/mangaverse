@@ -144,23 +144,25 @@ export interface PlatformAdapter {
   };
 }
 
+// Property-style function types, not methods: callers read these off the bridge
+// (mocks, `expect(bridge.x)`), and method signatures would carry a `this` binding.
 export interface DesktopPlatformBridge {
-  getCapabilities(): Promise<AppResult<PlatformCapabilities>>;
-  clipboardReadText(): Promise<AppResult<string>>;
-  clipboardWriteText(text: string): Promise<AppResult<void>>;
-  fileOpenText(options: PlatformFileOpenOptions): Promise<AppResult<PlatformFileResult>>;
-  fileSaveText(options: PlatformFileSaveOptions): Promise<AppResult<PlatformFileResult>>;
-  fullscreenEnter(): Promise<AppResult<void>>;
-  fullscreenExit(): Promise<AppResult<void>>;
-  fullscreenIsActive(): Promise<AppResult<boolean>>;
-  protocolGetPendingInstallUrl(): Promise<AppResult<string | null>>;
-  externalLinkOpen(url: string): Promise<AppResult<void>>;
-  secureStorageGet(key: string): Promise<AppResult<string | undefined>>;
-  secureStorageSet(key: string, value: string): Promise<AppResult<void>>;
-  secureStorageDelete(key: string): Promise<AppResult<void>>;
-  diagnosticsGetSnapshot(): Promise<AppResult<PlatformDiagnosticsSnapshot>>;
-  localServiceGetInfo(): Promise<AppResult<LocalServiceInfo>>;
-  networkFetchBytes(url: string): Promise<AppResult<PlatformNetworkFetchResult | undefined>>;
+  getCapabilities: () => Promise<AppResult<PlatformCapabilities>>;
+  clipboardReadText: () => Promise<AppResult<string>>;
+  clipboardWriteText: (text: string) => Promise<AppResult<void>>;
+  fileOpenText: (options: PlatformFileOpenOptions) => Promise<AppResult<PlatformFileResult>>;
+  fileSaveText: (options: PlatformFileSaveOptions) => Promise<AppResult<PlatformFileResult>>;
+  fullscreenEnter: () => Promise<AppResult<void>>;
+  fullscreenExit: () => Promise<AppResult<void>>;
+  fullscreenIsActive: () => Promise<AppResult<boolean>>;
+  protocolGetPendingInstallUrl: () => Promise<AppResult<string | null>>;
+  externalLinkOpen: (url: string) => Promise<AppResult<void>>;
+  secureStorageGet: (key: string) => Promise<AppResult<string | undefined>>;
+  secureStorageSet: (key: string, value: string) => Promise<AppResult<void>>;
+  secureStorageDelete: (key: string) => Promise<AppResult<void>>;
+  diagnosticsGetSnapshot: () => Promise<AppResult<PlatformDiagnosticsSnapshot>>;
+  localServiceGetInfo: () => Promise<AppResult<LocalServiceInfo>>;
+  networkFetchBytes: (url: string) => Promise<AppResult<PlatformNetworkFetchResult | undefined>>;
 }
 
 export interface WebCapabilityEnvironment {
@@ -179,8 +181,8 @@ export interface WebCapabilityEnvironment {
 export interface WebPlatformEnvironment {
   readonly capabilityProbe?: WebCapabilityEnvironment;
   readonly navigatorClipboard?: {
-    readText(): Promise<string>;
-    writeText(text: string): Promise<void>;
+    readText: () => Promise<string>;
+    writeText: (text: string) => Promise<void>;
   };
   readonly getDocumentElement?: () => Element | null;
   readonly requestFullscreen?: (element: Element) => Promise<void>;

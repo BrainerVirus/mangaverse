@@ -30,16 +30,25 @@ export function CachedPageImage({
   const [src, setSrc] = useState<string | undefined>(undefined);
   const [failed, setFailed] = useState(false);
   const objectUrlRef = useRef<string | undefined>(undefined);
+  const requestKey = `${providerId}\u0000${mangaId}\u0000${chapterId}\u0000${String(pageIndex)}\u0000${remoteUrl}\u0000${retention}`;
+
+  // A new source (or a new cache context) clears an earlier failure during
+  // render: the effect below may only touch state from its async continuation
+  // (react/set-state-in-effect), and `src` is kept so the previous image stays
+  // on screen until the new one resolves.
+  const [resetKey, setResetKey] = useState<{ readonly context: unknown; readonly request: string }>({
+    context,
+    request: requestKey,
+  });
+  if (resetKey.context !== context || resetKey.request !== requestKey) {
+    setResetKey({ context, request: requestKey });
+    setFailed(false);
+  }
 
   useEffect(() => {
-    if (context === null) {
-      setSrc(undefined);
-      setFailed(true);
-      return;
-    }
+    if (context === null) return;
 
     let cancelled = false;
-    setFailed(false);
 
     void (async () => {
       const result = await resolvePageObjectUrl({
@@ -80,10 +89,10 @@ export function CachedPageImage({
     };
   }, [chapterId, context, mangaId, pageIndex, providerId, remoteUrl, retention]);
 
-  if (failed || src === undefined) {
+  if (context === null || failed || src === undefined) {
     return (
       <div
-        className={cn('animate-pulse bg-muted/80', failed && 'animate-none', className)}
+        className={cn('animate-pulse bg-muted/80', (context === null || failed) && 'animate-none', className)}
         aria-hidden={alt === ''}
         role={alt === '' ? undefined : 'img'}
         aria-label={alt === '' ? undefined : alt}
