@@ -43,6 +43,16 @@ describe('MangaDex schemas', () => {
     );
   });
 
+  it('Given an entity without a usable title, When parsed, Then drift throws with the endpoint', () => {
+    const broken = { data: [{ id: '00000000-0000-4000-8000-000000000001', attributes: { title: {} } }] };
+    expect(() => parseCollectionResponse(broken, '/manga')).toThrowError(
+      expect.objectContaining({
+        code: MANGADEX_PAYLOAD_INVALID,
+        details: expect.objectContaining({ endpoint: '/manga' }),
+      }),
+    );
+  });
+
   it('Given an at-home payload without saver renditions, When parsed, Then saver defaults to empty', () => {
     const atHome = parseAtHomeResponse(
       { baseUrl: 'https://x.example', chapter: { hash: 'h', data: ['1.png'] } },
