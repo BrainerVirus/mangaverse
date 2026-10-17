@@ -23,6 +23,7 @@ const defaultSettings: ReaderEngineSettings = {
   readingMode: 'ltr',
   pageLayout: 'single',
   tapZoneLayout: 'leftRight',
+  fitMode: 'width',
   navigationDirection: 'default',
   tapZoneDebugOverlay: false,
   minZoom: 1,

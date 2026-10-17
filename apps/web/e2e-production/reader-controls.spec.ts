@@ -40,9 +40,9 @@ test('Given an open chapter, When changing settings, Then the layout changes and
   const doubleButton = dialog.getByRole('button', { name: 'Double page' });
   const singleButton = dialog.getByRole('button', { name: 'Single page' });
 
-  // aria-pressed flips only after the write commits and the refetch returns the
-  // new settings, so the count assertions below run against the settled layout
-  // instead of a transient mid-transition frame.
+  // aria-pressed flips only after the optimistic settings write lands and the
+  // reader re-renders, so the count assertions below run against the settled
+  // layout instead of a transient mid-transition frame.
   await doubleButton.click();
   await expect(doubleButton).toHaveAttribute('aria-pressed', 'true');
   await expect(images).toHaveCount(2, { timeout: 20_000 });

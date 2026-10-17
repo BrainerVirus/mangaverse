@@ -78,6 +78,10 @@ export function applyPan(
   };
 }
 
+export function clampZoomScale(state: ZoomStateSummary, scale: number): number {
+  return Math.min(Math.max(scale, state.minZoom), state.maxZoom);
+}
+
 export function clampZoomTransform(
   state: ZoomStateSummary,
   pageWidth: number,

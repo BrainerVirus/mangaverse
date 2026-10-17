@@ -1,4 +1,4 @@
-import type { ChapterPage } from '@app/shared';
+import type { ChapterPage, FitMode } from '@app/shared';
 
 export type { ChapterPage, Chapter, ReadingProgress } from '@app/shared';
 
@@ -87,6 +87,7 @@ export interface ReaderSessionInput {
 export interface ReaderEngineSettings {
   readonly readingMode: 'rtl' | 'ltr' | 'vertical';
   readonly pageLayout: 'single' | 'double' | 'smartSpread';
+  readonly fitMode: FitMode;
   readonly tapZoneLayout: 'leftRight' | 'lShaped' | 'grid';
   readonly navigationDirection: 'default' | 'inverted';
   readonly tapZoneDebugOverlay: boolean;
