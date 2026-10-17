@@ -149,8 +149,10 @@ export function ReaderScreen({
   const activeIndexRef = useRef(0);
   // Vertical navigation resolves from the last target, not the centre-based
   // active page: during a smooth scroll the active page lags behind and rapid
-  // presses would otherwise all resolve to the same index.
+  // presses would otherwise all resolve to the same index. `verticalTargetPending`
+  // keeps scroll-driven updates from overwriting a burst that is still landing.
   const verticalTargetRef = useRef(0);
+  const verticalTargetPendingRef = useRef(false);
   const pointerRef = useRef<PointerGesture>(createPointerGesture());
   const reducedMotion = useReducedMotion();
   const cacheContext = useCoverCacheContext();
@@ -209,6 +211,7 @@ export function ReaderScreen({
         const handle = scrollHandleRef.current;
         const target = resolveVerticalNavigationTarget(verticalTargetRef.current, action, pageCount);
         verticalTargetRef.current = target;
+        verticalTargetPendingRef.current = true;
         if (!handle) return;
         const container = handle.scrollContainer();
         if (container === null) return;
@@ -255,13 +258,14 @@ export function ReaderScreen({
       gesture.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       const rect = event.currentTarget.getBoundingClientRect();
 
-      if (gesture.pointers.size >= 2 && gesture.pinch !== null) {
+      if (gesture.pointers.size >= 2) {
+        const pinch = gesture.pinch;
         const [first, second] = [...gesture.pointers.values()];
-        if (first === undefined || second === undefined) return;
+        if (pinch === null || first === undefined || second === undefined) return;
         gesture.moved = true;
         updateZoom((zoom) =>
           clampZoomTransform(
-            applyPinchZoom(zoom, zoom.scale, pinchScale(gesture.pinch!, pointerDistance(first, second)), {
+            applyPinchZoom(zoom, zoom.scale, pinchScale(pinch, pointerDistance(first, second)), {
               centerX: (first.x + second.x) / 2 - rect.left,
               centerY: (first.y + second.y) / 2 - rect.top,
             }),
@@ -459,13 +463,22 @@ export function ReaderScreen({
             pages={data.chapter.pages}
             gapPx={data.engineSettings.verticalGapPx}
             activePageIndex={readerState.activePageIndex}
-            onActivePageChange={(index) =>
+            onActivePageChange={(index) => {
+              // Keyboard presses own the target while a burst is landing; any
+              // other change (user scroll, scroll settling on the target) wins.
+              if (
+                !verticalTargetPendingRef.current ||
+                index === verticalTargetRef.current
+              ) {
+                verticalTargetRef.current = index;
+                verticalTargetPendingRef.current = false;
+              }
               setReaderState((previous) =>
                 previous === null
                   ? previous
                   : { ...previous, activePageIndex: index, visiblePageIndexes: [index] },
-              )
-            }
+              );
+            }}
             providerId={data.providerId}
             mangaId={data.mangaId}
             chapterId={data.chapterId}
@@ -500,6 +513,7 @@ export function ReaderScreen({
                   key={page.id}
                   data-testid="reader-page-box"
                   data-fit-mode={data.engineSettings.fitMode}
+                  data-object-fit={fit.objectFit}
                   style={{
                     width: `${fit.box.width}px`,
                     height: `${fit.box.height}px`,
@@ -522,6 +536,7 @@ export function ReaderScreen({
                   key={page.id}
                   data-testid="reader-page-box"
                   data-fit-mode={data.engineSettings.fitMode}
+                  data-object-fit={fit.objectFit}
                   style={{
                     width: `${fit.box.width}px`,
                     height: `${fit.box.height}px`,
