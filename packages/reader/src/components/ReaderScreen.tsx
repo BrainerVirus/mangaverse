@@ -258,14 +258,13 @@ export function ReaderScreen({
       gesture.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       const rect = event.currentTarget.getBoundingClientRect();
 
-      if (gesture.pointers.size >= 2) {
-        const pinch = gesture.pinch;
+      if (gesture.pointers.size >= 2 && gesture.pinch !== null) {
         const [first, second] = [...gesture.pointers.values()];
-        if (pinch === null || first === undefined || second === undefined) return;
+        if (first === undefined || second === undefined) return;
         gesture.moved = true;
         updateZoom((zoom) =>
           clampZoomTransform(
-            applyPinchZoom(zoom, zoom.scale, pinchScale(pinch, pointerDistance(first, second)), {
+            applyPinchZoom(zoom, zoom.scale, pinchScale(gesture.pinch!, pointerDistance(first, second)), {
               centerX: (first.x + second.x) / 2 - rect.left,
               centerY: (first.y + second.y) / 2 - rect.top,
             }),
@@ -365,7 +364,6 @@ export function ReaderScreen({
     : settings?.pageLayout === 'double'
       ? 'double'
       : 'single';
-
   const handleModeChange = useCallback(
     (mode: 'single' | 'double' | 'scroll' | 'webtoon') => {
       if (!onChangeSettings) return;
