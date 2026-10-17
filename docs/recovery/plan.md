@@ -184,9 +184,10 @@ rate limiter and contract harness before defining signatures.
       The manifest declares exactly the six implemented methods plus `ops.officialApi`.
 - [x] Validate every consumed network field, including URLs and page filenames;
       reject malformed payloads with normalized errors. Propagate `ctx.signal`.
-      Hand-rolled narrow validators instead of the June spec's Zod: the repo has no
-      Zod dependency and the dependency policy prefers none for four endpoints.
       Drift throws `extensions.mangadex.payload_invalid` with the endpoint.
+      Originally hand-rolled narrow validators; the user's standing decision
+      (2026-10-17, `b2e767cb`) replaced them with Zod 4 schemas, keeping the same
+      accepted/rejected payloads and the same error code and endpoint details.
 - [x] Test data-saver fallback: when saver filenames are unavailable, use the
       original-data URL path as well as original filenames, not a mixed path.
 - [x] Test empty chapter lists, service failure and multi-page chapter feeds
