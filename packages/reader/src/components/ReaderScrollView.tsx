@@ -1,10 +1,18 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { CachedPageImage } from '@app/cache';
 import type { ReaderPage } from '../types.js';
-import { findActiveScrollPage, windowedScrollPages, type ScrollPageMetric } from '../scroll-layout.js';
+import {
+  findActiveScrollPage,
+  windowedScrollPages,
+  type ScrollPageMetric,
+} from '../scroll-layout.js';
 
 export interface ReaderScrollViewHandle {
   scrollToPage: (index: number, behavior?: ScrollBehavior) => void;
+  /** Live page offsets/sizes, so callers can centre a target page themselves. */
+  measurePages: () => readonly ScrollPageMetric[];
+  /** The scrolling element, for callers that compute their own offset. */
+  scrollContainer: () => HTMLElement | null;
 }
 
 interface ReaderScrollViewProps {
@@ -44,6 +52,17 @@ export function ReaderScrollView({
   const frameRef = useRef<number | null>(null);
   const activeRef = useRef(activePageIndex);
   activeRef.current = activePageIndex;
+  const [spacerPx, setSpacerPx] = useState(0);
+
+  const measurePages = useCallback((): readonly ScrollPageMetric[] => {
+    const metrics: ScrollPageMetric[] = [];
+    for (const [index, node] of pageNodes.current.entries()) {
+      if (node === null) continue;
+      metrics.push({ index, top: node.offsetTop, height: node.offsetHeight });
+    }
+    metrics.sort((a, b) => a.top - b.top);
+    return metrics;
+  }, []);
 
   const scrollToPage = useCallback(
     (index: number, behavior: ScrollBehavior = reducedMotion ? 'auto' : 'smooth') => {
@@ -56,9 +75,9 @@ export function ReaderScrollView({
   );
 
   useEffect(() => {
-    onHandle({ scrollToPage });
+    onHandle({ scrollToPage, measurePages, scrollContainer: () => containerRef.current });
     return () => onHandle(null);
-  }, [onHandle, scrollToPage]);
+  }, [measurePages, onHandle, scrollToPage]);
 
   // Resume position: jump (never animate) to the active page on mount.
   useEffect(() => {
@@ -70,25 +89,32 @@ export function ReaderScrollView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Half a viewport of slack after the last page, so it can be centred too —
+  // without it the final short page could never reach the viewport centre.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const update = () => setSpacerPx(container.clientHeight / 2);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
   const handleScroll = useCallback(() => {
     if (frameRef.current !== null) return;
     frameRef.current = window.requestAnimationFrame(() => {
       frameRef.current = null;
       const container = containerRef.current;
       if (!container) return;
-      const metrics: ScrollPageMetric[] = [];
-      for (const [index, node] of pageNodes.current.entries()) {
-        if (node === null) continue;
-        metrics.push({ index, top: node.offsetTop, height: node.offsetHeight });
-      }
-      metrics.sort((a, b) => a.top - b.top);
+      const metrics = measurePages();
       const center = container.scrollTop + container.clientHeight / 2;
       const next = findActiveScrollPage(metrics, center);
       if (next !== activeRef.current) {
         onActivePageChange(next);
       }
     });
-  }, [onActivePageChange]);
+  }, [measurePages, onActivePageChange]);
 
   useEffect(() => {
     return () => {
@@ -134,6 +160,7 @@ export function ReaderScrollView({
             )}
           </div>
         ))}
+        {spacerPx > 0 ? <div aria-hidden style={{ height: `${spacerPx}px` }} /> : null}
       </div>
     </div>
   );

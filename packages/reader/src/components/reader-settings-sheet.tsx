@@ -96,6 +96,30 @@ export function ReaderSettingsSheet({
             </div>
           </div>
           <div className="space-y-2">
+            <p className="text-sm font-medium">Page fit</p>
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  ['width', 'Fit width'],
+                  ['height', 'Fit height'],
+                  ['contain', 'Fit screen'],
+                  ['cover', 'Fill screen'],
+                  ['original', 'Original size'],
+                ] as const
+              ).map(([value, label]) => (
+                <Button
+                  key={value}
+                  size="sm"
+                  variant={settings.fitMode === value ? 'default' : 'outline'}
+                  aria-pressed={settings.fitMode === value}
+                  onClick={() => onChangeSettings?.({ fitMode: value })}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2">
             <p className="text-sm font-medium">Tap zones</p>
             <div className="flex flex-wrap gap-2">
               {(

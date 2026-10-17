@@ -43,7 +43,20 @@ export { calculateTapZones, resolveTapZoneAction, createTapZoneDebugModel } from
 export { resolveNavigationAction, applyNavigationAction, resolveKeyboardAction, resolveWheelAction } from './navigation.js';
 
 // Zoom/pan functions
-export { createZoomState, applyDoubleTapZoom, applyPinchZoom, applyPan, clampZoomTransform } from './zoom.js';
+export {
+  createZoomState,
+  applyDoubleTapZoom,
+  applyPinchZoom,
+  applyPan,
+  clampZoomScale,
+  clampZoomTransform,
+} from './zoom.js';
+
+// Page fit + vertical scroll navigation
+export { resolvePageFit } from './page-fit.js';
+export type { PageFit, PageFitInput } from './page-fit.js';
+export { computeScrollTargetTop, resolveVerticalNavigationTarget } from './scroll-navigation.js';
+export { isDoubleTap, pinchScale, pointerDistance } from './gestures.js';
 
 // Webtoon functions
 export { calculateWebtoonWindow, estimateWebtoonLayout } from './webtoon.js';

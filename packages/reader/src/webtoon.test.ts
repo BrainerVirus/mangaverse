@@ -26,6 +26,7 @@ const defaultSettings: ReaderEngineSettings = {
   readingMode: 'vertical',
   pageLayout: 'single',
   tapZoneLayout: 'leftRight',
+  fitMode: 'width',
   navigationDirection: 'default',
   tapZoneDebugOverlay: false,
   minZoom: 1,

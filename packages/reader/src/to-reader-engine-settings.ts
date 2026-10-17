@@ -5,6 +5,7 @@ export function toReaderEngineSettings(settings: ReaderSettings): ReaderEngineSe
   return {
     readingMode: settings.readingMode,
     pageLayout: settings.pageLayout,
+    fitMode: settings.fitMode,
     tapZoneLayout: settings.tapZoneLayout,
     navigationDirection: settings.navigationDirection,
     tapZoneDebugOverlay: settings.tapZoneDebugOverlay,
