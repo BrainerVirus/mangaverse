@@ -321,9 +321,14 @@ export async function updateLibraryEntryReadingProgress(
     readonly mangaId: MangaId;
     readonly chapterId: ChapterId;
     readonly progressPercent: number;
+    /**
+     * Event timestamp of the progress write. Resume metadata is ordered by it,
+     * so a wall-clock `now` would let a stale event overwrite newer metadata.
+     */
+    readonly updatedAt?: string;
   },
 ): Promise<void> {
-  const now = new Date().toISOString();
+  const now = input.updatedAt ?? new Date().toISOString();
   await db
     .update(libraryEntries)
     .set({

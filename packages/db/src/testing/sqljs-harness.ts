@@ -1,5 +1,5 @@
 import initSqlJs from 'sql.js';
-import type { Database } from 'sql.js';
+import type { Database, SqlJsStatic } from 'sql.js';
 import { createDrizzleFromSqlJs } from '../client.js';
 import type { AppDrizzleDb } from '../adapter.js';
 import { migrateDatabaseToLatest } from '../node.js';
@@ -7,6 +7,8 @@ import { migrateDatabaseToLatest } from '../node.js';
 export interface SqlJsHarness {
   readonly raw: Database;
   readonly db: AppDrizzleDb;
+  /** The same module instance the harness was opened with. */
+  readonly sqlModule: SqlJsStatic;
 }
 
 /**
@@ -18,5 +20,5 @@ export async function createSqlJsHarness(): Promise<SqlJsHarness> {
   raw.run('PRAGMA foreign_keys = ON');
   migrateDatabaseToLatest(raw);
   const db = createDrizzleFromSqlJs(raw);
-  return { raw, db };
+  return { raw, db, sqlModule: SQL };
 }
