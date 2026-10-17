@@ -27,10 +27,10 @@
 
     // shortcut: rules oxlint 1.x newly promotes to `error` (plus the type-aware set that
     // only started running once oxlint-tsgolint was installed). The react/typescript
-    // block is enabled now and clean: typescript/unbound-method, no-base-to-string,
-    // no-useless-empty-export, no-redundant-type-constituents, react/set-state-in-effect,
-    // react/preserve-manual-memoization, react/refs, react/incompatible-library and
-    // react/purity all report 0 findings (43 fixed, measured 2026-10-17). Four keeps are
+    // block is enabled now and clean: typescript/unbound-method, no-useless-empty-export,
+    // react/set-state-in-effect, react/preserve-manual-memoization, react/refs,
+    // react/incompatible-library and react/purity all report 0 findings (43 fixed,
+    // measured 2026-10-17). Four keeps are
     // inline ignores with recorded rulings: react/set-state-in-effect on the two SSR
     // hooks (use-is-client, use-reduced-motion) and react/incompatible-library on the two
     // TanStack Virtual grids. Still pinned here, measured 2026-10-17 with this list forced
@@ -43,6 +43,15 @@
     // production typescript/no-redundant-type-constituents findings; the real count is 1 —
     // the other 63 were "error type" artifacts of linting a tree whose packages/*/dist was
     // not built yet.
+    //
+    // typescript/no-redundant-type-constituents and typescript/no-base-to-string are
+    // dist-dependent and stay pinned: on a fresh checkout (CI lints before any
+    // packages/*/dist exists) cross-package imports resolve to "error types" and these
+    // two fire false positives — 63 + 1 errors in the PR #58 CI lint. Their real findings
+    // (1 + 2) are fixed; re-enable them once lint depends on the build (e.g. `turbo run
+    // lint`, whose task already declares dependsOn ["^build"]).
+    "typescript/no-redundant-type-constituents": "off",
+    "typescript/no-base-to-string": "off",
     "vitest/require-mock-type-parameters": "off",
     "vitest/no-conditional-expect": "off",
     "vitest/valid-expect": "off",
