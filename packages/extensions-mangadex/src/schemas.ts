@@ -66,25 +66,28 @@ export interface MdFeed {
   readonly chapters: readonly MdChapterEntity[];
 }
 
-/** A locale map: a plain object whose string entries survive the filter. */
-function isStringMap(value: unknown): boolean {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+/** A locale map: a plain object with at least one string entry. */
+function hasStringEntry(value: unknown): value is Readonly<Record<string, unknown>> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.values(value).some((entry) => typeof entry === 'string')
+  );
 }
 
-function toStringMap(value: unknown): Readonly<Record<string, string>> {
+/** Keeps only the string entries; the check already proved there is one. */
+function toStringMap(value: Readonly<Record<string, unknown>>): Readonly<Record<string, string>> {
   const out: Record<string, string> = {};
-  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+  for (const [key, entry] of Object.entries(value)) {
     if (typeof entry === 'string') out[key] = entry;
   }
   return out;
 }
 
-/** An all-non-string map is drift where a mapper needs a real value. */
-const nonEmptyStringMap = z.custom<Readonly<Record<string, string>>>(
-  (value) =>
-    isStringMap(value) && Object.values(value as Record<string, unknown>).some((entry) => typeof entry === 'string'),
-  { error: 'must contain at least one string entry' },
-);
+const nonEmptyStringMap = z.custom<Readonly<Record<string, string>>>(hasStringEntry, {
+  error: 'must contain at least one string entry',
+});
 
 /** Optional text: absent, null, empty and non-string all collapse to "not there". */
 const optionalString = z
@@ -119,10 +122,7 @@ const tagSchema = z
 
 /** Null means "no description"; a string and a non-empty locale map both count. */
 const descriptionSchema = z.custom<Readonly<Record<string, string>> | string | null>(
-  (value) =>
-    value === null ||
-    typeof value === 'string' ||
-    (isStringMap(value) && Object.values(value as Record<string, unknown>).some((entry) => typeof entry === 'string')),
+  (value) => value === null || typeof value === 'string' || hasStringEntry(value),
   { error: 'must be a string or a locale map with at least one string entry' },
 );
 
