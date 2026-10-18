@@ -15,65 +15,31 @@ Agents must read the relevant rewrite docs before implementation:
 
 ## Project Direction
 
-MangaVerse is a web-native, local-first manga, comic, and webtoon reader that also ships as an Electron desktop app for Windows, macOS, and Linux, replacing an Expo-first app.
-
-The legacy Expo tree was removed (Phase 10.5); `apps/` and `packages/` are the canonical codebase. Do not rescue unstable code solely for parity; port behavior only after package contracts and tests exist.
+MangaVerse is a web-native, local-first manga, comic and webtoon reader that also ships as an Electron desktop app for Windows, macOS and Linux, replacing an Expo-first app. The legacy Expo tree was removed (Phase 10.5); `apps/` and `packages/` are canonical. Do not rescue unstable code solely for parity; port behavior only after package contracts and tests exist.
 
 ## Target Stack
 
-- Framework: React + TanStack Start for the web app.
-- Routing: TanStack Router.
-- Remote/server-state and provider-call caching: TanStack Query.
-- Client/UI state: Zustand.
-- Language: TypeScript throughout apps and packages.
-- Desktop: Electron.
-- Desktop-local APIs: Express.js where a local HTTP boundary is useful.
-- Database: SQLite with Drizzle ORM.
-- Web database runtime: browser SQLite/WASM.
-- Desktop database runtime: Electron-compatible SQLite driver selected during implementation.
-- UI: shadcn/ui through `@app/design-system` wrappers.
-- Motion: GSAP, `@gsap/react`, timelines, and ScrollTrigger through `@app/motion`.
-- Architecture: monorepo with reusable packages.
-- Future sync: Supabase or similar cloud sync only after local-first behavior is stable.
+React + TanStack Start (web) and Router; TanStack Query for remote state and
+provider calls; Zustand for client state; TypeScript everywhere. Electron for
+desktop, with Express.js where a local HTTP boundary helps. SQLite + Drizzle
+(browser SQLite/WASM on web). shadcn/ui through `@app/design-system`; GSAP
+through `@app/motion`. Monorepo of reusable packages. Cloud sync only after
+local-first behavior is stable.
 
-## Planned Monorepo Layout
+## Layout
 
-```txt
-apps/
-  web/
-  desktop/
-packages/
-  reader/
-  extensions-core/
-  extensions-sdk/
-  db/
-  design-system/
-  motion/
-  library/
-  search/
-  migration/
-  settings/
-  theme/
-  platform/
-  shared/
-  test-utils/
-docs/
-  SPEC.md
-  PLAN.md
-  ARCHITECTURE.md
-  Design.md
-```
+`apps/web`, `apps/desktop`, and `packages/*`; `docs/` holds `SPEC.md`, `PLAN.md`,
+`ARCHITECTURE.md`, `Design.md` and `recovery/`.
 
 ## Package Boundary Rules
 
 Enforced by `.oxlintrc.json` (`no-restricted-imports`; `pnpm lint` fails on a violation): `@app/shared` and `@app/motion` import no app package; `@app/design-system` imports only `@app/shared` and `@app/motion`. The rules below are not machine-checked.
 
 - App features consume stable package APIs.
-- Features must not reach directly into provider internals, database internals, reader internals, platform internals, or Electron internals.
-- Do not add raw SQL outside `@app/db`.
-- Do not add provider-specific hacks outside `@app/extensions-core`, `@app/extensions-sdk`, or provider extension packages.
-- Do not place business logic inside visual components when it belongs in a feature service, domain package, repository, or shared model.
-- Do not place business logic inside animation code.
+- No reaching into provider, database, reader, platform or Electron internals from a feature.
+- No raw SQL outside `@app/db`.
+- No provider-specific hacks outside `@app/extensions-core`, `@app/extensions-sdk` or a provider extension package.
+- No business logic inside visual components or animation code when it belongs in a feature service, domain package, repository or shared model.
 
 ## Design System Rules
 
@@ -88,36 +54,27 @@ Enforced by `.oxlintrc.json` (`no-restricted-imports`; `pnpm lint` fails on a vi
 ## Motion Rules
 
 - Use GSAP through `@app/motion` helpers or cleanup-safe local patterns.
-- React GSAP code must use `useGSAP()` from `@gsap/react` or an equivalent `gsap.context()` cleanup.
-- Always scope GSAP selectors to a component ref.
+- React GSAP code must use `useGSAP()` from `@gsap/react` or an equivalent `gsap.context()` cleanup, always scoped to a component ref.
 - Wrap event-created GSAP animations with `contextSafe()` or a package helper.
-- Respect `prefers-reduced-motion`.
-- Do not run GSAP during SSR.
-- Do not use ScrollTrigger in core reader scrolling unless explicitly designed and tested as a reader-safe enhancement.
+- Respect `prefers-reduced-motion`, and do not run GSAP during SSR.
+- Do not use ScrollTrigger in core reader scrolling unless explicitly designed and tested as a reader-safe enhancement; remove ScrollTrigger markers from production.
 - Do not animate layout-heavy properties when transform or opacity can achieve the effect.
-- Remove ScrollTrigger markers from production.
 
 ## Reader Performance Rules
 
-- Reader interactions must stay stable and performant.
-- Keep tap zones reliable with zoom, scroll, and overlays.
-- Do not let reader gestures, zoom, tap zones, or page preloading depend on global app rerenders.
+- Reader interactions must stay stable and performant; keep tap zones reliable with zoom, scroll and overlays.
+- Do not let reader gestures, zoom, tap zones or page preloading depend on global app rerenders.
 - High-frequency reader state should stay local or in refs, not broad Zustand stores.
-- Progress persistence should be debounced, batched, or checkpoint-based.
-- Reader motion is limited to chrome transitions, safe page transitions, settings panels, and explicit feedback.
-- Avoid decorative animation during actual reading.
+- Progress persistence should be debounced, batched or checkpoint-based.
+- Reader motion is limited to chrome transitions, safe page transitions, settings panels and explicit feedback; avoid decorative animation while reading.
 
 ## Extension Security Rules
 
 - Do not bundle third-party source extensions in the core app by default unless explicitly approved.
-- Keep provider distribution separate from the app shell.
-- Require explicit user confirmation before installing provider code.
-- Validate extension manifests before install.
-- Show provider source URL, version, permissions, capabilities, languages, and content flags before install.
-- Support user-provided registries and manual URL installs.
-- Support checksums or signatures where feasible.
-- Allow disabling broken or dangerous providers.
-- Provider code must not import app internals directly.
+- Keep provider distribution separate from the app shell; require explicit user confirmation before installing provider code.
+- Validate extension manifests before install, and show source URL, version, permissions, capabilities, languages and content flags.
+- Support user-provided registries, manual URL installs, and checksums or signatures where feasible.
+- Allow disabling broken or dangerous providers; provider code must not import app internals.
 - Provider errors must be normalized and isolated from the rest of the app.
 
 ## Local-First Performance Rules
@@ -144,42 +101,42 @@ Enforced by `.oxlintrc.json` (`no-restricted-imports`; `pnpm lint` fails on a vi
 - Add reduced-motion checks for motion-heavy components.
 - The production E2E serves `packages/*/dist`: rebuild after editing package sources.
 
-Critical flows to test:
-
-- Add provider.
-- Search provider.
-- Add manga to library.
-- Open manga details.
-- Start reading.
-- Continue reading.
-- Change reader mode.
-- Use tap zones.
-- Switch provider for manga.
-- Migrate manga.
-- Backup.
-- Restore.
-- Change theme.
-- Reduced-motion mode.
+Critical flows to test: add provider, search provider, add manga to library,
+open manga details, start reading, continue reading, change reader mode, use tap
+zones, switch provider for manga, migrate manga, backup, restore, change theme,
+reduced-motion mode.
 
 ## Recovery State (current)
 
-Web-first recovery is the active workstream: read `docs/recovery/spec.md` and
-`docs/recovery/plan.md` before any historical phase plan. Slices S0–S4 are
-merged (startup, durable storage, MangaDex provider, provider runtime, reader
-durability); S5–S6 done; S7 covers publication.
-Electron is retained but deferred until the web flow is proven.
+Web-first recovery is the active workstream; `docs/recovery/plan.md` is the single ledger (S0–S6 done, S7 covers publication). Electron is retained but deferred until the web flow is proven.
 
-The historical phase table and per-phase test counts were removed by the S5
-cleanup: Git retains them and `docs/recovery/plan.md` is the single ledger. The
-legacy Expo/React Native/Expo Router/Tauri trees were removed in Phase 10.5;
-`apps/` and `packages/` are canonical.
+## Effect Rules
+
+`team-conventions/no-use-effect` (`pnpm run doctor`) reports every `useEffect` call.
+
+- Do not write new `useEffect`. Refactor existing usages to derived state, an
+  event handler, `useSyncExternalStore`, `useGSAP`, or a key reset.
+- A true external-system boundary (browser API, Electron IPC, subscription)
+  keeps it, with an inline
+  `// react-doctor-disable-next-line team-conventions/no-use-effect -- <reason>`
+  and a `workit ledger ruling` recording the ruling.
+
+## Code Quality Gates
+
+Run both before reporting a change; both currently exit non-zero until the
+react-doctor/knip arc is finished (see `docs/recovery/plan.md`).
+
+- `pnpm run doctor` — react-doctor, all workspace projects, any finding fails
+  (`blocking: warning` in `doctor.config.ts`). `pnpm doctor` is pnpm's own
+  command, so the script needs `pnpm run`. CI lands the hard gate last.
+- `pnpm knip` — unused files, dependencies and exports.
 
 ## Canonical Commands
 
 - Install: `pnpm install`
 - Dev: `pnpm dev` (web), `pnpm dev:web`, `pnpm dev:desktop`
-- Checks: `pnpm lint` / `lint:fix`, `pnpm format` / `format:check` (oxfmt), `pnpm typecheck`, `pnpm test`
+- Checks: `pnpm lint` / `lint:fix`, `pnpm format` / `format:check` (oxfmt), `pnpm typecheck`, `pnpm test`, `pnpm run doctor`, `pnpm knip`
 - Builds: `pnpm build`, `pnpm --filter @app/web build`, `pnpm --filter @app/desktop build`; clean with `pnpm clean`
 
-These commands may change as the monorepo rewrite is implemented. Update this file and `docs/PLAN.md` when the canonical commands change.
+Update this file and `docs/PLAN.md` when the canonical commands change.
 
