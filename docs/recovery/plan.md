@@ -409,8 +409,25 @@ the June MangaDex spec, and only tests with triaged audit findings.
       finding) to 8,191 B; lint re-run shows 0 findings.
 - [x] Recovery pointers added to AGENTS.md Required Reading plus a compact
       "Recovery State (current)" section that names exactly what it replaces.
-- [ ] Move judgment rules behind topic pointers only when useful; encode mechanical
-      package-import/provider-location rules as executable checks, not repeated prose.
+- [x] Mechanical import boundaries encoded as executable checks: `.oxlintrc.json`
+      `no-restricted-imports` overrides make `@app/shared` and `@app/motion` import no
+      app package and `@app/design-system` import only `@app/shared`/`@app/motion`
+      (each measured 0 findings over `npx oxlint apps packages` with the rule forced
+      on, 2026-10-18; a planted `import ... from '@app/library'` in
+      `packages/shared/src/index.ts` makes `pnpm lint` exit 1, reverted byte-identical).
+      AGENTS.md's Package Boundary Rules point at the check instead of repeating it
+      (8,129 B, `workit knowledge lint` 0 findings). Judgment rules stayed prose: they
+      are not duplicated in another doc, so a topic pointer would only move them.
+- [ ] Two mechanical rules stay prose because they cannot be enforced yet: raw SQL
+      outside `@app/db` (oxlint 1.87 has no raw-SQL rule; 0 production sites, 3 test-only
+      `.exec()` read-backs in `packages/reader/src/persist-reader-progress.test.ts` and
+      `apps/web/app/lib/__tests__/local-db.test.ts`) and provider-specific code outside
+      `@app/extensions-*` (4 `@app/extensions-mangadex` import findings, all in
+      `apps/web/app/lib/`, plus 13 production files with MangaDex-specific content such
+      as `mangadex-ids.ts`, `mangadex-identity-mapping.ts`, `mangadex-discover.ts` and
+      `mangadex-query-options.ts`). Rulings recorded; follow-up is to move the app-side
+      mangadex mapping/persist/query code into `@app/extensions-mangadex` behind the SDK
+      contract, then add the override.
 - [ ] Run `workit knowledge lint` before/after each instruction commit; no new finding.
       Canonical commands for production build/start/E2E already exist in
       `apps/web/package.json` and the root scripts; keep them current.
