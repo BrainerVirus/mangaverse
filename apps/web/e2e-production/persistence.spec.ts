@@ -10,6 +10,31 @@ test('Given finished onboarding, When the page reloads, Then setup is not repeat
   await expect(page).toHaveURL(/\/library/, { timeout: 20_000 });
 });
 
+test('Given the onboarding theme step, When Dark is toggled and the page reloads at once, Then the theme survives', async ({
+  page,
+}) => {
+  await page.goto('/onboarding');
+  await clickContinue(page);
+
+  const darkToggle = page.getByRole('switch', { name: 'Dark appearance' });
+  await darkToggle.click();
+  await expect(page.locator('html')).toHaveClass(/\bdark\b/);
+
+  // The saving indicator clears only when the theme write settles, so the
+  // reload below fires straight after it -- no deliberate wait, and no way to
+  // fall into a gap the ~400 ms coalesced flush would still cover.
+  await expect(darkToggle).toBeEnabled();
+
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeEnabled({
+    timeout: 20_000,
+  });
+  // The settings row hydrates a beat after load; a stale row would flip the
+  // theme back to light inside that window, so assert once the session is quiet.
+  await waitForPingQuiet(page);
+  await expect(page.locator('html')).toHaveClass(/\bdark\b/);
+});
+
 test('Given a quiescent session, When onboarding finishes, Then the write is durable before navigation', async ({
   page,
 }) => {

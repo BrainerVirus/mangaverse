@@ -1,11 +1,12 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   DEFAULT_SEARCH_VIEW_STATE,
   recordSearchQuery,
   SearchPage,
   searchQueryKeys,
+  type SearchViewState,
 } from '@app/search';
 import { fetchAppSettings, settingsQueryKeys } from '@app/settings';
 import { searchPageQueryOptions } from '../queries/search-query-options.js';
@@ -37,9 +38,10 @@ function SearchRoute() {
     enabled: dbStatus === 'ready' && db !== null && appSettingsQuery.isSuccess,
   });
 
-  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-analytics-write: recording the query is a debounced-by-typing DB write keyed on the settled `viewState.query`; the SearchPage owns the input state, so there is no event handler to move this into.
-  useEffect(() => {
-    const trimmed = viewState.query.trim();
+  const handleViewStateChange = (next: SearchViewState) => {
+    setViewState(next);
+
+    const trimmed = next.query.trim();
     if (trimmed.length === 0 || db === null || dbStatus !== 'ready') {
       return;
     }
@@ -51,7 +53,7 @@ function SearchRoute() {
     void recordSearchQuery(db, trimmed).then(() => {
       void queryClient.invalidateQueries({ queryKey: searchQueryKeys.all });
     });
-  }, [db, dbStatus, queryClient, viewState.query]);
+  };
 
   return (
     <SearchPage
@@ -59,7 +61,7 @@ function SearchRoute() {
       isLoading={dbStatus === 'loading' || isLoading || appSettingsQuery.isLoading}
       isError={dbStatus === 'error' || isError}
       viewState={viewState}
-      onViewStateChange={setViewState}
+      onViewStateChange={handleViewStateChange}
       onOpenManga={(mangaId) => navigate({ to: '/manga/$id', params: { id: mangaId } })}
       onBrowseProviders={() => void navigate({ to: '/extensions' })}
       {...(dbStatus === 'error' ? { onRetry: retryDb } : {})}

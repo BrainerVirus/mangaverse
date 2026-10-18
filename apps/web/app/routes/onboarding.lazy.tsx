@@ -88,6 +88,10 @@ function OnboardingRoute() {
       if (!result.ok) {
         throw new Error(result.error.message);
       }
+      // Durability checkpoint, like the finish path: the settings row only
+      // reaches the snapshot on the coalesced flush, so a reload before it
+      // rehydrates the stale row and reverts the theme.
+      await flushLocalDb();
     },
     onSettled: () => {
       setThemeSaving(false);
