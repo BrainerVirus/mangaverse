@@ -1,5 +1,5 @@
-import type { ChapterId, MangaId } from '@app/shared';
-import { toChapterId, toMangaId } from '@app/shared';
+import type { ChapterId, ChapterPageId, MangaId } from '@app/shared';
+import { toChapterId, toChapterPageId, toMangaId } from '@app/shared';
 
 /**
  * App-side id conventions for MangaDex-sourced records. These keep the
@@ -9,6 +9,7 @@ import { toChapterId, toMangaId } from '@app/shared';
  */
 const MANGA_PREFIX = 'dev-md-';
 const CHAPTER_PREFIX = 'dev-md-ch-';
+const PAGE_PREFIX = 'dev-md-page-';
 
 export function toMangadexAppMangaId(mangadexMangaId: string): MangaId {
   return toMangaId(`${MANGA_PREFIX}${mangadexMangaId}`);
@@ -30,4 +31,9 @@ export function parseMangadexAppChapterId(chapterId: ChapterId): string | null {
 
 export function isMangadexAppMangaId(mangaId: MangaId): boolean {
   return parseMangadexAppMangaId(mangaId) !== null;
+}
+
+/** Page ids stay deterministic so a reloaded chapter reuses the same rows. */
+export function toMangadexChapterPageId(mangadexChapterId: string, index: number): ChapterPageId {
+  return toChapterPageId(`${PAGE_PREFIX}${mangadexChapterId}-${index}`);
 }

@@ -21,7 +21,7 @@ import {
 import { useOnlineStatus } from '../lib/use-online-status.js';
 import { useLayoutStore } from '../stores/useLayoutStore.js';
 import { PersistenceErrorBanner } from '../components/PersistenceErrorBanner.js';
-import { ensureMangadexChapterPages } from '../queries/mangadex-query-options.js';
+import { ensureProviderChapterPages } from '../queries/provider-query-options.js';
 
 export const Route = createFileRoute('/reader/$chapterId')({
   component: ReaderRoute,
@@ -45,7 +45,7 @@ function ReaderRoute() {
   const { data, isLoading, isError } = useQuery({
     queryKey: readerQueryKeys.chapter(chapterId),
     queryFn: async ({ signal }) => {
-      await ensureMangadexChapterPages(db!, chapterId, signal);
+      await ensureProviderChapterPages(db!, chapterId, signal);
       return fetchReaderPage(db!, chapterId);
     },
     enabled: dbStatus === 'ready' && db !== null,

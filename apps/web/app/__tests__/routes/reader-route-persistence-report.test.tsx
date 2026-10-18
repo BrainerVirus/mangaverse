@@ -23,8 +23,8 @@ vi.mock('../../providers/local-db-provider.js', () => ({
 vi.mock('../../components/PersistenceErrorBanner.js', () => ({
   PersistenceErrorBanner: () => null,
 }));
-vi.mock('../../queries/mangadex-query-options.js', () => ({
-  ensureMangadexChapterPages: vi.fn<() => Promise<void>>(async () => {}),
+vi.mock('../../queries/provider-query-options.js', () => ({
+  ensureProviderChapterPages: vi.fn<() => Promise<void>>(async () => {}),
 }));
 
 let screenProps: Record<string, unknown> = {};

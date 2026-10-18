@@ -1,15 +1,15 @@
 import type {
   ProviderChapter,
   ProviderDetails,
+  ProviderPage,
   ProviderSearchResultItem,
 } from '@app/extensions-sdk';
-import type { MangaDetailData } from '@app/library';
-import type { Chapter, MangaIdentity } from '@app/shared';
+import type { Chapter, ChapterPage, MangaIdentity } from '@app/shared';
 import { toProviderId, toProviderMangaId, toProviderMappingId } from '@app/shared';
 
-import { toMangadexAppChapterId, toMangadexAppMangaId } from './mangadex-ids.js';
+import { toMangadexAppChapterId, toMangadexAppMangaId, toMangadexChapterPageId } from './ids.js';
 
-const MANGADEX_PROVIDER_ID = toProviderId('mangadex');
+export const MANGADEX_PROVIDER_ID = toProviderId('mangadex');
 
 function buildMapping(mangadexMangaId: string, providerTitle: string) {
   return {
@@ -83,11 +83,16 @@ export function providerChapterToChapter(
   };
 }
 
+/**
+ * The app's manga-detail shape for a resolved MangaDex title. Structurally the
+ * library's `MangaDetailData`; declared here so the provider package needs no
+ * dependency on a feature package.
+ */
 export function buildMangaDetailData(
   mangadexMangaId: string,
   details: ProviderDetails,
   chapters: readonly ProviderChapter[],
-): MangaDetailData {
+) {
   const manga = providerDetailsToMangaIdentity(mangadexMangaId, details);
   const mappedChapters = chapters.map((chapter) =>
     providerChapterToChapter(mangadexMangaId, chapter),
@@ -97,5 +102,17 @@ export function buildMangaDetailData(
     chapters: mappedChapters,
     libraryEntry: undefined,
     continueChapterId: mappedChapters[0]?.id,
-  } satisfies MangaDetailData;
+  };
+}
+
+/** Maps provider pages onto the app's chapter-page rows, with stable ids. */
+export function toMangadexChapterPages(
+  mangadexChapterId: string,
+  pages: readonly ProviderPage[],
+): readonly ChapterPage[] {
+  return pages.map((page, position) => ({
+    id: toMangadexChapterPageId(mangadexChapterId, position),
+    index: page.index,
+    image: { url: page.imageUrl },
+  }));
 }

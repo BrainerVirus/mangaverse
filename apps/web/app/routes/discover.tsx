@@ -5,13 +5,12 @@ import { DiscoverPage, discoverQueryKeys } from '@app/search';
 import { fetchAppSettings, settingsQueryKeys } from '@app/settings';
 import { useLocalDb, useLocalDbStatus, useLocalDbRetry } from '../providers/local-db-provider.js';
 import {
-  fetchMangadexDiscoverData,
-  fetchMangadexSectionPage,
-  getMangadexSectionTitle,
-  MANGADEX_SECTION_DEFINITIONS,
-  MANGADEX_SECTION_PAGE_SIZE,
-  type MangadexSectionId,
-} from '../queries/mangadex-discover.js';
+  fetchProviderDiscoverData,
+  fetchProviderSectionPage,
+  getSectionTitle,
+  PROVIDER_SECTION_PAGE_SIZE,
+} from '../queries/provider-discover.js';
+import { getProviderBinding } from '../lib/provider-registry.js';
 
 type DiscoverSearch = {
   provider?: string;
@@ -46,7 +45,7 @@ function DiscoverRoute() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: discoverQueryKeys.providers(explicitContent),
-    queryFn: ({ signal }) => fetchMangadexDiscoverData(db!, signal),
+    queryFn: ({ signal }) => fetchProviderDiscoverData(db!, signal),
     enabled: dbStatus === 'ready' && db !== null && appSettingsQuery.isSuccess,
   });
 
@@ -62,23 +61,21 @@ function DiscoverRoute() {
       return null;
     }
 
+    const binding = getProviderBinding(expandedSection.providerId);
+    if (binding === null) {
+      return null;
+    }
+
     const provider = providers.find((entry) => entry.providerId === expandedSection.providerId);
     const section = provider?.sections.find((entry) => entry.id === expandedSection.sectionId);
     if (section !== undefined) {
-      return { title: section.title, sectionId: section.id as MangadexSectionId };
+      return { binding, title: section.title, sectionId: section.id };
     }
 
-    const fallback = MANGADEX_SECTION_DEFINITIONS.find(
-      (entry) => entry.id === expandedSection.sectionId,
-    );
-    if (fallback !== undefined && expandedSection.providerId === 'mangadex') {
-      return {
-        title: getMangadexSectionTitle(fallback.id) ?? fallback.title,
-        sectionId: fallback.id,
-      };
-    }
-
-    return null;
+    // Not in the loaded preview (still fetching, or filtered out): fall back to
+    // the title the provider package declares for that section.
+    const title = getSectionTitle(binding, expandedSection.sectionId);
+    return title === null ? null : { binding, title, sectionId: expandedSection.sectionId };
   }, [expandedSection, providers]);
 
   const sectionInfiniteQuery = useInfiniteQuery({
@@ -91,16 +88,17 @@ function DiscoverRoute() {
           )
         : ['discover', 'section', 'idle'],
     queryFn: ({ pageParam, signal }) =>
-      fetchMangadexSectionPage(
+      fetchProviderSectionPage(
         db!,
+        expandedSectionMeta!.binding,
         expandedSectionMeta!.sectionId,
         pageParam,
-        MANGADEX_SECTION_PAGE_SIZE,
+        PROVIDER_SECTION_PAGE_SIZE,
         signal,
       ),
     initialPageParam: 0,
     getNextPageParam: (lastPage) =>
-      lastPage.hasMore ? lastPage.offset + MANGADEX_SECTION_PAGE_SIZE : undefined,
+      lastPage.hasMore ? lastPage.offset + PROVIDER_SECTION_PAGE_SIZE : undefined,
     enabled:
       dbStatus === 'ready' &&
       db !== null &&
