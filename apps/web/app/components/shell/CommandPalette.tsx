@@ -203,7 +203,7 @@ export function CommandPalette() {
   return (
     <div ref={scopeRef}>
       {rendered ? (
-        // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- the overlay is the palette's keyboard scope: Arrow/Enter/Escape must work from anywhere inside it (input, items, backdrop), and CommandPalette.test.tsx dispatches on the overlay itself
+        // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- the overlay is the palette's single keyboard scope: Arrow/Enter/Escape must work from anywhere inside it (input, items, backdrop). The input must not bind the handler again -- its keydown already bubbles here, and binding both fired every moveSelection twice
         <div
           className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[12vh]"
           // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- <dialog> moves this overlay into the top layer and adds its own open state plus UA max-width/centering, so it is not equivalent to this hand-rolled palette; role + aria-modal is the accessible equivalent
@@ -225,7 +225,6 @@ export function CommandPalette() {
                 placeholder="Search commands…"
                 aria-label="Search commands"
                 value={query}
-                onKeyDown={handleKeyDown}
                 onChange={(e) => {
                   setQuery(e.target.value);
                   setSelectedIndex(0);

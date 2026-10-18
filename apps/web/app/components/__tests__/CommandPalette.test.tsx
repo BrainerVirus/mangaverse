@@ -12,7 +12,7 @@ const storeState = vi.hoisted(() => ({
     selectedIndex: 0,
     close: vi.fn<() => void>(),
     setQuery: vi.fn<(query: string) => void>(),
-    moveSelection: vi.fn<(delta: number) => void>(),
+    moveSelection: vi.fn<(delta: number, maxIndex?: number) => void>(),
     setSelectedIndex: vi.fn<(index: number) => void>(),
   },
 }));
@@ -75,6 +75,14 @@ describe('CommandPalette', () => {
     storeState.palette.close.mockClear();
     storeState.palette.setQuery.mockClear();
     storeState.palette.moveSelection.mockClear();
+    // Mirrors the real store's functional set, so a keydown handler that fires
+    // twice shows up as a two-item jump instead of an invisible second call.
+    storeState.palette.moveSelection.mockImplementation((delta, maxIndex) => {
+      storeState.palette.selectedIndex = Math.max(
+        0,
+        Math.min(storeState.palette.selectedIndex + delta, maxIndex ?? Infinity),
+      );
+    });
     storeState.palette.setSelectedIndex.mockClear();
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -114,20 +122,30 @@ describe('CommandPalette', () => {
     expect(html).toContain('Search commands');
   });
 
-  it('closes on Escape and moves selection with arrow keys', async () => {
+  const openPalette = async () => {
     storeState.palette.isOpen = true;
     storeState.palette.query = '';
     storeState.palette.selectedIndex = 0;
     storeState.layout.deviceLayout = 'desktop';
     const { CommandPalette } = await import('../shell/CommandPalette.js');
 
-    await act(async () => {
-      root.render(
-        <ThemeProvider>
-          <CommandPalette />
-        </ThemeProvider>,
-      );
-    });
+    const render = async () => {
+      await act(async () => {
+        root.render(
+          <ThemeProvider>
+            <CommandPalette />
+          </ThemeProvider>,
+        );
+      });
+    };
+    await render();
+    // The built-in commands register in an effect and the mocked store never
+    // notifies, so render once more for `registry.search` to see them.
+    await render();
+  };
+
+  it('closes on Escape and moves selection with arrow keys', async () => {
+    await openPalette();
 
     const overlay = container.querySelector('.fixed.inset-0');
     expect(overlay).toBeTruthy();
@@ -141,5 +159,35 @@ describe('CommandPalette', () => {
       overlay?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     });
     expect(storeState.palette.close).toHaveBeenCalled();
+  });
+
+  it('moves the selection by one item per arrow key while the input holds focus', async () => {
+    await openPalette();
+
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="Search commands"]');
+    expect(input).toBeTruthy();
+    input?.focus();
+
+    await act(async () => {
+      input?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    });
+    expect(storeState.palette.selectedIndex).toBe(1);
+
+    await act(async () => {
+      input?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+    });
+    expect(storeState.palette.selectedIndex).toBe(0);
+  });
+
+  it('closes once on Enter while the input holds focus', async () => {
+    await openPalette();
+
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="Search commands"]');
+    input?.focus();
+
+    await act(async () => {
+      input?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+    expect(storeState.palette.close).toHaveBeenCalledTimes(1);
   });
 });
