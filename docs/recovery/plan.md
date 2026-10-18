@@ -491,15 +491,26 @@ GitHub flow: short-lived branches, PR into `main`, delete branches once merged
 (D7). Separate reversible inventory from destructive deletion. No implementation
 dependency.
 
-- [ ] Read current branches (`git ls-remote --heads origin`), open PRs and the
+- [x] Read current branches (`git ls-remote --heads origin`), open PRs and the
       default branch (`main`). Reconcile both local-only commits first.
-- [ ] For each candidate, show current tip, related PR, merge/superseding commit and
+- [x] For each candidate, show current tip, related PR, merge/superseding commit and
       unique commits relative to the accepted recovery tip and `main`. Names and age
       do not prove a branch is dead; squash merges need content/PR reconciliation.
-- [ ] Present an exact keep/delete/archive table (user expects most abandoned phase
+- [x] Present an exact keep/delete/archive table (user expects most abandoned phase
       branches to be deletable, but `main` is never a candidate). Retain active
       recovery, anything with unique unmerged work, tags, and any branch a live PR
       targets. Ask before closing PRs or deleting refs.
+- [x] Third cleanup executed 2026-10-18 (user approved the exact table): the remote
+      already held only `main` (no open PRs), so the cleanup was the 10 stale local
+      branches of merged PRs — `chore/vitest-rules` (#66), `docs/plan-ticks` (#67),
+      `chore/jsx-a11y` (#68), `fix/palette-keydown` (#69), `chore/boundary-checks`
+      (#70), `fix/s4-leftovers` (#71), `chore/ci-speed` (#62), `docs/plan-s4` (#64),
+      `docs/readme` (#61), `feat/reader-chrome-motion` (#49). Each was reconciled
+      against its merged PR and the squash commit on `main` (every tip predated its
+      merge; no post-merge or unique unmerged commits). Deleted by explicit name;
+      `main` and all tags untouched; refs re-read afterward. The quality arc's own
+      branches (#72–#81) were deleted on merge, so the final state is `main` only,
+      locally and remotely, with no worktrees.
 - [x] First cleanup executed 2026-10-12: deleted 14 merged/superseded remote
       branches (`feat/phase-8-app-shell`, `feat/phase-9-*` ×10,
       `feat/web-desktop-migration`, `chore/update-dependencies`,
