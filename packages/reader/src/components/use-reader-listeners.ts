@@ -5,12 +5,6 @@ import { applyPinchZoom, clampZoomTransform } from '../zoom.js';
 import type { ReaderNavigationAction, ReaderSessionInput, ZoomStateSummary } from '../types.js';
 import type { ReaderScrollViewHandle } from './ReaderScrollView.js';
 
-/** The vertical target refs, read and written by the key handler and by scroll. */
-export interface VerticalTargetRefs {
-  readonly target: { current: number };
-  readonly pending: { current: boolean };
-}
-
 /**
  * Keyboard navigation. The paged layer is the default; the continuous strip
  * resolves its target from the last press instead of the centre-based active
@@ -23,12 +17,14 @@ export function useReaderKeyboard({
   reducedMotion,
   scrollHandle,
   verticalTarget,
+  verticalTargetPending,
 }: {
   readonly sessionInput: ReaderSessionInput | null;
   readonly navigate: (action: ReaderNavigationAction) => void;
   readonly reducedMotion: boolean;
   readonly scrollHandle: { readonly current: ReaderScrollViewHandle | null };
-  readonly verticalTarget: VerticalTargetRefs;
+  readonly verticalTarget: { current: number };
+  readonly verticalTargetPending: { current: boolean };
 }): void {
   // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: a window-level keydown listener, bound and unbound with the session
   useEffect(() => {
@@ -44,13 +40,9 @@ export function useReaderKeyboard({
         // target page's centre; the target advances on the press itself, so a
         // burst of presses is never resolved from a stale (centre-based) index.
         const handle = scrollHandle.current;
-        const target = resolveVerticalNavigationTarget(
-          verticalTarget.target.current,
-          action,
-          pageCount,
-        );
-        verticalTarget.target.current = target;
-        verticalTarget.pending.current = true;
+        const target = resolveVerticalNavigationTarget(verticalTarget.current, action, pageCount);
+        verticalTarget.current = target;
+        verticalTargetPending.current = true;
         if (!handle) return;
         const container = handle.scrollContainer();
         if (container === null) return;
@@ -70,7 +62,7 @@ export function useReaderKeyboard({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, reducedMotion, scrollHandle, sessionInput, verticalTarget]);
+  }, [navigate, reducedMotion, scrollHandle, sessionInput, verticalTarget, verticalTargetPending]);
 }
 
 /**

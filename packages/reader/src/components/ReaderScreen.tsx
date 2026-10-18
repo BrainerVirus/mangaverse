@@ -32,7 +32,6 @@ const OBJECT_FIT_CLASS = {
 
 type ChromeMode = 'single' | 'double' | 'scroll';
 
-/** Module-level so the surface does not rebuild it on every render. */
 function toggleFullscreen(): void {
   if (typeof document === 'undefined') return;
   if (document.fullscreenElement) {
@@ -161,7 +160,8 @@ export function ReaderScreen({
     navigate,
     reducedMotion,
     scrollHandle: scrollHandleRef,
-    verticalTarget: { target: verticalTargetRef, pending: verticalTargetPendingRef },
+    verticalTarget: verticalTargetRef,
+    verticalTargetPending: verticalTargetPendingRef,
   });
 
   const settings = data?.settings;
