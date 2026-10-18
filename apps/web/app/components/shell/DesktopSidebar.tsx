@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { Link, useRouterState } from '@tanstack/react-router';
 import {
   BookOpen,
@@ -56,11 +56,11 @@ function SidebarNavLink({
       aria-current={active ? 'page' : undefined}
       className={cn(
         buttonVariants[active ? 'secondary' : 'ghost'],
-        'h-9 w-full justify-start gap-3 px-2.5',
+        'h-9 w-full justify-start px-2.5',
         !expanded && 'justify-center px-0',
       )}
     >
-      <Icon className="h-5 w-5 shrink-0" />
+      <Icon />
       {expanded ? <span className="truncate">{label}</span> : null}
     </Link>
   );
@@ -99,6 +99,16 @@ export function DesktopSidebar() {
 
   const visuallyExpanded = sidebarExpanded || hoverExpanded;
 
+  // Rail labels are hidden, so only the collapsed state needs a tooltip.
+  const withTooltip = (node: ReactNode, content: string) =>
+    visuallyExpanded ? node : <Tooltip content={content}>{node}</Tooltip>;
+
+  // One shape for every bottom action: full-width row when expanded, centred square on the rail.
+  const actionClass = cn(
+    'h-9 w-full justify-start px-2.5 text-muted-foreground',
+    !visuallyExpanded && 'justify-center px-0',
+  );
+
   const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
 
   if (!sidebarOpen) return null;
@@ -109,7 +119,7 @@ export function DesktopSidebar() {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       className={cn(
-        'relative z-40 flex h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-200 ease-out',
+        'relative z-40 flex h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-200 ease-out max-md:hidden',
         visuallyExpanded ? 'w-[220px]' : 'w-[52px]',
       )}
     >
@@ -136,58 +146,41 @@ export function DesktopSidebar() {
       </div>
 
       <div className="flex flex-col gap-1 border-t border-sidebar-border px-2 py-3">
-        <Tooltip content="Toggle Sidebar">
+        {withTooltip(
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={toggleSidebarExpand}
             aria-label="Collapse sidebar"
-            className={cn(
-              'h-9 w-full justify-start gap-3 px-2.5 text-muted-foreground',
-              !visuallyExpanded && 'justify-center px-0',
-            )}
+            className={actionClass}
           >
             <ChevronLeft
-              className={cn(
-                'h-5 w-5 shrink-0 transition-transform duration-200',
-                sidebarExpanded && 'rotate-180',
-              )}
+              className={cn('transition-transform duration-200', !visuallyExpanded && 'rotate-180')}
             />
             {visuallyExpanded ? <span className="truncate">Collapse</span> : null}
-          </Button>
-        </Tooltip>
+          </Button>,
+          'Toggle Sidebar',
+        )}
 
-        {visuallyExpanded ? (
+        {withTooltip(
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={openCommandPalette}
             aria-label="Open command palette"
-            className="h-9 w-full justify-start gap-3 px-2.5 text-muted-foreground"
+            className={actionClass}
           >
             <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded border border-sidebar-border bg-sidebar-accent px-1 font-mono text-[10px] font-medium">
               ⌘K
             </kbd>
-            <span className="truncate">Commands</span>
-          </Button>
-        ) : (
-          <Tooltip content="Command palette (⌘K)">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={openCommandPalette}
-              aria-label="Open command palette"
-              className="mx-auto text-muted-foreground"
-            >
-              <Search className="h-5 w-5" />
-            </Button>
-          </Tooltip>
+            {visuallyExpanded ? <span className="truncate">Commands</span> : null}
+          </Button>,
+          'Command palette (⌘K)',
         )}
 
-        <Tooltip content={theme === 'light' ? 'Dark Mode' : 'Light Mode'}>
+        {withTooltip(
           <Button
             type="button"
             variant="ghost"
@@ -195,21 +188,15 @@ export function DesktopSidebar() {
             onClick={toggleTheme}
             aria-label="Toggle theme"
             suppressHydrationWarning
-            className={cn(
-              'h-9 w-full justify-start gap-3 px-2.5 text-muted-foreground',
-              !visuallyExpanded && 'justify-center px-0',
-            )}
+            className={actionClass}
           >
             <span suppressHydrationWarning className="inline-flex shrink-0">
-              {theme === 'light' ? (
-                <Moon className="h-5 w-5 shrink-0" />
-              ) : (
-                <Sun className="h-5 w-5 shrink-0" />
-              )}
+              {theme === 'light' ? <Moon /> : <Sun />}
             </span>
             {visuallyExpanded ? <span className="truncate">Theme</span> : null}
-          </Button>
-        </Tooltip>
+          </Button>,
+          theme === 'light' ? 'Dark Mode' : 'Light Mode',
+        )}
       </div>
     </aside>
   );
