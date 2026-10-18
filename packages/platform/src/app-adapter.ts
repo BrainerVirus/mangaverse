@@ -7,7 +7,8 @@ function readDesktopBridge(): DesktopPlatformBridge | undefined {
     return undefined;
   }
 
-  const candidate = (globalThis as { mangaversePlatform?: DesktopPlatformBridge }).mangaversePlatform;
+  const candidate = (globalThis as { mangaversePlatform?: DesktopPlatformBridge })
+    .mangaversePlatform;
   if (candidate === undefined || typeof candidate.getCapabilities !== 'function') {
     return undefined;
   }

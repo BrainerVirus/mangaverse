@@ -32,7 +32,4 @@ export {
   commandPaletteExit,
   type CommandPaletteMotionOptions,
 } from './shell/command-palette.js';
-export {
-  gridStaggerReveal,
-  type GridStaggerRevealOptions,
-} from './shell/grid-stagger-reveal.js';
+export { gridStaggerReveal, type GridStaggerRevealOptions } from './shell/grid-stagger-reveal.js';

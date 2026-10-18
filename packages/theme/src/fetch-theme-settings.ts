@@ -9,7 +9,9 @@ export async function fetchThemeSettings(db: AppDrizzleDb): Promise<ThemeSetting
   return { settings };
 }
 
-export async function fetchThemeSettingsWithDefaults(db: AppDrizzleDb): Promise<ThemeSettingsPageData> {
+export async function fetchThemeSettingsWithDefaults(
+  db: AppDrizzleDb,
+): Promise<ThemeSettingsPageData> {
   const page = await fetchThemeSettings(db);
   return {
     settings: page.settings ?? getDefaultThemeSettings(),

@@ -7,7 +7,9 @@ export interface RateLimiterOptions {
 }
 
 export interface RateLimiter {
-  readonly tryConsume: (key: string) => AppResult<{ readonly retryAfterMs: number } | Record<string, never>>;
+  readonly tryConsume: (
+    key: string,
+  ) => AppResult<{ readonly retryAfterMs: number } | Record<string, never>>;
 }
 
 export function createRateLimiter(options: RateLimiterOptions): RateLimiter {

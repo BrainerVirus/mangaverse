@@ -1,4 +1,12 @@
-import { index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import {
+  index,
+  integer,
+  primaryKey,
+  real,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from 'drizzle-orm/sqlite-core';
 
 /** Single global reader settings row. */
 export const readerPreferences = sqliteTable('reader_preferences', {
@@ -39,7 +47,10 @@ export const mangaIdentities = sqliteTable(
     coverImageUrl: text('cover_image_url'),
     merged: integer('merged', { mode: 'boolean' }).notNull().default(false),
     mergedFromIdsJson: text('merged_from_ids_json', { mode: 'json' }).$type<string[] | null>(),
-    userOverridesJson: text('user_overrides_json', { mode: 'json' }).$type<Record<string, unknown> | null>(),
+    userOverridesJson: text('user_overrides_json', { mode: 'json' }).$type<Record<
+      string,
+      unknown
+    > | null>(),
     defaultProviderMappingId: text('default_provider_mapping_id').notNull(),
     preferredChapterSourceId: text('preferred_chapter_source_id'),
     createdAt: text('created_at'),

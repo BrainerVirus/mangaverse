@@ -30,10 +30,22 @@ describe('MangaDex chapter feed pagination', () => {
         new Response(
           JSON.stringify({
             data: [
-              { id: '00000000-0000-4000-8000-000000000001', attributes: { chapter: '1', title: 'A', pages: 10 } },
-              { id: '00000000-0000-4000-8000-000000000002', attributes: { chapter: '1', title: 'dup', pages: 8 } },
-              { id: '00000000-0000-4000-8000-000000000003', attributes: { chapter: '2', title: 'B', pages: 0 } },
-              { id: '00000000-0000-4000-8000-000000000004', attributes: { chapter: '3', title: 'C', pages: 5 } },
+              {
+                id: '00000000-0000-4000-8000-000000000001',
+                attributes: { chapter: '1', title: 'A', pages: 10 },
+              },
+              {
+                id: '00000000-0000-4000-8000-000000000002',
+                attributes: { chapter: '1', title: 'dup', pages: 8 },
+              },
+              {
+                id: '00000000-0000-4000-8000-000000000003',
+                attributes: { chapter: '2', title: 'B', pages: 0 },
+              },
+              {
+                id: '00000000-0000-4000-8000-000000000004',
+                attributes: { chapter: '3', title: 'C', pages: 5 },
+              },
             ],
           }),
           { status: 200, headers: { 'content-type': 'application/json' } },
@@ -51,7 +63,8 @@ describe('MangaDex chapter feed pagination', () => {
     const requests: string[] = [];
     const provider = createMangaDexProvider({
       fetchImpl: async (input) => {
-        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+        const url =
+          typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
         requests.push(url);
         const offset = Number(new URL(url).searchParams.get('offset') ?? '0');
         const data = offset === 0 ? first : second;

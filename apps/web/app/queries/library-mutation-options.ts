@@ -125,11 +125,7 @@ export function createToggleFavoriteMutationOptions(
 
       return { snapshot } satisfies LibraryMutationContext;
     },
-    onError: (
-      _error: Error,
-      _favorite: boolean,
-      context: LibraryMutationContext | undefined,
-    ) => {
+    onError: (_error: Error, _favorite: boolean, context: LibraryMutationContext | undefined) => {
       if (context?.snapshot !== undefined) {
         restoreLibraryCache(queryClient, context.snapshot);
       }

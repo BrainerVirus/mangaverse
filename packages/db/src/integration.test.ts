@@ -96,7 +96,11 @@ describe('@app/db', () => {
     });
     expect(read.ok).toBe(true);
 
-    await appendReadingHistory(db, { mangaId, chapterId: chapterId.value, providerMappingId: mappingId });
+    await appendReadingHistory(db, {
+      mangaId,
+      chapterId: chapterId.value,
+      providerMappingId: mappingId,
+    });
 
     const history = await listRecentReadingHistory(db, 5);
     expect(history.length).toBe(1);
@@ -234,7 +238,9 @@ describe('@app/db', () => {
     };
     const preview = await previewBackupRestore(db, doc);
     expect(preview.backupOk).toBe(true);
-    expect(preview.previewIssues.some((i) => i.code === 'restore.duplicate_remote_mapping')).toBe(true);
+    expect(preview.previewIssues.some((i) => i.code === 'restore.duplicate_remote_mapping')).toBe(
+      true,
+    );
   });
 
   it('loads a round-tripped identity', async () => {
@@ -387,7 +393,9 @@ describe('@app/db', () => {
     };
     const preview = await previewBackupRestore(db, doc);
     expect(preview.backupOk).toBe(true);
-    expect(preview.previewIssues.some((i) => i.code === 'restore.remote_collision_with_db')).toBe(true);
+    expect(preview.previewIssues.some((i) => i.code === 'restore.remote_collision_with_db')).toBe(
+      true,
+    );
   });
 
   it('enforces foreign keys on invalid references', async () => {
@@ -441,7 +449,16 @@ describe('@app/db', () => {
     const doc = {
       schemaVersion: BACKUP_SCHEMA_VERSION,
       metadata: { createdAt: new Date().toISOString(), appVersion: 't' },
-      library: [{ id: 'le1', mangaId: 'missing', favorite: false, categoryIds: [], status: 'reading', unreadCount: 0 }],
+      library: [
+        {
+          id: 'le1',
+          mangaId: 'missing',
+          favorite: false,
+          categoryIds: [],
+          status: 'reading',
+          unreadCount: 0,
+        },
+      ],
       mangaIdentities: [],
       installedExtensions: [],
       readerSettings: getDefaultReaderSettings(),

@@ -223,14 +223,7 @@
         "createdAt": "2019-03-10T23:30:18+00:00",
         "updatedAt": "2026-07-02T20:36:01+00:00",
         "version": 51,
-        "availableTranslatedLanguages": [
-          "en",
-          "fr",
-          "ru",
-          "pt-br",
-          "it",
-          "es-la"
-        ],
+        "availableTranslatedLanguages": ["en", "fr", "ru", "pt-br", "it", "es-la"],
         "latestUploadedChapter": "2a4030b2-69f4-4fad-9f56-68ce06f5c118"
       },
       "relationships": [

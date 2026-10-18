@@ -171,7 +171,10 @@ export async function listCacheEntriesByKind(
   return rows.map(mapCacheRow);
 }
 
-export async function deleteCacheEntry(db: AppDrizzleDb, id: string): Promise<CacheEntryRecord | undefined> {
+export async function deleteCacheEntry(
+  db: AppDrizzleDb,
+  id: string,
+): Promise<CacheEntryRecord | undefined> {
   const row = db.select().from(cacheEntries).where(eq(cacheEntries.id, id)).get();
   if (row === undefined) {
     return undefined;

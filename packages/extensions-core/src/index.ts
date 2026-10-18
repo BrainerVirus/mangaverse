@@ -8,7 +8,11 @@ export type {
   ExtensionInstallSource,
   ExtensionInstallStep,
 } from './install-types.js';
-export { buildInstallPreview, createExtensionInstallSession, transitionExtensionInstall } from './install-session.js';
+export {
+  buildInstallPreview,
+  createExtensionInstallSession,
+  transitionExtensionInstall,
+} from './install-session.js';
 export { fetchAndValidateManifestFromUrl, fetchManifestFromUrl } from './manifest-fetch.js';
 export type { ExtensionFetchEnvironment } from './manifest-fetch.js';
 export {
@@ -22,7 +26,10 @@ export { validateManifestInstallPolicy } from './install-policy.js';
 export { confirmExtensionInstall } from './confirm-install.js';
 export type { ExtensionCoreDependencies } from './confirm-install.js';
 export { importExtensionRegistry } from './registry-import.js';
-export type { ExtensionRegistryImportDocument, ExtensionRegistryImportResult } from './registry-import.js';
+export type {
+  ExtensionRegistryImportDocument,
+  ExtensionRegistryImportResult,
+} from './registry-import.js';
 export {
   disableInstalledProvider,
   enableInstalledProvider,

@@ -104,7 +104,8 @@ export function ThemeCustomizationPage({
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Theme</h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Choose a visual preset and appearance mode. Changes apply across the app and are saved locally.
+          Choose a visual preset and appearance mode. Changes apply across the app and are saved
+          locally.
         </p>
       </header>
 

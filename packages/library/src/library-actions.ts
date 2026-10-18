@@ -18,7 +18,9 @@ export async function removeMangaFromLibrary(
   const { getLibraryEntryForManga, removeLibraryEntry } = await import('@app/db');
   const entry = await getLibraryEntryForManga(db, mangaId);
   if (entry === undefined) {
-    return err(createAppError({ code: 'library.entry_missing', message: 'Manga is not in the library.' }));
+    return err(
+      createAppError({ code: 'library.entry_missing', message: 'Manga is not in the library.' }),
+    );
   }
 
   await removeLibraryEntry(db, entry.id);
@@ -33,7 +35,9 @@ export async function setMangaFavorite(
   const { getLibraryEntryForManga, setLibraryEntryFavorite } = await import('@app/db');
   const entry = await getLibraryEntryForManga(db, mangaId);
   if (entry === undefined) {
-    return err(createAppError({ code: 'library.entry_missing', message: 'Manga is not in the library.' }));
+    return err(
+      createAppError({ code: 'library.entry_missing', message: 'Manga is not in the library.' }),
+    );
   }
 
   return setLibraryEntryFavorite(db, entry.id, favorite);

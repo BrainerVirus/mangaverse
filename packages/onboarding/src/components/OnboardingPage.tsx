@@ -114,11 +114,15 @@ function WelcomeStep() {
   return (
     <>
       <header className="space-y-2">
-        <h1 id="onboarding-step-welcome" className="text-2xl font-semibold tracking-tight text-foreground">
+        <h1
+          id="onboarding-step-welcome"
+          className="text-2xl font-semibold tracking-tight text-foreground"
+        >
           Welcome to MangaVerse
         </h1>
         <p className="text-muted-foreground">
-          A calm, local-first reader for manga, comics, and webtoons. Your library lives on this device first.
+          A calm, local-first reader for manga, comics, and webtoons. Your library lives on this
+          device first.
         </p>
       </header>
 
@@ -126,7 +130,8 @@ function WelcomeStep() {
         <li className="rounded-[var(--radius-box)] border border-[var(--border)] p-4">
           <h2 className="text-sm font-medium text-foreground">Local-first storage</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Library entries, progress, and settings stay in SQLite on your device. Optional cloud sync may come later.
+            Library entries, progress, and settings stay in SQLite on your device. Optional cloud
+            sync may come later.
           </p>
         </li>
         <li className="rounded-[var(--radius-box)] border border-[var(--border)] p-4">
@@ -138,7 +143,8 @@ function WelcomeStep() {
         <li className="rounded-[var(--radius-box)] border border-[var(--border)] p-4">
           <h2 className="text-sm font-medium text-foreground">Content responsibility</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            You choose language and content filters. Providers may expose mature content when enabled.
+            You choose language and content filters. Providers may expose mature content when
+            enabled.
           </p>
         </li>
         <li className="rounded-[var(--radius-box)] border border-[var(--border)] p-4">
@@ -279,7 +285,8 @@ function ReadingStep({
           Reading defaults
         </h2>
         <p className="text-sm text-muted-foreground">
-          Set the default direction and page layout. Per-title overrides remain available in the reader.
+          Set the default direction and page layout. Per-title overrides remain available in the
+          reader.
         </p>
       </header>
 
@@ -350,7 +357,10 @@ function PreferencesStep({
             onChange={(event) =>
               onChange({
                 ...settings,
-                preferredLanguages: parsePreferredLanguages(event.target.value, settings.preferredLanguages),
+                preferredLanguages: parsePreferredLanguages(
+                  event.target.value,
+                  settings.preferredLanguages,
+                ),
               })
             }
           />
@@ -389,14 +399,15 @@ function ProviderStep({ onInstallProvider }: { onInstallProvider: () => void }) 
           Add your first provider
         </h2>
         <p className="text-sm text-muted-foreground">
-          Providers supply catalog search and chapter sources. Install one now or finish setup and add providers later
-          from Extensions.
+          Providers supply catalog search and chapter sources. Install one now or finish setup and
+          add providers later from Extensions.
         </p>
       </header>
 
       <div className="rounded-[var(--radius-box)] border border-[var(--border)] p-4">
         <p className="text-sm text-muted-foreground">
-          You will review manifest details, permissions, and capabilities before anything is installed.
+          You will review manifest details, permissions, and capabilities before anything is
+          installed.
         </p>
         <Button type="button" className="mt-4" onClick={onInstallProvider}>
           Open provider install
@@ -431,7 +442,13 @@ export function OnboardingPage({
     );
   }
 
-  if (isError || state === undefined || themeSettings === undefined || appSettings === undefined || readerSettings === undefined) {
+  if (
+    isError ||
+    state === undefined ||
+    themeSettings === undefined ||
+    appSettings === undefined ||
+    readerSettings === undefined
+  ) {
     return (
       <main className="mx-auto w-full max-w-3xl p-6">
         <ErrorState
@@ -477,25 +494,27 @@ export function OnboardingPage({
 
         <nav aria-label="Onboarding steps">
           <ol className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-            {(['welcome', 'theme', 'reading', 'preferences', 'provider'] as const).map((step, index) => {
-              const isActive = step === state.currentStep;
-              const isComplete = state.completedSteps.includes(step) || index < stepIndex;
-              return (
-                <li
-                  key={step}
-                  aria-current={isActive ? 'step' : undefined}
-                  className={
-                    isActive
-                      ? 'rounded-full bg-[var(--accent)] px-2 py-1 font-medium text-foreground'
-                      : isComplete
-                        ? 'rounded-full px-2 py-1 text-foreground'
-                        : 'rounded-full px-2 py-1'
-                  }
-                >
-                  {STEP_LABELS[step]}
-                </li>
-              );
-            })}
+            {(['welcome', 'theme', 'reading', 'preferences', 'provider'] as const).map(
+              (step, index) => {
+                const isActive = step === state.currentStep;
+                const isComplete = state.completedSteps.includes(step) || index < stepIndex;
+                return (
+                  <li
+                    key={step}
+                    aria-current={isActive ? 'step' : undefined}
+                    className={
+                      isActive
+                        ? 'rounded-full bg-[var(--accent)] px-2 py-1 font-medium text-foreground'
+                        : isComplete
+                          ? 'rounded-full px-2 py-1 text-foreground'
+                          : 'rounded-full px-2 py-1'
+                    }
+                  >
+                    {STEP_LABELS[step]}
+                  </li>
+                );
+              },
+            )}
           </ol>
         </nav>
       </div>
@@ -506,12 +525,22 @@ export function OnboardingPage({
           <ThemeStep settings={themeSettings} disabled={isSaving} onChange={onThemeChange} />
         ) : null}
         {state.currentStep === 'reading' ? (
-          <ReadingStep settings={readerSettings} disabled={isSaving} onChange={onReaderSettingsChange} />
+          <ReadingStep
+            settings={readerSettings}
+            disabled={isSaving}
+            onChange={onReaderSettingsChange}
+          />
         ) : null}
         {state.currentStep === 'preferences' ? (
-          <PreferencesStep settings={appSettings} disabled={isSaving} onChange={onAppSettingsChange} />
+          <PreferencesStep
+            settings={appSettings}
+            disabled={isSaving}
+            onChange={onAppSettingsChange}
+          />
         ) : null}
-        {state.currentStep === 'provider' ? <ProviderStep onInstallProvider={onInstallProvider} /> : null}
+        {state.currentStep === 'provider' ? (
+          <ProviderStep onInstallProvider={onInstallProvider} />
+        ) : null}
       </StepPanel>
 
       <footer className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] pt-6">

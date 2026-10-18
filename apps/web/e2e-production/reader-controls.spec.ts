@@ -11,7 +11,11 @@ async function openReader(page: Page) {
   await expect(page.getByText('1 / 37')).toBeVisible({ timeout: 30_000 });
 }
 
-test('Given an open chapter, When tapping the page edges, Then the page advances and returns', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given an open chapter, When tapping the page edges, Then the page advances and returns', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   await openReader(page);
   const surface = page.getByTestId('reader-surface');
   const box = (await surface.boundingBox())!;
@@ -23,7 +27,11 @@ test('Given an open chapter, When tapping the page edges, Then the page advances
   await expect(page.getByText('1 / 37')).toBeVisible();
 });
 
-test('Given an open chapter, When changing settings, Then the layout changes and the page does not', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given an open chapter, When changing settings, Then the layout changes and the page does not', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   await openReader(page);
   // Page 1 is the cover (treatFirstPageAsCover), so it renders alone in double
   // layout too; advance to page 2 where a real spread exists.
@@ -60,7 +68,11 @@ test('Given an open chapter, When changing settings, Then the layout changes and
   await expect(page.getByRole('button', { name: 'Settings' })).toBeFocused();
 });
 
-test('Given an open chapter, When hovering and dragging the rail, Then a page preview follows and the page changes', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given an open chapter, When hovering and dragging the rail, Then a page preview follows and the page changes', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   await openReader(page);
   const rail = page.getByRole('slider', { name: 'Page slider' });
   const box = (await rail.boundingBox())!;
@@ -80,27 +92,33 @@ test('Given an open chapter, When hovering and dragging the rail, Then a page pr
   await expect(page.getByText(/3[0-9] \/ 37/)).toBeVisible({ timeout: 20_000 });
 
   // The rail fill is proportional to the page the drag landed on.
-  const indicator = (await page.getByText(/\d+ \/ 37/).first().textContent()) ?? '';
+  const indicator =
+    (await page
+      .getByText(/\d+ \/ 37/)
+      .first()
+      .textContent()) ?? '';
   const pageNumber = Number(indicator.match(/(\d+) \/ 37/)?.[1] ?? '0');
-  const transform = await page
-    .getByTestId('reader-rail-fill')
-    .evaluate((el) => el.style.transform);
+  const transform = await page.getByTestId('reader-rail-fill').evaluate((el) => el.style.transform);
   const scale = Number(transform.match(/scaleX\(([\d.]+)\)/)?.[1] ?? '-1');
   expect(Math.abs(scale - (pageNumber - 1) / 36)).toBeLessThan(0.02);
 
   // The thumb rides the same fraction through `left` (its translate only centers
   // it), so a thumb that stops tracking the page position fails here.
-  const thumbLeft = await page
-    .getByTestId('reader-rail-thumb')
-    .evaluate((el) => el.style.left);
+  const thumbLeft = await page.getByTestId('reader-rail-thumb').evaluate((el) => el.style.left);
   const thumbFraction = Number(thumbLeft.replace('%', '')) / 100;
   expect(Math.abs(thumbFraction - (pageNumber - 1) / 36)).toBeLessThan(0.02);
 });
 
-test('Given the mode switcher, When changing modes, Then the highlight morphs to the active option', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given the mode switcher, When changing modes, Then the highlight morphs to the active option', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   await openReader(page);
 
-  const highlight = page.locator('[class*="rounded-full"][class*="bg-white"][class*="absolute"]').first();
+  const highlight = page
+    .locator('[class*="rounded-full"][class*="bg-white"][class*="absolute"]')
+    .first();
   const single = page.getByRole('button', { name: 'Single' });
   const double = page.getByRole('button', { name: 'Double' });
 
@@ -119,7 +137,11 @@ test('Given the mode switcher, When changing modes, Then the highlight morphs to
   expect(Math.abs(after.width - doubleBox.width)).toBeLessThan(4);
 });
 
-test('Given an open chapter, When clicking Maximize, Then the document goes fullscreen', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given an open chapter, When clicking Maximize, Then the document goes fullscreen', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   await openReader(page);
 
   await page.getByRole('button', { name: 'Maximize' }).click();

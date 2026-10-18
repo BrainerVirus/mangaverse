@@ -17,7 +17,16 @@ const baseManifest = {
 const minimalValidBackup = {
   schemaVersion: BACKUP_SCHEMA_VERSION,
   metadata: { createdAt: new Date().toISOString(), appVersion: '0.0.1' },
-  library: [{ id: 'le1', mangaId: 'm1', favorite: false, categoryIds: [], status: 'reading', unreadCount: 0 }],
+  library: [
+    {
+      id: 'le1',
+      mangaId: 'm1',
+      favorite: false,
+      categoryIds: [],
+      status: 'reading',
+      unreadCount: 0,
+    },
+  ],
   mangaIdentities: [
     {
       id: 'm1',

@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  createProgressEvent,
-  shouldCheckpointOnUnmount,
-  shouldPersistProgress,
-} from './progress';
+import { createProgressEvent, shouldCheckpointOnUnmount, shouldPersistProgress } from './progress';
 import type { ReaderProgressEvent } from './types';
 
 describe('createProgressEvent', () => {

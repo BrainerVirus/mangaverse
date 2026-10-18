@@ -28,7 +28,9 @@ function headersToRecord(headers: Headers): Record<string, string> {
   return out;
 }
 
-export function createProviderRequestClient(options: ProviderRequestClientOptions): ProviderRequestClient {
+export function createProviderRequestClient(
+  options: ProviderRequestClientOptions,
+): ProviderRequestClient {
   const { fetchImpl, defaultTimeoutMs = 30_000, defaultHeaders } = options;
 
   async function request(input: ProviderRequest): Promise<AppResult<ProviderRequestResponse>> {

@@ -29,85 +29,43 @@ describe('ReaderChrome Accessibility', () => {
   });
 
   it('renders reader toolbar with toolbar role', () => {
-    render(
-      <ReaderChrome
-        visible={true}
-        currentPage={1}
-        totalPages={10}
-      />
-    );
+    render(<ReaderChrome visible={true} currentPage={1} totalPages={10} />);
 
     expect(screen.getByLabelText('Reader controls')).toHaveAttribute('role', 'toolbar');
   });
 
   it('has aria-label on reader controls', () => {
-    render(
-      <ReaderChrome
-        visible={true}
-        currentPage={1}
-        totalPages={10}
-      />
-    );
+    render(<ReaderChrome visible={true} currentPage={1} totalPages={10} />);
 
     expect(screen.getByLabelText('Reader controls')).toBeInTheDocument();
   });
 
   it('previous page button has accessible label', () => {
-    render(
-      <ReaderChrome
-        visible={true}
-        currentPage={5}
-        totalPages={10}
-      />
-    );
+    render(<ReaderChrome visible={true} currentPage={5} totalPages={10} />);
 
     expect(screen.getByLabelText('Previous page')).toBeInTheDocument();
   });
 
   it('next page button has accessible label', () => {
-    render(
-      <ReaderChrome
-        visible={true}
-        currentPage={5}
-        totalPages={10}
-      />
-    );
+    render(<ReaderChrome visible={true} currentPage={5} totalPages={10} />);
 
     expect(screen.getByLabelText('Next page')).toBeInTheDocument();
   });
 
   it('page slider has accessible label', () => {
-    render(
-      <ReaderChrome
-        visible={true}
-        currentPage={5}
-        totalPages={10}
-      />
-    );
+    render(<ReaderChrome visible={true} currentPage={5} totalPages={10} />);
 
     expect(screen.getByLabelText('Page slider')).toBeInTheDocument();
   });
 
   it('previous page button is disabled when on first page', () => {
-    render(
-      <ReaderChrome
-        visible={true}
-        currentPage={1}
-        totalPages={10}
-      />
-    );
+    render(<ReaderChrome visible={true} currentPage={1} totalPages={10} />);
 
     expect(screen.getByLabelText('Previous page')).toBeDisabled();
   });
 
   it('next page button is not disabled when not on last page', () => {
-    render(
-      <ReaderChrome
-        visible={true}
-        currentPage={5}
-        totalPages={10}
-      />
-    );
+    render(<ReaderChrome visible={true} currentPage={5} totalPages={10} />);
 
     expect(screen.getByLabelText('Next page')).not.toBeDisabled();
   });
@@ -122,7 +80,7 @@ describe('ReaderChrome Accessibility', () => {
         totalPages={10}
         onPageChange={vi.fn()}
         onModeChange={vi.fn()}
-      />
+      />,
     );
 
     const toolbar = screen.getByLabelText('Reader controls');
@@ -144,7 +102,7 @@ describe('ReaderChrome Accessibility', () => {
         totalPages={10}
         mode="single"
         onModeChange={onModeChange}
-      />
+      />,
     );
 
     const doubleButton = screen.getByText('Double');
@@ -162,7 +120,7 @@ describe('ReaderChrome Accessibility', () => {
         chapterTitle="Chapter 5: The Journey Continues"
         currentPage={1}
         totalPages={10}
-      />
+      />,
     );
 
     const title = screen.getByText('Chapter 5: The Journey Continues');
@@ -170,13 +128,7 @@ describe('ReaderChrome Accessibility', () => {
   });
 
   it('page information is displayed clearly', () => {
-    render(
-      <ReaderChrome
-        visible={true}
-        currentPage={7}
-        totalPages={15}
-      />
-    );
+    render(<ReaderChrome visible={true} currentPage={7} totalPages={15} />);
 
     expect(screen.getByText('7 / 15')).toBeInTheDocument();
   });

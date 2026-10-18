@@ -80,7 +80,13 @@ describe('createReaderDiagnostics', () => {
 
   it('should include zoom state', () => {
     const input = makeInput();
-    const zoom: ZoomStateSummary = { scale: 1.5, translateX: 10, translateY: 20, minZoom: 1, maxZoom: 3 };
+    const zoom: ZoomStateSummary = {
+      scale: 1.5,
+      translateX: 10,
+      translateY: 20,
+      minZoom: 1,
+      maxZoom: 3,
+    };
     const snapshot = createReaderDiagnostics(input, 0, 3, false, [], 0, [0], zoom);
 
     expect(snapshot.zoom.scale).toBe(1.5);
@@ -103,7 +109,18 @@ describe('createReaderDiagnostics', () => {
 
   it('should include preload queue length', () => {
     const input = makeInput();
-    const snapshot = createReaderDiagnostics(input, 0, 3, false, [], 0, [0], undefined, undefined, [1, 2, 3]);
+    const snapshot = createReaderDiagnostics(
+      input,
+      0,
+      3,
+      false,
+      [],
+      0,
+      [0],
+      undefined,
+      undefined,
+      [1, 2, 3],
+    );
 
     expect(snapshot.preloadQueueLength).toBe(3);
   });
@@ -121,7 +138,19 @@ describe('createReaderDiagnostics', () => {
       { type: 'pageLoaded', timestamp: new Date().toISOString(), data: { pageIndex: 1 } },
       { type: 'zoomChanged', timestamp: new Date().toISOString(), data: { scale: 1.5 } },
     ];
-    const snapshot = createReaderDiagnostics(input, 0, 3, false, [], 0, [0], undefined, undefined, undefined, events);
+    const snapshot = createReaderDiagnostics(
+      input,
+      0,
+      3,
+      false,
+      [],
+      0,
+      [0],
+      undefined,
+      undefined,
+      undefined,
+      events,
+    );
 
     expect(snapshot.events).toHaveLength(2);
   });

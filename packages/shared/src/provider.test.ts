@@ -129,14 +129,18 @@ describe('provider manifest', () => {
   });
 
   it('validateProviderManifest rejects malformed http source URLs', () => {
-    expect(validateProviderManifest({
-      ...validManifestInput,
-      source: { url: 'https://' },
-    }).ok).toBe(false);
+    expect(
+      validateProviderManifest({
+        ...validManifestInput,
+        source: { url: 'https://' },
+      }).ok,
+    ).toBe(false);
 
-    expect(validateProviderManifest({
-      ...validManifestInput,
-      source: { url: 'https:// bad' },
-    }).ok).toBe(false);
+    expect(
+      validateProviderManifest({
+        ...validManifestInput,
+        source: { url: 'https:// bad' },
+      }).ok,
+    ).toBe(false);
   });
 });

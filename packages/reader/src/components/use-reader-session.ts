@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import { applyNavigationAction, resolveNavigationAction } from '../navigation.js';
 import type { ReaderPageData } from '../reader-page-data.js';
 import { createReaderState } from '../state.js';

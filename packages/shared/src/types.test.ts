@@ -26,14 +26,18 @@ describe('domain shape compatibility (types)', () => {
   });
 
   it('extension install metadata embeds manifest and warnings', () => {
-    expectTypeOf<ExtensionInstallMetadata['warnings']>().toEqualTypeOf<readonly ExtensionInstallWarning[]>();
+    expectTypeOf<ExtensionInstallMetadata['warnings']>().toEqualTypeOf<
+      readonly ExtensionInstallWarning[]
+    >();
     expectTypeOf<ExtensionInstallMetadata['manifest']['capabilities']>().toEqualTypeOf<
       Partial<Record<ProviderCapabilityKey, boolean>>
     >();
   });
 
   it('manga identity default mapping id ties to a mapping entry', () => {
-    expectTypeOf<MangaIdentity['defaultProviderMappingId']>().toEqualTypeOf<MangaProviderMapping['id']>();
+    expectTypeOf<MangaIdentity['defaultProviderMappingId']>().toEqualTypeOf<
+      MangaProviderMapping['id']
+    >();
   });
 
   it('manga identity alternativeTitles and canonicalTitle coexist', () => {
@@ -42,7 +46,9 @@ describe('domain shape compatibility (types)', () => {
   });
 
   it('manga identity supports tracking links', () => {
-    expectTypeOf<NonNullable<MangaIdentity['trackingLinks']>[number]>().toEqualTypeOf<TrackingLink>();
+    expectTypeOf<
+      NonNullable<MangaIdentity['trackingLinks']>[number]
+    >().toEqualTypeOf<TrackingLink>();
   });
 
   it('provider capability detail references valid keys', () => {

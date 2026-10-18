@@ -26,7 +26,10 @@ export function createInstallProtocolStore() {
 
 export type InstallProtocolStore = ReturnType<typeof createInstallProtocolStore>;
 
-export function ingestArgvForInstallUrls(argv: readonly string[], store: InstallProtocolStore): void {
+export function ingestArgvForInstallUrls(
+  argv: readonly string[],
+  store: InstallProtocolStore,
+): void {
   for (const arg of argv) {
     if (arg.startsWith('mangaverse://')) {
       store.ingestFromRawUrl(arg);
@@ -36,7 +39,10 @@ export function ingestArgvForInstallUrls(argv: readonly string[], store: Install
 
 export function registerInstallProtocolAppEvents(deps: {
   readonly app: {
-    on(event: 'open-url', listener: (event: { preventDefault: () => void }, url: string) => void): void;
+    on(
+      event: 'open-url',
+      listener: (event: { preventDefault: () => void }, url: string) => void,
+    ): void;
     on(event: 'second-instance', listener: (event: unknown, argv: string[]) => void): void;
   };
   readonly store: InstallProtocolStore;

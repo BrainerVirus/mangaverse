@@ -6,10 +6,7 @@ import { settingsQueryKeys } from '@app/settings';
 import { QUERY_GC_TIMES, QUERY_STALE_TIMES } from '../query-timing.js';
 import { libraryPageQueryOptions } from '../library-query-options.js';
 import { searchPageQueryOptions } from '../search-query-options.js';
-import {
-  appSettingsQueryOptions,
-  readerSettingsQueryOptions,
-} from '../settings-query-options.js';
+import { appSettingsQueryOptions, readerSettingsQueryOptions } from '../settings-query-options.js';
 import { prefetchCoreLocalData } from '../prefetch-core-local-data.js';
 
 const mockDb = {} as Parameters<typeof libraryPageQueryOptions>[0];

@@ -26,20 +26,27 @@ const DOWNLOAD_METHOD: ProviderMethodName = 'getDownloadInfo';
 /**
  * Provider methods that must be implemented for the capabilities declared true on the manifest.
  */
-export function getRequiredMethodsForCapabilities(manifest: ProviderManifest): readonly ProviderMethodName[] {
+export function getRequiredMethodsForCapabilities(
+  manifest: ProviderManifest,
+): readonly ProviderMethodName[] {
   const required = new Set<ProviderMethodName>();
   for (const key of Object.keys(manifest.capabilities) as ProviderCapabilityKey[]) {
     if (manifest.capabilities[key] !== true) continue;
     const method = CAPABILITY_TO_PROVIDER_METHOD[key];
     if (method) required.add(method);
   }
-  if (manifest.capabilities['download.chapters'] === true || manifest.capabilities['download.pages'] === true) {
+  if (
+    manifest.capabilities['download.chapters'] === true ||
+    manifest.capabilities['download.pages'] === true
+  ) {
     required.add(DOWNLOAD_METHOD);
   }
   return [...required];
 }
 
-const METHOD_PRIMARY_CAPABILITY: Readonly<Partial<Record<ProviderMethodName, ProviderCapabilityKey>>> = {
+const METHOD_PRIMARY_CAPABILITY: Readonly<
+  Partial<Record<ProviderMethodName, ProviderCapabilityKey>>
+> = {
   search: 'discovery.search',
   advancedSearch: 'discovery.advancedSearch',
   browseLatest: 'discovery.latest',
@@ -63,7 +70,8 @@ export function assertProviderSupports(
 ): boolean {
   if (method === DOWNLOAD_METHOD) {
     return (
-      hasProviderCapability(manifest, 'download.chapters') || hasProviderCapability(manifest, 'download.pages')
+      hasProviderCapability(manifest, 'download.chapters') ||
+      hasProviderCapability(manifest, 'download.pages')
     );
   }
   const cap = METHOD_PRIMARY_CAPABILITY[method];

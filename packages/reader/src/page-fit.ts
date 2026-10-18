@@ -35,8 +35,7 @@ export function resolvePageFit(input: PageFitInput): PageFit {
   const availableWidth = Math.max(0, input.availableWidth) / pages;
   const availableHeight = Math.max(0, input.availableHeight);
   const natural = normalizeNaturalSize(input.naturalSize);
-  const aspectRatio =
-    natural !== undefined ? natural.width / natural.height : DEFAULT_ASPECT_RATIO;
+  const aspectRatio = natural !== undefined ? natural.width / natural.height : DEFAULT_ASPECT_RATIO;
 
   switch (input.fitMode) {
     case 'height':
@@ -54,11 +53,7 @@ export function resolvePageFit(input: PageFitInput): PageFit {
       // Never upscale: the natural size wins unless it overflows the area.
       const naturalWidth = natural?.width ?? availableWidth;
       const naturalHeight = natural?.height ?? naturalWidth / aspectRatio;
-      const scale = Math.min(
-        1,
-        availableWidth / naturalWidth,
-        availableHeight / naturalHeight,
-      );
+      const scale = Math.min(1, availableWidth / naturalWidth, availableHeight / naturalHeight);
       return {
         box: { width: naturalWidth * scale, height: naturalHeight * scale },
         objectFit: 'none',

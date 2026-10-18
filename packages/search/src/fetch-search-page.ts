@@ -17,9 +17,7 @@ export async function fetchSearchPage(
 
   const trimmedQuery = viewState.query.trim();
   const results =
-    trimmedQuery.length > 0
-      ? filterMangaIdentitiesByQuery(identities, trimmedQuery)
-      : [];
+    trimmedQuery.length > 0 ? filterMangaIdentitiesByQuery(identities, trimmedQuery) : [];
 
   return {
     results,

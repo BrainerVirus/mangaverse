@@ -6,10 +6,7 @@ export interface SlideOptions extends gsap.TweenVars {
   reducedMotion?: boolean;
 }
 
-export function slideUp(
-  target: gsap.TweenTarget,
-  vars?: SlideOptions,
-): gsap.core.Tween {
+export function slideUp(target: gsap.TweenTarget, vars?: SlideOptions): gsap.core.Tween {
   const { reducedMotion = false, ...tweenVars } = vars ?? {};
 
   if (reducedMotion) {
@@ -29,10 +26,7 @@ export function slideUp(
   );
 }
 
-export function slideDown(
-  target: gsap.TweenTarget,
-  vars?: SlideOptions,
-): gsap.core.Tween {
+export function slideDown(target: gsap.TweenTarget, vars?: SlideOptions): gsap.core.Tween {
   const { reducedMotion = false, ...tweenVars } = vars ?? {};
 
   if (reducedMotion) {

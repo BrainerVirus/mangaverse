@@ -1,5 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { createProgressEvent, shouldCheckpointOnUnmount, shouldPersistProgress } from '../progress.js';
+import {
+  createProgressEvent,
+  shouldCheckpointOnUnmount,
+  shouldPersistProgress,
+} from '../progress.js';
 import type { ReaderPageData } from '../reader-page-data.js';
 import type { ReaderProgressEvent, ReaderState } from '../types.js';
 
@@ -30,7 +34,10 @@ export function useReaderProgress(
     );
 
     const previous = lastPersistedRef.current;
-    if (previous !== null && !shouldPersistProgress(previous, nextEvent, { minPagesBetweenPersists: 1 })) {
+    if (
+      previous !== null &&
+      !shouldPersistProgress(previous, nextEvent, { minPagesBetweenPersists: 1 })
+    ) {
       return;
     }
 

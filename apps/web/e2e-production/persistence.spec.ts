@@ -2,12 +2,17 @@ import { expect } from '@playwright/test';
 
 import { clickContinue, currentPing, test, waitForPingQuiet } from './helpers.js';
 
-test('Given finished onboarding, When the page reloads, Then setup is not repeated', async ({ page, quickOnboarding }) => {
+test('Given finished onboarding, When the page reloads, Then setup is not repeated', async ({
+  page,
+  quickOnboarding,
+}) => {
   await page.reload();
   await expect(page).toHaveURL(/\/library/, { timeout: 20_000 });
 });
 
-test('Given a quiescent session, When onboarding finishes, Then the write is durable before navigation', async ({ page }) => {
+test('Given a quiescent session, When onboarding finishes, Then the write is durable before navigation', async ({
+  page,
+}) => {
   await page.goto('/onboarding');
   await clickContinue(page);
   await clickContinue(page);

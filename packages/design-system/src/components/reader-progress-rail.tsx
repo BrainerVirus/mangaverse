@@ -150,7 +150,12 @@ export function ReaderProgressRail({
       >
         <div
           className="absolute inset-y-0 left-0 rounded-full bg-white"
-          style={{ width: '100%', transform: `scaleX(${percent / 100})`, transformOrigin: 'left center', transition }}
+          style={{
+            width: '100%',
+            transform: `scaleX(${percent / 100})`,
+            transformOrigin: 'left center',
+            transition,
+          }}
           data-testid="reader-rail-fill"
         />
         <div

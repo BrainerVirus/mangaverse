@@ -6,10 +6,7 @@ export interface FadeOptions extends gsap.TweenVars {
   reducedMotion?: boolean;
 }
 
-export function fadeIn(
-  target: gsap.TweenTarget,
-  vars?: FadeOptions,
-): gsap.core.Tween {
+export function fadeIn(target: gsap.TweenTarget, vars?: FadeOptions): gsap.core.Tween {
   const { reducedMotion = false, ...tweenVars } = vars ?? {};
 
   if (reducedMotion) {
@@ -28,10 +25,7 @@ export function fadeIn(
   );
 }
 
-export function fadeOut(
-  target: gsap.TweenTarget,
-  vars?: FadeOptions,
-): gsap.core.Tween {
+export function fadeOut(target: gsap.TweenTarget, vars?: FadeOptions): gsap.core.Tween {
   const { reducedMotion = false, ...tweenVars } = vars ?? {};
 
   if (reducedMotion) {

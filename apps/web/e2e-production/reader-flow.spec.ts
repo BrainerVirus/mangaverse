@@ -1,12 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, type Page } from '@playwright/test';
 
-import {
-  MANGADEX_APP_MANGA_ID,
-  fixturesDir,
-  test,
-  waitForPingQuiet,
-} from './helpers.js';
+import { MANGADEX_APP_MANGA_ID, fixturesDir, test, waitForPingQuiet } from './helpers.js';
 
 test.describe.configure({ timeout: 90_000 });
 
@@ -21,7 +16,11 @@ async function openReader(page: Page) {
   await expect(page.getByText('1 / 37')).toBeVisible({ timeout: 30_000 });
 }
 
-test('Given an open chapter, When navigating by keyboard and buttons, Then pages change once each time', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given an open chapter, When navigating by keyboard and buttons, Then pages change once each time', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   await openReader(page);
 
   await page.keyboard.press('ArrowRight');
@@ -35,7 +34,11 @@ test('Given an open chapter, When navigating by keyboard and buttons, Then pages
   await expect(page.getByText('1 / 37')).toBeVisible();
 });
 
-test('Given the chapter pages cannot be fetched, When retrying after the network returns, Then the chapter loads', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given the chapter pages cannot be fetched, When retrying after the network returns, Then the chapter loads', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   // Registered after the shared mock so it wins for the at-home route only.
   let failing = true;
   await page.route('**/api.mangadex.org/at-home/**', async (route) => {
@@ -63,7 +66,11 @@ test('Given the chapter pages cannot be fetched, When retrying after the network
   await expect(image).toBeVisible({ timeout: 20_000 });
 });
 
-test('Given a cached chapter, When the network is gone and the reader is reopened, Then cached pages render', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given a cached chapter, When the network is gone and the reader is reopened, Then cached pages render', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   await openReader(page);
   await waitForPingQuiet(page);
 
@@ -90,13 +97,19 @@ test('Given a cached chapter, When the network is gone and the reader is reopene
   const image = page.getByTestId('reader-surface').locator('img').first();
   await expect(image).toBeVisible({ timeout: 20_000 });
   await expect
-    .poll(async () => image.evaluate((img: HTMLImageElement) => img.naturalWidth > 0), { timeout: 20_000 })
+    .poll(async () => image.evaluate((img: HTMLImageElement) => img.naturalWidth > 0), {
+      timeout: 20_000,
+    })
     .toBe(true);
 
   await page.context().setOffline(false);
 });
 
-test('Given the reader advanced a page, When the page reloads, Then it resumes on the saved page', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given the reader advanced a page, When the page reloads, Then it resumes on the saved page', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   await openReader(page);
   await waitForPingQuiet(page);
 
@@ -110,7 +123,11 @@ test('Given the reader advanced a page, When the page reloads, Then it resumes o
   await expect(page.getByText('2 / 37')).toBeVisible({ timeout: 30_000 });
 });
 
-test('Given the reader advanced a page, When leaving client-side immediately, Then the pending page is checkpointed', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given the reader advanced a page, When leaving client-side immediately, Then the pending page is checkpointed', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   await openReader(page);
   await waitForPingQuiet(page);
 

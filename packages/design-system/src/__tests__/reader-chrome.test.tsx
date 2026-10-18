@@ -35,20 +35,14 @@ describe('ReaderChrome', () => {
         chapterTitle="Chapter 1: The Beginning"
         currentPage={1}
         totalPages={10}
-      />
+      />,
     );
 
     expect(screen.getByText('Chapter 1: The Beginning')).toBeInTheDocument();
   });
 
   it('displays page badge with correct format', () => {
-    render(
-      <ReaderChrome
-        visible={true}
-        currentPage={3}
-        totalPages={20}
-      />
-    );
+    render(<ReaderChrome visible={true} currentPage={3} totalPages={20} />);
 
     expect(screen.getByText('3 / 20')).toBeInTheDocument();
   });
@@ -58,12 +52,7 @@ describe('ReaderChrome', () => {
     const onPageChange = vi.fn();
 
     render(
-      <ReaderChrome
-        visible={true}
-        currentPage={5}
-        totalPages={10}
-        onPageChange={onPageChange}
-      />
+      <ReaderChrome visible={true} currentPage={5} totalPages={10} onPageChange={onPageChange} />,
     );
 
     await user.click(screen.getByLabelText('Previous page'));
@@ -75,12 +64,7 @@ describe('ReaderChrome', () => {
     const onPageChange = vi.fn();
 
     render(
-      <ReaderChrome
-        visible={true}
-        currentPage={5}
-        totalPages={10}
-        onPageChange={onPageChange}
-      />
+      <ReaderChrome visible={true} currentPage={5} totalPages={10} onPageChange={onPageChange} />,
     );
 
     await user.click(screen.getByLabelText('Next page'));
@@ -92,12 +76,7 @@ describe('ReaderChrome', () => {
     const onPageChange = vi.fn();
 
     render(
-      <ReaderChrome
-        visible={true}
-        currentPage={1}
-        totalPages={10}
-        onPageChange={onPageChange}
-      />
+      <ReaderChrome visible={true} currentPage={1} totalPages={10} onPageChange={onPageChange} />,
     );
 
     const prevButton = screen.getByLabelText('Previous page');
@@ -110,12 +89,7 @@ describe('ReaderChrome', () => {
     const onPageChange = vi.fn();
 
     render(
-      <ReaderChrome
-        visible={true}
-        currentPage={10}
-        totalPages={10}
-        onPageChange={onPageChange}
-      />
+      <ReaderChrome visible={true} currentPage={10} totalPages={10} onPageChange={onPageChange} />,
     );
 
     const nextButton = screen.getByLabelText('Next page');
@@ -124,13 +98,7 @@ describe('ReaderChrome', () => {
   });
 
   it('renders page slider with correct min/max values', () => {
-    render(
-      <ReaderChrome
-        visible={true}
-        currentPage={5}
-        totalPages={20}
-      />
-    );
+    render(<ReaderChrome visible={true} currentPage={5} totalPages={20} />);
 
     const slider = screen.getByRole('slider', { name: 'Page slider' });
     expect(slider).toHaveAttribute('aria-valuemin', '1');
@@ -146,7 +114,7 @@ describe('ReaderChrome', () => {
         totalPages={10}
         mode="single"
         onModeChange={vi.fn()}
-      />
+      />,
     );
 
     expect(screen.getByText('Single')).toBeInTheDocument();
@@ -165,7 +133,7 @@ describe('ReaderChrome', () => {
         totalPages={10}
         mode="single"
         onModeChange={onModeChange}
-      />
+      />,
     );
 
     await user.click(screen.getByText('Double'));
@@ -173,14 +141,10 @@ describe('ReaderChrome', () => {
   });
 
   it('fills the rail proportionally to the current page', () => {
-    render(
-      <ReaderChrome
-        visible={true}
-        currentPage={5}
-        totalPages={10}
-      />
-    );
+    render(<ReaderChrome visible={true} currentPage={5} totalPages={10} />);
 
-    expect(screen.getByTestId('reader-rail-fill').style.transform).toBe('scaleX(0.4444444444444444)');
+    expect(screen.getByTestId('reader-rail-fill').style.transform).toBe(
+      'scaleX(0.4444444444444444)',
+    );
   });
 });

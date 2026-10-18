@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { useState } from 'react';
+import { Link, useRouterState } from '@tanstack/react-router';
 import {
   BookOpen,
   Search,
@@ -11,7 +11,7 @@ import {
   Zap,
   Play,
   Compass,
-} from "lucide-react";
+} from 'lucide-react';
 import {
   Button,
   Separator,
@@ -21,21 +21,21 @@ import {
   SheetTitle,
   SheetDescription,
   cn,
-} from "@app/design-system";
+} from '@app/design-system';
 
 const primaryTabs = [
-  { label: "Discover", to: "/discover", icon: Compass },
-  { label: "Library", to: "/library", icon: BookOpen },
-  { label: "Search", to: "/search", icon: Search },
-  { label: "Settings", to: "/settings", icon: Settings },
+  { label: 'Discover', to: '/discover', icon: Compass },
+  { label: 'Library', to: '/library', icon: BookOpen },
+  { label: 'Search', to: '/search', icon: Search },
+  { label: 'Settings', to: '/settings', icon: Settings },
 ] as const;
 
 const secondaryItems = [
-  { label: "Extensions", to: "/extensions", icon: Puzzle },
-  { label: "Backup", to: "/backup", icon: Archive },
-  { label: "Migration", to: "/migration", icon: ArrowRightLeft },
-  { label: "Diagnostics", to: "/diagnostics", icon: Zap },
-  { label: "Onboarding", to: "/onboarding", icon: Play },
+  { label: 'Extensions', to: '/extensions', icon: Puzzle },
+  { label: 'Backup', to: '/backup', icon: Archive },
+  { label: 'Migration', to: '/migration', icon: ArrowRightLeft },
+  { label: 'Diagnostics', to: '/diagnostics', icon: Zap },
+  { label: 'Onboarding', to: '/onboarding', icon: Play },
 ] as const;
 
 export function MobileBottomNav() {
@@ -53,17 +53,17 @@ export function MobileBottomNav() {
           </SheetHeader>
           <div className="mt-4 flex flex-col gap-1 px-2">
             {secondaryItems.map(({ label, to, icon: Icon }) => {
-              const isActive = currentPath === to || currentPath.startsWith(to + "/");
+              const isActive = currentPath === to || currentPath.startsWith(to + '/');
               return (
                 <Link
                   key={to}
                   to={to}
                   aria-label={label}
-                  aria-current={isActive ? "page" : undefined}
+                  aria-current={isActive ? 'page' : undefined}
                   onClick={() => setSheetOpen(false)}
                   className={cn(
-                    "flex items-center gap-3 px-2 py-3 text-sm font-medium transition-colors rounded-md",
-                    isActive ? "text-primary bg-primary/10" : "text-foreground hover:bg-muted"
+                    'flex items-center gap-3 px-2 py-3 text-sm font-medium transition-colors rounded-md',
+                    isActive ? 'text-primary bg-primary/10' : 'text-foreground hover:bg-muted',
                   )}
                 >
                   <Icon className="h-5 w-5" />
@@ -75,17 +75,17 @@ export function MobileBottomNav() {
           <Separator className="my-4" />
           <div className="flex flex-col gap-1 px-2">
             {primaryTabs.map(({ label, to, icon: Icon }) => {
-              const isActive = currentPath === to || currentPath.startsWith(to + "/");
+              const isActive = currentPath === to || currentPath.startsWith(to + '/');
               return (
                 <Link
                   key={to}
                   to={to}
                   aria-label={label}
-                  aria-current={isActive ? "page" : undefined}
+                  aria-current={isActive ? 'page' : undefined}
                   onClick={() => setSheetOpen(false)}
                   className={cn(
-                    "flex items-center gap-3 px-2 py-3 text-sm font-medium transition-colors rounded-md",
-                    isActive ? "text-primary bg-primary/10" : "text-foreground hover:bg-muted"
+                    'flex items-center gap-3 px-2 py-3 text-sm font-medium transition-colors rounded-md',
+                    isActive ? 'text-primary bg-primary/10' : 'text-foreground hover:bg-muted',
                   )}
                 >
                   <Icon className="h-5 w-5" />
@@ -99,22 +99,22 @@ export function MobileBottomNav() {
 
       <nav
         className={cn(
-          "fixed bottom-0 left-0 right-0 z-50 h-14 bg-background/95 backdrop-blur",
-          "border-t border-border pb-[env(safe-area-inset-bottom)]"
+          'fixed bottom-0 left-0 right-0 z-50 h-14 bg-background/95 backdrop-blur',
+          'border-t border-border pb-[env(safe-area-inset-bottom)]',
         )}
       >
         <div className="flex h-full items-center justify-around px-4">
           {primaryTabs.map(({ label, to, icon: Icon }) => {
-            const isActive = currentPath === to || currentPath.startsWith(to + "/");
+            const isActive = currentPath === to || currentPath.startsWith(to + '/');
             return (
               <Link
                 key={to}
                 to={to}
                 aria-label={label}
-                aria-current={isActive ? "page" : undefined}
+                aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                  "flex flex-col items-center gap-0.5 px-3 py-1.5 text-xs font-medium transition-colors",
-                  isActive ? "text-primary" : "text-muted-foreground"
+                  'flex flex-col items-center gap-0.5 px-3 py-1.5 text-xs font-medium transition-colors',
+                  isActive ? 'text-primary' : 'text-muted-foreground',
                 )}
               >
                 <Icon className="h-5 w-5" />

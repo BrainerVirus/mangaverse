@@ -1,9 +1,5 @@
 import type { AppDrizzleDb } from '@app/db';
-import {
-  fetchAppSettings,
-  fetchReaderSettings,
-  settingsQueryKeys,
-} from '@app/settings';
+import { fetchAppSettings, fetchReaderSettings, settingsQueryKeys } from '@app/settings';
 import { queryOptions } from '@tanstack/react-query';
 import { QUERY_GC_TIMES, QUERY_STALE_TIMES } from './query-timing.js';
 

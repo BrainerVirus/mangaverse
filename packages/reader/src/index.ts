@@ -40,7 +40,12 @@ export { calculatePageSlots, calculateSpreadPlan, resolveInitialPageIndex } from
 export { calculateTapZones, resolveTapZoneAction, createTapZoneDebugModel } from './tap-zones.js';
 
 // Navigation functions
-export { resolveNavigationAction, applyNavigationAction, resolveKeyboardAction, resolveWheelAction } from './navigation.js';
+export {
+  resolveNavigationAction,
+  applyNavigationAction,
+  resolveKeyboardAction,
+  resolveWheelAction,
+} from './navigation.js';
 
 // Zoom/pan functions
 export {
@@ -65,7 +70,11 @@ export { calculateWebtoonWindow, estimateWebtoonLayout } from './webtoon.js';
 export { createPreloadPlan, createDecodeQueue, recordPageLoadResult } from './preload.js';
 
 // Progress functions
-export { createProgressEvent, shouldCheckpointOnUnmount, shouldPersistProgress } from './progress.js';
+export {
+  createProgressEvent,
+  shouldCheckpointOnUnmount,
+  shouldPersistProgress,
+} from './progress.js';
 
 // Diagnostics
 export { createReaderDiagnostics } from './diagnostics.js';

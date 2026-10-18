@@ -10,11 +10,7 @@ import {
 import type { PlatformAdapter } from '@app/platform';
 import type { MangaId, ProviderId } from '@app/shared';
 
-import {
-  buildCoverBlobKey,
-  buildCoverCacheEntryId,
-  COVER_CACHE_KIND,
-} from './constants.js';
+import { buildCoverBlobKey, buildCoverCacheEntryId, COVER_CACHE_KIND } from './constants.js';
 
 export interface CoverCacheLookupInput {
   readonly db: AppDrizzleDb;
@@ -210,9 +206,7 @@ export async function runCoverCacheMaintenance(
 }
 
 /** Returns a local blob URL for a cover, or undefined while loading / on cache miss. Never returns remote URLs. */
-export async function resolveCoverUrl(
-  input: CoverCacheLookupInput,
-): Promise<string | undefined> {
+export async function resolveCoverUrl(input: CoverCacheLookupInput): Promise<string | undefined> {
   const result = await resolveCoverObjectUrl(input);
   return result?.objectUrl;
 }

@@ -28,11 +28,19 @@ function urlDetails(
   return { url: redacted };
 }
 
-export function normalizeProviderError(error: unknown, context?: NormalizeProviderErrorContext): AppError {
+export function normalizeProviderError(
+  error: unknown,
+  context?: NormalizeProviderErrorContext,
+): AppError {
   const ud = urlDetails(context);
 
   if (error && typeof error === 'object' && 'code' in error && 'message' in error) {
-    const e = error as { code: unknown; message: unknown; providerId?: unknown; retryable?: unknown };
+    const e = error as {
+      code: unknown;
+      message: unknown;
+      providerId?: unknown;
+      retryable?: unknown;
+    };
     if (typeof e.code === 'string' && typeof e.message === 'string') {
       if (ud !== undefined) {
         return createAppError({

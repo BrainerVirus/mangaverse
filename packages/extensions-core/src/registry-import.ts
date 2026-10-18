@@ -1,6 +1,10 @@
 import type { AppResult } from '@app/shared';
 import { createAppError, err, ok } from '@app/shared';
-import type { ExtensionInstallWarning, ExtensionRegistryEntry, ProviderContentFlags } from '@app/shared';
+import type {
+  ExtensionInstallWarning,
+  ExtensionRegistryEntry,
+  ProviderContentFlags,
+} from '@app/shared';
 import { validateRemoteManifestUrlForFetch } from '@app/extensions-sdk';
 import { upsertExtensionRegistry } from '@app/db';
 import type { AppDrizzleDb } from '@app/db';
@@ -30,16 +34,36 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
 
 function validateDocument(input: unknown): AppResult<ExtensionRegistryImportDocument> {
   if (!isPlainObject(input)) {
-    return err(createAppError({ code: 'extensions.core.registry.invalid', message: 'Registry document must be an object.' }));
+    return err(
+      createAppError({
+        code: 'extensions.core.registry.invalid',
+        message: 'Registry document must be an object.',
+      }),
+    );
   }
   if (!isNonEmptyString(input['name'])) {
-    return err(createAppError({ code: 'extensions.core.registry.invalid', message: 'Registry name is required.' }));
+    return err(
+      createAppError({
+        code: 'extensions.core.registry.invalid',
+        message: 'Registry name is required.',
+      }),
+    );
   }
   if (!isNonEmptyString(input['registryUrl'])) {
-    return err(createAppError({ code: 'extensions.core.registry.invalid', message: 'Registry URL is required.' }));
+    return err(
+      createAppError({
+        code: 'extensions.core.registry.invalid',
+        message: 'Registry URL is required.',
+      }),
+    );
   }
   if (!Array.isArray(input['entries'])) {
-    return err(createAppError({ code: 'extensions.core.registry.invalid', message: 'Registry entries must be an array.' }));
+    return err(
+      createAppError({
+        code: 'extensions.core.registry.invalid',
+        message: 'Registry entries must be an array.',
+      }),
+    );
   }
   return ok({
     name: String(input['name']),
@@ -49,7 +73,10 @@ function validateDocument(input: unknown): AppResult<ExtensionRegistryImportDocu
   });
 }
 
-function normalizeEntry(raw: unknown, index: number): { entry?: RegistryProviderEntry; warning?: ExtensionInstallWarning } {
+function normalizeEntry(
+  raw: unknown,
+  index: number,
+): { entry?: RegistryProviderEntry; warning?: ExtensionInstallWarning } {
   if (!isPlainObject(raw)) {
     return {
       warning: {

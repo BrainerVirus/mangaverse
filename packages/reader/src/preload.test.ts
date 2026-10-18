@@ -1,10 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { toChapterPageId } from '@app/shared';
-import {
-  createPreloadPlan,
-  createDecodeQueue,
-  recordPageLoadResult,
-} from './preload';
+import { createPreloadPlan, createDecodeQueue, recordPageLoadResult } from './preload';
 import type { PageLoadResult, ReaderPage } from './types';
 
 const mockPages: ReaderPage[] = Array.from({ length: 10 }, (_, i) => ({
@@ -77,7 +73,7 @@ describe('createDecodeQueue', () => {
     const pages = mockPages;
     const queue = createDecodeQueue(pages, 5, 5, false);
 
-    const priorities = queue.items.map(item => item.priority);
+    const priorities = queue.items.map((item) => item.priority);
     for (let i = 1; i < priorities.length; i++) {
       const previous = priorities[i - 1]!;
       const current = priorities[i]!;
@@ -175,7 +171,14 @@ describe('recordPageLoadResult', () => {
     };
 
     const afterFail = recordPageLoadResult(failResult, mockPages, 0, [], 3, {});
-    const afterSuccess = recordPageLoadResult(successResult, mockPages, 0, [2], 3, afterFail.retryState);
+    const afterSuccess = recordPageLoadResult(
+      successResult,
+      mockPages,
+      0,
+      [2],
+      3,
+      afterFail.retryState,
+    );
 
     expect(afterSuccess.retryState).not.toHaveProperty('2');
     expect(afterSuccess.failedPages).not.toContain(2);

@@ -2,17 +2,12 @@ import { fork, type ChildProcess } from 'node:child_process';
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, net, safeStorage, shell } from 'electron';
 import {
-  app,
-  BrowserWindow,
-  clipboard,
-  dialog,
-  ipcMain,
-  net,
-  safeStorage,
-  shell,
-} from 'electron';
-import { detectElectronCapabilities, isSafeExternalUrl, type PlatformCapabilities } from '@app/platform';
+  detectElectronCapabilities,
+  isSafeExternalUrl,
+  type PlatformCapabilities,
+} from '@app/platform';
 import { createDesktopLocalService } from './local-service.js';
 import {
   createInstallProtocolStore,

@@ -10,7 +10,7 @@ describe('root route styles', () => {
     const rootRoutePath = join(testDir, '../routes/__root.tsx');
     const source = readFileSync(rootRoutePath, 'utf8');
 
-    expect(source).toContain("@app/design-system/styles/globals.css");
+    expect(source).toContain('@app/design-system/styles/globals.css');
   });
 
   it('sources monorepo templates from design-system globals.css', () => {

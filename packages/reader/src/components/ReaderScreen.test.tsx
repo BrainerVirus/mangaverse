@@ -88,7 +88,10 @@ function buildData(): ReaderPageData {
   };
 }
 
-function mount(onPersist: (event: { pageIndex: number }) => void): { root: Root; container: HTMLElement } {
+function mount(onPersist: (event: { pageIndex: number }) => void): {
+  root: Root;
+  container: HTMLElement;
+} {
   const container = document.createElement('div');
   document.body.appendChild(container);
   const root = createRoot(container);

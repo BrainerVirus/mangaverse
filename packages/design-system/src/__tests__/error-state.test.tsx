@@ -21,37 +21,19 @@ describe('ErrorState', () => {
   });
 
   it('displays provider name when provided', () => {
-    render(
-      <ErrorState
-        title="Error"
-        message="Failed to load"
-        providerName="MangaProvider"
-      />
-    );
+    render(<ErrorState title="Error" message="Failed to load" providerName="MangaProvider" />);
 
     expect(screen.getByText(/MangaProvider/)).toBeInTheDocument();
   });
 
   it('renders retry button when onRetry is provided', () => {
-    render(
-      <ErrorState
-        title="Error"
-        message="Failed to load"
-        onRetry={vi.fn()}
-      />
-    );
+    render(<ErrorState title="Error" message="Failed to load" onRetry={vi.fn()} />);
 
     expect(screen.getByRole('button', { name: /Retry/i })).toBeInTheDocument();
   });
 
   it('renders back button when onBack is provided', () => {
-    render(
-      <ErrorState
-        title="Error"
-        message="Failed to load"
-        onBack={vi.fn()}
-      />
-    );
+    render(<ErrorState title="Error" message="Failed to load" onBack={vi.fn()} />);
 
     expect(screen.getByRole('button', { name: /Go Back/i })).toBeInTheDocument();
   });
@@ -60,13 +42,7 @@ describe('ErrorState', () => {
     const user = userEvent.setup();
     const onRetry = vi.fn();
 
-    render(
-      <ErrorState
-        title="Error"
-        message="Failed to load"
-        onRetry={onRetry}
-      />
-    );
+    render(<ErrorState title="Error" message="Failed to load" onRetry={onRetry} />);
 
     await user.click(screen.getByRole('button', { name: /Retry/i }));
     expect(onRetry).toHaveBeenCalledTimes(1);
@@ -76,13 +52,7 @@ describe('ErrorState', () => {
     const user = userEvent.setup();
     const onBack = vi.fn();
 
-    render(
-      <ErrorState
-        title="Error"
-        message="Failed to load"
-        onBack={onBack}
-      />
-    );
+    render(<ErrorState title="Error" message="Failed to load" onBack={onBack} />);
 
     await user.click(screen.getByRole('button', { name: /Go Back/i }));
     expect(onBack).toHaveBeenCalledTimes(1);
@@ -90,12 +60,7 @@ describe('ErrorState', () => {
 
   it('shows both buttons when both callbacks are provided', () => {
     render(
-      <ErrorState
-        title="Error"
-        message="Failed to load"
-        onRetry={vi.fn()}
-        onBack={vi.fn()}
-      />
+      <ErrorState title="Error" message="Failed to load" onRetry={vi.fn()} onBack={vi.fn()} />,
     );
 
     expect(screen.getByRole('button', { name: /Retry/i })).toBeInTheDocument();

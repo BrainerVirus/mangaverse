@@ -12,7 +12,9 @@ export async function persistMangaDetailToDb(
   await upsertMangaIdentity(db, detail.manga);
 
   const mappingId = detail.manga.defaultProviderMappingId;
-  const providerId = detail.manga.providerMappings.find((mapping) => mapping.id === mappingId)?.providerId;
+  const providerId = detail.manga.providerMappings.find(
+    (mapping) => mapping.id === mappingId,
+  )?.providerId;
 
   await Promise.all(
     detail.chapters.map(async (chapter) => {
@@ -21,7 +23,9 @@ export async function persistMangaDetailToDb(
         mangaId: chapter.mangaId,
         providerMappingId: mappingId,
         ...(providerId !== undefined ? { providerId: String(providerId) } : {}),
-        ...(chapter.providerChapterId !== undefined ? { providerChapterId: chapter.providerChapterId } : {}),
+        ...(chapter.providerChapterId !== undefined
+          ? { providerChapterId: chapter.providerChapterId }
+          : {}),
         title: chapter.title,
         index: chapter.index,
         ...(chapter.volume !== undefined ? { volume: chapter.volume } : {}),
@@ -51,7 +55,9 @@ export async function persistChapterPagesToDb(
     mangaId: chapter.mangaId,
     providerMappingId: manga.defaultProviderMappingId,
     ...(chapter.providerId !== undefined ? { providerId: String(chapter.providerId) } : {}),
-    ...(chapter.providerChapterId !== undefined ? { providerChapterId: chapter.providerChapterId } : {}),
+    ...(chapter.providerChapterId !== undefined
+      ? { providerChapterId: chapter.providerChapterId }
+      : {}),
     title: chapter.title,
     index: chapter.index,
     ...(chapter.volume !== undefined ? { volume: chapter.volume } : {}),

@@ -2,7 +2,9 @@ import type { ChapterId } from './chapter.js';
 import type { MangaId, ProviderId, ProviderMappingId } from './manga.js';
 
 declare const libraryEntryIdBrand: unique symbol;
-export type LibraryEntryId = string & { readonly [libraryEntryIdBrand]: typeof libraryEntryIdBrand };
+export type LibraryEntryId = string & {
+  readonly [libraryEntryIdBrand]: typeof libraryEntryIdBrand;
+};
 
 declare const categoryIdBrand: unique symbol;
 export type CategoryId = string & { readonly [categoryIdBrand]: typeof categoryIdBrand };

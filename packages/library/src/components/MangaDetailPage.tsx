@@ -1,10 +1,4 @@
-import {
-  Badge,
-  Button,
-  EmptyState,
-  ErrorState,
-  LoadingState,
-} from '@app/design-system';
+import { Badge, Button, EmptyState, ErrorState, LoadingState } from '@app/design-system';
 import { CachedCoverImage, getDefaultProviderId } from '@app/cache';
 import type { ChapterId, MangaId } from '@app/shared';
 import { Heart, Library, Trash2 } from 'lucide-react';
@@ -114,9 +108,7 @@ export function MangaDetailPage({
                 {manga.contentRating !== 'safe' && manga.contentRating !== 'unknown' ? (
                   <Badge variant="destructive">{manga.contentRating}</Badge>
                 ) : null}
-                {libraryEntry !== undefined ? (
-                  <Badge variant="outline">In library</Badge>
-                ) : null}
+                {libraryEntry !== undefined ? <Badge variant="outline">In library</Badge> : null}
               </div>
             </div>
 
@@ -160,7 +152,9 @@ export function MangaDetailPage({
             {hasContinue ? (
               <div className="flex flex-wrap gap-3">
                 <Button type="button" onClick={() => onOpenChapter(continueChapterId)}>
-                  {libraryEntry?.lastReadChapterId !== undefined ? 'Continue reading' : 'Start reading'}
+                  {libraryEntry?.lastReadChapterId !== undefined
+                    ? 'Continue reading'
+                    : 'Start reading'}
                 </Button>
               </div>
             ) : null}
@@ -186,10 +180,7 @@ export function MangaDetailPage({
                   onClick={onToggleFavorite}
                   aria-pressed={isFavorite}
                 >
-                  <Heart
-                    aria-hidden
-                    className={`size-4 ${isFavorite ? 'fill-current' : ''}`}
-                  />
+                  <Heart aria-hidden className={`size-4 ${isFavorite ? 'fill-current' : ''}`} />
                   {isFavorite ? 'Favorited' : 'Favorite'}
                 </Button>
               ) : null}

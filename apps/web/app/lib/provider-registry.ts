@@ -13,9 +13,7 @@ export async function resolveInstalledProvider(
   providerId: string,
 ): Promise<ProviderContract | null> {
   const installed = await listInstalledExtensions(db);
-  const entry = installed.find(
-    (item) => String(item.manifest.id) === providerId && item.enabled,
-  );
+  const entry = installed.find((item) => String(item.manifest.id) === providerId && item.enabled);
   if (entry === undefined) {
     return null;
   }

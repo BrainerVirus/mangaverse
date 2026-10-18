@@ -1,4 +1,8 @@
-import type { ProviderChapter, ProviderDetails, ProviderSearchResultItem } from '@app/extensions-sdk';
+import type {
+  ProviderChapter,
+  ProviderDetails,
+  ProviderSearchResultItem,
+} from '@app/extensions-sdk';
 import type { MangaDetailData } from '@app/library';
 import type { Chapter, MangaIdentity } from '@app/shared';
 import { toProviderId, toProviderMangaId, toProviderMappingId } from '@app/shared';
@@ -85,7 +89,9 @@ export function buildMangaDetailData(
   chapters: readonly ProviderChapter[],
 ): MangaDetailData {
   const manga = providerDetailsToMangaIdentity(mangadexMangaId, details);
-  const mappedChapters = chapters.map((chapter) => providerChapterToChapter(mangadexMangaId, chapter));
+  const mappedChapters = chapters.map((chapter) =>
+    providerChapterToChapter(mangadexMangaId, chapter),
+  );
   return {
     manga,
     chapters: mappedChapters,

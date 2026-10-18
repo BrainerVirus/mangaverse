@@ -7,8 +7,11 @@ import type {
 } from './types.js';
 import { calculatePageSlots } from './spreads.js';
 
-function findActiveSpreadSlots(slots: readonly PageSlot[], activePageIndex: number): readonly PageSlot[] {
-  const targetSlot = slots.find(s => s.pageIndex === activePageIndex);
+function findActiveSpreadSlots(
+  slots: readonly PageSlot[],
+  activePageIndex: number,
+): readonly PageSlot[] {
+  const targetSlot = slots.find((s) => s.pageIndex === activePageIndex);
   if (!targetSlot) return [];
 
   if (targetSlot.isCover || (!targetSlot.isLeftPage && !targetSlot.isRightPage)) {
@@ -51,7 +54,7 @@ export function createReaderState(input: ReaderSessionInput): ReaderState {
     const slots = calculatePageSlots(input);
     const visibleSlots = findActiveSpreadSlots(slots, clampedPageIndex);
     if (visibleSlots.length > 1) {
-      visiblePageIndexes = visibleSlots.map(s => s.pageIndex);
+      visiblePageIndexes = visibleSlots.map((s) => s.pageIndex);
     } else {
       visiblePageIndexes = [clampedPageIndex];
     }
@@ -61,7 +64,7 @@ export function createReaderState(input: ReaderSessionInput): ReaderState {
     clampedPageIndex,
     pageCount,
     settings.preloadAhead,
-    settings.lowMemoryMode
+    settings.lowMemoryMode,
   );
 
   const zoom: ZoomStateSummary = {
@@ -107,7 +110,7 @@ function calculatePreloadQueue(
   activePageIndex: number,
   totalPages: number,
   preloadAhead: number,
-  lowMemoryMode: boolean
+  lowMemoryMode: boolean,
 ): readonly number[] {
   if (lowMemoryMode) {
     const nextIndex = activePageIndex + 1;

@@ -164,9 +164,7 @@ export async function resolvePageObjectUrl(
 }
 
 /** Returns a local blob URL for a page, or undefined while loading / on cache miss. Never returns remote URLs. */
-export async function resolvePageUrl(
-  input: PageCacheLookupInput,
-): Promise<string | undefined> {
+export async function resolvePageUrl(input: PageCacheLookupInput): Promise<string | undefined> {
   const result = await resolvePageObjectUrl(input);
   return result?.objectUrl;
 }

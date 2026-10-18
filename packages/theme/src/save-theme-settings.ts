@@ -3,7 +3,10 @@ import type { AppResult, ThemeSettings } from '@app/shared';
 
 import { validateThemeSettings } from './validate-theme-settings.js';
 
-export async function saveThemeSettings(db: AppDrizzleDb, settings: ThemeSettings): Promise<AppResult<void>> {
+export async function saveThemeSettings(
+  db: AppDrizzleDb,
+  settings: ThemeSettings,
+): Promise<AppResult<void>> {
   const parsed = validateThemeSettings(settings);
   if (!parsed.ok) {
     return parsed;

@@ -5,7 +5,10 @@ import type { ProviderManifest } from '@app/shared';
 import { assertProviderSupports, getRequiredMethodsForCapabilities } from './capabilities.js';
 import type { ProviderContract, ProviderMethodName } from './contract-types.js';
 
-export function validateProviderContract(manifest: ProviderManifest, provider: ProviderContract): AppResult<void> {
+export function validateProviderContract(
+  manifest: ProviderManifest,
+  provider: ProviderContract,
+): AppResult<void> {
   if (provider.manifest.id !== manifest.id) {
     return err(
       createAppError({

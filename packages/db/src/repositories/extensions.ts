@@ -16,7 +16,9 @@ function newId(): string {
   return crypto.randomUUID();
 }
 
-export async function listInstalledExtensions(db: AppDrizzleDb): Promise<ExtensionInstallMetadata[]> {
+export async function listInstalledExtensions(
+  db: AppDrizzleDb,
+): Promise<ExtensionInstallMetadata[]> {
   const rows = db.select().from(installedExtensions).all();
   const out: ExtensionInstallMetadata[] = [];
   for (const row of rows) {
@@ -29,7 +31,9 @@ export async function listInstalledExtensions(db: AppDrizzleDb): Promise<Extensi
       ...(row.registryUrl !== null && row.registryUrl !== undefined && row.registryUrl !== ''
         ? { registryUrl: row.registryUrl }
         : {}),
-      ...(row.checksum !== null && row.checksum !== undefined && row.checksum !== '' ? { checksum: row.checksum } : {}),
+      ...(row.checksum !== null && row.checksum !== undefined && row.checksum !== ''
+        ? { checksum: row.checksum }
+        : {}),
       installedVersion: row.installedVersion,
       enabled: row.enabled,
       installedAt: row.installedAt,

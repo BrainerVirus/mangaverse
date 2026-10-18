@@ -1,11 +1,5 @@
 import type { RefObject } from 'react';
-import {
-  Button,
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@app/design-system';
+import { Button, Sheet, SheetContent, SheetHeader, SheetTitle } from '@app/design-system';
 import type { ReaderSettings } from '@app/shared';
 
 export interface ReaderSettingsSheetProps {
@@ -86,7 +80,9 @@ export function ReaderSettingsSheet({
                     // two would otherwise contradict each other.
                     onChangeSettings?.({
                       pageLayout: value,
-                      ...(settings.readingMode === 'vertical' ? { readingMode: 'ltr' as const } : {}),
+                      ...(settings.readingMode === 'vertical'
+                        ? { readingMode: 'ltr' as const }
+                        : {}),
                     })
                   }
                 >

@@ -2,10 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { toProviderId } from '@app/shared';
 import type { ProviderManifest } from '@app/shared';
 
-import {
-  assertProviderSupports,
-  getRequiredMethodsForCapabilities,
-} from './capabilities';
+import { assertProviderSupports, getRequiredMethodsForCapabilities } from './capabilities';
 
 function baseManifest(overrides: Partial<ProviderManifest> = {}): ProviderManifest {
   return {

@@ -6,10 +6,7 @@ export interface ScaleOptions extends gsap.TweenVars {
   reducedMotion?: boolean;
 }
 
-export function scaleIn(
-  target: gsap.TweenTarget,
-  vars?: ScaleOptions,
-): gsap.core.Tween {
+export function scaleIn(target: gsap.TweenTarget, vars?: ScaleOptions): gsap.core.Tween {
   const { reducedMotion = false, ...tweenVars } = vars ?? {};
 
   if (reducedMotion) {

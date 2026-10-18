@@ -17,7 +17,9 @@ vi.mock('@tanstack/react-router', () => ({
   useRouter: () => ({ navigate: vi.fn(), subscribe: () => () => {} }),
   useNavigate: () => vi.fn(),
   Link: ({ children, to, ...props }: { to: string; children: React.ReactNode }) => (
-    <a href={to} {...props}>{children}</a>
+    <a href={to} {...props}>
+      {children}
+    </a>
   ),
 }));
 
@@ -89,7 +91,11 @@ describe('DesktopSidebar', () => {
     document.body.appendChild(container);
     const root = createRoot(container);
     flushSync(() => {
-      root.render(<ThemeProvider><DesktopSidebar /></ThemeProvider>);
+      root.render(
+        <ThemeProvider>
+          <DesktopSidebar />
+        </ThemeProvider>,
+      );
     });
     const asideClass = container.querySelector('aside')?.className ?? '';
     expect(asideClass).toContain('w-[52px]');

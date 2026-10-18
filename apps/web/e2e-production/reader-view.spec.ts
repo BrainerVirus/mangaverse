@@ -51,7 +51,11 @@ async function zoomState(layer: Locator) {
   return parseTransform(await layer.getAttribute('style'));
 }
 
-test('Given the paged reader, When each fit mode is selected, Then the rendered page box changes and the control matches', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given the paged reader, When each fit mode is selected, Then the rendered page box changes and the control matches', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   await openReader(page);
   const surfaceBox = (await page.getByTestId('reader-surface').boundingBox())!;
   const availableWidth = Math.round(surfaceBox.width);
@@ -65,9 +69,14 @@ test('Given the paged reader, When each fit mode is selected, Then the rendered 
 
   // The page image reports no intrinsic size, so original falls back to the
   // contain box but must still render the image at its natural size.
-  const natural = await page.getByTestId('reader-surface').locator('img').first().evaluate(
-    (image) => ({ width: (image as HTMLImageElement).naturalWidth, height: (image as HTMLImageElement).naturalHeight }),
-  );
+  const natural = await page
+    .getByTestId('reader-surface')
+    .locator('img')
+    .first()
+    .evaluate((image) => ({
+      width: (image as HTMLImageElement).naturalWidth,
+      height: (image as HTMLImageElement).naturalHeight,
+    }));
 
   const dialog = await openSettings(page);
   const rendered: string[] = [];
@@ -118,7 +127,11 @@ test('Given the paged reader, When each fit mode is selected, Then the rendered 
   expect(natural.width).toBeLessThanOrEqual(1);
 });
 
-test('Given the paged reader at scale 1, When double-clicking, Then it zooms to doubleTapZoom and a drag pans within bounds', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given the paged reader at scale 1, When double-clicking, Then it zooms to doubleTapZoom and a drag pans within bounds', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   await openReader(page);
   const layer = page.getByTestId('reader-zoom-layer');
   const box = (await page.getByTestId('reader-surface').boundingBox())!;
@@ -146,7 +159,11 @@ test('Given the paged reader at scale 1, When double-clicking, Then it zooms to 
   await expect.poll(async () => (await zoomState(layer)).scale).toBe(1);
 });
 
-test('Given a zoomed page, When the page changes, Then the zoom resets to scale 1', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given a zoomed page, When the page changes, Then the zoom resets to scale 1', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   await openReader(page);
   const layer = page.getByTestId('reader-zoom-layer');
   const box = (await page.getByTestId('reader-surface').boundingBox())!;
@@ -159,7 +176,11 @@ test('Given a zoomed page, When the page changes, Then the zoom resets to scale 
   await expect.poll(async () => (await zoomState(layer)).scale).toBe(1);
 });
 
-test('Given the vertical strip, When Home and End are pressed, Then the first and last page become active', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given the vertical strip, When Home and End are pressed, Then the first and last page become active', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   await openReader(page);
   await switchToVertical(page);
 
@@ -173,7 +194,11 @@ test('Given the vertical strip, When Home and End are pressed, Then the first an
   await expect(page.getByText('37 / 37')).toBeVisible({ timeout: 20_000 });
 });
 
-test('Given the vertical strip, When the current page is shorter than half the viewport, Then one ArrowRight advances exactly one page', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given the vertical strip, When the current page is shorter than half the viewport, Then one ArrowRight advances exactly one page', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   await openReader(page);
   await switchToVertical(page);
   const strip = page.getByTestId('reader-scroll-view');
@@ -198,7 +223,11 @@ test('Given the vertical strip, When the current page is shorter than half the v
   await expect(page.getByText('12 / 37')).toBeVisible({ timeout: 10_000 });
 });
 
-test('Given the vertical strip, When ArrowRight is pressed five times rapidly, Then the page advances exactly five', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given the vertical strip, When ArrowRight is pressed five times rapidly, Then the page advances exactly five', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   await openReader(page);
   await switchToVertical(page);
   const strip = page.getByTestId('reader-scroll-view');

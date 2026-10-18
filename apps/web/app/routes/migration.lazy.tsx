@@ -30,9 +30,9 @@ function MigrationRoute() {
   const [preview, setPreview] = useState<MigrationPreviewReport | null>(null);
   const [applyError, setApplyError] = useState<string | null>(null);
   const [applySuccess, setApplySuccess] = useState(false);
-  const [applySummary, setApplySummary] = useState<ReturnType<typeof summarizeMigrationApply> | null>(
-    null,
-  );
+  const [applySummary, setApplySummary] = useState<ReturnType<
+    typeof summarizeMigrationApply
+  > | null>(null);
 
   const providersQuery = useQuery({
     queryKey: migrationQueryKeys.providers(),

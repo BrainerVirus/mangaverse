@@ -103,17 +103,30 @@ export function resolveReaderSettings(
 
 const READING_MODES: ReadonlySet<ReadingMode> = new Set(['rtl', 'ltr', 'vertical']);
 const PAGE_LAYOUTS: ReadonlySet<PageLayoutMode> = new Set(['single', 'double', 'smartSpread']);
-const FIT_MODES: ReadonlySet<FitMode> = new Set(['width', 'height', 'contain', 'cover', 'original']);
+const FIT_MODES: ReadonlySet<FitMode> = new Set([
+  'width',
+  'height',
+  'contain',
+  'cover',
+  'original',
+]);
 const TAP_ZONES: ReadonlySet<TapZoneLayout> = new Set(['leftRight', 'lShaped', 'grid']);
 const PAGE_TRANSITIONS: ReadonlySet<PageTransitionMode> = new Set(['none', 'fade', 'slide']);
 const NAV_DIRECTIONS: ReadonlySet<NavigationDirection> = new Set(['default', 'inverted']);
 const WHEEL_BEHAVIORS: ReadonlySet<WheelBehavior> = new Set(['none', 'scroll', 'zoom']);
-const CHROME_VISIBILITIES: ReadonlySet<ReaderChromeVisibility> = new Set(['auto', 'always', 'hidden']);
+const CHROME_VISIBILITIES: ReadonlySet<ReaderChromeVisibility> = new Set([
+  'auto',
+  'always',
+  'hidden',
+]);
 
 export function validateReaderSettings(input: unknown): AppResult<ReaderSettings> {
   if (typeof input !== 'object' || input === null || Array.isArray(input)) {
     return err(
-      createAppError({ code: 'reader.settings.invalid', message: 'Reader settings must be an object.' }),
+      createAppError({
+        code: 'reader.settings.invalid',
+        message: 'Reader settings must be an object.',
+      }),
     );
   }
 
@@ -138,34 +151,59 @@ export function validateReaderSettings(input: unknown): AppResult<ReaderSettings
 
   const tapZoneLayout = s['tapZoneLayout'];
   if (typeof tapZoneLayout !== 'string' || !TAP_ZONES.has(tapZoneLayout as TapZoneLayout)) {
-    return err(createAppError({ code: 'reader.settings.invalid', message: 'Invalid tapZoneLayout.' }));
+    return err(
+      createAppError({ code: 'reader.settings.invalid', message: 'Invalid tapZoneLayout.' }),
+    );
   }
 
   if (typeof s['tapZoneDebugOverlay'] !== 'boolean') {
-    return err(createAppError({ code: 'reader.settings.invalid', message: 'tapZoneDebugOverlay must be boolean.' }));
+    return err(
+      createAppError({
+        code: 'reader.settings.invalid',
+        message: 'tapZoneDebugOverlay must be boolean.',
+      }),
+    );
   }
 
   const navDir = s['navigationDirection'];
   if (typeof navDir !== 'string' || !NAV_DIRECTIONS.has(navDir as NavigationDirection)) {
-    return err(createAppError({ code: 'reader.settings.invalid', message: 'Invalid navigationDirection.' }));
+    return err(
+      createAppError({ code: 'reader.settings.invalid', message: 'Invalid navigationDirection.' }),
+    );
   }
 
   const pageTransition = s['pageTransition'];
-  if (typeof pageTransition !== 'string' || !PAGE_TRANSITIONS.has(pageTransition as PageTransitionMode)) {
+  if (
+    typeof pageTransition !== 'string' ||
+    !PAGE_TRANSITIONS.has(pageTransition as PageTransitionMode)
+  ) {
     return err(
       createAppError({ code: 'reader.settings.invalid', message: 'Invalid pageTransition.' }),
     );
   }
 
   const chromeVisibility = s['chromeVisibility'];
-  if (typeof chromeVisibility !== 'string' || !CHROME_VISIBILITIES.has(chromeVisibility as ReaderChromeVisibility)) {
-    return err(createAppError({ code: 'reader.settings.invalid', message: 'Invalid chromeVisibility.' }));
+  if (
+    typeof chromeVisibility !== 'string' ||
+    !CHROME_VISIBILITIES.has(chromeVisibility as ReaderChromeVisibility)
+  ) {
+    return err(
+      createAppError({ code: 'reader.settings.invalid', message: 'Invalid chromeVisibility.' }),
+    );
   }
 
   const preloadAhead = s['preloadAhead'];
-  if (typeof preloadAhead !== 'number' || !Number.isFinite(preloadAhead) || preloadAhead < 0 || preloadAhead > 20) {
+  if (
+    typeof preloadAhead !== 'number' ||
+    !Number.isFinite(preloadAhead) ||
+    preloadAhead < 0 ||
+    preloadAhead > 20
+  ) {
     return err(
-      createAppError({ code: 'reader.settings.invalid', message: 'preloadAhead must be between 0 and 20.' }),
+      createAppError({
+        code: 'reader.settings.invalid',
+        message: 'preloadAhead must be between 0 and 20.',
+      }),
     );
   }
 
@@ -194,73 +232,155 @@ export function validateReaderSettings(input: unknown): AppResult<ReaderSettings
   }
   if (minZoom > maxZoom) {
     return err(
-      createAppError({ code: 'reader.settings.invalid', message: 'minZoom cannot exceed maxZoom.' }),
+      createAppError({
+        code: 'reader.settings.invalid',
+        message: 'minZoom cannot exceed maxZoom.',
+      }),
     );
   }
 
   const doubleTapZoom = s['doubleTapZoom'];
-  if (typeof doubleTapZoom !== 'number' || !Number.isFinite(doubleTapZoom) || doubleTapZoom < 1 || doubleTapZoom > 5) {
-    return err(createAppError({ code: 'reader.settings.invalid', message: 'doubleTapZoom must be between 1 and 5.' }));
+  if (
+    typeof doubleTapZoom !== 'number' ||
+    !Number.isFinite(doubleTapZoom) ||
+    doubleTapZoom < 1 ||
+    doubleTapZoom > 5
+  ) {
+    return err(
+      createAppError({
+        code: 'reader.settings.invalid',
+        message: 'doubleTapZoom must be between 1 and 5.',
+      }),
+    );
   }
 
   const pinchSensitivity = s['pinchSensitivity'];
-  if (typeof pinchSensitivity !== 'number' || !Number.isFinite(pinchSensitivity) || pinchSensitivity <= 0 || pinchSensitivity > 5) {
-    return err(createAppError({ code: 'reader.settings.invalid', message: 'pinchSensitivity must be between 0 and 5 (exclusive 0).' }));
+  if (
+    typeof pinchSensitivity !== 'number' ||
+    !Number.isFinite(pinchSensitivity) ||
+    pinchSensitivity <= 0 ||
+    pinchSensitivity > 5
+  ) {
+    return err(
+      createAppError({
+        code: 'reader.settings.invalid',
+        message: 'pinchSensitivity must be between 0 and 5 (exclusive 0).',
+      }),
+    );
   }
 
   const gestureSensitivity = s['gestureSensitivity'];
-  if (typeof gestureSensitivity !== 'number' || !Number.isFinite(gestureSensitivity) || gestureSensitivity <= 0 || gestureSensitivity > 5) {
-    return err(createAppError({ code: 'reader.settings.invalid', message: 'gestureSensitivity must be between 0 and 5 (exclusive 0).' }));
+  if (
+    typeof gestureSensitivity !== 'number' ||
+    !Number.isFinite(gestureSensitivity) ||
+    gestureSensitivity <= 0 ||
+    gestureSensitivity > 5
+  ) {
+    return err(
+      createAppError({
+        code: 'reader.settings.invalid',
+        message: 'gestureSensitivity must be between 0 and 5 (exclusive 0).',
+      }),
+    );
   }
 
   const brightness = s['brightness'];
-  if (typeof brightness !== 'number' || !Number.isFinite(brightness) || brightness < 0 || brightness > 1) {
+  if (
+    typeof brightness !== 'number' ||
+    !Number.isFinite(brightness) ||
+    brightness < 0 ||
+    brightness > 1
+  ) {
     return err(
-      createAppError({ code: 'reader.settings.invalid', message: 'brightness must be between 0 and 1.' }),
+      createAppError({
+        code: 'reader.settings.invalid',
+        message: 'brightness must be between 0 and 1.',
+      }),
     );
   }
 
   const backgroundColor = s['backgroundColor'];
   if (typeof backgroundColor !== 'string' || backgroundColor.length === 0) {
-    return err(createAppError({ code: 'reader.settings.invalid', message: 'backgroundColor is required.' }));
+    return err(
+      createAppError({ code: 'reader.settings.invalid', message: 'backgroundColor is required.' }),
+    );
   }
 
   if (typeof s['imageSmoothing'] !== 'boolean') {
-    return err(createAppError({ code: 'reader.settings.invalid', message: 'imageSmoothing must be boolean.' }));
+    return err(
+      createAppError({
+        code: 'reader.settings.invalid',
+        message: 'imageSmoothing must be boolean.',
+      }),
+    );
   }
 
   if (typeof s['keepScreenOn'] !== 'boolean') {
-    return err(createAppError({ code: 'reader.settings.invalid', message: 'keepScreenOn must be boolean.' }));
+    return err(
+      createAppError({ code: 'reader.settings.invalid', message: 'keepScreenOn must be boolean.' }),
+    );
   }
 
   if (typeof s['fullscreenOnOpen'] !== 'boolean') {
-    return err(createAppError({ code: 'reader.settings.invalid', message: 'fullscreenOnOpen must be boolean.' }));
+    return err(
+      createAppError({
+        code: 'reader.settings.invalid',
+        message: 'fullscreenOnOpen must be boolean.',
+      }),
+    );
   }
 
   const wheel = s['wheelBehavior'];
   if (typeof wheel !== 'string' || !WHEEL_BEHAVIORS.has(wheel as WheelBehavior)) {
-    return err(createAppError({ code: 'reader.settings.invalid', message: 'Invalid wheelBehavior.' }));
+    return err(
+      createAppError({ code: 'reader.settings.invalid', message: 'Invalid wheelBehavior.' }),
+    );
   }
 
   if (typeof s['lowMemoryMode'] !== 'boolean') {
-    return err(createAppError({ code: 'reader.settings.invalid', message: 'lowMemoryMode must be boolean.' }));
+    return err(
+      createAppError({
+        code: 'reader.settings.invalid',
+        message: 'lowMemoryMode must be boolean.',
+      }),
+    );
   }
 
   if (typeof s['longStripOptimization'] !== 'boolean') {
-    return err(createAppError({ code: 'reader.settings.invalid', message: 'longStripOptimization must be boolean.' }));
+    return err(
+      createAppError({
+        code: 'reader.settings.invalid',
+        message: 'longStripOptimization must be boolean.',
+      }),
+    );
   }
 
   if (typeof s['diagnosticsEnabled'] !== 'boolean') {
-    return err(createAppError({ code: 'reader.settings.invalid', message: 'diagnosticsEnabled must be boolean.' }));
+    return err(
+      createAppError({
+        code: 'reader.settings.invalid',
+        message: 'diagnosticsEnabled must be boolean.',
+      }),
+    );
   }
 
   if (typeof s['rememberPerTitleOverrides'] !== 'boolean') {
-    return err(createAppError({ code: 'reader.settings.invalid', message: 'rememberPerTitleOverrides must be boolean.' }));
+    return err(
+      createAppError({
+        code: 'reader.settings.invalid',
+        message: 'rememberPerTitleOverrides must be boolean.',
+      }),
+    );
   }
 
   const keyboardShortcuts = s['keyboardShortcuts'];
   if (!Array.isArray(keyboardShortcuts)) {
-    return err(createAppError({ code: 'reader.settings.invalid', message: 'keyboardShortcuts must be an array.' }));
+    return err(
+      createAppError({
+        code: 'reader.settings.invalid',
+        message: 'keyboardShortcuts must be an array.',
+      }),
+    );
   }
 
   const settings: ReaderSettings = {

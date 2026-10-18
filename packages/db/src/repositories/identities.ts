@@ -33,7 +33,10 @@ function newId(): string {
   return crypto.randomUUID();
 }
 
-export async function getMangaIdentity(db: AppDrizzleDb, mangaId: MangaId): Promise<MangaIdentity | undefined> {
+export async function getMangaIdentity(
+  db: AppDrizzleDb,
+  mangaId: MangaId,
+): Promise<MangaIdentity | undefined> {
   const row = db.select().from(mangaIdentities).where(eq(mangaIdentities.id, mangaId)).get();
   if (row === undefined) return undefined;
 
@@ -65,7 +68,11 @@ export async function getMangaIdentity(db: AppDrizzleDb, mangaId: MangaId): Prom
     }));
   }
 
-  const trackingRows = db.select().from(trackingLinks).where(eq(trackingLinks.mangaId, mangaId)).all();
+  const trackingRows = db
+    .select()
+    .from(trackingLinks)
+    .where(eq(trackingLinks.mangaId, mangaId))
+    .all();
 
   const providerMappings: MangaProviderMapping[] = mappingsRows.map((m) => ({
     id: toProviderMappingId(m.id),
@@ -305,7 +312,10 @@ export async function markIdentityMerged(
     .where(eq(mangaIdentities.id, mangaId));
 }
 
-export async function clearIdentityMergeMetadata(db: AppDrizzleDb, mangaId: MangaId): Promise<void> {
+export async function clearIdentityMergeMetadata(
+  db: AppDrizzleDb,
+  mangaId: MangaId,
+): Promise<void> {
   await db
     .update(mangaIdentities)
     .set({
@@ -323,7 +333,10 @@ export async function listMangaIdentities(db: AppDrizzleDb): Promise<MangaIdenti
 }
 
 /** Insert or update a manga identity and its provider mappings (metadata fields only). */
-export async function upsertMangaIdentity(db: AppDrizzleDb, identity: MangaIdentity): Promise<void> {
+export async function upsertMangaIdentity(
+  db: AppDrizzleDb,
+  identity: MangaIdentity,
+): Promise<void> {
   const now = new Date().toISOString();
   const existing = db
     .select({ id: mangaIdentities.id })
@@ -381,7 +394,9 @@ export async function upsertMangaIdentity(db: AppDrizzleDb, identity: MangaIdent
         await db
           .update(mangaProviderMappings)
           .set({
-            ...(mapping.providerTitle !== undefined ? { providerTitle: mapping.providerTitle } : {}),
+            ...(mapping.providerTitle !== undefined
+              ? { providerTitle: mapping.providerTitle }
+              : {}),
             ...(mapping.providerUrl !== undefined ? { providerUrl: mapping.providerUrl } : {}),
             lastSyncedAt: now,
           })

@@ -25,7 +25,10 @@ export async function summarizeLocalDatabase(db: AppDrizzleDb): Promise<LocalDat
     .from(installedExtensions)
     .all();
   const categoryRows = db.select({ id: categories.id }).from(categories).all();
-  const providerSettingsRows = db.select({ providerId: providerSettings.providerId }).from(providerSettings).all();
+  const providerSettingsRows = db
+    .select({ providerId: providerSettings.providerId })
+    .from(providerSettings)
+    .all();
 
   return {
     libraryEntryCount: libraryRows.length,

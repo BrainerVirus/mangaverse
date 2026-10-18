@@ -68,7 +68,13 @@ export function ReaderChrome({
         gsap.set(highlight, { x, width: rect.width, autoAlpha: 1 });
         return;
       }
-      gsap.to(highlight, { x, width: rect.width, autoAlpha: 1, duration: 0.28, ease: 'power3.out' });
+      gsap.to(highlight, {
+        x,
+        width: rect.width,
+        autoAlpha: 1,
+        duration: 0.28,
+        ease: 'power3.out',
+      });
     },
     { scope: modeBarRef, dependencies: [mode, reducedMotion] },
   );
@@ -103,7 +109,7 @@ export function ReaderChrome({
       ref={ref}
       className={cn(
         'fixed inset-x-0 top-0 z-50 flex flex-col bg-gradient-to-b from-black/80 to-transparent',
-        'opacity-0'
+        'opacity-0',
       )}
       style={{ pointerEvents: visible ? 'auto' : 'none' }}
       role="toolbar"
@@ -111,9 +117,7 @@ export function ReaderChrome({
     >
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
-          {chapterTitle && (
-            <span className="text-sm font-medium text-white">{chapterTitle}</span>
-          )}
+          {chapterTitle && <span className="text-sm font-medium text-white">{chapterTitle}</span>}
           <Badge variant="secondary" className="bg-white/20 text-white">
             {currentPage} / {totalPages}
           </Badge>
@@ -121,7 +125,10 @@ export function ReaderChrome({
 
         <div className="flex items-center gap-2">
           {mode && onModeChange && (
-            <div ref={modeBarRef} className="relative flex items-center gap-1 rounded-full bg-white/10 p-1">
+            <div
+              ref={modeBarRef}
+              className="relative flex items-center gap-1 rounded-full bg-white/10 p-1"
+            >
               <div
                 ref={modeHighlightRef}
                 aria-hidden
@@ -137,7 +144,7 @@ export function ReaderChrome({
                   onClick={() => onModeChange(m.value)}
                   className={cn(
                     'relative z-10 rounded-full px-3 py-1 text-xs font-medium transition-colors',
-                    mode === m.value ? 'text-black' : 'text-white/70 hover:text-white'
+                    mode === m.value ? 'text-black' : 'text-white/70 hover:text-white',
                   )}
                 >
                   {m.label}

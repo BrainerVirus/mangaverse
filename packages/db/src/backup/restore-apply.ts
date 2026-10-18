@@ -1,4 +1,9 @@
-import type { AppResult, BackupDocumentV1, ExtensionInstallMetadata, MangaIdentity } from '@app/shared';
+import type {
+  AppResult,
+  BackupDocumentV1,
+  ExtensionInstallMetadata,
+  MangaIdentity,
+} from '@app/shared';
 import {
   createAppError,
   err,
@@ -51,7 +56,9 @@ function insertMangaIdentitySync(tx: AppDrizzleDb, identity: MangaIdentity): voi
       ...(identity.userOverrides !== undefined
         ? { userOverridesJson: identity.userOverrides as Record<string, unknown> }
         : {}),
-      ...(identity.mergedFromIds !== undefined ? { mergedFromIdsJson: [...identity.mergedFromIds] } : {}),
+      ...(identity.mergedFromIds !== undefined
+        ? { mergedFromIdsJson: [...identity.mergedFromIds] }
+        : {}),
       ...(identity.createdAt !== undefined ? { createdAt: identity.createdAt } : {}),
       ...(identity.updatedAt !== undefined ? { updatedAt: identity.updatedAt } : {}),
     })
@@ -140,7 +147,10 @@ function insertMangaIdentitySync(tx: AppDrizzleDb, identity: MangaIdentity): voi
   }
 }
 
-function insertLibraryEntrySync(tx: AppDrizzleDb, entry: BackupDocumentV1['library'][number]): void {
+function insertLibraryEntrySync(
+  tx: AppDrizzleDb,
+  entry: BackupDocumentV1['library'][number],
+): void {
   tx.insert(libraryEntries)
     .values({
       id: entry.id,
@@ -148,7 +158,9 @@ function insertLibraryEntrySync(tx: AppDrizzleDb, entry: BackupDocumentV1['libra
       favorite: entry.favorite,
       status: entry.status,
       unreadCount: entry.unreadCount,
-      ...(entry.lastReadChapterId !== undefined ? { lastReadChapterId: entry.lastReadChapterId } : {}),
+      ...(entry.lastReadChapterId !== undefined
+        ? { lastReadChapterId: entry.lastReadChapterId }
+        : {}),
       ...(entry.activeProviderMappingId !== undefined
         ? { activeProviderMappingId: entry.activeProviderMappingId }
         : {}),
@@ -200,7 +212,10 @@ function upsertInstalledExtensionSync(tx: AppDrizzleDb, metadata: ExtensionInsta
     .run();
 }
 
-function upsertReaderSettingsSync(tx: AppDrizzleDb, settings: BackupDocumentV1['readerSettings']): void {
+function upsertReaderSettingsSync(
+  tx: AppDrizzleDb,
+  settings: BackupDocumentV1['readerSettings'],
+): void {
   const parsed = validateReaderSettings(settings);
   if (!parsed.ok) {
     throw new Error(parsed.error.message);
@@ -220,7 +235,10 @@ function upsertReaderSettingsSync(tx: AppDrizzleDb, settings: BackupDocumentV1['
     .run();
 }
 
-function upsertThemeSettingsSync(tx: AppDrizzleDb, settings: BackupDocumentV1['themeSettings']): void {
+function upsertThemeSettingsSync(
+  tx: AppDrizzleDb,
+  settings: BackupDocumentV1['themeSettings'],
+): void {
   const now = new Date().toISOString();
   tx.insert(themePreferences)
     .values({
@@ -240,7 +258,10 @@ function upsertThemeSettingsSync(tx: AppDrizzleDb, settings: BackupDocumentV1['t
  * Replaces backup-covered local data with the validated backup document.
  * Chapter progress and categories are outside BackupDocumentV1 and are cleared with identities.
  */
-export async function applyBackupRestore(db: AppDrizzleDb, input: unknown): Promise<AppResult<BackupDocumentV1>> {
+export async function applyBackupRestore(
+  db: AppDrizzleDb,
+  input: unknown,
+): Promise<AppResult<BackupDocumentV1>> {
   const validation = validateBackupDocument(input);
   if (!validation.ok) {
     return err(createAppError({ code: 'backup.invalid', message: validation.error.message }));

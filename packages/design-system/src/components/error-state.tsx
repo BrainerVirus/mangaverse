@@ -15,7 +15,10 @@ export function ErrorState({ title, message, providerName, onRetry, onBack }: Er
   return (
     <div className="flex flex-col items-center justify-center px-6 py-12">
       <div className={cn('surface-panel w-full max-w-lg p-6')}>
-        <Alert variant="destructive" className="border-none bg-destructive/10 text-foreground shadow-none">
+        <Alert
+          variant="destructive"
+          className="border-none bg-destructive/10 text-foreground shadow-none"
+        >
           <AlertTriangle className="h-4 w-4 text-destructive" />
           <AlertTitle className="text-base font-semibold">{title}</AlertTitle>
           <AlertDescription className="text-sm text-muted-foreground">

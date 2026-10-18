@@ -53,7 +53,10 @@ describe('OnboardingPage', () => {
     render(<OnboardingPage {...baseProps} />);
 
     expect(screen.getByRole('heading', { name: 'Welcome to MangaVerse' })).toBeInTheDocument();
-    expect(screen.getByRole('progressbar', { name: 'Onboarding progress' })).toHaveAttribute('aria-valuenow', '1');
+    expect(screen.getByRole('progressbar', { name: 'Onboarding progress' })).toHaveAttribute(
+      'aria-valuenow',
+      '1',
+    );
     expect(screen.getByText('Step 1 of 5')).toBeInTheDocument();
   });
 

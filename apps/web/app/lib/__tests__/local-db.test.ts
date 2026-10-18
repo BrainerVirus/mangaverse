@@ -6,8 +6,7 @@ import initSqlJs from 'sql.js';
 import { migrateDatabaseFromBundled } from '@app/db/browser';
 import { resolveInitSqlJs, resolveWasmAssetUrl } from '../local-db.js';
 
-const INITIAL_MIGRATION_HASH =
-  '975ad6e194cffda2f81ec7effd5535768834630dc7df0145821e717bb5b624ea';
+const INITIAL_MIGRATION_HASH = '975ad6e194cffda2f81ec7effd5535768834630dc7df0145821e717bb5b624ea';
 
 const CACHE_ASSET_MIGRATION_HASH =
   'be8c129e37327e353096a7daf815a2963471cbc0429ca76b2b5a2129251fd175';
@@ -54,9 +53,7 @@ describe('resolveWasmAssetUrl', () => {
   });
 
   it('throws when WASM URL is missing', () => {
-    expect(() => resolveWasmAssetUrl({})).toThrow(
-      'sql.js WASM asset import did not provide a URL',
-    );
+    expect(() => resolveWasmAssetUrl({})).toThrow('sql.js WASM asset import did not provide a URL');
   });
 });
 

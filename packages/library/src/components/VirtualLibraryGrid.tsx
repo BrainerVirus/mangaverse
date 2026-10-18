@@ -64,11 +64,7 @@ export function VirtualLibraryGrid({ items, layout, onOpenManga }: VirtualLibrar
       >
         {items.map(({ entry, manga }) => (
           <div key={entry.id} data-library-card>
-            <CachedMangaCard
-              manga={manga}
-              variant={layout}
-              onClick={() => onOpenManga(manga.id)}
-            />
+            <CachedMangaCard manga={manga} variant={layout} onClick={() => onOpenManga(manga.id)} />
           </div>
         ))}
       </section>

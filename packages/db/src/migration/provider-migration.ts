@@ -195,18 +195,17 @@ async function buildPreviewItem(
   const sourceChapterCount =
     sourceMapping === undefined
       ? 0
-      : (
-          db
-            .select({ id: chapters.id })
-            .from(chapters)
-            .where(eq(chapters.providerMappingId, sourceMapping.id))
-            .all()
-        ).length;
+      : db
+          .select({ id: chapters.id })
+          .from(chapters)
+          .where(eq(chapters.providerMappingId, sourceMapping.id))
+          .all().length;
 
   if (sourceChapterCount > 0) {
     issues.push({
       code: 'migration.source_chapters',
-      message: 'Downloaded or cached chapters from the source provider may not transfer automatically.',
+      message:
+        'Downloaded or cached chapters from the source provider may not transfer automatically.',
       severity: 'warning',
     });
   }
@@ -274,16 +273,21 @@ async function applySingleMigration(
 ): Promise<AppResult<ProviderMappingId>> {
   const preview = await buildPreviewItem(db, input);
   if (preview.blocked) {
-    const message = preview.issues.find((issue) => issue.severity === 'error')?.message ?? 'Migration blocked.';
+    const message =
+      preview.issues.find((issue) => issue.severity === 'error')?.message ?? 'Migration blocked.';
     return err(createAppError({ code: 'migration.blocked', message }));
   }
 
   const identity = await getMangaIdentity(db, input.selection.mangaId);
   if (identity === undefined) {
-    return err(createAppError({ code: 'migration.manga_missing', message: 'Manga identity was not found.' }));
+    return err(
+      createAppError({ code: 'migration.manga_missing', message: 'Manga identity was not found.' }),
+    );
   }
 
-  const sourceMapping = identity.providerMappings.find((m) => m.providerId === input.sourceProviderId);
+  const sourceMapping = identity.providerMappings.find(
+    (m) => m.providerId === input.sourceProviderId,
+  );
   if (sourceMapping === undefined) {
     return err(
       createAppError({
@@ -327,7 +331,11 @@ async function applySingleMigration(
 
   const libraryEntry = await getLibraryEntryForManga(db, input.selection.mangaId);
   if (libraryEntry !== undefined && libraryEntry.activeProviderMappingId === sourceMapping.id) {
-    const updated = await setLibraryEntryActiveProviderMapping(db, libraryEntry.id, targetMappingId);
+    const updated = await setLibraryEntryActiveProviderMapping(
+      db,
+      libraryEntry.id,
+      targetMappingId,
+    );
     if (!updated.ok) return updated;
   }
 
@@ -383,7 +391,8 @@ export async function applyProviderMigration(
       skipped.push({
         mangaId: selection.mangaId,
         ok: false,
-        error: itemPreview?.issues.find((issue) => issue.severity === 'error')?.message ?? 'Skipped.',
+        error:
+          itemPreview?.issues.find((issue) => issue.severity === 'error')?.message ?? 'Skipped.',
       });
       continue;
     }

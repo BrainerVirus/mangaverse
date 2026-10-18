@@ -79,7 +79,11 @@ describe('manga identity', () => {
       merged: false,
       defaultProviderMappingId: toProviderMappingId('map-a'),
       providerMappings: [
-        { id: toProviderMappingId('map-a'), providerId: toProviderId('p1'), providerMangaId: toProviderMangaId('pm1') },
+        {
+          id: toProviderMappingId('map-a'),
+          providerId: toProviderId('p1'),
+          providerMangaId: toProviderMangaId('pm1'),
+        },
       ],
     };
     expect(getCanonicalTitle(identity)).toBe('Canon');

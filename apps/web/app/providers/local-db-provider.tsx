@@ -134,9 +134,7 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
     void queryClient.invalidateQueries();
   }, [handleVersion, queryClient, value.status]);
 
-  return (
-    <LocalDbContext value={{ ...value, retry, retryPersistence }}>{children}</LocalDbContext>
-  );
+  return <LocalDbContext value={{ ...value, retry, retryPersistence }}>{children}</LocalDbContext>;
 }
 
 export function useLocalDb(): AppDrizzleDb | null {

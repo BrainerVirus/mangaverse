@@ -48,7 +48,9 @@ function ExtensionsRoute() {
 
   const fetchManifestMutation = useMutation({
     mutationFn: async (url: string) => {
-      const result = await prepareManualProviderInstall(url, { fetch: globalThis.fetch.bind(globalThis) });
+      const result = await prepareManualProviderInstall(url, {
+        fetch: globalThis.fetch.bind(globalThis),
+      });
       if (!result.ok) {
         throw result.error;
       }

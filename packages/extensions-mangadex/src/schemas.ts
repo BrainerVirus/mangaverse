@@ -147,7 +147,9 @@ const mangaEntitySchema = z
         title: toStringMap(title),
         ...(altTitles !== undefined ? { altTitles: altTitles.map(toStringMap) } : {}),
         ...(description !== undefined && description !== null
-          ? { description: typeof description === 'string' ? description : toStringMap(description) }
+          ? {
+              description: typeof description === 'string' ? description : toStringMap(description),
+            }
           : {}),
         ...(status !== undefined ? { status } : {}),
         ...(contentRating !== undefined ? { contentRating } : {}),
@@ -163,13 +165,25 @@ const chapterEntitySchema = z
     attributes: z
       .object({
         // Chapter/title/volume coerce to null on any non-string; MangaDex sends nulls.
-        chapter: z.unknown().optional().transform((value) => (typeof value === 'string' ? value : null)),
-        title: z.unknown().optional().transform((value) => (typeof value === 'string' ? value : null)),
-        volume: z.unknown().optional().transform((value) => (typeof value === 'string' ? value : null)),
+        chapter: z
+          .unknown()
+          .optional()
+          .transform((value) => (typeof value === 'string' ? value : null)),
+        title: z
+          .unknown()
+          .optional()
+          .transform((value) => (typeof value === 'string' ? value : null)),
+        volume: z
+          .unknown()
+          .optional()
+          .transform((value) => (typeof value === 'string' ? value : null)),
         translatedLanguage: optionalString,
         publishAt: optionalString,
         // A non-number page count is dropped, not rejected — same as the old validator.
-        pages: z.unknown().optional().transform((value) => (typeof value === 'number' ? value : undefined)),
+        pages: z
+          .unknown()
+          .optional()
+          .transform((value) => (typeof value === 'number' ? value : undefined)),
       })
       .transform((raw): MdChapterEntity['attributes'] => {
         const { chapter, title, volume, translatedLanguage, publishAt, pages } = raw;
@@ -189,16 +203,23 @@ const collectionSchema = z
   .object({
     data: z.array(mangaEntitySchema),
     // A non-number total is dropped, not rejected — same as the old validator.
-    total: z.unknown().optional().transform((value) => (typeof value === 'number' ? value : undefined)),
+    total: z
+      .unknown()
+      .optional()
+      .transform((value) => (typeof value === 'number' ? value : undefined)),
   })
   .transform((raw): MdCollection => ({
     entities: raw.data,
     ...(raw.total !== undefined ? { total: raw.total } : {}),
   }));
 
-const detailSchema = z.object({ data: mangaEntitySchema }).transform((raw): MdMangaEntity => raw.data);
+const detailSchema = z
+  .object({ data: mangaEntitySchema })
+  .transform((raw): MdMangaEntity => raw.data);
 
-const feedSchema = z.object({ data: z.array(chapterEntitySchema) }).transform((raw): MdFeed => ({ chapters: raw.data }));
+const feedSchema = z
+  .object({ data: z.array(chapterEntitySchema) })
+  .transform((raw): MdFeed => ({ chapters: raw.data }));
 
 const atHomeSchema = z
   .object({

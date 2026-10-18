@@ -2,10 +2,7 @@ import { useRef } from 'react';
 import { MangaCard, type MangaCardProps } from '@app/design-system';
 import { cn } from '@app/design-system';
 
-import {
-  cancelMangaCoverPrefetch,
-  scheduleMangaCoverPrefetch,
-} from '../prefetch-manga.js';
+import { cancelMangaCoverPrefetch, scheduleMangaCoverPrefetch } from '../prefetch-manga.js';
 import { CachedMangaCardCover } from './CachedCoverImage.js';
 import { useCoverCacheContext } from './CoverCacheProvider.js';
 

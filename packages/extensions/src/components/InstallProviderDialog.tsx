@@ -96,7 +96,8 @@ export function InstallProviderDialog({
   onConfirmInstall,
   onCancel,
 }: InstallProviderDialogProps) {
-  const awaitingConfirmation = session?.step === 'awaitingConfirmation' && session.preview !== undefined;
+  const awaitingConfirmation =
+    session?.step === 'awaitingConfirmation' && session.preview !== undefined;
   const installing = session?.step === 'installing';
 
   if (!open) {
@@ -115,7 +116,8 @@ export function InstallProviderDialog({
         <DialogHeader>
           <DialogTitle id="install-provider-title">Install provider</DialogTitle>
           <DialogDescription>
-            Enter a manifest URL to review capabilities, permissions, and content flags before installing.
+            Enter a manifest URL to review capabilities, permissions, and content flags before
+            installing.
           </DialogDescription>
         </DialogHeader>
 
@@ -143,7 +145,12 @@ export function InstallProviderDialog({
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button type="button" variant="ghost" onClick={onCancel} disabled={isLoading || installing}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onCancel}
+            disabled={isLoading || installing}
+          >
             Cancel
           </Button>
           {awaitingConfirmation ? (
@@ -151,7 +158,11 @@ export function InstallProviderDialog({
               Confirm install
             </Button>
           ) : (
-            <Button type="button" onClick={onFetchManifest} disabled={isLoading || manifestUrl.trim().length === 0}>
+            <Button
+              type="button"
+              onClick={onFetchManifest}
+              disabled={isLoading || manifestUrl.trim().length === 0}
+            >
               {isLoading ? 'Fetching…' : 'Review manifest'}
             </Button>
           )}

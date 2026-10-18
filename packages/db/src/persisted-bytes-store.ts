@@ -24,9 +24,7 @@ export interface PersistedBytesStore {
 }
 
 /** In-memory store used by tests and non-browser hosts. */
-export function createMemoryPersistedBytesStore(
-  initial?: PersistedSnapshot,
-): PersistedBytesStore {
+export function createMemoryPersistedBytesStore(initial?: PersistedSnapshot): PersistedBytesStore {
   let current: PersistedSnapshot | undefined = initial;
   return {
     read: async () => current,

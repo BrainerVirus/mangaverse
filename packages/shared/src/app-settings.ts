@@ -37,17 +37,26 @@ function isNonEmptyLanguageCode(value: string): boolean {
 
 export function validateAppSettings(input: unknown): AppResult<AppSettings> {
   if (typeof input !== 'object' || input === null || Array.isArray(input)) {
-    return err(createAppError({ code: 'app.settings.invalid', message: 'App settings must be an object.' }));
+    return err(
+      createAppError({ code: 'app.settings.invalid', message: 'App settings must be an object.' }),
+    );
   }
 
   const settings = input as Record<string, unknown>;
 
   if (typeof settings['explicitContent'] !== 'boolean') {
-    return err(createAppError({ code: 'app.settings.invalid', message: 'explicitContent must be boolean.' }));
+    return err(
+      createAppError({ code: 'app.settings.invalid', message: 'explicitContent must be boolean.' }),
+    );
   }
 
   if (typeof settings['showProviderErrors'] !== 'boolean') {
-    return err(createAppError({ code: 'app.settings.invalid', message: 'showProviderErrors must be boolean.' }));
+    return err(
+      createAppError({
+        code: 'app.settings.invalid',
+        message: 'showProviderErrors must be boolean.',
+      }),
+    );
   }
 
   const preferredLanguages = settings['preferredLanguages'];
@@ -72,7 +81,9 @@ export function validateAppSettings(input: unknown): AppResult<AppSettings> {
   }
 
   if (typeof settings['lowMemoryMode'] !== 'boolean') {
-    return err(createAppError({ code: 'app.settings.invalid', message: 'lowMemoryMode must be boolean.' }));
+    return err(
+      createAppError({ code: 'app.settings.invalid', message: 'lowMemoryMode must be boolean.' }),
+    );
   }
 
   const imageCacheLimitBytes = settings['imageCacheLimitBytes'];
@@ -92,7 +103,12 @@ export function validateAppSettings(input: unknown): AppResult<AppSettings> {
 
   const locale = settings['locale'];
   if (typeof locale !== 'string' || (locale !== 'system' && !LOCALE_PATTERN.test(locale))) {
-    return err(createAppError({ code: 'app.settings.invalid', message: 'locale must be system or a valid locale code.' }));
+    return err(
+      createAppError({
+        code: 'app.settings.invalid',
+        message: 'locale must be system or a valid locale code.',
+      }),
+    );
   }
 
   return ok({

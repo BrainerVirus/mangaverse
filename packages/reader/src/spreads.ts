@@ -1,10 +1,9 @@
-import type {
-  ReaderSessionInput,
-  PageSlot,
-  SpreadLayout,
-} from './types.js';
+import type { ReaderSessionInput, PageSlot, SpreadLayout } from './types.js';
 
-function canPairWithLeft(leftPage: { image: { width?: number; height?: number } }, rightPage: { image: { width?: number; height?: number } }): boolean {
+function canPairWithLeft(
+  leftPage: { image: { width?: number; height?: number } },
+  rightPage: { image: { width?: number; height?: number } },
+): boolean {
   const leftW = leftPage.image.width;
   const leftH = leftPage.image.height;
   const rightW = rightPage.image.width;
@@ -59,7 +58,7 @@ export function calculatePageSlots(input: ReaderSessionInput): readonly PageSlot
 function buildDoubleSlots(
   pages: readonly { id: string; index: number; image: { url: string } }[],
   treatFirstPageAsCover: boolean,
-  readingMode: 'rtl' | 'ltr' | 'vertical'
+  readingMode: 'rtl' | 'ltr' | 'vertical',
 ): readonly PageSlot[] {
   const slots: PageSlot[] = [];
 
@@ -134,7 +133,7 @@ function buildDoubleSlots(
   }
 
   if (readingMode === 'rtl') {
-    return slots.map(slot => ({
+    return slots.map((slot) => ({
       ...slot,
       isLeftPage: slot.isRightPage,
       isRightPage: slot.isLeftPage,
@@ -145,9 +144,13 @@ function buildDoubleSlots(
 }
 
 function buildSmartSpreadSlots(
-  pages: readonly { id: string; index: number; image: { url: string; width?: number; height?: number } }[],
+  pages: readonly {
+    id: string;
+    index: number;
+    image: { url: string; width?: number; height?: number };
+  }[],
   treatFirstPageAsCover: boolean,
-  readingMode: 'rtl' | 'ltr' | 'vertical'
+  readingMode: 'rtl' | 'ltr' | 'vertical',
 ): readonly PageSlot[] {
   const slots: PageSlot[] = [];
 
@@ -221,7 +224,7 @@ function buildSmartSpreadSlots(
   }
 
   if (readingMode === 'rtl') {
-    return slots.map(slot => ({
+    return slots.map((slot) => ({
       ...slot,
       isLeftPage: slot.isRightPage,
       isRightPage: slot.isLeftPage,
@@ -233,7 +236,7 @@ function buildSmartSpreadSlots(
 
 export function calculateSpreadPlan(input: ReaderSessionInput): SpreadLayout {
   const slots = calculatePageSlots(input);
-  const pageIndexes = slots.map(s => s.pageIndex);
+  const pageIndexes = slots.map((s) => s.pageIndex);
 
   return {
     slots,
@@ -244,7 +247,7 @@ export function calculateSpreadPlan(input: ReaderSessionInput): SpreadLayout {
 
 export function resolveInitialPageIndex(
   input: ReaderSessionInput,
-  bookmarkPageIndex?: number
+  bookmarkPageIndex?: number,
 ): number {
   const { chapter, settings } = input;
   const { treatFirstPageAsCover } = settings;

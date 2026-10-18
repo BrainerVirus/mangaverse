@@ -31,14 +31,22 @@ const defaultSettings = {
   wheelBehavior: 'scroll' as const,
 };
 
-const defaultZoom: ZoomStateSummary = { scale: 1, translateX: 0, translateY: 0, minZoom: 1, maxZoom: 3 };
+const defaultZoom: ZoomStateSummary = {
+  scale: 1,
+  translateX: 0,
+  translateY: 0,
+  minZoom: 1,
+  maxZoom: 3,
+};
 
-function makeState(overrides: Partial<{
-  activePageIndex: number;
-  chapterId: string;
-  mode: 'page' | 'scroll';
-  settings?: Partial<typeof defaultSettings>;
-}> = {}): ReaderState {
+function makeState(
+  overrides: Partial<{
+    activePageIndex: number;
+    chapterId: string;
+    mode: 'page' | 'scroll';
+    settings?: Partial<typeof defaultSettings>;
+  }> = {},
+): ReaderState {
   const settings = { ...defaultSettings, ...overrides.settings };
   return {
     chapterId: 'ch1',
@@ -202,7 +210,11 @@ describe('resolveKeyboardAction', () => {
 
 describe('resolveWheelAction', () => {
   it('should return scroll action for wheel events in vertical mode', () => {
-    const settings = { ...defaultSettings, wheelBehavior: 'scroll' as const, readingMode: 'vertical' as const };
+    const settings = {
+      ...defaultSettings,
+      wheelBehavior: 'scroll' as const,
+      readingMode: 'vertical' as const,
+    };
     const action = resolveWheelAction({ deltaY: 100, deltaX: 0 }, settings as any);
 
     expect(action.type).toBe('scroll');

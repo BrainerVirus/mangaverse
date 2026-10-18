@@ -28,9 +28,6 @@ export const useCommandPaletteStore = create<CommandPaletteStore>((set) => ({
   setSelectedIndex: (idx) => set({ selectedIndex: idx }),
   moveSelection: (delta, maxIndex) =>
     set((state) => ({
-      selectedIndex: Math.max(
-        0,
-        Math.min(state.selectedIndex + delta, maxIndex ?? Infinity)
-      ),
+      selectedIndex: Math.max(0, Math.min(state.selectedIndex + delta, maxIndex ?? Infinity)),
     })),
 }));

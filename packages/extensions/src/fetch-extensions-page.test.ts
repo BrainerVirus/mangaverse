@@ -37,7 +37,10 @@ describe('fetchExtensionsPage', () => {
 
     const page = await fetchExtensionsPage(db);
     expect(page.providers).toHaveLength(2);
-    expect(page.providers.map((provider) => provider.name)).toEqual(['Alpha Provider', 'Zeta Provider']);
+    expect(page.providers.map((provider) => provider.name)).toEqual([
+      'Alpha Provider',
+      'Zeta Provider',
+    ]);
     expect(page.providers[0]?.capabilityCount).toBeGreaterThan(0);
   });
 

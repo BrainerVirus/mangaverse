@@ -8,8 +8,7 @@ let dbPromise: Promise<PersistentDatabase> | undefined;
 let generation = 0;
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
-const INITIAL_MIGRATION_HASH =
-  '975ad6e194cffda2f81ec7effd5535768834630dc7df0145821e717bb5b624ea';
+const INITIAL_MIGRATION_HASH = '975ad6e194cffda2f81ec7effd5535768834630dc7df0145821e717bb5b624ea';
 
 const CACHE_ASSET_MIGRATION_HASH =
   'be8c129e37327e353096a7daf815a2963471cbc0429ca76b2b5a2129251fd175';
@@ -154,7 +153,9 @@ let mutationSeq = 0;
 let persistenceErrorHandler: ((message: string | null) => void) | null = null;
 
 /** Registers the UI sink for durable-write failures; pass null to clear. */
-export function setPersistenceErrorHandler(handler: ((message: string | null) => void) | null): void {
+export function setPersistenceErrorHandler(
+  handler: ((message: string | null) => void) | null,
+): void {
   persistenceErrorHandler = handler;
 }
 
@@ -215,7 +216,9 @@ export async function syncLocalDbFromOtherTab(): Promise<AppDrizzleDb | null> {
 }
 
 /** Invokes `onExternalChange` when another tab commits a snapshot. */
-export function watchLocalDbForExternalChanges(onExternalChange: (db: AppDrizzleDb) => void): () => void {
+export function watchLocalDbForExternalChanges(
+  onExternalChange: (db: AppDrizzleDb) => void,
+): () => void {
   // Retired handles stay open for one generation (see openPersistentDatabase),
   // so syncing while hidden cannot break an in-flight query.
   const trySync = () => {

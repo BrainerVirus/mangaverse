@@ -1,10 +1,20 @@
 import type { AppResult } from '@app/shared';
 import { createAppError, err, ok } from '@app/shared';
-import type { ExtensionInstallMetadata, ExtensionInstallWarning, ProviderManifest } from '@app/shared';
+import type {
+  ExtensionInstallMetadata,
+  ExtensionInstallWarning,
+  ProviderManifest,
+} from '@app/shared';
 import type { AppDrizzleDb } from '@app/db';
-import { deleteInstalledExtension, listInstalledExtensions, upsertInstalledExtension } from '@app/db';
+import {
+  deleteInstalledExtension,
+  listInstalledExtensions,
+  upsertInstalledExtension,
+} from '@app/db';
 
-export async function listInstalledProviders(db: AppDrizzleDb): Promise<AppResult<readonly ExtensionInstallMetadata[]>> {
+export async function listInstalledProviders(
+  db: AppDrizzleDb,
+): Promise<AppResult<readonly ExtensionInstallMetadata[]>> {
   try {
     const rows = await listInstalledExtensions(db);
     return ok(rows);
@@ -43,7 +53,11 @@ export async function disableInstalledProvider(
 ): Promise<AppResult<void>> {
   const cur = await loadById(deps.db, id);
   if (!cur.ok) return err(cur.error);
-  const next: ExtensionInstallMetadata = { ...cur.value, enabled: false, updatedAt: new Date().toISOString() };
+  const next: ExtensionInstallMetadata = {
+    ...cur.value,
+    enabled: false,
+    updatedAt: new Date().toISOString(),
+  };
   return upsertInstalledExtension(deps.db, next);
 }
 
@@ -53,7 +67,11 @@ export async function enableInstalledProvider(
 ): Promise<AppResult<void>> {
   const cur = await loadById(deps.db, id);
   if (!cur.ok) return err(cur.error);
-  const next: ExtensionInstallMetadata = { ...cur.value, enabled: true, updatedAt: new Date().toISOString() };
+  const next: ExtensionInstallMetadata = {
+    ...cur.value,
+    enabled: true,
+    updatedAt: new Date().toISOString(),
+  };
   return upsertInstalledExtension(deps.db, next);
 }
 

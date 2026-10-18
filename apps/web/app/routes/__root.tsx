@@ -12,16 +12,15 @@ export const Route = createRootRoute({
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       { title: 'MangaVerse' },
     ],
-    links: [
-      { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
-    ],
+    links: [{ rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' }],
   }),
   component: RootDocument,
 });
 
 function RootDocument() {
   const router = useRouter();
-  const detectFn = (router.options.context as { platformDetectFn?: () => PlatformCapabilities })?.platformDetectFn;
+  const detectFn = (router.options.context as { platformDetectFn?: () => PlatformCapabilities })
+    ?.platformDetectFn;
 
   return (
     <html lang="en" suppressHydrationWarning>

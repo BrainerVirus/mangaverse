@@ -70,7 +70,9 @@ export function VirtualSearchGrid({ results, onOpenManga }: VirtualSearchGridPro
   const isVirtualized = shouldVirtualize;
 
   if (!isVirtualized) {
-    return <StaticSearchGrid results={results} onOpenManga={onOpenManga} containerRef={containerRef} />;
+    return (
+      <StaticSearchGrid results={results} onOpenManga={onOpenManga} containerRef={containerRef} />
+    );
   }
 
   return (
@@ -103,7 +105,11 @@ export function VirtualSearchGrid({ results, onOpenManga }: VirtualSearchGridPro
               }}
             >
               {rowItems.map((manga) => (
-                <CachedMangaCard key={manga.id} manga={manga} onClick={() => onOpenManga(manga.id)} />
+                <CachedMangaCard
+                  key={manga.id}
+                  manga={manga}
+                  onClick={() => onOpenManga(manga.id)}
+                />
               ))}
             </div>
           );

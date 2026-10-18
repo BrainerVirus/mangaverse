@@ -6,7 +6,8 @@ export async function fetchMangaDetail(
   db: AppDrizzleDb,
   mangaId: MangaId,
 ): Promise<MangaDetailData | null> {
-  const { getLibraryEntryForManga, getMangaIdentity, listChaptersForManga } = await import('@app/db');
+  const { getLibraryEntryForManga, getMangaIdentity, listChaptersForManga } =
+    await import('@app/db');
 
   const manga = await getMangaIdentity(db, mangaId);
   if (manga === undefined) {

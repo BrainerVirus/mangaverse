@@ -66,7 +66,9 @@ describe('motion helpers are hook-free', () => {
     });
 
     it('settingsDrawerTransition accepts reducedMotion without throwing', () => {
-      expect(() => settingsDrawerTransition('.element', 'open', { reducedMotion: true })).not.toThrow();
+      expect(() =>
+        settingsDrawerTransition('.element', 'open', { reducedMotion: true }),
+      ).not.toThrow();
     });
   });
 });

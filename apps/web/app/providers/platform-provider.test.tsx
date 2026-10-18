@@ -24,7 +24,10 @@ const mockCapabilities: PlatformCapabilities = {
 function MockChild() {
   const platform = usePlatform();
   return (
-    <div data-runtime={platform.runtime} data-clipboard-read={String(platform.capabilities.clipboardRead)}>
+    <div
+      data-runtime={platform.runtime}
+      data-clipboard-read={String(platform.capabilities.clipboardRead)}
+    >
       {platform.runtime}
     </div>
   );
@@ -41,7 +44,7 @@ describe('PlatformProvider', () => {
     const html = renderToString(
       <PlatformProvider detectFn={() => mockCapabilities}>
         <MockChild />
-      </PlatformProvider>
+      </PlatformProvider>,
     );
     expect(html).toContain('web');
     expect(html).toContain('true');

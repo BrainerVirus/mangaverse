@@ -1,5 +1,8 @@
 export { applyThemeToRoot, buildThemeCssVariables, clearAppliedTheme } from './apply-theme.js';
-export { ThemeCustomizationPage, type ThemeCustomizationPageProps } from './components/ThemeCustomizationPage.js';
+export {
+  ThemeCustomizationPage,
+  type ThemeCustomizationPageProps,
+} from './components/ThemeCustomizationPage.js';
 export { fetchThemeSettings, fetchThemeSettingsWithDefaults } from './fetch-theme-settings.js';
 export { toThemePreviewDefinition, toThemePreviewDefinitionForPreset } from './preview.js';
 export {

@@ -1,12 +1,8 @@
-import type {
-  ReaderState,
-  ReaderNavigationAction,
-  ReaderEngineSettings,
-} from './types.js';
+import type { ReaderState, ReaderNavigationAction, ReaderEngineSettings } from './types.js';
 
 export function resolveNavigationAction(
   state: ReaderState,
-  action: ReaderNavigationAction
+  action: ReaderNavigationAction,
 ): ReaderNavigationAction {
   const { activePageIndex } = state;
   const pageCount = state.pages.length;
@@ -57,7 +53,10 @@ export function resolveNavigationAction(
   }
 }
 
-export function applyNavigationAction(state: ReaderState, action: ReaderNavigationAction): ReaderState {
+export function applyNavigationAction(
+  state: ReaderState,
+  action: ReaderNavigationAction,
+): ReaderState {
   if (action.type === 'none' || action.type === 'prevChapter' || action.type === 'nextChapter') {
     return state;
   }
@@ -83,7 +82,7 @@ export function applyNavigationAction(state: ReaderState, action: ReaderNavigati
 
 export function resolveKeyboardAction(
   event: { key: string },
-  settings: ReaderEngineSettings
+  settings: ReaderEngineSettings,
 ): ReaderNavigationAction {
   const { readingMode, navigationDirection } = settings;
   const rtl = readingMode === 'rtl';
@@ -116,7 +115,7 @@ export function resolveKeyboardAction(
 
 export function resolveWheelAction(
   event: { deltaX: number; deltaY: number; ctrlKey?: boolean },
-  settings: ReaderEngineSettings
+  settings: ReaderEngineSettings,
 ): { type: 'scroll' | 'zoom' | 'none'; delta?: number } {
   const { wheelBehavior, readingMode } = settings;
   const isVertical = readingMode === 'vertical';

@@ -57,7 +57,11 @@ export type ExtensionInstallAction =
       readonly entryName: string;
       readonly manifestUrl: string;
     }
-  | { readonly type: 'startFromProtocolHandoff'; readonly rawUrl: string; readonly resolvedManifestUrl: string }
+  | {
+      readonly type: 'startFromProtocolHandoff';
+      readonly rawUrl: string;
+      readonly resolvedManifestUrl: string;
+    }
   | {
       readonly type: 'manifestFetched';
       readonly manifest: ProviderManifest;

@@ -88,24 +88,48 @@ export interface ProviderDownloadInfo {
  */
 export interface ProviderContract {
   readonly manifest: ProviderManifest;
-  readonly search?: (ctx: ProviderContext, input: ProviderSearchInput) => Promise<ProviderSearchResult>;
+  readonly search?: (
+    ctx: ProviderContext,
+    input: ProviderSearchInput,
+  ) => Promise<ProviderSearchResult>;
   readonly advancedSearch?: (
     ctx: ProviderContext,
     input: ProviderSearchInput & Readonly<Record<string, string | number | boolean | undefined>>,
   ) => Promise<ProviderSearchResult>;
-  readonly browseLatest?: (ctx: ProviderContext, input: { readonly page?: number }) => Promise<ProviderSearchResult>;
-  readonly browsePopular?: (ctx: ProviderContext, input: { readonly page?: number }) => Promise<ProviderSearchResult>;
-  readonly getDetails?: (ctx: ProviderContext, mangaId: ProviderMangaId) => Promise<ProviderDetails>;
-  readonly getChapters?: (ctx: ProviderContext, mangaId: ProviderMangaId) => Promise<readonly ProviderChapter[]>;
+  readonly browseLatest?: (
+    ctx: ProviderContext,
+    input: { readonly page?: number },
+  ) => Promise<ProviderSearchResult>;
+  readonly browsePopular?: (
+    ctx: ProviderContext,
+    input: { readonly page?: number },
+  ) => Promise<ProviderSearchResult>;
+  readonly getDetails?: (
+    ctx: ProviderContext,
+    mangaId: ProviderMangaId,
+  ) => Promise<ProviderDetails>;
+  readonly getChapters?: (
+    ctx: ProviderContext,
+    mangaId: ProviderMangaId,
+  ) => Promise<readonly ProviderChapter[]>;
   readonly getPages?: (
     ctx: ProviderContext,
     mangaId: ProviderMangaId,
     chapterId: string,
   ) => Promise<readonly ProviderPage[]>;
-  readonly getRecommendations?: (ctx: ProviderContext, mangaId: ProviderMangaId) => Promise<ProviderSearchResult>;
-  readonly getRelatedTitles?: (ctx: ProviderContext, mangaId: ProviderMangaId) => Promise<ProviderSearchResult>;
+  readonly getRecommendations?: (
+    ctx: ProviderContext,
+    mangaId: ProviderMangaId,
+  ) => Promise<ProviderSearchResult>;
+  readonly getRelatedTitles?: (
+    ctx: ProviderContext,
+    mangaId: ProviderMangaId,
+  ) => Promise<ProviderSearchResult>;
   readonly getTags?: (ctx: ProviderContext) => Promise<readonly ProviderTag[]>;
-  readonly login?: (ctx: ProviderContext, input: Readonly<Record<string, string>>) => Promise<ProviderAuthState>;
+  readonly login?: (
+    ctx: ProviderContext,
+    input: Readonly<Record<string, string>>,
+  ) => Promise<ProviderAuthState>;
   readonly logout?: (ctx: ProviderContext) => Promise<ProviderAuthState>;
   readonly getDownloadInfo?: (
     ctx: ProviderContext,

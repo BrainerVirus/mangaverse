@@ -11,14 +11,21 @@ test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
 });
 
-test('Given a fresh production install, When opening Extensions, Then MangaDex is installed and enabled', async ({ page, quickOnboarding }) => {
+test('Given a fresh production install, When opening Extensions, Then MangaDex is installed and enabled', async ({
+  page,
+  quickOnboarding,
+}) => {
   await page.goto('/extensions');
   await expect(page.getByText('MangaDex').first()).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText('Enabled').first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Disable' })).toBeVisible();
 });
 
-test('Given the search page, When a query runs through the provider, Then results render with cached covers', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given the search page, When a query runs through the provider, Then results render with cached covers', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   await page.goto('/search');
   const searchbox = page.getByRole('searchbox', { name: 'Search manga' });
   const resultCount = page.getByText(/\d+ results?/).first();
@@ -47,15 +54,27 @@ test('Given the search page, When a query runs through the provider, Then result
     .toBe(true);
 });
 
-test('Given a provider-backed manga id, When the detail opens, Then chapters come from the feed', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given a provider-backed manga id, When the detail opens, Then chapters come from the feed', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   // Direct navigation keeps this test about the provider detail path; the
   // search-result click is covered by the search test above.
   await page.goto('/manga/dev-md-dc332d04-d3b0-413c-a767-70f5e451b031');
-  await expect(page.getByRole('heading', { name: 'Kuro no Shoukanshi' })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByRole('button', { name: /Ch\. 1 - The Summoner/ })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('heading', { name: 'Kuro no Shoukanshi' })).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(page.getByRole('button', { name: /Ch\. 1 - The Summoner/ })).toBeVisible({
+    timeout: 30_000,
+  });
 });
 
-test('Given a provider-backed chapter id, When the reader opens, Then decoded pages render from the local cache', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given a provider-backed chapter id, When the reader opens, Then decoded pages render from the local cache', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   await page.goto('/manga/dev-md-dc332d04-d3b0-413c-a767-70f5e451b031');
   const chapter = page.getByRole('button', { name: /Ch\. 1 - The Summoner/ });
   await expect(chapter).toBeVisible({ timeout: 30_000 });
@@ -64,12 +83,18 @@ test('Given a provider-backed chapter id, When the reader opens, Then decoded pa
   const image = page.getByTestId('reader-surface').locator('img').first();
   await expect(image).toBeVisible({ timeout: 20_000 });
   await expect
-    .poll(async () => image.evaluate((img: HTMLImageElement) => img.naturalWidth > 0), { timeout: 20_000 })
+    .poll(async () => image.evaluate((img: HTMLImageElement) => img.naturalWidth > 0), {
+      timeout: 20_000,
+    })
     .toBe(true);
   await expect(page.getByText('1 / 37')).toBeVisible({ timeout: 20_000 });
 });
 
-test('Given an enabled provider, When Discover opens, Then capability sections render with covers', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given an enabled provider, When Discover opens, Then capability sections render with covers', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   await page.goto('/discover');
   await expect(page.getByTestId('discover-section-latest')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('discover-section-popular')).toBeVisible();
@@ -77,11 +102,17 @@ test('Given an enabled provider, When Discover opens, Then capability sections r
   await expect(popular.getByRole('button', { name: 'Kuro no Shoukanshi' })).toBeVisible();
   const image = popular.locator('img').first();
   await expect
-    .poll(async () => image.evaluate((img: HTMLImageElement) => img.naturalWidth > 0), { timeout: 20_000 })
+    .poll(async () => image.evaluate((img: HTMLImageElement) => img.naturalWidth > 0), {
+      timeout: 20_000,
+    })
     .toBe(true);
 });
 
-test('Given a disabled provider, When searching, Then no provider request is made', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given a disabled provider, When searching, Then no provider request is made', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   await page.goto('/extensions');
   const disableButton = page.getByRole('button', { name: 'Disable' });
   await expect(disableButton).toBeVisible({ timeout: 20_000 });

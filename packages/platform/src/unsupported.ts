@@ -13,7 +13,7 @@ import type {
 } from './types.js';
 
 export function createUnsupportedPlatformAdapter(reason: string): PlatformAdapter {
-  const deny = <T,>(): AppResult<T> => err(platformUnsupported(reason));
+  const deny = <T>(): AppResult<T> => err(platformUnsupported(reason));
   const caps = createUnknownCapabilities(reason);
 
   return {
@@ -39,7 +39,8 @@ export function createUnsupportedPlatformAdapter(reason: string): PlatformAdapte
       open: async () => deny<void>(),
     },
     installPrompt: {
-      getState: async (): Promise<AppResult<PlatformInstallPromptState>> => ok({ kind: 'unsupported' }),
+      getState: async (): Promise<AppResult<PlatformInstallPromptState>> =>
+        ok({ kind: 'unsupported' }),
       prompt: async () => deny<void>(),
     },
     secureStorage: {

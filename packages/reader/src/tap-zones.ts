@@ -7,7 +7,10 @@ import type {
   ZoomStateSummary,
 } from './types';
 
-function getNavigationMapping(input: ReaderSessionInput): { leftAction: TapZoneAction; rightAction: TapZoneAction } {
+function getNavigationMapping(input: ReaderSessionInput): {
+  leftAction: TapZoneAction;
+  rightAction: TapZoneAction;
+} {
   const { readingMode, navigationDirection } = input.settings;
 
   if (readingMode === 'vertical') {
@@ -35,7 +38,7 @@ function getNavigationMapping(input: ReaderSessionInput): { leftAction: TapZoneA
 function buildLeftRightZones(
   input: ReaderSessionInput,
   insets: ReaderOverlayInsets,
-  zoomState: ZoomStateSummary | undefined
+  zoomState: ZoomStateSummary | undefined,
 ): TapZoneRegion[] {
   const { leftAction, rightAction } = getNavigationMapping(input);
   const { width, height } = input.viewport;
@@ -85,7 +88,7 @@ function buildLeftRightZones(
 function buildGridZones(
   input: ReaderSessionInput,
   insets: ReaderOverlayInsets,
-  zoomState: ZoomStateSummary | undefined
+  zoomState: ZoomStateSummary | undefined,
 ): TapZoneRegion[] {
   const { leftAction, rightAction } = getNavigationMapping(input);
   const { width, height } = input.viewport;
@@ -189,7 +192,7 @@ function buildGridZones(
 function buildLShapedZones(
   input: ReaderSessionInput,
   insets: ReaderOverlayInsets,
-  zoomState: ZoomStateSummary | undefined
+  zoomState: ZoomStateSummary | undefined,
 ): TapZoneRegion[] {
   const { leftAction, rightAction } = getNavigationMapping(input);
   const { width, height } = input.viewport;
@@ -245,7 +248,7 @@ function buildLShapedZones(
 export function calculateTapZones(
   input: ReaderSessionInput,
   insets: ReaderOverlayInsets,
-  zoomState?: ZoomStateSummary
+  zoomState?: ZoomStateSummary,
 ): TapZoneRegion[] {
   const { tapZoneLayout } = input.settings;
 
@@ -262,7 +265,7 @@ export function calculateTapZones(
 
 export function resolveTapZoneAction(
   input: ReaderSessionInput,
-  params: { zoneId: string; pageIndex: number }
+  params: { zoneId: string; pageIndex: number },
 ): TapZoneAction {
   const { zoneId } = params;
 
@@ -271,7 +274,7 @@ export function resolveTapZoneAction(
   }
 
   const zones = calculateTapZones(input, { top: 0, right: 0, bottom: 0, left: 0 });
-  const zone = zones.find(z => z.id === zoneId);
+  const zone = zones.find((z) => z.id === zoneId);
 
   return zone?.action ?? { type: 'none' };
 }
@@ -280,7 +283,7 @@ export function createTapZoneDebugModel(
   input: ReaderSessionInput,
   zones: TapZoneRegion[],
   zoomState?: ZoomStateSummary,
-  overlayInsets?: ReaderOverlayInsets
+  overlayInsets?: ReaderOverlayInsets,
 ): TapZoneDebugModel {
   return {
     regions: zones,

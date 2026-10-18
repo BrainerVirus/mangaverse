@@ -5,12 +5,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import {
-  EmptyState,
-  ErrorState,
-  LoadingState,
-  ReaderChrome,
-} from '@app/design-system';
+import { EmptyState, ErrorState, LoadingState, ReaderChrome } from '@app/design-system';
 import { useReducedMotion } from '@app/motion';
 import type { ReaderSettings } from '@app/shared';
 import {
@@ -24,7 +19,13 @@ import { isDoubleTap, PAN_THRESHOLD_PX, pinchScale, pointerDistance } from '../g
 import { resolvePageFit } from '../page-fit.js';
 import type { ReaderPageData } from '../reader-page-data.js';
 import { computeScrollTargetTop, resolveVerticalNavigationTarget } from '../scroll-navigation.js';
-import { applyDoubleTapZoom, applyPan, applyPinchZoom, clampZoomScale, clampZoomTransform } from '../zoom.js';
+import {
+  applyDoubleTapZoom,
+  applyPan,
+  applyPinchZoom,
+  clampZoomScale,
+  clampZoomTransform,
+} from '../zoom.js';
 import { ReaderScrollView, type ReaderScrollViewHandle } from './ReaderScrollView.js';
 import { ReaderSettingsSheet } from './reader-settings-sheet.js';
 import { useReaderProgress } from './use-reader-progress.js';
@@ -209,7 +210,11 @@ export function ReaderScreen({
         // target page's centre; the target advances on the press itself, so a
         // burst of presses is never resolved from a stale (centre-based) index.
         const handle = scrollHandleRef.current;
-        const target = resolveVerticalNavigationTarget(verticalTargetRef.current, action, pageCount);
+        const target = resolveVerticalNavigationTarget(
+          verticalTargetRef.current,
+          action,
+          pageCount,
+        );
         verticalTargetRef.current = target;
         verticalTargetPendingRef.current = true;
         if (!handle) return;
@@ -263,21 +268,24 @@ export function ReaderScreen({
     return () => zoomLayer.removeEventListener('wheel', handleWheel);
   }, [sessionInput, updateZoom, zoomLayer]);
 
-  const handleZoomPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    const gesture = pointerRef.current;
-    gesture.moved = false;
-    gesture.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  const handleZoomPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const gesture = pointerRef.current;
+      gesture.moved = false;
+      gesture.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
 
-    if (gesture.pointers.size === 2 && readerState !== null) {
-      const [first, second] = [...gesture.pointers.values()];
-      if (first !== undefined && second !== undefined) {
-        gesture.pinch = {
-          scale: readerState.zoom.scale,
-          distance: pointerDistance(first, second),
-        };
+      if (gesture.pointers.size === 2 && readerState !== null) {
+        const [first, second] = [...gesture.pointers.values()];
+        if (first !== undefined && second !== undefined) {
+          gesture.pinch = {
+            scale: readerState.zoom.scale,
+            distance: pointerDistance(first, second),
+          };
+        }
       }
-    }
-  }, [readerState]);
+    },
+    [readerState],
+  );
 
   const handleZoomPointerMove = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -294,10 +302,15 @@ export function ReaderScreen({
         gesture.moved = true;
         updateZoom((zoom) =>
           clampZoomTransform(
-            applyPinchZoom(zoom, zoom.scale, pinchScale(gesture.pinch!, pointerDistance(first, second)), {
-              centerX: (first.x + second.x) / 2 - rect.left,
-              centerY: (first.y + second.y) / 2 - rect.top,
-            }),
+            applyPinchZoom(
+              zoom,
+              zoom.scale,
+              pinchScale(gesture.pinch!, pointerDistance(first, second)),
+              {
+                centerX: (first.x + second.x) / 2 - rect.left,
+                centerY: (first.y + second.y) / 2 - rect.top,
+              },
+            ),
             rect.width,
             rect.height,
             rect.width,
@@ -493,10 +506,7 @@ export function ReaderScreen({
             onActivePageChange={(index) => {
               // Keyboard presses own the target while a burst is landing; any
               // other change (user scroll, scroll settling on the target) wins.
-              if (
-                !verticalTargetPendingRef.current ||
-                index === verticalTargetRef.current
-              ) {
+              if (!verticalTargetPendingRef.current || index === verticalTargetRef.current) {
                 verticalTargetRef.current = index;
                 verticalTargetPendingRef.current = false;
               }

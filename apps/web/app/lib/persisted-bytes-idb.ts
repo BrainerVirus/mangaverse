@@ -13,7 +13,8 @@ interface StoredSnapshot {
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onerror = () => reject(request.error ?? new Error('Failed to open local database store.'));
+    request.onerror = () =>
+      reject(request.error ?? new Error('Failed to open local database store.'));
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
@@ -42,14 +43,19 @@ export function createIndexedDbPersistedBytesStore(): PersistedBytesStore {
           request.onerror = () => reject(request.error ?? new Error('Failed to read snapshot.'));
           request.onsuccess = () => {
             const stored = request.result as StoredSnapshot | undefined;
-            resolve(stored === undefined ? undefined : { bytes: stored.bytes, version: stored.version });
+            resolve(
+              stored === undefined ? undefined : { bytes: stored.bytes, version: stored.version },
+            );
           };
         });
       } finally {
         db.close();
       }
     },
-    write: async (bytes: Uint8Array, expectedVersion: number): Promise<PersistedSnapshot | null> => {
+    write: async (
+      bytes: Uint8Array,
+      expectedVersion: number,
+    ): Promise<PersistedSnapshot | null> => {
       const db = await openDatabase();
       try {
         return await new Promise<PersistedSnapshot | null>((resolve, reject) => {

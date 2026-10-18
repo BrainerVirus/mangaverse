@@ -44,7 +44,11 @@ export function libraryResumeWins(
     readonly readPercent: number | null | undefined;
   },
 ): boolean {
-  if (existing.timestamp === null || existing.timestamp === undefined || existing.timestamp === '') {
+  if (
+    existing.timestamp === null ||
+    existing.timestamp === undefined ||
+    existing.timestamp === ''
+  ) {
     return true;
   }
   if (incoming.timestamp !== existing.timestamp) {

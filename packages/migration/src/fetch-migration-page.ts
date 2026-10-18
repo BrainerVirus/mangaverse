@@ -2,7 +2,9 @@ import type { AppDrizzleDb } from '@app/db';
 
 import type { MigrationCandidate, MigrationProviderOption } from './types.js';
 
-export async function fetchMigrationProviders(db: AppDrizzleDb): Promise<MigrationProviderOption[]> {
+export async function fetchMigrationProviders(
+  db: AppDrizzleDb,
+): Promise<MigrationProviderOption[]> {
   const { listInstalledExtensions } = await import('@app/db');
   const installed = await listInstalledExtensions(db);
   return installed

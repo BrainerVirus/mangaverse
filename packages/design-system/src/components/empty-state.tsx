@@ -39,7 +39,7 @@ const emptyStateConfig: Record<
   'no-chapters': {
     icon: <ChevronRight className="h-12 w-12 text-muted-foreground" />,
     title: 'No chapters available',
-    description: 'This manga doesn\'t have any chapters from this provider yet.',
+    description: "This manga doesn't have any chapters from this provider yet.",
   },
   'no-backups': {
     icon: <Archive className="h-12 w-12 text-muted-foreground" />,

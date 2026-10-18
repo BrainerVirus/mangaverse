@@ -84,7 +84,10 @@ export async function persistReaderProgress(
   const previous = progressChains.get(key) ?? Promise.resolve();
   const run = previous.then(() => persistOnce(db, event));
   // Keep the chain alive on failure; the caller still observes the rejection.
-  progressChains.set(key, run.catch(() => undefined));
+  progressChains.set(
+    key,
+    run.catch(() => undefined),
+  );
   return run;
 }
 
