@@ -84,20 +84,20 @@ export function AppSettingsPage({
 }: AppSettingsPageProps) {
   if (isLoading) {
     return (
-      <main className="mx-auto w-full max-w-3xl p-6">
+      <section aria-label="App settings" className="mx-auto w-full max-w-3xl p-6">
         <LoadingState type="list" />
-      </main>
+      </section>
     );
   }
 
   if (isError || settings === undefined) {
     return (
-      <main className="mx-auto w-full max-w-3xl p-6">
+      <section aria-label="App settings" className="mx-auto w-full max-w-3xl p-6">
         <ErrorState
           title="Could not load app settings"
           message="Local settings failed to load. Try again in a moment."
         />
-      </main>
+      </section>
     );
   }
 
@@ -106,7 +106,7 @@ export function AppSettingsPage({
   };
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6">
+    <section aria-label="App settings" className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">App settings</h1>
         <p className="text-sm text-muted-foreground">
@@ -221,6 +221,6 @@ export function AppSettingsPage({
           </div>
         </div>
       </SettingsSection>
-    </main>
+    </section>
   );
 }

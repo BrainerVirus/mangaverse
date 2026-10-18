@@ -436,9 +436,9 @@ export function OnboardingPage({
 }: OnboardingPageProps) {
   if (isLoading) {
     return (
-      <main className="mx-auto w-full max-w-3xl p-6">
+      <section aria-label="Onboarding" className="mx-auto w-full max-w-3xl p-6">
         <LoadingState type="list" />
-      </main>
+      </section>
     );
   }
 
@@ -450,12 +450,12 @@ export function OnboardingPage({
     readerSettings === undefined
   ) {
     return (
-      <main className="mx-auto w-full max-w-3xl p-6">
+      <section aria-label="Onboarding" className="mx-auto w-full max-w-3xl p-6">
         <ErrorState
           title="Could not load onboarding"
           message="Local setup data failed to load. Try again in a moment."
         />
-      </main>
+      </section>
     );
   }
 
@@ -465,7 +465,7 @@ export function OnboardingPage({
   const isLastStep = state.currentStep === 'provider';
 
   return (
-    <main className="mx-auto w-full max-w-3xl p-6">
+    <section aria-label="Onboarding" className="mx-auto w-full max-w-3xl p-6">
       <div className="mb-8 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm font-medium text-muted-foreground">
@@ -566,6 +566,6 @@ export function OnboardingPage({
           )}
         </div>
       </footer>
-    </main>
+    </section>
   );
 }

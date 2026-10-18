@@ -151,33 +151,33 @@ export function StoragePage({
 
   if (isLoading) {
     return (
-      <main className="mx-auto w-full max-w-3xl p-6">
+      <section aria-label="Storage" className="mx-auto w-full max-w-3xl p-6">
         <LoadingState type="list" />
-      </main>
+      </section>
     );
   }
 
   if (isError) {
     return (
-      <main className="mx-auto w-full max-w-3xl p-6">
+      <section aria-label="Storage" className="mx-auto w-full max-w-3xl p-6">
         <ErrorState
           title="Could not load storage details"
           message="Local database or platform storage information is unavailable. Try reloading the page."
         />
-      </main>
+      </section>
     );
   }
 
   if (summary === null) {
     return (
-      <main className="mx-auto w-full max-w-3xl p-6">
+      <section aria-label="Storage" className="mx-auto w-full max-w-3xl p-6">
         <ErrorState title="Storage unavailable" message="No storage summary was generated." />
-      </main>
+      </section>
     );
   }
 
   return (
-    <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
+    <section aria-label="Storage" className="mx-auto w-full max-w-3xl space-y-6 p-6">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Storage</h1>
         <p className="text-sm text-muted-foreground">
@@ -299,6 +299,6 @@ export function StoragePage({
           }}
         />
       ) : null}
-    </main>
+    </section>
   );
 }

@@ -43,28 +43,28 @@ export function ProviderDetailPage({
 }: ProviderDetailPageProps) {
   if (isLoading) {
     return (
-      <main className="p-6">
+      <section aria-label="Provider details" className="p-6">
         <LoadingState type="detail" />
-      </main>
+      </section>
     );
   }
 
   if (isError) {
     return (
-      <main className="p-6">
+      <section aria-label="Provider details" className="p-6">
         <ErrorState
           title="Could not load provider"
           message="Provider details failed to load. Try again in a moment."
         />
-      </main>
+      </section>
     );
   }
 
   if (data === null || data === undefined) {
     return (
-      <main className="p-6">
+      <section aria-label="Provider details" className="p-6">
         <EmptyState type="no-provider" />
-      </main>
+      </section>
     );
   }
 
@@ -73,7 +73,7 @@ export function ProviderDetailPage({
   const disabledCapabilities = capabilities.filter((row) => !row.enabled);
 
   return (
-    <main className="flex flex-col gap-6 p-6">
+    <section aria-label="Provider details" className="flex flex-col gap-6 p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-2">
           {onBack !== undefined ? (
@@ -227,6 +227,6 @@ export function ProviderDetailPage({
           </div>
         </dl>
       </SettingsSection>
-    </main>
+    </section>
   );
 }
