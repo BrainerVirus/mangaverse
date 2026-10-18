@@ -74,6 +74,10 @@ const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
             sideClasses[side],
             className,
           )}
+          // Base UI hides the rest of the page instead of marking the popup, so
+          // the modal attribute Radix emitted is kept here (override it for a
+          // non-modal sheet).
+          aria-modal="true"
           finalFocus={finalFocus}
           {...props}
           // The reader layout also listens for Escape (chrome toggle) on window:
