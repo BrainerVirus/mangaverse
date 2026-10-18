@@ -49,6 +49,7 @@ export async function fetchProviderSearchIdentities(
 
   const identities: MangaIdentity[] = [];
   for (const binding of listProviderBindings()) {
+    // react-doctor-disable-next-line react-doctor/async-await-in-loop -- provider sessions share one db handle; resolving them sequentially is deliberate (one binding today, no fan-out)
     const context = await providerContext(db, binding.providerId, signal);
     if (context === null || context.provider.search === undefined) continue;
 
