@@ -183,7 +183,8 @@ test('Given the reader chrome, When each control is clicked, Then the page does 
 
   await toolbar.getByRole('button', { name: 'Settings' }).click();
   await expect(page.getByRole('dialog', { name: 'Reader settings' })).toBeVisible();
-  await chromeStillOpen();
+  // The open dialog hides the chrome from the accessibility tree, so the
+  // isolation is asserted once the sheet is closed again.
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog', { name: 'Reader settings' })).toBeHidden();
   await chromeStillOpen();
