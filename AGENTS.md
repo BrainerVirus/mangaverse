@@ -15,7 +15,7 @@ Agents must read the relevant rewrite docs before implementation:
 
 ## Project Direction
 
-MangaVerse is a web-native, local-first manga, comic and webtoon reader that also ships as an Electron desktop app for Windows, macOS and Linux, replacing an Expo-first app. The legacy Expo tree was removed (Phase 10.5); `apps/` and `packages/` are canonical. Do not rescue unstable code solely for parity; port behavior only after package contracts and tests exist.
+MangaVerse is a web-native, local-first manga, comic and webtoon reader that also ships as an Electron desktop app for Windows, macOS and Linux. The legacy Expo tree was removed (Phase 10.5); `apps/` and `packages/` are canonical. Port behavior only after package contracts and tests exist.
 
 ## Target Stack
 
@@ -53,10 +53,8 @@ Enforced by `.oxlintrc.json` (`no-restricted-imports`; `pnpm lint` fails on a vi
 
 ## shadcn Tooling
 
-- Components live in `packages/design-system` (Base UI, `base-nova`); its `components.json` drives the CLI. Add one: `pnpm dlx shadcn@latest add <item> -c packages/design-system`. `cn` comes from the `cn` package.
-- `pnpm lint` runs `@shadcn/lint` through oxlint; findings carry a docs/Design.md note.
-- Skills: `.agents/skills/shadcn` (the DESIGN.md design-file workflow) and `.agents/skills/migrate-radix-to-base`.
-- MCP: `opencode.json` starts the shadcn MCP; its registry tools need `packages/design-system/components.json`.
+- Components live in `packages/design-system` (Base UI `base-nova`; its `components.json` drives the CLI): `pnpm dlx shadcn@latest add <item> -c packages/design-system`. `cn` comes from the `cn` package.
+- `pnpm lint` runs `@shadcn/lint` (oxlint). Skills: `.agents/skills/shadcn` (the DESIGN.md workflow) + `migrate-radix-to-base`; MCP via `opencode.json` (registry tools need `components.json`).
 
 ## Motion Rules
 
