@@ -16,5 +16,3 @@ export const QUERY_GC_TIMES = {
   search: 10 * 60 * 1000,
   settings: 60 * 60 * 1000,
 } as const;
-
-export type QueryFeatureDomain = keyof typeof QUERY_STALE_TIMES;

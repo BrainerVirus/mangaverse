@@ -9,7 +9,7 @@ import { toProviderId, toProviderMangaId, toProviderMappingId } from '@app/share
 
 import { toMangadexAppChapterId, toMangadexAppMangaId, toMangadexChapterPageId } from './ids.js';
 
-export const MANGADEX_PROVIDER_ID = toProviderId('mangadex');
+const MANGADEX_PROVIDER_ID = toProviderId('mangadex');
 
 function buildMapping(mangadexMangaId: string, providerTitle: string) {
   return {

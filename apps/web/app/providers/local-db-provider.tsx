@@ -176,10 +176,6 @@ export function useLocalDbStatus(): LocalDbStatus {
   return use(LocalDbContext).status;
 }
 
-export function useLocalDbError(): string | null {
-  return use(LocalDbContext).errorMessage;
-}
-
 export function useLocalDbRetry(): () => void {
   return use(LocalDbContext).retry;
 }

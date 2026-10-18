@@ -16,11 +16,11 @@ function pickFirst(map: Readonly<Record<string, string>>): string {
   return map['en'] ?? map['ja-ro'] ?? map['ja'] ?? Object.values(map)[0] ?? '';
 }
 
-export function pickLocalized(map: Readonly<Record<string, string>>): string {
+function pickLocalized(map: Readonly<Record<string, string>>): string {
   return pickFirst(map) || 'Untitled';
 }
 
-export function pickLocalizedOptional(
+function pickLocalizedOptional(
   value: Readonly<Record<string, string>> | string | undefined,
 ): string | undefined {
   if (value === undefined) return undefined;
@@ -29,14 +29,14 @@ export function pickLocalizedOptional(
   return picked.length > 0 ? picked : undefined;
 }
 
-export function resolveCoverUrl(manga: MdMangaEntity): string | undefined {
+function resolveCoverUrl(manga: MdMangaEntity): string | undefined {
   const relation = manga.relationships?.find((rel) => rel.type === 'cover_art');
   const fileName = relation?.attributes?.fileName;
   if (fileName === undefined) return undefined;
   return `${COVER_BASE}/${manga.id}/${fileName}.256.jpg`;
 }
 
-export function mapContentRating(raw: string | undefined): ContentRating {
+function mapContentRating(raw: string | undefined): ContentRating {
   switch (raw) {
     case 'safe':
       return 'safe';
@@ -59,7 +59,7 @@ export function toSearchItem(manga: MdMangaEntity): ProviderSearchResultItem {
   };
 }
 
-export function toTitles(manga: MdMangaEntity): readonly MangaTitle[] {
+function toTitles(manga: MdMangaEntity): readonly MangaTitle[] {
   const titles: MangaTitle[] = [];
   const seen = new Set<string>();
   const push = (locale: string, value: string) => {
@@ -80,7 +80,7 @@ export function toTitles(manga: MdMangaEntity): readonly MangaTitle[] {
   return titles;
 }
 
-export function toProviderTags(manga: MdMangaEntity): readonly ProviderTag[] {
+function toProviderTags(manga: MdMangaEntity): readonly ProviderTag[] {
   const tags: ProviderTag[] = [];
   for (const tag of manga.attributes.tags ?? []) {
     const name = tag.attributes?.name;
@@ -106,7 +106,7 @@ export function toDetails(manga: MdMangaEntity): ProviderDetails {
   };
 }
 
-export function formatChapterTitle(attributes: MdChapterEntity['attributes']): string {
+function formatChapterTitle(attributes: MdChapterEntity['attributes']): string {
   const chapterNumber = attributes.chapter?.trim();
   const chapterTitle = attributes.title?.trim();
   if (

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { cn } from '@design-system/lib/cn.js';
 
-export interface SeparatorProps extends React.HTMLAttributes<HTMLHRElement> {
+interface SeparatorProps extends React.HTMLAttributes<HTMLHRElement> {
   orientation?: 'horizontal' | 'vertical';
 }
 

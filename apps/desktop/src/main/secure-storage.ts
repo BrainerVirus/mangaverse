@@ -6,7 +6,7 @@ import {
   platformSecureStorageUnavailable,
 } from '@app/platform';
 
-export interface ElectronSafeStorageLike {
+interface ElectronSafeStorageLike {
   isEncryptionAvailable(): boolean;
   encryptString(value: string): Buffer;
   decryptString(encrypted: Buffer): string;

@@ -7,7 +7,7 @@ export interface WebtoonWindow {
   readonly totalHeight: number;
 }
 
-export interface PagePosition {
+interface PagePosition {
   readonly index: number;
   readonly top: number;
   readonly height: number;

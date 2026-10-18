@@ -16,7 +16,7 @@ import { payloadError } from './errors.js';
  * ledger ruling on `feat/mangadex-zod-schemas` before switching.
  */
 
-export interface MdRelationship {
+interface MdRelationship {
   readonly type: string;
   readonly id: string;
   readonly attributes?: { readonly fileName?: string };
@@ -251,10 +251,6 @@ function parseWith<T extends z.ZodType>(schema: T, value: unknown, endpoint: str
     throw payloadError(endpoint, detailOf(result.error));
   }
   return result.data;
-}
-
-export function parseMangaEntity(value: unknown, endpoint: string): MdMangaEntity {
-  return parseWith(mangaEntitySchema, value, endpoint);
 }
 
 export function parseCollectionResponse(json: unknown, endpoint: string): MdCollection {

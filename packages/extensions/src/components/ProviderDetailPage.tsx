@@ -10,7 +10,6 @@ import {
   SettingsSection,
   Switch,
 } from '@app/design-system';
-import type { ExtensionInstallPreview } from '@app/extensions-core';
 import { ExternalLink } from 'lucide-react';
 import type { ProviderDetailData } from '../types.js';
 
@@ -230,8 +229,4 @@ export function ProviderDetailPage({
       </SettingsSection>
     </main>
   );
-}
-
-export function formatInstallPreview(preview: ExtensionInstallPreview): string {
-  return `${preview.providerName} v${preview.version}`;
 }

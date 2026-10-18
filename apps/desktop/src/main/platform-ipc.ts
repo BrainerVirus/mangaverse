@@ -40,7 +40,7 @@ export function toIpcAppResult<T>(r: AppResult<T>): AppResult<T> {
   };
 }
 
-export interface SecureStorageHandlers {
+interface SecureStorageHandlers {
   get(key: string): Promise<AppResult<string | undefined>>;
   set(key: string, value: string): Promise<AppResult<void>>;
   delete(key: string): Promise<AppResult<void>>;
