@@ -9,7 +9,7 @@ import { defineConfig, devices } from '@playwright/test';
 // does not conflict with a loopback-only bind, so a loopback probe reports a
 // taken port as free (verified with a sibling's *:5185 server).
 const probeScript = (port: number): string =>
-  `const net=require('net');const t=(a)=>new Promise((r)=>{const s=net.createServer();s.once('error',()=>r(false));s.listen(${port},a,()=>s.close(()=>r(true)));});(async()=>{process.exit((await t())&&(await t('127.0.0.1'))?0:1);})();`;
+  `const net=require('net');const t=(a)=>new Promise((r)=>{const s=net.createServer();s.once('error',()=>r(false));s.listen(${port},a,()=>s.close(()=>r(true)));});(async()=>{process.exit((await t())&&(await t('127.0.0.1'))&&(await t('0.0.0.0'))?0:1);})();`;
 
 // A clean exit 1 from the probe means the port is taken (EADDRINUSE); anything
 // else (timeout, spawn failure) must not move the port.
