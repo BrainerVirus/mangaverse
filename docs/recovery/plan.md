@@ -150,10 +150,14 @@ cleanup can erase. Add focused database persistence tests and
       `onMutation` update hook (re-attached after each sync swap) wired to the 400 ms
       coalesced flush; `pagehide` remains a fallback. Review finding confirmed the
       earlier design was unload-only.
-- [ ] Reader-mode persistence failures are silent (`ReaderLayout` renders no banner).
-      Deferred, not done: the reader keeps progress in its own debounce and will get
-      explicit checkpoint/error handling in S4; decide there whether it reuses this
-      banner.
+- [x] Reader-mode persistence failures are silent (`ReaderLayout` renders no banner).
+      Decided and done in S4 (#63): the reader reuses the S1 banner instead of a
+      reader-specific one — write failures report to the same sink and
+      `apps/web/app/routes/reader.$chapterId.tsx` renders `PersistenceErrorBanner` over
+      the reader surface, with Retry re-attempting the durable flush (E2E: blocked
+      store → banner → Retry clears it → a new ping proves durability). The overlay
+      stays in the reader route, not `ReaderLayout`: that layout only owns reader
+      chrome state and is shared by every reader route.
 - [x] Run targeted tests, configured test/lint/typecheck and production E2E; inspect
       storage after browser restart, not only component remount. All S1 items above
       landed across PRs #26–#33 with per-slice verification.
@@ -274,8 +278,17 @@ Read the five `apps/web/app/lib/dev-mangadex-*`/`dev-seed-mangadex.ts` files and
       debounce — apply flush-on-success there if dirty-exit loss is ever observed.
 - [x] Preserve useful fixtures while moving
       their ownership; the June spec's blanket fixture deletion is not required.
-- [ ] Verify install/disable/search/detail/chapter selection against the built app,
+- [x] Verify install/disable/search/detail/chapter selection against the built app,
       including normalized failure and retry. Run gates, audit and commit.
+      `apps/web/e2e-production/mangadex-flow.spec.ts` (6 tests) drives the built app for
+      install/enabled, provider search with rendered covers, detail with feed chapters,
+      the reader, the Discover sections, and disable blocking every remote call. The
+      failure/retry half landed later with its own built-app coverage in
+      `apps/web/e2e-production/reader-flow.spec.ts` (failed page fetch → retry → chapter
+      loads; unresolved provider; DB-open failure), and malformed payloads normalize to
+      `extensions.mangadex.payload_invalid` with the endpoint, pinned in
+      `packages/extensions-mangadex/src/schemas.test.ts`. Gates and the audit ran per
+      slice (#41, #44, #45, #55, #63) — see the last S4 item.
 
 The old June spec's “raw calls bypass Query” statement is too broad: some current
 calls execute inside route queries. The real missing work is SDK ownership,
@@ -326,14 +339,21 @@ Add `apps/web/e2e-production/reading.spec.ts` and focused reader integration tes
       the guard is removed). The resume-after-reload ErrorState was the
       react-query "data is undefined" throw on a stale/racy read path, resolved
       by (a)+(c).
-- [ ] Progress-ordering follow-ups from the #41 review rounds (tracked, not yet
-      fixed): the ordering guard is chapter-local, so an older event for another
-      chapter can still replace newer library resume metadata; the snapshot CAS
-      protects committed bytes but does not merge by event timestamp, so an older
-      tab flushing first can drop newer uncommitted progress; equal-timestamp
-      events deliberately keep the furthest page, which is conservative against
-      stale checkpoints but not strict last-action-wins for backward navigation
-      in the same millisecond.
+- [x] Progress-ordering follow-ups from the #41 review rounds — fixed in #59 by a
+      shared ordering policy, not by extending the chapter-local guard.
+      `packages/db/src/progress-ordering.ts` (`progressOrderingWins`,
+      `libraryResumeWins`, `hasLibraryResume`) is applied by
+      `packages/db/src/repositories/progress-ordering.ts` to both chapter read state and
+      library resume metadata, so an older event for another chapter can no longer
+      replace newer resume metadata; `persist-reader-progress.ts` skips the writes it
+      rejects. The snapshot CAS keeps its committed bytes and now merges on top:
+      `packages/db/src/merge-uncommitted-progress.ts` merges only the two progress
+      tables, and only where the local row wins the policy, so an older tab flushing
+      first no longer drops newer uncommitted progress and cannot resurrect rows it
+      never touched. Deliberately unchanged: equal-timestamp events still keep the
+      furthest page (page index → percent → completed) instead of strict
+      last-action-wins for backward navigation in the same millisecond; the policy
+      header documents that limit.
 - [x] First-open failure offers an explicit retry: the reader's ErrorState is
       wired to a reader-query refetch and pinned by an E2E that fails the at-home
       route, observes 'Could not load chapter', restores the network, retries and
@@ -404,13 +424,17 @@ the June MangaDex spec, and only tests with triaged audit findings.
       as the #43 review established with a plant — package tsconfigs exclude test
       files, so its type imports were never typechecked either. The neighbouring
       runtime-export test still asserts the surface.
-- [ ] Repo-wide typecheck gap surfaced by the #43 review: every package tsconfig
-      excludes `src/**/*.test.ts`, so package test code is never typechecked (only
-      the web app includes its tests). Cost unknown until tried; candidate slice:
-      stop excluding tests from package typecheck, fix whatever it surfaces, and
-      keep it as a check. Note for future runs: `workit check test` does not cover
-      lint — CI runs lint+typecheck+test+build, so run `npx oxlint apps packages`
-      before pushing.
+- [x] Repo-wide typecheck gap surfaced by the #43 review: fixed in #46. Every one of
+      the 21 packages has a `tsconfig.typecheck.json` that extends its build tsconfig
+      but re-includes `src/` (excluding only `dist` and `node_modules`), and its
+      `typecheck` script is exactly `tsc --noEmit -p tsconfig.typecheck.json`, so
+      package test files are in the typecheck program. Build tsconfigs still exclude
+      tests; follow-up commit `ef37f38` keeps test helpers and `__tests__` out of
+      package dists (zero test artifacts). Verified in ledger #453/#458: an
+      unused-import plant and a `.tsx` type plant in `@app/reader` tests both fail
+      typecheck (exit 2), and adapting the test files dropped no assertion.
+      Note for future runs: `workit check test` does not cover lint — CI runs
+      lint+typecheck+test+build, so run `npx oxlint apps packages` before pushing.
       Remove only assertion-free or truly duplicate tests after checking coverage;
       replace bad oracles and prove replacements fail on planted bugs.
 - [x] Real command palette interaction coverage added:
