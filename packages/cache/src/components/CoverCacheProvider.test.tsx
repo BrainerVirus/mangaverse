@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
-import { act, useEffect } from 'react';
+import { act, useCallback } from 'react';
 import { CoverCacheProvider, useCoverCacheContext } from './CoverCacheProvider.js';
 import type * as coverCacheStore from '../cover-cache-store.js';
 
@@ -14,10 +14,15 @@ let mountCount = 0;
 
 function Probe() {
   const context = useCoverCacheContext();
-  useEffect(() => {
-    mountCount += 1;
+  // Stable ref callback: it runs once per mount, which is the count under test.
+  const countMount = useCallback((node: HTMLDivElement | null) => {
+    if (node !== null) mountCount += 1;
   }, []);
-  return <div data-testid="probe">{context === null ? 'not-ready' : 'ready'}</div>;
+  return (
+    <div ref={countMount} data-testid="probe">
+      {context === null ? 'not-ready' : 'ready'}
+    </div>
+  );
 }
 
 describe('CoverCacheProvider tree stability', () => {
