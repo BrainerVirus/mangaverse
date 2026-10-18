@@ -10,8 +10,8 @@ Object.defineProperty(globalThis, 'localStorage', {
 
 vi.mock('@tanstack/react-router', () => ({
   useRouterState: () => ({ location: { pathname: '/library' } }),
-  useRouter: () => ({ navigate: vi.fn(), subscribe: () => () => {} }),
-  useNavigate: () => vi.fn(),
+  useRouter: () => ({ navigate: vi.fn<(options: unknown) => void>(), subscribe: () => () => {} }),
+  useNavigate: () => vi.fn<() => void>(),
   Link: ({ children, to, ...props }: { to: string; children: React.ReactNode }) => (
     <a href={to} {...props}>
       {children}

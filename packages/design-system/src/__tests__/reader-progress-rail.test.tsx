@@ -26,21 +26,25 @@ beforeEach(() => {
 
 describe('ReaderProgressRail', () => {
   it('Given a half-progress value, When rendered, Then the fill is scaled to the value', () => {
-    render(<ReaderProgressRail value={5} min={1} max={10} onChange={vi.fn()} />);
+    render(
+      <ReaderProgressRail value={5} min={1} max={10} onChange={vi.fn<(value: number) => void>()} />,
+    );
     expect(screen.getByTestId('reader-rail-fill').style.transform).toBe(
       'scaleX(0.4444444444444444)',
     );
   });
 
   it('Given a half-progress value, When rendered, Then the thumb sits at that fraction of the track', () => {
-    render(<ReaderProgressRail value={5} min={1} max={10} onChange={vi.fn()} />);
+    render(
+      <ReaderProgressRail value={5} min={1} max={10} onChange={vi.fn<(value: number) => void>()} />,
+    );
     // (5 - 1) / (10 - 1) = 44.44% — a percentage translate would only move the
     // thumb by its own 16px box, which this pins against.
     expect(screen.getByTestId('reader-rail-thumb').style.left).toBe('44.44444444444444%');
   });
 
   it('Given a pointer at a quarter of the track, When pressed, Then the value follows the position', () => {
-    const onChange = vi.fn();
+    const onChange = vi.fn<(value: number) => void>();
     render(<ReaderProgressRail value={1} min={1} max={11} onChange={onChange} />);
     const track = screen.getByRole('slider', { name: 'Page slider' });
 
@@ -50,7 +54,7 @@ describe('ReaderProgressRail', () => {
   });
 
   it('Given a focused rail, When arrow keys and Home/End are pressed, Then the value moves by one and to the bounds', () => {
-    const onChange = vi.fn();
+    const onChange = vi.fn<(value: number) => void>();
     render(<ReaderProgressRail value={5} min={1} max={10} onChange={onChange} />);
     const track = screen.getByRole('slider', { name: 'Page slider' });
 
@@ -71,7 +75,7 @@ describe('ReaderProgressRail', () => {
         value={3}
         min={1}
         max={10}
-        onChange={vi.fn()}
+        onChange={vi.fn<(value: number) => void>()}
         renderPreview={(page) => <div>preview {page}</div>}
       />,
     );
@@ -88,8 +92,8 @@ describe('ReaderProgressRail', () => {
   });
 
   it('Given a drag in progress, When the pointer moves, Then the value keeps following until release', () => {
-    const onChange = vi.fn();
-    const onScrubEnd = vi.fn();
+    const onChange = vi.fn<(value: number) => void>();
+    const onScrubEnd = vi.fn<() => void>();
     render(
       <ReaderProgressRail value={1} min={1} max={11} onChange={onChange} onScrubEnd={onScrubEnd} />,
     );

@@ -7,12 +7,12 @@ import { LocalDbProvider, useReportPersistenceError } from '../local-db-provider
 
 const { registered, flushLocalDb } = vi.hoisted(() => ({
   registered: { handler: null as ((message: string | null) => void) | null },
-  flushLocalDb: vi.fn(async () => {}),
+  flushLocalDb: vi.fn<() => Promise<void>>(async () => {}),
 }));
 
 vi.mock('../../lib/local-db.js', () => ({
   getLocalDb: async () => ({ id: 'fake-db' }),
-  resetLocalDb: vi.fn(),
+  resetLocalDb: vi.fn<() => void>(),
   flushLocalDb,
   watchLocalDbForExternalChanges: () => () => {},
   setPersistenceErrorHandler: (handler: ((message: string | null) => void) | null) => {
@@ -21,7 +21,7 @@ vi.mock('../../lib/local-db.js', () => ({
 }));
 
 vi.mock('../../lib/first-party-providers.js', () => ({
-  installFirstPartyProviders: vi.fn(async () => {}),
+  installFirstPartyProviders: vi.fn<() => Promise<void>>(async () => {}),
 }));
 
 function ReportProbe() {

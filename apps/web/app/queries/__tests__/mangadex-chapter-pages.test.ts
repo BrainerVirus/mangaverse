@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { getChapter, resolveInstalledProvider } = vi.hoisted(() => ({
-  getChapter: vi.fn(),
-  resolveInstalledProvider: vi.fn(),
+  getChapter: vi.fn<(...args: unknown[]) => unknown>(),
+  resolveInstalledProvider: vi.fn<(...args: unknown[]) => unknown>(),
 }));
 
 vi.mock('@app/db/browser', () => ({
   getChapter,
-  getMangaIdentity: vi.fn(),
-  upsertChapterWithPages: vi.fn(),
-  upsertMangaIdentity: vi.fn(),
+  getMangaIdentity: vi.fn<(...args: unknown[]) => unknown>(),
+  upsertChapterWithPages: vi.fn<(...args: unknown[]) => unknown>(),
+  upsertMangaIdentity: vi.fn<(...args: unknown[]) => unknown>(),
 }));
 
 vi.mock('../../lib/provider-registry.js', () => ({ resolveInstalledProvider }));

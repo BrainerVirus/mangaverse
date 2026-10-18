@@ -13,6 +13,18 @@ describe('useIsClient', () => {
 describe('useReducedMotion', () => {
   const originalMatchMedia = window.matchMedia;
 
+  function makeMediaQueryList(partial: Partial<MediaQueryList>): MediaQueryList {
+    return {
+      matches: false,
+      media: '(prefers-reduced-motion: reduce)',
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+      ...partial,
+    } as MediaQueryList;
+  }
+
   beforeEach(() => {
     vi.restoreAllMocks();
   });
@@ -22,22 +34,26 @@ describe('useReducedMotion', () => {
   });
 
   it('should return false when media query does not match', () => {
-    window.matchMedia = vi.fn().mockReturnValue({
-      matches: false,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    });
+    window.matchMedia = vi.fn<() => MediaQueryList>().mockReturnValue(
+      makeMediaQueryList({
+        matches: false,
+        addEventListener: vi.fn<(event: string, handler: () => void) => void>(),
+        removeEventListener: vi.fn<(event: string, handler: () => void) => void>(),
+      }),
+    );
 
     const { result } = renderHook(() => useReducedMotion());
     expect(result.current).toBe(false);
   });
 
   it('should return true when media query matches (reduced motion preferred)', () => {
-    window.matchMedia = vi.fn().mockReturnValue({
-      matches: true,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    });
+    window.matchMedia = vi.fn<() => MediaQueryList>().mockReturnValue(
+      makeMediaQueryList({
+        matches: true,
+        addEventListener: vi.fn<(event: string, handler: () => void) => void>(),
+        removeEventListener: vi.fn<(event: string, handler: () => void) => void>(),
+      }),
+    );
 
     const { result } = renderHook(() => useReducedMotion());
     expect(result.current).toBe(true);
@@ -45,13 +61,18 @@ describe('useReducedMotion', () => {
 
   it('should update when media query changes', async () => {
     let changeCallback: ((event: MediaQueryListEvent) => void) | null = null;
-    window.matchMedia = vi.fn().mockReturnValue({
-      matches: false,
-      addEventListener: vi.fn().mockImplementation((_event, handler) => {
-        changeCallback = handler;
+    window.matchMedia = vi.fn<() => MediaQueryList>().mockReturnValue(
+      makeMediaQueryList({
+        matches: false,
+        addEventListener: vi.fn<
+          (event: string, handler: EventListenerOrEventListenerObject) => void
+        >((_event, handler) => {
+          changeCallback = handler as (event: MediaQueryListEvent) => void;
+        }),
+        removeEventListener:
+          vi.fn<(event: string, handler: EventListenerOrEventListenerObject) => void>(),
       }),
-      removeEventListener: vi.fn(),
-    });
+    );
 
     const { result } = renderHook(() => useReducedMotion());
     expect(result.current).toBe(false);
@@ -64,12 +85,14 @@ describe('useReducedMotion', () => {
   });
 
   it('should clean up event listener on unmount', () => {
-    const removeEventListener = vi.fn();
-    window.matchMedia = vi.fn().mockReturnValue({
-      matches: false,
-      addEventListener: vi.fn(),
-      removeEventListener,
-    });
+    const removeEventListener = vi.fn<(event: string, handler: () => void) => void>();
+    window.matchMedia = vi.fn<() => MediaQueryList>().mockReturnValue(
+      makeMediaQueryList({
+        matches: false,
+        addEventListener: vi.fn<(event: string, handler: () => void) => void>(),
+        removeEventListener,
+      }),
+    );
 
     const { unmount } = renderHook(() => useReducedMotion());
     unmount();

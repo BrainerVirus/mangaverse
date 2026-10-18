@@ -4,22 +4,29 @@ import { createProviderRequestClient } from './request-client';
 
 describe('createProviderRequestClient', () => {
   it('returns ok for successful response', async () => {
-    const fetchImpl = vi.fn(async () => new Response('{}', { status: 200 }));
+    const fetchImpl = vi.fn<(...args: unknown[]) => Promise<Response>>(
+      async () => new Response('{}', { status: 200 }),
+    );
     const client = createProviderRequestClient({ fetchImpl });
     const res = await client.request({ url: 'https://example.com/x' });
     expect(res.ok).toBe(true);
-    if (res.ok) expect(res.value.bodyText).toBe('{}');
+    if (!res.ok) {
+      throw new Error('expected res.ok to be true');
+    }
+    expect(res.value.bodyText).toBe('{}');
   });
 
   it('maps HTTP errors to err', async () => {
-    const fetchImpl = vi.fn(async () => new Response('', { status: 500 }));
+    const fetchImpl = vi.fn<(...args: unknown[]) => Promise<Response>>(
+      async () => new Response('', { status: 500 }),
+    );
     const client = createProviderRequestClient({ fetchImpl });
     const res = await client.request({ url: 'https://example.com/x' });
     expect(res.ok).toBe(false);
   });
 
   it('does not put request headers on normalized fetch errors', async () => {
-    const fetchImpl = vi.fn(async () => {
+    const fetchImpl = vi.fn<(...args: unknown[]) => Promise<Response>>(async () => {
       throw new Error('network down');
     });
     const client = createProviderRequestClient({
@@ -31,15 +38,18 @@ describe('createProviderRequestClient', () => {
       headers: { 'x-api-key': 'abc' },
     });
     expect(res.ok).toBe(false);
-    if (!res.ok) {
-      expect(JSON.stringify(res.error)).not.toContain('secret');
-      expect(JSON.stringify(res.error)).not.toContain('abc');
-      expect(res.error.details?.url).toBe('https://example.com/data');
+    if (res.ok) {
+      throw new Error('expected res.ok to be false');
     }
+    expect(JSON.stringify(res.error)).not.toContain('secret');
+    expect(JSON.stringify(res.error)).not.toContain('abc');
+    expect(res.error.details?.url).toBe('https://example.com/data');
   });
 
   it('respects abort signal', async () => {
-    const fetchImpl = vi.fn((_url: string | URL | Request, init?: RequestInit) => {
+    const fetchImpl = vi.fn<
+      (_url: string | URL | Request, init?: RequestInit) => Promise<Response>
+    >((_url, init) => {
       return new Promise<Response>((_resolve, reject) => {
         const sig = init?.signal;
         if (!sig) {
@@ -64,7 +74,9 @@ describe('createProviderRequestClient', () => {
   });
 
   it('times out slow responses', async () => {
-    const fetchImpl = vi.fn((_url: string | URL | Request, init?: RequestInit) => {
+    const fetchImpl = vi.fn<
+      (_url: string | URL | Request, init?: RequestInit) => Promise<Response>
+    >((_url, init) => {
       return new Promise<Response>((resolve, reject) => {
         const sig = init?.signal;
         const timer = setTimeout(() => resolve(new Response('ok', { status: 200 })), 10_000);
@@ -77,6 +89,9 @@ describe('createProviderRequestClient', () => {
     const client = createProviderRequestClient({ fetchImpl, defaultTimeoutMs: 30 });
     const res = await client.request({ url: 'https://example.com/x' });
     expect(res.ok).toBe(false);
-    if (!res.ok) expect(res.error.code).toBe('extensions.sdk.request.timeout');
+    if (res.ok) {
+      throw new Error('expected res.ok to be false');
+    }
+    expect(res.error.code).toBe('extensions.sdk.request.timeout');
   });
 });

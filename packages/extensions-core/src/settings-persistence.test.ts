@@ -100,10 +100,11 @@ describe('saveProviderSettings / getProviderSettings', () => {
     expect(write.ok).toBe(true);
     const read = await getProviderSettings(String(m.id), { db });
     expect(read.ok).toBe(true);
-    if (read.ok) {
-      expect(read.value.preferredLanguages).toEqual(['en']);
-      expect(read.value.nsfwAllowed).toBe(true);
+    if (!read.ok) {
+      throw new Error('expected read.ok to be true');
     }
+    expect(read.value.preferredLanguages).toEqual(['en']);
+    expect(read.value.nsfwAllowed).toBe(true);
   });
 
   it('does not persist invalid settings', async () => {
@@ -117,6 +118,9 @@ describe('saveProviderSettings / getProviderSettings', () => {
     expect(write.ok).toBe(false);
     const read = await getProviderSettings(String(m.id), { db });
     expect(read.ok).toBe(true);
-    if (read.ok) expect(read.value.nsfwAllowed).toBeUndefined();
+    if (!read.ok) {
+      throw new Error('expected read.ok to be true');
+    }
+    expect(read.value.nsfwAllowed).toBeUndefined();
   });
 });

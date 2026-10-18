@@ -6,7 +6,7 @@ import { PersistenceErrorBanner } from '../PersistenceErrorBanner.js';
 const { state } = vi.hoisted(() => ({
   state: {
     message: null as string | null,
-    retry: vi.fn(),
+    retry: vi.fn<() => void>(),
   },
 }));
 

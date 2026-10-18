@@ -133,10 +133,9 @@ describe('calculateTapZones', () => {
 
     const zones = calculateTapZones(input, { top: 0, right: 0, bottom: 0, left: 0 }, zoomState);
 
-    for (const zone of zones) {
-      if (zone.id !== 'center') {
-        expect(zone.action.type).toBe('none');
-      }
+    const sideZones = zones.filter((zone) => zone.id !== 'center');
+    for (const zone of sideZones) {
+      expect(zone.action.type).toBe('none');
     }
   });
 

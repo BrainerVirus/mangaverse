@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LocalDataPrefetch } from '../LocalDataPrefetch.js';
 
 const { prefetchCoreLocalData } = vi.hoisted(() => ({
-  prefetchCoreLocalData: vi.fn().mockResolvedValue(undefined),
+  prefetchCoreLocalData: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 }));
 
 vi.mock('../../queries/prefetch-core-local-data.js', () => ({

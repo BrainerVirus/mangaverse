@@ -31,9 +31,10 @@ describe('importExtensionRegistry', () => {
     };
     const r = await importExtensionRegistry({ document: doc }, { db });
     expect(r.ok).toBe(true);
-    if (r.ok) {
-      expect(r.value.entries).toHaveLength(1);
-      expect(r.value.warnings.length).toBeGreaterThan(0);
+    if (!r.ok) {
+      throw new Error('expected r.ok to be true');
     }
+    expect(r.value.entries).toHaveLength(1);
+    expect(r.value.warnings.length).toBeGreaterThan(0);
   });
 });

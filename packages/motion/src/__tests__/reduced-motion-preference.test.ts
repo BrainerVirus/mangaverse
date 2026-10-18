@@ -17,7 +17,7 @@ describe('getReducedMotionPreference', () => {
 
   it('returns false when prefers-reduced-motion is not active', () => {
     Object.defineProperty(window, 'matchMedia', {
-      value: vi.fn(() => ({ matches: false })),
+      value: vi.fn<() => { matches: boolean }>(() => ({ matches: false })),
       writable: true,
     });
 
@@ -26,7 +26,7 @@ describe('getReducedMotionPreference', () => {
 
   it('returns true when prefers-reduced-motion is active', () => {
     Object.defineProperty(window, 'matchMedia', {
-      value: vi.fn(() => ({ matches: true })),
+      value: vi.fn<() => { matches: boolean }>(() => ({ matches: true })),
       writable: true,
     });
 

@@ -5,6 +5,7 @@ import { describe, expect, it, vi, afterEach } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { getDefaultAppSettings, getDefaultReaderSettings } from '@app/shared';
+import type { AppSettings, ReaderSettings, ThemeSettings } from '@app/shared';
 import { getDefaultThemeSettings } from '@app/theme';
 
 import { OnboardingPage } from './OnboardingPage.js';
@@ -15,12 +16,12 @@ vi.mock('@app/motion', async () => {
   return {
     ...actual,
     useReducedMotion: () => true,
-    fadeIn: vi.fn(),
+    fadeIn: vi.fn<(target: unknown, vars?: unknown) => unknown>(),
   };
 });
 
 vi.mock('@gsap/react', () => ({
-  useGSAP: vi.fn((callback) => {
+  useGSAP: vi.fn<(callback: () => void) => () => void>((callback) => {
     callback();
     return () => {};
   }),
@@ -33,14 +34,14 @@ const baseProps = {
   readerSettings: getDefaultReaderSettings(),
   isLoading: false,
   isError: false,
-  onThemeChange: vi.fn(),
-  onAppSettingsChange: vi.fn(),
-  onReaderSettingsChange: vi.fn(),
-  onSkip: vi.fn(),
-  onBack: vi.fn(),
-  onNext: vi.fn(),
-  onInstallProvider: vi.fn(),
-  onFinish: vi.fn(),
+  onThemeChange: vi.fn<(next: ThemeSettings) => void>(),
+  onAppSettingsChange: vi.fn<(next: AppSettings) => void>(),
+  onReaderSettingsChange: vi.fn<(next: ReaderSettings) => void>(),
+  onSkip: vi.fn<() => void>(),
+  onBack: vi.fn<() => void>(),
+  onNext: vi.fn<() => void>(),
+  onInstallProvider: vi.fn<() => void>(),
+  onFinish: vi.fn<() => void>(),
 };
 
 describe('OnboardingPage', () => {
@@ -70,8 +71,8 @@ describe('OnboardingPage', () => {
 
   it('exposes skip and continue actions on the first step', async () => {
     const user = userEvent.setup();
-    const onSkip = vi.fn();
-    const onNext = vi.fn();
+    const onSkip = vi.fn<() => void>();
+    const onNext = vi.fn<() => void>();
 
     render(<OnboardingPage {...baseProps} onSkip={onSkip} onNext={onNext} />);
 
@@ -102,8 +103,8 @@ describe('OnboardingPage', () => {
 
   it('renders provider install actions on the final step', async () => {
     const user = userEvent.setup();
-    const onInstallProvider = vi.fn();
-    const onFinish = vi.fn();
+    const onInstallProvider = vi.fn<() => void>();
+    const onFinish = vi.fn<() => void>();
 
     render(
       <OnboardingPage

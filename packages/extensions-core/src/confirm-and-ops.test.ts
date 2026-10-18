@@ -69,10 +69,11 @@ describe('confirmExtensionInstall', () => {
     expect(r.ok).toBe(true);
     const listed = await listInstalledProviders(db);
     expect(listed.ok).toBe(true);
-    if (listed.ok) {
-      expect(listed.value).toHaveLength(1);
-      expect(listed.value[0]!.id).toBe(toExtensionInstallId(String(manifestV1.id)));
+    if (!listed.ok) {
+      throw new Error('expected listed.ok to be true');
     }
+    expect(listed.value).toHaveLength(1);
+    expect(listed.value[0]!.id).toBe(toExtensionInstallId(String(manifestV1.id)));
   });
 
   it('reinstalling same provider updates row and keeps single install', async () => {
@@ -82,12 +83,13 @@ describe('confirmExtensionInstall', () => {
     expect((await confirmSession(db, manifestV2, url)).ok).toBe(true);
     const listed = await listInstalledProviders(db);
     expect(listed.ok).toBe(true);
-    if (listed.ok) {
-      expect(listed.value).toHaveLength(1);
-      expect(listed.value[0]!.installedVersion).toBe('2.0.0');
-      expect(listed.value[0]!.sourceUrl).toBe(url);
-      expect(listed.value[0]!.manifest.version).toBe('2.0.0');
+    if (!listed.ok) {
+      throw new Error('expected listed.ok to be true');
     }
+    expect(listed.value).toHaveLength(1);
+    expect(listed.value[0]!.installedVersion).toBe('2.0.0');
+    expect(listed.value[0]!.sourceUrl).toBe(url);
+    expect(listed.value[0]!.manifest.version).toBe('2.0.0');
   });
 });
 
@@ -103,9 +105,10 @@ describe('markProviderBroken', () => {
     const br = await markProviderBroken(id, { code: 'x', message: 'broken' }, { db });
     expect(br.ok).toBe(true);
     const listed2 = await listInstalledProviders(db);
-    if (listed2.ok) {
-      expect(listed2.value[0]?.health).toBe('broken');
+    if (!listed2.ok) {
+      throw new Error('expected listed2.ok to be true');
     }
+    expect(listed2.value[0]?.health).toBe('broken');
   });
 });
 
@@ -120,7 +123,10 @@ describe('uninstallInstalledProvider', () => {
     const u = await uninstallInstalledProvider(id, { db });
     expect(u.ok).toBe(true);
     const listed2 = await listInstalledProviders(db);
-    if (listed2.ok) expect(listed2.value).toHaveLength(0);
+    if (!listed2.ok) {
+      throw new Error('expected listed2.ok to be true');
+    }
+    expect(listed2.value).toHaveLength(0);
   });
 });
 
@@ -133,10 +139,15 @@ describe('updateInstalledProviderManifest', () => {
     const up = await updateInstalledProviderManifest(extId, manifestV2, { db });
     expect(up.ok).toBe(true);
     const listed = await listInstalledProviders(db);
-    if (listed.ok && listed.value[0]) {
-      expect(listed.value[0].id).toBe(extId);
-      expect(listed.value[0].installedVersion).toBe('2.0.0');
-      expect(listed.value[0].manifest.version).toBe('2.0.0');
+    if (!listed.ok) {
+      throw new Error('expected listed.ok to be true');
     }
+    const entry = listed.value[0];
+    if (!entry) {
+      throw new Error('expected a listed provider');
+    }
+    expect(entry.id).toBe(extId);
+    expect(entry.installedVersion).toBe('2.0.0');
+    expect(entry.manifest.version).toBe('2.0.0');
   });
 });

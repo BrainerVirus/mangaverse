@@ -64,10 +64,11 @@ describe('backup document', () => {
   it('accepts a minimal valid v1 backup', () => {
     const res = validateBackupDocument(minimalValidBackup);
     expect(res.ok).toBe(true);
-    if (res.ok) {
-      expect(res.value.schemaVersion).toBe(1);
-      expect(res.value.library).toHaveLength(1);
+    if (!res.ok) {
+      throw new Error('expected res.ok to be true');
     }
+    expect(res.value.schemaVersion).toBe(1);
+    expect(res.value.library).toHaveLength(1);
   });
 
   it('rejects wrong schema version', () => {

@@ -40,10 +40,11 @@ describe('provider manifest', () => {
   it('validateProviderManifest accepts a complete manifest', () => {
     const res = validateProviderManifest(validManifestInput);
     expect(res.ok).toBe(true);
-    if (res.ok) {
-      expect(res.value.id).toEqual(toProviderId('demo'));
-      expect(res.value.capabilities['discovery.search']).toBe(true);
+    if (!res.ok) {
+      throw new Error('expected res.ok to be true');
     }
+    expect(res.value.id).toEqual(toProviderId('demo'));
+    expect(res.value.capabilities['discovery.search']).toBe(true);
   });
 
   it('validateProviderManifest rejects missing required sections', () => {
@@ -70,12 +71,13 @@ describe('provider manifest', () => {
       ],
     });
     expect(res.ok).toBe(true);
-    if (res.ok) {
-      expect(res.value.checksum).toBe('sha256:abc123');
-      expect(res.value.signature).toBe('sig:demo');
-      expect(res.value.source.publisher).toBe('Test Publisher');
-      expect(res.value.capabilityDetails?.[0]?.key).toBe('discovery.search');
+    if (!res.ok) {
+      throw new Error('expected res.ok to be true');
     }
+    expect(res.value.checksum).toBe('sha256:abc123');
+    expect(res.value.signature).toBe('sig:demo');
+    expect(res.value.source.publisher).toBe('Test Publisher');
+    expect(res.value.capabilityDetails?.[0]?.key).toBe('discovery.search');
   });
 
   it('validateProviderManifest rejects invalid capability details', () => {

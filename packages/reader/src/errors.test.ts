@@ -33,18 +33,20 @@ describe('validateReaderSessionInput', () => {
     const result = validateReaderSessionInput(null);
 
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe('reader.input.invalid');
+    if (result.ok) {
+      throw new Error('expected result.ok to be false');
     }
+    expect(result.error.code).toBe('reader.input.invalid');
   });
 
   it('should reject array input', () => {
     const result = validateReaderSessionInput([]);
 
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe('reader.input.invalid');
+    if (result.ok) {
+      throw new Error('expected result.ok to be false');
     }
+    expect(result.error.code).toBe('reader.input.invalid');
   });
 
   it('should reject missing chapter', () => {
@@ -54,9 +56,10 @@ describe('validateReaderSessionInput', () => {
     });
 
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe('reader.input.invalid');
+    if (result.ok) {
+      throw new Error('expected result.ok to be false');
     }
+    expect(result.error.code).toBe('reader.input.invalid');
   });
 
   it('should reject missing chapter pages', () => {
@@ -67,9 +70,10 @@ describe('validateReaderSessionInput', () => {
     });
 
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe('reader.input.invalid');
+    if (result.ok) {
+      throw new Error('expected result.ok to be false');
     }
+    expect(result.error.code).toBe('reader.input.invalid');
   });
 
   it('should reject invalid viewport dimensions', () => {
@@ -80,9 +84,10 @@ describe('validateReaderSessionInput', () => {
     });
 
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe('reader.layout.invalid');
+    if (result.ok) {
+      throw new Error('expected result.ok to be false');
     }
+    expect(result.error.code).toBe('reader.layout.invalid');
   });
 
   it('should reject invalid reading mode', () => {
@@ -93,9 +98,10 @@ describe('validateReaderSessionInput', () => {
     });
 
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe('reader.input.invalid');
+    if (result.ok) {
+      throw new Error('expected result.ok to be false');
     }
+    expect(result.error.code).toBe('reader.input.invalid');
   });
 
   it('should reject invalid pageLayout', () => {
@@ -106,9 +112,10 @@ describe('validateReaderSessionInput', () => {
     });
 
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe('reader.input.invalid');
+    if (result.ok) {
+      throw new Error('expected result.ok to be false');
     }
+    expect(result.error.code).toBe('reader.input.invalid');
   });
 
   it('should reject invalid tapZoneLayout', () => {
@@ -119,9 +126,10 @@ describe('validateReaderSessionInput', () => {
     });
 
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe('reader.input.invalid');
+    if (result.ok) {
+      throw new Error('expected result.ok to be false');
     }
+    expect(result.error.code).toBe('reader.input.invalid');
   });
 
   it('should reject minZoom greater than maxZoom', () => {
@@ -132,9 +140,10 @@ describe('validateReaderSessionInput', () => {
     });
 
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe('reader.input.invalid');
+    if (result.ok) {
+      throw new Error('expected result.ok to be false');
     }
+    expect(result.error.code).toBe('reader.input.invalid');
   });
 
   it('should reject negative preloadAhead', () => {
@@ -145,9 +154,10 @@ describe('validateReaderSessionInput', () => {
     });
 
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe('reader.input.invalid');
+    if (result.ok) {
+      throw new Error('expected result.ok to be false');
     }
+    expect(result.error.code).toBe('reader.input.invalid');
   });
 
   it('should reject invalid wheelBehavior', () => {
@@ -158,9 +168,10 @@ describe('validateReaderSessionInput', () => {
     });
 
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe('reader.input.invalid');
+    if (result.ok) {
+      throw new Error('expected result.ok to be false');
     }
+    expect(result.error.code).toBe('reader.input.invalid');
   });
 
   it('should reject invalid verticalGapPx', () => {
@@ -171,9 +182,10 @@ describe('validateReaderSessionInput', () => {
     });
 
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe('reader.input.invalid');
+    if (result.ok) {
+      throw new Error('expected result.ok to be false');
     }
+    expect(result.error.code).toBe('reader.input.invalid');
   });
 
   it('should accept valid session input', () => {
@@ -192,44 +204,49 @@ describe('validatePageIndex', () => {
     const result = validatePageIndex(NaN, 10);
 
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe('reader.page.missing');
+    if (result.ok) {
+      throw new Error('expected result.ok to be false');
     }
+    expect(result.error.code).toBe('reader.page.missing');
   });
 
   it('should reject negative index', () => {
     const result = validatePageIndex(-1, 10);
 
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe('reader.page.missing');
+    if (result.ok) {
+      throw new Error('expected result.ok to be false');
     }
+    expect(result.error.code).toBe('reader.page.missing');
   });
 
   it('should reject index beyond page count', () => {
     const result = validatePageIndex(10, 10);
 
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe('reader.page.missing');
+    if (result.ok) {
+      throw new Error('expected result.ok to be false');
     }
+    expect(result.error.code).toBe('reader.page.missing');
   });
 
   it('should accept valid index', () => {
     const result = validatePageIndex(5, 10);
 
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.value).toBe(5);
+    if (!result.ok) {
+      throw new Error('expected result.ok to be true');
     }
+    expect(result.value).toBe(5);
   });
 
   it('should accept last page index', () => {
     const result = validatePageIndex(9, 10);
 
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.value).toBe(9);
+    if (!result.ok) {
+      throw new Error('expected result.ok to be true');
     }
+    expect(result.value).toBe(9);
   });
 });

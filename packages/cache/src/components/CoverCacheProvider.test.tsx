@@ -7,7 +7,7 @@ import type * as coverCacheStore from '../cover-cache-store.js';
 
 vi.mock('../cover-cache-store.js', async (importOriginal) => ({
   ...(await importOriginal<typeof coverCacheStore>()),
-  runCoverCacheMaintenance: vi.fn(async () => {}),
+  runCoverCacheMaintenance: vi.fn<() => Promise<void>>(async () => {}),
 }));
 
 let mountCount = 0;

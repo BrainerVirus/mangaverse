@@ -38,9 +38,10 @@ describe('validateManifestInstallPolicy', () => {
     const policy: ExtensionInstallPolicy = { runtime: 'mobile' };
     const result = validateManifestInstallPolicy(manifest, policy);
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe('extensions.core.policy.runtime_mismatch');
+    if (result.ok) {
+      throw new Error('expected result.ok to be false');
     }
+    expect(result.error.code).toBe('extensions.core.policy.runtime_mismatch');
   });
 
   it('rejects app version below minAppVersion', () => {
@@ -48,9 +49,10 @@ describe('validateManifestInstallPolicy', () => {
     const policy: ExtensionInstallPolicy = { runtime: 'web', appVersion: '1.0.0' };
     const result = validateManifestInstallPolicy(manifest, policy);
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe('extensions.core.policy.app_version_too_low');
+    if (result.ok) {
+      throw new Error('expected result.ok to be false');
     }
+    expect(result.error.code).toBe('extensions.core.policy.app_version_too_low');
   });
 
   it('rejects app version above maxAppVersion', () => {
@@ -58,9 +60,10 @@ describe('validateManifestInstallPolicy', () => {
     const policy: ExtensionInstallPolicy = { runtime: 'web', appVersion: '3.0.0' };
     const result = validateManifestInstallPolicy(manifest, policy);
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.code).toBe('extensions.core.policy.app_version_too_high');
+    if (result.ok) {
+      throw new Error('expected result.ok to be false');
     }
+    expect(result.error.code).toBe('extensions.core.policy.app_version_too_high');
   });
 
   it('passes when app version is within range', () => {
@@ -110,7 +113,10 @@ describe('validateManifestInstallPolicy', () => {
     });
 
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.code).toBe('extensions.core.policy.invalid_version');
+    if (result.ok) {
+      throw new Error('expected result.ok to be false');
+    }
+    expect(result.error.code).toBe('extensions.core.policy.invalid_version');
   });
 
   it('rejects malformed manifest minAppVersion', () => {
@@ -121,6 +127,9 @@ describe('validateManifestInstallPolicy', () => {
     });
 
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.code).toBe('extensions.core.policy.invalid_version');
+    if (result.ok) {
+      throw new Error('expected result.ok to be false');
+    }
+    expect(result.error.code).toBe('extensions.core.policy.invalid_version');
   });
 });

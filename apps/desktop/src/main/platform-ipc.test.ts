@@ -17,18 +17,18 @@ describe('registerPlatformIpc', () => {
   it('registers every expected IPC channel', () => {
     const { ipcMain, handlers } = createMockIpc();
     const fakeWin = {
-      setFullScreen: vi.fn(),
-      isFullScreen: vi.fn(() => false),
+      setFullScreen: vi.fn<(value: boolean) => void>(),
+      isFullScreen: vi.fn<() => boolean>(() => false),
     };
     registerPlatformIpc({
       ipcMain: ipcMain as never,
       getTargetWindow: () => fakeWin as never,
       dialog: {} as never,
       clipboard: { readText: () => '', writeText: () => {} } as never,
-      shell: { openExternal: vi.fn() } as never,
-      net: { fetch: vi.fn() } as never,
-      readFileUtf8: vi.fn(),
-      writeFileUtf8: vi.fn(),
+      shell: { openExternal: vi.fn<(url: string) => Promise<void>>() } as never,
+      net: { fetch: vi.fn<(url: string, init?: RequestInit) => Promise<Response>>() } as never,
+      readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
+      writeFileUtf8: vi.fn<(path: string, content: string) => Promise<void>>(),
       getCapabilities: () => detectElectronCapabilities({ secureStorage: true }),
       protocolTakePendingInstallUrl: () => null,
       secureStorage: {
@@ -49,16 +49,16 @@ describe('registerPlatformIpc', () => {
 
   it('rejects unsafe external URL', async () => {
     const { ipcMain, handlers } = createMockIpc();
-    const shell = { openExternal: vi.fn() };
+    const shell = { openExternal: vi.fn<(url: string) => Promise<void>>() };
     registerPlatformIpc({
       ipcMain: ipcMain as never,
       getTargetWindow: () => null,
       dialog: {} as never,
       clipboard: { readText: () => '', writeText: () => {} } as never,
       shell: shell as never,
-      net: { fetch: vi.fn() } as never,
-      readFileUtf8: vi.fn(),
-      writeFileUtf8: vi.fn(),
+      net: { fetch: vi.fn<(url: string, init?: RequestInit) => Promise<Response>>() } as never,
+      readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
+      writeFileUtf8: vi.fn<(path: string, content: string) => Promise<void>>(),
       getCapabilities: () => detectElectronCapabilities(),
       protocolTakePendingInstallUrl: () => null,
       secureStorage: {
@@ -77,16 +77,16 @@ describe('registerPlatformIpc', () => {
 
   it('opens safe external URL through injected shell', async () => {
     const { ipcMain, handlers } = createMockIpc();
-    const shell = { openExternal: vi.fn(async () => {}) };
+    const shell = { openExternal: vi.fn<(url: string) => Promise<void>>(async () => {}) };
     registerPlatformIpc({
       ipcMain: ipcMain as never,
       getTargetWindow: () => null,
       dialog: {} as never,
       clipboard: { readText: () => '', writeText: () => {} } as never,
       shell: shell as never,
-      net: { fetch: vi.fn() } as never,
-      readFileUtf8: vi.fn(),
-      writeFileUtf8: vi.fn(),
+      net: { fetch: vi.fn<(url: string, init?: RequestInit) => Promise<Response>>() } as never,
+      readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
+      writeFileUtf8: vi.fn<(path: string, content: string) => Promise<void>>(),
       getCapabilities: () => detectElectronCapabilities(),
       protocolTakePendingInstallUrl: () => null,
       secureStorage: {
@@ -105,17 +105,19 @@ describe('registerPlatformIpc', () => {
 
   it('saves text only to selected path', async () => {
     const { ipcMain, handlers } = createMockIpc();
-    const writeFileUtf8 = vi.fn(async () => {});
+    const writeFileUtf8 = vi.fn<(path: string, content: string) => Promise<void>>(async () => {});
     registerPlatformIpc({
       ipcMain: ipcMain as never,
       getTargetWindow: () => null,
       dialog: {
-        showSaveDialog: vi.fn(async () => ({ canceled: false, filePath: '/tmp/out.txt' })),
+        showSaveDialog: vi.fn<() => Promise<{ canceled: boolean; filePath?: string }>>(
+          async () => ({ canceled: false, filePath: '/tmp/out.txt' }),
+        ),
       } as never,
       clipboard: { readText: () => '', writeText: () => {} } as never,
-      shell: { openExternal: vi.fn() } as never,
-      net: { fetch: vi.fn() } as never,
-      readFileUtf8: vi.fn(),
+      shell: { openExternal: vi.fn<(url: string) => Promise<void>>() } as never,
+      net: { fetch: vi.fn<(url: string, init?: RequestInit) => Promise<Response>>() } as never,
+      readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
       writeFileUtf8,
       getCapabilities: () => detectElectronCapabilities(),
       protocolTakePendingInstallUrl: () => null,
@@ -138,17 +140,19 @@ describe('registerPlatformIpc', () => {
 
   it('returns cancellation when save dialog is cancelled', async () => {
     const { ipcMain, handlers } = createMockIpc();
-    const writeFileUtf8 = vi.fn();
+    const writeFileUtf8 = vi.fn<(path: string, content: string) => Promise<void>>();
     registerPlatformIpc({
       ipcMain: ipcMain as never,
       getTargetWindow: () => null,
       dialog: {
-        showSaveDialog: vi.fn(async () => ({ canceled: true, filePath: undefined })),
+        showSaveDialog: vi.fn<() => Promise<{ canceled: boolean; filePath?: string }>>(
+          async () => ({ canceled: true, filePath: undefined }),
+        ),
       } as never,
       clipboard: { readText: () => '', writeText: () => {} } as never,
-      shell: { openExternal: vi.fn() } as never,
-      net: { fetch: vi.fn() } as never,
-      readFileUtf8: vi.fn(),
+      shell: { openExternal: vi.fn<(url: string) => Promise<void>>() } as never,
+      net: { fetch: vi.fn<(url: string, init?: RequestInit) => Promise<Response>>() } as never,
+      readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
       writeFileUtf8,
       getCapabilities: () => detectElectronCapabilities(),
       protocolTakePendingInstallUrl: () => null,
@@ -172,17 +176,17 @@ describe('registerPlatformIpc', () => {
 
   it('fullscreen handlers call the injected window', async () => {
     const { ipcMain, handlers } = createMockIpc();
-    const setFullScreen = vi.fn();
+    const setFullScreen = vi.fn<(value: boolean) => void>();
     const fakeWin = { setFullScreen, isFullScreen: () => true };
     registerPlatformIpc({
       ipcMain: ipcMain as never,
       getTargetWindow: () => fakeWin as never,
       dialog: {} as never,
       clipboard: { readText: () => '', writeText: () => {} } as never,
-      shell: { openExternal: vi.fn() } as never,
-      net: { fetch: vi.fn() } as never,
-      readFileUtf8: vi.fn(),
-      writeFileUtf8: vi.fn(),
+      shell: { openExternal: vi.fn<(url: string) => Promise<void>>() } as never,
+      net: { fetch: vi.fn<(url: string, init?: RequestInit) => Promise<Response>>() } as never,
+      readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
+      writeFileUtf8: vi.fn<(path: string, content: string) => Promise<void>>(),
       getCapabilities: () => detectElectronCapabilities(),
       protocolTakePendingInstallUrl: () => null,
       secureStorage: {
@@ -206,10 +210,10 @@ describe('registerPlatformIpc', () => {
       getTargetWindow: () => null,
       dialog: {} as never,
       clipboard: { readText: () => '', writeText: () => {} } as never,
-      shell: { openExternal: vi.fn() } as never,
-      net: { fetch: vi.fn() } as never,
-      readFileUtf8: vi.fn(),
-      writeFileUtf8: vi.fn(),
+      shell: { openExternal: vi.fn<(url: string) => Promise<void>>() } as never,
+      net: { fetch: vi.fn<(url: string, init?: RequestInit) => Promise<Response>>() } as never,
+      readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
+      writeFileUtf8: vi.fn<(path: string, content: string) => Promise<void>>(),
       getCapabilities: () => detectElectronCapabilities(),
       protocolTakePendingInstallUrl: () => null,
       secureStorage: {
@@ -247,10 +251,10 @@ describe('registerPlatformIpc', () => {
           throw new Error('denied');
         },
       } as never,
-      shell: { openExternal: vi.fn() } as never,
-      net: { fetch: vi.fn() } as never,
-      readFileUtf8: vi.fn(),
-      writeFileUtf8: vi.fn(),
+      shell: { openExternal: vi.fn<(url: string) => Promise<void>>() } as never,
+      net: { fetch: vi.fn<(url: string, init?: RequestInit) => Promise<Response>>() } as never,
+      readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
+      writeFileUtf8: vi.fn<(path: string, content: string) => Promise<void>>(),
       getCapabilities: () => detectElectronCapabilities(),
       protocolTakePendingInstallUrl: () => null,
       secureStorage: {

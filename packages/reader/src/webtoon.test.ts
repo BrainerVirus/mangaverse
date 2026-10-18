@@ -124,11 +124,10 @@ describe('estimateWebtoonLayout', () => {
     const input = makeInput({ verticalGapPx: 16 });
     const layout = estimateWebtoonLayout(input);
 
-    if (layout.pagePositions.length > 1) {
-      const firstPageBottom = layout.pagePositions[0]!.top + layout.pagePositions[0]!.height;
-      const secondPageTop = layout.pagePositions[1]!.top;
-      expect(secondPageTop - firstPageBottom).toBe(16);
-    }
+    expect(layout.pagePositions.length).toBeGreaterThan(1);
+    const firstPageBottom = layout.pagePositions[0]!.top + layout.pagePositions[0]!.height;
+    const secondPageTop = layout.pagePositions[1]!.top;
+    expect(secondPageTop - firstPageBottom).toBe(16);
   });
 
   it('should handle missing page dimensions', () => {

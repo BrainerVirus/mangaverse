@@ -8,18 +8,20 @@ vi.mock('@app/motion', async () => {
   return {
     ...actual,
     useReducedMotion: () => false,
-    chromeShow: vi.fn(),
-    chromeHide: vi.fn(),
+    chromeShow: vi.fn<(...args: unknown[]) => unknown>(),
+    chromeHide: vi.fn<(...args: unknown[]) => unknown>(),
   };
 });
 
 vi.mock('@gsap/react', () => ({
-  useGSAP: vi.fn((callback, config) => {
-    if (config?.scope?.current) {
-      callback();
-    }
-    return () => {};
-  }),
+  useGSAP: vi.fn<(callback: () => void, config?: { scope?: { current?: unknown } }) => () => void>(
+    (callback, config) => {
+      if (config?.scope?.current) {
+        callback();
+      }
+      return () => {};
+    },
+  ),
 }));
 
 describe('ReaderChrome', () => {
@@ -49,7 +51,7 @@ describe('ReaderChrome', () => {
 
   it('calls onPageChange when previous button is clicked', async () => {
     const user = userEvent.setup();
-    const onPageChange = vi.fn();
+    const onPageChange = vi.fn<(page: number) => void>();
 
     render(
       <ReaderChrome visible={true} currentPage={5} totalPages={10} onPageChange={onPageChange} />,
@@ -61,7 +63,7 @@ describe('ReaderChrome', () => {
 
   it('calls onPageChange when next button is clicked', async () => {
     const user = userEvent.setup();
-    const onPageChange = vi.fn();
+    const onPageChange = vi.fn<(page: number) => void>();
 
     render(
       <ReaderChrome visible={true} currentPage={5} totalPages={10} onPageChange={onPageChange} />,
@@ -73,7 +75,7 @@ describe('ReaderChrome', () => {
 
   it('does not call onPageChange when at first page and previous is clicked', async () => {
     const user = userEvent.setup();
-    const onPageChange = vi.fn();
+    const onPageChange = vi.fn<(page: number) => void>();
 
     render(
       <ReaderChrome visible={true} currentPage={1} totalPages={10} onPageChange={onPageChange} />,
@@ -86,7 +88,7 @@ describe('ReaderChrome', () => {
 
   it('does not call onPageChange when at last page and next is clicked', async () => {
     const user = userEvent.setup();
-    const onPageChange = vi.fn();
+    const onPageChange = vi.fn<(page: number) => void>();
 
     render(
       <ReaderChrome visible={true} currentPage={10} totalPages={10} onPageChange={onPageChange} />,
@@ -113,7 +115,7 @@ describe('ReaderChrome', () => {
         currentPage={1}
         totalPages={10}
         mode="single"
-        onModeChange={vi.fn()}
+        onModeChange={vi.fn<(mode: unknown) => void>()}
       />,
     );
 
@@ -124,7 +126,7 @@ describe('ReaderChrome', () => {
 
   it('calls onModeChange when mode button is clicked', async () => {
     const user = userEvent.setup();
-    const onModeChange = vi.fn();
+    const onModeChange = vi.fn<(mode: unknown) => void>();
 
     render(
       <ReaderChrome

@@ -33,12 +33,14 @@
     // measured 2026-10-17). Four keeps are
     // inline ignores with recorded rulings: react/set-state-in-effect on the two SSR
     // hooks (use-is-client, use-reduced-motion) and react/incompatible-library on the two
-    // TanStack Virtual grids. Still pinned here, measured 2026-10-17 with this list forced
-    // to `error`: 363 findings — 14 in production / 349 in tests. vitest family (later
-    // slice): require-mock-type-parameters 248, no-conditional-expect 99, valid-expect 1,
-    // require-to-throw-message 1, expect-expect 0. jsx-a11y (unrelated slice):
+    // TanStack Virtual grids. The vitest family is enabled now and clean too: all five
+    // rules report 0 findings (354 fixed, measured 2026-10-17 with the five rules forced
+    // to `error`: require-mock-type-parameters 253, no-conditional-expect 99,
+    // valid-expect 1, require-to-throw-message 1, expect-expect 0). Still pinned here,
+    // measured 2026-10-17 with the jsx-a11y list forced to `error`: 14 findings —
     // prefer-tag-over-role 12, no-noninteractive-element-interactions 2,
-    // no-static-element-interactions 0. The two clean rules stay pinned with their family
+    // no-static-element-interactions 0 (its own slice; it touches components, not tests).
+    // The two clean rules stay pinned with their family
     // so the list is re-measured in one go. Note for the record: ruling #552 counted 64
     // production typescript/no-redundant-type-constituents findings; the real count is 1 —
     // 62 more were "error type" artifacts of that rule and one was a
@@ -53,11 +55,11 @@
     // build (e.g. `turbo run lint`, whose task already declares dependsOn ["^build"]).
     "typescript/no-redundant-type-constituents": "off",
     "typescript/no-base-to-string": "off",
-    "vitest/require-mock-type-parameters": "off",
-    "vitest/no-conditional-expect": "off",
-    "vitest/valid-expect": "off",
-    "vitest/require-to-throw-message": "off",
-    "vitest/expect-expect": "off",
+    "vitest/require-mock-type-parameters": "error",
+    "vitest/no-conditional-expect": "error",
+    "vitest/valid-expect": "error",
+    "vitest/require-to-throw-message": "error",
+    "vitest/expect-expect": "error",
     "jsx-a11y/prefer-tag-over-role": "off",
     "jsx-a11y/no-static-element-interactions": "off",
     "jsx-a11y/no-noninteractive-element-interactions": "off"

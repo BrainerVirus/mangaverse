@@ -6,12 +6,14 @@ import { routeEnter, routeExit } from '../route-transitions/route-enter-exit.js'
 
 vi.mock('gsap', () => ({
   gsap: {
-    fromTo: vi.fn(() => ({ then: vi.fn() })),
-    to: vi.fn(() => ({ then: vi.fn() })),
-    set: vi.fn(() => ({ then: vi.fn() })),
-    timeline: vi.fn(() => ({
-      fromTo: vi.fn().mockReturnThis(),
-      to: vi.fn().mockReturnThis(),
+    fromTo: vi.fn<(target: unknown, vars: unknown) => unknown>(() => ({
+      then: vi.fn<() => void>(),
+    })),
+    to: vi.fn<(target: unknown, vars: unknown) => unknown>(() => ({ then: vi.fn<() => void>() })),
+    set: vi.fn<(target: unknown, vars: unknown) => unknown>(() => ({ then: vi.fn<() => void>() })),
+    timeline: vi.fn<(vars: unknown) => unknown>(() => ({
+      fromTo: vi.fn<(...args: unknown[]) => unknown>().mockReturnThis(),
+      to: vi.fn<(...args: unknown[]) => unknown>().mockReturnThis(),
     })),
   },
 }));

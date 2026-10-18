@@ -410,7 +410,7 @@ describe('@app/db', () => {
         addedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }),
-    ).rejects.toThrow();
+    ).rejects.toThrow(/FOREIGN KEY/i);
   });
 
   it('applies a valid backup to an empty database', async () => {

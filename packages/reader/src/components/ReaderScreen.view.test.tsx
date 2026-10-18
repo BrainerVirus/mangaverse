@@ -7,8 +7,8 @@ import type { ReaderSettings } from '@app/shared';
 
 vi.mock('@app/cache', () => ({
   CachedPageImage: () => null,
-  markChapterPagesAsRead: vi.fn(async () => {}),
-  prefetchChapterPages: vi.fn(async () => {}),
+  markChapterPagesAsRead: vi.fn<() => Promise<void>>(async () => {}),
+  prefetchChapterPages: vi.fn<() => Promise<void>>(async () => {}),
   useCoverCacheContext: () => null,
 }));
 

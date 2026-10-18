@@ -10,15 +10,15 @@ const storeState = vi.hoisted(() => ({
     isOpen: false,
     query: '',
     selectedIndex: 0,
-    close: vi.fn(),
-    setQuery: vi.fn(),
-    moveSelection: vi.fn(),
-    setSelectedIndex: vi.fn(),
+    close: vi.fn<() => void>(),
+    setQuery: vi.fn<(query: string) => void>(),
+    moveSelection: vi.fn<(delta: number) => void>(),
+    setSelectedIndex: vi.fn<(index: number) => void>(),
   },
 }));
 
 vi.mock('@tanstack/react-router', () => ({
-  useNavigate: () => vi.fn(),
+  useNavigate: () => vi.fn<() => void>(),
 }));
 
 vi.mock('@app/design-system', () => ({
@@ -46,8 +46,8 @@ vi.mock('../../providers/platform-provider.js', () => ({
 
 vi.mock('@app/motion', () => ({
   useReducedMotion: () => false,
-  commandPaletteEnter: vi.fn(),
-  commandPaletteExit: vi.fn(),
+  commandPaletteEnter: vi.fn<(...args: unknown[]) => unknown>(),
+  commandPaletteExit: vi.fn<(...args: unknown[]) => unknown>(),
 }));
 
 vi.mock('@gsap/react', () => ({

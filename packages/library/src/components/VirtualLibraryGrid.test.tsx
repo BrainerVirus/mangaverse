@@ -30,7 +30,7 @@ vi.mock('@tanstack/react-virtual', () => ({
         size: 200,
       }));
     },
-    measureElement: vi.fn(),
+    measureElement: vi.fn<(...args: unknown[]) => unknown>(),
   }),
 }));
 
@@ -91,7 +91,7 @@ describe('VirtualLibraryGrid', () => {
       <VirtualLibraryGrid
         items={[createItem('1', 'Title 1'), createItem('2', 'Title 2')]}
         layout="grid"
-        onOpenManga={vi.fn()}
+        onOpenManga={vi.fn<(mangaId: string) => void>()}
       />,
     );
 
@@ -108,7 +108,7 @@ describe('VirtualLibraryGrid', () => {
             createItem(String(index + 1), `Title ${index + 1}`),
           )}
           layout="grid"
-          onOpenManga={vi.fn()}
+          onOpenManga={vi.fn<(mangaId: string) => void>()}
         />
       </div>,
     );
@@ -120,7 +120,7 @@ describe('VirtualLibraryGrid', () => {
   });
 
   it('calls onOpenManga when a visible card is clicked', () => {
-    const onOpenManga = vi.fn();
+    const onOpenManga = vi.fn<(mangaId: string) => void>();
 
     render(
       <div style={{ width: 1200, height: 600, overflow: 'auto' }}>

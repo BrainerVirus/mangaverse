@@ -27,7 +27,7 @@ vi.mock('@tanstack/react-virtual', () => ({
         size: 200,
       }));
     },
-    measureElement: vi.fn(),
+    measureElement: vi.fn<(...args: unknown[]) => unknown>(),
   }),
 }));
 
@@ -71,7 +71,7 @@ describe('VirtualSearchGrid', () => {
     render(
       <VirtualSearchGrid
         results={[createManga('1', 'Title 1'), createManga('2', 'Title 2')]}
-        onOpenManga={vi.fn()}
+        onOpenManga={vi.fn<(mangaId: string) => void>()}
       />,
     );
 
@@ -87,7 +87,7 @@ describe('VirtualSearchGrid', () => {
           results={Array.from({ length: 24 }, (_, index) =>
             createManga(String(index + 1), `Title ${index + 1}`),
           )}
-          onOpenManga={vi.fn()}
+          onOpenManga={vi.fn<(mangaId: string) => void>()}
         />
       </div>,
     );
@@ -103,7 +103,7 @@ describe('VirtualSearchGrid', () => {
           results={Array.from({ length: 120 }, (_, index) =>
             createManga(String(index + 1), `Title ${index + 1}`),
           )}
-          onOpenManga={vi.fn()}
+          onOpenManga={vi.fn<(mangaId: string) => void>()}
         />
       </div>,
     );
@@ -115,7 +115,7 @@ describe('VirtualSearchGrid', () => {
   });
 
   it('calls onOpenManga when a visible card is clicked', () => {
-    const onOpenManga = vi.fn();
+    const onOpenManga = vi.fn<(mangaId: string) => void>();
 
     render(
       <div style={{ width: 1200, height: 600, overflow: 'auto' }}>

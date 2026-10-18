@@ -8,18 +8,20 @@ vi.mock('@app/motion', async () => {
   return {
     ...actual,
     useReducedMotion: () => false,
-    chromeShow: vi.fn(),
-    chromeHide: vi.fn(),
+    chromeShow: vi.fn<(...args: unknown[]) => unknown>(),
+    chromeHide: vi.fn<(...args: unknown[]) => unknown>(),
   };
 });
 
 vi.mock('@gsap/react', () => ({
-  useGSAP: vi.fn((callback, config) => {
-    if (config?.scope?.current) {
-      callback();
-    }
-    return () => {};
-  }),
+  useGSAP: vi.fn<(callback: () => void, config?: { scope?: { current?: unknown } }) => () => void>(
+    (callback, config) => {
+      if (config?.scope?.current) {
+        callback();
+      }
+      return () => {};
+    },
+  ),
 }));
 
 describe('ReaderChrome Accessibility', () => {
@@ -78,8 +80,8 @@ describe('ReaderChrome Accessibility', () => {
         visible={true}
         currentPage={5}
         totalPages={10}
-        onPageChange={vi.fn()}
-        onModeChange={vi.fn()}
+        onPageChange={vi.fn<(page: number) => void>()}
+        onModeChange={vi.fn<(mode: unknown) => void>()}
       />,
     );
 
@@ -93,7 +95,7 @@ describe('ReaderChrome Accessibility', () => {
 
   it('reader mode buttons are keyboard accessible', async () => {
     const user = userEvent.setup();
-    const onModeChange = vi.fn();
+    const onModeChange = vi.fn<(mode: unknown) => void>();
 
     render(
       <ReaderChrome

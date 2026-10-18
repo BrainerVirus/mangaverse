@@ -28,7 +28,10 @@ describe('providerMethodGuard', () => {
     });
     const r = providerMethodGuard(manifestNoDetails, provider, 'getDetails');
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error.code).toBe('extensions.sdk.contract.capability_unavailable');
+    if (r.ok) {
+      throw new Error('expected r.ok to be false');
+    }
+    expect(r.error.code).toBe('extensions.sdk.contract.capability_unavailable');
   });
 
   it('returns method_unavailable when capability ok but method missing', () => {
@@ -37,6 +40,9 @@ describe('providerMethodGuard', () => {
     });
     const r = providerMethodGuard(manifestNoDetails, provider, 'search');
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error.code).toBe('extensions.sdk.contract.method_unavailable');
+    if (r.ok) {
+      throw new Error('expected r.ok to be false');
+    }
+    expect(r.error.code).toBe('extensions.sdk.contract.method_unavailable');
   });
 });
