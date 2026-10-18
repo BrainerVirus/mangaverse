@@ -192,6 +192,8 @@ export async function flushLocalDb(): Promise<void> {
   } catch (error) {
     // Surface the failure for the UI and keep it out of unhandled rejections.
     persistenceErrorHandler?.(error instanceof Error ? error.message : String(error));
+    // oxlint-disable-next-line no-console -- ruling: web-console-diagnostics: the handler above forwards only the message to the banner; the Error object here keeps the stack for a dev.
+    // react-doctor-disable-next-line eslint/no-console -- ruling: web-console-diagnostics: the handler above forwards only the message to the banner; the Error object here keeps the stack for a dev.
     console.error('[local-db] Failed to persist database snapshot:', error);
   }
 }
@@ -228,6 +230,8 @@ export function watchLocalDbForExternalChanges(
       })
       .catch((error: unknown) => {
         // A rejected store read must not become an unhandled rejection.
+        // oxlint-disable-next-line no-console -- ruling: web-console-diagnostics: the cross-tab sync failure has no UI surface at all, so this is the only record that it happened.
+        // react-doctor-disable-next-line eslint/no-console -- ruling: web-console-diagnostics: the cross-tab sync failure has no UI surface at all, so this is the only record that it happened.
         console.error('[local-db] Cross-tab sync failed:', error);
       });
   };

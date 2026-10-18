@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
 import {
   detectWebCapabilities,
   type PlatformCapabilities,
@@ -53,14 +53,15 @@ export function PlatformProvider({ children, detectFn }: PlatformProviderProps) 
     setDetected({ detector: detectFn, capabilities: getInitialCapabilities(detectFn) });
   }
   const capabilities = detected.capabilities;
+  // Memoized above the `!capabilities` bail-out so the hook order never changes.
+  const contextValue = useMemo<PlatformContextValue | null>(
+    () => (capabilities ? { capabilities, runtime: capabilities.runtime } : null),
+    [capabilities],
+  );
 
-  if (!capabilities) {
+  if (contextValue === null) {
     return null;
   }
 
-  return (
-    <PlatformContext.Provider value={{ capabilities, runtime: capabilities.runtime }}>
-      {children}
-    </PlatformContext.Provider>
-  );
+  return <PlatformContext.Provider value={contextValue}>{children}</PlatformContext.Provider>;
 }

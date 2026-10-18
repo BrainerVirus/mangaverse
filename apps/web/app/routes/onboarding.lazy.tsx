@@ -19,7 +19,7 @@ import {
   settingsQueryKeys,
 } from '@app/settings';
 import type { AppSettings, ReaderSettings } from '@app/shared';
-import { saveThemeSettings } from '@app/theme';
+import { saveThemeSettings, themeQueryKeys } from '@app/theme';
 
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 import { useTheme } from '../providers/theme-provider.js';
@@ -91,6 +91,9 @@ function OnboardingRoute() {
     },
     onSettled: () => {
       setThemeSaving(false);
+      // The write lands in the theme settings row the bridge caches; without this the
+      // bridge keeps serving the pre-onboarding settings after a reload.
+      void queryClient.invalidateQueries({ queryKey: themeQueryKeys.settings() });
     },
   });
 

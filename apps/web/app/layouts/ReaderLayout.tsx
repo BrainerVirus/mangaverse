@@ -5,6 +5,7 @@ import { AnimatedRouteOutlet } from '../components/shell/AnimatedRouteOutlet.js'
 export function ReaderLayout({ children }: { children: React.ReactNode }) {
   const { toggleReaderChrome, setReaderChrome } = useLayoutStore();
 
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-route-entry-reset: entering the reader resets chrome state that the last reader session left off, and Escape/f/F are window-level shortcuts — both need the mount lifecycle.
   useEffect(() => {
     setReaderChrome(true);
 

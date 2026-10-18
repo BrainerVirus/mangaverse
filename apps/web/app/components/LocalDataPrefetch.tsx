@@ -9,6 +9,7 @@ export function LocalDataPrefetch() {
   const db = useLocalDb();
   const dbStatus = useLocalDbStatus();
 
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-prefetch: warming the caches is a fire-and-forget side effect gated on the DB opening; there is no event to hang it off and the queries already own the data once it lands.
   useEffect(() => {
     if (dbStatus !== 'ready' || db === null) {
       return;

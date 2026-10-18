@@ -18,6 +18,7 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
     enabled: dbStatus === 'ready' && db !== null,
   });
 
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-redirect: redirecting is a router side effect that may only fire after the onboarding query resolves; rendering nothing would flash the wrong route, and navigating during render is not allowed.
   useEffect(() => {
     if (dbStatus !== 'ready' || onboardingQuery.data === undefined) {
       return;

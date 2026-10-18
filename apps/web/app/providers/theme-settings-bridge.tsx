@@ -18,6 +18,7 @@ export function ThemeSettingsBridge() {
     enabled: dbStatus === 'ready' && db !== null,
   });
 
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-cache-to-context-sync: the query result arrives asynchronously and must be pushed into ThemeProvider's context, which owns the state. Calling it during render would set a parent component's state from a child render.
   useEffect(() => {
     if (data?.settings) {
       hydrateThemeSettings(data.settings);
@@ -57,6 +58,7 @@ export function ThemeSettingsBridge() {
     },
   });
 
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-sink-registration: pushes the persist callback into ThemeProvider's ref and clears it on unmount — subscription bookkeeping against a ref that lives in another component.
   useEffect(() => {
     registerThemeSettingsPersistence((nextSettings) => {
       if (db === null || dbStatus !== 'ready') {

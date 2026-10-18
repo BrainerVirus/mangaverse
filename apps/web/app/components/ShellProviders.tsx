@@ -36,6 +36,7 @@ function KeyboardShortcuts() {
   const open = useCommandPaletteStore((s) => s.open);
   const close = useCommandPaletteStore((s) => s.close);
 
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-window-keydown: a global Cmd/Ctrl+K shortcut is a window-level external-system subscription that must outlive any single input.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'k') {
@@ -60,6 +61,7 @@ function NavigationTracker() {
   const router = useRouter();
   const pushRecentRoute = useNavigationStore((s) => s.pushRecentRoute);
 
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-router-subscription: subscribing to the router's `onResolved` event is the only way to observe completed navigations; it has no React-level equivalent.
   useEffect(() => {
     const unsubscribe = router.subscribe('onResolved', ({ toLocation }) => {
       const segments = toLocation.pathname.split('/').filter(Boolean);

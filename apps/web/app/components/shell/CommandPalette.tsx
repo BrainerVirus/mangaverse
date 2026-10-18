@@ -1,3 +1,8 @@
+// File-level because react-doctor's own `react-doctor-disable-next-line` for the same kept
+// decision needs the line directly above `role="dialog"` (ruling mvd4xjfd): <dialog> moves this
+// overlay into the top layer and adds its own open state plus UA max-width/centering, so it is
+// not equivalent to this hand-rolled palette; role + aria-modal is the accessible equivalent.
+// oxlint-disable jsx-a11y/prefer-tag-over-role
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useGSAP } from '@gsap/react';
@@ -21,6 +26,7 @@ function useBuiltInCommands() {
   const { toggleSidebar } = useLayoutStore();
   const { theme, setTheme } = useTheme();
 
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-module-registry: `registry` is a module-level mutable registry; registering on mount and unregistering on unmount is subscription bookkeeping. The handlers close over navigate/theme, which have no module-scope home.
   useEffect(() => {
     registry.register({
       id: 'nav-discover',
@@ -131,6 +137,7 @@ export function CommandPalette() {
 
   // Escape must close the palette from anywhere: the input's own handler only
   // fires once it holds focus, and focus lands a frame after the palette opens.
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-window-keydown: a window-level keydown subscription is a true external-system boundary; it must exist for the whole open window, not for the life of the focused input.
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -142,6 +149,7 @@ export function CommandPalette() {
     return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
   }, [isOpen, close]);
 
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-focus-after-open: focusing the input needs the panel committed and the GSAP enter started; autoFocus would fight the enter animation's transform and scroll the panel.
   useEffect(() => {
     if (!isOpen || !rendered) return;
     const frame = requestAnimationFrame(() => {
@@ -206,7 +214,7 @@ export function CommandPalette() {
         // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- the overlay is the palette's single keyboard scope: Arrow/Enter/Escape must work from anywhere inside it (input, items, backdrop). The input must not bind the handler again -- its keydown already bubbles here, and binding both fired every moveSelection twice
         <div
           className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[12vh]"
-          // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- <dialog> moves this overlay into the top layer and adds its own open state plus UA max-width/centering, so it is not equivalent to this hand-rolled palette; role + aria-modal is the accessible equivalent
+          // react-doctor-disable-next-line react-doctor/prefer-html-dialog -- ruling mvd4xjfd (same keep as the file-level jsx-a11y/prefer-tag-over-role disable above): <dialog> would move this overlay into the top layer and bring its own open state, Escape handling and UA max-width/centering, duplicating the palette's GSAP enter/exit; role + aria-modal is the accessible equivalent.
           role="dialog"
           aria-modal="true"
           aria-label="Command palette"

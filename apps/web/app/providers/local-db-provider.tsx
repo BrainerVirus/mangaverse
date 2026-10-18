@@ -1,4 +1,12 @@
-import { createContext, use, useCallback, useEffect, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  use,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { AppDrizzleDb } from '@app/db';
 import { installFirstPartyProviders } from '../lib/first-party-providers.js';
@@ -43,6 +51,8 @@ function formatDbError(error: unknown): string {
 
 function logDbInitFailure(error: unknown): void {
   const message = formatDbError(error);
+  // oxlint-disable-next-line no-console -- ruling: web-console-diagnostics: this sink carries the Error object (stack + cause) that the `errorMessage` state below cannot; without it a dev has nothing to inspect when the DB fails to open. No logger dependency is in scope.
+  // react-doctor-disable-next-line eslint/no-console -- ruling: web-console-diagnostics: this sink carries the Error object (stack + cause) that the `errorMessage` state below cannot; without it a dev has nothing to inspect when the DB fails to open. No logger dependency is in scope.
   console.error('[LocalDbProvider] Failed to initialize local database:', message, error);
 }
 
@@ -74,6 +84,7 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
     setValue((current) => ({ ...current, persistenceError: message }));
   }, []);
 
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-db-open: opening the IndexedDB/WASM session is a true external-system boundary with an async result; only an effect can start it per `attempt` and cancel on unmount.
   useEffect(() => {
     let cancelled = false;
 
@@ -82,6 +93,8 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
         try {
           await installFirstPartyProviders(handle);
         } catch (seedError) {
+          // oxlint-disable-next-line no-console -- ruling: web-console-diagnostics: a skipped seed is non-fatal and never reaches `errorMessage` or the UI, so this warn is the only signal that a bundled provider is missing.
+          // react-doctor-disable-next-line eslint/no-console -- ruling: web-console-diagnostics: a skipped seed is non-fatal and never reaches `errorMessage` or the UI, so this warn is the only signal that a bundled provider is missing.
           console.warn('[LocalDbProvider] First-party provider install skipped:', seedError);
         }
 
@@ -106,6 +119,7 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
     };
   }, [attempt]);
 
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-sink-registration: `setPersistenceErrorHandler` is a module-level sink in the local-db lib; registering and clearing it is subscription bookkeeping, not derivable state.
   useEffect(() => {
     setPersistenceErrorHandler((message) => {
       setValue((current) => ({ ...current, persistenceError: message }));
@@ -115,6 +129,7 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-external-subscriptions: subscribes to the browser's storage/visibilitychange events and the pagehide flush.
   useEffect(() => {
     if (value.status !== 'ready') return;
 
@@ -138,16 +153,18 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
     };
   }, [value.status]);
 
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-query-cache-sync: the cross-tab snapshot handler swaps the handle; invalidating here (after the commit that closes over the new handle) is what makes observers refetch against it.
   useEffect(() => {
     if (value.status !== 'ready' || handleVersion === 0) return;
     void queryClient.invalidateQueries();
   }, [handleVersion, queryClient, value.status]);
 
-  return (
-    <LocalDbContext value={{ ...value, retry, retryPersistence, reportPersistenceError }}>
-      {children}
-    </LocalDbContext>
+  const contextValue = useMemo<LocalDbContextValue>(
+    () => ({ ...value, retry, retryPersistence, reportPersistenceError }),
+    [value, retry, retryPersistence, reportPersistenceError],
   );
+
+  return <LocalDbContext value={contextValue}>{children}</LocalDbContext>;
 }
 
 export function useLocalDb(): AppDrizzleDb | null {
