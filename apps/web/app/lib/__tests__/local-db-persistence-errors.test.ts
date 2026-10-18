@@ -49,7 +49,7 @@ describe('local-db persistence error reporting', () => {
 
   it('Given a failing flush, When flushLocalDb runs, Then the handler receives the error message', async () => {
     sessionBehavior.flushThrows = true;
-    const handler = vi.fn();
+    const handler = vi.fn<(...args: unknown[]) => unknown>();
     setPersistenceErrorHandler(handler);
 
     await flushLocalDb();
@@ -58,7 +58,7 @@ describe('local-db persistence error reporting', () => {
   });
 
   it('Given a successful flush, When flushLocalDb runs, Then the handler is cleared', async () => {
-    const handler = vi.fn();
+    const handler = vi.fn<(...args: unknown[]) => unknown>();
     setPersistenceErrorHandler(handler);
 
     await flushLocalDb();

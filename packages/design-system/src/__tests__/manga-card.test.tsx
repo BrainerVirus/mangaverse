@@ -19,12 +19,14 @@ vi.mock('@app/motion', async () => {
 });
 
 vi.mock('@gsap/react', () => ({
-  useGSAP: vi.fn((callback, config) => {
-    if (config?.scope?.current) {
-      callback();
-    }
-    return () => {};
-  }),
+  useGSAP: vi.fn<(callback: () => void, config?: { scope?: { current?: unknown } }) => () => void>(
+    (callback, config) => {
+      if (config?.scope?.current) {
+        callback();
+      }
+      return () => {};
+    },
+  ),
 }));
 
 const createMockManga = (overrides: Partial<MangaIdentity> = {}): MangaIdentity => ({
@@ -74,7 +76,7 @@ describe('MangaCard', () => {
 
   it('calls onClick when clicked', async () => {
     const user = userEvent.setup();
-    const onClick = vi.fn();
+    const onClick = vi.fn<() => void>();
     const manga = createMockManga();
 
     render(<MangaCard manga={manga} onClick={onClick} />);
@@ -85,7 +87,7 @@ describe('MangaCard', () => {
 
   it('calls onClick when Enter key is pressed', async () => {
     const user = userEvent.setup();
-    const onClick = vi.fn();
+    const onClick = vi.fn<() => void>();
     const manga = createMockManga();
 
     render(<MangaCard manga={manga} onClick={onClick} />);
@@ -98,7 +100,7 @@ describe('MangaCard', () => {
 
   it('calls onClick when Space key is pressed', async () => {
     const user = userEvent.setup();
-    const onClick = vi.fn();
+    const onClick = vi.fn<() => void>();
     const manga = createMockManga();
 
     render(<MangaCard manga={manga} onClick={onClick} />);

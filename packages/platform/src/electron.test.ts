@@ -1,7 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ok } from '@app/shared';
+import { ok, type AppResult } from '@app/shared';
 import { createElectronPlatformAdapter } from './electron.js';
-import type { DesktopPlatformBridge, PlatformCapabilities } from './types.js';
+import type {
+  DesktopPlatformBridge,
+  LocalServiceInfo,
+  PlatformCapabilities,
+  PlatformDiagnosticsSnapshot,
+  PlatformFileOpenOptions,
+  PlatformFileResult,
+  PlatformFileSaveOptions,
+  PlatformNetworkFetchResult,
+} from './types.js';
 
 describe('createElectronPlatformAdapter', () => {
   const caps: PlatformCapabilities = {
@@ -48,22 +57,42 @@ describe('createElectronPlatformAdapter', () => {
 
   it('delegates grouped calls to the bridge', async () => {
     const bridge: DesktopPlatformBridge = {
-      getCapabilities: vi.fn(async () => ok(caps)),
-      clipboardReadText: vi.fn(async () => ok('clip')),
-      clipboardWriteText: vi.fn(async () => ok(undefined)),
-      fileOpenText: vi.fn(async () => ok({ content: 'open' })),
-      fileSaveText: vi.fn(async () => ok({ content: 'save' })),
-      fullscreenEnter: vi.fn(async () => ok(undefined)),
-      fullscreenExit: vi.fn(async () => ok(undefined)),
-      fullscreenIsActive: vi.fn(async () => ok(true)),
-      protocolGetPendingInstallUrl: vi.fn(async () => ok('https://example.com')),
-      externalLinkOpen: vi.fn(async () => ok(undefined)),
-      secureStorageGet: vi.fn(async () => ok('secret')),
-      secureStorageSet: vi.fn(async () => ok(undefined)),
-      secureStorageDelete: vi.fn(async () => ok(undefined)),
-      diagnosticsGetSnapshot: vi.fn(async () => ok({ platform: 'darwin' })),
-      localServiceGetInfo: vi.fn(async () => ok({ running: true, host: '127.0.0.1', port: 123 })),
-      networkFetchBytes: vi.fn(async () => ok(undefined)),
+      getCapabilities: vi.fn<() => Promise<AppResult<PlatformCapabilities>>>(async () => ok(caps)),
+      clipboardReadText: vi.fn<() => Promise<AppResult<string>>>(async () => ok('clip')),
+      clipboardWriteText: vi.fn<(text: string) => Promise<AppResult<void>>>(async () =>
+        ok(undefined),
+      ),
+      fileOpenText: vi.fn<
+        (options: PlatformFileOpenOptions) => Promise<AppResult<PlatformFileResult>>
+      >(async () => ok({ path: 'p', content: 'open' })),
+      fileSaveText: vi.fn<
+        (options: PlatformFileSaveOptions) => Promise<AppResult<PlatformFileResult>>
+      >(async () => ok({ path: 'p', content: 'save' })),
+      fullscreenEnter: vi.fn<() => Promise<AppResult<void>>>(async () => ok(undefined)),
+      fullscreenExit: vi.fn<() => Promise<AppResult<void>>>(async () => ok(undefined)),
+      fullscreenIsActive: vi.fn<() => Promise<AppResult<boolean>>>(async () => ok(true)),
+      protocolGetPendingInstallUrl: vi.fn<() => Promise<AppResult<string | null>>>(async () =>
+        ok('https://example.com'),
+      ),
+      externalLinkOpen: vi.fn<(url: string) => Promise<AppResult<void>>>(async () => ok(undefined)),
+      secureStorageGet: vi.fn<(key: string) => Promise<AppResult<string | undefined>>>(async () =>
+        ok('secret'),
+      ),
+      secureStorageSet: vi.fn<(key: string, value: string) => Promise<AppResult<void>>>(async () =>
+        ok(undefined),
+      ),
+      secureStorageDelete: vi.fn<(key: string) => Promise<AppResult<void>>>(async () =>
+        ok(undefined),
+      ),
+      diagnosticsGetSnapshot: vi.fn<() => Promise<AppResult<PlatformDiagnosticsSnapshot>>>(
+        async () => ok({ platform: 'darwin' }),
+      ),
+      localServiceGetInfo: vi.fn<() => Promise<AppResult<LocalServiceInfo>>>(async () =>
+        ok({ running: true, host: '127.0.0.1', port: 123 }),
+      ),
+      networkFetchBytes: vi.fn<
+        (url: string) => Promise<AppResult<PlatformNetworkFetchResult | undefined>>
+      >(async () => ok(undefined)),
     };
     const adapter = createElectronPlatformAdapter(bridge);
 
@@ -107,7 +136,7 @@ describe('createElectronPlatformAdapter', () => {
       fullscreenExit: async () => ok(undefined),
       fullscreenIsActive: async () => ok(false),
       protocolGetPendingInstallUrl: async () => ok(null),
-      externalLinkOpen: vi.fn(async () => ok(undefined)),
+      externalLinkOpen: vi.fn<(url: string) => Promise<AppResult<void>>>(async () => ok(undefined)),
       secureStorageGet: async () => ok(undefined),
       secureStorageSet: async () => ok(undefined),
       secureStorageDelete: async () => ok(undefined),
@@ -145,9 +174,10 @@ describe('createElectronPlatformAdapter', () => {
     const adapter = createElectronPlatformAdapter(bridge);
     const r = await adapter.capabilities();
     expect(r.ok).toBe(false);
-    if (!r.ok) {
-      expect(r.error.code).toBe('platform.unexpected');
+    if (r.ok) {
+      throw new Error('expected capabilities to fail');
     }
+    expect(r.error.code).toBe('platform.unexpected');
   });
 
   it('rejects invalid secure storage keys before calling bridge', async () => {
@@ -162,9 +192,15 @@ describe('createElectronPlatformAdapter', () => {
       fullscreenIsActive: async () => ok(false),
       protocolGetPendingInstallUrl: async () => ok(null),
       externalLinkOpen: async () => ok(undefined),
-      secureStorageGet: vi.fn(async () => ok(undefined)),
-      secureStorageSet: vi.fn(async () => ok(undefined)),
-      secureStorageDelete: vi.fn(async () => ok(undefined)),
+      secureStorageGet: vi.fn<(key: string) => Promise<AppResult<string | undefined>>>(async () =>
+        ok(undefined),
+      ),
+      secureStorageSet: vi.fn<(key: string, value: string) => Promise<AppResult<void>>>(async () =>
+        ok(undefined),
+      ),
+      secureStorageDelete: vi.fn<(key: string) => Promise<AppResult<void>>>(async () =>
+        ok(undefined),
+      ),
       diagnosticsGetSnapshot: async () => ok({}),
       localServiceGetInfo: async () => ok({ running: false, host: null, port: null }),
       networkFetchBytes: async () => ok(undefined),
@@ -197,6 +233,9 @@ describe('createElectronPlatformAdapter', () => {
     const adapter = createElectronPlatformAdapter(bridge);
     const r = await adapter.storage.getItem('reader.preference');
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error.code).toBe('platform.unsupported');
+    if (r.ok) {
+      throw new Error('expected desktop storage to be unsupported');
+    }
+    expect(r.error.code).toBe('platform.unsupported');
   });
 });

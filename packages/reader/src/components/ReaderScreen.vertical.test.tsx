@@ -6,8 +6,8 @@ import { getDefaultReaderSettings, toChapterPageId } from '@app/shared';
 
 vi.mock('@app/cache', () => ({
   CachedPageImage: () => null,
-  markChapterPagesAsRead: vi.fn(async () => {}),
-  prefetchChapterPages: vi.fn(async () => {}),
+  markChapterPagesAsRead: vi.fn<() => Promise<void>>(async () => {}),
+  prefetchChapterPages: vi.fn<() => Promise<void>>(async () => {}),
   useCoverCacheContext: () => null,
 }));
 
@@ -126,7 +126,7 @@ function mount(pageHeights: Readonly<Record<number, number>> = {}): Mounted {
   const strip = container.querySelector<HTMLElement>('[data-testid="reader-scroll-view"]');
   if (strip === null) throw new Error('scroll view did not render');
 
-  const scrollTo = vi.fn();
+  const scrollTo = vi.fn<(...args: unknown[]) => void>();
   Object.defineProperty(strip, 'clientHeight', { value: VIEWPORT_HEIGHT });
   Object.defineProperty(strip, 'scrollHeight', { value: scrollHeight() });
   Object.defineProperty(strip, 'scrollTo', { value: scrollTo });

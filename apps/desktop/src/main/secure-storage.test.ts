@@ -87,9 +87,10 @@ describe('createSecureStorageModel', () => {
     });
     const r = await model.set('k', 'v');
     expect(r.ok).toBe(false);
-    if (!r.ok) {
-      expect(r.error.code).toBe('platform.secure-storage-unavailable');
+    if (r.ok) {
+      throw new Error('expected r.ok to be false');
     }
+    expect(r.error.code).toBe('platform.secure-storage-unavailable');
   });
 
   it('does not include secret values in errors', async () => {
@@ -108,8 +109,9 @@ describe('createSecureStorageModel', () => {
     });
     const r = await model.set('k', 'v');
     expect(r.ok).toBe(false);
-    if (!r.ok) {
-      expect(JSON.stringify(r.error)).not.toContain('SECRET');
+    if (r.ok) {
+      throw new Error('expected r.ok to be false');
     }
+    expect(JSON.stringify(r.error)).not.toContain('SECRET');
   });
 });

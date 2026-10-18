@@ -27,20 +27,20 @@ describe('ErrorState', () => {
   });
 
   it('renders retry button when onRetry is provided', () => {
-    render(<ErrorState title="Error" message="Failed to load" onRetry={vi.fn()} />);
+    render(<ErrorState title="Error" message="Failed to load" onRetry={vi.fn<() => void>()} />);
 
     expect(screen.getByRole('button', { name: /Retry/i })).toBeInTheDocument();
   });
 
   it('renders back button when onBack is provided', () => {
-    render(<ErrorState title="Error" message="Failed to load" onBack={vi.fn()} />);
+    render(<ErrorState title="Error" message="Failed to load" onBack={vi.fn<() => void>()} />);
 
     expect(screen.getByRole('button', { name: /Go Back/i })).toBeInTheDocument();
   });
 
   it('calls onRetry when retry button is clicked', async () => {
     const user = userEvent.setup();
-    const onRetry = vi.fn();
+    const onRetry = vi.fn<() => void>();
 
     render(<ErrorState title="Error" message="Failed to load" onRetry={onRetry} />);
 
@@ -50,7 +50,7 @@ describe('ErrorState', () => {
 
   it('calls onBack when back button is clicked', async () => {
     const user = userEvent.setup();
-    const onBack = vi.fn();
+    const onBack = vi.fn<() => void>();
 
     render(<ErrorState title="Error" message="Failed to load" onBack={onBack} />);
 
@@ -60,7 +60,12 @@ describe('ErrorState', () => {
 
   it('shows both buttons when both callbacks are provided', () => {
     render(
-      <ErrorState title="Error" message="Failed to load" onRetry={vi.fn()} onBack={vi.fn()} />,
+      <ErrorState
+        title="Error"
+        message="Failed to load"
+        onRetry={vi.fn<() => void>()}
+        onBack={vi.fn<() => void>()}
+      />,
     );
 
     expect(screen.getByRole('button', { name: /Retry/i })).toBeInTheDocument();

@@ -3,8 +3,8 @@ import { createWebPlatformAdapter } from './web.js';
 
 describe('createWebPlatformAdapter', () => {
   it('clipboard uses injected navigator methods', async () => {
-    const readText = vi.fn(async () => 'hello');
-    const writeText = vi.fn(async () => {});
+    const readText = vi.fn<() => Promise<string>>(async () => 'hello');
+    const writeText = vi.fn<(text: string) => Promise<void>>(async () => {});
     const adapter = createWebPlatformAdapter({
       capabilityProbe: {
         hasClipboardRead: true,
@@ -20,8 +20,8 @@ describe('createWebPlatformAdapter', () => {
 
   it('fullscreen uses injected element methods', async () => {
     const el = {} as Element;
-    const requestFullscreen = vi.fn(async () => {});
-    const exitFullscreen = vi.fn(async () => {});
+    const requestFullscreen = vi.fn<(element: Element) => Promise<void>>(async () => {});
+    const exitFullscreen = vi.fn<() => Promise<void>>(async () => {});
     const adapter = createWebPlatformAdapter({
       capabilityProbe: { fullscreenEnabled: true },
       getDocumentElement: () => el,
@@ -46,9 +46,9 @@ describe('createWebPlatformAdapter', () => {
   });
 
   it('saveTextFile uses injected download hooks', async () => {
-    const createObjectUrl = vi.fn(() => 'blob:mock');
-    const revokeObjectUrl = vi.fn();
-    const createDownload = vi.fn();
+    const createObjectUrl = vi.fn<(blob: Blob) => string>(() => 'blob:mock');
+    const revokeObjectUrl = vi.fn<(url: string) => void>();
+    const createDownload = vi.fn<(filename: string, href: string) => void>();
     const adapter = createWebPlatformAdapter({
       createObjectUrl,
       revokeObjectUrl,
@@ -65,18 +65,20 @@ describe('createWebPlatformAdapter', () => {
     const adapter = createWebPlatformAdapter({});
     const r = await adapter.files.openTextFile({});
     expect(r.ok).toBe(false);
-    if (!r.ok) {
-      expect(r.error.code).toBe('platform.unsupported');
+    if (r.ok) {
+      throw new Error('expected openTextFile to be unsupported');
     }
+    expect(r.error.code).toBe('platform.unsupported');
   });
 
   it('secure storage returns unsupported', async () => {
     const adapter = createWebPlatformAdapter({});
     const r = await adapter.secureStorage.get('k');
     expect(r.ok).toBe(false);
-    if (!r.ok) {
-      expect(r.error.code).toBe('platform.unsupported');
+    if (r.ok) {
+      throw new Error('expected secure storage to be unsupported');
     }
+    expect(r.error.code).toBe('platform.unsupported');
   });
 
   it('storage getItem/setItem/deleteItem uses injected localStorage', async () => {
@@ -105,30 +107,45 @@ describe('createWebPlatformAdapter', () => {
     const adapter = createWebPlatformAdapter({});
     const r = await adapter.storage.getItem('k');
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error.code).toBe('platform.unsupported');
+    if (r.ok) {
+      throw new Error('expected storage to be unsupported');
+    }
+    expect(r.error.code).toBe('platform.unsupported');
   });
 
   it('storage estimate uses injected storageManager', async () => {
-    const estimate = vi.fn(async () => ({ quota: 1024, usage: 512 }));
-    const persisted = vi.fn(async () => true);
+    const estimate = vi.fn<() => Promise<{ quota: number; usage: number }>>(async () => ({
+      quota: 1024,
+      usage: 512,
+    }));
+    const persisted = vi.fn<() => Promise<boolean>>(async () => true);
     const adapter = createWebPlatformAdapter({
       capabilityProbe: { hasStorageEstimate: true, isSecureContext: true },
-      storageManager: { estimate, persist: vi.fn(), persisted },
+      storageManager: {
+        estimate,
+        persist: vi.fn<() => Promise<boolean>>(),
+        persisted,
+      },
     });
     const r = await adapter.storage.estimate();
     expect(r.ok).toBe(true);
-    if (r.ok) {
-      expect(r.value.quota).toBe(1024);
-      expect(r.value.usage).toBe(512);
-      expect(r.value.persisted).toBe(true);
+    if (!r.ok) {
+      throw new Error('expected storage estimate to succeed');
     }
+    expect(r.value.quota).toBe(1024);
+    expect(r.value.usage).toBe(512);
+    expect(r.value.persisted).toBe(true);
   });
 
   it('storage persist delegates to injected storageManager', async () => {
-    const persist = vi.fn(async () => true);
+    const persist = vi.fn<() => Promise<boolean>>(async () => true);
     const adapter = createWebPlatformAdapter({
       capabilityProbe: { hasStoragePersist: true },
-      storageManager: { estimate: vi.fn(), persist, persisted: vi.fn() },
+      storageManager: {
+        estimate: vi.fn<() => Promise<{ quota: number; usage: number }>>(),
+        persist,
+        persisted: vi.fn<() => Promise<boolean>>(),
+      },
     });
     const r = await adapter.storage.persist();
     expect(r.ok && r.value).toBe(true);
@@ -139,16 +156,22 @@ describe('createWebPlatformAdapter', () => {
     const adapter = createWebPlatformAdapter({});
     const r = await adapter.storage.estimate();
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error.code).toBe('platform.unsupported');
+    if (r.ok) {
+      throw new Error('expected storage estimate to be unsupported');
+    }
+    expect(r.error.code).toBe('platform.unsupported');
   });
 
   it('storage persist returns unsupported when persist is absent', async () => {
     const adapter = createWebPlatformAdapter({
-      storageManager: { estimate: vi.fn() },
+      storageManager: { estimate: vi.fn<() => Promise<{ quota: number; usage: number }>>() },
     });
     const r = await adapter.storage.persist();
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error.code).toBe('platform.unsupported');
+    if (r.ok) {
+      throw new Error('expected storage persist to be unsupported');
+    }
+    expect(r.error.code).toBe('platform.unsupported');
   });
 
   it('capabilities reflect injected storage and download dependencies', async () => {
@@ -173,10 +196,11 @@ describe('createWebPlatformAdapter', () => {
 
     const r = await adapter.capabilities();
     expect(r.ok).toBe(true);
-    if (r.ok) {
-      expect(r.value.nativeFileSave).toBe(true);
-      expect(r.value.persistentStorage).toBe(true);
-      expect(r.value.storageEstimate).toBe(true);
+    if (!r.ok) {
+      throw new Error('expected capabilities to succeed');
     }
+    expect(r.value.nativeFileSave).toBe(true);
+    expect(r.value.persistentStorage).toBe(true);
+    expect(r.value.storageEstimate).toBe(true);
   });
 });

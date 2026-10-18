@@ -40,7 +40,7 @@ describe('@app/db/browser entry', () => {
 
     for (const file of reachable) {
       const source = readFileSync(file, 'utf8');
-      expect(source, file).not.toMatch(nodeImportPattern);
+      expect(source).not.toMatch(nodeImportPattern);
     }
   });
 

@@ -8,17 +8,19 @@ vi.mock('@app/motion', async () => {
   return {
     ...actual,
     useReducedMotion: () => false,
-    fadeIn: vi.fn(),
+    fadeIn: vi.fn<(...args: unknown[]) => unknown>(),
   };
 });
 
 vi.mock('@gsap/react', () => ({
-  useGSAP: vi.fn((callback, config) => {
-    if (config?.scope?.current) {
-      callback();
-    }
-    return () => {};
-  }),
+  useGSAP: vi.fn<(callback: () => void, config?: { scope?: { current?: unknown } }) => () => void>(
+    (callback, config) => {
+      if (config?.scope?.current) {
+        callback();
+      }
+      return () => {};
+    },
+  ),
 }));
 
 describe('EmptyState', () => {
@@ -66,14 +68,19 @@ describe('EmptyState', () => {
   });
 
   it('shows action button when action prop is provided', () => {
-    render(<EmptyState type="no-library" action={{ label: 'Add Manga', onClick: vi.fn() }} />);
+    render(
+      <EmptyState
+        type="no-library"
+        action={{ label: 'Add Manga', onClick: vi.fn<() => void>() }}
+      />,
+    );
 
     expect(screen.getByRole('button', { name: 'Add Manga' })).toBeInTheDocument();
   });
 
   it('calls onClick when action button is clicked', async () => {
     const user = userEvent.setup();
-    const onClick = vi.fn();
+    const onClick = vi.fn<() => void>();
 
     render(<EmptyState type="no-library" action={{ label: 'Add Manga', onClick }} />);
 

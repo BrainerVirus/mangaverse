@@ -14,8 +14,8 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
     ...actual,
     useLocation: () => ({ pathname: '/library' }),
     useRouterState: () => ({ location: { pathname: '/library' } }),
-    useRouter: () => ({ navigate: vi.fn(), subscribe: () => () => {} }),
-    useNavigate: () => vi.fn(),
+    useRouter: () => ({ navigate: vi.fn<(options: unknown) => void>(), subscribe: () => () => {} }),
+    useNavigate: () => vi.fn<() => void>(),
     Link: ({ children, to, ...props }: { to: string; children: React.ReactNode }) => (
       <a href={to} {...props}>
         {children}
@@ -26,7 +26,7 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
 
 vi.mock('@app/motion', () => ({
   useReducedMotion: () => false,
-  routeEnter: vi.fn(),
+  routeEnter: vi.fn<(...args: unknown[]) => unknown>(),
 }));
 
 vi.mock('@gsap/react', () => ({

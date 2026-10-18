@@ -6,8 +6,8 @@ import { getDefaultReaderSettings, toChapterPageId } from '@app/shared';
 
 vi.mock('@app/cache', () => ({
   CachedPageImage: () => null,
-  markChapterPagesAsRead: vi.fn(async () => {}),
-  prefetchChapterPages: vi.fn(async () => {}),
+  markChapterPagesAsRead: vi.fn<() => Promise<void>>(async () => {}),
+  prefetchChapterPages: vi.fn<() => Promise<void>>(async () => {}),
   useCoverCacheContext: () => null,
 }));
 
@@ -112,7 +112,7 @@ function mount(onPersist: (event: { pageIndex: number }) => void): {
 
 describe('ReaderScreen offline state', () => {
   it('Given no data and a paused offline fetch, When rendered, Then an offline message with Retry appears', () => {
-    const onRetry = vi.fn();
+    const onRetry = vi.fn<() => void>();
     const container = document.createElement('div');
     document.body.appendChild(container);
     const root = createRoot(container);
@@ -149,7 +149,7 @@ describe('ReaderScreen offline state', () => {
 
 describe('ReaderScreen progress checkpoint', () => {
   it('Given a reader that mounted and left immediately, When unmounting, Then the initial page is not persisted', () => {
-    const onPersist = vi.fn();
+    const onPersist = vi.fn<(event: { pageIndex: number }) => void>();
     const { root, container } = mount(onPersist);
 
     // A router blip (or a user pressing Back right after opening) must not
@@ -163,7 +163,7 @@ describe('ReaderScreen progress checkpoint', () => {
   });
 
   it('Given the reader advanced a page, When unmounting before the debounce, Then the new page is checkpointed', () => {
-    const onPersist = vi.fn();
+    const onPersist = vi.fn<(event: { pageIndex: number }) => void>();
     const { root, container } = mount(onPersist);
 
     act(() => {

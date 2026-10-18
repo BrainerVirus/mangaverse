@@ -15,9 +15,9 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
   return {
     ...actual,
     useLocation: () => ({ pathname: '/library' }),
-    useRouter: () => ({ navigate: vi.fn(), subscribe: () => () => {} }),
+    useRouter: () => ({ navigate: vi.fn<(options: unknown) => void>(), subscribe: () => () => {} }),
     useRouterState: () => ({ location: { pathname: '/library' } }),
-    useNavigate: () => vi.fn(),
+    useNavigate: () => vi.fn<() => void>(),
     Link: ({ children, to, ...props }: { to: string; children: React.ReactNode }) => (
       <a href={to} {...props}>
         {children}
@@ -31,14 +31,14 @@ vi.mock('../../providers/local-db-provider.js', () => ({
   useLocalDb: () => null,
   useLocalDbStatus: () => 'ready' as const,
   usePersistenceError: () => null,
-  useRetryPersistence: () => vi.fn(),
+  useRetryPersistence: () => vi.fn<() => void>(),
 }));
 
 vi.mock('@app/motion', () => ({
   useReducedMotion: () => false,
-  routeEnter: vi.fn(),
-  commandPaletteEnter: vi.fn(),
-  commandPaletteExit: vi.fn(),
+  routeEnter: vi.fn<(...args: unknown[]) => unknown>(),
+  commandPaletteEnter: vi.fn<(...args: unknown[]) => unknown>(),
+  commandPaletteExit: vi.fn<(...args: unknown[]) => unknown>(),
 }));
 
 vi.mock('@gsap/react', () => ({

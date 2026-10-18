@@ -4,8 +4,10 @@ import type { ExtensionInstallMetadata } from '@app/shared';
 import { toExtensionInstallId } from '@app/shared';
 
 const { listInstalledExtensions, upsertInstalledExtension } = vi.hoisted(() => ({
-  listInstalledExtensions: vi.fn(),
-  upsertInstalledExtension: vi.fn(async () => ({ ok: true as const, value: undefined })),
+  listInstalledExtensions: vi.fn<(...args: unknown[]) => unknown>(),
+  upsertInstalledExtension: vi.fn<(...args: unknown[]) => Promise<{ ok: true; value: undefined }>>(
+    async () => ({ ok: true as const, value: undefined }),
+  ),
 }));
 
 vi.mock('@app/db/browser', () => ({

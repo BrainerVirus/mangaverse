@@ -4,7 +4,7 @@ import { act } from 'react';
 
 import { OnboardingGate } from '../OnboardingGate.js';
 
-const navigate = vi.fn();
+const navigate = vi.fn<() => void>();
 let onboardingState = {
   status: 'not_started' as const,
   currentStep: 'welcome' as const,

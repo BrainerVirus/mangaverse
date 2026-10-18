@@ -25,9 +25,10 @@ describe('app settings', () => {
     });
 
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.value.preferredLanguages).toEqual(['en', 'ja']);
+    if (!result.ok) {
+      throw new Error('expected result.ok to be true');
     }
+    expect(result.value.preferredLanguages).toEqual(['en', 'ja']);
   });
 
   it('rejects invalid preferred languages', () => {

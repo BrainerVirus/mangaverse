@@ -5,14 +5,20 @@ describe('result helpers', () => {
   it('ok wraps value', () => {
     const r = ok(42);
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.value).toBe(42);
+    if (!r.ok) {
+      throw new Error('expected r.ok to be true');
+    }
+    expect(r.value).toBe(42);
   });
 
   it('err wraps error', () => {
     const e = createAppError({ code: 'x', message: 'm' });
     const r = err(e);
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error).toEqual(e);
+    if (r.ok) {
+      throw new Error('expected r.ok to be false');
+    }
+    expect(r.error).toEqual(e);
   });
 
   it('createAppError includes optional fields', () => {

@@ -68,9 +68,10 @@ describe('validateThemeSettings', () => {
   it('accepts known presets', () => {
     const result = validateThemeSettings({ presetId: 'sakura', dark: true });
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.value).toEqual({ presetId: 'sakura', dark: true });
+    if (!result.ok) {
+      throw new Error('expected result.ok to be true');
     }
+    expect(result.value).toEqual({ presetId: 'sakura', dark: true });
   });
 
   it('rejects unknown presets', () => {

@@ -36,8 +36,8 @@ class ResizeObserverMock {
     );
   };
 
-  unobserve = vi.fn();
-  disconnect = vi.fn();
+  unobserve = vi.fn<(...args: unknown[]) => void>();
+  disconnect = vi.fn<(...args: unknown[]) => void>();
 }
 
 vi.stubGlobal('ResizeObserver', ResizeObserverMock);
