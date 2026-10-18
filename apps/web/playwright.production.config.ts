@@ -35,8 +35,16 @@ const firstFreePort = (from: number): number => {
 const requested = process.env.E2E_PORT ? Number(process.env.E2E_PORT) : 5185;
 // CI runs a single suite on a fresh runner: keep the requested port so a flaky
 // probe can never silently move the run to another port.
-const port =
+const requestedPort =
   process.env.CI !== undefined || !isTaken(requested) ? requested : firstFreePort(requested + 1);
+// Playwright re-evaluates this config in every worker process: without memoizing
+// the resolution, the worker's probe would see the run's own server as taken and
+// resolve requested+1 while the webServer stays on the requested port.
+const memoized = process.env.E2E_RESOLVED_PORT;
+const port = memoized === undefined ? requestedPort : Number(memoized);
+if (memoized === undefined) {
+  process.env.E2E_RESOLVED_PORT = String(port);
+}
 const baseURL = `http://127.0.0.1:${port}`;
 
 export default defineConfig({
