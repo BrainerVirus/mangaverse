@@ -623,7 +623,9 @@ gesture set.
 | `≥ 1024px`             | Persistent rail, 220px expanded / 52px collapsed (`Cmd/Ctrl+B`), glass-thick, elevation-4    | Double-page layout honoured; preview rail on the progress bar; keyboard-first                     |
 
 Grids keep their existing rhythm (library 2 → 3 → 4 → 5 → 6 columns, discover 2 → 3 → 4 → 6, `gap-4`).
-Glass budget per breakpoint: ≤ 2 blurred layers below `md`, ≤ 4 from `md` up (§2.5).
+Glass budget per breakpoint: ≤ 2 blurred layers below `md`, ≤ 4 from `md` up (§2.5). The table is the
+target contract: today the rail is hidden below `md` with a hover-expand and the bottom bar is the only
+sub-`md` navigation (§7.7).
 
 ### 6.4 Accessibility contract
 
@@ -648,7 +650,10 @@ Glass budget per breakpoint: ≤ 2 blurred layers below `md`, ≤ 4 from `md` up
 
 Every recipe below is written for the shadcn conventions the repository already uses: `cva`-style variant
 maps, semantic tokens only (no raw colours), `cn()` composition, and no styling logic in feature code.
-New variants are named so an implementer can add them without inventing names.
+New variants are named so an implementer can add them without inventing names. A variant map carries the
+button base classes inside every value (the shadcn `cva` base list, adopted in #84), so a new variant must
+include that base string — composing a variant without it drops `inline-flex items-center` and stacks the
+icon above the label.
 
 ### 7.1 New primitives for `@app/design-system` (proposed)
 
@@ -704,8 +709,10 @@ alias that renders a matte `GlassPanel` until every caller has moved (P5).
   rounded top/bottom edges; overlay `bg-black/60 backdrop-blur-sm`; open 300ms / close 200ms. Target:
   `GlassSurface level="thick"`, `--radius-glass` on the leading edge, `--ease-glide`, open
   `DURATION.expressive` / close `DURATION.standard`, and the proposed drag-to-dismiss (§6.1).
-- **Popovers, selects, tooltips (existing):** `--popover` + `shadow-md`. Target: `GlassSurface
-  level="regular"`, `--elevation-3`; a tooltip is `level="thick"` so its text never fights the backdrop.
+- **Popovers, selects, tooltips (existing):** `--popover` + `shadow-md`. A tooltip is a hidden bubble
+  revealed on hover or focus, positioned beside its trigger — not a permanent wrapper box. Target:
+  `GlassSurface level="regular"`, `--elevation-3`; a tooltip is `level="thick"` so its text never fights
+  the backdrop.
 - **Command palette (existing):** `max-w-xl`, 12vh from the top, `bg-black/55 backdrop-blur-[2px]` scrim,
   `h-11` borderless search field, `text-xs uppercase tracking-wide` group headers, rows hovering on
   `--muted` at 70% and taking `--accent` with a hairline ring when selected. Target: panel on
@@ -753,9 +760,11 @@ and `chromeShow`/`chromeHide` from `@app/motion`. The material is what changes:
 
 ### 7.7 Sidebar / shell
 
-- **Desktop rail (existing):** 220px expanded / 52px collapsed over 200ms ease-out, `--sidebar` with a
-  right hairline, rows 36px (`h-9`) at `text-sm font-medium`, `gap-3`, 20px icons, active row on the
-  secondary fill, hover on `--accent`, collapse control and mono keyboard hint at the foot. Target:
+- **Desktop rail (existing):** 220px expanded / 52px collapsed over a 200ms ease-out transition, hidden
+  below `md`, on `--sidebar` with a right hairline, rows 36px (`h-9`) at `text-sm font-medium` with 20px
+  icons in a `gap-1` list, active row on the secondary fill, hover on `--accent`, and a foot holding the
+  collapse control plus a mono `kbd` hint on `--sidebar-accent`. Hovering the rail expands it on pointer
+  devices after a 200ms delay, and the toggle button gives keyboard and touch users the same state. Target:
   `GlassSurface level="thick"` floating with `--radius-glass` and `--elevation-4`; the active row takes
   `--accent` **plus** a 2px `--primary` edge bar.
 - **Mobile bottom bar (existing):** 56px, `bg-background/95 backdrop-blur`, top hairline, safe-area
