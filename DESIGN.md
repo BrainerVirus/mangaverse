@@ -346,7 +346,7 @@ tokens join the theme layer's list once introduced; presets may tint them, never
 
 - **Signal Red** `#dc2626` → `#ef4444` — `--destructive`. Deletion, uninstall, destructive restore, and
   the content-rating badge. On glass, light mode needs the darker **proposed** `--destructive-glass`
-  `#b91c1c`; dark's `#ef4444` measures 4.80:1 against dark glass (thick, alpha .78) over `--background`
+  `#b91c1c`; dark's `#ef4444` measures 5.03:1 against dark glass (thick, alpha .78) over `--background`
   and needs nothing.
 - **Confirm Green** `#16a34a` → `#22c55e` — `--success`. Completed backup, restore, migration. On
   glass, light mode needs the darker **proposed** `#15803d` (4.89:1 on light glass, regular, alpha .68,
@@ -753,8 +753,8 @@ alias that renders a matte `GlassPanel` until every caller has moved (P5).
   with the field when disabled.
 - **Switch (existing):** 24×44 pill (`--radius-badge`) with a 20px circular thumb carrying `shadow-md`.
 - **Slider (existing):** native range with a transparent track and a 16px `--primary` thumb. The reader's
-  page rail is the same idea on the stage: an 8px white-at-25% track, a 16px white thumb, and a fill and
-  thumb that move by `transform` only over a raw 180ms `cubic-bezier(0.22, 1, 0.36, 1)` (a CSS transition
+  page rail is the same idea on the stage: an 8px white-at-25% track, a 16px white thumb (positioned by
+  `left`), and a fill that scales by `transform` only over a raw 180ms `cubic-bezier(0.22, 1, 0.36, 1)` (a CSS transition
   in `reader-progress-rail.tsx`, not a `DURATION` token), with the preview popover at 120ms `ease-out`.
 - **Tabs (existing):** a 40px trough at 7px radius on `--muted`, active trigger on the canvas colour with
   `shadow-sm` — the only place a tab looks raised. Target: the trough becomes `GlassSurface
@@ -953,7 +953,8 @@ Honest accounting. Nothing below is aspirational; §13 is where the gap closes.
 - **Focus ring contrast (existing defect).** `--ring` measures 2.32:1 (light) and 2.58:1 (dark) against
   the canvas, under WCAG 2.2's 3:1 for non-text contrast. Proposed fix in §3.3; it is a token change that
   touches `packages/design-system`, `packages/theme` and their tests, so it belongs in P1.
-- **Light-mode `--warning` on glass (3.10:1) and `--success` (4.89:1), measured against the light glass
+- **Light-mode `--warning` on glass (3.10:1) and the shipped `--success` `#16a34a` (3.21:1; the proposed
+  `#15803d` reaches 4.89:1), measured against the light glass
   fill (regular, alpha .68) over `--background`.** The glass status colours in §3.4 are proposals, not
   measurements of shipped values.
 - **`prefers-reduced-transparency` support is uneven.** The in-app setting is the reliable path; the media

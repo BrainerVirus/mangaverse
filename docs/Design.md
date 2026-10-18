@@ -275,10 +275,10 @@ Theme rules:
 - Reader errors need retry and back actions.
 - Reader should avoid surprise UI shifts after images load.
 - Reader chrome uses the `stage` glass tier with opaque plates under its control rows, so white labels stay
-  legible over any page (the floor and the placement rules are `DESIGN.md` §3.5). The only other
-  translucent surfaces inside the reader are the ones `DESIGN.md` §7.6 names — the mode pill's `thin` tint
-  and the reader's own modals (the settings sheet and the chapter transition card); nothing else in the
-  reader is translucent.
+  legible over any page (the floor and the placement rules are `DESIGN.md` §3.5). The other translucent
+  surfaces inside the reader are the ones `DESIGN.md` §7.6 names — the mode pill's `thin` tint, the rail's
+  preview popover and the offline toast (`stage`), and the reader's own modals (the settings sheet and the
+  chapter transition card).
 - The reader's page transition animates the page layer only; tap zones, chrome insets, and the zoom layer
   never move during a transition, and a second navigation request cancels the tween immediately.
 
