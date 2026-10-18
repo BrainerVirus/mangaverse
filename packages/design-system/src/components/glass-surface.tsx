@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { cn } from '../lib/cn.js';
 import {
+  GLASS_IMAGERY_TIERS,
   glassElevations,
   glassLevels,
   type GlassElevation,
@@ -20,6 +21,11 @@ const GlassLevelContext = React.createContext<GlassLevel | null>(null);
 /** The nearest `GlassSurface` tier, or `null` above every surface. */
 export function useGlassLevel(): GlassLevel | null {
   return React.use(GlassLevelContext);
+}
+
+/** §2.1 — a tier whose backdrop is imagery, so its blur pass reads a blurred composite. */
+function blursImagery(tier: GlassLevel): boolean {
+  return GLASS_IMAGERY_TIERS.includes(tier);
 }
 
 export interface GlassSurfaceProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -51,7 +57,7 @@ export const GlassSurface = React.forwardRef<HTMLDivElement, GlassSurfaceProps>(
   ) => {
     const parent = useGlassLevel();
     // §2.5: two imagery-blurring tiers never nest — the inner pass re-blurs a blurred composite.
-    if (parent !== null && parent !== 'thin' && level !== 'thin') {
+    if (parent !== null && blursImagery(parent) && blursImagery(level)) {
       throw new Error(
         `GlassSurface: ${level} glass cannot nest inside ${parent} glass. Two imagery-blurring tiers never nest (DESIGN.md §2.5).`,
       );

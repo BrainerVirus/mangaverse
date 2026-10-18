@@ -8,9 +8,13 @@ export type GlassPanelPadding = 'none' | 'sm' | 'md' | 'lg';
 
 /** DESIGN.md §2.1 — one class per tier; the only place in the app a `backdrop-filter` is set. */
 export const glassLevels: Record<GlassLevel, string> = {
+  // Known flat backdrop: tab troughs inside a glass panel, hover washes, chips on an opaque card.
   thin: 'glass-thin',
+  // Floating toolbars and sticky headers over the ambient canvas, popovers, cards over imagery.
   regular: 'glass-regular',
+  // Anything that owns the foreground: sheets, dialogs, the palette, the rail, the bottom bar.
   thick: 'glass-thick',
+  // Reader chrome only, theme-independent: the reading stage is always black.
   stage: 'glass-stage',
 };
 
