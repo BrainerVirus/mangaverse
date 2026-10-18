@@ -38,6 +38,7 @@ jobs:
           restore-keys: |
             turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
 
+      # oxlint, including the @shadcn/lint design-system plugin from .oxlintrc.json.
       - name: Lint
         run: pnpm lint
 
