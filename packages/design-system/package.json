@@ -27,8 +27,6 @@
     "@app/shared": "workspace:*",
     "@base-ui/react": "^1.9.0",
     "@gsap/react": "^2.1.2",
-    "@radix-ui/react-dialog": "^1.1.15",
-    "@radix-ui/react-select": "^2.4.0",
     "cn": "^0.5.0",
     "gsap": "^3.15.0",
     "lucide-react": "^1.56.0",
