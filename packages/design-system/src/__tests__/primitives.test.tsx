@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { cn } from '../lib/cn.js';
 
 describe('cn() utility', () => {
-  it('merges duplicate classes with tailwind-merge', () => {
+  it('merges duplicate classes with cn', () => {
     const result = cn('text-red-500', 'text-red-500');
     expect(result).toBe('text-red-500');
   });
@@ -37,13 +37,13 @@ describe('cn() utility', () => {
     expect(result).toBe('');
   });
 
-  it('resolves conflicting tailwind classes with tailwind-merge', () => {
+  it('resolves conflicting tailwind classes with cn', () => {
     const result = cn('bg-red-500', 'bg-blue-500');
     expect(result).not.toContain('bg-red-500');
     expect(result).toContain('bg-blue-500');
   });
 
-  it('handles clsx string array input', () => {
+  it('handles string array input', () => {
     const result = cn(['flex', 'items-center']);
     expect(result).toContain('flex');
     expect(result).toContain('items-center');

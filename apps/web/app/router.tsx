@@ -21,11 +21,7 @@ function RouteTransition({ children }: { children: React.ReactNode }) {
     { scope: ref, dependencies: [reducedMotion] },
   );
 
-  return (
-    <div ref={ref} className="route-transition">
-      {children}
-    </div>
-  );
+  return <div ref={ref}>{children}</div>;
 }
 
 export function getRouter(options: { platformDetectFn?: () => PlatformCapabilities } = {}) {

@@ -155,6 +155,12 @@
       "sourceType": "autoskills-registry",
       "computedHash": "4bc9e220b816f74547d770f73a2878e86df035f42e445c1e98875dd9793fe927"
     },
+    "migrate-radix-to-base": {
+      "source": "shadcn/ui",
+      "sourceType": "github",
+      "skillPath": "skills/migrate-radix-to-base/SKILL.md",
+      "computedHash": "e1f2030ee5059be3dff0812ca0e4b995ee9fa3132176f049ebe6c90346a6755e"
+    },
     "native-data-fetching": {
       "source": "expo/skills",
       "sourceType": "autoskills-registry",
@@ -204,8 +210,9 @@
     },
     "shadcn": {
       "source": "shadcn/ui",
-      "sourceType": "autoskills-registry",
-      "computedHash": "3e8ca56eb3af0f18b9cca3ae002f2b52f5dd23bceb286dd7403e18ae2fb38d08"
+      "sourceType": "github",
+      "skillPath": "skills/shadcn/SKILL.md",
+      "computedHash": "b864a958765563321f485a96f4d59c0bb6539f4286ab6d8b8b66895b7ebd302d"
     },
     "subagent-driven-development": {
       "source": "obra/superpowers",

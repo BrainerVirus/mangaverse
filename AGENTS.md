@@ -15,7 +15,7 @@ Agents must read the relevant rewrite docs before implementation:
 
 ## Project Direction
 
-MangaVerse is a web-native, local-first manga, comic and webtoon reader that also ships as an Electron desktop app for Windows, macOS and Linux, replacing an Expo-first app. The legacy Expo tree was removed (Phase 10.5); `apps/` and `packages/` are canonical. Do not rescue unstable code solely for parity; port behavior only after package contracts and tests exist.
+MangaVerse is a web-native, local-first manga, comic and webtoon reader that also ships as an Electron desktop app for Windows, macOS and Linux. The legacy Expo tree was removed (Phase 10.5); `apps/` and `packages/` are canonical. Port behavior only after package contracts and tests exist.
 
 ## Target Stack
 
@@ -51,13 +51,18 @@ Enforced by `.oxlintrc.json` (`no-restricted-imports`; `pnpm lint` fails on a vi
 - Reader UI must remain calm, stable, and distraction-free.
 - Themes may be visually distinct, but accessibility and component semantics must remain consistent.
 
+## shadcn Tooling
+
+- Components live in `packages/design-system` (Base UI `base-nova`; its `components.json` drives the CLI): `pnpm dlx shadcn@latest add <item> -c packages/design-system`. `cn` comes from the `cn` package.
+- `pnpm lint` runs `@shadcn/lint` (oxlint). Skills: `.agents/skills/shadcn` (the DESIGN.md workflow) + `migrate-radix-to-base`; MCP via `opencode.json` (registry tools need `components.json`).
+
 ## Motion Rules
 
 - Use GSAP through `@app/motion` helpers or cleanup-safe local patterns.
-- React GSAP code must use `useGSAP()` from `@gsap/react` or an equivalent `gsap.context()` cleanup, always scoped to a component ref.
+- React GSAP code uses `useGSAP()` from `@gsap/react` (or a `gsap.context()` cleanup), scoped to a ref.
 - Wrap event-created GSAP animations with `contextSafe()` or a package helper.
 - Respect `prefers-reduced-motion`, and do not run GSAP during SSR.
-- Do not use ScrollTrigger in core reader scrolling unless explicitly designed and tested as a reader-safe enhancement; remove ScrollTrigger markers from production.
+- Do not use ScrollTrigger in core reader scrolling unless designed and tested as a reader-safe enhancement; remove its markers from production.
 - Do not animate layout-heavy properties when transform or opacity can achieve the effect.
 
 ## Reader Performance Rules
@@ -83,7 +88,7 @@ Enforced by `.oxlintrc.json` (`no-restricted-imports`; `pnpm lint` fails on a vi
 - Provider calls and cloud sync should hydrate local state asynchronously.
 - Use TanStack Query for provider call caching, cancellation, retries, prefetching, and optimistic updates.
 - Use TanStack Router intent preloading where useful.
-- Virtualize long library grids, search results, chapter lists, and long reader lists.
+- Virtualize long library grids, search results and chapter/reader lists.
 - Track slow and failed provider calls.
 - Support low-memory mode for constrained devices.
 
@@ -101,10 +106,9 @@ Enforced by `.oxlintrc.json` (`no-restricted-imports`; `pnpm lint` fails on a vi
 - Add reduced-motion checks for motion-heavy components.
 - The production E2E serves `packages/*/dist`: rebuild after editing package sources.
 
-Critical flows to test: add provider, search provider, add manga to library,
-open manga details, start reading, continue reading, change reader mode, use tap
-zones, switch provider for manga, migrate manga, backup, restore, change theme,
-reduced-motion mode.
+Critical flows: add/search provider, add manga, open details, start/continue
+reading, reader mode, tap zones, switch/migrate provider, backup, restore,
+theme, reduced motion.
 
 ## Recovery State (current)
 
@@ -123,8 +127,7 @@ Web-first recovery is the active workstream; `docs/recovery/plan.md` is the sing
 
 ## Code Quality Gates
 
-CI runs both after the build; run both before reporting a change. Either gate
-failing fails the job.
+CI runs both after the build; run both before reporting a change.
 
 - `pnpm run doctor` — react-doctor, all workspace projects, any finding fails
   (`blocking: warning` in `doctor.config.ts`). `pnpm doctor` is pnpm's own
@@ -139,4 +142,3 @@ failing fails the job.
 - Builds: `pnpm build`, `pnpm --filter @app/web build`, `pnpm --filter @app/desktop build`; clean with `pnpm clean`
 
 Update this file and `docs/PLAN.md` when the canonical commands change.
-
