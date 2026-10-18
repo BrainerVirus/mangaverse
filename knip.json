@@ -6,7 +6,7 @@
       "entry": ["doctor.config.ts", "lint/team-conventions.cjs"]
     },
     "apps/web": {
-      "entry": ["app/global.css", "e2e-production/**/*.spec.ts"]
+      "entry": ["e2e-production/**/*.spec.ts"]
     },
     "apps/desktop": {
       "entry": ["src/preload/index.ts", "src/renderer/src/main.tsx"]
