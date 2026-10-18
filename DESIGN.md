@@ -16,15 +16,15 @@ colors:
   primary: { light: "#1c1917", dark: "#f5f2eb" } # EXISTING --primary
   on-primary: { light: "#faf8f5", dark: "#0c0b0a" } # EXISTING --primary-foreground
   accent: { light: "#e8e2d9", dark: "#262320" } # EXISTING --accent
-  ring: { light: "#a8a29e", dark: "#57534e" } # EXISTING --ring; proposed fix in §12
+  ring: { light: "#78716c", dark: "#a8a29e" } # EXISTING --ring; P1 fix, 4.41:1 / 7.80:1 (§3.3)
   reader: { light: "#faf8f5", dark: "#0c0b0a" } # EXISTING --reader-background
   destructive: { light: "#dc2626", dark: "#ef4444" } # EXISTING --destructive
   success: { light: "#16a34a", dark: "#22c55e" } # EXISTING --success
   warning: { light: "#d97706", dark: "#f59e0b" } # EXISTING --warning
-  glass-thin: { light: "rgb(255 255 255 / 0.55)", dark: "rgb(20 18 16 / 0.55)" } # proposed
-  glass-regular: { light: "rgb(255 255 255 / 0.68)", dark: "rgb(20 18 16 / 0.66)" } # proposed
-  glass-thick: { light: "rgb(255 255 255 / 0.82)", dark: "rgb(20 18 16 / 0.78)" } # proposed
-  glass-stage: { any: "rgb(0 0 0 / 0.78)" } # proposed; reader only, theme-independent
+  glass-thin: { light: "rgb(255 255 255 / 0.55)", dark: "rgb(20 18 16 / 0.55)" } # EXISTING (P1)
+  glass-regular: { light: "rgb(255 255 255 / 0.68)", dark: "rgb(20 18 16 / 0.66)" } # EXISTING (P1)
+  glass-thick: { light: "rgb(255 255 255 / 0.82)", dark: "rgb(20 18 16 / 0.78)" } # EXISTING (P1)
+  glass-stage: { any: "rgb(0 0 0 / 0.78)" } # EXISTING (P1); reader only, theme-independent
 typography:
   display: Inter (EXISTING --font-family-display)
   body: Inter (EXISTING --font-family-sans)
@@ -37,7 +37,7 @@ rounded:
   control: 7px (EXISTING --radius-control)
   button: 8px (EXISTING --radius-btn)
   badge: 9999px (EXISTING --radius-badge)
-  glass: 14px (proposed --radius-glass)
+  glass: 14px (EXISTING --radius-glass, P1)
 spacing:
   page: 24px mobile / 32px desktop (EXISTING)
   stack: 16px / 24px (EXISTING)
@@ -131,9 +131,15 @@ This is the core of the rebuild. Every surface in MangaVerse is one of two thing
 `--surface` / `--card`, no blur) or **glass** (translucent, blurred, edged). Glass is never improvised;
 it is one of four tiers, each with a fixed fill alpha, blur radius and saturation.
 
-### 2.1 The four glass tiers (proposed)
+### 2.1 The four glass tiers (landed in P1)
 
-| Tier    | Token (proposed)  | Fill, light                            | Fill, dark            | `backdrop-filter`           |
+> **Implementation:** the fills are `--glass-thin/regular/thick/stage` in
+> `packages/design-system/src/styles/globals.css`, registered as `--color-glass-*`; each tier is an
+> `@utility` (`glass-thin`, `glass-regular`, `glass-thick`, `glass-stage`) that owns its fill, its
+> `backdrop-filter`, its saturation and its opaque resolution. `GlassSurface` is the only consumer of
+> those utilities — nothing else in the app sets `backdrop-filter`.
+
+| Tier    | Token             | Fill, light                            | Fill, dark            | `backdrop-filter`           |
 | ------- | ----------------- | -------------------------------------- | --------------------- | --------------------------- |
 | Thin    | `--glass-thin`    | `rgb(255 255 255 / .55)`               | `rgb(20 18 16 / .55)` | `blur(12px) saturate(140%)` |
 | Regular | `--glass-regular` | `rgb(255 255 255 / .68)`               | `rgb(20 18 16 / .66)` | `blur(20px) saturate(160%)` |
@@ -157,7 +163,7 @@ cover art behind a toolbar still looks like art rather than gray mush.
   toast). It is theme-independent: the reading stage is always black, so its glass is always dark and
   its type is always white.
 
-### 2.2 Refraction: layered light, not a displacement filter
+### 2.2 Refraction: layered light, not a displacement filter (layered light landed in P1)
 
 **Decision (proposed): refraction is layered gradients plus edge light, and an SVG
 `feTurbulence` + `feDisplacementMap` filter is an opt-in hero effect only.** The reasoning, so nobody
@@ -173,51 +179,55 @@ re-opens it by accident:
   edge, an inner bottom shadow and a slightly brighter top-inner glow read as a curved glass surface at
   a fraction of the cost.
 
-The layered recipe (a `RefractionLayer` primitive, `aria-hidden`, `pointer-events: none`):
+The layered recipe (landed in P1 as the `RefractionLayer` primitive, `aria-hidden`,
+`pointer-events: none`, rendered by `GlassSurface` at `-z-10` so the light never sits over content):
 
-1. **Sheen** — `--glass-sheen` (proposed): light
+1. **Sheen** — `--glass-sheen` (EXISTING, P1): light
    `linear-gradient(180deg, rgb(255 255 255 / .22), rgb(255 255 255 / 0) 45%)`; dark
    `linear-gradient(180deg, rgb(255 255 255 / .06), rgb(255 255 255 / 0) 45%)`; stage
    `linear-gradient(180deg, rgb(255 255 255 / .10), rgb(255 255 255 / 0) 60%)`. Sits at the top of the
    layer, never animates. (Use `rgb(255 255 255 / 0)` rather than `transparent`: the keyword interpolates
    through transparent black and leaves a gray fringe on some engines.)
-2. **Specular edge** — `--glass-specular` (proposed): light `rgb(255 255 255 / .70)`, dark
+2. **Specular edge** — `--glass-specular` (EXISTING, P1): light `rgb(255 255 255 / .70)`, dark
    `rgb(255 255 255 / .10)`, stage `rgb(255 255 255 / .22)`. A 1px inset top stroke
    (`inset 0 1px 0 var(--glass-specular)`), the single detail that makes a layer read as lit glass.
-3. **Inner bottom shadow** — `--glass-inner` (proposed): light `inset 0 -1px 0 rgb(0 0 0 / .05)`, dark
+3. **Inner bottom shadow** — `--glass-inner` (EXISTING, P1): light `inset 0 -1px 0 rgb(0 0 0 / .05)`, dark
    `inset 0 -1px 0 rgb(0 0 0 / .45)`. Gives the sheet thickness.
-4. **Hairline** — `--glass-edge` (proposed): light `rgb(255 255 255 / .50)`, dark
+4. **Hairline** — `--glass-edge` (EXISTING, P1): light `rgb(255 255 255 / .50)`, dark
    `rgb(255 255 255 / .08)`, stage `rgb(255 255 255 / .14)`. A 1px border that replaces `--border` on
    glass; a warm sandstone line over an unknown backdrop would read as a seam, not an edge.
 
 The SVG variant (proposed `RefractionLayer variant="displacement"`) is allowed on exactly two surfaces:
 the chapter-transition card and the onboarding hero. It must be off under reduced motion, reduced
-transparency and the low-end profile (§2.5), and must never sit over a scrolling page surface.
+transparency and the low-end profile (§2.5), and must never sit over a scrolling page surface. **Not
+shipped in P1:** `RefractionLayer` accepts `variant="sheen"` only.
 
-### 2.3 Ambient backdrop — what the glass refracts
+### 2.3 Ambient backdrop — what the glass refracts (landed in P1)
 
 Glass over a flat single-colour canvas is a flat panel with a blur bill. The target adds a **backdrop
-band**: a fixed, `aria-hidden`, non-interactive layer behind the shell's content (proposed tokens
+band**: a fixed, `aria-hidden`, non-interactive layer behind the shell's content (EXISTING tokens
 `--ambient-1`, `--ambient-2`: light `#efe9e1` / `#f7f5f2`, dark `#17140f` / `#0c0b0a`), painted as two
-very low-contrast radial gradients anchored top-left and bottom-right of the viewport.
+very low-contrast radial gradients anchored top-left and bottom-right of the viewport. The
+`AmbientBackdrop` primitive renders it; the shell (P4) renders it once.
 
 Rules: it never scrolls with content (so the glass always has a stable thing to refract), it never
 animates except a ≤ `expressive` (360ms) entrance, and it disappears entirely under reduced motion,
 reduced transparency or the low-end profile, leaving `--background`. In the reader it does not exist —
-the page art is the backdrop.
+the page art is the backdrop. **Not shipped in P1:** the entrance animation; the band is static, which
+is also its reduced-motion end state.
 
-### 2.4 Elevation & depth scale (proposed, mapped onto Tailwind)
+### 2.4 Elevation & depth scale (landed in P1, mapped onto Tailwind)
 
 Four steps, verbatim, applied as `box-shadow`. Dark mode multiplies alpha and keeps the inset light
 edge from `--glass-specular` (or `rgb(255 255 255 / .03)` on matte surfaces, matching today's
 `surface-panel`).
 
-| Step        | Token (proposed) | Light                                                      | Dark                                                               |
-| ----------- | ---------------- | ---------------------------------------------------------- | ------------------------------------------------------------------ |
-| 1 — whisper | `--elevation-1`  | `0 1px 2px rgb(0 0 0 / .04)`                               | `0 1px 2px rgb(0 0 0 / .35), inset 0 1px 0 rgb(255 255 255 / .03)` |
-| 2 — float   | `--elevation-2`  | `0 1px 2px rgb(0 0 0 / .05), 0 8px 24px rgb(0 0 0 / .08)`  | `0 1px 2px rgb(0 0 0 / .40), 0 8px 24px rgb(0 0 0 / .45)`          |
-| 3 — lift    | `--elevation-3`  | `0 2px 4px rgb(0 0 0 / .06), 0 16px 40px rgb(0 0 0 / .12)` | `0 2px 4px rgb(0 0 0 / .45), 0 16px 40px rgb(0 0 0 / .55)`         |
-| 4 — overlay | `--elevation-4`  | `0 24px 64px rgb(0 0 0 / .22)`                             | `0 24px 64px rgb(0 0 0 / .60)`                                     |
+| Step        | Token (EXISTING, P1) | Light                                                      | Dark                                                               |
+| ----------- | -------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------ |
+| 1 — whisper | `--elevation-1`      | `0 1px 2px rgb(0 0 0 / .04)`                               | `0 1px 2px rgb(0 0 0 / .35), inset 0 1px 0 rgb(255 255 255 / .03)` |
+| 2 — float   | `--elevation-2`      | `0 1px 2px rgb(0 0 0 / .05), 0 8px 24px rgb(0 0 0 / .08)`  | `0 1px 2px rgb(0 0 0 / .40), 0 8px 24px rgb(0 0 0 / .45)`          |
+| 3 — lift    | `--elevation-3`      | `0 2px 4px rgb(0 0 0 / .06), 0 16px 40px rgb(0 0 0 / .12)` | `0 2px 4px rgb(0 0 0 / .45), 0 16px 40px rgb(0 0 0 / .55)`         |
+| 4 — overlay | `--elevation-4`      | `0 24px 64px rgb(0 0 0 / .22)`                             | `0 24px 64px rgb(0 0 0 / .60)`                                     |
 
 Assignment: matte cards and the `surface-panel` recipe stay at step 1; sticky bars and floating
 toolbars at step 2; hovered cards, popovers and the command palette at step 3; sheets, dialogs and the
@@ -226,13 +236,15 @@ is the shadow the layer casts, the specular edge is the light it catches.
 
 Tailwind wiring (per the shadcn workflow's Step 4, in `@theme`, not `@theme inline`):
 `--shadow-sm: var(--elevation-1)`, `--shadow-md: var(--elevation-2)`, `--shadow-lg: var(--elevation-3)`,
-`--shadow-xl: var(--elevation-4)`. Today none of those theme keys is overridden, so components still use
-Tailwind's defaults: `Card`'s `shadow-sm` is `0 1px 3px rgb(0 0 0 / .10), 0 1px 2px -1px rgb(0 0 0 / .10)`,
-heavier than `--elevation-1` (`0 1px 2px rgb(0 0 0 / .04)`, the `.surface-panel` whisper), so the mapping
-**lightens** `Card` rather than preserving its current value. Sheets use Tailwind's default `shadow-lg`
-(`0 10px 15px -3px rgb(0 0 0 / .10), 0 4px 6px -4px rgb(0 0 0 / .10)`); the wiring moves `shadow-lg` to
-`--elevation-3` (lift), so the assignment above — sheets at step 4 — requires the sheet to move to
-`shadow-xl` (`--elevation-4`) as part of P5. The wiring alone would leave it one step shallow.
+`--shadow-xl: var(--elevation-4)`. **Landed in P1.** Before the wiring, none of those theme keys was
+overridden, so components still used Tailwind's defaults: `Card`'s `shadow-sm` was
+`0 1px 3px rgb(0 0 0 / .10), 0 1px 2px -1px rgb(0 0 0 / .10)`, heavier than `--elevation-1`
+(`0 1px 2px rgb(0 0 0 / .04)`, the `.surface-panel` whisper), so the mapping **lightens** `Card` rather
+than preserving its current value — the one visible consequence of P1 outside `--ring`. Sheets used
+Tailwind's default `shadow-lg` (`0 10px 15px -3px rgb(0 0 0 / .10), 0 4px 6px -4px rgb(0 0 0 / .10)`);
+the wiring moves `shadow-lg` to `--elevation-3` (lift), so the assignment above — sheets at step 4 —
+requires the sheet to move to `shadow-xl` (`--elevation-4`) as part of P5. The wiring alone would leave
+it one step shallow.
 
 ### 2.5 Performance, fallbacks and constraints
 
@@ -255,20 +267,22 @@ heavier than `--elevation-1` (`0 1px 2px rgb(0 0 0 / .04)`, the `.surface-panel`
 - **Promotion:** no blanket `will-change`. The reader chrome may set `will-change: opacity, transform`
   for the duration of a show/hide tween and must remove it after (`@app/motion` helpers own the
   cleanup). A permanently promoted glass layer doubles memory for no gain.
-- **Low-end profile (proposed):** when `navigator.hardwareConcurrency <= 4` or `navigator.deviceMemory
+- **Low-end profile (landed in P1):** when `navigator.hardwareConcurrency <= 4` or `navigator.deviceMemory
   <= 4`, or when the user's OS reports `prefers-reduced-motion: reduce`, set `data-glass="cheap"` on the
   root. Every glass tier then resolves to its opaque equivalent: `--glass-thin` / `regular` →
   `--surface`, `--glass-thick` → `--surface-raised`, `--glass-stage` → `rgb(0 0 0 / .88)`. The hairline,
-  specular edge and elevation survive, so the hierarchy is unchanged.
-- **No-support fallback:** `@supports not (backdrop-filter: blur(1px))` applies the same opaque
-  resolution. Never ship a translucent layer without a blur: the text contrast maths in §3.5 assumes
-  the blur is doing its part.
-- **`prefers-reduced-transparency` (proposed):** warranted, and it is the _second_ half of the story.
+  specular edge and elevation survive, so the hierarchy is unchanged. The predicate ships as
+  `resolveGlassProfile()` in `@app/design-system`; the shell (P4) applies the attribute.
+- **No-support fallback (landed in P1):** `@supports not (backdrop-filter: blur(1px))` applies the same
+  opaque resolution. Never ship a translucent layer without a blur: the text contrast maths in §3.5
+  assumes the blur is doing its part.
+- **`prefers-reduced-transparency` (landed in P1):** warranted, and it is the _second_ half of the story.
   Where the UA supports it (Safari 18+/iOS 18+ today; Chromium support is still partial), it resolves
   every glass tier to opaque automatically. Because support is uneven, the reliable path is the
   user-facing **Transparency** setting (Full / Reduced, default Full) in appearance settings, stored
   like every other preference and applied as `data-transparency="solid"` on the root — same resolution
-  as `data-glass="cheap"`, plus the ambient backdrop off.
+  as `data-glass="cheap"`, plus the ambient backdrop off. The CSS path ships in P1; the setting itself
+  is P4/P5.
 - **SSR:** glass is CSS-only, so nothing needs a client guard; do not branch rendering on
   `matchMedia` during the first paint.
 
@@ -306,7 +320,7 @@ tokens join the theme layer's list once introduced; presets may tint them, never
 - **Warm Parchment** `#f7f5f2` → **Midnight Ink** `#0c0b0a` — `--background`. The app canvas behind
   everything: paper under daylight, an unlit room in the dark, deliberately darker than the surfaces
   that sit on it.
-- **Ambient Band** `#efe9e1` → `#17140f` — **proposed** `--ambient-1`, with `--ambient-2` =
+- **Ambient Band** `#efe9e1` → `#17140f` — **EXISTING** `--ambient-1` (P1), with `--ambient-2` =
   `--background`. The non-scrolling backdrop the shell's glass refracts (§2.3).
 - **Pure Paper** `#ffffff` → **Deep Ink** `#141210` — `--surface`, `--card`. Matte panels.
 - **Pure Paper** `#ffffff` → **Espresso** `#1c1917` — `--surface-raised`, `--popover`. The explicit
@@ -320,7 +334,7 @@ tokens join the theme layer's list once introduced; presets may tint them, never
   does not glare.
 - **Warm Ash** `#6b6560` → **Smoke Gray** `#a8a29e` — `--muted-foreground`. Provider attribution,
   descriptions, timestamps, diagnostics. Recessive but never below AA on its own surface.
-- **Glass Muted Ink** `#57534e` → `#d6d1ca` — **proposed** `--glass-muted-foreground`. The secondary
+- **Glass Muted Ink** `#57534e` → `#d6d1ca` — **EXISTING** `--glass-muted-foreground` (P1). The secondary
   text colour for glass surfaces, one step closer to the ink than `--muted-foreground` so it survives a
   blurred, translucent backdrop. Legal placements are in §3.5.
 - **Soft Linen** `#ece8e3` → **Charred Linen** `#1a1816` — `--muted`, `--secondary`. Quiet fills:
@@ -330,17 +344,20 @@ tokens join the theme layer's list once introduced; presets may tint them, never
 
 - **Sandstone Hairline** `#e3ddd4` → **Charcoal Hairline** `#2a2724` — `--border`, `--input`,
   `--sidebar-border`. The hairline for **matte** surfaces. On glass, use `--glass-edge` (§2.2) instead.
-- **Glass Hairline** `rgb(255 255 255 / .50)` → `rgb(255 255 255 / .08)` — **proposed** `--glass-edge`.
+- **Glass Hairline** `rgb(255 255 255 / .50)` → `rgb(255 255 255 / .08)` — **EXISTING** `--glass-edge` (P1).
 - **Near-Black Espresso** `#1c1917` → **Warm Bone** `#f5f2eb` — `--primary`. Primary actions and active
   emphasis. The inversion is intentional: ink on paper in light, bone on ink in dark.
 - **Cream** `#faf8f5` → **Midnight Ink** `#0c0b0a` — `--primary-foreground`.
 - **Toasted Almond** `#e8e2d9` → **Ash Almond** `#262320` — `--accent`, with `--accent-foreground`
   (`#1c1917` → `#f5f2eb`). Hover fills, selected rows, the palette's warm personality.
-- **Stone Focus** `#a8a29e` → **Slate Focus** `#57534e` — `--ring`, a 2px ring at 2px offset. It
-  measures **2.32:1** on the light canvas and **2.58:1** on the dark canvas — under the 3:1 that WCAG
-  2.2 requires for a focus indicator. **Proposed fix:** light `#78716c` (4.41:1), dark `#a8a29e`
-  (7.80:1). Tracked in §12; until then, focus is never removed and the ring is never the only signal
-  (the focused control also changes its fill).
+- **Stone Focus** `#78716c` → **Slate Focus** `#a8a29e` — `--ring`, a 2px ring at 2px offset. **Fixed in
+  P1.** The old values (`#a8a29e` / `#57534e`) measured **2.32:1** on the light canvas and **2.58:1** on
+  the dark canvas — under the 3:1 that WCAG 2.2 requires for a focus indicator. The shipped values
+  measure **4.41:1** (light, `#78716c` on `#f7f5f2`) and **7.80:1** (dark, `#a8a29e` on `#0c0b0a`), and
+  also clear 3:1 on `--surface`, `--muted` and `--accent` in both modes (light 4.80 / 3.93 / 3.73,
+  dark 7.41 / 7.02 / 6.20). The runtime theme layer still paints `--ring` from the preset's `--primary`
+  (every one of the 10 presets clears 3:1 on its canvas — lowest is Sakura light at 3.66:1), which
+  `packages/theme`'s suite now pins.
 
 ### 3.4 Status (reserved — never decorative)
 
@@ -391,7 +408,7 @@ The resulting **hard rules**:
    white page) and may drop to **0.72** for solid white labels (9.29:1). The existing top-bar gradient
    (`from-black/80 to-transparent`) has no protection where it fades out, so every control row on the
    stage sits on a **plate** — a local fill in the layer's own tone at +0.35 alpha (`--glass-plate`,
-   **proposed**: `rgb(255 255 255 / .35)` on light glass, `rgb(20 18 16 / .35)` on dark glass,
+   **EXISTING** (P1): `rgb(255 255 255 / .35)` on light glass, `rgb(20 18 16 / .35)` on dark glass,
    `rgb(0 0 0 / .35)` on the stage) — and the label row of the bottom rail carries one too.
 5. Text on glass is always opaque (`--foreground` / `--glass-muted-foreground` / `text-white`), never a
    translucent white/black, except the reader's `text-white/70` meta labels, which rule 4 covers.
@@ -431,10 +448,10 @@ without a slot in `:root` / `.dark` plus `@theme inline`:
 | hover wash, selected row  | `--accent` / `--accent-foreground`                          |                                                              |
 | card, floating layer      | `--card`, `--popover`                                       |                                                              |
 | hairline                  | `--border`, `--input`                                       | glass edge registered as `--color-glass-edge`                |
-| focus                     | `--ring`                                                    | see the proposed fix in §3.3                                 |
+| focus                     | `--ring`                                                    | fixed in P1 (§3.3)                                           |
 | error / success / warning | `--destructive`, `--success`, `--warning`                   | glass variants registered separately                         |
 | rail                      | `--sidebar-*`                                               |                                                              |
-| glass fills               | new `--glass-*` + `--color-glass-*`                         | `--glass-stage` is theme-independent                         |
+| glass fills               | `--glass-*` + `--color-glass-*` (EXISTING, P1)              | `--glass-stage` is theme-independent                         |
 
 ## 4. Typography Rules
 
@@ -655,7 +672,7 @@ rail is hidden below `md` with a hover-expand and the bottom bar is the only sub
 - **Contrast:** text and icons meet the floors in §3.5; glass never carries text without the placement
   rule that makes it pass; status is never colour-only.
 - **Focus visibility:** always visible, never animated, never clipped by sticky chrome, ring contrast
-  ≥ 3:1 against the surface it sits on (see the proposed `--ring` fix).
+  ≥ 3:1 against the surface it sits on (the P1 `--ring` fix, §3.3).
 - **Reduced motion / transparency:** both are honoured from the OS _and_ overridable in-app (§5.5);
   neither may hide state.
 - **Semantics:** the reader chrome is a labelled `toolbar` with labelled buttons; the progress rail is a
@@ -677,17 +694,19 @@ button base classes inside every value (the shadcn `cva` base list, adopted in #
 include that base string — composing a variant without it drops `inline-flex items-center` and stacks the
 icon above the label.
 
-### 7.1 New primitives for `@app/design-system` (proposed)
+### 7.1 New primitives for `@app/design-system` (landed in P1)
 
-| Primitive         | API sketch                                                                                                                         | Purpose                                                                                                                                                                           |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GlassSurface`    | `level: 'thin' \| 'regular' \| 'thick' \| 'stage'`, `tone: 'default' \| 'raised' \| 'reader'`, `edge?: boolean`, `plate?: boolean` | The single source of the glass material: fill, `backdrop-filter`, edge, specular, inner shadow, elevation. Every glass component composes it; nothing else sets `backdrop-filter` |
-| `RefractionLayer` | `variant: 'sheen' \| 'displacement'`, `aria-hidden` by default                                                                     | The decorative light layer from §2.2. Displacement is opt-in and gated by §2.5                                                                                                    |
-| `GlassPanel`      | `GlassSurface` + padding + elevation, `asChild`-friendly                                                                           | The replacement for the `.surface-panel` utility in shell and feature code                                                                                                        |
-| `AmbientBackdrop` | none (fixed, decorative)                                                                                                           | The §2.3 band, rendered once by the app shell                                                                                                                                     |
+| Primitive         | API (shipped)                                                                                                                                         | Purpose                                                                                                                                                                           |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GlassSurface`    | `level: 'thin' \| 'regular' \| 'thick' \| 'stage'`, `tone: 'default' \| 'raised' \| 'reader'`, `elevation?: 0–4`, `edge?: boolean`, `plate?: boolean` | The single source of the glass material: fill, `backdrop-filter`, edge, specular, inner shadow, elevation. Every glass component composes it; nothing else sets `backdrop-filter` |
+| `RefractionLayer` | `variant: 'sheen'`, `edge?: boolean`, `aria-hidden` by default                                                                                        | The decorative light layer from §2.2. Displacement is opt-in and not shipped in P1                                                                                                |
+| `GlassPanel`      | `GlassSurface` + `padding: 'none' \| 'sm' \| 'md' \| 'lg'`                                                                                            | The replacement for the `.surface-panel` utility in shell and feature code                                                                                                        |
+| `AmbientBackdrop` | none (fixed, decorative)                                                                                                                              | The §2.3 band, rendered once by the app shell                                                                                                                                     |
 
-`GlassSurface` is the only place `--glass-*` tokens are read. `surface-panel` is kept as a deprecated
-alias that renders a matte `GlassPanel` until every caller has moved (P5).
+`GlassSurface` is the only place `--glass-*` tokens are read, and it refuses to render two
+imagery-blurring tiers nested (§2.5). `surface-panel` is kept as a deprecated alias that renders a matte
+`GlassPanel` until every caller has moved (P5). `asChild` is not shipped in P1: `@radix-ui/react-slot`
+is not a dependency of the package, so `GlassPanel` renders a `div` and forwards every prop.
 
 ### 7.2 Buttons (`packages/design-system/src/components/ui/button-variants.ts`)
 
@@ -912,6 +931,14 @@ Honest accounting. Nothing below is aspirational; §13 is where the gap closes.
   accent, destructive, success, warning, ring, reader-background, sidebar family), four radii
   (`--radius-box` 10px, `--radius-control` 7px, `--radius-btn` 8px, `--radius-badge` 9999px), three font
   stacks, and the `.surface-panel` recipe with its dark-mode inset highlight.
+- **Glass material (landed in P1):** the four tier fills plus `--glass-edge`, `--glass-specular`,
+  `--glass-inner`, `--glass-sheen`, `--glass-plate`, `--glass-muted-foreground`, `--ambient-1/2`,
+  `--radius-glass` (14px) and the four `--elevation-*` steps, registered in `@theme inline` /
+  `@theme` (the shadow tokens). The tier utilities (`glass-thin`, `glass-regular`, `glass-thick`,
+  `glass-stage`), the refraction/plate/ambient utilities and the §2.5 resolution paths (cheap profile,
+  `data-transparency="solid"`, `@supports`, `prefers-reduced-transparency`) live in
+  `globals.css`; `GlassSurface`, `RefractionLayer`, `GlassPanel`, `AmbientBackdrop` and
+  `resolveGlassProfile()` are exported from `@app/design-system`.
 - **Theme layer:** `packages/theme` repaints 27 of those 29 variables across 10 presets
   (`default`/Minimal first); `--surface` and `--surface-raised` are not repainted, and not every repainted
   value comes from a preset token (`--muted-foreground` is hardcoded in `apply-theme.ts`).
@@ -931,34 +958,29 @@ Honest accounting. Nothing below is aspirational; §13 is where the gap closes.
 - **Reader behaviour:** gesture thresholds, tap zones, zoom, keyboard navigation, preloading and progress
   persistence, all as pure modules with tests.
 
-**New in this document (nothing of it exists yet)**
+**Not built yet (the rest of §13)**
 
-- The four glass tiers, their blur/saturation/alpha values and their legal placements.
-- The refraction recipe (`--glass-sheen`, `--glass-specular`, `--glass-inner`, `--glass-edge`), the plate
-  token, and the displacement-refraction opt-in.
-- The ambient backdrop band and its tokens.
-- The four-step elevation scale and its mapping onto Tailwind's shadow tokens.
-- The `data-glass` / `data-transparency` resolution paths, the low-end profile, and
-  `prefers-reduced-transparency` / `prefers-contrast` handling.
-- `--glass-muted-foreground` and the glass status colours, with the measured contrast floor.
-- `--radius-glass`, the `type-*` utilities, the 11px glass micro-label, `EASE.liquidSettle` / `glide`
-  (`--ease-liquid`, `--ease-glide`) and the `pressFeedback()` helper.
-- The `GlassSurface` / `RefractionLayer` / `GlassPanel` / `AmbientBackdrop` primitives and the glass `cva`
-  variants.
-- The drag-to-dismiss and long-press gestures, the in-app Motion and Transparency settings, and the
-  design-system page.
+- The glass `cva` variants on the existing components and the `.surface-panel` deprecation (P5).
+- The displacement-refraction opt-in (P1 ships the layered recipe only).
+- The `data-glass` / `data-transparency` attributes applied by the shell, the in-app Motion and
+  Transparency settings, and the `prefers-contrast` handling (P4/P5).
+- `--glass-muted-foreground` and the glass status colours are tokens; **no consumer uses them yet**.
+- `--radius-glass` is used by `GlassSurface`; the `type-*` utilities, the 11px glass micro-label,
+  `EASE.liquidSettle` / `glide` (`--ease-liquid`, `--ease-glide`) and the `pressFeedback()` helper (P3).
+- The drag-to-dismiss and long-press gestures, and the design-system page (P7).
 
 ## 12. Known Gaps & Open Questions
 
-- **Focus ring contrast (existing defect).** `--ring` measures 2.32:1 (light) and 2.58:1 (dark) against
-  the canvas, under WCAG 2.2's 3:1 for non-text contrast. Proposed fix in §3.3; it is a token change that
-  touches `packages/design-system`, `packages/theme` and their tests, so it belongs in P1.
+- **Focus ring contrast (fixed in P1).** `--ring` measured 2.32:1 (light) and 2.58:1 (dark) against the
+  canvas, under WCAG 2.2's 3:1 for non-text contrast. The fix in §3.3 shipped: light `#78716c`
+  (4.41:1), dark `#a8a29e` (7.80:1), pinned by the design-system's token-contrast test and the
+  theme layer's per-preset ring test.
 - **Light-mode `--warning` on glass (3.10:1) and the shipped `--success` `#16a34a` (3.21:1; the proposed
   `#15803d` reaches 4.89:1), measured against the light glass
   fill (regular, alpha .68) over `--background`.** The glass status colours in §3.4 are proposals, not
   measurements of shipped values.
-- **`prefers-reduced-transparency` support is uneven.** The in-app setting is the reliable path; the media
-  query is an enhancement. Verify both in P1.
+- **`prefers-reduced-transparency` support is uneven.** The CSS resolution path ships in P1; the in-app
+  setting is the reliable path and is P4/P5. Verify the media query in the design-system page (P7).
 - **Displacement refraction has no budget number yet.** It is capped to two hero surfaces by rule; measure
   the frame cost on a low-end profile before allowing a third.
 - **No webfonts are bundled.** Inter and JetBrains Mono are stacks today; the display scale assumes Inter.
@@ -978,14 +1000,17 @@ step runs the repository gates (`pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnp
 `pnpm knip`).
 
 **P1 — Material tokens, fallbacks and the glass primitive** (`packages/design-system`, plus
-`packages/theme` for the ring fix)
-Introduce `--glass-thin/regular/thick/stage`, `--glass-edge`, `--glass-specular`, `--glass-inner`,
+`packages/theme` for the ring fix) — **landed.**
+Shipped: `--glass-thin/regular/thick/stage`, `--glass-edge`, `--glass-specular`, `--glass-inner`,
 `--glass-sheen`, `--glass-plate`, `--glass-muted-foreground`, `--radius-glass`, `--ambient-1/2`, the
-elevation scale and the `@theme` / `@theme inline` registrations; add the `@supports` and
-`data-glass="cheap"` / `data-transparency="solid"` resolution paths; add `GlassSurface`, `RefractionLayer`
-(`sheen` only) and `AmbientBackdrop`; fix `--ring`. Tests: token-resolution unit tests, a11y test for the
-decorative layers being `aria-hidden`, a contrast test asserting the §3.5 pairs, and a reduced-transparency
-test. No consumer changes in this PR.
+elevation scale and the `@theme` / `@theme inline` registrations; the `@supports`,
+`data-glass="cheap"` / `data-transparency="solid"` and `prefers-reduced-transparency` resolution paths
+plus `resolveGlassProfile()`; `GlassSurface`, `GlassPanel`, `RefractionLayer` (`sheen` only) and
+`AmbientBackdrop`; the `--ring` fix. Tests: token-resolution and contrast tests
+(`glass-tokens.test.ts`), primitive/aria-hidden/budget tests (`glass.test.tsx`), the per-preset ring
+invariant in `packages/theme`. No consumer changes in this PR. Not shipped here: the displacement
+refraction variant, `asChild`, the ambient entrance animation and the in-app Transparency setting
+(P4/P5/P7).
 
 **P2 — Reader chrome on stage glass** (`packages/design-system`, `packages/reader`)
 Move `ReaderChrome` and `ReaderProgressRail` onto `GlassSurface level="stage"` with plates under the

@@ -55,6 +55,29 @@ export { Alert, AlertTitle, AlertDescription } from './components/ui/alert.js';
 export { Separator } from './components/ui/separator.js';
 export { Tooltip } from './components/ui/tooltip.js';
 
+export { GlassSurface, useGlassLevel } from './components/glass-surface.js';
+export type { GlassSurfaceProps } from './components/glass-surface.js';
+export {
+  glassLevels,
+  glassElevations,
+  GLASS_IMAGERY_TIERS,
+  GLASS_BLUR_BUDGET,
+  glassPanelPadding,
+} from './components/glass-variants.js';
+export type {
+  GlassLevel,
+  GlassTone,
+  GlassElevation,
+  GlassPanelPadding,
+} from './components/glass-variants.js';
+export { RefractionLayer } from './components/refraction-layer.js';
+export type { RefractionLayerProps } from './components/refraction-layer.js';
+export { GlassPanel } from './components/glass-panel.js';
+export type { GlassPanelProps } from './components/glass-panel.js';
+export { AmbientBackdrop } from './components/ambient-backdrop.js';
+export { resolveGlassProfile } from './lib/glass-profile.js';
+export type { GlassProfileInput } from './lib/glass-profile.js';
+
 export { PageHeader } from './components/page-header.js';
 
 export { MangaCard } from './components/manga-card.js';
