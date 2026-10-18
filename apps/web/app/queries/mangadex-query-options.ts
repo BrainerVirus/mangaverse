@@ -100,7 +100,12 @@ export async function ensureMangadexChapterPages(
   if (mangadexMangaId === null) return;
 
   const context = await mangadexContext(db, signal);
-  if (context === null || context.provider.getPages === undefined) return;
+  // A chapter without pages must not fall through as 'No chapters' when the
+  // provider that could supply the metadata cannot be resolved: the reader
+  // shows a retryable error instead.
+  if (context === null || context.provider.getPages === undefined) {
+    throw new Error('MangaDex provider is not available to load this chapter');
+  }
 
   const pages = await context.provider.getPages(
     context.ctx,

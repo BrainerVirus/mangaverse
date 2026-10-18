@@ -20,6 +20,8 @@ interface LocalDbContextValue {
   readonly persistenceError: string | null;
   readonly retry: () => void;
   readonly retryPersistence: () => void;
+  /** Reports a durable-write failure from a caller outside the flush path. */
+  readonly reportPersistenceError: (message: string) => void;
 }
 
 const LocalDbContext = createContext<LocalDbContextValue>({
@@ -29,6 +31,7 @@ const LocalDbContext = createContext<LocalDbContextValue>({
   persistenceError: null,
   retry: () => {},
   retryPersistence: () => {},
+  reportPersistenceError: () => {},
 });
 
 function formatDbError(error: unknown): string {
@@ -44,7 +47,9 @@ function logDbInitFailure(error: unknown): void {
 }
 
 export function LocalDbProvider({ children }: { children: ReactNode }) {
-  const [value, setValue] = useState<Omit<LocalDbContextValue, 'retry' | 'retryPersistence'>>({
+  const [value, setValue] = useState<
+    Omit<LocalDbContextValue, 'retry' | 'retryPersistence' | 'reportPersistenceError'>
+  >({
     status: 'loading',
     db: null,
     errorMessage: null,
@@ -63,6 +68,10 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
   const retryPersistence = useCallback(() => {
     setValue((current) => ({ ...current, persistenceError: null }));
     void flushLocalDb();
+  }, []);
+
+  const reportPersistenceError = useCallback((message: string) => {
+    setValue((current) => ({ ...current, persistenceError: message }));
   }, []);
 
   useEffect(() => {
@@ -134,7 +143,11 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
     void queryClient.invalidateQueries();
   }, [handleVersion, queryClient, value.status]);
 
-  return <LocalDbContext value={{ ...value, retry, retryPersistence }}>{children}</LocalDbContext>;
+  return (
+    <LocalDbContext value={{ ...value, retry, retryPersistence, reportPersistenceError }}>
+      {children}
+    </LocalDbContext>
+  );
 }
 
 export function useLocalDb(): AppDrizzleDb | null {
@@ -160,4 +173,8 @@ export function usePersistenceError(): string | null {
 
 export function useRetryPersistence(): () => void {
   return use(LocalDbContext).retryPersistence;
+}
+
+export function useReportPersistenceError(): (message: string) => void {
+  return use(LocalDbContext).reportPersistenceError;
 }
