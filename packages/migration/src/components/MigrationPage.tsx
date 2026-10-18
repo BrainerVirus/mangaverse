@@ -351,25 +351,25 @@ export function MigrationPage({
 
   if (isLoading) {
     return (
-      <main className="app-shell">
+      <section aria-label="Migration" className="app-shell">
         <LoadingState type="list" />
-      </main>
+      </section>
     );
   }
 
   if (isError) {
     return (
-      <main className="app-shell">
+      <section aria-label="Migration" className="app-shell">
         <ErrorState
           title="Migration unavailable"
           message="Local database is not ready. Try again after the app finishes initializing."
         />
-      </main>
+      </section>
     );
   }
 
   return (
-    <main className="app-shell space-y-6">
+    <section aria-label="Migration" className="app-shell space-y-6">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Migration</h1>
         <p className="text-sm text-muted-foreground">
@@ -446,6 +446,6 @@ export function MigrationPage({
           </DialogContent>
         </Dialog>
       ) : null}
-    </main>
+    </section>
   );
 }

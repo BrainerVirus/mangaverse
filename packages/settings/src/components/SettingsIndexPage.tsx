@@ -24,7 +24,7 @@ export interface SettingsIndexPageProps {
 
 export function SettingsIndexPage({ sections, onNavigate }: SettingsIndexPageProps) {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6">
+    <section aria-label="Settings" className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
         <p className="text-sm text-muted-foreground">
@@ -59,6 +59,6 @@ export function SettingsIndexPage({ sections, onNavigate }: SettingsIndexPagePro
           </div>
         </SettingsSection>
       ))}
-    </main>
+    </section>
   );
 }

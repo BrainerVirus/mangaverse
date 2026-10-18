@@ -168,25 +168,25 @@ export function BackupPage({
 
   if (isLoading) {
     return (
-      <main className="mx-auto w-full max-w-3xl p-6">
+      <section aria-label="Backup and restore" className="mx-auto w-full max-w-3xl p-6">
         <LoadingState type="list" />
-      </main>
+      </section>
     );
   }
 
   if (isError) {
     return (
-      <main className="mx-auto w-full max-w-3xl p-6">
+      <section aria-label="Backup and restore" className="mx-auto w-full max-w-3xl p-6">
         <ErrorState
           title="Could not load backup tools"
           message="Local database is unavailable. Try reloading the page."
         />
-      </main>
+      </section>
     );
   }
 
   return (
-    <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
+    <section aria-label="Backup and restore" className="mx-auto w-full max-w-3xl space-y-6 p-6">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           Backup &amp; Restore
@@ -297,6 +297,6 @@ export function BackupPage({
           </DialogContent>
         </Dialog>
       ) : null}
-    </main>
+    </section>
   );
 }

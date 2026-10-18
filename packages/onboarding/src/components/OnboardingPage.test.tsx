@@ -61,6 +61,13 @@ describe('OnboardingPage', () => {
     expect(screen.getByText('Step 1 of 5')).toBeInTheDocument();
   });
 
+  it('renders the page as a named section so the shell owns the main landmark', () => {
+    render(<OnboardingPage {...baseProps} />);
+
+    expect(document.querySelector('main')).toBeNull();
+    expect(screen.getByRole('region', { name: 'Onboarding' })).toBeInTheDocument();
+  });
+
   it('renders design-system Button classes on primary actions', () => {
     render(<OnboardingPage {...baseProps} />);
 

@@ -51,7 +51,7 @@ export function ExtensionsPage({
   const providerCount = providers.length;
 
   return (
-    <main className="flex flex-col gap-6 p-6">
+    <section aria-label="Extensions" className="flex flex-col gap-6 p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Extensions</h1>
@@ -153,6 +153,6 @@ export function ExtensionsPage({
           })}
         </section>
       ) : null}
-    </main>
+    </section>
   );
 }

@@ -179,35 +179,35 @@ export function DiagnosticsPage({
 
   if (isLoading) {
     return (
-      <main className="mx-auto w-full max-w-3xl p-6">
+      <section aria-label="Diagnostics" className="mx-auto w-full max-w-3xl p-6">
         <LoadingState type="list" />
-      </main>
+      </section>
     );
   }
 
   if (isError) {
     return (
-      <main className="mx-auto w-full max-w-3xl p-6">
+      <section aria-label="Diagnostics" className="mx-auto w-full max-w-3xl p-6">
         <ErrorState
           title="Could not load diagnostics"
           message="Local database or platform information is unavailable. Try reloading the page."
         />
-      </main>
+      </section>
     );
   }
 
   if (report === null) {
     return (
-      <main className="mx-auto w-full max-w-3xl p-6">
+      <section aria-label="Diagnostics" className="mx-auto w-full max-w-3xl p-6">
         <ErrorState title="Diagnostics unavailable" message="No report was generated." />
-      </main>
+      </section>
     );
   }
 
   const formattedReport = formatDiagnosticsReport(report);
 
   return (
-    <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
+    <section aria-label="Diagnostics" className="mx-auto w-full max-w-3xl space-y-6 p-6">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Diagnostics</h1>
         <p className="text-sm text-muted-foreground">
@@ -261,6 +261,6 @@ export function DiagnosticsPage({
       <LocalDatabaseSection report={report} />
 
       <LocalServiceSection report={report} />
-    </main>
+    </section>
   );
 }
