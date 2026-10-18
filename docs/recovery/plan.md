@@ -349,17 +349,26 @@ Add `apps/web/e2e-production/reading.spec.ts` and focused reader integration tes
       reproduced as a false offline diagnosis. A pending/paused fetch with no data
       now shows Loading instead of 'No chapters'. Component-pinned; its E2E still
       needs a second, uncached chapter fixture — recorded as a follow-up.
-- [ ] Pre-existing gap found by the #45 review (static, untested): provider
-      resolution can return early with no page metadata
-      (`mangadex-query-options.ts`), which would surface as 'No chapters' in the
-      reader. Reproduce before fixing.
-- [ ] Follow-ups from the #44 review: DB-init errors cannot be recovered by the
-      reader's query invalidation (the query is disabled while the DB is in
-      error); wire the DB retry handler for that case.
-- [ ] Still open from this slice: save-failure surfacing in reader mode, prefetch
-      bounds and partial-cache reporting, chrome click isolation e2e, and a
-      deliberate wrong-navigation plant on the (passing) navigation test.
-- [ ] Run deterministic production E2Es, gates and test audit; commit.
+- [x] Provider resolution no longer returns early with no page metadata (#63):
+      `ensureMangadexChapterPages` rejects when the provider cannot be resolved,
+      so the reader shows a retryable error instead of 'No chapters' (ruling
+      mvd2q1ht-958e2139b3e0; reproduced red first). The other two early returns
+      (non-mangadex ids) still return silently — tracked below.
+- [x] DB-init errors are recoverable from the reader (#63): Retry routes through
+      the DB retry when `dbStatus === 'error'`; E2E with `indexedDB.open`
+      blocked, red first.
+- [x] Save-failure surfacing in reader mode (#63): write failures report to the
+      S1 persistence sink and the shell banner is overlaid in reader mode; Retry
+      re-attempts the durable flush (E2E: blocked store → banner, Retry clears
+      it, a new ping proves durability).
+- [x] Deliberate wrong-navigation plant on the navigation test (#63): swapping
+      nextKey/prevKey fails the keyboard E2E; reverted byte-identical.
+- [ ] Still open: prefetch bounds and partial-cache reporting; chrome click
+      isolation e2e; the route-level catch and the settings-mutation onError
+      report sites are not individually pinned (verifier F1); the other two
+      early returns in `ensureMangadexChapterPages` return silently.
+- [x] Deterministic production E2Es and gates run per slice (#41, #44, #45,
+      #63); the test audit was triaged in #55.
 
 Audit leads, not confirmed runtime diagnoses: ReaderScreen reinitializes on changed
 viewport/session input, cancels debounce on cleanup, and observes pointer events
