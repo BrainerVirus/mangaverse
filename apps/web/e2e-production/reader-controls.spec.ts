@@ -87,6 +87,14 @@ test('Given an open chapter, When hovering and dragging the rail, Then a page pr
     .evaluate((el) => el.style.transform);
   const scale = Number(transform.match(/scaleX\(([\d.]+)\)/)?.[1] ?? '-1');
   expect(Math.abs(scale - (pageNumber - 1) / 36)).toBeLessThan(0.02);
+
+  // The thumb rides the same fraction through `left` (its translate only centers
+  // it), so a thumb that stops tracking the page position fails here.
+  const thumbLeft = await page
+    .getByTestId('reader-rail-thumb')
+    .evaluate((el) => el.style.left);
+  const thumbFraction = Number(thumbLeft.replace('%', '')) / 100;
+  expect(Math.abs(thumbFraction - (pageNumber - 1) / 36)).toBeLessThan(0.02);
 });
 
 test('Given the mode switcher, When changing modes, Then the highlight morphs to the active option', async ({ page, quickOnboarding, mockMangaDex }) => {

@@ -24,8 +24,10 @@ export function applyDoubleTapZoom(
   _viewportHeight: number,
   doubleTapZoom: number
 ): ZoomStateSummary {
+  // The reset target is the base zoom, which is minZoom when the user configured
+  // a floor above 1; without the clamp a second double tap dips below it.
   const targetScale = state.scale === 1 ? doubleTapZoom : 1;
-  const scale = targetScale;
+  const scale = clampZoomScale(state, targetScale);
 
   const centerX = tapPosition.x;
   const centerY = tapPosition.y;

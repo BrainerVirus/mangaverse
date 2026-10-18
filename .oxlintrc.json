@@ -41,15 +41,16 @@
     // no-static-element-interactions 0. The two clean rules stay pinned with their family
     // so the list is re-measured in one go. Note for the record: ruling #552 counted 64
     // production typescript/no-redundant-type-constituents findings; the real count is 1 —
-    // the other 63 were "error type" artifacts of linting a tree whose packages/*/dist was
-    // not built yet.
+    // 62 more were "error type" artifacts of that rule and one was a
+    // typescript/no-base-to-string artifact (62 + 1 = 63, the PR #58 CI lint error total).
     //
     // typescript/no-redundant-type-constituents and typescript/no-base-to-string are
     // dist-dependent and stay pinned: on a fresh checkout (CI lints before any
     // packages/*/dist exists) cross-package imports resolve to "error types" and these
-    // two fire false positives — 63 + 1 errors in the PR #58 CI lint. Their real findings
-    // (1 + 2) are fixed; re-enable them once lint depends on the build (e.g. `turbo run
-    // lint`, whose task already declares dependsOn ["^build"]).
+    // two fire false positives — 62 + 1 errors in the PR #58 CI lint: 62
+    // typescript/no-redundant-type-constituents + 1 typescript/no-base-to-string.
+    // Their real findings (1 + 2) are fixed; re-enable them once lint depends on the
+    // build (e.g. `turbo run lint`, whose task already declares dependsOn ["^build"]).
     "typescript/no-redundant-type-constituents": "off",
     "typescript/no-base-to-string": "off",
     "vitest/require-mock-type-parameters": "off",

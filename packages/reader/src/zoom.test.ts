@@ -48,6 +48,13 @@ describe('applyDoubleTapZoom', () => {
 
     expect(newState.scale).toBe(1);
   });
+
+  it('should clamp the reset to minZoom when minZoom is above base scale', () => {
+    const state: ZoomStateSummary = { scale: 1.5, translateX: 0, translateY: 0, minZoom: 1.2, maxZoom: 3 };
+    const newState = applyDoubleTapZoom(state, { x: 400, y: 300 }, 800, 600, 1.5);
+
+    expect(newState.scale).toBe(1.2);
+  });
 });
 
 describe('applyPinchZoom', () => {
