@@ -5,8 +5,11 @@ import { defineConfig, devices } from '@playwright/test';
 // free port above it, so parallel slices never fight over one port (sibling
 // port cleanup used to kill live runs). Playwright requires a single object
 // export, so the probe runs synchronously in a short-lived node child.
+// Bind the wildcard address, not 127.0.0.1: on macOS a listener holding *:PORT
+// does not conflict with a loopback-only bind, so a loopback probe reports a
+// taken port as free (verified with a sibling's *:5185 server).
 const probeScript = (port: number): string =>
-  `const s=require('net').createServer();s.once('error',()=>process.exit(1));s.listen(${port},'127.0.0.1',()=>s.close(()=>process.exit(0)));`;
+  `const s=require('net').createServer();s.once('error',()=>process.exit(1));s.listen(${port},()=>s.close(()=>process.exit(0)));`;
 
 // A clean exit 1 from the probe means the port is taken (EADDRINUSE); anything
 // else (timeout, spawn failure) must not move the port.
