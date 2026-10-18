@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { PersistenceErrorBanner } from '../../components/PersistenceErrorBanner.js';
+import { PersistenceErrorBanner } from '@/components/PersistenceErrorBanner.js';
 import { LocalDbProvider, useReportPersistenceError } from '../local-db-provider.js';
 
 const { registered, flushLocalDb } = vi.hoisted(() => ({

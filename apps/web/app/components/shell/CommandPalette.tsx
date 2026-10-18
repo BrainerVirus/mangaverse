@@ -15,11 +15,11 @@ import {
   CommandItem,
 } from '@app/design-system';
 import { commandPaletteEnter, commandPaletteExit, useReducedMotion } from '@app/motion';
-import { useCommandPaletteStore } from '../../stores/useCommandPaletteStore';
-import { useLayoutStore } from '../../stores/useLayoutStore';
+import { useCommandPaletteStore } from '@/stores/useCommandPaletteStore';
+import { useLayoutStore } from '@/stores/useLayoutStore';
 import { registry } from './CommandRegistry';
-import { useTheme } from '../../providers/theme-provider.js';
-import { usePlatform } from '../../providers/platform-provider.js';
+import { useTheme } from '@/providers/theme-provider.js';
+import { usePlatform } from '@/providers/platform-provider.js';
 
 function useBuiltInCommands() {
   const navigate = useNavigate();

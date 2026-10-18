@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
 import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react';
-import { ThemeProvider } from '../../providers/theme-provider.js';
+import { ThemeProvider } from '@/providers/theme-provider.js';
 
 const storeState = vi.hoisted(() => ({
   layout: { deviceLayout: 'desktop' },

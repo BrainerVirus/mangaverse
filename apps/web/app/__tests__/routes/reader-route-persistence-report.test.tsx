@@ -44,7 +44,7 @@ vi.mock('@app/settings', () => ({
   settingsQueryKeys: { reader: () => ['settings', 'reader'] },
 }));
 
-import { Route } from '../../routes/reader.$chapterId.js';
+import { Route } from '@/routes/reader.$chapterId.js';
 
 async function renderRoute(): Promise<{ root: Root; container: HTMLElement }> {
   vi.spyOn(Route, 'useParams' as never).mockReturnValue({ chapterId: 'dev-md-ch-1' } as never);

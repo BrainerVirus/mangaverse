@@ -3,7 +3,7 @@ import { renderToString } from 'react-dom/server';
 import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react';
 import { ShellProviders } from '../ShellProviders.js';
-import { useCommandPaletteStore } from '../../stores/useCommandPaletteStore';
+import { useCommandPaletteStore } from '@/stores/useCommandPaletteStore';
 
 Object.defineProperty(globalThis, 'localStorage', {
   value: { getItem: () => null, setItem: () => {}, removeItem: () => {} },

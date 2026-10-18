@@ -6,6 +6,9 @@
     "moduleResolution": "bundler",
     "module": "ESNext",
     "rootDir": ".",
+    "paths": {
+      "@/*": ["./app/*"]
+    },
     "types": ["vite/client"],
     "noEmit": true
   },

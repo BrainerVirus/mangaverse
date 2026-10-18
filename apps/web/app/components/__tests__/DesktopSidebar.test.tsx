@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { renderToString } from 'react-dom/server';
-import { useLayoutStore } from '../../stores/useLayoutStore.js';
-import { ThemeProvider } from '../../providers/theme-provider.js';
+import { useLayoutStore } from '@/stores/useLayoutStore.js';
+import { ThemeProvider } from '@/providers/theme-provider.js';
 
 let currentPath = '/library';
 
