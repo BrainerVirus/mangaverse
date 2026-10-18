@@ -74,6 +74,37 @@
 
   // File overrides
   "overrides": [
+    // Package boundaries (AGENTS.md "Package Boundary Rules"): `no-restricted-imports`
+    // scoped per package, measured 2026-10-18 with each rule forced on over
+    // `npx oxlint apps packages` — 0 findings each; a planted `import ... from
+    // '@app/library'` in packages/shared/src/index.ts fails the shared check.
+    // The `**/` prefix matches absolute paths, so these globs keep working if the
+    // config ever moves; the pre-existing bare globs (e.g. "apps/**/scripts/**")
+    // anchor to this file's directory and are live at the repo root. Two mechanical
+    // rules are deliberately NOT encoded and stay prose in AGENTS.md — raw SQL outside
+    // @app/db (no oxlint rule covers it) and provider-specific code outside
+    // @app/extensions-* (real violations in apps/web/app); counts and follow-ups in
+    // docs/recovery/plan.md.
+    {
+      // @app/shared stays generic: no app shells, features, db, provider runtime or UI.
+      "files": ["**/packages/shared/**"],
+      "rules": { "no-restricted-imports": ["error", { "patterns": ["@app/**"] }] }
+    },
+    {
+      // @app/motion holds no business logic, so it imports no app package at all.
+      "files": ["**/packages/motion/**"],
+      "rules": { "no-restricted-imports": ["error", { "patterns": ["@app/**"] }] }
+    },
+    {
+      // @app/design-system imports no feature packages: only @app/shared and @app/motion.
+      "files": ["**/packages/design-system/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          { "patterns": ["@app/**", "!@app/shared**", "!@app/motion**"] }
+        ]
+      }
+    },
     {
       "files": ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
       "rules": {

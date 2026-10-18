@@ -66,15 +66,14 @@ docs/
 
 ## Package Boundary Rules
 
+Enforced by `.oxlintrc.json` (`no-restricted-imports`; `pnpm lint` fails on a violation): `@app/shared` and `@app/motion` import no app package; `@app/design-system` imports only `@app/shared` and `@app/motion`. The rules below are not machine-checked.
+
 - App features consume stable package APIs.
 - Features must not reach directly into provider internals, database internals, reader internals, platform internals, or Electron internals.
 - Do not add raw SQL outside `@app/db`.
 - Do not add provider-specific hacks outside `@app/extensions-core`, `@app/extensions-sdk`, or provider extension packages.
 - Do not place business logic inside visual components when it belongs in a feature service, domain package, repository, or shared model.
 - Do not place business logic inside animation code.
-- `@app/motion` must not contain business logic.
-- `@app/design-system` must not import feature packages.
-- `@app/shared` must stay generic and must not import app shells, feature packages, database implementation, provider runtime, or UI.
 
 ## Design System Rules
 
