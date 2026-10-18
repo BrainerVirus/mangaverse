@@ -5,33 +5,35 @@ import { defineConfig, devices } from '@playwright/test';
 // free port above it, so parallel slices never fight over one port (sibling
 // port cleanup used to kill live runs). Playwright requires a single object
 // export, so the probe runs synchronously in a short-lived node child.
-const probe = (script: string): string | null => {
+const probeScript = (port: number): string =>
+  `const s=require('net').createServer();s.once('error',()=>process.exit(1));s.listen(${port},'127.0.0.1',()=>s.close(()=>process.exit(0)));`;
+
+// A clean exit 1 from the probe means the port is taken (EADDRINUSE); anything
+// else (timeout, spawn failure) must not move the port.
+const isTaken = (port: number): boolean => {
   try {
-    return execFileSync(process.execPath, ['-e', script], {
-      stdio: ['ignore', 'pipe', 'ignore'],
+    execFileSync(process.execPath, ['-e', probeScript(port)], {
+      stdio: ['ignore', 'ignore', 'ignore'],
       timeout: 5000,
-    })
-      .toString()
-      .trim();
-  } catch {
-    return null;
+    });
+    return false;
+  } catch (error) {
+    return (error as { status?: number | null }).status === 1;
   }
 };
 
-const isFree = (port: number): boolean =>
-  probe(
-    `const s=require('net').createServer();s.once('error',()=>process.exit(1));s.listen(${port},'127.0.0.1',()=>s.close(()=>process.exit(0)));`,
-  ) !== null;
-
 const firstFreePort = (from: number): number => {
   for (let port = from; port < from + 50; port += 1) {
-    if (isFree(port)) return port;
+    if (!isTaken(port)) return port;
   }
   return from;
 };
 
 const requested = process.env.E2E_PORT ? Number(process.env.E2E_PORT) : 5185;
-const port = isFree(requested) ? requested : firstFreePort(requested + 1);
+// CI runs a single suite on a fresh runner: keep the requested port so a flaky
+// probe can never silently move the run to another port.
+const port =
+  process.env.CI !== undefined || !isTaken(requested) ? requested : firstFreePort(requested + 1);
 const baseURL = `http://127.0.0.1:${port}`;
 
 export default defineConfig({
