@@ -29,7 +29,7 @@ typography:
   display: Inter (EXISTING --font-family-display)
   body: Inter (EXISTING --font-family-sans)
   mono: JetBrains Mono (EXISTING --font-family-mono)
-  body-size: 14px / 1.55 / -0.011em (EXISTING)
+  body-size: 14px / 1.55 / -0.011em # 14px is the text-sm convention the components use, not a global size: body sets only 1.55 and -0.011em and inherits 16px
   label-size: 14px / 500 (EXISTING)
   micro-size: 11px / 500 (proposed; 10px today)
 rounded:
@@ -145,13 +145,14 @@ cover art behind a toolbar still looks like art rather than gray mush.
 
 **Where each tier is used** (the only legal placements):
 
-- **Thin** — glass whose backdrop is a known flat surface: tab troughs inside a glass panel, hover
-  washes, skeleton shimmer over the ambient canvas, chips that sit on an opaque card. **Thin never
-  carries text over imagery** (§3.5 explains why, with numbers).
+- **Thin** — glass whose backdrop is a known flat surface, so its blur pass has almost nothing to do:
+  tab troughs inside a glass panel, hover washes, skeleton shimmer over the ambient canvas, chips that
+  sit on an opaque card. **Thin never carries text over imagery** (§3.5 explains why, with numbers).
 - **Regular** — floating toolbars and sticky page headers over the ambient canvas, popovers, cards
-  that overlay imagery (shelf rows, "continue reading" tiles), the desktop rail when it floats.
+  that overlay imagery (shelf rows, "continue reading" tiles).
 - **Thick** — anything that owns the foreground while the app stays visible behind it: sheets,
-  dialogs, the command palette, the mobile bottom bar, the settings rail, the reader's settings sheet.
+  dialogs, the command palette, the mobile bottom bar, the navigation rail (desktop and settings), the
+  reader's settings sheet.
 - **Stage** — the reader chrome only (top bar, bottom rail, chapter transition card, the offline
   toast). It is theme-independent: the reading stage is always black, so its glass is always dark and
   its type is always white.
@@ -225,15 +226,28 @@ is the shadow the layer casts, the specular edge is the light it catches.
 
 Tailwind wiring (per the shadcn workflow's Step 4, in `@theme`, not `@theme inline`):
 `--shadow-sm: var(--elevation-1)`, `--shadow-md: var(--elevation-2)`, `--shadow-lg: var(--elevation-3)`,
-`--shadow-xl: var(--elevation-4)`. `shadow-sm` on `Card` therefore keeps today's value; `shadow-lg` on
-sheets deepens from "lift" to "overlay" by intent.
+`--shadow-xl: var(--elevation-4)`. Today none of those theme keys is overridden, so components still use
+Tailwind's defaults: `Card`'s `shadow-sm` is `0 1px 3px rgb(0 0 0 / .10), 0 1px 2px -1px rgb(0 0 0 / .10)`,
+heavier than `--elevation-1` (`0 1px 2px rgb(0 0 0 / .04)`, the `.surface-panel` whisper), so the mapping
+**lightens** `Card` rather than preserving its current value. Sheets use Tailwind's default `shadow-lg`
+(`0 10px 15px -3px rgb(0 0 0 / .10), 0 4px 6px -4px rgb(0 0 0 / .10)`); the wiring moves `shadow-lg` to
+`--elevation-3` (lift), so the assignment above — sheets at step 4 — requires the sheet to move to
+`shadow-xl` (`--elevation-4`) as part of P5. The wiring alone would leave it one step shallow.
 
 ### 2.5 Performance, fallbacks and constraints
 
 `backdrop-filter` is the most expensive thing in this document. Non-negotiable rules:
 
-- **Budget:** at most **2** concurrent blurred layers in the reader, **4** in the shell. Never nest a
-  blurred layer inside another (each nesting multiplies the read-back cost and produces muddy colour).
+- **Budget, counted per view.** The reader's steady state is **1** blurred layer — the chrome container
+  (top bar and bottom rail), hidden most of the time — rising to **3** with both transients on screen (the
+  rail's preview popover while scrubbing, the offline toast) and **4** while the settings sheet is open:
+  chrome, toast, sheet, scrim (the popover cannot coexist with a modal, whose scrim suppresses hovering
+  under it). The shell runs 1–2 in normal use (rail, sticky header) and reaches **4** with the command
+  palette open (rail, header, panel, scrim). No view adds a fifth blurred layer.
+- **Nesting:** two tiers that blur imagery must never nest — the inner pass re-blurs an already-blurred
+  composite, doubling the read-back and muddying the colour. The one exception is the **thin** tier,
+  whose backdrop is a known flat, already-composited surface: a thin tint inside a glass panel (a tab
+  trough, the mode pill over the stage chrome) is legal and does not count as a second blurred layer.
 - **Never** put `backdrop-filter` on a large scrolling surface or on a container whose children scroll
   under it. Blur the _chrome_, not the content.
 - **Never animate the blur radius or the fill alpha.** Animate the layer's `opacity` and `transform`
@@ -281,9 +295,11 @@ Vibrancy is how type, icons and controls behave when they sit on glass. The rule
 
 Every value below is a token from `globals.css` unless marked **proposed**. Light is `:root, .light`;
 dark is `.dark`. The runtime theme layer (`packages/theme/src/presets.ts` + `apply-theme.ts`) repaints
-27 of these 29 variables from a preset's 10 colour tokens — `--surface` and `--surface-raised` are the
-two it does not touch — but the roles below are fixed. The glass tokens join the theme layer's list
-once introduced; presets may tint them, never re-tier them.
+27 of these 29 variables across 10 presets — `--surface` and `--surface-raised` are the two it does not
+touch. Not all 27 are the preset's 10 colour tokens: `--muted-foreground`, `--destructive-foreground` and
+the light `--primary-foreground` are hardcoded in `apply-theme.ts`, and `--muted`, `--secondary` and the
+`--sidebar` family reuse the preset's accent and surface. The roles below are fixed regardless. The glass
+tokens join the theme layer's list once introduced; presets may tint them, never re-tier them.
 
 ### 3.1 Foundation (light → dark)
 
@@ -330,12 +346,14 @@ once introduced; presets may tint them, never re-tier them.
 
 - **Signal Red** `#dc2626` → `#ef4444` — `--destructive`. Deletion, uninstall, destructive restore, and
   the content-rating badge. On glass, light mode needs the darker **proposed** `--destructive-glass`
-  `#b91c1c`; dark's `#ef4444` measures 4.80:1 and needs nothing.
+  `#b91c1c`; dark's `#ef4444` measures 4.80:1 against dark glass (thick, alpha .78) over `--background`
+  and needs nothing.
 - **Confirm Green** `#16a34a` → `#22c55e` — `--success`. Completed backup, restore, migration. On
-  glass, light mode needs the darker **proposed** `#15803d` (4.89:1).
+  glass, light mode needs the darker **proposed** `#15803d` (4.89:1 on light glass, regular, alpha .68,
+  over `--background`).
 - **Caution Amber** `#d97706` → `#f59e0b` — `--warning`. Provider limitations, risky operations. On
-  glass, light mode needs the darker **proposed** `#b45309` (4.89:1); `#d97706` measures only 3.10:1
-  there.
+  glass, light mode needs the darker **proposed** `#b45309` (4.89:1 on the same light-glass fill);
+  `#d97706` measures only 3.10:1 there.
 
 Status colour is never the only signal: it always travels with a label, icon or badge text.
 
@@ -427,7 +445,8 @@ where Inter is not installed. Treat the stacks as the intent and the fallbacks a
 
 **Global character (existing).** Body copy is `1.55` line-height with `letter-spacing: -0.011em` and the
 OpenType character variants `cv02`, `cv03`, `cv04`, `cv11`. The negative tracking is what makes the
-interface read as precise rather than airy.
+interface read as precise rather than airy. `body` sets no font size: the page inherits the browser's 16px,
+and 14px is the components' `text-sm` convention (the `type-body` role below).
 
 **On glass (proposed).** Translucent backdrops cost legibility, so glass type is stricter than matte
 type: never lighter than weight 400, never below 12px for secondary text, no tracking below `-0.02em`,
@@ -451,7 +470,7 @@ and drops the first of two that sit together.
 | `type-display-lg`  | `clamp(28px, 2vw + 14px, 36px)` / 1.1 / `-0.02em`   | 600    | Page hero titles, chapter-transition card                              |
 | `type-title`       | 24px / 1.2 / `-0.015em`                             | 600    | `CardTitle`, dialog and sheet titles (today `text-2xl tracking-tight`) |
 | `type-heading`     | 18px / 1.3 / `-0.01em`                              | 600    | Section headings, manga detail title                                   |
-| `type-body`        | 14px / 1.55 / `-0.011em`                            | 400    | Default body copy (existing body style)                                |
+| `type-body`        | 14px / 1.55 / `-0.011em`                            | 400    | Default body copy (`text-sm`, the components' convention)              |
 | `type-body-lg`     | 16px / 1.5 / `-0.011em`                             | 400    | Reader descriptions, alert titles                                      |
 | `type-label`       | 14px / 1 / `-0.006em`                               | 500    | Buttons, tab triggers, form labels                                     |
 | `type-meta`        | 12px / 1.4                                          | 400    | Provider IDs, page counters, timestamps                                |
@@ -591,8 +610,11 @@ Gesture thresholds are the shipped constants in `packages/reader/src/gestures.ts
 Rules: a visible control always wins over a tap zone — zones are computed around the chrome, never under
 it. Zones never change geometry during an interaction (no zone shift while chrome animates). Zoom, pan,
 scroll and tap always outrank animation. Hit targets are ≥ 44×44 CSS px for primary controls (≥ 24×24
-absolute minimum, WCAG 2.2 AA) with ≥ 8px between adjacent targets. `touch-action: none` on the zoom
-layer, `pan-y` on the scroll strip, `overscroll-behavior: contain` on sheets and dialogs.
+absolute minimum, WCAG 2.2 AA) with ≥ 8px between adjacent targets. **Existing:** `touch-action: none` on
+the zoom layer and on the progress rail's track (a scrub must not scroll the page), and
+`overscroll-behavior: contain` on the reader's scroll strip. **Proposed:** `touch-action: pan-y` on the
+shell's scroll surfaces, and `overscroll-behavior: contain` on sheets and dialogs — neither ships today
+(the sheet has no overscroll rule at all).
 
 **Proposed additions:** drag-to-dismiss for bottom sheets when the drag passes **120px** or velocity
 exceeds **0.5 px/ms**, with a damped settle back at `expo.out`; long-press (500ms) on a manga card opens
@@ -623,9 +645,9 @@ gesture set.
 | `≥ 1024px`             | Persistent rail, 220px expanded / 52px collapsed (`Cmd/Ctrl+B`), glass-thick, elevation-4    | Double-page layout honoured; preview rail on the progress bar; keyboard-first                     |
 
 Grids keep their existing rhythm (library 2 → 3 → 4 → 5 → 6 columns, discover 2 → 3 → 4 → 6, `gap-4`).
-Glass budget per breakpoint: ≤ 2 blurred layers below `md`, ≤ 4 from `md` up (§2.5). The table is the
-target contract: today the rail is hidden below `md` with a hover-expand and the bottom bar is the only
-sub-`md` navigation (§7.7).
+The glass budget is per view, not per breakpoint (§2.5): a view shows 1–2 blurred layers in normal use
+and 4 at most, when a sheet or the command palette is open. The table is the target contract: today the
+rail is hidden below `md` with a hover-expand and the bottom bar is the only sub-`md` navigation (§7.7).
 
 ### 6.4 Accessibility contract
 
@@ -692,10 +714,12 @@ alias that renders a matte `GlassPanel` until every caller has moved (P5).
 - **Hover** (interactive cards only): elevation 1 → 3, `y: -2px`, `scale: 1.02`, `DURATION.standard` with
   `expo.out`. Static panels never animate.
 - **Manga card (existing structure, glass target):** 3:4 portrait button; grid variant stacks a
-  full-bleed cover (7px corners) with the title on a bottom **plate**; list variant is a `gap-4 p-3` row
-  with an 80×56 cover; compact is `gap-3 p-2` with a 64×48 cover. Provider ID at `type-meta`; up to three
-  tags as outline badges at `type-micro`; a content rating above `safe` plants a destructive badge with
-  text, never colour alone. Cards must not depend on hover on touch.
+  full-bleed cover (7px corners) with the title in a bottom overlay (`absolute bottom-0 left-0 right-0
+  p-3`) that carries **no** plate today — the bottom plate is the §3.5 proposal, not a current fact;
+  list variant is a `gap-4 p-3` row with an 80×56 cover; compact is `gap-3 p-2` with a 64×48 cover.
+  Provider ID at `type-meta`; up to three tags as outline badges at `type-micro`; a content rating above
+  `safe` plants a destructive badge with text, never colour alone. Cards must not depend on hover on
+  touch.
 - **`.surface-panel` (existing):** `--surface`, 1px `--border`, 10px corners, `0 1px 2px rgb(0 0 0 / .04)`
   (dark: `0 1px 2px rgb(0 0 0 / .35)` plus `inset 0 1px 0 rgb(255 255 255 / .03)`). Target: `GlassPanel`
   at `level="regular"`; the matte recipe survives as the low-end/reduced-transparency resolution.
@@ -729,8 +753,9 @@ alias that renders a matte `GlassPanel` until every caller has moved (P5).
   with the field when disabled.
 - **Switch (existing):** 24×44 pill (`--radius-badge`) with a 20px circular thumb carrying `shadow-md`.
 - **Slider (existing):** native range with a transparent track and a 16px `--primary` thumb. The reader's
-  page rail is the same idea on the stage: an 8px white-at-25% track, a 16px white thumb, a fill that
-  moves by `transform` only over `DURATION.quick`.
+  page rail is the same idea on the stage: an 8px white-at-25% track, a 16px white thumb, and a fill and
+  thumb that move by `transform` only over a raw 180ms `cubic-bezier(0.22, 1, 0.36, 1)` (a CSS transition
+  in `reader-progress-rail.tsx`, not a `DURATION` token), with the preview popover at 120ms `ease-out`.
 - **Tabs (existing):** a 40px trough at 7px radius on `--muted`, active trigger on the canvas colour with
   `shadow-sm` — the only place a tab looks raised. Target: the trough becomes `GlassSurface
   level="thin"` inside glass panels, with the active trigger on `--surface` and a specular edge.
@@ -748,8 +773,9 @@ and `chromeShow`/`chromeHide` from `@app/motion`. The material is what changes:
 - Every control row sits on a stage **plate** (§3.5) so `text-white/70` labels hold ≥ 4.5:1 over a white
   page (measured 5.59:1 at 0.78).
 - The mode pill (`rounded-full bg-white/10 p-1` with a `bg-white` thumb) becomes `GlassSurface
-  level="thin"` over the stage with `--glass-specular` on the active thumb; the morph runs at
-  `DURATION.standard` with `expo.out` and is skipped under reduced motion.
+  level="thin"` over the stage with `--glass-specular` on the active thumb; the morph keeps today's
+  timing — **280ms, `power3.out`** (a raw literal in `reader-chrome.tsx`, not a `DURATION` token; P3 may
+  tokenise it) — and is skipped under reduced motion.
 - The progress rail keeps its 8px `bg-white/25` track and 16px white thumb, gains a stage plate under the
   preview popover (`border-white/20 bg-black/80` today → `GlassSurface level="stage"`), and keeps
   `focus-visible:ring-2 ring-white/70`.
@@ -761,8 +787,9 @@ and `chromeShow`/`chromeHide` from `@app/motion`. The material is what changes:
 ### 7.7 Sidebar / shell
 
 - **Desktop rail (existing):** 220px expanded / 52px collapsed over a 200ms ease-out transition, hidden
-  below `md`, on `--sidebar` with a right hairline, rows 36px (`h-9`) at `text-sm font-medium` with 20px
-  icons in a `gap-1` list, active row on the secondary fill, hover on `--accent`, and a foot holding the
+  below `md`, on `--sidebar` with a right hairline, rows 36px (`h-9`) at `text-sm font-medium` with 16px
+  icons (the button base's `[&_svg]:size-4`, which every `buttonVariants` value carries) in a `gap-1` list,
+  active row on the secondary fill, hover on `--accent`, and a foot holding the
   collapse control plus a mono `kbd` hint on `--sidebar-accent`. Hovering the rail expands it on pointer
   devices after a 200ms delay, and the toggle button gives keyboard and touch users the same state. Target:
   `GlassSurface level="thick"` floating with `--radius-glass` and `--elevation-4`; the active row takes
@@ -832,7 +859,8 @@ where context matters (chrome, floating layers) and nowhere else. Reader chrome 
 - Do keep the page and its art untouched in the reader: chrome floats, content never moves.
 - Do route every animation through `@app/motion`, pass `reducedMotion`, and use `expo.out` (GSAP's
   exponential ease-out) for anything that should feel like glass settling.
-- Do keep two blurred layers in the reader and four in the shell, at most.
+- Do keep the reader at one blurred layer while reading (never more than four, and only with a sheet open)
+  and the shell at four, at most (§2.5).
 - Do keep focus instant, visible and unobscured, and keep every target ≥ 44×44 on touch.
 - Do let a theme repaint colours while the material, radii, elevation and behaviour stay fixed.
 - Do check `docs/Design.md` before shipping a screen — it holds the binding rules this document values.
@@ -884,8 +912,9 @@ Honest accounting. Nothing below is aspirational; §13 is where the gap closes.
   accent, destructive, success, warning, ring, reader-background, sidebar family), four radii
   (`--radius-box` 10px, `--radius-control` 7px, `--radius-btn` 8px, `--radius-badge` 9999px), three font
   stacks, and the `.surface-panel` recipe with its dark-mode inset highlight.
-- **Theme layer:** `packages/theme` repaints 27 of those 29 variables from 10 preset colour tokens across
-  10 presets (`default`/Minimal first); `--surface` and `--surface-raised` are not repainted.
+- **Theme layer:** `packages/theme` repaints 27 of those 29 variables across 10 presets
+  (`default`/Minimal first); `--surface` and `--surface-raised` are not repainted, and not every repainted
+  value comes from a preset token (`--muted-foreground` is hardcoded in `apply-theme.ts`).
 - **Components:** 16 `ui/*` primitives (button, card, dialog, sheet, command, badge, skeleton, input,
   label, switch, select, slider, tabs, alert, separator, tooltip) plus PageHeader, MangaCard,
   ReaderChrome, ReaderProgressRail, SettingsSection, ThemePreview, EmptyState, LoadingState, ErrorState.
@@ -924,8 +953,9 @@ Honest accounting. Nothing below is aspirational; §13 is where the gap closes.
 - **Focus ring contrast (existing defect).** `--ring` measures 2.32:1 (light) and 2.58:1 (dark) against
   the canvas, under WCAG 2.2's 3:1 for non-text contrast. Proposed fix in §3.3; it is a token change that
   touches `packages/design-system`, `packages/theme` and their tests, so it belongs in P1.
-- **Light-mode `--warning` on glass (3.10:1) and `--success` (4.89:1).** The glass status colours in
-  §3.4 are proposals, not measurements of shipped values.
+- **Light-mode `--warning` on glass (3.10:1) and `--success` (4.89:1), measured against the light glass
+  fill (regular, alpha .68) over `--background`.** The glass status colours in §3.4 are proposals, not
+  measurements of shipped values.
 - **`prefers-reduced-transparency` support is uneven.** The in-app setting is the reliable path; the media
   query is an enhancement. Verify both in P1.
 - **Displacement refraction has no budget number yet.** It is capped to two hero surfaces by rule; measure
@@ -959,10 +989,10 @@ test. No consumer changes in this PR.
 **P2 — Reader chrome on stage glass** (`packages/design-system`, `packages/reader`)
 Move `ReaderChrome` and `ReaderProgressRail` onto `GlassSurface level="stage"` with plates under the
 control rows, keep `CHROME_INSETS`, tap zones and keyboard behaviour byte-for-byte, keep the mode pill's
-morph timing, and switch the offline toast and the preview popover to stage glass. Tests: the existing
-reader-chrome a11y test stays green, plus new tests for the plate geometry (a control row never leaves the
-plate), the reduced-transparency resolution, and a tap-zone test proving chrome and sheet interactions
-still cannot reach the tap surface.
+morph timing (280ms `power3.out`, §7.6), and switch the offline toast and the preview popover to stage
+glass. Tests: the existing reader-chrome a11y test stays green, plus new tests for the plate geometry (a
+control row never leaves the plate), the reduced-transparency resolution, and a tap-zone test proving
+chrome and sheet interactions still cannot reach the tap surface.
 
 **P3 — Liquid motion** (`packages/motion`, `packages/design-system`)
 Add `EASING.liquidSettle` / `glide` (CustomEase) with the matching `--ease-liquid` / `--ease-glide` CSS

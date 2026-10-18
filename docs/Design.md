@@ -68,7 +68,8 @@ reading sessions, visual media browsing, and source management.
 - Every material degrades: no `backdrop-filter` support, reduced transparency, and the low-end device
   profile all resolve to the opaque token, keeping the hierarchy intact.
 - Never animate `backdrop-filter`, a blur radius, or a shadow. Animate opacity and transform of the layer.
-- Blur budget: at most two blurred layers in the reader and four in the shell, and never nested.
+- Blur budget and nesting rules: `DESIGN.md` §2.5 — count blurred layers per view, and never nest two
+  tiers that blur imagery (a thin tint inside a glass panel is legal).
 - The reader's stage glass is theme-independent: dark glass, white type, opaque plates under control rows.
 
 ## Layout System
@@ -107,8 +108,8 @@ The type scale, weights, tracking, and the glass-specific adjustments live in `D
 - Avoid defaulting to Arial, Roboto, or generic system-only typography for the final design.
 - Use numeric tabular variants where progress, chapter counts, storage, or diagnostics are displayed.
 - Keep reader chrome labels short and readable.
-- On glass, never go below weight 400, below 12px for secondary text, or below `-0.02em` tracking, and never
-  use a text shadow to buy contrast — use a plate.
+- On glass the type floors are stricter than on matte surfaces (`DESIGN.md` §4), and a text shadow is never
+  used to buy contrast — use a plate.
 
 Type roles:
 
@@ -145,9 +146,9 @@ Glass roles (`DESIGN.md` §2.1, §3.4):
 - Glass muted ink: the only secondary text colour allowed on glass.
 - Glass status colours: the darker light-mode destructive, success, and warning values for glass text.
 
-Contrast on glass is not optional: body text 4.5:1, large text and non-text UI 3:1, measured against the
-effective composited colour and verified over both a white and a black backdrop. `--muted-foreground` is
-never used on glass.
+Contrast on glass is not optional: the floors and the placement rules are `DESIGN.md` §3.5, measured
+against the effective composited colour and verified over both a white and a black backdrop.
+`--muted-foreground` is never used on glass.
 
 Status must never rely on color alone. Pair color with labels, icons, badges, or text.
 
@@ -201,7 +202,7 @@ Theme rules:
 - Destructive actions must require clear labeling and confirmation when data loss is possible.
 - Icon-only buttons need accessible labels.
 - Desktop hover states must not be the only affordance.
-- Touch targets should be at least 44 by 44 CSS pixels where practical.
+- Touch targets follow the sizes and spacing in `DESIGN.md` §6.1.
 
 ### Cards
 
@@ -274,7 +275,10 @@ Theme rules:
 - Reader errors need retry and back actions.
 - Reader should avoid surprise UI shifts after images load.
 - Reader chrome uses the `stage` glass tier with opaque plates under its control rows, so white labels stay
-  above 4.5:1 over any page (`DESIGN.md` §3.5). No other surface inside the reader may be translucent.
+  legible over any page (the floor and the placement rules are `DESIGN.md` §3.5). The only other
+  translucent surfaces inside the reader are the ones `DESIGN.md` §7.6 names — the mode pill's `thin` tint
+  and the reader's own modals (the settings sheet and the chapter transition card); nothing else in the
+  reader is translucent.
 - The reader's page transition animates the page layer only; tap zones, chrome insets, and the zoom layer
   never move during a transition, and a second navigation request cancels the tween immediately.
 
@@ -310,7 +314,7 @@ Banned reader motion:
 - Use focus trapping for modal dialogs.
 - Use Escape-to-close where appropriate.
 - Use clear form labels and error messages.
-- Keep touch targets at least 24 by 24 CSS pixels, with 44 by 44 preferred.
+- Keep touch targets at the sizes `DESIGN.md` §6.1 requires.
 - Text on glass meets the floors in `DESIGN.md` §3.5, verified over both a white and a black backdrop.
 - Decorative layers (sheen, specular, refraction, ambient band) are `aria-hidden` and never interactive.
 
@@ -416,7 +420,7 @@ The easing presets are defined in `packages/motion/src/tokens/easing.ts` and doc
 - Breakpoints and the touch vs pointer contract live in `DESIGN.md` §6. Touch gestures use the thresholds
   shipped in `packages/reader` (never a locally invented one); pointer affordances exist only under
   `@media (hover: hover) and (pointer: fine)` and are never the only affordance.
-- The glass budget is per breakpoint: at most two blurred layers below `md`, four from `md` up.
+- The glass budget is per view, not per breakpoint, and the nesting rules apply: `DESIGN.md` §2.5.
 
 ## Desktop Behavior
 
