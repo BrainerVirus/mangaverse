@@ -48,6 +48,7 @@ export async function installFirstPartyProviders(db: AppDrizzleDb): Promise<void
             warnings: [],
           };
 
+    // react-doctor-disable-next-line react-doctor/async-await-in-loop -- ruling web-sequential-first-party-writes: these upserts share one sql.js handle, so they must not interleave, and a failed upsert stops the loop before the next manifest runs. Widen to Promise.all only if a manifest list that large ever lands.
     const result = await upsertInstalledExtension(db, metadata);
     if (!result.ok) {
       throw new Error(result.error.message);

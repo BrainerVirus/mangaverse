@@ -46,6 +46,7 @@ function ExtensionsRoute() {
     enabled: dbStatus === 'ready' && db !== null,
   });
 
+  // react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- ruling: web-mutation-no-cache-write: `prepareManualProviderInstall` fetches a remote manifest and writes it to local component state (`installSession`); it mutates no cached query, and the confirm mutation below already invalidates `extensionsQueryKeys.all` once it writes.
   const fetchManifestMutation = useMutation({
     mutationFn: async (url: string) => {
       const result = await prepareManualProviderInstall(url, {
@@ -132,6 +133,7 @@ function ExtensionsRoute() {
     }
   }
 
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-route-intent: `?install=1` is a navigation intent that must open the dialog once the DB is ready; deriving `installOpen` from the search param would open it before the DB settles and cannot replay the "opened once per visit" guard the ref carries.
   useEffect(() => {
     if (!search.install) {
       autoInstallStarted.current = false;

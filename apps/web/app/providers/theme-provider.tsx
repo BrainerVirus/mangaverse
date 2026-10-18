@@ -67,6 +67,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const theme = resolveThemeAppearance(settings);
 
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-ssr-hydration: the stored theme is read after hydration on purpose: a useState initializer would run in the browser during the hydration render and mismatch the server's markup.
   useEffect(() => {
     const stored = readStoredThemeSettings();
     if (stored !== null && !hydratedRef.current) {
@@ -74,12 +75,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-dom-write: writing the theme to <html> and localStorage is a DOM/storage side effect keyed on `settings`; it cannot run in render (double-invoked) and `settings` is not otherwise derivable from props.
   useEffect(() => {
     applyThemeToRoot(document.documentElement, settings);
     persistThemeLocally(settings);
-  }, [settings]);
 
-  useEffect(() => {
     if (settings.presetId !== 'system') {
       return;
     }

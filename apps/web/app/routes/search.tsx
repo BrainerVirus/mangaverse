@@ -37,6 +37,7 @@ function SearchRoute() {
     enabled: dbStatus === 'ready' && db !== null && appSettingsQuery.isSuccess,
   });
 
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-analytics-write: recording the query is a debounced-by-typing DB write keyed on the settled `viewState.query`; the SearchPage owns the input state, so there is no event handler to move this into.
   useEffect(() => {
     const trimmed = viewState.query.trim();
     if (trimmed.length === 0 || db === null || dbStatus !== 'ready') {

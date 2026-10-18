@@ -1,9 +1,16 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
-import { DiscoverPage, discoverQueryKeys } from '@app/search';
+import type { AppDrizzleDb } from '@app/db';
+import {
+  DiscoverPage,
+  discoverQueryKeys,
+  type DiscoverExpandedSectionState,
+  type DiscoverProviderFeed,
+} from '@app/search';
 import { fetchAppSettings, settingsQueryKeys } from '@app/settings';
 import { useLocalDb, useLocalDbStatus, useLocalDbRetry } from '../providers/local-db-provider.js';
+import type { LocalDbStatus } from '../providers/local-db-provider.js';
 import {
   fetchProviderDiscoverData,
   fetchProviderSectionPage,
@@ -17,6 +24,17 @@ type DiscoverSearch = {
   section?: string;
 };
 
+type ExpandedSection = { providerId: string; sectionId: string };
+
+type ExpandedSectionMeta = {
+  binding: NonNullable<ReturnType<typeof getProviderBinding>>;
+  title: string;
+  sectionId: string;
+};
+
+/** Stable empty list so `providers` keeps its identity before the query resolves. */
+const NO_PROVIDERS: readonly DiscoverProviderFeed[] = [];
+
 export const Route = createFileRoute('/discover')({
   validateSearch: (search: Record<string, unknown>): DiscoverSearch => ({
     ...(typeof search.provider === 'string' ? { provider: search.provider } : {}),
@@ -25,62 +43,63 @@ export const Route = createFileRoute('/discover')({
   component: DiscoverRoute,
 });
 
-function DiscoverRoute() {
-  const navigate = useNavigate({ from: '/discover' });
-  const search = Route.useSearch();
-  const db = useLocalDb();
-  const dbStatus = useLocalDbStatus();
-  const retryDb = useLocalDbRetry();
-  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(
-    search.provider ?? null,
+function toExpandedSection(
+  provider: string | undefined,
+  section: string | undefined,
+): ExpandedSection | null {
+  if (provider === undefined || section === undefined) {
+    return null;
+  }
+  return { providerId: provider, sectionId: section };
+}
+
+/** Falls back to the provider package's declared title so a stale deep link still gets a header. */
+function resolveExpandedSectionMeta(
+  expandedSection: ExpandedSection | null,
+  providers: readonly DiscoverProviderFeed[],
+): ExpandedSectionMeta | null {
+  if (expandedSection === null) {
+    return null;
+  }
+
+  const binding = getProviderBinding(expandedSection.providerId);
+  if (binding === null) {
+    return null;
+  }
+
+  const provider = providers.find((entry) => entry.providerId === expandedSection.providerId);
+  const section = provider?.sections.find((entry) => entry.id === expandedSection.sectionId);
+  if (section !== undefined) {
+    return { binding, title: section.title, sectionId: section.id };
+  }
+
+  // Not in the loaded preview (still fetching, or filtered out): fall back to
+  // the title the provider package declares for that section.
+  const title = getSectionTitle(binding, expandedSection.sectionId);
+  return title === null ? null : { binding, title, sectionId: expandedSection.sectionId };
+}
+
+/** Owns the expanded-section drill-down: its header, its paged query and load-more. */
+function useExpandedSection(
+  db: AppDrizzleDb | null,
+  dbStatus: LocalDbStatus,
+  providers: readonly DiscoverProviderFeed[],
+  search: DiscoverSearch,
+  explicitContent: boolean,
+) {
+  const expandedSection = useMemo(
+    () => toExpandedSection(search.provider, search.section),
+    [search.provider, search.section],
   );
 
-  const appSettingsQuery = useQuery({
-    queryKey: settingsQueryKeys.app(),
-    queryFn: () => fetchAppSettings(db!),
-    enabled: dbStatus === 'ready' && db !== null,
-  });
+  const expandedSectionMeta = useMemo(
+    () => resolveExpandedSectionMeta(expandedSection, providers),
+    [expandedSection, providers],
+  );
 
-  const explicitContent = appSettingsQuery.data?.settings.explicitContent ?? false;
-
-  const { data, isLoading, isError } = useQuery({
-    queryKey: discoverQueryKeys.providers(explicitContent),
-    queryFn: ({ signal }) => fetchProviderDiscoverData(db!, signal),
-    enabled: dbStatus === 'ready' && db !== null && appSettingsQuery.isSuccess,
-  });
-
-  const providers = data?.providers ?? [];
-  const showProviderHint = dbStatus === 'ready' && !isLoading && providers.length === 0;
-  const expandedSection =
-    search.provider !== undefined && search.section !== undefined
-      ? { providerId: search.provider, sectionId: search.section }
-      : null;
-
-  const expandedSectionMeta = useMemo(() => {
-    if (expandedSection === null) {
-      return null;
-    }
-
-    const binding = getProviderBinding(expandedSection.providerId);
-    if (binding === null) {
-      return null;
-    }
-
-    const provider = providers.find((entry) => entry.providerId === expandedSection.providerId);
-    const section = provider?.sections.find((entry) => entry.id === expandedSection.sectionId);
-    if (section !== undefined) {
-      return { binding, title: section.title, sectionId: section.id };
-    }
-
-    // Not in the loaded preview (still fetching, or filtered out): fall back to
-    // the title the provider package declares for that section.
-    const title = getSectionTitle(binding, expandedSection.sectionId);
-    return title === null ? null : { binding, title, sectionId: expandedSection.sectionId };
-  }, [expandedSection, providers]);
-
-  const sectionInfiniteQuery = useInfiniteQuery({
+  const sectionQuery = useInfiniteQuery({
     queryKey:
-      expandedSection !== null
+      expandedSection !== null && expandedSectionMeta !== null
         ? discoverQueryKeys.section(
             expandedSection.providerId,
             expandedSection.sectionId,
@@ -107,26 +126,63 @@ function DiscoverRoute() {
   });
 
   const expandedResults = useMemo(
-    () => sectionInfiniteQuery.data?.pages.flatMap((page) => page.results) ?? [],
-    [sectionInfiniteQuery.data?.pages],
+    () => sectionQuery.data?.pages.flatMap((page) => page.results) ?? [],
+    [sectionQuery.data?.pages],
   );
 
-  const handleLoadMoreSection = useCallback(() => {
-    if (sectionInfiniteQuery.hasNextPage && !sectionInfiniteQuery.isFetchingNextPage) {
-      void sectionInfiniteQuery.fetchNextPage();
+  const loadMoreSection = useCallback(() => {
+    if (sectionQuery.hasNextPage && !sectionQuery.isFetchingNextPage) {
+      void sectionQuery.fetchNextPage();
     }
-  }, [sectionInfiniteQuery]);
+  }, [sectionQuery]);
 
-  const expandedSectionState =
-    expandedSection !== null && expandedSectionMeta !== null
-      ? {
+  const expandedSectionState: DiscoverExpandedSectionState | undefined =
+    expandedSectionMeta === null
+      ? undefined
+      : {
           title: expandedSectionMeta.title,
           results: expandedResults,
-          isLoading: sectionInfiniteQuery.isLoading,
-          isFetchingNextPage: sectionInfiniteQuery.isFetchingNextPage,
-          hasNextPage: sectionInfiniteQuery.hasNextPage ?? false,
-        }
-      : undefined;
+          isLoading: sectionQuery.isLoading,
+          isFetchingNextPage: sectionQuery.isFetchingNextPage,
+          hasNextPage: sectionQuery.hasNextPage ?? false,
+        };
+
+  return { expandedSection, expandedSectionState, isError: sectionQuery.isError, loadMoreSection };
+}
+
+function DiscoverRoute() {
+  const navigate = useNavigate({ from: '/discover' });
+  const search = Route.useSearch();
+  const db = useLocalDb();
+  const dbStatus = useLocalDbStatus();
+  const retryDb = useLocalDbRetry();
+  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(
+    search.provider ?? null,
+  );
+
+  const appSettingsQuery = useQuery({
+    queryKey: settingsQueryKeys.app(),
+    queryFn: () => fetchAppSettings(db!),
+    enabled: dbStatus === 'ready' && db !== null,
+  });
+
+  const explicitContent = appSettingsQuery.data?.settings.explicitContent ?? false;
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: discoverQueryKeys.providers(explicitContent),
+    queryFn: ({ signal }) => fetchProviderDiscoverData(db!, signal),
+    enabled: dbStatus === 'ready' && db !== null && appSettingsQuery.isSuccess,
+  });
+
+  const providers = data?.providers ?? NO_PROVIDERS;
+  const showProviderHint = dbStatus === 'ready' && !isLoading && providers.length === 0;
+
+  const {
+    expandedSection,
+    expandedSectionState,
+    isError: isSectionError,
+    loadMoreSection,
+  } = useExpandedSection(db, dbStatus, providers, search, explicitContent);
 
   return (
     <DiscoverPage
@@ -135,7 +191,7 @@ function DiscoverRoute() {
       expandedSection={expandedSection}
       {...(expandedSectionState !== undefined ? { expandedSectionState } : {})}
       isLoading={dbStatus === 'loading' || isLoading || appSettingsQuery.isLoading}
-      isError={dbStatus === 'error' || isError || sectionInfiniteQuery.isError}
+      isError={dbStatus === 'error' || isError || isSectionError}
       showProviderHint={showProviderHint}
       onSelectProvider={(providerId) => {
         setSelectedProviderId(providerId);
@@ -152,7 +208,7 @@ function DiscoverRoute() {
         }
         void navigate({ search: {} });
       }}
-      onLoadMoreSection={handleLoadMoreSection}
+      onLoadMoreSection={loadMoreSection}
       onBrowseProviders={() => void navigate({ to: '/extensions' })}
       {...(dbStatus === 'error' ? { onRetry: retryDb } : {})}
     />
