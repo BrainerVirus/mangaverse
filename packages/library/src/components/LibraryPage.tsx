@@ -29,7 +29,10 @@ export function LibraryPage({
   const itemCount = items.length;
 
   return (
-    <main className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 p-6 md:p-8">
+    <section
+      aria-label="Library"
+      className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 p-6 md:p-8"
+    >
       <LibraryToolbar
         viewState={viewState}
         itemCount={itemCount}
@@ -58,6 +61,6 @@ export function LibraryPage({
       {!isLoading && !isError && itemCount > 0 ? (
         <VirtualLibraryGrid items={items} layout={viewState.layout} onOpenManga={onOpenManga} />
       ) : null}
-    </main>
+    </section>
   );
 }

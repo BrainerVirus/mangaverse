@@ -46,7 +46,10 @@ export function SearchPage({
     : 'Search local manga and recent queries';
 
   return (
-    <main className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 p-6 md:p-8">
+    <section
+      aria-label="Search"
+      className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 p-6 md:p-8"
+    >
       <PageHeader
         title="Search"
         description={description}
@@ -86,7 +89,7 @@ export function SearchPage({
           onBrowseProviders={onBrowseProviders}
         />
       ) : null}
-    </main>
+    </section>
   );
 }
 

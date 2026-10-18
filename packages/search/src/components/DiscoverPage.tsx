@@ -166,7 +166,10 @@ export function DiscoverPage({
   );
 
   return (
-    <main className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 p-6 md:p-8">
+    <section
+      aria-label="Discover"
+      className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 p-6 md:p-8"
+    >
       <PageHeader
         title="Discover"
         description="Browse popular and latest manga from your enabled providers."
@@ -206,7 +209,7 @@ export function DiscoverPage({
         onBackFromSection={onBackFromSection}
         onLoadMoreSection={onLoadMoreSection}
       />
-    </main>
+    </section>
   );
 }
 

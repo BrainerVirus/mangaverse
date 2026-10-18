@@ -75,20 +75,20 @@ export function ThemeCustomizationPage({
 }: ThemeCustomizationPageProps) {
   if (isLoading) {
     return (
-      <main className="mx-auto w-full max-w-5xl p-6">
+      <section aria-label="Theme" className="mx-auto w-full max-w-5xl p-6">
         <LoadingState type="list" />
-      </main>
+      </section>
     );
   }
 
   if (isError || settings === undefined) {
     return (
-      <main className="mx-auto w-full max-w-5xl p-6">
+      <section aria-label="Theme" className="mx-auto w-full max-w-5xl p-6">
         <ErrorState
           title="Could not load theme settings"
           message="Your local database may be unavailable. Try reloading the page."
         />
-      </main>
+      </section>
     );
   }
 
@@ -100,7 +100,7 @@ export function ThemeCustomizationPage({
     settings.presetId === 'amoled-black';
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-8 p-6">
+    <section aria-label="Theme" className="mx-auto w-full max-w-5xl space-y-8 p-6">
       <header className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Theme</h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
@@ -161,6 +161,6 @@ export function ThemeCustomizationPage({
           ))}
         </div>
       </SettingsSection>
-    </main>
+    </section>
   );
 }

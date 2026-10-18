@@ -227,35 +227,35 @@ export function MangaDetailPage({
 }: MangaDetailPageProps) {
   if (isLoading) {
     return (
-      <main className="p-6">
+      <section aria-label="Manga details" className="p-6">
         <LoadingState type="detail" />
-      </main>
+      </section>
     );
   }
 
   if (isError) {
     return (
-      <main className="p-6">
+      <section aria-label="Manga details" className="p-6">
         <ErrorState
           title="Could not load manga"
           message="Local data failed to load. Try again in a moment."
         />
-      </main>
+      </section>
     );
   }
 
   if (data === undefined || data === null) {
     return (
-      <main className="p-6">
+      <section aria-label="Manga details" className="p-6">
         <EmptyState type="no-results" />
-      </main>
+      </section>
     );
   }
 
   const { manga, chapters } = data;
 
   return (
-    <main className="flex flex-col gap-8 p-6">
+    <section aria-label="Manga details" className="flex flex-col gap-8 p-6">
       <div className="flex flex-wrap items-start gap-6">
         {onBack !== undefined ? (
           <Button type="button" variant="ghost" onClick={onBack}>
@@ -293,6 +293,6 @@ export function MangaDetailPage({
 
         <ChapterList chapters={chapters} onOpenChapter={onOpenChapter} />
       </section>
-    </main>
+    </section>
   );
 }
