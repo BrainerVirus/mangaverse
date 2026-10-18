@@ -1,11 +1,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
-import {
-  GlassSurface,
-  GLASS_BLUR_BUDGET,
-  glassElevations,
-  glassLevels,
-} from '../components/glass-surface.js';
+import { GlassSurface } from '../components/glass-surface.js';
+import { GLASS_BLUR_BUDGET, glassElevations, glassLevels } from '../components/glass-variants.js';
 import { GlassPanel } from '../components/glass-panel.js';
 import { RefractionLayer } from '../components/refraction-layer.js';
 import { AmbientBackdrop } from '../components/ambient-backdrop.js';

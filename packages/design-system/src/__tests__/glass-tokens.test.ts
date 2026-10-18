@@ -118,8 +118,8 @@ describe('glass tokens', () => {
   });
 
   it('carries the §2.5 resolution paths', () => {
-    expect(css).toContain("[data-glass='cheap']");
-    expect(css).toContain("[data-transparency='solid']");
+    expect(css).toContain('[data-glass="cheap"]');
+    expect(css).toContain('[data-transparency="solid"]');
     expect(css).toContain('[data-ambient-backdrop]');
     expect(css).toContain('@supports not ((backdrop-filter: blur(1px))');
     expect(css).toContain('@media (prefers-reduced-transparency: reduce)');

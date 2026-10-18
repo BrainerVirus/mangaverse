@@ -1,15 +1,7 @@
 import * as React from 'react';
 import { cn } from '../lib/cn.js';
 import { GlassSurface, type GlassSurfaceProps } from './glass-surface.js';
-
-export type GlassPanelPadding = 'none' | 'sm' | 'md' | 'lg';
-
-export const glassPanelPadding: Record<GlassPanelPadding, string> = {
-  none: '',
-  sm: 'p-4',
-  md: 'p-6',
-  lg: 'p-8',
-};
+import { glassPanelPadding, type GlassPanelPadding } from './glass-variants.js';
 
 export interface GlassPanelProps extends GlassSurfaceProps {
   /** Interior padding. Defaults to `md` (the 24px card interior). */
