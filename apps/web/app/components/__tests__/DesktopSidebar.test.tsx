@@ -81,7 +81,7 @@ describe('DesktopSidebar', () => {
     useLayoutStore.setState({ sidebarOpen: true, sidebarExpanded: true });
     const { DesktopSidebar } = await import('../shell/DesktopSidebar.js');
     const html = renderWithProviders(<DesktopSidebar />);
-    expect(html).toContain('w-[220px]');
+    expect(html).toContain('w-55');
   });
 
   it('renders with collapsed width when not expanded', async () => {
@@ -98,7 +98,7 @@ describe('DesktopSidebar', () => {
       );
     });
     const asideClass = container.querySelector('aside')?.className ?? '';
-    expect(asideClass).toContain('w-[52px]');
+    expect(asideClass).toContain('w-13');
     root.unmount();
     container.remove();
   });

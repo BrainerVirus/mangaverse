@@ -71,10 +71,7 @@ function PreviewIssueList({ preview }: { preview: MigrationPreviewReport }) {
 
       <ul className="space-y-2" aria-label="Migration preview items">
         {preview.items.map((item) => (
-          <li
-            key={item.mangaId}
-            className="rounded-[var(--radius-control)] border border-[var(--border)] p-3 text-sm"
-          >
+          <li key={item.mangaId} className="rounded-control border border-border p-3 text-sm">
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <span className="font-medium text-foreground">{item.canonicalTitle}</span>
               {item.blocked ? (
@@ -245,10 +242,7 @@ function CandidateSection({
       ) : (
         <ul className="space-y-3" aria-label="Migration candidates">
           {candidates.map((candidate) => (
-            <li
-              key={candidate.mangaId}
-              className="rounded-[var(--radius-control)] border border-[var(--border)] p-3"
-            >
+            <li key={candidate.mangaId} className="rounded-control border border-border p-3">
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <span className="font-medium text-foreground">{candidate.canonicalTitle}</span>
                 {candidate.isDefaultProvider ? <Badge variant="secondary">default</Badge> : null}
@@ -351,7 +345,7 @@ export function MigrationPage({
 
   if (isLoading) {
     return (
-      <section aria-label="Migration" className="app-shell">
+      <section aria-label="Migration" className="mx-auto w-full max-w-3xl p-6">
         <LoadingState type="list" />
       </section>
     );
@@ -359,7 +353,7 @@ export function MigrationPage({
 
   if (isError) {
     return (
-      <section aria-label="Migration" className="app-shell">
+      <section aria-label="Migration" className="mx-auto w-full max-w-3xl p-6">
         <ErrorState
           title="Migration unavailable"
           message="Local database is not ready. Try again after the app finishes initializing."
@@ -369,7 +363,7 @@ export function MigrationPage({
   }
 
   return (
-    <section aria-label="Migration" className="app-shell space-y-6">
+    <section aria-label="Migration" className="mx-auto w-full max-w-3xl p-6 space-y-6">
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Migration</h1>
         <p className="text-sm text-muted-foreground">

@@ -195,12 +195,12 @@ function ChapterList({
   }
 
   return (
-    <ol className="divide-y divide-[var(--border)] rounded-[var(--radius-box)] border border-[var(--border)]">
+    <ol className="divide-y divide-border rounded-box border border-border">
       {chapters.map((chapter) => (
         <li key={chapter.id}>
           <button
             type="button"
-            className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+            className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onClick={() => onOpenChapter(chapter.id)}
           >
             <span className="font-medium">{chapter.title}</span>
@@ -265,13 +265,13 @@ export function MangaDetailPage({
 
         <div className="flex flex-1 flex-col gap-6 md:flex-row">
           {manga.coverImageUrl ? (
-            <div className="mx-auto w-40 shrink-0 overflow-hidden rounded-[var(--radius-box)] border border-[var(--border)] bg-muted md:mx-0 md:w-48">
+            <div className="mx-auto w-40 shrink-0 overflow-hidden rounded-box border border-border bg-muted md:mx-0 md:w-48">
               <CachedCoverImage
                 providerId={getDefaultProviderId(manga)}
                 mangaId={manga.id}
                 remoteUrl={manga.coverImageUrl}
                 alt={manga.canonicalTitle}
-                className="aspect-[3/4] w-full object-cover"
+                className="aspect-3/4 w-full object-cover"
               />
             </div>
           ) : null}

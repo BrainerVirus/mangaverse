@@ -120,7 +120,7 @@ export function DesktopSidebar() {
       onMouseLeave={handleMouseLeave}
       className={cn(
         'relative z-40 flex h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-200 ease-out max-md:hidden',
-        visuallyExpanded ? 'w-[220px]' : 'w-[52px]',
+        visuallyExpanded ? 'w-55' : 'w-13',
       )}
     >
       <div className="flex flex-1 flex-col gap-1 px-2 py-3">

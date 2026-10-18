@@ -110,7 +110,7 @@ export function ProviderDetailPage({
             href={provider.sourceUrl}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center rounded-[var(--radius-control)] border border-[var(--border)] bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+            className="inline-flex items-center rounded-control border border-border bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
           >
             View source
             <ExternalLink aria-hidden className="ml-1 size-3.5" />
@@ -179,10 +179,7 @@ export function ProviderDetailPage({
       >
         <ul className="flex flex-col gap-3">
           {permissions.map((row) => (
-            <li
-              key={row.key}
-              className="rounded-[var(--radius-control)] border border-[var(--border)] p-3"
-            >
+            <li key={row.key} className="rounded-control border border-border p-3">
               <p className="font-medium">{row.label}</p>
               <p className="text-sm text-muted-foreground">{row.description}</p>
             </li>
@@ -195,7 +192,7 @@ export function ProviderDetailPage({
         description="Mature content support declared in the manifest."
       >
         <dl className="grid gap-3 sm:grid-cols-3">
-          <div className="flex items-center justify-between gap-3 rounded-[var(--radius-control)] border border-[var(--border)] p-3">
+          <div className="flex items-center justify-between gap-3 rounded-control border border-border p-3">
             <dt>NSFW</dt>
             <dd>
               <Switch
@@ -205,7 +202,7 @@ export function ProviderDetailPage({
               />
             </dd>
           </div>
-          <div className="flex items-center justify-between gap-3 rounded-[var(--radius-control)] border border-[var(--border)] p-3">
+          <div className="flex items-center justify-between gap-3 rounded-control border border-border p-3">
             <dt>Suggestive</dt>
             <dd>
               <Switch
@@ -215,7 +212,7 @@ export function ProviderDetailPage({
               />
             </dd>
           </div>
-          <div className="flex items-center justify-between gap-3 rounded-[var(--radius-control)] border border-[var(--border)] p-3">
+          <div className="flex items-center justify-between gap-3 rounded-control border border-border p-3">
             <dt>Violence</dt>
             <dd>
               <Switch

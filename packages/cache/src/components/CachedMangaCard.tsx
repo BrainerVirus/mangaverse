@@ -26,7 +26,7 @@ export function CachedMangaCard(props: MangaCardProps) {
   const coverSlot = (
     <div
       className={cn(
-        'overflow-hidden rounded-[var(--radius-control)] bg-muted',
+        'overflow-hidden rounded-control bg-muted',
         isGrid ? 'min-h-0 w-full flex-1' : 'h-20 w-14 shrink-0',
         isCompact && 'h-16 w-12',
       )}

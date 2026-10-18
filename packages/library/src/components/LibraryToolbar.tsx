@@ -37,7 +37,7 @@ export function LibraryToolbar({ viewState, itemCount, onViewStateChange }: Libr
             className="w-full sm:w-64"
           />
           <fieldset
-            className="inline-flex gap-0.5 rounded-[var(--radius-control)] border border-border bg-muted/40 p-0.5"
+            className="inline-flex gap-0.5 rounded-control border border-border bg-muted/40 p-0.5"
             aria-label="Library layout"
           >
             {layoutOptions.map(({ mode, label, icon: Icon }) => (

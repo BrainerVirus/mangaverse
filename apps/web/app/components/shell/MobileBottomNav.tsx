@@ -125,7 +125,7 @@ export function MobileBottomNav() {
           <button
             type="button"
             aria-label="Open navigation menu"
-            className="flex flex-col items-center gap-0.5 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+            className="flex flex-col items-center gap-0.5 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onClick={() => setSheetOpen(true)}
           >
             <Menu className="h-5 w-5" />

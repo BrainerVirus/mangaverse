@@ -48,7 +48,7 @@ export function SearchPage({
   return (
     <section
       aria-label="Search"
-      className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 p-6 md:p-8"
+      className="mx-auto flex w-full max-w-400 flex-col gap-6 p-6 md:p-8"
     >
       <PageHeader
         title="Search"

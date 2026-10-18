@@ -34,7 +34,7 @@ function PreviewPanel({ preview }: { preview: ExtensionInstallPreview }) {
     .map(([key]) => key);
 
   return (
-    <div className="flex flex-col gap-4 rounded-[var(--radius-control)] border border-[var(--border)] p-4">
+    <div className="flex flex-col gap-4 rounded-control border border-border p-4">
       <div>
         <p className="font-medium">{preview.providerName}</p>
         <p className="text-sm text-muted-foreground">

@@ -48,7 +48,7 @@ function SettingToggleRow({
   onCheckedChange: (checked: boolean) => void;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 rounded-[var(--radius-control)] border border-[var(--border)] p-4">
+    <div className="flex items-start justify-between gap-4 rounded-control border border-border p-4">
       <div className="space-y-1">
         <Label htmlFor={id} className="text-sm font-medium">
           {label}
@@ -146,7 +146,7 @@ export function AppSettingsPage({
           disabled={isSaving}
           onCheckedChange={(lowMemoryMode) => update({ lowMemoryMode })}
         />
-        <div className="grid gap-2 rounded-[var(--radius-control)] border border-[var(--border)] p-4">
+        <div className="grid gap-2 rounded-control border border-border p-4">
           <Label htmlFor="image-cache-limit">Image cache limit</Label>
           <Input
             id="image-cache-limit"
