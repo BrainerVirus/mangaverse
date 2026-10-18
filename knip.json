@@ -1,0 +1,15 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignore": [".agents/**"],
+  "workspaces": {
+    ".": {
+      "entry": ["doctor.config.ts", "lint/team-conventions.cjs"]
+    },
+    "apps/web": {
+      "entry": ["app/global.css", "e2e-production/**/*.spec.ts"]
+    },
+    "apps/desktop": {
+      "entry": ["src/preload/index.ts", "src/renderer/src/main.tsx"]
+    }
+  }
+}

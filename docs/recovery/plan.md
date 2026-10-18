@@ -528,6 +528,49 @@ is origin-scoped, so state what carries over. Keep Electron unchanged unless a
 shared-package regression requires a compatibility fix. Deployment is not authorized
 by approval of this plan; respect host/workspace grants.
 
+## S8: Quality gates (react-doctor + knip arc)
+
+User directive: no `useEffect` (refactor existing), and react-doctor + knip as
+hard gates. This section is the arc's ledger; it is not a single slice.
+
+- [x] Tooling landed (branch `chore/doctor-tooling`): `react-doctor` and `knip`
+      as root devDependencies, root scripts `doctor` and `knip`,
+      `doctor.config.ts` (`blocking: warning`, `plugins: ["./lint/team-conventions.cjs"]`,
+      `rules: { "team-conventions/no-use-effect": "error" }`), the
+      `lint/team-conventions.cjs` plugin (matches `useEffect(...)` and
+      `React.useEffect(...)`; proven with a plant, reverted byte-identical), and
+      `knip.json` (workspaces `apps/web` and `apps/desktop` entry points for the
+      e2e specs, `global.css`, the esbuild preload entry and the renderer HTML
+      entry; `.agents/**` ignored). `AGENTS.md` states the rule and how to run
+      both tools. `pnpm doctor` is pnpm's own command — use `pnpm run doctor`.
+- [ ] Fix the findings the tools now report (the arc's real work; not tooling).
+- [ ] Land the CI hard gate once the findings are green. Until then both tools
+      exit non-zero, which is expected and is why no workflow file was touched.
+
+Measured baselines on `main` at `ff890f3` (2026-10-18), after the tooling slice:
+
+- `pnpm run doctor`: **108 issues across 16 projects** — 43 errors, 65 warnings.
+  That is the 66-issue pre-existing baseline (1 error + 65 warnings) plus **42
+  new `team-conventions/no-use-effect` errors** (21 in `@app/web`, the rest
+  across the reader/library/search packages). Warnings by rule:
+  `typescript/no-explicit-any` x29 (test files), `no-high-complexity-react-function`
+  x10, `eslint/no-console` x5, `exhaustive-deps` x3, `async-await-in-loop` x3,
+  `jsx-no-constructed-context-values` x2, `query-mutation-missing-invalidation`
+  x2, `no-array-index-as-key` x2, `only-export-components` x2, plus
+  `prefer-html-dialog`, `no-floating-then-in-jsx-handler`,
+  `rendering-hydration-no-flicker`, `no-initialize-state`, `no-giant-component`,
+  `rerender-lazy-ref-init`, `no-adjust-state-on-prop-change`; the single pre-existing
+  error is `react-doctor/no-ref-current-in-render`.
+- `pnpm knip`: **4 unused files**, 7 unused dependencies, 19 unused
+  devDependencies, 1 unlisted dependency (`tailwindcss`, imported by
+  `packages/design-system/src/styles/globals.css`), 32 unused exports, 17 unused
+  exported types. Unused files: `packages/design-system/src/index.test.ts` (it is
+  outside that package's vitest `include`, so vitest never runs it) and the
+  legacy `types/extension.ts`, `types/library.ts`, `types/provider.ts`.
+
+Both tools are green-gate-ready only after the fixes above; do not raise thresholds
+to make a run pass.
+
 ## Exit criteria per implementing session
 
 One slice, real RED/GREEN, configured gates, built-app observation, reviewed diff,
