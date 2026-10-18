@@ -23,6 +23,7 @@
 
 ## Behavior changes
 
+- BLOCKER (production SSR, out of this slice's scope): see the note in `.migration/sheet.md` — Base UI's CJS `use-sync-external-store` shim loads a second React instance in `apps/web`'s Nitro SSR bundle, so every SSR render (and therefore the production E2E) fails. The select is one of the components that triggers it.
 - Trigger text: Base UI's `Select.Value` renders the raw value unless the root receives `items` (verified against `@base-ui/react@1.9.0`), while Radix rendered the selected item's text. The wrapper derives `{ value, label }` pairs from the composed `<SelectItem>` elements (plain text children only) and passes them as `items`; a caller-provided `items` always wins. An item rendered by a component of its own (not inline in the tree) is not discovered and falls back to the raw value — there is no such consumer in this repo.
 - `onValueChange` is only called with a string: Base UI can emit `null` when a null-value item is selected or the value is cleared, and Radix never did, so a null value is dropped instead of being handed to a `(value: string) => void` handler.
 - Modal popup: Base UI's Select is modal by default (page scroll lock, outside pointer blocking), matching Radix's behavior; no prop was added.
@@ -31,5 +32,5 @@
 ## Verify by hand
 
 - Focus the trigger, ArrowDown to open, ArrowUp/ArrowDown to move, Home/End to jump, type a few letters for typeahead, Enter to select and close, then reopen and Escape → the popup closes and focus is back on the trigger.
-- Read the trigger text on the migration page: it must show the provider *name* (e.g. MangaDex), never the raw id.
+- Read the trigger text on the migration page: it must show the provider _name_ (e.g. MangaDex), never the raw id.
 - Check the selected item still shows the check indicator and the popup keeps the trigger width.
