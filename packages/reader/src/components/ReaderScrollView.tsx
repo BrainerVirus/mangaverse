@@ -50,8 +50,6 @@ export function ReaderScrollView({
   const containerRef = useRef<HTMLDivElement>(null);
   const pageNodes = useRef<(HTMLDivElement | null)[]>([]);
   const frameRef = useRef<number | null>(null);
-  const activeRef = useRef(activePageIndex);
-  activeRef.current = activePageIndex;
   const [spacerPx, setSpacerPx] = useState(0);
 
   const measurePages = useCallback((): readonly ScrollPageMetric[] => {
@@ -74,15 +72,17 @@ export function ReaderScrollView({
     [reducedMotion],
   );
 
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- imperative handle publication: the parent stores the handle in a ref, which has no other lifecycle seam
   useEffect(() => {
     onHandle({ scrollToPage, measurePages, scrollContainer: () => containerRef.current });
     return () => onHandle(null);
   }, [measurePages, onHandle, scrollToPage]);
 
   // Resume position: jump (never animate) to the active page on mount.
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- mount-only DOM commit: the node offsets are not readable until the strip is in the document
   useEffect(() => {
     const container = containerRef.current;
-    const node = pageNodes.current[activeRef.current];
+    const node = pageNodes.current[activePageIndex];
     if (!container || !node) return;
     container.scrollTop = node.offsetTop;
     // Mount-only: later active changes come from scrolling, not the other way.
@@ -91,6 +91,7 @@ export function ReaderScrollView({
 
   // Half a viewport of slack after the last page, so it can be centred too —
   // without it the final short page could never reach the viewport centre.
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: ResizeObserver on the scroll container
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -101,6 +102,9 @@ export function ReaderScrollView({
     return () => observer.disconnect();
   }, []);
 
+  // The active index is read from this render's closure (not a ref written
+  // during render): the listener is rebound on every active-page change, so the
+  // handler always compares against the page the strip is actually on.
   const handleScroll = useCallback(() => {
     if (frameRef.current !== null) return;
     frameRef.current = window.requestAnimationFrame(() => {
@@ -110,12 +114,13 @@ export function ReaderScrollView({
       const metrics = measurePages();
       const center = container.scrollTop + container.clientHeight / 2;
       const next = findActiveScrollPage(metrics, center);
-      if (next !== activeRef.current) {
+      if (next !== activePageIndex) {
         onActivePageChange(next);
       }
     });
-  }, [measurePages, onActivePageChange]);
+  }, [activePageIndex, measurePages, onActivePageChange]);
 
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: the pending rAF belongs to the browser frame loop
   useEffect(() => {
     return () => {
       if (frameRef.current !== null) {
