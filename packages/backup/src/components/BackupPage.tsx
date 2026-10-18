@@ -59,7 +59,7 @@ function PreviewIssueList({ preview }: { preview: RestorePreviewReport }) {
       {issues.map((issue) => (
         <li
           key={`${issue.code}-${issue.message}`}
-          className="rounded-[var(--radius-control)] border border-[var(--border)] p-3 text-sm"
+          className="rounded-control border border-border p-3 text-sm"
         >
           <div className="mb-1 flex items-center gap-2">
             <Badge variant={issue.severity === 'error' ? 'destructive' : 'secondary'}>

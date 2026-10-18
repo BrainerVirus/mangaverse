@@ -112,7 +112,7 @@ function ReaderRoute() {
         Reader mode replaces the shell layout, so the shell's persistence
         banner is not mounted here; the same alert overlays the reader.
       */}
-      <div className="fixed inset-x-0 top-0 z-[60]">
+      <div className="fixed inset-x-0 top-0 z-60">
         <PersistenceErrorBanner />
       </div>
       <ReaderScreen

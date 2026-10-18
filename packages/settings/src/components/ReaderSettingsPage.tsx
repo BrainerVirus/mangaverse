@@ -98,7 +98,7 @@ function SettingToggleRow({
   onCheckedChange: (checked: boolean) => void;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 rounded-[var(--radius-control)] border border-[var(--border)] p-4">
+    <div className="flex items-start justify-between gap-4 rounded-control border border-border p-4">
       <div className="space-y-1">
         <Label htmlFor={id} className="text-sm font-medium">
           {label}

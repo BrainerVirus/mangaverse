@@ -44,7 +44,7 @@ function CapabilityGrid({ capabilities }: { capabilities: PlatformCapabilities }
       {entries.map(([key, enabled]) => (
         <div
           key={key}
-          className="flex items-center justify-between rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 text-sm"
+          className="flex items-center justify-between rounded-control border border-border px-3 py-2 text-sm"
         >
           <dt className="text-muted-foreground">{key}</dt>
           <dd>
@@ -62,7 +62,7 @@ function PlatformSection({ report }: { report: DiagnosticsReport }) {
       title="Platform"
       description="Environment snapshot from the active platform adapter."
     >
-      <dl className="divide-y divide-[var(--border)]">
+      <dl className="divide-y divide-border">
         {report.platformSnapshot.platform !== undefined ? (
           <InfoRow label="Platform" value={String(report.platformSnapshot.platform)} />
         ) : null}
@@ -100,7 +100,7 @@ function StorageSection({ report }: { report: DiagnosticsReport }) {
           Storage estimates are not available on this runtime.
         </p>
       ) : (
-        <dl className="divide-y divide-[var(--border)]">
+        <dl className="divide-y divide-border">
           <InfoRow label="Quota" value={formatStorageBytes(report.storageEstimate.quota)} />
           <InfoRow label="Usage" value={formatStorageBytes(report.storageEstimate.usage)} />
           <InfoRow
@@ -136,7 +136,7 @@ function LocalDatabaseSection({ report }: { report: DiagnosticsReport }) {
       title="Local database"
       description="Counts from your on-device SQLite library."
     >
-      <dl className="divide-y divide-[var(--border)]">
+      <dl className="divide-y divide-border">
         <InfoRow label="Library entries" value={String(localData.libraryEntryCount)} />
         <InfoRow label="Manga identities" value={String(localData.mangaIdentityCount)} />
         <InfoRow label="Installed extensions" value={String(localData.installedExtensionCount)} />
@@ -154,7 +154,7 @@ function LocalServiceSection({ report }: { report: DiagnosticsReport }) {
 
   return (
     <SettingsSection title="Local service" description="Desktop-only helper service status.">
-      <dl className="divide-y divide-[var(--border)]">
+      <dl className="divide-y divide-border">
         <InfoRow label="Running" value={report.localService.running ? 'yes' : 'no'} />
         <InfoRow label="Host" value={report.localService.host ?? 'n/a'} />
         <InfoRow
@@ -239,7 +239,7 @@ export function DiagnosticsPage({
       </div>
 
       <SettingsSection title="About" description="Application identity and build information.">
-        <dl className="divide-y divide-[var(--border)]">
+        <dl className="divide-y divide-border">
           <InfoRow label="App" value={report.appName} />
           <InfoRow label="Version" value={report.appVersion} />
           <InfoRow label="Runtime" value={report.runtime} />

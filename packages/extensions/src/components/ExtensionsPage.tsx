@@ -92,7 +92,7 @@ export function ExtensionsPage({
                 <CardHeader className="gap-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="flex size-10 items-center justify-center rounded-[var(--radius-control)] bg-accent/10 text-accent">
+                      <div className="flex size-10 items-center justify-center rounded-control bg-accent/10 text-accent">
                         <Puzzle aria-hidden className="size-5" />
                       </div>
                       <div>
@@ -141,7 +141,7 @@ export function ExtensionsPage({
                       href={provider.sourceUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center rounded-[var(--radius-control)] px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                      className="inline-flex items-center rounded-control px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                     >
                       Source
                       <ExternalLink aria-hidden className="ml-1 size-3.5" />

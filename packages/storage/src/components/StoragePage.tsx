@@ -207,7 +207,7 @@ export function StoragePage({
             Storage estimates are not available on this runtime.
           </p>
         ) : (
-          <dl className="divide-y divide-[var(--border)]">
+          <dl className="divide-y divide-border">
             <InfoRow label="Quota" value={formatStorageBytes(summary.platformEstimate.quota)} />
             <InfoRow label="Usage" value={formatStorageBytes(summary.platformEstimate.usage)} />
             <InfoRow
@@ -234,7 +234,7 @@ export function StoragePage({
         title="Provider cache metadata"
         description="Local records of cached chapters and images. Clearing this does not remove library entries."
       >
-        <dl className="divide-y divide-[var(--border)]">
+        <dl className="divide-y divide-border">
           <InfoRow label="Cache entries" value={String(summary.cacheEntryCount)} />
           <InfoRow label="Cached image data" value={formatCacheBytes(summary.cacheTotalBytes)} />
         </dl>
@@ -244,7 +244,7 @@ export function StoragePage({
             {summary.cacheByProvider.map((entry) => (
               <li
                 key={entry.providerId}
-                className="flex items-center justify-between rounded-[var(--radius-control)] border border-[var(--border)] px-3 py-2 text-sm"
+                className="flex items-center justify-between rounded-control border border-border px-3 py-2 text-sm"
               >
                 <span className="font-mono text-foreground">{entry.providerId}</span>
                 <Badge variant="secondary">{entry.count}</Badge>
@@ -272,7 +272,7 @@ export function StoragePage({
         title="Search data"
         description="Recent queries and saved searches stored locally."
       >
-        <dl className="divide-y divide-[var(--border)]">
+        <dl className="divide-y divide-border">
           <InfoRow label="Search history" value={String(summary.searchHistoryCount)} />
           <InfoRow label="Saved searches" value={String(summary.savedSearchCount)} />
         </dl>

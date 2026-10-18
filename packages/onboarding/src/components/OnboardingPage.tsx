@@ -127,27 +127,27 @@ function WelcomeStep() {
       </header>
 
       <ul className="grid gap-3 sm:grid-cols-2" aria-label="Onboarding highlights">
-        <li className="rounded-[var(--radius-box)] border border-[var(--border)] p-4">
+        <li className="rounded-box border border-border p-4">
           <h2 className="text-sm font-medium text-foreground">Local-first storage</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Library entries, progress, and settings stay in SQLite on your device. Optional cloud
             sync may come later.
           </p>
         </li>
-        <li className="rounded-[var(--radius-box)] border border-[var(--border)] p-4">
+        <li className="rounded-box border border-border p-4">
           <h2 className="text-sm font-medium text-foreground">Extension safety</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Providers install only after manifest validation and your explicit confirmation.
           </p>
         </li>
-        <li className="rounded-[var(--radius-box)] border border-[var(--border)] p-4">
+        <li className="rounded-box border border-border p-4">
           <h2 className="text-sm font-medium text-foreground">Content responsibility</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             You choose language and content filters. Providers may expose mature content when
             enabled.
           </p>
         </li>
-        <li className="rounded-[var(--radius-box)] border border-[var(--border)] p-4">
+        <li className="rounded-box border border-border p-4">
           <h2 className="text-sm font-medium text-foreground">Skip anytime</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             This setup is optional. You can resume or replay it later from Settings.
@@ -180,7 +180,7 @@ function ThemeStep({
         </p>
       </header>
 
-      <div className="flex items-center justify-between rounded-[var(--radius-control)] border border-[var(--border)] p-4">
+      <div className="flex items-center justify-between rounded-control border border-border p-4">
         <div>
           <Label htmlFor="onboarding-dark-mode" className="text-sm font-medium">
             Dark appearance
@@ -210,13 +210,13 @@ function ThemeStep({
               aria-pressed={selected}
               aria-label={`Select ${preset.name} theme`}
               onClick={() => onChange({ ...settings, presetId })}
-              className="flex flex-col items-start gap-2 rounded-[var(--radius-box)] border border-transparent p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex flex-col items-start gap-2 rounded-box border border-transparent p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
             >
               <div
                 className={
                   selected
-                    ? 'rounded-[var(--radius-box)] ring-2 ring-[var(--primary)] ring-offset-2 ring-offset-[var(--background)]'
-                    : 'rounded-[var(--radius-box)] hover:ring-1 hover:ring-[var(--border)]'
+                    ? 'rounded-box ring-2 ring-primary ring-offset-2 ring-offset-background'
+                    : 'rounded-box hover:ring-1 hover:ring-border'
                 }
               >
                 <ThemePreview theme={preview} />
@@ -369,7 +369,7 @@ function PreferencesStep({
           </p>
         </div>
 
-        <div className="flex items-start justify-between gap-4 rounded-[var(--radius-control)] border border-[var(--border)] p-4">
+        <div className="flex items-start justify-between gap-4 rounded-control border border-border p-4">
           <div className="space-y-1">
             <Label htmlFor="onboarding-explicit-content" className="text-sm font-medium">
               Allow explicit content
@@ -404,7 +404,7 @@ function ProviderStep({ onInstallProvider }: { onInstallProvider: () => void }) 
         </p>
       </header>
 
-      <div className="rounded-[var(--radius-box)] border border-[var(--border)] p-4">
+      <div className="rounded-box border border-border p-4">
         <p className="text-sm text-muted-foreground">
           You will review manifest details, permissions, and capabilities before anything is
           installed.
@@ -479,7 +479,7 @@ export function OnboardingPage({
         </div>
 
         <div
-          className="h-2 overflow-hidden rounded-full bg-[var(--accent)]"
+          className="h-2 overflow-hidden rounded-full bg-accent"
           // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- <progress> cannot render the rounded fill div below (it needs ::-webkit-progress-value CSS) and would swap aria-valuenow for a value attribute, changing the markup this component and its test assert
           role="progressbar"
           aria-valuemin={1}
@@ -488,7 +488,7 @@ export function OnboardingPage({
           aria-label="Onboarding progress"
         >
           <div
-            className="h-full rounded-full bg-[var(--primary)] transition-[width] duration-300"
+            className="h-full rounded-full bg-primary transition-[width] duration-300"
             style={{ width: `${(progress.current / progress.total) * 100}%` }}
           />
         </div>
@@ -505,7 +505,7 @@ export function OnboardingPage({
                     aria-current={isActive ? 'step' : undefined}
                     className={
                       isActive
-                        ? 'rounded-full bg-[var(--accent)] px-2 py-1 font-medium text-foreground'
+                        ? 'rounded-full bg-accent px-2 py-1 font-medium text-foreground'
                         : isComplete
                           ? 'rounded-full px-2 py-1 text-foreground'
                           : 'rounded-full px-2 py-1'
@@ -544,7 +544,7 @@ export function OnboardingPage({
         ) : null}
       </StepPanel>
 
-      <footer className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] pt-6">
+      <footer className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">
         <Button type="button" variant="outline" disabled={isSaving || isFirstStep} onClick={onBack}>
           Back
         </Button>

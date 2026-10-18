@@ -168,7 +168,7 @@ export function DiscoverPage({
   return (
     <section
       aria-label="Discover"
-      className="mx-auto flex w-full max-w-[1600px] flex-col gap-6 p-6 md:p-8"
+      className="mx-auto flex w-full max-w-400 flex-col gap-6 p-6 md:p-8"
     >
       <PageHeader
         title="Discover"
@@ -247,7 +247,7 @@ function DiscoverProviderBrowser({
       <div
         role="tablist"
         aria-label="Discover providers"
-        className="inline-flex h-10 w-full items-center justify-start gap-1 overflow-x-auto rounded-[var(--radius-control)] bg-muted p-1 text-muted-foreground"
+        className="inline-flex h-10 w-full items-center justify-start gap-1 overflow-x-auto rounded-control bg-muted p-1 text-muted-foreground"
       >
         {providers.map((provider) => {
           const isActive = provider.providerId === activeProvider.providerId;
@@ -260,8 +260,8 @@ function DiscoverProviderBrowser({
               onClick={() => onSelectProvider(provider.providerId)}
               className={
                 isActive
-                  ? 'inline-flex items-center justify-center whitespace-nowrap rounded-[var(--radius-control)] bg-background px-3 py-1.5 text-sm font-medium text-foreground shadow-sm'
-                  : 'inline-flex items-center justify-center whitespace-nowrap rounded-[var(--radius-control)] px-3 py-1.5 text-sm font-medium transition-colors hover:text-foreground'
+                  ? 'inline-flex items-center justify-center whitespace-nowrap rounded-control bg-background px-3 py-1.5 text-sm font-medium text-foreground shadow-sm'
+                  : 'inline-flex items-center justify-center whitespace-nowrap rounded-control px-3 py-1.5 text-sm font-medium transition-colors hover:text-foreground'
               }
             >
               {provider.providerName}
