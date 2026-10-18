@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { cn } from '../../lib/cn.js';
+import { cn } from '@design-system/lib/cn.js';
 
 export interface SwitchProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'role'> {
   checked?: boolean;

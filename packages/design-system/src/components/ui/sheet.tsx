@@ -1,7 +1,7 @@
 import * as React from 'react';
 import * as SheetPrimitive from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
-import { cn } from '../../lib/cn.js';
+import { cn } from '@design-system/lib/cn.js';
 
 /**
  * shadcn-style sheet built on Radix Dialog: focus trap, Escape and focus return

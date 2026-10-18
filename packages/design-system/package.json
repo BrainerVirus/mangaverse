@@ -20,7 +20,7 @@
     "lint:fix": "oxlint --fix",
     "test": "vitest run",
     "test:watch": "vitest",
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json && tsc-alias -p tsconfig.json"
   },
   "dependencies": {
     "@app/motion": "workspace:*",
