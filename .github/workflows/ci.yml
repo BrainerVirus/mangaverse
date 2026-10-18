@@ -6,26 +6,37 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   ci:
     name: Lint, Typecheck, Test, Build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 11.0.0
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: '22'
-          cache: 'pnpm'
+          node-version: 24
+          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Restore turbo cache
+        uses: actions/cache@v6
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
 
       - name: Lint
         run: pnpm lint
@@ -39,8 +50,19 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Playwright system deps
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter @app/web exec playwright install-deps chromium
+
       - name: Install Chromium
-        run: pnpm --filter @app/web exec playwright install --with-deps chromium
+        run: pnpm --filter @app/web exec playwright install chromium
 
       - name: Production web smoke test
         run: pnpm test:e2e:production
