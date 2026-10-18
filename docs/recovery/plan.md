@@ -235,8 +235,9 @@ Read the five `apps/web/app/lib/dev-mangadex-*`/`dev-seed-mangadex.ts` files and
 - [x] Wire Query keys to source ID, query, language/content settings and page input;
       propagate invocation cancellation and prevent stale writes. Query fns receive
       `signal` and forward it through the provider context; the app-level
-      `dev-md-`/`dev-md-ch-` id conventions are preserved by `mangadex-ids.ts` so
-      existing library/progress rows keep working.
+      `dev-md-`/`dev-md-ch-` id conventions are preserved by the provider package
+      (`packages/extensions-mangadex/src/ids.ts`) so existing library/progress rows
+      keep working.
 - [x] Probe actual API/image CORS from a production browser, not Electron/Node fetch.
       Probed: MangaDex reflects the requesting origin (`acao=http://localhost:5184`),
       so direct calls work and no rewrite/proxy is needed for v1.
@@ -250,7 +251,8 @@ Read the five `apps/web/app/lib/dev-mangadex-*`/`dev-seed-mangadex.ts` files and
       duplicate chapter indices collapse, because the app stores one chapter per
       (provider mapping, index) — a real recorded feed contained both and aborted
       detail persistence with a UNIQUE constraint error. Pinned by provider tests.
-- [x] S3b: `discover.tsx` runs through the provider (`mangadex-discover.ts`,
+- [x] S3b: `discover.tsx` runs through the provider (`provider-discover.ts` over the
+      provider package's section definitions,
       capability-driven sections: Latest and Popular only, per-section failure
       isolation), covered by a new production E2E asserting both sections render
       with decoded covers. The entire dev scaffold is deleted: `dev-mangadex-*`
@@ -418,16 +420,32 @@ the June MangaDex spec, and only tests with triaged audit findings.
       AGENTS.md's Package Boundary Rules point at the check instead of repeating it
       (8,129 B, `workit knowledge lint` 0 findings). Judgment rules stayed prose: they
       are not duplicated in another doc, so a topic pointer would only move them.
-- [ ] Two mechanical rules stay prose because they cannot be enforced yet: raw SQL
+- [x] Provider location moved behind the SDK seam and encoded as an executable
+      check. The MangaDex-specific content left `apps/web/app`: the `dev-md-`
+      id conventions and page ids moved to `packages/extensions-mangadex/src/ids.ts`,
+      the SDK-to-app value mapping (identity, chapter, detail, chapter pages) to
+      `identity-mapping.ts`, and the Discover section definitions to `discover.ts` —
+      all exported from the package and registered once in
+      `apps/web/app/lib/provider-registry.ts`. The app keeps generic orchestration
+      only (`provider-query-options.ts`, `provider-discover.ts`,
+      `manga-detail-persist.ts`); the reader's page resolution now goes through
+      `ensureProviderChapterPages`, which resolves the owning provider from the
+      binding table, so `reader.$chapterId.tsx` names no provider. No new SDK
+      capability: `metadata.pages` → `getPages` already existed in the contract,
+      its capability mapping, contract test and mock stub (ruling). Ids are a
+      per-provider app binding, not a capability (ruling). `.oxlintrc.json` now
+      carries the override: `no-restricted-imports` bans `@app/extensions-*` (minus
+      `extensions-core`/`extensions-sdk`) over `**/apps/**`, with the four
+      registration files named as the allowlist and the reason in a comment.
+      Measured 0 findings; a planted `@app/extensions-mangadex` import in
+      `apps/web/app/queries/` or `apps/web/app/routes/` makes `pnpm lint` exit 1,
+      reverted byte-identical. Pattern shape was chosen from measurement, not
+      guesswork: `'@app/extensions-*/**'` does not match a bare package specifier
+      in oxlint 1.87 (ruling).
+- [ ] One mechanical rule stays prose because it cannot be enforced yet: raw SQL
       outside `@app/db` (oxlint 1.87 has no raw-SQL rule; 0 production sites, 3 test-only
       `.exec()` read-backs in `packages/reader/src/persist-reader-progress.test.ts` and
-      `apps/web/app/lib/__tests__/local-db.test.ts`) and provider-specific code outside
-      `@app/extensions-*` (4 `@app/extensions-mangadex` import findings, all in
-      `apps/web/app/lib/`, plus 13 production files with MangaDex-specific content such
-      as `mangadex-ids.ts`, `mangadex-identity-mapping.ts`, `mangadex-discover.ts` and
-      `mangadex-query-options.ts`). Rulings recorded; follow-up is to move the app-side
-      mangadex mapping/persist/query code into `@app/extensions-mangadex` behind the SDK
-      contract, then add the override.
+      `apps/web/app/lib/__tests__/local-db.test.ts`).
 - [ ] Run `workit knowledge lint` before/after each instruction commit; no new finding.
       Canonical commands for production build/start/E2E already exist in
       `apps/web/package.json` and the root scripts; keep them current.

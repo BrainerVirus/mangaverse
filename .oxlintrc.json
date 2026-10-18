@@ -80,11 +80,9 @@
     // '@app/library'` in packages/shared/src/index.ts fails the shared check.
     // The `**/` prefix matches absolute paths, so these globs keep working if the
     // config ever moves; the pre-existing bare globs (e.g. "apps/**/scripts/**")
-    // anchor to this file's directory and are live at the repo root. Two mechanical
-    // rules are deliberately NOT encoded and stay prose in AGENTS.md — raw SQL outside
-    // @app/db (no oxlint rule covers it) and provider-specific code outside
-    // @app/extensions-* (real violations in apps/web/app); counts and follow-ups in
-    // docs/recovery/plan.md.
+    // anchor to this file's directory and are live at the repo root. Raw SQL
+    // outside @app/db is the one mechanical rule deliberately NOT encoded and it
+    // stays prose in AGENTS.md (no oxlint rule covers it; 0 production sites).
     {
       // @app/shared stays generic: no app shells, features, db, provider runtime or UI.
       "files": ["**/packages/shared/**"],
@@ -104,6 +102,41 @@
           { "patterns": ["@app/**", "!@app/shared**", "!@app/motion**"] }
         ]
       }
+    },
+    {
+      // Provider location (AGENTS.md: no provider-specific hacks outside
+      // @app/extensions-core, @app/extensions-sdk or a provider extension package).
+      // A provider's ids, mapping, Discover sections and page resolution live in
+      // its own package; app code only reaches it through the registration seam
+      // below. extensions-core and extensions-sdk are generic runtime layers, so
+      // they stay allowed; a new provider package is covered by the glob with no
+      // edit here.
+      "files": ["**/apps/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              "@app/extensions-*",
+              "!@app/extensions-core",
+              "!@app/extensions-sdk"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      // Registration is the only legitimate app-side reference to a provider
+      // package: the registry wires in its contract and id/mapping surface, and
+      // the installer registers its bundled manifest. Their tests assert that
+      // wiring, so they need the real manifest too.
+      "files": [
+        "**/apps/web/app/lib/provider-registry.ts",
+        "**/apps/web/app/lib/first-party-providers.ts",
+        "**/apps/web/app/lib/__tests__/provider-registry.test.ts",
+        "**/apps/web/app/lib/__tests__/first-party-providers.test.ts"
+      ],
+      "rules": { "no-restricted-imports": "off" }
     },
     {
       "files": ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],

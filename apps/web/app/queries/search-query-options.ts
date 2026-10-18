@@ -3,7 +3,7 @@ import { DEFAULT_SEARCH_VIEW_STATE, fetchSearchPage, searchQueryKeys } from '@ap
 import type { SearchViewState } from '@app/search';
 import { queryOptions } from '@tanstack/react-query';
 import { QUERY_GC_TIMES, QUERY_STALE_TIMES } from './query-timing.js';
-import { fetchMangadexSearchIdentities } from './mangadex-query-options.js';
+import { fetchProviderSearchIdentities } from './provider-query-options.js';
 
 export function searchPageQueryOptions(
   db: AppDrizzleDb,
@@ -21,7 +21,7 @@ export function searchPageQueryOptions(
       }
 
       try {
-        const remote = await fetchMangadexSearchIdentities(db, trimmed, signal);
+        const remote = await fetchProviderSearchIdentities(db, trimmed, signal);
         if (remote.length === 0) {
           return local;
         }

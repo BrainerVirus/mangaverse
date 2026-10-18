@@ -8,8 +8,8 @@ import {
   createRemoveFromLibraryMutationOptions,
   createToggleFavoriteMutationOptions,
 } from '../queries/library-mutation-options.js';
-import { fetchMangadexMangaDetail } from '../queries/mangadex-query-options.js';
-import { isMangadexAppMangaId } from '../lib/mangadex-ids.js';
+import { fetchProviderMangaDetail } from '../queries/provider-query-options.js';
+import { getBindingForMangaId } from '../lib/provider-registry.js';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 
 export const Route = createFileRoute('/manga/$id')({
@@ -19,12 +19,13 @@ export const Route = createFileRoute('/manga/$id')({
 async function resolveMangaDetail(db: AppDrizzleDb, mangaId: MangaId, signal?: AbortSignal) {
   const local = await fetchMangaDetail(db, mangaId);
 
-  if (!isMangadexAppMangaId(mangaId)) {
+  const binding = getBindingForMangaId(mangaId);
+  if (binding === null) {
     return local;
   }
 
   try {
-    const refreshed = await fetchMangadexMangaDetail(db, mangaId, local, signal);
+    const refreshed = await fetchProviderMangaDetail(db, binding, mangaId, local, signal);
     return refreshed ?? local;
   } catch {
     // Provider failure must not blank a locally available detail page.

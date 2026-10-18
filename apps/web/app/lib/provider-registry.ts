@@ -1,7 +1,96 @@
 import type { AppDrizzleDb } from '@app/db/browser';
 import { listInstalledExtensions } from '@app/db/browser';
-import { createMangaDexProvider } from '@app/extensions-mangadex';
-import type { ProviderContract } from '@app/extensions-sdk';
+import {
+  buildMangaDetailData,
+  createMangaDexProvider,
+  isMangadexAppMangaId,
+  MANGADEX_SECTION_DEFINITIONS,
+  parseMangadexAppChapterId,
+  parseMangadexAppMangaId,
+  providerItemToMangaIdentity,
+  toMangadexChapterPages,
+} from '@app/extensions-mangadex';
+import type {
+  ProviderChapter,
+  ProviderContract,
+  ProviderDetails,
+  ProviderPage,
+  ProviderSearchResultItem,
+} from '@app/extensions-sdk';
+import type { MangaDetailData } from '@app/library';
+import type {
+  ChapterId,
+  ChapterPage,
+  MangaId,
+  MangaIdentity,
+  ProviderCapabilityKey,
+} from '@app/shared';
+
+/** A Discover section a provider package offers, tied to its declared capability. */
+export interface ProviderSectionDefinition {
+  readonly id: string;
+  readonly title: string;
+  readonly capability: ProviderCapabilityKey;
+  readonly browse: 'browseLatest' | 'browsePopular';
+}
+
+/**
+ * What the app needs from a provider package: how its app ids relate to provider
+ * ids, and how its SDK values map into the app's domain types. Provider logic
+ * lives in the package; this table is registration only.
+ */
+export interface ProviderAppBinding {
+  readonly providerId: string;
+  readonly createProvider: () => ProviderContract;
+  readonly sections: readonly ProviderSectionDefinition[];
+  readonly isAppMangaId: (mangaId: MangaId) => boolean;
+  readonly parseAppMangaId: (mangaId: MangaId) => string | null;
+  readonly parseAppChapterId: (chapterId: ChapterId) => string | null;
+  readonly toSearchIdentities: (
+    items: readonly ProviderSearchResultItem[],
+  ) => readonly MangaIdentity[];
+  readonly toMangaDetailData: (
+    providerMangaId: string,
+    details: ProviderDetails,
+    chapters: readonly ProviderChapter[],
+  ) => MangaDetailData;
+  readonly toChapterPages: (
+    providerChapterId: string,
+    pages: readonly ProviderPage[],
+  ) => readonly ChapterPage[];
+}
+
+const PROVIDER_BINDINGS: readonly ProviderAppBinding[] = [
+  {
+    providerId: 'mangadex',
+    createProvider: createMangaDexProvider,
+    sections: MANGADEX_SECTION_DEFINITIONS,
+    isAppMangaId: isMangadexAppMangaId,
+    parseAppMangaId: parseMangadexAppMangaId,
+    parseAppChapterId: parseMangadexAppChapterId,
+    toSearchIdentities: (items) => items.map(providerItemToMangaIdentity),
+    toMangaDetailData: buildMangaDetailData,
+    toChapterPages: toMangadexChapterPages,
+  },
+];
+
+export function listProviderBindings(): readonly ProviderAppBinding[] {
+  return PROVIDER_BINDINGS;
+}
+
+export function getProviderBinding(providerId: string): ProviderAppBinding | null {
+  return PROVIDER_BINDINGS.find((binding) => binding.providerId === providerId) ?? null;
+}
+
+/** The binding that owns an app manga id, or null when no registered provider claims it. */
+export function getBindingForMangaId(mangaId: MangaId): ProviderAppBinding | null {
+  return PROVIDER_BINDINGS.find((binding) => binding.isAppMangaId(mangaId)) ?? null;
+}
+
+/** The binding that owns an app chapter id, or null when no registered provider claims it. */
+export function getBindingForChapterId(chapterId: ChapterId): ProviderAppBinding | null {
+  return PROVIDER_BINDINGS.find((binding) => binding.parseAppChapterId(chapterId) !== null) ?? null;
+}
 
 /**
  * Resolves the runtime contract for an installed and enabled provider.
@@ -18,9 +107,10 @@ export async function resolveInstalledProvider(
     return null;
   }
 
-  if (providerId === 'mangadex') {
-    return createMangaDexProvider();
+  const binding = getProviderBinding(providerId);
+  if (binding === null) {
+    return null;
   }
 
-  return null;
+  return binding.createProvider();
 }
