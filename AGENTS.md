@@ -11,7 +11,7 @@ Agents must read the relevant rewrite docs before implementation:
 - Read `docs/SPEC.md` before implementing or changing product behavior.
 - Read `docs/PLAN.md` before selecting or sequencing implementation tasks.
 - Read `docs/ARCHITECTURE.md` before changing package boundaries, data flow, database access, provider runtime, reader internals, platform adapters, app shell structure, or motion architecture.
-- Read `docs/Design.md` before creating or modifying UI, styling, layouts, themes, interactions, reader chrome, empty states, loading states, error states, or motion.
+- Read `DESIGN.md` at the repo root (the design source of truth: tokens, typography, component styling, layout principles) and `docs/Design.md` (the binding UI rules) before creating or modifying UI, styling, layouts, themes, interactions, reader chrome, empty states, loading states, error states, or motion.
 
 ## Project Direction
 
@@ -43,7 +43,7 @@ Enforced by `.oxlintrc.json` (`no-restricted-imports`; `pnpm lint` fails on a vi
 
 ## Design System Rules
 
-- Read `docs/Design.md` before UI work.
+- `DESIGN.md` at the repo root is the design source of truth; `docs/Design.md` holds the binding rules. Read both before UI work.
 - Do not bypass the design system for one-off styling unless a missing primitive is documented.
 - Use shadcn/ui components and composition patterns where available.
 - Use semantic tokens instead of raw colors in UI code.
