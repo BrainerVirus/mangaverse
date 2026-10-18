@@ -90,12 +90,20 @@ export async function ensureMangadexChapterPages(
   chapterId: ChapterId,
   signal?: AbortSignal,
 ): Promise<void> {
+  // This is the MangaDex ensure, so a chapter that is not MangaDex-sourced is
+  // none of its business: it returns without touching the provider, and its
+  // pages come from whatever provider owns it (ruling s4-leftovers-mangadex-ids).
+  // Reaching the provider-unavailable rejection below is what must not happen
+  // for a chapter another provider can still fill.
   const mangadexChapterId = parseMangadexAppChapterId(chapterId);
   if (mangadexChapterId === null) return;
 
   const chapter = await getChapter(db, chapterId);
   if (chapter === undefined || chapter.pages.length > 0) return;
 
+  // Same contract for a MangaDex chapter whose manga identity is not MangaDex:
+  // this function cannot resolve a provider manga id for it, so it leaves the
+  // chapter untouched instead of reporting a MangaDex failure it cannot fix.
   const mangadexMangaId = parseMangadexAppMangaId(chapter.mangaId);
   if (mangadexMangaId === null) return;
 

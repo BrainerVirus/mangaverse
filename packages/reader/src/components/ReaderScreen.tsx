@@ -10,12 +10,14 @@ import { useReducedMotion } from '@app/motion';
 import type { ReaderSettings } from '@app/shared';
 import {
   CachedPageImage,
+  listCachedChapterPageIndexes,
   markChapterPagesAsRead,
   prefetchChapterPages,
   useCoverCacheContext,
 } from '@app/cache';
 import { resolveKeyboardAction, resolveWheelAction } from '../navigation.js';
 import { isDoubleTap, PAN_THRESHOLD_PX, pinchScale, pointerDistance } from '../gestures.js';
+import { formatUnavailableOfflinePages } from '../offline-pages.js';
 import { resolvePageFit } from '../page-fit.js';
 import type { ReaderPageData } from '../reader-page-data.js';
 import { computeScrollTargetTop, resolveVerticalNavigationTarget } from '../scroll-navigation.js';
@@ -146,6 +148,12 @@ export function ReaderScreen({
 }: ReaderScreenProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [zoomLayer, setZoomLayer] = useState<HTMLDivElement | null>(null);
+  // Keyed by chapter so a note resolved for the previous chapter can never be
+  // rendered for the next one while the lookup below is in flight.
+  const [offlinePages, setOfflinePages] = useState<{ key: string; note: string | null }>({
+    key: '',
+    note: null,
+  });
   const scrollHandleRef = useRef<ReaderScrollViewHandle | null>(null);
   const settingsButtonRef = useRef<HTMLButtonElement | null>(null);
   // Vertical navigation resolves from the last target, not the centre-based
@@ -196,6 +204,35 @@ export function ReaderScreen({
       }),
     );
   }, [cacheContext, data]);
+
+  // Offline, a partially cached chapter renders its cached pages and blanks the
+  // rest. Naming the missing ones is the difference between "readable offline"
+  // and a truthful report of what the cache actually holds.
+  useEffect(() => {
+    if (!isOffline || !data || cacheContext === null) return;
+
+    const key = `${data.providerId}:${data.mangaId}:${data.chapterId}`;
+    let cancelled = false;
+
+    void listCachedChapterPageIndexes(cacheContext.db, {
+      providerId: data.providerId,
+      mangaId: data.mangaId,
+      chapterId: data.chapterId,
+    }).then((cached) => {
+      if (cancelled) return;
+      setOfflinePages({
+        key,
+        note: formatUnavailableOfflinePages(
+          data.chapter.pages.map((page) => page.index),
+          cached,
+        ),
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cacheContext, data, isOffline]);
 
   useEffect(() => {
     if (!sessionInput) return;
@@ -466,6 +503,8 @@ export function ReaderScreen({
   }
 
   const currentPage = readerState.activePageIndex + 1;
+  const offlineKey = `${data.providerId}:${data.mangaId}:${data.chapterId}`;
+  const offlineNote = isOffline && offlinePages.key === offlineKey ? offlinePages.note : null;
   const visiblePages = readerState.visiblePageIndexes
     .map((index) => data.chapter.pages[index])
     .filter((page) => page !== undefined);
@@ -592,6 +631,15 @@ export function ReaderScreen({
           <TapZoneDebugOverlay input={sessionInput} zoom={readerState.zoom} />
         ) : null}
       </div>
+
+      {offlineNote !== null ? (
+        <output
+          data-testid="reader-offline-note"
+          className="pointer-events-none fixed inset-x-0 bottom-3 z-50 mx-auto block w-fit rounded-full bg-black/80 px-3 py-1 text-xs text-white"
+        >
+          {offlineNote}
+        </output>
+      ) : null}
 
       <ReaderChrome
         visible={chromeVisible}

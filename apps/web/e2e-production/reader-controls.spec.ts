@@ -150,3 +150,56 @@ test('Given an open chapter, When clicking Maximize, Then the document goes full
   await page.evaluate(() => document.exitFullscreen());
   await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
 });
+
+test('Given the reader chrome, When each control is clicked, Then the page does not advance', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
+  await openReader(page);
+  // Sit on a page that can move in either direction, so a click that leaks into
+  // the tap zones is visible either way.
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  const indicator = page.getByText('3 / 37');
+  await expect(indicator).toBeVisible();
+
+  // The tap handler lives on the reader surface alone: a chrome control nested
+  // inside it would receive that handler's clicks.
+  expect(
+    await page.evaluate(() => {
+      const surface = document.querySelector('[data-testid="reader-surface"]');
+      const chrome = document.querySelector('[role="toolbar"]');
+      return surface !== null && chrome !== null && surface.contains(chrome);
+    }),
+  ).toBe(false);
+
+  const toolbar = page.getByRole('toolbar', { name: 'Reader controls' });
+  const chromeStillOpen = async () => {
+    // A leaked tap would also toggle the chrome away (pointer-events: none).
+    await expect(toolbar).toHaveCSS('pointer-events', 'auto');
+    await expect(indicator).toHaveText('3 / 37');
+  };
+
+  await toolbar.getByRole('button', { name: 'Settings' }).click();
+  await expect(page.getByRole('dialog', { name: 'Reader settings' })).toBeVisible();
+  await chromeStillOpen();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Reader settings' })).toBeHidden();
+  await chromeStillOpen();
+
+  await toolbar.getByRole('button', { name: 'Maximize' }).click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement !== null)).toBe(true);
+  await chromeStillOpen();
+  await page.evaluate(() => document.exitFullscreen());
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+
+  await toolbar.getByRole('button', { name: 'Double' }).click();
+  await chromeStillOpen();
+  await toolbar.getByRole('button', { name: 'Single' }).click();
+  await chromeStillOpen();
+
+  // The chrome's own text is not a control and must not be a tap either.
+  await toolbar.locator('span').first().click();
+  await chromeStillOpen();
+});

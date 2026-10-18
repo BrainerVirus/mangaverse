@@ -45,4 +45,19 @@ describe('ensureMangadexChapterPages', () => {
     await expect(ensureMangadexChapterPages(db, CHAPTER_ID)).resolves.toBeUndefined();
     expect(resolveInstalledProvider).not.toHaveBeenCalled();
   });
+
+  it('Given a chapter that is not MangaDex-sourced, When ensuring, Then it is left to its own provider', async () => {
+    // The MangaDex ensure has no provider manga id for this chapter and must not
+    // report a MangaDex failure another provider can still fix.
+    await expect(ensureMangadexChapterPages(db, 'other-ch-1')).resolves.toBeUndefined();
+    expect(getChapter).not.toHaveBeenCalled();
+    expect(resolveInstalledProvider).not.toHaveBeenCalled();
+  });
+
+  it('Given a MangaDex chapter whose manga is not MangaDex-sourced, When ensuring, Then no provider is resolved', async () => {
+    getChapter.mockResolvedValue({ id: CHAPTER_ID, mangaId: 'other-manga', pages: [] });
+
+    await expect(ensureMangadexChapterPages(db, CHAPTER_ID)).resolves.toBeUndefined();
+    expect(resolveInstalledProvider).not.toHaveBeenCalled();
+  });
 });

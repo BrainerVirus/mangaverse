@@ -6,6 +6,7 @@ import { getDefaultReaderSettings, toChapterPageId } from '@app/shared';
 
 vi.mock('@app/cache', () => ({
   CachedPageImage: () => null,
+  listCachedChapterPageIndexes: vi.fn<() => Promise<number[]>>(async () => []),
   markChapterPagesAsRead: vi.fn<() => Promise<void>>(async () => {}),
   prefetchChapterPages: vi.fn<() => Promise<void>>(async () => {}),
   useCoverCacheContext: () => null,

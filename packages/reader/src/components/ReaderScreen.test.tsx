@@ -4,11 +4,17 @@ import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react';
 import { getDefaultReaderSettings, toChapterPageId } from '@app/shared';
 
+const cacheState = vi.hoisted(() => ({
+  context: null as unknown,
+  cachedPageIndexes: [] as number[],
+}));
+
 vi.mock('@app/cache', () => ({
   CachedPageImage: () => null,
+  listCachedChapterPageIndexes: vi.fn(async () => cacheState.cachedPageIndexes),
   markChapterPagesAsRead: vi.fn<() => Promise<void>>(async () => {}),
   prefetchChapterPages: vi.fn<() => Promise<void>>(async () => {}),
-  useCoverCacheContext: () => null,
+  useCoverCacheContext: () => cacheState.context,
 }));
 
 vi.mock('@app/design-system', () => ({
@@ -144,6 +150,71 @@ describe('ReaderScreen offline state', () => {
       root.unmount();
     });
     container.remove();
+    cacheState.context = null;
+  });
+
+  it('Given a partially cached chapter reopened offline, When rendered, Then the missing pages are named', async () => {
+    cacheState.context = { db: {}, adapter: {} };
+    // Everything but pages 3 and 5 is local; those two never reached the cache.
+    cacheState.cachedPageIndexes = Array.from({ length: 37 }, (_value, index) => index).filter(
+      (index) => index !== 2 && index !== 4,
+    );
+
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        <ReaderScreen
+          data={buildData()}
+          isLoading={false}
+          isError={false}
+          isOffline={true}
+          chromeVisible={true}
+          onToggleChrome={() => {}}
+        />,
+      );
+    });
+    await act(async () => {});
+
+    const note = container.querySelector('[data-testid="reader-offline-note"]');
+    expect(note?.textContent).toBe('Offline: pages 3 and 5 are not saved locally.');
+
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+    cacheState.context = null;
+  });
+
+  it('Given a fully cached chapter offline, When rendered, Then no unavailable-page note appears', async () => {
+    cacheState.context = { db: {}, adapter: {} };
+    cacheState.cachedPageIndexes = Array.from({ length: 37 }, (_value, index) => index);
+
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        <ReaderScreen
+          data={buildData()}
+          isLoading={false}
+          isError={false}
+          isOffline={true}
+          chromeVisible={true}
+          onToggleChrome={() => {}}
+        />,
+      );
+    });
+    await act(async () => {});
+
+    expect(container.querySelector('[data-testid="reader-offline-note"]')).toBeNull();
+
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+    cacheState.context = null;
   });
 });
 

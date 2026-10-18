@@ -33,6 +33,7 @@ export {
   storePageInCache,
   resolvePageObjectUrl,
   resolvePageUrl,
+  listCachedChapterPageIndexes,
   markChapterPagesAsRead,
   prefetchChapterPages,
   type PageCacheLookupInput,
