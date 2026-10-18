@@ -41,7 +41,7 @@ export function getRouter(options: { platformDetectFn?: () => PlatformCapabiliti
       </RouteTransition>
     ),
     defaultErrorComponent: ({ error }) => (
-      <main className="app-shell">
+      <main>
         <ErrorState
           title="Something went wrong"
           message={error instanceof Error ? error.message : 'An unexpected error occurred'}
@@ -49,7 +49,7 @@ export function getRouter(options: { platformDetectFn?: () => PlatformCapabiliti
       </main>
     ),
     defaultNotFoundComponent: () => (
-      <main className="app-shell">
+      <main>
         <EmptyState type="no-results" />
       </main>
     ),

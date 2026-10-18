@@ -1,6 +1,14 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  // The desktop test imports `@app/web/app/router.js`, whose graph uses the web
+  // app's `@/*` alias (apps/web/tsconfig.json) — mirror it here.
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('../web/app', import.meta.url)),
+    },
+  },
   // src/renderer/ is covered by tsconfig.renderer.json, but Vite resolves the
   // nearest tsconfig.json, which sets `jsx: preserve`. Without this the JSX
   // reaches the SSR transform unparsed.

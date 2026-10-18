@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderToString } from 'react-dom/server';
-import { useLayoutStore } from '../../stores/useLayoutStore.js';
-import { ThemeProvider } from '../../providers/theme-provider.js';
+import { useLayoutStore } from '@/stores/useLayoutStore.js';
+import { ThemeProvider } from '@/providers/theme-provider.js';
 
 Object.defineProperty(globalThis, 'localStorage', {
   value: { getItem: () => null, setItem: () => {}, removeItem: () => {} },

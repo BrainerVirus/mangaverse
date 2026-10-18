@@ -15,9 +15,9 @@ import {
   Compass,
 } from 'lucide-react';
 import { Button, Tooltip, Separator, cn, buttonVariants } from '@app/design-system';
-import { useLayoutStore } from '../../stores/useLayoutStore.js';
-import { useCommandPaletteStore } from '../../stores/useCommandPaletteStore.js';
-import { useTheme } from '../../providers/theme-provider.js';
+import { useLayoutStore } from '@/stores/useLayoutStore.js';
+import { useCommandPaletteStore } from '@/stores/useCommandPaletteStore.js';
+import { useTheme } from '@/providers/theme-provider.js';
 
 const EXPAND_DELAY = 200;
 

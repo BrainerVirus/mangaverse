@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getEnabledSections, getSectionTitle } from '../../queries/provider-discover.js';
+import { getEnabledSections, getSectionTitle } from '@/queries/provider-discover.js';
 import { getProviderBinding, type ProviderAppBinding } from '../provider-registry.js';
 
 function registeredBinding(): ProviderAppBinding {
