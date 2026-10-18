@@ -37,6 +37,7 @@ export function SearchPage({
   const trimmedQuery = viewState.query.trim();
   const hasQuery = trimmedQuery.length > 0;
   const resultCount = results.length;
+  const settled = !isLoading && !isError;
 
   const description = hasQuery
     ? resultCount === 1
@@ -75,45 +76,75 @@ export function SearchPage({
         />
       ) : null}
 
-      {!isLoading && !isError && !hasQuery && recentSearches.length > 0 ? (
-        <section aria-label="Recent searches" className="flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-medium text-muted-foreground">Recent searches</h2>
-            <Badge variant="outline">{recentSearches.length}</Badge>
-          </div>
-          <ul className="flex flex-wrap gap-2">
-            {recentSearches.map((entry) => (
-              <li key={entry.id}>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onViewStateChange({ query: entry.query })}
-                >
-                  {entry.query}
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      {!isLoading && !isError && !hasQuery && recentSearches.length === 0 ? (
-        <EmptyState
-          type="no-results"
-          {...(onBrowseProviders !== undefined
-            ? { action: { label: 'Browse providers', onClick: onBrowseProviders } }
-            : {})}
+      {settled ? (
+        <SearchResults
+          hasQuery={hasQuery}
+          results={results}
+          recentSearches={recentSearches}
+          onViewStateChange={onViewStateChange}
+          onOpenManga={onOpenManga}
+          onBrowseProviders={onBrowseProviders}
         />
       ) : null}
-
-      {!isLoading && !isError && hasQuery && resultCount === 0 ? (
-        <EmptyState type="no-results" />
-      ) : null}
-
-      {!isLoading && !isError && hasQuery && resultCount > 0 ? (
-        <VirtualSearchGrid results={results} onOpenManga={onOpenManga} />
-      ) : null}
     </main>
+  );
+}
+
+/** The four states the settled search page can show, chosen by the query and the cache. */
+function SearchResults({
+  hasQuery,
+  results,
+  recentSearches,
+  onViewStateChange,
+  onOpenManga,
+  onBrowseProviders,
+}: {
+  hasQuery: boolean;
+  results: SearchPageData['results'];
+  recentSearches: SearchPageData['recentSearches'];
+  onViewStateChange: (next: SearchViewState) => void;
+  onOpenManga: (mangaId: MangaId) => void;
+  onBrowseProviders: (() => void) | undefined;
+}) {
+  if (hasQuery) {
+    return results.length > 0 ? (
+      <VirtualSearchGrid results={results} onOpenManga={onOpenManga} />
+    ) : (
+      <EmptyState type="no-results" />
+    );
+  }
+
+  if (recentSearches.length > 0) {
+    return (
+      <section aria-label="Recent searches" className="flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-medium text-muted-foreground">Recent searches</h2>
+          <Badge variant="outline">{recentSearches.length}</Badge>
+        </div>
+        <ul className="flex flex-wrap gap-2">
+          {recentSearches.map((entry) => (
+            <li key={entry.id}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onViewStateChange({ query: entry.query })}
+              >
+                {entry.query}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </section>
+    );
+  }
+
+  return (
+    <EmptyState
+      type="no-results"
+      {...(onBrowseProviders !== undefined
+        ? { action: { label: 'Browse providers', onClick: onBrowseProviders } }
+        : {})}
+    />
   );
 }

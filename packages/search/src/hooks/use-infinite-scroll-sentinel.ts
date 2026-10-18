@@ -5,6 +5,7 @@ export function useInfiniteScrollSentinel(
   onLoadMore: (() => void) | undefined,
   enabled: boolean,
 ): void {
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: an IntersectionObserver on the sentinel node
   useEffect(() => {
     const node = sentinelRef.current;
     if (!node || !enabled || onLoadMore === undefined) {

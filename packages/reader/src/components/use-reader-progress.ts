@@ -23,6 +23,7 @@ export function useReaderProgress(
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingEventRef = useRef<ReaderProgressEvent | null>(null);
 
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: debounced persistence is a timer, and the effect owns its cancel
   useEffect(() => {
     if (!data || !readerState || !onPersistProgress) return;
 
@@ -73,15 +74,18 @@ export function useReaderProgress(
   // Latest-value refs are written after commit, not while rendering
   // (react/refs); the unmount checkpoint below only runs after a commit, so it
   // always sees the values of the last committed render.
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- after-commit ref sync: the unmount checkpoint must see the last committed props, and writing a ref while rendering would be the same rule this replaces
   useEffect(() => {
     initialIndexRef.current = data?.initialPageIndex ?? 0;
     onPersistRef.current = onPersistProgress;
   });
 
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- mount-only clock read; a lazy ref initializer would run on every render and date the reader from the wrong moment
   useEffect(() => {
     mountedAtRef.current = Date.now();
   }, []);
 
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: the unmount checkpoint flushes the timer the debounce above cleared
   useEffect(
     () => () => {
       const pending = pendingEventRef.current;
