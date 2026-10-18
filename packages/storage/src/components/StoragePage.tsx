@@ -46,6 +46,92 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function ActionStatus({
+  lastActionMessage,
+  lastActionError,
+  onDismissActionStatus,
+}: {
+  lastActionMessage: string | null;
+  lastActionError: string | null;
+  onDismissActionStatus: () => void;
+}) {
+  return (
+    <>
+      {lastActionMessage ? (
+        <Alert>
+          <AlertTitle>Storage updated</AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>{lastActionMessage}</span>
+            <Button variant="ghost" size="sm" onClick={onDismissActionStatus}>
+              Dismiss
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {lastActionError ? (
+        <Alert variant="destructive">
+          <AlertTitle>Action failed</AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>{lastActionError}</span>
+            <Button variant="ghost" size="sm" onClick={onDismissActionStatus}>
+              Dismiss
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+    </>
+  );
+}
+
+const CLEAR_COPY: Record<StorageClearTarget, { label: string; description: string }> = {
+  provider_cache: {
+    label: 'Clear provider cache metadata',
+    description:
+      'Removes cached chapter metadata tracked in your local database. Your library, reading progress, and installed providers are kept.',
+  },
+  search_history: {
+    label: 'Clear search history',
+    description: 'Removes recent search queries from local history. Saved searches are kept.',
+  },
+};
+
+function ClearDialog({
+  target,
+  isClearing,
+  onCancel,
+  onConfirm,
+}: {
+  target: StorageClearTarget;
+  isClearing: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <Dialog
+      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- <dialog> moves this overlay into the top layer and adds its own open state plus UA max-width/centering, so it is not equivalent to the design-system overlay; role + aria-modal is the accessible equivalent
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="storage-clear-title"
+    >
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle id="storage-clear-title">{CLEAR_COPY[target].label}</DialogTitle>
+          <DialogDescription>{CLEAR_COPY[target].description}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button variant="destructive" disabled={isClearing} onClick={onConfirm}>
+            {isClearing ? 'Clearing…' : 'Clear'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function StoragePage({
   isLoading,
   isError,
@@ -90,20 +176,6 @@ export function StoragePage({
     );
   }
 
-  const clearLabel =
-    pendingClear === 'provider_cache'
-      ? 'Clear provider cache metadata'
-      : pendingClear === 'search_history'
-        ? 'Clear search history'
-        : '';
-
-  const clearDescription =
-    pendingClear === 'provider_cache'
-      ? 'Removes cached chapter metadata tracked in your local database. Your library, reading progress, and installed providers are kept.'
-      : pendingClear === 'search_history'
-        ? 'Removes recent search queries from local history. Saved searches are kept.'
-        : '';
-
   return (
     <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
       <header className="space-y-1">
@@ -120,29 +192,11 @@ export function StoragePage({
         </Button>
       </div>
 
-      {lastActionMessage ? (
-        <Alert>
-          <AlertTitle>Storage updated</AlertTitle>
-          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-            <span>{lastActionMessage}</span>
-            <Button variant="ghost" size="sm" onClick={onDismissActionStatus}>
-              Dismiss
-            </Button>
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
-      {lastActionError ? (
-        <Alert variant="destructive">
-          <AlertTitle>Action failed</AlertTitle>
-          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-            <span>{lastActionError}</span>
-            <Button variant="ghost" size="sm" onClick={onDismissActionStatus}>
-              Dismiss
-            </Button>
-          </AlertDescription>
-        </Alert>
-      ) : null}
+      <ActionStatus
+        lastActionMessage={lastActionMessage}
+        lastActionError={lastActionError}
+        onDismissActionStatus={onDismissActionStatus}
+      />
 
       <SettingsSection
         title="Browser storage"
@@ -235,37 +289,15 @@ export function StoragePage({
       </SettingsSection>
 
       {pendingClear !== null ? (
-        <Dialog
-          // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- <dialog> moves this overlay into the top layer and adds its own open state plus UA max-width/centering, so it is not equivalent to the design-system overlay; role + aria-modal is the accessible equivalent
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="storage-clear-title"
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle id="storage-clear-title">{clearLabel}</DialogTitle>
-              <DialogDescription>{clearDescription}</DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button variant="outline" onClick={() => setPendingClear(null)}>
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                disabled={isClearing}
-                onClick={() => {
-                  if (pendingClear === null) {
-                    return;
-                  }
-                  onClear(pendingClear);
-                  setPendingClear(null);
-                }}
-              >
-                {isClearing ? 'Clearing…' : 'Clear'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <ClearDialog
+          target={pendingClear}
+          isClearing={isClearing}
+          onCancel={() => setPendingClear(null)}
+          onConfirm={() => {
+            onClear(pendingClear);
+            setPendingClear(null);
+          }}
+        />
       ) : null}
     </main>
   );

@@ -1,22 +1,6 @@
 import * as React from 'react';
 import { cn } from '../../lib/cn.js';
-
-const buttonVariants = {
-  default: 'bg-primary text-primary-foreground hover:bg-primary/90',
-  destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-  outline:
-    'border border-[var(--border)] bg-background hover:bg-accent hover:text-accent-foreground',
-  secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-  ghost: 'hover:bg-accent hover:text-accent-foreground',
-  link: 'text-primary underline-offset-4 hover:underline',
-} as const;
-
-const buttonSizes = {
-  default: 'h-10 px-4 py-2',
-  sm: 'h-9 rounded-[var(--radius-control)] px-3',
-  lg: 'h-11 rounded-[var(--radius-btn)] px-8',
-  icon: 'h-10 w-10',
-} as const;
+import { buttonSizes, buttonVariants } from './button-variants.js';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: keyof typeof buttonVariants;
@@ -41,4 +25,4 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 );
 Button.displayName = 'Button';
 
-export { Button, buttonVariants, buttonSizes };
+export { Button };

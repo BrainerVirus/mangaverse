@@ -1,3 +1,4 @@
+import type { ChangeEvent } from 'react';
 import { useRef, useState } from 'react';
 import type { RestorePreviewReport } from '@app/db';
 import type { BackupDocumentV1 } from '@app/shared';
@@ -55,9 +56,9 @@ function PreviewIssueList({ preview }: { preview: RestorePreviewReport }) {
 
   return (
     <ul className="space-y-2" aria-label="Restore preview issues">
-      {issues.map((issue, index) => (
+      {issues.map((issue) => (
         <li
-          key={`${issue.code}-${index}`}
+          key={`${issue.code}-${issue.message}`}
           className="rounded-[var(--radius-control)] border border-[var(--border)] p-3 text-sm"
         >
           <div className="mb-1 flex items-center gap-2">
@@ -70,6 +71,73 @@ function PreviewIssueList({ preview }: { preview: RestorePreviewReport }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+function RestoreStatus({
+  restoreSuccess,
+  restoreError,
+  onDismissRestoreStatus,
+}: {
+  restoreSuccess: boolean;
+  restoreError: string | null;
+  onDismissRestoreStatus: () => void;
+}) {
+  return (
+    <>
+      {restoreSuccess ? (
+        <Alert>
+          <AlertTitle>Restore complete</AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>Your local library and settings were replaced with the backup contents.</span>
+            <Button variant="outline" size="sm" onClick={onDismissRestoreStatus}>
+              Dismiss
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {restoreError !== null && restoreError !== '' ? (
+        <Alert variant="destructive">
+          <AlertTitle>Restore failed</AlertTitle>
+          <AlertDescription>{restoreError}</AlertDescription>
+        </Alert>
+      ) : null}
+    </>
+  );
+}
+
+function RestorePreviewPanel({
+  preview,
+  isRestoring,
+  onRequestConfirm,
+}: {
+  preview: RestorePreviewReport;
+  isRestoring: boolean;
+  onRequestConfirm: () => void;
+}) {
+  const summary = summarizeRestorePreview(preview);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        <Badge variant={summary.canRestore ? 'default' : 'destructive'}>
+          {summary.canRestore ? 'Valid backup' : 'Cannot restore'}
+        </Badge>
+        {summary.warningCount > 0 ? (
+          <Badge variant="secondary">{summary.warningCount} warnings</Badge>
+        ) : null}
+        {summary.infoCount > 0 ? <Badge variant="outline">{summary.infoCount} notes</Badge> : null}
+      </div>
+      <PreviewIssueList preview={preview} />
+      <Button
+        variant="destructive"
+        disabled={!summary.canRestore || isRestoring}
+        onClick={onRequestConfirm}
+      >
+        Restore backup
+      </Button>
+    </div>
   );
 }
 
@@ -91,6 +159,13 @@ export function BackupPage({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (file === undefined) return;
+    onSelectFile(await file.text());
+  };
+
   if (isLoading) {
     return (
       <main className="mx-auto w-full max-w-3xl p-6">
@@ -110,8 +185,6 @@ export function BackupPage({
     );
   }
 
-  const previewSummary = preview !== null ? summarizeRestorePreview(preview) : null;
-
   return (
     <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
       <header className="space-y-1">
@@ -124,24 +197,11 @@ export function BackupPage({
         </p>
       </header>
 
-      {restoreSuccess ? (
-        <Alert>
-          <AlertTitle>Restore complete</AlertTitle>
-          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-            <span>Your local library and settings were replaced with the backup contents.</span>
-            <Button variant="outline" size="sm" onClick={onDismissRestoreStatus}>
-              Dismiss
-            </Button>
-          </AlertDescription>
-        </Alert>
-      ) : null}
-
-      {restoreError !== null && restoreError !== '' ? (
-        <Alert variant="destructive">
-          <AlertTitle>Restore failed</AlertTitle>
-          <AlertDescription>{restoreError}</AlertDescription>
-        </Alert>
-      ) : null}
+      <RestoreStatus
+        restoreSuccess={restoreSuccess}
+        restoreError={restoreError}
+        onDismissRestoreStatus={onDismissRestoreStatus}
+      />
 
       <SettingsSection
         title="Export backup"
@@ -172,12 +232,7 @@ export function BackupPage({
               accept="application/json,.json"
               className="sr-only"
               aria-label="Choose backup file"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file === undefined) return;
-                void file.text().then(onSelectFile);
-                event.target.value = '';
-              }}
+              onChange={(event) => void handleFileChange(event)}
             />
             <Button
               variant="outline"
@@ -193,28 +248,12 @@ export function BackupPage({
             ) : null}
           </div>
 
-          {preview !== null && previewSummary !== null ? (
-            <div className="space-y-4">
-              <div className="flex flex-wrap gap-2">
-                <Badge variant={previewSummary.canRestore ? 'default' : 'destructive'}>
-                  {previewSummary.canRestore ? 'Valid backup' : 'Cannot restore'}
-                </Badge>
-                {previewSummary.warningCount > 0 ? (
-                  <Badge variant="secondary">{previewSummary.warningCount} warnings</Badge>
-                ) : null}
-                {previewSummary.infoCount > 0 ? (
-                  <Badge variant="outline">{previewSummary.infoCount} notes</Badge>
-                ) : null}
-              </div>
-              <PreviewIssueList preview={preview} />
-              <Button
-                variant="destructive"
-                disabled={!previewSummary.canRestore || isRestoring}
-                onClick={() => setConfirmOpen(true)}
-              >
-                Restore backup
-              </Button>
-            </div>
+          {preview !== null ? (
+            <RestorePreviewPanel
+              preview={preview}
+              isRestoring={isRestoring}
+              onRequestConfirm={() => setConfirmOpen(true)}
+            />
           ) : null}
         </div>
       </SettingsSection>

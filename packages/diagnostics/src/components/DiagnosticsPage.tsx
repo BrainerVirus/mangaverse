@@ -56,6 +56,116 @@ function CapabilityGrid({ capabilities }: { capabilities: PlatformCapabilities }
   );
 }
 
+function PlatformSection({ report }: { report: DiagnosticsReport }) {
+  return (
+    <SettingsSection
+      title="Platform"
+      description="Environment snapshot from the active platform adapter."
+    >
+      <dl className="divide-y divide-[var(--border)]">
+        {report.platformSnapshot.platform !== undefined ? (
+          <InfoRow label="Platform" value={String(report.platformSnapshot.platform)} />
+        ) : null}
+        {report.platformSnapshot.arch !== undefined ? (
+          <InfoRow label="Architecture" value={report.platformSnapshot.arch} />
+        ) : null}
+        {report.platformSnapshot.electronVersion !== undefined ? (
+          <InfoRow label="Electron" value={report.platformSnapshot.electronVersion} />
+        ) : null}
+        {report.platformSnapshot.chromeVersion !== undefined ? (
+          <InfoRow label="Chrome" value={report.platformSnapshot.chromeVersion} />
+        ) : null}
+        {report.platformSnapshot.nodeVersion !== undefined ? (
+          <InfoRow label="Node" value={report.platformSnapshot.nodeVersion} />
+        ) : null}
+        {report.platformSnapshot.userDataConfigured !== undefined ? (
+          <InfoRow
+            label="User data path"
+            value={report.platformSnapshot.userDataConfigured ? 'configured' : 'not configured'}
+          />
+        ) : null}
+      </dl>
+    </SettingsSection>
+  );
+}
+
+function StorageSection({ report }: { report: DiagnosticsReport }) {
+  return (
+    <SettingsSection
+      title="Storage"
+      description="Browser or desktop storage estimates when available."
+    >
+      {report.storageEstimate === null ? (
+        <p className="text-sm text-muted-foreground">
+          Storage estimates are not available on this runtime.
+        </p>
+      ) : (
+        <dl className="divide-y divide-[var(--border)]">
+          <InfoRow label="Quota" value={formatStorageBytes(report.storageEstimate.quota)} />
+          <InfoRow label="Usage" value={formatStorageBytes(report.storageEstimate.usage)} />
+          <InfoRow
+            label="Persisted"
+            value={report.storageEstimate.persisted === true ? 'yes' : 'no'}
+          />
+        </dl>
+      )}
+    </SettingsSection>
+  );
+}
+
+function LocalDatabaseSection({ report }: { report: DiagnosticsReport }) {
+  if (!report.localDatabaseReady || report.localData === null) {
+    return (
+      <SettingsSection
+        title="Local database"
+        description="Counts from your on-device SQLite library."
+      >
+        <Alert variant="destructive">
+          <AlertTitle>Database unavailable</AlertTitle>
+          <AlertDescription>
+            Local SQLite is not ready. Library counts cannot be collected.
+          </AlertDescription>
+        </Alert>
+      </SettingsSection>
+    );
+  }
+
+  const localData = report.localData;
+  return (
+    <SettingsSection
+      title="Local database"
+      description="Counts from your on-device SQLite library."
+    >
+      <dl className="divide-y divide-[var(--border)]">
+        <InfoRow label="Library entries" value={String(localData.libraryEntryCount)} />
+        <InfoRow label="Manga identities" value={String(localData.mangaIdentityCount)} />
+        <InfoRow label="Installed extensions" value={String(localData.installedExtensionCount)} />
+        <InfoRow label="Enabled extensions" value={String(localData.enabledExtensionCount)} />
+        <InfoRow label="Broken extensions" value={String(localData.brokenExtensionCount)} />
+        <InfoRow label="Categories" value={String(localData.categoryCount)} />
+        <InfoRow label="Provider settings" value={String(localData.providerSettingsCount)} />
+      </dl>
+    </SettingsSection>
+  );
+}
+
+function LocalServiceSection({ report }: { report: DiagnosticsReport }) {
+  if (report.localService === null) return null;
+
+  return (
+    <SettingsSection title="Local service" description="Desktop-only helper service status.">
+      <dl className="divide-y divide-[var(--border)]">
+        <InfoRow label="Running" value={report.localService.running ? 'yes' : 'no'} />
+        <InfoRow label="Host" value={report.localService.host ?? 'n/a'} />
+        <InfoRow
+          label="Port"
+          value={report.localService.port !== null ? String(report.localService.port) : 'n/a'}
+        />
+      </dl>
+    </SettingsSection>
+  );
+}
+
 export function DiagnosticsPage({
   isLoading,
   isError,
@@ -137,34 +247,7 @@ export function DiagnosticsPage({
         </dl>
       </SettingsSection>
 
-      <SettingsSection
-        title="Platform"
-        description="Environment snapshot from the active platform adapter."
-      >
-        <dl className="divide-y divide-[var(--border)]">
-          {report.platformSnapshot.platform !== undefined ? (
-            <InfoRow label="Platform" value={String(report.platformSnapshot.platform)} />
-          ) : null}
-          {report.platformSnapshot.arch !== undefined ? (
-            <InfoRow label="Architecture" value={report.platformSnapshot.arch} />
-          ) : null}
-          {report.platformSnapshot.electronVersion !== undefined ? (
-            <InfoRow label="Electron" value={report.platformSnapshot.electronVersion} />
-          ) : null}
-          {report.platformSnapshot.chromeVersion !== undefined ? (
-            <InfoRow label="Chrome" value={report.platformSnapshot.chromeVersion} />
-          ) : null}
-          {report.platformSnapshot.nodeVersion !== undefined ? (
-            <InfoRow label="Node" value={report.platformSnapshot.nodeVersion} />
-          ) : null}
-          {report.platformSnapshot.userDataConfigured !== undefined ? (
-            <InfoRow
-              label="User data path"
-              value={report.platformSnapshot.userDataConfigured ? 'configured' : 'not configured'}
-            />
-          ) : null}
-        </dl>
-      </SettingsSection>
+      <PlatformSection report={report} />
 
       <SettingsSection
         title="Capabilities"
@@ -173,74 +256,11 @@ export function DiagnosticsPage({
         <CapabilityGrid capabilities={capabilities} />
       </SettingsSection>
 
-      <SettingsSection
-        title="Storage"
-        description="Browser or desktop storage estimates when available."
-      >
-        {report.storageEstimate === null ? (
-          <p className="text-sm text-muted-foreground">
-            Storage estimates are not available on this runtime.
-          </p>
-        ) : (
-          <dl className="divide-y divide-[var(--border)]">
-            <InfoRow label="Quota" value={formatStorageBytes(report.storageEstimate.quota)} />
-            <InfoRow label="Usage" value={formatStorageBytes(report.storageEstimate.usage)} />
-            <InfoRow
-              label="Persisted"
-              value={report.storageEstimate.persisted === true ? 'yes' : 'no'}
-            />
-          </dl>
-        )}
-      </SettingsSection>
+      <StorageSection report={report} />
 
-      <SettingsSection
-        title="Local database"
-        description="Counts from your on-device SQLite library."
-      >
-        {!report.localDatabaseReady || report.localData === null ? (
-          <Alert variant="destructive">
-            <AlertTitle>Database unavailable</AlertTitle>
-            <AlertDescription>
-              Local SQLite is not ready. Library counts cannot be collected.
-            </AlertDescription>
-          </Alert>
-        ) : (
-          <dl className="divide-y divide-[var(--border)]">
-            <InfoRow label="Library entries" value={String(report.localData.libraryEntryCount)} />
-            <InfoRow label="Manga identities" value={String(report.localData.mangaIdentityCount)} />
-            <InfoRow
-              label="Installed extensions"
-              value={String(report.localData.installedExtensionCount)}
-            />
-            <InfoRow
-              label="Enabled extensions"
-              value={String(report.localData.enabledExtensionCount)}
-            />
-            <InfoRow
-              label="Broken extensions"
-              value={String(report.localData.brokenExtensionCount)}
-            />
-            <InfoRow label="Categories" value={String(report.localData.categoryCount)} />
-            <InfoRow
-              label="Provider settings"
-              value={String(report.localData.providerSettingsCount)}
-            />
-          </dl>
-        )}
-      </SettingsSection>
+      <LocalDatabaseSection report={report} />
 
-      {report.localService !== null ? (
-        <SettingsSection title="Local service" description="Desktop-only helper service status.">
-          <dl className="divide-y divide-[var(--border)]">
-            <InfoRow label="Running" value={report.localService.running ? 'yes' : 'no'} />
-            <InfoRow label="Host" value={report.localService.host ?? 'n/a'} />
-            <InfoRow
-              label="Port"
-              value={report.localService.port !== null ? String(report.localService.port) : 'n/a'}
-            />
-          </dl>
-        </SettingsSection>
-      ) : null}
+      <LocalServiceSection report={report} />
     </main>
   );
 }
