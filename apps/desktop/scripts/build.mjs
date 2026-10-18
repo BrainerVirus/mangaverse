@@ -1,35 +1,35 @@
-import { execFileSync } from 'node:child_process';
-import { cpSync, rmSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { execFileSync } from "node:child_process";
+import { cpSync, rmSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = dirname(fileURLToPath(new URL('../package.json', import.meta.url)));
-const workspaceRoot = join(root, '../..');
+const root = dirname(fileURLToPath(new URL("../package.json", import.meta.url)));
+const workspaceRoot = join(root, "../..");
 
-console.log('Cleaning old desktop dist...');
-rmSync(join(root, 'dist'), { force: true, recursive: true });
+console.log("Cleaning old desktop dist...");
+rmSync(join(root, "dist"), { force: true, recursive: true });
 
-console.log('Building web renderer...');
-execFileSync('pnpm', ['--filter', '@app/web', 'build'], {
+console.log("Building web renderer...");
+execFileSync("pnpm", ["--filter", "@app/web", "build"], {
   cwd: workspaceRoot,
-  stdio: 'inherit',
+  stdio: "inherit",
 });
 
-console.log('Building Electron main process...');
-execFileSync('pnpm', ['exec', 'tsc', '-p', 'tsconfig.json'], {
+console.log("Building Electron main process...");
+execFileSync("pnpm", ["exec", "tsc", "-p", "tsconfig.json"], {
   cwd: root,
-  stdio: 'inherit',
+  stdio: "inherit",
 });
 
-console.log('Building Electron preload...');
-execFileSync('node', ['scripts/bundle-preload.mjs'], {
+console.log("Building Electron preload...");
+execFileSync("node", ["scripts/bundle-preload.mjs"], {
   cwd: root,
-  stdio: 'inherit',
+  stdio: "inherit",
 });
 
-console.log('Copying Nitro output (.output) for embedded renderer server...');
-cpSync(join(root, '../web/.output'), join(root, 'dist/renderer'), {
+console.log("Copying Nitro output (.output) for embedded renderer server...");
+cpSync(join(root, "../web/.output"), join(root, "dist/renderer"), {
   recursive: true,
 });
 
-console.log('Desktop build complete.');
+console.log("Desktop build complete.");

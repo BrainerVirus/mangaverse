@@ -16,14 +16,28 @@ export type {
   ProviderTag,
 } from './contract-types.js';
 
-export { assertProviderSupports, CAPABILITY_TO_PROVIDER_METHOD, getRequiredMethodsForCapabilities } from './capabilities.js';
+export {
+  assertProviderSupports,
+  CAPABILITY_TO_PROVIDER_METHOD,
+  getRequiredMethodsForCapabilities,
+} from './capabilities.js';
 export { defineProvider } from './define-provider.js';
 export { validateProviderContract, providerMethodGuard } from './validate-contract.js';
 export { createProviderRequestClient } from './request-client.js';
-export type { ProviderRequestClient, ProviderRequestClientOptions, ProviderRequestResponse } from './request-client.js';
+export type {
+  ProviderRequestClient,
+  ProviderRequestClientOptions,
+  ProviderRequestResponse,
+} from './request-client.js';
 export { createRateLimiter } from './rate-limiter.js';
 export type { RateLimiter, RateLimiterOptions } from './rate-limiter.js';
-export { parseHtml, parseHtmlAttr, parseHtmlText, querySelectorAllNodes, resolveUrl } from './parse-html.js';
+export {
+  parseHtml,
+  parseHtmlAttr,
+  parseHtmlText,
+  querySelectorAllNodes,
+  resolveUrl,
+} from './parse-html.js';
 export type { ParsedHtmlRoot } from './parse-html.js';
 export { normalizeProviderError, redactUrlForErrorDetails } from './errors.js';
 export type { NormalizeProviderErrorContext } from './errors.js';

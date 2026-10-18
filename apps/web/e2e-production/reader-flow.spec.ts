@@ -46,7 +46,11 @@ function installLocalDbBlocker() {
   }) as IDBFactory['open'];
 }
 
-test('Given an open chapter, When navigating by keyboard and buttons, Then pages change once each time', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given an open chapter, When navigating by keyboard and buttons, Then pages change once each time', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   await openReader(page);
 
   await page.keyboard.press('ArrowRight');
@@ -60,7 +64,11 @@ test('Given an open chapter, When navigating by keyboard and buttons, Then pages
   await expect(page.getByText('1 / 37')).toBeVisible();
 });
 
-test('Given the chapter pages cannot be fetched, When retrying after the network returns, Then the chapter loads', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given the chapter pages cannot be fetched, When retrying after the network returns, Then the chapter loads', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   // Registered after the shared mock so it wins for the at-home route only.
   let failing = true;
   await page.route('**/api.mangadex.org/at-home/**', async (route) => {
@@ -88,7 +96,11 @@ test('Given the chapter pages cannot be fetched, When retrying after the network
   await expect(image).toBeVisible({ timeout: 20_000 });
 });
 
-test('Given a cached chapter, When the network is gone and the reader is reopened, Then cached pages render', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given a cached chapter, When the network is gone and the reader is reopened, Then cached pages render', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   await openReader(page);
   await waitForPingQuiet(page);
 
@@ -115,13 +127,19 @@ test('Given a cached chapter, When the network is gone and the reader is reopene
   const image = page.getByTestId('reader-surface').locator('img').first();
   await expect(image).toBeVisible({ timeout: 20_000 });
   await expect
-    .poll(async () => image.evaluate((img: HTMLImageElement) => img.naturalWidth > 0), { timeout: 20_000 })
+    .poll(async () => image.evaluate((img: HTMLImageElement) => img.naturalWidth > 0), {
+      timeout: 20_000,
+    })
     .toBe(true);
 
   await page.context().setOffline(false);
 });
 
-test('Given the reader advanced a page, When the page reloads, Then it resumes on the saved page', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given the reader advanced a page, When the page reloads, Then it resumes on the saved page', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   await openReader(page);
   await waitForPingQuiet(page);
 
@@ -135,7 +153,11 @@ test('Given the reader advanced a page, When the page reloads, Then it resumes o
   await expect(page.getByText('2 / 37')).toBeVisible({ timeout: 30_000 });
 });
 
-test('Given the provider cannot be resolved, When the reader opens a chapter with no local pages, Then it shows a retryable error instead of the empty state', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given the provider cannot be resolved, When the reader opens a chapter with no local pages, Then it shows a retryable error instead of the empty state', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   // Persist the chapter list first; disabling the provider must not blank the
   // locally available detail page. The reload below reads the committed
   // snapshot, so the write must be durable before navigating.
@@ -165,7 +187,11 @@ test('Given the provider cannot be resolved, When the reader opens a chapter wit
   await expect(image).toBeVisible({ timeout: 20_000 });
 });
 
-test('Given the local database failed to open, When the reader retries, Then the query re-enables and the chapter loads', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given the local database failed to open, When the reader retries, Then the query re-enables and the chapter loads', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   // Persist the chapter list while the database is healthy, so recovery has
   // local data to read once the handle is rebuilt.
   await page.goto(`/manga/${MANGADEX_APP_MANGA_ID}`);
@@ -189,7 +215,11 @@ test('Given the local database failed to open, When the reader retries, Then the
   await expect(image).toBeVisible({ timeout: 20_000 });
 });
 
-test('Given a durable write fails, When the reader persists progress, Then it surfaces a retryable failure and recovers', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given a durable write fails, When the reader persists progress, Then it surfaces a retryable failure and recovers', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   await openReader(page);
   await waitForPingQuiet(page);
 
@@ -212,7 +242,11 @@ test('Given a durable write fails, When the reader persists progress, Then it su
   await waitForNewPing(page, pingBefore);
 });
 
-test('Given the reader advanced a page, When leaving client-side immediately, Then the pending page is checkpointed', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given the reader advanced a page, When leaving client-side immediately, Then the pending page is checkpointed', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   await openReader(page);
   await waitForPingQuiet(page);
 

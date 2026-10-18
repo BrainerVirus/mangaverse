@@ -36,10 +36,12 @@ export function CachedPageImage({
   // render: the effect below may only touch state from its async continuation
   // (react/set-state-in-effect), and `src` is kept so the previous image stays
   // on screen until the new one resolves.
-  const [resetKey, setResetKey] = useState<{ readonly context: unknown; readonly request: string }>({
-    context,
-    request: requestKey,
-  });
+  const [resetKey, setResetKey] = useState<{ readonly context: unknown; readonly request: string }>(
+    {
+      context,
+      request: requestKey,
+    },
+  );
   if (resetKey.context !== context || resetKey.request !== requestKey) {
     setResetKey({ context, request: requestKey });
     setFailed(false);
@@ -92,7 +94,11 @@ export function CachedPageImage({
   if (context === null || failed || src === undefined) {
     return (
       <div
-        className={cn('animate-pulse bg-muted/80', (context === null || failed) && 'animate-none', className)}
+        className={cn(
+          'animate-pulse bg-muted/80',
+          (context === null || failed) && 'animate-none',
+          className,
+        )}
         aria-hidden={alt === ''}
         role={alt === '' ? undefined : 'img'}
         aria-label={alt === '' ? undefined : alt}

@@ -101,7 +101,8 @@ export function DiagnosticsPage({
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Diagnostics</h1>
         <p className="text-sm text-muted-foreground">
-          About MangaVerse, platform details, storage usage, and local database health for troubleshooting.
+          About MangaVerse, platform details, storage usage, and local database health for
+          troubleshooting.
         </p>
       </header>
 
@@ -140,7 +141,10 @@ export function DiagnosticsPage({
         </dl>
       </SettingsSection>
 
-      <SettingsSection title="Platform" description="Environment snapshot from the active platform adapter.">
+      <SettingsSection
+        title="Platform"
+        description="Environment snapshot from the active platform adapter."
+      >
         <dl className="divide-y divide-[var(--border)]">
           {report.platformSnapshot.platform !== undefined ? (
             <InfoRow label="Platform" value={String(report.platformSnapshot.platform)} />
@@ -166,13 +170,21 @@ export function DiagnosticsPage({
         </dl>
       </SettingsSection>
 
-      <SettingsSection title="Capabilities" description="Features available on this device and runtime.">
+      <SettingsSection
+        title="Capabilities"
+        description="Features available on this device and runtime."
+      >
         <CapabilityGrid capabilities={capabilities} />
       </SettingsSection>
 
-      <SettingsSection title="Storage" description="Browser or desktop storage estimates when available.">
+      <SettingsSection
+        title="Storage"
+        description="Browser or desktop storage estimates when available."
+      >
         {report.storageEstimate === null ? (
-          <p className="text-sm text-muted-foreground">Storage estimates are not available on this runtime.</p>
+          <p className="text-sm text-muted-foreground">
+            Storage estimates are not available on this runtime.
+          </p>
         ) : (
           <dl className="divide-y divide-[var(--border)]">
             <InfoRow label="Quota" value={formatStorageBytes(report.storageEstimate.quota)} />
@@ -185,21 +197,38 @@ export function DiagnosticsPage({
         )}
       </SettingsSection>
 
-      <SettingsSection title="Local database" description="Counts from your on-device SQLite library.">
+      <SettingsSection
+        title="Local database"
+        description="Counts from your on-device SQLite library."
+      >
         {!report.localDatabaseReady || report.localData === null ? (
           <Alert variant="destructive">
             <AlertTitle>Database unavailable</AlertTitle>
-            <AlertDescription>Local SQLite is not ready. Library counts cannot be collected.</AlertDescription>
+            <AlertDescription>
+              Local SQLite is not ready. Library counts cannot be collected.
+            </AlertDescription>
           </Alert>
         ) : (
           <dl className="divide-y divide-[var(--border)]">
             <InfoRow label="Library entries" value={String(report.localData.libraryEntryCount)} />
             <InfoRow label="Manga identities" value={String(report.localData.mangaIdentityCount)} />
-            <InfoRow label="Installed extensions" value={String(report.localData.installedExtensionCount)} />
-            <InfoRow label="Enabled extensions" value={String(report.localData.enabledExtensionCount)} />
-            <InfoRow label="Broken extensions" value={String(report.localData.brokenExtensionCount)} />
+            <InfoRow
+              label="Installed extensions"
+              value={String(report.localData.installedExtensionCount)}
+            />
+            <InfoRow
+              label="Enabled extensions"
+              value={String(report.localData.enabledExtensionCount)}
+            />
+            <InfoRow
+              label="Broken extensions"
+              value={String(report.localData.brokenExtensionCount)}
+            />
             <InfoRow label="Categories" value={String(report.localData.categoryCount)} />
-            <InfoRow label="Provider settings" value={String(report.localData.providerSettingsCount)} />
+            <InfoRow
+              label="Provider settings"
+              value={String(report.localData.providerSettingsCount)}
+            />
           </dl>
         )}
       </SettingsSection>
@@ -209,7 +238,10 @@ export function DiagnosticsPage({
           <dl className="divide-y divide-[var(--border)]">
             <InfoRow label="Running" value={report.localService.running ? 'yes' : 'no'} />
             <InfoRow label="Host" value={report.localService.host ?? 'n/a'} />
-            <InfoRow label="Port" value={report.localService.port !== null ? String(report.localService.port) : 'n/a'} />
+            <InfoRow
+              label="Port"
+              value={report.localService.port !== null ? String(report.localService.port) : 'n/a'}
+            />
           </dl>
         </SettingsSection>
       ) : null}

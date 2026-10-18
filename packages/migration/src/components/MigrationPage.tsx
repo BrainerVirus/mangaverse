@@ -26,7 +26,11 @@ import {
 } from '@app/design-system';
 
 import { summarizeMigrationPreview } from '../summarize-migration.js';
-import type { MigrationApplySummary, MigrationCandidate, MigrationProviderOption } from '../types.js';
+import type {
+  MigrationApplySummary,
+  MigrationCandidate,
+  MigrationProviderOption,
+} from '../types.js';
 
 export interface MigrationPageProps {
   readonly isLoading: boolean;
@@ -190,7 +194,10 @@ export function MigrationPage({
         </Alert>
       ) : null}
 
-      <SettingsSection title="Providers" description="Choose where titles come from and where they should move.">
+      <SettingsSection
+        title="Providers"
+        description="Choose where titles come from and where they should move."
+      >
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="migration-source-provider">Source provider</Label>
@@ -238,7 +245,9 @@ export function MigrationPage({
         </div>
       </SettingsSection>
 
-      {sourceProviderId !== null && targetProviderId !== null && sourceProviderId !== targetProviderId ? (
+      {sourceProviderId !== null &&
+      targetProviderId !== null &&
+      sourceProviderId !== targetProviderId ? (
         <SettingsSection
           title="Library titles"
           description="Enter the target provider manga id for each title you want to migrate."
@@ -256,7 +265,9 @@ export function MigrationPage({
                 >
                   <div className="mb-2 flex flex-wrap items-center gap-2">
                     <span className="font-medium text-foreground">{candidate.canonicalTitle}</span>
-                    {candidate.isDefaultProvider ? <Badge variant="secondary">default</Badge> : null}
+                    {candidate.isDefaultProvider ? (
+                      <Badge variant="secondary">default</Badge>
+                    ) : null}
                     {candidate.isActiveProvider ? <Badge variant="secondary">active</Badge> : null}
                   </div>
                   <p className="mb-3 text-xs text-muted-foreground">
@@ -283,7 +294,11 @@ export function MigrationPage({
               {isPreviewing ? 'Previewing…' : 'Preview migration'}
             </Button>
             {preview !== null ? (
-              <Button variant="outline" onClick={onClearPreview} disabled={isPreviewing || isApplying}>
+              <Button
+                variant="outline"
+                onClick={onClearPreview}
+                disabled={isPreviewing || isApplying}
+              >
                 Clear preview
               </Button>
             ) : null}

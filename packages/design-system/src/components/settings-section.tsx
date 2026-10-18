@@ -37,7 +37,13 @@ export function SettingsSection({
             {danger ? <AlertTriangle className="h-4 w-4 text-destructive" /> : null}
             <CardTitle className={cn('text-base', danger && 'text-destructive')}>{title}</CardTitle>
           </div>
-          {collapsed ? (isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />) : null}
+          {collapsed ? (
+            isOpen ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )
+          ) : null}
         </button>
         {description && isOpen ? <CardDescription>{description}</CardDescription> : null}
       </CardHeader>

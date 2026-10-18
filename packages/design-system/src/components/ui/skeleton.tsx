@@ -8,7 +8,7 @@ const Skeleton = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEl
       className={cn('animate-pulse rounded-[var(--radius-control)] bg-muted', className)}
       {...props}
     />
-  )
+  ),
 );
 Skeleton.displayName = 'Skeleton';
 

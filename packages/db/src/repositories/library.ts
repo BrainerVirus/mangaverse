@@ -33,7 +33,10 @@ function newId(): string {
   return crypto.randomUUID();
 }
 
-async function categoryIdsForEntry(db: AppDrizzleDb, entryId: LibraryEntryId): Promise<CategoryId[]> {
+async function categoryIdsForEntry(
+  db: AppDrizzleDb,
+  entryId: LibraryEntryId,
+): Promise<CategoryId[]> {
   const rows = db
     .select({ categoryId: libraryCategoryMemberships.categoryId })
     .from(libraryCategoryMemberships)
@@ -42,7 +45,10 @@ async function categoryIdsForEntry(db: AppDrizzleDb, entryId: LibraryEntryId): P
   return rows.map((r) => toCategoryId(r.categoryId));
 }
 
-export async function toLibraryEntry(db: AppDrizzleDb, row: typeof libraryEntries.$inferSelect): Promise<LibraryEntry> {
+export async function toLibraryEntry(
+  db: AppDrizzleDb,
+  row: typeof libraryEntries.$inferSelect,
+): Promise<LibraryEntry> {
   const categoryIds = await categoryIdsForEntry(db, toLibraryEntryId(row.id));
   return {
     id: toLibraryEntryId(row.id),
@@ -51,7 +57,9 @@ export async function toLibraryEntry(db: AppDrizzleDb, row: typeof libraryEntrie
     categoryIds,
     status: row.status as LibraryEntry['status'],
     unreadCount: row.unreadCount,
-    ...(row.lastReadChapterId !== null && row.lastReadChapterId !== undefined && row.lastReadChapterId !== ''
+    ...(row.lastReadChapterId !== null &&
+    row.lastReadChapterId !== undefined &&
+    row.lastReadChapterId !== ''
       ? { lastReadChapterId: toChapterId(row.lastReadChapterId) }
       : {}),
     ...(row.activeProviderMappingId !== null &&
@@ -62,9 +70,15 @@ export async function toLibraryEntry(db: AppDrizzleDb, row: typeof libraryEntrie
     ...(row.progressPercent !== null && row.progressPercent !== undefined
       ? { progressPercent: row.progressPercent }
       : {}),
-    ...(row.notes !== null && row.notes !== undefined && row.notes !== '' ? { notes: row.notes } : {}),
-    ...(row.addedAt !== null && row.addedAt !== undefined && row.addedAt !== '' ? { addedAt: row.addedAt } : {}),
-    ...(row.updatedAt !== null && row.updatedAt !== undefined && row.updatedAt !== '' ? { updatedAt: row.updatedAt } : {}),
+    ...(row.notes !== null && row.notes !== undefined && row.notes !== ''
+      ? { notes: row.notes }
+      : {}),
+    ...(row.addedAt !== null && row.addedAt !== undefined && row.addedAt !== ''
+      ? { addedAt: row.addedAt }
+      : {}),
+    ...(row.updatedAt !== null && row.updatedAt !== undefined && row.updatedAt !== ''
+      ? { updatedAt: row.updatedAt }
+      : {}),
   };
 }
 
@@ -133,7 +147,9 @@ export async function listLibraryEntries(
 
   if (filter?.statuses !== undefined && filter.statuses.length > 0) {
     const rows = query.all();
-    const filtered = rows.filter((r) => filter.statuses!.includes(r.status as LibraryEntry['status']));
+    const filtered = rows.filter((r) =>
+      filter.statuses!.includes(r.status as LibraryEntry['status']),
+    );
     return sortLibraryRows(db, filtered, options?.sort);
   }
 
@@ -151,9 +167,18 @@ export async function addLibraryEntry(
   db: AppDrizzleDb,
   input: { readonly mangaId: MangaId; readonly status: LibraryEntry['status'] },
 ): Promise<AppResult<LibraryEntryId>> {
-  const manga = db.select({ id: mangaIdentities.id }).from(mangaIdentities).where(eq(mangaIdentities.id, input.mangaId)).get();
+  const manga = db
+    .select({ id: mangaIdentities.id })
+    .from(mangaIdentities)
+    .where(eq(mangaIdentities.id, input.mangaId))
+    .get();
   if (manga === undefined) {
-    return err(createAppError({ code: 'db.library.manga_missing', message: 'Manga identity does not exist.' }));
+    return err(
+      createAppError({
+        code: 'db.library.manga_missing',
+        message: 'Manga identity does not exist.',
+      }),
+    );
   }
 
   const existing = db
@@ -162,7 +187,9 @@ export async function addLibraryEntry(
     .where(eq(libraryEntries.mangaId, input.mangaId))
     .get();
   if (existing !== undefined) {
-    return err(createAppError({ code: 'db.library.duplicate', message: 'Manga is already in the library.' }));
+    return err(
+      createAppError({ code: 'db.library.duplicate', message: 'Manga is already in the library.' }),
+    );
   }
 
   const id = toLibraryEntryId(newId());
@@ -181,7 +208,9 @@ export async function addLibraryEntry(
 }
 
 export async function removeLibraryEntry(db: AppDrizzleDb, entryId: LibraryEntryId): Promise<void> {
-  await db.delete(libraryCategoryMemberships).where(eq(libraryCategoryMemberships.libraryEntryId, entryId));
+  await db
+    .delete(libraryCategoryMemberships)
+    .where(eq(libraryCategoryMemberships.libraryEntryId, entryId));
   await db.delete(libraryEntries).where(eq(libraryEntries.id, entryId));
 }
 
@@ -190,9 +219,15 @@ export async function setLibraryEntryFavorite(
   entryId: LibraryEntryId,
   favorite: boolean,
 ): Promise<AppResult<void>> {
-  const entry = db.select({ id: libraryEntries.id }).from(libraryEntries).where(eq(libraryEntries.id, entryId)).get();
+  const entry = db
+    .select({ id: libraryEntries.id })
+    .from(libraryEntries)
+    .where(eq(libraryEntries.id, entryId))
+    .get();
   if (entry === undefined) {
-    return err(createAppError({ code: 'db.library.entry_missing', message: 'Library entry not found.' }));
+    return err(
+      createAppError({ code: 'db.library.entry_missing', message: 'Library entry not found.' }),
+    );
   }
 
   await db
@@ -208,9 +243,15 @@ export async function setLibraryEntryCategories(
   entryId: LibraryEntryId,
   categoryIds: readonly CategoryId[],
 ): Promise<AppResult<void>> {
-  const entry = db.select({ id: libraryEntries.id }).from(libraryEntries).where(eq(libraryEntries.id, entryId)).get();
+  const entry = db
+    .select({ id: libraryEntries.id })
+    .from(libraryEntries)
+    .where(eq(libraryEntries.id, entryId))
+    .get();
   if (entry === undefined) {
-    return err(createAppError({ code: 'db.library.entry_missing', message: 'Library entry not found.' }));
+    return err(
+      createAppError({ code: 'db.library.entry_missing', message: 'Library entry not found.' }),
+    );
   }
 
   if (categoryIds.length > 0) {
@@ -220,18 +261,28 @@ export async function setLibraryEntryCategories(
       .where(inArray(categories.id, [...categoryIds]))
       .all();
     if (found.length !== categoryIds.length) {
-      return err(createAppError({ code: 'db.library.category_missing', message: 'One or more categories do not exist.' }));
+      return err(
+        createAppError({
+          code: 'db.library.category_missing',
+          message: 'One or more categories do not exist.',
+        }),
+      );
     }
   }
 
-  await db.delete(libraryCategoryMemberships).where(eq(libraryCategoryMemberships.libraryEntryId, entryId));
+  await db
+    .delete(libraryCategoryMemberships)
+    .where(eq(libraryCategoryMemberships.libraryEntryId, entryId));
   if (categoryIds.length > 0) {
-    await db.insert(libraryCategoryMemberships).values(
-      categoryIds.map((categoryId) => ({ libraryEntryId: entryId, categoryId })),
-    );
+    await db
+      .insert(libraryCategoryMemberships)
+      .values(categoryIds.map((categoryId) => ({ libraryEntryId: entryId, categoryId })));
   }
 
-  await db.update(libraryEntries).set({ updatedAt: new Date().toISOString() }).where(eq(libraryEntries.id, entryId));
+  await db
+    .update(libraryEntries)
+    .set({ updatedAt: new Date().toISOString() })
+    .where(eq(libraryEntries.id, entryId));
   return ok(undefined);
 }
 
@@ -242,7 +293,9 @@ export async function setLibraryEntryActiveProviderMapping(
 ): Promise<AppResult<void>> {
   const entry = db.select().from(libraryEntries).where(eq(libraryEntries.id, entryId)).get();
   if (entry === undefined) {
-    return err(createAppError({ code: 'db.library.entry_missing', message: 'Library entry not found.' }));
+    return err(
+      createAppError({ code: 'db.library.entry_missing', message: 'Library entry not found.' }),
+    );
   }
 
   if (mappingId !== undefined) {
@@ -252,10 +305,20 @@ export async function setLibraryEntryActiveProviderMapping(
       .where(eq(mangaProviderMappings.id, mappingId))
       .get();
     if (mapping === undefined) {
-      return err(createAppError({ code: 'db.library.mapping_not_found', message: 'Provider mapping not found.' }));
+      return err(
+        createAppError({
+          code: 'db.library.mapping_not_found',
+          message: 'Provider mapping not found.',
+        }),
+      );
     }
     if (mapping.mangaId !== entry.mangaId) {
-      return err(createAppError({ code: 'db.library.mapping_wrong_manga', message: 'Provider mapping does not belong to this manga.' }));
+      return err(
+        createAppError({
+          code: 'db.library.mapping_wrong_manga',
+          message: 'Provider mapping does not belong to this manga.',
+        }),
+      );
     }
   }
 
@@ -272,11 +335,20 @@ export async function setLibraryEntryActiveProviderMapping(
 
 export async function upsertCategory(
   db: AppDrizzleDb,
-  input: { readonly id?: CategoryId; readonly name: string; readonly color?: string; readonly sortIndex?: number },
+  input: {
+    readonly id?: CategoryId;
+    readonly name: string;
+    readonly color?: string;
+    readonly sortIndex?: number;
+  },
 ): Promise<CategoryId> {
   const id = input.id ?? toCategoryId(newId());
   const now = new Date().toISOString();
-  const existing = db.select({ id: categories.id }).from(categories).where(eq(categories.id, id)).get();
+  const existing = db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(eq(categories.id, id))
+    .get();
   if (existing === undefined) {
     await db.insert(categories).values({
       id,
@@ -300,7 +372,10 @@ export async function upsertCategory(
   return id;
 }
 
-export async function getLibraryEntry(db: AppDrizzleDb, entryId: LibraryEntryId): Promise<LibraryEntry | undefined> {
+export async function getLibraryEntry(
+  db: AppDrizzleDb,
+  entryId: LibraryEntryId,
+): Promise<LibraryEntry | undefined> {
   const row = db.select().from(libraryEntries).where(eq(libraryEntries.id, entryId)).get();
   if (row === undefined) return undefined;
   return toLibraryEntry(db, row);

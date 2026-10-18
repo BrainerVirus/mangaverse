@@ -109,7 +109,12 @@ export function toDetails(manga: MdMangaEntity): ProviderDetails {
 export function formatChapterTitle(attributes: MdChapterEntity['attributes']): string {
   const chapterNumber = attributes.chapter?.trim();
   const chapterTitle = attributes.title?.trim();
-  if (chapterNumber !== undefined && chapterNumber.length > 0 && chapterTitle !== undefined && chapterTitle.length > 0) {
+  if (
+    chapterNumber !== undefined &&
+    chapterNumber.length > 0 &&
+    chapterTitle !== undefined &&
+    chapterTitle.length > 0
+  ) {
     return `Ch. ${chapterNumber} - ${chapterTitle}`;
   }
   if (chapterTitle !== undefined && chapterTitle.length > 0) {

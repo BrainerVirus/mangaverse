@@ -38,7 +38,9 @@ export function createSecureStorageModel(deps: SecureStorageModelDeps) {
   return {
     async get(key: string): Promise<AppResult<string | undefined>> {
       if (!deps.safeStorage.isEncryptionAvailable()) {
-        return err(platformSecureStorageUnavailable('Secure storage is unavailable on this system.'));
+        return err(
+          platformSecureStorageUnavailable('Secure storage is unavailable on this system.'),
+        );
       }
       if (!isValidSecureStorageKey(key)) {
         return err(platformInvalidUrl('Secure storage key is invalid.'));
@@ -58,7 +60,9 @@ export function createSecureStorageModel(deps: SecureStorageModelDeps) {
 
     async set(key: string, value: string): Promise<AppResult<void>> {
       if (!deps.safeStorage.isEncryptionAvailable()) {
-        return err(platformSecureStorageUnavailable('Secure storage is unavailable on this system.'));
+        return err(
+          platformSecureStorageUnavailable('Secure storage is unavailable on this system.'),
+        );
       }
       if (!isValidSecureStorageKey(key)) {
         return err(platformInvalidUrl('Secure storage key is invalid.'));
@@ -76,7 +80,9 @@ export function createSecureStorageModel(deps: SecureStorageModelDeps) {
 
     async delete(key: string): Promise<AppResult<void>> {
       if (!deps.safeStorage.isEncryptionAvailable()) {
-        return err(platformSecureStorageUnavailable('Secure storage is unavailable on this system.'));
+        return err(
+          platformSecureStorageUnavailable('Secure storage is unavailable on this system.'),
+        );
       }
       if (!isValidSecureStorageKey(key)) {
         return err(platformInvalidUrl('Secure storage key is invalid.'));

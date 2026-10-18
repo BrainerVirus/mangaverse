@@ -15,7 +15,9 @@ describe('fetchProviderDetail', () => {
     const detail = await fetchProviderDetail(db, metadata.id);
     expect(detail).not.toBeNull();
     expect(detail?.provider.manifest.name).toBe('Demo Provider');
-    expect(detail?.capabilities.some((row) => row.key === 'discovery.search' && row.enabled)).toBe(true);
+    expect(detail?.capabilities.some((row) => row.key === 'discovery.search' && row.enabled)).toBe(
+      true,
+    );
     expect(detail?.permissions.some((row) => row.key === 'network.http')).toBe(true);
   });
 

@@ -1,5 +1,9 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
-import { detectWebCapabilities, type PlatformCapabilities, type PlatformRuntime } from '@app/platform';
+import {
+  detectWebCapabilities,
+  type PlatformCapabilities,
+  type PlatformRuntime,
+} from '@app/platform';
 
 interface PlatformContextValue {
   capabilities: PlatformCapabilities;
@@ -19,7 +23,9 @@ interface PlatformProviderProps {
   detectFn?: (() => PlatformCapabilities) | undefined;
 }
 
-function getInitialCapabilities(detectFn?: () => PlatformCapabilities): PlatformCapabilities | null {
+function getInitialCapabilities(
+  detectFn?: () => PlatformCapabilities,
+): PlatformCapabilities | null {
   if (detectFn) {
     try {
       return detectFn();

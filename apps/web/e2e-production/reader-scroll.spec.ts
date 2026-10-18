@@ -5,7 +5,11 @@ test.describe.configure({ timeout: 90_000 });
 
 const CHAPTER_BUTTON = /Ch\. 1 - The Summoner/;
 
-test('Given an open chapter, When switching to Scroll, Then the strip renders and scrolling drives the page', async ({ page, quickOnboarding, mockMangaDex }) => {
+test('Given an open chapter, When switching to Scroll, Then the strip renders and scrolling drives the page', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
   await page.goto(`/manga/${MANGADEX_APP_MANGA_ID}`);
   const chapter = page.getByRole('button', { name: CHAPTER_BUTTON });
   await expect(chapter).toBeVisible({ timeout: 30_000 });
@@ -39,10 +43,14 @@ test('Given an open chapter, When switching to Scroll, Then the strip renders an
 
   // Switching back to Single keeps the current page in the page layout.
   await page.getByRole('button', { name: 'Settings' }).click();
-  const single = page.getByRole('dialog', { name: 'Reader settings' }).getByRole('button', { name: 'Single page' });
+  const single = page
+    .getByRole('dialog', { name: 'Reader settings' })
+    .getByRole('button', { name: 'Single page' });
   await single.click();
   await expect(single).toHaveAttribute('aria-pressed', 'true');
   await page.keyboard.press('Escape');
   await expect(page.getByText('12 / 37')).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByTestId('reader-surface').locator('img')).toHaveCount(1, { timeout: 20_000 });
+  await expect(page.getByTestId('reader-surface').locator('img')).toHaveCount(1, {
+    timeout: 20_000,
+  });
 });

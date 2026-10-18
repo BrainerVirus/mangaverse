@@ -14,11 +14,18 @@ function RouteTransition({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
 
-  useGSAP(() => {
-    if (ref.current) routeEnter(ref.current, { reducedMotion });
-  }, { scope: ref, dependencies: [reducedMotion] });
+  useGSAP(
+    () => {
+      if (ref.current) routeEnter(ref.current, { reducedMotion });
+    },
+    { scope: ref, dependencies: [reducedMotion] },
+  );
 
-  return <div ref={ref} className="route-transition">{children}</div>;
+  return (
+    <div ref={ref} className="route-transition">
+      {children}
+    </div>
+  );
 }
 
 export function getRouter(options: { platformDetectFn?: () => PlatformCapabilities } = {}) {

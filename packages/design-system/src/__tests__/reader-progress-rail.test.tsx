@@ -6,7 +6,8 @@ import { ReaderProgressRail } from '../components/reader-progress-rail.js';
 if (typeof window.PointerEvent === 'undefined') {
   class PointerEventPolyfill extends MouseEvent {}
   (window as unknown as { PointerEvent: typeof MouseEvent }).PointerEvent = PointerEventPolyfill;
-  (globalThis as unknown as { PointerEvent: typeof MouseEvent }).PointerEvent = PointerEventPolyfill;
+  (globalThis as unknown as { PointerEvent: typeof MouseEvent }).PointerEvent =
+    PointerEventPolyfill;
 }
 
 beforeEach(() => {
@@ -26,7 +27,9 @@ beforeEach(() => {
 describe('ReaderProgressRail', () => {
   it('Given a half-progress value, When rendered, Then the fill is scaled to the value', () => {
     render(<ReaderProgressRail value={5} min={1} max={10} onChange={vi.fn()} />);
-    expect(screen.getByTestId('reader-rail-fill').style.transform).toBe('scaleX(0.4444444444444444)');
+    expect(screen.getByTestId('reader-rail-fill').style.transform).toBe(
+      'scaleX(0.4444444444444444)',
+    );
   });
 
   it('Given a half-progress value, When rendered, Then the thumb sits at that fraction of the track', () => {

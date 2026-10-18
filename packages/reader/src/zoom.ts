@@ -22,7 +22,7 @@ export function applyDoubleTapZoom(
   tapPosition: { x: number; y: number },
   _viewportWidth: number,
   _viewportHeight: number,
-  doubleTapZoom: number
+  doubleTapZoom: number,
 ): ZoomStateSummary {
   // The reset target is the base zoom, which is minZoom when the user configured
   // a floor above 1; without the clamp a second double tap dips below it.
@@ -50,7 +50,7 @@ export function applyPinchZoom(
   state: ZoomStateSummary,
   _currentScale: number,
   targetScale: number,
-  center: { centerX: number; centerY: number }
+  center: { centerX: number; centerY: number },
 ): ZoomStateSummary {
   const scale = Math.min(Math.max(targetScale, state.minZoom), state.maxZoom);
 
@@ -71,7 +71,7 @@ export function applyPinchZoom(
 export function applyPan(
   state: ZoomStateSummary,
   deltaX: number,
-  deltaY: number
+  deltaY: number,
 ): ZoomStateSummary {
   return {
     ...state,
@@ -89,7 +89,7 @@ export function clampZoomTransform(
   pageWidth: number,
   pageHeight: number,
   viewportWidth: number,
-  viewportHeight: number
+  viewportHeight: number,
 ): ZoomStateSummary {
   if (state.scale <= 1) {
     return { ...state, translateX: 0, translateY: 0 };

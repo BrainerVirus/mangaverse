@@ -36,13 +36,7 @@ vi.mock('@tanstack/react-virtual', () => ({
 
 vi.mock('@app/design-system', () => ({
   cn: (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' '),
-  MangaCard: ({
-    manga,
-    onClick,
-  }: {
-    manga: { canonicalTitle: string };
-    onClick?: () => void;
-  }) => (
+  MangaCard: ({ manga, onClick }: { manga: { canonicalTitle: string }; onClick?: () => void }) => (
     <button type="button" onClick={onClick}>
       {manga.canonicalTitle}
     </button>

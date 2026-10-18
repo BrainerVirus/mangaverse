@@ -2,9 +2,17 @@ import type { AppResult, ProviderContentFlags } from '@app/shared';
 import { createAppError, err, ok } from '@app/shared';
 import { validateRemoteManifestUrlForFetch } from '@app/extensions-sdk';
 import type { PlatformAdapter } from '@app/platform';
-import { isExtensionInstallProtocolUrl, isSafeExternalUrl, parseMangaverseInstallExtensionProviderUrl } from '@app/platform';
+import {
+  isExtensionInstallProtocolUrl,
+  isSafeExternalUrl,
+  parseMangaverseInstallExtensionProviderUrl,
+} from '@app/platform';
 
-import { buildInstallPreview, createExtensionInstallSession, transitionExtensionInstall } from './install-session.js';
+import {
+  buildInstallPreview,
+  createExtensionInstallSession,
+  transitionExtensionInstall,
+} from './install-session.js';
 import type { ExtensionInstallSession, ExtensionInstallSource } from './install-types.js';
 import { fetchAndValidateManifestFromUrl } from './manifest-fetch.js';
 import type { ExtensionFetchEnvironment } from './manifest-fetch.js';
@@ -29,17 +37,30 @@ export async function prepareManualExtensionInstall(
   if (!urlCheck.ok) return urlCheck;
 
   let session = createExtensionInstallSession();
-  session = transitionExtensionInstall(session, { type: 'startFromManualUrl', url: urlCheck.value });
+  session = transitionExtensionInstall(session, {
+    type: 'startFromManualUrl',
+    url: urlCheck.value,
+  });
 
   const manifestResult = await fetchAndValidateManifestFromUrl(urlCheck.value, environment);
   if (!manifestResult.ok) {
-    return ok(transitionExtensionInstall(session, { type: 'manifestRejected', error: manifestResult.error }));
+    return ok(
+      transitionExtensionInstall(session, {
+        type: 'manifestRejected',
+        error: manifestResult.error,
+      }),
+    );
   }
 
   if (policy) {
     const policyResult = validateManifestInstallPolicy(manifestResult.value, policy);
     if (!policyResult.ok) {
-      return ok(transitionExtensionInstall(session, { type: 'manifestRejected', error: policyResult.error }));
+      return ok(
+        transitionExtensionInstall(session, {
+          type: 'manifestRejected',
+          error: policyResult.error,
+        }),
+      );
     }
   }
 
@@ -91,13 +112,23 @@ export async function prepareRegistryExtensionInstall(
 
   const manifestResult = await fetchAndValidateManifestFromUrl(normalizedManifestUrl, environment);
   if (!manifestResult.ok) {
-    return ok(transitionExtensionInstall(session, { type: 'manifestRejected', error: manifestResult.error }));
+    return ok(
+      transitionExtensionInstall(session, {
+        type: 'manifestRejected',
+        error: manifestResult.error,
+      }),
+    );
   }
 
   if (policy) {
     const policyResult = validateManifestInstallPolicy(manifestResult.value, policy);
     if (!policyResult.ok) {
-      return ok(transitionExtensionInstall(session, { type: 'manifestRejected', error: policyResult.error }));
+      return ok(
+        transitionExtensionInstall(session, {
+          type: 'manifestRejected',
+          error: policyResult.error,
+        }),
+      );
     }
   }
 
@@ -177,13 +208,23 @@ export async function prepareProtocolExtensionInstall(
 
   const manifestResult = await fetchAndValidateManifestFromUrl(urlCheck.value, environment);
   if (!manifestResult.ok) {
-    return ok(transitionExtensionInstall(session, { type: 'manifestRejected', error: manifestResult.error }));
+    return ok(
+      transitionExtensionInstall(session, {
+        type: 'manifestRejected',
+        error: manifestResult.error,
+      }),
+    );
   }
 
   if (policy) {
     const policyResult = validateManifestInstallPolicy(manifestResult.value, policy);
     if (!policyResult.ok) {
-      return ok(transitionExtensionInstall(session, { type: 'manifestRejected', error: policyResult.error }));
+      return ok(
+        transitionExtensionInstall(session, {
+          type: 'manifestRejected',
+          error: policyResult.error,
+        }),
+      );
     }
   }
 

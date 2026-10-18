@@ -1,4 +1,12 @@
-import { EmptyState, ErrorState, Input, LoadingState, PageHeader, Button, Badge } from '@app/design-system';
+import {
+  EmptyState,
+  ErrorState,
+  Input,
+  LoadingState,
+  PageHeader,
+  Button,
+  Badge,
+} from '@app/design-system';
 import type { MangaId } from '@app/shared';
 import type { SearchPageData, SearchViewState } from '../types.js';
 import { VirtualSearchGrid } from './VirtualSearchGrid.js';
@@ -41,7 +49,9 @@ export function SearchPage({
       <PageHeader
         title="Search"
         description={description}
-        {...(hasQuery ? { count: resultCount, countLabel: resultCount === 1 ? 'result' : 'results' } : {})}
+        {...(hasQuery
+          ? { count: resultCount, countLabel: resultCount === 1 ? 'result' : 'results' }
+          : {})}
         actions={
           <Input
             type="search"

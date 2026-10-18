@@ -85,8 +85,12 @@ describe('createWebPlatformAdapter', () => {
       capabilityProbe: { hasLocalStorage: true },
       localStorage: {
         getItem: (k) => store.get(k) ?? null,
-        setItem: (k, v) => { store.set(k, v); },
-        removeItem: (k) => { store.delete(k); },
+        setItem: (k, v) => {
+          store.set(k, v);
+        },
+        removeItem: (k) => {
+          store.delete(k);
+        },
       },
     });
     await adapter.storage.setItem('a', '1');

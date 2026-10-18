@@ -6,7 +6,10 @@ import type { ChapterId, MangaId, MangaIdentity } from '@app/shared';
 import { toChapterPageId, toProviderMangaId } from '@app/shared';
 
 import { parseMangadexAppChapterId, parseMangadexAppMangaId } from '../lib/mangadex-ids.js';
-import { buildMangaDetailData, providerItemToMangaIdentity } from '../lib/mangadex-identity-mapping.js';
+import {
+  buildMangaDetailData,
+  providerItemToMangaIdentity,
+} from '../lib/mangadex-identity-mapping.js';
 import {
   mergeMangaDetailWithLibrary,
   persistChapterPagesToDb,

@@ -1,10 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { toChapterPageId } from '@app/shared';
-import {
-  calculatePageSlots,
-  calculateSpreadPlan,
-  resolveInitialPageIndex,
-} from './spreads';
+import { calculatePageSlots, calculateSpreadPlan, resolveInitialPageIndex } from './spreads';
 import type { ReaderChapter, ReaderEngineSettings, ReaderPage, ReaderSessionInput } from './types';
 
 const mockPages: ReaderPage[] = [
@@ -173,9 +169,21 @@ describe('calculatePageSlots', () => {
 
   it('should pair portrait pages in smartSpread', () => {
     const portraitPages = [
-      { id: toChapterPageId('p1'), index: 0, image: { url: 'http://example.com/1.jpg', width: 600, height: 1000 } },
-      { id: toChapterPageId('p2'), index: 1, image: { url: 'http://example.com/2.jpg', width: 600, height: 1000 } },
-      { id: toChapterPageId('p3'), index: 2, image: { url: 'http://example.com/3.jpg', width: 600, height: 1000 } },
+      {
+        id: toChapterPageId('p1'),
+        index: 0,
+        image: { url: 'http://example.com/1.jpg', width: 600, height: 1000 },
+      },
+      {
+        id: toChapterPageId('p2'),
+        index: 1,
+        image: { url: 'http://example.com/2.jpg', width: 600, height: 1000 },
+      },
+      {
+        id: toChapterPageId('p3'),
+        index: 2,
+        image: { url: 'http://example.com/3.jpg', width: 600, height: 1000 },
+      },
     ];
     const portraitChapter = {
       id: 'ch1',
@@ -199,9 +207,21 @@ describe('calculatePageSlots', () => {
 
   it('should keep landscape pages standalone in smartSpread', () => {
     const landscapePages = [
-      { id: toChapterPageId('p1'), index: 0, image: { url: 'http://example.com/1.jpg', width: 1600, height: 900 } },
-      { id: toChapterPageId('p2'), index: 1, image: { url: 'http://example.com/2.jpg', width: 1600, height: 900 } },
-      { id: toChapterPageId('p3'), index: 2, image: { url: 'http://example.com/3.jpg', width: 1600, height: 900 } },
+      {
+        id: toChapterPageId('p1'),
+        index: 0,
+        image: { url: 'http://example.com/1.jpg', width: 1600, height: 900 },
+      },
+      {
+        id: toChapterPageId('p2'),
+        index: 1,
+        image: { url: 'http://example.com/2.jpg', width: 1600, height: 900 },
+      },
+      {
+        id: toChapterPageId('p3'),
+        index: 2,
+        image: { url: 'http://example.com/3.jpg', width: 1600, height: 900 },
+      },
     ];
     const landscapeChapter = {
       id: 'ch1',
@@ -225,7 +245,11 @@ describe('calculatePageSlots', () => {
   it('should keep pages with missing dimensions standalone in smartSpread', () => {
     const mixedPages = [
       { id: toChapterPageId('p1'), index: 0, image: { url: 'http://example.com/1.jpg' } },
-      { id: toChapterPageId('p2'), index: 1, image: { url: 'http://example.com/2.jpg', width: 600, height: 1000 } },
+      {
+        id: toChapterPageId('p2'),
+        index: 1,
+        image: { url: 'http://example.com/2.jpg', width: 600, height: 1000 },
+      },
     ];
     const mixedChapter = {
       id: 'ch1',
@@ -248,8 +272,16 @@ describe('calculatePageSlots', () => {
 
   it('should pair first cover with second page in smartSpread when cover is portrait', () => {
     const coverAndPortrait = [
-      { id: toChapterPageId('p1'), index: 0, image: { url: 'http://example.com/1.jpg', width: 600, height: 1000 } },
-      { id: toChapterPageId('p2'), index: 1, image: { url: 'http://example.com/2.jpg', width: 600, height: 1000 } },
+      {
+        id: toChapterPageId('p1'),
+        index: 0,
+        image: { url: 'http://example.com/1.jpg', width: 600, height: 1000 },
+      },
+      {
+        id: toChapterPageId('p2'),
+        index: 1,
+        image: { url: 'http://example.com/2.jpg', width: 600, height: 1000 },
+      },
     ];
     const coverChapter = {
       id: 'ch1',
@@ -258,7 +290,10 @@ describe('calculatePageSlots', () => {
       pages: coverAndPortrait,
       pageCount: 2,
     };
-    const input = makeInput({ pageLayout: 'smartSpread', treatFirstPageAsCover: false }, coverChapter);
+    const input = makeInput(
+      { pageLayout: 'smartSpread', treatFirstPageAsCover: false },
+      coverChapter,
+    );
 
     const slots = calculatePageSlots(input);
 
@@ -282,7 +317,7 @@ describe('calculateSpreadPlan', () => {
     const input = makeInput({ pageLayout: 'smartSpread', treatFirstPageAsCover: true });
     const plan = calculateSpreadPlan(input);
 
-    const firstSpread = plan.slots.filter(s => s.isCover);
+    const firstSpread = plan.slots.filter((s) => s.isCover);
     expect(firstSpread.length).toBeGreaterThan(0);
   });
 });

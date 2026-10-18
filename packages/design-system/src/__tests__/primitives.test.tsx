@@ -26,7 +26,7 @@ describe('cn() utility', () => {
   });
 
   it('handles conditional classes', () => {
-    const result = cn('flex', { 'items-center': true, 'hidden': false });
+    const result = cn('flex', { 'items-center': true, hidden: false });
     expect(result).toContain('flex');
     expect(result).toContain('items-center');
     expect(result).not.toContain('hidden');

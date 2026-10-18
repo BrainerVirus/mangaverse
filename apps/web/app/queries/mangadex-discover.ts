@@ -25,7 +25,9 @@ export const MANGADEX_SECTION_PREVIEW_SIZE = 6;
 export function getEnabledMangadexSections(
   capabilities: Readonly<Record<string, boolean | undefined>>,
 ): readonly MangadexSectionDefinition[] {
-  return MANGADEX_SECTION_DEFINITIONS.filter((section) => capabilities[section.capability] === true);
+  return MANGADEX_SECTION_DEFINITIONS.filter(
+    (section) => capabilities[section.capability] === true,
+  );
 }
 
 export function getMangadexSectionTitle(sectionId: string): string | null {
@@ -112,7 +114,9 @@ export async function fetchMangadexDiscoverData(
   );
 
   const sections = settled
-    .filter((result): result is PromiseFulfilledResult<DiscoverSection> => result.status === 'fulfilled')
+    .filter(
+      (result): result is PromiseFulfilledResult<DiscoverSection> => result.status === 'fulfilled',
+    )
     .map((result) => result.value)
     .filter((section) => section.results.length > 0);
 

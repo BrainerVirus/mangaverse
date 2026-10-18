@@ -9,14 +9,6 @@
     "declarationMap": true,
     "sourceMap": true
   },
-  "include": [
-    "src/"
-  ],
-  "exclude": [
-    "dist",
-    "node_modules",
-    "src/**/*.test.ts",
-    "src/**/*.test.tsx",
-    "src/**/*.spec.ts"
-  ]
+  "include": ["src/"],
+  "exclude": ["dist", "node_modules", "src/**/*.test.ts", "src/**/*.test.tsx", "src/**/*.spec.ts"]
 }

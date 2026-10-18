@@ -92,7 +92,11 @@ describe('saveProviderSettings / getProviderSettings', () => {
   it('round-trips valid settings', async () => {
     const { db } = await createSqlJsHarness();
     const m = manifest();
-    const write = await saveProviderSettings(m, { preferredLanguages: ['en'], nsfwAllowed: true }, { db });
+    const write = await saveProviderSettings(
+      m,
+      { preferredLanguages: ['en'], nsfwAllowed: true },
+      { db },
+    );
     expect(write.ok).toBe(true);
     const read = await getProviderSettings(String(m.id), { db });
     expect(read.ok).toBe(true);

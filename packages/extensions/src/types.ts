@@ -1,4 +1,8 @@
-import type { CapabilityDisplayRow, PermissionDisplayRow, ProviderSettingsValues } from '@app/extensions-core';
+import type {
+  CapabilityDisplayRow,
+  PermissionDisplayRow,
+  ProviderSettingsValues,
+} from '@app/extensions-core';
 import type { ExtensionInstallMetadata } from '@app/shared';
 
 export interface InstalledProviderSummary {

@@ -4,11 +4,7 @@ export { MangaDetailPage, type MangaDetailPageProps } from './components/MangaDe
 export { fetchLibraryPage } from './fetch-library-page.js';
 export { fetchMangaDetail } from './fetch-manga-detail.js';
 export { filterLibraryItemsByQuery } from './filter-items.js';
-export {
-  addMangaToLibrary,
-  removeMangaFromLibrary,
-  setMangaFavorite,
-} from './library-actions.js';
+export { addMangaToLibrary, removeMangaFromLibrary, setMangaFavorite } from './library-actions.js';
 export {
   optimisticallyAddMangaToLibrary,
   optimisticallyRemoveMangaFromLibrary,
@@ -18,8 +14,5 @@ export {
   type LibraryCacheSnapshot,
 } from './optimistic-library-cache.js';
 export { libraryQueryKeys } from './query-keys.js';
-export {
-  DEFAULT_LIBRARY_VIEW_STATE,
-  withLibraryLayout,
-} from './view-state.js';
+export { DEFAULT_LIBRARY_VIEW_STATE, withLibraryLayout } from './view-state.js';
 export type { LibraryItem, LibraryPageData, MangaDetailData } from './types.js';

@@ -1,5 +1,12 @@
 import { ChevronRight } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, SettingsSection } from '@app/design-system';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  SettingsSection,
+} from '@app/design-system';
 
 export interface SettingsNavItem {
   readonly label: string;
@@ -20,7 +27,9 @@ export function SettingsIndexPage({ sections, onNavigate }: SettingsIndexPagePro
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground">Manage app behavior, reading defaults, and data.</p>
+        <p className="text-sm text-muted-foreground">
+          Manage app behavior, reading defaults, and data.
+        </p>
       </div>
 
       {sections.map((section) => (
@@ -38,7 +47,10 @@ export function SettingsIndexPage({ sections, onNavigate }: SettingsIndexPagePro
                       <CardTitle className="text-base">{item.label}</CardTitle>
                       <CardDescription>{item.description}</CardDescription>
                     </div>
-                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    <ChevronRight
+                      className="h-4 w-4 shrink-0 text-muted-foreground"
+                      aria-hidden="true"
+                    />
                   </CardHeader>
                   <CardContent className="hidden" />
                 </button>

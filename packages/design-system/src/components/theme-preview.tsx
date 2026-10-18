@@ -24,7 +24,7 @@ export function ThemePreview({ theme }: ThemePreviewProps) {
     <div
       className={cn(
         'relative overflow-hidden rounded-[var(--radius-box)] border p-4 transition-all hover:shadow-md',
-        'w-full max-w-[280px]'
+        'w-full max-w-[280px]',
       )}
       style={{ backgroundColor: theme.background, borderColor: theme.border }}
     >
@@ -55,10 +55,7 @@ export function ThemePreview({ theme }: ThemePreviewProps) {
           style={{ backgroundColor: theme.surface }}
         />
         <div className="flex-1">
-          <div
-            className="mb-1 h-3 w-3/4 rounded"
-            style={{ backgroundColor: theme.foreground }}
-          />
+          <div className="mb-1 h-3 w-3/4 rounded" style={{ backgroundColor: theme.foreground }} />
           <div
             className="h-2 w-1/2 rounded"
             style={{ backgroundColor: theme.foreground, opacity: 0.5 }}
@@ -66,7 +63,10 @@ export function ThemePreview({ theme }: ThemePreviewProps) {
         </div>
       </div>
 
-      <div className="mb-3 rounded-[var(--radius-control)] p-2" style={{ backgroundColor: theme.readerBackground }}>
+      <div
+        className="mb-3 rounded-[var(--radius-control)] p-2"
+        style={{ backgroundColor: theme.readerBackground }}
+      >
         <div className="flex gap-1">
           {[1, 2, 3].map((i) => (
             <div
@@ -79,18 +79,9 @@ export function ThemePreview({ theme }: ThemePreviewProps) {
       </div>
 
       <div className="flex gap-2">
-        <div
-          className="h-6 flex-1 rounded-full"
-          style={{ backgroundColor: theme.success }}
-        />
-        <div
-          className="h-6 flex-1 rounded-full"
-          style={{ backgroundColor: theme.warning }}
-        />
-        <div
-          className="h-6 flex-1 rounded-full"
-          style={{ backgroundColor: theme.destructive }}
-        />
+        <div className="h-6 flex-1 rounded-full" style={{ backgroundColor: theme.success }} />
+        <div className="h-6 flex-1 rounded-full" style={{ backgroundColor: theme.warning }} />
+        <div className="h-6 flex-1 rounded-full" style={{ backgroundColor: theme.destructive }} />
       </div>
     </div>
   );

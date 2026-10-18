@@ -24,7 +24,13 @@ describe('computeScrollPageMetrics', () => {
   });
 
   it('Given a negative gap, When measured, Then the gap is clamped to zero', () => {
-    const metrics = computeScrollPageMetrics([{ index: 0, height: 50 }, { index: 1, height: 50 }], -20);
+    const metrics = computeScrollPageMetrics(
+      [
+        { index: 0, height: 50 },
+        { index: 1, height: 50 },
+      ],
+      -20,
+    );
     expect(metrics[1]).toEqual({ index: 1, top: 50, height: 50 });
   });
 });

@@ -33,7 +33,11 @@ export function parseHtmlText(node: HTMLElement, selector?: string): AppResult<s
   return ok(target.text.trim());
 }
 
-export function parseHtmlAttr(node: HTMLElement, selector: string, attr: string): AppResult<string> {
+export function parseHtmlAttr(
+  node: HTMLElement,
+  selector: string,
+  attr: string,
+): AppResult<string> {
   const el = node.querySelector(selector);
   if (!el) {
     return err(

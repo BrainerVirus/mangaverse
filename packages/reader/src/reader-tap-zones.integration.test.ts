@@ -34,11 +34,7 @@ const sessionInput: ReaderSessionInput = {
   },
 };
 
-function findTapZone(
-  zones: ReturnType<typeof calculateTapZones>,
-  x: number,
-  y: number,
-) {
+function findTapZone(zones: ReturnType<typeof calculateTapZones>, x: number, y: number) {
   return zones.find(
     (zone) =>
       zone.width > 0 &&

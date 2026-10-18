@@ -6,8 +6,12 @@ export async function fetchProviderDetail(
   db: AppDrizzleDb,
   providerId: string,
 ): Promise<ProviderDetailData | null> {
-  const { buildCapabilityDisplay, buildPermissionDisplay, getProviderSettings, listInstalledProviders } =
-    await import('@app/extensions-core');
+  const {
+    buildCapabilityDisplay,
+    buildPermissionDisplay,
+    getProviderSettings,
+    listInstalledProviders,
+  } = await import('@app/extensions-core');
 
   const list = await listInstalledProviders(db);
   if (!list.ok) {

@@ -1,4 +1,8 @@
-import type { ElectronCapabilityInput, PlatformCapabilities, WebCapabilityEnvironment } from './types.js';
+import type {
+  ElectronCapabilityInput,
+  PlatformCapabilities,
+  WebCapabilityEnvironment,
+} from './types.js';
 
 function probeBrowserEnvironment(): WebCapabilityEnvironment {
   const nav = globalThis.navigator as Navigator | undefined;
@@ -21,7 +25,9 @@ function probeBrowserEnvironment(): WebCapabilityEnvironment {
   };
 }
 
-export function detectWebCapabilities(environment?: WebCapabilityEnvironment): PlatformCapabilities {
+export function detectWebCapabilities(
+  environment?: WebCapabilityEnvironment,
+): PlatformCapabilities {
   const probe = environment ?? probeBrowserEnvironment();
 
   const runtime: PlatformCapabilities['runtime'] =

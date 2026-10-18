@@ -21,7 +21,10 @@ describe('prepareProtocolExtensionInstall', () => {
     const platformAdapter = {
       protocol: {
         getPendingInstallUrl: vi.fn(async () =>
-          ok('mangaverse://install-extension?url=' + encodeURIComponent('https://example.com/m.json')),
+          ok(
+            'mangaverse://install-extension?url=' +
+              encodeURIComponent('https://example.com/m.json'),
+          ),
         ),
         canHandleInstallLinks: vi.fn(async () => ok(true)),
       },

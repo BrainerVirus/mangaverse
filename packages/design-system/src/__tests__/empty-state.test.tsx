@@ -30,7 +30,9 @@ describe('EmptyState', () => {
     render(<EmptyState type="no-library" />);
 
     expect(screen.getByText('Your library is empty')).toBeInTheDocument();
-    expect(screen.getByText('Start by adding manga to your library from a provider.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Start by adding manga to your library from a provider.'),
+    ).toBeInTheDocument();
   });
 
   it('renders no-provider type correctly', () => {
@@ -64,12 +66,7 @@ describe('EmptyState', () => {
   });
 
   it('shows action button when action prop is provided', () => {
-    render(
-      <EmptyState
-        type="no-library"
-        action={{ label: 'Add Manga', onClick: vi.fn() }}
-      />
-    );
+    render(<EmptyState type="no-library" action={{ label: 'Add Manga', onClick: vi.fn() }} />);
 
     expect(screen.getByRole('button', { name: 'Add Manga' })).toBeInTheDocument();
   });
@@ -78,12 +75,7 @@ describe('EmptyState', () => {
     const user = userEvent.setup();
     const onClick = vi.fn();
 
-    render(
-      <EmptyState
-        type="no-library"
-        action={{ label: 'Add Manga', onClick }}
-      />
-    );
+    render(<EmptyState type="no-library" action={{ label: 'Add Manga', onClick }} />);
 
     await user.click(screen.getByRole('button'));
     expect(onClick).toHaveBeenCalledTimes(1);
@@ -102,7 +94,7 @@ describe('EmptyState', () => {
       const { unmount } = render(
         <EmptyState
           type={type as 'no-library' | 'no-provider' | 'no-results' | 'no-chapters' | 'no-backups'}
-        />
+        />,
       );
       expect(screen.getByText(expectedDescription)).toBeInTheDocument();
       unmount();

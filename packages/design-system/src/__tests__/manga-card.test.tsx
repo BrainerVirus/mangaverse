@@ -2,7 +2,13 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MangaCard } from '../components/manga-card.js';
-import type { MangaId, ProviderMappingId, ProviderId, ProviderMangaId, MangaIdentity } from '@app/shared';
+import type {
+  MangaId,
+  ProviderMappingId,
+  ProviderId,
+  ProviderMangaId,
+  MangaIdentity,
+} from '@app/shared';
 
 vi.mock('@app/motion', async () => {
   const actual = await vi.importActual('@app/motion');
@@ -148,11 +154,7 @@ describe('MangaCard', () => {
 
   it('displays tags when available and not compact', () => {
     const manga = createMockManga({
-      tags: [
-        { label: 'Action' },
-        { label: 'Adventure' },
-        { label: 'Comedy' },
-      ],
+      tags: [{ label: 'Action' }, { label: 'Adventure' }, { label: 'Comedy' }],
     });
 
     render(<MangaCard manga={manga} variant="list" />);

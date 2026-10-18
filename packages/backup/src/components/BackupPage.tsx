@@ -46,7 +46,9 @@ function PreviewIssueList({ preview }: { preview: RestorePreviewReport }) {
     return (
       <Alert>
         <AlertTitle>Ready to restore</AlertTitle>
-        <AlertDescription>No conflicts detected. You can restore this backup after confirming.</AlertDescription>
+        <AlertDescription>
+          No conflicts detected. You can restore this backup after confirming.
+        </AlertDescription>
       </Alert>
     );
   }
@@ -59,7 +61,9 @@ function PreviewIssueList({ preview }: { preview: RestorePreviewReport }) {
           className="rounded-[var(--radius-control)] border border-[var(--border)] p-3 text-sm"
         >
           <div className="mb-1 flex items-center gap-2">
-            <Badge variant={issue.severity === 'error' ? 'destructive' : 'secondary'}>{issue.severity}</Badge>
+            <Badge variant={issue.severity === 'error' ? 'destructive' : 'secondary'}>
+              {issue.severity}
+            </Badge>
             <span className="font-medium text-foreground">{issue.code}</span>
           </div>
           <p className="text-muted-foreground">{issue.message}</p>
@@ -111,9 +115,12 @@ export function BackupPage({
   return (
     <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Backup &amp; Restore</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Backup &amp; Restore
+        </h1>
         <p className="text-sm text-muted-foreground">
-          Export your library, providers, and settings to a local file. Import a backup to replace current local data.
+          Export your library, providers, and settings to a local file. Import a backup to replace
+          current local data.
         </p>
       </header>
 
@@ -146,8 +153,8 @@ export function BackupPage({
           </Button>
           {lastExport !== null ? (
             <p className="text-sm text-muted-foreground">
-              Last export: {lastExport.metadata.createdAt} · {lastExport.library.length} library entries ·{' '}
-              {lastExport.installedExtensions.length} providers
+              Last export: {lastExport.metadata.createdAt} · {lastExport.library.length} library
+              entries · {lastExport.installedExtensions.length} providers
             </p>
           ) : null}
         </div>
@@ -172,7 +179,11 @@ export function BackupPage({
                 event.target.value = '';
               }}
             />
-            <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isRestoring}>
+            <Button
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isRestoring}
+            >
               Choose backup file
             </Button>
             {preview !== null ? (
@@ -214,13 +225,18 @@ export function BackupPage({
             <DialogHeader>
               <DialogTitle id="backup-restore-title">Replace local data?</DialogTitle>
               <DialogDescription>
-                This will replace your current library, installed provider records, and backup-covered settings.
-                Chapter caches and reading progress outside the backup schema may be removed with library identities.
-                This action cannot be undone automatically.
+                This will replace your current library, installed provider records, and
+                backup-covered settings. Chapter caches and reading progress outside the backup
+                schema may be removed with library identities. This action cannot be undone
+                automatically.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="gap-2 sm:gap-0">
-              <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={isRestoring}>
+              <Button
+                variant="outline"
+                onClick={() => setConfirmOpen(false)}
+                disabled={isRestoring}
+              >
                 Cancel
               </Button>
               <Button

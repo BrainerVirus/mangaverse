@@ -30,7 +30,12 @@ export const useNavigationStore = create<NavigationStore>((set) => ({
   breadcrumbs: [],
   pushRecentRoute: (route) =>
     set((state) => {
-      const updated = [route, ...state.recentRoutes].slice(0, state.recentRoutes.length >= MAX_RECENT_ROUTES ? state.recentRoutes.length : MAX_RECENT_ROUTES);
+      const updated = [route, ...state.recentRoutes].slice(
+        0,
+        state.recentRoutes.length >= MAX_RECENT_ROUTES
+          ? state.recentRoutes.length
+          : MAX_RECENT_ROUTES,
+      );
       return { recentRoutes: updated };
     }),
   setBreadcrumbs: (breadcrumbs) => set({ breadcrumbs }),

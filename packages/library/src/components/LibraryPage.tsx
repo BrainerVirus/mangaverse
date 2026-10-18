@@ -36,9 +36,7 @@ export function LibraryPage({
         onViewStateChange={onViewStateChange}
       />
 
-      {isLoading ? (
-        <LoadingState type="grid" />
-      ) : null}
+      {isLoading ? <LoadingState type="grid" /> : null}
 
       {isError ? (
         <ErrorState
@@ -58,11 +56,7 @@ export function LibraryPage({
       ) : null}
 
       {!isLoading && !isError && itemCount > 0 ? (
-        <VirtualLibraryGrid
-          items={items}
-          layout={viewState.layout}
-          onOpenManga={onOpenManga}
-        />
+        <VirtualLibraryGrid items={items} layout={viewState.layout} onOpenManga={onOpenManga} />
       ) : null}
     </main>
   );

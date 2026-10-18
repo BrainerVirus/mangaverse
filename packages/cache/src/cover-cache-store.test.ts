@@ -12,7 +12,9 @@ import {
 } from './cover-cache-store.js';
 import { buildCoverBlobKey } from './constants.js';
 
-function createMockAdapter(store = new Map<string, { data: ArrayBuffer; mimeType: string }>()): PlatformAdapter {
+function createMockAdapter(
+  store = new Map<string, { data: ArrayBuffer; mimeType: string }>(),
+): PlatformAdapter {
   const objectUrls = new Map<string, string>();
   let urlCounter = 0;
 

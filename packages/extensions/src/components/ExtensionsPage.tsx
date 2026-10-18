@@ -81,7 +81,10 @@ export function ExtensionsPage({
       ) : null}
 
       {!isLoading && !isError && providerCount > 0 ? (
-        <section aria-label="Installed providers" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <section
+          aria-label="Installed providers"
+          className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
+        >
           {providers.map((provider) => {
             const isPending = pendingProviderId === provider.id;
             return (
@@ -101,7 +104,9 @@ export function ExtensionsPage({
                       <Badge variant={provider.enabled ? 'default' : 'outline'}>
                         {provider.enabled ? 'Enabled' : 'Disabled'}
                       </Badge>
-                      <Badge variant={healthBadgeVariant(provider.health)}>{healthLabel(provider.health)}</Badge>
+                      <Badge variant={healthBadgeVariant(provider.health)}>
+                        {healthLabel(provider.health)}
+                      </Badge>
                     </div>
                   </div>
                 </CardHeader>
@@ -117,7 +122,11 @@ export function ExtensionsPage({
                     </div>
                   </dl>
                   <div className="flex flex-wrap gap-2">
-                    <Button type="button" variant="outline" onClick={() => onOpenProvider(provider.id)}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => onOpenProvider(provider.id)}
+                    >
                       Details
                     </Button>
                     <Button

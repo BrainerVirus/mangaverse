@@ -33,19 +33,34 @@ export async function appendSearchHistory(
   });
 }
 
-export async function listSearchHistory(db: AppDrizzleDb, limit: number): Promise<SearchHistoryEntry[]> {
-  const rows = db.select().from(searchHistory).orderBy(desc(searchHistory.searchedAt)).limit(limit).all();
+export async function listSearchHistory(
+  db: AppDrizzleDb,
+  limit: number,
+): Promise<SearchHistoryEntry[]> {
+  const rows = db
+    .select()
+    .from(searchHistory)
+    .orderBy(desc(searchHistory.searchedAt))
+    .limit(limit)
+    .all();
   return rows.map((r) => ({
     id: r.id,
     query: r.query,
     searchedAt: r.searchedAt,
-    ...(r.providerId !== null && r.providerId !== undefined && r.providerId !== '' ? { providerId: r.providerId } : {}),
+    ...(r.providerId !== null && r.providerId !== undefined && r.providerId !== ''
+      ? { providerId: r.providerId }
+      : {}),
   }));
 }
 
 export async function upsertSavedSearch(
   db: AppDrizzleDb,
-  input: { readonly id?: string; readonly name: string; readonly query: string; readonly filter?: Record<string, unknown> },
+  input: {
+    readonly id?: string;
+    readonly name: string;
+    readonly query: string;
+    readonly filter?: Record<string, unknown>;
+  },
 ): Promise<string> {
   const id = input.id ?? newId();
   const now = new Date().toISOString();
@@ -75,8 +90,12 @@ export async function listSavedSearches(db: AppDrizzleDb): Promise<SavedSearchEn
     id: r.id,
     name: r.name,
     query: r.query,
-    ...(r.filterJson !== null && r.filterJson !== undefined ? { filter: r.filterJson as Record<string, unknown> } : {}),
-    ...(r.createdAt !== null && r.createdAt !== undefined && r.createdAt !== '' ? { createdAt: r.createdAt } : {}),
+    ...(r.filterJson !== null && r.filterJson !== undefined
+      ? { filter: r.filterJson as Record<string, unknown> }
+      : {}),
+    ...(r.createdAt !== null && r.createdAt !== undefined && r.createdAt !== ''
+      ? { createdAt: r.createdAt }
+      : {}),
   }));
 }
 

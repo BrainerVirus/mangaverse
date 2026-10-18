@@ -38,7 +38,9 @@ export function ThemeSettingsBridge() {
     onMutate: async (nextSettings) => {
       setThemeSaving(true);
       await queryClient.cancelQueries({ queryKey: themeQueryKeys.settings() });
-      const previous = queryClient.getQueryData<{ settings: ThemeSettings }>(themeQueryKeys.settings());
+      const previous = queryClient.getQueryData<{ settings: ThemeSettings }>(
+        themeQueryKeys.settings(),
+      );
       queryClient.setQueryData(themeQueryKeys.settings(), { settings: nextSettings });
       return { previous };
     },

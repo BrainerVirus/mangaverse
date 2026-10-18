@@ -19,12 +19,19 @@ export interface CreateMockProviderOptions {
   readonly methods?: ReadonlySet<ProviderMethodName>;
 }
 
-const stubSearch = async (_ctx: ProviderContext, _input: ProviderSearchInput): Promise<ProviderSearchResult> => ({
+const stubSearch = async (
+  _ctx: ProviderContext,
+  _input: ProviderSearchInput,
+): Promise<ProviderSearchResult> => ({
   items: [],
   hasMore: false,
 });
 
-const stubPages = async (_ctx: ProviderContext, _mangaId: unknown, _chapterId: string): Promise<readonly ProviderPage[]> => [];
+const stubPages = async (
+  _ctx: ProviderContext,
+  _mangaId: unknown,
+  _chapterId: string,
+): Promise<readonly ProviderPage[]> => [];
 
 const stubDownload = async (
   _ctx: ProviderContext,
@@ -41,7 +48,8 @@ const stubAuth = async (): Promise<ProviderAuthState> => ({ kind: 'anonymous' })
 
 export function createMockProvider(options: CreateMockProviderOptions): ProviderContract {
   const methodSet =
-    options.methods ?? new Set<ProviderMethodName>(getRequiredMethodsForCapabilities(options.manifest));
+    options.methods ??
+    new Set<ProviderMethodName>(getRequiredMethodsForCapabilities(options.manifest));
 
   const m = options.manifest;
 
@@ -52,7 +60,9 @@ export function createMockProvider(options: CreateMockProviderOptions): Provider
     ...(has('search') ? { search: stubSearch } : {}),
     ...(has('advancedSearch') ? { advancedSearch: stubSearch } : {}),
     ...(has('browseLatest') ? { browseLatest: async (ctx) => stubSearch(ctx, { query: '' }) } : {}),
-    ...(has('browsePopular') ? { browsePopular: async (ctx) => stubSearch(ctx, { query: '' }) } : {}),
+    ...(has('browsePopular')
+      ? { browsePopular: async (ctx) => stubSearch(ctx, { query: '' }) }
+      : {}),
     ...(has('getDetails')
       ? {
           getDetails: async (_ctx, mangaId) => ({
@@ -67,8 +77,12 @@ export function createMockProvider(options: CreateMockProviderOptions): Provider
         }
       : {}),
     ...(has('getPages') ? { getPages: stubPages } : {}),
-    ...(has('getRecommendations') ? { getRecommendations: async (ctx) => stubSearch(ctx, { query: '' }) } : {}),
-    ...(has('getRelatedTitles') ? { getRelatedTitles: async (ctx) => stubSearch(ctx, { query: '' }) } : {}),
+    ...(has('getRecommendations')
+      ? { getRecommendations: async (ctx) => stubSearch(ctx, { query: '' }) }
+      : {}),
+    ...(has('getRelatedTitles')
+      ? { getRelatedTitles: async (ctx) => stubSearch(ctx, { query: '' }) }
+      : {}),
     ...(has('getTags') ? { getTags: stubTags } : {}),
     ...(has('login') ? { login: stubAuth } : {}),
     ...(has('logout') ? { logout: stubAuth } : {}),

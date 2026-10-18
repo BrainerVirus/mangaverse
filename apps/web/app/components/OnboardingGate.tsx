@@ -2,11 +2,7 @@ import { useEffect } from 'react';
 import { useLocation, useNavigate } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import {
-  fetchOnboardingState,
-  isOnboardingFinished,
-  onboardingQueryKeys,
-} from '@app/onboarding';
+import { fetchOnboardingState, isOnboardingFinished, onboardingQueryKeys } from '@app/onboarding';
 
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 

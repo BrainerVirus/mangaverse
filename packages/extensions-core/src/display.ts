@@ -63,7 +63,9 @@ const PERM_LABELS: Readonly<Record<ProviderPermission, { label: string; descript
   },
 };
 
-export function buildCapabilityDisplay(manifest: ProviderManifest): readonly CapabilityDisplayRow[] {
+export function buildCapabilityDisplay(
+  manifest: ProviderManifest,
+): readonly CapabilityDisplayRow[] {
   const rows: CapabilityDisplayRow[] = [];
   for (const key of Object.keys(manifest.capabilities) as ProviderCapabilityKey[]) {
     rows.push({
@@ -75,7 +77,9 @@ export function buildCapabilityDisplay(manifest: ProviderManifest): readonly Cap
   return rows;
 }
 
-export function buildPermissionDisplay(manifest: ProviderManifest): readonly PermissionDisplayRow[] {
+export function buildPermissionDisplay(
+  manifest: ProviderManifest,
+): readonly PermissionDisplayRow[] {
   return manifest.permissions.map((key) => ({
     key,
     label: PERM_LABELS[key]?.label ?? key,

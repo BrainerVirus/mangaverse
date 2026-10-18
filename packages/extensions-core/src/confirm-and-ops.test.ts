@@ -5,10 +5,7 @@ import type { AppDrizzleDb } from '@app/db';
 import { createSqlJsHarness } from '@app/db/testing';
 
 import { confirmExtensionInstall } from './confirm-install.js';
-import {
-  createExtensionInstallSession,
-  transitionExtensionInstall,
-} from './install-session.js';
+import { createExtensionInstallSession, transitionExtensionInstall } from './install-session.js';
 import type { ExtensionInstallPreview } from './install-types.js';
 import {
   listInstalledProviders,

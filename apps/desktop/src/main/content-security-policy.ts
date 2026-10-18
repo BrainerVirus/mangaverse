@@ -1,12 +1,14 @@
 import { session } from 'electron';
 
 function devServerOrigin(): string {
-  const url = process.env.VITE_DEV_SERVER_URL ?? process.env.MANGAVERSE_RENDERER_URL ?? 'http://localhost:5173';
+  const url =
+    process.env.VITE_DEV_SERVER_URL ??
+    process.env.MANGAVERSE_RENDERER_URL ??
+    'http://localhost:5173';
   return url.replace(/\/$/, '');
 }
 
-const MANGADEX_CONNECT_SRC =
-  'https://api.mangadex.org https://uploads.mangadex.org';
+const MANGADEX_CONNECT_SRC = 'https://api.mangadex.org https://uploads.mangadex.org';
 
 export function buildContentSecurityPolicy(isDev: boolean): string {
   if (isDev) {

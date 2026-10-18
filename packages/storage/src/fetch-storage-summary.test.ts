@@ -4,10 +4,7 @@ import { clearStorageData } from './clear-storage-data.js';
 import { fetchStorageSummary } from './fetch-storage-summary.js';
 import { createSqlJsHarness } from '@app/db/testing';
 import type { PlatformAdapter, PlatformCapabilities } from '@app/platform';
-import {
-  appendSearchHistory,
-  upsertCacheEntry,
-} from '@app/db';
+import { appendSearchHistory, upsertCacheEntry } from '@app/db';
 
 const adapter = {
   storage: {

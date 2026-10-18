@@ -1,14 +1,18 @@
-import type { ProviderContext, ProviderContract, ProviderSearchInput, ProviderSearchResult } from '@app/extensions-sdk';
-import { createProviderRequestClient, defineProvider, redactUrlForErrorDetails } from '@app/extensions-sdk';
+import type {
+  ProviderContext,
+  ProviderContract,
+  ProviderSearchInput,
+  ProviderSearchResult,
+} from '@app/extensions-sdk';
+import {
+  createProviderRequestClient,
+  defineProvider,
+  redactUrlForErrorDetails,
+} from '@app/extensions-sdk';
 import { createAppError } from '@app/shared';
 
 import { MANGADEX_MANIFEST } from './manifest.js';
-import {
-  toChapters,
-  toDetails,
-  toPages,
-  toSearchItem,
-} from './mapping.js';
+import { toChapters, toDetails, toPages, toSearchItem } from './mapping.js';
 import {
   parseAtHomeResponse,
   parseCollectionResponse,
@@ -27,7 +31,9 @@ export interface CreateMangaDexProviderOptions {
   readonly apiBaseUrl?: string;
 }
 
-export function createMangaDexProvider(options: CreateMangaDexProviderOptions = {}): ProviderContract {
+export function createMangaDexProvider(
+  options: CreateMangaDexProviderOptions = {},
+): ProviderContract {
   const fetchImpl = options.fetchImpl ?? fetch;
   const apiBase = options.apiBaseUrl ?? MANGADEX_API_BASE;
   const client = createProviderRequestClient({

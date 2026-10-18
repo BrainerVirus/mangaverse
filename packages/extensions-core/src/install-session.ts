@@ -72,7 +72,9 @@ export function transitionExtensionInstall(
         warnings: session.warnings,
         lastError: action.error,
         ...(session.source !== undefined ? { source: session.source } : {}),
-        ...(session.manifestFetchUrl !== undefined ? { manifestFetchUrl: session.manifestFetchUrl } : {}),
+        ...(session.manifestFetchUrl !== undefined
+          ? { manifestFetchUrl: session.manifestFetchUrl }
+          : {}),
       };
     case 'confirm':
       if (session.step !== 'awaitingConfirmation' || session.manifest === undefined) {
@@ -132,17 +134,26 @@ export function buildInstallPreview(
     version: manifest.version,
     ...(manifest.source.publisher !== undefined ? { publisher: manifest.source.publisher } : {}),
     sourceUrl: manifest.source.url,
-    ...(manifest.source.manifestUrl !== undefined ? { manifestUrl: manifest.source.manifestUrl } : { manifestUrl }),
+    ...(manifest.source.manifestUrl !== undefined
+      ? { manifestUrl: manifest.source.manifestUrl }
+      : { manifestUrl }),
     platforms: manifest.compatibility.platforms,
     capabilities: manifest.capabilities,
-    ...(manifest.capabilityDetails !== undefined ? { capabilityDetails: manifest.capabilityDetails } : {}),
+    ...(manifest.capabilityDetails !== undefined
+      ? { capabilityDetails: manifest.capabilityDetails }
+      : {}),
     capabilityLimitations: limitations,
     permissions: manifest.permissions,
     languages: manifest.languages,
     contentFlags: manifest.contentFlags,
-    checksumStatus: manifest.checksum !== undefined && manifest.checksum.trim() !== '' ? 'present_unverified' : 'absent',
+    checksumStatus:
+      manifest.checksum !== undefined && manifest.checksum.trim() !== ''
+        ? 'present_unverified'
+        : 'absent',
     signatureStatus:
-      manifest.signature !== undefined && manifest.signature.trim() !== '' ? 'present_unverified' : 'absent',
+      manifest.signature !== undefined && manifest.signature.trim() !== ''
+        ? 'present_unverified'
+        : 'absent',
     warnings,
   };
 }

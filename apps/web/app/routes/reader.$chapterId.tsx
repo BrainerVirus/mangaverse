@@ -65,9 +65,7 @@ function ReaderRoute() {
     },
     onMutate: async (next) => {
       await queryClient.cancelQueries({ queryKey: readerQueryKeys.chapter(chapterId) });
-      const previous = queryClient.getQueryData<ReaderPageData>(
-        readerQueryKeys.chapter(chapterId),
-      );
+      const previous = queryClient.getQueryData<ReaderPageData>(readerQueryKeys.chapter(chapterId));
       queryClient.setQueryData<ReaderPageData>(readerQueryKeys.chapter(chapterId), (current) =>
         current === undefined
           ? current

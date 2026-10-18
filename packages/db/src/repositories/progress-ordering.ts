@@ -25,7 +25,12 @@ export function acceptChapterReadState(
   incoming: ProgressOrderingRecord,
 ): boolean {
   const storedTimestamp = existing?.updatedAt;
-  if (existing === undefined || storedTimestamp === null || storedTimestamp === undefined || storedTimestamp === '') {
+  if (
+    existing === undefined ||
+    storedTimestamp === null ||
+    storedTimestamp === undefined ||
+    storedTimestamp === ''
+  ) {
     return true;
   }
   return progressOrderingWins(incoming, {

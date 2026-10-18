@@ -1,4 +1,10 @@
-export const ONBOARDING_STEP_IDS = ['welcome', 'theme', 'reading', 'preferences', 'provider'] as const;
+export const ONBOARDING_STEP_IDS = [
+  'welcome',
+  'theme',
+  'reading',
+  'preferences',
+  'provider',
+] as const;
 
 export const ONBOARDING_STORAGE_KEY = 'onboarding' as const;
 

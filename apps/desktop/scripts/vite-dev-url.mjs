@@ -2,7 +2,7 @@
 export function parseViteLocalUrl(text) {
   const match = text.match(/Local:\s+(https?:\/\/[^\s]+)/i);
   if (!match) return null;
-  return match[1].replace(/\/$/, '');
+  return match[1].replace(/\/$/, "");
 }
 
 /** @param {string} text */

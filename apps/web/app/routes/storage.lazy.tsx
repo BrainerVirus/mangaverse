@@ -42,7 +42,9 @@ function StorageRoute() {
     mutationFn: async (target: StorageClearTarget) => clearStorageData(db!, target),
     onSuccess: (result) => {
       setLastActionError(null);
-      setLastActionMessage(`Cleared ${result.clearedCount} ${result.target === 'provider_cache' ? 'cache entries' : 'search history entries'}.`);
+      setLastActionMessage(
+        `Cleared ${result.clearedCount} ${result.target === 'provider_cache' ? 'cache entries' : 'search history entries'}.`,
+      );
       void queryClient.invalidateQueries({ queryKey: storageQueryKeys.summary() });
     },
     onError: (error) => {
@@ -61,12 +63,16 @@ function StorageRoute() {
     },
     onSuccess: (granted) => {
       setLastActionError(null);
-      setLastActionMessage(granted ? 'Persistent storage granted.' : 'Persistent storage was not granted.');
+      setLastActionMessage(
+        granted ? 'Persistent storage granted.' : 'Persistent storage was not granted.',
+      );
       void queryClient.invalidateQueries({ queryKey: storageQueryKeys.summary() });
     },
     onError: (error) => {
       setLastActionMessage(null);
-      setLastActionError(error instanceof Error ? error.message : 'Could not request persistent storage.');
+      setLastActionError(
+        error instanceof Error ? error.message : 'Could not request persistent storage.',
+      );
     },
   });
 

@@ -1,7 +1,11 @@
 import type { Database, SqlJsStatic } from 'sql.js';
 import { createDrizzleFromSqlJs } from './client.js';
 import type { AppDrizzleDb } from './adapter.js';
-import { migrateDatabaseFromBundled, type BundledMigrationFile, type BundledMigrationJournal } from './bundled-migrations.js';
+import {
+  migrateDatabaseFromBundled,
+  type BundledMigrationFile,
+  type BundledMigrationJournal,
+} from './bundled-migrations.js';
 import { mergeUncommittedProgress } from './merge-uncommitted-progress.js';
 import type { PersistedBytesStore } from './persisted-bytes-store.js';
 

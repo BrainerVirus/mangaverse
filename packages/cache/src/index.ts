@@ -62,7 +62,4 @@ export {
 
 export { CachedMangaCard } from './components/CachedMangaCard.js';
 
-export {
-  CachedPageImage,
-  type CachedPageImageProps,
-} from './components/CachedPageImage.js';
+export { CachedPageImage, type CachedPageImageProps } from './components/CachedPageImage.js';

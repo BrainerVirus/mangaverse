@@ -11,7 +11,9 @@ export interface FetchDiagnosticsReportInput {
   readonly db: AppDrizzleDb | null;
 }
 
-export async function fetchDiagnosticsReport(input: FetchDiagnosticsReportInput): Promise<DiagnosticsReport> {
+export async function fetchDiagnosticsReport(
+  input: FetchDiagnosticsReportInput,
+): Promise<DiagnosticsReport> {
   const { adapter, capabilities, db } = input;
 
   const [snapshotResult, storageResult, localServiceResult, localData] = await Promise.all([
@@ -22,8 +24,7 @@ export async function fetchDiagnosticsReport(input: FetchDiagnosticsReportInput)
   ]);
 
   const platformSnapshot = snapshotResult.ok ? snapshotResult.value : {};
-  const storageEstimate =
-    storageResult !== null && storageResult.ok ? storageResult.value : null;
+  const storageEstimate = storageResult !== null && storageResult.ok ? storageResult.value : null;
   const localService =
     localServiceResult !== null && localServiceResult.ok ? localServiceResult.value : null;
 

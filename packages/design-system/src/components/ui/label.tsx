@@ -8,11 +8,11 @@ const Label = React.forwardRef<HTMLLabelElement, React.LabelHTMLAttributes<HTMLL
       htmlFor={htmlFor}
       className={cn(
         'text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70',
-        className
+        className,
       )}
       {...props}
     />
-  )
+  ),
 );
 Label.displayName = 'Label';
 

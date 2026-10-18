@@ -72,6 +72,8 @@ export async function findMigrationHistoryByProviders(
     targetProviderId: row.targetProviderId,
     targetProviderMangaId: row.targetProviderMangaId,
     completedAt: row.completedAt,
-    ...(row.notes !== null && row.notes !== undefined && row.notes !== '' ? { notes: row.notes } : {}),
+    ...(row.notes !== null && row.notes !== undefined && row.notes !== ''
+      ? { notes: row.notes }
+      : {}),
   };
 }

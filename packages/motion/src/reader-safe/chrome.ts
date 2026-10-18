@@ -6,10 +6,7 @@ export interface ChromeMotionOptions extends gsap.TweenVars {
   reducedMotion?: boolean;
 }
 
-export function chromeShow(
-  target: gsap.TweenTarget,
-  vars?: ChromeMotionOptions,
-): gsap.core.Tween {
+export function chromeShow(target: gsap.TweenTarget, vars?: ChromeMotionOptions): gsap.core.Tween {
   const { reducedMotion = false, ...tweenVars } = vars ?? {};
 
   if (reducedMotion) {
@@ -29,10 +26,7 @@ export function chromeShow(
   );
 }
 
-export function chromeHide(
-  target: gsap.TweenTarget,
-  vars?: ChromeMotionOptions,
-): gsap.core.Tween {
+export function chromeHide(target: gsap.TweenTarget, vars?: ChromeMotionOptions): gsap.core.Tween {
   const { reducedMotion = false, ...tweenVars } = vars ?? {};
 
   if (reducedMotion) {

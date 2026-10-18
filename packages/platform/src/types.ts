@@ -74,12 +74,7 @@ export interface PlatformDiagnosticsSnapshot {
   readonly arch?: string;
   readonly userDataConfigured?: boolean;
   readonly localService?: LocalServiceInfo;
-  readonly capabilityFlags?: Readonly<
-    Record<
-      keyof Omit<PlatformCapabilities, 'runtime'>,
-      boolean
-    >
-  >;
+  readonly capabilityFlags?: Readonly<Record<keyof Omit<PlatformCapabilities, 'runtime'>, boolean>>;
 }
 
 export type PlatformInstallPromptState =

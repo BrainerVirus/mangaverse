@@ -1,5 +1,13 @@
 import { err, ok, type AppError, type AppResult } from '@app/shared';
-import type { BrowserWindow, Clipboard, Dialog, IpcMain, Net, SaveDialogOptions, Shell } from 'electron';
+import type {
+  BrowserWindow,
+  Clipboard,
+  Dialog,
+  IpcMain,
+  Net,
+  SaveDialogOptions,
+  Shell,
+} from 'electron';
 import {
   PLATFORM_IPC,
   fetchMainProcessBytes,

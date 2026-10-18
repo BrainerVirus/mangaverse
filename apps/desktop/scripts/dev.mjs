@@ -1,14 +1,14 @@
-import { spawn, execFileSync } from 'node:child_process';
-import { setTimeout as delay } from 'node:timers/promises';
-import { createRequire } from 'node:module';
-import { fileURLToPath } from 'node:url';
-import { parsePortInUseMessage, parseViteLocalUrl } from './vite-dev-url.mjs';
+import { spawn, execFileSync } from "node:child_process";
+import { setTimeout as delay } from "node:timers/promises";
+import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
+import { parsePortInUseMessage, parseViteLocalUrl } from "./vite-dev-url.mjs";
 
 const require = createRequire(import.meta.url);
-const electronPath = require('electron');
+const electronPath = require("electron");
 
-const desktopRoot = fileURLToPath(new URL('..', import.meta.url));
-const workspaceRoot = fileURLToPath(new URL('../../..', import.meta.url));
+const desktopRoot = fileURLToPath(new URL("..", import.meta.url));
+const workspaceRoot = fileURLToPath(new URL("../../..", import.meta.url));
 
 const configuredRendererUrl = process.env.MANGAVERSE_RENDERER_URL ?? null;
 const VITE_URL_TIMEOUT_MS = 120_000;
@@ -17,16 +17,16 @@ const VITE_URL_TIMEOUT_MS = 120_000;
 
 function run(command, args, options = {}) {
   return spawn(command, args, {
-    stdio: 'inherit',
-    shell: process.platform === 'win32',
+    stdio: "inherit",
+    shell: process.platform === "win32",
     ...options,
   });
 }
 
 function startWebDevServer() {
-  const child = run('pnpm', ['--filter', '@app/web', 'dev'], {
+  const child = run("pnpm", ["--filter", "@app/web", "dev"], {
     cwd: workspaceRoot,
-    stdio: ['inherit', 'pipe', 'pipe'],
+    stdio: ["inherit", "pipe", "pipe"],
   });
 
   return new Promise((resolve, reject) => {
@@ -45,7 +45,7 @@ function startWebDevServer() {
       finish(
         new Error(
           `Timed out after ${VITE_URL_TIMEOUT_MS / 1000}s waiting for Vite to print a Local URL. ` +
-            'Check for stale dev servers or set MANGAVERSE_RENDERER_URL.',
+            "Check for stale dev servers or set MANGAVERSE_RENDERER_URL.",
         ),
       );
     }, VITE_URL_TIMEOUT_MS);
@@ -71,17 +71,19 @@ function startWebDevServer() {
       }
     };
 
-    child.stdout?.on('data', (chunk) => inspectChunk(chunk, process.stdout));
-    child.stderr?.on('data', (chunk) => inspectChunk(chunk, process.stderr));
+    child.stdout?.on("data", (chunk) => inspectChunk(chunk, process.stdout));
+    child.stderr?.on("data", (chunk) => inspectChunk(chunk, process.stderr));
 
-    child.on('error', (error) => finish(error));
-    child.on('close', (code) => {
+    child.on("error", (error) => finish(error));
+    child.on("close", (code) => {
       if (configuredRendererUrl && !settled) {
         finish(null, configuredRendererUrl);
         return;
       }
       if (!settled) {
-        finish(new Error(`Vite exited with code ${code ?? 'unknown'} before reporting a Local URL`));
+        finish(
+          new Error(`Vite exited with code ${code ?? "unknown"} before reporting a Local URL`),
+        );
       }
     });
 
@@ -106,18 +108,21 @@ async function waitForRenderer(url) {
   throw new Error(`Timed out waiting for renderer at ${url}`);
 }
 
-console.log('Compiling Electron main and preload...');
-execFileSync('pnpm', ['exec', 'tsc', '-p', 'tsconfig.json'], { cwd: desktopRoot, stdio: 'inherit' });
-execFileSync('node', ['scripts/bundle-preload.mjs'], { cwd: desktopRoot, stdio: 'inherit' });
+console.log("Compiling Electron main and preload...");
+execFileSync("pnpm", ["exec", "tsc", "-p", "tsconfig.json"], {
+  cwd: desktopRoot,
+  stdio: "inherit",
+});
+execFileSync("node", ["scripts/bundle-preload.mjs"], { cwd: desktopRoot, stdio: "inherit" });
 
-console.log('Starting TanStack Start renderer (Vite)...');
+console.log("Starting TanStack Start renderer (Vite)...");
 const { child: web, rendererUrl } = await startWebDevServer();
 
 try {
   await waitForRenderer(rendererUrl);
   console.log(`[desktop dev] Launching Electron with renderer URL: ${rendererUrl}`);
 
-  const desktop = run(electronPath, ['.'], {
+  const desktop = run(electronPath, ["."], {
     cwd: desktopRoot,
     env: {
       ...process.env,
@@ -127,14 +132,14 @@ try {
   });
 
   await new Promise((resolve, reject) => {
-    desktop.on('error', reject);
-    desktop.on('close', (code) => {
-      web.kill('SIGTERM');
+    desktop.on("error", reject);
+    desktop.on("close", (code) => {
+      web.kill("SIGTERM");
       if (code === 0 || code === null) resolve();
       else reject(new Error(`Electron exited with ${code}`));
     });
   });
 } catch (error) {
-  web.kill('SIGTERM');
+  web.kill("SIGTERM");
   throw error;
 }

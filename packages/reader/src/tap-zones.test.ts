@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  calculateTapZones,
-  resolveTapZoneAction,
-  createTapZoneDebugModel,
-} from './tap-zones';
+import { calculateTapZones, resolveTapZoneAction, createTapZoneDebugModel } from './tap-zones';
 import type { ReaderEngineSettings, ReaderSessionInput, ZoomStateSummary } from './types';
 
 const mockPages = [
@@ -55,9 +51,9 @@ describe('calculateTapZones', () => {
     const zones = calculateTapZones(input, { top: 0, right: 0, bottom: 0, left: 0 });
 
     expect(zones).toHaveLength(3);
-    expect(zones.find(z => z.id === 'left')).toBeDefined();
-    expect(zones.find(z => z.id === 'right')).toBeDefined();
-    expect(zones.find(z => z.id === 'center')?.action.type).toBe('toggleChrome');
+    expect(zones.find((z) => z.id === 'left')).toBeDefined();
+    expect(zones.find((z) => z.id === 'right')).toBeDefined();
+    expect(zones.find((z) => z.id === 'center')?.action.type).toBe('toggleChrome');
   });
 
   it('should return 9 zones for grid layout', () => {
@@ -77,10 +73,15 @@ describe('calculateTapZones', () => {
   it('should reduce tappable area when overlay insets provided', () => {
     const input = makeInput();
     const insetsWithoutOverlay = calculateTapZones(input, { top: 0, right: 0, bottom: 0, left: 0 });
-    const insetsWithOverlay = calculateTapZones(input, { top: 50, right: 10, bottom: 80, left: 10 });
+    const insetsWithOverlay = calculateTapZones(input, {
+      top: 50,
+      right: 10,
+      bottom: 80,
+      left: 10,
+    });
 
-    const leftZoneNoOverlay = insetsWithoutOverlay.find(z => z.id === 'left')!;
-    const leftZoneWithOverlay = insetsWithOverlay.find(z => z.id === 'left')!;
+    const leftZoneNoOverlay = insetsWithoutOverlay.find((z) => z.id === 'left')!;
+    const leftZoneWithOverlay = insetsWithOverlay.find((z) => z.id === 'left')!;
 
     expect(leftZoneWithOverlay.width).toBeLessThan(leftZoneNoOverlay.width);
     expect(leftZoneWithOverlay.y).toBe(50);
@@ -89,7 +90,7 @@ describe('calculateTapZones', () => {
   it('should map left tap to prevPage in LTR default direction', () => {
     const input = makeInput({ readingMode: 'ltr', navigationDirection: 'default' });
     const zones = calculateTapZones(input, { top: 0, right: 0, bottom: 0, left: 0 });
-    const leftZone = zones.find(z => z.id === 'left')!;
+    const leftZone = zones.find((z) => z.id === 'left')!;
 
     expect(leftZone.action.type).toBe('prevPage');
   });
@@ -97,7 +98,7 @@ describe('calculateTapZones', () => {
   it('should map right tap to nextPage in LTR default direction', () => {
     const input = makeInput({ readingMode: 'ltr', navigationDirection: 'default' });
     const zones = calculateTapZones(input, { top: 0, right: 0, bottom: 0, left: 0 });
-    const rightZone = zones.find(z => z.id === 'right')!;
+    const rightZone = zones.find((z) => z.id === 'right')!;
 
     expect(rightZone.action.type).toBe('nextPage');
   });
@@ -105,8 +106,8 @@ describe('calculateTapZones', () => {
   it('should invert navigation in RTL mode', () => {
     const input = makeInput({ readingMode: 'rtl', navigationDirection: 'default' });
     const zones = calculateTapZones(input, { top: 0, right: 0, bottom: 0, left: 0 });
-    const leftZone = zones.find(z => z.id === 'left')!;
-    const rightZone = zones.find(z => z.id === 'right')!;
+    const leftZone = zones.find((z) => z.id === 'left')!;
+    const rightZone = zones.find((z) => z.id === 'right')!;
 
     expect(leftZone.action.type).toBe('nextPage');
     expect(rightZone.action.type).toBe('prevPage');
@@ -115,14 +116,20 @@ describe('calculateTapZones', () => {
   it('should return toggleChrome action for center zone in grid layout', () => {
     const input = makeInput({ tapZoneLayout: 'grid' });
     const zones = calculateTapZones(input, { top: 0, right: 0, bottom: 0, left: 0 });
-    const centerZone = zones.find(z => z.id === 'center')!;
+    const centerZone = zones.find((z) => z.id === 'center')!;
 
     expect(centerZone.action.type).toBe('toggleChrome');
   });
 
   it('should disable tap navigation when zoomed', () => {
     const input = makeInput();
-    const zoomState: ZoomStateSummary = { scale: 2, translateX: 0, translateY: 0, minZoom: 1, maxZoom: 3 };
+    const zoomState: ZoomStateSummary = {
+      scale: 2,
+      translateX: 0,
+      translateY: 0,
+      minZoom: 1,
+      maxZoom: 3,
+    };
 
     const zones = calculateTapZones(input, { top: 0, right: 0, bottom: 0, left: 0 }, zoomState);
 
@@ -137,8 +144,8 @@ describe('calculateTapZones', () => {
     const input = makeInput({ readingMode: 'vertical' });
     const zones = calculateTapZones(input, { top: 0, right: 0, bottom: 0, left: 0 });
 
-    const leftZone = zones.find(z => z.id === 'left');
-    const rightZone = zones.find(z => z.id === 'right');
+    const leftZone = zones.find((z) => z.id === 'left');
+    const rightZone = zones.find((z) => z.id === 'right');
 
     expect(leftZone?.action.type).toBe('none');
     expect(rightZone?.action.type).toBe('none');
@@ -183,7 +190,13 @@ describe('createTapZoneDebugModel', () => {
   it('should include zoom state in debug model', () => {
     const input = makeInput();
     const zones = calculateTapZones(input, { top: 0, right: 0, bottom: 0, left: 0 });
-    const zoomState: ZoomStateSummary = { scale: 1.5, translateX: 10, translateY: 20, minZoom: 1, maxZoom: 3 };
+    const zoomState: ZoomStateSummary = {
+      scale: 1.5,
+      translateX: 10,
+      translateY: 20,
+      minZoom: 1,
+      maxZoom: 3,
+    };
     const model = createTapZoneDebugModel(input, zones, zoomState);
 
     expect(model.zoomState.scale).toBe(1.5);

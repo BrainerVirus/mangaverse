@@ -137,10 +137,7 @@ export function AppSettingsPage({
         />
       </SettingsSection>
 
-      <SettingsSection
-        title="Performance"
-        description="Reduce memory use on constrained devices."
-      >
+      <SettingsSection title="Performance" description="Reduce memory use on constrained devices.">
         <SettingToggleRow
           id="low-memory-mode"
           label="Low-memory mode"
@@ -170,9 +167,7 @@ export function AppSettingsPage({
           <p className="text-sm text-muted-foreground">
             Cached cover images are stored locally and reused on later visits. Limit:{' '}
             {formatCacheBytes(settings.imageCacheLimitBytes)}
-            {cacheUsageBytes !== undefined
-              ? ` · Used: ${formatCacheBytes(cacheUsageBytes)}`
-              : null}
+            {cacheUsageBytes !== undefined ? ` · Used: ${formatCacheBytes(cacheUsageBytes)}` : null}
           </p>
         </div>
       </SettingsSection>
@@ -191,7 +186,10 @@ export function AppSettingsPage({
               placeholder="en, ja"
               onChange={(event) =>
                 update({
-                  preferredLanguages: parsePreferredLanguages(event.target.value, settings.preferredLanguages),
+                  preferredLanguages: parsePreferredLanguages(
+                    event.target.value,
+                    settings.preferredLanguages,
+                  ),
                 })
               }
             />

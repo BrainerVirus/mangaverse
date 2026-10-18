@@ -13,7 +13,9 @@ export function getDefaultThemeSettings(): ThemeSettings {
 
 export function validateThemeSettings(input: unknown): AppResult<ThemeSettings> {
   if (typeof input !== 'object' || input === null || Array.isArray(input)) {
-    return err(createAppError({ code: 'theme.invalid', message: 'Theme settings must be an object.' }));
+    return err(
+      createAppError({ code: 'theme.invalid', message: 'Theme settings must be an object.' }),
+    );
   }
 
   const record = input as Record<string, unknown>;
@@ -25,11 +27,15 @@ export function validateThemeSettings(input: unknown): AppResult<ThemeSettings> 
   }
 
   if (!isThemePresetId(presetId)) {
-    return err(createAppError({ code: 'theme.invalid', message: `Unknown theme preset "${presetId}".` }));
+    return err(
+      createAppError({ code: 'theme.invalid', message: `Unknown theme preset "${presetId}".` }),
+    );
   }
 
   if (typeof dark !== 'boolean') {
-    return err(createAppError({ code: 'theme.invalid', message: 'Theme dark flag must be boolean.' }));
+    return err(
+      createAppError({ code: 'theme.invalid', message: 'Theme dark flag must be boolean.' }),
+    );
   }
 
   return ok({ presetId, dark });

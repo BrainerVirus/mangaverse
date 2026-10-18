@@ -22,7 +22,10 @@ export async function fetchReaderPage(
 
   const initialPageIndex =
     readState?.progress.lastPageIndex !== undefined
-      ? Math.max(0, Math.min(readState.progress.lastPageIndex, Math.max(chapter.pages.length - 1, 0)))
+      ? Math.max(
+          0,
+          Math.min(readState.progress.lastPageIndex, Math.max(chapter.pages.length - 1, 0)),
+        )
       : 0;
 
   const engineSettings = toReaderEngineSettings(settings);

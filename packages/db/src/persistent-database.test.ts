@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 import initSqlJs from 'sql.js';
 import { createMemoryPersistedBytesStore } from './persisted-bytes-store.js';
 import { openPersistentDatabase } from './persistent-database.js';
-import { migrateDatabaseFromBundled, type BundledMigrationFile, type BundledMigrationJournal } from './bundled-migrations.js';
+import {
+  migrateDatabaseFromBundled,
+  type BundledMigrationFile,
+  type BundledMigrationJournal,
+} from './bundled-migrations.js';
 import { sql } from 'drizzle-orm';
 
 const JOURNAL: BundledMigrationJournal = {

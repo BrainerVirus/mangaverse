@@ -9,7 +9,9 @@ export interface FetchStorageSummaryInput {
   readonly capabilities: PlatformCapabilities;
 }
 
-export async function fetchStorageSummary(input: FetchStorageSummaryInput): Promise<StorageSummary> {
+export async function fetchStorageSummary(
+  input: FetchStorageSummaryInput,
+): Promise<StorageSummary> {
   const { db, adapter, capabilities } = input;
   const { countSavedSearches, countSearchHistory, summarizeCacheStorage } = await import('@app/db');
 
@@ -20,8 +22,7 @@ export async function fetchStorageSummary(input: FetchStorageSummaryInput): Prom
     capabilities.storageEstimate ? adapter.storage.estimate() : Promise.resolve(null),
   ]);
 
-  const platformEstimate =
-    storageResult !== null && storageResult.ok ? storageResult.value : null;
+  const platformEstimate = storageResult !== null && storageResult.ok ? storageResult.value : null;
 
   return {
     generatedAt: new Date().toISOString(),

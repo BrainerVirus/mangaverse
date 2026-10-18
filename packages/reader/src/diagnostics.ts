@@ -16,7 +16,7 @@ export function createReaderDiagnostics(
   zoom?: ZoomStateSummary,
   _preloadQueueLength?: number,
   preloadQueue?: readonly number[],
-  events?: readonly DiagnosticEvent[]
+  events?: readonly DiagnosticEvent[],
 ): ReaderDiagnosticsSnapshot {
   return {
     timestamp: new Date().toISOString(),
@@ -25,7 +25,13 @@ export function createReaderDiagnostics(
     totalPages,
     visiblePageIndexes,
     settings: input.settings,
-    zoom: zoom ?? { scale: 1, translateX: 0, translateY: 0, minZoom: input.settings.minZoom, maxZoom: input.settings.maxZoom },
+    zoom: zoom ?? {
+      scale: 1,
+      translateX: 0,
+      translateY: 0,
+      minZoom: input.settings.minZoom,
+      maxZoom: input.settings.maxZoom,
+    },
     chromeVisible,
     failedPageCount: failedPages.length,
     preloadQueueLength: preloadQueue?.length ?? 0,

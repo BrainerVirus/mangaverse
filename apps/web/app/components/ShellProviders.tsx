@@ -24,7 +24,11 @@ interface ShellProvidersProps {
 function AppShellOrReaderLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const isReaderMatch = location.pathname.startsWith('/reader/');
-  return isReaderMatch ? <ReaderLayout>{children}</ReaderLayout> : <AppShellLayout>{children}</AppShellLayout>;
+  return isReaderMatch ? (
+    <ReaderLayout>{children}</ReaderLayout>
+  ) : (
+    <AppShellLayout>{children}</AppShellLayout>
+  );
 }
 
 function KeyboardShortcuts() {
@@ -59,7 +63,7 @@ function NavigationTracker() {
   useEffect(() => {
     const unsubscribe = router.subscribe('onResolved', ({ toLocation }) => {
       const segments = toLocation.pathname.split('/').filter(Boolean);
-      const label = toLocation.pathname === '/' ? 'Home' : (segments[segments.length - 1] || 'Home');
+      const label = toLocation.pathname === '/' ? 'Home' : segments[segments.length - 1] || 'Home';
       const displayLabel = label.charAt(0).toUpperCase() + label.slice(1);
       pushRecentRoute({
         path: toLocation.pathname,
@@ -78,18 +82,18 @@ export function ShellProviders({ children, detectFn }: ShellProvidersProps) {
     <QueryProvider>
       <LocalDbProvider>
         <CoverCacheBridge>
-        <PlatformProvider detectFn={detectFn}>
-          <ThemeProvider>
-          <ThemeSettingsBridge />
-          <LocalDataPrefetch />
-          <KeyboardShortcuts />
-          <NavigationTracker />
-          <CommandPalette />
-          <OnboardingGate>
-            <AppShellOrReaderLayout>{children}</AppShellOrReaderLayout>
-          </OnboardingGate>
-          </ThemeProvider>
-        </PlatformProvider>
+          <PlatformProvider detectFn={detectFn}>
+            <ThemeProvider>
+              <ThemeSettingsBridge />
+              <LocalDataPrefetch />
+              <KeyboardShortcuts />
+              <NavigationTracker />
+              <CommandPalette />
+              <OnboardingGate>
+                <AppShellOrReaderLayout>{children}</AppShellOrReaderLayout>
+              </OnboardingGate>
+            </ThemeProvider>
+          </PlatformProvider>
         </CoverCacheBridge>
       </LocalDbProvider>
     </QueryProvider>

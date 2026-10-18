@@ -91,7 +91,9 @@ export function recordPageLoadResult(
   if (result.success) {
     const { [result.pageIndex]: _removed, ...rest } = newRetryState;
     return {
-      failedPages: newFailedPages.filter(p => p !== result.pageIndex) as unknown as readonly number[],
+      failedPages: newFailedPages.filter(
+        (p) => p !== result.pageIndex,
+      ) as unknown as readonly number[],
       preloadQueue,
       retryState: rest,
     };

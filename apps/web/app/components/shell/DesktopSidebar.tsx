@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState } from "react";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { useCallback, useRef, useState } from 'react';
+import { Link, useRouterState } from '@tanstack/react-router';
 import {
   BookOpen,
   Search,
@@ -13,27 +13,27 @@ import {
   Zap,
   Play,
   Compass,
-} from "lucide-react";
-import { Button, Tooltip, Separator, cn, buttonVariants } from "@app/design-system";
-import { useLayoutStore } from "../../stores/useLayoutStore.js";
-import { useCommandPaletteStore } from "../../stores/useCommandPaletteStore.js";
-import { useTheme } from "../../providers/theme-provider.js";
+} from 'lucide-react';
+import { Button, Tooltip, Separator, cn, buttonVariants } from '@app/design-system';
+import { useLayoutStore } from '../../stores/useLayoutStore.js';
+import { useCommandPaletteStore } from '../../stores/useCommandPaletteStore.js';
+import { useTheme } from '../../providers/theme-provider.js';
 
 const EXPAND_DELAY = 200;
 
 const primaryNavItems = [
-  { label: "Discover", to: "/discover", icon: Compass },
-  { label: "Library", to: "/library", icon: BookOpen },
-  { label: "Search", to: "/search", icon: Search },
-  { label: "Settings", to: "/settings", icon: Settings },
-  { label: "Extensions", to: "/extensions", icon: Puzzle },
+  { label: 'Discover', to: '/discover', icon: Compass },
+  { label: 'Library', to: '/library', icon: BookOpen },
+  { label: 'Search', to: '/search', icon: Search },
+  { label: 'Settings', to: '/settings', icon: Settings },
+  { label: 'Extensions', to: '/extensions', icon: Puzzle },
 ] as const;
 
 const secondaryNavItems = [
-  { label: "Backup", to: "/backup", icon: Archive },
-  { label: "Migration", to: "/migration", icon: ArrowRightLeft },
-  { label: "Diagnostics", to: "/diagnostics", icon: Zap },
-  { label: "Onboarding", to: "/onboarding", icon: Play },
+  { label: 'Backup', to: '/backup', icon: Archive },
+  { label: 'Migration', to: '/migration', icon: ArrowRightLeft },
+  { label: 'Diagnostics', to: '/diagnostics', icon: Zap },
+  { label: 'Onboarding', to: '/onboarding', icon: Play },
 ] as const;
 
 function SidebarNavLink({
@@ -53,11 +53,11 @@ function SidebarNavLink({
     <Link
       to={to}
       aria-label={label}
-      aria-current={active ? "page" : undefined}
+      aria-current={active ? 'page' : undefined}
       className={cn(
-        buttonVariants[active ? "secondary" : "ghost"],
-        "h-9 w-full justify-start gap-3 px-2.5",
-        !expanded && "justify-center px-0",
+        buttonVariants[active ? 'secondary' : 'ghost'],
+        'h-9 w-full justify-start gap-3 px-2.5',
+        !expanded && 'justify-center px-0',
       )}
     >
       <Icon className="h-5 w-5 shrink-0" />
@@ -66,11 +66,7 @@ function SidebarNavLink({
   );
 
   if (!expanded) {
-    return (
-      <Tooltip content={label}>
-        {content}
-      </Tooltip>
-    );
+    return <Tooltip content={label}>{content}</Tooltip>;
   }
 
   return content;
@@ -85,8 +81,7 @@ export function DesktopSidebar() {
   const expandTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [hoverExpanded, setHoverExpanded] = useState(false);
 
-  const isActive = (to: string) =>
-    currentPath === to || currentPath.startsWith(to + "/");
+  const isActive = (to: string) => currentPath === to || currentPath.startsWith(to + '/');
 
   const handleMouseEnter = useCallback(() => {
     if (expandTimer.current) clearTimeout(expandTimer.current);
@@ -104,7 +99,7 @@ export function DesktopSidebar() {
 
   const visuallyExpanded = sidebarExpanded || hoverExpanded;
 
-  const toggleTheme = () => setTheme(theme === "light" ? "dark" : "light");
+  const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
 
   if (!sidebarOpen) return null;
 
@@ -113,8 +108,8 @@ export function DesktopSidebar() {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       className={cn(
-        "relative z-40 flex h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-200 ease-out",
-        visuallyExpanded ? "w-[220px]" : "w-[52px]"
+        'relative z-40 flex h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-200 ease-out',
+        visuallyExpanded ? 'w-[220px]' : 'w-[52px]',
       )}
     >
       <div className="flex flex-1 flex-col gap-1 px-2 py-3">
@@ -148,14 +143,14 @@ export function DesktopSidebar() {
             onClick={toggleSidebarExpand}
             aria-label="Collapse sidebar"
             className={cn(
-              "h-9 w-full justify-start gap-3 px-2.5 text-muted-foreground",
-              !visuallyExpanded && "justify-center px-0",
+              'h-9 w-full justify-start gap-3 px-2.5 text-muted-foreground',
+              !visuallyExpanded && 'justify-center px-0',
             )}
           >
             <ChevronLeft
               className={cn(
-                "h-5 w-5 shrink-0 transition-transform duration-200",
-                sidebarExpanded && "rotate-180"
+                'h-5 w-5 shrink-0 transition-transform duration-200',
+                sidebarExpanded && 'rotate-180',
               )}
             />
             {visuallyExpanded ? <span className="truncate">Collapse</span> : null}
@@ -191,7 +186,7 @@ export function DesktopSidebar() {
           </Tooltip>
         )}
 
-        <Tooltip content={theme === "light" ? "Dark Mode" : "Light Mode"}>
+        <Tooltip content={theme === 'light' ? 'Dark Mode' : 'Light Mode'}>
           <Button
             type="button"
             variant="ghost"
@@ -200,12 +195,12 @@ export function DesktopSidebar() {
             aria-label="Toggle theme"
             suppressHydrationWarning
             className={cn(
-              "h-9 w-full justify-start gap-3 px-2.5 text-muted-foreground",
-              !visuallyExpanded && "justify-center px-0",
+              'h-9 w-full justify-start gap-3 px-2.5 text-muted-foreground',
+              !visuallyExpanded && 'justify-center px-0',
             )}
           >
             <span suppressHydrationWarning className="inline-flex shrink-0">
-              {theme === "light" ? (
+              {theme === 'light' ? (
                 <Moon className="h-5 w-5 shrink-0" />
               ) : (
                 <Sun className="h-5 w-5 shrink-0" />

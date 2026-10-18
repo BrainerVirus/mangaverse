@@ -18,7 +18,11 @@ describe('createReaderError', () => {
   });
 
   it('should include retryable flag', () => {
-    const error = createReaderError({ code: 'reader.image.failed', message: 'Failed', retryable: true });
+    const error = createReaderError({
+      code: 'reader.image.failed',
+      message: 'Failed',
+      retryable: true,
+    });
 
     expect(error.retryable).toBe(true);
   });

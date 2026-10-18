@@ -9,7 +9,6 @@ export const fixturesDir = fileURLToPath(
 export const MANGADEX_MANGA_ID = 'dc332d04-d3b0-413c-a767-70f5e451b031';
 export const MANGADEX_APP_MANGA_ID = `dev-md-${MANGADEX_MANGA_ID}`;
 
-
 export function fixture(name: string): string {
   return readFileSync(`${fixturesDir}/${name}`, 'utf8');
 }

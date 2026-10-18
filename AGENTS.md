@@ -179,7 +179,7 @@ legacy Expo/React Native/Expo Router/Tauri trees were removed in Phase 10.5;
 
 - Install: `pnpm install`
 - Dev: `pnpm dev` (web), `pnpm dev:web`, `pnpm dev:desktop`
-- Checks: `pnpm lint` / `lint:fix`, `pnpm format` / `format:check`, `pnpm typecheck`, `pnpm test`
+- Checks: `pnpm lint` / `lint:fix`, `pnpm format` / `format:check` (oxfmt), `pnpm typecheck`, `pnpm test`
 - Builds: `pnpm build`, `pnpm --filter @app/web build`, `pnpm --filter @app/desktop build`; clean with `pnpm clean`
 
 These commands may change as the monorepo rewrite is implemented. Update this file and `docs/PLAN.md` when the canonical commands change.

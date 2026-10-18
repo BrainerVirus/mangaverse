@@ -1,10 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
-import {
-  DiscoverPage,
-  discoverQueryKeys,
-} from '@app/search';
+import { DiscoverPage, discoverQueryKeys } from '@app/search';
 import { fetchAppSettings, settingsQueryKeys } from '@app/settings';
 import { useLocalDb, useLocalDbStatus, useLocalDbRetry } from '../providers/local-db-provider.js';
 import {
@@ -35,7 +32,9 @@ function DiscoverRoute() {
   const db = useLocalDb();
   const dbStatus = useLocalDbStatus();
   const retryDb = useLocalDbRetry();
-  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(search.provider ?? null);
+  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(
+    search.provider ?? null,
+  );
 
   const appSettingsQuery = useQuery({
     queryKey: settingsQueryKeys.app(),
@@ -73,7 +72,10 @@ function DiscoverRoute() {
       (entry) => entry.id === expandedSection.sectionId,
     );
     if (fallback !== undefined && expandedSection.providerId === 'mangadex') {
-      return { title: getMangadexSectionTitle(fallback.id) ?? fallback.title, sectionId: fallback.id };
+      return {
+        title: getMangadexSectionTitle(fallback.id) ?? fallback.title,
+        sectionId: fallback.id,
+      };
     }
 
     return null;
@@ -99,7 +101,11 @@ function DiscoverRoute() {
     initialPageParam: 0,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.offset + MANGADEX_SECTION_PAGE_SIZE : undefined,
-    enabled: dbStatus === 'ready' && db !== null && expandedSection !== null && expandedSectionMeta !== null,
+    enabled:
+      dbStatus === 'ready' &&
+      db !== null &&
+      expandedSection !== null &&
+      expandedSectionMeta !== null,
   });
 
   const expandedResults = useMemo(

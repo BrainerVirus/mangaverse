@@ -126,7 +126,9 @@ function OnboardingRoute() {
     },
     onMutate: async (nextSettings) => {
       await queryClient.cancelQueries({ queryKey: settingsQueryKeys.reader() });
-      const previous = queryClient.getQueryData<{ settings: ReaderSettings }>(settingsQueryKeys.reader());
+      const previous = queryClient.getQueryData<{ settings: ReaderSettings }>(
+        settingsQueryKeys.reader(),
+      );
       queryClient.setQueryData(settingsQueryKeys.reader(), { settings: nextSettings });
       return { previous };
     },

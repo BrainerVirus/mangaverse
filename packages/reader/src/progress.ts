@@ -8,11 +8,9 @@ export function createProgressEvent(
   chapterId: string,
   mangaId: string,
   pageIndex: number,
-  totalPages: number
+  totalPages: number,
 ): ReaderProgressEvent {
-  const readPercent = totalPages > 0
-    ? Math.round(((pageIndex + 1) / totalPages) * 100)
-    : 100;
+  const readPercent = totalPages > 0 ? Math.round(((pageIndex + 1) / totalPages) * 100) : 100;
   const completed = pageIndex >= totalPages - 1;
 
   return {
@@ -38,7 +36,7 @@ export interface UnmountCheckpointPolicy {
  */
 export function shouldCheckpointOnUnmount(
   pendingPageIndex: number,
-  policy: UnmountCheckpointPolicy
+  policy: UnmountCheckpointPolicy,
 ): boolean {
   return pendingPageIndex !== policy.initialPageIndex || policy.lifetimeMs >= policy.debounceMs;
 }
@@ -46,7 +44,7 @@ export function shouldCheckpointOnUnmount(
 export function shouldPersistProgress(
   previous: ReaderProgressEvent,
   next: ReaderProgressEvent,
-  policy: ProgressPolicy
+  policy: ProgressPolicy,
 ): boolean {
   if (previous.chapterId !== next.chapterId) {
     return true;

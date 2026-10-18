@@ -42,10 +42,20 @@ export async function upsertChapterWithPages(
     .where(eq(mangaProviderMappings.id, input.providerMappingId))
     .get();
   if (mapping === undefined) {
-    return err(createAppError({ code: 'db.chapters.mapping_missing', message: 'Provider mapping not found.' }));
+    return err(
+      createAppError({
+        code: 'db.chapters.mapping_missing',
+        message: 'Provider mapping not found.',
+      }),
+    );
   }
   if (mapping.mangaId !== input.mangaId) {
-    return err(createAppError({ code: 'db.chapters.mapping_wrong_manga', message: 'Provider mapping does not belong to this manga.' }));
+    return err(
+      createAppError({
+        code: 'db.chapters.mapping_wrong_manga',
+        message: 'Provider mapping does not belong to this manga.',
+      }),
+    );
   }
 
   const chapterId = input.chapterId ?? toChapterId(newId());
@@ -54,7 +64,12 @@ export async function upsertChapterWithPages(
   const existing = db
     .select({ id: chapters.id })
     .from(chapters)
-    .where(and(eq(chapters.providerMappingId, input.providerMappingId), eq(chapters.chapterIndex, input.index)))
+    .where(
+      and(
+        eq(chapters.providerMappingId, input.providerMappingId),
+        eq(chapters.chapterIndex, input.index),
+      ),
+    )
     .get();
 
   if (existing === undefined) {
@@ -85,8 +100,7 @@ export async function upsertChapterWithPages(
       .where(eq(chapters.id, existing.id));
   }
 
-  const resolvedId =
-    existing === undefined ? chapterId : toChapterId(existing.id);
+  const resolvedId = existing === undefined ? chapterId : toChapterId(existing.id);
 
   await db.delete(chapterPages).where(eq(chapterPages.chapterId, resolvedId));
   if (input.pages.length > 0) {
@@ -110,7 +124,10 @@ export async function upsertChapterWithPages(
   return ok(resolvedId);
 }
 
-export async function getChapter(db: AppDrizzleDb, chapterId: ChapterId): Promise<Chapter | undefined> {
+export async function getChapter(
+  db: AppDrizzleDb,
+  chapterId: ChapterId,
+): Promise<Chapter | undefined> {
   const row = db.select().from(chapters).where(eq(chapters.id, chapterId)).get();
   if (row === undefined) return undefined;
 
@@ -125,7 +142,9 @@ export async function getChapter(db: AppDrizzleDb, chapterId: ChapterId): Promis
       ...(p.width !== null && p.width !== undefined ? { width: p.width } : {}),
       ...(p.height !== null && p.height !== undefined ? { height: p.height } : {}),
       ...(p.bytes !== null && p.bytes !== undefined ? { bytes: p.bytes } : {}),
-      ...(p.mimeType !== null && p.mimeType !== undefined && p.mimeType !== '' ? { mimeType: p.mimeType } : {}),
+      ...(p.mimeType !== null && p.mimeType !== undefined && p.mimeType !== ''
+        ? { mimeType: p.mimeType }
+        : {}),
     },
     ...(p.loadFailed !== null && p.loadFailed !== undefined ? { loadFailed: p.loadFailed } : {}),
     ...(p.retryCount !== null && p.retryCount !== undefined ? { retryCount: p.retryCount } : {}),
@@ -143,15 +162,23 @@ export async function getChapter(db: AppDrizzleDb, chapterId: ChapterId): Promis
     ...(row.providerId !== null && row.providerId !== undefined && row.providerId !== ''
       ? { providerId: toProviderId(row.providerId) }
       : {}),
-    ...(row.providerChapterId !== null && row.providerChapterId !== undefined && row.providerChapterId !== ''
+    ...(row.providerChapterId !== null &&
+    row.providerChapterId !== undefined &&
+    row.providerChapterId !== ''
       ? { providerChapterId: row.providerChapterId }
       : {}),
-    ...(row.volume !== null && row.volume !== undefined && row.volume !== '' ? { volume: row.volume } : {}),
+    ...(row.volume !== null && row.volume !== undefined && row.volume !== ''
+      ? { volume: row.volume }
+      : {}),
     ...(row.publishedAt !== null && row.publishedAt !== undefined && row.publishedAt !== ''
       ? { publishedAt: row.publishedAt }
       : {}),
-    ...(row.createdAt !== null && row.createdAt !== undefined && row.createdAt !== '' ? { createdAt: row.createdAt } : {}),
-    ...(row.updatedAt !== null && row.updatedAt !== undefined && row.updatedAt !== '' ? { updatedAt: row.updatedAt } : {}),
+    ...(row.createdAt !== null && row.createdAt !== undefined && row.createdAt !== ''
+      ? { createdAt: row.createdAt }
+      : {}),
+    ...(row.updatedAt !== null && row.updatedAt !== undefined && row.updatedAt !== ''
+      ? { updatedAt: row.updatedAt }
+      : {}),
   };
 
   return chapter;

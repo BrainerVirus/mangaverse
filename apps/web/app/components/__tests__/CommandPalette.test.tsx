@@ -122,7 +122,11 @@ describe('CommandPalette', () => {
     const { CommandPalette } = await import('../shell/CommandPalette.js');
 
     await act(async () => {
-      root.render(<ThemeProvider><CommandPalette /></ThemeProvider>);
+      root.render(
+        <ThemeProvider>
+          <CommandPalette />
+        </ThemeProvider>,
+      );
     });
 
     const overlay = container.querySelector('.fixed.inset-0');

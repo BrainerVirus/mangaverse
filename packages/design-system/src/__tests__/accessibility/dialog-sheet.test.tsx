@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../../components/ui/dialog.js';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from '../../components/ui/dialog.js';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '../../components/ui/sheet.js';
 
 describe('Dialog Focus Trap', () => {
@@ -17,7 +22,7 @@ describe('Dialog Focus Trap', () => {
           <button>Button 1</button>
           <button>Button 2</button>
         </DialogContent>
-      </Dialog>
+      </Dialog>,
     );
 
     expect(screen.getByText('Test Dialog')).toBeInTheDocument();
@@ -33,7 +38,7 @@ describe('Dialog Focus Trap', () => {
           <button>Second Button</button>
           <input type="text" />
         </DialogContent>
-      </Dialog>
+      </Dialog>,
     );
 
     expect(screen.getByText('First Button')).toBeInTheDocument();
@@ -48,7 +53,7 @@ describe('Dialog Focus Trap', () => {
           <DialogTitle>Title</DialogTitle>
           <DialogDescription id="desc-id">Description</DialogDescription>
         </DialogContent>
-      </Dialog>
+      </Dialog>,
     );
 
     expect(screen.getByText('Title')).toBeInTheDocument();
@@ -59,7 +64,7 @@ describe('Dialog Focus Trap', () => {
     const { container } = render(
       <Dialog>
         <DialogContent>Content</DialogContent>
-      </Dialog>
+      </Dialog>,
     );
 
     expect(container.querySelector('[class*="fixed"]')).toBeInTheDocument();
@@ -69,7 +74,7 @@ describe('Dialog Focus Trap', () => {
     const { container } = render(
       <Dialog>
         <DialogContent>Dialog Content</DialogContent>
-      </Dialog>
+      </Dialog>,
     );
 
     const content = container.querySelector('[class*="rounded-"]');
@@ -89,7 +94,7 @@ describe('Sheet Focus Trap', () => {
           <SheetTitle>Test Sheet</SheetTitle>
           <SheetDescription>Sheet description</SheetDescription>
         </SheetContent>
-      </Sheet>
+      </Sheet>,
     );
 
     expect(screen.getByText('Test Sheet')).toBeInTheDocument();
@@ -104,7 +109,7 @@ describe('Sheet Focus Trap', () => {
           <button>Action 1</button>
           <button>Action 2</button>
         </SheetContent>
-      </Sheet>
+      </Sheet>,
     );
 
     expect(screen.getByText('Action 1')).toBeInTheDocument();
@@ -117,7 +122,7 @@ describe('Sheet Focus Trap', () => {
         <SheetContent>
           <SheetTitle>Position Test</SheetTitle>
         </SheetContent>
-      </Sheet>
+      </Sheet>,
     );
 
     const content = document.body.querySelector('[class*="right-0"]');
@@ -130,7 +135,7 @@ describe('Sheet Focus Trap', () => {
         <SheetContent>
           <SheetTitle>Sheet</SheetTitle>
         </SheetContent>
-      </Sheet>
+      </Sheet>,
     );
 
     expect(screen.getByText('Sheet')).toBeInTheDocument();
@@ -142,7 +147,7 @@ describe('Sheet Focus Trap', () => {
         <SheetContent>
           <SheetTitle>Full Height Test</SheetTitle>
         </SheetContent>
-      </Sheet>
+      </Sheet>,
     );
 
     const content = document.body.querySelector('[class*="h-full"]');
@@ -155,7 +160,7 @@ describe('Sheet Focus Trap', () => {
         <SheetContent>
           <SheetTitle>Shadow Test</SheetTitle>
         </SheetContent>
-      </Sheet>
+      </Sheet>,
     );
 
     const content = document.body.querySelector('[class*="shadow"]');

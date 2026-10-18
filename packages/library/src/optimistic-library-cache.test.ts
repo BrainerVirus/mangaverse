@@ -61,7 +61,9 @@ describe('optimistic-library-cache', () => {
     expect(updatedPage?.items).toHaveLength(1);
     expect(updatedPage?.items[0]?.entry.status).toBe('planned');
 
-    const updatedDetail = queryClient.getQueryData<MangaDetailData>(libraryQueryKeys.detail(mangaId));
+    const updatedDetail = queryClient.getQueryData<MangaDetailData>(
+      libraryQueryKeys.detail(mangaId),
+    );
     expect(updatedDetail?.libraryEntry?.mangaId).toBe(mangaId);
   });
 

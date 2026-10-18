@@ -2,7 +2,12 @@ import type { ProviderManifest } from '@app/shared';
 import { toProviderMangaId } from '@app/shared';
 
 import { getRequiredMethodsForCapabilities } from './capabilities.js';
-import type { ProviderContext, ProviderContract, ProviderMethodName, ProviderSearchInput } from './contract-types.js';
+import type {
+  ProviderContext,
+  ProviderContract,
+  ProviderMethodName,
+  ProviderSearchInput,
+} from './contract-types.js';
 import { providerMethodGuard, validateProviderContract } from './validate-contract.js';
 
 export interface ProviderContractTestResult {

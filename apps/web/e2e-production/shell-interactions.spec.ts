@@ -4,7 +4,10 @@ import { test } from './helpers.js';
 
 test.describe.configure({ timeout: 90_000 });
 
-test('Given the shell, When a navigation command runs from the palette, Then the app navigates', async ({ page, quickOnboarding }) => {
+test('Given the shell, When a navigation command runs from the palette, Then the app navigates', async ({
+  page,
+  quickOnboarding,
+}) => {
   await expect(page).toHaveURL(/\/library/);
 
   await page.keyboard.press('ControlOrMeta+k');
@@ -19,7 +22,10 @@ test('Given the shell, When a navigation command runs from the palette, Then the
   await expect(palette).toBeHidden();
 });
 
-test('Given the palette is open, When Escape is pressed, Then it closes without navigating', async ({ page, quickOnboarding }) => {
+test('Given the palette is open, When Escape is pressed, Then it closes without navigating', async ({
+  page,
+  quickOnboarding,
+}) => {
   await expect(page).toHaveURL(/\/library/);
 
   await page.keyboard.press('ControlOrMeta+k');

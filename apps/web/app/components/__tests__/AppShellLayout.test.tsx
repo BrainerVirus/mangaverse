@@ -9,7 +9,7 @@ Object.defineProperty(globalThis, 'localStorage', {
 });
 
 vi.mock('@tanstack/react-router', async (importOriginal) => {
-  const actual = await importOriginal() as Record<string, unknown>;
+  const actual = (await importOriginal()) as Record<string, unknown>;
   return {
     ...actual,
     useLocation: () => ({ pathname: '/library' }),
@@ -17,7 +17,9 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
     useRouter: () => ({ navigate: vi.fn(), subscribe: () => () => {} }),
     useNavigate: () => vi.fn(),
     Link: ({ children, to, ...props }: { to: string; children: React.ReactNode }) => (
-      <a href={to} {...props}>{children}</a>
+      <a href={to} {...props}>
+        {children}
+      </a>
     ),
   };
 });
@@ -32,7 +34,7 @@ vi.mock('@gsap/react', () => ({
 }));
 
 vi.mock('@app/design-system', async (importOriginal) => {
-  const actual = await importOriginal() as Record<string, unknown>;
+  const actual = (await importOriginal()) as Record<string, unknown>;
   return {
     ...actual,
     Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -69,7 +71,7 @@ describe('AppShellLayout', () => {
     const html = renderWithProviders(
       <AppShellLayout>
         <main>Content</main>
-      </AppShellLayout>
+      </AppShellLayout>,
     );
     expect(html).toContain('Content');
   });
@@ -80,7 +82,7 @@ describe('AppShellLayout', () => {
     const html = renderWithProviders(
       <AppShellLayout>
         <main>Content</main>
-      </AppShellLayout>
+      </AppShellLayout>,
     );
     expect(html).toContain('Content');
     expect(html).toContain('href="/library"');
@@ -92,7 +94,7 @@ describe('AppShellLayout', () => {
     const html = renderWithProviders(
       <AppShellLayout>
         <main>Content</main>
-      </AppShellLayout>
+      </AppShellLayout>,
     );
     expect(html).toContain('Content');
   });

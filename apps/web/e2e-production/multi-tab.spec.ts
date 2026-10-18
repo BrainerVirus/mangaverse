@@ -10,7 +10,11 @@ async function explicitContentSwitch(page: Page) {
   return switchControl;
 }
 
-test('Given two tabs, When one commits a setting, Then the other converges after focus without a reload', async ({ page, context, durableOnboarding }) => {
+test('Given two tabs, When one commits a setting, Then the other converges after focus without a reload', async ({
+  page,
+  context,
+  durableOnboarding,
+}) => {
   const tabA = page;
   await tabA.goto('/settings/app');
   const switchA = await explicitContentSwitch(tabA);
@@ -38,7 +42,11 @@ test('Given two tabs, When one commits a setting, Then the other converges after
   await expect(convergedB).toHaveAttribute('aria-checked', 'true', { timeout: 20_000 });
 });
 
-test('Given two tabs that each commit a change, When both reload, Then both changes survive', async ({ page, context, durableOnboarding }) => {
+test('Given two tabs that each commit a change, When both reload, Then both changes survive', async ({
+  page,
+  context,
+  durableOnboarding,
+}) => {
   const tabA = page;
 
   const tabB = await context.newPage();

@@ -155,32 +155,76 @@ function isValidCapabilityMap(v: unknown): v is ProviderCapabilityMap {
   return Object.keys(v).length > 0;
 }
 
-function validateCapabilityDetails(input: unknown): AppResult<readonly ProviderCapabilityDetail[] | undefined> {
+function validateCapabilityDetails(
+  input: unknown,
+): AppResult<readonly ProviderCapabilityDetail[] | undefined> {
   if (input === undefined) return ok(undefined);
   if (!Array.isArray(input)) {
-    return err(createAppError({ code: 'provider.manifest.invalid', message: 'Manifest capabilityDetails must be an array.' }));
+    return err(
+      createAppError({
+        code: 'provider.manifest.invalid',
+        message: 'Manifest capabilityDetails must be an array.',
+      }),
+    );
   }
 
   const details: ProviderCapabilityDetail[] = [];
   for (const item of input) {
     if (!isPlainObject(item)) {
-      return err(createAppError({ code: 'provider.manifest.invalid', message: 'Each capability detail must be an object.' }));
+      return err(
+        createAppError({
+          code: 'provider.manifest.invalid',
+          message: 'Each capability detail must be an object.',
+        }),
+      );
     }
     const key = item['key'];
     if (typeof key !== 'string' || !CAPABILITY_KEYS.includes(key as ProviderCapabilityKey)) {
-      return err(createAppError({ code: 'provider.manifest.invalid', message: 'Capability detail key is invalid.' }));
+      return err(
+        createAppError({
+          code: 'provider.manifest.invalid',
+          message: 'Capability detail key is invalid.',
+        }),
+      );
     }
     if (typeof item['supported'] !== 'boolean') {
-      return err(createAppError({ code: 'provider.manifest.invalid', message: 'Capability detail supported must be boolean.' }));
+      return err(
+        createAppError({
+          code: 'provider.manifest.invalid',
+          message: 'Capability detail supported must be boolean.',
+        }),
+      );
     }
-    if (item['rateLimitRpm'] !== undefined && (typeof item['rateLimitRpm'] !== 'number' || item['rateLimitRpm'] < 0)) {
-      return err(createAppError({ code: 'provider.manifest.invalid', message: 'Capability detail rateLimitRpm must be non-negative.' }));
+    if (
+      item['rateLimitRpm'] !== undefined &&
+      (typeof item['rateLimitRpm'] !== 'number' || item['rateLimitRpm'] < 0)
+    ) {
+      return err(
+        createAppError({
+          code: 'provider.manifest.invalid',
+          message: 'Capability detail rateLimitRpm must be non-negative.',
+        }),
+      );
     }
     if (item['requiresAuth'] !== undefined && typeof item['requiresAuth'] !== 'boolean') {
-      return err(createAppError({ code: 'provider.manifest.invalid', message: 'Capability detail requiresAuth must be boolean.' }));
+      return err(
+        createAppError({
+          code: 'provider.manifest.invalid',
+          message: 'Capability detail requiresAuth must be boolean.',
+        }),
+      );
     }
-    if (item['knownRestrictions'] !== undefined && (!Array.isArray(item['knownRestrictions']) || !item['knownRestrictions'].every(isNonEmptyString))) {
-      return err(createAppError({ code: 'provider.manifest.invalid', message: 'Capability detail knownRestrictions must be non-empty strings.' }));
+    if (
+      item['knownRestrictions'] !== undefined &&
+      (!Array.isArray(item['knownRestrictions']) ||
+        !item['knownRestrictions'].every(isNonEmptyString))
+    ) {
+      return err(
+        createAppError({
+          code: 'provider.manifest.invalid',
+          message: 'Capability detail knownRestrictions must be non-empty strings.',
+        }),
+      );
     }
 
     details.push({
@@ -188,7 +232,9 @@ function validateCapabilityDetails(input: unknown): AppResult<readonly ProviderC
       supported: item['supported'],
       ...(typeof item['rateLimitRpm'] === 'number' ? { rateLimitRpm: item['rateLimitRpm'] } : {}),
       ...(typeof item['requiresAuth'] === 'boolean' ? { requiresAuth: item['requiresAuth'] } : {}),
-      ...(Array.isArray(item['knownRestrictions']) ? { knownRestrictions: item['knownRestrictions'] as string[] } : {}),
+      ...(Array.isArray(item['knownRestrictions'])
+        ? { knownRestrictions: item['knownRestrictions'] as string[] }
+        : {}),
     });
   }
 
@@ -197,7 +243,9 @@ function validateCapabilityDetails(input: unknown): AppResult<readonly ProviderC
 
 export function validateProviderManifest(input: unknown): AppResult<ProviderManifest> {
   if (!isPlainObject(input)) {
-    return err(createAppError({ code: 'provider.manifest.invalid', message: 'Manifest must be an object.' }));
+    return err(
+      createAppError({ code: 'provider.manifest.invalid', message: 'Manifest must be an object.' }),
+    );
   }
 
   if (!isNonEmptyString(input['id'])) {
@@ -214,7 +262,10 @@ export function validateProviderManifest(input: unknown): AppResult<ProviderMani
 
   if (!isNonEmptyString(input['version'])) {
     return err(
-      createAppError({ code: 'provider.manifest.invalid', message: 'Manifest version is required.' }),
+      createAppError({
+        code: 'provider.manifest.invalid',
+        message: 'Manifest version is required.',
+      }),
     );
   }
 
@@ -321,7 +372,11 @@ export function validateProviderManifest(input: unknown): AppResult<ProviderMani
   }
 
   const languages = input['languages'];
-  if (!Array.isArray(languages) || languages.length === 0 || !languages.every((l) => isNonEmptyString(l))) {
+  if (
+    !Array.isArray(languages) ||
+    languages.length === 0 ||
+    !languages.every((l) => isNonEmptyString(l))
+  ) {
     return err(
       createAppError({
         code: 'provider.manifest.invalid',
@@ -364,9 +419,7 @@ export function validateProviderManifest(input: unknown): AppResult<ProviderMani
       ...(isNonEmptyString(source['manifestUrl'])
         ? { manifestUrl: String(source['manifestUrl']) }
         : {}),
-      ...(isNonEmptyString(source['publisher'])
-        ? { publisher: String(source['publisher']) }
-        : {}),
+      ...(isNonEmptyString(source['publisher']) ? { publisher: String(source['publisher']) } : {}),
     },
     compatibility: {
       ...(isNonEmptyString(compatibility['minAppVersion'])
@@ -378,7 +431,9 @@ export function validateProviderManifest(input: unknown): AppResult<ProviderMani
       platforms: platforms as ProviderManifest['compatibility']['platforms'],
     },
     capabilities,
-    ...(capabilityDetailsResult.value !== undefined ? { capabilityDetails: capabilityDetailsResult.value } : {}),
+    ...(capabilityDetailsResult.value !== undefined
+      ? { capabilityDetails: capabilityDetailsResult.value }
+      : {}),
     permissions: permissions as readonly ProviderPermission[],
     languages: languages as readonly string[],
     contentFlags: {

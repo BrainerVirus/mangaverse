@@ -63,7 +63,6 @@ describe('persistReaderProgress', () => {
     expect(libraryEntry?.progressPercent).toBe(100);
   });
 
-
   it('does not roll progress back when an older event arrives late', async () => {
     const { db } = await createSqlJsHarness();
 
@@ -120,7 +119,10 @@ describe('persistReaderProgress', () => {
     const readState = await getChapterReadState(db, chapterId);
     expect(readState?.progress.lastPageIndex).toBe(1);
   });
-  async function seedChapter(db: Awaited<ReturnType<typeof createSqlJsHarness>>['db'], suffix: string) {
+  async function seedChapter(
+    db: Awaited<ReturnType<typeof createSqlJsHarness>>['db'],
+    suffix: string,
+  ) {
     const created = await createMangaIdentityWithInitialMapping(db, {
       canonicalTitle: `Progress ${suffix}`,
       status: 'ongoing',
@@ -139,13 +141,22 @@ describe('persistReaderProgress', () => {
       providerMappingId: mappingId,
       title: 'Chapter 1',
       index: 1,
-      pages: [{ id: toChapterPageId(`page-${suffix}`), index: 0, image: { url: 'https://example.com/1.jpg' } }],
+      pages: [
+        {
+          id: toChapterPageId(`page-${suffix}`),
+          index: 0,
+          image: { url: 'https://example.com/1.jpg' },
+        },
+      ],
     });
     return { mangaId, chapterId };
   }
 
   /** One manga with two chapters: a "continue reading" target and an older one. */
-  async function seedTwoChapters(db: Awaited<ReturnType<typeof createSqlJsHarness>>['db'], suffix: string) {
+  async function seedTwoChapters(
+    db: Awaited<ReturnType<typeof createSqlJsHarness>>['db'],
+    suffix: string,
+  ) {
     const created = await createMangaIdentityWithInitialMapping(db, {
       canonicalTitle: `Progress ${suffix}`,
       status: 'ongoing',
@@ -164,7 +175,13 @@ describe('persistReaderProgress', () => {
         providerMappingId: mappingId,
         title: `Chapter ${index}`,
         index,
-        pages: [{ id: toChapterPageId(`page-${suffix}-${index}`), index: 0, image: { url: 'https://example.com/1.jpg' } }],
+        pages: [
+          {
+            id: toChapterPageId(`page-${suffix}-${index}`),
+            index: 0,
+            image: { url: 'https://example.com/1.jpg' },
+          },
+        ],
       });
     };
     const olderChapterId = toChapterId(`chapter-${suffix}-1`);
@@ -235,7 +252,10 @@ describe('persistReaderProgress', () => {
 
   it('Given a stale event for another chapter, When the library still points elsewhere, Then resume metadata stays put', async () => {
     const { db } = await createSqlJsHarness();
-    const { mangaId, olderChapterId, newerChapterId } = await seedTwoChapters(db, 'cross-chapter-pin');
+    const { mangaId, olderChapterId, newerChapterId } = await seedTwoChapters(
+      db,
+      'cross-chapter-pin',
+    );
 
     await persistReaderProgress(db, {
       chapterId: newerChapterId,
@@ -460,7 +480,8 @@ describe('persistReaderProgress', () => {
     );
     expect(storedLibrary[0]?.values[0]).toEqual([chapterId, 20]);
     storedDb.close();
-  });});
+  });
+});
 
 /** Two sessions over one store: the snapshot CAS sees them as two tabs. */
 async function openTwoSessions(
@@ -468,8 +489,16 @@ async function openTwoSessions(
   harness: Awaited<ReturnType<typeof createSqlJsHarness>>,
 ): Promise<{ sessionA: PersistentDatabase; sessionB: PersistentDatabase }> {
   const migrations = { journal: { version: '0', dialect: 'sqlite', entries: [] }, files: [] };
-  const sessionA = await openPersistentDatabase({ store, sqlModule: harness.sqlModule, migrations });
-  const sessionB = await openPersistentDatabase({ store, sqlModule: harness.sqlModule, migrations });
+  const sessionA = await openPersistentDatabase({
+    store,
+    sqlModule: harness.sqlModule,
+    migrations,
+  });
+  const sessionB = await openPersistentDatabase({
+    store,
+    sqlModule: harness.sqlModule,
+    migrations,
+  });
   return { sessionA, sessionB };
 }
 async function seedPersistentManga(db: Awaited<ReturnType<typeof createSqlJsHarness>>['db']) {
@@ -491,7 +520,13 @@ async function seedPersistentManga(db: Awaited<ReturnType<typeof createSqlJsHarn
     providerMappingId: mappingId,
     title: 'Chapter 1',
     index: 1,
-    pages: [{ id: toChapterPageId('page-two-tab'), index: 0, image: { url: 'https://example.com/1.jpg' } }],
+    pages: [
+      {
+        id: toChapterPageId('page-two-tab'),
+        index: 0,
+        image: { url: 'https://example.com/1.jpg' },
+      },
+    ],
   });
   await addLibraryEntry(db, { mangaId, status: 'reading' });
   return { mangaId, chapterId };

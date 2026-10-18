@@ -6,11 +6,7 @@ import {
 } from '@app/db';
 import { createSqlJsHarness } from '@app/db/testing';
 import { toProviderId } from '@app/shared';
-import {
-  addMangaToLibrary,
-  removeMangaFromLibrary,
-  setMangaFavorite,
-} from './library-actions.js';
+import { addMangaToLibrary, removeMangaFromLibrary, setMangaFavorite } from './library-actions.js';
 
 describe('library-actions', () => {
   it('adds a manga to the library', async () => {

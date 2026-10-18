@@ -1,9 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { toChapterId, toChapterPageId, toMangaId } from '@app/shared';
-import {
-  calculateWebtoonWindow,
-  estimateWebtoonLayout,
-} from './webtoon';
+import { calculateWebtoonWindow, estimateWebtoonLayout } from './webtoon';
 import type { ReaderChapter, ReaderEngineSettings, ReaderPage, ReaderSessionInput } from './types';
 
 const mockPages: ReaderPage[] = Array.from({ length: 100 }, (_, i) => ({

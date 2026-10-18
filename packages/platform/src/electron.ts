@@ -1,10 +1,6 @@
 import { err, ok, type AppResult } from '@app/shared';
 import { platformInvalidUrl, platformUnexpected, platformUnsupported } from './errors.js';
-import {
-  deleteIndexedDbBlob,
-  getIndexedDbBlob,
-  putIndexedDbBlob,
-} from './blob-storage-idb.js';
+import { deleteIndexedDbBlob, getIndexedDbBlob, putIndexedDbBlob } from './blob-storage-idb.js';
 import { isValidSecureStorageKey } from './secure-storage-key.js';
 import type {
   DesktopPlatformBridge,
@@ -32,7 +28,8 @@ export function createElectronPlatformAdapter(bridge: DesktopPlatformBridge): Pl
     },
 
     files: {
-      openTextFile: (options: PlatformFileOpenOptions) => asResult(() => bridge.fileOpenText(options)),
+      openTextFile: (options: PlatformFileOpenOptions) =>
+        asResult(() => bridge.fileOpenText(options)),
       saveTextFile: (options) => asResult(() => bridge.fileSaveText(options)),
     },
 
@@ -57,7 +54,8 @@ export function createElectronPlatformAdapter(bridge: DesktopPlatformBridge): Pl
     },
 
     installPrompt: {
-      getState: async (): Promise<AppResult<PlatformInstallPromptState>> => ok({ kind: 'unsupported' }),
+      getState: async (): Promise<AppResult<PlatformInstallPromptState>> =>
+        ok({ kind: 'unsupported' }),
       prompt: async () => err(platformUnsupported('Install prompt is not used on desktop.')),
     },
 
@@ -91,11 +89,16 @@ export function createElectronPlatformAdapter(bridge: DesktopPlatformBridge): Pl
     },
 
     storage: {
-      getItem: async () => err(platformUnsupported('General storage is not yet available on desktop.')),
-      setItem: async () => err(platformUnsupported('General storage is not yet available on desktop.')),
-      deleteItem: async () => err(platformUnsupported('General storage is not yet available on desktop.')),
-      estimate: async () => err(platformUnsupported('General storage is not yet available on desktop.')),
-      persist: async () => err(platformUnsupported('General storage is not yet available on desktop.')),
+      getItem: async () =>
+        err(platformUnsupported('General storage is not yet available on desktop.')),
+      setItem: async () =>
+        err(platformUnsupported('General storage is not yet available on desktop.')),
+      deleteItem: async () =>
+        err(platformUnsupported('General storage is not yet available on desktop.')),
+      estimate: async () =>
+        err(platformUnsupported('General storage is not yet available on desktop.')),
+      persist: async () =>
+        err(platformUnsupported('General storage is not yet available on desktop.')),
     },
 
     blobStorage: {

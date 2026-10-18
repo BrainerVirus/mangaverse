@@ -4,7 +4,9 @@ import { toExtensionInstallId, toProviderId } from '@app/shared';
 
 import type { InstalledProviderSummary } from './types.js';
 
-export function summarizeInstalledProvider(provider: ExtensionInstallMetadata): InstalledProviderSummary {
+export function summarizeInstalledProvider(
+  provider: ExtensionInstallMetadata,
+): InstalledProviderSummary {
   const enabledCapabilities = Object.values(provider.manifest.capabilities).filter(Boolean).length;
   return {
     id: provider.id,
@@ -18,7 +20,9 @@ export function summarizeInstalledProvider(provider: ExtensionInstallMetadata): 
   };
 }
 
-export async function fetchExtensionsPage(db: AppDrizzleDb): Promise<{ providers: InstalledProviderSummary[] }> {
+export async function fetchExtensionsPage(
+  db: AppDrizzleDb,
+): Promise<{ providers: InstalledProviderSummary[] }> {
   const { listInstalledProviders } = await import('@app/extensions-core');
   const result = await listInstalledProviders(db);
   if (!result.ok) {
@@ -48,7 +52,9 @@ export const demoProviderManifest: ProviderManifest = {
   contentFlags: { nsfw: false, suggestive: false, violence: false },
 };
 
-export function demoInstallMetadata(overrides?: Partial<ExtensionInstallMetadata>): ExtensionInstallMetadata {
+export function demoInstallMetadata(
+  overrides?: Partial<ExtensionInstallMetadata>,
+): ExtensionInstallMetadata {
   const now = new Date().toISOString();
   return {
     id: toExtensionInstallId(String(demoProviderManifest.id)),

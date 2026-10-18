@@ -1,7 +1,11 @@
 import type { AppDrizzleDb } from '@app/db/browser';
 import { listInstalledExtensions, upsertInstalledExtension } from '@app/db/browser';
 import { MANGADEX_MANIFEST } from '@app/extensions-mangadex';
-import { toExtensionInstallId, type ExtensionInstallMetadata, type ProviderManifest } from '@app/shared';
+import {
+  toExtensionInstallId,
+  type ExtensionInstallMetadata,
+  type ProviderManifest,
+} from '@app/shared';
 
 const FIRST_PARTY_MANIFESTS: readonly ProviderManifest[] = [MANGADEX_MANIFEST];
 

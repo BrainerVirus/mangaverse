@@ -30,10 +30,17 @@ export async function upsertChapterReadState(
     .where(eq(chapters.id, input.chapterId))
     .get();
   if (chapter === undefined) {
-    return err(createAppError({ code: 'db.read_state.chapter_missing', message: 'Chapter does not exist.' }));
+    return err(
+      createAppError({ code: 'db.read_state.chapter_missing', message: 'Chapter does not exist.' }),
+    );
   }
   if (chapter.mangaId !== input.mangaId) {
-    return err(createAppError({ code: 'db.read_state.manga_chapter_mismatch', message: 'Chapter does not belong to the given manga.' }));
+    return err(
+      createAppError({
+        code: 'db.read_state.manga_chapter_mismatch',
+        message: 'Chapter does not belong to the given manga.',
+      }),
+    );
   }
 
   const now = new Date().toISOString();
@@ -69,7 +76,11 @@ export async function getChapterReadState(
   db: AppDrizzleDb,
   chapterId: ChapterId,
 ): Promise<ChapterReadState | undefined> {
-  const row = db.select().from(chapterReadState).where(eq(chapterReadState.chapterId, chapterId)).get();
+  const row = db
+    .select()
+    .from(chapterReadState)
+    .where(eq(chapterReadState.chapterId, chapterId))
+    .get();
   if (row === undefined) return undefined;
 
   const progress: ReadingProgress = {
@@ -88,7 +99,9 @@ export async function getChapterReadState(
     chapterId: toChapterId(row.chapterId),
     mangaId: toMangaId(row.mangaId),
     progress,
-    ...(row.providerMappingId !== null && row.providerMappingId !== undefined && row.providerMappingId !== ''
+    ...(row.providerMappingId !== null &&
+    row.providerMappingId !== undefined &&
+    row.providerMappingId !== ''
       ? { providerMappingId: toProviderMappingId(row.providerMappingId) }
       : {}),
   };
@@ -96,7 +109,11 @@ export async function getChapterReadState(
 
 export async function appendReadingHistory(
   db: AppDrizzleDb,
-  input: { readonly mangaId: MangaId; readonly chapterId: ChapterId; readonly providerMappingId?: ProviderMappingId },
+  input: {
+    readonly mangaId: MangaId;
+    readonly chapterId: ChapterId;
+    readonly providerMappingId?: ProviderMappingId;
+  },
 ): Promise<void> {
   const id = newId();
   const readAt = new Date().toISOString();
@@ -112,7 +129,9 @@ export async function appendReadingHistory(
 export async function listRecentReadingHistory(
   db: AppDrizzleDb,
   limit: number,
-): Promise<{ readonly mangaId: MangaId; readonly chapterId: ChapterId; readonly readAt: string }[]> {
+): Promise<
+  { readonly mangaId: MangaId; readonly chapterId: ChapterId; readonly readAt: string }[]
+> {
   const rows = db
     .select()
     .from(readingHistory)

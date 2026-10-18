@@ -1,10 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  fetchMangaDetail,
-  libraryQueryKeys,
-  MangaDetailPage,
-} from '@app/library';
+import { fetchMangaDetail, libraryQueryKeys, MangaDetailPage } from '@app/library';
 import type { AppDrizzleDb } from '@app/db/browser';
 import { toMangaId, type MangaId } from '@app/shared';
 import {
@@ -51,8 +47,12 @@ function MangaDetailRoute() {
   });
 
   const addMutation = useMutation(createAddToLibraryMutationOptions(db, queryClient, mangaId));
-  const removeMutation = useMutation(createRemoveFromLibraryMutationOptions(db, queryClient, mangaId));
-  const favoriteMutation = useMutation(createToggleFavoriteMutationOptions(db, queryClient, mangaId));
+  const removeMutation = useMutation(
+    createRemoveFromLibraryMutationOptions(db, queryClient, mangaId),
+  );
+  const favoriteMutation = useMutation(
+    createToggleFavoriteMutationOptions(db, queryClient, mangaId),
+  );
   const isLibraryActionPending =
     addMutation.isPending || removeMutation.isPending || favoriteMutation.isPending;
 
@@ -68,9 +68,7 @@ function MangaDetailRoute() {
       }
       onAddToLibrary={() => addMutation.mutate()}
       onRemoveFromLibrary={() => removeMutation.mutate()}
-      onToggleFavorite={() =>
-        favoriteMutation.mutate(!(data?.libraryEntry?.favorite ?? false))
-      }
+      onToggleFavorite={() => favoriteMutation.mutate(!(data?.libraryEntry?.favorite ?? false))}
       isLibraryActionPending={isLibraryActionPending}
     />
   );

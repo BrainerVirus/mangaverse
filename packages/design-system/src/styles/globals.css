@@ -1,5 +1,5 @@
-@import 'tailwindcss';
-@import 'tw-animate-css';
+@import "tailwindcss";
+@import "tw-animate-css";
 
 /* Monorepo: Tailwind must scan app + feature package templates, not only this file tree. */
 @source '../../../../apps/web/app/**/*.{ts,tsx}';
@@ -39,9 +39,9 @@
   --radius-control: 0.4375rem;
   --radius-btn: 0.5rem;
   --radius-badge: 9999px;
-  --font-family-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --font-family-mono: 'JetBrains Mono', ui-monospace, monospace;
-  --font-family-display: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-family-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-family-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-family-display: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
 :root,
@@ -110,7 +110,9 @@
 }
 
 @layer base {
-  *, ::before, ::after {
+  *,
+  ::before,
+  ::after {
     border-width: 0;
     border-style: solid;
     border-color: var(--border);
@@ -122,7 +124,7 @@
 
   html {
     -webkit-text-size-adjust: 100%;
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
   body {
@@ -134,16 +136,29 @@
     letter-spacing: -0.011em;
   }
 
-  img, picture, video, canvas, svg {
+  img,
+  picture,
+  video,
+  canvas,
+  svg {
     display: block;
     max-width: 100%;
   }
 
-  input, button, textarea, select {
+  input,
+  button,
+  textarea,
+  select {
     font: inherit;
   }
 
-  p, h1, h2, h3, h4, h5, h6 {
+  p,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     overflow-wrap: break-word;
   }
 
@@ -166,7 +181,9 @@
   }
 
   .dark .surface-panel {
-    box-shadow: 0 1px 2px rgb(0 0 0 / 0.35), inset 0 1px 0 rgb(255 255 255 / 0.03);
+    box-shadow:
+      0 1px 2px rgb(0 0 0 / 0.35),
+      inset 0 1px 0 rgb(255 255 255 / 0.03);
   }
 
   .bg-sidebar {

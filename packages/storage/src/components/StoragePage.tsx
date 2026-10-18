@@ -109,7 +109,8 @@ export function StoragePage({
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Storage</h1>
         <p className="text-sm text-muted-foreground">
-          Review local storage usage and clear safe cache data without touching your library or reading progress.
+          Review local storage usage and clear safe cache data without touching your library or
+          reading progress.
         </p>
       </header>
 
@@ -197,7 +198,9 @@ export function StoragePage({
             ))}
           </ul>
         ) : (
-          <p className="mt-4 text-sm text-muted-foreground">No provider cache metadata stored yet.</p>
+          <p className="mt-4 text-sm text-muted-foreground">
+            No provider cache metadata stored yet.
+          </p>
         )}
 
         <div className="mt-4">

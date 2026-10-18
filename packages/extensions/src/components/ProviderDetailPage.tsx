@@ -174,10 +174,16 @@ export function ProviderDetailPage({
         </div>
       </SettingsSection>
 
-      <SettingsSection title="Permissions" description="Network and storage access requested by the provider.">
+      <SettingsSection
+        title="Permissions"
+        description="Network and storage access requested by the provider."
+      >
         <ul className="flex flex-col gap-3">
           {permissions.map((row) => (
-            <li key={row.key} className="rounded-[var(--radius-control)] border border-[var(--border)] p-3">
+            <li
+              key={row.key}
+              className="rounded-[var(--radius-control)] border border-[var(--border)] p-3"
+            >
               <p className="font-medium">{row.label}</p>
               <p className="text-sm text-muted-foreground">{row.description}</p>
             </li>
@@ -185,12 +191,19 @@ export function ProviderDetailPage({
         </ul>
       </SettingsSection>
 
-      <SettingsSection title="Content flags" description="Mature content support declared in the manifest.">
+      <SettingsSection
+        title="Content flags"
+        description="Mature content support declared in the manifest."
+      >
         <dl className="grid gap-3 sm:grid-cols-3">
           <div className="flex items-center justify-between gap-3 rounded-[var(--radius-control)] border border-[var(--border)] p-3">
             <dt>NSFW</dt>
             <dd>
-              <Switch checked={provider.manifest.contentFlags.nsfw} disabled aria-label="NSFW content flag" />
+              <Switch
+                checked={provider.manifest.contentFlags.nsfw}
+                disabled
+                aria-label="NSFW content flag"
+              />
             </dd>
           </div>
           <div className="flex items-center justify-between gap-3 rounded-[var(--radius-control)] border border-[var(--border)] p-3">

@@ -30,10 +30,12 @@ export function CachedCoverImage({
   // render: the effect below may only touch state from its async continuation
   // (react/set-state-in-effect), and `src` is kept so the previous image stays
   // on screen until the new one resolves.
-  const [resetKey, setResetKey] = useState<{ readonly context: unknown; readonly request: string }>({
-    context,
-    request: requestKey,
-  });
+  const [resetKey, setResetKey] = useState<{ readonly context: unknown; readonly request: string }>(
+    {
+      context,
+      request: requestKey,
+    },
+  );
   if (resetKey.context !== context || resetKey.request !== requestKey) {
     setResetKey({ context, request: requestKey });
     setFailed(false);
@@ -87,7 +89,11 @@ export function CachedCoverImage({
   if (context === null || failed || src === undefined) {
     return (
       <div
-        className={cn('bg-muted', context === null || failed ? 'animate-none' : 'animate-pulse', className)}
+        className={cn(
+          'bg-muted',
+          context === null || failed ? 'animate-none' : 'animate-pulse',
+          className,
+        )}
         aria-hidden
       />
     );

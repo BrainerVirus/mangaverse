@@ -1,11 +1,5 @@
 import { useRef } from 'react';
-import {
-  Button,
-  EmptyState,
-  ErrorState,
-  LoadingState,
-  PageHeader,
-} from '@app/design-system';
+import { Button, EmptyState, ErrorState, LoadingState, PageHeader } from '@app/design-system';
 import { CachedMangaCard } from '@app/cache';
 import type { MangaId, MangaIdentity } from '@app/shared';
 import { useInfiniteScrollSentinel } from '../hooks/use-infinite-scroll-sentinel.js';
@@ -127,9 +121,7 @@ function DiscoverExpandedSectionView({
         <LoadingState type="grid" count={12} />
       ) : null}
 
-      {!state.isLoading && state.results.length === 0 ? (
-        <EmptyState type="no-results" />
-      ) : null}
+      {!state.isLoading && state.results.length === 0 ? <EmptyState type="no-results" /> : null}
 
       {state.results.length > 0 ? (
         <>
@@ -168,7 +160,8 @@ export function DiscoverPage({
 
   const totalTitles = providers.reduce(
     (count, provider) =>
-      count + provider.sections.reduce((sectionCount, section) => sectionCount + section.results.length, 0),
+      count +
+      provider.sections.reduce((sectionCount, section) => sectionCount + section.results.length, 0),
     0,
   );
 

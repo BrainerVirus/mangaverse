@@ -137,7 +137,11 @@ function SettingSelectRow({
     <div className="grid gap-2">
       <Label htmlFor={id}>{label}</Label>
       {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
-      <Select value={value} onValueChange={onChange} {...(disabled !== undefined ? { disabled } : {})}>
+      <Select
+        value={value}
+        onValueChange={onChange}
+        {...(disabled !== undefined ? { disabled } : {})}
+      >
         <SelectTrigger id={id} aria-label={label}>
           <SelectValue />
         </SelectTrigger>
@@ -327,7 +331,9 @@ export function ReaderSettingsPage({
             value={settings.pageTransition}
             disabled={isSaving}
             options={PAGE_TRANSITION_OPTIONS}
-            onChange={(pageTransition) => update({ pageTransition: pageTransition as PageTransitionMode })}
+            onChange={(pageTransition) =>
+              update({ pageTransition: pageTransition as PageTransitionMode })
+            }
           />
           <div className="grid gap-2">
             <Label htmlFor="background-color">Background color</Label>

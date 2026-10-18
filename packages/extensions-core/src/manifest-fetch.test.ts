@@ -16,14 +16,20 @@ const validJson = {
 
 describe('fetchManifestFromUrl', () => {
   it('rejects javascript content-type', async () => {
-    const fetch = vi.fn(async () => new Response('{}', { status: 200, headers: { 'content-type': 'application/javascript' } }));
+    const fetch = vi.fn(
+      async () =>
+        new Response('{}', { status: 200, headers: { 'content-type': 'application/javascript' } }),
+    );
     const r = await fetchManifestFromUrl('https://example.com/m.json', { fetch });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error.code).toBe('extensions.core.fetch.code_response');
   });
 
   it('rejects ecmascript content-type', async () => {
-    const fetch = vi.fn(async () => new Response('{}', { status: 200, headers: { 'content-type': 'text/ecmascript' } }));
+    const fetch = vi.fn(
+      async () =>
+        new Response('{}', { status: 200, headers: { 'content-type': 'text/ecmascript' } }),
+    );
     const r = await fetchManifestFromUrl('https://example.com/m.json', { fetch });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error.code).toBe('extensions.core.fetch.code_response');
@@ -54,7 +60,10 @@ describe('fetchManifestFromUrl', () => {
   it('rejects oversized body exceeding custom maxManifestBytes', async () => {
     const body = 'x'.repeat(101);
     const fetch = vi.fn(async () => new Response(body, { status: 200 }));
-    const r = await fetchManifestFromUrl('https://example.com/m.json', { fetch, maxManifestBytes: 100 });
+    const r = await fetchManifestFromUrl('https://example.com/m.json', {
+      fetch,
+      maxManifestBytes: 100,
+    });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error.code).toBe('extensions.core.fetch.body_too_large');
   });
@@ -75,7 +84,10 @@ describe('fetchManifestFromUrl', () => {
   it('accepts body within custom maxManifestBytes', async () => {
     const body = JSON.stringify({ ok: true });
     const fetch = vi.fn(async () => new Response(body, { status: 200 }));
-    const r = await fetchManifestFromUrl('https://example.com/m.json', { fetch, maxManifestBytes: 100 });
+    const r = await fetchManifestFromUrl('https://example.com/m.json', {
+      fetch,
+      maxManifestBytes: 100,
+    });
     expect(r.ok).toBe(true);
   });
 

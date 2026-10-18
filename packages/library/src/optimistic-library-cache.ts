@@ -1,9 +1,4 @@
-import type {
-  LibraryEntry,
-  LibraryStatus,
-  MangaId,
-  MangaIdentity,
-} from '@app/shared';
+import type { LibraryEntry, LibraryStatus, MangaId, MangaIdentity } from '@app/shared';
 import { toLibraryEntryId } from '@app/shared';
 import type { LibraryItem, LibraryPageData, MangaDetailData } from './types.js';
 import { libraryQueryKeys } from './query-keys.js';
@@ -14,7 +9,9 @@ export interface LibraryCacheSnapshot {
 }
 
 export interface QueryCacheReader {
-  getQueriesData<T>(filters: { queryKey: readonly unknown[] }): Array<[readonly unknown[], T | undefined]>;
+  getQueriesData<T>(filters: {
+    queryKey: readonly unknown[];
+  }): Array<[readonly unknown[], T | undefined]>;
   setQueryData<T>(queryKey: readonly unknown[], data: T | undefined): void;
 }
 
@@ -57,7 +54,9 @@ function isLibraryPageQueryKey(queryKey: readonly unknown[]): boolean {
 }
 
 function isLibraryDetailQueryKey(queryKey: readonly unknown[], mangaId: MangaId): boolean {
-  return queryKey[0] === libraryQueryKeys.all[0] && queryKey[1] === 'detail' && queryKey[2] === mangaId;
+  return (
+    queryKey[0] === libraryQueryKeys.all[0] && queryKey[1] === 'detail' && queryKey[2] === mangaId
+  );
 }
 
 function getLibraryPageQueries(
@@ -158,9 +157,7 @@ export function optimisticallySetMangaFavorite(
     if (!matchesFavoritesFilter(page, favorite)) {
       queryClient.setQueryData(
         queryKey,
-        patchPageData(page, (items) =>
-          items.filter((item) => item.entry.mangaId !== mangaId),
-        ),
+        patchPageData(page, (items) => items.filter((item) => item.entry.mangaId !== mangaId)),
       );
       continue;
     }
@@ -169,9 +166,7 @@ export function optimisticallySetMangaFavorite(
       queryKey,
       patchPageData(page, (items) =>
         items.map((item) =>
-          item.entry.mangaId === mangaId
-            ? { ...item, entry: { ...item.entry, favorite } }
-            : item,
+          item.entry.mangaId === mangaId ? { ...item, entry: { ...item.entry, favorite } } : item,
         ),
       ),
     );

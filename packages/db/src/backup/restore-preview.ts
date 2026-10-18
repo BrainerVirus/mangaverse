@@ -22,7 +22,12 @@ export interface RestorePreviewReport {
 
 function add(
   issues: RestorePreviewIssue[],
-  input: { readonly code: string; readonly message: string; readonly severity: RestorePreviewSeverity; readonly details?: RestorePreviewIssue['details'] },
+  input: {
+    readonly code: string;
+    readonly message: string;
+    readonly severity: RestorePreviewSeverity;
+    readonly details?: RestorePreviewIssue['details'];
+  },
 ): void {
   issues.push({
     code: input.code,
@@ -35,7 +40,10 @@ function add(
 /**
  * Validates a backup payload and compares it against the current local database **without mutating** data.
  */
-export async function previewBackupRestore(db: AppDrizzleDb, input: unknown): Promise<RestorePreviewReport> {
+export async function previewBackupRestore(
+  db: AppDrizzleDb,
+  input: unknown,
+): Promise<RestorePreviewReport> {
   const validation = validateBackupDocument(input);
   if (!validation.ok) {
     return { backupOk: false, backupIssues: validation.issues, previewIssues: [] };
@@ -44,7 +52,8 @@ export async function previewBackupRestore(db: AppDrizzleDb, input: unknown): Pr
   const doc = validation.value;
   const previewIssues: RestorePreviewIssue[] = [];
 
-  const remoteKey = (providerId: string, providerMangaId: string) => `${providerId}::${providerMangaId}`;
+  const remoteKey = (providerId: string, providerMangaId: string) =>
+    `${providerId}::${providerMangaId}`;
   const seenRemotes = new Set<string>();
   for (const identity of doc.mangaIdentities) {
     for (const mapping of identity.providerMappings) {
@@ -62,7 +71,7 @@ export async function previewBackupRestore(db: AppDrizzleDb, input: unknown): Pr
   }
 
   const dbMappings = db.select().from(mangaProviderMappings).all();
-  const dbRemoteToMapping = new Map<string, typeof dbMappings[number]>();
+  const dbRemoteToMapping = new Map<string, (typeof dbMappings)[number]>();
   for (const row of dbMappings) {
     dbRemoteToMapping.set(remoteKey(row.providerId, row.providerMangaId), row);
   }
@@ -74,7 +83,8 @@ export async function previewBackupRestore(db: AppDrizzleDb, input: unknown): Pr
       if (dbMapping !== undefined && dbMapping.mangaId !== identity.id) {
         add(previewIssues, {
           code: 'restore.remote_collision_with_db',
-          message: 'A backup provider remote id already exists in the local database under a different manga identity.',
+          message:
+            'A backup provider remote id already exists in the local database under a different manga identity.',
           severity: 'warning',
           details: {
             providerId: mapping.providerId,
@@ -105,7 +115,8 @@ export async function previewBackupRestore(db: AppDrizzleDb, input: unknown): Pr
       if (!installedProviderIds.has(mapping.providerId)) {
         add(previewIssues, {
           code: 'restore.missing_installed_provider',
-          message: 'Backup references a provider mapping without a matching installed extension snapshot.',
+          message:
+            'Backup references a provider mapping without a matching installed extension snapshot.',
           severity: 'warning',
           details: { providerId: mapping.providerId, mangaId: identity.id },
         });
@@ -113,7 +124,10 @@ export async function previewBackupRestore(db: AppDrizzleDb, input: unknown): Pr
     }
   }
 
-  const currentIdentityRows = db.select({ id: mangaIdentities.id, canonicalTitle: mangaIdentities.canonicalTitle }).from(mangaIdentities).all();
+  const currentIdentityRows = db
+    .select({ id: mangaIdentities.id, canonicalTitle: mangaIdentities.canonicalTitle })
+    .from(mangaIdentities)
+    .all();
   const currentById = new Map(currentIdentityRows.map((r) => [r.id, r.canonicalTitle]));
 
   for (const identity of doc.mangaIdentities) {
@@ -128,13 +142,20 @@ export async function previewBackupRestore(db: AppDrizzleDb, input: unknown): Pr
     }
   }
 
-  const currentLibraryMangaIds = new Set((db.select({ mangaId: libraryEntries.mangaId }).from(libraryEntries).all()).map((r) => r.mangaId));
+  const currentLibraryMangaIds = new Set(
+    db
+      .select({ mangaId: libraryEntries.mangaId })
+      .from(libraryEntries)
+      .all()
+      .map((r) => r.mangaId),
+  );
   const backupLibraryMangaIds = new Set(doc.library.map((e) => String(e.mangaId)));
   for (const mangaId of currentLibraryMangaIds) {
     if (!backupLibraryMangaIds.has(mangaId)) {
       add(previewIssues, {
         code: 'restore.destructive.library_removed',
-        message: 'A manga currently in the local library is not present in the backup library list.',
+        message:
+          'A manga currently in the local library is not present in the backup library list.',
         severity: 'info',
         details: { mangaId },
       });
@@ -147,7 +168,8 @@ export async function previewBackupRestore(db: AppDrizzleDb, input: unknown): Pr
     if (currentProviderIds.has(ext.manifest.id) && ext.enabled === false) {
       add(previewIssues, {
         code: 'restore.provider_disabled_in_backup',
-        message: 'Backup would import a disabled extension record for a provider that is currently installed.',
+        message:
+          'Backup would import a disabled extension record for a provider that is currently installed.',
         severity: 'info',
         details: { providerId: ext.manifest.id },
       });
@@ -157,7 +179,10 @@ export async function previewBackupRestore(db: AppDrizzleDb, input: unknown): Pr
   await Promise.all(
     doc.mangaIdentities.map(async (identity) => {
       const live = await getMangaIdentity(db, toMangaId(identity.id));
-      if (live !== undefined && live.defaultProviderMappingId !== identity.defaultProviderMappingId) {
+      if (
+        live !== undefined &&
+        live.defaultProviderMappingId !== identity.defaultProviderMappingId
+      ) {
         add(previewIssues, {
           code: 'restore.default_mapping_change',
           message: 'Default provider mapping differs between backup and local database.',

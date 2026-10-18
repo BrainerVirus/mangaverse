@@ -15,13 +15,14 @@ const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
           'border-[var(--border)] bg-primary text-primary-foreground': variant === 'default',
           'border-[var(--border)]': variant === 'outline',
           'bg-secondary text-secondary-foreground': variant === 'secondary',
-          'border-destructive bg-destructive text-destructive-foreground': variant === 'destructive',
+          'border-destructive bg-destructive text-destructive-foreground':
+            variant === 'destructive',
         },
-        className
+        className,
       )}
       {...props}
     />
-  )
+  ),
 );
 Badge.displayName = 'Badge';
 

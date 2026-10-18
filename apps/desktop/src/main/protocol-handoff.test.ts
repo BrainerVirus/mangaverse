@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  createInstallProtocolStore,
-  ingestArgvForInstallUrls,
-} from './protocol-handoff.js';
+import { createInstallProtocolStore, ingestArgvForInstallUrls } from './protocol-handoff.js';
 
 describe('install protocol handoff', () => {
   it('accepts valid install-extension URLs', () => {

@@ -14,15 +14,19 @@ export interface ExtensionSettingsDependencies {
 function settingsToRecord(values: ProviderSettingsValues): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   if (values.enabled !== undefined) out['enabled'] = values.enabled;
-  if (values.preferredLanguages !== undefined) out['preferredLanguages'] = [...values.preferredLanguages];
+  if (values.preferredLanguages !== undefined)
+    out['preferredLanguages'] = [...values.preferredLanguages];
   if (values.nsfwAllowed !== undefined) out['nsfwAllowed'] = values.nsfwAllowed;
   if (values.includedTags !== undefined) out['includedTags'] = [...values.includedTags];
   if (values.excludedTags !== undefined) out['excludedTags'] = [...values.excludedTags];
-  if (values.contentRatingFilters !== undefined) out['contentRatingFilters'] = [...values.contentRatingFilters];
+  if (values.contentRatingFilters !== undefined)
+    out['contentRatingFilters'] = [...values.contentRatingFilters];
   if (values.regionLocale !== undefined) out['regionLocale'] = values.regionLocale;
-  if (values.authStatePlaceholder !== undefined) out['authStatePlaceholder'] = values.authStatePlaceholder;
+  if (values.authStatePlaceholder !== undefined)
+    out['authStatePlaceholder'] = values.authStatePlaceholder;
   if (values.providerOptions !== undefined) out['providerOptions'] = { ...values.providerOptions };
-  if (values.rateLimitOverrideRpm !== undefined) out['rateLimitOverrideRpm'] = values.rateLimitOverrideRpm;
+  if (values.rateLimitOverrideRpm !== undefined)
+    out['rateLimitOverrideRpm'] = values.rateLimitOverrideRpm;
   if (values.defaultSort !== undefined) out['defaultSort'] = values.defaultSort;
   return out;
 }
@@ -31,10 +35,19 @@ export function isStringArray(arr: unknown): arr is string[] {
   return Array.isArray(arr) && arr.every((v) => typeof v === 'string');
 }
 
-const VALID_CONTENT_RATINGS: readonly string[] = ['unknown', 'safe', 'suggestive', 'mature', 'explicit'];
+const VALID_CONTENT_RATINGS: readonly string[] = [
+  'unknown',
+  'safe',
+  'suggestive',
+  'mature',
+  'explicit',
+];
 
 function isContentRatingArray(arr: unknown): arr is string[] {
-  return Array.isArray(arr) && arr.every((v) => typeof v === 'string' && VALID_CONTENT_RATINGS.includes(v));
+  return (
+    Array.isArray(arr) &&
+    arr.every((v) => typeof v === 'string' && VALID_CONTENT_RATINGS.includes(v))
+  );
 }
 
 export function recordToSettings(record: Record<string, unknown>): ProviderSettingsValues {
@@ -68,7 +81,11 @@ export function recordToSettings(record: Record<string, unknown>): ProviderSetti
   ) {
     out.authStatePlaceholder = record['authStatePlaceholder'];
   }
-  if (record['providerOptions'] !== undefined && typeof record['providerOptions'] === 'object' && record['providerOptions'] !== null) {
+  if (
+    record['providerOptions'] !== undefined &&
+    typeof record['providerOptions'] === 'object' &&
+    record['providerOptions'] !== null
+  ) {
     out.providerOptions = record['providerOptions'] as Record<string, unknown>;
   }
   if (typeof record['rateLimitOverrideRpm'] === 'number') {

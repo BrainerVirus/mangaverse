@@ -105,13 +105,19 @@ function validateProviderSettings(input: unknown): AppResult<BackupSettingsSnaps
 
 function validateThemeSettings(input: unknown): AppResult<ThemeSettings> {
   if (!isPlainObject(input)) {
-    return err(createAppError({ code: 'backup.invalid', message: 'themeSettings must be an object.' }));
+    return err(
+      createAppError({ code: 'backup.invalid', message: 'themeSettings must be an object.' }),
+    );
   }
   if (!isNonEmptyString(input['presetId'])) {
-    return err(createAppError({ code: 'backup.invalid', message: 'themeSettings.presetId is required.' }));
+    return err(
+      createAppError({ code: 'backup.invalid', message: 'themeSettings.presetId is required.' }),
+    );
   }
   if (typeof input['dark'] !== 'boolean') {
-    return err(createAppError({ code: 'backup.invalid', message: 'themeSettings.dark must be boolean.' }));
+    return err(
+      createAppError({ code: 'backup.invalid', message: 'themeSettings.dark must be boolean.' }),
+    );
   }
   return ok({ presetId: String(input['presetId']), dark: input['dark'] });
 }
@@ -121,7 +127,11 @@ function validateLibraryEntries(input: unknown): AppResult<readonly LibraryEntry
     return err(createAppError({ code: 'backup.invalid', message: 'library must be an array.' }));
   }
   for (const item of input) {
-    if (!isPlainObject(item) || !isNonEmptyString(item['id']) || !isNonEmptyString(item['mangaId'])) {
+    if (
+      !isPlainObject(item) ||
+      !isNonEmptyString(item['id']) ||
+      !isNonEmptyString(item['mangaId'])
+    ) {
       return err(
         createAppError({
           code: 'backup.invalid',
@@ -192,7 +202,9 @@ function validateMangaIdentities(input: unknown): AppResult<readonly MangaIdenti
   return ok(input as readonly MangaIdentity[]);
 }
 
-function validateInstalledExtensions(input: unknown): AppResult<readonly ExtensionInstallMetadata[]> {
+function validateInstalledExtensions(
+  input: unknown,
+): AppResult<readonly ExtensionInstallMetadata[]> {
   if (!Array.isArray(input)) {
     return err(
       createAppError({ code: 'backup.invalid', message: 'installedExtensions must be an array.' }),
@@ -233,22 +245,45 @@ function validateInstalledExtensions(input: unknown): AppResult<readonly Extensi
     }
     if (typeof item['enabled'] !== 'boolean') {
       return err(
-        createAppError({ code: 'backup.invalid', message: 'Each extension requires enabled boolean.' }),
+        createAppError({
+          code: 'backup.invalid',
+          message: 'Each extension requires enabled boolean.',
+        }),
       );
     }
     const state = item['state'];
-    const allowedStates = new Set(['pending', 'installing', 'installed', 'disabled', 'failed', 'uninstalled']);
+    const allowedStates = new Set([
+      'pending',
+      'installing',
+      'installed',
+      'disabled',
+      'failed',
+      'uninstalled',
+    ]);
     if (typeof state !== 'string' || !allowedStates.has(state)) {
-      return err(createAppError({ code: 'backup.invalid', message: 'Each extension requires a valid state.' }));
+      return err(
+        createAppError({
+          code: 'backup.invalid',
+          message: 'Each extension requires a valid state.',
+        }),
+      );
     }
     const health = item['health'];
     const allowedHealth = new Set(['ok', 'degraded', 'broken', 'unknown']);
     if (typeof health !== 'string' || !allowedHealth.has(health)) {
-      return err(createAppError({ code: 'backup.invalid', message: 'Each extension requires a valid health.' }));
+      return err(
+        createAppError({
+          code: 'backup.invalid',
+          message: 'Each extension requires a valid health.',
+        }),
+      );
     }
     if (!Array.isArray(item['warnings'])) {
       return err(
-        createAppError({ code: 'backup.invalid', message: 'Each extension requires warnings array.' }),
+        createAppError({
+          code: 'backup.invalid',
+          message: 'Each extension requires warnings array.',
+        }),
       );
     }
     const manifestResult = validateProviderManifest(item['manifest']);
@@ -282,7 +317,11 @@ export function validateBackupDocument(input: unknown): BackupValidationResult {
   }
 
   if (input['schemaVersion'] !== BACKUP_SCHEMA_VERSION) {
-    addIssue('schemaVersion', 'backup.invalid', `Expected schemaVersion ${BACKUP_SCHEMA_VERSION}, got ${String(input['schemaVersion'])}`);
+    addIssue(
+      'schemaVersion',
+      'backup.invalid',
+      `Expected schemaVersion ${BACKUP_SCHEMA_VERSION}, got ${String(input['schemaVersion'])}`,
+    );
     return {
       ok: false,
       error: createAppError({
@@ -354,11 +393,17 @@ export function validateBackupDocument(input: unknown): BackupValidationResult {
       ...(typeof metadata['deviceName'] === 'string' ? { deviceName: metadata['deviceName'] } : {}),
     },
     library: libraryResult.ok ? libraryResult.value : ([] as unknown as readonly LibraryEntry[]),
-    mangaIdentities: mangaResult.ok ? mangaResult.value : ([] as unknown as readonly MangaIdentity[]),
-    installedExtensions: extResult.ok ? extResult.value : ([] as unknown as readonly ExtensionInstallMetadata[]),
+    mangaIdentities: mangaResult.ok
+      ? mangaResult.value
+      : ([] as unknown as readonly MangaIdentity[]),
+    installedExtensions: extResult.ok
+      ? extResult.value
+      : ([] as unknown as readonly ExtensionInstallMetadata[]),
     readerSettings: readerResult.ok ? readerResult.value : getDefaultReaderSettings(),
-    providerSettings: providerResult.ok ? providerResult.value : ({ providerSnapshots: [] } as BackupSettingsSnapshot),
-    themeSettings: themeResult.ok ? themeResult.value : ({ presetId: '', dark: false }),
+    providerSettings: providerResult.ok
+      ? providerResult.value
+      : ({ providerSnapshots: [] } as BackupSettingsSnapshot),
+    themeSettings: themeResult.ok ? themeResult.value : { presetId: '', dark: false },
   };
 
   return { ok: true, value: doc, issues: [] };

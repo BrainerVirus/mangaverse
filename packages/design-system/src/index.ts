@@ -4,10 +4,37 @@ export const PACKAGE_NAME = '@app/design-system' as const;
 export { cn } from './lib/cn.js';
 
 export { Button, buttonVariants, buttonSizes } from './components/ui/button.js';
-export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './components/ui/card.js';
-export { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from './components/ui/dialog.js';
-export { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './components/ui/sheet.js';
-export { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from './components/ui/command.js';
+export {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from './components/ui/card.js';
+export {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+} from './components/ui/dialog.js';
+export {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from './components/ui/sheet.js';
+export {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from './components/ui/command.js';
 export { Badge } from './components/ui/badge.js';
 export { Skeleton } from './components/ui/skeleton.js';
 export { Input } from './components/ui/input.js';

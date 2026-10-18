@@ -4,7 +4,9 @@ import { toProviderId } from '@app/shared';
 
 import { validateManifestInstallPolicy, type ExtensionInstallPolicy } from './install-policy.js';
 
-function makeManifest(overrides: Partial<ProviderManifest['compatibility']> = {}): ProviderManifest {
+function makeManifest(
+  overrides: Partial<ProviderManifest['compatibility']> = {},
+): ProviderManifest {
   return {
     id: toProviderId('test'),
     name: 'Test Provider',
@@ -77,7 +79,10 @@ describe('validateManifestInstallPolicy', () => {
 
   it('passes when manifest has no version constraints', () => {
     const { compatibility: _withVersions, ...rest } = makeManifest();
-    const manifest: ProviderManifest = { ...rest, compatibility: { platforms: ['web', 'desktop'] } };
+    const manifest: ProviderManifest = {
+      ...rest,
+      compatibility: { platforms: ['web', 'desktop'] },
+    };
     const policy: ExtensionInstallPolicy = { runtime: 'web', appVersion: '99.0.0' };
     const result = validateManifestInstallPolicy(manifest, policy);
     expect(result.ok).toBe(true);

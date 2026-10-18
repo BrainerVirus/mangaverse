@@ -33,13 +33,7 @@ vi.mock('@tanstack/react-virtual', () => ({
 
 vi.mock('@app/design-system', () => ({
   cn: (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' '),
-  MangaCard: ({
-    manga,
-    onClick,
-  }: {
-    manga: { canonicalTitle: string };
-    onClick?: () => void;
-  }) => (
+  MangaCard: ({ manga, onClick }: { manga: { canonicalTitle: string }; onClick?: () => void }) => (
     <button type="button" onClick={onClick}>
       {manga.canonicalTitle}
     </button>
@@ -125,10 +119,7 @@ describe('VirtualSearchGrid', () => {
 
     render(
       <div style={{ width: 1200, height: 600, overflow: 'auto' }}>
-        <VirtualSearchGrid
-          results={[createManga('1', 'Title 1')]}
-          onOpenManga={onOpenManga}
-        />
+        <VirtualSearchGrid results={[createManga('1', 'Title 1')]} onOpenManga={onOpenManga} />
       </div>,
     );
 

@@ -48,7 +48,10 @@ export function LoadingState({ type, count = 1 }: LoadingStateProps) {
       {type === 'list' && (
         <div className="flex flex-col gap-3">
           {Array.from({ length: actualCount }).map((_, i) => (
-            <div key={`${baseId}-list-${i}`} className="flex gap-4 rounded-[var(--radius-box)] border border-[var(--border)] p-3">
+            <div
+              key={`${baseId}-list-${i}`}
+              className="flex gap-4 rounded-[var(--radius-box)] border border-[var(--border)] p-3"
+            >
               <Skeleton className="h-20 w-14 shrink-0 rounded-[var(--radius-control)]" />
               <div className="flex flex-col gap-2">
                 <Skeleton className="h-5 w-48 rounded" />

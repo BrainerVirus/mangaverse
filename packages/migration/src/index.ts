@@ -3,10 +3,7 @@ export { MigrationPage, type MigrationPageProps } from './components/MigrationPa
 export { fetchMigrationCandidates, fetchMigrationProviders } from './fetch-migration-page.js';
 export { previewMigration } from './preview-migration.js';
 export { migrationQueryKeys } from './query-keys.js';
-export {
-  rankMigrationSearchResults,
-  scoreMigrationMatch,
-} from './score-migration-match.js';
+export { rankMigrationSearchResults, scoreMigrationMatch } from './score-migration-match.js';
 export { summarizeMigrationApply, summarizeMigrationPreview } from './summarize-migration.js';
 export type {
   MigrationApplySummary,

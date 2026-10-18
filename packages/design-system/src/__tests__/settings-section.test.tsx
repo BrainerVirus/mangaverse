@@ -8,32 +8,41 @@ describe('SettingsSection', () => {
   });
 
   it('renders title correctly', () => {
-    render(<SettingsSection title="General Settings"><div>Content</div></SettingsSection>);
+    render(
+      <SettingsSection title="General Settings">
+        <div>Content</div>
+      </SettingsSection>,
+    );
 
     expect(screen.getByText('General Settings')).toBeInTheDocument();
   });
 
   it('renders children correctly', () => {
-    render(<SettingsSection title="Settings"><p>Child content</p></SettingsSection>);
+    render(
+      <SettingsSection title="Settings">
+        <p>Child content</p>
+      </SettingsSection>,
+    );
 
     expect(screen.getByText('Child content')).toBeInTheDocument();
   });
 
   it('displays description when provided', () => {
     render(
-      <SettingsSection
-        title="Settings"
-        description="This is a description"
-      >
+      <SettingsSection title="Settings" description="This is a description">
         <div>Content</div>
-      </SettingsSection>
+      </SettingsSection>,
     );
 
     expect(screen.getByText('This is a description')).toBeInTheDocument();
   });
 
   it('does not display description when not provided', () => {
-    render(<SettingsSection title="Settings"><div>Content</div></SettingsSection>);
+    render(
+      <SettingsSection title="Settings">
+        <div>Content</div>
+      </SettingsSection>,
+    );
 
     expect(screen.queryByText(/description/i)).not.toBeInTheDocument();
   });
@@ -42,7 +51,7 @@ describe('SettingsSection', () => {
     const { container } = render(
       <SettingsSection title="Danger Zone" danger>
         <div>Content</div>
-      </SettingsSection>
+      </SettingsSection>,
     );
 
     expect(container.querySelector('.border-destructive\\/40')).toBeTruthy();
@@ -52,14 +61,18 @@ describe('SettingsSection', () => {
     const { container } = render(
       <SettingsSection title="Normal Section" danger={false}>
         <div>Content</div>
-      </SettingsSection>
+      </SettingsSection>,
     );
 
     expect(container.querySelector('.border-destructive\\/40')).toBeNull();
   });
 
   it('has proper accessibility attributes', () => {
-    render(<SettingsSection title="Accessible Section"><div>Content</div></SettingsSection>);
+    render(
+      <SettingsSection title="Accessible Section">
+        <div>Content</div>
+      </SettingsSection>,
+    );
 
     const button = screen.getByRole('button');
     expect(button).toHaveAttribute('aria-expanded');
@@ -69,7 +82,7 @@ describe('SettingsSection', () => {
     render(
       <SettingsSection title="Danger Zone" danger>
         <div>Content</div>
-      </SettingsSection>
+      </SettingsSection>,
     );
 
     const title = screen.getByText('Danger Zone');
@@ -80,7 +93,7 @@ describe('SettingsSection', () => {
     render(
       <SettingsSection title="Collapsed Section" collapsed>
         <div>Hidden content</div>
-      </SettingsSection>
+      </SettingsSection>,
     );
 
     expect(screen.queryByText('Hidden content')).not.toBeInTheDocument();
@@ -91,7 +104,7 @@ describe('SettingsSection', () => {
     render(
       <SettingsSection title="Expanded Section">
         <div>Visible content</div>
-      </SettingsSection>
+      </SettingsSection>,
     );
 
     expect(screen.getByText('Visible content')).toBeInTheDocument();
@@ -101,7 +114,7 @@ describe('SettingsSection', () => {
     render(
       <SettingsSection title="Section with Chevron" collapsed>
         <div>Content</div>
-      </SettingsSection>
+      </SettingsSection>,
     );
 
     const svgElements = document.querySelectorAll('svg');

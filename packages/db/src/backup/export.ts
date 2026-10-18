@@ -11,13 +11,14 @@ export async function exportBackupDocumentV1(
   db: AppDrizzleDb,
   metadata: BackupMetadata,
 ): Promise<BackupDocumentV1> {
-  const [library, mangaIdentities, installedExtensions, readerSettings, themeSettings] = await Promise.all([
-    listLibraryEntries(db),
-    listMangaIdentities(db),
-    listInstalledExtensions(db),
-    getReaderSettings(db),
-    getThemeSettings(db),
-  ]);
+  const [library, mangaIdentities, installedExtensions, readerSettings, themeSettings] =
+    await Promise.all([
+      listLibraryEntries(db),
+      listMangaIdentities(db),
+      listInstalledExtensions(db),
+      getReaderSettings(db),
+      getThemeSettings(db),
+    ]);
 
   const providerRows = db.select().from(providerSettings).all();
   const providerSnapshots = providerRows.map((r) => ({

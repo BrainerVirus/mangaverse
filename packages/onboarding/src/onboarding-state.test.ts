@@ -48,7 +48,13 @@ describe('onboarding state machine', () => {
     state = advanceOnboardingStep(state, '2026-05-23T00:00:05.000Z');
     expect(state.status).toBe('completed');
     expect(state.completedAt).toBe('2026-05-23T00:00:05.000Z');
-    expect(state.completedSteps).toEqual(['welcome', 'theme', 'reading', 'preferences', 'provider']);
+    expect(state.completedSteps).toEqual([
+      'welcome',
+      'theme',
+      'reading',
+      'preferences',
+      'provider',
+    ]);
   });
 
   it('supports skipping setup', () => {

@@ -1,16 +1,8 @@
 import { err, ok, type AppResult } from '@app/shared';
 import { detectWebCapabilities } from './capabilities.js';
-import {
-  deleteIndexedDbBlob,
-  getIndexedDbBlob,
-  putIndexedDbBlob,
-} from './blob-storage-idb.js';
+import { deleteIndexedDbBlob, getIndexedDbBlob, putIndexedDbBlob } from './blob-storage-idb.js';
 import { fetchNetworkBytes } from './network-fetch.js';
-import {
-  platformInvalidUrl,
-  platformPermissionDenied,
-  platformUnsupported,
-} from './errors.js';
+import { platformInvalidUrl, platformPermissionDenied, platformUnsupported } from './errors.js';
 import type {
   PlatformAdapter,
   PlatformCapabilities,
@@ -104,9 +96,12 @@ function resolveWebEnvironment(environment?: WebPlatformEnvironment): WebPlatfor
     ...(typeof globalThis.navigator !== 'undefined' && 'storage' in globalThis.navigator
       ? {
           storageManager: {
-            estimate: () => (globalThis.navigator as Navigator & { storage: StorageManager }).storage.estimate(),
-            persist: () => (globalThis.navigator as Navigator & { storage: StorageManager }).storage.persist(),
-            persisted: () => (globalThis.navigator as Navigator & { storage: StorageManager }).storage.persisted(),
+            estimate: () =>
+              (globalThis.navigator as Navigator & { storage: StorageManager }).storage.estimate(),
+            persist: () =>
+              (globalThis.navigator as Navigator & { storage: StorageManager }).storage.persist(),
+            persisted: () =>
+              (globalThis.navigator as Navigator & { storage: StorageManager }).storage.persisted(),
           },
         }
       : {}),
@@ -123,7 +118,9 @@ export function createWebPlatformAdapter(environment?: WebPlatformEnvironment): 
       hasClipboardWrite: Boolean(env.navigatorClipboard?.writeText),
       fullscreenEnabled: Boolean(env.requestFullscreen && env.exitFullscreen),
       hasRegisterProtocolHandler: Boolean(env.getRegisterProtocolHandler?.()),
-      installPromptObservable: Boolean(env.getInstallPromptAvailable || env.subscribeBeforeInstallPrompt),
+      installPromptObservable: Boolean(
+        env.getInstallPromptAvailable || env.subscribeBeforeInstallPrompt,
+      ),
       isSecureContext: Boolean(globalThis.isSecureContext),
       hasLocalStorage: Boolean(env.localStorage),
       hasStorageEstimate: Boolean(env.storageManager?.estimate),
@@ -174,7 +171,9 @@ export function createWebPlatformAdapter(environment?: WebPlatformEnvironment): 
         ),
       saveTextFile: async (options: PlatformFileSaveOptions) => {
         if (!env.createObjectUrl || !env.revokeObjectUrl || !env.createDownload) {
-          return err(platformUnsupported('File download APIs are not available in this environment.'));
+          return err(
+            platformUnsupported('File download APIs are not available in this environment.'),
+          );
         }
         try {
           const blob = new Blob([options.content], { type: 'text/plain;charset=utf-8' });

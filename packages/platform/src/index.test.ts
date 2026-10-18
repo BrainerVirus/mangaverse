@@ -45,9 +45,12 @@ describe('@app/platform public exports', () => {
 
   it('validates mangaverse install URLs', () => {
     const good = parseMangaverseInstallExtensionProviderUrl(
-      'mangaverse://install-extension?url=' + encodeURIComponent('https://cdn.example.com/ext.json'),
+      'mangaverse://install-extension?url=' +
+        encodeURIComponent('https://cdn.example.com/ext.json'),
     );
     expect(good.ok && good.value).toBe('https://cdn.example.com/ext.json');
-    expect(isExtensionInstallProtocolUrl('mangaverse://install-extension?url=https%3A%2F%2Fx')).toBe(true);
+    expect(
+      isExtensionInstallProtocolUrl('mangaverse://install-extension?url=https%3A%2F%2Fx'),
+    ).toBe(true);
   });
 });

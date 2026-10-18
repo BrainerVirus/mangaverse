@@ -8,20 +8,12 @@ describe('Command Palette Keyboard Navigation', () => {
       <Command>
         <CommandInput placeholder="Type a command..." />
         <CommandList>
-          <CommandItem>
-            View Library
-          </CommandItem>
-          <CommandItem>
-            Add Manga
-          </CommandItem>
-          <CommandItem>
-            Search
-          </CommandItem>
-          <CommandItem>
-            Settings
-          </CommandItem>
+          <CommandItem>View Library</CommandItem>
+          <CommandItem>Add Manga</CommandItem>
+          <CommandItem>Search</CommandItem>
+          <CommandItem>Settings</CommandItem>
         </CommandList>
-      </Command>
+      </Command>,
     );
   };
 

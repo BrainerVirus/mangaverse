@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { toChapters, toDetails, toPages, toSearchItem } from './mapping.js';
-import { parseAtHomeResponse, parseCollectionResponse, parseDetailResponse, parseFeedResponse } from './schemas.js';
+import {
+  parseAtHomeResponse,
+  parseCollectionResponse,
+  parseDetailResponse,
+  parseFeedResponse,
+} from './schemas.js';
 import { loadFixtureJson } from './testing/load-fixture.js';
 
 const detail = parseDetailResponse(loadFixtureJson('detail.json'), '/manga/{id}');
@@ -14,7 +19,9 @@ describe('MangaDex mapping', () => {
     expect(String(item.providerMangaId)).toBe(search.entities[0]!.id);
     expect(item.title.length).toBeGreaterThan(0);
     expect(item.coverUrl).toMatch(
-      new RegExp(`^https://uploads\\.mangadex\\.org/covers/${search.entities[0]!.id}/.+\\.256\\.jpg$`),
+      new RegExp(
+        `^https://uploads\\.mangadex\\.org/covers/${search.entities[0]!.id}/.+\\.256\\.jpg$`,
+      ),
     );
   });
 
@@ -42,7 +49,9 @@ describe('MangaDex mapping', () => {
   it('Given saver renditions, When mapped at data-saver, Then the saver folder and files are used', () => {
     const pages = toPages(atHome, 'data-saver');
     expect(pages.length).toBe(atHome.dataSaver.length);
-    expect(pages[0]?.imageUrl).toBe(`${atHome.baseUrl}/data-saver/${atHome.hash}/${atHome.dataSaver[0]}`);
+    expect(pages[0]?.imageUrl).toBe(
+      `${atHome.baseUrl}/data-saver/${atHome.hash}/${atHome.dataSaver[0]}`,
+    );
   });
 
   it('Given a chapter without saver renditions, When mapped at data-saver, Then both folder and files fall back together', () => {

@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useGSAP } from '@gsap/react';
-import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@app/design-system';
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from '@app/design-system';
 import { commandPaletteEnter, commandPaletteExit, useReducedMotion } from '@app/motion';
 import { useCommandPaletteStore } from '../../stores/useCommandPaletteStore';
 import { useLayoutStore } from '../../stores/useLayoutStore';
@@ -105,7 +112,8 @@ function groupBySection(commands: ReturnType<typeof registry.search>) {
 export function CommandPalette() {
   const { deviceLayout } = useLayoutStore();
   const { runtime } = usePlatform();
-  const { isOpen, query, selectedIndex, close, setQuery, moveSelection, setSelectedIndex } = useCommandPaletteStore();
+  const { isOpen, query, selectedIndex, close, setQuery, moveSelection, setSelectedIndex } =
+    useCommandPaletteStore();
   const reducedMotion = useReducedMotion();
   const [rendered, setRendered] = useState(isOpen);
   const scopeRef = useRef<HTMLDivElement>(null);
@@ -202,58 +210,58 @@ export function CommandPalette() {
           aria-label="Command palette"
           onKeyDown={handleKeyDown}
         >
-      <div
-        ref={backdropRef}
-        className="fixed inset-0 bg-black/55 backdrop-blur-[2px]"
-        onClick={close}
-        aria-hidden="true"
-      />
-      <Command ref={panelRef} className="relative z-10 w-full max-w-xl">
-        <div className="flex items-center border-b border-border px-3">
-          <CommandInput
-            ref={inputRef}
-            placeholder="Search commands…"
-            aria-label="Search commands"
-            value={query}
-            onKeyDown={handleKeyDown}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setSelectedIndex(0);
-            }}
+          <div
+            ref={backdropRef}
+            className="fixed inset-0 bg-black/55 backdrop-blur-[2px]"
+            onClick={close}
+            aria-hidden="true"
           />
-        </div>
-        <CommandList>
-          {results.length === 0 ? (
-            <CommandEmpty>No commands found.</CommandEmpty>
-          ) : (
-            Object.entries(grouped).map(([section, cmds]) => (
-              <CommandGroup key={section}>
-                <div className="px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {section}
-                </div>
-                {cmds.map((cmd) => {
-                  const globalIndex = results.indexOf(cmd);
-                  const selected = globalIndex === selectedIndex;
-                  return (
-                    <CommandItem
-                      key={cmd.id}
-                      data-selected={selected}
-                      aria-selected={selected}
-                      onMouseEnter={() => setSelectedIndex(globalIndex)}
-                      onSelect={() => {
-                        cmd.handler();
-                        close();
-                      }}
-                    >
-                      {cmd.label}
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
-            ))
-          )}
-        </CommandList>
-      </Command>
+          <Command ref={panelRef} className="relative z-10 w-full max-w-xl">
+            <div className="flex items-center border-b border-border px-3">
+              <CommandInput
+                ref={inputRef}
+                placeholder="Search commands…"
+                aria-label="Search commands"
+                value={query}
+                onKeyDown={handleKeyDown}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setSelectedIndex(0);
+                }}
+              />
+            </div>
+            <CommandList>
+              {results.length === 0 ? (
+                <CommandEmpty>No commands found.</CommandEmpty>
+              ) : (
+                Object.entries(grouped).map(([section, cmds]) => (
+                  <CommandGroup key={section}>
+                    <div className="px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {section}
+                    </div>
+                    {cmds.map((cmd) => {
+                      const globalIndex = results.indexOf(cmd);
+                      const selected = globalIndex === selectedIndex;
+                      return (
+                        <CommandItem
+                          key={cmd.id}
+                          data-selected={selected}
+                          aria-selected={selected}
+                          onMouseEnter={() => setSelectedIndex(globalIndex)}
+                          onSelect={() => {
+                            cmd.handler();
+                            close();
+                          }}
+                        >
+                          {cmd.label}
+                        </CommandItem>
+                      );
+                    })}
+                  </CommandGroup>
+                ))
+              )}
+            </CommandList>
+          </Command>
         </div>
       ) : null}
     </div>
