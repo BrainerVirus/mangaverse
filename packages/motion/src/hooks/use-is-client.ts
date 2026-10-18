@@ -1,12 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useSyncExternalStore } from 'react';
+
+// There is nothing to subscribe to: hydration itself is the change, and React
+// swaps the server snapshot for the client one after it.
+const subscribeNothing = () => () => {};
+const readIsClient = () => true;
+const readServerIsClient = () => false;
 
 export function useIsClient(): boolean {
-  const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    // oxlint-disable-next-line react/set-state-in-effect -- the false -> true flip after mount IS this hook's contract; there is no client-only primitive in React that reports it without a state update
-    setIsClient(true);
-  }, []);
-
-  return isClient;
+  return useSyncExternalStore(subscribeNothing, readIsClient, readServerIsClient);
 }

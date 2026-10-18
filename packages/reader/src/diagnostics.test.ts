@@ -1,14 +1,22 @@
 import { describe, it, expect } from 'vitest';
+import { toChapterPageId } from '@app/shared';
 import { createReaderDiagnostics } from './diagnostics';
-import type { ReaderSessionInput, ZoomStateSummary, DiagnosticEvent } from './types';
+import type {
+  ReaderChapter,
+  ReaderEngineSettings,
+  ReaderPage,
+  ReaderSessionInput,
+  ZoomStateSummary,
+  DiagnosticEvent,
+} from './types';
 
-const mockPages = [
-  { id: 'p1', index: 0, image: { url: 'http://example.com/1.jpg' } },
-  { id: 'p2', index: 1, image: { url: 'http://example.com/2.jpg' } },
-  { id: 'p3', index: 2, image: { url: 'http://example.com/3.jpg' } },
+const mockPages: readonly ReaderPage[] = [
+  { id: toChapterPageId('p1'), index: 0, image: { url: 'http://example.com/1.jpg' } },
+  { id: toChapterPageId('p2'), index: 1, image: { url: 'http://example.com/2.jpg' } },
+  { id: toChapterPageId('p3'), index: 2, image: { url: 'http://example.com/3.jpg' } },
 ];
 
-const mockChapter = {
+const mockChapter: ReaderChapter = {
   id: 'ch1',
   mangaId: 'm1',
   title: 'Chapter 1',
@@ -18,11 +26,12 @@ const mockChapter = {
 
 const mockViewport = { width: 800, height: 600, orientation: 'landscape' as const };
 
-const defaultSettings = {
-  readingMode: 'ltr' as const,
-  pageLayout: 'single' as const,
-  tapZoneLayout: 'leftRight' as const,
-  navigationDirection: 'default' as const,
+const defaultSettings: ReaderEngineSettings = {
+  readingMode: 'ltr',
+  pageLayout: 'single',
+  tapZoneLayout: 'leftRight',
+  fitMode: 'width',
+  navigationDirection: 'default',
   tapZoneDebugOverlay: false,
   minZoom: 1,
   maxZoom: 3,
@@ -31,13 +40,15 @@ const defaultSettings = {
   treatFirstPageAsCover: false,
   preloadAhead: 2,
   lowMemoryMode: false,
+  wheelBehavior: 'scroll',
+  verticalGapPx: 0,
 };
 
 function makeInput(): ReaderSessionInput {
   return {
-    chapter: mockChapter as any,
+    chapter: mockChapter,
     viewport: mockViewport,
-    settings: defaultSettings as any,
+    settings: defaultSettings,
   };
 }
 

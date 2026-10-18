@@ -41,6 +41,7 @@ export function CachedCoverImage({
     setFailed(false);
   }
 
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: resolving the cover blob is an IndexedDB + network call keyed by props, with cancellation on cleanup; no event or derived value can start it
   useEffect(() => {
     if (context === null) return;
 

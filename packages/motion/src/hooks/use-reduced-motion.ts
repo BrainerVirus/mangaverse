@@ -1,20 +1,34 @@
-import { useState, useEffect } from 'react';
+import { useSyncExternalStore } from 'react';
+
+const QUERY = '(prefers-reduced-motion: reduce)';
+
+/**
+ * The media query is the external system here, so React subscribes to it
+ * directly: the SSR snapshot is false and the client value arrives without a
+ * setState-in-effect round trip (no post-paint flip).
+ */
+function subscribeReducedMotion(onChange: () => void): () => void {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return () => {};
+  }
+
+  const mediaQuery = window.matchMedia(QUERY);
+  mediaQuery.addEventListener('change', onChange);
+  return () => mediaQuery.removeEventListener('change', onChange);
+}
+
+function readReducedMotion(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false;
+  }
+
+  return window.matchMedia(QUERY).matches;
+}
+
+function readServerReducedMotion(): boolean {
+  return false;
+}
 
 export function useReducedMotion(): boolean {
-  const [reducedMotion, setReducedMotion] = useState(false);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    // oxlint-disable-next-line react/set-state-in-effect -- the media query is the external system; its current value must be read after mount (window is absent during SSR) and it is pushed again on change
-    setReducedMotion(mediaQuery.matches);
-
-    const handler = (event: MediaQueryListEvent) => {
-      setReducedMotion(event.matches);
-    };
-
-    mediaQuery.addEventListener('change', handler);
-    return () => mediaQuery.removeEventListener('change', handler);
-  }, []);
-
-  return reducedMotion;
+  return useSyncExternalStore(subscribeReducedMotion, readReducedMotion, readServerReducedMotion);
 }

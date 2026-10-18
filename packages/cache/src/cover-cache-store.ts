@@ -185,6 +185,7 @@ export async function evictCoverCacheToLimit(
     }
 
     if (entry.blobKey !== undefined) {
+      // react-doctor-disable-next-line react-doctor/async-await-in-loop -- eviction frees bytes in order against the blob store and the DB; running both in parallel only contends for the same write lock
       await adapter.blobStorage.delete(entry.blobKey);
     }
     await deleteCacheEntry(db, entry.id);

@@ -1,15 +1,16 @@
 import { describe, it, expect } from 'vitest';
+import { toChapterPageId } from '@app/shared';
 import { createReaderState } from './state';
-import type { ReaderEngineSettings, ReaderSessionInput } from './types';
+import type { ReaderChapter, ReaderEngineSettings, ReaderPage, ReaderSessionInput } from './types';
 
-const mockPages = [
-  { id: 'p1', index: 0, image: { url: 'http://example.com/1.jpg' } },
-  { id: 'p2', index: 1, image: { url: 'http://example.com/2.jpg' } },
-  { id: 'p3', index: 2, image: { url: 'http://example.com/3.jpg' } },
-  { id: 'p4', index: 3, image: { url: 'http://example.com/4.jpg' } },
+const mockPages: readonly ReaderPage[] = [
+  { id: toChapterPageId('p1'), index: 0, image: { url: 'http://example.com/1.jpg' } },
+  { id: toChapterPageId('p2'), index: 1, image: { url: 'http://example.com/2.jpg' } },
+  { id: toChapterPageId('p3'), index: 2, image: { url: 'http://example.com/3.jpg' } },
+  { id: toChapterPageId('p4'), index: 3, image: { url: 'http://example.com/4.jpg' } },
 ];
 
-const mockChapter = {
+const mockChapter: ReaderChapter = {
   id: 'ch1',
   mangaId: 'm1',
   title: 'Chapter 1',
@@ -40,7 +41,7 @@ const defaultSettings: ReaderEngineSettings = {
 describe('createReaderState', () => {
   it('should create reader state with single page layout', () => {
     const input: ReaderSessionInput = {
-      chapter: mockChapter as any,
+      chapter: mockChapter,
       viewport: mockViewport,
       settings: defaultSettings,
     };
@@ -57,7 +58,7 @@ describe('createReaderState', () => {
 
   it('should respect initialPageIndex from input', () => {
     const input: ReaderSessionInput = {
-      chapter: mockChapter as any,
+      chapter: mockChapter,
       viewport: mockViewport,
       settings: defaultSettings,
       initialPageIndex: 2,
@@ -70,7 +71,7 @@ describe('createReaderState', () => {
 
   it('should clamp initialPageIndex to valid range', () => {
     const input: ReaderSessionInput = {
-      chapter: mockChapter as any,
+      chapter: mockChapter,
       viewport: mockViewport,
       settings: defaultSettings,
       initialPageIndex: 99,
@@ -83,7 +84,7 @@ describe('createReaderState', () => {
 
   it('should initialize zoom state to base zoom', () => {
     const input: ReaderSessionInput = {
-      chapter: mockChapter as any,
+      chapter: mockChapter,
       viewport: mockViewport,
       settings: defaultSettings,
     };
@@ -99,7 +100,7 @@ describe('createReaderState', () => {
 
   it('should use lowMemoryMode to cap preload queue', () => {
     const input: ReaderSessionInput = {
-      chapter: mockChapter as any,
+      chapter: mockChapter,
       viewport: mockViewport,
       settings: { ...defaultSettings, lowMemoryMode: true },
     };
@@ -111,7 +112,7 @@ describe('createReaderState', () => {
 
   it('should use preloadAhead for normal preload queue', () => {
     const input: ReaderSessionInput = {
-      chapter: mockChapter as any,
+      chapter: mockChapter,
       viewport: mockViewport,
       settings: { ...defaultSettings, preloadAhead: 3 },
     };
@@ -123,7 +124,7 @@ describe('createReaderState', () => {
 
   it('should use vertical mode for scroll mode', () => {
     const input: ReaderSessionInput = {
-      chapter: mockChapter as any,
+      chapter: mockChapter,
       viewport: mockViewport,
       settings: { ...defaultSettings, readingMode: 'vertical' },
     };
@@ -135,7 +136,7 @@ describe('createReaderState', () => {
 
   it('should use page mode for ltr/rtl', () => {
     const input: ReaderSessionInput = {
-      chapter: mockChapter as any,
+      chapter: mockChapter,
       viewport: mockViewport,
       settings: { ...defaultSettings, readingMode: 'ltr' },
     };
@@ -147,7 +148,7 @@ describe('createReaderState', () => {
 
   it('should return paired pages for double layout at page 0', () => {
     const input: ReaderSessionInput = {
-      chapter: mockChapter as any,
+      chapter: mockChapter,
       viewport: mockViewport,
       settings: { ...defaultSettings, pageLayout: 'double' },
       initialPageIndex: 0,
@@ -161,7 +162,7 @@ describe('createReaderState', () => {
 
   it('should return paired pages for double layout at page 1', () => {
     const input: ReaderSessionInput = {
-      chapter: mockChapter as any,
+      chapter: mockChapter,
       viewport: mockViewport,
       settings: { ...defaultSettings, pageLayout: 'double' },
       initialPageIndex: 1,
@@ -174,22 +175,22 @@ describe('createReaderState', () => {
   });
 
   it('should return second pair for double layout at page 2', () => {
-    const sixPageChapter = {
+    const sixPageChapter: ReaderChapter = {
       id: 'ch1',
       mangaId: 'm1',
       title: 'Chapter 1',
       pages: [
-        { id: 'p1', index: 0, image: { url: 'http://example.com/1.jpg' } },
-        { id: 'p2', index: 1, image: { url: 'http://example.com/2.jpg' } },
-        { id: 'p3', index: 2, image: { url: 'http://example.com/3.jpg' } },
-        { id: 'p4', index: 3, image: { url: 'http://example.com/4.jpg' } },
-        { id: 'p5', index: 4, image: { url: 'http://example.com/5.jpg' } },
-        { id: 'p6', index: 5, image: { url: 'http://example.com/6.jpg' } },
+        { id: toChapterPageId('p1'), index: 0, image: { url: 'http://example.com/1.jpg' } },
+        { id: toChapterPageId('p2'), index: 1, image: { url: 'http://example.com/2.jpg' } },
+        { id: toChapterPageId('p3'), index: 2, image: { url: 'http://example.com/3.jpg' } },
+        { id: toChapterPageId('p4'), index: 3, image: { url: 'http://example.com/4.jpg' } },
+        { id: toChapterPageId('p5'), index: 4, image: { url: 'http://example.com/5.jpg' } },
+        { id: toChapterPageId('p6'), index: 5, image: { url: 'http://example.com/6.jpg' } },
       ],
       pageCount: 6,
     };
     const input: ReaderSessionInput = {
-      chapter: sixPageChapter as any,
+      chapter: sixPageChapter,
       viewport: mockViewport,
       settings: { ...defaultSettings, pageLayout: 'double' },
       initialPageIndex: 2,
@@ -203,7 +204,7 @@ describe('createReaderState', () => {
 
   it('should return cover alone for smartSpread with treatFirstPageAsCover', () => {
     const input: ReaderSessionInput = {
-      chapter: mockChapter as any,
+      chapter: mockChapter,
       viewport: mockViewport,
       settings: { ...defaultSettings, pageLayout: 'smartSpread', treatFirstPageAsCover: true },
       initialPageIndex: 0,
