@@ -133,6 +133,7 @@ export function ReaderProgressRail({
 
       <div
         ref={trackRef}
+        // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- the scrubber is a custom widget (pointer capture, transform fill, hover preview); <input type="range"> would replace the whole track/thumb markup, its CSS and the E2E handles for no a11y gain (the ARIA slider contract below is already complete)
         role="slider"
         tabIndex={0}
         aria-label={ariaLabel}

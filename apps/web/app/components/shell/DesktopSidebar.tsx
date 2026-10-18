@@ -104,6 +104,7 @@ export function DesktopSidebar() {
   if (!sidebarOpen) return null;
 
   return (
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- hover is a pointer-only shortcut for the expand toggle below; keyboard and touch users get the same state through the "Toggle Sidebar" button, so no interaction semantics are lost
     <aside
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}

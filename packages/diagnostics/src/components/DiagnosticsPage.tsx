@@ -121,14 +121,10 @@ export function DiagnosticsPage({
           Copy report
         </Button>
         {copyState === 'copied' ? (
-          <span className="text-sm text-muted-foreground" role="status">
-            Copied to clipboard
-          </span>
+          <output className="text-sm text-muted-foreground">Copied to clipboard</output>
         ) : null}
         {copyState === 'failed' ? (
-          <span className="text-sm text-destructive" role="status">
-            Could not copy report
-          </span>
+          <output className="text-sm text-destructive">Could not copy report</output>
         ) : null}
       </div>
 

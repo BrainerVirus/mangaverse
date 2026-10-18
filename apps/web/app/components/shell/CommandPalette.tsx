@@ -203,8 +203,10 @@ export function CommandPalette() {
   return (
     <div ref={scopeRef}>
       {rendered ? (
+        // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- the overlay is the palette's keyboard scope: Arrow/Enter/Escape must work from anywhere inside it (input, items, backdrop), and CommandPalette.test.tsx dispatches on the overlay itself
         <div
           className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[12vh]"
+          // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- <dialog> moves this overlay into the top layer and adds its own open state plus UA max-width/centering, so it is not equivalent to this hand-rolled palette; role + aria-modal is the accessible equivalent
           role="dialog"
           aria-modal="true"
           aria-label="Command palette"

@@ -28,7 +28,6 @@ export function ReaderSettingsSheet({
     >
       <SheetContent
         side="right"
-        role="dialog"
         aria-label="Reader settings"
         onCloseAutoFocus={(event) => {
           event.preventDefault();

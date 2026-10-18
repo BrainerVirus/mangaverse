@@ -36,12 +36,15 @@
     // TanStack Virtual grids. The vitest family is enabled now and clean too: all five
     // rules report 0 findings (354 fixed, measured 2026-10-17 with the five rules forced
     // to `error`: require-mock-type-parameters 253, no-conditional-expect 99,
-    // valid-expect 1, require-to-throw-message 1, expect-expect 0). Still pinned here,
-    // measured 2026-10-17 with the jsx-a11y list forced to `error`: 14 findings —
-    // prefer-tag-over-role 12, no-noninteractive-element-interactions 2,
-    // no-static-element-interactions 0 (its own slice; it touches components, not tests).
-    // The two clean rules stay pinned with their family
-    // so the list is re-measured in one go. Note for the record: ruling #552 counted 64
+    // valid-expect 1, require-to-throw-message 1, expect-expect 0). The jsx-a11y block
+    // is enabled too and clean: 14 findings fixed (measured 2026-10-18) — 5 real fixes
+    // (`hr`, `output` x2, `fieldset` and the redundant `role="dialog"` on the Radix
+    // Sheet) and 9 keeps as inline ignores with recorded rulings: role="dialog" on the
+    // five hand-rolled div overlays (Backup, Migration, Storage, InstallProvider,
+    // CommandPalette), the custom scrubber (reader-progress-rail) and progressbar
+    // (OnboardingPage) widgets that `<input type="range">` / `<progress>` would
+    // re-render, and the two pointer-only interaction handlers (sidebar hover-expand,
+    // palette keyboard scope). Note for the record: ruling #552 counted 64
     // production typescript/no-redundant-type-constituents findings; the real count is 1 —
     // 62 more were "error type" artifacts of that rule and one was a
     // typescript/no-base-to-string artifact (62 + 1 = 63, the PR #58 CI lint error total).
@@ -59,10 +62,7 @@
     "vitest/no-conditional-expect": "error",
     "vitest/valid-expect": "error",
     "vitest/require-to-throw-message": "error",
-    "vitest/expect-expect": "error",
-    "jsx-a11y/prefer-tag-over-role": "off",
-    "jsx-a11y/no-static-element-interactions": "off",
-    "jsx-a11y/no-noninteractive-element-interactions": "off"
+    "vitest/expect-expect": "error"
   },
 
   // Environment
