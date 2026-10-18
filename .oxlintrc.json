@@ -15,8 +15,38 @@
   // Plugins
   "plugins": ["typescript", "react", "jsx-a11y", "vitest"],
 
+  // shadcn's design-system lint (JS plugin). `ui`/`componentImports` teach it that
+  // the components live in @app/design-system (no per-component subpaths; the barrel
+  // is the only import surface) and `note` points every finding at docs/Design.md.
+  // Levels are the measured 2026-10-18 state (plugin forced on over `pnpm lint`):
+  // require-static-classes and no-raw-colors report 0 findings outside the test
+  // fixtures that override them, so they are `error`. The other four need their
+  // own slice and stay `warn`: no-restyle 106 consumer findings (component
+  // contracts are a design-system policy decision), no-arbitrary-values 158
+  // (mostly `rounded-[var(--radius-*)]` / `border-[var(--border)]`, where a token
+  // form exists — a mechanical sweep over ~40 files), no-inline-styles 87 (43
+  // app/feature, 29 library, 15 test fixtures — virtualized grids, reader chrome
+  // and theme previews legitimately need dynamic values), no-unknown-classes 3
+  // (`app-shell` in packages/migration, outside this change's scope; the fourth,
+  // `route-transition` in apps/web, is fixed here) — promote to `error` once
+  // those three dead classes are gone.
+  "jsPlugins": ["@shadcn/lint"],
+  "settings": {
+    "shadcn": {
+      "ui": "@app/design-system",
+      "componentImports": ["^@app/design-system(/|$)"],
+      "note": "See docs/Design.md for the design rules and approved exceptions."
+    }
+  },
+
   // Rules
   "rules": {
+    "shadcn/no-restyle": "warn",
+    "shadcn/no-raw-colors": "error",
+    "shadcn/no-arbitrary-values": "warn",
+    "shadcn/no-inline-styles": "warn",
+    "shadcn/no-unknown-classes": "warn",
+    "shadcn/require-static-classes": "error",
     "typescript/consistent-type-imports": "error",
     "typescript/no-explicit-any": "warn",
     "react-hooks/exhaustive-deps": "warn",
@@ -139,10 +169,22 @@
       "rules": { "no-restricted-imports": "off" }
     },
     {
+      // The component library is where the components are authored, so its own
+      // components pass classes to their primitives by design; no-restyle targets
+      // consumers restyling components and does not apply here. The other shadcn
+      // rules stay on for the library: they are clean there or are real token work.
+      "files": ["**/packages/design-system/src/components/**"],
+      "rules": { "shadcn/no-restyle": "off" }
+    },
+    {
       "files": ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
       "rules": {
         "no-console": "off",
-        "no-unused-vars": "off"
+        "no-unused-vars": "off",
+        // Fixtures deliberately use raw palette names and non-Tailwind tokens
+        // (e.g. `justify`) to exercise cn()'s merge behavior.
+        "shadcn/no-raw-colors": "off",
+        "shadcn/no-unknown-classes": "off"
       }
     },
     {
