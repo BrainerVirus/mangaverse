@@ -11,7 +11,9 @@ const cacheState = vi.hoisted(() => ({
 
 vi.mock('@app/cache', () => ({
   CachedPageImage: () => null,
-  listCachedChapterPageIndexes: vi.fn(async () => cacheState.cachedPageIndexes),
+  listCachedChapterPageIndexes: vi.fn<() => Promise<number[]>>(
+    async () => cacheState.cachedPageIndexes,
+  ),
   markChapterPagesAsRead: vi.fn<() => Promise<void>>(async () => {}),
   prefetchChapterPages: vi.fn<() => Promise<void>>(async () => {}),
   useCoverCacheContext: () => cacheState.context,
