@@ -1,12 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type Dispatch,
-  type SetStateAction,
-} from 'react';
+import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { applyNavigationAction, resolveNavigationAction } from '../navigation.js';
 import type { ReaderPageData } from '../reader-page-data.js';
 import { createReaderState } from '../state.js';
@@ -33,6 +25,11 @@ export function useReaderSession(
   viewport: ReaderViewport,
 ): ReaderSession {
   const [readerState, setReaderState] = useState<ReaderState | null>(null);
+  // The session input the state below was built from. Keeping it as state lets
+  // the rebuild be a guarded render update (react.dev, "You Might Not Need an
+  // Effect" — adjusting state when a prop changes) instead of an effect: the
+  // marker matches the input right after the update, so it converges.
+  const [trackedInput, setTrackedInput] = useState<ReaderSessionInput | null>(null);
 
   const sessionInput = useMemo<ReaderSessionInput | null>(() => {
     if (!data) return null;
@@ -44,32 +41,26 @@ export function useReaderSession(
     };
   }, [data, viewport]);
 
-  const sessionChapterRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!sessionInput) {
-      // No state to rebuild: the returned state is derived as null below.
-      // Clearing the chapter marker keeps a chapter that returns later counted
-      // as fresh, exactly as the previous reset did.
-      sessionChapterRef.current = null;
-      return;
-    }
-    // Resize ticks recreate `sessionInput` with a new viewport object. Recreating
-    // the state with the original initial index would jump the reader back to the
-    // start (and drop the pending progress), so keep the current page for the same
-    // chapter and only use `initialPageIndex` for first creation or a new chapter.
-    const chapterChanged = sessionChapterRef.current !== sessionInput.chapter.id;
-    sessionChapterRef.current = sessionInput.chapter.id;
+  if (trackedInput !== sessionInput) {
+    setTrackedInput(sessionInput);
     setReaderState((current) => {
+      if (!sessionInput) {
+        // No state to rebuild: the returned state is derived as null below.
+        return null;
+      }
+      // Resize ticks recreate `sessionInput` with a new viewport object. Recreating
+      // the state with the original initial index would jump the reader back to the
+      // start (and drop the pending progress), so keep the current page for the same
+      // chapter and only use `initialPageIndex` for first creation or a new chapter.
+      const sameChapter = current !== null && trackedInput?.chapter.id === sessionInput.chapter.id;
       return createReaderState({
         ...sessionInput,
-        initialPageIndex:
-          chapterChanged || current === null
-            ? (sessionInput.initialPageIndex ?? 0)
-            : current.activePageIndex,
+        initialPageIndex: sameChapter
+          ? current.activePageIndex
+          : (sessionInput.initialPageIndex ?? 0),
       });
     });
-  }, [sessionInput]);
+  }
 
   const navigate = useCallback(
     (action: ReaderNavigationAction) => {
@@ -90,8 +81,8 @@ export function useReaderSession(
 
   return {
     sessionInput,
-    // No chapter data means no session; deriving the null here keeps the effect
-    // above free of a synchronous setState (react/set-state-in-effect).
+    // No chapter data means no session: deriving the null here keeps the
+    // returned state honest in the render that starts the rebuild above.
     readerState: sessionInput === null ? null : readerState,
     setReaderState,
     navigate,

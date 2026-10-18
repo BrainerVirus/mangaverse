@@ -187,6 +187,7 @@ export async function markChapterPagesAsRead(
   );
 
   for (const entry of chapterEntries) {
+    // react-doctor-disable-next-line react-doctor/async-await-in-loop -- one row per iteration against the browser-SQLite runtime; parallel upserts would only contend for the same write lock
     await upsertCacheEntry(db, {
       id: entry.id,
       providerId: entry.providerId,
@@ -220,6 +221,7 @@ export async function prefetchChapterPages(
     for (let page = queue.shift(); page !== undefined; page = queue.shift()) {
       // Sequential on purpose: this loop is the concurrency bound.
       // oxlint-disable-next-line eslint/no-await-in-loop
+      // react-doctor-disable-next-line react-doctor/async-await-in-loop -- the 4-at-a-time bound from #71 (ruling mvd745t3): this worker pool IS the prefetch limiter
       await resolvePageObjectUrl({
         db: input.db,
         adapter: input.adapter,

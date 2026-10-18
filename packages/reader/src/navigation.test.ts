@@ -1,25 +1,27 @@
 import { describe, it, expect } from 'vitest';
+import { toChapterPageId } from '@app/shared';
 import {
   resolveNavigationAction,
   applyNavigationAction,
   resolveKeyboardAction,
   resolveWheelAction,
 } from './navigation';
-import type { ReaderState, ZoomStateSummary } from './types';
+import type { ReaderEngineSettings, ReaderPage, ReaderState, ZoomStateSummary } from './types';
 
-const mockPages = [
-  { id: 'p1', index: 0, image: { url: 'http://example.com/1.jpg' } },
-  { id: 'p2', index: 1, image: { url: 'http://example.com/2.jpg' } },
-  { id: 'p3', index: 2, image: { url: 'http://example.com/3.jpg' } },
-  { id: 'p4', index: 3, image: { url: 'http://example.com/4.jpg' } },
-  { id: 'p5', index: 4, image: { url: 'http://example.com/5.jpg' } },
+const mockPages: readonly ReaderPage[] = [
+  { id: toChapterPageId('p1'), index: 0, image: { url: 'http://example.com/1.jpg' } },
+  { id: toChapterPageId('p2'), index: 1, image: { url: 'http://example.com/2.jpg' } },
+  { id: toChapterPageId('p3'), index: 2, image: { url: 'http://example.com/3.jpg' } },
+  { id: toChapterPageId('p4'), index: 3, image: { url: 'http://example.com/4.jpg' } },
+  { id: toChapterPageId('p5'), index: 4, image: { url: 'http://example.com/5.jpg' } },
 ];
 
-const defaultSettings = {
-  readingMode: 'ltr' as const,
-  pageLayout: 'single' as const,
-  tapZoneLayout: 'leftRight' as const,
-  navigationDirection: 'default' as const,
+const defaultSettings: ReaderEngineSettings = {
+  readingMode: 'ltr',
+  pageLayout: 'single',
+  tapZoneLayout: 'leftRight',
+  fitMode: 'width',
+  navigationDirection: 'default',
   tapZoneDebugOverlay: false,
   minZoom: 1,
   maxZoom: 3,
@@ -28,7 +30,8 @@ const defaultSettings = {
   treatFirstPageAsCover: false,
   preloadAhead: 2,
   lowMemoryMode: false,
-  wheelBehavior: 'scroll' as const,
+  wheelBehavior: 'scroll',
+  verticalGapPx: 0,
 };
 
 const defaultZoom: ZoomStateSummary = {
@@ -40,18 +43,16 @@ const defaultZoom: ZoomStateSummary = {
 };
 
 function makeState(
-  overrides: Partial<{
-    activePageIndex: number;
-    chapterId: string;
-    mode: 'page' | 'scroll';
-    settings?: Partial<typeof defaultSettings>;
-  }> = {},
+  overrides: Partial<Omit<ReaderState, 'settings'>> & {
+    settings?: Partial<ReaderEngineSettings>;
+  } = {},
 ): ReaderState {
-  const settings = { ...defaultSettings, ...overrides.settings };
+  const { settings: settingsOverrides, ...stateOverrides } = overrides;
+  const settings: ReaderEngineSettings = { ...defaultSettings, ...settingsOverrides };
   return {
     chapterId: 'ch1',
-    pages: mockPages as any,
-    settings: settings as any,
+    pages: mockPages,
+    settings,
     mode: 'page',
     activePageIndex: 0,
     visiblePageIndexes: [0],
@@ -66,7 +67,7 @@ function makeState(
       activePageIndex: 0,
       totalPages: 5,
       visiblePageIndexes: [0],
-      settings: settings as any,
+      settings,
       zoom: defaultZoom,
       chromeVisible: false,
       failedPageCount: 0,
@@ -74,8 +75,8 @@ function makeState(
       lowMemoryMode: false,
       events: [],
     },
-    ...overrides,
-  } as ReaderState;
+    ...stateOverrides,
+  };
 }
 
 describe('resolveNavigationAction', () => {
@@ -159,50 +160,50 @@ describe('applyNavigationAction', () => {
 
 describe('resolveKeyboardAction', () => {
   it('should return nextPage for ArrowRight in LTR', () => {
-    const action = resolveKeyboardAction({ key: 'ArrowRight' }, defaultSettings as any);
+    const action = resolveKeyboardAction({ key: 'ArrowRight' }, defaultSettings);
 
     expect(action.type).toBe('nextPage');
   });
 
   it('should return prevPage for ArrowLeft in LTR', () => {
-    const action = resolveKeyboardAction({ key: 'ArrowLeft' }, defaultSettings as any);
+    const action = resolveKeyboardAction({ key: 'ArrowLeft' }, defaultSettings);
 
     expect(action.type).toBe('prevPage');
   });
 
   it('should invert for RTL', () => {
     const rtlSettings = { ...defaultSettings, readingMode: 'rtl' as const };
-    const action = resolveKeyboardAction({ key: 'ArrowRight' }, rtlSettings as any);
+    const action = resolveKeyboardAction({ key: 'ArrowRight' }, rtlSettings);
 
     expect(action.type).toBe('prevPage');
   });
 
   it('should handle PageDown as nextPage', () => {
-    const action = resolveKeyboardAction({ key: 'PageDown' }, defaultSettings as any);
+    const action = resolveKeyboardAction({ key: 'PageDown' }, defaultSettings);
 
     expect(action.type).toBe('nextPage');
   });
 
   it('should handle PageUp as prevPage', () => {
-    const action = resolveKeyboardAction({ key: 'PageUp' }, defaultSettings as any);
+    const action = resolveKeyboardAction({ key: 'PageUp' }, defaultSettings);
 
     expect(action.type).toBe('prevPage');
   });
 
   it('should handle Home as firstPage', () => {
-    const action = resolveKeyboardAction({ key: 'Home' }, defaultSettings as any);
+    const action = resolveKeyboardAction({ key: 'Home' }, defaultSettings);
 
     expect(action.type).toBe('firstPage');
   });
 
   it('should handle End as lastPage', () => {
-    const action = resolveKeyboardAction({ key: 'End' }, defaultSettings as any);
+    const action = resolveKeyboardAction({ key: 'End' }, defaultSettings);
 
     expect(action.type).toBe('lastPage');
   });
 
   it('should return none for unhandled keys', () => {
-    const action = resolveKeyboardAction({ key: 'a' }, defaultSettings as any);
+    const action = resolveKeyboardAction({ key: 'a' }, defaultSettings);
 
     expect(action.type).toBe('none');
   });
@@ -215,21 +216,21 @@ describe('resolveWheelAction', () => {
       wheelBehavior: 'scroll' as const,
       readingMode: 'vertical' as const,
     };
-    const action = resolveWheelAction({ deltaY: 100, deltaX: 0 }, settings as any);
+    const action = resolveWheelAction({ deltaY: 100, deltaX: 0 }, settings);
 
     expect(action.type).toBe('scroll');
   });
 
   it('should return zoom action for wheel with Ctrl', () => {
     const settings = { ...defaultSettings, wheelBehavior: 'zoom' as const };
-    const action = resolveWheelAction({ deltaY: -100, deltaX: 0, ctrlKey: true }, settings as any);
+    const action = resolveWheelAction({ deltaY: -100, deltaX: 0, ctrlKey: true }, settings);
 
     expect(action.type).toBe('zoom');
   });
 
   it('should return none when wheelBehavior is none', () => {
     const settings = { ...defaultSettings, wheelBehavior: 'none' as const };
-    const action = resolveWheelAction({ deltaY: 100, deltaX: 0 }, settings as any);
+    const action = resolveWheelAction({ deltaY: 100, deltaX: 0 }, settings);
 
     expect(action.type).toBe('none');
   });

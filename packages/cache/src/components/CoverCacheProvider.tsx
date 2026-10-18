@@ -31,6 +31,7 @@ export function CoverCacheProvider({
     [adapter, cacheLimitBytes, db],
   );
 
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: cache eviction is a DB + blob-storage job with no event to hang it on; it must run once the cache exists
   useEffect(() => {
     if (value === null) {
       return;

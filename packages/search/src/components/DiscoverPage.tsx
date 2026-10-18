@@ -194,55 +194,98 @@ export function DiscoverPage({
         />
       ) : null}
 
-      {!isError && providers.length > 0 && activeProvider !== undefined ? (
-        <div className="flex flex-col gap-6">
-          <div
-            role="tablist"
-            aria-label="Discover providers"
-            className="inline-flex h-10 w-full items-center justify-start gap-1 overflow-x-auto rounded-[var(--radius-control)] bg-muted p-1 text-muted-foreground"
-          >
-            {providers.map((provider) => {
-              const isActive = provider.providerId === activeProviderId;
-              return (
-                <button
-                  key={provider.providerId}
-                  type="button"
-                  role="tab"
-                  aria-selected={isActive}
-                  onClick={() => onSelectProvider(provider.providerId)}
-                  className={
-                    isActive
-                      ? 'inline-flex items-center justify-center whitespace-nowrap rounded-[var(--radius-control)] bg-background px-3 py-1.5 text-sm font-medium text-foreground shadow-sm'
-                      : 'inline-flex items-center justify-center whitespace-nowrap rounded-[var(--radius-control)] px-3 py-1.5 text-sm font-medium transition-colors hover:text-foreground'
-                  }
-                >
-                  {provider.providerName}
-                </button>
-              );
-            })}
-          </div>
-
-          <div role="tabpanel" className="flex flex-col gap-8">
-            {isExpandedView ? (
-              <DiscoverExpandedSectionView
-                state={expandedSectionState}
-                onOpenManga={onOpenManga}
-                onBackFromSection={onBackFromSection}
-                {...(onLoadMoreSection !== undefined ? { onLoadMoreSection } : {})}
-              />
-            ) : (
-              activeProvider.sections.map((section) => (
-                <DiscoverSectionPreview
-                  key={section.id}
-                  section={section}
-                  onOpenManga={onOpenManga}
-                  onSeeAll={() => onSeeAllSection(activeProvider.providerId, section.id)}
-                />
-              ))
-            )}
-          </div>
-        </div>
-      ) : null}
+      <DiscoverProviderBrowser
+        isError={isError}
+        providers={providers}
+        activeProvider={activeProvider}
+        isExpandedView={isExpandedView}
+        expandedSectionState={expandedSectionState}
+        onSelectProvider={onSelectProvider}
+        onOpenManga={onOpenManga}
+        onSeeAllSection={onSeeAllSection}
+        onBackFromSection={onBackFromSection}
+        onLoadMoreSection={onLoadMoreSection}
+      />
     </main>
+  );
+}
+
+/**
+ * The provider tabs and the panel they select. A failed feed or a provider-less
+ * install has nothing to browse, so the whole region steps aside.
+ */
+function DiscoverProviderBrowser({
+  isError,
+  providers,
+  activeProvider,
+  isExpandedView,
+  expandedSectionState,
+  onSelectProvider,
+  onOpenManga,
+  onSeeAllSection,
+  onBackFromSection,
+  onLoadMoreSection,
+}: {
+  isError: boolean;
+  providers: readonly DiscoverProviderFeed[];
+  activeProvider: DiscoverProviderFeed | undefined;
+  isExpandedView: boolean;
+  expandedSectionState: DiscoverExpandedSectionState | undefined;
+  onSelectProvider: (providerId: string) => void;
+  onOpenManga: (mangaId: MangaId) => void;
+  onSeeAllSection: (providerId: string, sectionId: string) => void;
+  onBackFromSection: () => void;
+  onLoadMoreSection: (() => void) | undefined;
+}) {
+  if (isError || providers.length === 0 || activeProvider === undefined) return null;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div
+        role="tablist"
+        aria-label="Discover providers"
+        className="inline-flex h-10 w-full items-center justify-start gap-1 overflow-x-auto rounded-[var(--radius-control)] bg-muted p-1 text-muted-foreground"
+      >
+        {providers.map((provider) => {
+          const isActive = provider.providerId === activeProvider.providerId;
+          return (
+            <button
+              key={provider.providerId}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => onSelectProvider(provider.providerId)}
+              className={
+                isActive
+                  ? 'inline-flex items-center justify-center whitespace-nowrap rounded-[var(--radius-control)] bg-background px-3 py-1.5 text-sm font-medium text-foreground shadow-sm'
+                  : 'inline-flex items-center justify-center whitespace-nowrap rounded-[var(--radius-control)] px-3 py-1.5 text-sm font-medium transition-colors hover:text-foreground'
+              }
+            >
+              {provider.providerName}
+            </button>
+          );
+        })}
+      </div>
+
+      <div role="tabpanel" className="flex flex-col gap-8">
+        {isExpandedView && expandedSectionState !== undefined ? (
+          <DiscoverExpandedSectionView
+            state={expandedSectionState}
+            onOpenManga={onOpenManga}
+            onBackFromSection={onBackFromSection}
+            {...(onLoadMoreSection !== undefined ? { onLoadMoreSection } : {})}
+          />
+        ) : (
+          activeProvider.sections.map((section) => (
+            <DiscoverSectionPreview
+              key={section.id}
+              section={section}
+              onOpenManga={onOpenManga}
+              onSeeAll={() => onSeeAllSection(activeProvider.providerId, section.id)}
+            />
+          ))
+        )}
+      </div>
+    </div>
   );
 }

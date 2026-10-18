@@ -1,46 +1,25 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type PointerEvent as ReactPointerEvent,
-} from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { EmptyState, ErrorState, LoadingState, ReaderChrome } from '@app/design-system';
 import { useReducedMotion } from '@app/motion';
 import type { ReaderSettings } from '@app/shared';
-import {
-  CachedPageImage,
-  listCachedChapterPageIndexes,
-  markChapterPagesAsRead,
-  prefetchChapterPages,
-  useCoverCacheContext,
-} from '@app/cache';
-import { resolveKeyboardAction, resolveWheelAction } from '../navigation.js';
-import { isDoubleTap, PAN_THRESHOLD_PX, pinchScale, pointerDistance } from '../gestures.js';
-import { formatUnavailableOfflinePages } from '../offline-pages.js';
-import { resolvePageFit } from '../page-fit.js';
+import { CachedPageImage, useCoverCacheContext, type CoverCacheContextValue } from '@app/cache';
+import { resolvePageFit, type PageFit } from '../page-fit.js';
 import type { ReaderPageData } from '../reader-page-data.js';
-import { computeScrollTargetTop, resolveVerticalNavigationTarget } from '../scroll-navigation.js';
-import {
-  applyDoubleTapZoom,
-  applyPan,
-  applyPinchZoom,
-  clampZoomScale,
-  clampZoomTransform,
-} from '../zoom.js';
 import { ReaderScrollView, type ReaderScrollViewHandle } from './ReaderScrollView.js';
 import { ReaderSettingsSheet } from './reader-settings-sheet.js';
+import { useChapterPrefetch, useOfflinePagesNote } from './use-chapter-cache.js';
+import { useReaderGestures } from './use-reader-gestures.js';
+import { useReaderKeyboard, useReaderWheelZoom } from './use-reader-listeners.js';
 import { useReaderProgress } from './use-reader-progress.js';
 import { useReaderSession } from './use-reader-session.js';
+import { useReaderViewport } from './use-reader-viewport.js';
 import { calculateTapZones } from '../tap-zones.js';
 import type {
   ReaderOverlayInsets,
+  ReaderPage,
   ReaderProgressEvent,
   ReaderSessionInput,
   ReaderState,
-  ReaderViewport,
-  TapZoneRegion,
-  ZoomStateSummary,
 } from '../types.js';
 
 const CHROME_INSETS: ReaderOverlayInsets = { top: 96, right: 0, bottom: 48, left: 0 };
@@ -50,6 +29,75 @@ const OBJECT_FIT_CLASS = {
   cover: 'object-cover',
   none: 'object-none',
 } as const;
+
+type ChromeMode = 'single' | 'double' | 'scroll';
+
+function toggleFullscreen(): void {
+  if (typeof document === 'undefined') return;
+  if (document.fullscreenElement) {
+    void document.exitFullscreen();
+    return;
+  }
+  void document.documentElement.requestFullscreen?.();
+}
+
+function resolveChromeMode(
+  settings: ReaderSettings | undefined,
+  isScrollMode: boolean,
+): ChromeMode {
+  if (isScrollMode) return 'scroll';
+  return settings?.pageLayout === 'double' ? 'double' : 'single';
+}
+
+type ReaderGate = 'loading' | 'error' | 'offline' | 'empty' | null;
+
+function applyReadingModeChange(
+  mode: 'single' | 'double' | 'scroll' | 'webtoon',
+  settings: ReaderSettings | undefined,
+  onChangeSettings: ((patch: Partial<ReaderSettings>) => void) | undefined,
+): void {
+  if (!onChangeSettings) return;
+  if (mode === 'scroll') {
+    onChangeSettings({ readingMode: 'vertical' });
+    return;
+  }
+  const pageLayout = mode === 'double' ? 'double' : 'single';
+  // Returning from the strip needs a page reading mode again.
+  onChangeSettings(
+    settings?.readingMode === 'vertical' ? { readingMode: 'ltr', pageLayout } : { pageLayout },
+  );
+}
+
+/** `exactOptionalPropertyTypes` forbids passing an absent callback explicitly. */
+function retryProps(onRetry: (() => void) | undefined): { readonly onRetry?: () => void } {
+  return onRetry === undefined ? {} : { onRetry };
+}
+
+/** What the surface shows before there is a chapter to read, in priority order. */
+function resolveReaderGate(input: {
+  readonly isLoading: boolean;
+  readonly isError: boolean;
+  readonly isOffline: boolean;
+  readonly hasSession: boolean;
+  readonly pageCount: number;
+}): ReaderGate {
+  if (input.isLoading) return 'loading';
+  if (input.isError) return 'error';
+  if (input.isOffline && !input.hasSession) return 'offline';
+  // A pending or paused (unfocused/online) fetch with no data is still loading;
+  // a genuinely empty chapter has data with pageCount 0 and is handled below.
+  if (!input.hasSession) return 'loading';
+  if (input.pageCount === 0) return 'empty';
+  return null;
+}
+
+function resolveNaturalSize(
+  page: ReaderPage | undefined,
+): { readonly width: number; readonly height: number } | undefined {
+  if (page?.width === undefined || page.height === undefined) return undefined;
+  if (page.width <= 0 || page.height <= 0) return undefined;
+  return { width: page.width, height: page.height };
+}
 
 export interface ReaderScreenProps {
   data: ReaderPageData | undefined;
@@ -64,77 +112,6 @@ export interface ReaderScreenProps {
   isOffline?: boolean;
 }
 
-function findTapZone(
-  zones: readonly TapZoneRegion[],
-  x: number,
-  y: number,
-): TapZoneRegion | undefined {
-  return zones.find(
-    (zone) =>
-      zone.width > 0 &&
-      zone.height > 0 &&
-      x >= zone.x &&
-      x < zone.x + zone.width &&
-      y >= zone.y &&
-      y < zone.y + zone.height,
-  );
-}
-
-interface ActivePointer {
-  readonly x: number;
-  readonly y: number;
-}
-
-interface PointerGesture {
-  /** Pointers currently down, keyed by pointerId; two of them mean a pinch. */
-  readonly pointers: Map<number, ActivePointer>;
-  /** Pinch baseline: scale and separation when the second pointer landed. */
-  pinch: { readonly scale: number; readonly distance: number } | null;
-  lastTap: { readonly time: number; readonly x: number; readonly y: number } | null;
-  /** Set once a drag passes the pan threshold, so its pointer-up is not a tap. */
-  moved: boolean;
-}
-
-function createPointerGesture(): PointerGesture {
-  return { pointers: new Map(), pinch: null, lastTap: null, moved: false };
-}
-
-function useReaderViewport() {
-  const [node, setNode] = useState<HTMLDivElement | null>(null);
-  const [viewport, setViewport] = useState<ReaderViewport>({
-    width: 800,
-    height: 600,
-    orientation: 'landscape',
-  });
-
-  useEffect(() => {
-    if (!node) return;
-
-    const update = () => {
-      const width = node.clientWidth;
-      const height = node.clientHeight;
-      // An unmeasurable node (jsdom, a hidden container) keeps the default
-      // viewport instead of collapsing every fit box to zero.
-      if (width <= 0 || height <= 0) return;
-      setViewport({
-        width,
-        height,
-        orientation: width >= height ? 'landscape' : 'portrait',
-      });
-    };
-
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [node]);
-
-  // Callback ref, not a mount effect: the surface only renders after loading, so
-  // an effect with `[]` deps ran while the ref was still null and never observed
-  // the real container — leaving tap zones computed against the 800x600 default.
-  return { containerRef: setNode, viewport };
-}
-
 export function ReaderScreen({
   data,
   isLoading,
@@ -147,13 +124,6 @@ export function ReaderScreen({
   isOffline = false,
 }: ReaderScreenProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [zoomLayer, setZoomLayer] = useState<HTMLDivElement | null>(null);
-  // Keyed by chapter so a note resolved for the previous chapter can never be
-  // rendered for the next one while the lookup below is in flight.
-  const [offlinePages, setOfflinePages] = useState<{ key: string; note: string | null }>({
-    key: '',
-    note: null,
-  });
   const scrollHandleRef = useRef<ReaderScrollViewHandle | null>(null);
   const settingsButtonRef = useRef<HTMLButtonElement | null>(null);
   // Vertical navigation resolves from the last target, not the centre-based
@@ -162,366 +132,93 @@ export function ReaderScreen({
   // keeps scroll-driven updates from overwriting a burst that is still landing.
   const verticalTargetRef = useRef(0);
   const verticalTargetPendingRef = useRef(false);
-  const pointerRef = useRef<PointerGesture>(createPointerGesture());
   const reducedMotion = useReducedMotion();
   const cacheContext = useCoverCacheContext();
   const { containerRef, viewport } = useReaderViewport();
   const { sessionInput, readerState, setReaderState, navigate } = useReaderSession(data, viewport);
   useReaderProgress(data, readerState, onPersistProgress);
+  useChapterPrefetch(data, cacheContext);
+  const offlineNote = useOfflinePagesNote(data, cacheContext, isOffline);
 
-  const updateZoom = useCallback(
-    (transform: (zoom: ZoomStateSummary) => ZoomStateSummary) => {
-      setReaderState((previous) =>
-        previous === null ? previous : { ...previous, zoom: transform(previous.zoom) },
-      );
-    },
-    [setReaderState],
-  );
-
-  useEffect(() => {
-    if (!data || cacheContext === null) {
-      return;
-    }
-
-    const pages = data.chapter.pages.map((page, pageIndex) => ({
-      pageIndex,
-      remoteUrl: page.image.url,
-    }));
-
-    void prefetchChapterPages({
-      db: cacheContext.db,
-      adapter: cacheContext.adapter,
-      providerId: data.providerId,
-      mangaId: data.mangaId,
-      chapterId: data.chapterId,
-      pages,
-      retention: 'read',
-    }).then(() =>
-      markChapterPagesAsRead(cacheContext.db, {
-        providerId: data.providerId,
-        mangaId: data.mangaId,
-        chapterId: data.chapterId,
-      }),
-    );
-  }, [cacheContext, data]);
-
-  // Offline, a partially cached chapter renders its cached pages and blanks the
-  // rest. Naming the missing ones is the difference between "readable offline"
-  // and a truthful report of what the cache actually holds.
-  useEffect(() => {
-    if (!isOffline || !data || cacheContext === null) return;
-
-    const key = `${data.providerId}:${data.mangaId}:${data.chapterId}`;
-    let cancelled = false;
-
-    void listCachedChapterPageIndexes(cacheContext.db, {
-      providerId: data.providerId,
-      mangaId: data.mangaId,
-      chapterId: data.chapterId,
-    }).then((cached) => {
-      if (cancelled) return;
-      setOfflinePages({
-        key,
-        note: formatUnavailableOfflinePages(
-          data.chapter.pages.map((page) => page.index),
-          cached,
-        ),
-      });
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [cacheContext, data, isOffline]);
-
-  useEffect(() => {
-    if (!sessionInput) return;
-
-    const pageCount = sessionInput.chapter.pageCount;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const action = resolveKeyboardAction(event, sessionInput.settings);
-      if (action.type === 'none') return;
-      event.preventDefault();
-      if (sessionInput.settings.readingMode === 'vertical') {
-        // In the continuous strip, navigation moves the scroll position to the
-        // target page's centre; the target advances on the press itself, so a
-        // burst of presses is never resolved from a stale (centre-based) index.
-        const handle = scrollHandleRef.current;
-        const target = resolveVerticalNavigationTarget(
-          verticalTargetRef.current,
-          action,
-          pageCount,
-        );
-        verticalTargetRef.current = target;
-        verticalTargetPendingRef.current = true;
-        if (!handle) return;
-        const container = handle.scrollContainer();
-        if (container === null) return;
-        container.scrollTo({
-          top: computeScrollTargetTop(
-            handle.measurePages(),
-            target,
-            container.clientHeight,
-            container.scrollHeight,
-          ),
-          behavior: reducedMotion ? 'auto' : 'smooth',
-        });
-        return;
-      }
-      navigate(action);
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, reducedMotion, sessionInput]);
-
-  // Ctrl+wheel zoom (wheelBehavior 'zoom'). The paged layer owns the listener, so
-  // the scroll strip keeps native wheel scrolling, and passive: false lets the
-  // handler cancel the browser's own page zoom.
-  useEffect(() => {
-    if (zoomLayer === null || sessionInput === null) return;
-
-    const handleWheel = (event: WheelEvent) => {
-      const action = resolveWheelAction(event, sessionInput.settings);
-      if (action.type !== 'zoom') return;
-      event.preventDefault();
-      const rect = zoomLayer.getBoundingClientRect();
-      // One ~100px wheel notch is ~22%; trackpads send many small deltas.
-      updateZoom((zoom) =>
-        clampZoomTransform(
-          applyPinchZoom(zoom, zoom.scale, zoom.scale * Math.exp(-(action.delta ?? 0) * 0.002), {
-            centerX: event.clientX - rect.left,
-            centerY: event.clientY - rect.top,
-          }),
-          rect.width,
-          rect.height,
-          rect.width,
-          rect.height,
-        ),
-      );
-    };
-
-    zoomLayer.addEventListener('wheel', handleWheel, { passive: false });
-    return () => zoomLayer.removeEventListener('wheel', handleWheel);
-  }, [sessionInput, updateZoom, zoomLayer]);
-
-  const handleZoomPointerDown = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      const gesture = pointerRef.current;
-      gesture.moved = false;
-      gesture.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-
-      if (gesture.pointers.size === 2 && readerState !== null) {
-        const [first, second] = [...gesture.pointers.values()];
-        if (first !== undefined && second !== undefined) {
-          gesture.pinch = {
-            scale: readerState.zoom.scale,
-            distance: pointerDistance(first, second),
-          };
-        }
-      }
-    },
-    [readerState],
-  );
-
-  const handleZoomPointerMove = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      const gesture = pointerRef.current;
-      const pointer = gesture.pointers.get(event.pointerId);
-      if (pointer === undefined || readerState === null) return;
-
-      gesture.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      const rect = event.currentTarget.getBoundingClientRect();
-
-      if (gesture.pointers.size >= 2 && gesture.pinch !== null) {
-        const [first, second] = [...gesture.pointers.values()];
-        if (first === undefined || second === undefined) return;
-        gesture.moved = true;
-        updateZoom((zoom) =>
-          clampZoomTransform(
-            applyPinchZoom(
-              zoom,
-              zoom.scale,
-              pinchScale(gesture.pinch!, pointerDistance(first, second)),
-              {
-                centerX: (first.x + second.x) / 2 - rect.left,
-                centerY: (first.y + second.y) / 2 - rect.top,
-              },
-            ),
-            rect.width,
-            rect.height,
-            rect.width,
-            rect.height,
-          ),
-        );
-        return;
-      }
-
-      if (readerState.zoom.scale <= 1) return;
-
-      const deltaX = event.clientX - pointer.x;
-      const deltaY = event.clientY - pointer.y;
-      if (!gesture.moved && Math.hypot(deltaX, deltaY) < PAN_THRESHOLD_PX) {
-        return;
-      }
-      gesture.moved = true;
-      updateZoom((zoom) =>
-        clampZoomTransform(
-          applyPan(zoom, deltaX, deltaY),
-          rect.width,
-          rect.height,
-          rect.width,
-          rect.height,
-        ),
-      );
-    },
-    [readerState, updateZoom],
-  );
-
-  const handleZoomPointerUp = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    const gesture = pointerRef.current;
-    gesture.pointers.delete(event.pointerId);
-    if (gesture.pointers.size < 2) {
-      gesture.pinch = null;
-    }
-  }, []);
-
-  const handlePointerUp = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (!sessionInput || !readerState) return;
-
-      const gesture = pointerRef.current;
-      const rect = event.currentTarget.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      const y = event.clientY - rect.top;
-
-      // A double tap zooms instead of turning the page (pointer-based, so touch
-      // devices get it too; `dblclick` never fires there).
-      const tap = { time: Date.now(), x: event.clientX, y: event.clientY };
-      const doubleTap = !gesture.moved && isDoubleTap(gesture.lastTap, tap);
-      gesture.lastTap = gesture.moved ? null : tap;
-      gesture.moved = false;
-      if (doubleTap) {
-        updateZoom((zoom) =>
-          clampZoomTransform(
-            applyDoubleTapZoom(
-              zoom,
-              { x, y },
-              rect.width,
-              rect.height,
-              clampZoomScale(zoom, sessionInput.settings.doubleTapZoom),
-            ),
-            rect.width,
-            rect.height,
-            rect.width,
-            rect.height,
-          ),
-        );
-        return;
-      }
-
-      const zones = calculateTapZones(sessionInput, CHROME_INSETS, readerState.zoom);
-      const zone = findTapZone(zones, x, y);
-      const action = zone?.action ?? { type: 'none' as const };
-
-      if (action.type === 'toggleChrome') {
-        onToggleChrome();
-        return;
-      }
-
-      if (action.type === 'prevPage' || action.type === 'nextPage') {
-        navigate({ type: action.type });
-      }
-    },
-    [navigate, onToggleChrome, readerState, sessionInput, updateZoom],
-  );
+  const {
+    updateZoom,
+    handleZoomPointerDown,
+    handleZoomPointerMove,
+    handleZoomPointerUp,
+    handlePointerUp,
+  } = useReaderGestures({
+    sessionInput,
+    readerState,
+    overlayInsets: CHROME_INSETS,
+    navigate,
+    onToggleChrome,
+    setReaderState,
+  });
+  const { zoomLayerRef } = useReaderWheelZoom({ sessionInput, updateZoom });
+  useReaderKeyboard({
+    sessionInput,
+    navigate,
+    reducedMotion,
+    scrollHandle: scrollHandleRef,
+    verticalTarget: verticalTargetRef,
+    verticalTargetPending: verticalTargetPendingRef,
+  });
 
   const settings = data?.settings;
   const isScrollMode = readerState?.mode === 'scroll';
-  const chromeMode: 'single' | 'double' | 'scroll' = isScrollMode
-    ? 'scroll'
-    : settings?.pageLayout === 'double'
-      ? 'double'
-      : 'single';
+  const chromeMode = resolveChromeMode(settings, isScrollMode === true);
   const handleModeChange = useCallback(
-    (mode: 'single' | 'double' | 'scroll' | 'webtoon') => {
-      if (!onChangeSettings) return;
-      if (mode === 'scroll') {
-        onChangeSettings({ readingMode: 'vertical' });
-        return;
-      }
-      const pageLayout = mode === 'double' ? 'double' : 'single';
-      // Returning from the strip needs a page reading mode again.
-      onChangeSettings(
-        settings?.readingMode === 'vertical' ? { readingMode: 'ltr', pageLayout } : { pageLayout },
-      );
-    },
-    [onChangeSettings, settings?.readingMode],
+    (mode: 'single' | 'double' | 'scroll' | 'webtoon') =>
+      applyReadingModeChange(mode, settings, onChangeSettings),
+    [onChangeSettings, settings],
   );
 
-  const handleToggleFullscreen = useCallback(() => {
-    if (typeof document === 'undefined') return;
-    if (document.fullscreenElement) {
-      void document.exitFullscreen();
-      return;
-    }
-    void document.documentElement.requestFullscreen?.();
-  }, []);
-
-  if (isLoading) {
-    return <LoadingState type="detail" />;
-  }
-
-  if (isError) {
+  const gate = resolveReaderGate({
+    isLoading,
+    isError,
+    isOffline,
+    hasSession: data !== undefined && readerState !== null,
+    pageCount: data?.chapter.pageCount ?? 0,
+  });
+  if (gate === 'error') {
     return (
       <ErrorState
         title="Could not load chapter"
         message="Local chapter data failed to load. Try again in a moment."
-        {...(onRetry !== undefined ? { onRetry } : {})}
+        {...retryProps(onRetry)}
       />
     );
   }
 
-  if (isOffline && (!data || !readerState)) {
+  if (gate === 'offline') {
     return (
       <ErrorState
         title="You are offline"
         message="This chapter is not saved locally yet. Reconnect and retry."
-        {...(onRetry !== undefined ? { onRetry } : {})}
+        {...retryProps(onRetry)}
       />
     );
   }
 
-  if (!data || !readerState) {
-    // A pending or paused (unfocused/online) fetch with no data is still loading;
-    // a genuinely empty chapter has data with pageCount 0 and is handled below.
+  if (gate === 'loading' || data === undefined || readerState === null) {
     return <LoadingState type="detail" />;
   }
 
-  if (data.chapter.pageCount === 0) {
+  if (gate === 'empty') {
     return <EmptyState type="no-chapters" />;
   }
 
-  const currentPage = readerState.activePageIndex + 1;
-  const offlineKey = `${data.providerId}:${data.mangaId}:${data.chapterId}`;
-  const offlineNote = isOffline && offlinePages.key === offlineKey ? offlinePages.note : null;
   const visiblePages = readerState.visiblePageIndexes
     .map((index) => data.chapter.pages[index])
     .filter((page) => page !== undefined);
   const activePage = data.chapter.pages[readerState.activePageIndex];
-  const naturalSize =
-    activePage?.width !== undefined &&
-    activePage.height !== undefined &&
-    activePage.width > 0 &&
-    activePage.height > 0
-      ? { width: activePage.width, height: activePage.height }
-      : undefined;
+  const naturalSize = resolveNaturalSize(activePage);
   const fit = resolvePageFit({
     fitMode: data.engineSettings.fitMode,
     availableWidth: viewport.width - CHROME_INSETS.left - CHROME_INSETS.right,
     availableHeight: viewport.height - CHROME_INSETS.top - CHROME_INSETS.bottom,
     pageCount: visiblePages.length,
-    ...(naturalSize !== undefined ? { naturalSize } : {}),
+    naturalSize,
   });
 
   return (
@@ -571,7 +268,7 @@ export function ReaderScreen({
             the same dimensions the helpers receive.
           */
           <div
-            ref={setZoomLayer}
+            ref={zoomLayerRef}
             className="absolute inset-0 flex items-center justify-center"
             data-testid="reader-zoom-layer"
             style={{
@@ -584,46 +281,18 @@ export function ReaderScreen({
             onPointerUp={handleZoomPointerUp}
             onPointerCancel={handleZoomPointerUp}
           >
-            {visiblePages.map((page) =>
-              cacheContext !== null ? (
-                <div
-                  key={page.id}
-                  data-testid="reader-page-box"
-                  data-fit-mode={data.engineSettings.fitMode}
-                  data-object-fit={fit.objectFit}
-                  style={{
-                    width: `${fit.box.width}px`,
-                    height: `${fit.box.height}px`,
-                    flex: '0 0 auto',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <CachedPageImage
-                    providerId={data.providerId}
-                    mangaId={data.mangaId}
-                    chapterId={data.chapterId}
-                    pageIndex={page.index}
-                    remoteUrl={page.image.url}
-                    className={`h-full w-full select-none ${OBJECT_FIT_CLASS[fit.objectFit]}`}
-                    retention="read"
-                  />
-                </div>
-              ) : (
-                <div
-                  key={page.id}
-                  data-testid="reader-page-box"
-                  data-fit-mode={data.engineSettings.fitMode}
-                  data-object-fit={fit.objectFit}
-                  style={{
-                    width: `${fit.box.width}px`,
-                    height: `${fit.box.height}px`,
-                    flex: '0 0 auto',
-                  }}
-                  className="animate-pulse bg-muted/80"
-                  aria-hidden
-                />
-              ),
-            )}
+            {visiblePages.map((page) => (
+              <ReaderPageBox
+                key={page.id}
+                page={page}
+                providerId={data.providerId}
+                mangaId={data.mangaId}
+                chapterId={data.chapterId}
+                fit={fit}
+                fitMode={data.engineSettings.fitMode}
+                cacheContext={cacheContext}
+              />
+            ))}
           </div>
         )}
 
@@ -644,7 +313,7 @@ export function ReaderScreen({
       <ReaderChrome
         visible={chromeVisible}
         chapterTitle={data.chapter.title}
-        currentPage={currentPage}
+        currentPage={readerState.activePageIndex + 1}
         totalPages={data.chapter.pageCount}
         onPageChange={(page) =>
           isScrollMode
@@ -672,7 +341,7 @@ export function ReaderScreen({
         onModeChange={handleModeChange}
         onOpenSettings={() => setSettingsOpen(true)}
         settingsButtonRef={settingsButtonRef}
-        onToggleFullscreen={handleToggleFullscreen}
+        onToggleFullscreen={toggleFullscreen}
       />
 
       {settings ? (
@@ -685,6 +354,69 @@ export function ReaderScreen({
         />
       ) : null}
     </>
+  );
+}
+
+/**
+ * One fitted page box. Without a cache context there is nothing to read from
+ * yet, so the box keeps its size and pulses instead of collapsing.
+ */
+function ReaderPageBox({
+  page,
+  providerId,
+  mangaId,
+  chapterId,
+  fit,
+  fitMode,
+  cacheContext,
+}: {
+  readonly page: ReaderPage;
+  readonly providerId: string;
+  readonly mangaId: string;
+  readonly chapterId: string;
+  readonly fit: PageFit;
+  readonly fitMode: string;
+  readonly cacheContext: CoverCacheContextValue | null;
+}) {
+  if (cacheContext === null) {
+    return (
+      <div
+        data-testid="reader-page-box"
+        data-fit-mode={fitMode}
+        data-object-fit={fit.objectFit}
+        style={{
+          width: `${fit.box.width}px`,
+          height: `${fit.box.height}px`,
+          flex: '0 0 auto',
+        }}
+        className="animate-pulse bg-muted/80"
+        aria-hidden
+      />
+    );
+  }
+
+  return (
+    <div
+      data-testid="reader-page-box"
+      data-fit-mode={fitMode}
+      data-object-fit={fit.objectFit}
+      style={{
+        width: `${fit.box.width}px`,
+        height: `${fit.box.height}px`,
+        flex: '0 0 auto',
+        overflow: 'hidden',
+      }}
+    >
+      <CachedPageImage
+        providerId={providerId}
+        mangaId={mangaId}
+        chapterId={chapterId}
+        pageIndex={page.index}
+        remoteUrl={page.image.url}
+        className={`h-full w-full select-none ${OBJECT_FIT_CLASS[fit.objectFit]}`}
+        retention="read"
+      />
+    </div>
   );
 }
 

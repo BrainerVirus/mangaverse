@@ -8,7 +8,7 @@ export interface PageFitInput {
   /** Pages rendered side by side (a spread); each gets a share of the width. */
   readonly pageCount: number;
   /** Intrinsic page size (CSS pixels) when the source reports it. */
-  readonly naturalSize?: { readonly width: number; readonly height: number };
+  readonly naturalSize?: { readonly width: number; readonly height: number } | undefined;
 }
 
 export interface PageFit {
