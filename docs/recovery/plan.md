@@ -535,7 +535,8 @@ hard gates. This section is the arc's ledger; it is not a single slice.
 
 - [x] Tooling landed (branch `chore/doctor-tooling`): `react-doctor` and `knip`
       as root devDependencies, root scripts `doctor` and `knip`,
-      `doctor.config.ts` (`blocking: warning`, `plugins: ["./lint/team-conventions.cjs"]`,
+      `doctor.config.ts` (`blocking: warning`, `ignore.files` for `**/.output/**`
+      and `**/dist/**` build artifacts, `plugins: ["./lint/team-conventions.cjs"]`,
       `rules: { "team-conventions/no-use-effect": "error" }`), the
       `lint/team-conventions.cjs` plugin (matches `useEffect(...)` and
       `React.useEffect(...)`; proven with a plant, reverted byte-identical), and
@@ -543,9 +544,15 @@ hard gates. This section is the arc's ledger; it is not a single slice.
       e2e specs, `global.css`, the esbuild preload entry and the renderer HTML
       entry; `.agents/**` ignored). `AGENTS.md` states the rule and how to run
       both tools. `pnpm doctor` is pnpm's own command — use `pnpm run doctor`.
-- [ ] Fix the findings the tools now report (the arc's real work; not tooling).
-- [ ] Land the CI hard gate once the findings are green. Until then both tools
-      exit non-zero, which is expected and is why no workflow file was touched.
+- [x] Findings fixed (quality slices #74–#79 and `chore/knip-cleanup`):
+      react-doctor reports no issues in source and knip exits 0. The last two
+      doctor findings were build artifacts (bundled TanStack Router internals
+      and `@app/db` SQL under `apps/web/.output`), not source.
+- [x] CI hard gate landed (branch `chore/doctor-gates`): `.github/workflows/ci.yml`
+      runs `pnpm run doctor` and `pnpm knip` after `pnpm build`; any finding fails
+      the job. On the slice head: doctor 0 issues (425 source files scanned) and
+      knip 0 findings, with plants for `team-conventions/no-use-effect` and an
+      unused export, both reverted byte-identical.
 
 Measured baselines on `main` at `ff890f3` (2026-10-18), after the tooling slice:
 
@@ -569,8 +576,7 @@ Measured baselines on `main` at `ff890f3` (2026-10-18), after the tooling slice:
   outside that package's vitest `include`, so vitest never runs it) and the
   legacy `types/extension.ts`, `types/library.ts`, `types/provider.ts`.
 
-Both tools are green-gate-ready only after the fixes above; do not raise thresholds
-to make a run pass.
+Both tools are green at the current head; do not raise thresholds to make a run pass.
 
 ## Exit criteria per implementing session
 
