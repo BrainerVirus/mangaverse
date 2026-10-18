@@ -52,6 +52,13 @@ test('Given the search page, When a query runs through the provider, Then result
   await expect
     .poll(async () => image.evaluate((img: HTMLImageElement) => img.naturalWidth > 0))
     .toBe(true);
+
+  // Clearing the box returns the page to the recents list, which the query
+  // event handler is what writes.
+  await searchbox.fill('');
+  await expect(page.getByRole('button', { name: 'berserk', exact: true })).toBeVisible({
+    timeout: 20_000,
+  });
 });
 
 test('Given a provider-backed manga id, When the detail opens, Then chapters come from the feed', async ({
