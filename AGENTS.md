@@ -123,12 +123,12 @@ Web-first recovery is the active workstream; `docs/recovery/plan.md` is the sing
 
 ## Code Quality Gates
 
-Run both before reporting a change; both currently exit non-zero until the
-react-doctor/knip arc is finished (see `docs/recovery/plan.md`).
+CI runs both after the build; run both before reporting a change. Either gate
+failing fails the job.
 
 - `pnpm run doctor` — react-doctor, all workspace projects, any finding fails
   (`blocking: warning` in `doctor.config.ts`). `pnpm doctor` is pnpm's own
-  command, so the script needs `pnpm run`. CI lands the hard gate last.
+  command, so the script needs `pnpm run`.
 - `pnpm knip` — unused files, dependencies and exports.
 
 ## Canonical Commands

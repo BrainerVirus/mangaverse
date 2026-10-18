@@ -53,6 +53,16 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # After the build: the turbo cache and the package dist/ trees are warm,
+      # and a red gate fails the job before the slower E2E steps run.
+      # react-doctor's cache lives in node_modules/.cache (not restored here),
+      # so the scan is cold on CI.
+      - name: Doctor
+        run: pnpm run doctor
+
+      - name: Knip
+        run: pnpm knip
+
       - name: Cache Playwright browsers
         id: playwright-cache
         uses: actions/cache@v6
