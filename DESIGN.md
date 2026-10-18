@@ -43,7 +43,7 @@ The mood splits by surface, and that split is the system's core rule:
 
 Geometry is **gently squared, never playful**: 10px panel corners (`--radius-box`, `0.625rem`), 7px
 control corners (`--radius-control`, `0.4375rem`), 8px button corners (`--radius-btn`, `0.5rem`), and
-exactly one pill — the badge (`--radius-badge`, `9999px`). Density is generous on desktop (24–32px
+and pills only where the form is the point — the badge and the switch track (`--radius-badge`, `9999px`). Density is generous on desktop (24–32px
 page padding) and breathable on mobile, with controls sized for thumbs rather than cursors.
 
 **Key characteristics**
@@ -58,18 +58,18 @@ page padding) and breathable on mobile, with controls sized for thumbs rather th
 ## 2. Color Palette & Roles
 
 Every value is a token from `globals.css`. Light is `:root, .light`; dark is `.dark`. The theme layer
-(`packages/theme/src/presets.ts`) can override the same variables at runtime — starting from the
-`default` preset, "Minimal" — but the roles below are fixed.
+(`packages/theme/src/presets.ts`) can override most variables at runtime — 27 of the 29 keys it
+repaints, starting from the `default` preset, "Minimal" — but the roles below are fixed.
 
 ### Foundation (light → dark)
 
 - **Warm Parchment** `#f7f5f2` → **Midnight Ink** `#0c0b0a` — `--background`. The app canvas behind
   everything. Light is paper under daylight; dark is an unlit room, deliberately darker than the
   surfaces that sit on it.
-- **Pure Paper** `#ffffff` → **Deep Ink** `#141210` — `--surface`, `--card`, `--popover`. Panels,
+- **Pure Paper** `#ffffff` → **Deep Ink** `#141210` — `--surface`, `--card`. Panels,
   cards, dialogs and sheets. In light mode surfaces float *above* the parchment; in dark they lift
   *off* the black.
-- **Pure Paper** `#ffffff` → **Espresso** `#1c1917` — `--surface-raised`. The explicit "one layer up"
+- **Pure Paper** `#ffffff` → **Espresso** `#1c1917` — `--surface-raised`, `--popover`. The explicit "one layer up"
   token for dialogs, sheets and the command palette.
 
 ### Type (light → dark)
@@ -95,7 +95,7 @@ Every value is a token from `globals.css`. Light is `:root, .light`; dark is `.d
   bone on ink in dark.
 - **Cream** `#faf8f5` → **Midnight Ink** `#0c0b0a` — `--primary-foreground`. Text on a primary
   surface.
-- **Toasted Almond** `#e8e2d9` → **Ash Almond** `#262320` — `--accent`, `--sidebar-accent`. Hover
+- **Toasted Almond** `#e8e2d9` → **Ash Almond** `#262320` — `--accent`. Hover
   fills, selected rows, the warm personality of the palette. Paired with `--accent-foreground`
   (`#1c1917` → `#f5f2eb`).
 - **Stone Focus** `#a8a29e` → **Slate Focus** `#57534e` — `--ring`. The 2px focus ring on every
@@ -146,8 +146,8 @@ makes the interface read as precise rather than airy; headlines tighten further 
 ### Hierarchy in use
 
 - **Page title (H1)** — bold (700), `text-2xl`, `tracking-tight`. Paired in the same row with a
-  count badge and a `text-sm` muted description. Used by `PageHeader` on library, discover, search
-  and settings.
+  count badge and a `text-sm` muted description. Used by `PageHeader` on library, discover and
+  search.
 - **Panel title (H2/H3)** — semibold (600), `text-2xl` on `CardTitle`, `text-lg` on dialog and sheet
   titles, `leading-none` with `tracking-tight`. Settings sections override down to `text-base`.
 - **Manga title** — semibold (600), `text-sm` with `leading-tight` in grid cards (clamped to two
@@ -172,8 +172,9 @@ and a closing separator at `mt-4`.
 
 - **Shape:** gently squared — 8px (`--radius-btn`). The `sm` size tightens to 7px (`--radius-control`)
   so it matches the inputs beside it. Never pill, never square.
-- **Sizes:** default `h-10 px-4 py-2`; small `h-9 px-3`; large `h-11 px-8`; icon `h-10 w-10`. Minimum
-  control height is 40px; `docs/Design.md` sets the 44px touch-target preference.
+- **Sizes:** default `h-10 px-4 py-2`; small `h-9 px-3`; large `h-11 px-8`; icon `h-10 w-10`. The
+  default control is 40px tall and the small size 36px; `docs/Design.md` sets the 44px touch-target
+  preference.
 - **Primary:** `--primary` fill with `--primary-foreground` text, darkening to 90% opacity on hover.
   Label is medium (500) `text-sm`, with a `gap-2` slot for a 16px icon.
 - **Destructive:** `--destructive` fill; reserved for actions that lose data, always with a
@@ -215,9 +216,9 @@ and a closing separator at `mt-4`.
 - **Labels:** `text-sm font-medium leading-none`, immediately above their control, dimming with the
   field when disabled.
 - **Switch:** a 24×44 pill (`--radius-badge`) with a 20px circular thumb that carries `shadow-md`.
-- **Slider:** an 8px pill track in `--muted` with a small circular thumb; the reader's page rail is
-  the same idea on the chrome gradient — an 8px white-at-25% track, a 16px white thumb with a plain
-  shadow, and a fill that moves by transform only over 180ms.
+- **Slider:** a native range input with a transparent track and a 16px circular `--primary` thumb;
+  the reader's page rail is the same idea on the chrome gradient — an 8px white-at-25% track, a 16px
+  white thumb with a plain shadow, and a fill that moves by transform only over 180ms.
 - **Tabs:** a 40px trough at 7px radius on `--muted`, with the active trigger taking the canvas
   colour plus `shadow-sm` — the only place a tab looks raised.
 - **Command palette:** a `max-w-xl` panel 12vh from the top, over a `bg-black/55` blurred scrim; an
@@ -259,11 +260,11 @@ and a closing separator at `mt-4`.
 
 - **Library:** 2 columns on mobile, 3 at `sm`, 4 at `md`, 5 at `lg`, 6 at `xl`, `gap-4`. List mode
   drops to `grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3` for dense management.
-- **Discover:** 2 → 3 → 4 → 6 columns at the same `gap-4`, with an inline scrollable category trough
-  above each section.
+- **Discover:** 2 → 3 → 4 → 6 columns at the same `gap-4`, with one provider tablist above the
+  section stack.
 - **Extensions and theme previews:** 1 → 2 → 3 columns at `gap-4`/`gap-6`, previews capped at 280px.
-- Long grids are virtualised; skeletons reuse the same column rhythm so the layout does not shift when
-  content lands.
+- Long grids are virtualised; skeletons follow the same column rhythm up to `lg` (the grids add a
+  sixth column at `xl`) so the layout does not shift when content lands.
 
 ### Whitespace & rhythm
 
@@ -287,8 +288,8 @@ and a closing separator at `mt-4`.
 
 - **Say "warm parchment and ink", not "light gray".** The neutrals carry a deliberate warm cast
   (`#f7f5f2`, `#ece8e3`, `#e8e2d9`); a cool gray rebuild loses the product's character.
-- **Say "gently squared corners" (10px panels, 7px controls, 8px buttons) and "pill badges".** Only
-  the badge is a pill.
+- **Say "gently squared corners" (10px panels, 7px controls, 8px buttons) and "pill badges".** The
+  badge and the switch track are the pills.
 - **Say "hairline sandstone borders with a whisper of shadow"**, not "card with drop shadow". Depth is
   one pixel deep by design.
 - **Say "ink-on-paper primary button"** for `--primary` `#1c1917` on light, and let it invert to warm
