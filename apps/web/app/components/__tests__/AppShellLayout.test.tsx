@@ -70,10 +70,21 @@ describe('AppShellLayout', () => {
     const { AppShellLayout } = await import('../../layouts/AppShellLayout.js');
     const html = renderWithProviders(
       <AppShellLayout>
-        <main>Content</main>
+        <div>Content</div>
       </AppShellLayout>,
     );
     expect(html).toContain('Content');
+  });
+
+  it('owns the only main landmark, so page content must not add one', async () => {
+    useLayoutStore.setState({ deviceLayout: 'desktop', sidebarOpen: true });
+    const { AppShellLayout } = await import('../../layouts/AppShellLayout.js');
+    const html = renderWithProviders(
+      <AppShellLayout>
+        <section aria-label="Library">Content</section>
+      </AppShellLayout>,
+    );
+    expect(html.match(/<main[\s>]/g) ?? []).toHaveLength(1);
   });
 
   it('renders mobile layout with bottom nav', async () => {
@@ -81,7 +92,7 @@ describe('AppShellLayout', () => {
     const { AppShellLayout } = await import('../../layouts/AppShellLayout.js');
     const html = renderWithProviders(
       <AppShellLayout>
-        <main>Content</main>
+        <div>Content</div>
       </AppShellLayout>,
     );
     expect(html).toContain('Content');
@@ -93,7 +104,7 @@ describe('AppShellLayout', () => {
     const { AppShellLayout } = await import('../../layouts/AppShellLayout.js');
     const html = renderWithProviders(
       <AppShellLayout>
-        <main>Content</main>
+        <div>Content</div>
       </AppShellLayout>,
     );
     expect(html).toContain('Content');

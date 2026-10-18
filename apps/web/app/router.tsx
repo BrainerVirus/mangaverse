@@ -41,17 +41,17 @@ export function getRouter(options: { platformDetectFn?: () => PlatformCapabiliti
       </RouteTransition>
     ),
     defaultErrorComponent: ({ error }) => (
-      <main>
+      <section aria-label="Something went wrong">
         <ErrorState
           title="Something went wrong"
           message={error instanceof Error ? error.message : 'An unexpected error occurred'}
         />
-      </main>
+      </section>
     ),
     defaultNotFoundComponent: () => (
-      <main>
+      <section aria-label="Page not found">
         <EmptyState type="no-results" />
-      </main>
+      </section>
     ),
     scrollRestoration: true,
   });
