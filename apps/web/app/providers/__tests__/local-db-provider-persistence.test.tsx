@@ -3,7 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PersistenceErrorBanner } from '../../components/PersistenceErrorBanner.js';
-import { LocalDbProvider } from '../local-db-provider.js';
+import { LocalDbProvider, useReportPersistenceError } from '../local-db-provider.js';
 
 const { registered, flushLocalDb } = vi.hoisted(() => ({
   registered: { handler: null as ((message: string | null) => void) | null },
@@ -23,6 +23,15 @@ vi.mock('../../lib/local-db.js', () => ({
 vi.mock('../../lib/first-party-providers.js', () => ({
   installFirstPartyProviders: vi.fn(async () => {}),
 }));
+
+function ReportProbe() {
+  const report = useReportPersistenceError();
+  return (
+    <button type="button" onClick={() => report('progress write failed')}>
+      report
+    </button>
+  );
+}
 
 describe('LocalDbProvider persistence wiring', () => {
   let container: HTMLDivElement;
@@ -77,5 +86,29 @@ describe('LocalDbProvider persistence wiring', () => {
       root.unmount();
     });
     expect(registered.handler).toBeNull();
+  });
+
+  it('Given a rejected write outside the flush path, When it is reported, Then the same banner shows it', async () => {
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={new QueryClient()}>
+          <LocalDbProvider>
+            <PersistenceErrorBanner />
+            <ReportProbe />
+          </LocalDbProvider>
+        </QueryClientProvider>,
+      );
+    });
+    await act(async () => {});
+
+    const reportButton = [...container.querySelectorAll('button')].find(
+      (button) => button.textContent === 'report',
+    );
+    await act(async () => {
+      reportButton?.click();
+    });
+
+    expect(container.textContent).toContain('Saving locally failed');
+    expect(container.textContent).toContain('progress write failed');
   });
 });
