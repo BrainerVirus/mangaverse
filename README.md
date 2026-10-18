@@ -1,95 +1,69 @@
-# Mangaverse
+# MangaVerse
 
-## Description
+[![CI](https://github.com/BrainerVirus/mangaverse/actions/workflows/ci.yml/badge.svg)](https://github.com/BrainerVirus/mangaverse/actions/workflows/ci.yml)
 
-This app is currently a WIP but the general idea is to make a manga reader app, just like Tachiyomi was for Android and Papperback currently is for iOS.
+A local-first manga, comic and webtoon reader for the web — with an Electron desktop build planned next. Your library, reading progress and settings live in a local SQLite database: the app opens instantly, cached chapters work offline, and nothing is sent to a server. MangaDex is the first built-in source; a provider SDK and extension packages make more possible.
 
-The main objective is to unify the community under one app for both systems.
+## Status
 
-## Table of Contents
+Web-first recovery, early development. The web app works end-to-end locally:
 
-- [Installation](#installation)
-- [Usage](#usage)
-- [Development](#development)
-- [Contributing](#contributing)
-- [License](#license)
+- onboarding → provider search and discover → library → reader
+- reader: single, double and webtoon modes; zoom and pan; keyboard, wheel and tap navigation; resume after reload; cached chapters reopen offline
+- multi-tab: concurrent tabs converge without a lockout screen
 
-## Installation
+Publication (web) is the next milestone; the desktop build is deferred until the web flow is proven. The active workstream and its slice ledger live in [`docs/recovery/`](docs/recovery/).
 
-To get started with the project, follow these steps:
+## Stack
 
-1. Clone the repository:
+- **App**: React 19 + [TanStack Start](https://tanstack.com/start) (Router, Query) on Vite; Zustand for local UI state
+- **Data**: SQLite (sql.js/WASM) with Drizzle ORM; IndexedDB-backed durable storage with multi-tab convergence
+- **UI**: shadcn/ui through `@app/design-system`; GSAP through `@app/motion`
+- **Providers**: `@app/extensions-sdk` contract + `@app/extensions-mangadex`; community extensions stay separate from the app shell
+- **Tooling**: TypeScript, pnpm workspaces, Turborepo, Vitest, Playwright (production E2E), oxlint
 
-   ```sh
-   git clone https://github.com/BrainerVirus/mangaverse.git
-   ```
+## Getting started
 
-2. Navigate to the project directory:
+```sh
+pnpm install
+pnpm dev          # web app on http://localhost:5173
+```
 
-   ```sh
-   cd mangaverse
-   ```
+Canonical commands:
 
-3. Install dependencies with npm:
+| Command | What it does |
+| --- | --- |
+| `pnpm dev` (`dev:web`, `dev:desktop`) | dev servers |
+| `pnpm lint` / `pnpm lint:fix` | oxlint |
+| `pnpm format` / `pnpm format:check` | apply / verify autofixes |
+| `pnpm typecheck` | turbo typecheck |
+| `pnpm test` | Vitest suites |
+| `pnpm build` (`--filter @app/web build`, `--filter @app/desktop build`) | production builds |
+| `pnpm test:e2e:production` | Playwright against the built web app (port 5185) |
+| `pnpm clean` | remove build outputs |
 
-   ```sh
-   npm install
-   ```
+## Repository layout
 
-4. Install Expo CLI globally if you haven't already:
+```txt
+apps/
+  web/                 TanStack Start web app
+  desktop/             Electron shell (deferred)
+packages/
+  reader/              reader engine, screen and pure helpers
+  extensions-core/     provider runtime and resolution
+  extensions-sdk/      provider contract
+  extensions-mangadex/ built-in MangaDex provider
+  db/                  SQLite schema, repositories, durable storage
+  design-system/       shadcn/ui wrappers, reader chrome
+  motion/              GSAP helpers
+  library/ search/ migration/ settings/ theme/ platform/ shared/ test-utils/
+docs/                  SPEC, PLAN, ARCHITECTURE, Design, recovery/
+```
 
-   ```sh
-   npm install -g expo-cli
-   ```
+## Docs
 
-## Usage
-
-To run the app on your device or emulator:
-
-1. Start the Expo development server:
-
-   ```sh
-   npm start
-   ```
-
-2. Follow the instructions in the terminal to open the app in Expo Go on your device or in an emulator.
-
-## Development
-
-### Running on iOS (only for MacOS)
-
-1. Make sure you have Xcode installed.
-2. Start the Expo development server:
-
-   ```sh
-   npm start
-   ```
-
-3. Press `i` to open the app in the iOS simulator.
-
-### Running on Android
-
-1. Make sure you have Android Studio installed.
-2. Start the Expo development server:
-   ```sh
-   npm start
-   ```
-
-## CI
-
-GitHub Actions runs lint and tests on every push and pull request.
-3. Press `a` to open the app in the Android emulator.
-
-## Contributing
-
-If you would like to contribute, please fork the repository and use a feature branch. Pull requests are warmly welcome.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE.md file for details.
+- [`docs/SPEC.md`](docs/SPEC.md) — product spec
+- [`docs/PLAN.md`](docs/PLAN.md) — implementation plan
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — package boundaries and data flow
+- [`docs/Design.md`](docs/Design.md) — design system and motion rules
+- [`docs/recovery/`](docs/recovery/) — the active web-first recovery spec and slice ledger
