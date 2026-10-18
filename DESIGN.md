@@ -43,8 +43,9 @@ The mood splits by surface, and that split is the system's core rule:
 
 Geometry is **gently squared, never playful**: 10px panel corners (`--radius-box`, `0.625rem`), 7px
 control corners (`--radius-control`, `0.4375rem`), 8px button corners (`--radius-btn`, `0.5rem`), and
-and pills only where the form is the point — the badge and the switch track (`--radius-badge`, `9999px`). Density is generous on desktop (24–32px
-page padding) and breathable on mobile, with controls sized for thumbs rather than cursors.
+pills only where the form is the point — the badge and the switch track (`--radius-badge`, `9999px`).
+Density is generous on desktop (24–32px page padding) and breathable on mobile, with controls sized
+for thumbs rather than cursors.
 
 **Key characteristics**
 
