@@ -88,8 +88,8 @@ function PreviewIssueList({ preview }: { preview: MigrationPreviewReport }) {
             </p>
             {item.issues.length > 0 ? (
               <ul className="mt-2 space-y-1">
-                {item.issues.map((issue, index) => (
-                  <li key={`${issue.code}-${index}`} className="text-muted-foreground">
+                {item.issues.map((issue) => (
+                  <li key={`${issue.code}-${issue.message}`} className="text-muted-foreground">
                     <Badge variant={issue.severity === 'error' ? 'destructive' : 'secondary'}>
                       {issue.severity}
                     </Badge>{' '}
@@ -102,6 +102,210 @@ function PreviewIssueList({ preview }: { preview: MigrationPreviewReport }) {
         ))}
       </ul>
     </div>
+  );
+}
+
+function ApplyStatus({
+  applySuccess,
+  applySummary,
+  applyError,
+  onDismissApplyStatus,
+}: {
+  applySuccess: boolean;
+  applySummary: MigrationApplySummary | null;
+  applyError: string | null;
+  onDismissApplyStatus: () => void;
+}) {
+  return (
+    <>
+      {applySuccess ? (
+        <Alert>
+          <AlertTitle>Migration applied</AlertTitle>
+          <AlertDescription>
+            {applySummary !== null
+              ? `${applySummary.appliedCount} title(s) migrated. ${applySummary.skippedCount} skipped.`
+              : 'Selected titles were migrated.'}
+          </AlertDescription>
+          <Button className="mt-3" variant="outline" size="sm" onClick={onDismissApplyStatus}>
+            Dismiss
+          </Button>
+        </Alert>
+      ) : null}
+
+      {applyError !== null ? (
+        <Alert variant="destructive">
+          <AlertTitle>Migration failed</AlertTitle>
+          <AlertDescription>{applyError}</AlertDescription>
+          <Button className="mt-3" variant="outline" size="sm" onClick={onDismissApplyStatus}>
+            Dismiss
+          </Button>
+        </Alert>
+      ) : null}
+    </>
+  );
+}
+
+function ProviderSection({
+  providers,
+  sourceProviderId,
+  targetProviderId,
+  onSourceProviderChange,
+  onTargetProviderChange,
+}: {
+  providers: readonly MigrationProviderOption[];
+  sourceProviderId: string | null;
+  targetProviderId: string | null;
+  onSourceProviderChange: (providerId: string) => void;
+  onTargetProviderChange: (providerId: string) => void;
+}) {
+  return (
+    <SettingsSection
+      title="Providers"
+      description="Choose where titles come from and where they should move."
+    >
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="migration-source-provider">Source provider</Label>
+          <Select
+            onValueChange={(value) => onSourceProviderChange(value)}
+            {...(sourceProviderId !== null ? { value: sourceProviderId } : {})}
+          >
+            <SelectTrigger id="migration-source-provider" aria-label="Source provider">
+              <SelectValue placeholder="Select source provider" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {providers.map((provider) => (
+                  <SelectItem key={provider.id} value={provider.id}>
+                    {provider.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="migration-target-provider">Target provider</Label>
+          <Select
+            onValueChange={(value) => onTargetProviderChange(value)}
+            disabled={sourceProviderId === null}
+            {...(targetProviderId !== null ? { value: targetProviderId } : {})}
+          >
+            <SelectTrigger id="migration-target-provider" aria-label="Target provider">
+              <SelectValue placeholder="Select target provider" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {providers
+                  .filter((provider) => provider.id !== sourceProviderId)
+                  .map((provider) => (
+                    <SelectItem key={provider.id} value={provider.id}>
+                      {provider.name}
+                    </SelectItem>
+                  ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    </SettingsSection>
+  );
+}
+
+function CandidateSection({
+  candidates,
+  selections,
+  isPreviewing,
+  isApplying,
+  canPreview,
+  hasPreview,
+  onTargetMangaIdChange,
+  onPreview,
+  onClearPreview,
+}: {
+  candidates: readonly MigrationCandidate[];
+  selections: Readonly<Record<string, string>>;
+  isPreviewing: boolean;
+  isApplying: boolean;
+  canPreview: boolean;
+  hasPreview: boolean;
+  onTargetMangaIdChange: (mangaId: string, targetProviderMangaId: string) => void;
+  onPreview: () => void;
+  onClearPreview: () => void;
+}) {
+  return (
+    <SettingsSection
+      title="Library titles"
+      description="Enter the target provider manga id for each title you want to migrate."
+    >
+      {candidates.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No library titles are linked to the selected source provider.
+        </p>
+      ) : (
+        <ul className="space-y-3" aria-label="Migration candidates">
+          {candidates.map((candidate) => (
+            <li
+              key={candidate.mangaId}
+              className="rounded-[var(--radius-control)] border border-[var(--border)] p-3"
+            >
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <span className="font-medium text-foreground">{candidate.canonicalTitle}</span>
+                {candidate.isDefaultProvider ? <Badge variant="secondary">default</Badge> : null}
+                {candidate.isActiveProvider ? <Badge variant="secondary">active</Badge> : null}
+              </div>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Source id: {candidate.sourceProviderMangaId}
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor={`target-${candidate.mangaId}`}>Target provider manga id</Label>
+                <Input
+                  id={`target-${candidate.mangaId}`}
+                  value={selections[candidate.mangaId] ?? ''}
+                  onChange={(event) => onTargetMangaIdChange(candidate.mangaId, event.target.value)}
+                  placeholder="Enter target provider manga id"
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button onClick={onPreview} disabled={!canPreview || isPreviewing || isApplying}>
+          {isPreviewing ? 'Previewing…' : 'Preview migration'}
+        </Button>
+        {hasPreview ? (
+          <Button variant="outline" onClick={onClearPreview} disabled={isPreviewing || isApplying}>
+            Clear preview
+          </Button>
+        ) : null}
+      </div>
+    </SettingsSection>
+  );
+}
+
+function ReviewSection({
+  preview,
+  isApplying,
+  onRequestApply,
+}: {
+  preview: MigrationPreviewReport;
+  isApplying: boolean;
+  onRequestApply: () => void;
+}) {
+  return (
+    <SettingsSection title="Review" description="Confirm warnings before applying migration.">
+      <PreviewIssueList preview={preview} />
+      <div className="mt-4">
+        <Button
+          onClick={onRequestApply}
+          disabled={!summarizeMigrationPreview(preview).canApply || isApplying}
+        >
+          Apply migration
+        </Button>
+      </div>
+    </SettingsSection>
   );
 }
 
@@ -142,6 +346,9 @@ export function MigrationPage({
     sourceProviderId !== targetProviderId &&
     readySelectionCount > 0;
 
+  const showCandidates =
+    sourceProviderId !== null && targetProviderId !== null && sourceProviderId !== targetProviderId;
+
   if (isLoading) {
     return (
       <main className="app-shell">
@@ -170,154 +377,41 @@ export function MigrationPage({
         </p>
       </header>
 
-      {applySuccess ? (
-        <Alert>
-          <AlertTitle>Migration applied</AlertTitle>
-          <AlertDescription>
-            {applySummary !== null
-              ? `${applySummary.appliedCount} title(s) migrated. ${applySummary.skippedCount} skipped.`
-              : 'Selected titles were migrated.'}
-          </AlertDescription>
-          <Button className="mt-3" variant="outline" size="sm" onClick={onDismissApplyStatus}>
-            Dismiss
-          </Button>
-        </Alert>
-      ) : null}
+      <ApplyStatus
+        applySuccess={applySuccess}
+        applySummary={applySummary}
+        applyError={applyError}
+        onDismissApplyStatus={onDismissApplyStatus}
+      />
 
-      {applyError !== null ? (
-        <Alert variant="destructive">
-          <AlertTitle>Migration failed</AlertTitle>
-          <AlertDescription>{applyError}</AlertDescription>
-          <Button className="mt-3" variant="outline" size="sm" onClick={onDismissApplyStatus}>
-            Dismiss
-          </Button>
-        </Alert>
-      ) : null}
+      <ProviderSection
+        providers={providers}
+        sourceProviderId={sourceProviderId}
+        targetProviderId={targetProviderId}
+        onSourceProviderChange={onSourceProviderChange}
+        onTargetProviderChange={onTargetProviderChange}
+      />
 
-      <SettingsSection
-        title="Providers"
-        description="Choose where titles come from and where they should move."
-      >
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="migration-source-provider">Source provider</Label>
-            <Select
-              onValueChange={(value) => onSourceProviderChange(value)}
-              {...(sourceProviderId !== null ? { value: sourceProviderId } : {})}
-            >
-              <SelectTrigger id="migration-source-provider" aria-label="Source provider">
-                <SelectValue placeholder="Select source provider" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {providers.map((provider) => (
-                    <SelectItem key={provider.id} value={provider.id}>
-                      {provider.name}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="migration-target-provider">Target provider</Label>
-            <Select
-              onValueChange={(value) => onTargetProviderChange(value)}
-              disabled={sourceProviderId === null}
-              {...(targetProviderId !== null ? { value: targetProviderId } : {})}
-            >
-              <SelectTrigger id="migration-target-provider" aria-label="Target provider">
-                <SelectValue placeholder="Select target provider" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {providers
-                    .filter((provider) => provider.id !== sourceProviderId)
-                    .map((provider) => (
-                      <SelectItem key={provider.id} value={provider.id}>
-                        {provider.name}
-                      </SelectItem>
-                    ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </SettingsSection>
-
-      {sourceProviderId !== null &&
-      targetProviderId !== null &&
-      sourceProviderId !== targetProviderId ? (
-        <SettingsSection
-          title="Library titles"
-          description="Enter the target provider manga id for each title you want to migrate."
-        >
-          {candidates.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No library titles are linked to the selected source provider.
-            </p>
-          ) : (
-            <ul className="space-y-3" aria-label="Migration candidates">
-              {candidates.map((candidate) => (
-                <li
-                  key={candidate.mangaId}
-                  className="rounded-[var(--radius-control)] border border-[var(--border)] p-3"
-                >
-                  <div className="mb-2 flex flex-wrap items-center gap-2">
-                    <span className="font-medium text-foreground">{candidate.canonicalTitle}</span>
-                    {candidate.isDefaultProvider ? (
-                      <Badge variant="secondary">default</Badge>
-                    ) : null}
-                    {candidate.isActiveProvider ? <Badge variant="secondary">active</Badge> : null}
-                  </div>
-                  <p className="mb-3 text-xs text-muted-foreground">
-                    Source id: {candidate.sourceProviderMangaId}
-                  </p>
-                  <div className="space-y-2">
-                    <Label htmlFor={`target-${candidate.mangaId}`}>Target provider manga id</Label>
-                    <Input
-                      id={`target-${candidate.mangaId}`}
-                      value={selections[candidate.mangaId] ?? ''}
-                      onChange={(event) =>
-                        onTargetMangaIdChange(candidate.mangaId, event.target.value)
-                      }
-                      placeholder="Enter target provider manga id"
-                    />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button onClick={onPreview} disabled={!canPreview || isPreviewing || isApplying}>
-              {isPreviewing ? 'Previewing…' : 'Preview migration'}
-            </Button>
-            {preview !== null ? (
-              <Button
-                variant="outline"
-                onClick={onClearPreview}
-                disabled={isPreviewing || isApplying}
-              >
-                Clear preview
-              </Button>
-            ) : null}
-          </div>
-        </SettingsSection>
+      {showCandidates ? (
+        <CandidateSection
+          candidates={candidates}
+          selections={selections}
+          isPreviewing={isPreviewing}
+          isApplying={isApplying}
+          canPreview={canPreview}
+          hasPreview={preview !== null}
+          onTargetMangaIdChange={onTargetMangaIdChange}
+          onPreview={onPreview}
+          onClearPreview={onClearPreview}
+        />
       ) : null}
 
       {preview !== null ? (
-        <SettingsSection title="Review" description="Confirm warnings before applying migration.">
-          <PreviewIssueList preview={preview} />
-          <div className="mt-4">
-            <Button
-              onClick={() => setConfirmOpen(true)}
-              disabled={!summarizeMigrationPreview(preview).canApply || isApplying}
-            >
-              Apply migration
-            </Button>
-          </div>
-        </SettingsSection>
+        <ReviewSection
+          preview={preview}
+          isApplying={isApplying}
+          onRequestApply={() => setConfirmOpen(true)}
+        />
       ) : null}
 
       {confirmOpen ? (

@@ -13,9 +13,115 @@ export interface MangaCardProps {
   coverSlot?: React.ReactNode;
 }
 
-export function MangaCard({ manga, onClick, variant = 'grid', coverSlot }: MangaCardProps) {
+interface CoverProps {
+  manga: MangaIdentity;
+  variant: 'grid' | 'list' | 'compact';
+  coverSlot?: React.ReactNode;
+}
+
+function CardCover({ manga, variant, coverSlot }: CoverProps) {
   const isGrid = variant === 'grid';
   const isCompact = variant === 'compact';
+
+  // `??` semantics: a null coverSlot falls through to the built-in cover.
+  if (coverSlot !== undefined && coverSlot !== null) return <>{coverSlot}</>;
+
+  if (manga.coverImageUrl) {
+    return (
+      <div
+        className={cn(
+          'overflow-hidden rounded-[var(--radius-control)] bg-muted',
+          isGrid ? 'min-h-0 w-full flex-1' : 'h-20 w-14 shrink-0',
+          isCompact && 'h-16 w-12',
+        )}
+      >
+        <img
+          src={manga.coverImageUrl}
+          alt={manga.canonicalTitle}
+          className="h-full w-full object-cover"
+          loading="lazy"
+          referrerPolicy="no-referrer"
+        />
+      </div>
+    );
+  }
+
+  if (isGrid) {
+    return (
+      <div className="min-h-0 w-full flex-1 rounded-[var(--radius-control)] bg-muted" aria-hidden />
+    );
+  }
+
+  return null;
+}
+
+interface MetaProps {
+  manga: MangaIdentity;
+  variant: 'grid' | 'list' | 'compact';
+}
+
+function CardMeta({ manga, variant }: MetaProps) {
+  const isGrid = variant === 'grid';
+  const isCompact = variant === 'compact';
+
+  return (
+    <div
+      className={cn(
+        'flex flex-col justify-between',
+        isGrid ? 'absolute bottom-0 left-0 right-0 z-10 p-3' : 'flex-1 py-1',
+        isCompact && 'min-w-0 py-0.5',
+      )}
+    >
+      <div>
+        <h3
+          className={cn(
+            'font-semibold leading-tight text-card-foreground',
+            isGrid ? 'text-sm line-clamp-2' : 'text-base',
+            isCompact && 'text-sm line-clamp-1',
+          )}
+        >
+          {manga.canonicalTitle}
+        </h3>
+
+        {manga.providerMappings.length > 0 && !isCompact && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {manga.providerMappings[0]!.providerId}
+          </p>
+        )}
+      </div>
+
+      {manga.tags.length > 0 && !isCompact && (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {manga.tags.slice(0, 3).map((tag) => (
+            <Badge key={tag.label} variant="outline" className="text-[10px] px-1.5 py-0">
+              {tag.label}
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ContentRatingBadge({ manga, variant }: MetaProps) {
+  const { contentRating } = manga;
+  if (contentRating === 'safe' || contentRating === 'unknown') return null;
+
+  return (
+    <Badge
+      variant="destructive"
+      className={cn(
+        'absolute',
+        variant === 'grid' ? 'top-2 right-2' : 'top-1 right-1',
+        variant === 'compact' && '!text-[8px]',
+      )}
+    >
+      {contentRating}
+    </Badge>
+  );
+}
+
+export function MangaCard({ manga, onClick, variant = 'grid', coverSlot }: MangaCardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const reducedMotion = useReducedMotion();
@@ -65,84 +171,17 @@ export function MangaCard({ manga, onClick, variant = 'grid', coverSlot }: Manga
           'hover:border-accent hover:shadow-md',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]',
           {
-            'relative flex flex-col aspect-[3/4]': isGrid,
+            'relative flex flex-col aspect-[3/4]': variant === 'grid',
             'flex gap-4 p-3': variant === 'list',
-            'flex-row gap-3 p-2': isCompact,
+            'flex-row gap-3 p-2': variant === 'compact',
           },
         )}
       >
-        {coverSlot ??
-          (manga.coverImageUrl ? (
-            <div
-              className={cn(
-                'overflow-hidden rounded-[var(--radius-control)] bg-muted',
-                isGrid ? 'min-h-0 w-full flex-1' : 'h-20 w-14 shrink-0',
-                isCompact && 'h-16 w-12',
-              )}
-            >
-              <img
-                src={manga.coverImageUrl}
-                alt={manga.canonicalTitle}
-                className="h-full w-full object-cover"
-                loading="lazy"
-                referrerPolicy="no-referrer"
-              />
-            </div>
-          ) : isGrid ? (
-            <div
-              className="min-h-0 w-full flex-1 rounded-[var(--radius-control)] bg-muted"
-              aria-hidden
-            />
-          ) : null)}
+        <CardCover manga={manga} variant={variant} coverSlot={coverSlot} />
 
-        <div
-          className={cn(
-            'flex flex-col justify-between',
-            isGrid ? 'absolute bottom-0 left-0 right-0 z-10 p-3' : 'flex-1 py-1',
-            isCompact && 'min-w-0 py-0.5',
-          )}
-        >
-          <div>
-            <h3
-              className={cn(
-                'font-semibold leading-tight text-card-foreground',
-                isGrid ? 'text-sm line-clamp-2' : 'text-base',
-                isCompact && 'text-sm line-clamp-1',
-              )}
-            >
-              {manga.canonicalTitle}
-            </h3>
+        <CardMeta manga={manga} variant={variant} />
 
-            {manga.providerMappings.length > 0 && !isCompact && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                {manga.providerMappings[0]!.providerId}
-              </p>
-            )}
-          </div>
-
-          {manga.tags.length > 0 && !isCompact && (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {manga.tags.slice(0, 3).map((tag) => (
-                <Badge key={tag.label} variant="outline" className="text-[10px] px-1.5 py-0">
-                  {tag.label}
-                </Badge>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {manga.contentRating !== 'safe' && manga.contentRating !== 'unknown' && (
-          <Badge
-            variant="destructive"
-            className={cn(
-              'absolute',
-              isGrid ? 'top-2 right-2' : 'top-1 right-1',
-              isCompact && '!text-[8px]',
-            )}
-          >
-            {manga.contentRating}
-          </Badge>
-        )}
+        <ContentRatingBadge manga={manga} variant={variant} />
       </button>
     </div>
   );
