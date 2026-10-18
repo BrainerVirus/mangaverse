@@ -13,7 +13,6 @@ import {
   Compass,
 } from 'lucide-react';
 import {
-  Button,
   Separator,
   Sheet,
   SheetContent,
@@ -99,7 +98,7 @@ export function MobileBottomNav() {
 
       <nav
         className={cn(
-          'fixed bottom-0 left-0 right-0 z-50 h-14 bg-background/95 backdrop-blur',
+          'fixed bottom-0 left-0 right-0 z-50 h-14 bg-background/95 backdrop-blur md:hidden',
           'border-t border-border pb-[env(safe-area-inset-bottom)]',
         )}
       >
@@ -123,16 +122,15 @@ export function MobileBottomNav() {
             );
           })}
 
-          <Button
-            variant="ghost"
-            size="icon"
+          <button
+            type="button"
             aria-label="Open navigation menu"
-            className="flex flex-col items-center gap-0.5 px-3 py-1.5 text-xs font-medium text-muted-foreground"
+            className="flex flex-col items-center gap-0.5 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
             onClick={() => setSheetOpen(true)}
           >
             <Menu className="h-5 w-5" />
             <span>More</span>
-          </Button>
+          </button>
         </div>
       </nav>
     </>

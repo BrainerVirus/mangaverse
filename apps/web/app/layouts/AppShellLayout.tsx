@@ -36,16 +36,12 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background max-md:flex-col max-md:overflow-visible">
-      <div className="hidden md:contents">
-        <DesktopSidebar />
-      </div>
+      <DesktopSidebar />
       <main className="flex-1 overflow-auto bg-background max-md:pb-16">
         <PersistenceErrorBanner />
         <AnimatedRouteOutlet>{children}</AnimatedRouteOutlet>
       </main>
-      <div className="md:hidden">
-        <MobileBottomNav />
-      </div>
+      <MobileBottomNav />
     </div>
   );
 }
