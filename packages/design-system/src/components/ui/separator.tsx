@@ -1,18 +1,19 @@
 import * as React from 'react';
 import { cn } from '../../lib/cn.js';
 
-export interface SeparatorProps extends React.HTMLAttributes<HTMLDivElement> {
+export interface SeparatorProps extends React.HTMLAttributes<HTMLHRElement> {
   orientation?: 'horizontal' | 'vertical';
 }
 
-const Separator = React.forwardRef<HTMLDivElement, SeparatorProps>(
+const Separator = React.forwardRef<HTMLHRElement, SeparatorProps>(
   ({ className, orientation = 'horizontal', ...props }, ref) => (
-    <div
+    <hr
       ref={ref}
-      role="separator"
       aria-orientation={orientation}
       className={cn(
-        'shrink-0 bg-[var(--border)]',
+        // preflight gives every hr a 1px border-top; zero it so the box stays exactly
+        // the 1px line it renders (and the vertical variant gets no stray border).
+        'shrink-0 border-0 bg-[var(--border)]',
         orientation === 'horizontal' ? 'h-[1px] w-full' : 'h-full w-[1px]',
         className,
       )}

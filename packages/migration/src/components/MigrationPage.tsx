@@ -321,7 +321,12 @@ export function MigrationPage({
       ) : null}
 
       {confirmOpen ? (
-        <Dialog role="dialog" aria-modal="true" aria-labelledby="migration-apply-title">
+        <Dialog
+          // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- <dialog> moves this overlay into the top layer and adds its own open state plus UA max-width/centering, so it is not equivalent to the design-system overlay; role + aria-modal is the accessible equivalent
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="migration-apply-title"
+        >
           <DialogContent>
             <DialogHeader>
               <DialogTitle id="migration-apply-title">Apply migration?</DialogTitle>

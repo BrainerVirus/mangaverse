@@ -480,6 +480,7 @@ export function OnboardingPage({
 
         <div
           className="h-2 overflow-hidden rounded-full bg-[var(--accent)]"
+          // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- <progress> cannot render the rounded fill div below (it needs ::-webkit-progress-value CSS) and would swap aria-valuenow for a value attribute, changing the markup this component and its test assert
           role="progressbar"
           aria-valuemin={1}
           aria-valuemax={progress.total}

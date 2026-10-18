@@ -36,9 +36,8 @@ export function LibraryToolbar({ viewState, itemCount, onViewStateChange }: Libr
             }
             className="w-full sm:w-64"
           />
-          <div
+          <fieldset
             className="inline-flex gap-0.5 rounded-[var(--radius-control)] border border-border bg-muted/40 p-0.5"
-            role="group"
             aria-label="Library layout"
           >
             {layoutOptions.map(({ mode, label, icon: Icon }) => (
@@ -54,7 +53,7 @@ export function LibraryToolbar({ viewState, itemCount, onViewStateChange }: Libr
                 <Icon className="h-4 w-4" aria-hidden />
               </Button>
             ))}
-          </div>
+          </fieldset>
         </>
       }
     />
