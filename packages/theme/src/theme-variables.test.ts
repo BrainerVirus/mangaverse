@@ -75,4 +75,29 @@ describe('shell fills per preset', () => {
       }
     }
   });
+
+  // DESIGN.md §3.3: the focus ring is a non-text indicator, so 3:1 is the floor. The theme
+  // layer paints `--ring` from the preset's primary; every preset clears it on the canvas.
+  it.each(THEME_PRESET_IDS)('%s keeps the focus ring at 3:1 or better', (presetId) => {
+    for (const dark of [false, true]) {
+      const variables = buildThemeCssVariables({ presetId, dark });
+
+      expect(
+        contrast(variables['--ring']!, variables['--background']!),
+        `${presetId} (${resolveThemeAppearance({ presetId, dark })}): ${variables['--ring']} on ${variables['--background']}`,
+      ).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  // DESIGN.md §3 / §2.4: a preset may tint the glass fills, but it never re-tiers them and
+  // never touches the elevation scale.
+  it('never repaints a glass tier or the elevation scale', () => {
+    const variables = buildThemeCssVariables({ presetId: 'sakura', dark: true });
+    const material = Object.keys(variables).filter(
+      (key) =>
+        key.startsWith('--glass') || key.startsWith('--elevation') || key.startsWith('--ambient'),
+    );
+
+    expect(material).toEqual([]);
+  });
 });

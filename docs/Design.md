@@ -58,7 +58,8 @@ reading sessions, visual media browsing, and source management.
 - Glass is one of the four tiers defined in `DESIGN.md` §2.1 (`thin`, `regular`, `thick`, `stage`). Pick a
   tier; never hand-write a blur radius, a translucent fill, or a saturation value in a component.
 - Every glass surface starts from the `GlassSurface` primitive. `backdrop-filter` is set in one place and
-  nowhere else.
+  nowhere else. The §2.2 light layer comes from `RefractionLayer` (rendered by `GlassSurface`, never
+  hand-built), and the §2.3 band from `AmbientBackdrop` (rendered once by the shell).
 - Glass needs something to refract: the shell's ambient band, page art in the reader, or cover art in a
   grid. Glass over a flat, empty surface is a flat panel with a cost.
 - Depth is the four-step elevation scale plus the specular top edge. A shadow outside that scale is a bug.
@@ -66,7 +67,9 @@ reading sessions, visual media browsing, and source management.
   is never used on glass; secondary glass text uses `--glass-muted-foreground`; text over imagery needs a
   plate and at least `regular` glass.
 - Every material degrades: no `backdrop-filter` support, reduced transparency, and the low-end device
-  profile all resolve to the opaque token, keeping the hierarchy intact.
+  profile all resolve to the opaque token, keeping the hierarchy intact. The shell signals them with
+  `data-glass="cheap"` / `data-transparency="solid"` on the root (`DESIGN.md` §2.5); a component never
+  re-implements that resolution.
 - Never animate `backdrop-filter`, a blur radius, or a shadow. Animate opacity and transform of the layer.
 - Blur budget and nesting rules: `DESIGN.md` §2.5 — count blurred layers per view, and never nest two
   tiers that blur imagery (a thin tint inside a glass panel is legal).
@@ -191,7 +194,8 @@ Theme rules:
 - Use `Skeleton` for loading placeholders.
 - Use `Badge` for labels and statuses.
 - Use `GlassSurface` (and `GlassPanel`) for anything translucent; never write a raw `backdrop-blur-*`,
-  `bg-white/10`, or `bg-black/80` in a component.
+  `bg-white/10`, or `bg-black/80` in a component. `GlassSurface` refuses to nest two imagery-blurring
+  tiers (`DESIGN.md` §2.5).
 - Dialogs, sheets, and drawers must have accessible titles.
 - Forms use structured field components and associated labels.
 - Icons inside buttons use the project's icon conventions and must have accessible names where needed.
