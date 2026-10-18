@@ -1,6 +1,7 @@
 import type { AppDrizzleDb } from '@app/db';
 import {
   getCacheEntryById,
+  listCacheEntriesForManga,
   listCacheEntriesByKind,
   touchCacheEntry,
   upsertCacheEntry,
@@ -201,15 +202,25 @@ export async function markChapterPagesAsRead(
   }
 }
 
+/**
+ * Pages fetched at a time. A chapter holds hundreds of them and every fetch is a
+ * full image decoded into memory, so an unbounded `Promise.all` fans out one
+ * request per page the moment the reader opens.
+ */
+const PREFETCH_CONCURRENCY = 4;
+
 export async function prefetchChapterPages(
   input: Omit<PageCacheLookupInput, 'pageIndex' | 'remoteUrl'> & {
     readonly pages: readonly { readonly pageIndex: number; readonly remoteUrl: string }[];
     readonly retention?: typeof CACHE_RETENTION_READ | 'normal';
   },
 ): Promise<void> {
-  await Promise.all(
-    input.pages.map((page) =>
-      resolvePageObjectUrl({
+  const queue = [...input.pages];
+  const worker = async (): Promise<void> => {
+    for (let page = queue.shift(); page !== undefined; page = queue.shift()) {
+      // Sequential on purpose: this loop is the concurrency bound.
+      // oxlint-disable-next-line eslint/no-await-in-loop
+      await resolvePageObjectUrl({
         db: input.db,
         adapter: input.adapter,
         providerId: input.providerId,
@@ -218,7 +229,30 @@ export async function prefetchChapterPages(
         pageIndex: page.pageIndex,
         remoteUrl: page.remoteUrl,
         ...(input.retention !== undefined ? { retention: input.retention } : {}),
-      }),
-    ),
-  );
+      });
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(PREFETCH_CONCURRENCY, queue.length) }, worker));
+}
+
+/** Page indexes of a chapter that have a cache entry, ascending. */
+export async function listCachedChapterPageIndexes(
+  db: AppDrizzleDb,
+  input: {
+    readonly providerId: string;
+    readonly mangaId: string;
+    readonly chapterId: string;
+  },
+): Promise<number[]> {
+  const entries = await listCacheEntriesForManga(db, input.providerId, input.mangaId);
+  const indexes = new Set<number>();
+
+  for (const entry of entries) {
+    if (entry.cacheKind !== PAGE_CACHE_KIND || entry.chapterId !== input.chapterId) continue;
+    const pageIndex = entry.metadata?.pageIndex;
+    if (typeof pageIndex === 'number') indexes.add(pageIndex);
+  }
+
+  return [...indexes].sort((left, right) => left - right);
 }
