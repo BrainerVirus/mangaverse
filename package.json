@@ -29,6 +29,7 @@
     "oxlint": "^1.87.0",
     "oxlint-tsgolint": "^7.0.2004",
     "react-doctor": "^0.9.18",
+    "shadcn": "^4.22.0",
     "tsc-alias": "^1.9.7",
     "turbo": "^2.11.7",
     "typescript": "~7.0.2",
