@@ -13,7 +13,7 @@ import {
 } from '../search-layout-metrics.js';
 
 /** Virtualize only large result sets; smaller grids use plain CSS for reliability. */
-export const VIRTUALIZE_MIN_ITEMS = 48;
+const VIRTUALIZE_MIN_ITEMS = 48;
 
 export interface VirtualSearchGridProps {
   results: readonly MangaIdentity[];

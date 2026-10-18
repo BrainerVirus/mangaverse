@@ -204,7 +204,7 @@ export async function flushLocalDb(): Promise<void> {
  * must replace any handle they were holding; the previous one stays usable for
  * one further sync generation (see openPersistentDatabase).
  */
-export async function syncLocalDbFromOtherTab(): Promise<AppDrizzleDb | null> {
+async function syncLocalDbFromOtherTab(): Promise<AppDrizzleDb | null> {
   if (dbPromise === undefined) return null;
   const openedAt = generation;
   const session = await dbPromise;
@@ -250,7 +250,7 @@ export function watchLocalDbForExternalChanges(
 }
 
 /** Coalesces bursts of mutations into one snapshot write. */
-export function scheduleLocalDbFlush(): void {
+function scheduleLocalDbFlush(): void {
   if (flushTimer !== null) {
     clearTimeout(flushTimer);
   }

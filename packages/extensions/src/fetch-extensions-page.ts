@@ -4,9 +4,7 @@ import { toExtensionInstallId, toProviderId } from '@app/shared';
 
 import type { InstalledProviderSummary } from './types.js';
 
-export function summarizeInstalledProvider(
-  provider: ExtensionInstallMetadata,
-): InstalledProviderSummary {
+function summarizeInstalledProvider(provider: ExtensionInstallMetadata): InstalledProviderSummary {
   const enabledCapabilities = Object.values(provider.manifest.capabilities).filter(Boolean).length;
   return {
     id: provider.id,
@@ -36,7 +34,7 @@ export async function fetchExtensionsPage(
   return { providers };
 }
 
-export const demoProviderManifest: ProviderManifest = {
+const demoProviderManifest: ProviderManifest = {
   id: toProviderId('demo-provider'),
   name: 'Demo Provider',
   version: '1.0.0',

@@ -6,5 +6,3 @@ export const EASING = {
   snapFeedback: 'back.out(1.2)',
   scrollLinked: 'none',
 } as const;
-
-export type EasingKey = keyof typeof EASING;

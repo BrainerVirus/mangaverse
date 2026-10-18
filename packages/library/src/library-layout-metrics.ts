@@ -61,11 +61,11 @@ export function estimateGridRowHeight(
   return Math.ceil(itemWidth * (4 / 3));
 }
 
-export function estimateListRowHeight(): number {
+function estimateListRowHeight(): number {
   return 96;
 }
 
-export function estimateCompactRowHeight(): number {
+function estimateCompactRowHeight(): number {
   return 72;
 }
 

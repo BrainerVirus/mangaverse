@@ -13,8 +13,8 @@ export interface PinchBaseline {
 }
 
 /** Two taps inside this window, this close together, are a double tap. */
-export const DOUBLE_TAP_MS = 300;
-export const DOUBLE_TAP_SLOP_PX = 30;
+const DOUBLE_TAP_MS = 300;
+const DOUBLE_TAP_SLOP_PX = 30;
 /** Pointer travel past this many pixels is a pan, not a tap. */
 export const PAN_THRESHOLD_PX = 6;
 

@@ -1,7 +1,5 @@
 import type { ChapterPage, FitMode } from '@app/shared';
 
-export type { ChapterPage, Chapter, ReadingProgress } from '@app/shared';
-
 export interface ReaderPage extends ChapterPage {
   readonly width?: number;
   readonly height?: number;

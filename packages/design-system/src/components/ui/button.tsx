@@ -2,7 +2,7 @@ import * as React from 'react';
 import { cn } from '@design-system/lib/cn.js';
 import { buttonSizes, buttonVariants } from './button-variants.js';
 
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: keyof typeof buttonVariants;
   size?: keyof typeof buttonSizes;
 }

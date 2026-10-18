@@ -551,8 +551,9 @@ Measured baselines on `main` at `ff890f3` (2026-10-18), after the tooling slice:
 
 - `pnpm run doctor`: **108 issues across 16 projects** — 43 errors, 65 warnings.
   That is the 66-issue pre-existing baseline (1 error + 65 warnings) plus **42
-  new `team-conventions/no-use-effect` errors** (21 in `@app/web`, the rest
-  across the reader/library/search packages). Warnings by rule:
+  new `team-conventions/no-use-effect` errors** (21 in `@app/web`; the other 21
+  in `packages/cache` (4), `packages/motion` (2), `packages/reader` (14) and
+  `packages/search` (1) — `packages/library` has none). Warnings by rule:
   `typescript/no-explicit-any` x29 (test files), `no-high-complexity-react-function`
   x10, `eslint/no-console` x5, `exhaustive-deps` x3, `async-await-in-loop` x3,
   `jsx-no-constructed-context-values` x2, `query-mutation-missing-invalidation`

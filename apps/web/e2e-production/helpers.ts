@@ -6,10 +6,10 @@ export const fixturesDir = fileURLToPath(
   new URL('../../../packages/extensions-mangadex/src/fixtures/', import.meta.url),
 );
 
-export const MANGADEX_MANGA_ID = 'dc332d04-d3b0-413c-a767-70f5e451b031';
+const MANGADEX_MANGA_ID = 'dc332d04-d3b0-413c-a767-70f5e451b031';
 export const MANGADEX_APP_MANGA_ID = `dev-md-${MANGADEX_MANGA_ID}`;
 
-export function fixture(name: string): string {
+function fixture(name: string): string {
   return readFileSync(`${fixturesDir}/${name}`, 'utf8');
 }
 
@@ -23,7 +23,7 @@ export interface ApiCalls {
 }
 
 /** Serves recorded MangaDex fixtures for the API and the at-home image CDN. */
-export async function mockMangaDexApi(page: Page, calls?: ApiCalls) {
+async function mockMangaDexApi(page: Page, calls?: ApiCalls) {
   await page.route('**/api.mangadex.org/**', async (route) => {
     if (calls) calls.count += 1;
     const url = route.request().url();
@@ -61,13 +61,13 @@ async function advanceOnboarding(page: Page) {
   await clickContinue(page);
 }
 
-export async function finishOnboardingQuick(page: Page) {
+async function finishOnboardingQuick(page: Page) {
   await advanceOnboarding(page);
   await page.getByRole('button', { name: 'Finish without provider' }).click();
   await expect(page).toHaveURL(/\/library/, { timeout: 20_000 });
 }
 
-export const PING_KEY = 'mangaverse.local-db.version';
+const PING_KEY = 'mangaverse.local-db.version';
 
 export async function currentPing(page: Page): Promise<string | null> {
   return page.evaluate((key) => localStorage.getItem(key), PING_KEY);

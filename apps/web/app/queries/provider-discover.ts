@@ -10,7 +10,7 @@ import {
 } from '../lib/provider-registry.js';
 
 export const PROVIDER_SECTION_PAGE_SIZE = 24;
-export const PROVIDER_SECTION_PREVIEW_SIZE = 6;
+const PROVIDER_SECTION_PREVIEW_SIZE = 6;
 
 /** Only sections the provider's declared capabilities can serve. */
 export function getEnabledSections(
