@@ -22,6 +22,17 @@ export interface ApiCalls {
   count: number;
 }
 
+/**
+ * CI runners report few cores, which resolves the shell's cheap glass profile.
+ * Tests that assert full glass must pin capable hardware before the app loads.
+ */
+export async function stubCapableHardware(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'hardwareConcurrency', { configurable: true, value: 8 });
+    Object.defineProperty(navigator, 'deviceMemory', { configurable: true, value: 8 });
+  });
+}
+
 /** Serves recorded MangaDex fixtures for the API and the at-home image CDN. */
 async function mockMangaDexApi(page: Page, calls?: ApiCalls) {
   await page.route('**/api.mangadex.org/**', async (route) => {

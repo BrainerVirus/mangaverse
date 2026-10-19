@@ -14,6 +14,8 @@ export interface AppSettings {
   readonly showProviderErrors: boolean;
   readonly preferredLanguages: readonly string[];
   readonly lowMemoryMode: boolean;
+  readonly reduceMotion: boolean;
+  readonly reduceTransparency: boolean;
   readonly locale: string;
   readonly imageCacheLimitBytes: number;
 }
@@ -26,6 +28,8 @@ export function getDefaultAppSettings(): AppSettings {
     showProviderErrors: true,
     preferredLanguages: ['en'],
     lowMemoryMode: false,
+    reduceMotion: false,
+    reduceTransparency: false,
     locale: 'system',
     imageCacheLimitBytes: DEFAULT_IMAGE_CACHE_LIMIT_BYTES,
   };
@@ -86,6 +90,24 @@ export function validateAppSettings(input: unknown): AppResult<AppSettings> {
     );
   }
 
+  const reduceMotion = settings['reduceMotion'] === undefined ? false : settings['reduceMotion'];
+  if (typeof reduceMotion !== 'boolean') {
+    return err(
+      createAppError({ code: 'app.settings.invalid', message: 'reduceMotion must be boolean.' }),
+    );
+  }
+
+  const reduceTransparency =
+    settings['reduceTransparency'] === undefined ? false : settings['reduceTransparency'];
+  if (typeof reduceTransparency !== 'boolean') {
+    return err(
+      createAppError({
+        code: 'app.settings.invalid',
+        message: 'reduceTransparency must be boolean.',
+      }),
+    );
+  }
+
   const imageCacheLimitBytes = settings['imageCacheLimitBytes'];
   if (
     typeof imageCacheLimitBytes !== 'number' ||
@@ -116,6 +138,8 @@ export function validateAppSettings(input: unknown): AppResult<AppSettings> {
     showProviderErrors: settings['showProviderErrors'],
     preferredLanguages,
     lowMemoryMode: settings['lowMemoryMode'],
+    reduceMotion,
+    reduceTransparency,
     locale,
     imageCacheLimitBytes,
   });

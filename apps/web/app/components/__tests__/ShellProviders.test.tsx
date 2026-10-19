@@ -36,6 +36,8 @@ vi.mock('../../providers/local-db-provider.js', () => ({
 
 vi.mock('@app/motion', () => ({
   useReducedMotion: () => false,
+  getReducedMotionPreference: () => false,
+  setInAppReducedMotionPreference: vi.fn<(reduced: boolean) => void>(),
   routeEnter: vi.fn<(...args: unknown[]) => unknown>(),
   commandPaletteEnter: vi.fn<(...args: unknown[]) => unknown>(),
   commandPaletteExit: vi.fn<(...args: unknown[]) => unknown>(),
