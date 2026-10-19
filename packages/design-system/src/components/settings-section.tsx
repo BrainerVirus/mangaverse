@@ -35,7 +35,9 @@ export function SettingsSection({
         >
           <div className="flex items-center gap-2">
             {danger ? <AlertTriangle className="h-4 w-4 text-destructive" /> : null}
-            <CardTitle className={cn('text-base', danger && 'text-destructive')}>{title}</CardTitle>
+            <CardTitle size="heading" className={cn(danger && 'text-destructive')}>
+              {title}
+            </CardTitle>
           </div>
           {collapsed ? (
             isOpen ? (

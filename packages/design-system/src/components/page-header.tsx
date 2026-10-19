@@ -25,14 +25,14 @@ export function PageHeader({
     >
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+          <h1 className="type-display-lg">{title}</h1>
           {count !== undefined ? (
-            <Badge variant="secondary">
+            <Badge size="meta" variant="secondary">
               {count} {countLabel ?? (count === 1 ? 'item' : 'items')}
             </Badge>
           ) : null}
         </div>
-        {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+        {description ? <p className="type-body text-muted-foreground">{description}</p> : null}
       </div>
       {actions ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">{actions}</div>

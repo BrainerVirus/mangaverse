@@ -126,7 +126,11 @@ export function ReaderChrome({
         />
         <div className="flex items-center gap-2">
           {chapterTitle && <span className="text-sm font-medium text-white">{chapterTitle}</span>}
-          <Badge variant="secondary" className="border border-glass-edge bg-glass-plate text-white">
+          <Badge
+            size="meta"
+            variant="secondary"
+            className="border border-glass-edge bg-glass-plate text-white"
+          >
             {currentPage} / {totalPages}
           </Badge>
         </div>
@@ -154,7 +158,7 @@ export function ReaderChrome({
                     }}
                     onClick={() => onModeChange(m.value)}
                     className={cn(
-                      'relative z-10 rounded-full px-3 py-1 text-xs font-medium transition-colors',
+                      'relative z-10 rounded-full px-3 py-1 type-micro transition-colors',
                       mode === m.value ? 'text-black' : 'text-white/70 hover:text-white',
                     )}
                   >
@@ -207,7 +211,7 @@ export function ReaderChrome({
         </Button>
 
         <div className="flex flex-1 items-center gap-4 px-4">
-          <span className="text-xs text-white/70">{currentPage}</span>
+          <span className="type-meta text-white/70">{currentPage}</span>
           <ReaderProgressRail
             value={currentPage}
             min={1}
@@ -216,7 +220,7 @@ export function ReaderChrome({
             reducedMotion={reducedMotion}
             {...(renderPagePreview !== undefined ? { renderPreview: renderPagePreview } : {})}
           />
-          <span className="text-xs text-white/70">{totalPages}</span>
+          <span className="type-meta text-white/70">{totalPages}</span>
         </div>
 
         <Button

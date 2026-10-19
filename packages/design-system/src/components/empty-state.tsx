@@ -68,8 +68,8 @@ export function EmptyState({ type, action }: EmptyStateProps) {
       style={{ opacity: reducedMotion ? 1 : 0 }}
     >
       <div className="mb-4 opacity-50">{config.icon}</div>
-      <h3 className="text-lg font-semibold text-foreground">{config.title}</h3>
-      <p className="mt-2 max-w-sm text-sm text-muted-foreground">{config.description}</p>
+      <h3 className="type-display-xl text-foreground">{config.title}</h3>
+      <p className="type-body mt-2 max-w-sm text-muted-foreground">{config.description}</p>
       {action && (
         <Button onClick={action.onClick} className="mt-6" variant="default">
           {action.label}

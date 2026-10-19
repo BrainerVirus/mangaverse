@@ -1,3 +1,4 @@
+// oxlint-disable shadcn/no-unknown-classes -- this app-level lint does not resolve @utility declarations from @app/design-system's stylesheet.
 import { useState } from 'react';
 import { Link, useRouterState } from '@tanstack/react-router';
 import {
@@ -61,7 +62,7 @@ export function MobileBottomNav() {
                   aria-current={isActive ? 'page' : undefined}
                   onClick={() => setSheetOpen(false)}
                   className={cn(
-                    'flex items-center gap-3 px-2 py-3 text-sm font-medium transition-colors rounded-md',
+                    'flex items-center gap-3 px-2 py-3 type-label transition-colors rounded-md',
                     isActive ? 'text-primary bg-primary/10' : 'text-foreground hover:bg-muted',
                   )}
                 >
@@ -83,7 +84,7 @@ export function MobileBottomNav() {
                   aria-current={isActive ? 'page' : undefined}
                   onClick={() => setSheetOpen(false)}
                   className={cn(
-                    'flex items-center gap-3 px-2 py-3 text-sm font-medium transition-colors rounded-md',
+                    'flex items-center gap-3 px-2 py-3 type-label transition-colors rounded-md',
                     isActive ? 'text-primary bg-primary/10' : 'text-foreground hover:bg-muted',
                   )}
                 >
@@ -112,7 +113,7 @@ export function MobileBottomNav() {
                 aria-label={label}
                 aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                  'flex flex-col items-center gap-0.5 px-3 py-1.5 text-xs font-medium transition-colors',
+                  'flex flex-col items-center gap-0.5 px-3 py-1.5 type-micro transition-colors',
                   isActive ? 'text-primary' : 'text-muted-foreground',
                 )}
               >
@@ -125,7 +126,7 @@ export function MobileBottomNav() {
           <button
             type="button"
             aria-label="Open navigation menu"
-            className="flex flex-col items-center gap-0.5 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex flex-col items-center gap-0.5 px-3 py-1.5 type-micro text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             onClick={() => setSheetOpen(true)}
           >
             <Menu className="h-5 w-5" />

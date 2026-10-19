@@ -6,6 +6,11 @@ import { resolveThemeAppearance } from './resolve-theme.js';
 
 /** The roles the shell paints side by side: the active nav row, hover fills and the sidebar. */
 const SHELL_FILLS = ['--secondary', '--accent', '--sidebar', '--sidebar-accent'] as const;
+const GLASS_STATUS_TOKENS = [
+  { glass: '--destructive-glass', status: '--destructive', light: '#b91c1c' },
+  { glass: '--success-glass', status: '--success', light: '#15803d' },
+  { glass: '--warning-glass', status: '--warning', light: '#b45309' },
+] as const;
 
 function channels(hex: string): readonly [number, number, number] {
   const value = hex.replace('#', '');
@@ -38,6 +43,17 @@ function contrast(a: string, b: string): number {
   const high = Math.max(first, second);
   const low = Math.min(first, second);
   return (high + 0.05) / (low + 0.05);
+}
+
+function regularGlassFill(background: string, dark: boolean): string {
+  const glass = dark ? [20, 18, 16] : [255, 255, 255];
+  const alpha = dark ? 0.66 : 0.68;
+  const backgroundChannels = channels(background);
+  const fill = glass.map((channel, index) => {
+    const base = backgroundChannels[index] ?? 0;
+    return Math.round(channel * alpha + base * (1 - alpha));
+  });
+  return `#${fill.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
 }
 
 describe('shell fills per preset', () => {
@@ -99,5 +115,44 @@ describe('shell fills per preset', () => {
     );
 
     expect(material).toEqual([]);
+  });
+
+  it('resolves glass status colors for every preset without changing dark status colors', () => {
+    for (const presetId of THEME_PRESET_IDS) {
+      for (const dark of [false, true]) {
+        const variables = buildThemeCssVariables({ presetId, dark });
+        const appearance = resolveThemeAppearance({ presetId, dark });
+
+        for (const token of GLASS_STATUS_TOKENS) {
+          expect(variables[token.glass]).toBeTruthy();
+          const expected =
+            appearance === 'light'
+              ? token.light
+              : presetId === 'vercel-monochrome' && token.glass === '--success-glass'
+                ? '#167bfa'
+                : variables[token.status];
+          expect(variables[token.glass]).toBe(expected);
+        }
+      }
+    }
+  });
+
+  it('keeps glass status text above 4.5:1 on regular glass for every preset', () => {
+    for (const presetId of THEME_PRESET_IDS) {
+      for (const dark of [false, true]) {
+        const settings = { presetId, dark };
+        const variables = buildThemeCssVariables(settings);
+        const appearance = resolveThemeAppearance(settings);
+        const fill = regularGlassFill(variables['--background']!, appearance === 'dark');
+
+        for (const token of GLASS_STATUS_TOKENS) {
+          const foreground = variables[token.glass]!;
+          expect(
+            contrast(foreground, fill),
+            `${presetId} (${appearance}): ${token.glass} ${foreground} on regular glass ${fill}`,
+          ).toBeGreaterThanOrEqual(4.5);
+        }
+      }
+    }
   });
 });
