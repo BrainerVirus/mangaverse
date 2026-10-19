@@ -164,6 +164,11 @@ describe('ReaderChrome', () => {
     const stage = container.querySelector('[data-testid="reader-chrome-stage"]');
     expect(stage).toHaveAttribute('data-glass-tier', 'stage');
     expect(stage).toHaveAttribute('aria-hidden', 'true');
+    expect(container.querySelector('[data-testid="reader-chrome-gradient"]')).toHaveClass(
+      'bg-gradient-to-b',
+      'from-black/85',
+      'to-transparent',
+    );
 
     for (const row of container.querySelectorAll('[data-reader-chrome-row]')) {
       const plate = row.querySelector('[data-glass-plate]');

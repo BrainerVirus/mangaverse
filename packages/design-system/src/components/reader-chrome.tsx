@@ -109,6 +109,11 @@ export function ReaderChrome({
         className="pointer-events-none absolute inset-0 rounded-none"
         data-testid="reader-chrome-stage"
       />
+      <div
+        aria-hidden="true"
+        data-testid="reader-chrome-gradient"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/85 via-black/60 to-transparent"
+      />
 
       <div
         data-reader-chrome-row="top"
