@@ -30,12 +30,12 @@ const SheetOverlay = React.forwardRef<HTMLDivElement, SheetPrimitive.Backdrop.Pr
 SheetOverlay.displayName = 'SheetOverlay';
 
 const sideClasses = {
-  top: 'inset-x-0 top-0 h-auto rounded-b-2xl border-b data-open:slide-in-from-top data-closed:slide-out-to-top',
+  top: 'inset-x-0 top-0 h-auto rounded-b-2xl data-open:slide-in-from-top data-closed:slide-out-to-top',
   bottom:
-    'inset-x-0 bottom-0 h-auto rounded-t-2xl border-t data-open:slide-in-from-bottom data-closed:slide-out-to-bottom',
-  left: 'inset-y-0 left-0 h-full w-3/4 max-w-sm border-r data-open:slide-in-from-left data-closed:slide-out-to-left',
+    'inset-x-0 bottom-0 h-auto rounded-t-2xl data-open:slide-in-from-bottom data-closed:slide-out-to-bottom',
+  left: 'inset-y-0 left-0 h-full w-3/4 max-w-sm data-open:slide-in-from-left data-closed:slide-out-to-left',
   right:
-    'inset-y-0 right-0 h-full w-3/4 max-w-sm border-l data-open:slide-in-from-right data-closed:slide-out-to-right',
+    'inset-y-0 right-0 h-full w-3/4 max-w-sm data-open:slide-in-from-right data-closed:slide-out-to-right',
 } as const;
 
 const sideGlassRadii = {
