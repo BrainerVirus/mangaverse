@@ -20,7 +20,8 @@
     },
     "test:e2e:production": {
       "dependsOn": ["^build"],
-      "cache": false
+      "cache": false,
+      "env": ["E2E_PORT"]
     },
     "clean": {
       "cache": false
