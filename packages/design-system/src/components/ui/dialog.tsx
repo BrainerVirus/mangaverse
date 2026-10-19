@@ -1,11 +1,12 @@
 import * as React from 'react';
 import { cn } from '@design-system/lib/cn.js';
+import { GlassSurface } from '../glass-surface.js';
 
 const Dialog = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('fixed inset-0 z-50 flex items-center justify-center', className)}
+      className={cn('fixed inset-0 z-50 flex items-center justify-center glass-scrim', className)}
       {...props}
     />
   ),
@@ -14,12 +15,10 @@ Dialog.displayName = 'Dialog';
 
 const DialogContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div
+    <GlassSurface
       ref={ref}
-      className={cn(
-        'relative w-full max-w-lg rounded-[var(--radius-box)] border border-[var(--border)] bg-popover p-6 shadow-lg',
-        className,
-      )}
+      level="thick"
+      className={cn('w-full max-w-lg p-6', className)}
       {...props}
     />
   ),

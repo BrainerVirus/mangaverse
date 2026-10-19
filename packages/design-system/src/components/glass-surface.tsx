@@ -70,8 +70,8 @@ export const GlassSurface = React.forwardRef<HTMLDivElement, GlassSurfaceProps>(
         data-glass-tone={tone}
         className={cn(
           'relative isolate rounded-glass',
-          glassLevels[level],
-          glassElevations[elevation ?? DEFAULT_ELEVATION[level]],
+          glassLevels({ level }),
+          glassElevations({ elevation: elevation ?? DEFAULT_ELEVATION[level] }),
           className,
         )}
         {...props}

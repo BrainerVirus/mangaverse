@@ -23,6 +23,19 @@ vi.mock('@app/design-system', () => ({
   Button: ({ children, ...props }: { children: React.ReactNode }) => (
     <button {...props}>{children}</button>
   ),
+  GlassSurface: ({
+    children,
+    level,
+    className,
+  }: {
+    children: React.ReactNode;
+    level: string;
+    className?: string;
+  }) => (
+    <div data-glass-tier={level} className={`glass-${level} ${className ?? ''}`}>
+      {children}
+    </div>
+  ),
   Separator: () => null,
   Sheet: ({ children, open }: { children: React.ReactNode; open: boolean }) =>
     open ? <div data-sheet="open">{children}</div> : null,
@@ -65,5 +78,13 @@ describe('MobileBottomNav', () => {
     const html = renderWithProviders(<MobileBottomNav />);
     expect(html).toContain('fixed bottom-0');
     expect(html).toContain('h-14');
+  });
+
+  it('renders the bottom navigation as thick glass', async () => {
+    const { MobileBottomNav } = await import('../shell/MobileBottomNav.js');
+    const html = renderWithProviders(<MobileBottomNav />);
+
+    expect(html).toContain('data-glass-tier="thick"');
+    expect(html).toContain('glass-thick');
   });
 });

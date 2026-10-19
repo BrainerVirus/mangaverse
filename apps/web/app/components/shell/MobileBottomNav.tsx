@@ -20,6 +20,7 @@ import {
   SheetHeader,
   SheetTitle,
   SheetDescription,
+  GlassSurface,
   cn,
 } from '@app/design-system';
 
@@ -97,43 +98,40 @@ export function MobileBottomNav() {
         </SheetContent>
       </Sheet>
 
-      <nav
-        className={cn(
-          'fixed bottom-0 left-0 right-0 z-50 h-14 bg-background/95 backdrop-blur md:hidden',
-          'border-t border-border pb-[env(safe-area-inset-bottom)]',
-        )}
-      >
-        <div className="flex h-full items-center justify-around px-4">
-          {primaryTabs.map(({ label, to, icon: Icon }) => {
-            const isActive = currentPath === to || currentPath.startsWith(to + '/');
-            return (
-              <Link
-                key={to}
-                to={to}
-                aria-label={label}
-                aria-current={isActive ? 'page' : undefined}
-                className={cn(
-                  'flex flex-col items-center gap-0.5 px-3 py-1.5 type-micro transition-colors',
-                  isActive ? 'text-primary' : 'text-muted-foreground',
-                )}
-              >
-                <Icon className="h-5 w-5" />
-                <span>{label}</span>
-              </Link>
-            );
-          })}
+      <GlassSurface level="thick" className="fixed bottom-0 left-0 right-0 z-50 h-14 md:hidden">
+        <nav className="h-full pb-[env(safe-area-inset-bottom)]">
+          <div className="flex h-full items-center justify-around px-4">
+            {primaryTabs.map(({ label, to, icon: Icon }) => {
+              const isActive = currentPath === to || currentPath.startsWith(to + '/');
+              return (
+                <Link
+                  key={to}
+                  to={to}
+                  aria-label={label}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={cn(
+                    'flex flex-col items-center gap-0.5 px-3 py-1.5 type-micro transition-colors',
+                    isActive ? 'text-primary' : 'text-muted-foreground',
+                  )}
+                >
+                  <Icon className="h-5 w-5" />
+                  <span>{label}</span>
+                </Link>
+              );
+            })}
 
-          <button
-            type="button"
-            aria-label="Open navigation menu"
-            className="flex flex-col items-center gap-0.5 px-3 py-1.5 type-micro text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            onClick={() => setSheetOpen(true)}
-          >
-            <Menu className="h-5 w-5" />
-            <span>More</span>
-          </button>
-        </div>
-      </nav>
+            <button
+              type="button"
+              aria-label="Open navigation menu"
+              className="flex flex-col items-center gap-0.5 px-3 py-1.5 type-micro text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              onClick={() => setSheetOpen(true)}
+            >
+              <Menu className="h-5 w-5" />
+              <span>More</span>
+            </button>
+          </div>
+        </nav>
+      </GlassSurface>
     </>
   );
 }

@@ -609,9 +609,31 @@ Both tools are green at the current head; do not raise thresholds to make a run 
       remains the documented flat-surface exception.
 - [x] Count blurred reader layers: **1** at rest; **3** with rail preview and offline
       note; **4** with the settings sheet open alongside the offline note and scrim.
+- [x] The sheet's shared `glass-scrim` recipe landed in P5 (#94).
 - [ ] `DESIGN.md` §13-P2 remains unchanged because that file is outside this slice's
       allowed paths. Follow up there to mark P2 landed and record the shipped/deferred
       items above.
+
+## P5: Selected glass surfaces (#94, 2026-10-19)
+
+- [x] Replace the glass level/elevation records with typed variant resolver functions;
+      enumerate all 20 level/elevation class combinations and preserve the existing
+      output. No CVA package is installed and this slice forbids new dependencies, so
+      these are dependency-free CVA-style functions (ruling recorded in Workit).
+- [x] Move dialog, default sheet, command palette and mobile bottom bar onto thick glass
+      at elevation-4; share the 55%/8px scrim utility. Keep Base UI focus/dismissal,
+      palette keyboard handling, sheet timings and the reader's `surface="glass"` path.
+- [x] Count shell layers from the mounted surfaces: 1 on mobile at rest (0 on desktop);
+      the desktop palette adds 2 (panel + scrim), both below the 2/4 budgets. The mobile
+      More sheet adds 2, for 3 total.
+- [x] All configured gates are green; the production E2E passes **41/41** after its
+      layer-count selector was updated to include `.glass-scrim`. Planting elevation 3
+      on the default sheet failed the style oracle; restoring the file returned the
+      original SHA-256 byte-for-byte.
+- [ ] Follow up on remaining P5 work: `surface-panel` caller migration, card, popover,
+      tooltip, input, tabs, select, preset tinting, and rendered contrast pairs. Also
+      amend `docs/Design.md`'s backdrop-filter rule to name the modal-scrim exception
+      (outside this slice's scope).
 
 ## Exit criteria per implementing session
 

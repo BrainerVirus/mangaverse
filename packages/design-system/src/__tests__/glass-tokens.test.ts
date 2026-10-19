@@ -149,6 +149,12 @@ describe('glass tokens', () => {
     expect(css).toContain('@utility ambient-backdrop');
   });
 
+  it('defines the shared modal scrim as the documented backdrop-filter exception', () => {
+    const scrim = block('@utility glass-scrim {');
+    expect(token(scrim, 'background-color')).toBe('rgb(0 0 0 / 0.55)');
+    expect(token(scrim, 'backdrop-filter')).toBe('blur(8px)');
+  });
+
   it('carries the §2.5 resolution paths', () => {
     expect(css).toContain('[data-glass="cheap"]');
     expect(css).toContain('[data-transparency="solid"]');

@@ -1,14 +1,13 @@
 import * as React from 'react';
 import { cn } from '@design-system/lib/cn.js';
+import { GlassSurface } from '../glass-surface.js';
 
 const Command = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div
+    <GlassSurface
       ref={ref}
-      className={cn(
-        'overflow-hidden rounded-[var(--radius-box)] border border-border bg-popover text-popover-foreground shadow-2xl ring-1 ring-border/60',
-        className,
-      )}
+      level="thick"
+      className={cn('overflow-hidden text-popover-foreground', className)}
       {...props}
     />
   ),

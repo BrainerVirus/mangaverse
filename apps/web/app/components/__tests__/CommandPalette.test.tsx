@@ -144,6 +144,11 @@ describe('CommandPalette', () => {
     await render();
   };
 
+  it('uses the shared scrim utility while open', async () => {
+    await openPalette();
+    expect(container.querySelector('.glass-scrim')).toBeTruthy();
+  });
+
   it('closes on Escape and moves selection with arrow keys', async () => {
     await openPalette();
 
