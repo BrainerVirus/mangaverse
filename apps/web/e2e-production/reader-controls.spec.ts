@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { MANGADEX_APP_MANGA_ID, test } from './helpers.js';
+import { MANGADEX_APP_MANGA_ID, stubCapableHardware, test } from './helpers.js';
 
 test.describe.configure({ timeout: 90_000 });
 
@@ -213,6 +213,7 @@ test('Given reader glass, When transparency is reduced, Then glass layers resolv
   quickOnboarding,
   mockMangaDex,
 }) => {
+  await stubCapableHardware(page);
   await openReader(page);
   const stage = page.locator('[data-testid="reader-chrome-stage"]');
 

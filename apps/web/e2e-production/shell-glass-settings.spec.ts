@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 
-import { test, waitForPingQuiet } from './helpers.js';
+import { test, waitForPingQuiet, stubCapableHardware } from './helpers.js';
 
 test.describe.configure({ timeout: 90_000 });
 
@@ -9,6 +9,7 @@ test('Given Reduced transparency, When enabled, Then shell glass resolves solid 
   quickOnboarding,
 }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await stubCapableHardware(page);
   await page.goto('/settings/app');
 
   const transparency = page.getByRole('switch', { name: 'Transparency' });
@@ -44,10 +45,7 @@ test('Given Reduced motion, When enabled, Then the app stays reduced across OS c
   quickOnboarding,
 }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
-  await page.addInitScript(() => {
-    Object.defineProperty(navigator, 'hardwareConcurrency', { configurable: true, value: 8 });
-    Object.defineProperty(navigator, 'deviceMemory', { configurable: true, value: 8 });
-  });
+  await stubCapableHardware(page);
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-glass', 'full');
   await page.goto('/settings/app');
@@ -86,10 +84,7 @@ test('Given the OS requests reduced motion, When the preference changes, Then sh
   quickOnboarding,
 }) => {
   await page.emulateMedia({ reducedMotion: 'no-preference' });
-  await page.addInitScript(() => {
-    Object.defineProperty(navigator, 'hardwareConcurrency', { configurable: true, value: 8 });
-    Object.defineProperty(navigator, 'deviceMemory', { configurable: true, value: 8 });
-  });
+  await stubCapableHardware(page);
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-glass', 'full');
   await expect(page.locator('[data-ambient-backdrop]')).toHaveCSS('display', 'block');
