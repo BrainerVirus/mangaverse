@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useReducedMotion } from '../hooks/use-reduced-motion.js';
 import { useIsClient } from '../hooks/use-is-client.js';
+import { setInAppReducedMotionPreference } from '../utils/reduced-motion-preference.js';
 
 describe('useIsClient', () => {
   it('should return true after mount (effect sets to true)', () => {
@@ -27,6 +28,7 @@ describe('useReducedMotion', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    setInAppReducedMotionPreference(false);
   });
 
   afterEach(() => {
@@ -89,6 +91,21 @@ describe('useReducedMotion', () => {
       matches = true;
       for (const listener of listeners) listener({ matches: true } as MediaQueryListEvent);
     });
+
+    expect(result.current).toBe(true);
+  });
+
+  it('keeps reduced motion active when the app preference is Reduced and the OS allows motion', () => {
+    window.matchMedia = vi.fn<() => MediaQueryList>().mockReturnValue(
+      makeMediaQueryList({
+        matches: false,
+        addEventListener: vi.fn<(event: string, handler: () => void) => void>(),
+        removeEventListener: vi.fn<(event: string, handler: () => void) => void>(),
+      }),
+    );
+
+    const { result } = renderHook(() => useReducedMotion());
+    act(() => setInAppReducedMotionPreference(true));
 
     expect(result.current).toBe(true);
   });

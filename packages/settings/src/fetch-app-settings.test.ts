@@ -19,6 +19,8 @@ describe('fetchAppSettings', () => {
       ...getDefaultAppSettings(),
       explicitContent: true,
       preferredLanguages: ['ja', 'en'],
+      reduceMotion: true,
+      reduceTransparency: true,
     };
 
     await upsertAppSettings(db, custom);

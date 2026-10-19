@@ -53,13 +53,16 @@ function SettingToggleRow({
         <Label htmlFor={id} className="text-sm font-medium">
           {label}
         </Label>
-        <p className="text-sm text-muted-foreground">{description}</p>
+        <p id={`${id}-description`} className="text-sm text-muted-foreground">
+          {description}
+        </p>
       </div>
       <Switch
         id={id}
         checked={checked}
         disabled={disabled}
         aria-label={label}
+        aria-describedby={`${id}-description`}
         onCheckedChange={onCheckedChange}
       />
     </div>
@@ -114,6 +117,28 @@ export function AppSettingsPage({
           {isSaving ? ' Saving…' : null}
         </p>
       </div>
+
+      <SettingsSection
+        title="Appearance"
+        description="Adjust motion and transparency across the app."
+      >
+        <SettingToggleRow
+          id="reduce-motion"
+          label="Motion"
+          description={settings.reduceMotion ? 'Reduced motion' : 'Full motion'}
+          checked={settings.reduceMotion}
+          disabled={isSaving}
+          onCheckedChange={(reduceMotion) => update({ reduceMotion })}
+        />
+        <SettingToggleRow
+          id="reduce-transparency"
+          label="Transparency"
+          description={settings.reduceTransparency ? 'Reduced transparency' : 'Full transparency'}
+          checked={settings.reduceTransparency}
+          disabled={isSaving}
+          onCheckedChange={(reduceTransparency) => update({ reduceTransparency })}
+        />
+      </SettingsSection>
 
       <SettingsSection
         title="Content"

@@ -9,6 +9,8 @@ describe('app settings', () => {
       showProviderErrors: true,
       preferredLanguages: ['en'],
       lowMemoryMode: false,
+      reduceMotion: false,
+      reduceTransparency: false,
       locale: 'system',
       imageCacheLimitBytes: 524_288_000,
     });
@@ -20,6 +22,8 @@ describe('app settings', () => {
       showProviderErrors: false,
       preferredLanguages: ['en', 'ja'],
       lowMemoryMode: true,
+      reduceMotion: true,
+      reduceTransparency: true,
       locale: 'pt-BR',
       imageCacheLimitBytes: 524_288_000,
     });
@@ -30,6 +34,35 @@ describe('app settings', () => {
     }
     expect(result.value.preferredLanguages).toEqual(['en', 'ja']);
   });
+
+  it('defaults appearance fields when loading settings saved before they existed', () => {
+    const legacySettings = {
+      explicitContent: false,
+      showProviderErrors: true,
+      preferredLanguages: ['en'],
+      lowMemoryMode: false,
+      locale: 'system',
+      imageCacheLimitBytes: 524_288_000,
+    };
+
+    const result = validateAppSettings(legacySettings);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error('expected legacy settings to remain valid');
+    }
+    expect(result.value.reduceMotion).toBe(false);
+    expect(result.value.reduceTransparency).toBe(false);
+  });
+
+  it.each(['reduceMotion', 'reduceTransparency'] as const)(
+    'rejects a non-boolean %s value',
+    (field) => {
+      const result = validateAppSettings({ ...getDefaultAppSettings(), [field]: 'yes' });
+
+      expect(result.ok).toBe(false);
+    },
+  );
 
   it('rejects invalid preferred languages', () => {
     const result = validateAppSettings({

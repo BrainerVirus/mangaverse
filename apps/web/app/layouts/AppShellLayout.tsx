@@ -4,6 +4,7 @@ import { DesktopSidebar } from '../components/shell/DesktopSidebar.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.js';
 import { AnimatedRouteOutlet } from '../components/shell/AnimatedRouteOutlet.js';
 import { PersistenceErrorBanner } from '../components/PersistenceErrorBanner.js';
+import { AmbientBackdrop } from '@app/design-system';
 
 export function AppShellLayout({ children }: { children: React.ReactNode }) {
   const toggleSidebar = useLayoutStore((s) => s.toggleSidebar);
@@ -36,6 +37,7 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background max-md:flex-col max-md:overflow-visible">
+      <AmbientBackdrop />
       <DesktopSidebar />
       <main className="flex-1 overflow-auto bg-background max-md:pb-16">
         <PersistenceErrorBanner />

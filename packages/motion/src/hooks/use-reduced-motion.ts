@@ -1,28 +1,31 @@
 import { useSyncExternalStore } from 'react';
+import {
+  getReducedMotionPreference,
+  subscribeToInAppReducedMotionPreference,
+} from '../utils/reduced-motion-preference.js';
 
 const QUERY = '(prefers-reduced-motion: reduce)';
 
 /**
- * The media query is the external system here, so React subscribes to it
- * directly: the SSR snapshot is false and the client value arrives without a
- * setState-in-effect round trip (no post-paint flip).
+ * React subscribes to both external preference sources directly; the SSR
+ * snapshot is false without a post-paint setState round trip.
  */
 function subscribeReducedMotion(onChange: () => void): () => void {
+  const unsubscribeInApp = subscribeToInAppReducedMotionPreference(onChange);
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-    return () => {};
+    return unsubscribeInApp;
   }
 
   const mediaQuery = window.matchMedia(QUERY);
   mediaQuery.addEventListener('change', onChange);
-  return () => mediaQuery.removeEventListener('change', onChange);
+  return () => {
+    unsubscribeInApp();
+    mediaQuery.removeEventListener('change', onChange);
+  };
 }
 
 function readReducedMotion(): boolean {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-    return false;
-  }
-
-  return window.matchMedia(QUERY).matches;
+  return getReducedMotionPreference();
 }
 
 function readServerReducedMotion(): boolean {

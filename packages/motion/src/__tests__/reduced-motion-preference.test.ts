@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getReducedMotionPreference } from '../utils/reduced-motion-preference.js';
+import { setInAppReducedMotionPreference } from '../utils/reduced-motion-preference.js';
 
 describe('getReducedMotionPreference', () => {
   let originalMatchMedia: typeof window.matchMedia;
@@ -9,6 +10,7 @@ describe('getReducedMotionPreference', () => {
   });
 
   afterEach(() => {
+    setInAppReducedMotionPreference(false);
     Object.defineProperty(window, 'matchMedia', {
       value: originalMatchMedia,
       writable: true,
@@ -29,6 +31,16 @@ describe('getReducedMotionPreference', () => {
       value: vi.fn<() => { matches: boolean }>(() => ({ matches: true })),
       writable: true,
     });
+
+    expect(getReducedMotionPreference()).toBe(true);
+  });
+
+  it('returns true when the in-app preference requests reduced motion', () => {
+    Object.defineProperty(window, 'matchMedia', {
+      value: vi.fn<() => { matches: boolean }>(() => ({ matches: false })),
+      writable: true,
+    });
+    setInAppReducedMotionPreference(true);
 
     expect(getReducedMotionPreference()).toBe(true);
   });
