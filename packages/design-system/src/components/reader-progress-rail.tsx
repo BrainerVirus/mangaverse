@@ -135,7 +135,7 @@ export function ReaderProgressRail({
             data-testid="reader-rail-preview-surface"
           >
             {renderPreview(hoverValue)}
-            <div className="px-2 py-1 text-center text-xs font-medium tabular-nums text-white">
+            <div className="type-meta px-2 py-1 text-center tabular-nums text-white">
               {hoverValue}
             </div>
           </GlassSurface>

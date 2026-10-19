@@ -22,8 +22,11 @@ export interface ThemeColorTokens {
   readonly readerBackground: string;
   readonly primary: string;
   readonly destructive: string;
+  readonly destructiveGlass: string;
   readonly success: string;
+  readonly successGlass: string;
   readonly warning: string;
+  readonly warningGlass: string;
 }
 
 export interface ThemePresetDefinition {
@@ -43,8 +46,11 @@ const MINIMAL_LIGHT: ThemeColorTokens = {
   readerBackground: '#fafafa',
   primary: '#18181b',
   destructive: '#ef4444',
+  destructiveGlass: '#b91c1c',
   success: '#22c55e',
+  successGlass: '#15803d',
   warning: '#f59e0b',
+  warningGlass: '#b45309',
 };
 
 const MINIMAL_DARK: ThemeColorTokens = {
@@ -56,8 +62,11 @@ const MINIMAL_DARK: ThemeColorTokens = {
   readerBackground: '#09090b',
   primary: '#fafafa',
   destructive: '#ef4444',
+  destructiveGlass: '#ef4444',
   success: '#22c55e',
+  successGlass: '#22c55e',
   warning: '#f59e0b',
+  warningGlass: '#f59e0b',
 };
 
 export const THEME_PRESETS: readonly ThemePresetDefinition[] = [
@@ -95,8 +104,11 @@ export const THEME_PRESETS: readonly ThemePresetDefinition[] = [
       readerBackground: '#ffffff',
       primary: '#000000',
       destructive: '#e00',
+      destructiveGlass: '#b91c1c',
       success: '#0070f3',
+      successGlass: '#15803d',
       warning: '#f5a623',
+      warningGlass: '#b45309',
     },
     dark: {
       background: '#000000',
@@ -107,8 +119,11 @@ export const THEME_PRESETS: readonly ThemePresetDefinition[] = [
       readerBackground: '#000000',
       primary: '#ffffff',
       destructive: '#ff4444',
+      destructiveGlass: '#ff4444',
       success: '#0070f3',
+      successGlass: '#167bfa',
       warning: '#f5a623',
+      warningGlass: '#f5a623',
     },
   },
   {
@@ -124,8 +139,11 @@ export const THEME_PRESETS: readonly ThemePresetDefinition[] = [
       readerBackground: '#fff7f9',
       primary: '#d4577a',
       destructive: '#dc2626',
+      destructiveGlass: '#b91c1c',
       success: '#16a34a',
+      successGlass: '#15803d',
       warning: '#d97706',
+      warningGlass: '#b45309',
     },
     dark: {
       background: '#1a1014',
@@ -136,8 +154,11 @@ export const THEME_PRESETS: readonly ThemePresetDefinition[] = [
       readerBackground: '#140c10',
       primary: '#f472b6',
       destructive: '#f87171',
+      destructiveGlass: '#f87171',
       success: '#4ade80',
+      successGlass: '#4ade80',
       warning: '#fbbf24',
+      warningGlass: '#fbbf24',
     },
   },
   {
@@ -153,8 +174,11 @@ export const THEME_PRESETS: readonly ThemePresetDefinition[] = [
       readerBackground: '#f0ebff',
       primary: '#7c3aed',
       destructive: '#ef4444',
+      destructiveGlass: '#b91c1c',
       success: '#10b981',
+      successGlass: '#15803d',
       warning: '#f59e0b',
+      warningGlass: '#b45309',
     },
     dark: {
       background: '#0a0614',
@@ -165,8 +189,11 @@ export const THEME_PRESETS: readonly ThemePresetDefinition[] = [
       readerBackground: '#050310',
       primary: '#22d3ee',
       destructive: '#fb7185',
+      destructiveGlass: '#fb7185',
       success: '#34d399',
+      successGlass: '#34d399',
       warning: '#fbbf24',
+      warningGlass: '#fbbf24',
     },
   },
   {
@@ -183,8 +210,11 @@ export const THEME_PRESETS: readonly ThemePresetDefinition[] = [
       readerBackground: '#000000',
       primary: '#ffffff',
       destructive: '#ef4444',
+      destructiveGlass: '#ef4444',
       success: '#22c55e',
+      successGlass: '#22c55e',
       warning: '#f59e0b',
+      warningGlass: '#f59e0b',
     },
   },
   {
@@ -200,8 +230,11 @@ export const THEME_PRESETS: readonly ThemePresetDefinition[] = [
       readerBackground: '#f0e4cc',
       primary: '#8b6914',
       destructive: '#b45309',
+      destructiveGlass: '#b91c1c',
       success: '#15803d',
+      successGlass: '#15803d',
       warning: '#a16207',
+      warningGlass: '#b45309',
     },
     dark: {
       background: '#1f1810',
@@ -212,8 +245,11 @@ export const THEME_PRESETS: readonly ThemePresetDefinition[] = [
       readerBackground: '#18120c',
       primary: '#d4a853',
       destructive: '#f87171',
+      destructiveGlass: '#f87171',
       success: '#4ade80',
+      successGlass: '#4ade80',
       warning: '#fbbf24',
+      warningGlass: '#fbbf24',
     },
   },
   {
@@ -229,8 +265,11 @@ export const THEME_PRESETS: readonly ThemePresetDefinition[] = [
       readerBackground: '#ffffff',
       primary: '#0000ee',
       destructive: '#cc0000',
+      destructiveGlass: '#b91c1c',
       success: '#006600',
+      successGlass: '#15803d',
       warning: '#996600',
+      warningGlass: '#b45309',
     },
     dark: {
       background: '#000000',
@@ -241,8 +280,11 @@ export const THEME_PRESETS: readonly ThemePresetDefinition[] = [
       readerBackground: '#000000',
       primary: '#66b3ff',
       destructive: '#ff6666',
+      destructiveGlass: '#ff6666',
       success: '#66ff66',
+      successGlass: '#66ff66',
       warning: '#ffcc66',
+      warningGlass: '#ffcc66',
     },
   },
   {

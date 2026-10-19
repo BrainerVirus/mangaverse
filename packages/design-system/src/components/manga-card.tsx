@@ -84,7 +84,7 @@ function CardMeta({ manga, variant }: MetaProps) {
         </h3>
 
         {manga.providerMappings.length > 0 && !isCompact && (
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="type-code mt-1 text-muted-foreground">
             {manga.providerMappings[0]!.providerId}
           </p>
         )}

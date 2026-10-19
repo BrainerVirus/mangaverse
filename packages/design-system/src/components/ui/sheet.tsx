@@ -135,11 +135,7 @@ SheetHeader.displayName = 'SheetHeader';
 
 const SheetTitle = React.forwardRef<HTMLHeadingElement, SheetPrimitive.Title.Props>(
   ({ className, ...props }, ref) => (
-    <SheetPrimitive.Title
-      ref={ref}
-      className={cn('text-lg font-semibold leading-none tracking-tight', className)}
-      {...props}
-    />
+    <SheetPrimitive.Title ref={ref} className={cn('type-title', className)} {...props} />
   ),
 );
 SheetTitle.displayName = 'SheetTitle';
@@ -148,7 +144,7 @@ const SheetDescription = React.forwardRef<HTMLParagraphElement, SheetPrimitive.D
   ({ className, ...props }, ref) => (
     <SheetPrimitive.Description
       ref={ref}
-      className={cn('text-sm text-muted-foreground', className)}
+      className={cn('type-body text-muted-foreground', className)}
       {...props}
     />
   ),

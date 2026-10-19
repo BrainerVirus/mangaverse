@@ -17,6 +17,18 @@ describe('SettingsSection', () => {
     expect(screen.getByText('General Settings')).toBeInTheDocument();
   });
 
+  it('uses the heading type role for the section title', () => {
+    render(
+      <SettingsSection title="Library Settings">
+        <div>Content</div>
+      </SettingsSection>,
+    );
+
+    const title = screen.getByRole('heading', { name: 'Library Settings' });
+    expect(title).toHaveClass('type-heading');
+    expect(title).not.toHaveClass('type-title');
+  });
+
   it('renders children correctly', () => {
     render(
       <SettingsSection title="Settings">

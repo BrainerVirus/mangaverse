@@ -3,14 +3,16 @@ import { cn } from '@design-system/lib/cn.js';
 
 interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: 'default' | 'outline' | 'secondary' | 'destructive';
+  size?: 'default' | 'meta';
 }
 
 const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
-  ({ className, variant = 'default', ...props }, ref) => (
+  ({ className, size = 'default', variant = 'default', ...props }, ref) => (
     <div
       ref={ref}
       className={cn(
-        'inline-flex items-center rounded-[var(--radius-badge)] border px-2.5 py-0.5 text-xs font-semibold transition-colors',
+        'inline-flex items-center rounded-[var(--radius-badge)] border px-2.5 py-0.5 transition-colors',
+        size === 'meta' ? 'type-meta' : 'text-xs font-semibold',
         {
           'border-[var(--border)] bg-primary text-primary-foreground': variant === 'default',
           'border-[var(--border)]': variant === 'outline',

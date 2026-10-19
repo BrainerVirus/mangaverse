@@ -20,7 +20,7 @@ export function ErrorState({ title, message, providerName, onRetry, onBack }: Er
           className="border-none bg-destructive/10 text-foreground shadow-none"
         >
           <AlertTriangle className="h-4 w-4 text-destructive" />
-          <AlertTitle className="text-base font-semibold">{title}</AlertTitle>
+          <AlertTitle>{title}</AlertTitle>
           <AlertDescription className="text-sm text-muted-foreground">
             {providerName && <span className="font-medium text-foreground">{providerName}: </span>}
             {message}

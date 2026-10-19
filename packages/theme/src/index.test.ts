@@ -112,6 +112,9 @@ describe('applyThemeToRoot', () => {
     expect(root.classList.contains('dark')).toBe(true);
     expect(root.style.getPropertyValue('--background')).toBe('#0a0614');
     expect(root.style.getPropertyValue('--reader-background')).toBe('#050310');
+    expect(root.style.getPropertyValue('--destructive-glass')).toBe('#fb7185');
+    expect(root.style.getPropertyValue('--success-glass')).toBe('#34d399');
+    expect(root.style.getPropertyValue('--warning-glass')).toBe('#fbbf24');
   });
 });
 

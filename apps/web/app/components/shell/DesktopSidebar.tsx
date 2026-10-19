@@ -1,3 +1,4 @@
+// oxlint-disable shadcn/no-unknown-classes -- this app-level lint does not resolve @utility declarations from @app/design-system's stylesheet.
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { Link, useRouterState } from '@tanstack/react-router';
 import {
@@ -172,7 +173,7 @@ export function DesktopSidebar() {
             aria-label="Open command palette"
             className={actionClass}
           >
-            <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded border border-sidebar-border bg-sidebar-accent px-1 font-mono text-[10px] font-medium">
+            <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded border border-sidebar-border bg-sidebar-accent px-1 font-mono type-micro">
               ⌘K
             </kbd>
             {visuallyExpanded ? <span className="truncate">Commands</span> : null}

@@ -91,6 +91,38 @@ describe('glass tokens', () => {
     expect(token(dark, '--glass-muted-foreground')).toBe('#d6d1ca');
   });
 
+  it('defines the three glass status colors and exposes them to Tailwind', () => {
+    expect(token(light, '--destructive-glass')).toBe('#b91c1c');
+    expect(token(light, '--success-glass')).toBe('#15803d');
+    expect(token(light, '--warning-glass')).toBe('#b45309');
+    expect(token(dark, '--destructive-glass')).toBe('#ef4444');
+    expect(token(dark, '--success-glass')).toBe('#22c55e');
+    expect(token(dark, '--warning-glass')).toBe('#f59e0b');
+    expect(css).toContain('--color-destructive-glass: var(--destructive-glass)');
+    expect(css).toContain('--color-success-glass: var(--success-glass)');
+    expect(css).toContain('--color-warning-glass: var(--warning-glass)');
+  });
+
+  it('defines the ten P3 type roles as utilities, with 11px glass micro labels', () => {
+    for (const role of [
+      'type-display-xl',
+      'type-display-lg',
+      'type-title',
+      'type-heading',
+      'type-body',
+      'type-body-lg',
+      'type-label',
+      'type-meta',
+      'type-micro',
+      'type-code',
+    ]) {
+      expect(css).toContain(`@utility ${role} {`);
+    }
+    expect(token(block('@utility type-micro {'), 'font-size')).toBe('11px');
+    expect(token(block('@utility type-micro {'), 'font-weight')).toBe('500');
+    expect(block('@theme inline {')).not.toContain('--text-');
+  });
+
   it('defines the §2.3 ambient band', () => {
     expect(token(light, '--ambient-1')).toBe('#efe9e1');
     expect(token(light, '--ambient-2')).toBe('#f7f5f2');
@@ -158,6 +190,22 @@ describe('glass contrast floors (DESIGN.md §3.5)', () => {
     expect(
       contrast(secondaryDark, composite('rgb(20 18 16 / 0.78)', '#ffffff')),
     ).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('clears 4.5:1 for glass status text on regular glass over the canvas', () => {
+    const lightGlass = composite(token(light, '--glass-regular'), canvasLight);
+    const darkGlass = composite(token(dark, '--glass-regular'), canvasDark);
+
+    for (const status of ['destructive', 'success', 'warning'] as const) {
+      expect(
+        contrast(token(light, `--${status}-glass`), lightGlass),
+        `light --${status}-glass`,
+      ).toBeGreaterThanOrEqual(4.5);
+      expect(
+        contrast(token(dark, `--${status}-glass`), darkGlass),
+        `dark --${status}-glass`,
+      ).toBeGreaterThanOrEqual(4.5);
+    }
   });
 
   it('clears 7:1 for glass secondary text over the ambient canvas', () => {
