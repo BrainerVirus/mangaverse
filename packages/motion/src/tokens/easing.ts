@@ -5,4 +5,5 @@ export const EASING = {
   softEntrance: 'power1.out',
   snapFeedback: 'back.out(1.2)',
   scrollLinked: 'none',
+  readerModePill: 'power3.out',
 } as const;

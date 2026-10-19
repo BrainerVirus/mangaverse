@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { gsap } from 'gsap';
 import { chromeShow, chromeHide } from '../reader-safe/chrome.js';
 import { pageTurn } from '../reader-safe/page-turn.js';
+import { readerModePill } from '../reader-safe/mode-pill.js';
 import { settingsDrawerTransition } from '../reader-safe/settings-drawer.js';
 
 vi.mock('gsap', () => ({
@@ -104,6 +105,34 @@ describe('pageTurn', () => {
         ease: 'power3.inOut',
       }),
     );
+  });
+});
+
+describe('readerModePill', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('morphs with the documented duration and easing', () => {
+    readerModePill('.pill', { x: 24, width: 80, reducedMotion: false });
+
+    expect(gsap.to).toHaveBeenCalledWith(
+      '.pill',
+      expect.objectContaining({
+        x: 24,
+        width: 80,
+        autoAlpha: 1,
+        duration: 0.28,
+        ease: 'power3.out',
+      }),
+    );
+  });
+
+  it('snaps to the active option for reduced motion', () => {
+    readerModePill('.pill', { x: 24, width: 80, reducedMotion: true });
+
+    expect(gsap.set).toHaveBeenCalledWith('.pill', { x: 24, width: 80, autoAlpha: 1 });
+    expect(gsap.to).not.toHaveBeenCalled();
   });
 });
 

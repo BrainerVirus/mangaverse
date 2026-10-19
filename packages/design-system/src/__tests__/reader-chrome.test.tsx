@@ -149,4 +149,34 @@ describe('ReaderChrome', () => {
       'scaleX(0.4444444444444444)',
     );
   });
+
+  it('uses one stage surface with a plate under each control row and a thin mode pill', () => {
+    const { container } = render(
+      <ReaderChrome
+        visible={true}
+        currentPage={5}
+        totalPages={10}
+        mode="single"
+        onModeChange={vi.fn<(mode: unknown) => void>()}
+      />,
+    );
+
+    const stage = container.querySelector('[data-testid="reader-chrome-stage"]');
+    expect(stage).toHaveAttribute('data-glass-tier', 'stage');
+    expect(stage).toHaveAttribute('aria-hidden', 'true');
+    expect(container.querySelector('[data-testid="reader-chrome-gradient"]')).toHaveClass(
+      'bg-gradient-to-b',
+      'from-black/85',
+      'to-transparent',
+    );
+
+    for (const row of container.querySelectorAll('[data-reader-chrome-row]')) {
+      const plate = row.querySelector('[data-glass-plate]');
+      expect(plate).toHaveClass('glass-plate', 'absolute', 'inset-0');
+    }
+    expect(container.querySelector('[data-testid="reader-mode-switcher"]')).toHaveAttribute(
+      'data-glass-tier',
+      'thin',
+    );
+  });
 });

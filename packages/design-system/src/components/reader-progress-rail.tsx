@@ -1,5 +1,7 @@
 import * as React from 'react';
+import { DURATION, CSS_EASING } from '@app/motion';
 import { cn } from '../lib/cn.js';
+import { GlassSurface } from './glass-surface.js';
 
 export interface ReaderProgressRailProps {
   readonly value: number;
@@ -110,7 +112,9 @@ export function ReaderProgressRail({
   );
 
   const showPreview = renderPreview !== undefined && (hovering || scrubbing);
-  const transition = reducedMotion ? 'none' : 'transform 180ms cubic-bezier(0.22, 1, 0.36, 1)';
+  const transition = reducedMotion
+    ? 'none'
+    : `transform ${DURATION.readerRail}ms ${CSS_EASING.readerRail}`;
 
   return (
     <div className={cn('relative flex-1 py-3', className)}>
@@ -119,15 +123,22 @@ export function ReaderProgressRail({
           className="pointer-events-none absolute bottom-full z-10 -translate-x-1/2"
           style={{
             left: `${hoverX}px`,
-            transform: `translateX(-50%) scale(${hovering || scrubbing ? 1 : 0.9})`,
-            transition: reducedMotion ? 'none' : 'transform 120ms ease-out',
+            transform: 'translateX(-50%)',
           }}
           data-testid="reader-rail-preview"
         >
-          <div className="overflow-hidden rounded-lg border border-white/20 bg-black/80 shadow-lg">
+          <GlassSurface
+            level="stage"
+            tone="reader"
+            elevation={3}
+            className="overflow-hidden rounded-lg"
+            data-testid="reader-rail-preview-surface"
+          >
             {renderPreview(hoverValue)}
-          </div>
-          <div className="mt-1 text-center text-[10px] text-white/80">{hoverValue}</div>
+            <div className="px-2 py-1 text-center text-xs font-medium tabular-nums text-white">
+              {hoverValue}
+            </div>
+          </GlassSurface>
         </div>
       ) : null}
 

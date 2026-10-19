@@ -589,6 +589,30 @@ Measured baselines on `main` at `ff890f3` (2026-10-18), after the tooling slice:
 
 Both tools are green at the current head; do not raise thresholds to make a run pass.
 
+## P2: Reader chrome on stage glass (2026-10-19)
+
+- [x] Compose the P1 glass primitives into the reader: one shared stage surface,
+      plates under both control rows, a thin mode pill, a stage-glass rail preview
+      and offline note, and a thick `GlassPanel` settings sheet. The sheet's
+      existing shared scrim remains P5 scope.
+- [x] Keep the interaction contract: chrome and sheet remain outside the
+      `reader-surface` tap handler; the 37 production E2Es pass, including the
+      deliberate plant that moved the chrome into that handler (failed as expected,
+      then `ReaderScreen.tsx` was restored byte-identically).
+- [x] Use `@app/motion` for the 180ms rail, 280ms `power3.out` mode pill and sheet
+      entrance; reduced motion snaps to the end state. The settings sheet still
+      closes immediately: delaying closure for a 220ms tween swallowed vertical
+      keyboard navigation issued immediately after Escape. See the ruling.
+- [x] Measure text contrast over white and black page backdrops: top bar **14.19:1**,
+      rail labels **7.74:1**, inactive mode chips **9.03:1**, and active chip text
+      **21.00:1** (all above the 4.5:1 body-text floor). The mode chip's thin tint
+      remains the documented flat-surface exception.
+- [x] Count blurred reader layers: **1** at rest; **3** with rail preview and offline
+      note; **4** with the settings sheet open alongside the offline note and scrim.
+- [ ] `DESIGN.md` §13-P2 remains unchanged because that file is outside this slice's
+      allowed paths. Follow up there to mark P2 landed and record the shipped/deferred
+      items above.
+
 ## Exit criteria per implementing session
 
 One slice, real RED/GREEN, configured gates, built-app observation, reviewed diff,

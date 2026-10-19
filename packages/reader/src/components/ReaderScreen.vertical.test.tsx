@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
-import { act } from 'react';
+import { act, type ReactNode } from 'react';
 import { getDefaultReaderSettings, toChapterPageId } from '@app/shared';
 
 vi.mock('@app/cache', () => ({
@@ -16,6 +16,7 @@ vi.mock('@app/design-system', () => ({
   Button: () => null,
   EmptyState: () => null,
   ErrorState: () => null,
+  GlassSurface: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   LoadingState: () => null,
   ReaderChrome: () => null,
   Sheet: () => null,

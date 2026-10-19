@@ -1,5 +1,11 @@
 import { useCallback, useRef, useState } from 'react';
-import { EmptyState, ErrorState, LoadingState, ReaderChrome } from '@app/design-system';
+import {
+  EmptyState,
+  ErrorState,
+  GlassSurface,
+  LoadingState,
+  ReaderChrome,
+} from '@app/design-system';
 import { useReducedMotion } from '@app/motion';
 import type { ReaderSettings } from '@app/shared';
 import { CachedPageImage, useCoverCacheContext, type CoverCacheContextValue } from '@app/cache';
@@ -304,9 +310,17 @@ export function ReaderScreen({
       {offlineNote !== null ? (
         <output
           data-testid="reader-offline-note"
-          className="pointer-events-none fixed inset-x-0 bottom-3 z-50 mx-auto block w-fit rounded-full bg-black/80 px-3 py-1 text-xs text-white"
+          className="dark pointer-events-none fixed inset-x-0 bottom-3 z-50 mx-auto block w-fit"
         >
-          {offlineNote}
+          <div className="relative isolate overflow-hidden rounded-full">
+            <GlassSurface
+              level="stage"
+              tone="reader"
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0"
+            />
+            <span className="relative block px-3 py-1 text-xs text-white">{offlineNote}</span>
+          </div>
         </output>
       ) : null}
 
@@ -323,7 +337,7 @@ export function ReaderScreen({
         renderPagePreview={(page) => {
           const target = data.chapter.pages[page - 1];
           if (target === undefined || cacheContext === null) {
-            return <div className="h-24 w-16 animate-pulse bg-white/10" aria-hidden />;
+            return <div className="h-24 w-16 bg-glass-plate" aria-hidden />;
           }
           return (
             <CachedPageImage

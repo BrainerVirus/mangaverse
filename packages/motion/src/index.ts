@@ -10,6 +10,7 @@ export { useGridStaggerReveal } from './hooks/use-grid-stagger-reveal.js';
 
 export { DURATION } from './tokens/duration.js';
 export { EASING } from './tokens/easing.js';
+export { CSS_EASING } from './tokens/css-easing.js';
 
 export { fadeIn, fadeOut } from './helpers/fade.js';
 export { slideUp, slideDown } from './helpers/slide.js';
@@ -18,6 +19,7 @@ export { staggerIn } from './helpers/stagger.js';
 export { createTimeline } from './helpers/timeline.js';
 
 export { chromeShow, chromeHide } from './reader-safe/chrome.js';
+export { readerModePill, type ReaderModePillOptions } from './reader-safe/mode-pill.js';
 export { pageTurn } from './reader-safe/page-turn.js';
 export { settingsDrawerTransition } from './reader-safe/settings-drawer.js';
 
