@@ -1,5 +1,6 @@
-import type { RefObject } from 'react';
+import { useRef, type RefObject } from 'react';
 import { Button, Sheet, SheetContent, SheetHeader, SheetTitle } from '@app/design-system';
+import { settingsDrawerTransition, useGsapContext, useReducedMotion } from '@app/motion';
 import type { ReaderSettings } from '@app/shared';
 
 export interface ReaderSettingsSheetProps {
@@ -17,18 +18,25 @@ export function ReaderSettingsSheet({
   onClose,
   settingsButtonRef,
 }: ReaderSettingsSheetProps) {
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const reducedMotion = useReducedMotion();
+  useGsapContext(sheetRef, () => {
+    if (!open || sheetRef.current === null) return;
+    settingsDrawerTransition(sheetRef.current, 'open', { reducedMotion });
+  }, [open, reducedMotion]);
+  const handleOpenChange = (next: boolean) => {
+    if (!next) onClose();
+  };
+
   if (!open) return null;
 
   return (
-    <Sheet
-      open
-      onOpenChange={(next) => {
-        if (!next) onClose();
-      }}
-    >
+    <Sheet open onOpenChange={handleOpenChange}>
       <SheetContent
+        ref={sheetRef}
         side="right"
         aria-label="Reader settings"
+        surface="glass"
         onCloseAutoFocus={(event) => {
           event.preventDefault();
           settingsButtonRef?.current?.focus();

@@ -86,9 +86,24 @@ describe('ReaderProgressRail', () => {
     fireEvent.pointerMove(track, { clientX: 50, pointerId: 1 });
     expect(screen.getByTestId('reader-rail-preview')).toBeInTheDocument();
     expect(screen.getByText(/preview \d+/)).toBeInTheDocument();
+    expect(screen.getByTestId('reader-rail-preview-surface')).toHaveAttribute(
+      'data-glass-tier',
+      'stage',
+    );
 
     fireEvent.pointerLeave(track);
     expect(screen.queryByTestId('reader-rail-preview')).not.toBeInTheDocument();
+  });
+
+  it('uses the documented rail transition and removes it for reduced motion', () => {
+    const props = { value: 3, min: 1, max: 10, onChange: vi.fn<(value: number) => void>() };
+    const { rerender } = render(<ReaderProgressRail {...props} />);
+    expect(screen.getByTestId('reader-rail-fill')).toHaveStyle({
+      transition: 'transform 180ms cubic-bezier(0.22, 1, 0.36, 1)',
+    });
+
+    rerender(<ReaderProgressRail {...props} reducedMotion />);
+    expect(screen.getByTestId('reader-rail-fill')).toHaveStyle({ transition: 'none' });
   });
 
   it('Given a drag in progress, When the pointer moves, Then the value keeps following until release', () => {

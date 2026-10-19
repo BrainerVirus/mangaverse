@@ -4,7 +4,13 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '../../components/ui/sheet.js';
 
-function Harness({ onOpenChange }: { onOpenChange?: (open: boolean) => void }) {
+function Harness({
+  onOpenChange,
+  surface,
+}: {
+  onOpenChange?: (open: boolean) => void;
+  surface?: 'glass';
+}) {
   const [open, setOpen] = useState(false);
   return (
     <Sheet
@@ -17,7 +23,7 @@ function Harness({ onOpenChange }: { onOpenChange?: (open: boolean) => void }) {
       <button type="button" onClick={() => setOpen(true)}>
         Settings
       </button>
-      <SheetContent side="right">
+      <SheetContent side="right" {...(surface !== undefined ? { surface } : {})}>
         <SheetHeader>
           <SheetTitle>Reader settings</SheetTitle>
         </SheetHeader>
@@ -41,6 +47,20 @@ describe('Sheet', () => {
     const dialog = screen.getByRole('dialog', { name: 'Reader settings' });
     expect(dialog).toHaveAttribute('aria-modal', 'true');
     expect(container.contains(dialog)).toBe(false);
+  });
+
+  it('composes a thick glass panel and readable close control for glass sheets', async () => {
+    const user = userEvent.setup();
+    render(<Harness surface="glass" />);
+
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Reader settings' });
+    expect(dialog.querySelector('[data-glass-tier="thick"]')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Close' })).toHaveClass(
+      'text-foreground',
+      'opacity-100',
+    );
   });
 
   it('moves focus into the sheet and returns it to the trigger on Escape', async () => {

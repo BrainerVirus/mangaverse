@@ -41,6 +41,7 @@ test('Given an open chapter, When changing settings, Then the layout changes and
   await page.getByRole('button', { name: 'Settings' }).click();
   const dialog = page.getByRole('dialog', { name: 'Reader settings' });
   await expect(dialog).toBeVisible();
+  await expect(dialog.locator('[data-glass-tier="thick"]')).toBeVisible();
   // Focus moves into the sheet on open.
   await expect(dialog.getByRole('button', { name: 'Left to right' })).toBeFocused();
 
@@ -74,6 +75,7 @@ test('Given an open chapter, When hovering and dragging the rail, Then a page pr
   mockMangaDex,
 }) => {
   await openReader(page);
+  await expect(page.locator('[data-glass-tier="stage"]')).toHaveCount(1);
   const rail = page.getByRole('slider', { name: 'Page slider' });
   const box = (await rail.boundingBox())!;
 
@@ -81,6 +83,7 @@ test('Given an open chapter, When hovering and dragging the rail, Then a page pr
   await page.mouse.move(box.x + box.width * 0.5, box.y + box.height / 2);
   const preview = page.getByTestId('reader-rail-preview');
   await expect(preview).toBeVisible();
+  await expect(page.locator('[data-glass-tier="stage"]')).toHaveCount(2);
   await expect(preview.locator('img')).toBeVisible({ timeout: 20_000 });
   await expect(preview).toContainText('19');
 
@@ -203,4 +206,26 @@ test('Given the reader chrome, When each control is clicked, Then the page does 
   // The chrome's own text is not a control and must not be a tap either.
   await toolbar.locator('span').first().click();
   await chromeStillOpen();
+});
+
+test('Given reader glass, When transparency is reduced, Then glass layers resolve opaque', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
+  await openReader(page);
+  const stage = page.locator('[data-testid="reader-chrome-stage"]');
+
+  await expect(stage).toBeVisible();
+  await expect
+    .poll(() => stage.evaluate((element) => getComputedStyle(element).backdropFilter))
+    .not.toBe('none');
+
+  await page.evaluate(() => document.documentElement.setAttribute('data-transparency', 'solid'));
+  await expect
+    .poll(() => stage.evaluate((element) => getComputedStyle(element).backdropFilter))
+    .toBe('none');
+  await expect
+    .poll(() => stage.evaluate((element) => getComputedStyle(element).backgroundColor))
+    .toBe('rgba(0, 0, 0, 0.88)');
 });

@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Dialog as SheetPrimitive } from '@base-ui/react/dialog';
 import { X } from 'lucide-react';
 import { cn } from '@design-system/lib/cn.js';
+import { GlassPanel } from '../glass-panel.js';
 
 /**
  * shadcn-style sheet built on Base UI Dialog: focus trap, Escape and focus return
@@ -39,6 +40,7 @@ const sideClasses = {
 
 interface SheetContentProps extends Omit<SheetPrimitive.Popup.Props, 'finalFocus'> {
   side?: keyof typeof sideClasses;
+  surface?: 'default' | 'glass';
   /**
    * Radix's close-focus hook, kept for the public API. Base UI restores focus
    * through `finalFocus`, so `preventDefault` means "leave focus where it is".
@@ -49,7 +51,18 @@ interface SheetContentProps extends Omit<SheetPrimitive.Popup.Props, 'finalFocus
 }
 
 const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
-  ({ className, children, side = 'right', onCloseAutoFocus, onEscapeKeyDown, ...props }, ref) => {
+  (
+    {
+      className,
+      children,
+      side = 'right',
+      surface = 'default',
+      onCloseAutoFocus,
+      onEscapeKeyDown,
+      ...props
+    },
+    ref,
+  ) => {
     const finalFocus = onCloseAutoFocus
       ? () => {
           let prevented = false;
@@ -72,6 +85,8 @@ const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
             'data-open:animate-in data-closed:animate-out',
             'data-open:duration-300 data-closed:duration-200',
             sideClasses[side],
+            surface === 'glass' &&
+              'border-0 bg-transparent p-0 shadow-none data-open:animate-none data-closed:animate-none',
             className,
           )}
           // Base UI hides the rest of the page instead of marking the popup, so
@@ -88,9 +103,18 @@ const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
             props.onKeyDown?.(event);
           }}
         >
-          {children}
+          {surface === 'glass' ? (
+            <GlassPanel level="thick" padding="md" className="h-full w-full rounded-none">
+              {children}
+            </GlassPanel>
+          ) : (
+            children
+          )}
           <SheetPrimitive.Close
-            className="absolute top-4 right-4 rounded-sm text-muted-foreground opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none"
+            className={cn(
+              'absolute top-4 right-4 rounded-sm text-muted-foreground opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none',
+              surface === 'glass' && 'text-foreground opacity-100',
+            )}
             aria-label="Close"
           >
             <X className="h-4 w-4" />

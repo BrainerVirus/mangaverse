@@ -64,6 +64,26 @@ test('Given a partially cached chapter, When reopened offline, Then the missing 
   const note = page.getByTestId('reader-offline-note');
   await expect(note).toBeVisible({ timeout: 20_000 });
   await expect(note).toHaveText('Offline: pages 3 and 5 are not saved locally.');
+  await expect(page.locator('[data-glass-tier="stage"]')).toHaveCount(2);
+
+  const rail = page.getByRole('slider', { name: 'Page slider' });
+  const railBox = (await rail.boundingBox())!;
+  await page.mouse.move(railBox.x + railBox.width / 2, railBox.y + railBox.height / 2);
+  await expect(page.getByTestId('reader-rail-preview')).toBeVisible();
+  await expect(page.locator('[data-glass-tier="stage"]')).toHaveCount(3);
+
+  await page.getByRole('button', { name: 'Settings' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Reader settings' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('[data-glass-tier="thick"]')).toBeVisible();
+  await expect(page.locator('[data-glass-tier="stage"]')).toHaveCount(2);
+  expect(
+    await page
+      .locator('[data-glass-tier]:not([data-glass-tier="thin"]), [class~="backdrop-blur-sm"]')
+      .count(),
+  ).toBe(4);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
 
   await page.context().setOffline(false);
 });

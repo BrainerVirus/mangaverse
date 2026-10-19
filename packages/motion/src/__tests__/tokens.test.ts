@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { DURATION } from '../tokens/duration.js';
 import type { DurationKey } from '../tokens/duration.js';
 import { EASING } from '../tokens/easing.js';
+import { CSS_EASING } from '../tokens/css-easing.js';
 
 describe('DURATION tokens', () => {
   it('should have instant at 0', () => {
@@ -26,6 +27,11 @@ describe('DURATION tokens', () => {
 
   it('should have cinematic at 520', () => {
     expect(DURATION.cinematic).toBe(520);
+  });
+
+  it('should have the documented reader timings', () => {
+    expect(DURATION.readerRail).toBe(180);
+    expect(DURATION.readerModePill).toBe(280);
   });
 
   it('should export DurationKey type', () => {
@@ -57,5 +63,10 @@ describe('EASING tokens', () => {
 
   it('should have scrollLinked as none', () => {
     expect(EASING.scrollLinked).toBe('none');
+  });
+
+  it('should have the reader mode GSAP ease and rail CSS curve', () => {
+    expect(EASING.readerModePill).toBe('power3.out');
+    expect(CSS_EASING.readerRail).toBe('cubic-bezier(0.22, 1, 0.36, 1)');
   });
 });

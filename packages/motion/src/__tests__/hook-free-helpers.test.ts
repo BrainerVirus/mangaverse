@@ -7,6 +7,7 @@ import { fadeIn } from '../helpers/fade.js';
 import { slideUp } from '../helpers/slide.js';
 import { scaleIn } from '../helpers/scale.js';
 import { chromeShow } from '../reader-safe/chrome.js';
+import { readerModePill } from '../reader-safe/mode-pill.js';
 import { pageTurn } from '../reader-safe/page-turn.js';
 import { settingsDrawerTransition } from '../reader-safe/settings-drawer.js';
 
@@ -25,6 +26,7 @@ const helperModules = [
   'helpers/slide.ts',
   'helpers/scale.ts',
   'reader-safe/chrome.ts',
+  'reader-safe/mode-pill.ts',
   'reader-safe/page-turn.ts',
   'reader-safe/settings-drawer.ts',
 ];
@@ -61,6 +63,12 @@ describe('motion helpers are hook-free', () => {
 
     it('chromeShow accepts reducedMotion without throwing', () => {
       expect(() => chromeShow('.element', { reducedMotion: true })).not.toThrow();
+    });
+
+    it('readerModePill accepts reducedMotion without throwing', () => {
+      expect(() =>
+        readerModePill('.element', { x: 0, width: 10, reducedMotion: true }),
+      ).not.toThrow();
     });
 
     it('pageTurn accepts reducedMotion without throwing', () => {
