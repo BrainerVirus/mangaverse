@@ -102,8 +102,8 @@ export function ThemeCustomizationPage({
   return (
     <section aria-label="Theme" className="mx-auto w-full max-w-5xl space-y-8 p-6">
       <header className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Theme</h1>
-        <p className="max-w-2xl text-sm text-muted-foreground">
+        <h1 className="type-display-lg text-foreground">Theme</h1>
+        <p className="type-body max-w-2xl text-muted-foreground">
           Choose a visual preset and appearance mode. Changes apply across the app and are saved
           locally.
         </p>
@@ -115,10 +115,8 @@ export function ThemeCustomizationPage({
       >
         <div className="flex items-start justify-between gap-4 rounded-[var(--radius-control)] border border-[var(--border)] p-4">
           <div className="space-y-1">
-            <Label htmlFor="theme-dark-mode" className="text-sm font-medium">
-              Dark mode
-            </Label>
-            <p className="text-sm text-muted-foreground">
+            <Label htmlFor="theme-dark-mode">Dark mode</Label>
+            <p className="type-body text-muted-foreground">
               {usesSystemAppearance
                 ? 'System preset follows your device preference automatically.'
                 : appearanceLocked
