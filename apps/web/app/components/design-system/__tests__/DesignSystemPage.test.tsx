@@ -86,26 +86,30 @@ describe('DesignSystemPage', () => {
     expect(container.querySelector('[data-glass="cheap"] [data-glass-tier="thin"]')).not.toBeNull();
   });
 
-  it('Given the dialog sample, When its trigger is activated, Then the dialog opens', () => {
+  it('Given the dialog sample, When its trigger is activated, Then the dialog opens', async () => {
     act(() => root.render(<DesignSystemPage />));
 
     const trigger = container.querySelector<HTMLButtonElement>('[data-testid="dialog-trigger"]');
     expect(trigger).not.toBeNull();
-    act(() => trigger?.click());
+    await act(async () => {
+      trigger?.click();
+    });
 
     expect(document.querySelector('[data-testid="dialog-panel"]')).not.toBeNull();
   });
 
-  it('Given the dialog is open, When Escape is pressed, Then it closes and focus returns to its trigger', () => {
+  it('Given the dialog is open, When Escape is pressed, Then it closes and focus returns to its trigger', async () => {
     act(() => root.render(<DesignSystemPage />));
 
     const trigger = container.querySelector<HTMLButtonElement>('[data-testid="dialog-trigger"]');
     expect(trigger).not.toBeNull();
-    act(() => trigger?.click());
+    await act(async () => {
+      trigger?.click();
+    });
     const dialog = document.querySelector<HTMLElement>('[data-testid="dialog-panel"]');
     expect(dialog).not.toBeNull();
 
-    act(() => {
+    await act(async () => {
       dialog?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     });
 
@@ -113,14 +117,16 @@ describe('DesignSystemPage', () => {
     expect(document.activeElement).toBe(trigger);
   });
 
-  it('Given the tabs sample, When Details is selected, Then its panel content is shown', () => {
+  it('Given the tabs sample, When Details is selected, Then its panel content is shown', async () => {
     act(() => root.render(<DesignSystemPage />));
 
     const trigger = container.querySelector<HTMLButtonElement>(
       '[data-testid="tabs-trigger-details"]',
     );
     expect(trigger).not.toBeNull();
-    act(() => trigger?.click());
+    await act(async () => {
+      trigger?.click();
+    });
 
     expect(trigger?.getAttribute('aria-selected')).toBe('true');
     expect(container.querySelector('[data-testid="tabs-panel"]')?.textContent).toContain(
@@ -128,12 +134,14 @@ describe('DesignSystemPage', () => {
     );
   });
 
-  it('Given the sheet sample, When its trigger is activated, Then the sheet opens', () => {
+  it('Given the sheet sample, When its trigger is activated, Then the sheet opens', async () => {
     act(() => root.render(<DesignSystemPage />));
 
     const trigger = container.querySelector<HTMLButtonElement>('[data-testid="sheet-trigger"]');
     expect(trigger).not.toBeNull();
-    act(() => trigger?.click());
+    await act(async () => {
+      trigger?.click();
+    });
 
     const panel = document.querySelector('[data-testid="sheet-panel"]');
     expect(panel).not.toBeNull();
