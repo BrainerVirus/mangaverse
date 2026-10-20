@@ -137,7 +137,8 @@ it is one of four tiers, each with a fixed fill alpha, blur radius and saturatio
 > `packages/design-system/src/styles/globals.css`, registered as `--color-glass-*`; each tier is an
 > `@utility` (`glass-thin`, `glass-regular`, `glass-thick`, `glass-stage`) that owns its fill, its
 > `backdrop-filter`, its saturation and its opaque resolution. `GlassSurface` is the only consumer of
-> those utilities — nothing else in the app sets `backdrop-filter`.
+> those tier utilities. The shared `glass-scrim` utility is the sole non-tier exception that sets
+> `backdrop-filter` (modal scrims only: 55% black with 8px blur).
 
 | Tier    | Token             | Fill, light                            | Fill, dark            | `backdrop-filter`           |
 | ------- | ----------------- | -------------------------------------- | --------------------- | --------------------------- |
@@ -696,12 +697,12 @@ icon above the label.
 
 ### 7.1 New primitives for `@app/design-system` (landed in P1)
 
-| Primitive         | API (shipped)                                                                                                                                         | Purpose                                                                                                                                                                           |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GlassSurface`    | `level: 'thin' \| 'regular' \| 'thick' \| 'stage'`, `tone: 'default' \| 'raised' \| 'reader'`, `elevation?: 0–4`, `edge?: boolean`, `plate?: boolean` | The single source of the glass material: fill, `backdrop-filter`, edge, specular, inner shadow, elevation. Every glass component composes it; nothing else sets `backdrop-filter` |
-| `RefractionLayer` | `variant: 'sheen'`, `edge?: boolean`, `aria-hidden` by default                                                                                        | The decorative light layer from §2.2. Displacement is opt-in and not shipped in P1                                                                                                |
-| `GlassPanel`      | `GlassSurface` + `padding: 'none' \| 'sm' \| 'md' \| 'lg'`                                                                                            | The replacement for the `.surface-panel` utility in shell and feature code                                                                                                        |
-| `AmbientBackdrop` | none (fixed, decorative)                                                                                                                              | The §2.3 band, rendered once by the app shell                                                                                                                                     |
+| Primitive         | API (shipped)                                                                                                                                         | Purpose                                                                                                                                                             |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GlassSurface`    | `level: 'thin' \| 'regular' \| 'thick' \| 'stage'`, `tone: 'default' \| 'raised' \| 'reader'`, `elevation?: 0–4`, `edge?: boolean`, `plate?: boolean` | The single source of the glass-tier material: fill, `backdrop-filter`, edge, specular, inner shadow, elevation. Modal scrims use the separate `glass-scrim` utility |
+| `RefractionLayer` | `variant: 'sheen'`, `edge?: boolean`, `aria-hidden` by default                                                                                        | The decorative light layer from §2.2. Displacement is opt-in and not shipped in P1                                                                                  |
+| `GlassPanel`      | `GlassSurface` + `padding: 'none' \| 'sm' \| 'md' \| 'lg'`                                                                                            | The replacement for the `.surface-panel` utility in shell and feature code                                                                                          |
+| `AmbientBackdrop` | none (fixed, decorative)                                                                                                                              | The §2.3 band, rendered once by the app shell                                                                                                                       |
 
 `GlassSurface` is the only place `--glass-*` tokens are read, and it refuses to render two
 imagery-blurring tiers nested (§2.5). `surface-panel` is kept as a deprecated alias that renders a matte
@@ -745,22 +746,23 @@ is not a dependency of the package, so `GlassPanel` renders a `div` and forwards
 
 ### 7.4 Sheets, dialogs, popovers & the command palette
 
-- **Dialogs (existing):** `max-w-lg`, 10px corners, `--popover`, `p-6`, `shadow-lg`. Target: `GlassSurface
-  level="thick"`, `--radius-glass`, `--elevation-4`, and a scrim of `rgb(0 0 0 / .55)` with
-  `backdrop-blur(8px)` — the scrim is what keeps the dialog's own contrast safe over busy content.
-- **Sheets (existing):** slide from the right by default (`w-3/4 max-w-sm`), or full-width with 16px
-  rounded top/bottom edges; overlay `bg-black/60 backdrop-blur-sm`; open 300ms / close 200ms. Target:
-  `GlassSurface level="thick"`, `--radius-glass` on the leading edge, `--ease-glide`, open
-  `DURATION.expressive` / close `DURATION.standard`, and the proposed drag-to-dismiss (§6.1).
+- **Dialogs (P5 #94 shipped):** `max-w-lg`, `GlassSurface level="thick"`, `--radius-glass`,
+  `--elevation-4`, and the shared `glass-scrim` utility (`rgb(0 0 0 / .55)` with `blur(8px)`) — the
+  scrim is what keeps the dialog's own contrast safe over busy content.
+- **Sheets (P5 #94 shipped):** slide from the right by default (`w-3/4 max-w-sm`), or full-width; open
+  300ms / close 200ms. The default panel uses `GlassSurface level="thick"`, `--radius-glass` on its
+  leading edge, elevation-4, and the shared `glass-scrim`. The reader's `surface="glass"` path keeps its
+  transparent popup over its own GlassSurface. `--ease-glide`, expressive/standard durations and the
+  proposed drag-to-dismiss (§6.1) remain deferred.
 - **Popovers, selects, tooltips (existing):** `--popover` + `shadow-md`. A tooltip is a hidden bubble
   revealed on hover or focus, positioned beside its trigger — not a permanent wrapper box. Target:
   `GlassSurface level="regular"`, `--elevation-3`; a tooltip is `level="thick"` so its text never fights
   the backdrop.
-- **Command palette (existing):** `max-w-xl`, 12vh from the top, `bg-black/55 backdrop-blur-[2px]` scrim,
-  `h-11` borderless search field, `text-xs uppercase tracking-wide` group headers, rows hovering on
-  `--muted` at 70% and taking `--accent` with a hairline ring when selected. Target: panel on
-  `GlassSurface level="thick"` with `--elevation-4`, scrim `rgb(0 0 0 / .55)` + `blur(8px)`, selected row
-  marked by an accent fill **and** a left accent bar (not colour alone).
+- **Command palette (P5 #94 shipped):** `max-w-xl`, 12vh from the top, `h-11` borderless search field,
+  `text-xs uppercase tracking-wide` group headers, rows hovering on `--muted` at 70% and taking `--accent`
+  with a hairline ring when selected. Its panel uses `GlassSurface level="thick"` with `--elevation-4`
+  and its backdrop uses the shared `glass-scrim` (`rgb(0 0 0 / .55)` + `blur(8px)`). The selected row's
+  left accent bar (not colour alone) remains deferred.
 
 ### 7.5 Inputs & forms
 
@@ -813,10 +815,9 @@ and `chromeShow`/`chromeHide` from `@app/motion`. The material is what changes:
   devices after a 200ms delay, and the toggle button gives keyboard and touch users the same state. Target:
   `GlassSurface level="thick"` floating with `--radius-glass` and `--elevation-4`; the active row takes
   `--accent` **plus** a 2px `--primary` edge bar.
-- **Mobile bottom bar (existing):** 56px, `bg-background/95 backdrop-blur`, top hairline, safe-area
-  inset, four destinations with 20px icons and `text-xs` labels, active in `--primary`, plus a ghost
-  "More" sheet; content reserves `pb-16`. Target: `GlassSurface level="thick"` with `--glass-edge` and
-  `--elevation-4`, and the label at `type-micro` (11px) instead of 10px.
+- **Mobile bottom bar (P5 #94 shipped):** 56px, `GlassSurface level="thick"` with `--glass-edge` and
+  `--elevation-4`, safe-area inset, four destinations with 20px icons and `type-micro` labels, active in
+  `--primary`, plus a ghost "More" sheet; content reserves `pb-16`.
 - **Page header / sticky bars (proposed):** a sticky `GlassSurface level="regular"` header on long
   surfaces, elevation-2 once scrolled, with the title at `type-title`.
 
@@ -1032,11 +1033,11 @@ Desktop rail, mobile bottom bar, sticky page header, command palette and the amb
 interaction tests for the rail and bottom bar, an overflow check at 375px and 1280px, and a
 reduced-transparency pass.
 
-**P5 — Surfaces and controls** (`packages/design-system`)
-Card, dialog, sheet, popover, tooltip, input, tabs and select onto the glass variants and the elevation
-scale; `surface-panel` deprecated to a matte `GlassPanel`; presets extended to tint the glass fills. Tests:
-variant snapshots or class assertions, the contrast pairs from §3.5 rendered over both backdrops, and a
-theme-layer test that a preset cannot change a tier.
+**P5 — Surfaces and controls** (`packages/design-system`) — **landed for #94 scope.**
+Shipped: glass level/elevation variant functions with class-equivalence coverage; dialog, default sheet,
+command palette and mobile bottom bar on thick glass/elevation-4; one shared 55%/8px modal scrim utility;
+the reader's `surface="glass"` path and overlay behavior stay unchanged. Deferred: card, popover, tooltip,
+input, tabs and select glass variants; preset tint support; rendered contrast-pair coverage from §3.5.
 
 **P6 — States and browsing surfaces** (`packages/design-system`, `apps/web`)
 Empty, loading and error states onto glass with the plate rule; library, discover and search grids get

@@ -78,9 +78,7 @@ test('Given a partially cached chapter, When reopened offline, Then the missing 
   await expect(dialog.locator('[data-glass-tier="thick"]')).toBeVisible();
   await expect(page.locator('[data-glass-tier="stage"]')).toHaveCount(2);
   expect(
-    await page
-      .locator('[data-glass-tier]:not([data-glass-tier="thin"]), [class~="backdrop-blur-sm"]')
-      .count(),
+    await page.locator('[data-glass-tier]:not([data-glass-tier="thin"]), .glass-scrim').count(),
   ).toBe(4);
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();

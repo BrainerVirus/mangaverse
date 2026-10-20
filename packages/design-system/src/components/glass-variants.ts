@@ -1,31 +1,17 @@
-// The glass variant maps live outside the component files, the way `button-variants.ts` does, so
-// each component file only exports components (react-doctor/only-export-components). The public
-// API is unchanged: `src/index.ts` re-exports everything here.
+// Glass variants live outside component files, the way `button-variants.ts` does, so each component
+// file only exports components. The named exports and types remain re-exported from `src/index.ts`.
 export type GlassLevel = 'thin' | 'regular' | 'thick' | 'stage';
 export type GlassTone = 'default' | 'raised' | 'reader';
 export type GlassElevation = 0 | 1 | 2 | 3 | 4;
 export type GlassPanelPadding = 'none' | 'sm' | 'md' | 'lg';
 
-/** DESIGN.md §2.1 — one class per tier; the only place in the app a `backdrop-filter` is set. */
-export const glassLevels: Record<GlassLevel, string> = {
-  // Known flat backdrop: tab troughs inside a glass panel, hover washes, chips on an opaque card.
-  thin: 'glass-thin',
-  // Floating toolbars and sticky headers over the ambient canvas, popovers, cards over imagery.
-  regular: 'glass-regular',
-  // Anything that owns the foreground: sheets, dialogs, the palette, the rail, the bottom bar.
-  thick: 'glass-thick',
-  // Reader chrome only, theme-independent: the reading stage is always black.
-  stage: 'glass-stage',
-};
+/** DESIGN.md §2.1 — resolve one of the four fixed glass tiers. */
+export const glassLevels = ({ level }: { level: GlassLevel }): string => `glass-${level}`;
 
 /** §2.4 — Tailwind's shadow tokens are wired onto the elevation scale in `globals.css`. */
-export const glassElevations: Record<GlassElevation, string> = {
-  0: '',
-  1: 'shadow-sm',
-  2: 'shadow-md',
-  3: 'shadow-lg',
-  4: 'shadow-xl',
-};
+const elevationClasses = ['', 'shadow-sm', 'shadow-md', 'shadow-lg', 'shadow-xl'] as const;
+export const glassElevations = ({ elevation }: { elevation: GlassElevation }) =>
+  elevationClasses[elevation];
 
 /** §2.1/§2.5 — the tiers that blur imagery. The thin tier's backdrop is a known flat surface. */
 export const GLASS_IMAGERY_TIERS: readonly GlassLevel[] = ['regular', 'thick', 'stage'];

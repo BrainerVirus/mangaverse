@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 
-import { test } from './helpers.js';
+import { test, waitForPingQuiet } from './helpers.js';
 
 test.describe.configure({ timeout: 90_000 });
 
@@ -54,7 +54,10 @@ test('Given the search page, When a query runs through the provider, Then result
     .toBe(true);
 
   // Clearing the box returns the page to the recents list, which the query
-  // event handler is what writes.
+  // event handler is what writes. Let the coalesced snapshot land first: on a
+  // cold runner the blank-query result can otherwise be cached before the
+  // recent-search row exists.
+  await waitForPingQuiet(page);
   await searchbox.fill('');
   await expect(page.getByRole('button', { name: 'berserk', exact: true })).toBeVisible({
     timeout: 20_000,

@@ -1,13 +1,33 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { GlassSurface } from '../components/glass-surface.js';
-import { GLASS_BLUR_BUDGET, glassElevations, glassLevels } from '../components/glass-variants.js';
+import {
+  GLASS_BLUR_BUDGET,
+  glassElevations,
+  glassLevels,
+  type GlassElevation,
+  type GlassLevel,
+} from '../components/glass-variants.js';
 import { GlassPanel } from '../components/glass-panel.js';
 import { RefractionLayer } from '../components/refraction-layer.js';
 import { AmbientBackdrop } from '../components/ambient-backdrop.js';
 import { resolveGlassProfile } from '../lib/glass-profile.js';
 
 const TIERS = ['thin', 'regular', 'thick', 'stage'] as const;
+const ELEVATIONS = [0, 1, 2, 3, 4] as const;
+const EXPECTED_LEVELS: Record<GlassLevel, string> = {
+  thin: 'glass-thin',
+  regular: 'glass-regular',
+  thick: 'glass-thick',
+  stage: 'glass-stage',
+};
+const EXPECTED_ELEVATIONS: Record<GlassElevation, string> = {
+  0: '',
+  1: 'shadow-sm',
+  2: 'shadow-md',
+  3: 'shadow-lg',
+  4: 'shadow-xl',
+};
 
 describe('GlassSurface', () => {
   afterEach(() => {
@@ -18,7 +38,7 @@ describe('GlassSurface', () => {
     const { container } = render(<GlassSurface level={level} />);
     const surface = container.firstElementChild!;
 
-    expect(surface).toHaveClass(glassLevels[level]);
+    expect(surface).toHaveClass(glassLevels({ level }));
     expect(surface).toHaveAttribute('data-glass-tier', level);
   });
 
@@ -48,9 +68,25 @@ describe('GlassSurface', () => {
     const { container } = render(<GlassSurface level="thick" elevation={1} />);
     const surface = container.firstElementChild!;
 
-    expect(surface).toHaveClass(glassElevations[1]);
-    expect(surface).not.toHaveClass(glassElevations[4]);
+    expect(surface).toHaveClass(glassElevations({ elevation: 1 }));
+    expect(surface).not.toHaveClass(glassElevations({ elevation: 4 }));
   });
+
+  it.each(TIERS.flatMap((level) => ELEVATIONS.map((elevation) => [level, elevation] as const)))(
+    'Given %s glass at elevation %i, When rendered, Then it keeps the established tier/elevation classes',
+    (level, elevation) => {
+      const { container } = render(<GlassSurface level={level} elevation={elevation} />);
+      const surface = container.firstElementChild!;
+      const expectedElevation = EXPECTED_ELEVATIONS[elevation];
+
+      expect(glassLevels({ level })).toBe(EXPECTED_LEVELS[level]);
+      expect(glassElevations({ elevation })).toBe(expectedElevation);
+      expect(surface).toHaveClass(
+        EXPECTED_LEVELS[level],
+        ...(expectedElevation ? [expectedElevation] : []),
+      );
+    },
+  );
 
   it('renders the §2.2 refraction layer, hidden and non-interactive', () => {
     const { container } = render(

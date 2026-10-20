@@ -18,7 +18,7 @@ const SheetOverlay = React.forwardRef<HTMLDivElement, SheetPrimitive.Backdrop.Pr
     <SheetPrimitive.Backdrop
       ref={ref}
       className={cn(
-        'fixed inset-0 z-50 bg-black/60 backdrop-blur-sm',
+        'fixed inset-0 z-50 glass-scrim',
         'data-open:animate-in data-open:fade-in-0',
         'data-closed:animate-out data-closed:fade-out-0',
         className,
@@ -30,12 +30,19 @@ const SheetOverlay = React.forwardRef<HTMLDivElement, SheetPrimitive.Backdrop.Pr
 SheetOverlay.displayName = 'SheetOverlay';
 
 const sideClasses = {
-  top: 'inset-x-0 top-0 h-auto rounded-b-2xl border-b data-open:slide-in-from-top data-closed:slide-out-to-top',
+  top: 'inset-x-0 top-0 h-auto rounded-b-2xl data-open:slide-in-from-top data-closed:slide-out-to-top',
   bottom:
-    'inset-x-0 bottom-0 h-auto rounded-t-2xl border-t data-open:slide-in-from-bottom data-closed:slide-out-to-bottom',
-  left: 'inset-y-0 left-0 h-full w-3/4 max-w-sm border-r data-open:slide-in-from-left data-closed:slide-out-to-left',
+    'inset-x-0 bottom-0 h-auto rounded-t-2xl data-open:slide-in-from-bottom data-closed:slide-out-to-bottom',
+  left: 'inset-y-0 left-0 h-full w-3/4 max-w-sm data-open:slide-in-from-left data-closed:slide-out-to-left',
   right:
-    'inset-y-0 right-0 h-full w-3/4 max-w-sm border-l data-open:slide-in-from-right data-closed:slide-out-to-right',
+    'inset-y-0 right-0 h-full w-3/4 max-w-sm data-open:slide-in-from-right data-closed:slide-out-to-right',
+} as const;
+
+const sideGlassRadii = {
+  top: 'rounded-b-glass',
+  bottom: 'rounded-t-glass',
+  left: 'rounded-r-glass',
+  right: 'rounded-l-glass',
 } as const;
 
 interface SheetContentProps extends Omit<SheetPrimitive.Popup.Props, 'finalFocus'> {
@@ -81,7 +88,7 @@ const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
         <SheetPrimitive.Popup
           ref={ref}
           className={cn(
-            'fixed z-50 flex flex-col gap-4 bg-popover p-6 shadow-lg',
+            'fixed z-50 flex flex-col gap-4 bg-transparent p-0 shadow-none',
             'data-open:animate-in data-closed:animate-out',
             'data-open:duration-300 data-closed:duration-200',
             sideClasses[side],
@@ -108,7 +115,13 @@ const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
               {children}
             </GlassPanel>
           ) : (
-            children
+            <GlassPanel
+              level="thick"
+              padding="md"
+              className={cn('flex h-full w-full flex-col gap-4', sideGlassRadii[side])}
+            >
+              {children}
+            </GlassPanel>
           )}
           <SheetPrimitive.Close
             className={cn(

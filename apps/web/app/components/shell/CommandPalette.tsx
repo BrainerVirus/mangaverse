@@ -222,7 +222,8 @@ export function CommandPalette() {
         >
           <div
             ref={backdropRef}
-            className="fixed inset-0 bg-black/55 backdrop-blur-[2px]"
+            // oxlint-disable-next-line shadcn/no-unknown-classes -- app lint cannot resolve @utility classes from @app/design-system's stylesheet.
+            className="fixed inset-0 glass-scrim"
             onClick={close}
             aria-hidden="true"
           />
