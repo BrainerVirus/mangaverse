@@ -21,6 +21,8 @@ import {
   countSearchHistory,
   createMangaIdentityWithInitialMapping,
   exportBackupDocumentV1,
+  getChapterReadState,
+  getLibraryEntryForManga,
   getMangaIdentity,
   getReaderSettings,
   getThemeDefinition,
@@ -31,6 +33,7 @@ import {
   setLibraryEntryActiveProviderMapping,
   summarizeCacheStorage,
   upsertCacheEntry,
+  updateLibraryEntryReadingProgress,
   upsertChapterReadState,
   upsertChapterWithPages,
   upsertInstalledExtension,
@@ -351,6 +354,112 @@ describe('@app/db', () => {
     });
     expect(result.ok).toBe(false);
     expect(result.ok === false && result.error.code).toBe('db.read_state.manga_chapter_mismatch');
+  });
+
+  it('keeps newer progress and same-instant furthest progress atomically', async () => {
+    const { db } = await createSqlJsHarness();
+    const created = await createMangaIdentityWithInitialMapping(db, {
+      canonicalTitle: 'Progress Ordering Manga',
+      status: 'ongoing',
+      contentRating: 'safe',
+      providerId: 'prov-progress',
+      providerMangaId: 'progress-1',
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    const library = await addLibraryEntry(db, {
+      mangaId: created.value.mangaId,
+      status: 'reading',
+    });
+    expect(library.ok).toBe(true);
+
+    const chapter = await upsertChapterWithPages(db, {
+      mangaId: created.value.mangaId,
+      providerMappingId: created.value.mappingId,
+      title: 'Chapter 1',
+      index: 1,
+      pages: [],
+    });
+    expect(chapter.ok).toBe(true);
+    if (!chapter.ok) return;
+
+    const newer = '2026-01-01T00:00:10.000Z';
+    const older = '2026-01-01T00:00:01.000Z';
+    const write = (updatedAt: string, lastPageIndex: number, readPercent: number) =>
+      upsertChapterReadState(db, {
+        chapterId: chapter.value,
+        mangaId: created.value.mangaId,
+        progress: { readPercent, lastPageIndex, completed: false, updatedAt },
+      });
+
+    await write(newer, 2, 20);
+    await write(older, 9, 90);
+    let state = await getChapterReadState(db, chapter.value);
+    expect(state?.progress.lastPageIndex).toBe(2);
+
+    await write(newer, 4, 40);
+    await write(newer, 4, 55);
+    await write(newer, 4, 45);
+    state = await getChapterReadState(db, chapter.value);
+    expect(state?.progress.lastPageIndex).toBe(4);
+    expect(state?.progress.readPercent).toBe(55);
+
+    await upsertChapterReadState(db, {
+      chapterId: chapter.value,
+      mangaId: created.value.mangaId,
+      progress: { readPercent: 55, lastPageIndex: 4, completed: true, updatedAt: newer },
+    });
+    await upsertChapterReadState(db, {
+      chapterId: chapter.value,
+      mangaId: created.value.mangaId,
+      progress: { readPercent: 55, lastPageIndex: 4, completed: false, updatedAt: newer },
+    });
+    state = await getChapterReadState(db, chapter.value);
+    expect(state?.progress.completed).toBe(true);
+
+    await updateLibraryEntryReadingProgress(db, {
+      mangaId: created.value.mangaId,
+      chapterId: chapter.value,
+      progressPercent: 40,
+      updatedAt: newer,
+    });
+    await updateLibraryEntryReadingProgress(db, {
+      mangaId: created.value.mangaId,
+      chapterId: chapter.value,
+      progressPercent: 90,
+      updatedAt: older,
+    });
+    await updateLibraryEntryReadingProgress(db, {
+      mangaId: created.value.mangaId,
+      chapterId: chapter.value,
+      progressPercent: 60,
+      updatedAt: newer,
+    });
+    await updateLibraryEntryReadingProgress(db, {
+      mangaId: created.value.mangaId,
+      chapterId: chapter.value,
+      progressPercent: 50,
+      updatedAt: newer,
+    });
+
+    const entry = await getLibraryEntryForManga(db, created.value.mangaId);
+    expect(entry?.progressPercent).toBe(60);
+
+    // A restored backup can carry a resume chapter with no updatedAt; that
+    // sentinel shape must not permanently freeze future progress.
+    await db
+      .update(libraryEntries)
+      .set({ updatedAt: null })
+      .where(eq(libraryEntries.mangaId, created.value.mangaId));
+    await updateLibraryEntryReadingProgress(db, {
+      mangaId: created.value.mangaId,
+      chapterId: chapter.value,
+      progressPercent: 70,
+      updatedAt: newer,
+    });
+    const afterNull = await getLibraryEntryForManga(db, created.value.mangaId);
+    expect(afterNull?.progressPercent).toBe(70);
   });
 
   it('reports remote mapping collisions with current database', async () => {

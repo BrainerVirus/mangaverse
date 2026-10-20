@@ -4,9 +4,9 @@ import { createProgressEvent } from './progress.js';
 import type { ReaderProgressEvent } from './types.js';
 
 /**
- * Per-chapter write chains: the read-check-write below must be atomic, or two
- * concurrent persists (a duplicated reader instance, a late unmount checkpoint)
- * can both pass the ordering check and let the older write win.
+ * Per-chapter write chains serialize this tab's writes. The SQLite upserts
+ * carry the same timestamp/furthest-progress guard, so this chain is an
+ * intra-tab optimization, not the cross-tab ordering guarantee.
  */
 const progressChains = new Map<string, Promise<void>>();
 

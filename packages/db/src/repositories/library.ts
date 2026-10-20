@@ -1,4 +1,4 @@
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 import type { AppResult } from '@app/shared';
 import {
   createAppError,
@@ -415,5 +415,19 @@ export async function updateLibraryEntryReadingProgress(
       progressPercent: input.progressPercent,
       updatedAt: now,
     })
-    .where(eq(libraryEntries.mangaId, input.mangaId));
+    // Same atomic ordering as chapter read state: a stale event cannot move
+    // "continue reading" backwards across tabs.
+    .where(
+      sql`${libraryEntries.mangaId} = ${input.mangaId} AND (
+        ${libraryEntries.lastReadChapterId} IS NULL
+        OR ${libraryEntries.lastReadChapterId} = ''
+        OR ${libraryEntries.updatedAt} IS NULL
+        OR ${libraryEntries.updatedAt} = ''
+        OR ${libraryEntries.updatedAt} < ${now}
+        OR (
+          ${libraryEntries.updatedAt} = ${now}
+          AND COALESCE(${libraryEntries.progressPercent}, -1) < ${input.progressPercent}
+        )
+      )`,
+    );
 }
