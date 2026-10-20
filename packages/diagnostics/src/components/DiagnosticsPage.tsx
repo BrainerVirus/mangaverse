@@ -44,7 +44,7 @@ function CapabilityGrid({ capabilities }: { capabilities: PlatformCapabilities }
       {entries.map(([key, enabled]) => (
         <div
           key={key}
-          className="flex items-center justify-between rounded-control border border-border px-3 py-2 text-sm"
+          className="flex items-center justify-between rounded-control bg-muted/40 px-3 py-2 text-sm"
         >
           <dt className="text-muted-foreground">{key}</dt>
           <dd>

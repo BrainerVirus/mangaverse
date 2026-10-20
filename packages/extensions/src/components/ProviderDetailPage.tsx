@@ -179,7 +179,7 @@ export function ProviderDetailPage({
       >
         <ul className="flex flex-col gap-3">
           {permissions.map((row) => (
-            <li key={row.key} className="rounded-control border border-border p-3">
+            <li key={row.key} className="rounded-control p-3">
               <p className="font-medium">{row.label}</p>
               <p className="text-sm text-muted-foreground">{row.description}</p>
             </li>
@@ -192,7 +192,7 @@ export function ProviderDetailPage({
         description="Mature content support declared in the manifest."
       >
         <dl className="grid gap-3 sm:grid-cols-3">
-          <div className="flex items-center justify-between gap-3 rounded-control border border-border p-3">
+          <div className="flex items-center justify-between gap-3 rounded-control bg-muted/40 p-3">
             <dt>NSFW</dt>
             <dd>
               <Switch
@@ -202,7 +202,7 @@ export function ProviderDetailPage({
               />
             </dd>
           </div>
-          <div className="flex items-center justify-between gap-3 rounded-control border border-border p-3">
+          <div className="flex items-center justify-between gap-3 rounded-control bg-muted/40 p-3">
             <dt>Suggestive</dt>
             <dd>
               <Switch
@@ -212,7 +212,7 @@ export function ProviderDetailPage({
               />
             </dd>
           </div>
-          <div className="flex items-center justify-between gap-3 rounded-control border border-border p-3">
+          <div className="flex items-center justify-between gap-3 rounded-control bg-muted/40 p-3">
             <dt>Violence</dt>
             <dd>
               <Switch

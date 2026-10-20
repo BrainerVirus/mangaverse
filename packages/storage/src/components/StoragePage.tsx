@@ -243,7 +243,7 @@ export function StoragePage({
             {summary.cacheByProvider.map((entry) => (
               <li
                 key={entry.providerId}
-                className="flex items-center justify-between rounded-control border border-border px-3 py-2 text-sm"
+                className="flex items-center justify-between rounded-control bg-muted/40 px-3 py-2 text-sm"
               >
                 <span className="font-mono text-foreground">{entry.providerId}</span>
                 <Badge variant="secondary">{entry.count}</Badge>
