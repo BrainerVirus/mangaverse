@@ -235,7 +235,8 @@ export interface PrefetchQueueOutcome {
  * Runs `resolvePage` over `pages` with `PREFETCH_CONCURRENCY` workers. Cached
  * pages cost nothing; once the freshly downloaded bytes reach `budgetBytes`
  * no further pages are issued. `budgetBytes` 0 means unlimited. Fetches
- * already in flight when the budget is reached are not cancelled.
+ * already in flight when the budget is reached are not cancelled, so at most
+ * `PREFETCH_CONCURRENCY` (4) pages can overshoot the budget.
  */
 export async function runPrefetchQueue(input: {
   readonly pages: readonly PrefetchPage[];

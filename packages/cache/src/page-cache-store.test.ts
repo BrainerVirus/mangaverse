@@ -6,6 +6,7 @@ import { createSqlJsHarness } from '@app/db/testing';
 import {
   listCachedChapterPageIndexes,
   prefetchChapterPages,
+  resolvePageObjectUrl,
   runPrefetchQueue,
 } from './page-cache-store.js';
 
@@ -110,6 +111,24 @@ describe('page cache store', () => {
     expect(resolved).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
     // 4 cached pages at 100 kB each would be 400 kB; only the fresh 4 kB counts.
     expect(outcome.downloadedBytes).toBe(4 * 1000);
+  });
+
+  it('Given a page fetched once, When resolving it again, Then both paths report the cache flag and byte size', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter } = createPageAdapter();
+    const page = {
+      db,
+      adapter,
+      ...CHAPTER,
+      pageIndex: 0,
+      remoteUrl: 'https://uploads.mangadex.org/bytes.jpg',
+    };
+
+    const fresh = await resolvePageObjectUrl(page);
+    expect(fresh).toMatchObject({ fromCache: false, byteSize: 3 });
+
+    const cached = await resolvePageObjectUrl(page);
+    expect(cached).toMatchObject({ fromCache: true, byteSize: 3 });
   });
 
   it('Given an unlimited budget, When prefetching, Then every page is fetched', async () => {
