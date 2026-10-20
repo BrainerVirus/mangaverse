@@ -31,6 +31,7 @@ The plan creates new structure at `apps/web`, `apps/desktop`, and `packages/*` a
 ## Task 1: Workspace Setup
 
 **Files:**
+
 - Create: `pnpm-workspace.yaml`
 - Modify: `package.json` (add workspace scripts, rename legacy commands)
 
@@ -38,8 +39,8 @@ The plan creates new structure at `apps/web`, `apps/desktop`, and `packages/*` a
 
 ```yaml
 packages:
-  - 'apps/*'
-  - 'packages/*'
+  - "apps/*"
+  - "packages/*"
 ```
 
 ### Step 2: Rename legacy npm commands
@@ -86,6 +87,7 @@ Also add `oxlint` as a root devDependency and remove the legacy eslint/prettier 
 ## Task 2: Shared Tooling
 
 **Files:**
+
 - Create: `tsconfig.base.json`, `tsconfig.json` (root), `.oxlintrc.json`, `vitest.config.ts`, `.oxlintignore`
 - Modify: `.gitignore` (ignore `node_modules` in apps/packages, `dist`, `.turbo`), legacy `eslint.config.cjs`, legacy `.prettierrc` (mark as legacy) and `prettier.config.mjs` removed
 
@@ -157,7 +159,7 @@ Also add `oxlint` as a root devDependency and remove the legacy eslint/prettier 
     "perf": "warn",
     "style": "off",
     "restriction": "off",
-    "nursery": "warn"
+    "nursery": "warn",
   },
 
   // Plugins
@@ -170,14 +172,14 @@ Also add `oxlint` as a root devDependency and remove the legacy eslint/prettier 
     "react-hooks/exhaustive-deps": "warn",
     "no-console": "warn",
     "no-debugger": "error",
-    "no-unused-vars": "error"
+    "no-unused-vars": "error",
   },
 
   // Environment
   "env": {
     "browser": true,
     "node": true,
-    "es2022": true
+    "es2022": true,
   },
 
   // File overrides
@@ -186,38 +188,38 @@ Also add `oxlint` as a root devDependency and remove the legacy eslint/prettier 
       "files": ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
       "rules": {
         "no-console": "off",
-        "no-unused-vars": "off"
-      }
+        "no-unused-vars": "off",
+      },
     },
     {
       "files": ["apps/web/src/routes/**", "apps/desktop/src/renderer/src/**"],
       "rules": {
-        "no-console": "off"
-      }
-    }
+        "no-console": "off",
+      },
+    },
   ],
 
   // Type-aware linting (requires tsconfig)
   "options": {
-    "typeAware": true
-  }
+    "typeAware": true,
+  },
 }
 ```
 
 ### Step 4: Create `vitest.config.ts`
 
 ```ts
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    environment: 'node',
-    include: ['packages/**/*.{test,spec}.{ts,tsx}'],
+    environment: "node",
+    include: ["packages/**/*.{test,spec}.{ts,tsx}"],
     coverage: {
-      provider: 'v8',
-      reporter: ['text', 'html'],
-      include: ['packages/**/src/**/*.ts'],
-      exclude: ['packages/**/src/**/*.d.ts'],
+      provider: "v8",
+      reporter: ["text", "html"],
+      include: ["packages/**/src/**/*.ts"],
+      exclude: ["packages/**/src/**/*.d.ts"],
     },
   },
 });
@@ -243,6 +245,7 @@ src-tauri
 ### Step 6: Update `.gitignore`
 
 Add/replace these entries in existing `.gitignore`:
+
 ```
 # Dependencies
 node_modules
@@ -269,6 +272,7 @@ coverage
 ## Task 3: Package Skeletons (14 packages)
 
 **Files:**
+
 - Create per-package: `package.json`, `tsconfig.json`, `src/index.ts`, `src/*.test.ts`
 
 Create all 14 packages in parallel. Each package follows this pattern:
@@ -276,6 +280,7 @@ Create all 14 packages in parallel. Each package follows this pattern:
 ### Package structure template
 
 **`packages/<name>/package.json`:**
+
 ```json
 {
   "name": "@app/<name>",
@@ -346,7 +351,7 @@ Each exports an empty or minimal stub. Example for `@app/shared`:
 
 ```ts
 // @app/shared
-export const PACKAGE_NAME = '@app/shared' as const;
+export const PACKAGE_NAME = "@app/shared" as const;
 ```
 
 **Verification:** After all packages created, `pnpm install` should resolve all, `pnpm typecheck` should pass for all packages, `pnpm test` should find and pass all smoke tests.
@@ -356,6 +361,7 @@ export const PACKAGE_NAME = '@app/shared' as const;
 ## Task 4: Web App Foundation (`apps/web`)
 
 **Files:**
+
 - Create: `apps/web/package.json`, `apps/web/tsconfig.json`, `apps/web/vite.config.ts`, `apps/web/index.html`, `apps/web/src/app.tsx`, `apps/web/src/routes/_root.tsx`, `apps/web/src/routes/home.tsx`, `apps/web/src/router.tsx`
 
 ### `apps/web/package.json`
@@ -416,12 +422,12 @@ export const PACKAGE_NAME = '@app/shared' as const;
 ### `apps/web/vite.config.ts`
 
 ```ts
-import { defineConfig } from 'vite';
+import { defineConfig } from "vite";
 
 export default defineConfig({
   resolve: {
     alias: {
-      '~': '/src',
+      "~": "/src",
     },
   },
 });
@@ -430,18 +436,18 @@ export default defineConfig({
 ### `apps/web/app.config.ts`
 
 ```ts
-import { createAppConfig } from '@tanstack/start/config';
+import { createAppConfig } from "@tanstack/start/config";
 
 export default createAppConfig({
-  extensions: ['/src/routes/**/*.tsx'],
+  extensions: ["/src/routes/**/*.tsx"],
 });
 ```
 
 ### `apps/web/src/app.tsx`
 
 ```tsx
-import { RouterProvider } from '@tanstack/react-router';
-import { router } from './router';
+import { RouterProvider } from "@tanstack/react-router";
+import { router } from "./router";
 
 export function App() {
   return <RouterProvider router={router} />;
@@ -451,7 +457,12 @@ export function App() {
 ### `apps/web/src/router.tsx`
 
 ```tsx
-import { createRouter, createRootRoute, createRoute, createRouterHistory } from '@tanstack/react-router';
+import {
+  createRouter,
+  createRootRoute,
+  createRoute,
+  createRouterHistory,
+} from "@tanstack/react-router";
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -464,7 +475,7 @@ const rootRoute = createRootRoute({
 
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/',
+  path: "/",
   component: function Home() {
     return (
       <div>
@@ -478,10 +489,10 @@ const routeTree = rootRoute.addChildren([indexRoute]);
 
 export const router = createRouter({
   routeTree,
-  history: createRouterHistory(typeof document !== 'undefined' ? window.location.href : '/'),
+  history: createRouterHistory(typeof document !== "undefined" ? window.location.href : "/"),
 });
 
-declare module '@tanstack/react-router' {
+declare module "@tanstack/react-router" {
   interface Register {
     router: typeof router;
   }
@@ -491,8 +502,11 @@ declare module '@tanstack/react-router' {
 ### `apps/web/src/global.css`
 
 Minimal CSS:
+
 ```css
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -525,13 +539,13 @@ body {
 ### `apps/web/src/main.ts`
 
 ```tsx
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import { App } from './app';
-import './global.css';
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { App } from "./app";
+import "./global.css";
 
-const root = document.getElementById('app');
-if (!root) throw new Error('No #app element found');
+const root = document.getElementById("app");
+if (!root) throw new Error("No #app element found");
 
 createRoot(root).render(
   <StrictMode>
@@ -547,6 +561,7 @@ createRoot(root).render(
 ## Task 5: Desktop App Foundation (`apps/desktop`)
 
 **Files:**
+
 - Create: `apps/desktop/package.json`, `apps/desktop/tsconfig.json`, `apps/desktop/src/main/index.ts`, `apps/desktop/src/preload/index.ts`, `apps/desktop/src/renderer/index.html`, `apps/desktop/src/renderer/src/main.tsx`, `apps/desktop/src/renderer/src/App.tsx`, `apps/desktop/electron-builder.json`
 
 ### `apps/desktop/package.json`
@@ -600,9 +615,9 @@ createRoot(root).render(
 Minimal Electron main process:
 
 ```ts
-import { app, BrowserWindow, shell } from 'electron';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { app, BrowserWindow, shell } from "electron";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -616,42 +631,42 @@ function createWindow() {
     minWidth: 800,
     minHeight: 600,
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      preload: join(__dirname, "../preload/index.js"),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
     },
     show: false,
-    titleBarStyle: 'default',
+    titleBarStyle: "default",
   });
 
-  mainWindow.once('ready-to-show', () => {
+  mainWindow.once("ready-to-show", () => {
     mainWindow?.show();
   });
 
   // Load the web app in development or built dist in production
-  if (process.env.NODE_ENV === 'development' || process.env.VITE_DEV_SERVER_URL) {
-    const devUrl = process.env.VITE_DEV_SERVER_URL ?? 'http://localhost:3000';
+  if (process.env.NODE_ENV === "development" || process.env.VITE_DEV_SERVER_URL) {
+    const devUrl = process.env.VITE_DEV_SERVER_URL ?? "http://localhost:3000";
     mainWindow.loadURL(devUrl);
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
+    mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
   }
 
-  mainWindow.on('closed', () => {
+  mainWindow.on("closed", () => {
     mainWindow = null;
   });
 }
 
 app.whenReady().then(createWindow);
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
     app.quit();
   }
 });
 
-app.on('activate', () => {
+app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
   }
@@ -660,17 +675,17 @@ app.on('activate', () => {
 // Open external links in browser
 mainWindow?.webContents.setWindowOpenHandler(({ url }) => {
   shell.openExternal(url);
-  return { action: 'deny' };
+  return { action: "deny" };
 });
 ```
 
 ### `apps/desktop/src/preload/index.ts`
 
 ```ts
-import { contextBridge } from 'electron';
+import { contextBridge } from "electron";
 
 // Expose minimal, safe APIs to renderer
-contextBridge.exposeInMainWorld('electron', {
+contextBridge.exposeInMainWorld("electron", {
   platform: process.platform,
   versions: {
     node: process.versions.node,
@@ -690,7 +705,10 @@ export {};
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';"
+    />
     <title>MangaVerse — Desktop</title>
   </head>
   <body>
@@ -703,12 +721,12 @@ export {};
 ### `apps/desktop/src/renderer/src/main.tsx`
 
 ```tsx
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import { App } from './App';
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { App } from "./App";
 
-const root = document.getElementById('app');
-if (!root) throw new Error('No #app element found');
+const root = document.getElementById("app");
+if (!root) throw new Error("No #app element found");
 
 createRoot(root).render(
   <StrictMode>
@@ -739,10 +757,7 @@ export function App() {
   "directories": {
     "output": "out"
   },
-  "files": [
-    "dist/**/*",
-    "renderer/**/*"
-  ],
+  "files": ["dist/**/*", "renderer/**/*"],
   "mac": {
     "category": "public.app-category.entertainment",
     "target": ["dmg", "zip"]
@@ -763,6 +778,7 @@ export function App() {
 ## Task 6: Turborepo Config
 
 **Files:**
+
 - Create: `turbo.json`
 
 ```json
@@ -801,6 +817,7 @@ export function App() {
 ## Task 7: CI / Documentation Update
 
 **Files:**
+
 - Create: `.github/workflows/ci.yml`
 - Modify: `AGENTS.md` (update `Existing Legacy Commands` section)
 
@@ -830,8 +847,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'pnpm'
+          node-version: "22"
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -857,6 +874,7 @@ Update to show new canonical commands and mark legacy ones:
 ## Existing Legacy Commands
 
 Legacy Expo/Tauri commands (prefixed with `legacy:` to avoid accidental use):
+
 - Legacy install: `npm install` (use `pnpm install`)
 - Legacy start: `npm run legacy:start`
 - Legacy web: `npm run legacy:web`

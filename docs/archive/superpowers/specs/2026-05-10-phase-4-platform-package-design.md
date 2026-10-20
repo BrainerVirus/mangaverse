@@ -81,7 +81,7 @@ Use `AppResult` from `@app/shared` for recoverable failures.
 Expose a single preload global:
 
 ```ts
-window.mangaversePlatform
+window.mangaversePlatform;
 ```
 
 Do not keep or expand the old generic `window.electron` shape unless a current consumer requires it. Current search found no consumers.

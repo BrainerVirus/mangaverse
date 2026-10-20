@@ -153,21 +153,26 @@ A Zod parse failure surfaces as a normalized error with a new code `extensions.s
 
 ```ts
 export const mangadexQueryKeys = {
-  all: ['mangadex'] as const,
-  search: (q: string, lang: string) =>
-    [...mangadexQueryKeys.all, 'search', q, lang] as const,
+  all: ["mangadex"] as const,
+  search: (q: string, lang: string) => [...mangadexQueryKeys.all, "search", q, lang] as const,
   detail: (mangaId: MangaId, lang: string) =>
-    [...mangadexQueryKeys.all, 'detail', mangaId, lang] as const,
-  pages: (chapterId: ChapterId) =>
-    [...mangadexQueryKeys.all, 'pages', chapterId] as const,
-  discover: (lang: string) =>
-    [...mangadexQueryKeys.all, 'discover', lang] as const,
+    [...mangadexQueryKeys.all, "detail", mangaId, lang] as const,
+  pages: (chapterId: ChapterId) => [...mangadexQueryKeys.all, "pages", chapterId] as const,
+  discover: (lang: string) => [...mangadexQueryKeys.all, "discover", lang] as const,
 };
 
-export function mangadexMangaDetailQueryOptions(db: AppDrizzleDb, mangaId: MangaId) { /* getDetails + getChapters, persist via @app/db */ }
-export function mangadexChapterPagesQueryOptions(db: AppDrizzleDb, chapterId: ChapterId) { /* getPages, persist chapter_pages */ }
-export function mangadexSearchQueryOptions(db: AppDrizzleDb, query: string) { /* search */ }
-export function mangadexDiscoverSectionsQueryOptions(db: AppDrizzleDb) { /* browseLatest + browsePopular + getRecommendations */ }
+export function mangadexMangaDetailQueryOptions(db: AppDrizzleDb, mangaId: MangaId) {
+  /* getDetails + getChapters, persist via @app/db */
+}
+export function mangadexChapterPagesQueryOptions(db: AppDrizzleDb, chapterId: ChapterId) {
+  /* getPages, persist chapter_pages */
+}
+export function mangadexSearchQueryOptions(db: AppDrizzleDb, query: string) {
+  /* search */
+}
+export function mangadexDiscoverSectionsQueryOptions(db: AppDrizzleDb) {
+  /* browseLatest + browsePopular + getRecommendations */
+}
 ```
 
 `mangadexMangaDetailQueryOptions` is the only `queryOptions` that calls `getDetails` and `getChapters` together; the chapter feed is not exposed as a separate query.
@@ -176,15 +181,15 @@ All use `staleTime` / `gcTime` / `retry` from the existing `apps/web/app/queries
 
 **4. Route changes.**
 
-| Route | Today | After |
-|---|---|---|
-| `discover.tsx` | `fetchDevMangaDexSection*` | `mangadexDiscoverSectionsQueryOptions` + `useInfiniteQuery` |
-| `manga.$id.tsx` | `fetchDevMangaDetail` | `mangadexMangaDetailQueryOptions` + existing `fetchMangaDetail` |
-| `reader.$chapterId.tsx` | `hydrateDevReaderChapterIfNeeded` | `mangadexChapterPagesQueryOptions` |
-| `search.tsx` | `fetchDevMangaDexSearchResults` | `mangadexSearchQueryOptions` |
-| `extensions.tsx` | `getDevMangaDexManifestUrl` | new first-party manifest URL helper |
-| `extensions.$providerId.tsx` | unchanged | unchanged |
-| `LocalDbProvider` | `seedDevMangaDexProvider` | `installFirstPartyProviders` |
+| Route                        | Today                             | After                                                           |
+| ---------------------------- | --------------------------------- | --------------------------------------------------------------- |
+| `discover.tsx`               | `fetchDevMangaDexSection*`        | `mangadexDiscoverSectionsQueryOptions` + `useInfiniteQuery`     |
+| `manga.$id.tsx`              | `fetchDevMangaDetail`             | `mangadexMangaDetailQueryOptions` + existing `fetchMangaDetail` |
+| `reader.$chapterId.tsx`      | `hydrateDevReaderChapterIfNeeded` | `mangadexChapterPagesQueryOptions`                              |
+| `search.tsx`                 | `fetchDevMangaDexSearchResults`   | `mangadexSearchQueryOptions`                                    |
+| `extensions.tsx`             | `getDevMangaDexManifestUrl`       | new first-party manifest URL helper                             |
+| `extensions.$providerId.tsx` | unchanged                         | unchanged                                                       |
+| `LocalDbProvider`            | `seedDevMangaDexProvider`         | `installFirstPartyProviders`                                    |
 
 A `VITE_USE_REAL_MANGADEX` feature flag is honored by each route during migration so a route can be flipped to the new path independently. The flag is removed when the dev files are deleted.
 

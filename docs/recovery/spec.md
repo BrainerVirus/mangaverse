@@ -34,16 +34,16 @@ Measured in this planning session:
 
 ## Decisions
 
-| ID | Decision | Reason |
-| --- | --- | --- |
-| D1 | Web is primary; Electron is a later installable alternative. | User confirmed publication of a working web app is the priority. |
-| D2 | Use the existing MangaDex official API approach first. | Prove one real source without adding HTML-scraping breakage. |
-| D3 | Finish planning here; another model implements the remaining slices. | User explicitly requested a cheaper-model handoff. |
-| D4 | Repair incrementally; preserve existing data, IDs and unique Git work. | A clean restart means a trustworthy baseline, not destructive reset. |
-| D5 | Multi-tab is transparent: concurrent tabs must converge safely with no lockout screen. | User decision; a lockout UX is rejected for this app. |
-| D6 | Keep app and any needed network proxy same-origin (Vercel rewrite); no permissive third-party proxy. | User decision; same-domain requests avoid CORS entirely. |
-| D7 | Follow GitHub flow: short-lived branches, PR into `main`, delete merged branches. | Matches the user's other repository workflow. |
-| D8 | Publication is a later Vercel target, decided after the full local feature set works. | User decision; not part of recovery acceptance. |
+| ID  | Decision                                                                                             | Reason                                                               |
+| --- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| D1  | Web is primary; Electron is a later installable alternative.                                         | User confirmed publication of a working web app is the priority.     |
+| D2  | Use the existing MangaDex official API approach first.                                               | Prove one real source without adding HTML-scraping breakage.         |
+| D3  | Finish planning here; another model implements the remaining slices.                                 | User explicitly requested a cheaper-model handoff.                   |
+| D4  | Repair incrementally; preserve existing data, IDs and unique Git work.                               | A clean restart means a trustworthy baseline, not destructive reset. |
+| D5  | Multi-tab is transparent: concurrent tabs must converge safely with no lockout screen.               | User decision; a lockout UX is rejected for this app.                |
+| D6  | Keep app and any needed network proxy same-origin (Vercel rewrite); no permissive third-party proxy. | User decision; same-domain requests avoid CORS entirely.             |
+| D7  | Follow GitHub flow: short-lived branches, PR into `main`, delete merged branches.                    | Matches the user's other repository workflow.                        |
+| D8  | Publication is a later Vercel target, decided after the full local feature set works.                | User decision; not part of recovery acceptance.                      |
 
 D1/D2 are recorded in Workit decision `8b698970-0510-4d4c-b107-df4804591e60`;
 D3 in `3d7956bc-6c33-40ac-adc5-9765b24b09c6`; D5–D8 in

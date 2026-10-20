@@ -33,10 +33,12 @@ packages/reader/src/
 `@app/reader` exports:
 
 **Package:**
+
 - `PACKAGE_NAME = '@app/reader'`
 - `READER_ERROR_CODES` (runtime constant)
 
 **Types:**
+
 - `ReaderPage` - page with runtime metadata
 - `ReaderChapter` - chapter wrapper with pageCount
 - `ReaderViewport` - dimensions and orientation
@@ -52,23 +54,27 @@ packages/reader/src/
 - `ReaderEngineSettings`, `ReaderState`
 
 **Layout/spread functions:**
+
 - `createReaderState(input) -> ReaderState`
 - `calculatePageSlots(input) -> readonly PageSlot[]`
 - `calculateSpreadPlan(input) -> SpreadLayout`
 - `resolveInitialPageIndex(input, bookmark?) -> number`
 
 **Tap-zone functions:**
+
 - `calculateTapZones(input, overlayInsets, zoomState?) -> readonly TapZoneRegion[]`
 - `resolveTapZoneAction(input, params) -> TapZoneAction`
 - `createTapZoneDebugModel(input, regions, zoomState?, overlayInsets?) -> TapZoneDebugModel`
 
 **Navigation functions:**
+
 - `resolveNavigationAction(state, action) -> ReaderNavigationAction`
 - `applyNavigationAction(state, action) -> ReaderState`
 - `resolveKeyboardAction(event, settings) -> ReaderNavigationAction`
 - `resolveWheelAction(event, settings) -> { type, delta? }`
 
 **Zoom/pan functions:**
+
 - `createZoomState(settings) -> ZoomStateSummary`
 - `applyDoubleTapZoom(state, tapPosition, viewportW, viewportH, doubleTapZoom) -> ZoomStateSummary`
 - `applyPinchZoom(state, currentScale, targetScale, center) -> ZoomStateSummary`
@@ -76,22 +82,27 @@ packages/reader/src/
 - `clampZoomTransform(state, pageW, pageH, viewportW, viewportH) -> ZoomStateSummary`
 
 **Webtoon functions:**
+
 - `calculateWebtoonWindow(input, scrollPercent, totalHeight) -> WebtoonWindow`
 - `estimateWebtoonLayout(input) -> WebtoonLayout`
 
 **Preload functions:**
+
 - `createPreloadPlan(pages, activePageIndex, preloadAhead, lowMemoryMode) -> PreloadPlan`
 - `createDecodeQueue(pages, activePageIndex, preloadAhead, lowMemoryMode) -> DecodeQueue`
 - `recordPageLoadResult(result, pages, activePageIndex, failedPages, maxRetries, retryState?) -> { failedPages, preloadQueue, retryState }`
 
 **Progress functions:**
+
 - `createProgressEvent(chapterId, mangaId, pageIndex, totalPages) -> ReaderProgressEvent`
 - `shouldPersistProgress(previous, next, policy) -> boolean`
 
 **Diagnostics:**
+
 - `createReaderDiagnostics(input, activePageIndex, totalPages, chromeVisible, failedPages, preloadQueueLength, visiblePageIndexes, zoomState?, lowMemoryMode?, preloadQueue?, events?) -> ReaderDiagnosticsSnapshot`
 
 **Error validation:**
+
 - `createReaderError(input) -> AppError`
 - `validateReaderSessionInput(input) -> AppResult<ReaderSessionInput>`
 - `validatePageIndex(index, pageCount) -> AppResult<number>`
@@ -105,7 +116,7 @@ interface ReaderState {
   chapterId: string;
   pages: readonly ReaderPage[];
   settings: ReaderEngineSettings;
-  mode: 'scroll' | 'page';
+  mode: "scroll" | "page";
   activePageIndex: number;
   visiblePageIndexes: readonly number[];
   layout: PageLayoutMode;
@@ -171,6 +182,7 @@ Error details must not include image URLs or provider secrets.
 ## Diagnostics Rules
 
 Diagnostics snapshot is safe for logging/UI:
+
 - Timestamp
 - Chapter/page state
 - Settings (no secrets)
