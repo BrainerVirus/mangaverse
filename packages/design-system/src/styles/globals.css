@@ -1,9 +1,33 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+/* The UI faces ship with the app: fontsource bundles the woff2 files and their @font-face
+   rules under the `* Variable` family names the theme stacks do not use. */
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
 
 /* Monorepo: Tailwind must scan app + feature package templates, not only this file tree. */
 @source '../../../../apps/web/app/**/*.{ts,tsx}';
 @source '../../../../packages/*/src/**/*.{ts,tsx}';
+
+/* The §4 stacks name `Inter` and `JetBrains Mono`, so alias the bundled variable faces onto
+   those names. shortcut: latin subset only, add latin-ext faces if the UI ships non-latin copy. */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("@fontsource-variable/inter/files/inter-latin-wght-normal.woff2")
+    format("woff2-variations");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url("@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2")
+    format("woff2-variations");
+}
 
 @theme inline {
   --color-background: var(--background);

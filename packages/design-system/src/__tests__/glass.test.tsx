@@ -111,6 +111,16 @@ describe('GlassSurface', () => {
     },
   );
 
+  it('keeps every level and elevation pair byte-identical after the cva conversion', () => {
+    for (const level of TIERS) {
+      for (const elevation of ELEVATIONS) {
+        expect(`${glassLevels({ level })} ${glassElevations({ elevation })}`.trim()).toBe(
+          `${EXPECTED_LEVELS[level]} ${EXPECTED_ELEVATIONS[elevation]}`.trim(),
+        );
+      }
+    }
+  });
+
   it('renders the §2.2 refraction layer, hidden and non-interactive', () => {
     const { container } = render(
       <GlassSurface>
