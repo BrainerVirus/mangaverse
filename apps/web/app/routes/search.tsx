@@ -5,11 +5,11 @@ import {
   DEFAULT_SEARCH_VIEW_STATE,
   recordSearchQuery,
   SearchPage,
-  searchQueryKeys,
   type SearchViewState,
 } from '@app/search';
 import { fetchAppSettings, settingsQueryKeys } from '@app/settings';
 import { searchPageQueryOptions } from '../queries/search-query-options.js';
+import { refreshRecentSearches } from '../queries/search-recents.js';
 import { useLocalDb, useLocalDbStatus, useLocalDbRetry } from '../providers/local-db-provider.js';
 
 export const Route = createFileRoute('/search')({
@@ -42,7 +42,15 @@ function SearchRoute() {
     setViewState(next);
 
     const trimmed = next.query.trim();
-    if (trimmed.length === 0 || db === null || dbStatus !== 'ready') {
+    if (trimmed.length === 0) {
+      // Clearing the box shows recent searches; refetch them so a just-recorded
+      // query cannot be hidden by a blank-query result cached during hydration.
+      if (db !== null && dbStatus === 'ready') {
+        void refreshRecentSearches(queryClient, explicitContent);
+      }
+      return;
+    }
+    if (db === null || dbStatus !== 'ready') {
       return;
     }
     if (trimmed === lastRecordedQuery.current) {
@@ -51,7 +59,7 @@ function SearchRoute() {
 
     lastRecordedQuery.current = trimmed;
     void recordSearchQuery(db, trimmed).then(() => {
-      void queryClient.invalidateQueries({ queryKey: searchQueryKeys.all });
+      void refreshRecentSearches(queryClient, explicitContent);
     });
   };
 
