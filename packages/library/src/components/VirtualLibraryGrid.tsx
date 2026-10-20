@@ -1,8 +1,8 @@
-import { useMemo, useRef } from 'react';
+import { memo, useMemo, useRef } from 'react';
 import { useGridStaggerReveal } from '@app/motion';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { CachedMangaCard } from '@app/cache';
-import type { LibraryLayoutMode, MangaId } from '@app/shared';
+import type { LibraryLayoutMode, MangaId, MangaIdentity } from '@app/shared';
 import type { LibraryItem } from '../types.js';
 import {
   estimateRowHeight,
@@ -13,17 +13,35 @@ import {
 import { useContainerWidth } from '../hooks/use-container-width.js';
 import { useScrollParent } from '../hooks/use-scroll-parent.js';
 
+/** Cap the pre-measurement fallback so a large library never mounts every card twice. */
+const FALLBACK_CARD_LIMIT = 48;
+
 export interface VirtualLibraryGridProps {
   items: readonly LibraryItem[];
   layout: LibraryLayoutMode;
   onOpenManga: (mangaId: MangaId) => void;
 }
 
+interface LibraryCardProps {
+  manga: MangaIdentity;
+  variant: LibraryLayoutMode;
+  onOpenManga: (mangaId: MangaId) => void;
+}
+
+/** Cards only read these props; entry ids only key the list. */
+const LibraryCard = memo(function LibraryCard({ manga, variant, onOpenManga }: LibraryCardProps) {
+  return (
+    <div data-library-card>
+      <CachedMangaCard manga={manga} variant={variant} onClick={() => onOpenManga(manga.id)} />
+    </div>
+  );
+});
+
 export function VirtualLibraryGrid({ items, layout, onOpenManga }: VirtualLibraryGridProps) {
   const containerRef = useRef<HTMLElement>(null);
-  const scrollParent = useScrollParent(containerRef);
+  const { scrollParent, isMeasured } = useScrollParent(containerRef);
   const containerWidth = useContainerWidth(containerRef);
-  const itemsKey = items.map((item) => item.entry.id).join(',');
+  const itemsKey = useMemo(() => items.map((item) => item.entry.id).join(','), [items]);
 
   const columnCount = getColumnCount(layout, containerWidth);
   const rowGap = getRowGap(layout);
@@ -44,6 +62,7 @@ export function VirtualLibraryGrid({ items, layout, onOpenManga }: VirtualLibrar
   });
 
   const isVirtualized = scrollParent !== null && containerWidth > 0;
+  const fallbackItems = isMeasured ? items : items.slice(0, FALLBACK_CARD_LIMIT);
   const revealRef = useGridStaggerReveal(itemsKey, items.length > 0);
 
   if (!isVirtualized) {
@@ -62,10 +81,8 @@ export function VirtualLibraryGrid({ items, layout, onOpenManga }: VirtualLibrar
               : 'grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3'
         }
       >
-        {items.map(({ entry, manga }) => (
-          <div key={entry.id} data-library-card>
-            <CachedMangaCard manga={manga} variant={layout} onClick={() => onOpenManga(manga.id)} />
-          </div>
+        {fallbackItems.map(({ entry, manga }) => (
+          <LibraryCard key={entry.id} manga={manga} variant={layout} onOpenManga={onOpenManga} />
         ))}
       </section>
     );
@@ -107,13 +124,12 @@ export function VirtualLibraryGrid({ items, layout, onOpenManga }: VirtualLibrar
               }}
             >
               {rowItems.map(({ entry, manga }) => (
-                <div key={entry.id} data-library-card>
-                  <CachedMangaCard
-                    manga={manga}
-                    variant={layout}
-                    onClick={() => onOpenManga(manga.id)}
-                  />
-                </div>
+                <LibraryCard
+                  key={entry.id}
+                  manga={manga}
+                  variant={layout}
+                  onOpenManga={onOpenManga}
+                />
               ))}
             </div>
           );
