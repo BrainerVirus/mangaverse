@@ -146,6 +146,11 @@ describe('library mutation options', () => {
     });
 
     options.onError?.(new Error('failed'), true);
+    // The rollback is the invalidation refetch, not a page snapshot: the
+    // optimistic flag must still be there for the refetch to correct.
+    expect(queryClient.getQueryData(pageKey)).toMatchObject({
+      items: [{ entry: { favorite: true } }],
+    });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: libraryQueryKeys.all });
   });
 
@@ -158,6 +163,6 @@ describe('library mutation options', () => {
     createRemoveFromLibraryMutationOptions(db, queryClient, mangaId).onSettled?.();
     createToggleFavoriteMutationOptions(db, queryClient, mangaId).onSettled?.();
 
-    expect(invalidateSpy).toHaveBeenCalled();
+    expect(invalidateSpy).toHaveBeenCalledTimes(3);
   });
 });

@@ -65,6 +65,12 @@ function ids(raw: Database, sql: string, params: string[] = []): unknown[] {
 }
 
 describe('bundled migrations', () => {
+  it('fixtures every migration listed in the journal', () => {
+    expect(migrationFiles.map((file) => file.tag)).toEqual(
+      journal.entries.map((entry: { tag: string }) => entry.tag),
+    );
+  });
+
   it('applies the same schema as filesystem migrations', async () => {
     const SQL = await initSqlJs();
     const bundled = new SQL.Database();
