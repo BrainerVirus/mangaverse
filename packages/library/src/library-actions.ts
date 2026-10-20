@@ -6,9 +6,14 @@ export async function addMangaToLibrary(
   db: AppDrizzleDb,
   mangaId: MangaId,
   status: LibraryStatus = 'planned',
+  entryId?: LibraryEntryId,
 ): Promise<AppResult<LibraryEntryId>> {
   const { addLibraryEntry } = await import('@app/db');
-  return addLibraryEntry(db, { mangaId, status });
+  return addLibraryEntry(db, {
+    mangaId,
+    status,
+    ...(entryId === undefined ? {} : { id: entryId }),
+  });
 }
 
 export async function removeMangaFromLibrary(

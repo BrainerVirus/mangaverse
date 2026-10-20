@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchMangaDetail, libraryQueryKeys, MangaDetailPage } from '@app/library';
 import type { AppDrizzleDb } from '@app/db/browser';
-import { toMangaId, type MangaId } from '@app/shared';
+import { toLibraryEntryId, toMangaId, type MangaId } from '@app/shared';
 import {
   createAddToLibraryMutationOptions,
   createRemoveFromLibraryMutationOptions,
@@ -67,7 +67,7 @@ function MangaDetailRoute() {
       onOpenChapter={(chapterId) =>
         void navigate({ to: '/reader/$chapterId', params: { chapterId } })
       }
-      onAddToLibrary={() => addMutation.mutate()}
+      onAddToLibrary={() => addMutation.mutate(toLibraryEntryId(globalThis.crypto.randomUUID()))}
       onRemoveFromLibrary={() => removeMutation.mutate()}
       onToggleFavorite={() => favoriteMutation.mutate(!(data?.libraryEntry?.favorite ?? false))}
       isLibraryActionPending={isLibraryActionPending}

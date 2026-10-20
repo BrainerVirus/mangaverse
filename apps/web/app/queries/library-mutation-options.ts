@@ -6,17 +6,11 @@ import {
   optimisticallyRemoveMangaFromLibrary,
   optimisticallySetMangaFavorite,
   removeMangaFromLibrary,
-  restoreLibraryCache,
   setMangaFavorite,
-  snapshotLibraryCache,
   type MangaDetailData,
 } from '@app/library';
-import type { MangaId } from '@app/shared';
+import type { LibraryEntryId, MangaId } from '@app/shared';
 import type { QueryClient } from '@tanstack/react-query';
-
-interface LibraryMutationContext {
-  snapshot: ReturnType<typeof snapshotLibraryCache>;
-}
 
 function assertDb(db: AppDrizzleDb | null): asserts db is AppDrizzleDb {
   if (db === null) {
@@ -24,9 +18,8 @@ function assertDb(db: AppDrizzleDb | null): asserts db is AppDrizzleDb {
   }
 }
 
-function invalidateLibraryQueries(queryClient: QueryClient, mangaId: MangaId): void {
+function invalidateLibraryQueries(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: libraryQueryKeys.all });
-  void queryClient.invalidateQueries({ queryKey: libraryQueryKeys.detail(mangaId) });
 }
 
 export function createAddToLibraryMutationOptions(
@@ -35,34 +28,33 @@ export function createAddToLibraryMutationOptions(
   mangaId: MangaId,
 ) {
   return {
-    mutationFn: async () => {
+    mutationFn: async (entryId: LibraryEntryId) => {
       assertDb(db);
-      const result = await addMangaToLibrary(db, mangaId);
+      const result = await addMangaToLibrary(db, mangaId, 'planned', entryId);
       if (!result.ok) {
         throw new Error(result.error.message);
       }
       return result.value;
     },
-    onMutate: async () => {
+    onMutate: async (entryId: LibraryEntryId) => {
       await queryClient.cancelQueries({ queryKey: libraryQueryKeys.all });
       await queryClient.cancelQueries({ queryKey: libraryQueryKeys.detail(mangaId) });
 
-      const snapshot = snapshotLibraryCache(queryClient, mangaId);
       const detail = queryClient.getQueryData<MangaDetailData>(libraryQueryKeys.detail(mangaId));
       if (detail !== undefined) {
-        optimisticallyAddMangaToLibrary(queryClient, mangaId, detail.manga);
+        optimisticallyAddMangaToLibrary(queryClient, mangaId, detail.manga, entryId);
       }
-
-      return { snapshot } satisfies LibraryMutationContext;
     },
-    onError: (_error: Error, _variables: void, context: LibraryMutationContext | undefined) => {
-      if (context?.snapshot !== undefined) {
-        restoreLibraryCache(queryClient, context.snapshot);
-      }
+    onError: () => {
+      // The write failed, so the optimistic row is the only trace: remove it
+      // instead of restoring a whole-page snapshot that could clobber a
+      // concurrent optimistic mutation.
+      optimisticallyRemoveMangaFromLibrary(queryClient, mangaId);
+      invalidateLibraryQueries(queryClient);
     },
     onSettled: () => {
       if (db !== null) {
-        invalidateLibraryQueries(queryClient, mangaId);
+        invalidateLibraryQueries(queryClient);
       }
     },
   };
@@ -85,19 +77,16 @@ export function createRemoveFromLibraryMutationOptions(
       await queryClient.cancelQueries({ queryKey: libraryQueryKeys.all });
       await queryClient.cancelQueries({ queryKey: libraryQueryKeys.detail(mangaId) });
 
-      const snapshot = snapshotLibraryCache(queryClient, mangaId);
       optimisticallyRemoveMangaFromLibrary(queryClient, mangaId);
-
-      return { snapshot } satisfies LibraryMutationContext;
     },
-    onError: (_error: Error, _variables: void, context: LibraryMutationContext | undefined) => {
-      if (context?.snapshot !== undefined) {
-        restoreLibraryCache(queryClient, context.snapshot);
-      }
+    onError: () => {
+      // The local row still exists; let the targeted refetch put it back
+      // without rewriting unrelated optimistic patches.
+      invalidateLibraryQueries(queryClient);
     },
     onSettled: () => {
       if (db !== null) {
-        invalidateLibraryQueries(queryClient, mangaId);
+        invalidateLibraryQueries(queryClient);
       }
     },
   };
@@ -120,19 +109,14 @@ export function createToggleFavoriteMutationOptions(
       await queryClient.cancelQueries({ queryKey: libraryQueryKeys.all });
       await queryClient.cancelQueries({ queryKey: libraryQueryKeys.detail(mangaId) });
 
-      const snapshot = snapshotLibraryCache(queryClient, mangaId);
       optimisticallySetMangaFavorite(queryClient, mangaId, favorite);
-
-      return { snapshot } satisfies LibraryMutationContext;
     },
-    onError: (_error: Error, _favorite: boolean, context: LibraryMutationContext | undefined) => {
-      if (context?.snapshot !== undefined) {
-        restoreLibraryCache(queryClient, context.snapshot);
-      }
+    onError: () => {
+      invalidateLibraryQueries(queryClient);
     },
     onSettled: () => {
       if (db !== null) {
-        invalidateLibraryQueries(queryClient, mangaId);
+        invalidateLibraryQueries(queryClient);
       }
     },
   };

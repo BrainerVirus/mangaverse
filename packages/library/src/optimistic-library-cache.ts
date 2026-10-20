@@ -1,12 +1,12 @@
-import type { LibraryEntry, LibraryStatus, MangaId, MangaIdentity } from '@app/shared';
-import { toLibraryEntryId } from '@app/shared';
+import type {
+  LibraryEntry,
+  LibraryEntryId,
+  LibraryStatus,
+  MangaId,
+  MangaIdentity,
+} from '@app/shared';
 import type { LibraryItem, LibraryPageData, MangaDetailData } from './types.js';
 import { libraryQueryKeys } from './query-keys.js';
-
-export interface LibraryCacheSnapshot {
-  readonly pages: ReadonlyArray<readonly [readonly unknown[], LibraryPageData | undefined]>;
-  readonly details: ReadonlyArray<readonly [readonly unknown[], MangaDetailData | undefined]>;
-}
 
 export interface QueryCacheReader {
   getQueriesData<T>(filters: {
@@ -19,11 +19,12 @@ function createOptimisticEntry(
   mangaId: MangaId,
   manga: MangaIdentity,
   status: LibraryStatus,
+  entryId: LibraryEntryId,
   favorite = false,
 ): LibraryItem {
   const now = new Date().toISOString();
   const entry: LibraryEntry = {
-    id: toLibraryEntryId(`optimistic-${mangaId}`),
+    id: entryId,
     mangaId,
     favorite,
     categoryIds: [],
@@ -76,35 +77,14 @@ function getLibraryDetailQueries(
     .filter(([queryKey]) => isLibraryDetailQueryKey(queryKey, mangaId));
 }
 
-export function snapshotLibraryCache(
-  queryClient: QueryCacheReader,
-  mangaId: MangaId,
-): LibraryCacheSnapshot {
-  return {
-    pages: getLibraryPageQueries(queryClient),
-    details: getLibraryDetailQueries(queryClient, mangaId),
-  };
-}
-
-export function restoreLibraryCache(
-  queryClient: QueryCacheReader,
-  snapshot: LibraryCacheSnapshot,
-): void {
-  for (const [queryKey, data] of snapshot.pages) {
-    queryClient.setQueryData(queryKey, data);
-  }
-  for (const [queryKey, data] of snapshot.details) {
-    queryClient.setQueryData(queryKey, data);
-  }
-}
-
 export function optimisticallyAddMangaToLibrary(
   queryClient: QueryCacheReader,
   mangaId: MangaId,
   manga: MangaIdentity,
+  entryId: LibraryEntryId,
   status: LibraryStatus = 'planned',
 ): void {
-  const optimisticItem = createOptimisticEntry(mangaId, manga, status);
+  const optimisticItem = createOptimisticEntry(mangaId, manga, status, entryId);
 
   for (const [queryKey, page] of getLibraryPageQueries(queryClient)) {
     if (page === undefined) continue;
