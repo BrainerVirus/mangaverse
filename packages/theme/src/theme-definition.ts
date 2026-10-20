@@ -38,12 +38,9 @@ export const themeDefinitionSchema = z.object({
   dark: appearanceSchema,
 });
 
-/**
- * Hot path: every custom-theme save and every definition crossing a trust boundary
- * is reparsed, so the schema is AOT-compiled. Strict compilation makes an
- * unsupported schema fail at import instead of silently using the runtime parser.
- */
-const compiledThemeDefinitionSchema = z.compile(themeDefinitionSchema, { strict: true });
+// Normal parser on purpose: the renderer CSP has no unsafe-eval, so `z.compile`
+// would silently fall back and only add the compiler to the bundle. Compiled
+// schemas are Node/CI-only (see docs/theme-builder-spec.md).
 
 export type ThemeDefinitionValidation =
   | { readonly ok: true; readonly value: ThemeDefinition }
@@ -58,7 +55,7 @@ function toIssuePath(path: readonly PropertyKey[]): string {
 }
 
 export function validateThemeDefinition(input: unknown): ThemeDefinitionValidation {
-  const result = compiledThemeDefinitionSchema.safeParse(input);
+  const result = themeDefinitionSchema.safeParse(input);
   if (result.success) {
     return { ok: true, value: result.data as ThemeDefinition };
   }

@@ -221,7 +221,7 @@ describe('custom theme storage', () => {
 
   it('rejects invalid definitions and built-in ids', async () => {
     const { db } = await createSqlJsHarness();
-    const invalid = await saveThemeDefinition(db, { id: 'custom-broken' });
+    const invalid = await saveThemeDefinition(db, { id: 'custom:broken' });
     expect(invalid.ok).toBe(false);
 
     const builtIn = await saveThemeDefinition(db, customTheme('sakura'));

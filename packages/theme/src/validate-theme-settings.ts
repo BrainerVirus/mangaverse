@@ -2,7 +2,7 @@ import { createAppError, err, ok, type AppResult, type ThemeSettings } from '@ap
 
 import { isBuiltInThemeId } from './built-in-themes.js';
 
-export const CUSTOM_THEME_ID_PREFIX = 'custom-' as const;
+export const CUSTOM_THEME_ID_PREFIX = 'custom:' as const;
 
 export function isCustomThemeId(value: string): boolean {
   return value.startsWith(CUSTOM_THEME_ID_PREFIX) && value.length > CUSTOM_THEME_ID_PREFIX.length;

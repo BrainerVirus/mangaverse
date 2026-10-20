@@ -12,7 +12,7 @@ import {
 function customDefinition(): ThemeDefinition {
   return {
     ...presetToThemeDefinition(getThemePreset('default')),
-    id: 'custom-demo',
+    id: 'custom:demo',
     name: 'Custom Demo',
     basedOn: 'default',
   };
@@ -129,7 +129,7 @@ describe('ThemeDefinition schema', () => {
 
     expect(normalized.light.seeds.background).toMatch(/^oklch\(/);
     expect(normalized.light.overrides?.['--ring']).toMatch(/^oklch\(/);
-    expect(normalized.id).toBe('custom-demo');
+    expect(normalized.id).toBe('custom:demo');
     expect(normalized.basedOn).toBe('default');
   });
 });
