@@ -15,6 +15,9 @@ const CACHE_ASSET_MIGRATION_HASH =
 
 const THEMES_MIGRATION_HASH = 'b82ae03e19ad700a913d2407db98b5c89dbe24913d764eaa01b116b930f4fdd5';
 
+const LIBRARY_UNIQUE_MANGA_MIGRATION_HASH =
+  '438c0cf16e33a1fbd49d724396f8babf64c778498ff3daffbafd76a690fdbf42';
+
 type InitSqlJs = (config?: { locateFile?: (file: string) => string }) => Promise<SqlJsStatic>;
 
 export type SqlJsDynamicModule = {
@@ -85,6 +88,7 @@ export function getLocalDbSession(): Promise<PersistentDatabase> {
           { default: initialMigrationSql },
           { default: cacheAssetMigrationSql },
           { default: themesMigrationSql },
+          { default: libraryUniqueMangaMigrationSql },
           { default: migrationJournal },
           { createIndexedDbPersistedBytesStore },
         ] = await Promise.all([
@@ -94,6 +98,7 @@ export function getLocalDbSession(): Promise<PersistentDatabase> {
           import('@app/db/migrations/0000_initial.sql?raw'),
           import('@app/db/migrations/0001_cache_asset_metadata.sql?raw'),
           import('@app/db/migrations/0002_themes.sql?raw'),
+          import('@app/db/migrations/0003_library_unique_manga.sql?raw'),
           import('@app/db/migrations/meta/_journal.json'),
           import('./persisted-bytes-idb.js'),
         ]);
@@ -131,6 +136,11 @@ export function getLocalDbSession(): Promise<PersistentDatabase> {
                 tag: '0002_themes',
                 sql: themesMigrationSql,
                 hash: THEMES_MIGRATION_HASH,
+              },
+              {
+                tag: '0003_library_unique_manga',
+                sql: libraryUniqueMangaMigrationSql,
+                hash: LIBRARY_UNIQUE_MANGA_MIGRATION_HASH,
               },
             ],
           },
