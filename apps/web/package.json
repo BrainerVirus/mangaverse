@@ -3,6 +3,10 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
+  "exports": {
+    "./router": "./app/router.tsx",
+    "./package.json": "./package.json"
+  },
   "scripts": {
     "dev": "vite dev --port 5173",
     "build": "vite build && tsc --noEmit",

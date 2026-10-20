@@ -21,7 +21,7 @@ describe('desktop renderer shell', () => {
   });
 
   it('creates a router with desktop platform detection context', async () => {
-    const { getRouter } = await import('@app/web/app/router.js');
+    const { getRouter } = await import('@app/web/router');
     const { detectDesktopCapabilities } = await import('./bootstrap.js');
 
     const router = getRouter({ platformDetectFn: detectDesktopCapabilities });
