@@ -174,39 +174,22 @@ describe('GlassSurface', () => {
     expect(surface.querySelector('filter')).toBeNull();
   });
 
-  it('renders unique filter definitions only for the explicit displacement variant', () => {
+  it('uses sheen for standalone displacement without an owning surface', () => {
     allowFullGlassProfile();
-    const { container } = render(
-      <>
-        <RefractionLayer variant="displacement" />
-        <RefractionLayer variant="displacement" />
-        <RefractionLayer />
-      </>,
-    );
-    const layers = container.querySelectorAll<HTMLDivElement>('[data-refraction="displacement"]');
-    const filters = [...container.querySelectorAll<SVGFilterElement>('filter')];
-    const ids = filters.map((filter) => filter.id);
+    const { container } = render(<RefractionLayer variant="displacement" />);
+    const layer = container.firstElementChild!;
 
-    expect(layers).toHaveLength(2);
-    expect(filters).toHaveLength(2);
-    expect(new Set(ids).size).toBe(2);
-    for (const [index, layer] of [...layers].entries()) {
-      expect(layer).toHaveAttribute('aria-hidden', 'true');
-      expect(layer).toHaveClass('glass-refraction', 'glass-refraction-edge');
-      expect(layer).not.toHaveClass('glass-refraction-displacement');
-      expect(layer.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
-      expect(layer.style.getPropertyValue('--glass-refraction-filter')).toBe('');
-      expect(ids[index]).toBeTruthy();
-      expect(layer.querySelector('feTurbulence')).toBeInTheDocument();
-      expect(layer.querySelector('feDisplacementMap')).toBeInTheDocument();
-    }
-    expect(container.querySelector('[data-refraction="sheen"] svg')).toBeNull();
+    expect(layer).toHaveAttribute('data-refraction', 'sheen');
+    expect(layer).toHaveClass('glass-refraction', 'glass-refraction-edge');
+    expect(container.querySelector('filter')).toBeNull();
   });
 
   it('falls back to the unchanged sheen when reduced motion is enabled in-app', () => {
     allowFullGlassProfile();
     setInAppReducedMotionPreference(true);
-    const { container } = render(<RefractionLayer variant="displacement" />);
+    const { container } = render(
+      <RefractionLayer variant="displacement" filterId="owner-filter" />,
+    );
 
     expect(container.firstElementChild).toHaveAttribute('data-refraction', 'sheen');
     expect(container.querySelector('filter')).toBeNull();
@@ -218,7 +201,9 @@ describe('GlassSurface', () => {
   ])('falls back to sheen when %s is %s', (attribute, value) => {
     if (attribute === 'data-transparency') allowFullGlassProfile();
     document.documentElement.setAttribute(attribute, value);
-    const { container } = render(<RefractionLayer variant="displacement" />);
+    const { container } = render(
+      <RefractionLayer variant="displacement" filterId="owner-filter" />,
+    );
 
     expect(container.firstElementChild).toHaveAttribute('data-refraction', 'sheen');
     expect(container.querySelector('filter')).toBeNull();
@@ -245,7 +230,7 @@ describe('GlassSurface', () => {
     const { container } = render(
       <>
         <GlassSurface refraction="displacement" />
-        <RefractionLayer variant="displacement" />
+        <RefractionLayer variant="displacement" filterId="owner-filter" />
       </>,
     );
     const surface = container.querySelector<HTMLDivElement>('[data-glass-tier]')!;

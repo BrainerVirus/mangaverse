@@ -491,7 +491,7 @@ export function OnboardingPage({
           aria-label="Onboarding progress"
         >
           <div
-            className="h-full rounded-full bg-primary transition-[width] duration-300"
+            className="h-full rounded-full bg-primary width-transition duration-300"
             style={{ width: `${(progress.current / progress.total) * 100}%` }}
           />
         </div>

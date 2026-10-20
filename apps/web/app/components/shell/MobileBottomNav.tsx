@@ -1,4 +1,3 @@
-// oxlint-disable shadcn/no-unknown-classes -- this app-level lint does not resolve @utility declarations from @app/design-system's stylesheet.
 import { useState } from 'react';
 import { Link, useRouterState } from '@tanstack/react-router';
 import {
@@ -99,7 +98,7 @@ export function MobileBottomNav() {
       </Sheet>
 
       <GlassSurface level="thick" className="fixed bottom-0 left-0 right-0 z-50 h-14 md:hidden">
-        <nav className="h-full pb-[env(safe-area-inset-bottom)]">
+        <nav className="h-full safe-area-bottom">
           <div className="flex h-full items-center justify-around px-4">
             {primaryTabs.map(({ label, to, icon: Icon }) => {
               const isActive = currentPath === to || currentPath.startsWith(to + '/');

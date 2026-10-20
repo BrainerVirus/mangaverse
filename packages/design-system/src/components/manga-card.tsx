@@ -91,7 +91,7 @@ function CardMeta({ manga, variant }: MetaProps) {
       {manga.tags.length > 0 && !isCompact && (
         <div className="mt-2 flex flex-wrap gap-1">
           {manga.tags.slice(0, 3).map((tag) => (
-            <Badge key={tag.label} variant="outline" className="text-[10px] px-1.5 py-0">
+            <Badge key={tag.label} variant="outline" className="keycap-text px-1.5 py-0">
               {tag.label}
             </Badge>
           ))}

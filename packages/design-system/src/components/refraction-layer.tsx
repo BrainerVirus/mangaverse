@@ -6,11 +6,12 @@ import { useGlassProfileFallback } from '../hooks/use-glass-profile-fallback.js'
 export interface RefractionLayerProps extends React.HTMLAttributes<HTMLDivElement> {
   /**
    * §2.2 — layered light is the default; displacement is opt-in on hero surfaces only (§2.5).
+   * Standalone layers have no backdrop to filter and fall back to sheen.
    */
   variant?: 'sheen' | 'displacement';
   /** The §2.2 hairline: a 1px `--glass-edge` border that replaces `--border` on glass. */
   edge?: boolean;
-  /** Filter definition id supplied by GlassSurface; standalone layers create their own id. */
+  /** Filter definition id supplied by the owning GlassSurface. */
   filterId?: string;
 }
 
@@ -22,10 +23,7 @@ const DisplacementLayer = React.forwardRef<HTMLDivElement, DisplacementLayerProp
   ({ edge, filterId, className, style, ...props }, ref) => {
     const reducedMotion = useReducedMotion();
     const disabled = useGlassProfileFallback();
-    const generatedId = `glass-displacement-${React.useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
-    const id = filterId ?? generatedId;
-
-    if (reducedMotion || disabled) {
+    if (reducedMotion || disabled || filterId === undefined) {
       return (
         <div
           ref={ref}
@@ -49,7 +47,7 @@ const DisplacementLayer = React.forwardRef<HTMLDivElement, DisplacementLayerProp
       >
         <svg width="0" height="0" aria-hidden="true" focusable="false">
           <defs>
-            <filter id={id} x="-5%" y="-5%" width="110%" height="110%">
+            <filter id={filterId} x="-5%" y="-5%" width="110%" height="110%">
               <feTurbulence
                 type="fractalNoise"
                 baseFrequency="0.012"
@@ -75,7 +73,8 @@ const DisplacementLayer = React.forwardRef<HTMLDivElement, DisplacementLayerProp
 /**
  * The decorative light layer of a glass surface: sheen, 1px specular edge, inner bottom shadow
  * and the glass hairline. Always `aria-hidden` and never interactive. Its SVG filter definition is
- * sampled by the owning GlassSurface, which must apply the filter to its own backdrop.
+ * sampled by the owning GlassSurface, which must apply the filter to its own backdrop. A standalone
+ * `variant="displacement"` has no backdrop to filter and renders the sheen fallback instead.
  */
 export const RefractionLayer = React.forwardRef<HTMLDivElement, RefractionLayerProps>(
   ({ variant = 'sheen', edge = true, filterId, className, ...props }, ref) =>
