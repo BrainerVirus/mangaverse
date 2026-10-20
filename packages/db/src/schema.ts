@@ -161,7 +161,7 @@ export const libraryEntries = sqliteTable(
     addedAt: text('added_at'),
     updatedAt: text('updated_at'),
   },
-  (t) => [index('library_entries_manga_idx').on(t.mangaId)],
+  (t) => [uniqueIndex('library_entries_manga_unique_idx').on(t.mangaId)],
 );
 
 export const libraryCategoryMemberships = sqliteTable(

@@ -1,0 +1,61 @@
+import { describe, expect, it } from 'vitest';
+import { toProviderId } from '@app/shared';
+import { createSqlJsHarness } from '../testing/sqljs-harness.js';
+import { createMangaIdentityWithInitialMapping } from './identities.js';
+import { addLibraryEntry, listLibraryEntries } from './library.js';
+
+async function createManga(
+  db: Awaited<ReturnType<typeof createSqlJsHarness>>['db'],
+  providerMangaId: string,
+) {
+  const created = await createMangaIdentityWithInitialMapping(db, {
+    canonicalTitle: `Manga ${providerMangaId}`,
+    status: 'ongoing',
+    contentRating: 'safe',
+    providerId: toProviderId('prov-race'),
+    providerMangaId,
+  });
+  if (!created.ok) throw new Error(created.error.message);
+  return created.value.mangaId;
+}
+
+describe('addLibraryEntry', () => {
+  it('adds once and rejects a duplicate manga', async () => {
+    const { db } = await createSqlJsHarness();
+    const mangaId = await createManga(db, 'plain');
+
+    const first = await addLibraryEntry(db, { mangaId, status: 'reading' });
+    expect(first.ok).toBe(true);
+
+    const second = await addLibraryEntry(db, { mangaId, status: 'reading' });
+    expect(second.ok).toBe(false);
+    if (second.ok) return;
+    expect(second.error.code).toBe('db.library.duplicate');
+    expect(second.error.message).toBe('Manga is already in the library.');
+    expect(await listLibraryEntries(db)).toHaveLength(1);
+  });
+
+  it('maps a concurrent insert that lands after the pre-check', async () => {
+    const { db, raw } = await createSqlJsHarness();
+    const mangaId = await createManga(db, 'race');
+
+    // Simulates the other tab winning between the pre-check and the insert.
+    raw.run(`
+      CREATE TRIGGER library_entries_race BEFORE INSERT ON library_entries
+      WHEN NEW.id <> 'race-winner'
+      BEGIN
+        INSERT INTO library_entries
+          (id, manga_id, favorite, status, unread_count, added_at, updated_at)
+        VALUES ('race-winner', NEW.manga_id, 0, NEW.status, 0, NEW.added_at, NEW.updated_at);
+      END;
+    `);
+
+    const result = await addLibraryEntry(db, { mangaId, status: 'reading' });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('db.library.duplicate');
+    expect(result.error.message).toBe('Manga is already in the library.');
+    // The failed statement also rolls back the trigger's row.
+    expect(await listLibraryEntries(db)).toHaveLength(0);
+  });
+});

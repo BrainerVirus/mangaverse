@@ -198,17 +198,38 @@ export async function addLibraryEntry(
 
   const id = input.id ?? toLibraryEntryId(newId());
   const now = new Date().toISOString();
-  await db.insert(libraryEntries).values({
-    id,
-    mangaId: input.mangaId,
-    favorite: false,
-    status: input.status,
-    unreadCount: 0,
-    addedAt: now,
-    updatedAt: now,
-  });
+  try {
+    await db.insert(libraryEntries).values({
+      id,
+      mangaId: input.mangaId,
+      favorite: false,
+      status: input.status,
+      unreadCount: 0,
+      addedAt: now,
+      updatedAt: now,
+    });
+  } catch (error) {
+    // Another tab can win the pre-check above; the unique index rejects the
+    // losing insert here. Map it to the same error as the pre-check.
+    if (isUniqueMangaViolation(error)) {
+      return err(
+        createAppError({
+          code: 'db.library.duplicate',
+          message: 'Manga is already in the library.',
+        }),
+      );
+    }
+    throw error;
+  }
 
   return ok(id);
+}
+
+function isUniqueMangaViolation(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    error.message.includes('UNIQUE constraint failed: library_entries.manga_id')
+  );
 }
 
 export async function removeLibraryEntry(db: AppDrizzleDb, entryId: LibraryEntryId): Promise<void> {
