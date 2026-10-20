@@ -8,8 +8,12 @@ import {
   type SearchViewState,
 } from '@app/search';
 import { fetchAppSettings, settingsQueryKeys } from '@app/settings';
+import { getLocalDb } from '../lib/local-db.js';
 import { searchPageQueryOptions } from '../queries/search-query-options.js';
-import { refreshRecentSearches } from '../queries/search-recents.js';
+import {
+  refreshRecentSearches,
+  refreshRecentSearchesAfterWrite,
+} from '../queries/search-recents.js';
 import { useLocalDb, useLocalDbStatus, useLocalDbRetry } from '../providers/local-db-provider.js';
 
 export const Route = createFileRoute('/search')({
@@ -24,6 +28,7 @@ function SearchRoute() {
   const retryDb = useLocalDbRetry();
   const [viewState, setViewState] = useState(DEFAULT_SEARCH_VIEW_STATE);
   const lastRecordedQuery = useRef('');
+  const pendingSearchWrite = useRef<Promise<void> | null>(null);
 
   const appSettingsQuery = useQuery({
     queryKey: settingsQueryKeys.app(),
@@ -43,24 +48,23 @@ function SearchRoute() {
 
     const trimmed = next.query.trim();
     if (trimmed.length === 0) {
-      // Clearing the box shows recent searches; refetch them so a just-recorded
-      // query cannot be hidden by a blank-query result cached during hydration.
-      if (db !== null && dbStatus === 'ready') {
-        void refreshRecentSearches(queryClient, explicitContent);
-      }
+      // Clearing the box shows recent searches. Wait for the last history write
+      // before refreshing so the blank-query read cannot precede it.
+      const pending = pendingSearchWrite.current;
+      pendingSearchWrite.current = null;
+      void refreshRecentSearchesAfterWrite(queryClient, pending, explicitContent);
       return;
     }
-    if (db === null || dbStatus !== 'ready') {
-      return;
-    }
-    if (trimmed === lastRecordedQuery.current) {
+    if (dbStatus === 'error' || trimmed === lastRecordedQuery.current) {
       return;
     }
 
     lastRecordedQuery.current = trimmed;
-    void recordSearchQuery(db, trimmed).then(() => {
-      void refreshRecentSearches(queryClient, explicitContent);
-    });
+    // The first query can be typed before the DB finishes opening; record
+    // against the session promise so that search still reaches history.
+    const write = recordSearchQuery(db ?? getLocalDb(), trimmed).catch(() => undefined);
+    pendingSearchWrite.current = write;
+    void write.then(() => refreshRecentSearches(queryClient, explicitContent));
   };
 
   return (

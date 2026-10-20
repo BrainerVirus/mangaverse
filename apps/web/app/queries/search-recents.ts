@@ -15,3 +15,20 @@ export async function refreshRecentSearches(
   await queryClient.cancelQueries({ queryKey: key });
   await queryClient.invalidateQueries({ queryKey: key });
 }
+
+/**
+ * Refreshes recents only after a pending history write settles. Clearing while
+ * the write is in flight would otherwise let the blank query read the pre-write
+ * list and cache it as fresh.
+ */
+export async function refreshRecentSearchesAfterWrite(
+  queryClient: QueryClient,
+  write: Promise<unknown> | null,
+  explicitContent = false,
+): Promise<void> {
+  if (write !== null) {
+    // A failed history write must not block clearing the search box.
+    await write.catch(() => undefined);
+  }
+  await refreshRecentSearches(queryClient, explicitContent);
+}
