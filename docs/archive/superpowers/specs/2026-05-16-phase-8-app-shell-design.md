@@ -6,13 +6,13 @@
 
 ## Design Decisions
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Layout | Persistent sidebar (desktop) + bottom nav (mobile) | Most desktop manga reader pattern; collapses cleanly for mobile. Reader can hide all chrome. |
-| Routes | Layered: core real, rest lazy stubs | Core routes get full shell pages now. Remaining routes declared but lazy-loaded to placeholder stubs for Phase 9 to replace. |
-| Zustand stores | Multiple focused stores | `useLayoutStore`, `useCommandPaletteStore`, `useNavigationStore`. Avoids monolithic store sprawl. |
-| Command palette | Full with plugin architecture | `CommandRegistry` singleton allows Phase 9 features to register commands on mount via `register()`/`unregister()`. |
-| Desktop renderer | Integrated web app | Electron renderer imports the same router + providers. Uses `@app/platform` for capability detection. |
+| Decision         | Choice                                             | Rationale                                                                                                                    |
+| ---------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Layout           | Persistent sidebar (desktop) + bottom nav (mobile) | Most desktop manga reader pattern; collapses cleanly for mobile. Reader can hide all chrome.                                 |
+| Routes           | Layered: core real, rest lazy stubs                | Core routes get full shell pages now. Remaining routes declared but lazy-loaded to placeholder stubs for Phase 9 to replace. |
+| Zustand stores   | Multiple focused stores                            | `useLayoutStore`, `useCommandPaletteStore`, `useNavigationStore`. Avoids monolithic store sprawl.                            |
+| Command palette  | Full with plugin architecture                      | `CommandRegistry` singleton allows Phase 9 features to register commands on mount via `register()`/`unregister()`.           |
+| Desktop renderer | Integrated web app                                 | Electron renderer imports the same router + providers. Uses `@app/platform` for capability detection.                        |
 
 ## File Structure
 
@@ -72,28 +72,28 @@ TanStack Router file-based routes. All routes use `createFileRoute`.
 
 ### Core Routes (real shell pages)
 
-| Route file | Path | Description |
-|------------|------|-------------|
-| `index.tsx` | `/` | Home/dashboard page |
-| `library.tsx` | `/library` | Library grid shell |
-| `search.tsx` | `/search` | Search page shell |
-| `manga.$id.tsx` | `/manga/$id` | Manga detail shell |
+| Route file              | Path                 | Description              |
+| ----------------------- | -------------------- | ------------------------ |
+| `index.tsx`             | `/`                  | Home/dashboard page      |
+| `library.tsx`           | `/library`           | Library grid shell       |
+| `search.tsx`            | `/search`            | Search page shell        |
+| `manga.$id.tsx`         | `/manga/$id`         | Manga detail shell       |
 | `reader.$chapterId.tsx` | `/reader/$chapterId` | Reader integration shell |
-| `settings.tsx` | `/settings` | Settings index |
-| `settings.app.tsx` | `/settings/app` | App settings section |
-| `settings.reader.tsx` | `/settings/reader` | Reader settings section |
+| `settings.tsx`          | `/settings`          | Settings index           |
+| `settings.app.tsx`      | `/settings/app`      | App settings section     |
+| `settings.reader.tsx`   | `/settings/reader`   | Reader settings section  |
 
 ### Stub Routes (lazy-loaded placeholders)
 
-| Route file | Path | Description |
-|------------|------|-------------|
-| `extensions.tsx` | `/extensions` | Extension manager stub |
-| `extensions.$providerId.tsx` | `/extensions/$providerId` | Provider detail stub |
-| `backup.tsx` | `/backup` | Backup/restore stub |
-| `migration.tsx` | `/migration` | Migration tool stub |
-| `theme.tsx` | `/theme` | Theme customization stub |
-| `diagnostics.tsx` | `/diagnostics` | Diagnostics page stub |
-| `onboarding.tsx` | `/onboarding` | Onboarding flow stub |
+| Route file                   | Path                      | Description              |
+| ---------------------------- | ------------------------- | ------------------------ |
+| `extensions.tsx`             | `/extensions`             | Extension manager stub   |
+| `extensions.$providerId.tsx` | `/extensions/$providerId` | Provider detail stub     |
+| `backup.tsx`                 | `/backup`                 | Backup/restore stub      |
+| `migration.tsx`              | `/migration`              | Migration tool stub      |
+| `theme.tsx`                  | `/theme`                  | Theme customization stub |
+| `diagnostics.tsx`            | `/diagnostics`            | Diagnostics page stub    |
+| `onboarding.tsx`             | `/onboarding`             | Onboarding flow stub     |
 
 Stub routes render an `EmptyState` with title and description using `@app/design-system`. No business logic. Phase 9 replaces the component.
 
@@ -143,7 +143,7 @@ Route layouts are selected using TanStack Router's `layout` option or a wrapper 
 interface LayoutState {
   sidebarOpen: boolean;
   sidebarExpanded: boolean;
-  deviceLayout: 'desktop' | 'tablet' | 'mobile';
+  deviceLayout: "desktop" | "tablet" | "mobile";
   readerChromeVisible: boolean;
 }
 ```
@@ -197,7 +197,7 @@ interface Command {
 
 class CommandRegistry {
   private commands: Map<string, Command> = new Map();
-  
+
   register(command: Command): void;
   unregister(id: string): void;
   list(context?: string): Command[];
@@ -209,15 +209,15 @@ The `CommandPalette` component calls `registry.search(query)` to filter results.
 
 ### Built-in Commands (Phase 8)
 
-| ID | Label | Section | Handler |
-|----|-------|---------|---------|
-| `nav-library` | Go to Library | Navigation | `router.navigate({ to: '/library' })` |
-| `nav-search` | Go to Search | Navigation | `router.navigate({ to: '/search' })` |
-| `nav-settings` | Settings | Navigation | `router.navigate({ to: '/settings' })` |
-| `nav-extensions` | Extensions | Navigation | `router.navigate({ to: '/extensions' })` |
-| `toggle-sidebar` | Toggle Sidebar | App | `layoutStore.toggleSidebar()` |
-| `toggle-theme` | Toggle Theme | App | `themeStore.setTheme(theme === 'light' ? 'dark' : 'light')` |
-| `nav-diagnostics` | Diagnostics | Navigation | `router.navigate({ to: '/diagnostics' })` |
+| ID                | Label          | Section    | Handler                                                     |
+| ----------------- | -------------- | ---------- | ----------------------------------------------------------- |
+| `nav-library`     | Go to Library  | Navigation | `router.navigate({ to: '/library' })`                       |
+| `nav-search`      | Go to Search   | Navigation | `router.navigate({ to: '/search' })`                        |
+| `nav-settings`    | Settings       | Navigation | `router.navigate({ to: '/settings' })`                      |
+| `nav-extensions`  | Extensions     | Navigation | `router.navigate({ to: '/extensions' })`                    |
+| `toggle-sidebar`  | Toggle Sidebar | App        | `layoutStore.toggleSidebar()`                               |
+| `toggle-theme`    | Toggle Theme   | App        | `themeStore.setTheme(theme === 'light' ? 'dark' : 'light')` |
+| `nav-diagnostics` | Diagnostics    | Navigation | `router.navigate({ to: '/diagnostics' })`                   |
 
 ### Phase 9 Command Registration
 
@@ -227,12 +227,12 @@ Feature pages call `registry.register()` in a `useEffect` on mount and `registry
 // In library.tsx (Phase 9):
 useEffect(() => {
   registry.register({
-    id: 'library-refresh',
-    label: 'Refresh Library',
-    section: 'Library',
+    id: "library-refresh",
+    label: "Refresh Library",
+    section: "Library",
     handler: () => refreshLibrary(),
   });
-  return () => registry.unregister('library-refresh');
+  return () => registry.unregister("library-refresh");
 }, []);
 ```
 
@@ -246,14 +246,14 @@ Wraps children with TanStack Query's `QueryClientProvider`. Configures:
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30 * 1000,       // 30s default stale time
-      gcTime: 5 * 60 * 1000,      // 5min garbage collection
-      retry: 1,                    // single retry for provider calls
+      staleTime: 30 * 1000, // 30s default stale time
+      gcTime: 5 * 60 * 1000, // 5min garbage collection
+      retry: 1, // single retry for provider calls
       refetchOnWindowFocus: false, // local-first doesn't need focus refetch
-      networkMode: 'offlineFirst',
+      networkMode: "offlineFirst",
     },
     mutations: {
-      networkMode: 'offlineFirst',
+      networkMode: "offlineFirst",
     },
   },
 });
@@ -287,9 +287,7 @@ export function ShellProviders({ children }: { children: React.ReactNode }) {
     <QueryProvider>
       <PlatformProvider>
         <ThemeProvider>
-          <AppShellOrReaderLayout>
-            {children}
-          </AppShellOrReaderLayout>
+          <AppShellOrReaderLayout>{children}</AppShellOrReaderLayout>
         </ThemeProvider>
       </PlatformProvider>
     </QueryProvider>
@@ -310,9 +308,9 @@ Replace the stub with an app that:
 3. Renders `RouterProvider` inside `ShellProviders`
 
 ```tsx
-import { RouterProvider } from '@tanstack/react-router';
-import { ShellProviders } from '@app/web/app/components/ShellProviders';
-import { getRouter } from '@app/web/app/router';
+import { RouterProvider } from "@tanstack/react-router";
+import { ShellProviders } from "@app/web/app/components/ShellProviders";
+import { getRouter } from "@app/web/app/router";
 
 export function App() {
   return (
@@ -360,7 +358,7 @@ Already configured in `router.tsx` with `defaultPreload: 'intent'`. TanStack Rou
 Route loaders in core routes can prefetch from `@app/db`:
 
 ```tsx
-export const Route = createFileRoute('/library')({
+export const Route = createFileRoute("/library")({
   loader: async () => {
     const entries = await libraryRepo.getLibraryEntries();
     return { entries };
@@ -404,10 +402,12 @@ Phase 8 sets up the loader pattern. Phase 9 fills in real data loading.
 ## Dependencies to Add
 
 In `apps/web/package.json`:
+
 - `@tanstack/react-query` (TanStack Query client)
 - `zustand` (state management)
 
 In `apps/desktop/package.json`:
+
 - `@tanstack/react-query` (shared query client with web)
 - `zustand` (shared stores with web)
 
