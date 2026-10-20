@@ -97,8 +97,10 @@ export function ReaderChrome({
   return (
     <div
       ref={ref}
-      className={cn('dark fixed inset-x-0 top-0 z-50 flex flex-col opacity-0')}
-      style={{ pointerEvents: visible ? 'auto' : 'none' }}
+      className={cn(
+        'dark fixed inset-x-0 top-0 z-50 flex flex-col opacity-0',
+        visible ? 'pointer-events-auto' : 'pointer-events-none',
+      )}
       role="toolbar"
       aria-label="Reader controls"
     >
@@ -147,8 +149,7 @@ export function ReaderChrome({
                 <div
                   ref={modeHighlightRef}
                   aria-hidden
-                  className="pointer-events-none absolute top-1 bottom-1 left-0 rounded-full border border-glass-specular bg-white opacity-0"
-                  style={{ width: 0 }}
+                  className="pointer-events-none absolute top-1 bottom-1 left-0 w-0 rounded-full border border-glass-specular bg-white opacity-0"
                 />
                 {readerModes.map((m) => (
                   <button

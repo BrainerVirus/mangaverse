@@ -345,6 +345,44 @@
   line-height: 1.5;
 }
 
+@utility type-rating-compact {
+  font-size: 8px;
+}
+
+@utility theme-preview-color {
+  background-color: var(--theme-preview-color);
+}
+
+@utility theme-preview-text {
+  color: var(--theme-preview-color);
+}
+
+@utility theme-preview-border {
+  border-color: var(--theme-preview-border);
+}
+
+@utility select-anchor-size {
+  height: var(--anchor-height);
+  min-width: var(--anchor-width);
+}
+
+@utility reader-progress-preview {
+  left: var(--reader-progress-x);
+  transform: translateX(-50%);
+}
+
+@utility reader-progress-fill {
+  transform: scaleX(var(--reader-progress-scale));
+  transform-origin: left center;
+  transition: var(--reader-progress-transition);
+}
+
+@utility reader-progress-thumb {
+  left: var(--reader-progress-position);
+  transform: translate(-50%, -50%);
+  transition: var(--reader-progress-transition);
+}
+
 /* DESIGN.md §2.1 — the four glass tiers. Each tier owns its fill, its blur and saturation, its
    opaque resolution (`--glass-opaque`) and, for the stage, its own light values. The modal scrim
    utility below is the only non-tier `backdrop-filter` exception. */

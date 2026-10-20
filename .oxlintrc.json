@@ -215,21 +215,14 @@
       "rules": { "no-restricted-imports": "off" }
     },
     {
-      // The component library and the theme layer are where the primitives are
-      // authored, so their own components pass classes to their primitives by
-      // design; no-restyle targets consumers restyling components and does not
-      // apply here. The other three rules keep their remaining findings in these
-      // two packages (60 + 10 no-arbitrary-values, 29 no-inline-styles at
-      // c1b8980: Radix data-driven `min-w-[var(--radix-select-trigger-width)]`,
-      // poster `aspect-[3/4]`, theme previews painting preset palettes inline).
-      // feat/glass-foundation owns both packages and rebuilds them per DESIGN.md
-      // §2/§3 (roadmap P1/P2); this override is the documented exception for that
-      // slice's work and should be dropped when it lands.
+      // The component library and theme layer author the primitives themselves, so
+      // no-restyle (for consumers) does not apply. The plugin also misses these
+      // packages' custom radius utilities; see the exact allow-list above. The
+      // no-arbitrary-values and no-inline-styles exceptions from PR #90 were removed
+      // in issue #97 after the P1-P6 token/utility migration.
       "files": ["**/packages/design-system/**", "**/packages/theme/**"],
       "rules": {
         "shadcn/no-restyle": "off",
-        "shadcn/no-arbitrary-values": "off",
-        "shadcn/no-inline-styles": "off",
         "shadcn/no-unknown-classes": "off"
       }
     },

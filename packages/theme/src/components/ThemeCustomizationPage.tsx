@@ -46,14 +46,14 @@ function ThemePresetCard({
       aria-pressed={selected}
       aria-label={`Select ${name} theme`}
       onClick={onSelect}
-      className="group flex w-full max-w-[280px] flex-col items-start gap-2 rounded-[var(--radius-box)] border border-transparent p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-60"
+      className="group flex w-full max-w-70 flex-col items-start gap-2 rounded-box border border-transparent p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
       data-selected={selected ? 'true' : 'false'}
     >
       <div
         className={
           selected
-            ? 'rounded-[var(--radius-box)] ring-2 ring-[var(--primary)] ring-offset-2 ring-offset-[var(--background)]'
-            : 'rounded-[var(--radius-box)] group-hover:ring-1 group-hover:ring-[var(--border)]'
+            ? 'rounded-box ring-2 ring-primary ring-offset-2 ring-offset-background'
+            : 'rounded-box group-hover:ring-1 group-hover:ring-border'
         }
       >
         <ThemePreview theme={preview} />
@@ -113,7 +113,7 @@ export function ThemeCustomizationPage({
         title="Appearance"
         description="Switch between light and dark surfaces when your preset supports both modes."
       >
-        <div className="flex items-start justify-between gap-4 rounded-[var(--radius-control)] border border-[var(--border)] p-4">
+        <div className="flex items-start justify-between gap-4 rounded-control border border-border p-4">
           <div className="space-y-1">
             <Label htmlFor="theme-dark-mode">Dark mode</Label>
             <p className="type-body text-muted-foreground">

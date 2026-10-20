@@ -3,11 +3,7 @@ import { cn } from '@design-system/lib/cn.js';
 
 const Skeleton = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div
-      ref={ref}
-      className={cn('animate-pulse rounded-[var(--radius-control)] bg-muted', className)}
-      {...props}
-    />
+    <div ref={ref} className={cn('animate-pulse rounded-control bg-muted', className)} {...props} />
   ),
 );
 Skeleton.displayName = 'Skeleton';

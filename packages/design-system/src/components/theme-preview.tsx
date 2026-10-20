@@ -1,4 +1,9 @@
+import type { CSSProperties } from 'react';
 import { cn } from '../lib/cn.js';
+
+type ThemePreviewStyle = CSSProperties & {
+  [variable: `--${string}`]: string | number | undefined;
+};
 
 export interface ThemeDefinition {
   id: string;
@@ -20,68 +25,89 @@ export interface ThemePreviewProps {
 }
 
 export function ThemePreview({ theme }: ThemePreviewProps) {
+  // Preset colors are runtime data, passed through CSS variables into semantic utilities.
   return (
     <div
       className={cn(
-        'relative overflow-hidden rounded-[var(--radius-box)] border p-4 transition-all hover:shadow-md',
-        'w-full max-w-[280px]',
+        'relative overflow-hidden rounded-box border p-4 transition-all hover:shadow-md theme-preview-color theme-preview-border',
+        'w-full max-w-70',
       )}
-      style={{ backgroundColor: theme.background, borderColor: theme.border }}
+      style={
+        {
+          '--theme-preview-color': theme.background,
+          '--theme-preview-border': theme.border,
+        } as ThemePreviewStyle
+      }
     >
       <div className="mb-3 flex items-center justify-between">
-        <span className="text-sm font-semibold" style={{ color: theme.foreground }}>
+        <span
+          className="theme-preview-text text-sm font-semibold"
+          style={{ '--theme-preview-color': theme.foreground } as ThemePreviewStyle}
+        >
           {theme.name}
         </span>
       </div>
 
       <div className="mb-3 flex gap-2">
         <div
-          className="h-10 flex-1 rounded-[var(--radius-control)]"
-          style={{ backgroundColor: theme.surface }}
+          className="theme-preview-color h-10 flex-1 rounded-control"
+          style={{ '--theme-preview-color': theme.surface } as ThemePreviewStyle}
         />
         <div
-          className="h-10 flex-1 rounded-[var(--radius-control)]"
-          style={{ backgroundColor: theme.accent }}
+          className="theme-preview-color h-10 flex-1 rounded-control"
+          style={{ '--theme-preview-color': theme.accent } as ThemePreviewStyle}
         />
         <div
-          className="h-10 flex-1 rounded-[var(--radius-control)]"
-          style={{ backgroundColor: theme.primary }}
+          className="theme-preview-color h-10 flex-1 rounded-control"
+          style={{ '--theme-preview-color': theme.primary } as ThemePreviewStyle}
         />
       </div>
 
       <div className="mb-3 flex items-center gap-2">
         <div
-          className="h-12 w-8 rounded-[var(--radius-control)]"
-          style={{ backgroundColor: theme.surface }}
+          className="theme-preview-color h-12 w-8 rounded-control"
+          style={{ '--theme-preview-color': theme.surface } as ThemePreviewStyle}
         />
         <div className="flex-1">
-          <div className="mb-1 h-3 w-3/4 rounded" style={{ backgroundColor: theme.foreground }} />
           <div
-            className="h-2 w-1/2 rounded"
-            style={{ backgroundColor: theme.foreground, opacity: 0.5 }}
+            className="theme-preview-color mb-1 h-3 w-3/4 rounded"
+            style={{ '--theme-preview-color': theme.foreground } as ThemePreviewStyle}
+          />
+          <div
+            className="theme-preview-color h-2 w-1/2 rounded opacity-50"
+            style={{ '--theme-preview-color': theme.foreground } as ThemePreviewStyle}
           />
         </div>
       </div>
 
       <div
-        className="mb-3 rounded-[var(--radius-control)] p-2"
-        style={{ backgroundColor: theme.readerBackground }}
+        className="theme-preview-color mb-3 rounded-control p-2"
+        style={{ '--theme-preview-color': theme.readerBackground } as ThemePreviewStyle}
       >
         <div className="flex gap-1">
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="h-16 flex-1 rounded"
-              style={{ backgroundColor: theme.surface, opacity: 0.8 }}
+              className="theme-preview-color h-16 flex-1 rounded opacity-80"
+              style={{ '--theme-preview-color': theme.surface } as ThemePreviewStyle}
             />
           ))}
         </div>
       </div>
 
       <div className="flex gap-2">
-        <div className="h-6 flex-1 rounded-full" style={{ backgroundColor: theme.success }} />
-        <div className="h-6 flex-1 rounded-full" style={{ backgroundColor: theme.warning }} />
-        <div className="h-6 flex-1 rounded-full" style={{ backgroundColor: theme.destructive }} />
+        <div
+          className="theme-preview-color h-6 flex-1 rounded-full"
+          style={{ '--theme-preview-color': theme.success } as ThemePreviewStyle}
+        />
+        <div
+          className="theme-preview-color h-6 flex-1 rounded-full"
+          style={{ '--theme-preview-color': theme.warning } as ThemePreviewStyle}
+        />
+        <div
+          className="theme-preview-color h-6 flex-1 rounded-full"
+          style={{ '--theme-preview-color': theme.destructive } as ThemePreviewStyle}
+        />
       </div>
     </div>
   );

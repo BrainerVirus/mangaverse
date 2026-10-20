@@ -12,15 +12,15 @@ function DetailSkeleton() {
   return (
     <div className="flex flex-col gap-6 md:flex-row">
       <div className="shrink-0">
-        <Skeleton className="h-80 w-56 rounded-[var(--radius-box)]" />
+        <Skeleton className="h-80 w-56 rounded-box" />
       </div>
       <div className="flex flex-col gap-4">
         <Skeleton className="h-8 w-64 rounded" />
         <Skeleton className="h-4 w-48 rounded" />
         <Skeleton className="h-4 w-32 rounded" />
         <div className="mt-4 flex gap-2">
-          <Skeleton className="h-10 w-24 rounded-[var(--radius-btn)]" />
-          <Skeleton className="h-10 w-24 rounded-[var(--radius-btn)]" />
+          <Skeleton className="h-10 w-24 rounded-btn" />
+          <Skeleton className="h-10 w-24 rounded-btn" />
         </div>
         <Skeleton className="mt-4 h-24 w-full rounded" />
       </div>
@@ -38,7 +38,7 @@ export function LoadingState({ type, count = 1 }: LoadingStateProps) {
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {Array.from({ length: actualCount }).map((_, i) => (
             <div key={`${baseId}-${i}`} className="flex flex-col gap-2">
-              <Skeleton className="aspect-[3/4] w-full rounded-[var(--radius-box)]" />
+              <Skeleton className="aspect-3/4 w-full rounded-box" />
               <Skeleton className="h-4 w-3/4 rounded" />
               <Skeleton className="h-3 w-1/2 rounded" />
             </div>
@@ -50,9 +50,9 @@ export function LoadingState({ type, count = 1 }: LoadingStateProps) {
           {Array.from({ length: actualCount }).map((_, i) => (
             <div
               key={`${baseId}-list-${i}`}
-              className="flex gap-4 rounded-[var(--radius-box)] border border-[var(--border)] p-3"
+              className="flex gap-4 rounded-box border border-border p-3"
             >
-              <Skeleton className="h-20 w-14 shrink-0 rounded-[var(--radius-control)]" />
+              <Skeleton className="h-20 w-14 shrink-0 rounded-control" />
               <div className="flex flex-col gap-2">
                 <Skeleton className="h-5 w-48 rounded" />
                 <Skeleton className="h-4 w-32 rounded" />

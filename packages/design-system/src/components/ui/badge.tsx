@@ -11,11 +11,11 @@ const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
     <div
       ref={ref}
       className={cn(
-        'inline-flex items-center rounded-[var(--radius-badge)] border px-2.5 py-0.5 transition-colors',
+        'inline-flex items-center rounded-badge border px-2.5 py-0.5 transition-colors',
         size === 'meta' ? 'type-meta' : 'text-xs font-semibold',
         {
-          'border-[var(--border)] bg-primary text-primary-foreground': variant === 'default',
-          'border-[var(--border)]': variant === 'outline',
+          'border-border bg-primary text-primary-foreground': variant === 'default',
+          'border-border': variant === 'outline',
           'bg-secondary text-secondary-foreground': variant === 'secondary',
           'border-destructive bg-destructive text-destructive-foreground':
             variant === 'destructive',
