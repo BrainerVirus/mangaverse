@@ -204,6 +204,10 @@ test('Given the local database failed to open, When the reader retries, Then the
 
   await page.goto('/reader/dev-md-ch-c7649b69-6d7a-466c-a428-ab9b086ebe35');
   await expect(page.getByText('Could not load chapter')).toBeVisible({ timeout: 30_000 });
+  // The shell banner is the shared, persistent explanation of the DB failure.
+  await expect(page.getByText('Could not open the local library')).toBeVisible({
+    timeout: 20_000,
+  });
 
   await page.evaluate(() => {
     (window as unknown as { __blockLocalDb?: boolean }).__blockLocalDb = false;
@@ -211,6 +215,9 @@ test('Given the local database failed to open, When the reader retries, Then the
   await page.getByRole('button', { name: 'Retry' }).click();
 
   await expect(page.getByText('1 / 37')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText('Could not open the local library')).toHaveCount(0, {
+    timeout: 20_000,
+  });
   const image = page.getByTestId('reader-surface').locator('img').first();
   await expect(image).toBeVisible({ timeout: 20_000 });
 });
