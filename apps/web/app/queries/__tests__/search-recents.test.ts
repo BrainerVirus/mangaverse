@@ -24,4 +24,25 @@ describe('refreshRecentSearches', () => {
 
     expect(queryClient.getQueryData(key)).toBeUndefined();
   });
+
+  it('Given a pending non-empty search, When recents refresh, Then that search is not aborted', async () => {
+    const queryClient = new QueryClient();
+    const key = searchQueryKeys.page({ ...DEFAULT_SEARCH_VIEW_STATE, query: 'berserk' }, false);
+
+    let resolveResults!: (value: string) => void;
+    const results = new Promise<string>((resolve) => {
+      resolveResults = resolve;
+    });
+    const prefetch = queryClient.prefetchQuery({
+      queryKey: key,
+      queryFn: () => results,
+      staleTime: Number.POSITIVE_INFINITY,
+    });
+
+    await refreshRecentSearches(queryClient);
+    resolveResults('search results');
+    await prefetch;
+
+    expect(queryClient.getQueryData(key)).toBe('search results');
+  });
 });
