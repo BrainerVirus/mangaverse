@@ -46,7 +46,8 @@ describe('Dialog accessibility', () => {
     const last = screen.getByRole('button', { name: 'Last action' });
     last.focus();
     await user.tab();
-    expect(first).toHaveFocus();
+    // Base UI's tab-cycle wrap enqueues focus on the next animation frame.
+    await waitFor(() => expect(first).toHaveFocus());
 
     await user.keyboard('{Escape}');
 
