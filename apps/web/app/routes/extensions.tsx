@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, Outlet, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import type { ExtensionInstallSession } from '@app/extensions';
@@ -166,6 +166,8 @@ function ExtensionsRoute() {
           toggleEnabledMutation.mutate({ providerId, enabled });
         }}
       />
+
+      <Outlet />
 
       <InstallProviderDialog
         open={installOpen}
