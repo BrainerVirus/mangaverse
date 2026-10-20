@@ -64,3 +64,18 @@ test('Given two tabs that each commit a change, When both reload, Then both chan
   const switchAfterReload = await explicitContentSwitch(tabB);
   await expect(switchAfterReload).toHaveAttribute('aria-checked', 'true', { timeout: 20_000 });
 });
+
+test('Given a setting write, When the tab reloads immediately, Then the write is durable without a stall', async ({
+  page,
+  durableOnboarding,
+}) => {
+  await page.goto('/settings/app');
+  const setting = await explicitContentSwitch(page);
+  await setting.click();
+  await expect(setting).toHaveAttribute('aria-checked', 'true');
+
+  // No ping checkpoint: the scheduled flush must not leave durability to pagehide.
+  await page.reload({ waitUntil: 'domcontentloaded', timeout: 5_000 });
+  const afterReload = await explicitContentSwitch(page);
+  await expect(afterReload).toHaveAttribute('aria-checked', 'true', { timeout: 20_000 });
+});
