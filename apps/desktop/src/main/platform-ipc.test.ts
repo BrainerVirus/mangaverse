@@ -1,7 +1,24 @@
+import { EventEmitter } from 'node:events';
 import { describe, expect, it, vi } from 'vitest';
 import { ok } from '@app/shared';
 import { PLATFORM_IPC, detectElectronCapabilities } from '@app/platform';
 import { registerPlatformIpc, toIpcAppResult, type PlatformIpcDeps } from './platform-ipc.js';
+
+function fakeRequest(handler: (req: EventEmitter) => void) {
+  return vi.fn<(options: { url?: string }) => EventEmitter>(() => {
+    const req = new EventEmitter() as EventEmitter & {
+      end: () => void;
+      abort: () => void;
+    };
+    req.end = () => {
+      queueMicrotask(() => handler(req));
+    };
+    req.abort = () => {
+      req.emit('close');
+    };
+    return req;
+  });
+}
 
 describe('registerPlatformIpc', () => {
   function createMockIpc() {
@@ -22,7 +39,7 @@ describe('registerPlatformIpc', () => {
       dialog: {} as never,
       clipboard: { readText: () => '', writeText: () => {} } as never,
       shell: { openExternal: vi.fn<(url: string) => Promise<void>>() } as never,
-      net: { fetch: vi.fn<(url: string, init?: RequestInit) => Promise<Response>>() } as never,
+      net: { request: vi.fn<() => void>() } as never,
       readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
       writeFileUtf8: vi.fn<(path: string, content: string) => Promise<void>>(),
       getCapabilities: () => detectElectronCapabilities(),
@@ -52,7 +69,7 @@ describe('registerPlatformIpc', () => {
       dialog: {} as never,
       clipboard: { readText: () => '', writeText: () => {} } as never,
       shell: { openExternal: vi.fn<(url: string) => Promise<void>>() } as never,
-      net: { fetch: vi.fn<(url: string, init?: RequestInit) => Promise<Response>>() } as never,
+      net: { request: vi.fn<() => void>() } as never,
       readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
       writeFileUtf8: vi.fn<(path: string, content: string) => Promise<void>>(),
       getCapabilities: () => detectElectronCapabilities({ secureStorage: true }),
@@ -83,7 +100,7 @@ describe('registerPlatformIpc', () => {
       dialog: {} as never,
       clipboard: { readText: () => '', writeText: () => {} } as never,
       shell: shell as never,
-      net: { fetch: vi.fn<(url: string, init?: RequestInit) => Promise<Response>>() } as never,
+      net: { request: vi.fn<() => void>() } as never,
       readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
       writeFileUtf8: vi.fn<(path: string, content: string) => Promise<void>>(),
       getCapabilities: () => detectElectronCapabilities(),
@@ -112,7 +129,7 @@ describe('registerPlatformIpc', () => {
       dialog: {} as never,
       clipboard: { readText: () => '', writeText: () => {} } as never,
       shell: shell as never,
-      net: { fetch: vi.fn<(url: string, init?: RequestInit) => Promise<Response>>() } as never,
+      net: { request: vi.fn<() => void>() } as never,
       readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
       writeFileUtf8: vi.fn<(path: string, content: string) => Promise<void>>(),
       getCapabilities: () => detectElectronCapabilities(),
@@ -145,7 +162,7 @@ describe('registerPlatformIpc', () => {
       } as never,
       clipboard: { readText: () => '', writeText: () => {} } as never,
       shell: { openExternal: vi.fn<(url: string) => Promise<void>>() } as never,
-      net: { fetch: vi.fn<(url: string, init?: RequestInit) => Promise<Response>>() } as never,
+      net: { request: vi.fn<() => void>() } as never,
       readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
       writeFileUtf8,
       getCapabilities: () => detectElectronCapabilities(),
@@ -181,7 +198,7 @@ describe('registerPlatformIpc', () => {
       } as never,
       clipboard: { readText: () => '', writeText: () => {} } as never,
       shell: { openExternal: vi.fn<(url: string) => Promise<void>>() } as never,
-      net: { fetch: vi.fn<(url: string, init?: RequestInit) => Promise<Response>>() } as never,
+      net: { request: vi.fn<() => void>() } as never,
       readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
       writeFileUtf8,
       getCapabilities: () => detectElectronCapabilities(),
@@ -215,7 +232,7 @@ describe('registerPlatformIpc', () => {
       dialog: {} as never,
       clipboard: { readText: () => '', writeText: () => {} } as never,
       shell: { openExternal: vi.fn<(url: string) => Promise<void>>() } as never,
-      net: { fetch: vi.fn<(url: string, init?: RequestInit) => Promise<Response>>() } as never,
+      net: { request: vi.fn<() => void>() } as never,
       readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
       writeFileUtf8: vi.fn<(path: string, content: string) => Promise<void>>(),
       getCapabilities: () => detectElectronCapabilities(),
@@ -243,7 +260,7 @@ describe('registerPlatformIpc', () => {
       dialog: {} as never,
       clipboard: { readText: () => '', writeText: () => {} } as never,
       shell: { openExternal: vi.fn<(url: string) => Promise<void>>() } as never,
-      net: { fetch: vi.fn<(url: string, init?: RequestInit) => Promise<Response>>() } as never,
+      net: { request: vi.fn<() => void>() } as never,
       readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
       writeFileUtf8: vi.fn<(path: string, content: string) => Promise<void>>(),
       getCapabilities: () => detectElectronCapabilities(),
@@ -285,7 +302,7 @@ describe('registerPlatformIpc', () => {
         },
       } as never,
       shell: { openExternal: vi.fn<(url: string) => Promise<void>>() } as never,
-      net: { fetch: vi.fn<(url: string, init?: RequestInit) => Promise<Response>>() } as never,
+      net: { request: vi.fn<() => void>() } as never,
       readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
       writeFileUtf8: vi.fn<(path: string, content: string) => Promise<void>>(),
       getCapabilities: () => detectElectronCapabilities(),
@@ -332,19 +349,19 @@ describe('registerPlatformIpc', () => {
     'http://192.168.1.10/page.png',
     'file:///etc/passwd',
   ])('rejects network target %s before fetching', async (url) => {
-    const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>();
-    const handlers = register({ net: { fetch: fetchMock } as never });
+    const request = vi.fn<() => void>();
+    const handlers = register({ net: { request } as never });
     const fn = handlers.get(PLATFORM_IPC.NETWORK_FETCH_BYTES)!;
 
     const r = (await fn(null, url)) as ReturnType<typeof toIpcAppResult>;
     expect(r.ok).toBe(false);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(request).not.toHaveBeenCalled();
   });
 
   it('rejects a hostname that resolves to a private address', async () => {
-    const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>();
+    const request = vi.fn<() => void>();
     const handlers = register({
-      net: { fetch: fetchMock } as never,
+      net: { request } as never,
       resolveHostAddresses: async () => ['10.0.0.7'],
     });
     const fn = handlers.get(PLATFORM_IPC.NETWORK_FETCH_BYTES)!;
@@ -353,18 +370,22 @@ describe('registerPlatformIpc', () => {
       typeof toIpcAppResult
     >;
     expect(r.ok).toBe(false);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(request).not.toHaveBeenCalled();
   });
 
-  it('fetches a public hostname', async () => {
-    const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(
-      async () =>
-        new Response(new Uint8Array([1, 2, 3]), {
-          status: 200,
-          headers: { 'content-type': 'image/png' },
-        }),
-    );
-    const handlers = register({ net: { fetch: fetchMock } as never });
+  it('fetches a public hostname through net.request', async () => {
+    const request = fakeRequest((req) => {
+      const res = new EventEmitter() as EventEmitter & {
+        statusCode: number;
+        headers: Record<string, string>;
+      };
+      res.statusCode = 200;
+      res.headers = { 'content-type': 'image/png' };
+      req.emit('response', res);
+      res.emit('data', Buffer.from([1, 2, 3]));
+      res.emit('end');
+    });
+    const handlers = register({ net: { request } as never });
     const fn = handlers.get(PLATFORM_IPC.NETWORK_FETCH_BYTES)!;
 
     const r = (await fn(null, 'https://example.com/page.png')) as {
@@ -374,18 +395,20 @@ describe('registerPlatformIpc', () => {
     expect(r.ok).toBe(true);
     expect(r.value?.mimeType).toBe('image/png');
     expect(r.value?.data.byteLength).toBe(3);
-    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ redirect: 'manual' });
+    expect(request.mock.calls[0]?.[0]).toMatchObject({
+      redirect: 'manual',
+      method: 'GET',
+      credentials: 'omit',
+    });
   });
 
-  it('rejects a redirect to a private host', async () => {
-    const fetchMock = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(
-      async () =>
-        new Response(null, {
-          status: 302,
-          headers: { location: 'http://127.0.0.1/secret' },
-        }),
-    );
-    const handlers = register({ net: { fetch: fetchMock } as never });
+  it('rejects a redirect to a private host before requesting it', async () => {
+    const request = fakeRequest((req) => {
+      req.emit('redirect', 302, 'GET', 'http://127.0.0.1/secret', {});
+      req.emit('error', new Error('Redirect was cancelled'));
+      req.emit('close');
+    });
+    const handlers = register({ net: { request } as never });
     const fn = handlers.get(PLATFORM_IPC.NETWORK_FETCH_BYTES)!;
 
     const r = (await fn(null, 'https://example.com/page.png')) as {
@@ -394,7 +417,7 @@ describe('registerPlatformIpc', () => {
     };
     expect(r.ok).toBe(true);
     expect(r.value).toBeUndefined();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(request).toHaveBeenCalledTimes(1);
   });
 
   it('returns typed errors without leaking thrown details', async () => {

@@ -11,7 +11,6 @@ import type {
 } from 'electron';
 import {
   PLATFORM_IPC,
-  fetchMainProcessBytes,
   isBlockedIpAddress,
   isSafeNetworkFetchUrl,
   platformInvalidUrl,
@@ -25,6 +24,7 @@ import {
   type PlatformIpcChannel,
   type PlatformIpcRequest,
 } from '@app/platform';
+import { fetchMainProcessBytes } from './main-process-fetch.js';
 
 export function toIpcAppResult<T>(r: AppResult<T>): AppResult<T> {
   if (r.ok) {
@@ -245,7 +245,7 @@ export function registerPlatformIpc(deps: PlatformIpcDeps): void {
     }
     try {
       const result = await fetchMainProcessBytes(
-        deps.net.fetch.bind(deps.net),
+        (options) => deps.net.request(options),
         url,
         networkFetchAllowed,
       );
