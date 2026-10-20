@@ -1,8 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
 import type { MangaIdentity } from '@app/shared';
 import { SearchPage } from './SearchPage.js';
 import type { SearchPageData } from '../types.js';
@@ -136,6 +136,126 @@ describe('SearchPage', () => {
     );
 
     expect(screen.queryByRole('region', { name: 'Search results' })).toBeNull();
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('shows a retryable provider-unavailable state when no local results match', () => {
+    const onRetryProvider = vi.fn<() => void>();
+
+    render(
+      <SearchPage
+        data={makeData('berserk')}
+        isLoading={false}
+        isError={false}
+        isProviderError
+        onRetryProvider={onRetryProvider}
+        viewState={{ query: 'berserk' }}
+        onViewStateChange={() => {}}
+        onOpenManga={() => {}}
+      />,
+    );
+
+    expect(screen.getByText('Provider search unavailable')).toBeInTheDocument();
+    expect(screen.queryByText('No results found')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(onRetryProvider).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps local results and shows a quiet provider notice when providers fail', () => {
+    render(
+      <SearchPage
+        data={makeData('berserk', ['Local Berserk'])}
+        isLoading={false}
+        isError={false}
+        isProviderError
+        onRetryProvider={() => {}}
+        viewState={{ query: 'berserk' }}
+        onViewStateChange={() => {}}
+        onOpenManga={() => {}}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Local Berserk' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Provider search unavailable');
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.queryByText('Could not load search')).toBeNull();
+    expect(screen.queryByText('No results found')).toBeNull();
+  });
+
+  it('does not surface a provider error for a blank query', () => {
+    render(
+      <SearchPage
+        data={{
+          results: [],
+          recentSearches: [
+            { id: 'recent-1', query: 'berserk', searchedAt: '2026-10-20T00:00:00Z' },
+          ],
+          viewState: { query: '' },
+        }}
+        isLoading={false}
+        isError={false}
+        isProviderError
+        onRetryProvider={() => {}}
+        viewState={{ query: '' }}
+        onViewStateChange={() => {}}
+        onOpenManga={() => {}}
+      />,
+    );
+
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.queryByText('Provider search unavailable')).toBeNull();
+    expect(screen.getByRole('button', { name: 'berserk' })).toBeInTheDocument();
+  });
+
+  it('replaces the pending state with a provider-unavailable state, never a premature empty state', () => {
+    const { rerender } = render(
+      <SearchPage
+        data={makeData('berserk')}
+        isLoading={false}
+        isError={false}
+        isProviderPending
+        viewState={{ query: 'berserk' }}
+        onViewStateChange={() => {}}
+        onOpenManga={() => {}}
+      />,
+    );
+
+    expect(screen.queryByText('No results found')).toBeNull();
+
+    rerender(
+      <SearchPage
+        data={makeData('berserk')}
+        isLoading={false}
+        isError={false}
+        isProviderError
+        onRetryProvider={() => {}}
+        viewState={{ query: 'berserk' }}
+        onViewStateChange={() => {}}
+        onOpenManga={() => {}}
+      />,
+    );
+
+    expect(screen.queryByText('No results found')).toBeNull();
+    expect(screen.getByText('Provider search unavailable')).toBeInTheDocument();
+  });
+
+  it('keeps the local load error ahead of any provider state', () => {
+    render(
+      <SearchPage
+        data={makeData('berserk')}
+        isLoading={false}
+        isError
+        isProviderError
+        onRetryProvider={() => {}}
+        viewState={{ query: 'berserk' }}
+        onViewStateChange={() => {}}
+        onOpenManga={() => {}}
+      />,
+    );
+
+    expect(screen.getByText('Could not load search')).toBeInTheDocument();
+    expect(screen.queryByText('Provider search unavailable')).toBeNull();
     expect(screen.queryByRole('status')).toBeNull();
   });
 });

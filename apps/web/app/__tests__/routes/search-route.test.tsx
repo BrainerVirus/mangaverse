@@ -102,6 +102,10 @@ function localPage(viewState: SearchViewState): SearchPageData {
   };
 }
 
+function emptyPage(viewState: SearchViewState): SearchPageData {
+  return { results: [], recentSearches: [], viewState };
+}
+
 describe('/search route', () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -190,17 +194,84 @@ describe('/search route', () => {
     expect(providerStatus()).toBeNull();
   });
 
-  it('Given a provider failure, Then local results stay visible and the page is not an error', async () => {
+  it('Given a provider failure, Then local results stay visible with a quiet retryable notice', async () => {
     mocks.fetchProviderSearchIdentities.mockRejectedValue(new Error('provider offline'));
 
     await act(async () => setQuery('berserk'));
 
     await vi.waitFor(() => expect(buttonByText('Local berserk')).toBeDefined());
-    await vi.waitFor(() => expect(providerStatus()).toBeNull());
+    await vi.waitFor(() =>
+      expect(providerStatus()?.textContent).toContain('Provider search unavailable'),
+    );
 
     expect(buttonByText('Local berserk')).toBeDefined();
+    expect(buttonByText('Retry')).toBeDefined();
     expect(container.textContent).not.toContain('Could not load search');
     expect(container.textContent).not.toContain('No results found');
+  });
+
+  it('Given no local matches and a provider failure, Then a distinct provider-unavailable state offers Retry', async () => {
+    mocks.fetchSearchPage.mockImplementation((_db, viewState: SearchViewState) =>
+      Promise.resolve(emptyPage(viewState)),
+    );
+    mocks.fetchProviderSearchIdentities.mockRejectedValue(new Error('provider offline'));
+
+    await act(async () => setQuery('berserk'));
+
+    await vi.waitFor(() => expect(container.textContent).toContain('Provider search unavailable'));
+    expect(buttonByText('Retry')).toBeDefined();
+    expect(container.textContent).not.toContain('No results found');
+    expect(container.textContent).not.toContain('Could not load search');
+  });
+
+  it('Given no local matches and a slow provider, Then the empty state waits for the provider', async () => {
+    mocks.fetchSearchPage.mockImplementation((_db, viewState: SearchViewState) =>
+      Promise.resolve(emptyPage(viewState)),
+    );
+    let resolveProvider!: (identities: readonly MangaIdentity[]) => void;
+    mocks.fetchProviderSearchIdentities.mockImplementation(
+      () =>
+        new Promise<readonly MangaIdentity[]>((resolve) => {
+          resolveProvider = resolve;
+        }),
+    );
+
+    await act(async () => setQuery('berserk'));
+
+    await vi.waitFor(() => expect(providerStatus()?.textContent).toContain('Searching providers…'));
+    expect(container.textContent).not.toContain('No results found');
+    expect(container.textContent).not.toContain('Provider search unavailable');
+
+    await act(async () => {
+      resolveProvider([]);
+    });
+
+    await vi.waitFor(() => expect(container.textContent).toContain('No results found'));
+  });
+
+  it('Given a failed provider search with no local matches, When Retry runs, Then only the provider refetches', async () => {
+    mocks.fetchSearchPage.mockImplementation((_db, viewState: SearchViewState) =>
+      Promise.resolve(emptyPage(viewState)),
+    );
+    mocks.fetchProviderSearchIdentities
+      .mockRejectedValueOnce(new Error('provider offline'))
+      .mockResolvedValueOnce([makeIdentity('Provider Series')]);
+
+    await act(async () => setQuery('berserk'));
+
+    await vi.waitFor(() => expect(buttonByText('Retry')).toBeDefined());
+    const localReads = mocks.fetchSearchPage.mock.calls.length;
+    const recordedQueries = mocks.recordSearchQuery.mock.calls.length;
+
+    await act(async () => {
+      buttonByText('Retry')?.click();
+    });
+
+    await vi.waitFor(() => expect(buttonByText('Provider Series')).toBeDefined());
+    expect(mocks.fetchProviderSearchIdentities).toHaveBeenCalledTimes(2);
+    expect(mocks.fetchSearchPage).toHaveBeenCalledTimes(localReads);
+    expect(mocks.recordSearchQuery).toHaveBeenCalledTimes(recordedQueries);
+    expect(container.textContent).not.toContain('Provider search unavailable');
   });
 
   it('Given a blank query, Then no provider request is made', async () => {
