@@ -476,6 +476,50 @@ describe('@app/db', () => {
     expect(result.error.code).toBe('backup.restore.blocked');
   });
 
+  it('rejects a backup with authors: null before touching local data', async () => {
+    const { db: sourceDb } = await createSqlJsHarness();
+    const exportedFrom = await createMangaIdentityWithInitialMapping(sourceDb, {
+      canonicalTitle: 'Exported',
+      status: 'ongoing',
+      contentRating: 'safe',
+      providerId: 'prov-export',
+      providerMangaId: 'remote-export',
+    });
+    expect(exportedFrom.ok).toBe(true);
+    const exported = await exportBackupDocumentV1(sourceDb, {
+      createdAt: new Date().toISOString(),
+      appVersion: '0.0.0-test',
+    });
+
+    const { db } = await createSqlJsHarness();
+    const local = await createMangaIdentityWithInitialMapping(db, {
+      canonicalTitle: 'Local Keep',
+      status: 'ongoing',
+      contentRating: 'safe',
+      providerId: 'prov-local',
+      providerMangaId: 'remote-local',
+    });
+    expect(local.ok).toBe(true);
+    if (!local.ok) return;
+    await addLibraryEntry(db, { mangaId: local.value.mangaId, status: 'reading' });
+
+    const malformed = structuredClone(exported) as unknown as {
+      mangaIdentities: { authors: unknown }[];
+    };
+    malformed.mangaIdentities[0]!.authors = null;
+
+    const result = await applyBackupRestore(db, malformed);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe('backup.invalid');
+    expect(result.error.message).toContain('mangaIdentities.0.authors');
+
+    const entries = await listLibraryEntries(db);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.mangaId).toBe(local.value.mangaId);
+    expect((await getMangaIdentity(db, local.value.mangaId))?.canonicalTitle).toBe('Local Keep');
+  });
+
   it('summarizes and clears cache metadata and search history', async () => {
     const { db } = await createSqlJsHarness();
 

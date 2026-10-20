@@ -109,7 +109,7 @@ describe('backup document', () => {
     expect(res.ok).toBe(false);
   });
 
-  it('rejects incomplete manga identities', () => {
+  it('rejects incomplete manga identities with the failing field paths', () => {
     const res = validateBackupDocument({
       ...minimalValidBackup,
       mangaIdentities: [
@@ -121,17 +121,103 @@ describe('backup document', () => {
       ],
     });
     expect(res.ok).toBe(false);
-    expect(res.issues.some((issue) => issue.path === 'mangaIdentities')).toBe(true);
+    expect(res.issues.map((issue) => issue.path)).toEqual(
+      expect.arrayContaining([
+        'mangaIdentities.0.canonicalTitle',
+        'mangaIdentities.0.authors',
+        'mangaIdentities.0.status',
+      ]),
+    );
   });
 
-  it('collects multiple issues', () => {
+  it('collects issues from every failing section', () => {
     const res = validateBackupDocument({
       ...minimalValidBackup,
       readerSettings: { ...getDefaultReaderSettings(), minZoom: 0 },
       themeSettings: { presetId: '', dark: 'yes' },
     });
     expect(res.ok).toBe(false);
-    expect(res.issues.length).toBe(2);
+    expect(res.issues.some((issue) => issue.path.startsWith('readerSettings'))).toBe(true);
+    expect(res.issues.some((issue) => issue.path.startsWith('themeSettings'))).toBe(true);
+  });
+});
+
+describe('malformed nested backup data', () => {
+  it('rejects authors: null instead of crashing restore', () => {
+    const res = validateBackupDocument({
+      ...minimalValidBackup,
+      mangaIdentities: [{ ...minimalValidBackup.mangaIdentities[0], authors: null }],
+    });
+    expect(res.ok).toBe(false);
+    expect(res.issues.map((issue) => issue.path)).toContain('mangaIdentities.0.authors');
+  });
+
+  it('rejects a provider mapping without provider fields', () => {
+    const res = validateBackupDocument({
+      ...minimalValidBackup,
+      mangaIdentities: [
+        { ...minimalValidBackup.mangaIdentities[0], providerMappings: [{ id: 'pm1' }] },
+      ],
+    });
+    expect(res.ok).toBe(false);
+    expect(res.issues.map((issue) => issue.path)).toEqual(
+      expect.arrayContaining([
+        'mangaIdentities.0.providerMappings.0.providerId',
+        'mangaIdentities.0.providerMappings.0.providerMangaId',
+      ]),
+    );
+  });
+
+  it('rejects malformed library entry flags, status, count and categories', () => {
+    const res = validateBackupDocument({
+      ...minimalValidBackup,
+      library: [
+        {
+          id: 'le1',
+          mangaId: 'm1',
+          favorite: 'yes',
+          status: 'bogus',
+          unreadCount: 'many',
+          categoryIds: null,
+        },
+      ],
+    });
+    expect(res.ok).toBe(false);
+    expect(res.issues.map((issue) => issue.path)).toEqual(
+      expect.arrayContaining([
+        'library.0.favorite',
+        'library.0.status',
+        'library.0.unreadCount',
+        'library.0.categoryIds',
+      ]),
+    );
+  });
+
+  it('rejects extension warnings that are not warning records', () => {
+    const res = validateBackupDocument({
+      ...minimalValidBackup,
+      installedExtensions: [
+        {
+          ...minimalValidBackup.installedExtensions[0],
+          warnings: [{ code: 'manifest.deprecated' }],
+        },
+      ],
+    });
+    expect(res.ok).toBe(false);
+    expect(res.issues.map((issue) => issue.path)).toContain(
+      'installedExtensions.0.warnings.0.message',
+    );
+  });
+
+  it('rejects a provider snapshot without a settings object', () => {
+    const res = validateBackupDocument({
+      ...minimalValidBackup,
+      providerSettings: { providerSnapshots: [{ providerId: 'p1', settings: null }] },
+    });
+    expect(res.ok).toBe(false);
+    expect(res.issues.map((issue) => issue.path)).toContain(
+      'providerSettings.providerSnapshots.0.settings',
+    );
   });
 });
 
