@@ -151,7 +151,7 @@ describe('theme editor', () => {
     editor.cleanup();
   });
 
-  it('Given the editor, Then Guided is the default tab and Advanced renders its own panel', () => {
+  it('Given the editor, Then Guided is the default tab and Advanced renders its own panel', async () => {
     const editor = renderEditor();
 
     const tabs = [...editor.container.querySelectorAll('[role="tab"]')].map((tab) =>
@@ -164,11 +164,19 @@ describe('theme editor', () => {
     expect(editor.container.querySelector('[data-testid="theme-guided-editor"]')).not.toBeNull();
     expect(editor.container.querySelector('[data-testid="theme-advanced-editor"]')).toBeNull();
 
-    act(() => {
+    // The panel is React.lazy: the click suspends until its chunk resolves.
+    await act(async () => {
       buttonByText(editor.container, 'Advanced').click();
     });
+    await vi.waitFor(
+      () => {
+        expect(
+          editor.container.querySelector('[data-testid="theme-advanced-editor"]'),
+        ).not.toBeNull();
+      },
+      { timeout: 5_000 },
+    );
 
-    expect(editor.container.querySelector('[data-testid="theme-advanced-editor"]')).not.toBeNull();
     expect(editor.container.querySelector('[data-testid="theme-guided-editor"]')).toBeNull();
 
     editor.cleanup();
