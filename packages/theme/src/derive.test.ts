@@ -161,6 +161,34 @@ describe('theme derivation', () => {
     ).toBeGreaterThanOrEqual(4.5);
   });
 
+  it('keeps the largest background mix that still clears body-text contrast', () => {
+    const definition = customDefinition();
+    const steps = 50;
+
+    for (const appearance of ['light', 'dark'] as const) {
+      const { seeds } = definition[appearance];
+      const variables = deriveThemeVariables(definition, appearance);
+      const passing: { step: number; color: string }[] = [];
+
+      for (let step = 0; step <= steps; step += 1) {
+        const color = mixCssColors(seeds.foreground, seeds.background, step / steps);
+        if ((contrastRatio(color, seeds.accent) ?? 0) >= 4.5) {
+          passing.push({ step, color });
+        }
+      }
+
+      const largest = passing.at(-1);
+      expect(largest, `${appearance}: no mix clears 4.5`).toBeDefined();
+      // The old derivation stopped at step 0 (plain foreground); muted must be quieter.
+      expect(variables['--muted-foreground']).not.toBe(seeds.foreground);
+      expect(variables['--muted-foreground']).toBe(largest?.color);
+      expect(largest?.step).toBeGreaterThan(0);
+      expect(contrastRatio(variables['--muted-foreground'], seeds.accent)).toBeGreaterThanOrEqual(
+        4.5,
+      );
+    }
+  });
+
   it('gamut-maps glass statuses before the contrast check in both appearances', () => {
     const outOfGamut = 'oklch(0.7 0.4 150)';
 

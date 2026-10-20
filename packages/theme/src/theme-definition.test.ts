@@ -68,7 +68,7 @@ describe('ThemeDefinition schema', () => {
     expect(result.error.details?.['path']).toBe('light.seeds.background');
   });
 
-  it('rejects unknown override tokens and keeps their path', () => {
+  it('rejects unknown override tokens and keeps their exact path', () => {
     const definition = customDefinition();
     const result = validateThemeDefinition({
       ...definition,
@@ -80,7 +80,24 @@ describe('ThemeDefinition schema', () => {
 
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.issues[0]?.path).toBe('dark.overrides');
+    expect(result.issues[0]?.path).toBe('dark.overrides.--not-a-token');
+  });
+
+  it('appends the unrecognized key to the override path', () => {
+    const definition = customDefinition();
+    const result = validateThemeDefinition({
+      ...definition,
+      light: {
+        ...definition.light,
+        overrides: { '--glass-stage': '#fff' },
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.issues[0]?.path).toBe('light.overrides.--glass-stage');
+    expect(result.error.message).toContain('light.overrides.--glass-stage');
+    expect(result.error.details?.['path']).toBe('light.overrides.--glass-stage');
   });
 
   it('rejects an invalid override value with a token-level path', () => {
