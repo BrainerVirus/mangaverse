@@ -7,11 +7,17 @@ import {
   Input,
   Label,
   SettingsSection,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
 } from '@app/design-system';
 import type { ThemeDefinition, ThemeDefinitionIssue } from '@app/shared';
 
 import { buildThemeCssVariables } from '../apply-theme.js';
 import { ConfirmDeleteThemeDialog } from './ConfirmDeleteThemeDialog.js';
+import { ThemeAdvancedEditor } from './ThemeAdvancedEditor.js';
+import { ThemeGuidedEditor } from './ThemeGuidedEditor.js';
 
 type ThemeVariableStyle = CSSProperties & Record<`--${string}`, string>;
 
@@ -136,11 +142,21 @@ export function ThemeEditorPage({
           <Button variant="outline" onClick={onCancel} disabled={busy}>
             Cancel
           </Button>
-          <Button variant="outline" onClick={onDuplicate} disabled={busy}>
+          <Button
+            variant="outline"
+            onClick={onDuplicate}
+            disabled={busy}
+            aria-label={`Duplicate ${draft.name}`}
+          >
             Duplicate
           </Button>
           {isSaved ? (
-            <Button variant="destructive" onClick={() => setConfirmingDelete(true)} disabled={busy}>
+            <Button
+              variant="destructive"
+              onClick={() => setConfirmingDelete(true)}
+              disabled={busy}
+              aria-label={`Delete ${draft.name}`}
+            >
               Delete theme
             </Button>
           ) : null}
@@ -193,6 +209,19 @@ export function ThemeEditorPage({
           <ThemePreviewPane definition={draft} dark />
         </div>
       </SettingsSection>
+
+      <Tabs defaultValue="guided" className="space-y-4">
+        <TabsList aria-label="Editing mode">
+          <TabsTrigger value="guided">Guided</TabsTrigger>
+          <TabsTrigger value="advanced">Advanced</TabsTrigger>
+        </TabsList>
+        <TabsContent value="guided">
+          <ThemeGuidedEditor />
+        </TabsContent>
+        <TabsContent value="advanced">
+          <ThemeAdvancedEditor />
+        </TabsContent>
+      </Tabs>
 
       {draft.basedOn === undefined ? null : (
         <p className="type-body text-muted-foreground">Based on {draft.basedOn}.</p>

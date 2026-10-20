@@ -13,6 +13,7 @@ import {
   getDefaultThemeSettings,
   isCustomThemeId,
   resolveThemeAppearance,
+  validateThemeSettings,
 } from '@app/theme';
 import type { ThemeDefinition, ThemeSettings } from '@app/shared';
 
@@ -34,6 +35,8 @@ interface ThemeContextValue {
   isLoadingCustomThemes: boolean;
   /** The definition applied for the selected themeId; built-ins resolve from code. */
   themeDefinition: ThemeDefinition | undefined;
+  /** True when the definitions query failed, so custom themes cannot be listed. */
+  isCustomThemesError: boolean;
   /** Visible fallback message when the selected custom theme cannot be applied. */
   themeNotice: string | null;
 }
@@ -46,20 +49,44 @@ export function useTheme() {
   return ctx;
 }
 
+const THEME_ID_KEY = 'themeId';
+const THEME_DARK_KEY = 'dark';
+const THEME_APPEARANCE_KEY = 'theme';
+// Pre-#131 keys; read once so existing installs keep their choice.
+const LEGACY_THEME_ID_KEY = 'theme-preset-id';
+const LEGACY_THEME_DARK_KEY = 'theme-dark';
+
+function parseStoredSettings(themeId: string | null, dark: string | null): ThemeSettings | null {
+  if (themeId === null || (dark !== 'true' && dark !== 'false')) {
+    return null;
+  }
+  const result = validateThemeSettings({ themeId, dark: dark === 'true' });
+  return result.ok ? result.value : null;
+}
+
 function readStoredThemeSettings(): ThemeSettings | null {
   if (typeof window === 'undefined') {
     return null;
   }
 
   try {
-    const storedPreset = localStorage.getItem('theme-preset-id');
-    const storedDark = localStorage.getItem('theme-dark');
-    if (storedPreset && (storedDark === 'true' || storedDark === 'false')) {
-      return {
-        themeId: storedPreset,
-        dark: storedDark === 'true',
-      };
+    const stored = parseStoredSettings(
+      localStorage.getItem(THEME_ID_KEY),
+      localStorage.getItem(THEME_DARK_KEY),
+    );
+    if (stored !== null) {
+      return stored;
     }
+
+    const migrated = parseStoredSettings(
+      localStorage.getItem(LEGACY_THEME_ID_KEY),
+      localStorage.getItem(LEGACY_THEME_DARK_KEY),
+    );
+    if (migrated === null) {
+      return null;
+    }
+    persistThemeLocally(migrated);
+    return migrated;
   } catch {
     // Ignore storage failures in private browsing.
   }
@@ -69,9 +96,11 @@ function readStoredThemeSettings(): ThemeSettings | null {
 
 function persistThemeLocally(settings: ThemeSettings): void {
   try {
-    localStorage.setItem('theme-preset-id', settings.themeId);
-    localStorage.setItem('theme-dark', String(settings.dark));
-    localStorage.setItem('theme', resolveThemeAppearance(settings));
+    localStorage.setItem(THEME_ID_KEY, settings.themeId);
+    localStorage.setItem(THEME_DARK_KEY, String(settings.dark));
+    localStorage.setItem(THEME_APPEARANCE_KEY, resolveThemeAppearance(settings));
+    localStorage.removeItem(LEGACY_THEME_ID_KEY);
+    localStorage.removeItem(LEGACY_THEME_DARK_KEY);
   } catch {
     // Ignore storage failures.
   }
@@ -176,6 +205,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       hydrateThemeDefinitions,
       customThemes: definitions ?? [],
       isLoadingCustomThemes: definitions === undefined,
+      isCustomThemesError: definitions === null,
       themeDefinition: appliedTheme.definition,
       themeNotice,
     }),

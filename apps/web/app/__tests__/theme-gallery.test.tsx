@@ -123,13 +123,61 @@ describe('theme gallery', () => {
 
   it('Given the selected custom theme is missing, Then the provider notice is visible', () => {
     const gallery = renderGallery({
-      notice: 'The selected custom theme could not be found. Showing the default theme.',
+      themeNotice: 'The selected custom theme could not be found. Showing the default theme.',
       customThemes: [],
     });
 
     expect(gallery.container.textContent).toContain('Theme unavailable');
     expect(gallery.container.textContent).toContain('could not be found');
     expect(gallery.container.textContent).toContain('No custom themes yet');
+
+    gallery.cleanup();
+  });
+
+  it('Given an action error, Then it gets its own title instead of the missing-theme notice', () => {
+    const gallery = renderGallery({ actionError: 'The local database is unavailable.' });
+
+    expect(gallery.container.textContent).toContain('Could not update themes');
+    expect(gallery.container.textContent).toContain('The local database is unavailable.');
+    expect(gallery.container.textContent).not.toContain('Theme unavailable');
+
+    gallery.cleanup();
+  });
+
+  it('Given a failed definitions query, Then Your themes shows an error with retry instead of the empty state', () => {
+    const onRetryCustomThemes = vi.fn<() => void>();
+    const gallery = renderGallery({
+      customThemes: [],
+      areCustomThemesError: true,
+      onRetryCustomThemes,
+    });
+
+    expect(gallery.container.textContent).toContain('Could not load your themes');
+    expect(gallery.container.textContent).not.toContain('No custom themes yet');
+
+    act(() => {
+      buttonByText(gallery.container, 'Retry').click();
+    });
+    expect(onRetryCustomThemes).toHaveBeenCalledTimes(1);
+
+    gallery.cleanup();
+  });
+
+  it('Then every card action names the theme it changes', () => {
+    const gallery = renderGallery();
+
+    expect(
+      gallery.container.querySelector('button[aria-label="Duplicate Sakura theme"]'),
+    ).not.toBeNull();
+    expect(
+      gallery.container.querySelector('button[aria-label="Duplicate Minimal theme"]'),
+    ).not.toBeNull();
+    expect(
+      gallery.container.querySelector('button[aria-label="Edit My Sakura theme"]'),
+    ).not.toBeNull();
+    expect(
+      gallery.container.querySelector('button[aria-label="Delete My Sakura theme"]'),
+    ).not.toBeNull();
 
     gallery.cleanup();
   });

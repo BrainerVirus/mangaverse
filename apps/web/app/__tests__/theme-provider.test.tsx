@@ -186,3 +186,87 @@ describe('ThemeProvider custom definitions', () => {
     expect(document.documentElement.classList.contains('dark')).toBe(true);
   });
 });
+
+describe('ThemeProvider stored settings', () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    localStorage.clear();
+    mocks.fetchThemeDefinitions.mockReset().mockResolvedValue([]);
+    // Keep the settings query pending so the stored value is what lands.
+    mocks.fetchThemeSettings.mockReset().mockReturnValue(new Promise(() => {}));
+    document.documentElement.removeAttribute('style');
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(() => {
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+    document.documentElement.removeAttribute('style');
+    localStorage.clear();
+  });
+
+  function renderStoredProvider() {
+    act(() => {
+      root.render(
+        <QueryClientProvider client={createTestQueryClient()}>
+          <ThemeProvider>
+            <ThemeSettingsBridge />
+          </ThemeProvider>
+        </QueryClientProvider>,
+      );
+    });
+  }
+
+  it('Given legacy keys, Then they migrate to themeId/dark and still apply after a reload', async () => {
+    localStorage.setItem('theme-preset-id', 'sakura');
+    localStorage.setItem('theme-dark', 'true');
+
+    renderStoredProvider();
+
+    const expected = buildThemeCssVariables({ themeId: 'sakura', dark: true });
+    await vi.waitFor(() => {
+      expect(document.documentElement.style.getPropertyValue('--background')).toBe(
+        expected['--background'],
+      );
+      expect(localStorage.getItem('themeId')).toBe('sakura');
+    });
+    expect(localStorage.getItem('dark')).toBe('true');
+    expect(localStorage.getItem('theme-preset-id')).toBeNull();
+    expect(localStorage.getItem('theme-dark')).toBeNull();
+
+    act(() => {
+      root.unmount();
+    });
+    document.documentElement.removeAttribute('style');
+    root = createRoot(container);
+    renderStoredProvider();
+
+    await vi.waitFor(() => {
+      expect(document.documentElement.style.getPropertyValue('--background')).toBe(
+        expected['--background'],
+      );
+    });
+  });
+
+  it('Given an unknown stored id, Then the default settings apply and storage is normalised', async () => {
+    localStorage.setItem('theme-preset-id', 'not-a-theme');
+    localStorage.setItem('theme-dark', 'true');
+
+    renderStoredProvider();
+
+    const fallback = buildThemeCssVariables({ themeId: 'default', dark: false });
+    await vi.waitFor(() => {
+      expect(document.documentElement.style.getPropertyValue('--background')).toBe(
+        fallback['--background'],
+      );
+      expect(localStorage.getItem('themeId')).toBe('default');
+    });
+    expect(localStorage.getItem('dark')).toBe('false');
+  });
+});
