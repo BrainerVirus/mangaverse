@@ -13,16 +13,17 @@ import {
   Slider,
   Switch,
 } from '@app/design-system';
-import type {
-  FitMode,
-  NavigationDirection,
-  PageLayoutMode,
-  PageTransitionMode,
-  ReaderChromeVisibility,
-  ReaderSettings,
-  ReadingMode,
-  TapZoneLayout,
-  WheelBehavior,
+import {
+  PREFETCH_BUDGET_MAX_BYTES,
+  type FitMode,
+  type NavigationDirection,
+  type PageLayoutMode,
+  type PageTransitionMode,
+  type ReaderChromeVisibility,
+  type ReaderSettings,
+  type ReadingMode,
+  type TapZoneLayout,
+  type WheelBehavior,
 } from '@app/shared';
 
 export interface ReaderSettingsPageProps {
@@ -81,6 +82,9 @@ const WHEEL_BEHAVIOR_OPTIONS: readonly { value: WheelBehavior; label: string }[]
   { value: 'zoom', label: 'Zoom' },
   { value: 'none', label: 'Disabled' },
 ];
+
+const PREFETCH_BUDGET_MEGABYTE = 1024 * 1024;
+const PREFETCH_BUDGET_STEP_MB = 50;
 
 function SettingToggleRow({
   id,
@@ -360,6 +364,55 @@ export function ReaderSettingsPage({
             formatValue={(value) => `${Math.round(value * 100)}%`}
             onChange={(brightness) => update({ brightness })}
           />
+          <SettingSliderRow
+            id="vertical-gap"
+            label="Vertical gap"
+            description="Space between strips in vertical reading mode (pixels)."
+            value={settings.verticalGapPx}
+            min={0}
+            max={64}
+            step={1}
+            disabled={isSaving}
+            formatValue={(value) => `${value}px`}
+            onChange={(verticalGapPx) => update({ verticalGapPx })}
+          />
+        </div>
+      </SettingsSection>
+
+      <SettingsSection title="Behavior" description="Device and per-title preferences.">
+        <div className="grid gap-4">
+          <SettingToggleRow
+            id="keep-screen-on"
+            label="Keep screen on"
+            description="Prevent the display from sleeping while reading."
+            checked={settings.keepScreenOn}
+            disabled={isSaving}
+            onCheckedChange={(keepScreenOn) => update({ keepScreenOn })}
+          />
+          <SettingToggleRow
+            id="fullscreen-on-open"
+            label="Fullscreen on open"
+            description="Enter fullscreen when opening the reader."
+            checked={settings.fullscreenOnOpen}
+            disabled={isSaving}
+            onCheckedChange={(fullscreenOnOpen) => update({ fullscreenOnOpen })}
+          />
+          <SettingToggleRow
+            id="image-smoothing"
+            label="Image smoothing"
+            description="Apply browser filtering when scaling page images."
+            checked={settings.imageSmoothing}
+            disabled={isSaving}
+            onCheckedChange={(imageSmoothing) => update({ imageSmoothing })}
+          />
+          <SettingToggleRow
+            id="remember-per-title"
+            label="Remember per-title overrides"
+            description="Save reading mode changes per manga when enabled."
+            checked={settings.rememberPerTitleOverrides}
+            disabled={isSaving}
+            onCheckedChange={(rememberPerTitleOverrides) => update({ rememberPerTitleOverrides })}
+          />
         </div>
       </SettingsSection>
 
@@ -377,17 +430,28 @@ export function ReaderSettingsPage({
             onChange={(preloadAhead) => update({ preloadAhead })}
           />
           <SettingSliderRow
-            id="vertical-gap"
-            label="Vertical gap"
-            description="Space between strips in vertical reading mode (pixels)."
-            value={settings.verticalGapPx}
+            id="prefetch-budget"
+            label="Prefetch budget"
+            description="Stop prefetching after this much newly downloaded data; cached pages are free. Set to 0 for unlimited."
+            value={Math.round(settings.prefetchBudgetBytes / PREFETCH_BUDGET_MEGABYTE)}
             min={0}
-            max={64}
-            step={1}
+            max={PREFETCH_BUDGET_MAX_BYTES / PREFETCH_BUDGET_MEGABYTE}
+            step={PREFETCH_BUDGET_STEP_MB}
             disabled={isSaving}
-            formatValue={(value) => `${value}px`}
-            onChange={(verticalGapPx) => update({ verticalGapPx })}
+            formatValue={(megabytes) => (megabytes === 0 ? 'Unlimited' : `${megabytes} MB`)}
+            onChange={(megabytes) =>
+              update({ prefetchBudgetBytes: megabytes * PREFETCH_BUDGET_MEGABYTE })
+            }
           />
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Advanced"
+        description="Less common rendering and diagnostic options."
+        collapsed
+      >
+        <div className="grid gap-4">
           <SettingToggleRow
             id="low-memory-mode"
             label="Low-memory mode"
@@ -404,42 +468,23 @@ export function ReaderSettingsPage({
             disabled={isSaving}
             onCheckedChange={(longStripOptimization) => update({ longStripOptimization })}
           />
+          <SettingToggleRow
+            id="tap-zone-debug-overlay"
+            label="Tap zone debug overlay"
+            description="Show the active tap zones on top of the page."
+            checked={settings.tapZoneDebugOverlay}
+            disabled={isSaving}
+            onCheckedChange={(tapZoneDebugOverlay) => update({ tapZoneDebugOverlay })}
+          />
+          <SettingToggleRow
+            id="diagnostics-enabled"
+            label="Diagnostics"
+            description="Collect reader diagnostics while reading."
+            checked={settings.diagnosticsEnabled}
+            disabled={isSaving}
+            onCheckedChange={(diagnosticsEnabled) => update({ diagnosticsEnabled })}
+          />
         </div>
-      </SettingsSection>
-
-      <SettingsSection title="Behavior" description="Device and per-title preferences.">
-        <SettingToggleRow
-          id="keep-screen-on"
-          label="Keep screen on"
-          description="Prevent the display from sleeping while reading."
-          checked={settings.keepScreenOn}
-          disabled={isSaving}
-          onCheckedChange={(keepScreenOn) => update({ keepScreenOn })}
-        />
-        <SettingToggleRow
-          id="fullscreen-on-open"
-          label="Fullscreen on open"
-          description="Enter fullscreen when opening the reader."
-          checked={settings.fullscreenOnOpen}
-          disabled={isSaving}
-          onCheckedChange={(fullscreenOnOpen) => update({ fullscreenOnOpen })}
-        />
-        <SettingToggleRow
-          id="image-smoothing"
-          label="Image smoothing"
-          description="Apply browser filtering when scaling page images."
-          checked={settings.imageSmoothing}
-          disabled={isSaving}
-          onCheckedChange={(imageSmoothing) => update({ imageSmoothing })}
-        />
-        <SettingToggleRow
-          id="remember-per-title"
-          label="Remember per-title overrides"
-          description="Save reading mode changes per manga when enabled."
-          checked={settings.rememberPerTitleOverrides}
-          disabled={isSaving}
-          onCheckedChange={(rememberPerTitleOverrides) => update({ rememberPerTitleOverrides })}
-        />
       </SettingsSection>
     </section>
   );

@@ -32,6 +32,7 @@ export function useChapterPrefetch(
       chapterId: data.chapterId,
       pages,
       retention: 'read',
+      budgetBytes: data.settings.prefetchBudgetBytes,
     }).then(() =>
       markChapterPagesAsRead(cacheContext.db, {
         providerId: data.providerId,

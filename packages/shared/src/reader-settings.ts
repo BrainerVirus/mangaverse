@@ -34,6 +34,11 @@ export interface ReaderSettings {
   readonly chromeVisibility: ReaderChromeVisibility;
   /** Number of upcoming pages to speculatively preload. */
   readonly preloadAhead: number;
+  /**
+   * Maximum bytes of newly downloaded pages to prefetch per chapter.
+   * 0 means unlimited; otherwise the allowed range is 1 byte–2 GiB.
+   */
+  readonly prefetchBudgetBytes: number;
   /** Vertical gap between strips in vertical mode (px). */
   readonly verticalGapPx: number;
   readonly minZoom: number;
@@ -62,6 +67,12 @@ export interface ReaderSettings {
 
 export type ReaderSettingsOverride = Partial<ReaderSettings>;
 
+/** Default chapter prefetch budget: 250 MB. */
+export const PREFETCH_BUDGET_DEFAULT_BYTES = 250 * 1024 * 1024;
+
+/** Upper bound for a finite prefetch budget: 2 GiB. */
+export const PREFETCH_BUDGET_MAX_BYTES = 2 * 1024 * 1024 * 1024;
+
 export function getDefaultReaderSettings(): ReaderSettings {
   return {
     readingMode: 'ltr',
@@ -73,6 +84,7 @@ export function getDefaultReaderSettings(): ReaderSettings {
     pageTransition: 'fade',
     chromeVisibility: 'auto',
     preloadAhead: 2,
+    prefetchBudgetBytes: PREFETCH_BUDGET_DEFAULT_BYTES,
     verticalGapPx: 8,
     minZoom: 1,
     maxZoom: 3,
@@ -203,6 +215,22 @@ export function validateReaderSettings(input: unknown): AppResult<ReaderSettings
       createAppError({
         code: 'reader.settings.invalid',
         message: 'preloadAhead must be between 0 and 20.',
+      }),
+    );
+  }
+
+  // Settings stored before the budget existed default it instead of failing.
+  const prefetchBudgetBytes = s['prefetchBudgetBytes'] ?? PREFETCH_BUDGET_DEFAULT_BYTES;
+  if (
+    typeof prefetchBudgetBytes !== 'number' ||
+    !Number.isInteger(prefetchBudgetBytes) ||
+    prefetchBudgetBytes < 0 ||
+    prefetchBudgetBytes > PREFETCH_BUDGET_MAX_BYTES
+  ) {
+    return err(
+      createAppError({
+        code: 'reader.settings.invalid',
+        message: `prefetchBudgetBytes must be 0 (unlimited) or between 1 and ${PREFETCH_BUDGET_MAX_BYTES}.`,
       }),
     );
   }
@@ -393,6 +421,7 @@ export function validateReaderSettings(input: unknown): AppResult<ReaderSettings
     pageTransition: pageTransition as PageTransitionMode,
     chromeVisibility: chromeVisibility as ReaderChromeVisibility,
     preloadAhead,
+    prefetchBudgetBytes,
     verticalGapPx,
     minZoom,
     maxZoom,

@@ -29,9 +29,14 @@ export interface PageCacheLookupInput {
 export interface PageCacheStoreResult {
   readonly objectUrl: string;
   readonly fromCache: boolean;
+  /** Size of the stored page blob in bytes. */
+  readonly byteSize: number;
 }
 
-const inFlightPageFetches = new Map<string, Promise<string | undefined>>();
+const inFlightPageFetches = new Map<
+  string,
+  Promise<{ readonly objectUrl: string; readonly byteSize: number } | undefined>
+>();
 
 async function createObjectUrlFromBlob(
   adapter: PlatformAdapter,
@@ -81,7 +86,7 @@ export async function getCachedPageObjectUrl(
   }
 
   await touchCacheEntry(input.db, entry.id);
-  return { objectUrl, fromCache: true };
+  return { objectUrl, fromCache: true, byteSize: blobResult.value.data.byteLength };
 }
 
 export async function storePageInCache(
@@ -123,7 +128,7 @@ export async function storePageInCache(
     return undefined;
   }
 
-  return { objectUrl, fromCache: false };
+  return { objectUrl, fromCache: false, byteSize: input.data.byteLength };
 }
 
 export async function resolvePageObjectUrl(
@@ -142,8 +147,10 @@ export async function resolvePageObjectUrl(
   );
   const existingFetch = inFlightPageFetches.get(fetchKey);
   if (existingFetch !== undefined) {
-    const objectUrl = await existingFetch;
-    return objectUrl !== undefined ? { objectUrl, fromCache: false } : undefined;
+    const result = await existingFetch;
+    return result !== undefined
+      ? { objectUrl: result.objectUrl, fromCache: false, byteSize: result.byteSize }
+      : undefined;
   }
 
   const fetchPromise = (async () => {
@@ -152,13 +159,17 @@ export async function resolvePageObjectUrl(
       return undefined;
     }
     const stored = await storePageInCache({ ...input, ...remote });
-    return stored?.objectUrl;
+    return stored !== undefined
+      ? { objectUrl: stored.objectUrl, byteSize: stored.byteSize }
+      : undefined;
   })();
 
   inFlightPageFetches.set(fetchKey, fetchPromise);
   try {
-    const objectUrl = await fetchPromise;
-    return objectUrl !== undefined ? { objectUrl, fromCache: false } : undefined;
+    const result = await fetchPromise;
+    return result !== undefined
+      ? { objectUrl: result.objectUrl, fromCache: false, byteSize: result.byteSize }
+      : undefined;
   } finally {
     inFlightPageFetches.delete(fetchKey);
   }
@@ -210,19 +221,63 @@ export async function markChapterPagesAsRead(
  */
 const PREFETCH_CONCURRENCY = 4;
 
-export async function prefetchChapterPages(
-  input: Omit<PageCacheLookupInput, 'pageIndex' | 'remoteUrl'> & {
-    readonly pages: readonly { readonly pageIndex: number; readonly remoteUrl: string }[];
-    readonly retention?: typeof CACHE_RETENTION_READ | 'normal';
-  },
-): Promise<void> {
+export interface PrefetchPage {
+  readonly pageIndex: number;
+  readonly remoteUrl: string;
+}
+
+export interface PrefetchQueueOutcome {
+  /** Bytes downloaded by this run; cache hits are free. */
+  readonly downloadedBytes: number;
+}
+
+/**
+ * Runs `resolvePage` over `pages` with `PREFETCH_CONCURRENCY` workers. Cached
+ * pages cost nothing; once the freshly downloaded bytes reach `budgetBytes`
+ * no further pages are issued. `budgetBytes` 0 means unlimited. Fetches
+ * already in flight when the budget is reached are not cancelled.
+ */
+export async function runPrefetchQueue(input: {
+  readonly pages: readonly PrefetchPage[];
+  readonly budgetBytes: number;
+  readonly resolvePage: (
+    page: PrefetchPage,
+  ) => Promise<{ readonly fromCache: boolean; readonly byteSize: number } | undefined>;
+}): Promise<PrefetchQueueOutcome> {
   const queue = [...input.pages];
+  let downloadedBytes = 0;
+  const budgetReached = (): boolean =>
+    input.budgetBytes > 0 && downloadedBytes >= input.budgetBytes;
+
   const worker = async (): Promise<void> => {
     for (let page = queue.shift(); page !== undefined; page = queue.shift()) {
-      // Sequential on purpose: this loop is the concurrency bound.
+      if (budgetReached()) return;
       // oxlint-disable-next-line eslint/no-await-in-loop
       // react-doctor-disable-next-line react-doctor/async-await-in-loop -- the 4-at-a-time bound from #71 (ruling mvd745t3): this worker pool IS the prefetch limiter
-      await resolvePageObjectUrl({
+      const result = await input.resolvePage(page);
+      if (result !== undefined && !result.fromCache) {
+        downloadedBytes += result.byteSize;
+      }
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(PREFETCH_CONCURRENCY, queue.length) }, worker));
+  return { downloadedBytes };
+}
+
+export async function prefetchChapterPages(
+  input: Omit<PageCacheLookupInput, 'pageIndex' | 'remoteUrl'> & {
+    readonly pages: readonly PrefetchPage[];
+    readonly retention?: typeof CACHE_RETENTION_READ | 'normal';
+    /** Maximum newly downloaded bytes; 0 or omitted means unlimited. */
+    readonly budgetBytes?: number;
+  },
+): Promise<void> {
+  await runPrefetchQueue({
+    pages: input.pages,
+    budgetBytes: input.budgetBytes ?? 0,
+    resolvePage: (page) =>
+      resolvePageObjectUrl({
         db: input.db,
         adapter: input.adapter,
         providerId: input.providerId,
@@ -231,11 +286,8 @@ export async function prefetchChapterPages(
         pageIndex: page.pageIndex,
         remoteUrl: page.remoteUrl,
         ...(input.retention !== undefined ? { retention: input.retention } : {}),
-      });
-    }
-  };
-
-  await Promise.all(Array.from({ length: Math.min(PREFETCH_CONCURRENCY, queue.length) }, worker));
+      }),
+  });
 }
 
 /** Page indexes of a chapter that have a cache entry, ascending. */
