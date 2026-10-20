@@ -168,6 +168,28 @@ describe('glass tokens', () => {
     expect(css).toContain('--color-warning-glass: var(--warning-glass)');
   });
 
+  it('bundles the §4 faces from the fontsource packages, keeping the stacks and their fallbacks', () => {
+    expect(css).toContain('@import "@fontsource-variable/inter"');
+    expect(css).toContain('@import "@fontsource-variable/jetbrains-mono"');
+    // Each stack name is backed by an @font-face that points at the fontsource woff2 file.
+    for (const [family, file] of [
+      ['Inter', 'inter-latin-wght-normal.woff2'],
+      ['JetBrains Mono', 'jetbrains-mono-latin-wght-normal.woff2'],
+    ]) {
+      const start = css.indexOf(`font-family: "${family}";`);
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(css.slice(start, css.indexOf('}', start))).toContain(file);
+    }
+    const theme = block('@theme inline {');
+    expect(token(theme, '--font-family-sans')).toBe(
+      '"Inter", ui-sans-serif, system-ui, sans-serif',
+    );
+    expect(token(theme, '--font-family-display')).toBe(
+      '"Inter", ui-sans-serif, system-ui, sans-serif',
+    );
+    expect(token(theme, '--font-family-mono')).toBe('"JetBrains Mono", ui-monospace, monospace');
+  });
+
   it('defines the ten P3 type roles as utilities, with 11px glass micro labels', () => {
     for (const role of [
       'type-display-xl',
