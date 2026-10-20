@@ -1,4 +1,5 @@
 import { fork, type ChildProcess } from 'node:child_process';
+import { lookup } from 'node:dns/promises';
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -186,6 +187,8 @@ void app.whenReady().then(async () => {
       secureStorage: secureModel,
       getLocalServiceInfo: () => desktopLocalService.getInfo(),
       buildDiagnosticsSnapshot,
+      resolveHostAddresses: async (hostname) =>
+        (await lookup(hostname, { all: true, verbatim: true })).map((entry) => entry.address),
     });
 
     await bootstrap();
