@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, Outlet, useLocation, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import type { ExtensionInstallSession } from '@app/extensions';
@@ -30,6 +30,9 @@ export const Route = createFileRoute('/extensions')({
 function ExtensionsRoute() {
   const navigate = useNavigate({ from: '/extensions' });
   const search = Route.useSearch();
+  const isExtensionsIndex = useLocation({
+    select: (location) => location.pathname === '/extensions',
+  });
   const queryClient = useQueryClient();
   const db = useLocalDb();
   const dbStatus = useLocalDbStatus();
@@ -151,23 +154,25 @@ function ExtensionsRoute() {
 
   return (
     <>
-      <ExtensionsPage
-        data={data}
-        isLoading={dbStatus === 'loading' || isLoading}
-        isError={dbStatus === 'error' || isError}
-        pendingProviderId={pendingProviderId}
-        onOpenProvider={(providerId) =>
-          void navigate({ to: '/extensions/$providerId', params: { providerId } })
-        }
-        onInstallProvider={() => {
-          void navigate({ search: { install: true } });
-        }}
-        onToggleEnabled={(providerId, enabled) => {
-          toggleEnabledMutation.mutate({ providerId, enabled });
-        }}
-      />
-
-      <Outlet />
+      {isExtensionsIndex ? (
+        <ExtensionsPage
+          data={data}
+          isLoading={dbStatus === 'loading' || isLoading}
+          isError={dbStatus === 'error' || isError}
+          pendingProviderId={pendingProviderId}
+          onOpenProvider={(providerId) =>
+            void navigate({ to: '/extensions/$providerId', params: { providerId } })
+          }
+          onInstallProvider={() => {
+            void navigate({ search: { install: true } });
+          }}
+          onToggleEnabled={(providerId, enabled) => {
+            toggleEnabledMutation.mutate({ providerId, enabled });
+          }}
+        />
+      ) : (
+        <Outlet />
+      )}
 
       <InstallProviderDialog
         open={installOpen}
