@@ -804,8 +804,8 @@ and `chromeShow`/`chromeHide` from `@app/motion`. The material is what changes:
   stage-glass `GlassSurface` (#102) and the rail keeps `focus-visible:ring-2 ring-white/70`.
 - Reader modals (settings sheet, chapter transition card) are the only places `level="thick"` /
   displacement refraction may appear inside the reader.
-- The offline toast (`rounded-full bg-black/80 px-3 py-1 text-xs text-white`) becomes
-  `GlassSurface level="stage" tone="reader"` — same geometry, better material.
+- The offline note uses `GlassSurface level="stage" tone="reader"` (#102) — same geometry as the old
+  black pill, better material.
 
 ### 7.7 Sidebar / shell
 
