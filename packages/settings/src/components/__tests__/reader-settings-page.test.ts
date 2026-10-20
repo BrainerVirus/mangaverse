@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
-import { SettingsSection } from '@app/design-system';
+import { SettingsSection, Slider } from '@app/design-system';
 import { getReaderSettings, upsertReaderSettings } from '@app/db';
 import { createSqlJsHarness } from '@app/db/testing';
 import {
@@ -149,7 +149,7 @@ describe('ReaderSettingsPage', () => {
     expect(await getReaderSettings(db)).toEqual(settings);
   });
 
-  it('Given the budget slider, Then it shows megabytes and saves bytes', () => {
+  it('Given the budget slider, Then it shows MiB, reaches the cap and saves bytes', () => {
     const onChange = vi.fn<(next: ReaderSettings) => void>();
     const page = ReaderSettingsPage({
       settings: getDefaultReaderSettings(),
@@ -163,12 +163,38 @@ describe('ReaderSettingsPage', () => {
     if (slider === undefined) throw new Error('prefetch budget slider is missing');
     const sliderProps = slider.props as {
       value?: unknown;
+      min?: unknown;
       max?: unknown;
+      step?: unknown;
       onChange?: (value: number) => void;
     };
 
+    function renderedSliderValueText(element: ReactElement): unknown {
+      const rendered = (element.type as (props: unknown) => ReactElement)(element.props);
+      const inner = collectElements(rendered).find((child) => child.type === Slider);
+      if (inner === undefined) throw new Error('slider input is missing');
+      return (inner.props as { 'aria-valuetext'?: unknown })['aria-valuetext'];
+    }
+
     expect(sliderProps.value).toBe(250);
     expect(sliderProps.max).toBe(2048);
+    // The last step must land exactly on the 2 GiB cap.
+    expect(
+      ((sliderProps.max as number) - (sliderProps.min as number)) % (sliderProps.step as number),
+    ).toBe(0);
+    expect(renderedSliderValueText(slider)).toBe('250 MiB');
+
+    const unlimited = collectElements(
+      ReaderSettingsPage({
+        settings: { ...getDefaultReaderSettings(), prefetchBudgetBytes: 0 },
+        isLoading: false,
+        isError: false,
+        onChange,
+      }),
+    ).find((element) => (element.props as { id?: unknown }).id === 'prefetch-budget');
+    if (unlimited === undefined) throw new Error('prefetch budget slider is missing');
+    expect(renderedSliderValueText(unlimited)).toBe('Unlimited');
+
     sliderProps.onChange?.(100);
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ prefetchBudgetBytes: 100 * 1024 * 1024 }),

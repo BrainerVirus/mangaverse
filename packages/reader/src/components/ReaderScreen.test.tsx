@@ -69,6 +69,8 @@ if (typeof window.matchMedia !== 'function') {
   });
 }
 
+import { prefetchChapterPages } from '@app/cache';
+
 import { ReaderScreen } from './ReaderScreen.js';
 import { toReaderEngineSettings } from '../to-reader-engine-settings.js';
 import type { ReaderPageData } from '../reader-page-data.js';
@@ -97,7 +99,10 @@ function buildData(): ReaderPageData {
   };
 }
 
-function mount(onPersist: (event: { pageIndex: number }) => void): {
+function mount(
+  onPersist: (event: { pageIndex: number }) => void,
+  data: ReaderPageData = buildData(),
+): {
   root: Root;
   container: HTMLElement;
 } {
@@ -107,7 +112,7 @@ function mount(onPersist: (event: { pageIndex: number }) => void): {
   act(() => {
     root.render(
       <ReaderScreen
-        data={buildData()}
+        data={data}
         isLoading={false}
         isError={false}
         chromeVisible={true}
@@ -251,5 +256,28 @@ describe('ReaderScreen progress checkpoint', () => {
 
     expect(onPersist).toHaveBeenCalledTimes(1);
     expect(onPersist.mock.calls[0]?.[0]).toMatchObject({ pageIndex: 1 });
+  });
+});
+
+describe('ReaderScreen prefetch wiring', () => {
+  it('Given reader settings, When the chapter mounts, Then the budget reaches the prefetch call', () => {
+    cacheState.context = { db: {}, adapter: {} };
+    vi.mocked(prefetchChapterPages).mockClear();
+    const budgetBytes = 512 * 1024 * 1024;
+    const data = {
+      ...buildData(),
+      settings: { ...getDefaultReaderSettings(), prefetchBudgetBytes: budgetBytes },
+    };
+
+    const { root, container } = mount(() => {}, data);
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+    cacheState.context = null;
+
+    expect(vi.mocked(prefetchChapterPages)).toHaveBeenCalledWith(
+      expect.objectContaining({ budgetBytes }),
+    );
   });
 });

@@ -83,8 +83,9 @@ const WHEEL_BEHAVIOR_OPTIONS: readonly { value: WheelBehavior; label: string }[]
   { value: 'none', label: 'Disabled' },
 ];
 
-const PREFETCH_BUDGET_MEGABYTE = 1024 * 1024;
-const PREFETCH_BUDGET_STEP_MB = 50;
+const PREFETCH_BUDGET_MIB = 1024 * 1024;
+/** 2 MiB divides both the 250 MiB default and the 2 GiB cap, so every tick is reachable. */
+const PREFETCH_BUDGET_STEP_MIB = 2;
 
 function SettingToggleRow({
   id,
@@ -202,6 +203,7 @@ function SettingSliderRow({
         max={max}
         step={step}
         disabled={disabled}
+        aria-valuetext={display}
         onChange={(event) => onChange(Number(event.target.value))}
       />
     </div>
@@ -433,15 +435,13 @@ export function ReaderSettingsPage({
             id="prefetch-budget"
             label="Prefetch budget"
             description="Stop prefetching after this much newly downloaded data; cached pages are free. Set to 0 for unlimited."
-            value={Math.round(settings.prefetchBudgetBytes / PREFETCH_BUDGET_MEGABYTE)}
+            value={Math.round(settings.prefetchBudgetBytes / PREFETCH_BUDGET_MIB)}
             min={0}
-            max={PREFETCH_BUDGET_MAX_BYTES / PREFETCH_BUDGET_MEGABYTE}
-            step={PREFETCH_BUDGET_STEP_MB}
+            max={PREFETCH_BUDGET_MAX_BYTES / PREFETCH_BUDGET_MIB}
+            step={PREFETCH_BUDGET_STEP_MIB}
             disabled={isSaving}
-            formatValue={(megabytes) => (megabytes === 0 ? 'Unlimited' : `${megabytes} MB`)}
-            onChange={(megabytes) =>
-              update({ prefetchBudgetBytes: megabytes * PREFETCH_BUDGET_MEGABYTE })
-            }
+            formatValue={(mib) => (mib === 0 ? 'Unlimited' : `${mib} MiB`)}
+            onChange={(mib) => update({ prefetchBudgetBytes: mib * PREFETCH_BUDGET_MIB })}
           />
         </div>
       </SettingsSection>
