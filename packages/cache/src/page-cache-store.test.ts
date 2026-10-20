@@ -3,7 +3,11 @@ import { ok } from '@app/shared';
 import type { PlatformAdapter } from '@app/platform';
 import { createSqlJsHarness } from '@app/db/testing';
 
-import { listCachedChapterPageIndexes, prefetchChapterPages } from './page-cache-store.js';
+import {
+  listCachedChapterPageIndexes,
+  prefetchChapterPages,
+  runPrefetchQueue,
+} from './page-cache-store.js';
 
 /** Only `blobStorage` and `network` are touched by the page cache store. */
 function createPageAdapter(): { adapter: PlatformAdapter; peakFetches: () => number } {
@@ -62,6 +66,70 @@ describe('page cache store', () => {
     expect(peakFetches()).toBeLessThanOrEqual(4);
     // Bounded must not mean truncated: the whole chapter still ends up local.
     expect(await listCachedChapterPageIndexes(db, CHAPTER)).toEqual(pages.map((p) => p.pageIndex));
+  });
+
+  it('Given a byte budget, When prefetching, Then new fetches stop once the budget is spent', async () => {
+    const pages = Array.from({ length: 10 }, (_value, pageIndex) => ({
+      pageIndex,
+      remoteUrl: `https://uploads.mangadex.org/budget${pageIndex}.jpg`,
+    }));
+    const resolved: number[] = [];
+
+    const outcome = await runPrefetchQueue({
+      pages,
+      budgetBytes: 1,
+      resolvePage: async (page) => {
+        resolved.push(page.pageIndex);
+        return { fromCache: false, byteSize: 1024 };
+      },
+    });
+
+    // Only the four fetches already in flight when the budget is hit are issued.
+    expect(resolved).toEqual([0, 1, 2, 3]);
+    expect(outcome.downloadedBytes).toBe(4 * 1024);
+  });
+
+  it('Given cache hits, When prefetching, Then they do not consume the download budget', async () => {
+    const pages = Array.from({ length: 8 }, (_value, pageIndex) => ({
+      pageIndex,
+      remoteUrl: `https://uploads.mangadex.org/mixed${pageIndex}.jpg`,
+    }));
+    const resolved: number[] = [];
+
+    const outcome = await runPrefetchQueue({
+      pages,
+      budgetBytes: 1500,
+      resolvePage: async (page) => {
+        resolved.push(page.pageIndex);
+        return page.pageIndex < 4
+          ? { fromCache: true, byteSize: 100_000 }
+          : { fromCache: false, byteSize: 1000 };
+      },
+    });
+
+    expect(resolved).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    // 4 cached pages at 100 kB each would be 400 kB; only the fresh 4 kB counts.
+    expect(outcome.downloadedBytes).toBe(4 * 1000);
+  });
+
+  it('Given an unlimited budget, When prefetching, Then every page is fetched', async () => {
+    const pages = Array.from({ length: 12 }, (_value, pageIndex) => ({
+      pageIndex,
+      remoteUrl: `https://uploads.mangadex.org/unlimited${pageIndex}.jpg`,
+    }));
+    const resolved: number[] = [];
+
+    const outcome = await runPrefetchQueue({
+      pages,
+      budgetBytes: 0,
+      resolvePage: async (page) => {
+        resolved.push(page.pageIndex);
+        return { fromCache: false, byteSize: 1024 * 1024 };
+      },
+    });
+
+    expect(resolved).toHaveLength(12);
+    expect(outcome.downloadedBytes).toBe(12 * 1024 * 1024);
   });
 
   it('Given a partially cached chapter, When listing its cached pages, Then only stored indexes come back', async () => {
