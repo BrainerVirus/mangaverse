@@ -249,7 +249,7 @@ export function watchLocalDbForExternalChanges(
   };
 }
 
-/** Coalesces bursts of mutations into one snapshot write. */
+/** Coalesces same-turn mutations; don't leave the snapshot to an unload callback. */
 function scheduleLocalDbFlush(): void {
   if (flushTimer !== null) {
     clearTimeout(flushTimer);
@@ -257,5 +257,5 @@ function scheduleLocalDbFlush(): void {
   flushTimer = setTimeout(() => {
     flushTimer = null;
     void flushLocalDb();
-  }, 400);
+  }, 0);
 }
