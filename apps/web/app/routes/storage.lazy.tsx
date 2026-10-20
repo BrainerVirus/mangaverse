@@ -39,12 +39,19 @@ function StorageRoute() {
   });
 
   const clearMutation = useMutation({
-    mutationFn: async (target: StorageClearTarget) => clearStorageData(db!, target),
+    mutationFn: async (target: StorageClearTarget) =>
+      clearStorageData({ db: db!, adapter, target }),
     onSuccess: (result) => {
-      setLastActionError(null);
-      setLastActionMessage(
-        `Cleared ${result.clearedCount} ${result.target === 'provider_cache' ? 'cache entries' : 'search history entries'}.`,
-      );
+      const label = result.target === 'provider_cache' ? 'cache entries' : 'search history entries';
+      if (result.failedCount > 0) {
+        setLastActionMessage(null);
+        setLastActionError(
+          `Cleared ${result.clearedCount} ${label}, but ${result.failedCount} could not be cleared because their cached images could not be deleted. They were kept so you can retry.`,
+        );
+      } else {
+        setLastActionError(null);
+        setLastActionMessage(`Cleared ${result.clearedCount} ${label}.`);
+      }
       void queryClient.invalidateQueries({ queryKey: storageQueryKeys.summary() });
     },
     onError: (error) => {

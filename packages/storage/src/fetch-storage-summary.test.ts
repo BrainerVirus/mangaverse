@@ -81,11 +81,11 @@ describe('storage services', () => {
     });
     await appendSearchHistory(db, { query: 'bleach' });
 
-    const cacheResult = await clearStorageData(db, 'provider_cache');
-    expect(cacheResult).toEqual({ target: 'provider_cache', clearedCount: 1 });
+    const cacheResult = await clearStorageData({ db, adapter, target: 'provider_cache' });
+    expect(cacheResult).toEqual({ target: 'provider_cache', clearedCount: 1, failedCount: 0 });
 
-    const historyResult = await clearStorageData(db, 'search_history');
-    expect(historyResult).toEqual({ target: 'search_history', clearedCount: 1 });
+    const historyResult = await clearStorageData({ db, adapter, target: 'search_history' });
+    expect(historyResult).toEqual({ target: 'search_history', clearedCount: 1, failedCount: 0 });
 
     const summary = await fetchStorageSummary({
       db,

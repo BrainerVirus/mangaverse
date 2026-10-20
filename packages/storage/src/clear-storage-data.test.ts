@@ -1,0 +1,122 @@
+import { describe, expect, it } from 'vitest';
+
+import { clearStorageData } from './clear-storage-data.js';
+import {
+  appendSearchHistory,
+  listAllCacheEntries,
+  summarizeCacheStorage,
+  upsertCacheEntry,
+} from '@app/db';
+import { createSqlJsHarness } from '@app/db/testing';
+import type { PlatformAdapter } from '@app/platform';
+import { createAppError, err, ok } from '@app/shared';
+
+function createBlobAdapter(failingKeys: readonly string[] = []) {
+  const blobs = new Map<string, ArrayBuffer>();
+  const failures = new Set(failingKeys);
+
+  const adapter = {
+    blobStorage: {
+      put: async (key: string, data: ArrayBuffer) => {
+        blobs.set(key, data);
+        return ok(undefined);
+      },
+      get: async (key: string) => {
+        const data = blobs.get(key);
+        return ok(data === undefined ? undefined : { data, mimeType: 'image/png' });
+      },
+      delete: async (key: string) => {
+        if (failures.has(key)) {
+          return err(createAppError({ code: 'storage.blob_delete_failed', message: 'Nope.' }));
+        }
+        blobs.delete(key);
+        return ok(undefined);
+      },
+      createObjectUrl: async () => ok('blob:test'),
+      revokeObjectUrl: async () => ok(undefined),
+    },
+  } as unknown as PlatformAdapter;
+
+  return { adapter, blobs, failures };
+}
+
+describe('clearStorageData', () => {
+  it('deletes provider cache blobs with their rows and leaves unrelated blobs alone', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter, blobs } = createBlobAdapter();
+    const coverKey = 'cover:prov-a:manga-1';
+    const pageKey = 'page:prov-a:manga-1:chapter-1:0';
+    blobs.set(coverKey, new ArrayBuffer(1));
+    blobs.set(pageKey, new ArrayBuffer(1));
+    blobs.set('unrelated', new ArrayBuffer(1));
+
+    await upsertCacheEntry(db, {
+      providerId: 'prov-a',
+      mangaId: 'manga-1',
+      cacheKind: 'cover',
+      blobKey: coverKey,
+    });
+    await upsertCacheEntry(db, {
+      providerId: 'prov-a',
+      mangaId: 'manga-1',
+      chapterId: 'chapter-1',
+      cacheKind: 'page',
+      blobKey: pageKey,
+    });
+
+    const result = await clearStorageData({ db, adapter, target: 'provider_cache' });
+
+    expect(result).toEqual({ target: 'provider_cache', clearedCount: 2, failedCount: 0 });
+    expect([...blobs.keys()]).toEqual(['unrelated']);
+    expect(await listAllCacheEntries(db)).toEqual([]);
+  });
+
+  it('keeps the row and reports the failure when a blob delete fails, then clears it on retry', async () => {
+    const { db } = await createSqlJsHarness();
+    const failingKey = 'page:prov-b:manga-2:chapter-2:0';
+    const { adapter, blobs, failures } = createBlobAdapter([failingKey]);
+    blobs.set(failingKey, new ArrayBuffer(1));
+
+    await upsertCacheEntry(db, {
+      providerId: 'prov-b',
+      mangaId: 'manga-2',
+      chapterId: 'chapter-2',
+      cacheKind: 'page',
+      blobKey: failingKey,
+    });
+
+    const failed = await clearStorageData({ db, adapter, target: 'provider_cache' });
+
+    expect(failed).toEqual({ target: 'provider_cache', clearedCount: 0, failedCount: 1 });
+    expect((await listAllCacheEntries(db)).map((entry) => entry.blobKey)).toEqual([failingKey]);
+    expect([...blobs.keys()]).toEqual([failingKey]);
+
+    failures.clear();
+    const retried = await clearStorageData({ db, adapter, target: 'provider_cache' });
+
+    expect(retried).toEqual({ target: 'provider_cache', clearedCount: 1, failedCount: 0 });
+    expect(await listAllCacheEntries(db)).toEqual([]);
+    expect([...blobs.keys()]).toEqual([]);
+  });
+
+  it('leaves provider cache rows and blobs alone when clearing search history', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter, blobs } = createBlobAdapter();
+    const coverKey = 'cover:prov-a:manga-1';
+    blobs.set(coverKey, new ArrayBuffer(1));
+
+    await upsertCacheEntry(db, {
+      providerId: 'prov-a',
+      mangaId: 'manga-1',
+      cacheKind: 'cover',
+      blobKey: coverKey,
+    });
+    await appendSearchHistory(db, { query: 'one piece' });
+
+    const result = await clearStorageData({ db, adapter, target: 'search_history' });
+
+    expect(result).toEqual({ target: 'search_history', clearedCount: 1, failedCount: 0 });
+    expect((await summarizeCacheStorage(db)).totalCount).toBe(1);
+    expect([...blobs.keys()]).toEqual([coverKey]);
+  });
+});

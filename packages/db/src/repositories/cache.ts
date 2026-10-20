@@ -203,8 +203,13 @@ export async function summarizeCacheStorage(db: AppDrizzleDb): Promise<CacheStor
   return { totalCount, totalBytes, byProvider };
 }
 
+export async function listAllCacheEntries(db: AppDrizzleDb): Promise<CacheEntryRecord[]> {
+  const rows = db.select().from(cacheEntries).orderBy(asc(cacheEntries.id)).all();
+  return rows.map(mapCacheRow);
+}
+
 export async function clearAllCacheEntries(db: AppDrizzleDb): Promise<number> {
-  const rows = db.select({ id: cacheEntries.id }).from(cacheEntries).all();
+  const rows = await listAllCacheEntries(db);
   if (rows.length === 0) {
     return 0;
   }
