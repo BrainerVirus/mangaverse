@@ -1,7 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { saveReaderSettings, settingsQueryKeys } from '@app/settings';
+import { libraryQueryKeys } from '@app/library';
 import type { ReaderSettings } from '@app/shared';
 import {
   fetchReaderPage,
@@ -127,16 +128,32 @@ function ReaderRoute() {
     [data, db, saveSettings],
   );
 
+  // The library keeps a five-minute staleTime, so reading must mark it stale or
+  // the user returns to old progress. One mark per mount is enough: a stale
+  // query stays stale, and page turns would otherwise re-walk the cache.
+  const markedLibraryStale = useRef(false);
   const handlePersistProgress = useCallback(
     (event: Parameters<typeof persistReaderProgress>[1]) => {
       if (db === null) return;
-      // A rejected write must not be swallowed: it lands in the shell's
-      // persistence-error sink, which the reader overlays with the banner.
-      void persistReaderProgress(db, event).catch((error: unknown) => {
-        reportPersistenceError(formatWriteError(error));
-      });
+      void persistReaderProgress(db, event).then(
+        () => {
+          // `refetchType: 'none'` marks stale without pulling the library back
+          // into the reader; the library route refetches when it mounts again.
+          if (markedLibraryStale.current) return;
+          markedLibraryStale.current = true;
+          void queryClient.invalidateQueries({
+            queryKey: libraryQueryKeys.all,
+            refetchType: 'none',
+          });
+        },
+        // A rejected write must not be swallowed: it lands in the shell's
+        // persistence-error sink, which the reader overlays with the banner.
+        (error: unknown) => {
+          reportPersistenceError(formatWriteError(error));
+        },
+      );
     },
-    [db, reportPersistenceError],
+    [db, queryClient, reportPersistenceError],
   );
 
   const handleRetry = useCallback(() => {
