@@ -176,7 +176,9 @@ Required themes:
 
 Theme rules:
 
-- Every theme must pass contrast requirements.
+- Every new custom theme should pass contrast requirements; the editor warns, offers fixes, and
+  requires an explicit acknowledgement before saving a known failing pair. Shipped built-in themes
+  are frozen.
 - Reader background can differ from app background.
 - Theme preview cards should show surface, text, accent, manga card, and reader background.
 - Theme switching may animate outside the reader.
