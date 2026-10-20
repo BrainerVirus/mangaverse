@@ -200,8 +200,10 @@ The layered recipe (landed in P1 as the `RefractionLayer` primitive, `aria-hidde
 
 The SVG variant (proposed `RefractionLayer variant="displacement"`) is allowed on exactly two surfaces:
 the chapter-transition card and the onboarding hero. It must be off under reduced motion, reduced
-transparency and the low-end profile (§2.5), and must never sit over a scrolling page surface. **Not
-shipped in P1:** `RefractionLayer` accepts `variant="sheen"` only.
+transparency and the low-end profile (§2.5), and must never sit over a scrolling page surface.
+**Shipped (#95):** the onboarding hero opts in; the chapter-transition card does not exist yet, so the
+second allowance is unused. The filter lives on the `GlassSurface` element itself (a nested child
+`backdrop-filter` samples nothing inside the parent backdrop root).
 
 ### 2.3 Ambient backdrop — what the glass refracts (landed in P1)
 
@@ -214,8 +216,9 @@ very low-contrast radial gradients anchored top-left and bottom-right of the vie
 Rules: it never scrolls with content (so the glass always has a stable thing to refract), it never
 animates except a ≤ `expressive` (360ms) entrance, and it disappears entirely under reduced motion,
 reduced transparency or the low-end profile, leaving `--background`. In the reader it does not exist —
-the page art is the backdrop. **Not shipped in P1:** the entrance animation; the band is static, which
-is also its reduced-motion end state.
+the page art is the backdrop. **Shipped (#95):** a 220ms `routeEnter` transform/opacity entrance that
+waits for the resolved glass profile, stays static under every fallback, and is hidden until
+`data-glass="full"` so there is no flash; the reduced-motion end state remains static.
 
 ### 2.4 Elevation & depth scale (landed in P1, mapped onto Tailwind)
 
@@ -593,9 +596,11 @@ tw-animate-css and GSAP agree on the curve:
   white chrome type stays legible without a blur.
 - **`prefers-contrast: more` (proposed):** raise glass fills to their opaque tokens, thicken the focus
   ring to 3px, and keep every hairline at full `--border` strength.
-- **In-app settings:** appearance settings gains a **Motion** (Full / Reduced) and a **Transparency**
-  (Full / Reduced) control, both defaulting to Full and both overriding the OS query in either
-  direction. `docs/Design.md` already promises a motion-intensity setting; this is it.
+- **In-app settings:** appearance settings has a **Motion** (Full / Reduced) and a **Transparency**
+  (Full / Reduced) control, both defaulting to Full. Reduced wins if **either** the OS query or the
+  in-app setting asks for it (OR semantics); the setting can therefore add motion reduction but cannot
+  override a reduced OS preference back to Full. `docs/Design.md` already promises a motion-intensity
+  setting; this is it.
 
 ### 5.6 GSAP usage conventions (existing, binding)
 
@@ -1006,7 +1011,7 @@ Shipped: `--glass-thin/regular/thick/stage`, `--glass-edge`, `--glass-specular`,
 `--glass-sheen`, `--glass-plate`, `--glass-muted-foreground`, `--radius-glass`, `--ambient-1/2`, the
 elevation scale and the `@theme` / `@theme inline` registrations; the `@supports`,
 `data-glass="cheap"` / `data-transparency="solid"` and `prefers-reduced-transparency` resolution paths
-plus `resolveGlassProfile()`; `GlassSurface`, `GlassPanel`, `RefractionLayer` (`sheen` only) and
+plus `resolveGlassProfile()`; `GlassSurface`, `GlassPanel`, `RefractionLayer` (`sheen`, plus the opt-in displacement added later) and
 `AmbientBackdrop`; the `--ring` fix. Tests: token-resolution and contrast tests
 (`glass-tokens.test.ts`), primitive/aria-hidden/budget tests (`glass.test.tsx`), the per-preset ring
 invariant in `packages/theme`. No consumer changes in this PR. Not shipped here: the displacement
@@ -1020,6 +1025,7 @@ morph timing (280ms `power3.out`, §7.6), and switch the offline toast and the p
 glass. Tests: the existing reader-chrome a11y test stays green, plus new tests for the plate geometry (a
 control row never leaves the plate), the reduced-transparency resolution, and a tap-zone test proving
 chrome and sheet interactions still cannot reach the tap surface.
+**Status:** landed (#102); the settings-sheet scrim moved to the shared `glass-scrim` in P5.
 
 **P3 — Liquid motion** (`packages/motion`, `packages/design-system`)
 Add `EASING.liquidSettle` / `glide` (CustomEase) with the matching `--ease-liquid` / `--ease-glide` CSS
@@ -1032,6 +1038,9 @@ Desktop rail, mobile bottom bar, sticky page header, command palette and the amb
 `GlassSurface`, with the `Cmd/Ctrl+B` collapse and the breakpoint behaviour unchanged. Tests: shell
 interaction tests for the rail and bottom bar, an overflow check at 375px and 1280px, and a
 reduced-transparency pass.
+**Status:** the attribute/settings half landed (#104): root `data-glass`/`data-transparency`, in-app
+Motion/Transparency, OS media tracking, and the OR motion semantics. The glass rail/bottom bar landed
+with P5 (#105); the sticky page header remains deferred.
 
 **P5 — Surfaces and controls** (`packages/design-system`) — **landed for #94 scope.**
 Shipped: glass level/elevation variant functions with class-equivalence coverage; dialog, default sheet,
@@ -1043,6 +1052,8 @@ input, tabs and select glass variants; preset tint support; rendered contrast-pa
 Empty, loading and error states onto glass with the plate rule; library, discover and search grids get
 glass chips, cover plates and the stagger reveal outside the reader. Tests: a11y tests for the states,
 skeleton-to-content layout stability, and reduced-motion checks for the stagger.
+**Status:** not shipped. The issue labeled P6 (#95) implemented the §2.2/§2.3 displacement/ambient work
+instead; this states/browsing slice remains open.
 
 **P7 — Design-system page and docs** (`apps/web`, `DESIGN.md`, `docs/Design.md`)
 Build `apps/web/app/design-system` as the verification surface: colour roles as contrast-checked pairs
@@ -1050,3 +1061,9 @@ over a white and a black backdrop, the type specimen, the radius and elevation l
 tiers with their state matrices, and the do/don't pairs from §9. Then reconcile this file and
 `docs/Design.md` with what shipped. Tests: the page's own render test, plus the overflow and console
 checks the shadcn workflow's Step 7 requires.
+**Status:** the page landed (#107) with all tiers, the ten type roles and the component states; the
+contrast pairs, radius/elevation ladders, do/don't pairs and full docs reconciliation remain deferred.
+
+> Roadmap note (2026-10-20): issue labels drifted from this sequence — #95 ("P6") shipped the
+> displacement/ambient work and #96 ("P7") the design-system page. The states/browsing item above is
+> still unshipped; read the issue numbers, not the P labels, for recent history.

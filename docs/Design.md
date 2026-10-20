@@ -57,9 +57,12 @@ reading sessions, visual media browsing, and source management.
 
 - Glass is one of the four tiers defined in `DESIGN.md` §2.1 (`thin`, `regular`, `thick`, `stage`). Pick a
   tier; never hand-write a blur radius, a translucent fill, or a saturation value in a component.
-- Every glass surface starts from the `GlassSurface` primitive. `backdrop-filter` is set in one place and
-  nowhere else. The §2.2 light layer comes from `RefractionLayer` (rendered by `GlassSurface`, never
-  hand-built), and the §2.3 band from `AmbientBackdrop` (rendered once by the shell).
+- Every glass surface starts from the `GlassSurface` primitive. `backdrop-filter` is set by the tier
+  utilities, with one documented exception: the shared 55%/8px modal scrim (`glass-scrim`). The §2.2
+  light layer comes from `RefractionLayer` (rendered by `GlassSurface`, never hand-built); the opt-in
+  displacement variant is applied to the owning `GlassSurface` element, because a child
+  `backdrop-filter` samples nothing inside the parent backdrop root. The §2.3 band comes from
+  `AmbientBackdrop` (rendered once by the shell).
 - Glass needs something to refract: the shell's ambient band, page art in the reader, or cover art in a
   grid. Glass over a flat, empty surface is a flat panel with a cost.
 - Depth is the four-step elevation scale plus the specular top edge. A shadow outside that scale is a bug.
