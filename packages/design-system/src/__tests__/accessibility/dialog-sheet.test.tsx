@@ -1,84 +1,118 @@
+import { useState } from 'react';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import {
   Dialog,
   DialogContent,
   DialogTitle,
   DialogDescription,
 } from '../../components/ui/dialog.js';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '../../components/ui/sheet.js';
 
-describe('Dialog Focus Trap', () => {
+function DialogHarness() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <button onClick={() => setOpen(true)}>Open dialog</button>
+      <button>Outside action</button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogTitle>Test dialog</DialogTitle>
+          <DialogDescription>Dialog summary</DialogDescription>
+          <button>First action</button>
+          <button>Last action</button>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+describe('Dialog accessibility', () => {
   beforeEach(() => {
     cleanup();
   });
 
-  it('renders dialog with proper structure', () => {
+  it('contains focus and returns it to the opener after Escape', async () => {
+    const user = userEvent.setup();
+    render(<DialogHarness />);
+
+    const opener = screen.getByRole('button', { name: 'Open dialog' });
+    await user.click(opener);
+
+    const first = screen.getByRole('button', { name: 'First action' });
+    const last = screen.getByRole('button', { name: 'Last action' });
+    last.focus();
+    await user.tab();
+    expect(first).toHaveFocus();
+
+    await user.keyboard('{Escape}');
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(opener).toHaveFocus();
+  });
+
+  it('wires the dialog role, modal state, title, and description', async () => {
+    const user = userEvent.setup();
+    render(<DialogHarness />);
+    await user.click(screen.getByRole('button', { name: 'Open dialog' }));
+
+    const title = screen.getByText('Test dialog');
+    const description = screen.getByText('Dialog summary');
+    const dialog = screen.getByRole('dialog', {
+      name: 'Test dialog',
+      description: 'Dialog summary',
+    });
+
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(dialog).toHaveAttribute('aria-labelledby', title.id);
+    expect(dialog).toHaveAttribute('aria-describedby', description.id);
+  });
+});
+
+describe('Tabs accessibility', () => {
+  beforeEach(() => {
+    cleanup();
+  });
+
+  it('supports arrow, Home, End, click selection, and tab-panel wiring', async () => {
+    const user = userEvent.setup();
     render(
-      <Dialog>
-        <DialogContent>
-          <DialogTitle>Test Dialog</DialogTitle>
-          <DialogDescription>Dialog description</DialogDescription>
-          <button>Button 1</button>
-          <button>Button 2</button>
-        </DialogContent>
-      </Dialog>,
+      <Tabs defaultValue="reading">
+        <TabsList aria-label="Sample content">
+          <TabsTrigger value="reading">Reading</TabsTrigger>
+          <TabsTrigger value="details">Details</TabsTrigger>
+        </TabsList>
+        <TabsContent value="reading">Chapter 14 is ready to continue.</TabsContent>
+        <TabsContent value="details">12 chapters · Updated today</TabsContent>
+      </Tabs>,
     );
 
-    expect(screen.getByText('Test Dialog')).toBeInTheDocument();
-    expect(screen.getByText('Dialog description')).toBeInTheDocument();
-  });
+    const reading = screen.getByRole('tab', { name: 'Reading' });
+    const details = screen.getByRole('tab', { name: 'Details' });
+    const readingPanel = screen.getByRole('tabpanel');
+    expect(reading).toHaveAttribute('aria-controls', readingPanel.id);
+    expect(readingPanel).toHaveAttribute('aria-labelledby', reading.id);
+    expect(reading).toHaveAttribute('tabindex', '0');
+    expect(details).toHaveAttribute('tabindex', '-1');
 
-  it('contains focusable elements', () => {
-    render(
-      <Dialog>
-        <DialogContent>
-          <DialogTitle>Dialog Title</DialogTitle>
-          <button>First Button</button>
-          <button>Second Button</button>
-          <input type="text" />
-        </DialogContent>
-      </Dialog>,
-    );
+    reading.focus();
+    await user.keyboard('{ArrowRight}');
+    expect(details).toHaveFocus();
+    expect(details).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tabpanel')).toHaveTextContent('12 chapters · Updated today');
 
-    expect(screen.getByText('First Button')).toBeInTheDocument();
-    expect(screen.getByText('Second Button')).toBeInTheDocument();
-    expect(screen.getByRole('textbox')).toBeInTheDocument();
-  });
+    await user.keyboard('{Home}');
+    expect(reading).toHaveFocus();
+    expect(reading).toHaveAttribute('aria-selected', 'true');
 
-  it('has proper aria attributes for dialog content', () => {
-    render(
-      <Dialog>
-        <DialogContent aria-describedby="desc-id">
-          <DialogTitle>Title</DialogTitle>
-          <DialogDescription id="desc-id">Description</DialogDescription>
-        </DialogContent>
-      </Dialog>,
-    );
-
-    expect(screen.getByText('Title')).toBeInTheDocument();
-    expect(screen.getByText('Description')).toBeInTheDocument();
-  });
-
-  it('renders dialog with fixed positioning', () => {
-    const { container } = render(
-      <Dialog>
-        <DialogContent>Content</DialogContent>
-      </Dialog>,
-    );
-
-    expect(container.querySelector('[class*="fixed"]')).toBeInTheDocument();
-  });
-
-  it('dialog content has proper styling', () => {
-    const { container } = render(
-      <Dialog>
-        <DialogContent>Dialog Content</DialogContent>
-      </Dialog>,
-    );
-
-    const content = container.querySelector('[class*="rounded-"]');
-    expect(content).toBeInTheDocument();
+    await user.keyboard('{End}');
+    expect(details).toHaveFocus();
+    await user.click(reading);
+    expect(reading).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tabpanel')).toHaveTextContent('Chapter 14 is ready to continue.');
   });
 });
 

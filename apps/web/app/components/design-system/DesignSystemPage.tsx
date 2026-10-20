@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   Alert,
@@ -13,6 +13,7 @@ import {
   CardTitle,
   cn,
   Dialog,
+  DialogTrigger,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -289,14 +290,8 @@ function TypographySection() {
 }
 
 function ComponentSection() {
-  const [activeTab, setActiveTab] = useState<'reading' | 'details'>('reading');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const dialogTrigger = useRef<HTMLButtonElement>(null);
-  const closeDialog = () => {
-    setDialogOpen(false);
-    dialogTrigger.current?.focus();
-  };
 
   return (
     <Section
@@ -383,32 +378,20 @@ function ComponentSection() {
           </CardHeader>
           <CardContent className="px-4 pb-4">
             <div className="flex flex-col gap-3">
-              <Tabs data-testid="tabs" className="flex flex-col items-start">
-                <TabsList role="tablist" aria-label="Sample content">
-                  {(['reading', 'details'] as const).map((tab) => (
-                    <TabsTrigger
-                      key={tab}
-                      type="button"
-                      id={`tab-${tab}`}
-                      role="tab"
-                      aria-selected={activeTab === tab}
-                      data-state={activeTab === tab ? 'active' : 'inactive'}
-                      data-testid={`tabs-trigger-${tab}`}
-                      onClick={() => setActiveTab(tab)}
-                    >
-                      {tab === 'reading' ? 'Reading' : 'Details'}
-                    </TabsTrigger>
-                  ))}
+              <Tabs defaultValue="reading" data-testid="tabs" className="flex flex-col items-start">
+                <TabsList aria-label="Sample content">
+                  <TabsTrigger value="reading" data-testid="tabs-trigger-reading">
+                    Reading
+                  </TabsTrigger>
+                  <TabsTrigger value="details" data-testid="tabs-trigger-details">
+                    Details
+                  </TabsTrigger>
                 </TabsList>
-                <TabsContent
-                  role="tabpanel"
-                  id="sample-tab-panel"
-                  aria-labelledby={`tab-${activeTab}`}
-                  data-testid="tabs-panel"
-                >
-                  {activeTab === 'reading'
-                    ? 'Chapter 14 is ready to continue.'
-                    : '12 chapters · Updated today'}
+                <TabsContent value="reading" data-testid="tabs-panel">
+                  Chapter 14 is ready to continue.
+                </TabsContent>
+                <TabsContent value="details" data-testid="tabs-panel">
+                  12 chapters · Updated today
                 </TabsContent>
               </Tabs>
             </div>
@@ -450,46 +433,24 @@ function ComponentSection() {
             <CardDescription>Open each real overlay primitive.</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-3 px-4 pb-4">
-            <Button
-              ref={dialogTrigger}
-              data-testid="dialog-trigger"
-              onClick={() => setDialogOpen(true)}
-            >
-              Open dialog
-            </Button>
-            {dialogOpen ? (
-              <Dialog
-                // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- public primitive renders a div.
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="sample-dialog-title"
-                aria-describedby="sample-dialog-description"
-                data-testid="dialog-panel"
-                onClick={(event) => {
-                  if (event.target === event.currentTarget) closeDialog();
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Escape') {
-                    event.stopPropagation();
-                    closeDialog();
-                  }
-                }}
-              >
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle id="sample-dialog-title">A focused decision</DialogTitle>
-                    <DialogDescription id="sample-dialog-description">
-                      This dialog uses the shipped thick-glass panel and modal scrim.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter className="mt-6">
-                    <Button variant="outline" autoFocus onClick={closeDialog}>
-                      Close dialog
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            ) : null}
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger render={<Button data-testid="dialog-trigger" />}>
+                Open dialog
+              </DialogTrigger>
+              <DialogContent data-testid="dialog-panel">
+                <DialogHeader>
+                  <DialogTitle>A focused decision</DialogTitle>
+                  <DialogDescription>
+                    This dialog uses the shipped thick-glass panel and modal scrim.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter className="mt-6">
+                  <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                    Close dialog
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             <Sheet open={sheetOpen} onOpenChange={(open) => setSheetOpen(open)}>
               <Button data-testid="sheet-trigger" onClick={() => setSheetOpen(true)}>

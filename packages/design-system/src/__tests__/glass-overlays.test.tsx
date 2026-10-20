@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { GlassSurface } from '../components/glass-surface.js';
-import { Dialog, DialogContent } from '../components/ui/dialog.js';
+import { Dialog, DialogContent, DialogTitle } from '../components/ui/dialog.js';
 import { Sheet, SheetContent, SheetTitle } from '../components/ui/sheet.js';
 import { Command } from '../components/ui/command.js';
 
@@ -9,16 +9,18 @@ describe('glass overlay recipes', () => {
   afterEach(cleanup);
 
   it('Given a dialog, When rendered, Then it uses the thick glass overlay recipe', () => {
-    const { container } = render(
-      <Dialog>
-        <DialogContent>Dialog content</DialogContent>
+    render(
+      <Dialog open>
+        <DialogContent>
+          <DialogTitle>Dialog content</DialogTitle>
+        </DialogContent>
       </Dialog>,
     );
 
-    const dialog = container.firstElementChild!;
+    const dialog = screen.getByRole('dialog', { name: 'Dialog content' });
     const panel = dialog.querySelector('[data-glass-tier="thick"]');
 
-    expect(dialog).toHaveClass('glass-scrim');
+    expect(document.body.querySelector('.glass-scrim')).toBeInTheDocument();
     expect(panel).toHaveClass('glass-thick', 'shadow-xl', 'rounded-glass');
   });
 
