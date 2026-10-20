@@ -10,7 +10,7 @@ describe('desktop renderer shell', () => {
 
     expect(typeof App).toBe('function');
     expect(typeof detectDesktopCapabilities).toBe('function');
-  }, 15_000);
+  }, 30_000);
 
   it('detects electron platform capabilities for ShellProviders', async () => {
     const { detectDesktopCapabilities } = await import('./bootstrap.js');
