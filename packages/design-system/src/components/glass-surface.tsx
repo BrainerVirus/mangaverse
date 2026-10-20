@@ -7,7 +7,7 @@ import {
   type GlassElevation,
   type GlassLevel,
 } from './glass-variants.js';
-import { RefractionLayer } from './refraction-layer.js';
+import { RefractionLayer, type RefractionLayerProps } from './refraction-layer.js';
 
 const DEFAULT_ELEVATION: Record<GlassLevel, GlassElevation> = {
   thin: 1,
@@ -37,6 +37,8 @@ export interface GlassSurfaceProps extends React.HTMLAttributes<HTMLDivElement> 
   elevation?: GlassElevation;
   /** The §2.2 glass hairline on the refraction layer. */
   edge?: boolean;
+  /** §2.2 — displacement is opt-in for hero surfaces; all other glass keeps layered sheen. */
+  refraction?: RefractionLayerProps['variant'];
   /** The §3.5 plate: a local fill under text that sits over imagery. */
   plate?: boolean;
 }
@@ -48,6 +50,7 @@ export const GlassSurface = React.forwardRef<HTMLDivElement, GlassSurfaceProps>(
       tone = 'default',
       elevation,
       edge = true,
+      refraction = 'sheen',
       plate = false,
       className,
       children,
@@ -84,7 +87,7 @@ export const GlassSurface = React.forwardRef<HTMLDivElement, GlassSurfaceProps>(
               className="glass-plate pointer-events-none absolute inset-0 -z-10"
             />
           ) : null}
-          <RefractionLayer edge={edge} />
+          <RefractionLayer edge={edge} variant={refraction} />
           {children}
         </GlassLevelContext>
       </div>

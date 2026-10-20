@@ -1,6 +1,7 @@
 import {
   Button,
   ErrorState,
+  GlassSurface,
   Input,
   Label,
   LoadingState,
@@ -113,18 +114,20 @@ function StepPanel({ step, children }: { step: OnboardingStepId; children: React
 function WelcomeStep() {
   return (
     <>
-      <header className="space-y-2">
-        <h1
-          id="onboarding-step-welcome"
-          className="text-2xl font-semibold tracking-tight text-foreground"
-        >
-          Welcome to MangaVerse
-        </h1>
-        <p className="text-muted-foreground">
-          A calm, local-first reader for manga, comics, and webtoons. Your library lives on this
-          device first.
-        </p>
-      </header>
+      <GlassSurface refraction="displacement">
+        <header className="space-y-2 p-4 sm:p-6">
+          <h1
+            id="onboarding-step-welcome"
+            className="text-2xl font-semibold tracking-tight text-foreground"
+          >
+            Welcome to MangaVerse
+          </h1>
+          <p className="text-muted-foreground">
+            A calm, local-first reader for manga, comics, and webtoons. Your library lives on this
+            device first.
+          </p>
+        </header>
+      </GlassSurface>
 
       <ul className="grid gap-3 sm:grid-cols-2" aria-label="Onboarding highlights">
         <li className="rounded-box border border-border p-4">

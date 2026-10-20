@@ -91,6 +91,25 @@ describe('glass tokens', () => {
     expect(token(dark, '--glass-muted-foreground')).toBe('#d6d1ca');
   });
 
+  it('keeps displacement inactive in low-transparency and reduced-motion profiles', () => {
+    expect(css).toContain('@utility glass-refraction-displacement');
+    expect(css).toContain(
+      ':is([data-glass="cheap"], [data-transparency="solid"]) [data-refraction="displacement"]',
+    );
+    expect(css).toContain('@media (prefers-reduced-transparency: reduce)');
+    expect(css).toContain('@media (prefers-reduced-motion: reduce)');
+  });
+
+  it('hides the ambient band before profile resolution and in fallback modes', () => {
+    expect(css).toContain(':root:not([data-glass="full"]) [data-ambient-backdrop]');
+    expect(css).toContain(
+      ':is([data-glass="cheap"], [data-transparency="solid"]) [data-ambient-backdrop]',
+    );
+    expect(css).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\[data-ambient-backdrop\]\s*\{\s*display: none;/,
+    );
+  });
+
   it('defines the three glass status colors and exposes them to Tailwind', () => {
     expect(token(light, '--destructive-glass')).toBe('#b91c1c');
     expect(token(light, '--success-glass')).toBe('#15803d');

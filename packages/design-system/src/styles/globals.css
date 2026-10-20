@@ -401,6 +401,10 @@
     var(--glass-inner);
 }
 
+@utility glass-refraction-displacement {
+  filter: var(--glass-refraction-filter);
+}
+
 /* §2.2 item 4 — the hairline that replaces `--border` on glass. */
 @utility glass-refraction-edge {
   border: 1px solid var(--glass-edge);
@@ -440,8 +444,16 @@
   backdrop-filter: none;
 }
 
+:root:not([data-glass="full"]) [data-ambient-backdrop] {
+  display: none;
+}
+
 :is([data-glass="cheap"], [data-transparency="solid"]) [data-ambient-backdrop] {
   display: none;
+}
+
+:is([data-glass="cheap"], [data-transparency="solid"]) [data-refraction="displacement"] {
+  filter: none;
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -463,11 +475,23 @@
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
+
+  [data-refraction="displacement"] {
+    filter: none;
+  }
+
+  [data-ambient-backdrop] {
+    display: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   [data-ambient-backdrop] {
     display: none;
+  }
+
+  [data-refraction="displacement"] {
+    filter: none;
   }
 }
 
