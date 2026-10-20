@@ -176,6 +176,11 @@ export function useLocalDbStatus(): LocalDbStatus {
   return use(LocalDbContext).status;
 }
 
+/** Formatted failure from the last attempt to open the local database. */
+export function useLocalDbError(): string | null {
+  return use(LocalDbContext).errorMessage;
+}
+
 export function useLocalDbRetry(): () => void {
   return use(LocalDbContext).retry;
 }
