@@ -70,6 +70,11 @@ describe('refreshRecentSearches', () => {
     });
     const refresh = refreshRecentSearchesAfterWrite(queryClient, write);
 
+    // Flush the microtask queue: without the pending-write await, the refresh
+    // would already have started a second read by now.
+    for (let tick = 0; tick < 5; tick += 1) {
+      await Promise.resolve();
+    }
     // The write is still pending, so the blank-query read must not start.
     expect(reads).toBe(1);
 
