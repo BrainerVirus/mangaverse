@@ -60,10 +60,14 @@ export function validateThemeDefinition(input: unknown): ThemeDefinitionValidati
     return { ok: true, value: result.data as ThemeDefinition };
   }
 
-  const issues = result.error.issues.map((issue) => ({
-    path: toIssuePath(issue.path),
-    message: issue.message,
-  }));
+  const issues = result.error.issues.flatMap((issue) =>
+    issue.code === 'unrecognized_keys'
+      ? issue.keys.map((key) => ({
+          path: toIssuePath([...issue.path, key]),
+          message: `Unrecognized key: ${key}`,
+        }))
+      : [{ path: toIssuePath(issue.path), message: issue.message }],
+  );
   const first = issues[0];
   return {
     ok: false,

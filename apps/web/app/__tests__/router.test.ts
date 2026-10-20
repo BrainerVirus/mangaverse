@@ -17,6 +17,7 @@ const PHASE_8_ROUTES = [
   '/migration',
   '/storage',
   '/theme',
+  '/theme/editor',
   '/diagnostics',
   '/onboarding',
 ] as const;

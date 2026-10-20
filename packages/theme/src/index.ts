@@ -27,6 +27,11 @@ export {
   type ThemeCustomizationPageProps,
 } from './components/ThemeCustomizationPage.js';
 export {
+  ConfirmDeleteThemeDialog,
+  type ConfirmDeleteThemeDialogProps,
+} from './components/ConfirmDeleteThemeDialog.js';
+export { ThemeEditorPage, type ThemeEditorPageProps } from './components/ThemeEditorPage.js';
+export {
   applyThemeOverrides,
   buildThemeCssVariablesForDefinition,
   deriveThemeVariables,

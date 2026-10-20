@@ -30,6 +30,7 @@ const MigrationLazyRouteImport = createFileRoute('/migration')()
 const OnboardingLazyRouteImport = createFileRoute('/onboarding')()
 const StorageLazyRouteImport = createFileRoute('/storage')()
 const ThemeLazyRouteImport = createFileRoute('/theme')()
+const ThemeEditorLazyRouteImport = createFileRoute('/theme/editor')()
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -121,6 +122,11 @@ const SettingsReaderRoute = SettingsReaderRouteImport.update({
   path: '/reader',
   getParentRoute: () => SettingsRoute,
 } as any)
+const ThemeEditorLazyRoute = ThemeEditorLazyRouteImport.update({
+  id: '/editor',
+  path: '/editor',
+  getParentRoute: () => ThemeLazyRoute,
+} as any).lazy(() => import('./routes/theme.editor.lazy').then((d) => d.Route))
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -135,12 +141,13 @@ export interface FileRoutesByFullPath {
   '/migration': typeof MigrationLazyRoute
   '/onboarding': typeof OnboardingLazyRoute
   '/storage': typeof StorageLazyRoute
-  '/theme': typeof ThemeLazyRoute
+  '/theme': typeof ThemeLazyRouteWithChildren
   '/extensions/$providerId': typeof ExtensionsProviderIdRoute
   '/manga/$id': typeof MangaIdRoute
   '/reader/$chapterId': typeof ReaderChapterIdRoute
   '/settings/app': typeof SettingsAppRoute
   '/settings/reader': typeof SettingsReaderRoute
+  '/theme/editor': typeof ThemeEditorLazyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -155,12 +162,13 @@ export interface FileRoutesByTo {
   '/migration': typeof MigrationLazyRoute
   '/onboarding': typeof OnboardingLazyRoute
   '/storage': typeof StorageLazyRoute
-  '/theme': typeof ThemeLazyRoute
+  '/theme': typeof ThemeLazyRouteWithChildren
   '/extensions/$providerId': typeof ExtensionsProviderIdRoute
   '/manga/$id': typeof MangaIdRoute
   '/reader/$chapterId': typeof ReaderChapterIdRoute
   '/settings/app': typeof SettingsAppRoute
   '/settings/reader': typeof SettingsReaderRoute
+  '/theme/editor': typeof ThemeEditorLazyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -176,12 +184,13 @@ export interface FileRoutesById {
   '/migration': typeof MigrationLazyRoute
   '/onboarding': typeof OnboardingLazyRoute
   '/storage': typeof StorageLazyRoute
-  '/theme': typeof ThemeLazyRoute
+  '/theme': typeof ThemeLazyRouteWithChildren
   '/extensions/$providerId': typeof ExtensionsProviderIdRoute
   '/manga/$id': typeof MangaIdRoute
   '/reader/$chapterId': typeof ReaderChapterIdRoute
   '/settings/app': typeof SettingsAppRoute
   '/settings/reader': typeof SettingsReaderRoute
+  '/theme/editor': typeof ThemeEditorLazyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -204,6 +213,7 @@ export interface FileRouteTypes {
     | '/reader/$chapterId'
     | '/settings/app'
     | '/settings/reader'
+    | '/theme/editor'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -224,6 +234,7 @@ export interface FileRouteTypes {
     | '/reader/$chapterId'
     | '/settings/app'
     | '/settings/reader'
+    | '/theme/editor'
   id:
     | '__root__'
     | '/'
@@ -244,6 +255,7 @@ export interface FileRouteTypes {
     | '/reader/$chapterId'
     | '/settings/app'
     | '/settings/reader'
+    | '/theme/editor'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -259,7 +271,7 @@ export interface RootRouteChildren {
   MigrationLazyRoute: typeof MigrationLazyRoute
   OnboardingLazyRoute: typeof OnboardingLazyRoute
   StorageLazyRoute: typeof StorageLazyRoute
-  ThemeLazyRoute: typeof ThemeLazyRoute
+  ThemeLazyRoute: typeof ThemeLazyRouteWithChildren
   MangaIdRoute: typeof MangaIdRoute
   ReaderChapterIdRoute: typeof ReaderChapterIdRoute
 }
@@ -392,6 +404,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsReaderRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/theme/editor': {
+      id: '/theme/editor'
+      path: '/editor'
+      fullPath: '/theme/editor'
+      preLoaderRoute: typeof ThemeEditorLazyRouteImport
+      parentRoute: typeof ThemeLazyRoute
+    }
   }
 }
 
@@ -421,6 +440,18 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
   SettingsRouteChildren,
 )
 
+interface ThemeLazyRouteChildren {
+  ThemeEditorLazyRoute: typeof ThemeEditorLazyRoute
+}
+
+const ThemeLazyRouteChildren: ThemeLazyRouteChildren = {
+  ThemeEditorLazyRoute: ThemeEditorLazyRoute,
+}
+
+const ThemeLazyRouteWithChildren = ThemeLazyRoute._addFileChildren(
+  ThemeLazyRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DesignSystemRoute: DesignSystemRoute,
@@ -434,7 +465,7 @@ const rootRouteChildren: RootRouteChildren = {
   MigrationLazyRoute: MigrationLazyRoute,
   OnboardingLazyRoute: OnboardingLazyRoute,
   StorageLazyRoute: StorageLazyRoute,
-  ThemeLazyRoute: ThemeLazyRoute,
+  ThemeLazyRoute: ThemeLazyRouteWithChildren,
   MangaIdRoute: MangaIdRoute,
   ReaderChapterIdRoute: ReaderChapterIdRoute,
 }

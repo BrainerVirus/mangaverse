@@ -1,6 +1,11 @@
 import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { fetchThemeSettings, saveThemeSettings, themeQueryKeys } from '@app/theme';
+import {
+  fetchThemeDefinitions,
+  fetchThemeSettings,
+  saveThemeSettings,
+  themeQueryKeys,
+} from '@app/theme';
 import type { ThemeSettings } from '@app/shared';
 
 import { useLocalDb, useLocalDbStatus } from './local-db-provider.js';
@@ -10,13 +15,29 @@ export function ThemeSettingsBridge() {
   const queryClient = useQueryClient();
   const db = useLocalDb();
   const dbStatus = useLocalDbStatus();
-  const { hydrateThemeSettings, registerThemeSettingsPersistence, setThemeSaving } = useTheme();
+  const {
+    hydrateThemeSettings,
+    hydrateThemeDefinitions,
+    registerThemeSettingsPersistence,
+    setThemeSaving,
+  } = useTheme();
 
   const { data } = useQuery({
     queryKey: themeQueryKeys.settings(),
     queryFn: () => fetchThemeSettings(db!),
     enabled: dbStatus === 'ready' && db !== null,
   });
+
+  const definitionsQuery = useQuery({
+    queryKey: themeQueryKeys.definitions(),
+    queryFn: () => fetchThemeDefinitions(db!),
+    enabled: dbStatus === 'ready' && db !== null,
+  });
+
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-cache-to-context-sync: the definitions arrive asynchronously and ThemeProvider owns the resolved definition; pushing the query result into that state is the same cache-to-context sync as the settings query above.
+  useEffect(() => {
+    hydrateThemeDefinitions(definitionsQuery.isError ? null : definitionsQuery.data);
+  }, [definitionsQuery.data, definitionsQuery.isError, hydrateThemeDefinitions]);
 
   // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-cache-to-context-sync: the query result arrives asynchronously and must be pushed into ThemeProvider's context, which owns the state. Calling it during render would set a parent component's state from a child render.
   useEffect(() => {

@@ -125,12 +125,13 @@ function glassFill(base: string, background: string, dark: boolean): string {
 }
 
 /**
- * Muted text starts as `foreground` and moves toward `background` until it clears
- * body-text contrast on the muted fill. If no blend reaches the floor, the highest
- * contrast candidate stands in.
+ * Muted text walks from the canvas end back toward `foreground` and keeps the
+ * largest background mix that still clears body-text contrast on the muted fill, so
+ * it reads quieter than full-strength text. If even pure `foreground` misses the
+ * floor, the highest contrast candidate stands in.
  */
 function mutedForeground(seeds: ThemeSeeds): string {
-  for (let step = 0; step <= MIX_STEPS; step += 1) {
+  for (let step = MIX_STEPS; step >= 0; step -= 1) {
     const candidate = mixCssColors(seeds.foreground, seeds.background, step / MIX_STEPS);
     if ((contrastRatio(candidate, seeds.accent) ?? 0) >= BODY_TEXT_CONTRAST) {
       return candidate;

@@ -1,10 +1,20 @@
-import { createContext, use, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  use,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import {
   applyThemeToRoot,
   getDefaultThemeSettings,
+  isCustomThemeId,
   resolveThemeAppearance,
-  type ThemeSettings,
 } from '@app/theme';
+import type { ThemeDefinition, ThemeSettings } from '@app/shared';
 
 type Theme = 'light' | 'dark';
 type ThemeSettingsPersistence = (settings: ThemeSettings) => void;
@@ -18,6 +28,14 @@ interface ThemeContextValue {
   registerThemeSettingsPersistence: (persist: ThemeSettingsPersistence | null) => void;
   isSaving: boolean;
   setThemeSaving: (isSaving: boolean) => void;
+  /** Custom definitions loaded from the themes table; undefined until the first load settles. */
+  hydrateThemeDefinitions: (definitions: readonly ThemeDefinition[] | null | undefined) => void;
+  customThemes: readonly ThemeDefinition[];
+  isLoadingCustomThemes: boolean;
+  /** The definition applied for the selected themeId; built-ins resolve from code. */
+  themeDefinition: ThemeDefinition | undefined;
+  /** Visible fallback message when the selected custom theme cannot be applied. */
+  themeNotice: string | null;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -62,10 +80,43 @@ function persistThemeLocally(settings: ThemeSettings): void {
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<ThemeSettings>(getDefaultThemeSettings);
   const [isSaving, setThemeSaving] = useState(false);
+  const [definitions, setDefinitions] = useState<readonly ThemeDefinition[] | null | undefined>(
+    undefined,
+  );
   const hydratedRef = useRef(false);
   const persistRef = useRef<ThemeSettingsPersistence | null>(null);
 
   const theme = resolveThemeAppearance(settings);
+
+  const hydrateThemeDefinitions = useCallback(
+    (next: readonly ThemeDefinition[] | null | undefined) => {
+      setDefinitions(next);
+    },
+    [],
+  );
+
+  const selectedDefinition = isCustomThemeId(settings.themeId)
+    ? definitions?.find((definition) => definition.id === settings.themeId)
+    : undefined;
+  // `null` means the load failed; a loaded list without the id means the theme is gone.
+  const definitionsUnavailable =
+    isCustomThemeId(settings.themeId) &&
+    definitions !== undefined &&
+    selectedDefinition === undefined;
+
+  const appliedTheme = useMemo(
+    () =>
+      definitionsUnavailable
+        ? { settings: { ...settings, themeId: 'default' }, definition: undefined }
+        : { settings, definition: selectedDefinition },
+    [definitionsUnavailable, selectedDefinition, settings],
+  );
+
+  const themeNotice = definitionsUnavailable
+    ? definitions === null
+      ? 'Custom themes could not be loaded. Showing the default theme.'
+      : 'The selected custom theme could not be found. Showing the default theme.'
+    : null;
 
   // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-ssr-hydration: the stored theme is read after hydration on purpose: a useState initializer would run in the browser during the hydration render and mismatch the server's markup.
   useEffect(() => {
@@ -75,9 +126,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-dom-write: writing the theme to <html> and localStorage is a DOM/storage side effect keyed on `settings`; it cannot run in render (double-invoked) and `settings` is not otherwise derivable from props.
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-dom-write: writing the theme to <html> and localStorage is a DOM/storage side effect keyed on the resolved settings; it cannot run in render (double-invoked) and the resolved definition arrives asynchronously from the themes table.
   useEffect(() => {
-    applyThemeToRoot(document.documentElement, settings);
+    applyThemeToRoot(document.documentElement, appliedTheme.settings, appliedTheme.definition);
     persistThemeLocally(settings);
 
     if (settings.themeId !== 'system') {
@@ -86,12 +137,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     const media = window.matchMedia('(prefers-color-scheme: dark)');
     const handleChange = () => {
-      applyThemeToRoot(document.documentElement, settings);
+      applyThemeToRoot(document.documentElement, appliedTheme.settings, appliedTheme.definition);
     };
 
     media.addEventListener('change', handleChange);
     return () => media.removeEventListener('change', handleChange);
-  }, [settings]);
+  }, [appliedTheme, settings]);
 
   const updateSettings = (nextSettings: ThemeSettings) => {
     setSettings(nextSettings);
@@ -122,9 +173,34 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       },
       isSaving,
       setThemeSaving,
+      hydrateThemeDefinitions,
+      customThemes: definitions ?? [],
+      isLoadingCustomThemes: definitions === undefined,
+      themeDefinition: appliedTheme.definition,
+      themeNotice,
     }),
-    [isSaving, settings, theme],
+    [
+      appliedTheme.definition,
+      definitions,
+      hydrateThemeDefinitions,
+      isSaving,
+      settings,
+      theme,
+      themeNotice,
+    ],
   );
 
-  return <ThemeContext value={value}>{children}</ThemeContext>;
+  return (
+    <ThemeContext value={value}>
+      {children}
+      {themeNotice === null ? null : (
+        <output
+          data-theme-notice
+          className="fixed inset-x-0 bottom-4 z-50 mx-auto w-fit max-w-lg rounded-control border border-border bg-card px-4 py-2 text-sm text-card-foreground shadow-lg"
+        >
+          {themeNotice}
+        </output>
+      )}
+    </ThemeContext>
+  );
 }
