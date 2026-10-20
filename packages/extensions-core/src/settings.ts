@@ -1,28 +1,46 @@
-import type { AppResult } from '@app/shared';
-import { createAppError, err, ok } from '@app/shared';
-import type { ContentRating, ProviderManifest } from '@app/shared';
-import { hasProviderCapability } from '@app/shared';
+import type { AppResult, ProviderManifest, ProviderSettingsValues } from '@app/shared';
+import {
+  createAppError,
+  err,
+  hasProviderCapability,
+  ok,
+  providerSettingsSchema,
+} from '@app/shared';
 
-export interface ProviderSettingsValues {
-  readonly enabled?: boolean;
-  readonly preferredLanguages?: readonly string[];
-  readonly nsfwAllowed?: boolean;
-  readonly includedTags?: readonly string[];
-  readonly excludedTags?: readonly string[];
-  readonly contentRatingFilters?: readonly ContentRating[];
-  readonly regionLocale?: string;
-  readonly authStatePlaceholder?: 'anonymous' | 'session' | 'unknown';
-  readonly providerOptions?: Readonly<Record<string, unknown>>;
-  readonly rateLimitOverrideRpm?: number;
-  readonly defaultSort?: string;
-}
+export type { ProviderSettingsValues } from '@app/shared';
 
 const MAX_RATE_RPM = 10_000;
 
 export function validateProviderSettings(
   manifest: ProviderManifest,
-  settings: ProviderSettingsValues,
+  input: unknown,
 ): AppResult<ProviderSettingsValues> {
+  const parsed = providerSettingsSchema.safeParse(input);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    if (issue?.path[0] === 'rateLimitOverrideRpm') {
+      return err(
+        createAppError({
+          code: 'extensions.core.settings.bad_rate_limit',
+          message: 'rateLimitOverrideRpm must be a non-negative number.',
+          providerId: manifest.id,
+        }),
+      );
+    }
+    const path = issue?.path.map(String).join('.') ?? '';
+    return err(
+      createAppError({
+        code: 'extensions.core.settings.invalid',
+        message:
+          path.length === 0
+            ? 'Provider settings must be an object.'
+            : `Provider settings.${path}: ${issue?.message ?? 'Invalid value.'}`,
+        providerId: manifest.id,
+      }),
+    );
+  }
+
+  const settings = parsed.data;
   type Mutable = { -readonly [K in keyof ProviderSettingsValues]?: ProviderSettingsValues[K] };
   const out: Mutable = {};
 
