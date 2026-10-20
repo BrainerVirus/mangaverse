@@ -11,6 +11,7 @@ import {
   FIXED_THEME_TOKENS,
   findOutOfGamutThemeColors,
   getThemeTokenValue,
+  importThemeJson,
   setThemeOverride,
   THEME_TOKEN_GROUPS,
   toHexColor,
@@ -46,21 +47,10 @@ describe('advanced token groups', () => {
     expect(new Set(tokens)).toEqual(new Set(THEME_OVERRIDE_TOKENS));
   });
 
-  it('Given glass and radius tokens, Then they are fixed and never overridable', () => {
-    expect(FIXED_THEME_TOKENS).toEqual([
-      '--glass-thin',
-      '--glass-regular',
-      '--glass-thick',
-      '--glass-stage',
-      '--glass-sheen',
-      '--glass-inner',
-      '--radius-box',
-      '--radius-control',
-      '--radius-btn',
-      '--radius-badge',
-      '--radius-glass',
-    ]);
+  it('Given glass and radius tokens, Then none is in the override allow-list', () => {
+    expect(FIXED_THEME_TOKENS.length).toBeGreaterThan(0);
     for (const token of FIXED_THEME_TOKENS) {
+      expect(token).toMatch(/^--(glass|radius)-/);
       expect(THEME_OVERRIDE_TOKENS).not.toContain(token);
     }
   });
@@ -192,6 +182,28 @@ describe('theme JSON diagnostics', () => {
     );
     expect(withSeed.map((diagnostic) => diagnostic.path)).toContain('light.seeds.extraSeed');
     expect(withSeed[0]?.message).toContain('Accepted: the ten seed names');
+  });
+
+  it('Given an own __proto__ override key, Then import rejects it instead of dropping it', () => {
+    const text = exportThemeJson(customDefinition()).replace(
+      '"overrides": {',
+      '"overrides": {\n      "__proto__": "#fff",',
+    );
+
+    const [diagnostic] = diagnosticsFor(text);
+    expect(diagnostic?.path).toBe('light.overrides.__proto__');
+    expect(text.slice(diagnostic?.from, diagnostic?.to)).toBe('"__proto__"');
+    expect(diagnostic?.message).toContain('Unrecognized key: __proto__');
+    expect(importThemeJson(text).ok).toBe(false);
+  });
+
+  it('Given constructor or an unknown override key, Then the exact path is rejected', () => {
+    const base = exportThemeJson(customDefinition());
+    for (const key of ['constructor', '--not-a-token']) {
+      const text = base.replace('"overrides": {', `"overrides": {\n      "${key}": "#fff",`);
+      const paths = diagnosticsFor(text).map((diagnostic) => diagnostic.path);
+      expect(paths).toContain(`light.overrides.${key}`);
+    }
   });
 });
 

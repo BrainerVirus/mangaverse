@@ -1,4 +1,4 @@
-import type { ThemeDefinition, ThemeDefinitionIssue, ThemeOverrides } from '@app/shared';
+import type { ThemeDefinition, ThemeDefinitionIssue } from '@app/shared';
 import {
   isCustomThemeId,
   THEME_OVERRIDE_TOKENS,
@@ -87,6 +87,14 @@ function isThemeOverrideToken(value: string): value is ThemeOverrideToken {
   return THEME_OVERRIDE_TOKEN_SET.has(value);
 }
 
+// The message takes a plain string so a type-resolution miss (`@app/shared` is
+// built after lint in CI) cannot leave the narrowed token with an error type.
+function unknownThemeOverrideToken(token: string): Error {
+  return new Error(
+    `Unknown theme override token "${token}". Accepted: ${THEME_OVERRIDE_TOKENS.join(', ')}.`,
+  );
+}
+
 /**
  * Writes one override (or removes it when the value is blank) without mutating the
  * draft. Unknown keys are programmer errors: the UI only renders the allow-list.
@@ -98,13 +106,11 @@ export function setThemeOverride(
   value: string | undefined,
 ): ThemeDefinition {
   if (!isThemeOverrideToken(token)) {
-    throw new Error(
-      `Unknown theme override token "${token}". Accepted: ${THEME_OVERRIDE_TOKENS.join(', ')}.`,
-    );
+    throw unknownThemeOverrideToken(token);
   }
 
   const current = definition[appearance];
-  const overrides: Record<string, string> = { ...current.overrides };
+  const overrides = { ...current.overrides };
   if (value === undefined || value.trim() === '') {
     delete overrides[token];
   } else {
@@ -114,7 +120,7 @@ export function setThemeOverride(
   const next =
     Object.keys(overrides).length === 0
       ? { seeds: current.seeds }
-      : { seeds: current.seeds, overrides: overrides as ThemeOverrides };
+      : { seeds: current.seeds, overrides };
 
   return appearance === 'light' ? { ...definition, light: next } : { ...definition, dark: next };
 }
@@ -378,6 +384,16 @@ function collectUnknownKeyIssues(input: unknown): ThemeDefinitionIssue[] {
       for (const key of Object.keys(seeds)) {
         if (!SEED_KEYS.has(key)) {
           report(`${appearance}.seeds.${key}`, key);
+        }
+      }
+    }
+    // Zod's record parser silently drops an own `__proto__` key, so scan the
+    // allow-list here: an unknown override key must never disappear on import.
+    const overrides = value['overrides'];
+    if (isPlainRecord(overrides)) {
+      for (const key of Object.keys(overrides)) {
+        if (!THEME_OVERRIDE_TOKEN_SET.has(key)) {
+          report(`${appearance}.overrides.${key}`, key);
         }
       }
     }

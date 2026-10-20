@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert,
   AlertTitle,
@@ -18,13 +18,13 @@ import { json } from '@codemirror/lang-json';
 import CodeMirror, { EditorView } from '@uiw/react-codemirror';
 
 import { isCssColor } from '../color.js';
-import type { ThemeAppearance } from '../tokens.js';
+import { buildThemeCssVariablesForDefinition } from '../derive.js';
+import type { ThemeAppearance, ThemeCssVariables } from '../tokens.js';
 import {
   exportThemeCss,
   exportThemeJson,
   FIXED_THEME_TOKENS,
   findOutOfGamutThemeColors,
-  getThemeTokenValue,
   importThemeJson,
   setThemeOverride,
   THEME_TOKEN_GROUPS,
@@ -101,18 +101,19 @@ function TokenRow({
   definition,
   appearance,
   token,
+  derived,
   disabled,
   onChange,
 }: {
   readonly definition: ThemeEditorPanelProps['draft'];
   readonly appearance: ThemeAppearance;
   readonly token: ThemeOverrideToken;
+  readonly derived: string;
   readonly disabled: boolean;
   readonly onChange: ThemeEditorPanelProps['onChange'];
 }) {
   const id = `theme-override-${appearance}-${token}`;
   const override = definition[appearance].overrides?.[token];
-  const derived = getThemeTokenValue(definition, appearance, token);
   const value = override ?? '';
   const invalid = value.trim() !== '' && !isCssColor(value);
 
@@ -159,6 +160,15 @@ function TokenRow({
 }
 
 function TokenEditor({ draft, disabled = false, onChange }: ThemeEditorPanelProps) {
+  // One derivation per appearance, not one per token row: every row reads this map.
+  const variables = useMemo<Record<ThemeAppearance, ThemeCssVariables>>(
+    () => ({
+      light: buildThemeCssVariablesForDefinition(draft, 'light'),
+      dark: buildThemeCssVariablesForDefinition(draft, 'dark'),
+    }),
+    [draft],
+  );
+
   return (
     <Tabs defaultValue="light" className="space-y-4">
       <TabsList aria-label="Theme appearance">
@@ -180,6 +190,7 @@ function TokenEditor({ draft, disabled = false, onChange }: ThemeEditorPanelProp
                     definition={draft}
                     appearance={appearance}
                     token={token}
+                    derived={variables[appearance][token]}
                     disabled={disabled}
                     onChange={onChange}
                   />
@@ -234,8 +245,22 @@ function DiagnosticList({ diagnostics }: { readonly diagnostics: readonly ThemeJ
 
 function JsonEditor({ draft, disabled = false, onChange }: ThemeEditorPanelProps) {
   const [text, setText] = useState(() => exportThemeJson(draft));
-  const validation = validateThemeJsonText(text);
+  const validation = useMemo(() => validateThemeJsonText(text), [text]);
   const diagnostics = validation.ok ? [] : validation.diagnostics;
+  const jsonExport = useMemo(() => exportThemeJson(draft), [draft]);
+  const cssExport = useMemo(() => {
+    try {
+      return { css: exportThemeCss(draft), error: null };
+    } catch (cause) {
+      return {
+        css: null,
+        error:
+          cause instanceof Error
+            ? cause.message
+            : 'The draft is not a valid theme, so it cannot be exported.',
+      };
+    }
+  }, [draft]);
   const fileBase = draft.id.replace(/[^a-z0-9-]+/gi, '-').replace(/^-+|-+$/g, '') || 'theme';
 
   return (
@@ -261,26 +286,33 @@ function JsonEditor({ draft, disabled = false, onChange }: ThemeEditorPanelProps
           disabled={disabled || !validation.ok}
           onClick={() => {
             if (validation.ok) {
-              onChange(validation.value);
+              // The id is the edited theme's identity, never imported content.
+              onChange({ ...validation.value, id: draft.id });
             }
           }}
         >
           Apply JSON
         </Button>
         <a
-          href={downloadHref('application/json', exportThemeJson(draft))}
+          href={downloadHref('application/json', jsonExport)}
           download={`${fileBase}.json`}
           className={buttonVariants.outline}
         >
           Export JSON
         </a>
-        <a
-          href={downloadHref('text/css', exportThemeCss(draft))}
-          download={`${fileBase}.css`}
-          className={buttonVariants.outline}
-        >
-          Export CSS
-        </a>
+        {cssExport.css === null ? (
+          <p role="note" className="type-micro text-destructive">
+            {cssExport.error}
+          </p>
+        ) : (
+          <a
+            href={downloadHref('text/css', cssExport.css)}
+            download={`${fileBase}.css`}
+            className={buttonVariants.outline}
+          >
+            Export CSS
+          </a>
+        )}
         <Label htmlFor="theme-json-import" className="type-micro text-muted-foreground">
           Import JSON
         </Label>
@@ -298,7 +330,8 @@ function JsonEditor({ draft, disabled = false, onChange }: ThemeEditorPanelProps
               setText(next);
               const result = importThemeJson(next);
               if (result.ok) {
-                onChange(result.value);
+                // Keep the theme being edited: an imported id must not retarget Save.
+                onChange({ ...result.value, id: draft.id });
               }
             });
           }}

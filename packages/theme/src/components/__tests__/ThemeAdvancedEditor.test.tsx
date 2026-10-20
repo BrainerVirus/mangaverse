@@ -200,6 +200,65 @@ describe('ThemeAdvancedEditor', () => {
     editor.cleanup();
   });
 
+  it('Given an invalid draft color, When JSON opens, Then CSS export reports inline instead of crashing', () => {
+    const draft = customDefinition();
+    const invalid: ThemeDefinition = {
+      ...draft,
+      light: { ...draft.light, overrides: { ...draft.light.overrides, '--ring': 'not-a-color' } },
+    };
+    const editor = renderAdvanced(invalid);
+
+    act(() => {
+      buttonByText(editor.container, 'JSON').click();
+    });
+
+    expect(editor.container.querySelector('.cm-editor')).not.toBeNull();
+    expect(editor.container.textContent).toContain('Cannot export an invalid theme');
+    expect(
+      [...editor.container.querySelectorAll('a')].some(
+        (link) => link.textContent.trim() === 'Export CSS',
+      ),
+    ).toBe(false);
+    // JSON export does not need a valid theme and stays available.
+    expect(
+      [...editor.container.querySelectorAll('a')].some(
+        (link) => link.textContent.trim() === 'Export JSON',
+      ),
+    ).toBe(true);
+
+    editor.cleanup();
+  });
+
+  it('Given an imported theme with another id, Then the edited id survives the import', async () => {
+    const editor = renderAdvanced();
+
+    act(() => {
+      buttonByText(editor.container, 'JSON').click();
+    });
+
+    const imported = { ...customDefinition(), id: 'custom:other', name: 'Imported Name' };
+    const file = new File([JSON.stringify(imported)], 'theme.json', {
+      type: 'application/json',
+    });
+    const fileInput = editor.container.querySelector<HTMLInputElement>('input[type="file"]');
+    expect(fileInput).not.toBeNull();
+    if (fileInput === null) {
+      return;
+    }
+    Object.defineProperty(fileInput, 'files', { configurable: true, value: [file] });
+
+    await act(async () => {
+      fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+      await file.text();
+    });
+
+    expect(editor.onChange).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'custom:demo', name: 'Imported Name' }),
+    );
+
+    editor.cleanup();
+  });
+
   it('Given a disabled panel, Then token inputs cannot be edited', () => {
     const editor = renderAdvanced(customDefinition(), true);
     expect(
