@@ -26,13 +26,17 @@ export interface ThemeCustomizationPageProps {
   readonly isSaving?: boolean;
   readonly customThemes?: readonly ThemeDefinition[];
   readonly areCustomThemesLoading?: boolean;
+  readonly areCustomThemesError?: boolean;
   readonly isDeletingCustomTheme?: boolean;
   /** Fallback notice from ThemeProvider when the selected custom theme is unavailable. */
-  readonly notice?: string | null;
+  readonly themeNotice?: string | null;
+  /** Duplicate/delete failure from the route. */
+  readonly actionError?: string | null;
   onChange: (next: ThemeSettings) => void;
   onDuplicatePreset?: (presetId: string) => void;
   onEditCustomTheme?: (themeId: string) => void;
   onDeleteCustomTheme?: (themeId: string) => void;
+  onRetryCustomThemes?: () => void;
 }
 
 function selectedRing(selected: boolean): string {
@@ -83,7 +87,13 @@ function ThemePresetCard({
       </button>
       {onDuplicate === undefined ? null : (
         <div className="px-1">
-          <Button variant="outline" size="sm" disabled={disabled} onClick={onDuplicate}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            aria-label={`Duplicate ${name} theme`}
+            onClick={onDuplicate}
+          >
             Duplicate
           </Button>
         </div>
@@ -138,14 +148,88 @@ function CustomThemeCard({
         </div>
       </button>
       <div className="flex gap-2 px-1">
-        <Button variant="outline" size="sm" disabled={disabled} onClick={onEdit}>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={disabled}
+          aria-label={`Edit ${definition.name} theme`}
+          onClick={onEdit}
+        >
           Edit
         </Button>
-        <Button variant="ghost" size="sm" disabled={disabled} onClick={onDelete}>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={disabled}
+          aria-label={`Delete ${definition.name} theme`}
+          onClick={onDelete}
+        >
           Delete
         </Button>
       </div>
     </div>
+  );
+}
+
+interface CustomThemesSectionProps {
+  readonly customThemes: readonly ThemeDefinition[];
+  readonly areCustomThemesLoading: boolean;
+  readonly areCustomThemesError: boolean;
+  readonly isSaving: boolean;
+  readonly selectedThemeId: string;
+  readonly previewDark: boolean;
+  onSelect: (themeId: string) => void;
+  onEdit: ((themeId: string) => void) | undefined;
+  onDelete: (definition: ThemeDefinition) => void;
+  onRetry: (() => void) | undefined;
+}
+
+function CustomThemesSection({
+  customThemes,
+  areCustomThemesLoading,
+  areCustomThemesError,
+  isSaving,
+  selectedThemeId,
+  previewDark,
+  onSelect,
+  onEdit,
+  onDelete,
+  onRetry,
+}: CustomThemesSectionProps) {
+  return (
+    <SettingsSection
+      title="Your themes"
+      description="Custom themes stored on this device. Select, edit or delete them here."
+    >
+      {areCustomThemesError ? (
+        <ErrorState
+          title="Could not load your themes"
+          message="Your custom themes may be unavailable. Retry to load them again."
+          {...(onRetry === undefined ? {} : { onRetry })}
+        />
+      ) : areCustomThemesLoading ? (
+        <p className="type-body text-muted-foreground">Loading custom themes…</p>
+      ) : customThemes.length === 0 ? (
+        <p className="type-body text-muted-foreground">
+          No custom themes yet. Duplicate a built-in theme to create one.
+        </p>
+      ) : (
+        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+          {customThemes.map((definition) => (
+            <CustomThemeCard
+              key={definition.id}
+              definition={definition}
+              selected={selectedThemeId === definition.id}
+              previewDark={previewDark}
+              disabled={isSaving}
+              onSelect={() => onSelect(definition.id)}
+              onEdit={() => onEdit?.(definition.id)}
+              onDelete={() => onDelete(definition)}
+            />
+          ))}
+        </div>
+      )}
+    </SettingsSection>
   );
 }
 
@@ -156,12 +240,15 @@ export function ThemeCustomizationPage({
   isSaving = false,
   customThemes = NO_THEMES,
   areCustomThemesLoading = false,
+  areCustomThemesError = false,
   isDeletingCustomTheme = false,
-  notice = null,
+  themeNotice = null,
+  actionError = null,
   onChange,
   onDuplicatePreset,
   onEditCustomTheme,
   onDeleteCustomTheme,
+  onRetryCustomThemes,
 }: ThemeCustomizationPageProps) {
   const [pendingDelete, setPendingDelete] = useState<ThemeDefinition | null>(null);
 
@@ -201,10 +288,17 @@ export function ThemeCustomizationPage({
         </p>
       </header>
 
-      {notice === null ? null : (
+      {themeNotice === null ? null : (
         <Alert variant="destructive">
           <AlertTitle>Theme unavailable</AlertTitle>
-          <p className="type-body">{notice}</p>
+          <p className="type-body">{themeNotice}</p>
+        </Alert>
+      )}
+
+      {actionError === null ? null : (
+        <Alert variant="destructive">
+          <AlertTitle>Could not update themes</AlertTitle>
+          <p className="type-body">{actionError}</p>
         </Alert>
       )}
 
@@ -262,33 +356,18 @@ export function ThemeCustomizationPage({
         </div>
       </SettingsSection>
 
-      <SettingsSection
-        title="Your themes"
-        description="Custom themes stored on this device. Select, edit or delete them here."
-      >
-        {areCustomThemesLoading ? (
-          <p className="type-body text-muted-foreground">Loading custom themes…</p>
-        ) : customThemes.length === 0 ? (
-          <p className="type-body text-muted-foreground">
-            No custom themes yet. Duplicate a built-in theme to create one.
-          </p>
-        ) : (
-          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-            {customThemes.map((definition) => (
-              <CustomThemeCard
-                key={definition.id}
-                definition={definition}
-                selected={settings.themeId === definition.id}
-                previewDark={previewDark}
-                disabled={isSaving}
-                onSelect={() => onChange({ ...settings, themeId: definition.id })}
-                onEdit={() => onEditCustomTheme?.(definition.id)}
-                onDelete={() => setPendingDelete(definition)}
-              />
-            ))}
-          </div>
-        )}
-      </SettingsSection>
+      <CustomThemesSection
+        customThemes={customThemes}
+        areCustomThemesLoading={areCustomThemesLoading}
+        areCustomThemesError={areCustomThemesError}
+        isSaving={isSaving}
+        selectedThemeId={settings.themeId}
+        previewDark={previewDark}
+        onSelect={(themeId) => onChange({ ...settings, themeId })}
+        onEdit={onEditCustomTheme}
+        onDelete={setPendingDelete}
+        onRetry={onRetryCustomThemes}
+      />
 
       <ConfirmDeleteThemeDialog
         open={pendingDelete !== null}

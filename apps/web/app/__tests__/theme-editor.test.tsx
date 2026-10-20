@@ -136,6 +136,40 @@ describe('theme editor', () => {
     editor.cleanup();
   });
 
+  it('Given the editor, Then Guided is the default tab and Advanced renders its own panel', () => {
+    const editor = renderEditor();
+
+    const tabs = [...editor.container.querySelectorAll('[role="tab"]')].map((tab) =>
+      tab.textContent?.trim(),
+    );
+    expect(tabs).toEqual(['Guided', 'Advanced']);
+    expect(editor.container.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe(
+      'Guided',
+    );
+    expect(editor.container.querySelector('[data-testid="theme-guided-editor"]')).not.toBeNull();
+    expect(editor.container.querySelector('[data-testid="theme-advanced-editor"]')).toBeNull();
+
+    act(() => {
+      buttonByText(editor.container, 'Advanced').click();
+    });
+
+    expect(editor.container.querySelector('[data-testid="theme-advanced-editor"]')).not.toBeNull();
+    expect(editor.container.querySelector('[data-testid="theme-guided-editor"]')).toBeNull();
+
+    editor.cleanup();
+  });
+
+  it('Then the duplicate and delete actions name the draft theme', () => {
+    const editor = renderEditor();
+
+    expect(
+      editor.container.querySelector('button[aria-label="Duplicate Warm Draft"]'),
+    ).not.toBeNull();
+    expect(editor.container.querySelector('button[aria-label="Delete Warm Draft"]')).not.toBeNull();
+
+    editor.cleanup();
+  });
+
   it('Given an unsaved draft, Then there is no delete affordance', () => {
     const editor = renderEditor({ isSaved: false });
 

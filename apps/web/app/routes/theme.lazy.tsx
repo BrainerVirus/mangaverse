@@ -30,6 +30,8 @@ function ThemeRoute() {
     isSaving,
     customThemes,
     isLoadingCustomThemes,
+    isCustomThemesError,
+    themeNotice,
     hydrateThemeDefinitions,
   } = useTheme();
 
@@ -92,8 +94,10 @@ function ThemeRoute() {
       isSaving={isSaving || duplicateMutation.isPending}
       customThemes={customThemes}
       areCustomThemesLoading={isLoadingCustomThemes}
+      areCustomThemesError={isCustomThemesError}
       isDeletingCustomTheme={deleteMutation.isPending}
-      notice={actionError}
+      themeNotice={themeNotice}
+      actionError={actionError}
       onChange={setThemeSettings}
       onDuplicatePreset={(presetId) => duplicateMutation.mutate(presetId)}
       onEditCustomTheme={(themeId) => {
@@ -103,6 +107,9 @@ function ThemeRoute() {
         void navigate({ to: '/theme/editor' });
       }}
       onDeleteCustomTheme={(themeId) => deleteMutation.mutate(themeId)}
+      onRetryCustomThemes={() => {
+        void queryClient.invalidateQueries({ queryKey: themeQueryKeys.definitions() });
+      }}
     />
   );
 }
