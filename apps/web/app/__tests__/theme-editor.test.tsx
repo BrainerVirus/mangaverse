@@ -211,7 +211,7 @@ describe('theme editor', () => {
         { path: 'light.overrides.--glass-stage', message: 'Unrecognized key: --glass-stage' },
         { path: 'name', message: 'Theme name is required.' },
       ],
-      errorMessage: null,
+      error: null,
     });
 
     expect(editor.container.textContent).toContain('Check the theme before saving');
@@ -223,11 +223,26 @@ describe('theme editor', () => {
     editor.cleanup();
   });
 
-  it('Given a rejected save, Then the error message is visible', () => {
-    const editor = renderEditor({ errorMessage: 'Theme.invalid: name is required' });
+  it('Given a rejected save, Then the alert names saving and keeps the provider message', () => {
+    const editor = renderEditor({
+      error: { action: 'save', message: 'Theme.invalid: name is required' },
+    });
 
-    expect(editor.container.textContent).toContain('Could not save the theme');
-    expect(editor.container.textContent).toContain('Theme.invalid: name is required');
+    const alert = editor.container.querySelector('[role="alert"]');
+    expect(alert?.textContent).toContain('Could not save the theme');
+    expect(alert?.textContent).toContain('Theme.invalid: name is required');
+    expect(alert?.textContent).not.toContain('Could not delete the theme');
+
+    editor.cleanup();
+  });
+
+  it('Given a rejected delete, Then the alert names deleting and keeps the provider message', () => {
+    const editor = renderEditor({ error: { action: 'delete', message: 'database is locked' } });
+
+    const alert = editor.container.querySelector('[role="alert"]');
+    expect(alert?.textContent).toContain('Could not delete the theme');
+    expect(alert?.textContent).toContain('database is locked');
+    expect(alert?.textContent).not.toContain('Could not save the theme');
 
     editor.cleanup();
   });

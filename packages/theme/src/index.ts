@@ -30,7 +30,11 @@ export {
   ConfirmDeleteThemeDialog,
   type ConfirmDeleteThemeDialogProps,
 } from './components/ConfirmDeleteThemeDialog.js';
-export { ThemeEditorPage, type ThemeEditorPageProps } from './components/ThemeEditorPage.js';
+export {
+  ThemeEditorPage,
+  type ThemeEditorError,
+  type ThemeEditorPageProps,
+} from './components/ThemeEditorPage.js';
 export { ThemeGuidedEditor } from './components/ThemeGuidedEditor.js';
 export {
   applyThemeOverrides,

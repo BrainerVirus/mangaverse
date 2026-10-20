@@ -8,6 +8,7 @@ import {
   themeQueryKeys,
   ThemeEditorPage,
   validateThemeDefinition,
+  type ThemeEditorError,
 } from '@app/theme';
 import { ErrorState, LoadingState } from '@app/design-system';
 import type { AppDrizzleDb } from '@app/db';
@@ -65,7 +66,7 @@ function ThemeEditorForm({
     () => createThemeEditorDraft(settings, customThemes).definition,
   );
   const [issues, setIssues] = useState<readonly ThemeDefinitionIssue[]>([]);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [error, setError] = useState<ThemeEditorError | null>(null);
   const isSaved = customThemes.some((definition) => definition.id === draft.id);
 
   const saveMutation = useMutation({
@@ -78,7 +79,7 @@ function ThemeEditorForm({
     },
     onSuccess: async (saved) => {
       setIssues([]);
-      setErrorMessage(null);
+      setError(null);
       // Hydrate first: the refetch below is async and the new id must not flash the
       // missing-theme fallback while the themes table catches up.
       hydrateThemeDefinitions([
@@ -89,7 +90,7 @@ function ThemeEditorForm({
       await queryClient.invalidateQueries({ queryKey: themeQueryKeys.definitions() });
     },
     onError: (error) => {
-      setErrorMessage(error.message);
+      setError({ action: 'save', message: error.message });
     },
   });
 
@@ -102,12 +103,13 @@ function ThemeEditorForm({
       return themeId;
     },
     onSuccess: async (themeId) => {
+      setError(null);
       setThemeSettings(themeSettingsAfterDelete(settings, themeId));
       await queryClient.invalidateQueries({ queryKey: themeQueryKeys.definitions() });
       void navigate({ to: '/theme' });
     },
     onError: (error) => {
-      setErrorMessage(error.message);
+      setError({ action: 'delete', message: error.message });
     },
   });
 
@@ -115,7 +117,7 @@ function ThemeEditorForm({
     const validation = validateThemeDefinition(draft);
     if (!validation.ok) {
       setIssues(validation.issues);
-      setErrorMessage(null);
+      setError(null);
       return;
     }
     saveMutation.mutate(validation.value);
@@ -123,7 +125,7 @@ function ThemeEditorForm({
 
   const handleDuplicate = () => {
     setIssues([]);
-    setErrorMessage(null);
+    setError(null);
     setDraft({
       ...draft,
       id: createCustomThemeId(globalThis.crypto.randomUUID()),
@@ -138,7 +140,7 @@ function ThemeEditorForm({
       isSaving={saveMutation.isPending}
       isDeleting={deleteMutation.isPending}
       issues={issues}
-      errorMessage={errorMessage}
+      error={error}
       onChange={setDraft}
       onSave={handleSave}
       onDuplicate={handleDuplicate}
