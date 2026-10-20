@@ -974,8 +974,10 @@ Honest accounting. Nothing below is aspirational; §13 is where the gap closes.
 
 Shipped since: the glass `cva`-style level/elevation resolvers and the scrim (#105); the displacement
 opt-in on the onboarding hero (#109); the root `data-glass` / `data-transparency` attributes and the
-in-app Motion/Transparency settings (#104); `--glass-muted-foreground` and the glass status colours with
-consumers (#103); the `type-*` utilities (#103); and the `/design-system` page (#107).
+in-app Motion/Transparency settings (#104); `--glass-muted-foreground` (used by the onboarding hero) and
+the glass status token/theme mapping (#103) — UI adoption of the three status tokens is still pending
+(Alert/Badge use the non-glass status classes); the `type-*` utilities (#103); and the `/design-system`
+page (#107).
 
 ## 12. Known Gaps & Open Questions
 
