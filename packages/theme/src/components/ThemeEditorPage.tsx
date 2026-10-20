@@ -216,10 +216,14 @@ export function ThemeEditorPage({
           <TabsTrigger value="advanced">Advanced</TabsTrigger>
         </TabsList>
         <TabsContent value="guided">
-          <ThemeGuidedEditor />
+          <ThemeGuidedEditor draft={draft} onChange={onChange} disabled={isSaving || isDeleting} />
         </TabsContent>
         <TabsContent value="advanced">
-          <ThemeAdvancedEditor />
+          <ThemeAdvancedEditor
+            draft={draft}
+            onChange={onChange}
+            disabled={isSaving || isDeleting}
+          />
         </TabsContent>
       </Tabs>
 
