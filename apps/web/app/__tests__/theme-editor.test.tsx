@@ -52,6 +52,11 @@ describe('theme editor', () => {
     // Cards are content, not layout: the shell uses headings + spacing, and the
     // only bordered fill is the sample card inside each preview.
     expect(container.querySelectorAll('.rounded-box.border')).toHaveLength(0);
+    const panes = container.querySelectorAll('figure[data-appearance]');
+    expect(panes).toHaveLength(2);
+    for (const pane of panes) {
+      expect(pane.querySelectorAll('.border')).toHaveLength(1);
+    }
 
     cleanup();
   });

@@ -104,7 +104,7 @@ function ThemePreviewPane({ definition, dark }: { definition: ThemeDefinition; d
         aria-label={label}
         data-appearance={dark ? 'dark' : 'light'}
         style={scope}
-        className="m-0 space-y-3 rounded-box bg-background p-4 text-foreground"
+        className="m-0 space-y-3 rounded-box bg-background p-4 text-foreground shadow-sm"
       >
         <div className="flex items-center justify-between gap-3">
           <span className="type-label">Sample heading</span>

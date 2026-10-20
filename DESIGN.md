@@ -740,6 +740,7 @@ is not a dependency of the package, so `GlassPanel` renders a `div` and forwards
 - **No card nesting:** a card is content, never a layout container. Do not place a Card inside a Card or
   a `SettingsSection` inside a Card; use headings and spacing for sections. A preview frame is a flat
   fill without a border and may contain at most one sample card. One border per visual grouping.
+  `SettingsSection` is the sanctioned settings-group card; do not nest another card inside it.
 - **Manga card (existing structure, glass target):** 3:4 portrait button; grid variant stacks a
   full-bleed cover (7px corners) with the title in a bottom overlay (`absolute bottom-0 left-0 right-0
   p-3`) that carries **no** plate today — the bottom plate is the §3.5 proposal, not a current fact;
