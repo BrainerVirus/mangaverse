@@ -198,6 +198,58 @@ describe('theme routes', () => {
     expect(saved.basedOn).toBe('default');
   });
 
+  it('Given the editor draft, When Duplicate is saved, Then the copy has a custom id and becomes selected', async () => {
+    await renderAt('/theme/editor');
+
+    act(() => {
+      buttonByText(container, 'Duplicate').click();
+    });
+    await act(async () => {
+      buttonByText(container, 'Save theme').click();
+    });
+
+    await vi.waitFor(() => {
+      expect(mocks.saveThemeDefinition).toHaveBeenCalledTimes(1);
+    });
+    const saved = mocks.saveThemeDefinition.mock.calls[0]?.[1] as ThemeDefinition;
+    expect(saved.id).toMatch(/^custom:/);
+    expect(saved.name).toBe('Minimal copy copy');
+    await vi.waitFor(() => {
+      expect(mocks.theme.setThemeSettings).toHaveBeenCalledWith({
+        themeId: saved.id,
+        dark: false,
+      });
+    });
+  });
+
+  it('Given the selected theme is open in the editor, When Delete is confirmed, Then the selection falls back to default and the gallery returns', async () => {
+    mocks.theme.settings = { themeId: customTheme.id, dark: true };
+    mocks.theme.customThemes = [customTheme];
+    await renderAt('/theme/editor');
+
+    act(() => {
+      buttonByText(container, 'Delete theme').click();
+    });
+    expect(document.body.textContent).toContain('Delete “My Sakura”?');
+
+    act(() => {
+      [...document.body.querySelectorAll('button')]
+        .filter((candidate) => candidate.textContent?.trim() === 'Delete theme')
+        .at(-1)
+        ?.click();
+    });
+
+    await vi.waitFor(() => {
+      expect(mocks.deleteThemeDefinition).toHaveBeenCalledWith({ id: 'fake-db' }, customTheme.id);
+    });
+    await vi.waitFor(() => {
+      expect(mocks.theme.setThemeSettings).toHaveBeenCalledWith({ themeId: 'default', dark: true });
+    });
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain('Built-in themes');
+    });
+  });
+
   it('Given the selected custom theme, When Delete is confirmed, Then the selection falls back to default', async () => {
     mocks.theme.settings = { themeId: customTheme.id, dark: true };
     mocks.theme.customThemes = [customTheme];
