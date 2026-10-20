@@ -10,6 +10,13 @@ const { persistReaderProgress, saveReaderSettings, fetchReaderPage } = vi.hoiste
   saveReaderSettings: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({ ok: true })),
   fetchReaderPage: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
     settings: getDefaultReaderSettings(),
+    chapter: {
+      id: 'dev-md-ch-1',
+      mangaId: 'dev-md-manga-1',
+      title: 'Ch. 1',
+      pages: [{ id: 'page-0', index: 0, image: { url: 'https://example.com/0.jpg' } }],
+      pageCount: 1,
+    },
   })),
 }));
 
@@ -31,7 +38,10 @@ let screenProps: Record<string, unknown> = {};
 vi.mock('@app/reader', () => ({
   fetchReaderPage,
   persistReaderProgress,
-  readerQueryKeys: { chapter: (id: string) => ['reader', 'chapter', id] },
+  readerQueryKeys: {
+    chapter: (id: string) => ['reader', 'chapter', id],
+    chapterHydration: (id: string) => ['reader', 'chapter-hydration', id],
+  },
   toReaderEngineSettings: (settings: unknown) => settings,
   ReaderScreen: (props: Record<string, unknown>) => {
     screenProps = props;

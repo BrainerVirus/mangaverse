@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
 import {
   EmptyState,
   ErrorState,
@@ -55,7 +55,14 @@ function resolveChromeMode(
   return settings?.pageLayout === 'double' ? 'double' : 'single';
 }
 
-type ReaderGate = 'loading' | 'error' | 'offline' | 'empty' | null;
+type ReaderGate =
+  | 'loading'
+  | 'error'
+  | 'hydrating'
+  | 'hydration-error'
+  | 'offline'
+  | 'empty'
+  | null;
 
 function applyReadingModeChange(
   mode: 'single' | 'double' | 'scroll' | 'webtoon',
@@ -74,6 +81,58 @@ function applyReadingModeChange(
   );
 }
 
+/** The surface for a gate that replaces the reading view, in gate priority order. */
+function readerGateView({
+  gate,
+  title,
+  onRetry,
+}: {
+  readonly gate: Exclude<ReaderGate, null>;
+  readonly title: string;
+  readonly onRetry: (() => void) | undefined;
+}): ReactNode {
+  switch (gate) {
+    case 'error':
+      return (
+        <ErrorState
+          title="Could not load chapter"
+          message="Local chapter data failed to load. Try again in a moment."
+          {...retryProps(onRetry)}
+        />
+      );
+    case 'hydrating':
+      return (
+        <ReaderPendingStage kind="hydrating" title={title}>
+          <LoadingState type="detail" />
+        </ReaderPendingStage>
+      );
+    case 'hydration-error':
+      return (
+        <ReaderPendingStage kind="error" title={title}>
+          <ErrorState
+            title="Could not load chapter"
+            message="The chapter is saved locally, but its pages could not be fetched from the provider."
+            {...retryProps(onRetry)}
+          />
+        </ReaderPendingStage>
+      );
+    case 'offline':
+      return (
+        <ErrorState
+          title="You are offline"
+          message="This chapter is not saved locally yet. Reconnect and retry."
+          {...retryProps(onRetry)}
+        />
+      );
+    case 'loading':
+      return <LoadingState type="detail" />;
+    case 'empty':
+      return <EmptyState type="no-chapters" />;
+    default:
+      return null;
+  }
+}
+
 /** `exactOptionalPropertyTypes` forbids passing an absent callback explicitly. */
 function retryProps(onRetry: (() => void) | undefined): { readonly onRetry?: () => void } {
   return onRetry === undefined ? {} : { onRetry };
@@ -86,9 +145,17 @@ function resolveReaderGate(input: {
   readonly isOffline: boolean;
   readonly hasSession: boolean;
   readonly pageCount: number;
+  readonly isHydrating: boolean;
+  readonly isHydrationError: boolean;
 }): ReaderGate {
   if (input.isLoading) return 'loading';
   if (input.isError) return 'error';
+  // A locally empty chapter is hydrating before it is empty: the metadata is
+  // already here, the pages are not, and 'No chapters' would be a lie.
+  if (input.pageCount === 0 && input.hasSession) {
+    if (input.isHydrationError) return 'hydration-error';
+    if (input.isHydrating) return 'hydrating';
+  }
   if (input.isOffline && !input.hasSession) return 'offline';
   // A pending or paused (unfocused/online) fetch with no data is still loading;
   // a genuinely empty chapter has data with pageCount 0 and is handled below.
@@ -109,6 +176,10 @@ export interface ReaderScreenProps {
   data: ReaderPageData | undefined;
   isLoading: boolean;
   isError: boolean;
+  /** True while provider pages are being fetched for a locally empty chapter. */
+  isHydrating?: boolean;
+  /** True when provider hydration failed; the local chapter metadata still exists. */
+  isHydrationError?: boolean;
   chromeVisible: boolean;
   onToggleChrome: () => void;
   onPersistProgress?: (event: ReaderProgressEvent) => void;
@@ -122,6 +193,8 @@ export function ReaderScreen({
   data,
   isLoading,
   isError,
+  isHydrating = false,
+  isHydrationError = false,
   chromeVisible,
   onToggleChrome,
   onPersistProgress,
@@ -185,33 +258,15 @@ export function ReaderScreen({
     isOffline,
     hasSession: data !== undefined && readerState !== null,
     pageCount: data?.chapter.pageCount ?? 0,
+    isHydrating,
+    isHydrationError,
   });
-  if (gate === 'error') {
-    return (
-      <ErrorState
-        title="Could not load chapter"
-        message="Local chapter data failed to load. Try again in a moment."
-        {...retryProps(onRetry)}
-      />
-    );
+  if (gate !== null) {
+    return readerGateView({ gate, title: data?.chapter.title ?? '', onRetry });
   }
 
-  if (gate === 'offline') {
-    return (
-      <ErrorState
-        title="You are offline"
-        message="This chapter is not saved locally yet. Reconnect and retry."
-        {...retryProps(onRetry)}
-      />
-    );
-  }
-
-  if (gate === 'loading' || data === undefined || readerState === null) {
+  if (data === undefined || readerState === null) {
     return <LoadingState type="detail" />;
-  }
-
-  if (gate === 'empty') {
-    return <EmptyState type="no-chapters" />;
   }
 
   const visiblePages = readerState.visiblePageIndexes
@@ -368,6 +423,38 @@ export function ReaderScreen({
         />
       ) : null}
     </>
+  );
+}
+
+/**
+ * The reader's pre-pages surface: the local chapter title stays visible while
+ * provider pages hydrate, or while a failed hydration waits for Retry.
+ */
+function ReaderPendingStage({
+  kind,
+  title,
+  children,
+}: {
+  readonly kind: 'hydrating' | 'error';
+  readonly title: string;
+  readonly children: ReactNode;
+}) {
+  return (
+    <div
+      className="flex h-full w-full flex-col bg-black"
+      data-testid={kind === 'hydrating' ? 'reader-hydrating' : 'reader-hydration-error'}
+      aria-busy={kind === 'hydrating' || undefined}
+    >
+      <div className="flex items-center px-4 py-3">
+        <span className="text-sm font-medium text-white">{title}</span>
+      </div>
+      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
+        {children}
+        {kind === 'hydrating' ? (
+          <output className="mt-4 block text-sm text-white/70">Loading chapter pages…</output>
+        ) : null}
+      </div>
+    </div>
   );
 }
 

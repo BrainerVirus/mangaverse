@@ -19,6 +19,7 @@ import {
   useReportPersistenceError,
 } from '../providers/local-db-provider.js';
 import { useOnlineStatus } from '../lib/use-online-status.js';
+import { getBindingForChapterId } from '../lib/provider-registry.js';
 import { useLayoutStore } from '../stores/useLayoutStore.js';
 import { PersistenceErrorBanner } from '../components/PersistenceErrorBanner.js';
 import { ensureProviderChapterPages } from '../queries/provider-query-options.js';
@@ -44,10 +45,9 @@ function ReaderRoute() {
   const isOnline = useOnlineStatus();
   const { data, isLoading, isError } = useQuery({
     queryKey: readerQueryKeys.chapter(chapterId),
-    queryFn: async ({ signal }) => {
-      await ensureProviderChapterPages(db!, chapterId, signal);
-      return fetchReaderPage(db!, chapterId);
-    },
+    // Local-first: the reader renders SQLite only. Provider pages arrive through
+    // the hydration command below, never from the read that gates the surface.
+    queryFn: () => fetchReaderPage(db!, chapterId),
     enabled: dbStatus === 'ready' && db !== null,
     // Progress and chapter data change behind the reader's back (checkpoint on
     // leave, another tab); a cached mount must never show a stale page.
@@ -55,6 +55,39 @@ function ReaderRoute() {
     gcTime: 0,
     refetchOnMount: 'always',
   });
+
+  const binding = getBindingForChapterId(chapterId);
+  const hasLocalPages = (data?.chapter.pageCount ?? 0) > 0;
+  // Hydrate only a locally empty chapter that a provider binding owns; the
+  // command re-checks the same contracts before it reaches the network.
+  const shouldHydrate =
+    dbStatus === 'ready' && db !== null && data !== undefined && !hasLocalPages && binding !== null;
+
+  const hydration = useQuery({
+    queryKey: readerQueryKeys.chapterHydration(chapterId),
+    queryFn: async ({ signal }) => {
+      await ensureProviderChapterPages(db!, chapterId, signal);
+      // Pages are now in SQLite: refresh only the local chapter read. gcTime is
+      // zero, so a remount never replays a stale hydration result.
+      await queryClient.invalidateQueries({
+        queryKey: readerQueryKeys.chapter(chapterId),
+        exact: true,
+      });
+    },
+    enabled: shouldHydrate,
+    // A provider page fetch is visible work with its own Retry, not a cache
+    // warm: no global retry policy and no refetch-on-reconnect duplicate.
+    retry: false,
+    staleTime: Infinity,
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+
+  const isHydrating = shouldHydrate && (hydration.isPending || hydration.isFetching);
+  const isHydrationError = shouldHydrate && hydration.isError && !hydration.isFetching;
+  const hydrationFailed = hydration.isError;
+  const retryHydration = hydration.refetch;
 
   const { mutate: saveSettings } = useMutation({
     mutationFn: async (next: ReaderSettings) => {
@@ -106,6 +139,22 @@ function ReaderRoute() {
     [db, reportPersistenceError],
   );
 
+  const handleRetry = useCallback(() => {
+    // While the DB is in error the reader query is disabled, so invalidating it
+    // does nothing; rebuild the handle first.
+    if (dbStatus === 'error') {
+      retryDb();
+      return;
+    }
+    // A provider failure is retried through the hydration command, not by
+    // re-reading the unchanged local chapter.
+    if (shouldHydrate && hydrationFailed) {
+      void retryHydration();
+      return;
+    }
+    void queryClient.invalidateQueries({ queryKey: readerQueryKeys.chapter(chapterId) });
+  }, [chapterId, dbStatus, hydrationFailed, queryClient, retryDb, retryHydration, shouldHydrate]);
+
   return (
     <>
       {/*
@@ -119,20 +168,14 @@ function ReaderRoute() {
         data={data}
         isLoading={dbStatus === 'loading' || isLoading}
         isError={dbStatus === 'error' || isError}
+        isHydrating={isHydrating}
+        isHydrationError={isHydrationError}
         chromeVisible={readerChromeVisible}
         onToggleChrome={toggleReaderChrome}
         onPersistProgress={handlePersistProgress}
         onChangeSettings={handleChangeSettings}
         isOffline={!isOnline}
-        onRetry={() => {
-          // While the DB is in error the reader query is disabled, so
-          // invalidating it does nothing; rebuild the handle first.
-          if (dbStatus === 'error') {
-            retryDb();
-            return;
-          }
-          void queryClient.invalidateQueries({ queryKey: readerQueryKeys.chapter(chapterId) });
-        }}
+        onRetry={handleRetry}
       />
     </>
   );

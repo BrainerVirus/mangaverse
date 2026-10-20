@@ -26,6 +26,9 @@ export function useReaderProgress(
   // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: debounced persistence is a timer, and the effect owns its cancel
   useEffect(() => {
     if (!data || !readerState || !onPersistProgress) return;
+    // Nothing to read yet (provider pages are still hydrating): page 0 with
+    // zero pages would mark the chapter complete and overwrite saved progress.
+    if (data.chapter.pageCount === 0) return;
 
     const nextEvent = createProgressEvent(
       data.chapterId,
