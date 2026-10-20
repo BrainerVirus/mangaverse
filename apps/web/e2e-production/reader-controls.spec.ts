@@ -101,15 +101,29 @@ test('Given an open chapter, When hovering and dragging the rail, Then a page pr
       .first()
       .textContent()) ?? '';
   const pageNumber = Number(indicator.match(/(\d+) \/ 37/)?.[1] ?? '0');
-  const transform = await page.getByTestId('reader-rail-fill').evaluate((el) => el.style.transform);
-  const scale = Number(transform.match(/scaleX\(([\d.]+)\)/)?.[1] ?? '-1');
-  expect(Math.abs(scale - (pageNumber - 1) / 36)).toBeLessThan(0.02);
+  const fraction = (pageNumber - 1) / 36;
+
+  // The fill and thumb transition to the new fraction, so poll the rendered value
+  // rather than reading one mid-tween frame.
+  const fillScale = () =>
+    page
+      .getByTestId('reader-rail-fill')
+      .evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).a);
+  await expect
+    .poll(async () => Math.abs((await fillScale()) - fraction) < 0.02, { timeout: 5_000 })
+    .toBe(true);
 
   // The thumb rides the same fraction through `left` (its translate only centers
   // it), so a thumb that stops tracking the page position fails here.
-  const thumbLeft = await page.getByTestId('reader-rail-thumb').evaluate((el) => el.style.left);
-  const thumbFraction = Number(thumbLeft.replace('%', '')) / 100;
-  expect(Math.abs(thumbFraction - (pageNumber - 1) / 36)).toBeLessThan(0.02);
+  const thumbFraction = () =>
+    page.getByTestId('reader-rail-thumb').evaluate((el) => {
+      const parent = el.parentElement;
+      if (!parent) return -1;
+      return parseFloat(getComputedStyle(el).left) / parseFloat(getComputedStyle(parent).width);
+    });
+  await expect
+    .poll(async () => Math.abs((await thumbFraction()) - fraction) < 0.02, { timeout: 5_000 })
+    .toBe(true);
 });
 
 test('Given the mode switcher, When changing modes, Then the highlight morphs to the active option', async ({
