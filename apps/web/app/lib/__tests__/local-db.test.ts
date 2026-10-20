@@ -11,12 +11,15 @@ const INITIAL_MIGRATION_HASH = '975ad6e194cffda2f81ec7effd5535768834630dc7df0145
 const CACHE_ASSET_MIGRATION_HASH =
   'be8c129e37327e353096a7daf815a2963471cbc0429ca76b2b5a2129251fd175';
 
+const THEMES_MIGRATION_HASH = 'b82ae03e19ad700a913d2407db98b5c89dbe24913d764eaa01b116b930f4fdd5';
+
 function loadBundledMigrationFixtures() {
   const testDir = dirname(fileURLToPath(import.meta.url));
   const migrationsRoot = join(testDir, '../../../../../packages/db/migrations');
   return {
     initialSql: readFileSync(join(migrationsRoot, '0000_initial.sql'), 'utf8'),
     cacheAssetSql: readFileSync(join(migrationsRoot, '0001_cache_asset_metadata.sql'), 'utf8'),
+    themesSql: readFileSync(join(migrationsRoot, '0002_themes.sql'), 'utf8'),
     journal: JSON.parse(readFileSync(join(migrationsRoot, 'meta/_journal.json'), 'utf8')),
   };
 }
@@ -66,7 +69,7 @@ describe('local-db bundled migration path', () => {
   });
 
   it('applies the same bundled migration files used by getLocalDb()', async () => {
-    const { initialSql, cacheAssetSql, journal } = loadBundledMigrationFixtures();
+    const { initialSql, cacheAssetSql, themesSql, journal } = loadBundledMigrationFixtures();
     const SQL = await initSqlJs();
     const db = new SQL.Database();
 
@@ -81,6 +84,11 @@ describe('local-db bundled migration path', () => {
         sql: cacheAssetSql,
         hash: CACHE_ASSET_MIGRATION_HASH,
       },
+      {
+        tag: '0002_themes',
+        sql: themesSql,
+        hash: THEMES_MIGRATION_HASH,
+      },
     ]);
 
     const tables = db
@@ -89,6 +97,7 @@ describe('local-db bundled migration path', () => {
 
     expect(tables).toContain('installed_extensions');
     expect(tables).toContain('library_entries');
+    expect(tables).toContain('themes');
     expect(tables).toContain('__drizzle_migrations');
   });
 });

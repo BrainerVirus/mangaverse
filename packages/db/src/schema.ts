@@ -1,3 +1,4 @@
+import type { ThemeDefinition } from '@app/shared';
 import {
   index,
   integer,
@@ -17,9 +18,19 @@ export const readerPreferences = sqliteTable('reader_preferences', {
 
 export const themePreferences = sqliteTable('theme_preferences', {
   id: text('id').primaryKey(),
+  /** Stores the selected themeId; built-in preset ids were carried over unchanged. */
   presetId: text('preset_id').notNull(),
   dark: integer('dark', { mode: 'boolean' }).notNull(),
   updatedAt: text('updated_at'),
+});
+
+/** Custom themes only; built-in presets resolve from code. */
+export const themes = sqliteTable('themes', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  definitionJson: text('definition_json', { mode: 'json' }).notNull().$type<ThemeDefinition>(),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
 });
 
 export const appSettings = sqliteTable('app_settings', {
@@ -370,6 +381,7 @@ export const syncState = sqliteTable('sync_state', {
 export const schema = {
   readerPreferences,
   themePreferences,
+  themes,
   appSettings,
   providerSettings,
   mangaIdentities,

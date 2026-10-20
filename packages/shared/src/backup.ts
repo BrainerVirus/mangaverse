@@ -7,8 +7,12 @@ import { toProviderId } from './manga.js';
 import type { ReaderSettings } from './reader-settings.js';
 import { getDefaultReaderSettings, validateReaderSettings } from './reader-settings.js';
 import { validateProviderManifest } from './provider.js';
+import type { ThemeDefinition } from './theme-definition.js';
+import { normalizeThemeDefinitionShape, validateThemeDefinitionShape } from './theme-definition.js';
 
-export const BACKUP_SCHEMA_VERSION = 1 as const;
+export const BACKUP_SCHEMA_VERSION = 2 as const;
+/** v1 predates custom themes; both are readable, new exports write v2. */
+export const SUPPORTED_BACKUP_SCHEMA_VERSIONS: readonly number[] = [1, 2];
 
 export interface BackupMetadata {
   readonly createdAt: string;
@@ -27,7 +31,8 @@ export interface BackupSettingsSnapshot {
 }
 
 export interface ThemeSettings {
-  readonly presetId: string;
+  /** A built-in preset id or a custom theme id stored in the `themes` table. */
+  readonly themeId: string;
   readonly dark: boolean;
 }
 
@@ -40,6 +45,8 @@ export interface BackupDocumentV1 {
   readonly readerSettings: ReaderSettings;
   readonly providerSettings: BackupSettingsSnapshot;
   readonly themeSettings: ThemeSettings;
+  /** Custom themes only: built-ins are resolved from code. */
+  readonly themes: readonly ThemeDefinition[];
 }
 
 export interface BackupValidationIssue {
@@ -109,9 +116,16 @@ function validateThemeSettings(input: unknown): AppResult<ThemeSettings> {
       createAppError({ code: 'backup.invalid', message: 'themeSettings must be an object.' }),
     );
   }
-  if (!isNonEmptyString(input['presetId'])) {
+
+  // Backups written before the themeId migration carry `presetId`; both map to themeId.
+  const legacyPresetId = input['presetId'];
+  const themeId = input['themeId'] ?? legacyPresetId;
+  if (!isNonEmptyString(themeId)) {
     return err(
-      createAppError({ code: 'backup.invalid', message: 'themeSettings.presetId is required.' }),
+      createAppError({
+        code: 'backup.invalid',
+        message: 'themeSettings.themeId is required.',
+      }),
     );
   }
   if (typeof input['dark'] !== 'boolean') {
@@ -119,7 +133,43 @@ function validateThemeSettings(input: unknown): AppResult<ThemeSettings> {
       createAppError({ code: 'backup.invalid', message: 'themeSettings.dark must be boolean.' }),
     );
   }
-  return ok({ presetId: String(input['presetId']), dark: input['dark'] });
+  return ok({ themeId: String(themeId), dark: input['dark'] });
+}
+
+function validateThemeDefinitions(input: unknown): AppResult<readonly ThemeDefinition[]> {
+  if (input === undefined) {
+    return ok([]);
+  }
+  if (!Array.isArray(input)) {
+    return err(createAppError({ code: 'backup.invalid', message: 'themes must be an array.' }));
+  }
+
+  const out: ThemeDefinition[] = [];
+  const seen = new Set<string>();
+  for (const [index, item] of input.entries()) {
+    const result = validateThemeDefinitionShape(item);
+    if (!result.ok) {
+      return err(
+        createAppError({
+          code: 'backup.invalid',
+          message: `themes.${index}.${result.issues[0]?.path ?? ''}: ${result.issues[0]?.message ?? 'Invalid theme.'}`,
+          details: { path: `themes.${index}.${result.issues[0]?.path ?? ''}` },
+        }),
+      );
+    }
+    if (seen.has(result.value.id)) {
+      return err(
+        createAppError({
+          code: 'backup.invalid',
+          message: `Duplicate theme id "${result.value.id}".`,
+          details: { path: `themes.${index}.id` },
+        }),
+      );
+    }
+    seen.add(result.value.id);
+    out.push(normalizeThemeDefinitionShape(result.value));
+  }
+  return ok(out);
 }
 
 function validateLibraryEntries(input: unknown): AppResult<readonly LibraryEntry[]> {
@@ -316,11 +366,11 @@ export function validateBackupDocument(input: unknown): BackupValidationResult {
     return fail('backup.invalid', 'Backup document must be an object.');
   }
 
-  if (input['schemaVersion'] !== BACKUP_SCHEMA_VERSION) {
+  if (!SUPPORTED_BACKUP_SCHEMA_VERSIONS.includes(Number(input['schemaVersion']))) {
     addIssue(
       'schemaVersion',
       'backup.invalid',
-      `Expected schemaVersion ${BACKUP_SCHEMA_VERSION}, got ${String(input['schemaVersion'])}`,
+      `Expected schemaVersion ${SUPPORTED_BACKUP_SCHEMA_VERSIONS.join(' or ')}, got ${String(input['schemaVersion'])}`,
     );
     return {
       ok: false,
@@ -372,6 +422,17 @@ export function validateBackupDocument(input: unknown): BackupValidationResult {
     addIssue('themeSettings', themeResult.error.code, themeResult.error.message);
   }
 
+  const themesResult = validateThemeDefinitions(input['themes']);
+  if (!themesResult.ok) {
+    addIssue(
+      themesResult.error.details?.['path'] !== undefined
+        ? String(themesResult.error.details['path'])
+        : 'themes',
+      themesResult.error.code,
+      themesResult.error.message,
+    );
+  }
+
   if (issues.length > 0) {
     const first = issues[0]!;
     return {
@@ -403,7 +464,8 @@ export function validateBackupDocument(input: unknown): BackupValidationResult {
     providerSettings: providerResult.ok
       ? providerResult.value
       : ({ providerSnapshots: [] } as BackupSettingsSnapshot),
-    themeSettings: themeResult.ok ? themeResult.value : { presetId: '', dark: false },
+    themeSettings: themeResult.ok ? themeResult.value : { themeId: '', dark: false },
+    themes: themesResult.ok ? themesResult.value : [],
   };
 
   return { ok: true, value: doc, issues: [] };

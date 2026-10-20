@@ -1,33 +1,36 @@
-import type { ThemeDefinition } from '@app/design-system';
-import type { ThemeSettings } from '@app/shared';
+import type { ThemeDefinition as DesignSystemThemeDefinition } from '@app/design-system';
+import type { ThemeDefinition, ThemeSettings } from '@app/shared';
 
-import { getThemePreset } from './presets.js';
-import { resolveEffectiveDark } from './resolve-theme.js';
+import { getBuiltInThemeDefinition } from './built-in-themes.js';
+import { resolveThemeAppearance } from './resolve-theme.js';
 
-export function toThemePreviewDefinition(settings: ThemeSettings): ThemeDefinition {
-  const preset = getThemePreset(settings.presetId);
-  const dark = resolveEffectiveDark(settings);
-  const tokens = dark ? preset.dark : preset.light;
+export function toThemePreviewDefinition(
+  settings: ThemeSettings,
+  definition?: ThemeDefinition,
+): DesignSystemThemeDefinition {
+  const resolved = definition ?? getBuiltInThemeDefinition(settings.themeId);
+  const seeds = resolved[resolveThemeAppearance(settings)].seeds;
 
   return {
-    id: preset.id,
-    name: preset.name,
-    background: tokens.background,
-    foreground: tokens.foreground,
-    surface: tokens.surface,
-    accent: tokens.accent,
-    border: tokens.border,
-    readerBackground: tokens.readerBackground,
-    primary: tokens.primary,
-    destructive: tokens.destructive,
-    success: tokens.success,
-    warning: tokens.warning,
+    id: resolved.id,
+    name: resolved.name,
+    background: seeds.background,
+    foreground: seeds.foreground,
+    surface: seeds.surface,
+    accent: seeds.accent,
+    border: seeds.border,
+    readerBackground: seeds.readerBackground,
+    primary: seeds.primary,
+    destructive: seeds.destructive,
+    success: seeds.success,
+    warning: seeds.warning,
   };
 }
 
 export function toThemePreviewDefinitionForPreset(
   presetId: string,
   previewDark: boolean,
-): ThemeDefinition {
-  return toThemePreviewDefinition({ presetId, dark: previewDark });
+  definition?: ThemeDefinition,
+): DesignSystemThemeDefinition {
+  return toThemePreviewDefinition({ themeId: presetId, dark: previewDark }, definition);
 }

@@ -26,6 +26,7 @@ import {
   providerSettings,
   readerPreferences,
   themePreferences,
+  themes,
   trackingLinks,
 } from '../schema.js';
 import { withTransaction } from '../transactions.js';
@@ -243,13 +244,13 @@ function upsertThemeSettingsSync(
   tx.insert(themePreferences)
     .values({
       id: GLOBAL_THEME_ID,
-      presetId: settings.presetId,
+      presetId: settings.themeId,
       dark: settings.dark,
       updatedAt: now,
     })
     .onConflictDoUpdate({
       target: themePreferences.id,
-      set: { presetId: settings.presetId, dark: settings.dark, updatedAt: now },
+      set: { presetId: settings.themeId, dark: settings.dark, updatedAt: now },
     })
     .run();
 }
@@ -292,6 +293,7 @@ export async function applyBackupRestore(
       tx.delete(mangaIdentities).run();
       tx.delete(installedExtensions).run();
       tx.delete(providerSettings).run();
+      tx.delete(themes).run();
 
       for (const identity of doc.mangaIdentities) {
         insertMangaIdentitySync(tx, identity);
@@ -318,6 +320,19 @@ export async function applyBackupRestore(
               settingsJson: snapshot.settings,
               updatedAt: now,
             },
+          })
+          .run();
+      }
+
+      for (const definition of doc.themes) {
+        const now = new Date().toISOString();
+        tx.insert(themes)
+          .values({
+            id: definition.id,
+            name: definition.name,
+            definitionJson: definition,
+            createdAt: now,
+            updatedAt: now,
           })
           .run();
       }

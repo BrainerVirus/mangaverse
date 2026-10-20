@@ -38,7 +38,7 @@ function readStoredThemeSettings(): ThemeSettings | null {
     const storedDark = localStorage.getItem('theme-dark');
     if (storedPreset && (storedDark === 'true' || storedDark === 'false')) {
       return {
-        presetId: storedPreset,
+        themeId: storedPreset,
         dark: storedDark === 'true',
       };
     }
@@ -51,7 +51,7 @@ function readStoredThemeSettings(): ThemeSettings | null {
 
 function persistThemeLocally(settings: ThemeSettings): void {
   try {
-    localStorage.setItem('theme-preset-id', settings.presetId);
+    localStorage.setItem('theme-preset-id', settings.themeId);
     localStorage.setItem('theme-dark', String(settings.dark));
     localStorage.setItem('theme', resolveThemeAppearance(settings));
   } catch {
@@ -80,7 +80,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     applyThemeToRoot(document.documentElement, settings);
     persistThemeLocally(settings);
 
-    if (settings.presetId !== 'system') {
+    if (settings.themeId !== 'system') {
       return;
     }
 
@@ -104,7 +104,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setTheme: (nextTheme) => {
         updateSettings({
           ...settings,
-          presetId: settings.presetId === 'system' ? 'default' : settings.presetId,
+          themeId: settings.themeId === 'system' ? 'default' : settings.themeId,
           dark: nextTheme === 'dark',
         });
       },

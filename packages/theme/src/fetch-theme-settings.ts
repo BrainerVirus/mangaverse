@@ -1,19 +1,22 @@
 import type { AppDrizzleDb } from '@app/db';
 
-import { getDefaultThemeSettings } from './validate-theme-settings.js';
+import { isCustomThemeId } from './validate-theme-settings.js';
 import type { ThemeSettingsPageData } from './types.js';
 
 export async function fetchThemeSettings(db: AppDrizzleDb): Promise<ThemeSettingsPageData> {
-  const { getThemeSettings } = await import('@app/db');
+  const { getThemeDefinition, getThemeSettings } = await import('@app/db');
   const settings = await getThemeSettings(db);
-  return { settings };
+  if (!isCustomThemeId(settings.themeId)) {
+    return { settings };
+  }
+
+  const theme = await getThemeDefinition(db, settings.themeId);
+  return theme === undefined ? { settings } : { settings, theme };
 }
 
+/** Stored settings already fall back to defaults in the repository; kept for callers. */
 export async function fetchThemeSettingsWithDefaults(
   db: AppDrizzleDb,
 ): Promise<ThemeSettingsPageData> {
-  const page = await fetchThemeSettings(db);
-  return {
-    settings: page.settings ?? getDefaultThemeSettings(),
-  };
+  return fetchThemeSettings(db);
 }

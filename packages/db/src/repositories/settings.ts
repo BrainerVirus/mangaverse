@@ -58,8 +58,9 @@ export async function getThemeSettings(db: AppDrizzleDb): Promise<ThemeSettings>
     .from(themePreferences)
     .where(eq(themePreferences.id, GLOBAL_THEME_ID))
     .get();
-  if (row === undefined) return { presetId: 'default', dark: false };
-  return { presetId: row.presetId, dark: row.dark };
+  if (row === undefined) return { themeId: 'default', dark: false };
+  // Rows written before the themeId migration hold a built-in preset id; both are ids.
+  return { themeId: row.presetId, dark: row.dark };
 }
 
 export async function upsertThemeSettings(
@@ -71,13 +72,13 @@ export async function upsertThemeSettings(
     .insert(themePreferences)
     .values({
       id: GLOBAL_THEME_ID,
-      presetId: settings.presetId,
+      presetId: settings.themeId,
       dark: settings.dark,
       updatedAt: now,
     })
     .onConflictDoUpdate({
       target: themePreferences.id,
-      set: { presetId: settings.presetId, dark: settings.dark, updatedAt: now },
+      set: { presetId: settings.themeId, dark: settings.dark, updatedAt: now },
     });
 }
 

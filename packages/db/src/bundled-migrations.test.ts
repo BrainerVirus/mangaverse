@@ -8,6 +8,7 @@ import { migrateDatabaseToLatest } from './node.js';
 const migrationsRoot = fileURLToPath(new URL('../migrations', import.meta.url));
 const initialSql = readFileSync(`${migrationsRoot}/0000_initial.sql`, 'utf8');
 const cacheAssetSql = readFileSync(`${migrationsRoot}/0001_cache_asset_metadata.sql`, 'utf8');
+const themesSql = readFileSync(`${migrationsRoot}/0002_themes.sql`, 'utf8');
 const journal = JSON.parse(readFileSync(`${migrationsRoot}/meta/_journal.json`, 'utf8'));
 
 describe('bundled migrations', () => {
@@ -24,6 +25,11 @@ describe('bundled migrations', () => {
         tag: '0001_cache_asset_metadata',
         sql: cacheAssetSql,
         hash: 'be8c129e37327e353096a7daf815a2963471cbc0429ca76b2b5a2129251fd175',
+      },
+      {
+        tag: '0002_themes',
+        sql: themesSql,
+        hash: 'b82ae03e19ad700a913d2407db98b5c89dbe24913d764eaa01b116b930f4fdd5',
       },
     ]);
 

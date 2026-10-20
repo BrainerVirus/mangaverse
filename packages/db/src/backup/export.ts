@@ -6,18 +6,20 @@ import { listMangaIdentities } from '../repositories/identities.js';
 import { listInstalledExtensions } from '../repositories/extensions.js';
 import { listLibraryEntries } from '../repositories/library.js';
 import { getReaderSettings, getThemeSettings } from '../repositories/settings.js';
+import { listThemeDefinitions } from '../repositories/themes.js';
 
 export async function exportBackupDocumentV1(
   db: AppDrizzleDb,
   metadata: BackupMetadata,
 ): Promise<BackupDocumentV1> {
-  const [library, mangaIdentities, installedExtensions, readerSettings, themeSettings] =
+  const [library, mangaIdentities, installedExtensions, readerSettings, themeSettings, themes] =
     await Promise.all([
       listLibraryEntries(db),
       listMangaIdentities(db),
       listInstalledExtensions(db),
       getReaderSettings(db),
       getThemeSettings(db),
+      listThemeDefinitions(db),
     ]);
 
   const providerRows = db.select().from(providerSettings).all();
@@ -38,5 +40,6 @@ export async function exportBackupDocumentV1(
     readerSettings,
     providerSettings: providerSettingsOut,
     themeSettings,
+    themes,
   };
 }

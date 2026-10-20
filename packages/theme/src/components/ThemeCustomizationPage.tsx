@@ -93,11 +93,11 @@ export function ThemeCustomizationPage({
   }
 
   const previewDark = resolveEffectiveDark(settings);
-  const usesSystemAppearance = settings.presetId === 'system';
+  const usesSystemAppearance = settings.themeId === 'system';
   const appearanceLocked =
-    settings.presetId === 'minimal-light' ||
-    settings.presetId === 'minimal-dark' ||
-    settings.presetId === 'amoled-black';
+    settings.themeId === 'minimal-light' ||
+    settings.themeId === 'minimal-dark' ||
+    settings.themeId === 'amoled-black';
 
   return (
     <section aria-label="Theme" className="mx-auto w-full max-w-5xl space-y-8 p-6">
@@ -145,7 +145,7 @@ export function ThemeCustomizationPage({
               presetId={preset.id}
               name={preset.name}
               description={preset.description}
-              selected={settings.presetId === preset.id}
+              selected={settings.themeId === preset.id}
               previewDark={
                 preset.id === 'minimal-light'
                   ? false
@@ -154,7 +154,7 @@ export function ThemeCustomizationPage({
                     : previewDark
               }
               disabled={isSaving}
-              onSelect={() => onChange({ ...settings, presetId: preset.id })}
+              onSelect={() => onChange({ ...settings, themeId: preset.id })}
             />
           ))}
         </div>
