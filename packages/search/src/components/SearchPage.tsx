@@ -15,6 +15,8 @@ export interface SearchPageProps {
   data: SearchPageData | undefined;
   isLoading: boolean;
   isError: boolean;
+  /** Provider identities are still in flight; local results must stay visible. */
+  isProviderPending?: boolean;
   viewState: SearchViewState;
   onViewStateChange: (next: SearchViewState) => void;
   onOpenManga: (mangaId: MangaId) => void;
@@ -26,6 +28,7 @@ export function SearchPage({
   data,
   isLoading,
   isError,
+  isProviderPending = false,
   viewState,
   onViewStateChange,
   onOpenManga,
@@ -84,6 +87,7 @@ export function SearchPage({
           hasQuery={hasQuery}
           results={results}
           recentSearches={recentSearches}
+          isProviderPending={isProviderPending}
           onViewStateChange={onViewStateChange}
           onOpenManga={onOpenManga}
           onBrowseProviders={onBrowseProviders}
@@ -98,6 +102,7 @@ function SearchResults({
   hasQuery,
   results,
   recentSearches,
+  isProviderPending,
   onViewStateChange,
   onOpenManga,
   onBrowseProviders,
@@ -105,15 +110,25 @@ function SearchResults({
   hasQuery: boolean;
   results: SearchPageData['results'];
   recentSearches: SearchPageData['recentSearches'];
+  isProviderPending: boolean;
   onViewStateChange: (next: SearchViewState) => void;
   onOpenManga: (mangaId: MangaId) => void;
   onBrowseProviders: (() => void) | undefined;
 }) {
   if (hasQuery) {
-    return results.length > 0 ? (
-      <VirtualSearchGrid results={results} onOpenManga={onOpenManga} />
-    ) : (
-      <EmptyState type="no-results" />
+    return (
+      <>
+        {isProviderPending ? (
+          <output className="text-sm text-muted-foreground">Searching providers…</output>
+        ) : null}
+        {results.length > 0 ? (
+          <VirtualSearchGrid results={results} onOpenManga={onOpenManga} />
+        ) : isProviderPending ? null : (
+          // The empty state waits for the provider to settle; while it is still
+          // running the quiet status above is the only feedback.
+          <EmptyState type="no-results" />
+        )}
+      </>
     );
   }
 

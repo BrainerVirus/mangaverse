@@ -5,7 +5,7 @@ import { DEFAULT_SEARCH_VIEW_STATE, searchQueryKeys } from '@app/search';
 import { settingsQueryKeys } from '@app/settings';
 import { QUERY_GC_TIMES, QUERY_STALE_TIMES } from '../query-timing.js';
 import { libraryPageQueryOptions } from '../library-query-options.js';
-import { searchPageQueryOptions } from '../search-query-options.js';
+import { searchPageQueryOptions, searchProviderQueryOptions } from '../search-query-options.js';
 import { appSettingsQueryOptions, readerSettingsQueryOptions } from '../settings-query-options.js';
 import { prefetchCoreLocalData } from '../prefetch-core-local-data.js';
 
@@ -41,6 +41,19 @@ describe('searchPageQueryOptions', () => {
     expect(options.queryKey).toEqual(searchQueryKeys.page(DEFAULT_SEARCH_VIEW_STATE));
     expect(options.staleTime).toBe(QUERY_STALE_TIMES.search);
     expect(options.gcTime).toBe(QUERY_GC_TIMES.search);
+  });
+});
+
+describe('searchProviderQueryOptions', () => {
+  it('uses a provider key and stays disabled for a blank query', () => {
+    const blank = searchProviderQueryOptions(mockDb, '   ');
+    const typed = searchProviderQueryOptions(mockDb, '  berserk  ', true);
+
+    expect(blank.enabled).toBe(false);
+    expect(typed.enabled).toBe(true);
+    expect(typed.queryKey).toEqual(searchQueryKeys.provider('berserk', true));
+    expect(typed.staleTime).toBe(QUERY_STALE_TIMES.search);
+    expect(typed.gcTime).toBe(QUERY_GC_TIMES.search);
   });
 });
 
