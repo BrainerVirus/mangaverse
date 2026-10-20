@@ -1,77 +1,180 @@
+import { z } from 'zod';
+
 import type { AppResult } from './result.js';
 import { createAppError, err, ok } from './result.js';
-
-export type ReadingMode = 'rtl' | 'ltr' | 'vertical';
-
-export type PageLayoutMode = 'single' | 'double' | 'smartSpread';
-
-export type FitMode = 'width' | 'height' | 'contain' | 'cover' | 'original';
-
-export type TapZoneLayout = 'leftRight' | 'lShaped' | 'grid';
-
-export type PageTransitionMode = 'none' | 'fade' | 'slide';
-
-export type NavigationDirection = 'default' | 'inverted';
-
-export type WheelBehavior = 'none' | 'scroll' | 'zoom';
-
-export type ReaderChromeVisibility = 'auto' | 'always' | 'hidden';
-
-export interface KeyboardShortcut {
-  readonly action: string;
-  readonly key: string;
-  readonly modifiers?: readonly string[];
-}
-
-export interface ReaderSettings {
-  readonly readingMode: ReadingMode;
-  readonly pageLayout: PageLayoutMode;
-  readonly fitMode: FitMode;
-  readonly tapZoneLayout: TapZoneLayout;
-  readonly tapZoneDebugOverlay: boolean;
-  readonly navigationDirection: NavigationDirection;
-  readonly pageTransition: PageTransitionMode;
-  readonly chromeVisibility: ReaderChromeVisibility;
-  /** Number of upcoming pages to speculatively preload. */
-  readonly preloadAhead: number;
-  /**
-   * Maximum bytes of newly downloaded pages to prefetch per chapter.
-   * 0 means unlimited; otherwise the allowed range is 1 byte–2 GiB.
-   */
-  readonly prefetchBudgetBytes: number;
-  /** Vertical gap between strips in vertical mode (px). */
-  readonly verticalGapPx: number;
-  readonly minZoom: number;
-  readonly maxZoom: number;
-  /** Default zoom level after a double-tap (e.g. 1.5 = 150%). */
-  readonly doubleTapZoom: number;
-  /** Pinch zoom sensitivity multiplier. */
-  readonly pinchSensitivity: number;
-  /** General gesture sensitivity multiplier for tap, pan, and navigation thresholds. */
-  readonly gestureSensitivity: number;
-  /** Relative brightness between 0 (dim) and 1 (full). */
-  readonly brightness: number;
-  /** CSS color for reader background. */
-  readonly backgroundColor: string;
-  /** Whether images use browser smoothing/filtering. */
-  readonly imageSmoothing: boolean;
-  readonly keepScreenOn: boolean;
-  readonly fullscreenOnOpen: boolean;
-  readonly wheelBehavior: WheelBehavior;
-  readonly keyboardShortcuts: readonly KeyboardShortcut[];
-  readonly longStripOptimization: boolean;
-  readonly lowMemoryMode: boolean;
-  readonly diagnosticsEnabled: boolean;
-  readonly rememberPerTitleOverrides: boolean;
-}
-
-export type ReaderSettingsOverride = Partial<ReaderSettings>;
 
 /** Default chapter prefetch budget: 250 MB. */
 export const PREFETCH_BUDGET_DEFAULT_BYTES = 250 * 1024 * 1024;
 
 /** Upper bound for a finite prefetch budget: 2 GiB. */
 export const PREFETCH_BUDGET_MAX_BYTES = 2 * 1024 * 1024 * 1024;
+
+const readingModeSchema = z.enum(['rtl', 'ltr', 'vertical'], {
+  error: 'Invalid readingMode.',
+});
+
+const pageLayoutSchema = z.enum(['single', 'double', 'smartSpread'], {
+  error: 'Invalid pageLayout.',
+});
+
+const fitModeSchema = z.enum(['width', 'height', 'contain', 'cover', 'original'], {
+  error: 'Invalid fitMode.',
+});
+
+const tapZoneLayoutSchema = z.enum(['leftRight', 'lShaped', 'grid'], {
+  error: 'Invalid tapZoneLayout.',
+});
+
+const pageTransitionSchema = z.enum(['none', 'fade', 'slide'], {
+  error: 'Invalid pageTransition.',
+});
+
+const navigationDirectionSchema = z.enum(['default', 'inverted'], {
+  error: 'Invalid navigationDirection.',
+});
+
+const wheelBehaviorSchema = z.enum(['none', 'scroll', 'zoom'], {
+  error: 'Invalid wheelBehavior.',
+});
+
+const chromeVisibilitySchema = z.enum(['auto', 'always', 'hidden'], {
+  error: 'Invalid chromeVisibility.',
+});
+
+const keyboardShortcutSchema = z.object(
+  {
+    action: z.string({ error: 'Shortcut action must be a string.' }),
+    key: z.string({ error: 'Shortcut key must be a string.' }),
+    modifiers: z
+      .array(z.string({ error: 'Shortcut modifiers must be strings.' }), {
+        error: 'Shortcut modifiers must be an array.',
+      })
+      .exactOptional(),
+  },
+  { error: 'Each keyboard shortcut must be an object.' },
+);
+
+const prefetchBudgetBytesMessage = `prefetchBudgetBytes must be 0 (unlimited) or between 1 and ${PREFETCH_BUDGET_MAX_BYTES}.`;
+
+const prefetchBudgetBytesSchema = z
+  .number({ error: prefetchBudgetBytesMessage })
+  .int({ error: prefetchBudgetBytesMessage })
+  .min(0, { error: prefetchBudgetBytesMessage })
+  .max(PREFETCH_BUDGET_MAX_BYTES, { error: prefetchBudgetBytesMessage });
+
+const readerSettingsSchema = z
+  .object(
+    {
+      readingMode: readingModeSchema,
+      pageLayout: pageLayoutSchema,
+      fitMode: fitModeSchema,
+      tapZoneLayout: tapZoneLayoutSchema,
+      tapZoneDebugOverlay: z.boolean({ error: 'tapZoneDebugOverlay must be boolean.' }),
+      navigationDirection: navigationDirectionSchema,
+      pageTransition: pageTransitionSchema,
+      chromeVisibility: chromeVisibilitySchema,
+      /** Number of upcoming pages to speculatively preload. */
+      preloadAhead: z
+        .number({ error: 'preloadAhead must be between 0 and 20.' })
+        .min(0, { error: 'preloadAhead must be between 0 and 20.' })
+        .max(20, { error: 'preloadAhead must be between 0 and 20.' }),
+      /**
+       * Maximum bytes of newly downloaded pages to prefetch per chapter.
+       * 0 means unlimited; otherwise the allowed range is 1 byte–2 GiB.
+       */
+      prefetchBudgetBytes: z.preprocess(
+        (value) => value ?? PREFETCH_BUDGET_DEFAULT_BYTES,
+        prefetchBudgetBytesSchema,
+      ),
+      /** Vertical gap between strips in vertical mode (px). */
+      verticalGapPx: z
+        .number({ error: 'verticalGapPx must be between 0 and 2000.' })
+        .min(0, { error: 'verticalGapPx must be between 0 and 2000.' })
+        .max(2000, { error: 'verticalGapPx must be between 0 and 2000.' }),
+      minZoom: z
+        .number({ error: 'minZoom is invalid.' })
+        .min(0.25, { error: 'minZoom is invalid.' }),
+      maxZoom: z.number({ error: 'maxZoom is invalid.' }).max(10, { error: 'maxZoom is invalid.' }),
+      /** Default zoom level after a double-tap (e.g. 1.5 = 150%). */
+      doubleTapZoom: z
+        .number({ error: 'doubleTapZoom must be between 1 and 5.' })
+        .min(1, { error: 'doubleTapZoom must be between 1 and 5.' })
+        .max(5, { error: 'doubleTapZoom must be between 1 and 5.' }),
+      /** Pinch zoom sensitivity multiplier. */
+      pinchSensitivity: z
+        .number({ error: 'pinchSensitivity must be between 0 and 5 (exclusive 0).' })
+        .positive({ error: 'pinchSensitivity must be between 0 and 5 (exclusive 0).' })
+        .max(5, { error: 'pinchSensitivity must be between 0 and 5 (exclusive 0).' }),
+      /** General gesture sensitivity multiplier for tap, pan, and navigation thresholds. */
+      gestureSensitivity: z
+        .number({ error: 'gestureSensitivity must be between 0 and 5 (exclusive 0).' })
+        .positive({ error: 'gestureSensitivity must be between 0 and 5 (exclusive 0).' })
+        .max(5, { error: 'gestureSensitivity must be between 0 and 5 (exclusive 0).' }),
+      /** Relative brightness between 0 (dim) and 1 (full). */
+      brightness: z
+        .number({ error: 'brightness must be between 0 and 1.' })
+        .min(0, { error: 'brightness must be between 0 and 1.' })
+        .max(1, { error: 'brightness must be between 0 and 1.' }),
+      /** CSS color for reader background. */
+      backgroundColor: z
+        .string({ error: 'backgroundColor is required.' })
+        .min(1, { error: 'backgroundColor is required.' }),
+      /** Whether images use browser smoothing/filtering. */
+      imageSmoothing: z.boolean({ error: 'imageSmoothing must be boolean.' }),
+      keepScreenOn: z.boolean({ error: 'keepScreenOn must be boolean.' }),
+      fullscreenOnOpen: z.boolean({ error: 'fullscreenOnOpen must be boolean.' }),
+      wheelBehavior: wheelBehaviorSchema,
+      longStripOptimization: z.boolean({ error: 'longStripOptimization must be boolean.' }),
+      lowMemoryMode: z.boolean({ error: 'lowMemoryMode must be boolean.' }),
+      diagnosticsEnabled: z.boolean({ error: 'diagnosticsEnabled must be boolean.' }),
+      rememberPerTitleOverrides: z.boolean({
+        error: 'rememberPerTitleOverrides must be boolean.',
+      }),
+      // Last so a malformed array is reported after the scalar fields, as before.
+      keyboardShortcuts: z.array(keyboardShortcutSchema, {
+        error: 'keyboardShortcuts must be an array.',
+      }),
+    },
+    { error: 'Reader settings must be an object.' },
+  )
+  .superRefine((settings, ctx) => {
+    if (settings.minZoom > settings.maxZoom) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'minZoom cannot exceed maxZoom.',
+        path: ['maxZoom'],
+      });
+    }
+  });
+
+export type ReadingMode = z.infer<typeof readingModeSchema>;
+
+export type PageLayoutMode = z.infer<typeof pageLayoutSchema>;
+
+export type FitMode = z.infer<typeof fitModeSchema>;
+
+export type TapZoneLayout = z.infer<typeof tapZoneLayoutSchema>;
+
+export type PageTransitionMode = z.infer<typeof pageTransitionSchema>;
+
+export type NavigationDirection = z.infer<typeof navigationDirectionSchema>;
+
+export type WheelBehavior = z.infer<typeof wheelBehaviorSchema>;
+
+export type ReaderChromeVisibility = z.infer<typeof chromeVisibilitySchema>;
+
+export type KeyboardShortcut = z.infer<typeof keyboardShortcutSchema>;
+
+type ReaderSettingsShape = z.infer<typeof readerSettingsSchema>;
+
+/** Keeps the historical public shape, where the shortcut list is read-only. */
+export type ReaderSettings = Readonly<
+  Omit<ReaderSettingsShape, 'keyboardShortcuts'> & {
+    readonly keyboardShortcuts: readonly KeyboardShortcut[];
+  }
+>;
+
+export type ReaderSettingsOverride = Partial<ReaderSettings>;
 
 export function getDefaultReaderSettings(): ReaderSettings {
   return {
@@ -113,333 +216,14 @@ export function resolveReaderSettings(
   return { ...globalSettings, ...overrides };
 }
 
-const READING_MODES: ReadonlySet<ReadingMode> = new Set(['rtl', 'ltr', 'vertical']);
-const PAGE_LAYOUTS: ReadonlySet<PageLayoutMode> = new Set(['single', 'double', 'smartSpread']);
-const FIT_MODES: ReadonlySet<FitMode> = new Set([
-  'width',
-  'height',
-  'contain',
-  'cover',
-  'original',
-]);
-const TAP_ZONES: ReadonlySet<TapZoneLayout> = new Set(['leftRight', 'lShaped', 'grid']);
-const PAGE_TRANSITIONS: ReadonlySet<PageTransitionMode> = new Set(['none', 'fade', 'slide']);
-const NAV_DIRECTIONS: ReadonlySet<NavigationDirection> = new Set(['default', 'inverted']);
-const WHEEL_BEHAVIORS: ReadonlySet<WheelBehavior> = new Set(['none', 'scroll', 'zoom']);
-const CHROME_VISIBILITIES: ReadonlySet<ReaderChromeVisibility> = new Set([
-  'auto',
-  'always',
-  'hidden',
-]);
-
 export function validateReaderSettings(input: unknown): AppResult<ReaderSettings> {
-  if (typeof input !== 'object' || input === null || Array.isArray(input)) {
-    return err(
-      createAppError({
-        code: 'reader.settings.invalid',
-        message: 'Reader settings must be an object.',
-      }),
-    );
-  }
+  const result = readerSettingsSchema.safeParse(input);
+  if (result.success) return ok(result.data);
 
-  const s = input as Record<string, unknown>;
-
-  const readingMode = s['readingMode'];
-  if (typeof readingMode !== 'string' || !READING_MODES.has(readingMode as ReadingMode)) {
-    return err(
-      createAppError({ code: 'reader.settings.invalid', message: 'Invalid readingMode.' }),
-    );
-  }
-
-  const pageLayout = s['pageLayout'];
-  if (typeof pageLayout !== 'string' || !PAGE_LAYOUTS.has(pageLayout as PageLayoutMode)) {
-    return err(createAppError({ code: 'reader.settings.invalid', message: 'Invalid pageLayout.' }));
-  }
-
-  const fitMode = s['fitMode'];
-  if (typeof fitMode !== 'string' || !FIT_MODES.has(fitMode as FitMode)) {
-    return err(createAppError({ code: 'reader.settings.invalid', message: 'Invalid fitMode.' }));
-  }
-
-  const tapZoneLayout = s['tapZoneLayout'];
-  if (typeof tapZoneLayout !== 'string' || !TAP_ZONES.has(tapZoneLayout as TapZoneLayout)) {
-    return err(
-      createAppError({ code: 'reader.settings.invalid', message: 'Invalid tapZoneLayout.' }),
-    );
-  }
-
-  if (typeof s['tapZoneDebugOverlay'] !== 'boolean') {
-    return err(
-      createAppError({
-        code: 'reader.settings.invalid',
-        message: 'tapZoneDebugOverlay must be boolean.',
-      }),
-    );
-  }
-
-  const navDir = s['navigationDirection'];
-  if (typeof navDir !== 'string' || !NAV_DIRECTIONS.has(navDir as NavigationDirection)) {
-    return err(
-      createAppError({ code: 'reader.settings.invalid', message: 'Invalid navigationDirection.' }),
-    );
-  }
-
-  const pageTransition = s['pageTransition'];
-  if (
-    typeof pageTransition !== 'string' ||
-    !PAGE_TRANSITIONS.has(pageTransition as PageTransitionMode)
-  ) {
-    return err(
-      createAppError({ code: 'reader.settings.invalid', message: 'Invalid pageTransition.' }),
-    );
-  }
-
-  const chromeVisibility = s['chromeVisibility'];
-  if (
-    typeof chromeVisibility !== 'string' ||
-    !CHROME_VISIBILITIES.has(chromeVisibility as ReaderChromeVisibility)
-  ) {
-    return err(
-      createAppError({ code: 'reader.settings.invalid', message: 'Invalid chromeVisibility.' }),
-    );
-  }
-
-  const preloadAhead = s['preloadAhead'];
-  if (
-    typeof preloadAhead !== 'number' ||
-    !Number.isFinite(preloadAhead) ||
-    preloadAhead < 0 ||
-    preloadAhead > 20
-  ) {
-    return err(
-      createAppError({
-        code: 'reader.settings.invalid',
-        message: 'preloadAhead must be between 0 and 20.',
-      }),
-    );
-  }
-
-  // Settings stored before the budget existed default it instead of failing.
-  const prefetchBudgetBytes = s['prefetchBudgetBytes'] ?? PREFETCH_BUDGET_DEFAULT_BYTES;
-  if (
-    typeof prefetchBudgetBytes !== 'number' ||
-    !Number.isInteger(prefetchBudgetBytes) ||
-    prefetchBudgetBytes < 0 ||
-    prefetchBudgetBytes > PREFETCH_BUDGET_MAX_BYTES
-  ) {
-    return err(
-      createAppError({
-        code: 'reader.settings.invalid',
-        message: `prefetchBudgetBytes must be 0 (unlimited) or between 1 and ${PREFETCH_BUDGET_MAX_BYTES}.`,
-      }),
-    );
-  }
-
-  const verticalGapPx = s['verticalGapPx'];
-  if (
-    typeof verticalGapPx !== 'number' ||
-    !Number.isFinite(verticalGapPx) ||
-    verticalGapPx < 0 ||
-    verticalGapPx > 2000
-  ) {
-    return err(
-      createAppError({
-        code: 'reader.settings.invalid',
-        message: 'verticalGapPx must be between 0 and 2000.',
-      }),
-    );
-  }
-
-  const minZoom = s['minZoom'];
-  const maxZoom = s['maxZoom'];
-  if (typeof minZoom !== 'number' || !Number.isFinite(minZoom) || minZoom < 0.25) {
-    return err(createAppError({ code: 'reader.settings.invalid', message: 'minZoom is invalid.' }));
-  }
-  if (typeof maxZoom !== 'number' || !Number.isFinite(maxZoom) || maxZoom > 10) {
-    return err(createAppError({ code: 'reader.settings.invalid', message: 'maxZoom is invalid.' }));
-  }
-  if (minZoom > maxZoom) {
-    return err(
-      createAppError({
-        code: 'reader.settings.invalid',
-        message: 'minZoom cannot exceed maxZoom.',
-      }),
-    );
-  }
-
-  const doubleTapZoom = s['doubleTapZoom'];
-  if (
-    typeof doubleTapZoom !== 'number' ||
-    !Number.isFinite(doubleTapZoom) ||
-    doubleTapZoom < 1 ||
-    doubleTapZoom > 5
-  ) {
-    return err(
-      createAppError({
-        code: 'reader.settings.invalid',
-        message: 'doubleTapZoom must be between 1 and 5.',
-      }),
-    );
-  }
-
-  const pinchSensitivity = s['pinchSensitivity'];
-  if (
-    typeof pinchSensitivity !== 'number' ||
-    !Number.isFinite(pinchSensitivity) ||
-    pinchSensitivity <= 0 ||
-    pinchSensitivity > 5
-  ) {
-    return err(
-      createAppError({
-        code: 'reader.settings.invalid',
-        message: 'pinchSensitivity must be between 0 and 5 (exclusive 0).',
-      }),
-    );
-  }
-
-  const gestureSensitivity = s['gestureSensitivity'];
-  if (
-    typeof gestureSensitivity !== 'number' ||
-    !Number.isFinite(gestureSensitivity) ||
-    gestureSensitivity <= 0 ||
-    gestureSensitivity > 5
-  ) {
-    return err(
-      createAppError({
-        code: 'reader.settings.invalid',
-        message: 'gestureSensitivity must be between 0 and 5 (exclusive 0).',
-      }),
-    );
-  }
-
-  const brightness = s['brightness'];
-  if (
-    typeof brightness !== 'number' ||
-    !Number.isFinite(brightness) ||
-    brightness < 0 ||
-    brightness > 1
-  ) {
-    return err(
-      createAppError({
-        code: 'reader.settings.invalid',
-        message: 'brightness must be between 0 and 1.',
-      }),
-    );
-  }
-
-  const backgroundColor = s['backgroundColor'];
-  if (typeof backgroundColor !== 'string' || backgroundColor.length === 0) {
-    return err(
-      createAppError({ code: 'reader.settings.invalid', message: 'backgroundColor is required.' }),
-    );
-  }
-
-  if (typeof s['imageSmoothing'] !== 'boolean') {
-    return err(
-      createAppError({
-        code: 'reader.settings.invalid',
-        message: 'imageSmoothing must be boolean.',
-      }),
-    );
-  }
-
-  if (typeof s['keepScreenOn'] !== 'boolean') {
-    return err(
-      createAppError({ code: 'reader.settings.invalid', message: 'keepScreenOn must be boolean.' }),
-    );
-  }
-
-  if (typeof s['fullscreenOnOpen'] !== 'boolean') {
-    return err(
-      createAppError({
-        code: 'reader.settings.invalid',
-        message: 'fullscreenOnOpen must be boolean.',
-      }),
-    );
-  }
-
-  const wheel = s['wheelBehavior'];
-  if (typeof wheel !== 'string' || !WHEEL_BEHAVIORS.has(wheel as WheelBehavior)) {
-    return err(
-      createAppError({ code: 'reader.settings.invalid', message: 'Invalid wheelBehavior.' }),
-    );
-  }
-
-  if (typeof s['lowMemoryMode'] !== 'boolean') {
-    return err(
-      createAppError({
-        code: 'reader.settings.invalid',
-        message: 'lowMemoryMode must be boolean.',
-      }),
-    );
-  }
-
-  if (typeof s['longStripOptimization'] !== 'boolean') {
-    return err(
-      createAppError({
-        code: 'reader.settings.invalid',
-        message: 'longStripOptimization must be boolean.',
-      }),
-    );
-  }
-
-  if (typeof s['diagnosticsEnabled'] !== 'boolean') {
-    return err(
-      createAppError({
-        code: 'reader.settings.invalid',
-        message: 'diagnosticsEnabled must be boolean.',
-      }),
-    );
-  }
-
-  if (typeof s['rememberPerTitleOverrides'] !== 'boolean') {
-    return err(
-      createAppError({
-        code: 'reader.settings.invalid',
-        message: 'rememberPerTitleOverrides must be boolean.',
-      }),
-    );
-  }
-
-  const keyboardShortcuts = s['keyboardShortcuts'];
-  if (!Array.isArray(keyboardShortcuts)) {
-    return err(
-      createAppError({
-        code: 'reader.settings.invalid',
-        message: 'keyboardShortcuts must be an array.',
-      }),
-    );
-  }
-
-  const settings: ReaderSettings = {
-    readingMode: readingMode as ReadingMode,
-    pageLayout: pageLayout as PageLayoutMode,
-    fitMode: fitMode as FitMode,
-    tapZoneLayout: tapZoneLayout as TapZoneLayout,
-    tapZoneDebugOverlay: s['tapZoneDebugOverlay'] as boolean,
-    navigationDirection: navDir as NavigationDirection,
-    pageTransition: pageTransition as PageTransitionMode,
-    chromeVisibility: chromeVisibility as ReaderChromeVisibility,
-    preloadAhead,
-    prefetchBudgetBytes,
-    verticalGapPx,
-    minZoom,
-    maxZoom,
-    doubleTapZoom,
-    pinchSensitivity,
-    gestureSensitivity,
-    brightness,
-    backgroundColor,
-    imageSmoothing: s['imageSmoothing'] as boolean,
-    keepScreenOn: s['keepScreenOn'] as boolean,
-    fullscreenOnOpen: s['fullscreenOnOpen'] as boolean,
-    wheelBehavior: wheel as WheelBehavior,
-    keyboardShortcuts: keyboardShortcuts as readonly KeyboardShortcut[],
-    longStripOptimization: s['longStripOptimization'] as boolean,
-    lowMemoryMode: s['lowMemoryMode'] as boolean,
-    diagnosticsEnabled: s['diagnosticsEnabled'] as boolean,
-    rememberPerTitleOverrides: s['rememberPerTitleOverrides'] as boolean,
-  };
-
-  return ok(settings);
+  return err(
+    createAppError({
+      code: 'reader.settings.invalid',
+      message: result.error.issues[0]?.message ?? 'Invalid reader settings.',
+    }),
+  );
 }

@@ -76,4 +76,26 @@ describe('reader settings', () => {
     expect(validateReaderSettings({ ...base, chromeVisibility: 'always' }).ok).toBe(true);
     expect(validateReaderSettings({ ...base, chromeVisibility: 'sometimes' }).ok).toBe(false);
   });
+
+  it('validateReaderSettings rejects malformed keyboard shortcuts', () => {
+    const base = getDefaultReaderSettings();
+    const shortcut = { action: 'nextPage', key: 'ArrowRight' };
+
+    expect(validateReaderSettings({ ...base, keyboardShortcuts: 'ArrowRight' }).ok).toBe(false);
+    expect(
+      validateReaderSettings({ ...base, keyboardShortcuts: [{ ...shortcut, key: 5 }] }).ok,
+    ).toBe(false);
+    expect(
+      validateReaderSettings({ ...base, keyboardShortcuts: [{ action: 'nextPage' }] }).ok,
+    ).toBe(false);
+
+    const valid = validateReaderSettings({
+      ...base,
+      keyboardShortcuts: [{ ...shortcut, modifiers: ['Shift'] }],
+    });
+    expect(valid.ok).toBe(true);
+    expect(valid.ok ? valid.value.keyboardShortcuts : []).toEqual([
+      { action: 'nextPage', key: 'ArrowRight', modifiers: ['Shift'] },
+    ]);
+  });
 });

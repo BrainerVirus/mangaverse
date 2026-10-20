@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { getDefaultAppSettings, validateAppSettings } from './app-settings.js';
+import {
+  getDefaultAppSettings,
+  MAX_IMAGE_CACHE_LIMIT_BYTES,
+  MIN_IMAGE_CACHE_LIMIT_BYTES,
+  validateAppSettings,
+} from './app-settings.js';
 
 describe('app settings', () => {
   it('returns stable defaults', () => {
@@ -71,5 +76,53 @@ describe('app settings', () => {
     });
 
     expect(result.ok).toBe(false);
+  });
+
+  it('rejects non-object settings', () => {
+    expect(validateAppSettings(null).ok).toBe(false);
+    expect(validateAppSettings([]).ok).toBe(false);
+  });
+
+  it('rejects an empty preferred languages list', () => {
+    const result = validateAppSettings({
+      ...getDefaultAppSettings(),
+      preferredLanguages: [],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.ok ? '' : result.error.message).toBe(
+      'preferredLanguages must be a non-empty array.',
+    );
+  });
+
+  it('accepts system and regional locales but rejects malformed ones', () => {
+    const base = getDefaultAppSettings();
+
+    for (const locale of ['system', 'en', 'pt-BR']) {
+      expect(validateAppSettings({ ...base, locale }).ok).toBe(true);
+    }
+    for (const locale of ['english', 'pt-br', 'EN']) {
+      expect(validateAppSettings({ ...base, locale }).ok).toBe(false);
+    }
+  });
+
+  it('enforces the image cache bounds', () => {
+    const base = getDefaultAppSettings();
+
+    expect(
+      validateAppSettings({ ...base, imageCacheLimitBytes: MIN_IMAGE_CACHE_LIMIT_BYTES }).ok,
+    ).toBe(true);
+    expect(
+      validateAppSettings({ ...base, imageCacheLimitBytes: MAX_IMAGE_CACHE_LIMIT_BYTES }).ok,
+    ).toBe(true);
+
+    for (const imageCacheLimitBytes of [
+      MIN_IMAGE_CACHE_LIMIT_BYTES - 1,
+      MAX_IMAGE_CACHE_LIMIT_BYTES + 1,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+    ]) {
+      expect(validateAppSettings({ ...base, imageCacheLimitBytes }).ok).toBe(false);
+    }
   });
 });

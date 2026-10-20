@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 import type { AppResult } from './result.js';
 import { createAppError, err, ok } from './result.js';
 
@@ -9,18 +11,51 @@ export const DEFAULT_IMAGE_CACHE_LIMIT_BYTES = 524_288_000 as const;
 export const MIN_IMAGE_CACHE_LIMIT_BYTES = 52_428_800 as const; // 50 MiB
 export const MAX_IMAGE_CACHE_LIMIT_BYTES = 10_737_418_240 as const; // 10 GiB
 
-export interface AppSettings {
-  readonly explicitContent: boolean;
-  readonly showProviderErrors: boolean;
-  readonly preferredLanguages: readonly string[];
-  readonly lowMemoryMode: boolean;
-  readonly reduceMotion: boolean;
-  readonly reduceTransparency: boolean;
-  readonly locale: string;
-  readonly imageCacheLimitBytes: number;
-}
-
 const LOCALE_PATTERN = /^[a-z]{2}(-[A-Z]{2})?$/;
+
+const preferredLanguageMessage = 'Each preferred language must be a valid language code.';
+const localeMessage = 'locale must be system or a valid locale code.';
+const imageCacheLimitBytesMessage =
+  'imageCacheLimitBytes must be a number within the allowed cache size range.';
+
+const appSettingsSchema = z.object(
+  {
+    explicitContent: z.boolean({ error: 'explicitContent must be boolean.' }),
+    showProviderErrors: z.boolean({ error: 'showProviderErrors must be boolean.' }),
+    preferredLanguages: z
+      .array(
+        z.string({ error: preferredLanguageMessage }).regex(LOCALE_PATTERN, {
+          error: preferredLanguageMessage,
+        }),
+        { error: 'preferredLanguages must be a non-empty array.' },
+      )
+      .min(1, { error: 'preferredLanguages must be a non-empty array.' }),
+    lowMemoryMode: z.boolean({ error: 'lowMemoryMode must be boolean.' }),
+    reduceMotion: z.boolean({ error: 'reduceMotion must be boolean.' }).default(false),
+    reduceTransparency: z.boolean({ error: 'reduceTransparency must be boolean.' }).default(false),
+    imageCacheLimitBytes: z
+      .number({ error: imageCacheLimitBytesMessage })
+      .min(MIN_IMAGE_CACHE_LIMIT_BYTES, { error: imageCacheLimitBytesMessage })
+      .max(MAX_IMAGE_CACHE_LIMIT_BYTES, { error: imageCacheLimitBytesMessage }),
+    locale: z.union(
+      [
+        z.literal('system'),
+        z.string({ error: localeMessage }).regex(LOCALE_PATTERN, { error: localeMessage }),
+      ],
+      { error: localeMessage },
+    ),
+  },
+  { error: 'App settings must be an object.' },
+);
+
+type AppSettingsShape = z.infer<typeof appSettingsSchema>;
+
+/** Keeps the historical public shape, where the language list is read-only. */
+export type AppSettings = Readonly<
+  Omit<AppSettingsShape, 'preferredLanguages'> & {
+    readonly preferredLanguages: readonly string[];
+  }
+>;
 
 export function getDefaultAppSettings(): AppSettings {
   return {
@@ -35,112 +70,14 @@ export function getDefaultAppSettings(): AppSettings {
   };
 }
 
-function isNonEmptyLanguageCode(value: string): boolean {
-  return /^[a-z]{2}(-[A-Z]{2})?$/.test(value);
-}
-
 export function validateAppSettings(input: unknown): AppResult<AppSettings> {
-  if (typeof input !== 'object' || input === null || Array.isArray(input)) {
-    return err(
-      createAppError({ code: 'app.settings.invalid', message: 'App settings must be an object.' }),
-    );
-  }
+  const result = appSettingsSchema.safeParse(input);
+  if (result.success) return ok(result.data);
 
-  const settings = input as Record<string, unknown>;
-
-  if (typeof settings['explicitContent'] !== 'boolean') {
-    return err(
-      createAppError({ code: 'app.settings.invalid', message: 'explicitContent must be boolean.' }),
-    );
-  }
-
-  if (typeof settings['showProviderErrors'] !== 'boolean') {
-    return err(
-      createAppError({
-        code: 'app.settings.invalid',
-        message: 'showProviderErrors must be boolean.',
-      }),
-    );
-  }
-
-  const preferredLanguages = settings['preferredLanguages'];
-  if (!Array.isArray(preferredLanguages) || preferredLanguages.length === 0) {
-    return err(
-      createAppError({
-        code: 'app.settings.invalid',
-        message: 'preferredLanguages must be a non-empty array.',
-      }),
-    );
-  }
-
-  for (const language of preferredLanguages) {
-    if (typeof language !== 'string' || !isNonEmptyLanguageCode(language)) {
-      return err(
-        createAppError({
-          code: 'app.settings.invalid',
-          message: 'Each preferred language must be a valid language code.',
-        }),
-      );
-    }
-  }
-
-  if (typeof settings['lowMemoryMode'] !== 'boolean') {
-    return err(
-      createAppError({ code: 'app.settings.invalid', message: 'lowMemoryMode must be boolean.' }),
-    );
-  }
-
-  const reduceMotion = settings['reduceMotion'] === undefined ? false : settings['reduceMotion'];
-  if (typeof reduceMotion !== 'boolean') {
-    return err(
-      createAppError({ code: 'app.settings.invalid', message: 'reduceMotion must be boolean.' }),
-    );
-  }
-
-  const reduceTransparency =
-    settings['reduceTransparency'] === undefined ? false : settings['reduceTransparency'];
-  if (typeof reduceTransparency !== 'boolean') {
-    return err(
-      createAppError({
-        code: 'app.settings.invalid',
-        message: 'reduceTransparency must be boolean.',
-      }),
-    );
-  }
-
-  const imageCacheLimitBytes = settings['imageCacheLimitBytes'];
-  if (
-    typeof imageCacheLimitBytes !== 'number' ||
-    !Number.isFinite(imageCacheLimitBytes) ||
-    imageCacheLimitBytes < MIN_IMAGE_CACHE_LIMIT_BYTES ||
-    imageCacheLimitBytes > MAX_IMAGE_CACHE_LIMIT_BYTES
-  ) {
-    return err(
-      createAppError({
-        code: 'app.settings.invalid',
-        message: 'imageCacheLimitBytes must be a number within the allowed cache size range.',
-      }),
-    );
-  }
-
-  const locale = settings['locale'];
-  if (typeof locale !== 'string' || (locale !== 'system' && !LOCALE_PATTERN.test(locale))) {
-    return err(
-      createAppError({
-        code: 'app.settings.invalid',
-        message: 'locale must be system or a valid locale code.',
-      }),
-    );
-  }
-
-  return ok({
-    explicitContent: settings['explicitContent'],
-    showProviderErrors: settings['showProviderErrors'],
-    preferredLanguages,
-    lowMemoryMode: settings['lowMemoryMode'],
-    reduceMotion,
-    reduceTransparency,
-    locale,
-    imageCacheLimitBytes,
-  });
+  return err(
+    createAppError({
+      code: 'app.settings.invalid',
+      message: result.error.issues[0]?.message ?? 'Invalid app settings.',
+    }),
+  );
 }
