@@ -122,78 +122,86 @@ export function AppSettingsPage({
         title="Appearance"
         description="Adjust motion and transparency across the app."
       >
-        <SettingToggleRow
-          id="reduce-motion"
-          label="Motion"
-          description={settings.reduceMotion ? 'Reduced motion' : 'Full motion'}
-          checked={settings.reduceMotion}
-          disabled={isSaving}
-          onCheckedChange={(reduceMotion) => update({ reduceMotion })}
-        />
-        <SettingToggleRow
-          id="reduce-transparency"
-          label="Transparency"
-          description={settings.reduceTransparency ? 'Reduced transparency' : 'Full transparency'}
-          checked={settings.reduceTransparency}
-          disabled={isSaving}
-          onCheckedChange={(reduceTransparency) => update({ reduceTransparency })}
-        />
+        <div className="space-y-4">
+          <SettingToggleRow
+            id="reduce-motion"
+            label="Motion"
+            description={settings.reduceMotion ? 'Reduced motion' : 'Full motion'}
+            checked={settings.reduceMotion}
+            disabled={isSaving}
+            onCheckedChange={(reduceMotion) => update({ reduceMotion })}
+          />
+          <SettingToggleRow
+            id="reduce-transparency"
+            label="Transparency"
+            description={settings.reduceTransparency ? 'Reduced transparency' : 'Full transparency'}
+            checked={settings.reduceTransparency}
+            disabled={isSaving}
+            onCheckedChange={(reduceTransparency) => update({ reduceTransparency })}
+          />
+        </div>
       </SettingsSection>
 
       <SettingsSection
         title="Content"
         description="Control what the app shows in search, browse, and recommendations."
       >
-        <SettingToggleRow
-          id="explicit-content"
-          label="Explicit content"
-          description="Allow mature series in search and browse results."
-          checked={settings.explicitContent}
-          disabled={isSaving}
-          onCheckedChange={(explicitContent) => update({ explicitContent })}
-        />
-        <SettingToggleRow
-          id="provider-errors"
-          label="Show provider errors"
-          description="Surface provider failures in the UI instead of hiding them silently."
-          checked={settings.showProviderErrors}
-          disabled={isSaving}
-          onCheckedChange={(showProviderErrors) => update({ showProviderErrors })}
-        />
+        <div className="space-y-4">
+          <SettingToggleRow
+            id="explicit-content"
+            label="Explicit content"
+            description="Allow mature series in search and browse results."
+            checked={settings.explicitContent}
+            disabled={isSaving}
+            onCheckedChange={(explicitContent) => update({ explicitContent })}
+          />
+          <SettingToggleRow
+            id="provider-errors"
+            label="Show provider errors"
+            description="Surface provider failures in the UI instead of hiding them silently."
+            checked={settings.showProviderErrors}
+            disabled={isSaving}
+            onCheckedChange={(showProviderErrors) => update({ showProviderErrors })}
+          />
+        </div>
       </SettingsSection>
 
       <SettingsSection title="Performance" description="Reduce memory use on constrained devices.">
-        <SettingToggleRow
-          id="low-memory-mode"
-          label="Low-memory mode"
-          description="Reduce preloading, thumbnails, and animation intensity."
-          checked={settings.lowMemoryMode}
-          disabled={isSaving}
-          onCheckedChange={(lowMemoryMode) => update({ lowMemoryMode })}
-        />
-        <div className="grid gap-2">
-          <Label htmlFor="image-cache-limit">Image cache limit</Label>
-          <Input
-            id="image-cache-limit"
-            type="number"
-            min={50}
-            max={10240}
-            step={50}
+        <div className="space-y-4">
+          <SettingToggleRow
+            id="low-memory-mode"
+            label="Low-memory mode"
+            description="Reduce preloading, thumbnails, and animation intensity."
+            checked={settings.lowMemoryMode}
             disabled={isSaving}
-            value={bytesToMegabytes(settings.imageCacheLimitBytes)}
-            onChange={(event) => {
-              const megabytes = Number(event.target.value);
-              if (!Number.isFinite(megabytes)) {
-                return;
-              }
-              update({ imageCacheLimitBytes: megabytesToBytes(megabytes) });
-            }}
+            onCheckedChange={(lowMemoryMode) => update({ lowMemoryMode })}
           />
-          <p className="text-sm text-muted-foreground">
-            Cached cover images are stored locally and reused on later visits. Limit:{' '}
-            {formatCacheBytes(settings.imageCacheLimitBytes)}
-            {cacheUsageBytes !== undefined ? ` · Used: ${formatCacheBytes(cacheUsageBytes)}` : null}
-          </p>
+          <div className="grid gap-2">
+            <Label htmlFor="image-cache-limit">Image cache limit</Label>
+            <Input
+              id="image-cache-limit"
+              type="number"
+              min={50}
+              max={10240}
+              step={50}
+              disabled={isSaving}
+              value={bytesToMegabytes(settings.imageCacheLimitBytes)}
+              onChange={(event) => {
+                const megabytes = Number(event.target.value);
+                if (!Number.isFinite(megabytes)) {
+                  return;
+                }
+                update({ imageCacheLimitBytes: megabytesToBytes(megabytes) });
+              }}
+            />
+            <p className="text-sm text-muted-foreground">
+              Cached cover images are stored locally and reused on later visits. Limit:{' '}
+              {formatCacheBytes(settings.imageCacheLimitBytes)}
+              {cacheUsageBytes !== undefined
+                ? ` · Used: ${formatCacheBytes(cacheUsageBytes)}`
+                : null}
+            </p>
+          </div>
         </div>
       </SettingsSection>
 

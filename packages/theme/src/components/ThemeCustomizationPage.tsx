@@ -208,7 +208,7 @@ function CustomThemesSection({
             Your custom themes may be unavailable. Retry to load them again.
           </AlertDescription>
           {onRetry === undefined ? null : (
-            <Button size="sm" variant="outline" className="mt-3" onClick={onRetry}>
+            <Button size="sm" variant="outline" className="mt-3 text-foreground" onClick={onRetry}>
               Retry
             </Button>
           )}
