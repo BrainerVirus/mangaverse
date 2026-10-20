@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { AppDrizzleDb } from '@app/db';
 import { appendSearchHistory, createMangaIdentityWithInitialMapping } from '@app/db';
 import { createSqlJsHarness } from '@app/db/testing';
 import { toProviderId } from '@app/shared';
@@ -63,5 +64,22 @@ describe('recordSearchQuery', () => {
     await recordSearchQuery(db, '   ');
     const page = await fetchSearchPage(db, DEFAULT_SEARCH_VIEW_STATE);
     expect(page.recentSearches).toHaveLength(0);
+  });
+
+  it('records a query typed while the database session is still opening', async () => {
+    const { db } = await createSqlJsHarness();
+    let openDb!: (value: AppDrizzleDb) => void;
+    const openingDb = new Promise<AppDrizzleDb>((resolve) => {
+      openDb = resolve;
+    });
+
+    const write = recordSearchQuery(openingDb, 'berserk');
+    expect((await fetchSearchPage(db, DEFAULT_SEARCH_VIEW_STATE)).recentSearches).toHaveLength(0);
+
+    openDb(db);
+    await write;
+    expect((await fetchSearchPage(db, DEFAULT_SEARCH_VIEW_STATE)).recentSearches[0]?.query).toBe(
+      'berserk',
+    );
   });
 });
