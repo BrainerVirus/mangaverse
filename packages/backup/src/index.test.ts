@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { BACKUP_SCHEMA_VERSION, getDefaultReaderSettings } from '@app/shared';
+import {
+  BACKUP_SCHEMA_VERSION,
+  getDefaultReaderSettings,
+  validateBackupDocument,
+  type ThemeDefinition,
+} from '@app/shared';
+import { listThemeDefinitions } from '@app/db';
 import { createSqlJsHarness } from '@app/db/testing';
+import { getThemePreset, presetToThemeDefinition } from '@app/theme';
 
 import {
   applyBackupImport,
@@ -44,6 +51,68 @@ describe('parseBackupFileContent', () => {
     };
     const result = parseBackupFileContent(JSON.stringify(doc));
     expect(result.ok).toBe(true);
+  });
+});
+
+function backupWithTheme(change: (definition: ThemeDefinition) => ThemeDefinition): unknown {
+  const definition = change({
+    ...presetToThemeDefinition(getThemePreset('default')),
+    id: 'custom:bad',
+    name: 'Bad theme',
+  });
+  return {
+    schemaVersion: BACKUP_SCHEMA_VERSION,
+    metadata: { createdAt: new Date().toISOString(), appVersion: '0.0.1' },
+    library: [],
+    mangaIdentities: [],
+    installedExtensions: [],
+    readerSettings: getDefaultReaderSettings(),
+    providerSettings: { providerSnapshots: [] },
+    themeSettings: { themeId: 'custom:bad', dark: false },
+    themes: [definition],
+  };
+}
+
+describe('backup theme color validation', () => {
+  it('rejects a non-color seed in the preview report', async () => {
+    const doc = backupWithTheme((definition) => ({
+      ...definition,
+      light: {
+        ...definition.light,
+        seeds: { ...definition.light.seeds, background: 'not-a-color' },
+      },
+    }));
+    // The structural schema in @app/shared cannot use culori, so it accepts it.
+    expect(validateBackupDocument(doc).ok).toBe(true);
+
+    const { db } = await createSqlJsHarness();
+    const preview = await previewBackupImport(db, doc);
+    expect(preview.backupOk).toBe(false);
+    expect(preview.backupIssues[0]).toMatchObject({
+      path: 'themes.0.light.seeds.background',
+      code: 'backup.invalid',
+    });
+  });
+
+  it('rejects a url() override before anything is persisted', async () => {
+    const doc = backupWithTheme((definition) => ({
+      ...definition,
+      light: {
+        ...definition.light,
+        overrides: {
+          ...definition.light.overrides,
+          '--ring': 'url(https://example.com/evil.svg)',
+        },
+      },
+    }));
+    expect(validateBackupDocument(doc).ok).toBe(true);
+
+    const { db } = await createSqlJsHarness();
+    const result = await applyBackupImport(db, doc);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.message).toContain('themes.0.light.overrides.--ring');
+    expect(await listThemeDefinitions(db)).toEqual([]);
   });
 });
 

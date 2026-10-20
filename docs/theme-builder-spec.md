@@ -82,7 +82,7 @@ ignored); `minimal-light` and `minimal-dark` are frozen appearance-pinned themes
 | `card`, `popover`                   | `surface`                                                                                                                           |
 | `muted`                             | `accent`                                                                                                                            |
 | `secondary`                         | `accent` mixed 12% toward `foreground` in OKLCH                                                                                     |
-| `sidebar`                           | `background`                                                                                                                        |
+| `sidebar`                           | `surface`                                                                                                                           |
 | `sidebar-foreground`                | `foreground`                                                                                                                        |
 | `sidebar-accent`                    | `accent` mixed 24% toward `foreground` in OKLCH                                                                                     |
 | `ring`                              | `primary`; if it is below 3:1 against `background`, adjust `primary` lightness until it reaches 3:1 (editor fixes and explains)     |

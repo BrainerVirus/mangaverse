@@ -619,6 +619,28 @@ describe('theme settings and custom theme storage', () => {
     expect(await getThemeSettings(targetDb)).toEqual({ themeId: CUSTOM_THEME.id, dark: true });
   });
 
+  it('reports that a backup without themes removes local custom themes', async () => {
+    const { db } = await createSqlJsHarness();
+    expect((await upsertThemeDefinition(db, CUSTOM_THEME)).ok).toBe(true);
+
+    const doc = {
+      schemaVersion: 1,
+      metadata: { createdAt: new Date().toISOString(), appVersion: 't' },
+      library: [],
+      mangaIdentities: [],
+      installedExtensions: [],
+      readerSettings: getDefaultReaderSettings(),
+      providerSettings: { providerSnapshots: [] },
+      themeSettings: { presetId: 'default', dark: false },
+    };
+
+    const preview = await previewBackupRestore(db, doc);
+    expect(preview.backupOk).toBe(true);
+    expect(
+      preview.previewIssues.find((issue) => issue.code === 'restore.destructive.themes_removed'),
+    ).toMatchObject({ severity: 'info', details: { count: 1 } });
+  });
+
   it('accepts a legacy backup presetId and restores it as themeId', async () => {
     const { db } = await createSqlJsHarness();
     const doc = {
