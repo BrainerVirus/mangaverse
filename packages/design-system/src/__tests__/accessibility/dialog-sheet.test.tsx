@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   Dialog,
@@ -46,12 +46,14 @@ describe('Dialog accessibility', () => {
     const last = screen.getByRole('button', { name: 'Last action' });
     last.focus();
     await user.tab();
-    expect(first).toHaveFocus();
+    // Base UI's tab-cycle wrap enqueues focus on the next animation frame.
+    await waitFor(() => expect(first).toHaveFocus());
 
     await user.keyboard('{Escape}');
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(opener).toHaveFocus();
+    // Base UI restores focus in a queued microtask; assert the settled state.
+    await waitFor(() => expect(opener).toHaveFocus());
   });
 
   it('wires the dialog role, modal state, title, and description', async () => {
