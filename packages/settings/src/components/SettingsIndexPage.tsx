@@ -1,12 +1,5 @@
 import { ChevronRight } from 'lucide-react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  SettingsSection,
-} from '@app/design-system';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@app/design-system';
 
 export interface SettingsNavItem {
   readonly label: string;
@@ -33,7 +26,8 @@ export function SettingsIndexPage({ sections, onNavigate }: SettingsIndexPagePro
       </div>
 
       {sections.map((section) => (
-        <SettingsSection key={section.title} title={section.title}>
+        <section key={section.title} className="space-y-3">
+          <h2 className="type-heading text-foreground">{section.title}</h2>
           <div className="grid gap-3">
             {section.items.map((item) => (
               <Card key={item.to} className="transition-colors hover:bg-muted/40">
@@ -57,7 +51,7 @@ export function SettingsIndexPage({ sections, onNavigate }: SettingsIndexPagePro
               </Card>
             ))}
           </div>
-        </SettingsSection>
+        </section>
       ))}
     </section>
   );

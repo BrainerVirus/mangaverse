@@ -218,6 +218,10 @@ Theme rules:
 - Manga cards prioritize cover art, title, provider/source context, progress, and unread state.
 - Cards may have subtle hover/focus lift outside the reader.
 - Cards should avoid excessive text overlays that obscure cover art.
+- **Cards are content, not layout.** Never nest a Card inside another Card (or a
+  `SettingsSection` inside a Card). Use headings and spacing for sections; a preview frame is a flat
+  fill with no border and may contain at most one sample card. One border per visual grouping.
+  `SettingsSection` is the sanctioned settings-group card; do not nest another card inside it.
 - Multi-provider titles need a visible source indicator or stacked-source affordance.
 
 ### Dialogs And Sheets
