@@ -204,7 +204,7 @@ describe('registerPlatformIpc', () => {
   });
 
   it('diagnostics snapshot strips error causes for IPC', async () => {
-    const { ipcMain, handlers } = createMockIpc();
+    const { ipcMain } = createMockIpc();
     registerPlatformIpc({
       ipcMain: ipcMain as never,
       getTargetWindow: () => null,

@@ -185,11 +185,7 @@
         "no-restricted-imports": [
           "error",
           {
-            "patterns": [
-              "@app/extensions-*",
-              "!@app/extensions-core",
-              "!@app/extensions-sdk"
-            ]
+            "patterns": ["@app/extensions-*", "!@app/extensions-core", "!@app/extensions-sdk"]
           }
         ]
       }
@@ -250,7 +246,9 @@
         "**/packages/library/src/components/VirtualLibraryGrid.test.tsx",
         "**/packages/search/src/components/VirtualSearchGrid.test.tsx"
       ],
-      "rules": { "shadcn/no-inline-styles": ["error", { "allow": ["width", "height", "overflow"] }] }
+      "rules": {
+        "shadcn/no-inline-styles": ["error", { "allow": ["width", "height", "overflow"] }]
+      }
     },
     {
       "files": [
@@ -289,13 +287,26 @@
     {
       "files": ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
       "rules": {
-        "no-console": "off",
-        "no-unused-vars": "off",
-        // Fixtures deliberately use raw palette names and non-Tailwind tokens
-        // (e.g. `justify`) to exercise cn()'s merge behavior.
-        "shadcn/no-raw-colors": "off",
-        "shadcn/no-unknown-classes": "off"
+        // Fixtures deliberately use raw palette names to exercise cn()'s merge behavior.
+        "shadcn/no-raw-colors": "off"
       }
+    },
+    {
+      // The cn() merge fixture uses non-Tailwind tokens such as `justify` on purpose.
+      "files": ["**/packages/design-system/src/__tests__/primitives.test.tsx"],
+      "rules": { "shadcn/no-unknown-classes": "off" }
+    },
+    {
+      // Playwright fixtures activate by being destructured even when the body does
+      // not read them (`quickOnboarding`, `mockMangaDex`); renaming them would stop
+      // the fixture from running.
+      "files": ["**/e2e-production/**/*.spec.ts"],
+      "rules": { "no-unused-vars": "off" }
+    },
+    {
+      // This test asserts the diagnostics console sink.
+      "files": ["**/packages/design-system/src/__tests__/glass.test.tsx"],
+      "rules": { "no-console": "off" }
     },
     {
       "files": ["apps/web/app/routes/**", "apps/desktop/src/renderer/src/**"],
