@@ -119,6 +119,112 @@ function mount(onPersist: (event: { pageIndex: number }) => void): {
   return { root, container };
 }
 
+function buildEmptyData(): ReaderPageData {
+  const data = buildData();
+  return {
+    ...data,
+    chapter: { ...data.chapter, pages: [], pageCount: 0 },
+  };
+}
+
+describe('ReaderScreen provider page hydration', () => {
+  it('Given a locally empty chapter while hydrating, When rendered, Then the metadata and a loading state replace the empty state', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => {
+      root.render(
+        <ReaderScreen
+          data={buildEmptyData()}
+          isLoading={false}
+          isError={false}
+          isHydrating={true}
+          chromeVisible={true}
+          onToggleChrome={() => {}}
+        />,
+      );
+    });
+
+    const hydrating = container.querySelector('[data-testid="reader-hydrating"]');
+    expect(hydrating).not.toBeNull();
+    expect(hydrating?.textContent).toContain('Chapter 1');
+    expect(hydrating?.textContent).toContain('Loading chapter pages');
+
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it('Given a locally empty chapter while hydrating, When the progress debounce elapses, Then no progress is persisted', () => {
+    vi.useFakeTimers();
+    const onPersist = vi.fn<(...args: unknown[]) => void>();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    try {
+      act(() => {
+        root.render(
+          <ReaderScreen
+            data={buildEmptyData()}
+            isLoading={false}
+            isError={false}
+            isHydrating={true}
+            chromeVisible={true}
+            onToggleChrome={() => {}}
+            onPersistProgress={onPersist}
+          />,
+        );
+      });
+      act(() => {
+        vi.advanceTimersByTime(1_000);
+      });
+      act(() => root.unmount());
+      expect(onPersist).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+      container.remove();
+    }
+  });
+
+  it('Given provider hydration failed, When rendered, Then the local title stays and a retryable error appears', () => {
+    const onRetry = vi.fn<() => void>();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => {
+      root.render(
+        <ReaderScreen
+          data={buildEmptyData()}
+          isLoading={false}
+          isError={false}
+          isHydrationError={true}
+          chromeVisible={true}
+          onToggleChrome={() => {}}
+          onRetry={onRetry}
+        />,
+      );
+    });
+
+    const error = container.querySelector('[data-testid="reader-hydration-error"]');
+    expect(error?.textContent).toContain('Chapter 1');
+    expect(error?.textContent).toContain('Could not load chapter');
+    const retry = [...container.querySelectorAll('button')].find((button) =>
+      (button.textContent ?? '').includes('Retry'),
+    );
+    expect(retry).toBeDefined();
+    act(() => {
+      retry?.click();
+    });
+    expect(onRetry).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
+});
+
 describe('ReaderScreen offline state', () => {
   it('Given no data and a paused offline fetch, When rendered, Then an offline message with Retry appears', () => {
     const onRetry = vi.fn<() => void>();

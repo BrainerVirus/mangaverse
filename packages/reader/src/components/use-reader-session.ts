@@ -53,11 +53,17 @@ export function useReaderSession(
       // start (and drop the pending progress), so keep the current page for the same
       // chapter and only use `initialPageIndex` for first creation or a new chapter.
       const sameChapter = current !== null && trackedInput?.chapter.id === sessionInput.chapter.id;
+      // A chapter that was empty while its provider pages hydrated has no real
+      // position yet; once pages exist it must resume at the saved page, not the
+      // placeholder page 0 the empty session was built on.
+      const filledAfterHydration =
+        sameChapter && current.pages.length === 0 && sessionInput.chapter.pageCount > 0;
       return createReaderState({
         ...sessionInput,
-        initialPageIndex: sameChapter
-          ? current.activePageIndex
-          : (sessionInput.initialPageIndex ?? 0),
+        initialPageIndex:
+          sameChapter && !filledAfterHydration
+            ? current.activePageIndex
+            : (sessionInput.initialPageIndex ?? 0),
       });
     });
   }
