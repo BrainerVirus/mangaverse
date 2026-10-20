@@ -133,7 +133,9 @@ describe('GlassSurface', () => {
     const filter = layer.querySelector<SVGFilterElement>('filter')!;
 
     expect(surface).toHaveAttribute('data-refraction-surface', 'displacement');
-    expect(surface.style.getPropertyValue('--glass-refraction-filter')).toBe(`url(#${filter.id})`);
+    expect(surface.parentElement?.style.getPropertyValue('--glass-refraction-filter')).toBe(
+      `url(#${filter.id})`,
+    );
     expect(layer).not.toHaveClass('glass-refraction-displacement');
     expect(layer.style.getPropertyValue('--glass-refraction-filter')).toBe('');
 
@@ -296,7 +298,9 @@ describe('GlassSurface', () => {
     const filter = surface.querySelector<SVGFilterElement>('filter')!;
 
     expect(surface).toHaveAttribute('data-refraction-surface', 'displacement');
-    expect(surface.style.getPropertyValue('--glass-refraction-filter')).toBe(`url(#${filter.id})`);
+    expect(surface.parentElement?.style.getPropertyValue('--glass-refraction-filter')).toBe(
+      `url(#${filter.id})`,
+    );
   });
 
   it('drops the hairline when edge is false but keeps the light', () => {

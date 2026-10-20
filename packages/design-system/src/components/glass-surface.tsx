@@ -63,17 +63,9 @@ function GlassSurfaceContent({
   surfaceRef,
   ...props
 }: GlassSurfaceContentProps) {
-  const surfaceStyle = { ...style } as React.CSSProperties & {
-    '--glass-refraction-filter'?: string;
-  };
   const usesDisplacement = refraction === 'displacement' && filterId !== undefined;
-  if (usesDisplacement) {
-    surfaceStyle['--glass-refraction-filter'] = `url(#${filterId})`;
-  } else {
-    delete surfaceStyle['--glass-refraction-filter'];
-  }
 
-  return (
+  const surface = (
     <div
       ref={surfaceRef}
       {...props}
@@ -86,7 +78,7 @@ function GlassSurfaceContent({
         glassElevations({ elevation: elevation ?? DEFAULT_ELEVATION[level] }),
         className,
       )}
-      style={surfaceStyle}
+      style={style}
     >
       <GlassLevelContext value={level}>
         {plate ? (
@@ -103,6 +95,16 @@ function GlassSurfaceContent({
         />
         {children}
       </GlassLevelContext>
+    </div>
+  );
+
+  if (!usesDisplacement || filterId === undefined) return surface;
+  return (
+    <div
+      className="contents"
+      style={{ '--glass-refraction-filter': `url(#${filterId})` } as React.CSSProperties}
+    >
+      {surface}
     </div>
   );
 }
