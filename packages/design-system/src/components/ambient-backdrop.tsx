@@ -19,8 +19,28 @@ export const AmbientBackdrop = React.forwardRef<
   const setRef = React.useCallback(
     (node: HTMLDivElement | null) => {
       ref.current = node;
-      if (typeof forwardedRef === 'function') forwardedRef(node);
-      else if (forwardedRef) forwardedRef.current = node;
+      if (typeof forwardedRef === 'function') {
+        const callbackRef: React.RefCallback<HTMLDivElement> = forwardedRef;
+        const cleanup = callbackRef(node);
+        if (typeof cleanup === 'function') {
+          return () => {
+            try {
+              cleanup();
+            } finally {
+              ref.current = null;
+            }
+          };
+        }
+      } else if (forwardedRef) {
+        forwardedRef.current = node;
+        if (node !== null) {
+          return () => {
+            ref.current = null;
+            forwardedRef.current = null;
+          };
+        }
+      }
+      return undefined;
     },
     [forwardedRef],
   );

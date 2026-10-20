@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import * as React from 'react';
 import { GlassSurface } from '../components/glass-surface.js';
 import {
   GLASS_BLUR_BUDGET,
@@ -33,6 +34,7 @@ const originalMatchMedia = Object.getOwnPropertyDescriptor(window, 'matchMedia')
 
 function resetGlassPreferences(): void {
   setInAppReducedMotionPreference(false);
+  vi.unstubAllGlobals();
   delete document.documentElement.dataset.glass;
   delete document.documentElement.dataset.transparency;
   if (originalMatchMedia) {
@@ -42,8 +44,11 @@ function resetGlassPreferences(): void {
   }
 }
 
-function allowFullGlassProfile(): void {
+function allowFullGlassProfile(
+  supports: (property: string, value: string) => boolean = () => true,
+): void {
   document.documentElement.dataset.glass = 'full';
+  vi.stubGlobal('CSS', { supports: vi.fn<(property: string, value: string) => boolean>(supports) });
 }
 
 describe('GlassSurface', () => {
@@ -203,6 +208,21 @@ describe('GlassSurface', () => {
     expect(container.querySelector('filter')).toBeNull();
   });
 
+  it('falls back to sheen when the browser cannot support SVG backdrop filters', () => {
+    allowFullGlassProfile(() => false);
+    const { container } = render(<RefractionLayer variant="displacement" />);
+
+    expect(container.firstElementChild).toHaveAttribute('data-refraction', 'sheen');
+    expect(container.querySelector('filter')).toBeNull();
+  });
+
+  it('keeps displacement when only the prefixed backdrop filter is supported', () => {
+    allowFullGlassProfile((property) => property === '-webkit-backdrop-filter');
+    const { container } = render(<RefractionLayer variant="displacement" />);
+
+    expect(container.firstElementChild).toHaveAttribute('data-refraction', 'displacement');
+  });
+
   it('drops the hairline when edge is false but keeps the light', () => {
     const { container } = render(<GlassSurface edge={false} />);
     const layer = container.querySelector('[data-refraction="sheen"]')!;
@@ -326,6 +346,31 @@ describe('AmbientBackdrop', () => {
     expect(band).toHaveAttribute('aria-hidden', 'true');
     expect(band).toHaveAttribute('data-ambient-backdrop');
     expect(band).toHaveClass('ambient-backdrop');
+  });
+
+  it('runs callback-ref cleanup on unmount', () => {
+    const cleanupRef = vi.fn<() => void>();
+    const forwardedRef = vi.fn<React.RefCallback<HTMLDivElement>>((node) => {
+      if (node !== null) return cleanupRef;
+      return undefined;
+    });
+    const { unmount } = render(<AmbientBackdrop ref={forwardedRef} />);
+
+    expect(forwardedRef).toHaveBeenCalledWith(expect.any(HTMLDivElement));
+    unmount();
+
+    expect(cleanupRef).toHaveBeenCalledOnce();
+    expect(forwardedRef).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears an object ref on unmount', () => {
+    const ref = React.createRef<HTMLDivElement>();
+    const { unmount } = render(<AmbientBackdrop ref={ref} />);
+
+    expect(ref.current).toBeInstanceOf(HTMLDivElement);
+    unmount();
+
+    expect(ref.current).toBeNull();
   });
 
   it('stays static when reduced motion is enabled in-app', () => {

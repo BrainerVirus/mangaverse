@@ -402,7 +402,8 @@
 }
 
 @utility glass-refraction-displacement {
-  filter: var(--glass-refraction-filter);
+  -webkit-backdrop-filter: var(--glass-refraction-filter);
+  backdrop-filter: var(--glass-refraction-filter);
 }
 
 /* §2.2 item 4 — the hairline that replaces `--border` on glass. */
@@ -453,12 +454,18 @@
 }
 
 :is([data-glass="cheap"], [data-transparency="solid"]) [data-refraction="displacement"] {
-  filter: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   :is(.glass-thin, .glass-regular, .glass-thick, .glass-stage) {
     background-color: var(--glass-opaque);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  [data-refraction="displacement"] {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
@@ -477,7 +484,8 @@
   }
 
   [data-refraction="displacement"] {
-    filter: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 
   [data-ambient-backdrop] {
@@ -491,7 +499,8 @@
   }
 
   [data-refraction="displacement"] {
-    filter: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 }
 

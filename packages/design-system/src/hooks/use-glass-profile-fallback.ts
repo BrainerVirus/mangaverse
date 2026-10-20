@@ -24,11 +24,19 @@ function subscribe(onChange: () => void): () => void {
 function readProfileFallback(): boolean {
   if (typeof window === 'undefined' || typeof document === 'undefined') return true;
   const root = document.documentElement;
+  const supportsSvgBackdropFilter =
+    typeof CSS !== 'undefined' &&
+    typeof CSS.supports === 'function' &&
+    (CSS.supports('backdrop-filter', 'url(#x)') ||
+      CSS.supports('-webkit-backdrop-filter', 'url(#x)'));
   const reducedTransparency =
     typeof window.matchMedia === 'function' &&
     window.matchMedia(REDUCED_TRANSPARENCY_QUERY).matches;
   return (
-    root.dataset.glass !== 'full' || root.dataset.transparency === 'solid' || reducedTransparency
+    !supportsSvgBackdropFilter ||
+    root.dataset.glass !== 'full' ||
+    root.dataset.transparency === 'solid' ||
+    reducedTransparency
   );
 }
 

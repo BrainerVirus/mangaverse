@@ -77,6 +77,7 @@ describe('OnboardingPage', () => {
       .closest('[data-glass-tier="regular"]');
     expect(hero).toBeInTheDocument();
     expect(hero?.querySelector('[data-refraction="displacement"]')).toBeInTheDocument();
+    expect(hero?.querySelector('header > p')).toHaveClass('text-glass-muted-foreground');
     expect(document.querySelectorAll('[data-refraction="displacement"]')).toHaveLength(1);
   });
 

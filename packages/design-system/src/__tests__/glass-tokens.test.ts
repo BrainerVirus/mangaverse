@@ -6,12 +6,12 @@ import { readFileSync } from 'node:fs';
 const css = readFileSync(new URL('../styles/globals.css', import.meta.url), 'utf8');
 
 /** The declaration block of a selector, e.g. `:root,\n.light { ... }` up to its closing brace. */
-function block(selector: string): string {
-  const start = css.indexOf(selector);
+function block(selector: string, source = css): string {
+  const start = source.indexOf(selector);
   expect(start, `missing block: ${selector}`).toBeGreaterThanOrEqual(0);
-  const open = css.indexOf('{', start);
-  const close = css.indexOf('}', open);
-  return css.slice(open, close);
+  const open = source.indexOf('{', start);
+  const close = source.indexOf('}', open);
+  return source.slice(open, close);
 }
 
 function token(source: string, name: string): string {
@@ -98,6 +98,37 @@ describe('glass tokens', () => {
     );
     expect(css).toContain('@media (prefers-reduced-transparency: reduce)');
     expect(css).toContain('@media (prefers-reduced-motion: reduce)');
+  });
+
+  it('displaces the backdrop and disables the effect in CSS fallback profiles', () => {
+    const displacement = block('@utility glass-refraction-displacement');
+    expect(token(displacement, '-webkit-backdrop-filter')).toBe('var(--glass-refraction-filter)');
+    expect(token(displacement, 'backdrop-filter')).toBe('var(--glass-refraction-filter)');
+    expect(displacement).not.toMatch(/(?:^|[;\s])filter:/);
+
+    const fallbacks = [
+      block(
+        ':is([data-glass="cheap"], [data-transparency="solid"]) [data-refraction="displacement"]',
+      ),
+      block(
+        '[data-refraction="displacement"]',
+        css.slice(css.indexOf('@supports not ((backdrop-filter: blur(1px))')),
+      ),
+      block(
+        '[data-refraction="displacement"]',
+        css.slice(css.indexOf('@media (prefers-reduced-transparency: reduce)')),
+      ),
+      block(
+        '[data-refraction="displacement"]',
+        css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)')),
+      ),
+    ];
+
+    for (const fallback of fallbacks) {
+      expect(token(fallback, '-webkit-backdrop-filter')).toBe('none');
+      expect(token(fallback, 'backdrop-filter')).toBe('none');
+      expect(fallback).not.toMatch(/(?:^|[;\s])filter:/);
+    }
   });
 
   it('hides the ambient band before profile resolution and in fallback modes', () => {

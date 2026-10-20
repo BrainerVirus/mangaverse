@@ -122,7 +122,7 @@ function WelcomeStep() {
           >
             Welcome to MangaVerse
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-glass-muted-foreground">
             A calm, local-first reader for manga, comics, and webtoons. Your library lives on this
             device first.
           </p>
