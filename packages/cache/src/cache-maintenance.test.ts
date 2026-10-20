@@ -169,6 +169,58 @@ describe('cache maintenance', () => {
     expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toEqual([]);
   });
 
+  it('Given one page blob delete failing, When sweeping, Then the whole chapter stays cached', async () => {
+    const { db } = await createSqlJsHarness();
+    const failedKey = buildPageBlobKey('mangadex', 'dev-md-abc', 'chapter-1', 2);
+    const { adapter, blobs } = createAdapter((key) => key === failedKey);
+
+    await seedChapter(db, adapter, CHAPTER_1);
+
+    const evicted = await evictCacheToLimit(db, adapter, { limitBytes: 50 });
+
+    expect(evicted).toBe(0);
+    expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(blobs.has(failedKey)).toBe(true);
+    // Nothing freed: the sweep leaves the store above the cap on purpose.
+    expect((await getCoverCacheUsage(db)).totalBytes).toBe(60);
+  });
+
+  it('Given an older cover and a newer chapter, When sweeping, Then the cover goes first and the chapter stays whole', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter, blobs } = createAdapter();
+
+    vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
+    await seedCover(db, adapter, 'dev-md-abc');
+    vi.setSystemTime(new Date('2026-01-01T00:00:01.000Z'));
+    await seedChapter(db, adapter, CHAPTER_1);
+
+    const evicted = await evictCacheToLimit(db, adapter, { limitBytes: 100 });
+
+    expect(evicted).toBe(1);
+    expect(blobs.has(buildCoverBlobKey('mangadex', 'dev-md-abc'))).toBe(false);
+    expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect((await getCoverCacheUsage(db)).totalBytes).toBe(60);
+  });
+
+  it('Given a protected chapter older than the rest, When sweeping, Then newer chapters are still evicted', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter } = createAdapter();
+
+    vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
+    await seedChapter(db, adapter, CHAPTER_1);
+    vi.setSystemTime(new Date('2026-01-01T00:00:01.000Z'));
+    await seedChapter(db, adapter, CHAPTER_2);
+
+    const evicted = await evictCacheToLimit(db, adapter, {
+      limitBytes: 60,
+      protectChapter: CHAPTER_1,
+    });
+
+    expect(evicted).toBe(6);
+    expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(await listCachedChapterPageIndexes(db, CHAPTER_2)).toEqual([]);
+  });
+
   it('Given storage under the limit, When maintaining, Then nothing is evicted', async () => {
     const { db } = await createSqlJsHarness();
     const { adapter } = createAdapter();

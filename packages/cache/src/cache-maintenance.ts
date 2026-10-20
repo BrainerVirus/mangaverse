@@ -60,7 +60,8 @@ function groupPagesByChapter(entries: readonly CacheEntryRecord[]): EvictionCand
 /**
  * Evicts covers and whole chapters oldest-first until the store fits `limitBytes`.
  * The protected chapter is skipped entirely: if it is the only candidate the store
- * stays above the limit until the reader closes it.
+ * stays above the limit until the reader closes it. A candidate whose blob delete
+ * fails keeps every row, so no chapter is left half-cached offline.
  */
 export async function evictCacheToLimit(
   db: AppDrizzleDb,
@@ -91,26 +92,31 @@ export async function evictCacheToLimit(
       continue;
     }
 
-    const deleted: CacheEntryRecord[] = [];
+    // All-or-nothing: delete every blob first and abort the whole candidate on the
+    // first failure, so a chapter is never left half-cached. Its rows stay put for
+    // the next sweep.
+    let blobFailed = false;
     for (const entry of candidate.entries) {
-      if (entry.blobKey !== undefined) {
-        // react-doctor-disable-next-line react-doctor/async-await-in-loop -- blob deletes and the single row delete must stay in order so a failed blob delete keeps its row
-        const result = await adapter.blobStorage.delete(entry.blobKey);
-        if (!result.ok) {
-          continue;
-        }
+      if (entry.blobKey === undefined) {
+        continue;
       }
-      deleted.push(entry);
+      // react-doctor-disable-next-line react-doctor/async-await-in-loop -- blob deletes must stay ordered so a failure can abort the candidate before any row is deleted
+      const result = await adapter.blobStorage.delete(entry.blobKey);
+      if (!result.ok) {
+        blobFailed = true;
+        break;
+      }
     }
-    if (deleted.length === 0) {
+    if (blobFailed) {
       continue;
     }
 
+    // react-doctor-disable-next-line react-doctor/async-await-in-loop -- each candidate is freed and accounted for before the next, so the sweep stops as soon as the cap is met
     await deleteCacheEntries(
       db,
-      deleted.map((entry) => entry.id),
+      candidate.entries.map((entry) => entry.id),
     );
-    for (const entry of deleted) {
+    for (const entry of candidate.entries) {
       bytesToFree -= entry.byteSize;
       evicted += 1;
     }
