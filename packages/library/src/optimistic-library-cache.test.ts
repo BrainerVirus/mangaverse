@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
-import { toMangaId, toProviderId, toProviderMangaId, toProviderMappingId } from '@app/shared';
+import {
+  toLibraryEntryId,
+  toMangaId,
+  toProviderId,
+  toProviderMangaId,
+  toProviderMappingId,
+} from '@app/shared';
 import type { MangaIdentity } from '@app/shared';
 import { DEFAULT_LIBRARY_VIEW_STATE } from './view-state.js';
 import { libraryQueryKeys } from './query-keys.js';
@@ -9,11 +15,10 @@ import {
   optimisticallyAddMangaToLibrary,
   optimisticallyRemoveMangaFromLibrary,
   optimisticallySetMangaFavorite,
-  restoreLibraryCache,
-  snapshotLibraryCache,
 } from './optimistic-library-cache.js';
 
 const mangaId = toMangaId('manga-1');
+const entryIdFor = (id: string) => toLibraryEntryId(`entry-${id}`);
 
 const manga: MangaIdentity = {
   id: mangaId,
@@ -55,7 +60,7 @@ describe('optimistic-library-cache', () => {
     queryClient.setQueryData(pageKey, pageData);
     queryClient.setQueryData(libraryQueryKeys.detail(mangaId), detailData);
 
-    optimisticallyAddMangaToLibrary(queryClient, mangaId, manga, 'planned');
+    optimisticallyAddMangaToLibrary(queryClient, mangaId, manga, entryIdFor(mangaId), 'planned');
 
     const updatedPage = queryClient.getQueryData<LibraryPageData>(pageKey);
     expect(updatedPage?.items).toHaveLength(1);
@@ -73,7 +78,7 @@ describe('optimistic-library-cache', () => {
     queryClient.setQueryData(pageKey, pageData);
     queryClient.setQueryData(libraryQueryKeys.detail(mangaId), detailData);
 
-    optimisticallyAddMangaToLibrary(queryClient, mangaId, manga);
+    optimisticallyAddMangaToLibrary(queryClient, mangaId, manga, entryIdFor(mangaId));
 
     optimisticallyRemoveMangaFromLibrary(queryClient, mangaId);
 
@@ -89,7 +94,7 @@ describe('optimistic-library-cache', () => {
     queryClient.setQueryData(pageKey, pageData);
     queryClient.setQueryData(libraryQueryKeys.detail(mangaId), detailData);
 
-    optimisticallyAddMangaToLibrary(queryClient, mangaId, manga);
+    optimisticallyAddMangaToLibrary(queryClient, mangaId, manga, entryIdFor(mangaId));
     optimisticallySetMangaFavorite(queryClient, mangaId, true);
     expect(queryClient.getQueryData<LibraryPageData>(pageKey)?.items[0]?.entry.favorite).toBe(true);
     expect(
@@ -109,7 +114,7 @@ describe('optimistic-library-cache', () => {
 
     queryClient.setQueryData(defaultPageKey, pageData);
     queryClient.setQueryData(libraryQueryKeys.detail(mangaId), detailData);
-    optimisticallyAddMangaToLibrary(queryClient, mangaId, manga);
+    optimisticallyAddMangaToLibrary(queryClient, mangaId, manga, entryIdFor(mangaId));
 
     queryClient.setQueryData(pageKey, {
       ...pageData,
@@ -120,21 +125,5 @@ describe('optimistic-library-cache', () => {
     optimisticallySetMangaFavorite(queryClient, mangaId, false);
 
     expect(queryClient.getQueryData<LibraryPageData>(pageKey)?.items).toHaveLength(0);
-  });
-
-  it('restores previous cache snapshots on rollback', () => {
-    const queryClient = new QueryClient();
-    const pageKey = libraryQueryKeys.page(DEFAULT_LIBRARY_VIEW_STATE);
-    queryClient.setQueryData(pageKey, pageData);
-    queryClient.setQueryData(libraryQueryKeys.detail(mangaId), detailData);
-
-    const snapshot = snapshotLibraryCache(queryClient, mangaId);
-    optimisticallyAddMangaToLibrary(queryClient, mangaId, manga);
-    restoreLibraryCache(queryClient, snapshot);
-
-    expect(queryClient.getQueryData<LibraryPageData>(pageKey)?.items).toHaveLength(0);
-    expect(
-      queryClient.getQueryData<MangaDetailData>(libraryQueryKeys.detail(mangaId))?.libraryEntry,
-    ).toBeUndefined();
   });
 });

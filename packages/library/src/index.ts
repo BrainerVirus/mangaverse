@@ -9,9 +9,6 @@ export {
   optimisticallyAddMangaToLibrary,
   optimisticallyRemoveMangaFromLibrary,
   optimisticallySetMangaFavorite,
-  restoreLibraryCache,
-  snapshotLibraryCache,
-  type LibraryCacheSnapshot,
 } from './optimistic-library-cache.js';
 export { libraryQueryKeys } from './query-keys.js';
 export { DEFAULT_LIBRARY_VIEW_STATE, withLibraryLayout } from './view-state.js';

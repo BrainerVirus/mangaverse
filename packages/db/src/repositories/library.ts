@@ -165,7 +165,11 @@ export async function listLibraryEntries(
 
 export async function addLibraryEntry(
   db: AppDrizzleDb,
-  input: { readonly mangaId: MangaId; readonly status: LibraryEntry['status'] },
+  input: {
+    readonly mangaId: MangaId;
+    readonly status: LibraryEntry['status'];
+    readonly id?: LibraryEntryId;
+  },
 ): Promise<AppResult<LibraryEntryId>> {
   const manga = db
     .select({ id: mangaIdentities.id })
@@ -192,7 +196,7 @@ export async function addLibraryEntry(
     );
   }
 
-  const id = toLibraryEntryId(newId());
+  const id = input.id ?? toLibraryEntryId(newId());
   const now = new Date().toISOString();
   await db.insert(libraryEntries).values({
     id,
