@@ -28,6 +28,7 @@ describe('@app/search', () => {
       { query: 'test' },
       true,
     ]);
+    expect(searchQueryKeys.provider('test', true)).toEqual(['search', 'provider', 'test', true]);
     expect(discoverQueryKeys.providers(true)).toEqual(['discover', 'providers', true]);
   });
 });

@@ -3,13 +3,17 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import {
   DEFAULT_SEARCH_VIEW_STATE,
+  mergeSearchPageData,
   recordSearchQuery,
   SearchPage,
   type SearchViewState,
 } from '@app/search';
 import { fetchAppSettings, settingsQueryKeys } from '@app/settings';
 import { getLocalDb } from '../lib/local-db.js';
-import { searchPageQueryOptions } from '../queries/search-query-options.js';
+import {
+  searchPageQueryOptions,
+  searchProviderQueryOptions,
+} from '../queries/search-query-options.js';
 import {
   refreshRecentSearches,
   refreshRecentSearchesAfterWrite,
@@ -37,11 +41,18 @@ function SearchRoute() {
   });
 
   const explicitContent = appSettingsQuery.data?.settings.explicitContent ?? false;
+  const searchReady = dbStatus === 'ready' && db !== null && appSettingsQuery.isSuccess;
 
-  const { data, isLoading, isError } = useQuery({
+  const localQuery = useQuery({
     ...searchPageQueryOptions(db!, viewState, explicitContent),
-    enabled: dbStatus === 'ready' && db !== null && appSettingsQuery.isSuccess,
+    enabled: searchReady,
   });
+
+  const providerQuery = useQuery({
+    ...searchProviderQueryOptions(db!, viewState.query, explicitContent, searchReady),
+  });
+
+  const data = mergeSearchPageData(localQuery.data, providerQuery.data);
 
   const handleViewStateChange = (next: SearchViewState) => {
     setViewState(next);
@@ -70,8 +81,9 @@ function SearchRoute() {
   return (
     <SearchPage
       data={data}
-      isLoading={dbStatus === 'loading' || isLoading || appSettingsQuery.isLoading}
-      isError={dbStatus === 'error' || isError}
+      isLoading={dbStatus === 'loading' || localQuery.isLoading || appSettingsQuery.isLoading}
+      isError={dbStatus === 'error' || localQuery.isError}
+      isProviderPending={providerQuery.isFetching}
       viewState={viewState}
       onViewStateChange={handleViewStateChange}
       onOpenManga={(mangaId) => navigate({ to: '/manga/$id', params: { id: mangaId } })}
