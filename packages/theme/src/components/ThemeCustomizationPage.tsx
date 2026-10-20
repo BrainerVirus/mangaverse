@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import {
   Alert,
+  AlertDescription,
   AlertTitle,
   Button,
   ErrorState,
   Label,
   LoadingState,
-  SettingsSection,
   Switch,
   ThemePreview,
 } from '@app/design-system';
@@ -197,16 +197,22 @@ function CustomThemesSection({
   onRetry,
 }: CustomThemesSectionProps) {
   return (
-    <SettingsSection
+    <ThemeSection
       title="Your themes"
       description="Custom themes stored on this device. Select, edit or delete them here."
     >
       {areCustomThemesError ? (
-        <ErrorState
-          title="Could not load your themes"
-          message="Your custom themes may be unavailable. Retry to load them again."
-          {...(onRetry === undefined ? {} : { onRetry })}
-        />
+        <Alert variant="destructive">
+          <AlertTitle>Could not load your themes</AlertTitle>
+          <AlertDescription>
+            Your custom themes may be unavailable. Retry to load them again.
+          </AlertDescription>
+          {onRetry === undefined ? null : (
+            <Button size="sm" variant="outline" className="mt-3" onClick={onRetry}>
+              Retry
+            </Button>
+          )}
+        </Alert>
       ) : areCustomThemesLoading ? (
         <p className="type-body text-muted-foreground">Loading custom themes…</p>
       ) : customThemes.length === 0 ? (
@@ -229,7 +235,29 @@ function CustomThemesSection({
           ))}
         </div>
       )}
-    </SettingsSection>
+    </ThemeSection>
+  );
+}
+
+function ThemeSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-3">
+      <div className="space-y-1">
+        <h2 className="type-heading text-foreground">{title}</h2>
+        {description === undefined ? null : (
+          <p className="type-body text-muted-foreground">{description}</p>
+        )}
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -302,11 +330,11 @@ export function ThemeCustomizationPage({
         </Alert>
       )}
 
-      <SettingsSection
+      <ThemeSection
         title="Appearance"
         description="Switch between light and dark surfaces when your preset supports both modes."
       >
-        <div className="flex items-start justify-between gap-4 rounded-control border border-border p-4">
+        <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
             <Label htmlFor="theme-dark-mode">Dark mode</Label>
             <p className="type-body text-muted-foreground">
@@ -325,9 +353,9 @@ export function ThemeCustomizationPage({
             onClick={() => onChange({ ...settings, dark: !settings.dark })}
           />
         </div>
-      </SettingsSection>
+      </ThemeSection>
 
-      <SettingsSection
+      <ThemeSection
         title="Built-in themes"
         description="Each preset keeps shared component semantics while changing color personality. Duplicate one to start a custom theme."
       >
@@ -354,7 +382,7 @@ export function ThemeCustomizationPage({
             />
           ))}
         </div>
-      </SettingsSection>
+      </ThemeSection>
 
       <CustomThemesSection
         customThemes={customThemes}

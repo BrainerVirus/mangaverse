@@ -71,7 +71,7 @@ function PreviewIssueList({ preview }: { preview: MigrationPreviewReport }) {
 
       <ul className="space-y-2" aria-label="Migration preview items">
         {preview.items.map((item) => (
-          <li key={item.mangaId} className="rounded-control border border-border p-3 text-sm">
+          <li key={item.mangaId} className="rounded-control bg-muted/40 p-3 text-sm">
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <span className="font-medium text-foreground">{item.canonicalTitle}</span>
               {item.blocked ? (
@@ -242,7 +242,7 @@ function CandidateSection({
       ) : (
         <ul className="space-y-3" aria-label="Migration candidates">
           {candidates.map((candidate) => (
-            <li key={candidate.mangaId} className="rounded-control border border-border p-3">
+            <li key={candidate.mangaId} className="rounded-control bg-muted/40 p-3">
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <span className="font-medium text-foreground">{candidate.canonicalTitle}</span>
                 {candidate.isDefaultProvider ? <Badge variant="secondary">default</Badge> : null}
