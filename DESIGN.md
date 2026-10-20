@@ -797,13 +797,11 @@ and `chromeShow`/`chromeHide` from `@app/motion`. The material is what changes:
   value, which is exactly where the old chrome was weakest.
 - Every control row sits on a stage **plate** (§3.5) so `text-white/70` labels hold ≥ 4.5:1 over a white
   page (measured 5.59:1 at 0.78).
-- The mode pill (`rounded-full bg-white/10 p-1` with a `bg-white` thumb) becomes `GlassSurface
-  level="thin"` over the stage with `--glass-specular` on the active thumb; the morph keeps today's
-  timing — **280ms, `power3.out`** (a raw literal in `reader-chrome.tsx`, not a `DURATION` token; P3 may
-  tokenise it) — and is skipped under reduced motion.
-- The progress rail keeps its 8px `bg-white/25` track and 16px white thumb, gains a stage plate under the
-  preview popover (`border-white/20 bg-black/80` today → `GlassSurface level="stage"`), and keeps
-  `focus-visible:ring-2 ring-white/70`.
+- The mode pill uses `GlassSurface level="thin"` over the stage with `--glass-specular` on the active
+  thumb (#102); the morph is `readerModePill()` with `DURATION.readerModePill` (280ms) and
+  `EASING.readerModePill`, and is skipped under reduced motion.
+- The progress rail keeps its 8px `bg-white/25` track and 16px white thumb; the preview popover uses a
+  stage-glass `GlassSurface` (#102) and the rail keeps `focus-visible:ring-2 ring-white/70`.
 - Reader modals (settings sheet, chapter transition card) are the only places `level="thick"` /
   displacement refraction may appear inside the reader.
 - The offline toast (`rounded-full bg-black/80 px-3 py-1 text-xs text-white`) becomes
@@ -966,6 +964,7 @@ Honest accounting. Nothing below is aspirational; §13 is where the gap closes.
 
 - The remaining P5 surfaces: card, popover, tooltip, input, tabs and select glass variants, preset tint
   support, rendered contrast-pair coverage, and the `.surface-panel` caller migration.
+- The deferred P4 shell work: the desktop rail glass and the sticky page header.
 - The `prefers-contrast` handling (proposed).
 - The liquid-motion remainder: `EASING.liquidSettle` / `glide` (`--ease-liquid`, `--ease-glide`) and the
   `pressFeedback()` helper (P3).
@@ -997,8 +996,9 @@ consumers (#103); the `type-*` utilities (#103); and the `/design-system` page (
   Bundling is a separate decision (licensing, weight, first-paint cost) and is not part of this rebuild.
 - **Theme presets and glass.** Presets may tint the glass fills, but no preset has been designed for the
   glass tiers yet. Until P5, presets keep their current tokens and glass uses the default tier values.
-- **The reader's top-bar gradient has no protected tail.** The plate rule (§3.5) fixes it for control rows;
-  whether the gradient itself should be replaced outright is an open question for P2.
+- **The reader's top-bar gradient has no protected tail.** The shipped recipe keeps the gradient as a
+  non-blurring supplement over stage glass (#102); the plate rule (§3.5) protects text in control rows,
+  and the gradient itself is not relied on for contrast.
 - **`docs/design-direction.md` is unused.** The target language and the roadmap live here; a separate
   direction note would only duplicate it.
 
