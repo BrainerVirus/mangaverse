@@ -156,6 +156,110 @@ describe('summarizeRestorePreview', () => {
   });
 });
 
+describe('backup duplicate library entries', () => {
+  const duplicateDoc = {
+    schemaVersion: 1,
+    metadata: { createdAt: new Date().toISOString(), appVersion: '0.0.1' },
+    library: [
+      {
+        id: 'lib-keeper',
+        mangaId: 'm-dup',
+        favorite: false,
+        categoryIds: ['cat-a', 'cat-b'],
+        status: 'on_hold',
+        unreadCount: 4,
+        lastReadChapterId: 'ch-keeper',
+        progressPercent: 20,
+        notes: 'keeper note',
+        addedAt: '2025-01-10T00:00:00.000Z',
+        updatedAt: '2025-02-01T00:00:00.000Z',
+      },
+      {
+        id: 'lib-loser',
+        mangaId: 'm-dup',
+        favorite: true,
+        categoryIds: ['cat-b', 'cat-c'],
+        status: 'reading',
+        unreadCount: 9,
+        lastReadChapterId: 'ch-loser',
+        progressPercent: 75,
+        notes: 'loser note',
+        addedAt: '2025-01-01T00:00:00.000Z',
+        updatedAt: '2025-01-15T00:00:00.000Z',
+      },
+    ],
+    mangaIdentities: [
+      {
+        id: 'm-dup',
+        canonicalTitle: 'Duplicate Manga',
+        alternativeTitles: [],
+        authors: [],
+        artists: [],
+        tags: [],
+        status: 'unknown',
+        contentRating: 'unknown',
+        providerMappings: [{ id: 'map-1', providerId: 'prov-1', providerMangaId: 'remote-1' }],
+        defaultProviderMappingId: 'map-1',
+        merged: false,
+      },
+    ],
+    installedExtensions: [],
+    readerSettings: getDefaultReaderSettings(),
+    providerSettings: { providerSnapshots: [] },
+    themeSettings: { themeId: 'default', dark: false },
+  };
+
+  it('previews a warning and applies one merged entry without a preview', async () => {
+    const { db } = await createSqlJsHarness();
+
+    const preview = await previewBackupImport(db, duplicateDoc);
+    expect(preview.backupOk).toBe(true);
+    expect(summarizeRestorePreview(preview).canRestore).toBe(true);
+    expect(preview.previewIssues).toContainEqual(
+      expect.objectContaining({
+        code: 'restore.library_duplicates_merged',
+        severity: 'warning',
+        details: { mangaId: 'm-dup', keptId: 'lib-keeper', droppedCount: 1 },
+      }),
+    );
+
+    // Applying the same document without calling preview first must still dedupe.
+    const restored = await applyBackupImport(db, duplicateDoc);
+    expect(restored.ok).toBe(true);
+    if (!restored.ok) return;
+    expect(restored.value.library).toEqual([
+      {
+        id: 'lib-keeper',
+        mangaId: 'm-dup',
+        favorite: true,
+        categoryIds: ['cat-a', 'cat-b', 'cat-c'],
+        status: 'on_hold',
+        unreadCount: 4,
+        lastReadChapterId: 'ch-loser',
+        progressPercent: 75,
+        notes: 'keeper note',
+        addedAt: '2025-01-01T00:00:00.000Z',
+        updatedAt: '2025-02-01T00:00:00.000Z',
+      },
+    ]);
+  });
+
+  it('does not report duplicate merges for unique library entries', async () => {
+    const { db } = await createSqlJsHarness();
+    const doc = {
+      ...duplicateDoc,
+      library: [duplicateDoc.library[0]!],
+    };
+
+    const preview = await previewBackupImport(db, doc);
+
+    expect(preview.backupOk).toBe(true);
+    expect(
+      preview.previewIssues.some((issue) => issue.code === 'restore.library_duplicates_merged'),
+    ).toBe(false);
+  });
+});
+
 describe('backup export helpers', () => {
   it('builds a dated filename and serializes JSON', async () => {
     const { db } = await createSqlJsHarness();

@@ -6,6 +6,7 @@ import type {
 } from '@app/shared';
 import {
   createAppError,
+  dedupeBackupLibrary,
   err,
   ok,
   validateBackupDocument,
@@ -285,6 +286,9 @@ export async function applyBackupRestore(
   }
 
   const doc = validation.value;
+  // The unique index allows one row per manga; dedupe here too so a direct
+  // apply (without a caller preview) cannot fail on a pre-0003 backup.
+  const library = dedupeBackupLibrary(doc.library).library;
 
   try {
     withTransaction(db, (tx) => {
@@ -298,7 +302,7 @@ export async function applyBackupRestore(
       for (const identity of doc.mangaIdentities) {
         insertMangaIdentitySync(tx, identity);
       }
-      for (const entry of doc.library) {
+      for (const entry of library) {
         insertLibraryEntrySync(tx, entry);
       }
       for (const extension of doc.installedExtensions) {
@@ -345,5 +349,5 @@ export async function applyBackupRestore(
     return err(createAppError({ code: 'backup.restore.failed', message }));
   }
 
-  return ok(doc);
+  return ok({ ...doc, library });
 }

@@ -585,6 +585,107 @@ describe('@app/db', () => {
     expect(result.error.code).toBe('backup.restore.blocked');
   });
 
+  it('merges pre-0003 duplicate library entries on preview and apply', async () => {
+    const { db } = await createSqlJsHarness();
+    const doc = {
+      schemaVersion: 1,
+      metadata: { createdAt: new Date().toISOString(), appVersion: 't' },
+      library: [
+        {
+          id: 'lib-keeper',
+          mangaId: 'm-dup',
+          favorite: false,
+          categoryIds: ['cat-a', 'cat-b'],
+          status: 'on_hold',
+          unreadCount: 4,
+          lastReadChapterId: 'ch-keeper',
+          activeProviderMappingId: 'map-1',
+          progressPercent: 20,
+          notes: 'keeper note',
+          addedAt: '2025-01-10T00:00:00.000Z',
+          updatedAt: '2025-02-01T00:00:00.000Z',
+        },
+        {
+          id: 'lib-loser',
+          mangaId: 'm-dup',
+          favorite: true,
+          categoryIds: ['cat-b', 'cat-c'],
+          status: 'reading',
+          unreadCount: 9,
+          lastReadChapterId: 'ch-loser',
+          progressPercent: 75,
+          notes: 'loser note',
+          addedAt: '2025-01-01T00:00:00.000Z',
+          updatedAt: '2025-01-15T00:00:00.000Z',
+        },
+      ],
+      mangaIdentities: [
+        {
+          id: 'm-dup',
+          canonicalTitle: 'Duplicate Manga',
+          alternativeTitles: [],
+          authors: [],
+          artists: [],
+          tags: [],
+          status: 'unknown',
+          contentRating: 'unknown',
+          providerMappings: [{ id: 'map-1', providerId: 'prov-1', providerMangaId: 'remote-1' }],
+          defaultProviderMappingId: 'map-1',
+          merged: false,
+        },
+      ],
+      installedExtensions: [],
+      readerSettings: getDefaultReaderSettings(),
+      providerSettings: { providerSnapshots: [] },
+      themeSettings: { themeId: 'default', dark: false },
+    };
+
+    const preview = await previewBackupRestore(db, doc);
+    expect(preview.backupOk).toBe(true);
+    expect(preview.previewIssues).toContainEqual(
+      expect.objectContaining({
+        code: 'restore.library_duplicates_merged',
+        severity: 'warning',
+        details: { mangaId: 'm-dup', keptId: 'lib-keeper', droppedCount: 1 },
+      }),
+    );
+
+    const result = await applyBackupRestore(db, doc);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.library).toEqual([
+      {
+        id: 'lib-keeper',
+        mangaId: 'm-dup',
+        favorite: true,
+        categoryIds: ['cat-a', 'cat-b', 'cat-c'],
+        status: 'on_hold',
+        unreadCount: 4,
+        lastReadChapterId: 'ch-loser',
+        activeProviderMappingId: 'map-1',
+        progressPercent: 75,
+        notes: 'keeper note',
+        addedAt: '2025-01-01T00:00:00.000Z',
+        updatedAt: '2025-02-01T00:00:00.000Z',
+      },
+    ]);
+
+    const entries = await listLibraryEntries(db);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      id: 'lib-keeper',
+      favorite: true,
+      status: 'on_hold',
+      unreadCount: 4,
+      lastReadChapterId: 'ch-loser',
+      activeProviderMappingId: 'map-1',
+      progressPercent: 75,
+      notes: 'keeper note',
+      addedAt: '2025-01-01T00:00:00.000Z',
+      updatedAt: '2025-02-01T00:00:00.000Z',
+    });
+  });
+
   it('rejects a backup with authors: null before touching local data', async () => {
     const { db: sourceDb } = await createSqlJsHarness();
     const exportedFrom = await createMangaIdentityWithInitialMapping(sourceDb, {

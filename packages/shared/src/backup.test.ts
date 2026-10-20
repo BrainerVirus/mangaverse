@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { BACKUP_SCHEMA_VERSION, validateBackupDocument } from './backup';
+import { BACKUP_SCHEMA_VERSION, dedupeBackupLibrary, validateBackupDocument } from './backup';
+import { toChapterId } from './chapter';
+import { toCategoryId, toLibraryEntryId, type LibraryEntry } from './library';
+import { toMangaId, toProviderMappingId } from './manga';
 import { getDefaultReaderSettings } from './reader-settings';
 
 const baseManifest = {
@@ -337,5 +340,103 @@ describe('theme document migration', () => {
     });
     expect(res.ok).toBe(false);
     expect(res.issues.some((issue) => issue.path === 'themes.1.id')).toBe(true);
+  });
+});
+
+function libraryEntry(id: string, overrides: Partial<Omit<LibraryEntry, 'id'>> = {}): LibraryEntry {
+  return {
+    id: toLibraryEntryId(id),
+    mangaId: toMangaId('m1'),
+    favorite: false,
+    categoryIds: [],
+    status: 'reading',
+    unreadCount: 0,
+    ...overrides,
+  };
+}
+
+describe('dedupeBackupLibrary', () => {
+  it('merges duplicate manga entries into the latest-updated keeper', () => {
+    const keeper = libraryEntry('le-keeper', {
+      favorite: false,
+      categoryIds: [toCategoryId('c1'), toCategoryId('c2')],
+      status: 'on_hold',
+      unreadCount: 3,
+      lastReadChapterId: toChapterId('ch-keeper'),
+      activeProviderMappingId: toProviderMappingId('map-keeper'),
+      progressPercent: 40,
+      notes: '',
+      addedAt: '2026-01-05T00:00:00.000Z',
+      updatedAt: '2026-02-01T00:00:00.000Z',
+    });
+    const loser = libraryEntry('le-loser', {
+      favorite: true,
+      categoryIds: [toCategoryId('c2'), toCategoryId('c3')],
+      status: 'reading',
+      unreadCount: 9,
+      lastReadChapterId: toChapterId('ch-loser'),
+      activeProviderMappingId: toProviderMappingId('map-loser'),
+      progressPercent: 90,
+      notes: 'loser note',
+      addedAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-10T00:00:00.000Z',
+    });
+
+    const result = dedupeBackupLibrary([keeper, loser]);
+
+    expect(result.library).toEqual([
+      {
+        id: toLibraryEntryId('le-keeper'),
+        mangaId: toMangaId('m1'),
+        favorite: true,
+        categoryIds: [toCategoryId('c1'), toCategoryId('c2'), toCategoryId('c3')],
+        status: 'on_hold',
+        unreadCount: 3,
+        lastReadChapterId: toChapterId('ch-loser'),
+        activeProviderMappingId: toProviderMappingId('map-keeper'),
+        progressPercent: 90,
+        notes: 'loser note',
+        addedAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-02-01T00:00:00.000Z',
+      },
+    ]);
+    expect(result.removedIds).toEqual([toLibraryEntryId('le-loser')]);
+    expect(result.removedCount).toBe(1);
+    expect(result.merges).toEqual([
+      {
+        mangaId: toMangaId('m1'),
+        keptId: toLibraryEntryId('le-keeper'),
+        removedIds: [toLibraryEntryId('le-loser')],
+      },
+    ]);
+  });
+
+  it('keeps the keeper notes when they are non-empty', () => {
+    const result = dedupeBackupLibrary([
+      libraryEntry('le-keeper', {
+        notes: 'keeper note',
+        updatedAt: '2026-02-01T00:00:00.000Z',
+      }),
+      libraryEntry('le-loser', {
+        notes: 'loser note',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      }),
+    ]);
+
+    expect(result.library[0]?.notes).toBe('keeper note');
+  });
+
+  it('leaves unique manga entries untouched', () => {
+    const entries = [
+      libraryEntry('le-1', { mangaId: toMangaId('m1'), updatedAt: '2026-01-01T00:00:00.000Z' }),
+      libraryEntry('le-2', { mangaId: toMangaId('m2'), updatedAt: '2026-01-02T00:00:00.000Z' }),
+    ];
+
+    const result = dedupeBackupLibrary(entries);
+
+    expect(result.library).toEqual(entries);
+    expect(result.removedIds).toEqual([]);
+    expect(result.removedCount).toBe(0);
+    expect(result.merges).toEqual([]);
   });
 });

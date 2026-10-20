@@ -1,5 +1,5 @@
 import type { BackupValidationIssue } from '@app/shared';
-import { validateBackupDocument, toMangaId } from '@app/shared';
+import { dedupeBackupLibrary, validateBackupDocument, toMangaId } from '@app/shared';
 import type { AppDrizzleDb } from '../adapter.js';
 import { libraryEntries, mangaIdentities, mangaProviderMappings, themes } from '../schema.js';
 import { listInstalledExtensions } from '../repositories/extensions.js';
@@ -98,7 +98,21 @@ export async function previewBackupRestore(
   }
 
   const identityIds = new Set(doc.mangaIdentities.map((m) => m.id));
-  for (const entry of doc.library) {
+  const dedupedLibrary = dedupeBackupLibrary(doc.library);
+  for (const merge of dedupedLibrary.merges) {
+    add(previewIssues, {
+      code: 'restore.library_duplicates_merged',
+      message:
+        'Backup contains more than one library entry for the same manga; they are merged into one on restore.',
+      severity: 'warning',
+      details: {
+        mangaId: merge.mangaId,
+        keptId: merge.keptId,
+        droppedCount: merge.removedIds.length,
+      },
+    });
+  }
+  for (const entry of dedupedLibrary.library) {
     if (!identityIds.has(entry.mangaId)) {
       add(previewIssues, {
         code: 'restore.library_missing_identity',
@@ -149,7 +163,7 @@ export async function previewBackupRestore(
       .all()
       .map((r) => r.mangaId),
   );
-  const backupLibraryMangaIds = new Set(doc.library.map((e) => String(e.mangaId)));
+  const backupLibraryMangaIds = new Set(dedupedLibrary.library.map((e) => String(e.mangaId)));
   for (const mangaId of currentLibraryMangaIds) {
     if (!backupLibraryMangaIds.has(mangaId)) {
       add(previewIssues, {
