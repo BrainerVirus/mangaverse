@@ -10,6 +10,7 @@ import {
 } from '@app/search';
 import { fetchAppSettings, settingsQueryKeys } from '@app/settings';
 import { searchPageQueryOptions } from '../queries/search-query-options.js';
+import { refreshRecentSearches } from '../queries/search-recents.js';
 import { useLocalDb, useLocalDbStatus, useLocalDbRetry } from '../providers/local-db-provider.js';
 
 export const Route = createFileRoute('/search')({
@@ -46,7 +47,7 @@ function SearchRoute() {
       // Clearing the box shows recent searches; refetch them so a just-recorded
       // query cannot be hidden by a blank-query result cached during hydration.
       if (db !== null && dbStatus === 'ready') {
-        void queryClient.invalidateQueries({ queryKey: searchQueryKeys.all });
+        void refreshRecentSearches(queryClient);
       }
       return;
     }
