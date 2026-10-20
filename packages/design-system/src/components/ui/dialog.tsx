@@ -16,16 +16,18 @@ const DialogContent = React.forwardRef<
 >(({ className, children, ...props }, ref) => (
   <DialogPrimitive.Portal>
     <DialogPrimitive.Backdrop className="fixed inset-0 z-50 glass-scrim" />
-    <DialogPrimitive.Popup
-      {...props}
-      ref={ref}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-transparent outline-none"
-      aria-modal="true"
-    >
-      <GlassSurface level="thick" className={cn('w-full max-w-lg p-6', className)}>
-        {children}
-      </GlassSurface>
-    </DialogPrimitive.Popup>
+    <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center">
+      <DialogPrimitive.Popup
+        {...props}
+        ref={ref}
+        className="pointer-events-auto outline-none"
+        aria-modal="true"
+      >
+        <GlassSurface level="thick" className={cn('w-full max-w-lg p-6', className)}>
+          {children}
+        </GlassSurface>
+      </DialogPrimitive.Popup>
+    </div>
   </DialogPrimitive.Portal>
 ));
 DialogContent.displayName = 'DialogContent';

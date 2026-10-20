@@ -70,6 +70,18 @@ describe('Dialog accessibility', () => {
     expect(dialog).toHaveAttribute('aria-labelledby', title.id);
     expect(dialog).toHaveAttribute('aria-describedby', description.id);
   });
+
+  it('closes when the backdrop is pressed', async () => {
+    const user = userEvent.setup();
+    render(<DialogHarness />);
+    await user.click(screen.getByRole('button', { name: 'Open dialog' }));
+
+    const backdrop = document.querySelector<HTMLElement>('.glass-scrim');
+    expect(backdrop).not.toBeNull();
+    await user.click(backdrop!);
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
 });
 
 describe('Tabs accessibility', () => {
