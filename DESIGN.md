@@ -484,18 +484,18 @@ Sizes are the shipped utilities (`type-*`, #103); `existing` marks the older com
 convention), **not** as `--text-*` theme keys, because `cn()` treats unknown `text-*` classes as colours
 and drops the first of two that sit together.
 
-| Utility (shipped) | Size / line / tracking                              | Weight | Role                                                                   |
-| ------------------ | --------------------------------------------------- | ------ | ---------------------------------------------------------------------- |
-| `type-display-xl`  | `clamp(34px, 3vw + 16px, 48px)` / 1.05 / `-0.022em` | 600    | Onboarding hero, empty-state hero — never inside the reader            |
-| `type-display-lg`  | `clamp(28px, 2vw + 14px, 36px)` / 1.1 / `-0.02em`   | 600    | Page hero titles, chapter-transition card                              |
-| `type-title`       | 24px / 1.2 / `-0.015em`                             | 600    | `CardTitle`, dialog and sheet titles (today `text-2xl tracking-tight`) |
-| `type-heading`     | 18px / 1.3 / `-0.01em`                              | 600    | Section headings, manga detail title                                   |
-| `type-body`        | 14px / 1.55 / `-0.011em`                            | 400    | Default body copy (`text-sm`, the components' convention)              |
-| `type-body-lg`     | 16px / 1.5 / `-0.011em`                             | 400    | Reader descriptions, alert titles                                      |
-| `type-label`       | 14px / 1 / `-0.006em`                               | 500    | Buttons, tab triggers, form labels                                     |
-| `type-meta`        | 12px / 1.4                                          | 400    | Provider IDs, page counters, timestamps                                |
-| `type-micro`       | 11px / 1.2 / `0.02em`                               | 500    | Glass chips and keyboard hints (the ⌘K keycap stays 10px via `keycap-text`) |
-| `type-code`        | 12–13px / 1.5                                       | 400    | Logs, extension IDs, checksums, diagnostics (mono)                     |
+| Utility (shipped) | Size / line / tracking                              | Weight | Role                                                                        |
+| ----------------- | --------------------------------------------------- | ------ | --------------------------------------------------------------------------- |
+| `type-display-xl` | `clamp(34px, 3vw + 16px, 48px)` / 1.05 / `-0.022em` | 600    | Onboarding hero, empty-state hero — never inside the reader                 |
+| `type-display-lg` | `clamp(28px, 2vw + 14px, 36px)` / 1.1 / `-0.02em`   | 600    | Page hero titles, chapter-transition card                                   |
+| `type-title`      | 24px / 1.2 / `-0.015em`                             | 600    | `CardTitle`, dialog and sheet titles (today `text-2xl tracking-tight`)      |
+| `type-heading`    | 18px / 1.3 / `-0.01em`                              | 600    | Section headings, manga detail title                                        |
+| `type-body`       | 14px / 1.55 / `-0.011em`                            | 400    | Default body copy (`text-sm`, the components' convention)                   |
+| `type-body-lg`    | 16px / 1.5 / `-0.011em`                             | 400    | Reader descriptions, alert titles                                           |
+| `type-label`      | 14px / 1 / `-0.006em`                               | 500    | Buttons, tab triggers, form labels                                          |
+| `type-meta`       | 12px / 1.4                                          | 400    | Provider IDs, page counters, timestamps                                     |
+| `type-micro`      | 11px / 1.2 / `0.02em`                               | 500    | Glass chips and keyboard hints (the ⌘K keycap stays 10px via `keycap-text`) |
+| `type-code`       | 12–13px / 1.5                                       | 400    | Logs, extension IDs, checksums, diagnostics (mono)                          |
 
 Command-palette group headers stay `text-xs font-semibold uppercase tracking-wide` (existing).
 
@@ -701,12 +701,12 @@ icon above the label.
 
 ### 7.1 New primitives for `@app/design-system` (landed in P1)
 
-| Primitive         | API (shipped)                                                                                                                                         | Purpose                                                                                                                                                             |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Primitive         | API (shipped)                                                                                                                                                                                   | Purpose                                                                                                                                                             |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GlassSurface`    | `level: 'thin' \| 'regular' \| 'thick' \| 'stage'`, `tone: 'default' \| 'raised' \| 'reader'`, `elevation?: 0–4`, `edge?: boolean`, `plate?: boolean`, `refraction?: 'sheen' \| 'displacement'` | The single source of the glass-tier material: fill, `backdrop-filter`, edge, specular, inner shadow, elevation. Modal scrims use the separate `glass-scrim` utility |
-| `RefractionLayer` | `variant: 'sheen' \| 'displacement'`, `filterId?`, `edge?: boolean`, `aria-hidden` by default                                                          | The decorative light layer from §2.2. Displacement is opt-in and applied by the owning `GlassSurface` (shipped #95); a standalone layer falls back to sheen          |
-| `GlassPanel`      | `GlassSurface` + `padding: 'none' \| 'sm' \| 'md' \| 'lg'`                                                                                            | The replacement for the `.surface-panel` utility in shell and feature code                                                                                          |
-| `AmbientBackdrop` | none (fixed, decorative)                                                                                                                              | The §2.3 band, rendered once by the app shell                                                                                                                       |
+| `RefractionLayer` | `variant: 'sheen' \| 'displacement'`, `filterId?`, `edge?: boolean`, `aria-hidden` by default                                                                                                   | The decorative light layer from §2.2. Displacement is opt-in and applied by the owning `GlassSurface` (shipped #95); a standalone layer falls back to sheen         |
+| `GlassPanel`      | `GlassSurface` + `padding: 'none' \| 'sm' \| 'md' \| 'lg'`                                                                                                                                      | The replacement for the `.surface-panel` utility in shell and feature code                                                                                          |
+| `AmbientBackdrop` | none (fixed, decorative)                                                                                                                                                                        | The §2.3 band, rendered once by the app shell                                                                                                                       |
 
 `GlassSurface` is the only place `--glass-*` tokens are read, and it refuses to render two
 imagery-blurring tiers nested (§2.5). `surface-panel` is kept as a deprecated alias that renders a matte
@@ -737,6 +737,9 @@ is not a dependency of the package, so `GlassPanel` renders a `div` and forwards
   cover area sits on a plate so the title stays ≥ 4.5:1 (§3.5).
 - **Hover** (interactive cards only): elevation 1 → 3, `y: -2px`, `scale: 1.02`, `DURATION.standard` with
   `expo.out`. Static panels never animate.
+- **No card nesting:** a card is content, never a layout container. Do not place a Card inside a Card or
+  a `SettingsSection` inside a Card; use headings and spacing for sections. A preview frame is a flat
+  fill without a border and may contain at most one sample card. One border per visual grouping.
 - **Manga card (existing structure, glass target):** 3:4 portrait button; grid variant stacks a
   full-bleed cover (7px corners) with the title in a bottom overlay (`absolute bottom-0 left-0 right-0
   p-3`) that carries **no** plate today — the bottom plate is the §3.5 proposal, not a current fact;

@@ -46,6 +46,16 @@ function buttonByText(scope: ParentNode, label: string): HTMLButtonElement {
 }
 
 describe('theme editor', () => {
+  it('keeps sections flat: no card is nested inside the editor', () => {
+    const { container, cleanup } = renderEditor();
+
+    // Cards are content, not layout: the shell uses headings + spacing, and the
+    // only bordered fill is the sample card inside each preview.
+    expect(container.querySelectorAll('.rounded-box.border')).toHaveLength(0);
+
+    cleanup();
+  });
+
   afterEach(() => {
     document.body.innerHTML = '';
     document.documentElement.removeAttribute('style');

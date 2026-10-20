@@ -6,7 +6,6 @@ import {
   Button,
   Input,
   Label,
-  SettingsSection,
   Tabs,
   TabsContent,
   TabsList,
@@ -36,6 +35,28 @@ export interface ThemeEditorPageProps {
   onDelete: () => void;
   onDuplicate: () => void;
   onCancel: () => void;
+}
+
+function EditorSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-3">
+      <div className="space-y-1">
+        <h2 className="type-heading text-foreground">{title}</h2>
+        {description === undefined ? null : (
+          <p className="type-body text-muted-foreground">{description}</p>
+        )}
+      </div>
+      {children}
+    </section>
+  );
 }
 
 function ThemePreviewPane({ definition, dark }: { definition: ThemeDefinition; dark: boolean }) {
@@ -83,7 +104,7 @@ function ThemePreviewPane({ definition, dark }: { definition: ThemeDefinition; d
         aria-label={label}
         data-appearance={dark ? 'dark' : 'light'}
         style={scope}
-        className="m-0 space-y-3 rounded-box border border-border bg-background p-4 text-foreground"
+        className="m-0 space-y-3 rounded-box bg-background p-4 text-foreground"
       >
         <div className="flex items-center justify-between gap-3">
           <span className="type-label">Sample heading</span>
@@ -188,7 +209,7 @@ export function ThemeEditorPage({
         </Alert>
       )}
 
-      <SettingsSection title="Name" description="Shown in the theme gallery and on theme cards.">
+      <EditorSection title="Name" description="Shown in the theme gallery and on theme cards.">
         <div className="max-w-md space-y-2">
           <Label htmlFor="theme-name">Theme name</Label>
           <Input
@@ -198,9 +219,9 @@ export function ThemeEditorPage({
             onChange={(event) => onChange({ ...draft, name: event.target.value })}
           />
         </div>
-      </SettingsSection>
+      </EditorSection>
 
-      <SettingsSection
+      <EditorSection
         title="Preview"
         description="Light and dark share the same seeds; each preview paints its own scoped variables."
       >
@@ -208,7 +229,7 @@ export function ThemeEditorPage({
           <ThemePreviewPane definition={draft} dark={false} />
           <ThemePreviewPane definition={draft} dark />
         </div>
-      </SettingsSection>
+      </EditorSection>
 
       <Tabs defaultValue="guided" className="space-y-4">
         <TabsList aria-label="Editing mode">
