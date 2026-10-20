@@ -15,8 +15,11 @@ Status: approved design (2026-10-20). Implementation starts with `theme-core`; t
 - **Gamut:** author in OKLCH, gamut-map to sRGB by default, opt-in Display P3 with a warning.
 - **Import/export:** JSON import/export and CSS export now; CSS import later as a strict,
   token-only whitelist because arbitrary CSS is an injection surface.
-- **Validation:** Zod 4.6+ with `z.compile` for the hot theme-definition path; issues keep their
-  paths so the editor can mark the exact field.
+- **Validation:** Zod 4.6+ with the normal parser; issues keep their paths so the editor can mark
+  the exact field. Compiled schemas are Node/CI-only: `z.compile` uses `new Function`, and the
+  Electron renderer CSP has no `unsafe-eval`, so compilation is a silent no-op there. The renderer
+  runs `z.config({ jitless: true })` to avoid the `new Function` probe and its CSP violation report;
+  `z.withParser` (build-time codegen) is the only future CSP-safe fast path.
 
 ## ThemeDefinition v1
 
@@ -114,7 +117,8 @@ Route: `/settings/theme` gallery, `/settings/theme/editor` (lazy) for create/edi
 - Any token can be overridden with any CSS Color 4 value.
 - Raw JSON view is editable with **inline diagnostics**:
   - JSON syntax errors at line/column;
-  - Zod schema errors mapped from `issue.path` to the exact field;
+  - Zod schema errors mapped from `issue.path` to the exact field (normal parser, not
+    `z.compile` — see the validation decision);
   - the message names what is wrong and what is accepted.
 - JSON import/export; CSS export. CSS import is a later, token-only whitelist: declarations of
   allowed custom properties, no selectors, at-rules, URLs or functions beyond color syntax.
