@@ -61,18 +61,28 @@ const minimalValidBackup = {
 };
 
 describe('backup document', () => {
-  it('accepts a minimal valid v1 backup', () => {
+  it('accepts a current v2 backup', () => {
     const res = validateBackupDocument(minimalValidBackup);
     expect(res.ok).toBe(true);
     if (!res.ok) {
       throw new Error('expected res.ok to be true');
     }
-    expect(res.value.schemaVersion).toBe(1);
+    expect(res.value.schemaVersion).toBe(BACKUP_SCHEMA_VERSION);
     expect(res.value.library).toHaveLength(1);
   });
 
-  it('rejects wrong schema version', () => {
-    const res = validateBackupDocument({ ...minimalValidBackup, schemaVersion: 2 });
+  it('accepts a legacy v1 backup and maps presetId', () => {
+    const res = validateBackupDocument({ ...minimalValidBackup, schemaVersion: 1 });
+    expect(res.ok).toBe(true);
+    if (!res.ok) {
+      throw new Error('expected res.ok to be true');
+    }
+    expect(res.value.themeSettings.themeId).toBe('default');
+    expect(res.value.themes).toEqual([]);
+  });
+
+  it('rejects an unknown schema version', () => {
+    const res = validateBackupDocument({ ...minimalValidBackup, schemaVersion: 3 });
     expect(res.ok).toBe(false);
     expect(res.issues.length).toBeGreaterThan(0);
   });
@@ -127,7 +137,7 @@ describe('backup document', () => {
 
 const customTheme = {
   schemaVersion: 1 as const,
-  id: 'custom-backup',
+  id: 'custom:backup',
   name: 'Backup Custom',
   basedOn: 'default',
   light: {
@@ -173,7 +183,7 @@ describe('theme document migration', () => {
     const res = validateBackupDocument({ ...minimalValidBackup, themes: [customTheme] });
     expect(res.ok).toBe(true);
     if (!res.ok) return;
-    expect(res.value.themes[0]?.id).toBe('custom-backup');
+    expect(res.value.themes[0]?.id).toBe('custom:backup');
   });
 
   it('reports the theme field path for an invalid seed', () => {

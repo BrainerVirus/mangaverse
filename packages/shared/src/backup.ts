@@ -10,7 +10,9 @@ import { validateProviderManifest } from './provider.js';
 import type { ThemeDefinition } from './theme-definition.js';
 import { normalizeThemeDefinitionShape, validateThemeDefinitionShape } from './theme-definition.js';
 
-export const BACKUP_SCHEMA_VERSION = 1 as const;
+export const BACKUP_SCHEMA_VERSION = 2 as const;
+/** v1 predates custom themes; both are readable, new exports write v2. */
+export const SUPPORTED_BACKUP_SCHEMA_VERSIONS: readonly number[] = [1, 2];
 
 export interface BackupMetadata {
   readonly createdAt: string;
@@ -364,11 +366,11 @@ export function validateBackupDocument(input: unknown): BackupValidationResult {
     return fail('backup.invalid', 'Backup document must be an object.');
   }
 
-  if (input['schemaVersion'] !== BACKUP_SCHEMA_VERSION) {
+  if (!SUPPORTED_BACKUP_SCHEMA_VERSIONS.includes(Number(input['schemaVersion']))) {
     addIssue(
       'schemaVersion',
       'backup.invalid',
-      `Expected schemaVersion ${BACKUP_SCHEMA_VERSION}, got ${String(input['schemaVersion'])}`,
+      `Expected schemaVersion ${SUPPORTED_BACKUP_SCHEMA_VERSIONS.join(' or ')}, got ${String(input['schemaVersion'])}`,
     );
     return {
       ok: false,

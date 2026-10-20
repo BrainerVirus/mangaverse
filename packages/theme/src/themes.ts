@@ -35,7 +35,7 @@ export async function saveThemeDefinition(
     return err(
       createAppError({
         code: 'theme.invalid',
-        message: 'Custom theme ids must start with "custom-".',
+        message: 'Custom theme ids must start with "custom:".',
       }),
     );
   }
