@@ -21,12 +21,12 @@ export {
   resolveCoverObjectUrl,
   resolveCoverUrl,
   getCoverCacheUsage,
-  evictCoverCacheToLimit,
-  runCoverCacheMaintenance,
   type CoverCacheLookupInput,
   type CoverCacheStoreResult,
   type CoverCacheUsageSummary,
 } from './cover-cache-store.js';
+
+export { evictCacheToLimit, runCacheMaintenance } from './cache-maintenance.js';
 
 export {
   getCachedPageObjectUrl,

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { AppDrizzleDb } from '../adapter.js';
 import { cacheEntries } from '../schema.js';
 
@@ -181,6 +181,21 @@ export async function deleteCacheEntry(
   }
   await db.delete(cacheEntries).where(eq(cacheEntries.id, id));
   return mapCacheRow(row);
+}
+
+/** Deletes every listed entry in one statement; ids already gone are ignored. */
+export async function deleteCacheEntries(
+  db: AppDrizzleDb,
+  ids: readonly string[],
+): Promise<number> {
+  if (ids.length === 0) {
+    return 0;
+  }
+  const deleted = await db
+    .delete(cacheEntries)
+    .where(inArray(cacheEntries.id, [...ids]))
+    .returning({ id: cacheEntries.id });
+  return deleted.length;
 }
 
 export async function summarizeCacheStorage(db: AppDrizzleDb): Promise<CacheStorageSummary> {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  evictCacheToLimit,
   listCachedChapterPageIndexes,
   markChapterPagesAsRead,
   prefetchChapterPages,
@@ -33,13 +34,22 @@ export function useChapterPrefetch(
       pages,
       retention: 'read',
       budgetBytes: data.settings.prefetchBudgetBytes,
-    }).then(() =>
-      markChapterPagesAsRead(cacheContext.db, {
+    }).then(async () => {
+      await markChapterPagesAsRead(cacheContext.db, {
         providerId: data.providerId,
         mangaId: data.mangaId,
         chapterId: data.chapterId,
-      }),
-    );
+      });
+      await evictCacheToLimit(cacheContext.db, cacheContext.adapter, {
+        limitBytes: cacheContext.cacheLimitBytes,
+        // The chapter being read stays cached even when it alone is over budget.
+        protectChapter: {
+          providerId: data.providerId,
+          mangaId: data.mangaId,
+          chapterId: data.chapterId,
+        },
+      });
+    });
   }, [cacheContext, data]);
 }
 

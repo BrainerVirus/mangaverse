@@ -11,6 +11,7 @@ const cacheState = vi.hoisted(() => ({
 
 vi.mock('@app/cache', () => ({
   CachedPageImage: () => null,
+  evictCacheToLimit: vi.fn<() => Promise<number>>(async () => 0),
   listCachedChapterPageIndexes: vi.fn<() => Promise<number[]>>(
     async () => cacheState.cachedPageIndexes,
   ),
