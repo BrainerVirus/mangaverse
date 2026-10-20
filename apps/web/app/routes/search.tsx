@@ -42,7 +42,15 @@ function SearchRoute() {
     setViewState(next);
 
     const trimmed = next.query.trim();
-    if (trimmed.length === 0 || db === null || dbStatus !== 'ready') {
+    if (trimmed.length === 0) {
+      // Clearing the box shows recent searches; refetch them so a just-recorded
+      // query cannot be hidden by a blank-query result cached during hydration.
+      if (db !== null && dbStatus === 'ready') {
+        void queryClient.invalidateQueries({ queryKey: searchQueryKeys.all });
+      }
+      return;
+    }
+    if (db === null || dbStatus !== 'ready') {
       return;
     }
     if (trimmed === lastRecordedQuery.current) {
