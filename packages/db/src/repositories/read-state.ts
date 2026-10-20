@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 import type { AppResult } from '@app/shared';
 import {
   createAppError,
@@ -58,6 +58,29 @@ export async function upsertChapterReadState(
     })
     .onConflictDoUpdate({
       target: chapterReadState.chapterId,
+      // Atomic guard for concurrent tabs/reloads: a stale event must not move
+      // progress backwards, even though the reader also has an in-memory chain.
+      setWhere: sql`(
+        ${chapterReadState.updatedAt} IS NULL
+        OR ${chapterReadState.updatedAt} = ''
+        OR excluded.updated_at > ${chapterReadState.updatedAt}
+        OR (
+          excluded.updated_at = ${chapterReadState.updatedAt}
+          AND (
+            excluded.last_page_index > ${chapterReadState.lastPageIndex}
+            OR (
+              excluded.last_page_index = ${chapterReadState.lastPageIndex}
+              AND (
+                excluded.read_percent > ${chapterReadState.readPercent}
+                OR (
+                  excluded.read_percent = ${chapterReadState.readPercent}
+                  AND excluded.completed > ${chapterReadState.completed}
+                )
+              )
+            )
+          )
+        )
+      )`,
       set: {
         mangaId: input.mangaId,
         providerMappingId: input.providerMappingId,
