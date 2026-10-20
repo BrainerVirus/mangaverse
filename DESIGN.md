@@ -31,7 +31,7 @@ typography:
   mono: JetBrains Mono (EXISTING --font-family-mono)
   body-size: 14px / 1.55 / -0.011em # 14px is the text-sm convention the components use, not a global size: body sets only 1.55 and -0.011em and inherits 16px
   label-size: 14px / 500 (EXISTING)
-  micro-size: 11px / 500 (proposed; 10px today)
+  micro-size: 11px / 500 (shipped `type-micro`; the ⌘K keycap stays 10px via `keycap-text`)
 rounded:
   box: 10px (EXISTING --radius-box)
   control: 7px (EXISTING --radius-control)
@@ -45,10 +45,10 @@ spacing:
 components:
   button: ink-on-paper primary, 8px corners, 40px default / 36px small / 44px touch (EXISTING)
   card: glass-regular over the ambient canvas, 14px corners, elevation-1 (proposed material)
-  sheet: glass-thick, 32px blur, elevation-4 (proposed material)
+  sheet: glass-thick, 32px blur, elevation-4 (shipped, #105)
   input: 1px --border, 40px, 7px corners, 2px --ring focus (EXISTING)
   tabs: 40px trough on --muted, raised active trigger (EXISTING)
-  reader-chrome: glass-stage over the page, white type, gradient + plate (proposed material)
+  reader-chrome: glass-stage over the page, white type, gradient + plate (shipped, #102)
 ---
 
 # Design System: MangaVerse
@@ -166,7 +166,7 @@ cover art behind a toolbar still looks like art rather than gray mush.
 
 ### 2.2 Refraction: layered light, not a displacement filter (layered light landed in P1)
 
-**Decision (proposed): refraction is layered gradients plus edge light, and an SVG
+**Decision (shipped): refraction is layered gradients plus edge light, and an SVG
 `feTurbulence` + `feDisplacementMap` filter is an opt-in hero effect only.** The reasoning, so nobody
 re-opens it by accident:
 
@@ -198,10 +198,12 @@ The layered recipe (landed in P1 as the `RefractionLayer` primitive, `aria-hidde
    `rgb(255 255 255 / .08)`, stage `rgb(255 255 255 / .14)`. A 1px border that replaces `--border` on
    glass; a warm sandstone line over an unknown backdrop would read as a seam, not an edge.
 
-The SVG variant (proposed `RefractionLayer variant="displacement"`) is allowed on exactly two surfaces:
+The SVG variant (`RefractionLayer variant="displacement"`, shipped on the onboarding hero) is allowed on exactly two surfaces:
 the chapter-transition card and the onboarding hero. It must be off under reduced motion, reduced
-transparency and the low-end profile (§2.5), and must never sit over a scrolling page surface. **Not
-shipped in P1:** `RefractionLayer` accepts `variant="sheen"` only.
+transparency and the low-end profile (§2.5), and must never sit over a scrolling page surface.
+**Shipped (#95):** the onboarding hero opts in; the chapter-transition card does not exist yet, so the
+second allowance is unused. The filter lives on the `GlassSurface` element itself (a nested child
+`backdrop-filter` samples nothing inside the parent backdrop root).
 
 ### 2.3 Ambient backdrop — what the glass refracts (landed in P1)
 
@@ -214,8 +216,9 @@ very low-contrast radial gradients anchored top-left and bottom-right of the vie
 Rules: it never scrolls with content (so the glass always has a stable thing to refract), it never
 animates except a ≤ `expressive` (360ms) entrance, and it disappears entirely under reduced motion,
 reduced transparency or the low-end profile, leaving `--background`. In the reader it does not exist —
-the page art is the backdrop. **Not shipped in P1:** the entrance animation; the band is static, which
-is also its reduced-motion end state.
+the page art is the backdrop. **Shipped (#95):** a 220ms `routeEnter` transform/opacity entrance that
+waits for the resolved glass profile, stays static under every fallback, and is hidden until
+`data-glass="full"` so there is no flash; the reduced-motion end state remains static.
 
 ### 2.4 Elevation & depth scale (landed in P1, mapped onto Tailwind)
 
@@ -282,8 +285,8 @@ it one step shallow.
   every glass tier to opaque automatically. Because support is uneven, the reliable path is the
   user-facing **Transparency** setting (Full / Reduced, default Full) in appearance settings, stored
   like every other preference and applied as `data-transparency="solid"` on the root — same resolution
-  as `data-glass="cheap"`, plus the ambient backdrop off. The CSS path ships in P1; the setting itself
-  is P4/P5.
+  as `data-glass="cheap"`, plus the ambient backdrop off. The CSS path ships in P1; the user setting
+  landed in #104.
 - **SSR:** glass is CSS-only, so nothing needs a client guard; do not branch rendering on
   `matchMedia` during the first paint.
 
@@ -363,14 +366,14 @@ tokens join the theme layer's list once introduced; presets may tint them, never
 ### 3.4 Status (reserved — never decorative)
 
 - **Signal Red** `#dc2626` → `#ef4444` — `--destructive`. Deletion, uninstall, destructive restore, and
-  the content-rating badge. On glass, light mode needs the darker **proposed** `--destructive-glass`
+  the content-rating badge. On glass, light mode uses the darker `--destructive-glass`
   `#b91c1c`; dark's `#ef4444` measures 5.03:1 against dark glass (thick, alpha .78) over `--background`
   and needs nothing.
 - **Confirm Green** `#16a34a` → `#22c55e` — `--success`. Completed backup, restore, migration. On
-  glass, light mode needs the darker **proposed** `#15803d` (4.89:1 on light glass, regular, alpha .68,
+  glass, light mode uses the darker `#15803d` (4.89:1 on light glass, regular, alpha .68,
   over `--background`).
 - **Caution Amber** `#d97706` → `#f59e0b` — `--warning`. Provider limitations, risky operations. On
-  glass, light mode needs the darker **proposed** `#b45309` (4.89:1 on the same light-glass fill);
+  glass, light mode uses the darker `#b45309` (4.89:1 on the same light-glass fill);
   `#d97706` measures only 3.10:1 there.
 
 Status colour is never the only signal: it always travels with a label, icon or badge text.
@@ -466,7 +469,7 @@ OpenType character variants `cv02`, `cv03`, `cv04`, `cv11`. The negative trackin
 interface read as precise rather than airy. `body` sets no font size: the page inherits the browser's 16px,
 and 14px is the components' `text-sm` convention (the `type-body` role below).
 
-**On glass (proposed).** Translucent backdrops cost legibility, so glass type is stricter than matte
+**On glass.** Translucent backdrops cost legibility, so glass type is stricter than matte
 type: never lighter than weight 400, never below 12px for secondary text, no tracking below `-0.02em`,
 and no `text-shadow` as a contrast crutch (the plate in §3.5 does that job properly). Micro-labels on
 glass move from `text-[10px]` to **11px at weight 500** — 10px on a blurred backdrop is below the
@@ -477,12 +480,11 @@ use tabular figures (`font-variant-numeric: tabular-nums`) so digits do not jitt
 
 ### Type roles & scale
 
-Sizes are the target; `existing` marks what the components use today, `proposed` marks the new display
-step and the glass adjustments. Implement them as `@utility type-*` classes (the shadcn workflow's
+Sizes are the shipped utilities (`type-*`, #103); `existing` marks the older component conventions they replaced. Implement them as `@utility type-*` classes (the shadcn workflow's
 convention), **not** as `--text-*` theme keys, because `cn()` treats unknown `text-*` classes as colours
 and drops the first of two that sit together.
 
-| Utility (proposed) | Size / line / tracking                              | Weight | Role                                                                   |
+| Utility (shipped) | Size / line / tracking                              | Weight | Role                                                                   |
 | ------------------ | --------------------------------------------------- | ------ | ---------------------------------------------------------------------- |
 | `type-display-xl`  | `clamp(34px, 3vw + 16px, 48px)` / 1.05 / `-0.022em` | 600    | Onboarding hero, empty-state hero — never inside the reader            |
 | `type-display-lg`  | `clamp(28px, 2vw + 14px, 36px)` / 1.1 / `-0.02em`   | 600    | Page hero titles, chapter-transition card                              |
@@ -492,7 +494,7 @@ and drops the first of two that sit together.
 | `type-body-lg`     | 16px / 1.5 / `-0.011em`                             | 400    | Reader descriptions, alert titles                                      |
 | `type-label`       | 14px / 1 / `-0.006em`                               | 500    | Buttons, tab triggers, form labels                                     |
 | `type-meta`        | 12px / 1.4                                          | 400    | Provider IDs, page counters, timestamps                                |
-| `type-micro`       | 11px / 1.2 / `0.02em`                               | 500    | Glass chips and keyboard hints (proposed: 10px today)                  |
+| `type-micro`       | 11px / 1.2 / `0.02em`                               | 500    | Glass chips and keyboard hints (the ⌘K keycap stays 10px via `keycap-text`) |
 | `type-code`        | 12–13px / 1.5                                       | 400    | Logs, extension IDs, checksums, diagnostics (mono)                     |
 
 Command-palette group headers stay `text-xs font-semibold uppercase tracking-wide` (existing).
@@ -593,9 +595,11 @@ tw-animate-css and GSAP agree on the curve:
   white chrome type stays legible without a blur.
 - **`prefers-contrast: more` (proposed):** raise glass fills to their opaque tokens, thicken the focus
   ring to 3px, and keep every hairline at full `--border` strength.
-- **In-app settings:** appearance settings gains a **Motion** (Full / Reduced) and a **Transparency**
-  (Full / Reduced) control, both defaulting to Full and both overriding the OS query in either
-  direction. `docs/Design.md` already promises a motion-intensity setting; this is it.
+- **In-app settings:** appearance settings has a **Motion** (Full / Reduced) and a **Transparency**
+  (Full / Reduced) control, both defaulting to Full. Reduced wins if **either** the OS query or the
+  in-app setting asks for it (OR semantics); the setting can therefore add motion reduction but cannot
+  override a reduced OS preference back to Full. `docs/Design.md` already promises a motion-intensity
+  setting; this is it.
 
 ### 5.6 GSAP usage conventions (existing, binding)
 
@@ -674,8 +678,8 @@ rail is hidden below `md` with a hover-expand and the bottom bar is the only sub
   rule that makes it pass; status is never colour-only.
 - **Focus visibility:** always visible, never animated, never clipped by sticky chrome, ring contrast
   ≥ 3:1 against the surface it sits on (the P1 `--ring` fix, §3.3).
-- **Reduced motion / transparency:** both are honoured from the OS _and_ overridable in-app (§5.5);
-  neither may hide state.
+- **Reduced motion / transparency:** both are honoured from the OS and the in-app setting; reduced wins
+  if **either** source asks for it, and Full cannot undo an OS reduction (§5.5). Neither may hide state.
 - **Semantics:** the reader chrome is a labelled `toolbar` with labelled buttons; the progress rail is a
   slider with `aria-valuetext`; the tap surface exposes no phantom controls to assistive tech; refraction,
   sheen and ambient layers are `aria-hidden` and non-interactive; sheets and dialogs trap focus, have
@@ -699,8 +703,8 @@ icon above the label.
 
 | Primitive         | API (shipped)                                                                                                                                         | Purpose                                                                                                                                                             |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GlassSurface`    | `level: 'thin' \| 'regular' \| 'thick' \| 'stage'`, `tone: 'default' \| 'raised' \| 'reader'`, `elevation?: 0–4`, `edge?: boolean`, `plate?: boolean` | The single source of the glass-tier material: fill, `backdrop-filter`, edge, specular, inner shadow, elevation. Modal scrims use the separate `glass-scrim` utility |
-| `RefractionLayer` | `variant: 'sheen'`, `edge?: boolean`, `aria-hidden` by default                                                                                        | The decorative light layer from §2.2. Displacement is opt-in and not shipped in P1                                                                                  |
+| `GlassSurface`    | `level: 'thin' \| 'regular' \| 'thick' \| 'stage'`, `tone: 'default' \| 'raised' \| 'reader'`, `elevation?: 0–4`, `edge?: boolean`, `plate?: boolean`, `refraction?: 'sheen' \| 'displacement'` | The single source of the glass-tier material: fill, `backdrop-filter`, edge, specular, inner shadow, elevation. Modal scrims use the separate `glass-scrim` utility |
+| `RefractionLayer` | `variant: 'sheen' \| 'displacement'`, `filterId?`, `edge?: boolean`, `aria-hidden` by default                                                          | The decorative light layer from §2.2. Displacement is opt-in and applied by the owning `GlassSurface` (shipped #95); a standalone layer falls back to sheen          |
 | `GlassPanel`      | `GlassSurface` + `padding: 'none' \| 'sm' \| 'md' \| 'lg'`                                                                                            | The replacement for the `.surface-panel` utility in shell and feature code                                                                                          |
 | `AmbientBackdrop` | none (fixed, decorative)                                                                                                                              | The §2.3 band, rendered once by the app shell                                                                                                                       |
 
@@ -793,17 +797,15 @@ and `chromeShow`/`chromeHide` from `@app/motion`. The material is what changes:
   value, which is exactly where the old chrome was weakest.
 - Every control row sits on a stage **plate** (§3.5) so `text-white/70` labels hold ≥ 4.5:1 over a white
   page (measured 5.59:1 at 0.78).
-- The mode pill (`rounded-full bg-white/10 p-1` with a `bg-white` thumb) becomes `GlassSurface
-  level="thin"` over the stage with `--glass-specular` on the active thumb; the morph keeps today's
-  timing — **280ms, `power3.out`** (a raw literal in `reader-chrome.tsx`, not a `DURATION` token; P3 may
-  tokenise it) — and is skipped under reduced motion.
-- The progress rail keeps its 8px `bg-white/25` track and 16px white thumb, gains a stage plate under the
-  preview popover (`border-white/20 bg-black/80` today → `GlassSurface level="stage"`), and keeps
-  `focus-visible:ring-2 ring-white/70`.
+- The mode pill uses `GlassSurface level="thin"` over the stage with `--glass-specular` on the active
+  thumb (#102); the morph is `readerModePill()` with `DURATION.readerModePill` (280ms) and
+  `EASING.readerModePill`, and is skipped under reduced motion.
+- The progress rail keeps its 8px `bg-white/25` track and 16px white thumb; the preview popover uses a
+  stage-glass `GlassSurface` (#102) and the rail keeps `focus-visible:ring-2 ring-white/70`.
 - Reader modals (settings sheet, chapter transition card) are the only places `level="thick"` /
   displacement refraction may appear inside the reader.
-- The offline toast (`rounded-full bg-black/80 px-3 py-1 text-xs text-white`) becomes
-  `GlassSurface level="stage" tone="reader"` — same geometry, better material.
+- The offline note uses `GlassSurface level="stage" tone="reader"` (#102) — same geometry as the old
+  black pill, better material.
 
 ### 7.7 Sidebar / shell
 
@@ -946,12 +948,11 @@ Honest accounting. Nothing below is aspirational; §13 is where the gap closes.
 - **Components:** 16 `ui/*` primitives (button, card, dialog, sheet, command, badge, skeleton, input,
   label, switch, select, slider, tabs, alert, separator, tooltip) plus PageHeader, MangaCard,
   ReaderChrome, ReaderProgressRail, SettingsSection, ThemePreview, EmptyState, LoadingState, ErrorState.
-- **Glass gestures (the direction, unbuilt):** the reader chrome is a black gradient
-  (`from-black/80 to-transparent`) with `bg-white/10`/`bg-white/20` controls and white type; the progress
-  rail is `bg-white/25` with a white thumb; the mobile bottom bar is `bg-background/95 backdrop-blur`; the
-  sheet overlay is `bg-black/60 backdrop-blur-sm`; the command-palette scrim is
-  `bg-black/55 backdrop-blur-[2px]`. That is five ad-hoc translucencies with no shared tier, no
-  saturation, no edge light and no fallback.
+- **Glass chrome (shipped):** the reader chrome is stage glass with plates under both control rows, a
+  thin mode pill and a stage-glass preview/offline note (#102); the mobile bottom bar and command-palette
+  panel are thick glass with the shared 55%/8px scrim (#105). The reader keeps its black
+  `from-black/85 via-black/60 to-transparent` gradient as a non-blurring supplement over the stage glass.
+  Drag-to-dismiss and long-press gestures remain deferred.
 - **Motion:** `DURATION` (6 steps) and `EASING` (6 presets, including the GSAP `expo.out`), helpers
   (`fadeIn`/`fadeOut`, `slideUp`/`slideDown`, `scaleIn`, `staggerIn`, `createTimeline`), reader-safe
   helpers (`chromeShow`/`chromeHide`, `pageTurn`, `settingsDrawerTransition`), route transitions, command
@@ -961,14 +962,22 @@ Honest accounting. Nothing below is aspirational; §13 is where the gap closes.
 
 **Not built yet (the rest of §13)**
 
-- The glass `cva` variants on the existing components and the `.surface-panel` deprecation (P5).
-- The displacement-refraction opt-in (P1 ships the layered recipe only).
-- The `data-glass` / `data-transparency` attributes applied by the shell, the in-app Motion and
-  Transparency settings, and the `prefers-contrast` handling (P4/P5).
-- `--glass-muted-foreground` and the glass status colours are tokens; **no consumer uses them yet**.
-- `--radius-glass` is used by `GlassSurface`; the `type-*` utilities, the 11px glass micro-label,
-  `EASE.liquidSettle` / `glide` (`--ease-liquid`, `--ease-glide`) and the `pressFeedback()` helper (P3).
-- The drag-to-dismiss and long-press gestures, and the design-system page (P7).
+- The remaining P5 surfaces: card, popover, tooltip, input, tabs and select glass variants, preset tint
+  support, rendered contrast-pair coverage, and the `.surface-panel` caller migration.
+- The deferred P4 shell work: the desktop rail glass and the sticky page header.
+- The `prefers-contrast` handling (proposed).
+- The liquid-motion remainder: `EASING.liquidSettle` / `glide` (`--ease-liquid`, `--ease-glide`) and the
+  `pressFeedback()` helper (P3).
+- The drag-to-dismiss and long-press gestures.
+- The P6 states/browsing slice (glass empty/loading/error states, grid chips/plates, stagger reveal).
+- The P7 remainder: colour-role contrast pairs, radius/elevation ladders, and do/don't pairs.
+
+Shipped since: the glass `cva`-style level/elevation resolvers and the scrim (#105); the displacement
+opt-in on the onboarding hero (#109); the root `data-glass` / `data-transparency` attributes and the
+in-app Motion/Transparency settings (#104); `--glass-muted-foreground` (used by the onboarding hero) and
+the glass status token/theme mapping (#103) — UI adoption of the three status tokens is still pending
+(Alert/Badge use the non-glass status classes); the `type-*` utilities (#103); and the `/design-system`
+page (#107).
 
 ## 12. Known Gaps & Open Questions
 
@@ -976,20 +985,22 @@ Honest accounting. Nothing below is aspirational; §13 is where the gap closes.
   canvas, under WCAG 2.2's 3:1 for non-text contrast. The fix in §3.3 shipped: light `#78716c`
   (4.41:1), dark `#a8a29e` (7.80:1), pinned by the design-system's token-contrast test and the
   theme layer's per-preset ring test.
-- **Light-mode `--warning` on glass (3.10:1) and the shipped `--success` `#16a34a` (3.21:1; the proposed
-  `#15803d` reaches 4.89:1), measured against the light glass
-  fill (regular, alpha .68) over `--background`.** The glass status colours in §3.4 are proposals, not
-  measurements of shipped values.
+- **Light-mode status on glass (fixed in #103).** The pre-fix `--warning` measured 3.10:1 and
+  `--success` `#16a34a` 3.21:1 on the light glass fill (regular, alpha .68) over `--background`; the
+  shipped glass tokens `#b45309` / `#15803d` measure 4.89:1, and destructive `#b91c1c` 6.30:1, pinned by
+  the token test.
 - **`prefers-reduced-transparency` support is uneven.** The CSS resolution path ships in P1; the in-app
-  setting is the reliable path and is P4/P5. Verify the media query in the design-system page (P7).
+  setting (#104) is the reliable path. The `/design-system` page (#107) shows the fallback note; a real
+  Safari check remains open.
 - **Displacement refraction has no budget number yet.** It is capped to two hero surfaces by rule; measure
   the frame cost on a low-end profile before allowing a third.
 - **No webfonts are bundled.** Inter and JetBrains Mono are stacks today; the display scale assumes Inter.
   Bundling is a separate decision (licensing, weight, first-paint cost) and is not part of this rebuild.
 - **Theme presets and glass.** Presets may tint the glass fills, but no preset has been designed for the
   glass tiers yet. Until P5, presets keep their current tokens and glass uses the default tier values.
-- **The reader's top-bar gradient has no protected tail.** The plate rule (§3.5) fixes it for control rows;
-  whether the gradient itself should be replaced outright is an open question for P2.
+- **The reader's top-bar gradient has no protected tail.** The shipped recipe keeps the gradient as a
+  non-blurring supplement over stage glass (#102); the plate rule (§3.5) protects text in control rows,
+  and the gradient itself is not relied on for contrast.
 - **`docs/design-direction.md` is unused.** The target language and the roadmap live here; a separate
   direction note would only duplicate it.
 
@@ -1006,12 +1017,12 @@ Shipped: `--glass-thin/regular/thick/stage`, `--glass-edge`, `--glass-specular`,
 `--glass-sheen`, `--glass-plate`, `--glass-muted-foreground`, `--radius-glass`, `--ambient-1/2`, the
 elevation scale and the `@theme` / `@theme inline` registrations; the `@supports`,
 `data-glass="cheap"` / `data-transparency="solid"` and `prefers-reduced-transparency` resolution paths
-plus `resolveGlassProfile()`; `GlassSurface`, `GlassPanel`, `RefractionLayer` (`sheen` only) and
+plus `resolveGlassProfile()`; `GlassSurface`, `GlassPanel`, `RefractionLayer` (`sheen`, plus the opt-in displacement added later) and
 `AmbientBackdrop`; the `--ring` fix. Tests: token-resolution and contrast tests
 (`glass-tokens.test.ts`), primitive/aria-hidden/budget tests (`glass.test.tsx`), the per-preset ring
-invariant in `packages/theme`. No consumer changes in this PR. Not shipped here: the displacement
-refraction variant, `asChild`, the ambient entrance animation and the in-app Transparency setting
-(P4/P5/P7).
+invariant in `packages/theme`. No consumer changes in this PR. Not shipped in P1 (later delivered):
+the displacement refraction variant (#109), the ambient entrance (#109) and the in-app
+Transparency setting (#104). `asChild` remains deferred.
 
 **P2 — Reader chrome on stage glass** (`packages/design-system`, `packages/reader`)
 Move `ReaderChrome` and `ReaderProgressRail` onto `GlassSurface level="stage"` with plates under the
@@ -1020,6 +1031,7 @@ morph timing (280ms `power3.out`, §7.6), and switch the offline toast and the p
 glass. Tests: the existing reader-chrome a11y test stays green, plus new tests for the plate geometry (a
 control row never leaves the plate), the reduced-transparency resolution, and a tap-zone test proving
 chrome and sheet interactions still cannot reach the tap surface.
+**Status:** landed (#102); the settings-sheet scrim moved to the shared `glass-scrim` in P5.
 
 **P3 — Liquid motion** (`packages/motion`, `packages/design-system`)
 Add `EASING.liquidSettle` / `glide` (CustomEase) with the matching `--ease-liquid` / `--ease-glide` CSS
@@ -1032,6 +1044,9 @@ Desktop rail, mobile bottom bar, sticky page header, command palette and the amb
 `GlassSurface`, with the `Cmd/Ctrl+B` collapse and the breakpoint behaviour unchanged. Tests: shell
 interaction tests for the rail and bottom bar, an overflow check at 375px and 1280px, and a
 reduced-transparency pass.
+**Status:** the attribute/settings half landed (#104): root `data-glass`/`data-transparency`, in-app
+Motion/Transparency, OS media tracking, and the OR motion semantics. The command palette and mobile
+bottom bar landed with P5 (#105); the desktop rail and the sticky page header remain deferred.
 
 **P5 — Surfaces and controls** (`packages/design-system`) — **landed for #94 scope.**
 Shipped: glass level/elevation variant functions with class-equivalence coverage; dialog, default sheet,
@@ -1043,6 +1058,8 @@ input, tabs and select glass variants; preset tint support; rendered contrast-pa
 Empty, loading and error states onto glass with the plate rule; library, discover and search grids get
 glass chips, cover plates and the stagger reveal outside the reader. Tests: a11y tests for the states,
 skeleton-to-content layout stability, and reduced-motion checks for the stagger.
+**Status:** not shipped. The issue labeled P6 (#95) implemented the §2.2/§2.3 displacement/ambient work
+instead; this states/browsing slice remains open.
 
 **P7 — Design-system page and docs** (`apps/web`, `DESIGN.md`, `docs/Design.md`)
 Build `apps/web/app/design-system` as the verification surface: colour roles as contrast-checked pairs
@@ -1050,3 +1067,9 @@ over a white and a black backdrop, the type specimen, the radius and elevation l
 tiers with their state matrices, and the do/don't pairs from §9. Then reconcile this file and
 `docs/Design.md` with what shipped. Tests: the page's own render test, plus the overflow and console
 checks the shadcn workflow's Step 7 requires.
+**Status:** the page landed (#107) with all tiers, the ten type roles and the component states; the
+contrast pairs, radius/elevation ladders, do/don't pairs and full docs reconciliation remain deferred.
+
+> Roadmap note (2026-10-20): issue labels drifted from this sequence — #95 ("P6") shipped the
+> displacement/ambient work and #96 ("P7") the design-system page. The states/browsing item above is
+> still unshipped; read the issue numbers, not the P labels, for recent history.

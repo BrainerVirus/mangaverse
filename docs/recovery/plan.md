@@ -81,7 +81,7 @@ cleanup can erase. Add focused database persistence tests and
       `openPersistentDatabase`. `apps/web/app/lib/persisted-bytes-idb.ts` uses its
       own `mangaverse-local-db` database; `apps/web/app/lib/local-db.ts` owns the
       session plus `flushLocalDb` (durability point) and `scheduleLocalDbFlush`
-      (400 ms coalescing); `LocalDbPersistenceBridge` flushes on `pagehide` and on
+      (same-turn coalescing: a 0 ms timer, so a reload cannot outrun it); `LocalDbPersistenceBridge` flushes on `pagehide` and on
       unmount. `flush` returning `reloaded` re-syncs handles instead of being
       ignored.
 - [x] Write a red browser scenario saving onboarding, then reload/reopen the
@@ -101,9 +101,11 @@ cleanup can erase. Add focused database persistence tests and
       await `flushLocalDb()` before sending the user on, pinned by a discriminating
       E2E (quiescent session → finish → navigation implies a new committed ping;
       confirmed failing when the flush await is planted away). Remaining window is
-      dirty-exit only (crash or hard close inside ~400 ms), where the unload flush
-      stays best-effort. `<shortcut: 400 ms coalesced flush for non-navigating
-      mutations, upgrade if dirty-exit loss is ever observed>`.
+      dirty-exit only (crash or hard close before the scheduled flush runs), where
+      the unload flush stays best-effort. `<shortcut: same-turn coalesced flush for
+      non-navigating mutations, upgrade if dirty-exit loss is ever observed>`. The
+      original 400 ms window lost a setting on an immediate reload; #106 removed it
+      and added the regression.
 - [x] Connection invariants after export (found while pinning navigation-time
       durability): `sql.js` `Database.export()` detaches the `updateHook` and resets
       `PRAGMA foreign_keys`, so after the first flush later writes scheduled no
@@ -147,7 +149,7 @@ cleanup can erase. Add focused database persistence tests and
       context (verifier finding caf7eefe). A forced browser-quota test is still not
       practical; denial paths share the error path with any flush failure.
 - [x] Attach the flush to mutations, not unload: `openPersistentDatabase` gained an
-      `onMutation` update hook (re-attached after each sync swap) wired to the 400 ms
+      `onMutation` update hook (re-attached after each sync swap) wired to the same-turn
       coalesced flush; `pagehide` remains a fallback. Review finding confirmed the
       earlier design was unload-only.
 - [x] Reader-mode persistence failures are silent (`ReaderLayout` renders no banner).
@@ -271,7 +273,7 @@ Read the five `apps/web/app/lib/dev-mangadex-*`/`dev-seed-mangadex.ts` files and
       bundled providers at all.
 - [x] Disable durability (found by the #36 re-verification): the extensions
       enable/disable toggle awaited nothing before the UI reported the new state,
-      so a navigation within the ~400 ms coalesced window silently lost the
+      so a navigation before the scheduled flush silently lost the
       disable and remote provider calls resumed on reload. The toggle now awaits
       `flushLocalDb()` before settling, the same pattern as the onboarding
       navigations; the disable E2E is deterministic again and fails when the
@@ -610,9 +612,8 @@ Both tools are green at the current head; do not raise thresholds to make a run 
 - [x] Count blurred reader layers: **1** at rest; **3** with rail preview and offline
       note; **4** with the settings sheet open alongside the offline note and scrim.
 - [x] The sheet's shared `glass-scrim` recipe landed in P5 (#94).
-- [ ] `DESIGN.md` §13-P2 remains unchanged because that file is outside this slice's
-      allowed paths. Follow up there to mark P2 landed and record the shipped/deferred
-      items above.
+- [x] `DESIGN.md` §13-P2 docs tick: P2 is marked landed with its shipped/deferred
+      items in the 2026-10-20 docs pass.
 
 ## P5: Selected glass surfaces (#94, 2026-10-19)
 
@@ -634,6 +635,28 @@ Both tools are green at the current head; do not raise thresholds to make a run 
       tooltip, input, tabs, select, preset tinting, and rendered contrast pairs. Also
       amend `docs/Design.md`'s backdrop-filter rule to name the modal-scrim exception
       (outside this slice's scope).
+
+## P3/P4/P6/P7 status (2026-10-20)
+
+- **P3 liquid motion** — no dedicated slice landed. P1/P2 shipped the route/chrome motion and
+  easing register; `pressFeedback()` and the liquid `liquidSettle`/`glide` curves remain open.
+- **P4 shell** — root `data-glass`/`data-transparency`, in-app Motion/Transparency and OS
+  tracking landed in #104; the command palette and mobile bottom bar landed in #105; the
+  desktop rail and sticky page header remain deferred.
+- **P6 (roadmap: states/browsing surfaces)** — not shipped. Issue #95 was labeled P6 but
+  delivered the §2.2/§2.3 displacement/ambient work (#109); the states slice remains open.
+- **P7** — `/design-system` shipped in #107 with all tiers, ten type roles and component
+  states; contrast pairs, radius/elevation ladders, do/don't pairs and the full docs
+  reconciliation remain deferred.
+- **Displacement** — the SVG filter is applied to the owning `GlassSurface` element (a
+  nested child `backdrop-filter` samples nothing inside the parent backdrop root); the
+  onboarding hero is the only shipped surface. Measured 177 vs 169 frames >16.7 ms over
+  10s at 4x throttle; no budget number is claimed.
+- **Lint exemptions** — #110 removed the package-level arbitrary-value/inline-style
+  carve-out; the follow-up removed the 5-value allowlist and replaced the blanket
+  `no-unknown-classes` off with an exact allowlist. The remaining exceptions are the
+  consumer-scope `no-restyle`, per-file dynamic inline-style allowlists, and the
+  `@shadcn/lint` `@utility` resolution gap (upstream).
 
 ## Exit criteria per implementing session
 
