@@ -38,6 +38,8 @@ test('Given a partially cached chapter, When reopened offline, Then the missing 
   await failPages(page, ['3', '5']);
 
   await openReader(page);
+  // Online every page comes from the network, so the offline note must not render.
+  await expect(page.getByTestId('reader-offline-note')).toHaveCount(0);
   // The reader prefetches the whole chapter; a quiet window covers the bounded
   // fetches so the cache state below is settled.
   await waitForPingQuiet(page);
