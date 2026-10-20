@@ -250,6 +250,85 @@ describe('theme routes', () => {
     });
   });
 
+  it('Given a rejected save, Then the alert says save and a retry clears it', async () => {
+    mocks.saveThemeDefinition.mockResolvedValueOnce({
+      ok: false,
+      error: { code: 'theme.save-failed', message: 'disk is full' },
+    });
+    await renderAt('/theme/editor');
+
+    await act(async () => {
+      buttonByText(container, 'Save theme').click();
+    });
+
+    await vi.waitFor(() => {
+      expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+        'Could not save the theme',
+      );
+    });
+    expect(container.textContent).toContain('disk is full');
+    expect(container.textContent).not.toContain('Could not delete the theme');
+
+    await act(async () => {
+      buttonByText(container, 'Save theme').click();
+    });
+
+    await vi.waitFor(() => {
+      expect(mocks.saveThemeDefinition).toHaveBeenCalledTimes(2);
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector('[role="alert"]')).toBeNull();
+    });
+  });
+
+  it('Given a rejected delete, Then the alert says delete, keeps the theme, and a retry clears it', async () => {
+    mocks.theme.settings = { themeId: customTheme.id, dark: true };
+    mocks.theme.customThemes = [customTheme];
+    mocks.deleteThemeDefinition.mockResolvedValueOnce({
+      ok: false,
+      error: { code: 'theme.delete-failed', message: 'database is locked' },
+    });
+    await renderAt('/theme/editor');
+
+    act(() => {
+      buttonByText(container, 'Delete theme').click();
+    });
+    act(() => {
+      [...document.body.querySelectorAll('button')]
+        .filter((candidate) => candidate.textContent?.trim() === 'Delete theme')
+        .at(-1)
+        ?.click();
+    });
+
+    await vi.waitFor(() => {
+      expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+        'Could not delete the theme',
+      );
+    });
+    expect(container.textContent).toContain('database is locked');
+    expect(container.textContent).not.toContain('Could not save the theme');
+    expect(container.textContent).toContain('Theme editor');
+    expect(mocks.theme.setThemeSettings).not.toHaveBeenCalled();
+
+    act(() => {
+      buttonByText(container, 'Delete theme').click();
+    });
+    act(() => {
+      [...document.body.querySelectorAll('button')]
+        .filter((candidate) => candidate.textContent?.trim() === 'Delete theme')
+        .at(-1)
+        ?.click();
+    });
+
+    await vi.waitFor(() => {
+      expect(mocks.theme.setThemeSettings).toHaveBeenCalledWith({ themeId: 'default', dark: true });
+    });
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain('Built-in themes');
+    });
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+  });
+
   it('Given the selected custom theme, When Delete is confirmed, Then the selection falls back to default', async () => {
     mocks.theme.settings = { themeId: customTheme.id, dark: true };
     mocks.theme.customThemes = [customTheme];

@@ -26,6 +26,17 @@ type ThemeVariableStyle = CSSProperties & Record<`--${string}`, string>;
 
 const NO_ISSUES: readonly ThemeDefinitionIssue[] = [];
 
+/** `action` picks the alert title, so a failed delete is never labelled a save. */
+export interface ThemeEditorError {
+  readonly action: 'save' | 'delete';
+  readonly message: string;
+}
+
+const ERROR_TITLES: Record<ThemeEditorError['action'], string> = {
+  save: 'Could not save the theme',
+  delete: 'Could not delete the theme',
+};
+
 export interface ThemeEditorPageProps {
   readonly draft: ThemeDefinition;
   /** The draft exists in the themes table; a fresh draft can only be saved. */
@@ -33,7 +44,7 @@ export interface ThemeEditorPageProps {
   readonly isSaving?: boolean;
   readonly isDeleting?: boolean;
   readonly issues?: readonly ThemeDefinitionIssue[];
-  readonly errorMessage?: string | null;
+  readonly error?: ThemeEditorError | null;
   onChange: (next: ThemeDefinition) => void;
   onSave: () => void;
   onDelete: () => void;
@@ -143,7 +154,7 @@ export function ThemeEditorPage({
   isSaving = false,
   isDeleting = false,
   issues = NO_ISSUES,
-  errorMessage = null,
+  error = null,
   onChange,
   onSave,
   onDelete,
@@ -206,10 +217,10 @@ export function ThemeEditorPage({
         </Alert>
       ) : null}
 
-      {errorMessage === null ? null : (
-        <Alert variant="destructive">
-          <AlertTitle>Could not save the theme</AlertTitle>
-          <AlertDescription>{errorMessage}</AlertDescription>
+      {error === null ? null : (
+        <Alert variant="destructive" role="alert">
+          <AlertTitle>{ERROR_TITLES[error.action]}</AlertTitle>
+          <AlertDescription>{error.message}</AlertDescription>
         </Alert>
       )}
 
