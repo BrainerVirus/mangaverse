@@ -21,6 +21,9 @@
     "test:watch": "vitest --config vitest.config.ts",
     "build": "tsc -p tsconfig.json"
   },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
   "devDependencies": {
     "oxlint": "^1.87.0",
     "typescript": "^7.0.2",
