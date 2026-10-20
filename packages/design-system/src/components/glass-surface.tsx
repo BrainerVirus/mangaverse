@@ -1,5 +1,7 @@
 import * as React from 'react';
+import { useReducedMotion } from '@app/motion';
 import { cn } from '../lib/cn.js';
+import { useGlassProfileFallback } from '../hooks/use-glass-profile-fallback.js';
 import {
   GLASS_IMAGERY_TIERS,
   glassElevations,
@@ -18,16 +20,6 @@ const DEFAULT_ELEVATION: Record<GlassLevel, GlassElevation> = {
 
 const GlassLevelContext = React.createContext<GlassLevel | null>(null);
 
-/** The nearest `GlassSurface` tier, or `null` above every surface. */
-export function useGlassLevel(): GlassLevel | null {
-  return React.use(GlassLevelContext);
-}
-
-/** §2.1 — a tier whose backdrop is imagery, so its blur pass reads a blurred composite. */
-function blursImagery(tier: GlassLevel): boolean {
-  return GLASS_IMAGERY_TIERS.includes(tier);
-}
-
 export interface GlassSurfaceProps extends React.HTMLAttributes<HTMLDivElement> {
   /** §2.1 tier. Defaults to `regular` (floating toolbars, cards that overlay imagery). */
   level?: GlassLevel;
@@ -43,6 +35,105 @@ export interface GlassSurfaceProps extends React.HTMLAttributes<HTMLDivElement> 
   plate?: boolean;
 }
 
+interface GlassSurfaceContentProps extends Omit<
+  GlassSurfaceProps,
+  'refraction' | 'level' | 'tone' | 'elevation' | 'edge' | 'plate'
+> {
+  level: GlassLevel;
+  tone: NonNullable<GlassSurfaceProps['tone']>;
+  elevation: GlassElevation | undefined;
+  edge: boolean;
+  plate: boolean;
+  surfaceRef: React.Ref<HTMLDivElement>;
+  refraction: NonNullable<GlassSurfaceProps['refraction']>;
+  filterId?: string;
+}
+
+function GlassSurfaceContent({
+  level,
+  tone,
+  elevation,
+  edge,
+  plate,
+  refraction,
+  filterId,
+  className,
+  style,
+  children,
+  surfaceRef,
+  ...props
+}: GlassSurfaceContentProps) {
+  const surfaceStyle = { ...style } as React.CSSProperties & {
+    '--glass-refraction-filter'?: string;
+  };
+  const usesDisplacement = refraction === 'displacement' && filterId !== undefined;
+  if (usesDisplacement) {
+    surfaceStyle['--glass-refraction-filter'] = `url(#${filterId})`;
+  } else {
+    delete surfaceStyle['--glass-refraction-filter'];
+  }
+
+  return (
+    <div
+      ref={surfaceRef}
+      {...props}
+      data-glass-tier={level}
+      data-glass-tone={tone}
+      data-refraction-surface={usesDisplacement ? 'displacement' : undefined}
+      className={cn(
+        'relative isolate rounded-glass',
+        glassLevels({ level }),
+        glassElevations({ elevation: elevation ?? DEFAULT_ELEVATION[level] }),
+        className,
+      )}
+      style={surfaceStyle}
+    >
+      <GlassLevelContext value={level}>
+        {plate ? (
+          <span
+            aria-hidden="true"
+            data-glass-plate=""
+            className="glass-plate pointer-events-none absolute inset-0 -z-10"
+          />
+        ) : null}
+        <RefractionLayer
+          edge={edge}
+          variant={usesDisplacement ? 'displacement' : 'sheen'}
+          {...(usesDisplacement ? { filterId } : {})}
+        />
+        {children}
+      </GlassLevelContext>
+    </div>
+  );
+}
+
+function DisplacementGlassSurface(
+  props: Omit<GlassSurfaceContentProps, 'refraction' | 'filterId'>,
+) {
+  const reducedMotion = useReducedMotion();
+  const profileFallback = useGlassProfileFallback();
+  const filterId = `glass-displacement-${React.useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const enabled = !reducedMotion && !profileFallback;
+
+  return (
+    <GlassSurfaceContent
+      {...props}
+      refraction={enabled ? 'displacement' : 'sheen'}
+      {...(enabled ? { filterId } : {})}
+    />
+  );
+}
+
+/** The nearest `GlassSurface` tier, or `null` above every surface. */
+export function useGlassLevel(): GlassLevel | null {
+  return React.use(GlassLevelContext);
+}
+
+/** §2.1 — a tier whose backdrop is imagery, so its blur pass reads a blurred composite. */
+function blursImagery(tier: GlassLevel): boolean {
+  return GLASS_IMAGERY_TIERS.includes(tier);
+}
+
 export const GlassSurface = React.forwardRef<HTMLDivElement, GlassSurfaceProps>(
   (
     {
@@ -53,6 +144,7 @@ export const GlassSurface = React.forwardRef<HTMLDivElement, GlassSurfaceProps>(
       refraction = 'sheen',
       plate = false,
       className,
+      style,
       children,
       ...props
     },
@@ -66,31 +158,23 @@ export const GlassSurface = React.forwardRef<HTMLDivElement, GlassSurfaceProps>(
       );
     }
 
-    return (
-      <div
-        ref={ref}
-        data-glass-tier={level}
-        data-glass-tone={tone}
-        className={cn(
-          'relative isolate rounded-glass',
-          glassLevels({ level }),
-          glassElevations({ elevation: elevation ?? DEFAULT_ELEVATION[level] }),
-          className,
-        )}
-        {...props}
-      >
-        <GlassLevelContext value={level}>
-          {plate ? (
-            <span
-              aria-hidden="true"
-              data-glass-plate=""
-              className="glass-plate pointer-events-none absolute inset-0 -z-10"
-            />
-          ) : null}
-          <RefractionLayer edge={edge} variant={refraction} />
-          {children}
-        </GlassLevelContext>
-      </div>
+    const surfaceProps = {
+      ...props,
+      level,
+      tone,
+      elevation,
+      edge,
+      plate,
+      className,
+      style,
+      children,
+      surfaceRef: ref,
+    };
+
+    return refraction === 'displacement' ? (
+      <DisplacementGlassSurface {...surfaceProps} />
+    ) : (
+      <GlassSurfaceContent {...surfaceProps} refraction="sheen" />
     );
   },
 );

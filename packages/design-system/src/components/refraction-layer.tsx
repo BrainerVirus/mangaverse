@@ -10,6 +10,8 @@ export interface RefractionLayerProps extends React.HTMLAttributes<HTMLDivElemen
   variant?: 'sheen' | 'displacement';
   /** The §2.2 hairline: a 1px `--glass-edge` border that replaces `--border` on glass. */
   edge?: boolean;
+  /** Filter definition id supplied by GlassSurface; standalone layers create their own id. */
+  filterId?: string;
 }
 
 interface DisplacementLayerProps extends Omit<RefractionLayerProps, 'variant'> {
@@ -17,10 +19,11 @@ interface DisplacementLayerProps extends Omit<RefractionLayerProps, 'variant'> {
 }
 
 const DisplacementLayer = React.forwardRef<HTMLDivElement, DisplacementLayerProps>(
-  ({ edge, className, style, ...props }, ref) => {
+  ({ edge, filterId, className, style, ...props }, ref) => {
     const reducedMotion = useReducedMotion();
     const disabled = useGlassProfileFallback();
-    const filterId = `glass-displacement-${React.useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+    const generatedId = `glass-displacement-${React.useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+    const id = filterId ?? generatedId;
 
     if (reducedMotion || disabled) {
       return (
@@ -35,28 +38,18 @@ const DisplacementLayer = React.forwardRef<HTMLDivElement, DisplacementLayerProp
       );
     }
 
-    const filterStyle = {
-      ...style,
-      '--glass-refraction-filter': `url(#${filterId})`,
-    } as React.CSSProperties;
-
     return (
       <div
         ref={ref}
         {...props}
         aria-hidden="true"
         data-refraction="displacement"
-        className={cn(
-          'glass-refraction',
-          edge && 'glass-refraction-edge',
-          'glass-refraction-displacement',
-          className,
-        )}
-        style={filterStyle}
+        className={cn('glass-refraction', edge && 'glass-refraction-edge', className)}
+        style={style}
       >
         <svg width="0" height="0" aria-hidden="true" focusable="false">
           <defs>
-            <filter id={filterId} x="-5%" y="-5%" width="110%" height="110%">
+            <filter id={id} x="-5%" y="-5%" width="110%" height="110%">
               <feTurbulence
                 type="fractalNoise"
                 baseFrequency="0.012"
@@ -81,12 +74,19 @@ const DisplacementLayer = React.forwardRef<HTMLDivElement, DisplacementLayerProp
 
 /**
  * The decorative light layer of a glass surface: sheen, 1px specular edge, inner bottom shadow
- * and the glass hairline. Always `aria-hidden` and never interactive.
+ * and the glass hairline. Always `aria-hidden` and never interactive. Its SVG filter definition is
+ * sampled by the owning GlassSurface, which must apply the filter to its own backdrop.
  */
 export const RefractionLayer = React.forwardRef<HTMLDivElement, RefractionLayerProps>(
-  ({ variant = 'sheen', edge = true, className, ...props }, ref) =>
+  ({ variant = 'sheen', edge = true, filterId, className, ...props }, ref) =>
     variant === 'displacement' ? (
-      <DisplacementLayer ref={ref} edge={edge} className={className} {...props} />
+      <DisplacementLayer
+        ref={ref}
+        edge={edge}
+        className={className}
+        {...(filterId !== undefined ? { filterId } : {})}
+        {...props}
+      />
     ) : (
       <div
         ref={ref}

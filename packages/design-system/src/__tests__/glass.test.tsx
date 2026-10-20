@@ -128,15 +128,51 @@ describe('GlassSurface', () => {
   it('lets a surface opt into displacement while keeping sheen as the default', () => {
     allowFullGlassProfile();
     const { container, rerender } = render(<GlassSurface refraction="displacement" />);
+    const surface = container.querySelector<HTMLDivElement>('[data-glass-tier]')!;
+    const layer = surface.querySelector<HTMLDivElement>('[data-refraction="displacement"]')!;
+    const filter = layer.querySelector<SVGFilterElement>('filter')!;
 
-    expect(container.querySelector('[data-refraction="displacement"]')).toBeInTheDocument();
+    expect(surface).toHaveAttribute('data-refraction-surface', 'displacement');
+    expect(surface.style.getPropertyValue('--glass-refraction-filter')).toBe(`url(#${filter.id})`);
+    expect(layer).not.toHaveClass('glass-refraction-displacement');
+    expect(layer.style.getPropertyValue('--glass-refraction-filter')).toBe('');
 
     rerender(<GlassSurface />);
-    expect(container.querySelector('[data-refraction="sheen"]')).toBeInTheDocument();
+    const defaultSurface = container.querySelector<HTMLDivElement>('[data-glass-tier]')!;
+    expect(defaultSurface).not.toHaveAttribute('data-refraction-surface');
+    expect(defaultSurface.style.getPropertyValue('--glass-refraction-filter')).toBe('');
+    expect(defaultSurface.querySelector('[data-refraction="sheen"]')).toBeInTheDocument();
     expect(container.querySelector('filter')).toBeNull();
   });
 
-  it('uses the displacement filter only for the explicit hero variant', () => {
+  it('omits displacement wiring from the surface when reduced motion is enabled', () => {
+    allowFullGlassProfile();
+    setInAppReducedMotionPreference(true);
+    const { container } = render(<GlassSurface refraction="displacement" />);
+    const surface = container.querySelector<HTMLDivElement>('[data-glass-tier]')!;
+
+    expect(surface).not.toHaveAttribute('data-refraction-surface');
+    expect(surface.style.getPropertyValue('--glass-refraction-filter')).toBe('');
+    expect(surface.querySelector('[data-refraction="sheen"]')).toBeInTheDocument();
+    expect(surface.querySelector('filter')).toBeNull();
+  });
+
+  it.each([
+    ['data-glass', 'cheap'],
+    ['data-transparency', 'solid'],
+  ])('omits surface displacement when %s is %s', (attribute, value) => {
+    if (attribute === 'data-transparency') allowFullGlassProfile();
+    document.documentElement.setAttribute(attribute, value);
+    const { container } = render(<GlassSurface refraction="displacement" />);
+    const surface = container.querySelector<HTMLDivElement>('[data-glass-tier]')!;
+
+    expect(surface).not.toHaveAttribute('data-refraction-surface');
+    expect(surface.style.getPropertyValue('--glass-refraction-filter')).toBe('');
+    expect(surface.querySelector('[data-refraction="sheen"]')).toBeInTheDocument();
+    expect(surface.querySelector('filter')).toBeNull();
+  });
+
+  it('renders unique filter definitions only for the explicit displacement variant', () => {
     allowFullGlassProfile();
     const { container } = render(
       <>
@@ -145,8 +181,8 @@ describe('GlassSurface', () => {
         <RefractionLayer />
       </>,
     );
-    const layers = container.querySelectorAll('[data-refraction="displacement"]');
-    const filters = [...container.querySelectorAll('filter')];
+    const layers = container.querySelectorAll<HTMLDivElement>('[data-refraction="displacement"]');
+    const filters = [...container.querySelectorAll<SVGFilterElement>('filter')];
     const ids = filters.map((filter) => filter.id);
 
     expect(layers).toHaveLength(2);
@@ -155,8 +191,10 @@ describe('GlassSurface', () => {
     for (const [index, layer] of [...layers].entries()) {
       expect(layer).toHaveAttribute('aria-hidden', 'true');
       expect(layer).toHaveClass('glass-refraction', 'glass-refraction-edge');
+      expect(layer).not.toHaveClass('glass-refraction-displacement');
       expect(layer.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
-      expect(layer.getAttribute('style')).toContain(`url(#${ids[index]})`);
+      expect(layer.style.getPropertyValue('--glass-refraction-filter')).toBe('');
+      expect(ids[index]).toBeTruthy();
       expect(layer.querySelector('feTurbulence')).toBeInTheDocument();
       expect(layer.querySelector('feDisplacementMap')).toBeInTheDocument();
     }
@@ -202,25 +240,63 @@ describe('GlassSurface', () => {
         removeEventListener: () => {},
       })),
     });
-    const { container } = render(<RefractionLayer variant="displacement" />);
+    const { container } = render(
+      <>
+        <GlassSurface refraction="displacement" />
+        <RefractionLayer variant="displacement" />
+      </>,
+    );
+    const surface = container.querySelector<HTMLDivElement>('[data-glass-tier]')!;
 
-    expect(container.firstElementChild).toHaveAttribute('data-refraction', 'sheen');
-    expect(container.querySelector('filter')).toBeNull();
+    expect(surface).not.toHaveAttribute('data-refraction-surface');
+    expect(surface.style.getPropertyValue('--glass-refraction-filter')).toBe('');
+    expect(surface.querySelector('[data-refraction="sheen"]')).toBeInTheDocument();
+    expect(container.querySelectorAll('filter')).toHaveLength(0);
   });
 
   it('falls back to sheen when the browser cannot support SVG backdrop filters', () => {
     allowFullGlassProfile(() => false);
-    const { container } = render(<RefractionLayer variant="displacement" />);
+    const { container } = render(<GlassSurface refraction="displacement" />);
+    const surface = container.querySelector<HTMLDivElement>('[data-glass-tier]')!;
 
-    expect(container.firstElementChild).toHaveAttribute('data-refraction', 'sheen');
-    expect(container.querySelector('filter')).toBeNull();
+    expect(surface).not.toHaveAttribute('data-refraction-surface');
+    expect(surface.style.getPropertyValue('--glass-refraction-filter')).toBe('');
+    expect(surface.querySelector('[data-refraction="sheen"]')).toBeInTheDocument();
+    expect(surface.querySelector('filter')).toBeNull();
+  });
+
+  it('falls back to sheen when the OS requests reduced motion', () => {
+    allowFullGlassProfile();
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: vi.fn<(media: string) => MediaQueryList>((media) => ({
+        matches: media === '(prefers-reduced-motion: reduce)',
+        media,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      })),
+    });
+    const { container } = render(<GlassSurface refraction="displacement" />);
+    const surface = container.querySelector<HTMLDivElement>('[data-glass-tier]')!;
+
+    expect(surface).not.toHaveAttribute('data-refraction-surface');
+    expect(surface.style.getPropertyValue('--glass-refraction-filter')).toBe('');
+    expect(surface.querySelector('[data-refraction="sheen"]')).toBeInTheDocument();
+    expect(surface.querySelector('filter')).toBeNull();
   });
 
   it('keeps displacement when only the prefixed backdrop filter is supported', () => {
     allowFullGlassProfile((property) => property === '-webkit-backdrop-filter');
-    const { container } = render(<RefractionLayer variant="displacement" />);
+    const { container } = render(<GlassSurface refraction="displacement" />);
+    const surface = container.querySelector<HTMLDivElement>('[data-glass-tier]')!;
+    const filter = surface.querySelector<SVGFilterElement>('filter')!;
 
-    expect(container.firstElementChild).toHaveAttribute('data-refraction', 'displacement');
+    expect(surface).toHaveAttribute('data-refraction-surface', 'displacement');
+    expect(surface.style.getPropertyValue('--glass-refraction-filter')).toBe(`url(#${filter.id})`);
   });
 
   it('drops the hairline when edge is false but keeps the light', () => {

@@ -7,11 +7,12 @@ const css = readFileSync(new URL('../styles/globals.css', import.meta.url), 'utf
 
 /** The declaration block of a selector, e.g. `:root,\n.light { ... }` up to its closing brace. */
 function block(selector: string, source = css): string {
-  const start = source.indexOf(selector);
+  const normalized = source.replace(/\s+/g, ' ');
+  const start = normalized.indexOf(selector.replace(/\s+/g, ' '));
   expect(start, `missing block: ${selector}`).toBeGreaterThanOrEqual(0);
-  const open = source.indexOf('{', start);
-  const close = source.indexOf('}', open);
-  return source.slice(open, close);
+  const open = normalized.indexOf('{', start);
+  const close = normalized.indexOf('}', open);
+  return normalized.slice(open, close);
 }
 
 function token(source: string, name: string): string {
@@ -92,43 +93,57 @@ describe('glass tokens', () => {
   });
 
   it('keeps displacement inactive in low-transparency and reduced-motion profiles', () => {
-    expect(css).toContain('@utility glass-refraction-displacement');
-    expect(css).toContain(
-      ':is([data-glass="cheap"], [data-transparency="solid"]) [data-refraction="displacement"]',
+    expect(css.replace(/\s+/g, ' ')).toContain(
+      ':is([data-glass="cheap"], [data-transparency="solid"]) [data-refraction-surface="displacement"]',
     );
     expect(css).toContain('@media (prefers-reduced-transparency: reduce)');
     expect(css).toContain('@media (prefers-reduced-motion: reduce)');
   });
 
-  it('displaces the backdrop and disables the effect in CSS fallback profiles', () => {
-    const displacement = block('@utility glass-refraction-displacement');
-    expect(token(displacement, '-webkit-backdrop-filter')).toBe('var(--glass-refraction-filter)');
-    expect(token(displacement, 'backdrop-filter')).toBe('var(--glass-refraction-filter)');
+  it('composes displacement with each tier filter on the backdrop-sampling surface', () => {
+    const expected = {
+      thin: 'blur(12px) saturate(140%)',
+      regular: 'blur(20px) saturate(160%)',
+      thick: 'blur(32px) saturate(180%)',
+      stage: 'blur(24px) saturate(120%)',
+    };
+
+    for (const [tier, filter] of Object.entries(expected)) {
+      const utility = block(`@utility glass-${tier} {`);
+      expect(token(utility, '--glass-tier-filter')).toBe(filter);
+      expect(token(utility, 'backdrop-filter')).toBe('var(--glass-tier-filter)');
+    }
+
+    const displacement = block('[data-refraction-surface="displacement"]');
+    expect(token(displacement, '-webkit-backdrop-filter')).toBe(
+      'var(--glass-refraction-filter) var(--glass-tier-filter)',
+    );
+    expect(token(displacement, 'backdrop-filter')).toBe(
+      'var(--glass-refraction-filter) var(--glass-tier-filter)',
+    );
     expect(displacement).not.toMatch(/(?:^|[;\s])filter:/);
+  });
+
+  it('disables surface displacement in CSS fallback profiles', () => {
+    const surfaceSelector = '[data-refraction-surface="displacement"]';
 
     const fallbacks = [
+      block(`:is([data-glass="cheap"], [data-transparency="solid"]) ${surfaceSelector}`),
+      block(surfaceSelector, css.slice(css.indexOf('@supports not ((backdrop-filter: blur(1px))'))),
       block(
-        ':is([data-glass="cheap"], [data-transparency="solid"]) [data-refraction="displacement"]',
-      ),
-      block(
-        '[data-refraction="displacement"]',
-        css.slice(css.indexOf('@supports not ((backdrop-filter: blur(1px))')),
-      ),
-      block(
-        '[data-refraction="displacement"]',
+        surfaceSelector,
         css.slice(css.indexOf('@media (prefers-reduced-transparency: reduce)')),
       ),
-      block(
-        '[data-refraction="displacement"]',
-        css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)')),
-      ),
+      block(surfaceSelector, css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'))),
     ];
 
-    for (const fallback of fallbacks) {
+    for (const fallback of fallbacks.slice(0, 3)) {
       expect(token(fallback, '-webkit-backdrop-filter')).toBe('none');
       expect(token(fallback, 'backdrop-filter')).toBe('none');
       expect(fallback).not.toMatch(/(?:^|[;\s])filter:/);
     }
+    expect(token(fallbacks[3]!, '-webkit-backdrop-filter')).toBe('var(--glass-tier-filter)');
+    expect(token(fallbacks[3]!, 'backdrop-filter')).toBe('var(--glass-tier-filter)');
   });
 
   it('hides the ambient band before profile resolution and in fallback modes', () => {
