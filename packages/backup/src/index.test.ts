@@ -68,12 +68,40 @@ function backupWithTheme(change: (definition: ThemeDefinition) => ThemeDefinitio
     installedExtensions: [],
     readerSettings: getDefaultReaderSettings(),
     providerSettings: { providerSnapshots: [] },
-    themeSettings: { themeId: 'custom:bad', dark: false },
+    themeSettings: { themeId: definition.id, dark: false },
     themes: [definition],
   };
 }
 
 describe('backup theme color validation', () => {
+  it('accepts and persists a valid custom theme', async () => {
+    const doc = backupWithTheme((definition) => ({
+      ...definition,
+      id: 'custom:valid',
+      name: 'Valid theme',
+      light: {
+        ...definition.light,
+        seeds: { ...definition.light.seeds, background: 'oklch(0.98 0.01 240)' },
+        overrides: { ...definition.light.overrides, '--ring': 'oklch(0.6 0.12 250)' },
+      },
+    }));
+
+    const { db } = await createSqlJsHarness();
+    const preview = await previewBackupImport(db, doc);
+    expect(preview.backupOk).toBe(true);
+    expect(preview.backupIssues).toEqual([]);
+
+    const restored = await applyBackupImport(db, doc);
+    expect(restored.ok).toBe(true);
+
+    const persisted = await listThemeDefinitions(db);
+    expect(persisted).toHaveLength(1);
+    expect(persisted[0]).toMatchObject({ id: 'custom:valid', name: 'Valid theme' });
+    expect(persisted[0]?.light.seeds.background).toBe('oklch(0.98 0.01 240)');
+    expect(persisted[0]?.light.overrides?.['--ring']).toBe('oklch(0.6 0.12 250)');
+    expect(persisted[0]?.dark.seeds.foreground).toBe('#fafafa');
+  });
+
   it('rejects a non-color seed in the preview report', async () => {
     const doc = backupWithTheme((definition) => ({
       ...definition,
