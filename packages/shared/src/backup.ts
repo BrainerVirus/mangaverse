@@ -118,19 +118,34 @@ export interface BackupLibraryDedupeResult {
   readonly merges: readonly BackupLibraryMerge[];
 }
 
-function keeperSortKey(entry: LibraryEntry): string {
-  return entry.updatedAt ?? entry.addedAt ?? '';
-}
-
 function nonEmpty(value: string | undefined): string | undefined {
   return value !== undefined && value.trim() !== '' ? value : undefined;
+}
+
+/** A present timestamp beats an absent one; otherwise compare codepoints. */
+function compareTimestamps(a: string | undefined, b: string | undefined): number {
+  const left = nonEmpty(a);
+  const right = nonEmpty(b);
+  if (left === right) return 0;
+  if (left === undefined) return -1;
+  if (right === undefined) return 1;
+  return left < right ? -1 : 1;
+}
+
+function isBetterKeeper(candidate: LibraryEntry, current: LibraryEntry): boolean {
+  const byUpdatedAt = compareTimestamps(candidate.updatedAt, current.updatedAt);
+  if (byUpdatedAt !== 0) return byUpdatedAt > 0;
+  const byAddedAt = compareTimestamps(candidate.addedAt, current.addedAt);
+  if (byAddedAt !== 0) return byAddedAt > 0;
+  return candidate.id < current.id;
 }
 
 function earliest(values: readonly (string | undefined)[]): string | undefined {
   let out: string | undefined;
   for (const value of values) {
-    if (value === undefined || value === '') continue;
-    if (out === undefined || value < out) out = value;
+    const timestamp = nonEmpty(value);
+    if (timestamp === undefined) continue;
+    if (out === undefined || timestamp < out) out = timestamp;
   }
   return out;
 }
@@ -138,8 +153,9 @@ function earliest(values: readonly (string | undefined)[]): string | undefined {
 function latest(values: readonly (string | undefined)[]): string | undefined {
   let out: string | undefined;
   for (const value of values) {
-    if (value === undefined || value === '') continue;
-    if (out === undefined || value > out) out = value;
+    const timestamp = nonEmpty(value);
+    if (timestamp === undefined) continue;
+    if (out === undefined || timestamp > out) out = timestamp;
   }
   return out;
 }
@@ -147,9 +163,10 @@ function latest(values: readonly (string | undefined)[]): string | undefined {
 /**
  * Backups exported before migration 0003 can hold two library entries for one
  * manga, which the unique index now rejects. Merge each group deterministically:
- * the latest `updatedAt` entry keeps its identity and status fields, while
- * categories, favorite, progress and timestamps combine so a restore loses no
- * progress written to a duplicate.
+ * the entry with the latest non-empty `updatedAt` keeps its identity and status
+ * fields, with ties broken by the latest non-empty `addedAt` and then the
+ * codepoint-smallest `id`. Categories, favorite, progress and timestamps
+ * combine so a restore loses no progress written to a duplicate.
  */
 export function dedupeBackupLibrary(library: readonly LibraryEntry[]): BackupLibraryDedupeResult {
   const groups = new Map<string, LibraryEntry[]>();
@@ -171,12 +188,7 @@ export function dedupeBackupLibrary(library: readonly LibraryEntry[]): BackupLib
 
     let keeperIndex = 0;
     for (let index = 1; index < group.length; index += 1) {
-      const entry = group[index]!;
-      const keeper = group[keeperIndex]!;
-      const byTime = keeperSortKey(entry).localeCompare(keeperSortKey(keeper));
-      if (byTime > 0 || (byTime === 0 && entry.id.localeCompare(keeper.id) < 0)) {
-        keeperIndex = index;
-      }
+      if (isBetterKeeper(group[index]!, group[keeperIndex]!)) keeperIndex = index;
     }
     const keeper = group[keeperIndex]!;
     const ordered = [keeper, ...group.filter((_, index) => index !== keeperIndex)];
@@ -191,12 +203,17 @@ export function dedupeBackupLibrary(library: readonly LibraryEntry[]): BackupLib
         seenCategories.add(categoryId);
         categoryIds.push(categoryId);
       }
-      if (
-        entry.progressPercent !== undefined &&
-        (progressPercent === undefined || entry.progressPercent > progressPercent)
-      ) {
-        progressPercent = entry.progressPercent;
-        furthestEntry = entry;
+      if (entry.progressPercent !== undefined) {
+        if (progressPercent === undefined || entry.progressPercent > progressPercent) {
+          progressPercent = entry.progressPercent;
+          furthestEntry = entry;
+        } else if (
+          entry.progressPercent === progressPercent &&
+          furthestEntry?.lastReadChapterId === undefined &&
+          entry.lastReadChapterId !== undefined
+        ) {
+          furthestEntry = entry;
+        }
       }
     }
 
