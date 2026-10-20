@@ -11,11 +11,13 @@ import { getDefaultThemeSettings } from '@app/theme';
 import { OnboardingPage } from './OnboardingPage.js';
 import { getDefaultOnboardingState } from '../onboarding-state.js';
 
+const motionPreference = vi.hoisted(() => ({ reduced: true }));
+
 vi.mock('@app/motion', async () => {
   const actual = await vi.importActual('@app/motion');
   return {
     ...actual,
-    useReducedMotion: () => true,
+    useReducedMotion: () => motionPreference.reduced,
     fadeIn: vi.fn<(target: unknown, vars?: unknown) => unknown>(),
   };
 });
@@ -48,6 +50,9 @@ describe('OnboardingPage', () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    motionPreference.reduced = true;
+    delete document.documentElement.dataset.glass;
+    delete document.documentElement.dataset.transparency;
   });
 
   it('renders the welcome step with progress metadata', () => {
@@ -59,6 +64,21 @@ describe('OnboardingPage', () => {
       '1',
     );
     expect(screen.getByText('Step 1 of 5')).toBeInTheDocument();
+  });
+
+  it('applies displacement glass to the welcome hero when motion is allowed', () => {
+    motionPreference.reduced = false;
+    document.documentElement.dataset.glass = 'full';
+
+    render(<OnboardingPage {...baseProps} />);
+
+    const hero = screen
+      .getByRole('heading', { name: 'Welcome to MangaVerse' })
+      .closest('[data-glass-tier="regular"]');
+    expect(hero).toBeInTheDocument();
+    expect(hero?.querySelector('[data-refraction="displacement"]')).toBeInTheDocument();
+    expect(hero?.querySelector('header > p')).toHaveClass('text-glass-muted-foreground');
+    expect(document.querySelectorAll('[data-refraction="displacement"]')).toHaveLength(1);
   });
 
   it('renders the page as a named section so the shell owns the main landmark', () => {

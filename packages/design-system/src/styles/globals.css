@@ -350,23 +350,26 @@
    utility below is the only non-tier `backdrop-filter` exception. */
 @utility glass-thin {
   --glass-opaque: var(--surface);
+  --glass-tier-filter: blur(12px) saturate(140%);
   background-color: var(--glass-thin);
-  -webkit-backdrop-filter: blur(12px) saturate(140%);
-  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: var(--glass-tier-filter);
+  backdrop-filter: var(--glass-tier-filter);
 }
 
 @utility glass-regular {
   --glass-opaque: var(--surface);
+  --glass-tier-filter: blur(20px) saturate(160%);
   background-color: var(--glass-regular);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: var(--glass-tier-filter);
+  backdrop-filter: var(--glass-tier-filter);
 }
 
 @utility glass-thick {
   --glass-opaque: var(--surface-raised);
+  --glass-tier-filter: blur(32px) saturate(180%);
   background-color: var(--glass-thick);
-  -webkit-backdrop-filter: blur(32px) saturate(180%);
-  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: var(--glass-tier-filter);
+  backdrop-filter: var(--glass-tier-filter);
 }
 
 @utility glass-stage {
@@ -375,9 +378,10 @@
   --glass-specular: rgb(255 255 255 / 0.22);
   --glass-plate: rgb(0 0 0 / 0.35);
   --glass-sheen: linear-gradient(180deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0) 60%);
+  --glass-tier-filter: blur(24px) saturate(120%);
   background-color: var(--glass-stage);
-  -webkit-backdrop-filter: blur(24px) saturate(120%);
-  backdrop-filter: blur(24px) saturate(120%);
+  -webkit-backdrop-filter: var(--glass-tier-filter);
+  backdrop-filter: var(--glass-tier-filter);
 }
 
 /* DESIGN.md §2.1/§7.4 — modal scrims are the sole non-tier backdrop-filter exception. */
@@ -440,13 +444,32 @@
   backdrop-filter: none;
 }
 
+:root:not([data-glass="full"]) [data-ambient-backdrop] {
+  display: none;
+}
+
 :is([data-glass="cheap"], [data-transparency="solid"]) [data-ambient-backdrop] {
   display: none;
+}
+
+[data-refraction-surface="displacement"] {
+  -webkit-backdrop-filter: var(--glass-refraction-filter) var(--glass-tier-filter);
+  backdrop-filter: var(--glass-refraction-filter) var(--glass-tier-filter);
+}
+
+:is([data-glass="cheap"], [data-transparency="solid"]) [data-refraction-surface="displacement"] {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   :is(.glass-thin, .glass-regular, .glass-thick, .glass-stage) {
     background-color: var(--glass-opaque);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  [data-refraction-surface="displacement"] {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
@@ -463,11 +486,25 @@
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
+
+  [data-refraction-surface="displacement"] {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  [data-ambient-backdrop] {
+    display: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   [data-ambient-backdrop] {
     display: none;
+  }
+
+  [data-refraction-surface="displacement"] {
+    -webkit-backdrop-filter: var(--glass-tier-filter);
+    backdrop-filter: var(--glass-tier-filter);
   }
 }
 

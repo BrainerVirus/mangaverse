@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import * as React from 'react';
 import { GlassSurface } from '../components/glass-surface.js';
 import {
   GLASS_BLUR_BUDGET,
@@ -12,6 +13,7 @@ import { GlassPanel } from '../components/glass-panel.js';
 import { RefractionLayer } from '../components/refraction-layer.js';
 import { AmbientBackdrop } from '../components/ambient-backdrop.js';
 import { resolveGlassProfile } from '../lib/glass-profile.js';
+import { setInAppReducedMotionPreference } from '@app/motion';
 
 const TIERS = ['thin', 'regular', 'thick', 'stage'] as const;
 const ELEVATIONS = [0, 1, 2, 3, 4] as const;
@@ -28,10 +30,31 @@ const EXPECTED_ELEVATIONS: Record<GlassElevation, string> = {
   3: 'shadow-lg',
   4: 'shadow-xl',
 };
+const originalMatchMedia = Object.getOwnPropertyDescriptor(window, 'matchMedia');
+
+function resetGlassPreferences(): void {
+  setInAppReducedMotionPreference(false);
+  vi.unstubAllGlobals();
+  delete document.documentElement.dataset.glass;
+  delete document.documentElement.dataset.transparency;
+  if (originalMatchMedia) {
+    Object.defineProperty(window, 'matchMedia', originalMatchMedia);
+  } else {
+    Reflect.deleteProperty(window, 'matchMedia');
+  }
+}
+
+function allowFullGlassProfile(
+  supports: (property: string, value: string) => boolean = () => true,
+): void {
+  document.documentElement.dataset.glass = 'full';
+  vi.stubGlobal('CSS', { supports: vi.fn<(property: string, value: string) => boolean>(supports) });
+}
 
 describe('GlassSurface', () => {
   afterEach(() => {
     cleanup();
+    resetGlassPreferences();
   });
 
   it.each(TIERS)('renders the %s tier class and marks its tier', (level) => {
@@ -100,6 +123,180 @@ describe('GlassSurface', () => {
     expect(layer).toHaveAttribute('aria-hidden', 'true');
     expect(layer).toHaveClass('glass-refraction', 'glass-refraction-edge');
     expect(screen.getByText('content')).toBeInTheDocument();
+  });
+
+  it('lets a surface opt into displacement while keeping sheen as the default', () => {
+    allowFullGlassProfile();
+    const { container, rerender } = render(<GlassSurface refraction="displacement" />);
+    const surface = container.querySelector<HTMLDivElement>('[data-glass-tier]')!;
+    const layer = surface.querySelector<HTMLDivElement>('[data-refraction="displacement"]')!;
+    const filter = layer.querySelector<SVGFilterElement>('filter')!;
+
+    expect(surface).toHaveAttribute('data-refraction-surface', 'displacement');
+    expect(surface.style.getPropertyValue('--glass-refraction-filter')).toBe(`url(#${filter.id})`);
+    expect(layer).not.toHaveClass('glass-refraction-displacement');
+    expect(layer.style.getPropertyValue('--glass-refraction-filter')).toBe('');
+
+    rerender(<GlassSurface />);
+    const defaultSurface = container.querySelector<HTMLDivElement>('[data-glass-tier]')!;
+    expect(defaultSurface).not.toHaveAttribute('data-refraction-surface');
+    expect(defaultSurface.style.getPropertyValue('--glass-refraction-filter')).toBe('');
+    expect(defaultSurface.querySelector('[data-refraction="sheen"]')).toBeInTheDocument();
+    expect(container.querySelector('filter')).toBeNull();
+  });
+
+  it('omits displacement wiring from the surface when reduced motion is enabled', () => {
+    allowFullGlassProfile();
+    setInAppReducedMotionPreference(true);
+    const { container } = render(<GlassSurface refraction="displacement" />);
+    const surface = container.querySelector<HTMLDivElement>('[data-glass-tier]')!;
+
+    expect(surface).not.toHaveAttribute('data-refraction-surface');
+    expect(surface.style.getPropertyValue('--glass-refraction-filter')).toBe('');
+    expect(surface.querySelector('[data-refraction="sheen"]')).toBeInTheDocument();
+    expect(surface.querySelector('filter')).toBeNull();
+  });
+
+  it.each([
+    ['data-glass', 'cheap'],
+    ['data-transparency', 'solid'],
+  ])('omits surface displacement when %s is %s', (attribute, value) => {
+    if (attribute === 'data-transparency') allowFullGlassProfile();
+    document.documentElement.setAttribute(attribute, value);
+    const { container } = render(<GlassSurface refraction="displacement" />);
+    const surface = container.querySelector<HTMLDivElement>('[data-glass-tier]')!;
+
+    expect(surface).not.toHaveAttribute('data-refraction-surface');
+    expect(surface.style.getPropertyValue('--glass-refraction-filter')).toBe('');
+    expect(surface.querySelector('[data-refraction="sheen"]')).toBeInTheDocument();
+    expect(surface.querySelector('filter')).toBeNull();
+  });
+
+  it('renders unique filter definitions only for the explicit displacement variant', () => {
+    allowFullGlassProfile();
+    const { container } = render(
+      <>
+        <RefractionLayer variant="displacement" />
+        <RefractionLayer variant="displacement" />
+        <RefractionLayer />
+      </>,
+    );
+    const layers = container.querySelectorAll<HTMLDivElement>('[data-refraction="displacement"]');
+    const filters = [...container.querySelectorAll<SVGFilterElement>('filter')];
+    const ids = filters.map((filter) => filter.id);
+
+    expect(layers).toHaveLength(2);
+    expect(filters).toHaveLength(2);
+    expect(new Set(ids).size).toBe(2);
+    for (const [index, layer] of [...layers].entries()) {
+      expect(layer).toHaveAttribute('aria-hidden', 'true');
+      expect(layer).toHaveClass('glass-refraction', 'glass-refraction-edge');
+      expect(layer).not.toHaveClass('glass-refraction-displacement');
+      expect(layer.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+      expect(layer.style.getPropertyValue('--glass-refraction-filter')).toBe('');
+      expect(ids[index]).toBeTruthy();
+      expect(layer.querySelector('feTurbulence')).toBeInTheDocument();
+      expect(layer.querySelector('feDisplacementMap')).toBeInTheDocument();
+    }
+    expect(container.querySelector('[data-refraction="sheen"] svg')).toBeNull();
+  });
+
+  it('falls back to the unchanged sheen when reduced motion is enabled in-app', () => {
+    allowFullGlassProfile();
+    setInAppReducedMotionPreference(true);
+    const { container } = render(<RefractionLayer variant="displacement" />);
+
+    expect(container.firstElementChild).toHaveAttribute('data-refraction', 'sheen');
+    expect(container.querySelector('filter')).toBeNull();
+  });
+
+  it.each([
+    ['data-glass', 'cheap'],
+    ['data-transparency', 'solid'],
+  ])('falls back to sheen when %s is %s', (attribute, value) => {
+    if (attribute === 'data-transparency') allowFullGlassProfile();
+    document.documentElement.setAttribute(attribute, value);
+    const { container } = render(<RefractionLayer variant="displacement" />);
+
+    expect(container.firstElementChild).toHaveAttribute('data-refraction', 'sheen');
+    expect(container.querySelector('filter')).toBeNull();
+  });
+
+  it('falls back to sheen when the OS requests reduced transparency', () => {
+    allowFullGlassProfile();
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: vi.fn<
+        (media: string) => {
+          matches: boolean;
+          media: string;
+          addEventListener: () => void;
+          removeEventListener: () => void;
+        }
+      >((media) => ({
+        matches: media === '(prefers-reduced-transparency: reduce)',
+        media,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      })),
+    });
+    const { container } = render(
+      <>
+        <GlassSurface refraction="displacement" />
+        <RefractionLayer variant="displacement" />
+      </>,
+    );
+    const surface = container.querySelector<HTMLDivElement>('[data-glass-tier]')!;
+
+    expect(surface).not.toHaveAttribute('data-refraction-surface');
+    expect(surface.style.getPropertyValue('--glass-refraction-filter')).toBe('');
+    expect(surface.querySelector('[data-refraction="sheen"]')).toBeInTheDocument();
+    expect(container.querySelectorAll('filter')).toHaveLength(0);
+  });
+
+  it('falls back to sheen when the browser cannot support SVG backdrop filters', () => {
+    allowFullGlassProfile(() => false);
+    const { container } = render(<GlassSurface refraction="displacement" />);
+    const surface = container.querySelector<HTMLDivElement>('[data-glass-tier]')!;
+
+    expect(surface).not.toHaveAttribute('data-refraction-surface');
+    expect(surface.style.getPropertyValue('--glass-refraction-filter')).toBe('');
+    expect(surface.querySelector('[data-refraction="sheen"]')).toBeInTheDocument();
+    expect(surface.querySelector('filter')).toBeNull();
+  });
+
+  it('falls back to sheen when the OS requests reduced motion', () => {
+    allowFullGlassProfile();
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: vi.fn<(media: string) => MediaQueryList>((media) => ({
+        matches: media === '(prefers-reduced-motion: reduce)',
+        media,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      })),
+    });
+    const { container } = render(<GlassSurface refraction="displacement" />);
+    const surface = container.querySelector<HTMLDivElement>('[data-glass-tier]')!;
+
+    expect(surface).not.toHaveAttribute('data-refraction-surface');
+    expect(surface.style.getPropertyValue('--glass-refraction-filter')).toBe('');
+    expect(surface.querySelector('[data-refraction="sheen"]')).toBeInTheDocument();
+    expect(surface.querySelector('filter')).toBeNull();
+  });
+
+  it('keeps displacement when only the prefixed backdrop filter is supported', () => {
+    allowFullGlassProfile((property) => property === '-webkit-backdrop-filter');
+    const { container } = render(<GlassSurface refraction="displacement" />);
+    const surface = container.querySelector<HTMLDivElement>('[data-glass-tier]')!;
+    const filter = surface.querySelector<SVGFilterElement>('filter')!;
+
+    expect(surface).toHaveAttribute('data-refraction-surface', 'displacement');
+    expect(surface.style.getPropertyValue('--glass-refraction-filter')).toBe(`url(#${filter.id})`);
   });
 
   it('drops the hairline when edge is false but keeps the light', () => {
@@ -173,6 +370,7 @@ describe('GlassSurface', () => {
 describe('GlassPanel', () => {
   afterEach(() => {
     cleanup();
+    resetGlassPreferences();
   });
 
   it('composes the glass material with panel padding', () => {
@@ -197,6 +395,7 @@ describe('GlassPanel', () => {
 describe('RefractionLayer', () => {
   afterEach(() => {
     cleanup();
+    resetGlassPreferences();
   });
 
   it('is a decorative layer by default', () => {
@@ -212,15 +411,78 @@ describe('RefractionLayer', () => {
 describe('AmbientBackdrop', () => {
   afterEach(() => {
     cleanup();
+    resetGlassPreferences();
   });
 
   it('is a fixed, decorative band', () => {
+    allowFullGlassProfile();
     const { container } = render(<AmbientBackdrop />);
     const band = container.firstElementChild!;
 
     expect(band).toHaveAttribute('aria-hidden', 'true');
     expect(band).toHaveAttribute('data-ambient-backdrop');
     expect(band).toHaveClass('ambient-backdrop');
+  });
+
+  it('runs callback-ref cleanup on unmount', () => {
+    const cleanupRef = vi.fn<() => void>();
+    const forwardedRef = vi.fn<React.RefCallback<HTMLDivElement>>((node) => {
+      if (node !== null) return cleanupRef;
+      return undefined;
+    });
+    const { unmount } = render(<AmbientBackdrop ref={forwardedRef} />);
+
+    expect(forwardedRef).toHaveBeenCalledWith(expect.any(HTMLDivElement));
+    unmount();
+
+    expect(cleanupRef).toHaveBeenCalledOnce();
+    expect(forwardedRef).toHaveBeenCalledTimes(1);
+  });
+
+  it('clears an object ref on unmount', () => {
+    const ref = React.createRef<HTMLDivElement>();
+    const { unmount } = render(<AmbientBackdrop ref={ref} />);
+
+    expect(ref.current).toBeInstanceOf(HTMLDivElement);
+    unmount();
+
+    expect(ref.current).toBeNull();
+  });
+
+  it('stays static when reduced motion is enabled in-app', () => {
+    allowFullGlassProfile();
+    setInAppReducedMotionPreference(true);
+
+    const { container } = render(<AmbientBackdrop />);
+    const band = container.querySelector<HTMLDivElement>('[data-ambient-backdrop]');
+
+    expect(band).toBeInTheDocument();
+    expect(band?.style.transform).toBe('');
+  });
+
+  it('waits for the full glass profile before entering', async () => {
+    const { container } = render(<AmbientBackdrop />);
+    const band = container.querySelector<HTMLDivElement>('[data-ambient-backdrop]');
+
+    expect(band).toBeInTheDocument();
+    expect(band?.style.transform).toBe('');
+    allowFullGlassProfile();
+
+    await waitFor(() => expect(band?.style.transform).toContain('translate'));
+  });
+
+  it.each([
+    ['data-glass', 'cheap'],
+    ['data-transparency', 'solid'],
+  ])('stays static while %s is %s', (attribute, value) => {
+    if (attribute === 'data-transparency') allowFullGlassProfile();
+    document.documentElement.setAttribute(attribute, value);
+
+    const { container } = render(<AmbientBackdrop />);
+    const band = container.querySelector<HTMLDivElement>('[data-ambient-backdrop]');
+
+    expect(band).toBeInTheDocument();
+    expect(band?.style.transform).toBe('');
   });
 });
 
