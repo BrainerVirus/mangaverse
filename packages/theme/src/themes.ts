@@ -21,7 +21,7 @@ export async function fetchThemeDefinition(
 
 /**
  * Validates, normalizes colors to OKLCH, then stores. Built-in ids are owned by code,
- * so a custom definition must use the `custom-` prefix.
+ * so a custom definition must use the `custom:` prefix.
  */
 export async function saveThemeDefinition(
   db: AppDrizzleDb,

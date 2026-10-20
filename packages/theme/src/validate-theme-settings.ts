@@ -1,12 +1,16 @@
-import { createAppError, err, ok, type AppResult, type ThemeSettings } from '@app/shared';
+import {
+  CUSTOM_THEME_ID_PREFIX,
+  createAppError,
+  err,
+  isCustomThemeId,
+  ok,
+  type AppResult,
+  type ThemeSettings,
+} from '@app/shared';
 
 import { isBuiltInThemeId } from './built-in-themes.js';
 
-export const CUSTOM_THEME_ID_PREFIX = 'custom:' as const;
-
-export function isCustomThemeId(value: string): boolean {
-  return value.startsWith(CUSTOM_THEME_ID_PREFIX) && value.length > CUSTOM_THEME_ID_PREFIX.length;
-}
+export { CUSTOM_THEME_ID_PREFIX, isCustomThemeId };
 
 export function createCustomThemeId(suffix: string): string {
   return `${CUSTOM_THEME_ID_PREFIX}${suffix}`;

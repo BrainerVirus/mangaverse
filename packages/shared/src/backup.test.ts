@@ -200,6 +200,50 @@ describe('theme document migration', () => {
     expect(res.issues.some((issue) => issue.path === 'themes.0.light.seeds.accent')).toBe(true);
   });
 
+  it('rejects an override token outside the allow-list', () => {
+    const res = validateBackupDocument({
+      ...minimalValidBackup,
+      themes: [
+        {
+          ...customTheme,
+          light: {
+            ...customTheme.light,
+            overrides: { '--glass-stage': '#000000' },
+          },
+        },
+      ],
+    });
+    expect(res.ok).toBe(false);
+    expect(
+      res.issues.some((issue) => issue.path === 'themes.0.light.overrides.--glass-stage'),
+    ).toBe(true);
+  });
+
+  it('rejects a built-in id in the custom themes array', () => {
+    const res = validateBackupDocument({
+      ...minimalValidBackup,
+      themes: [{ ...customTheme, id: 'sakura' }],
+    });
+    expect(res.ok).toBe(false);
+    expect(res.issues.some((issue) => issue.path === 'themes.0.id')).toBe(true);
+  });
+
+  it('keeps an allow-listed override', () => {
+    const res = validateBackupDocument({
+      ...minimalValidBackup,
+      themes: [
+        {
+          ...customTheme,
+          dark: {
+            ...customTheme.dark,
+            overrides: { '--ring': '#123456' },
+          },
+        },
+      ],
+    });
+    expect(res.ok).toBe(true);
+  });
+
   it('rejects duplicate custom theme ids', () => {
     const res = validateBackupDocument({
       ...minimalValidBackup,

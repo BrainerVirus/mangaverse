@@ -25,8 +25,57 @@ export type ThemeSeedTokenName = (typeof THEME_SEED_TOKEN_NAMES)[number];
 
 export type ThemeSeeds = Readonly<Record<ThemeSeedTokenName, string>>;
 
+/**
+ * The allow-list for per-token overrides. It is also the exact set of CSS variables
+ * the theme layer paints, so moving this list here lets the backup validator reject
+ * unknown tokens without importing `@app/theme` (which depends on this package).
+ */
+export const THEME_OVERRIDE_TOKENS = [
+  '--background',
+  '--foreground',
+  '--muted',
+  '--muted-foreground',
+  '--popover',
+  '--popover-foreground',
+  '--card',
+  '--card-foreground',
+  '--border',
+  '--input',
+  '--primary',
+  '--primary-foreground',
+  '--secondary',
+  '--secondary-foreground',
+  '--accent',
+  '--accent-foreground',
+  '--destructive',
+  '--destructive-glass',
+  '--destructive-foreground',
+  '--success',
+  '--success-glass',
+  '--warning',
+  '--warning-glass',
+  '--ring',
+  '--reader-background',
+  '--sidebar',
+  '--sidebar-foreground',
+  '--sidebar-border',
+  '--sidebar-accent',
+  '--sidebar-accent-foreground',
+] as const;
+
+export type ThemeOverrideToken = (typeof THEME_OVERRIDE_TOKENS)[number];
+
+const THEME_OVERRIDE_TOKEN_SET: ReadonlySet<string> = new Set(THEME_OVERRIDE_TOKENS);
+
 /** Per-token CSS variables (`--accent`, `--ring`, …) keyed the way they are applied. */
-export type ThemeOverrides = Readonly<Record<string, string>>;
+export type ThemeOverrides = Readonly<Partial<Record<ThemeOverrideToken, string>>>;
+
+/** Custom themes are the only definitions a backup carries; built-ins come from code. */
+export const CUSTOM_THEME_ID_PREFIX = 'custom:' as const;
+
+export function isCustomThemeId(value: string): boolean {
+  return value.startsWith(CUSTOM_THEME_ID_PREFIX) && value.length > CUSTOM_THEME_ID_PREFIX.length;
+}
 
 export interface ThemeAppearanceDefinition {
   readonly seeds: ThemeSeeds;
@@ -61,9 +110,11 @@ function isNonEmptyString(value: unknown): value is string {
 }
 
 /**
- * Structural validation used by the backup document, which cannot reach the culori
- * engine in `@app/theme` (that package depends on `@app/shared`, not the other way
- * round). Color syntax is validated by `@app/theme` before a definition is stored.
+ * Structural validation used by the backup document and the `themes` repository,
+ * which cannot reach the culori engine in `@app/theme` (that package depends on
+ * `@app/shared`, not the other way round). Color syntax is validated by
+ * `@app/theme` before a definition is stored; this layer rejects shapes that could
+ * smuggle in unknown tokens or built-in ids.
  */
 export function validateThemeDefinitionShape(input: unknown): ThemeDefinitionValidation {
   const issues: ThemeDefinitionIssue[] = [];
@@ -87,6 +138,11 @@ export function validateThemeDefinitionShape(input: unknown): ThemeDefinitionVal
   }
   if (!isNonEmptyString(input['id'])) {
     issues.push({ path: 'id', message: 'Theme id is required.' });
+  } else if (!isCustomThemeId(input['id'])) {
+    issues.push({
+      path: 'id',
+      message: 'Only custom themes can be stored; the id must start with "custom:".',
+    });
   }
   if (!isNonEmptyString(input['name'])) {
     issues.push({ path: 'name', message: 'Theme name is required.' });
@@ -122,6 +178,13 @@ export function validateThemeDefinitionShape(input: unknown): ThemeDefinitionVal
         issues.push({ path: `${appearance}.overrides`, message: 'overrides must be an object.' });
       } else {
         for (const [token, color] of Object.entries(overrides)) {
+          if (!THEME_OVERRIDE_TOKEN_SET.has(token)) {
+            issues.push({
+              path: `${appearance}.overrides.${token}`,
+              message: `Override token "${token}" is not allow-listed.`,
+            });
+            continue;
+          }
           if (!isNonEmptyString(color)) {
             issues.push({
               path: `${appearance}.overrides.${token}`,

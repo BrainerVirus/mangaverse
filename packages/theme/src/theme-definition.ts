@@ -4,12 +4,12 @@ import {
   err,
   ok,
   THEME_DEFINITION_SCHEMA_VERSION,
+  THEME_OVERRIDE_TOKENS,
   THEME_SEED_TOKEN_NAMES,
 } from '@app/shared';
 import { z } from 'zod';
 
 import { isCssColor, normalizeCssColor } from './color.js';
-import { THEME_CSS_VARIABLES } from './tokens.js';
 
 const cssColorSchema = z
   .string()
@@ -22,18 +22,18 @@ const seedSchema = z.object(
   >,
 );
 
-const overrideKeySchema = z.enum(THEME_CSS_VARIABLES);
+const overrideKeySchema = z.enum(THEME_OVERRIDE_TOKENS);
 
 const appearanceSchema = z.object({
   seeds: seedSchema,
-  overrides: z.partialRecord(overrideKeySchema, cssColorSchema).optional(),
+  overrides: z.partialRecord(overrideKeySchema, cssColorSchema).exactOptional(),
 });
 
 export const themeDefinitionSchema = z.object({
   schemaVersion: z.literal(THEME_DEFINITION_SCHEMA_VERSION),
   id: z.string().min(1),
   name: z.string().min(1),
-  basedOn: z.string().min(1).optional(),
+  basedOn: z.string().min(1).exactOptional(),
   light: appearanceSchema,
   dark: appearanceSchema,
 });

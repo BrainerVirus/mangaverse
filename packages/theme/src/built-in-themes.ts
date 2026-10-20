@@ -11,6 +11,7 @@ import {
 /** The light neutral the shell has always used for muted text. */
 const MUTED_FOREGROUND_LIGHT = '#71717a';
 const MUTED_FOREGROUND_DARK = '#a1a1aa';
+const LIGHT_NEUTRAL_INK = '#fafafa';
 
 function seedsFromTokens(tokens: ThemeColorTokens): ThemeSeeds {
   return {
@@ -30,11 +31,13 @@ function seedsFromTokens(tokens: ThemeColorTokens): ThemeSeeds {
 /**
  * Built-ins keep the exact bytes shipped before the definition path. Every pinned
  * token is one where the accessible derivation intentionally differs from the
- * hand-tuned legacy value (muted text and the glass status shades).
+ * hand-tuned legacy value: muted text, the glass status shades and the primary ink
+ * (the derivation raises the text target to 4.5:1; built-ins stay frozen).
  */
 function legacyOverrides(tokens: ThemeColorTokens, dark: boolean): ThemeOverrides {
   return {
     '--muted-foreground': dark ? MUTED_FOREGROUND_DARK : MUTED_FOREGROUND_LIGHT,
+    '--primary-foreground': dark ? tokens.background : LIGHT_NEUTRAL_INK,
     '--destructive-foreground': '#fafafa',
     '--destructive-glass': tokens.destructiveGlass,
     '--success-glass': tokens.successGlass,

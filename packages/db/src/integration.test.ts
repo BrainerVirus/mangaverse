@@ -508,7 +508,7 @@ describe('@app/db', () => {
 
 const CUSTOM_THEME = {
   schemaVersion: 1 as const,
-  id: 'custom-integration',
+  id: 'custom:integration',
   name: 'Integration Custom',
   basedOn: 'sakura',
   light: {

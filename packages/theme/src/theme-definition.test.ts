@@ -111,6 +111,12 @@ describe('ThemeDefinition schema', () => {
     expect(result.issues[0]?.path).toBe('light.seeds.accent');
   });
 
+  it('rejects an explicit undefined optional field', () => {
+    const input = { ...customDefinition() } as Record<string, unknown>;
+    input['basedOn'] = undefined;
+    expect(validateThemeDefinition(input).ok).toBe(false);
+  });
+
   it('exposes the seed list the schema validates', () => {
     expect(THEME_SEED_TOKEN_NAMES).toHaveLength(10);
     expect(themeDefinitionSchema).toBeDefined();

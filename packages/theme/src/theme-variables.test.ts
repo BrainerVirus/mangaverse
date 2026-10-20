@@ -1,9 +1,30 @@
 import { describe, expect, it } from 'vitest';
+import { differenceCiede2000, parse, type Color } from 'culori';
 
 import { buildThemeCssVariables } from './apply-theme.js';
 import { parseCssColor } from './color.js';
 import { THEME_PRESET_IDS } from './presets.js';
 import { resolveThemeAppearance } from './resolve-theme.js';
+
+const ciede2000 = differenceCiede2000();
+
+function parseOrThrow(value: string): Color {
+  const color = parse(value);
+  if (color === undefined) {
+    throw new Error(`Unparseable theme color: ${value}`);
+  }
+  return color;
+}
+
+/** Perceptual separation between two emitted theme values. */
+function separation(a: string, b: string): number {
+  return ciede2000(parseOrThrow(a), parseOrThrow(b));
+}
+
+/** A published Sharma et al. (2005) pair, expressed in D65 Lab as culori expects. */
+function lab65(lightness: number, a: number, b: number): Color {
+  return { mode: 'lab65', l: lightness, a, b };
+}
 
 /** The roles the shell paints side by side: the active nav row, hover fills and the sidebar. */
 const SHELL_FILLS = ['--secondary', '--accent', '--sidebar', '--sidebar-accent'] as const;
@@ -79,6 +100,24 @@ describe('shell fills per preset', () => {
         }
       }
     }
+  });
+
+  // AMOLED's true-black canvas leaves the default accent too close to the sidebar fill:
+  // #141414 vs #0a0a0a is only ΔE00 2.13. The oklch accent keeps the pair at ≥3.
+  it('keeps the AMOLED accent at least ΔE00 3 from the sidebar', () => {
+    const variables = buildThemeCssVariables({ themeId: 'amoled-black', dark: true });
+    const value = separation(variables['--accent']!, variables['--sidebar']!);
+
+    expect(
+      value,
+      `accent ${variables['--accent']} vs sidebar ${variables['--sidebar']}`,
+    ).toBeGreaterThanOrEqual(3);
+  });
+
+  // Pins the oracle itself: the published Sharma pairs are the reference values.
+  it('computes CIEDE2000 from the published reference pairs', () => {
+    expect(ciede2000(lab65(50, 2.6772, -79.7751), lab65(50, 0, -82.7485))).toBeCloseTo(2.0425, 4);
+    expect(ciede2000(lab65(50, 3.1571, -77.2803), lab65(50, 0, -82.7485))).toBeCloseTo(2.8615, 4);
   });
 
   it.each(THEME_PRESET_IDS)('%s keeps the foreground readable on every shell fill', (themeId) => {
