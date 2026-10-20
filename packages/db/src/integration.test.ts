@@ -399,10 +399,24 @@ describe('@app/db', () => {
     expect(state?.progress.lastPageIndex).toBe(2);
 
     await write(newer, 4, 40);
-    await write(newer, 3, 30);
+    await write(newer, 4, 55);
+    await write(newer, 4, 45);
     state = await getChapterReadState(db, chapter.value);
     expect(state?.progress.lastPageIndex).toBe(4);
-    expect(state?.progress.readPercent).toBe(40);
+    expect(state?.progress.readPercent).toBe(55);
+
+    await upsertChapterReadState(db, {
+      chapterId: chapter.value,
+      mangaId: created.value.mangaId,
+      progress: { readPercent: 55, lastPageIndex: 4, completed: true, updatedAt: newer },
+    });
+    await upsertChapterReadState(db, {
+      chapterId: chapter.value,
+      mangaId: created.value.mangaId,
+      progress: { readPercent: 55, lastPageIndex: 4, completed: false, updatedAt: newer },
+    });
+    state = await getChapterReadState(db, chapter.value);
+    expect(state?.progress.completed).toBe(true);
 
     await updateLibraryEntryReadingProgress(db, {
       mangaId: created.value.mangaId,
@@ -431,6 +445,21 @@ describe('@app/db', () => {
 
     const entry = await getLibraryEntryForManga(db, created.value.mangaId);
     expect(entry?.progressPercent).toBe(60);
+
+    // A restored backup can carry a resume chapter with no updatedAt; that
+    // sentinel shape must not permanently freeze future progress.
+    await db
+      .update(libraryEntries)
+      .set({ updatedAt: null })
+      .where(eq(libraryEntries.mangaId, created.value.mangaId));
+    await updateLibraryEntryReadingProgress(db, {
+      mangaId: created.value.mangaId,
+      chapterId: chapter.value,
+      progressPercent: 70,
+      updatedAt: newer,
+    });
+    const afterNull = await getLibraryEntryForManga(db, created.value.mangaId);
+    expect(afterNull?.progressPercent).toBe(70);
   });
 
   it('reports remote mapping collisions with current database', async () => {

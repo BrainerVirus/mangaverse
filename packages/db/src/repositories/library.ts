@@ -417,6 +417,8 @@ export async function updateLibraryEntryReadingProgress(
       sql`${libraryEntries.mangaId} = ${input.mangaId} AND (
         ${libraryEntries.lastReadChapterId} IS NULL
         OR ${libraryEntries.lastReadChapterId} = ''
+        OR ${libraryEntries.updatedAt} IS NULL
+        OR ${libraryEntries.updatedAt} = ''
         OR ${libraryEntries.updatedAt} < ${now}
         OR (
           ${libraryEntries.updatedAt} = ${now}
