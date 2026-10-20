@@ -84,6 +84,8 @@ function SearchRoute() {
       isLoading={dbStatus === 'loading' || localQuery.isLoading || appSettingsQuery.isLoading}
       isError={dbStatus === 'error' || localQuery.isError}
       isProviderPending={providerQuery.isFetching}
+      isProviderError={providerQuery.isError}
+      onRetryProvider={() => void providerQuery.refetch()}
       viewState={viewState}
       onViewStateChange={handleViewStateChange}
       onOpenManga={(mangaId) => navigate({ to: '/manga/$id', params: { id: mangaId } })}
