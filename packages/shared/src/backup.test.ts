@@ -411,6 +411,77 @@ describe('dedupeBackupLibrary', () => {
     ]);
   });
 
+  it('breaks equal updatedAt ties with the later addedAt', () => {
+    const result = dedupeBackupLibrary([
+      libraryEntry('le-a', {
+        updatedAt: '2026-02-01T00:00:00.000Z',
+        addedAt: '2026-01-01T00:00:00.000Z',
+      }),
+      libraryEntry('le-b', {
+        updatedAt: '2026-02-01T00:00:00.000Z',
+        addedAt: '2026-01-02T00:00:00.000Z',
+      }),
+    ]);
+
+    expect(result.library[0]?.id).toBe(toLibraryEntryId('le-b'));
+  });
+
+  it('breaks full timestamp ties with the codepoint-smallest id', () => {
+    const timestamp = '2026-02-01T00:00:00.000Z';
+    const result = dedupeBackupLibrary([
+      libraryEntry('le-z', { updatedAt: timestamp, addedAt: timestamp }),
+      libraryEntry('le-a', { updatedAt: timestamp, addedAt: timestamp }),
+    ]);
+
+    expect(result.library[0]?.id).toBe(toLibraryEntryId('le-a'));
+  });
+
+  it('treats empty-string updatedAt and addedAt as absent', () => {
+    const result = dedupeBackupLibrary([
+      // Codepoint-smaller id, so it would win if '' counted as a timestamp.
+      libraryEntry('le-empty', { updatedAt: '', addedAt: '' }),
+      libraryEntry('le-real', { updatedAt: '', addedAt: '2026-01-01T00:00:00.000Z' }),
+    ]);
+
+    expect(result.library[0]?.id).toBe(toLibraryEntryId('le-real'));
+  });
+
+  it('falls back to addedAt when updatedAt is empty', () => {
+    const result = dedupeBackupLibrary([
+      libraryEntry('le-a', { updatedAt: '', addedAt: '2026-01-01T00:00:00.000Z' }),
+      libraryEntry('le-b', { updatedAt: '', addedAt: '2026-01-02T00:00:00.000Z' }),
+    ]);
+
+    expect(result.library[0]?.id).toBe(toLibraryEntryId('le-b'));
+  });
+
+  it('fills a missing lastReadChapterId from an equal-progress entry', () => {
+    const result = dedupeBackupLibrary([
+      libraryEntry('le-keeper', {
+        progressPercent: 60,
+        updatedAt: '2026-02-01T00:00:00.000Z',
+      }),
+      libraryEntry('le-loser', {
+        progressPercent: 60,
+        lastReadChapterId: toChapterId('ch-60'),
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      }),
+    ]);
+
+    expect(result.library[0]?.lastReadChapterId).toBe(toChapterId('ch-60'));
+  });
+
+  it('orders ids by codepoint, not locale collation', () => {
+    // Collation sorts 'ä' with 'a' (before 'z'); codepoints put 'z' first.
+    const timestamp = '2026-02-01T00:00:00.000Z';
+    const result = dedupeBackupLibrary([
+      libraryEntry('le-z', { updatedAt: timestamp }),
+      libraryEntry('le-ä', { updatedAt: timestamp }),
+    ]);
+
+    expect(result.library[0]?.id).toBe(toLibraryEntryId('le-z'));
+  });
+
   it('keeps the keeper notes when they are non-empty', () => {
     const result = dedupeBackupLibrary([
       libraryEntry('le-keeper', {
