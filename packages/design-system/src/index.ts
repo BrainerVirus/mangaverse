@@ -15,6 +15,7 @@ export {
 } from './components/ui/card.js';
 export {
   Dialog,
+  DialogTrigger,
   DialogContent,
   DialogHeader,
   DialogFooter,

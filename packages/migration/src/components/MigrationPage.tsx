@@ -408,38 +408,31 @@ export function MigrationPage({
         />
       ) : null}
 
-      {confirmOpen ? (
-        <Dialog
-          // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- <dialog> moves this overlay into the top layer and adds its own open state plus UA max-width/centering, so it is not equivalent to the design-system overlay; role + aria-modal is the accessible equivalent
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="migration-apply-title"
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle id="migration-apply-title">Apply migration?</DialogTitle>
-              <DialogDescription>
-                This updates provider mappings for the selected titles. Consider exporting a backup
-                before large migrations.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button variant="outline" onClick={() => setConfirmOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  setConfirmOpen(false);
-                  onApply();
-                }}
-                disabled={isApplying}
-              >
-                {isApplying ? 'Applying…' : 'Confirm migration'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      ) : null}
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Apply migration?</DialogTitle>
+            <DialogDescription>
+              This updates provider mappings for the selected titles. Consider exporting a backup
+              before large migrations.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setConfirmOpen(false);
+                onApply();
+              }}
+              disabled={isApplying}
+            >
+              {isApplying ? 'Applying…' : 'Confirm migration'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

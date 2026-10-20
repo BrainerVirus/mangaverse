@@ -100,22 +100,11 @@ export function InstallProviderDialog({
     session?.step === 'awaitingConfirmation' && session.preview !== undefined;
   const installing = session?.step === 'installing';
 
-  if (!open) {
-    return null;
-  }
-
   return (
-    <Dialog
-      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- <dialog> moves this overlay into the top layer and adds its own open state plus UA max-width/centering, so it is not equivalent to the design-system overlay; role + aria-modal is the accessible equivalent
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="install-provider-title"
-      data-testid="install-provider-dialog"
-      onClick={() => onOpenChange(false)}
-    >
-      <DialogContent className="max-w-xl" onClick={(event) => event.stopPropagation()}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-xl" data-testid="install-provider-dialog">
         <DialogHeader>
-          <DialogTitle id="install-provider-title">Install provider</DialogTitle>
+          <DialogTitle>Install provider</DialogTitle>
           <DialogDescription>
             Enter a manifest URL to review capabilities, permissions, and content flags before
             installing.

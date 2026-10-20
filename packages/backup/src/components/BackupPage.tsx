@@ -258,45 +258,33 @@ export function BackupPage({
         </div>
       </SettingsSection>
 
-      {confirmOpen ? (
-        <Dialog
-          // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- <dialog> moves this overlay into the top layer and adds its own open state plus UA max-width/centering, so it is not equivalent to the design-system overlay; role + aria-modal is the accessible equivalent
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="backup-restore-title"
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle id="backup-restore-title">Replace local data?</DialogTitle>
-              <DialogDescription>
-                This will replace your current library, installed provider records, and
-                backup-covered settings. Chapter caches and reading progress outside the backup
-                schema may be removed with library identities. This action cannot be undone
-                automatically.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button
-                variant="outline"
-                onClick={() => setConfirmOpen(false)}
-                disabled={isRestoring}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                disabled={isRestoring}
-                onClick={() => {
-                  setConfirmOpen(false);
-                  onRestore();
-                }}
-              >
-                {isRestoring ? 'Restoring…' : 'Confirm restore'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      ) : null}
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Replace local data?</DialogTitle>
+            <DialogDescription>
+              This will replace your current library, installed provider records, and backup-covered
+              settings. Chapter caches and reading progress outside the backup schema may be removed
+              with library identities. This action cannot be undone automatically.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={isRestoring}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={isRestoring}
+              onClick={() => {
+                setConfirmOpen(false);
+                onRestore();
+              }}
+            >
+              {isRestoring ? 'Restoring…' : 'Confirm restore'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
