@@ -1,4 +1,3 @@
-// oxlint-disable shadcn/no-unknown-classes -- this app-level lint does not resolve @utility declarations from @app/design-system's stylesheet.
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { Link, useRouterState } from '@tanstack/react-router';
 import {

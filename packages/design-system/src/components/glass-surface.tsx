@@ -98,7 +98,7 @@ function GlassSurfaceContent({
     </div>
   );
 
-  if (!usesDisplacement || filterId === undefined) return surface;
+  if (!usesDisplacement) return surface;
   return (
     <div
       className="contents"

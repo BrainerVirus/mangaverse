@@ -383,6 +383,24 @@
   transition: var(--reader-progress-transition);
 }
 
+@utility palette-top {
+  padding-top: 12vh;
+}
+
+@utility keycap-text {
+  font-size: 10px;
+}
+
+@utility safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@utility width-transition {
+  transition-property: width;
+  transition-timing-function: var(--tw-ease, var(--default-transition-timing-function));
+  transition-duration: var(--tw-duration, var(--default-transition-duration));
+}
+
 /* DESIGN.md §2.1 — the four glass tiers. Each tier owns its fill, its blur and saturation, its
    opaque resolution (`--glass-opaque`) and, for the stage, its own light values. The modal scrim
    utility below is the only non-tier `backdrop-filter` exception. */

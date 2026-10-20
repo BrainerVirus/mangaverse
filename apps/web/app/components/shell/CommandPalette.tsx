@@ -213,7 +213,7 @@ export function CommandPalette() {
       {rendered ? (
         // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- the overlay is the palette's single keyboard scope: Arrow/Enter/Escape must work from anywhere inside it (input, items, backdrop). The input must not bind the handler again -- its keydown already bubbles here, and binding both fired every moveSelection twice
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[12vh]"
+          className="fixed inset-0 z-50 flex items-start justify-center px-4 palette-top"
           // react-doctor-disable-next-line react-doctor/prefer-html-dialog -- ruling mvd4xjfd (same keep as the file-level jsx-a11y/prefer-tag-over-role disable above): <dialog> would move this overlay into the top layer and bring its own open state, Escape handling and UA max-width/centering, duplicating the palette's GSAP enter/exit; role + aria-modal is the accessible equivalent.
           role="dialog"
           aria-modal="true"
@@ -222,7 +222,6 @@ export function CommandPalette() {
         >
           <div
             ref={backdropRef}
-            // oxlint-disable-next-line shadcn/no-unknown-classes -- app lint cannot resolve @utility classes from @app/design-system's stylesheet.
             className="fixed inset-0 glass-scrim"
             onClick={close}
             aria-hidden="true"
