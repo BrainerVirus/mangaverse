@@ -30,6 +30,8 @@ vi.mock('../../providers/local-db-provider.js', () => ({
   LocalDbProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useLocalDb: () => null,
   useLocalDbStatus: () => 'ready' as const,
+  useLocalDbError: () => null,
+  useLocalDbRetry: () => vi.fn<() => void>(),
   usePersistenceError: () => null,
   useRetryPersistence: () => vi.fn<() => void>(),
 }));

@@ -11,6 +11,7 @@ import { ThemeSettingsBridge } from '../providers/theme-settings-bridge.js';
 import { ShellAppearanceBridge } from '../providers/shell-appearance-bridge.js';
 import { LocalDataPrefetch } from './LocalDataPrefetch.js';
 import { OnboardingGate } from './OnboardingGate.js';
+import { LocalDbErrorBanner } from './PersistenceErrorBanner.js';
 import { AppShellLayout } from '../layouts/AppShellLayout.js';
 import { ReaderLayout } from '../layouts/ReaderLayout.js';
 import { useCommandPaletteStore } from '../stores/useCommandPaletteStore';
@@ -93,6 +94,7 @@ export function ShellProviders({ children, detectFn }: ShellProvidersProps) {
               <KeyboardShortcuts />
               <NavigationTracker />
               <CommandPalette />
+              <LocalDbErrorBanner />
               <OnboardingGate>
                 <AppShellOrReaderLayout>{children}</AppShellOrReaderLayout>
               </OnboardingGate>
