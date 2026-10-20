@@ -1,8 +1,10 @@
+import type { ThemeEditorPanelProps } from './theme-editor-panel.js';
+
 /**
  * Placeholder panel for the guided colour controls. The shell, preview and save
  * path live in `ThemeEditorPage`; this file is the seam the guided slice fills in.
  */
-export function ThemeGuidedEditor() {
+export function ThemeGuidedEditor(_props: ThemeEditorPanelProps) {
   return (
     <div data-testid="theme-guided-editor" className="space-y-2">
       <p className="type-label text-foreground">Guided</p>
