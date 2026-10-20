@@ -79,9 +79,6 @@ export {
 // Diagnostics
 export { createReaderDiagnostics } from './diagnostics.js';
 
-// Error validation
-export { createReaderError, validateReaderSessionInput, validatePageIndex } from './errors.js';
-
 // Feature page integration
 export { ReaderScreen, type ReaderScreenProps } from './components/ReaderScreen.js';
 export { fetchReaderPage } from './fetch-reader-page.js';

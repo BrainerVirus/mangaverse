@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getAppSetting } from '@app/db';
+import { getAppSetting, upsertAppSetting } from '@app/db';
 import { createSqlJsHarness } from '@app/db/testing';
 
 import { ONBOARDING_STORAGE_KEY } from './constants.js';
@@ -28,6 +28,16 @@ describe('onboarding persistence', () => {
     expect(result.ok).toBe(true);
     expect(await fetchOnboardingState(db)).toEqual(next);
     expect(await getAppSetting(db, ONBOARDING_STORAGE_KEY)).toEqual(next);
+  });
+
+  it('falls back to defaults when a stored timestamp is not ISO', async () => {
+    const { db } = await createSqlJsHarness();
+    await upsertAppSetting(db, ONBOARDING_STORAGE_KEY, {
+      ...getDefaultOnboardingState(),
+      startedAt: 'May 23, 2026',
+    });
+
+    expect(await fetchOnboardingState(db)).toEqual(getDefaultOnboardingState());
   });
 
   it('rejects invalid onboarding state', async () => {

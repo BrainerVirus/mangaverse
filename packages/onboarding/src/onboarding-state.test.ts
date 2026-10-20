@@ -121,4 +121,15 @@ describe('validateOnboardingState', () => {
 
     expect(result.ok).toBe(false);
   });
+
+  it('rejects non-ISO timestamps', () => {
+    const result = validateOnboardingState({
+      status: 'in_progress',
+      currentStep: 'theme',
+      completedSteps: [],
+      startedAt: 'May 23, 2026',
+    });
+
+    expect(result.ok).toBe(false);
+  });
 });

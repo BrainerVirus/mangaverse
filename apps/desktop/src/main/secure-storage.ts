@@ -5,6 +5,7 @@ import {
   platformIoFailed,
   platformSecureStorageUnavailable,
 } from '@app/platform';
+import { z } from 'zod';
 
 interface ElectronSafeStorageLike {
   isEncryptionAvailable(): boolean;
@@ -13,6 +14,8 @@ interface ElectronSafeStorageLike {
 }
 
 type JsonStore = Record<string, string>;
+
+const jsonStoreSchema = z.record(z.string(), z.string());
 
 export interface SecureStorageModelDeps {
   readonly safeStorage: ElectronSafeStorageLike;
@@ -25,7 +28,8 @@ export function createSecureStorageModel(deps: SecureStorageModelDeps) {
   async function readStore(): Promise<JsonStore> {
     try {
       const raw = await deps.readFile(deps.storePath);
-      return JSON.parse(raw) as JsonStore;
+      const parsed = jsonStoreSchema.safeParse(JSON.parse(raw) as unknown);
+      return parsed.success ? parsed.data : {};
     } catch {
       return {};
     }

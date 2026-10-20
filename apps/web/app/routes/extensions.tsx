@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, useLocation, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
+import { z } from 'zod';
 import type { ExtensionInstallSession } from '@app/extensions';
 import {
   confirmProviderInstall,
@@ -16,14 +17,20 @@ import {
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 import { flushLocalDb } from '../lib/local-db.js';
 
+const extensionsSearchSchema = z.object({
+  install: z
+    .union([z.literal(true), z.literal('1'), z.literal(1)])
+    .transform(() => true)
+    .catch(false),
+});
+
 type ExtensionsSearch = {
   install?: boolean;
 };
 
 export const Route = createFileRoute('/extensions')({
-  validateSearch: (search: Record<string, unknown>): ExtensionsSearch => ({
-    install: search.install === true || search.install === '1' || search.install === 1,
-  }),
+  validateSearch: (search: Record<string, unknown>): ExtensionsSearch =>
+    extensionsSearchSchema.parse(search),
   component: ExtensionsRoute,
 });
 

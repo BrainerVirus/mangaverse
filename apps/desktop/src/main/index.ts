@@ -17,11 +17,12 @@ import {
 import { registerPlatformIpc } from './platform-ipc.js';
 import { createSecureStorageModel } from './secure-storage.js';
 import { registerContentSecurityPolicy } from './content-security-policy.js';
+import { resolveRendererPort } from './renderer-port.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const rendererPort = process.env.MANGAVERSE_RENDERER_PORT ?? '45123';
+const rendererPort = resolveRendererPort(process.env.MANGAVERSE_RENDERER_PORT);
 
 let mainWindow: BrowserWindow | null = null;
 let nitroProcess: ChildProcess | null = null;
@@ -66,7 +67,7 @@ function startProductionRenderer(): Promise<string> {
     cwd: rendererRoot,
     env: {
       ...process.env,
-      PORT: rendererPort,
+      PORT: String(rendererPort),
       NITRO_HOST: '127.0.0.1',
       HOST: '127.0.0.1',
     },
