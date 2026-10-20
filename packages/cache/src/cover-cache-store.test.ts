@@ -4,12 +4,12 @@ import type { PlatformAdapter } from '@app/platform';
 import { createSqlJsHarness } from '@app/db/testing';
 
 import {
-  evictCoverCacheToLimit,
   getCachedCoverObjectUrl,
   getCoverCacheUsage,
   resolveCoverObjectUrl,
   storeCoverInCache,
 } from './cover-cache-store.js';
+import { evictCacheToLimit } from './cache-maintenance.js';
 import { buildCoverBlobKey } from './constants.js';
 
 function createMockAdapter(
@@ -146,7 +146,7 @@ describe('cover cache store', () => {
       mimeType: 'image/jpeg',
     });
 
-    const evicted = await evictCoverCacheToLimit(db, adapter, 250);
+    const evicted = await evictCacheToLimit(db, adapter, { limitBytes: 250 });
     expect(evicted).toBe(1);
 
     const usage = await getCoverCacheUsage(db);

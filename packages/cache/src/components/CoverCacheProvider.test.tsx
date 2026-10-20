@@ -3,11 +3,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
 import { act, useCallback } from 'react';
 import { CoverCacheProvider, useCoverCacheContext } from './CoverCacheProvider.js';
-import type * as coverCacheStore from '../cover-cache-store.js';
+import type * as cacheMaintenance from '../cache-maintenance.js';
 
-vi.mock('../cover-cache-store.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof coverCacheStore>()),
-  runCoverCacheMaintenance: vi.fn<() => Promise<void>>(async () => {}),
+vi.mock('../cache-maintenance.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof cacheMaintenance>()),
+  runCacheMaintenance: vi.fn<() => Promise<void>>(async () => {}),
 }));
 
 let mountCount = 0;

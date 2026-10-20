@@ -20,6 +20,7 @@ import {
   clearSearchHistory,
   countSearchHistory,
   createMangaIdentityWithInitialMapping,
+  deleteCacheEntries,
   exportBackupDocumentV1,
   getChapterReadState,
   getLibraryEntryForManga,
@@ -757,6 +758,26 @@ describe('@app/db', () => {
     expect(await clearSearchHistory(db)).toBe(1);
     expect((await summarizeCacheStorage(db)).totalCount).toBe(0);
     expect(await countSearchHistory(db)).toBe(0);
+  });
+
+  it('deletes cache entries in one statement and tolerates missing ids', async () => {
+    const { db } = await createSqlJsHarness();
+    const first = await upsertCacheEntry(db, {
+      providerId: 'prov-a',
+      mangaId: 'manga-1',
+      cacheKind: 'page',
+    });
+    const second = await upsertCacheEntry(db, {
+      providerId: 'prov-a',
+      mangaId: 'manga-2',
+      cacheKind: 'page',
+    });
+    await upsertCacheEntry(db, { providerId: 'prov-b', mangaId: 'manga-3', cacheKind: 'cover' });
+
+    expect(await deleteCacheEntries(db, [first, second, 'missing'])).toBe(2);
+    expect(await deleteCacheEntries(db, [first])).toBe(0);
+    expect(await deleteCacheEntries(db, [])).toBe(0);
+    expect((await summarizeCacheStorage(db)).totalCount).toBe(1);
   });
 });
 

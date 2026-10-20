@@ -1,8 +1,6 @@
 import type { AppDrizzleDb } from '@app/db';
 import {
-  deleteCacheEntry,
   getCacheEntryByKey,
-  listCacheEntriesByKind,
   summarizeCacheStorage,
   touchCacheEntry,
   upsertCacheEntry,
@@ -159,51 +157,6 @@ export async function getCoverCacheUsage(db: AppDrizzleDb): Promise<CoverCacheUs
     totalBytes: summary.totalBytes,
     totalCount: summary.totalCount,
   };
-}
-
-export async function evictCoverCacheToLimit(
-  db: AppDrizzleDb,
-  adapter: PlatformAdapter,
-  limitBytes: number,
-): Promise<number> {
-  const summary = await summarizeCacheStorage(db);
-  if (summary.totalBytes <= limitBytes) {
-    return 0;
-  }
-
-  let bytesToFree = summary.totalBytes - limitBytes;
-  let evicted = 0;
-  const entries = await listCacheEntriesByKind(db, COVER_CACHE_KIND);
-
-  for (const entry of entries) {
-    if (bytesToFree <= 0) {
-      break;
-    }
-
-    if (entry.metadata?.retention === 'read') {
-      continue;
-    }
-
-    if (entry.blobKey !== undefined) {
-      // react-doctor-disable-next-line react-doctor/async-await-in-loop -- eviction frees bytes in order against the blob store and the DB; running both in parallel only contends for the same write lock
-      await adapter.blobStorage.delete(entry.blobKey);
-    }
-    await deleteCacheEntry(db, entry.id);
-    bytesToFree -= entry.byteSize;
-    evicted += 1;
-  }
-
-  return evicted;
-}
-
-export async function runCoverCacheMaintenance(
-  db: AppDrizzleDb,
-  adapter: PlatformAdapter,
-  limitBytes: number,
-): Promise<{ evictedCount: number; totalBytes: number }> {
-  const evictedCount = await evictCoverCacheToLimit(db, adapter, limitBytes);
-  const usage = await getCoverCacheUsage(db);
-  return { evictedCount, totalBytes: usage.totalBytes };
 }
 
 /** Returns a local blob URL for a cover, or undefined while loading / on cache miss. Never returns remote URLs. */

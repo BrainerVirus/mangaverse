@@ -104,8 +104,8 @@ export function CachedCoverImage({
 }
 
 async function runMaintenance(context: NonNullable<ReturnType<typeof useCoverCacheContext>>) {
-  const { runCoverCacheMaintenance } = await import('../cover-cache-store.js');
-  await runCoverCacheMaintenance(context.db, context.adapter, context.cacheLimitBytes);
+  const { runCacheMaintenance } = await import('../cache-maintenance.js');
+  await runCacheMaintenance(context.db, context.adapter, context.cacheLimitBytes);
 }
 
 export function getDefaultProviderId(manga: MangaIdentity): string {

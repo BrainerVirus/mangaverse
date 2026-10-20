@@ -177,7 +177,7 @@ export function AppSettingsPage({
             onCheckedChange={(lowMemoryMode) => update({ lowMemoryMode })}
           />
           <div className="grid gap-2">
-            <Label htmlFor="image-cache-limit">Image cache limit</Label>
+            <Label htmlFor="image-cache-limit">Local cache limit</Label>
             <Input
               id="image-cache-limit"
               type="number"
@@ -195,7 +195,7 @@ export function AppSettingsPage({
               }}
             />
             <p className="text-sm text-muted-foreground">
-              Cached cover images are stored locally and reused on later visits. Limit:{' '}
+              Covers and reader pages are stored locally and reused on later visits. Limit:{' '}
               {formatCacheBytes(settings.imageCacheLimitBytes)}
               {cacheUsageBytes !== undefined
                 ? ` · Used: ${formatCacheBytes(cacheUsageBytes)}`
