@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
+import { z } from 'zod';
 import type { AppDrizzleDb } from '@app/db';
 import {
   DiscoverPage,
@@ -19,10 +20,12 @@ import {
 } from '../queries/provider-discover.js';
 import { getProviderBinding } from '../lib/provider-registry.js';
 
-type DiscoverSearch = {
-  provider?: string;
-  section?: string;
-};
+const discoverSearchSchema = z.object({
+  provider: z.string().optional().catch(undefined),
+  section: z.string().optional().catch(undefined),
+});
+
+type DiscoverSearch = z.infer<typeof discoverSearchSchema>;
 
 type ExpandedSection = { providerId: string; sectionId: string };
 
@@ -36,10 +39,8 @@ type ExpandedSectionMeta = {
 const NO_PROVIDERS: readonly DiscoverProviderFeed[] = [];
 
 export const Route = createFileRoute('/discover')({
-  validateSearch: (search: Record<string, unknown>): DiscoverSearch => ({
-    ...(typeof search.provider === 'string' ? { provider: search.provider } : {}),
-    ...(typeof search.section === 'string' ? { section: search.section } : {}),
-  }),
+  validateSearch: (search: Record<string, unknown>): DiscoverSearch =>
+    discoverSearchSchema.parse(search),
   component: DiscoverRoute,
 });
 

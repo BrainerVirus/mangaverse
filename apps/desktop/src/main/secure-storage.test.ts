@@ -57,6 +57,26 @@ describe('createSecureStorageModel', () => {
     expect(getR.ok && getR.value).toBeUndefined();
   });
 
+  it.each(['[]', 'null', '{"legacy":1}', 'not json'])(
+    'falls back to an empty store for corrupt content %j',
+    async (raw) => {
+      const safeStorage = {
+        isEncryptionAvailable: () => true,
+        encryptString: (v: string) => Buffer.from(v),
+        decryptString: (b: Buffer) => b.toString('utf8'),
+      };
+      const model = createSecureStorageModel({
+        safeStorage,
+        storePath: '/tmp/x',
+        readFile: async () => raw,
+        writeFile: async () => {},
+      });
+
+      const result = await model.get('token.auth');
+      expect(result.ok && result.value).toBeUndefined();
+    },
+  );
+
   it('rejects invalid keys', async () => {
     const safeStorage = {
       isEncryptionAvailable: () => true,

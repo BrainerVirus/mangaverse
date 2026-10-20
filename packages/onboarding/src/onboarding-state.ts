@@ -1,5 +1,6 @@
 import type { AppResult } from '@app/shared';
 import { createAppError, err, ok } from '@app/shared';
+import { z } from 'zod';
 
 import { ONBOARDING_STEP_IDS } from './constants.js';
 import type { OnboardingState, OnboardingStatus, OnboardingStepId } from './types.js';
@@ -12,8 +13,10 @@ const STATUS_SET = new Set<OnboardingStatus>([
   'skipped',
 ]);
 
+const ISO_TIMESTAMP = z.iso.datetime();
+
 function isIsoTimestamp(value: string): boolean {
-  return Number.isFinite(Date.parse(value));
+  return ISO_TIMESTAMP.safeParse(value).success;
 }
 
 export function getDefaultOnboardingState(): OnboardingState {
