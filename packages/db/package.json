@@ -25,7 +25,8 @@
     },
     "./migrations/0000_initial.sql": "./migrations/0000_initial.sql",
     "./migrations/0001_cache_asset_metadata.sql": "./migrations/0001_cache_asset_metadata.sql",
-    "./migrations/meta/_journal.json": "./migrations/meta/_journal.json"
+    "./migrations/meta/_journal.json": "./migrations/meta/_journal.json",
+    "./migrations/0002_themes.sql": "./migrations/0002_themes.sql"
   },
   "scripts": {
     "clean": "rm -rf dist",

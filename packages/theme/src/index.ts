@@ -1,8 +1,36 @@
-export { applyThemeToRoot, buildThemeCssVariables, clearAppliedTheme } from './apply-theme.js';
+export {
+  applyThemeToRoot,
+  buildThemeCssVariables,
+  clearAppliedTheme,
+  resolveThemeDefinitionForSettings,
+} from './apply-theme.js';
+export {
+  BUILT_IN_THEME_DEFINITIONS,
+  getBuiltInThemeDefinition,
+  isBuiltInThemeId,
+  presetToThemeDefinition,
+} from './built-in-themes.js';
+export {
+  contrastRatio,
+  deltaE,
+  formatOklch,
+  isCssColor,
+  isInSrgbGamut,
+  mapToSrgbGamut,
+  mixCssColors,
+  normalizeCssColor,
+  parseCssColor,
+  parseThemeColor,
+} from './color.js';
 export {
   ThemeCustomizationPage,
   type ThemeCustomizationPageProps,
 } from './components/ThemeCustomizationPage.js';
+export {
+  applyThemeOverrides,
+  buildThemeCssVariablesForDefinition,
+  deriveThemeVariables,
+} from './derive.js';
 export { fetchThemeSettings, fetchThemeSettingsWithDefaults } from './fetch-theme-settings.js';
 export { toThemePreviewDefinition, toThemePreviewDefinitionForPreset } from './preview.js';
 export {
@@ -20,13 +48,34 @@ export {
   resolveEffectiveDark,
   resolveThemeAppearance,
   resolveThemeTokens,
-  type ThemeAppearance,
 } from './resolve-theme.js';
 export { saveThemeSettings } from './save-theme-settings.js';
+export {
+  normalizeThemeDefinition,
+  parseThemeDefinition,
+  themeDefinitionSchema,
+  validateThemeDefinition,
+  type ThemeDefinitionValidation,
+} from './theme-definition.js';
+export {
+  deleteThemeDefinition,
+  fetchThemeDefinition,
+  fetchThemeDefinitions,
+  saveThemeDefinition,
+} from './themes.js';
+export {
+  THEME_CSS_VARIABLES,
+  type ThemeAppearance,
+  type ThemeCssVariable,
+  type ThemeCssVariables,
+} from './tokens.js';
 export type { ThemeSettings, ThemeSettingsPageData } from './types.js';
 export {
+  createCustomThemeId,
+  CUSTOM_THEME_ID_PREFIX,
   DEFAULT_THEME_SETTINGS,
   getDefaultThemeSettings,
+  isCustomThemeId,
   validateThemeSettings,
 } from './validate-theme-settings.js';
 

@@ -202,7 +202,7 @@ function ThemeStep({
       <div className="grid gap-4 sm:grid-cols-2" aria-label="Theme presets">
         {ONBOARDING_THEME_PRESET_IDS.map((presetId) => {
           const preset = getThemePreset(presetId);
-          const selected = settings.presetId === presetId;
+          const selected = settings.themeId === presetId;
           const preview = toThemePreviewDefinitionForPreset(presetId, previewDark);
 
           return (
@@ -212,7 +212,7 @@ function ThemeStep({
               disabled={disabled}
               aria-pressed={selected}
               aria-label={`Select ${preset.name} theme`}
-              onClick={() => onChange({ ...settings, presetId })}
+              onClick={() => onChange({ ...settings, themeId: presetId })}
               className="flex flex-col items-start gap-2 rounded-box border border-transparent p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
             >
               <div

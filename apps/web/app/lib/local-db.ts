@@ -13,6 +13,8 @@ const INITIAL_MIGRATION_HASH = '975ad6e194cffda2f81ec7effd5535768834630dc7df0145
 const CACHE_ASSET_MIGRATION_HASH =
   'be8c129e37327e353096a7daf815a2963471cbc0429ca76b2b5a2129251fd175';
 
+const THEMES_MIGRATION_HASH = 'b82ae03e19ad700a913d2407db98b5c89dbe24913d764eaa01b116b930f4fdd5';
+
 type InitSqlJs = (config?: { locateFile?: (file: string) => string }) => Promise<SqlJsStatic>;
 
 export type SqlJsDynamicModule = {
@@ -82,6 +84,7 @@ export function getLocalDbSession(): Promise<PersistentDatabase> {
           { openPersistentDatabase },
           { default: initialMigrationSql },
           { default: cacheAssetMigrationSql },
+          { default: themesMigrationSql },
           { default: migrationJournal },
           { createIndexedDbPersistedBytesStore },
         ] = await Promise.all([
@@ -90,6 +93,7 @@ export function getLocalDbSession(): Promise<PersistentDatabase> {
           import('@app/db/browser'),
           import('@app/db/migrations/0000_initial.sql?raw'),
           import('@app/db/migrations/0001_cache_asset_metadata.sql?raw'),
+          import('@app/db/migrations/0002_themes.sql?raw'),
           import('@app/db/migrations/meta/_journal.json'),
           import('./persisted-bytes-idb.js'),
         ]);
@@ -122,6 +126,11 @@ export function getLocalDbSession(): Promise<PersistentDatabase> {
                 tag: '0001_cache_asset_metadata',
                 sql: cacheAssetMigrationSql,
                 hash: CACHE_ASSET_MIGRATION_HASH,
+              },
+              {
+                tag: '0002_themes',
+                sql: themesMigrationSql,
+                hash: THEMES_MIGRATION_HASH,
               },
             ],
           },

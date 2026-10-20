@@ -23,6 +23,8 @@ import {
   exportBackupDocumentV1,
   getMangaIdentity,
   getReaderSettings,
+  getThemeDefinition,
+  getThemeSettings,
   listLibraryEntries,
   listRecentReadingHistory,
   previewBackupRestore,
@@ -32,11 +34,13 @@ import {
   upsertChapterReadState,
   upsertChapterWithPages,
   upsertInstalledExtension,
+  upsertThemeDefinition,
+  upsertThemeSettings,
   withTransaction,
 } from './index.js';
 import { migrateDatabaseToLatest } from './node.js';
 import { createSqlJsHarness } from './testing/sqljs-harness.js';
-import { libraryEntries, readerPreferences } from './schema.js';
+import { libraryEntries, readerPreferences, themePreferences } from './schema.js';
 
 describe('@app/db', () => {
   it('exports PACKAGE_NAME', () => {
@@ -499,5 +503,99 @@ describe('@app/db', () => {
     expect(await clearSearchHistory(db)).toBe(1);
     expect((await summarizeCacheStorage(db)).totalCount).toBe(0);
     expect(await countSearchHistory(db)).toBe(0);
+  });
+});
+
+const CUSTOM_THEME = {
+  schemaVersion: 1 as const,
+  id: 'custom-integration',
+  name: 'Integration Custom',
+  basedOn: 'sakura',
+  light: {
+    seeds: {
+      background: 'oklch(0.98 0.01 350)',
+      foreground: '#4a2c36',
+      accent: '#ffd6e3',
+      primary: '#d4577a',
+      surface: '#fff0f4',
+      border: '#f5ccd8',
+      readerBackground: '#fff7f9',
+      destructive: '#dc2626',
+      success: '#16a34a',
+      warning: '#d97706',
+    },
+    overrides: { '--ring': '#d4577a' },
+  },
+  dark: {
+    seeds: {
+      background: '#1a1014',
+      foreground: '#fce7ef',
+      accent: '#3d2430',
+      primary: '#f472b6',
+      surface: '#261820',
+      border: '#4a2c36',
+      readerBackground: '#140c10',
+      destructive: '#f87171',
+      success: '#4ade80',
+      warning: '#fbbf24',
+    },
+  },
+};
+
+describe('theme settings and custom theme storage', () => {
+  it('maps a legacy preset_id row to themeId without rewriting it', async () => {
+    const { db, raw } = await createSqlJsHarness();
+    await db.insert(themePreferences).values({ id: 'global', presetId: 'sakura', dark: true });
+
+    expect(await getThemeSettings(db)).toEqual({ themeId: 'sakura', dark: true });
+
+    const stored = raw.exec('SELECT preset_id FROM theme_preferences')[0]?.values[0]?.[0];
+    expect(stored).toBe('sakura');
+  });
+
+  it('round-trips a custom theme through export and restore', async () => {
+    const { db: sourceDb } = await createSqlJsHarness();
+    const saved = await upsertThemeDefinition(sourceDb, CUSTOM_THEME);
+    expect(saved.ok).toBe(true);
+    await upsertThemeSettings(sourceDb, { themeId: CUSTOM_THEME.id, dark: true });
+
+    const doc = await exportBackupDocumentV1(sourceDb, {
+      createdAt: new Date().toISOString(),
+      appVersion: '0.0.0-test',
+    });
+    expect(doc.themes).toHaveLength(1);
+    expect(doc.themes[0]?.id).toBe(CUSTOM_THEME.id);
+    expect(doc.themeSettings).toEqual({ themeId: CUSTOM_THEME.id, dark: true });
+    expect(validateBackupDocument(doc).ok).toBe(true);
+
+    const { db: targetDb } = await createSqlJsHarness();
+    const restored = await applyBackupRestore(targetDb, doc);
+    expect(restored.ok).toBe(true);
+    expect(await getThemeDefinition(targetDb, CUSTOM_THEME.id)).toEqual(CUSTOM_THEME);
+    expect(await getThemeSettings(targetDb)).toEqual({ themeId: CUSTOM_THEME.id, dark: true });
+  });
+
+  it('accepts a legacy backup presetId and restores it as themeId', async () => {
+    const { db } = await createSqlJsHarness();
+    const doc = {
+      schemaVersion: BACKUP_SCHEMA_VERSION,
+      metadata: { createdAt: new Date().toISOString(), appVersion: 't' },
+      library: [],
+      mangaIdentities: [],
+      installedExtensions: [],
+      readerSettings: getDefaultReaderSettings(),
+      providerSettings: { providerSnapshots: [] },
+      themeSettings: { presetId: 'high-contrast', dark: true },
+    };
+
+    const parsed = validateBackupDocument(doc);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.themeSettings).toEqual({ themeId: 'high-contrast', dark: true });
+    expect(parsed.value.themes).toEqual([]);
+
+    const result = await applyBackupRestore(db, doc);
+    expect(result.ok).toBe(true);
+    expect(await getThemeSettings(db)).toEqual({ themeId: 'high-contrast', dark: true });
   });
 });

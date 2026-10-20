@@ -18,6 +18,7 @@ export * from './repositories/chapters.js';
 export * from './repositories/read-state.js';
 export * from './repositories/progress-ordering.js';
 export * from './repositories/settings.js';
+export * from './repositories/themes.js';
 export * from './repositories/extensions.js';
 export * from './repositories/search-history.js';
 export * from './repositories/migration-history.js';

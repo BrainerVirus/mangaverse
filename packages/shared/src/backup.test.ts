@@ -124,3 +124,78 @@ describe('backup document', () => {
     expect(res.issues.length).toBe(2);
   });
 });
+
+const customTheme = {
+  schemaVersion: 1 as const,
+  id: 'custom-backup',
+  name: 'Backup Custom',
+  basedOn: 'default',
+  light: {
+    seeds: {
+      background: '#fafafa',
+      foreground: '#1a1a1a',
+      accent: '#f4f4f5',
+      primary: '#18181b',
+      surface: '#ffffff',
+      border: '#e4e4e7',
+      readerBackground: '#fafafa',
+      destructive: '#ef4444',
+      success: '#22c55e',
+      warning: '#f59e0b',
+    },
+  },
+  dark: {
+    seeds: {
+      background: '#09090b',
+      foreground: '#fafafa',
+      accent: '#27272a',
+      primary: '#fafafa',
+      surface: '#18181b',
+      border: '#27272a',
+      readerBackground: '#09090b',
+      destructive: '#ef4444',
+      success: '#22c55e',
+      warning: '#f59e0b',
+    },
+  },
+};
+
+describe('theme document migration', () => {
+  it('maps legacy presetId to themeId and defaults themes to empty', () => {
+    const res = validateBackupDocument(minimalValidBackup);
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.value.themeSettings).toEqual({ themeId: 'default', dark: false });
+    expect(res.value.themes).toEqual([]);
+  });
+
+  it('keeps a custom theme definition in the validated document', () => {
+    const res = validateBackupDocument({ ...minimalValidBackup, themes: [customTheme] });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.value.themes[0]?.id).toBe('custom-backup');
+  });
+
+  it('reports the theme field path for an invalid seed', () => {
+    const res = validateBackupDocument({
+      ...minimalValidBackup,
+      themes: [
+        {
+          ...customTheme,
+          light: { ...customTheme.light, seeds: { ...customTheme.light.seeds, accent: '' } },
+        },
+      ],
+    });
+    expect(res.ok).toBe(false);
+    expect(res.issues.some((issue) => issue.path === 'themes.0.light.seeds.accent')).toBe(true);
+  });
+
+  it('rejects duplicate custom theme ids', () => {
+    const res = validateBackupDocument({
+      ...minimalValidBackup,
+      themes: [customTheme, customTheme],
+    });
+    expect(res.ok).toBe(false);
+    expect(res.issues.some((issue) => issue.path === 'themes.1.id')).toBe(true);
+  });
+});
