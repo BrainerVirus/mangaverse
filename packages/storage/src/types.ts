@@ -19,4 +19,6 @@ export type StorageClearTarget = 'provider_cache' | 'search_history';
 export interface ClearStorageResult {
   readonly target: StorageClearTarget;
   readonly clearedCount: number;
+  /** Entries kept because their blob could not be deleted; a retry clears them. */
+  readonly failedCount: number;
 }

@@ -86,9 +86,9 @@ function ActionStatus({
 
 const CLEAR_COPY: Record<StorageClearTarget, { label: string; description: string }> = {
   provider_cache: {
-    label: 'Clear provider cache metadata',
+    label: 'Clear provider cache',
     description:
-      'Removes cached chapter metadata tracked in your local database. Your library, reading progress, and installed providers are kept.',
+      'Removes cached chapter metadata and cached image data from local storage. Your library, reading progress, and installed providers are kept.',
   },
   search_history: {
     label: 'Clear search history',
@@ -230,7 +230,7 @@ export function StoragePage({
       </SettingsSection>
 
       <SettingsSection
-        title="Provider cache metadata"
+        title="Provider cache"
         description="Local records of cached chapters and images. Clearing this does not remove library entries."
       >
         <dl className="divide-y divide-border">
