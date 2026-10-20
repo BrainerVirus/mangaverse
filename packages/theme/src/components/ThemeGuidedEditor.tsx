@@ -1,13 +1,5 @@
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-  Button,
-  Label,
-  SettingsSection,
-  Slider,
-} from '@app/design-system';
-import type { ReactElement } from 'react';
+import { Alert, AlertDescription, AlertTitle, Button, Label, Slider } from '@app/design-system';
+import type { ReactElement, ReactNode } from 'react';
 import type { ThemeDefinition, ThemeSeedTokenName } from '@app/shared';
 
 import type { ThemeAppearance } from '../tokens.js';
@@ -28,6 +20,25 @@ import {
   type GuidedContrastPair,
   type GuidedSeedField,
 } from './theme-guided.js';
+
+interface GuidedSectionProps {
+  readonly title: string;
+  readonly description: string;
+  readonly children: ReactNode;
+}
+
+/** Flat grouping: the editor shell bans cards, so a section is a heading and spacing. */
+function GuidedSection({ title, description, children }: GuidedSectionProps) {
+  return (
+    <section className="space-y-3">
+      <div className="space-y-1">
+        <h3 className="text-base font-semibold text-foreground">{title}</h3>
+        <p className="type-body text-muted-foreground">{description}</p>
+      </div>
+      {children}
+    </section>
+  );
+}
 
 // The view fragments below are plain render helpers, not components: they hold no
 // state, so calling them keeps the panel hook-free and every control inspectable.
@@ -100,7 +111,7 @@ function seedControl({ seed, field, value, appearance, disabled, onChange }: See
   if (oklch === undefined) {
     return null;
   }
-  const base = `guided-${appearance}-${seed}`;
+  const base = `guided-${appearance}-seed-${seed}`;
 
   return (
     <div
@@ -245,8 +256,8 @@ export function GuidedAppearancePanel({
     onChange(setSeedChannel(draft, appearance, seed, patch));
 
   return (
-    <div className="space-y-4">
-      <SettingsSection
+    <div className="space-y-6">
+      <GuidedSection
         title="Seeds"
         description="Every other token is derived from these ten colors. The preview above updates as you drag."
       >
@@ -262,9 +273,9 @@ export function GuidedAppearancePanel({
             }),
           )}
         </div>
-      </SettingsSection>
+      </GuidedSection>
 
-      <SettingsSection
+      <GuidedSection
         title="Accent and surfaces"
         description="Plain-language feel controls that move the accent and surface seeds."
       >
@@ -306,9 +317,9 @@ export function GuidedAppearancePanel({
             onChange: (value) => onChange(withSurfaceWarmth(draft, appearance, value)),
           })}
         </div>
-      </SettingsSection>
+      </GuidedSection>
 
-      <SettingsSection
+      <GuidedSection
         title="Contrast"
         description="WCAG 2.1 ratios for the text and glass pairs this theme paints."
       >
@@ -345,7 +356,7 @@ export function GuidedAppearancePanel({
             {pairs.map((pair) => contrastMeter({ pair, draft, appearance, disabled, onChange }))}
           </ul>
         </div>
-      </SettingsSection>
+      </GuidedSection>
     </div>
   );
 }

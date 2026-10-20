@@ -159,6 +159,30 @@ describe('GuidedAppearancePanel seed controls', () => {
     }
   });
 
+  it('gives every control one unique id that its label targets', () => {
+    const draft = definition();
+    const onChange = vi.fn<() => void>();
+    const elements = [
+      ...collectElements(ThemeGuidedEditor({ draft, onChange })),
+      ...collectElements(GuidedAppearancePanel({ draft, appearance: 'light', onChange })),
+      ...collectElements(GuidedAppearancePanel({ draft, appearance: 'dark', onChange })),
+    ];
+    const ids = elements
+      .map((element) => propsOf(element)['id'])
+      .filter((id): id is string => typeof id === 'string');
+
+    expect(ids.length).toBeGreaterThan(0);
+    expect(new Set(ids).size).toBe(ids.length);
+
+    const labels = elements.filter((element) => element.type === Label);
+    expect(labels.length).toBeGreaterThan(0);
+    for (const label of labels) {
+      const target = propsOf(label)['htmlFor'];
+      expect(typeof target).toBe('string');
+      expect(ids.filter((id) => id === target)).toHaveLength(1);
+    }
+  });
+
   it('moves accent hue and chroma and the surface warmth', () => {
     const onChange = vi.fn<(next: ThemeDefinition) => void>();
     const elements = collectElements(

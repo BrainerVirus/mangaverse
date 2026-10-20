@@ -38,7 +38,7 @@ function definition(
 function seedOklch(source: ThemeDefinition, appearance: 'light' | 'dark', seed: keyof ThemeSeeds) {
   const oklch = readGuidedOklch(source[appearance].seeds[seed]);
   if (oklch === undefined) {
-    throw new Error(`Unparseable ${seed} seed`);
+    throw new Error(`Unparseable ${String(seed)} seed`);
   }
   return oklch;
 }
