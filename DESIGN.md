@@ -198,7 +198,7 @@ The layered recipe (landed in P1 as the `RefractionLayer` primitive, `aria-hidde
    `rgb(255 255 255 / .08)`, stage `rgb(255 255 255 / .14)`. A 1px border that replaces `--border` on
    glass; a warm sandstone line over an unknown backdrop would read as a seam, not an edge.
 
-The SVG variant (proposed `RefractionLayer variant="displacement"`) is allowed on exactly two surfaces:
+The SVG variant (`RefractionLayer variant="displacement"`, shipped on the onboarding hero) is allowed on exactly two surfaces:
 the chapter-transition card and the onboarding hero. It must be off under reduced motion, reduced
 transparency and the low-end profile (§2.5), and must never sit over a scrolling page surface.
 **Shipped (#95):** the onboarding hero opts in; the chapter-transition card does not exist yet, so the
@@ -679,8 +679,8 @@ rail is hidden below `md` with a hover-expand and the bottom bar is the only sub
   rule that makes it pass; status is never colour-only.
 - **Focus visibility:** always visible, never animated, never clipped by sticky chrome, ring contrast
   ≥ 3:1 against the surface it sits on (the P1 `--ring` fix, §3.3).
-- **Reduced motion / transparency:** both are honoured from the OS _and_ overridable in-app (§5.5);
-  neither may hide state.
+- **Reduced motion / transparency:** both are honoured from the OS and the in-app setting; reduced wins
+  if **either** source asks for it, and Full cannot undo an OS reduction (§5.5). Neither may hide state.
 - **Semantics:** the reader chrome is a labelled `toolbar` with labelled buttons; the progress rail is a
   slider with `aria-valuetext`; the tap surface exposes no phantom controls to assistive tech; refraction,
   sheen and ambient layers are `aria-hidden` and non-interactive; sheets and dialogs trap focus, have
@@ -704,8 +704,8 @@ icon above the label.
 
 | Primitive         | API (shipped)                                                                                                                                         | Purpose                                                                                                                                                             |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GlassSurface`    | `level: 'thin' \| 'regular' \| 'thick' \| 'stage'`, `tone: 'default' \| 'raised' \| 'reader'`, `elevation?: 0–4`, `edge?: boolean`, `plate?: boolean` | The single source of the glass-tier material: fill, `backdrop-filter`, edge, specular, inner shadow, elevation. Modal scrims use the separate `glass-scrim` utility |
-| `RefractionLayer` | `variant: 'sheen'`, `edge?: boolean`, `aria-hidden` by default                                                                                        | The decorative light layer from §2.2. Displacement is opt-in and not shipped in P1                                                                                  |
+| `GlassSurface`    | `level: 'thin' \| 'regular' \| 'thick' \| 'stage'`, `tone: 'default' \| 'raised' \| 'reader'`, `elevation?: 0–4`, `edge?: boolean`, `plate?: boolean`, `refraction?: 'sheen' \| 'displacement'` | The single source of the glass-tier material: fill, `backdrop-filter`, edge, specular, inner shadow, elevation. Modal scrims use the separate `glass-scrim` utility |
+| `RefractionLayer` | `variant: 'sheen' \| 'displacement'`, `filterId?`, `edge?: boolean`, `aria-hidden` by default                                                          | The decorative light layer from §2.2. Displacement is opt-in and applied by the owning `GlassSurface` (shipped #95); a standalone layer falls back to sheen          |
 | `GlassPanel`      | `GlassSurface` + `padding: 'none' \| 'sm' \| 'md' \| 'lg'`                                                                                            | The replacement for the `.surface-panel` utility in shell and feature code                                                                                          |
 | `AmbientBackdrop` | none (fixed, decorative)                                                                                                                              | The §2.3 band, rendered once by the app shell                                                                                                                       |
 
@@ -966,14 +966,19 @@ Honest accounting. Nothing below is aspirational; §13 is where the gap closes.
 
 **Not built yet (the rest of §13)**
 
-- The glass `cva` variants on the existing components and the `.surface-panel` deprecation (P5).
-- The displacement-refraction opt-in (P1 ships the layered recipe only).
-- The `data-glass` / `data-transparency` attributes applied by the shell, the in-app Motion and
-  Transparency settings, and the `prefers-contrast` handling (P4/P5).
-- `--glass-muted-foreground` and the glass status colours are tokens; **no consumer uses them yet**.
-- `--radius-glass` is used by `GlassSurface`; the `type-*` utilities, the 11px glass micro-label,
-  `EASE.liquidSettle` / `glide` (`--ease-liquid`, `--ease-glide`) and the `pressFeedback()` helper (P3).
-- The drag-to-dismiss and long-press gestures, and the design-system page (P7).
+- The remaining P5 surfaces: card, popover, tooltip, input, tabs and select glass variants, preset tint
+  support, rendered contrast-pair coverage, and the `.surface-panel` caller migration.
+- The `prefers-contrast` handling (proposed).
+- The liquid-motion remainder: `EASE.liquidSettle` / `glide` (`--ease-liquid`, `--ease-glide`) and the
+  `pressFeedback()` helper (P3).
+- The drag-to-dismiss and long-press gestures.
+- The P6 states/browsing slice (glass empty/loading/error states, grid chips/plates, stagger reveal).
+- The P7 remainder: colour-role contrast pairs, radius/elevation ladders, and do/don't pairs.
+
+Shipped since: the glass `cva`-style level/elevation resolvers and the scrim (#105); the displacement
+opt-in on the onboarding hero (#109); the root `data-glass` / `data-transparency` attributes and the
+in-app Motion/Transparency settings (#104); `--glass-muted-foreground` and the glass status colours with
+consumers (#103); the `type-*` utilities (#103); and the `/design-system` page (#107).
 
 ## 12. Known Gaps & Open Questions
 
@@ -1039,8 +1044,8 @@ Desktop rail, mobile bottom bar, sticky page header, command palette and the amb
 interaction tests for the rail and bottom bar, an overflow check at 375px and 1280px, and a
 reduced-transparency pass.
 **Status:** the attribute/settings half landed (#104): root `data-glass`/`data-transparency`, in-app
-Motion/Transparency, OS media tracking, and the OR motion semantics. The glass rail/bottom bar landed
-with P5 (#105); the sticky page header remains deferred.
+Motion/Transparency, OS media tracking, and the OR motion semantics. The command palette and mobile
+bottom bar landed with P5 (#105); the desktop rail and the sticky page header remain deferred.
 
 **P5 — Surfaces and controls** (`packages/design-system`) — **landed for #94 scope.**
 Shipped: glass level/elevation variant functions with class-equivalence coverage; dialog, default sheet,

@@ -638,11 +638,11 @@ Both tools are green at the current head; do not raise thresholds to make a run 
 
 ## P3/P4/P6/P7 status (2026-10-20)
 
-- **P3 liquid motion** — no dedicated slice landed; the shipped easing/press helpers came
-  from P1/P2. Remaining work is open.
+- **P3 liquid motion** — no dedicated slice landed. P1/P2 shipped the route/chrome motion and
+  easing register; `pressFeedback()` and the liquid `liquidSettle`/`glide` curves remain open.
 - **P4 shell** — root `data-glass`/`data-transparency`, in-app Motion/Transparency and OS
-  tracking landed in #104; rail/bottom-bar glass landed in #105; the sticky page header
-  remains deferred.
+  tracking landed in #104; the command palette and mobile bottom bar landed in #105; the
+  desktop rail and sticky page header remain deferred.
 - **P6 (roadmap: states/browsing surfaces)** — not shipped. Issue #95 was labeled P6 but
   delivered the §2.2/§2.3 displacement/ambient work (#109); the states slice remains open.
 - **P7** — `/design-system` shipped in #107 with all tiers, ten type roles and component

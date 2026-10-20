@@ -369,7 +369,8 @@ The easing presets are defined in `packages/motion/src/tokens/easing.ts` and doc
 
 - Respect system `prefers-reduced-motion`.
 - Ship the user-facing Motion (Full / Reduced) and Transparency (Full / Reduced) settings described in
-  `DESIGN.md` §5.5; both override the OS query in either direction and neither may hide state.
+  `DESIGN.md` §5.5. Reduced wins if **either** the OS query or the in-app setting asks for it; Full
+  cannot undo an OS reduction, and neither may hide state.
 - Reduced motion should keep instant state changes and no parallax, scrub, or looping motion.
 - Reduced transparency resolves every glass tier to its opaque token and turns the ambient band off.
 - ScrollTrigger experiences should be disabled or replaced with static layouts.
