@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { lazy, Suspense, useState, type CSSProperties } from 'react';
 import {
   Alert,
   AlertDescription,
@@ -15,8 +15,12 @@ import type { ThemeDefinition, ThemeDefinitionIssue } from '@app/shared';
 
 import { buildThemeCssVariables } from '../apply-theme.js';
 import { ConfirmDeleteThemeDialog } from './ConfirmDeleteThemeDialog.js';
-import { ThemeAdvancedEditor } from './ThemeAdvancedEditor.js';
 import { ThemeGuidedEditor } from './ThemeGuidedEditor.js';
+
+// The advanced panel carries CodeMirror; keep it out of the eager theme bundle.
+const ThemeAdvancedEditor = lazy(() =>
+  import('./ThemeAdvancedEditor.js').then((module) => ({ default: module.ThemeAdvancedEditor })),
+);
 
 type ThemeVariableStyle = CSSProperties & Record<`--${string}`, string>;
 
@@ -240,11 +244,15 @@ export function ThemeEditorPage({
           <ThemeGuidedEditor draft={draft} onChange={onChange} disabled={isSaving || isDeleting} />
         </TabsContent>
         <TabsContent value="advanced">
-          <ThemeAdvancedEditor
-            draft={draft}
-            onChange={onChange}
-            disabled={isSaving || isDeleting}
-          />
+          <Suspense
+            fallback={<p className="type-body text-muted-foreground">Loading advanced editor…</p>}
+          >
+            <ThemeAdvancedEditor
+              draft={draft}
+              onChange={onChange}
+              disabled={isSaving || isDeleting}
+            />
+          </Suspense>
         </TabsContent>
       </Tabs>
 
