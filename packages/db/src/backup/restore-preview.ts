@@ -1,7 +1,7 @@
 import type { BackupValidationIssue } from '@app/shared';
 import { validateBackupDocument, toMangaId } from '@app/shared';
 import type { AppDrizzleDb } from '../adapter.js';
-import { libraryEntries, mangaIdentities, mangaProviderMappings } from '../schema.js';
+import { libraryEntries, mangaIdentities, mangaProviderMappings, themes } from '../schema.js';
 import { listInstalledExtensions } from '../repositories/extensions.js';
 import { getMangaIdentity } from '../repositories/identities.js';
 
@@ -160,6 +160,18 @@ export async function previewBackupRestore(
         details: { mangaId },
       });
     }
+  }
+
+  // Restore replaces the whole themes table, so a backup without custom themes
+  // (v1, or v2 exported with none) deletes every local custom theme.
+  const localThemeCount = db.select({ id: themes.id }).from(themes).all().length;
+  if (doc.themes.length === 0 && localThemeCount > 0) {
+    add(previewIssues, {
+      code: 'restore.destructive.themes_removed',
+      message: 'Restoring this backup would remove every local custom theme.',
+      severity: 'info',
+      details: { count: localThemeCount },
+    });
   }
 
   const currentInstalled = await listInstalledExtensions(db);
