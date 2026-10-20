@@ -35,9 +35,6 @@ importers:
       shadcn:
         specifier: ^4.22.0
         version: 4.22.0
-      tsc-alias:
-        specifier: ^1.9.7
-        version: 1.9.7
       turbo:
         specifier: ^2.11.7
         version: 2.11.7
@@ -380,6 +377,9 @@ importers:
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3
+      tsc-alias:
+        specifier: ^1.9.7
+        version: 1.9.7
       tw-animate-css:
         specifier: ^1.4.0
         version: 1.4.0
