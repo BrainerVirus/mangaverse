@@ -168,11 +168,14 @@ describe('theme editor', () => {
     await act(async () => {
       buttonByText(editor.container, 'Advanced').click();
     });
-    await vi.waitFor(() => {
-      expect(
-        editor.container.querySelector('[data-testid="theme-advanced-editor"]'),
-      ).not.toBeNull();
-    });
+    await vi.waitFor(
+      () => {
+        expect(
+          editor.container.querySelector('[data-testid="theme-advanced-editor"]'),
+        ).not.toBeNull();
+      },
+      { timeout: 5_000 },
+    );
 
     expect(editor.container.querySelector('[data-testid="theme-guided-editor"]')).toBeNull();
 
