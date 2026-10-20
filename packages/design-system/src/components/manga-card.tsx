@@ -30,7 +30,7 @@ function CardCover({ manga, variant, coverSlot }: CoverProps) {
     return (
       <div
         className={cn(
-          'overflow-hidden rounded-[var(--radius-control)] bg-muted',
+          'overflow-hidden rounded-control bg-muted',
           isGrid ? 'min-h-0 w-full flex-1' : 'h-20 w-14 shrink-0',
           isCompact && 'h-16 w-12',
         )}
@@ -47,9 +47,7 @@ function CardCover({ manga, variant, coverSlot }: CoverProps) {
   }
 
   if (isGrid) {
-    return (
-      <div className="min-h-0 w-full flex-1 rounded-[var(--radius-control)] bg-muted" aria-hidden />
-    );
+    return <div className="min-h-0 w-full flex-1 rounded-control bg-muted" aria-hidden />;
   }
 
   return null;
@@ -113,7 +111,7 @@ function ContentRatingBadge({ manga, variant }: MetaProps) {
       className={cn(
         'absolute',
         variant === 'grid' ? 'top-2 right-2' : 'top-1 right-1',
-        variant === 'compact' && '!text-[8px]',
+        variant === 'compact' && '!type-rating-compact',
       )}
     >
       {contentRating}
@@ -167,11 +165,11 @@ export function MangaCard({ manga, onClick, variant = 'grid', coverSlot }: Manga
           }
         }}
         className={cn(
-          'group relative cursor-pointer overflow-hidden rounded-[var(--radius-box)] border border-[var(--border)] bg-card transition-all',
+          'group relative cursor-pointer overflow-hidden rounded-box border border-border bg-card transition-all',
           'hover:border-accent hover:shadow-md',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           {
-            'relative flex flex-col aspect-[3/4]': variant === 'grid',
+            'relative flex flex-col aspect-3/4': variant === 'grid',
             'flex gap-4 p-3': variant === 'list',
             'flex-row gap-3 p-2': variant === 'compact',
           },

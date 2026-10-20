@@ -145,9 +145,10 @@ describe('ReaderChrome', () => {
   it('fills the rail proportionally to the current page', () => {
     render(<ReaderChrome visible={true} currentPage={5} totalPages={10} />);
 
-    expect(screen.getByTestId('reader-rail-fill').style.transform).toBe(
-      'scaleX(0.4444444444444444)',
-    );
+    expect(screen.getByTestId('reader-rail-fill')).toHaveClass('reader-progress-fill');
+    expect(
+      screen.getByTestId('reader-rail-fill').style.getPropertyValue('--reader-progress-scale'),
+    ).toBe('0.4444444444444444');
   });
 
   it('uses one stage surface with a plate under each control row and a thin mode pill', () => {

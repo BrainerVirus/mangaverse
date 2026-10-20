@@ -29,7 +29,7 @@ export function SettingsSection({
           onClick={() => setIsOpen(!isOpen)}
           className={cn(
             'flex w-full items-center justify-between text-left',
-            'rounded-[var(--radius-control)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]',
+            'rounded-control focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           )}
           aria-expanded={isOpen}
         >

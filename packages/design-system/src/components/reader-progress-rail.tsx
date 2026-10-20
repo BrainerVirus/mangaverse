@@ -3,6 +3,10 @@ import { DURATION, CSS_EASING } from '@app/motion';
 import { cn } from '../lib/cn.js';
 import { GlassSurface } from './glass-surface.js';
 
+type ReaderProgressStyle = React.CSSProperties & {
+  [variable: `--${string}`]: string | number | undefined;
+};
+
 export interface ReaderProgressRailProps {
   readonly value: number;
   readonly min: number;
@@ -120,11 +124,9 @@ export function ReaderProgressRail({
     <div className={cn('relative flex-1 py-3', className)}>
       {showPreview ? (
         <div
-          className="pointer-events-none absolute bottom-full z-10 -translate-x-1/2"
-          style={{
-            left: `${hoverX}px`,
-            transform: 'translateX(-50%)',
-          }}
+          className="reader-progress-preview pointer-events-none absolute bottom-full z-10 -translate-x-1/2"
+          // The preview follows the measured pointer position, which no static class can carry.
+          style={{ '--reader-progress-x': `${hoverX}px` } as ReaderProgressStyle}
           data-testid="reader-rail-preview"
         >
           <GlassSurface
@@ -161,20 +163,25 @@ export function ReaderProgressRail({
         onKeyDown={handleKeyDown}
       >
         <div
-          className="absolute inset-y-0 left-0 rounded-full bg-white"
-          style={{
-            width: '100%',
-            transform: `scaleX(${percent / 100})`,
-            transformOrigin: 'left center',
-            transition,
-          }}
+          className="reader-progress-fill absolute inset-y-0 left-0 w-full rounded-full bg-white"
+          // Progress and reduced-motion transition are computed from reader state.
+          style={
+            {
+              '--reader-progress-scale': percent / 100,
+              '--reader-progress-transition': transition,
+            } as ReaderProgressStyle
+          }
           data-testid="reader-rail-fill"
         />
         <div
-          className="absolute top-1/2 h-4 w-4 rounded-full bg-white shadow"
-          // A percentage translate resolves against the thumb's own 16px box, so
-          // the position must come from `left`; translate only centers it.
-          style={{ left: `${percent}%`, transform: 'translate(-50%, -50%)', transition }}
+          className="reader-progress-thumb absolute top-1/2 h-4 w-4 rounded-full bg-white shadow"
+          // The thumb position and reduced-motion transition are computed from reader state.
+          style={
+            {
+              '--reader-progress-position': `${percent}%`,
+              '--reader-progress-transition': transition,
+            } as ReaderProgressStyle
+          }
           data-testid="reader-rail-thumb"
         />
       </div>

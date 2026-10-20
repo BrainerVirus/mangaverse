@@ -29,9 +29,10 @@ describe('ReaderProgressRail', () => {
     render(
       <ReaderProgressRail value={5} min={1} max={10} onChange={vi.fn<(value: number) => void>()} />,
     );
-    expect(screen.getByTestId('reader-rail-fill').style.transform).toBe(
-      'scaleX(0.4444444444444444)',
-    );
+    expect(screen.getByTestId('reader-rail-fill')).toHaveClass('reader-progress-fill');
+    expect(
+      screen.getByTestId('reader-rail-fill').style.getPropertyValue('--reader-progress-scale'),
+    ).toBe('0.4444444444444444');
   });
 
   it('Given a half-progress value, When rendered, Then the thumb sits at that fraction of the track', () => {
@@ -40,7 +41,10 @@ describe('ReaderProgressRail', () => {
     );
     // (5 - 1) / (10 - 1) = 44.44% — a percentage translate would only move the
     // thumb by its own 16px box, which this pins against.
-    expect(screen.getByTestId('reader-rail-thumb').style.left).toBe('44.44444444444444%');
+    expect(screen.getByTestId('reader-rail-thumb')).toHaveClass('reader-progress-thumb');
+    expect(
+      screen.getByTestId('reader-rail-thumb').style.getPropertyValue('--reader-progress-position'),
+    ).toBe('44.44444444444444%');
   });
 
   it('Given a pointer at a quarter of the track, When pressed, Then the value follows the position', () => {
@@ -98,12 +102,14 @@ describe('ReaderProgressRail', () => {
   it('uses the documented rail transition and removes it for reduced motion', () => {
     const props = { value: 3, min: 1, max: 10, onChange: vi.fn<(value: number) => void>() };
     const { rerender } = render(<ReaderProgressRail {...props} />);
-    expect(screen.getByTestId('reader-rail-fill')).toHaveStyle({
-      transition: 'transform 180ms cubic-bezier(0.22, 1, 0.36, 1)',
-    });
+    expect(
+      screen.getByTestId('reader-rail-fill').style.getPropertyValue('--reader-progress-transition'),
+    ).toBe('transform 180ms cubic-bezier(0.22, 1, 0.36, 1)');
 
     rerender(<ReaderProgressRail {...props} reducedMotion />);
-    expect(screen.getByTestId('reader-rail-fill')).toHaveStyle({ transition: 'none' });
+    expect(
+      screen.getByTestId('reader-rail-fill').style.getPropertyValue('--reader-progress-transition'),
+    ).toBe('none');
   });
 
   it('Given a drag in progress, When the pointer moves, Then the value keeps following until release', () => {

@@ -64,8 +64,10 @@ export function EmptyState({ type, action }: EmptyStateProps) {
   return (
     <div
       ref={ref}
-      className={cn('flex flex-col items-center justify-center p-8 text-center')}
-      style={{ opacity: reducedMotion ? 1 : 0 }}
+      className={cn(
+        'flex flex-col items-center justify-center p-8 text-center',
+        reducedMotion ? 'opacity-100' : 'opacity-0',
+      )}
     >
       <div className="mb-4 opacity-50">{config.icon}</div>
       <h3 className="type-display-xl text-foreground">{config.title}</h3>

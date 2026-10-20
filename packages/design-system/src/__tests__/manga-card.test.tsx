@@ -116,7 +116,7 @@ describe('MangaCard', () => {
     const { container } = render(<MangaCard manga={manga} variant="grid" />);
 
     const button = container.querySelector('button');
-    expect(button).toHaveClass('aspect-[3/4]');
+    expect(button).toHaveClass('aspect-3/4');
   });
 
   it('renders list variant correctly', () => {
