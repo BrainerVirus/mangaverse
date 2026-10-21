@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { useDeferredValue, useRef, useState } from 'react';
 import {
   DEFAULT_SEARCH_VIEW_STATE,
   mergeSearchPageData,
@@ -41,15 +41,20 @@ function SearchRoute() {
   });
 
   const explicitContent = appSettingsQuery.data?.settings.explicitContent ?? false;
-  const searchReady = dbStatus === 'ready' && db !== null && appSettingsQuery.isSuccess;
+  // The input stays immediate. Local reads and provider calls follow the
+  // deferred value, so a fast typist issues one query per pause instead of one
+  // per keystroke.
+  const deferredQuery = useDeferredValue(viewState.query);
+  const deferredViewState = { query: deferredQuery };
+  const providerReady = dbStatus === 'ready' && db !== null && appSettingsQuery.isSuccess;
 
   const localQuery = useQuery({
-    ...searchPageQueryOptions(db!, viewState, explicitContent),
-    enabled: searchReady,
+    ...searchPageQueryOptions(db!, deferredViewState),
+    enabled: dbStatus === 'ready' && db !== null,
   });
 
   const providerQuery = useQuery({
-    ...searchProviderQueryOptions(db!, viewState.query, explicitContent, searchReady),
+    ...searchProviderQueryOptions(db!, deferredViewState.query, explicitContent, providerReady),
   });
 
   const data = mergeSearchPageData(localQuery.data, providerQuery.data);
@@ -81,7 +86,7 @@ function SearchRoute() {
   return (
     <SearchPage
       data={data}
-      isLoading={dbStatus === 'loading' || localQuery.isLoading || appSettingsQuery.isLoading}
+      isLoading={dbStatus === 'loading' || localQuery.isLoading}
       isError={dbStatus === 'error' || localQuery.isError}
       isProviderPending={providerQuery.isFetching}
       isProviderError={providerQuery.isError}

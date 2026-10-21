@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { prefetchCoreLocalData } from '../queries/prefetch-core-local-data.js';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 
-/** Warm library, search, and settings caches after the local database opens. */
+/** Warm library and search caches after the local database opens, on idle. */
 export function LocalDataPrefetch() {
   const queryClient = useQueryClient();
   const db = useLocalDb();
@@ -15,7 +15,25 @@ export function LocalDataPrefetch() {
       return;
     }
 
-    void prefetchCoreLocalData(queryClient, db);
+    let cancelled = false;
+    const run = () => {
+      if (!cancelled) void prefetchCoreLocalData(queryClient, db);
+    };
+    // The open route already fetches what it needs. Warming two other routes
+    // must not compete with its first paint.
+    if (typeof requestIdleCallback === 'function') {
+      const idle = requestIdleCallback(run, { timeout: 2000 });
+      return () => {
+        cancelled = true;
+        cancelIdleCallback(idle);
+      };
+    }
+
+    const timer = setTimeout(run, 200);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [db, dbStatus, queryClient]);
 
   return null;

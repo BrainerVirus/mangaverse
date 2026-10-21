@@ -1,19 +1,23 @@
 import type { AppDrizzleDb } from '@app/db';
 import { DEFAULT_SEARCH_VIEW_STATE, fetchSearchPage, searchQueryKeys } from '@app/search';
 import type { SearchViewState } from '@app/search';
-import { queryOptions } from '@tanstack/react-query';
+import { keepPreviousData, queryOptions } from '@tanstack/react-query';
 import { QUERY_GC_TIMES, QUERY_STALE_TIMES } from './query-timing.js';
 import { fetchProviderSearchIdentities } from './provider-query-options.js';
 
-/** Local identities and recent searches; never waits on a provider round trip. */
+/**
+ * Local identities and recent searches; never waits on a provider round trip.
+ * The previous page stays on screen while the next query reads, so typing never
+ * blanks the grid.
+ */
 export function searchPageQueryOptions(
   db: AppDrizzleDb,
   viewState: SearchViewState = DEFAULT_SEARCH_VIEW_STATE,
-  explicitContent = false,
 ) {
   return queryOptions({
-    queryKey: searchQueryKeys.page(viewState, explicitContent),
+    queryKey: searchQueryKeys.page(viewState),
     queryFn: () => fetchSearchPage(db, viewState),
+    placeholderData: keepPreviousData,
     staleTime: QUERY_STALE_TIMES.search,
     gcTime: QUERY_GC_TIMES.search,
   });
@@ -34,6 +38,7 @@ export function searchProviderQueryOptions(
   return queryOptions({
     queryKey: searchQueryKeys.provider(trimmed, explicitContent),
     queryFn: ({ signal }) => fetchProviderSearchIdentities(db, trimmed, signal),
+    placeholderData: keepPreviousData,
     staleTime: QUERY_STALE_TIMES.search,
     gcTime: QUERY_GC_TIMES.search,
     enabled: enabled && trimmed.length > 0,
