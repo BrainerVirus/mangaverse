@@ -20,30 +20,27 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    // Wrapping keeps the actions on a second line when the content column is narrower than
-    // title + actions (expanded rail plus safe-area insets), instead of squeezing both.
-    <div
-      className={cn(
-        'flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between',
-        className,
-      )}
-    >
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="type-display-lg">{title}</h1>
-          {count !== undefined ? (
-            <Badge size="meta" variant="secondary">
-              {count} {countLabel ?? (count === 1 ? 'item' : 'items')}
-            </Badge>
-          ) : null}
+    // The header is its own container: the actions row reacts to the width of the content
+    // column, not the viewport, so a narrow main column in a wide window still wraps.
+    <div data-page-header className={cn('@container', className)}>
+      <div className="flex flex-col gap-4 @xl:flex-row @xl:flex-wrap @xl:items-end @xl:justify-between">
+        <div className="flex min-w-0 flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="type-display-lg">{title}</h1>
+            {count !== undefined ? (
+              <Badge size="meta" variant="secondary">
+                {count} {countLabel ?? (count === 1 ? 'item' : 'items')}
+              </Badge>
+            ) : null}
+          </div>
+          {description ? <p className="type-body text-muted-foreground">{description}</p> : null}
         </div>
-        {description ? <p className="type-body text-muted-foreground">{description}</p> : null}
+        {actions ? (
+          <div className="flex flex-col gap-3 @xl:flex-row @xl:flex-wrap @xl:items-center">
+            {actions}
+          </div>
+        ) : null}
       </div>
-      {actions ? (
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-          {actions}
-        </div>
-      ) : null}
     </div>
   );
 }
