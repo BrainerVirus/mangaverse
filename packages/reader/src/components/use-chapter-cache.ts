@@ -14,13 +14,29 @@ export function useChapterPrefetch(
   data: ReaderPageData | undefined,
   cacheContext: CoverCacheContextValue | null,
 ): void {
+  // Depend on the chapter's page array, ids, and budget — not on `data`, which
+  // is replaced whenever a reader setting changes. A settings toggle must not
+  // re-run the whole prefetch sweep.
+  const pages = data?.chapter.pages;
+  const providerId = data?.providerId;
+  const mangaId = data?.mangaId;
+  const chapterId = data?.chapterId;
+  const budgetBytes = data?.settings.prefetchBudgetBytes ?? 0;
+
   // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: prefetching writes to the DB and blob storage
   useEffect(() => {
-    if (!data || cacheContext === null) {
+    if (
+      pages === undefined ||
+      providerId === undefined ||
+      mangaId === undefined ||
+      chapterId === undefined ||
+      cacheContext === null
+    ) {
       return;
     }
 
-    const pages = data.chapter.pages.map((page, pageIndex) => ({
+    const controller = new AbortController();
+    const prefetchPages = pages.map((page, pageIndex) => ({
       pageIndex,
       remoteUrl: page.image.url,
     }));
@@ -28,29 +44,28 @@ export function useChapterPrefetch(
     void prefetchChapterPages({
       db: cacheContext.db,
       adapter: cacheContext.adapter,
-      providerId: data.providerId,
-      mangaId: data.mangaId,
-      chapterId: data.chapterId,
-      pages,
+      providerId,
+      mangaId,
+      chapterId,
+      pages: prefetchPages,
       retention: 'read',
-      budgetBytes: data.settings.prefetchBudgetBytes,
+      budgetBytes,
+      signal: controller.signal,
     }).then(async () => {
-      await markChapterPagesAsRead(cacheContext.db, {
-        providerId: data.providerId,
-        mangaId: data.mangaId,
-        chapterId: data.chapterId,
-      });
+      // Unmounting cancels the sweep; the rows it already wrote are still a
+      // valid prefetch, but no cleanup may run against a route that is gone.
+      if (controller.signal.aborted) return;
+      await markChapterPagesAsRead(cacheContext.db, { providerId, mangaId, chapterId });
+      if (controller.signal.aborted) return;
       await evictCacheToLimit(cacheContext.db, cacheContext.adapter, {
         limitBytes: cacheContext.cacheLimitBytes,
         // The chapter being read stays cached even when it alone is over budget.
-        protectChapter: {
-          providerId: data.providerId,
-          mangaId: data.mangaId,
-          chapterId: data.chapterId,
-        },
+        protectChapter: { providerId, mangaId, chapterId },
       });
     });
-  }, [cacheContext, data]);
+
+    return () => controller.abort();
+  }, [budgetBytes, cacheContext, chapterId, mangaId, pages, providerId]);
 }
 
 /**

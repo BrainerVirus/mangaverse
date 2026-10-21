@@ -2,7 +2,6 @@ import type { AppDrizzleDb } from '@app/db';
 import {
   getCacheEntryById,
   listCacheEntriesForManga,
-  listCacheEntriesByKind,
   touchCacheEntry,
   upsertCacheEntry,
 } from '@app/db';
@@ -35,7 +34,7 @@ export interface PageCacheStoreResult {
 
 const inFlightPageFetches = new Map<
   string,
-  Promise<{ readonly objectUrl: string; readonly byteSize: number } | undefined>
+  Promise<{ data: ArrayBuffer; mimeType: string } | undefined>
 >();
 
 async function createObjectUrlFromBlob(
@@ -56,6 +55,34 @@ async function fetchRemotePage(
     return undefined;
   }
   return result.value;
+}
+
+/**
+ * Shared byte fetch for a page. Prefetch and the visible page component can ask
+ * for the same page; awaiting one promise keeps that from becoming two network
+ * requests. Each caller still owns its own object URL.
+ */
+async function fetchPageBytes(
+  input: PageCacheLookupInput,
+): Promise<{ data: ArrayBuffer; mimeType: string } | undefined> {
+  const fetchKey = buildPageBlobKey(
+    String(input.providerId),
+    String(input.mangaId),
+    String(input.chapterId),
+    input.pageIndex,
+  );
+  const existingFetch = inFlightPageFetches.get(fetchKey);
+  if (existingFetch !== undefined) {
+    return existingFetch;
+  }
+
+  const fetchPromise = fetchRemotePage(input.adapter, input.remoteUrl);
+  inFlightPageFetches.set(fetchKey, fetchPromise);
+  try {
+    return await fetchPromise;
+  } finally {
+    inFlightPageFetches.delete(fetchKey);
+  }
 }
 
 export async function getCachedPageObjectUrl(
@@ -89,13 +116,13 @@ export async function getCachedPageObjectUrl(
   return { objectUrl, fromCache: true, byteSize: blobResult.value.data.byteLength };
 }
 
-export async function storePageInCache(
+async function storePageBlob(
   input: PageCacheLookupInput & {
     readonly data: ArrayBuffer;
     readonly mimeType: string;
     readonly retention?: typeof CACHE_RETENTION_READ | 'normal';
   },
-): Promise<PageCacheStoreResult | undefined> {
+): Promise<number | undefined> {
   const providerId = String(input.providerId);
   const mangaId = String(input.mangaId);
   const chapterId = String(input.chapterId);
@@ -123,12 +150,54 @@ export async function storePageInCache(
     },
   });
 
+  return input.data.byteLength;
+}
+
+export async function storePageInCache(
+  input: PageCacheLookupInput & {
+    readonly data: ArrayBuffer;
+    readonly mimeType: string;
+    readonly retention?: typeof CACHE_RETENTION_READ | 'normal';
+  },
+): Promise<PageCacheStoreResult | undefined> {
+  const byteSize = await storePageBlob(input);
+  if (byteSize === undefined) {
+    return undefined;
+  }
+
   const objectUrl = await createObjectUrlFromBlob(input.adapter, input.data, input.mimeType);
   if (objectUrl === undefined) {
     return undefined;
   }
 
-  return { objectUrl, fromCache: false, byteSize: input.data.byteLength };
+  return { objectUrl, fromCache: false, byteSize };
+}
+
+/**
+ * Ensures a page is in the blob cache without creating an object URL. Prefetch
+ * has no component to own and revoke a URL, so it only writes bytes + metadata;
+ * the visible page component resolves its own URL when it mounts.
+ */
+async function prefetchPageToCache(
+  input: PageCacheLookupInput,
+  signal?: AbortSignal,
+): Promise<{ readonly fromCache: boolean; readonly byteSize: number } | undefined> {
+  const providerId = String(input.providerId);
+  const mangaId = String(input.mangaId);
+  const chapterId = String(input.chapterId);
+  const entryId = buildPageCacheEntryId(providerId, mangaId, chapterId, input.pageIndex);
+  const entry = await getCacheEntryById(input.db, entryId);
+  if (entry?.blobKey !== undefined) {
+    return { fromCache: true, byteSize: entry.byteSize };
+  }
+
+  const remote = await fetchPageBytes(input);
+  if (remote === undefined || signal?.aborted === true) {
+    return undefined;
+  }
+
+  const byteSize = await storePageBlob({ ...input, ...remote });
+  return byteSize === undefined ? undefined : { fromCache: false, byteSize };
 }
 
 export async function resolvePageObjectUrl(
@@ -139,40 +208,13 @@ export async function resolvePageObjectUrl(
     return cached;
   }
 
-  const fetchKey = buildPageBlobKey(
-    String(input.providerId),
-    String(input.mangaId),
-    String(input.chapterId),
-    input.pageIndex,
-  );
-  const existingFetch = inFlightPageFetches.get(fetchKey);
-  if (existingFetch !== undefined) {
-    const result = await existingFetch;
-    return result !== undefined
-      ? { objectUrl: result.objectUrl, fromCache: false, byteSize: result.byteSize }
-      : undefined;
+  const remote = await fetchPageBytes(input);
+  if (remote === undefined) {
+    return undefined;
   }
 
-  const fetchPromise = (async () => {
-    const remote = await fetchRemotePage(input.adapter, input.remoteUrl);
-    if (remote === undefined) {
-      return undefined;
-    }
-    const stored = await storePageInCache({ ...input, ...remote });
-    return stored !== undefined
-      ? { objectUrl: stored.objectUrl, byteSize: stored.byteSize }
-      : undefined;
-  })();
-
-  inFlightPageFetches.set(fetchKey, fetchPromise);
-  try {
-    const result = await fetchPromise;
-    return result !== undefined
-      ? { objectUrl: result.objectUrl, fromCache: false, byteSize: result.byteSize }
-      : undefined;
-  } finally {
-    inFlightPageFetches.delete(fetchKey);
-  }
+  const stored = await storePageInCache({ ...input, ...remote });
+  return stored;
 }
 
 /** Returns a local blob URL for a page, or undefined while loading / on cache miss. Never returns remote URLs. */
@@ -189,12 +231,12 @@ export async function markChapterPagesAsRead(
     readonly chapterId: string;
   },
 ): Promise<void> {
-  const entries = await listCacheEntriesByKind(db, PAGE_CACHE_KIND);
+  const entries = await listCacheEntriesForManga(db, input.providerId, input.mangaId);
   const chapterEntries = entries.filter(
     (entry) =>
-      entry.providerId === input.providerId &&
-      entry.mangaId === input.mangaId &&
-      entry.chapterId === input.chapterId,
+      entry.cacheKind === PAGE_CACHE_KIND &&
+      entry.chapterId === input.chapterId &&
+      entry.metadata?.retention !== CACHE_RETENTION_READ,
   );
 
   for (const entry of chapterEntries) {
@@ -241,6 +283,7 @@ export interface PrefetchQueueOutcome {
 export async function runPrefetchQueue(input: {
   readonly pages: readonly PrefetchPage[];
   readonly budgetBytes: number;
+  readonly signal?: AbortSignal;
   readonly resolvePage: (
     page: PrefetchPage,
   ) => Promise<{ readonly fromCache: boolean; readonly byteSize: number } | undefined>;
@@ -252,7 +295,7 @@ export async function runPrefetchQueue(input: {
 
   const worker = async (): Promise<void> => {
     for (let page = queue.shift(); page !== undefined; page = queue.shift()) {
-      if (budgetReached()) return;
+      if (budgetReached() || input.signal?.aborted === true) return;
       // oxlint-disable-next-line eslint/no-await-in-loop
       // react-doctor-disable-next-line react-doctor/async-await-in-loop -- the 4-at-a-time bound from #71 (ruling mvd745t3): this worker pool IS the prefetch limiter
       const result = await input.resolvePage(page);
@@ -272,22 +315,39 @@ export async function prefetchChapterPages(
     readonly retention?: typeof CACHE_RETENTION_READ | 'normal';
     /** Maximum newly downloaded bytes; 0 or omitted means unlimited. */
     readonly budgetBytes?: number;
+    readonly signal?: AbortSignal;
   },
 ): Promise<void> {
+  // One chapter-scoped read beats one existence check per page on every reader
+  // mount and settings edit.
+  const cachedIndexes = new Set(
+    await listCachedChapterPageIndexes(input.db, {
+      providerId: String(input.providerId),
+      mangaId: String(input.mangaId),
+      chapterId: String(input.chapterId),
+    }),
+  );
+
   await runPrefetchQueue({
     pages: input.pages,
     budgetBytes: input.budgetBytes ?? 0,
+    ...(input.signal !== undefined ? { signal: input.signal } : {}),
     resolvePage: (page) =>
-      resolvePageObjectUrl({
-        db: input.db,
-        adapter: input.adapter,
-        providerId: input.providerId,
-        mangaId: input.mangaId,
-        chapterId: input.chapterId,
-        pageIndex: page.pageIndex,
-        remoteUrl: page.remoteUrl,
-        ...(input.retention !== undefined ? { retention: input.retention } : {}),
-      }),
+      cachedIndexes.has(page.pageIndex)
+        ? Promise.resolve({ fromCache: true, byteSize: 0 })
+        : prefetchPageToCache(
+            {
+              db: input.db,
+              adapter: input.adapter,
+              providerId: input.providerId,
+              mangaId: input.mangaId,
+              chapterId: input.chapterId,
+              pageIndex: page.pageIndex,
+              remoteUrl: page.remoteUrl,
+              ...(input.retention !== undefined ? { retention: input.retention } : {}),
+            },
+            input.signal,
+          ),
   });
 }
 
