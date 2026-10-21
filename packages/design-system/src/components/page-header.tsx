@@ -26,7 +26,7 @@ export function PageHeader({
       <div className="flex flex-col gap-4 @xl:flex-row @xl:flex-wrap @xl:items-end @xl:justify-between">
         <div className="flex min-w-0 flex-col gap-2">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="type-display-lg">{title}</h1>
+            <h1 className="type-display-lg min-w-0 break-words">{title}</h1>
             {count !== undefined ? (
               <Badge size="meta" variant="secondary">
                 {count} {countLabel ?? (count === 1 ? 'item' : 'items')}

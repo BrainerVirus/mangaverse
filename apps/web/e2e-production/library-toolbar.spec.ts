@@ -9,6 +9,22 @@ const MANGA_PATH = '/manga/dev-md-dc332d04-d3b0-413c-a767-70f5e451b031';
 // Re-applied on every navigation and kept for the desktop checks as a worst case.
 const SAFE_AREA_44 = '[data-app-shell]{padding-inline:44px}';
 
+// A realistic 58-character German compound: one unbreakable word, no spaces to
+// wrap at. Production copy is "Library", so the worst-case localized title is
+// swapped in for one synchronous measurement and restored.
+const LONG_TITLE = 'Donaudampfschifffahrtsgesellschaftskapitänsmützenabzeichen';
+
+interface LongTitleGeometry {
+  viewportWidth: number;
+  headerWidth: number;
+  shellPaddingInline: string;
+  titleWidth: number;
+  columnWidth: number;
+  overflowWrap: string;
+  docOverflow: number;
+  mainOverflow: number;
+}
+
 interface ToolbarGeometry {
   viewport: { width: number; height: number };
   containerType: string;
@@ -60,6 +76,31 @@ async function measureToolbar(page: Page): Promise<ToolbarGeometry> {
   });
 }
 
+async function measureUnbreakableTitle(page: Page): Promise<LongTitleGeometry> {
+  return page.evaluate((longTitle) => {
+    const header = document.querySelector('[data-page-header]') as HTMLElement;
+    const column = header.firstElementChild?.firstElementChild as HTMLElement;
+    const heading = header.querySelector('h1') as HTMLElement;
+    const main = document.querySelector('main') as HTMLElement;
+    const original = heading.textContent;
+    heading.textContent = longTitle;
+    const geometry = {
+      viewportWidth: window.innerWidth,
+      headerWidth: header.getBoundingClientRect().width,
+      shellPaddingInline: getComputedStyle(
+        document.querySelector('[data-app-shell]') as HTMLElement,
+      ).paddingInline,
+      titleWidth: heading.getBoundingClientRect().width,
+      columnWidth: column.getBoundingClientRect().width,
+      overflowWrap: getComputedStyle(heading).overflowWrap,
+      docOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      mainOverflow: main.scrollWidth - main.clientWidth,
+    };
+    heading.textContent = original;
+    return geometry;
+  }, LONG_TITLE);
+}
+
 function expectNoClipping(geometry: ToolbarGeometry): void {
   // The compiled stylesheet must carry the header container, not just the markup.
   expect(geometry.containerType).toBe('inline-size');
@@ -104,6 +145,17 @@ test('Given a populated library, When the content column is narrow, Then the hea
   expect(narrow.headerWidth).toBeLessThan(576);
   expect(narrow.rowDirection).toBe('column');
   expect(narrow.actionsTop).toBeGreaterThanOrEqual(narrow.titleColumnBottom - 1);
+
+  // The heading is its own flex item: without `min-w-0`/`break-words` a 58-char
+  // unbreakable title keeps its min-content width and widens the document.
+  const longTitle = await measureUnbreakableTitle(page);
+  expect(longTitle.viewportWidth).toBe(844);
+  expect(longTitle.shellPaddingInline).toBe('44px');
+  expect(longTitle.headerWidth).toBeLessThan(576);
+  expect(longTitle.overflowWrap).toBe('break-word');
+  expect(longTitle.titleWidth).toBeLessThanOrEqual(longTitle.columnWidth + 0.5);
+  expect(longTitle.docOverflow).toBeLessThanOrEqual(0);
+  expect(longTitle.mainOverflow).toBeLessThanOrEqual(0);
 
   const compact = page.getByRole('button', { name: 'Compact' });
   await compact.click();

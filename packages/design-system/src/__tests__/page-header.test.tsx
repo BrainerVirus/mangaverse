@@ -32,17 +32,20 @@ describe('PageHeader', () => {
     expect(actions.className).not.toMatch(/\bsm:/);
   });
 
-  it('keeps the container contract when a translated title is longer than the column', () => {
+  it('keeps the container contract when an unbreakable title is longer than the column', () => {
+    const longTitle = 'Donaudampfschifffahrtsgesellschaftskapitänsmützenabzeichen';
     const { container } = renderHeader({
-      title: 'Biblioteca de manga, cómics y webtoons guardados',
-      description: 'Tus series guardadas, ordenadas por última lectura.',
+      title: longTitle,
+      description: 'Gespeicherte Serien, sortiert nach zuletzt gelesen.',
     });
     const header = container.firstElementChild as HTMLElement;
     const heading = screen.getByRole('heading', { level: 1 });
-    expect(heading).toHaveTextContent('Biblioteca de manga, cómics y webtoons guardados');
+    expect(heading).toHaveTextContent(longTitle);
     // A fixed line keeps the long title from widening the header past its column,
-    // and `min-w-0` lets the flex item shrink below a long unbreakable word.
+    // and `min-w-0` lets the flex item shrink below a long unbreakable word while
+    // `break-words` wraps the word itself instead of overflowing.
     expect(heading.className).not.toMatch(/\b(truncate|whitespace-nowrap)\b/);
+    expect(heading).toHaveClass('min-w-0', 'break-words');
     expect(header).toHaveClass('@container');
     expect(header.firstElementChild).toHaveClass('@xl:flex-wrap');
     expect(header.firstElementChild?.firstElementChild).toHaveClass('min-w-0');
