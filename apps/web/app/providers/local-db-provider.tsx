@@ -129,7 +129,7 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-external-subscriptions: subscribes to the browser's storage/visibilitychange events and the pagehide flush.
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-external-subscriptions: subscribes to the browser's storage/visibilitychange events and owns the unmount flush.
   useEffect(() => {
     if (value.status !== 'ready') return;
 
@@ -140,15 +140,12 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
       setHandleVersion((version) => version + 1);
     });
 
-    const handlePageHide = () => {
-      void flushLocalDb();
-    };
-    window.addEventListener('pagehide', handlePageHide);
-
     return () => {
       unsubscribe();
-      window.removeEventListener('pagehide', handlePageHide);
-      // Best-effort final flush; committed writes already flushed after mutation.
+      // Client-side route change: the document survives, so this flush commits.
+      // There is deliberately no unload path: an IndexedDB transaction opened
+      // from `pagehide` never completes once the document is discarded, so the
+      // scheduled post-mutation flush is the only durability point that works.
       void flushLocalDb();
     };
   }, [value.status]);

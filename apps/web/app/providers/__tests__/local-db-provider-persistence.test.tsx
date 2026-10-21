@@ -88,6 +88,32 @@ describe('LocalDbProvider persistence wiring', () => {
     expect(registered.handler).toBeNull();
   });
 
+  it('Given a ready provider, When the document unloads, Then it starts no durable write', async () => {
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={new QueryClient()}>
+          <LocalDbProvider>
+            <PersistenceErrorBanner />
+          </LocalDbProvider>
+        </QueryClientProvider>,
+      );
+    });
+    await act(async () => {});
+
+    // An IndexedDB transaction opened from pagehide never commits once the
+    // document is discarded, so unload must not start one.
+    await act(async () => {
+      window.dispatchEvent(new Event('pagehide'));
+    });
+    expect(flushLocalDb).not.toHaveBeenCalled();
+
+    // A client-side route change keeps the document, so its checkpoint still runs.
+    act(() => {
+      root.unmount();
+    });
+    expect(flushLocalDb).toHaveBeenCalledTimes(1);
+  });
+
   it('Given a rejected write outside the flush path, When it is reported, Then the same banner shows it', async () => {
     await act(async () => {
       root.render(

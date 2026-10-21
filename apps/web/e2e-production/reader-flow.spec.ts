@@ -5,6 +5,7 @@ import {
   MANGADEX_APP_MANGA_ID,
   currentPing,
   fixturesDir,
+  reloadDurable,
   test,
   waitForNewPing,
   waitForPingQuiet,
@@ -145,11 +146,9 @@ test('Given the reader advanced a page, When the page reloads, Then it resumes o
 
   await page.getByRole('button', { name: 'Next page' }).click();
   await expect(page.getByText('2 / 37')).toBeVisible();
-  // A full quiet window covers the 750 ms progress debounce plus the 400 ms
-  // flush, so the reload below reads a snapshot that already holds page 2.
-  await waitForPingQuiet(page);
-
-  await page.reload();
+  // A full quiet window covers the 750 ms progress debounce plus the flush, so
+  // the reload below reads a snapshot that already holds page 2.
+  await reloadDurable(page);
   await expect(page.getByText('2 / 37')).toBeVisible({ timeout: 30_000 });
 });
 
