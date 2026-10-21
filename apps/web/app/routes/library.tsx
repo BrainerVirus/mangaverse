@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { DEFAULT_LIBRARY_VIEW_STATE, LibraryPage } from '@app/library';
+import type { MangaId } from '@app/shared';
 import { libraryPageQueryOptions } from '../queries/library-query-options.js';
 import { useLocalDb, useLocalDbStatus, useLocalDbRetry } from '../providers/local-db-provider.js';
 
@@ -15,6 +16,12 @@ function LibraryRoute() {
   const dbStatus = useLocalDbStatus();
   const retryDb = useLocalDbRetry();
   const [viewState, setViewState] = useState(DEFAULT_LIBRARY_VIEW_STATE);
+  const openManga = useCallback(
+    (mangaId: MangaId) => {
+      void navigate({ to: '/manga/$id', params: { id: mangaId } });
+    },
+    [navigate],
+  );
 
   const { data, isLoading, isError } = useQuery({
     ...libraryPageQueryOptions(db!, viewState),
@@ -28,7 +35,7 @@ function LibraryRoute() {
       isError={dbStatus === 'error' || isError}
       viewState={viewState}
       onViewStateChange={setViewState}
-      onOpenManga={(mangaId) => navigate({ to: '/manga/$id', params: { id: mangaId } })}
+      onOpenManga={openManga}
       onBrowse={() => void navigate({ to: '/extensions' })}
       {...(dbStatus === 'error' ? { onRetry: retryDb } : {})}
     />

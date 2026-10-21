@@ -3,6 +3,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import type {
   LibraryEntry,
   LibraryEntryId,
@@ -14,6 +15,8 @@ import type {
 } from '@app/shared';
 import { VirtualLibraryGrid } from './VirtualLibraryGrid.js';
 import type { LibraryItem } from '../types.js';
+
+const { cardRenderSpy } = vi.hoisted(() => ({ cardRenderSpy: vi.fn<() => void>() }));
 
 vi.mock('@tanstack/react-virtual', () => ({
   useVirtualizer: (options: { count: number; enabled?: boolean }) => ({
@@ -36,11 +39,15 @@ vi.mock('@tanstack/react-virtual', () => ({
 
 vi.mock('@app/design-system', () => ({
   cn: (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' '),
-  MangaCard: ({ manga, onClick }: { manga: { canonicalTitle: string }; onClick?: () => void }) => (
-    <button type="button" onClick={onClick}>
-      {manga.canonicalTitle}
-    </button>
-  ),
+  MangaCard: ({ manga, onClick }: { manga: { canonicalTitle: string }; onClick?: () => void }) => {
+    cardRenderSpy();
+
+    return (
+      <button type="button" onClick={onClick}>
+        {manga.canonicalTitle}
+      </button>
+    );
+  },
 }));
 
 vi.mock('@app/motion', () => ({
@@ -80,6 +87,13 @@ const createItem = (id: string, title: string): LibraryItem => ({
   manga: createManga(id, title),
 });
 
+const createItems = (count: number): LibraryItem[] =>
+  Array.from({ length: count }, (_, index) => createItem(String(index + 1), `Title ${index + 1}`));
+
+const scrollContainer = (children: ReactNode) => (
+  <div style={{ width: 1200, height: 240, overflow: 'auto' }}>{children}</div>
+);
+
 describe('VirtualLibraryGrid', () => {
   afterEach(() => {
     cleanup();
@@ -102,21 +116,106 @@ describe('VirtualLibraryGrid', () => {
 
   it('renders only virtual rows for large libraries once scroll metrics are available', () => {
     render(
-      <div style={{ width: 1200, height: 240, overflow: 'auto' }}>
+      scrollContainer(
         <VirtualLibraryGrid
-          items={Array.from({ length: 120 }, (_, index) =>
-            createItem(String(index + 1), `Title ${index + 1}`),
-          )}
+          items={createItems(120)}
           layout="grid"
           onOpenManga={vi.fn<(mangaId: string) => void>()}
-        />
-      </div>,
+        />,
+      ),
     );
 
     const renderedTitles = screen.getAllByRole('button');
 
     expect(renderedTitles.length).toBeGreaterThan(0);
     expect(renderedTitles.length).toBeLessThan(120);
+  });
+
+  it('caps card renders when a 200-item library mounts with virtualization active', () => {
+    render(
+      scrollContainer(
+        <VirtualLibraryGrid
+          items={createItems(200)}
+          layout="grid"
+          onOpenManga={vi.fn<(mangaId: string) => void>()}
+        />,
+      ),
+    );
+
+    expect(screen.getAllByRole('button').length).toBeLessThan(200);
+    expect(cardRenderSpy.mock.calls.length).toBeLessThan(100);
+  });
+
+  it('does not re-render cards when items and callback are unchanged', () => {
+    const items = createItems(200);
+    const onOpenManga = vi.fn<(mangaId: string) => void>();
+    const { rerender } = render(
+      scrollContainer(<VirtualLibraryGrid items={items} layout="grid" onOpenManga={onOpenManga} />),
+    );
+    const before = cardRenderSpy.mock.calls.length;
+
+    rerender(
+      scrollContainer(<VirtualLibraryGrid items={items} layout="grid" onOpenManga={onOpenManga} />),
+    );
+
+    expect(cardRenderSpy.mock.calls.length - before).toBe(0);
+  });
+
+  it('does not re-render cards when an entry changes but manga refs are reused', () => {
+    const items = createItems(200);
+    const onOpenManga = vi.fn<(mangaId: string) => void>();
+    const { rerender } = render(
+      scrollContainer(<VirtualLibraryGrid items={items} layout="grid" onOpenManga={onOpenManga} />),
+    );
+    const before = cardRenderSpy.mock.calls.length;
+
+    const updatedItems = items.map((item, index) =>
+      index === 0 ? { ...item, entry: { ...item.entry, unreadCount: 3 } } : item,
+    );
+
+    rerender(
+      scrollContainer(
+        <VirtualLibraryGrid items={updatedItems} layout="grid" onOpenManga={onOpenManga} />,
+      ),
+    );
+
+    expect(cardRenderSpy.mock.calls.length - before).toBe(0);
+  });
+
+  it('re-renders only the visible cards when every manga ref changes', () => {
+    const items = createItems(200);
+    const onOpenManga = vi.fn<(mangaId: string) => void>();
+    const { rerender } = render(
+      scrollContainer(<VirtualLibraryGrid items={items} layout="grid" onOpenManga={onOpenManga} />),
+    );
+    const before = cardRenderSpy.mock.calls.length;
+
+    const replacedItems = items.map(({ manga }) =>
+      createItem(manga.id, `${manga.canonicalTitle} (updated)`),
+    );
+
+    rerender(
+      scrollContainer(
+        <VirtualLibraryGrid items={replacedItems} layout="grid" onOpenManga={onOpenManga} />,
+      ),
+    );
+
+    const additionalRenders = cardRenderSpy.mock.calls.length - before;
+
+    expect(additionalRenders).toBeGreaterThan(0);
+    expect(additionalRenders).toBeLessThanOrEqual(15);
+  });
+
+  it('renders the complete library when there is no scrollable ancestor', () => {
+    render(
+      <VirtualLibraryGrid
+        items={createItems(120)}
+        layout="grid"
+        onOpenManga={vi.fn<(mangaId: string) => void>()}
+      />,
+    );
+
+    expect(screen.getAllByRole('button')).toHaveLength(120);
   });
 
   it('calls onOpenManga when a visible card is clicked', () => {
