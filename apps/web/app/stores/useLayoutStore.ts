@@ -35,7 +35,10 @@ export const useLayoutStore = create<LayoutStore>((set) => ({
   readerChromeVisible: true,
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
   toggleSidebarExpand: () => set((state) => ({ sidebarExpanded: !state.sidebarExpanded })),
-  setDeviceLayout: (layout) => set({ deviceLayout: layout }),
+  // Returning the same state skips zustand's notify, so a resize storm only
+  // reaches subscribers when the breakpoint actually changes.
+  setDeviceLayout: (layout) =>
+    set((state) => (state.deviceLayout === layout ? state : { deviceLayout: layout })),
   toggleReaderChrome: () => set((state) => ({ readerChromeVisible: !state.readerChromeVisible })),
   setReaderChrome: (visible) => set({ readerChromeVisible: visible }),
 }));

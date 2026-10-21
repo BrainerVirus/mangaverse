@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useLocation, useRouter } from '@tanstack/react-router';
+import { useLocation } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import type { PlatformCapabilities } from '@app/platform';
 import { QueryProvider } from '../providers/query-provider.js';
@@ -15,7 +15,6 @@ import { LocalDbErrorBanner } from './PersistenceErrorBanner.js';
 import { AppShellLayout } from '../layouts/AppShellLayout.js';
 import { ReaderLayout } from '../layouts/ReaderLayout.js';
 import { useCommandPaletteStore } from '../stores/useCommandPaletteStore';
-import { useNavigationStore } from '../stores/useNavigationStore';
 import { CommandPalette } from './shell/CommandPalette.js';
 
 interface ShellProvidersProps {
@@ -59,28 +58,6 @@ function KeyboardShortcuts() {
   return null;
 }
 
-function NavigationTracker() {
-  const router = useRouter();
-  const pushRecentRoute = useNavigationStore((s) => s.pushRecentRoute);
-
-  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-router-subscription: subscribing to the router's `onResolved` event is the only way to observe completed navigations; it has no React-level equivalent.
-  useEffect(() => {
-    const unsubscribe = router.subscribe('onResolved', ({ toLocation }) => {
-      const segments = toLocation.pathname.split('/').filter(Boolean);
-      const label = toLocation.pathname === '/' ? 'Home' : segments[segments.length - 1] || 'Home';
-      const displayLabel = label.charAt(0).toUpperCase() + label.slice(1);
-      pushRecentRoute({
-        path: toLocation.pathname,
-        label: displayLabel,
-        timestamp: Date.now(),
-      });
-    });
-    return unsubscribe;
-  }, [router, pushRecentRoute]);
-
-  return null;
-}
-
 export function ShellProviders({ children, detectFn }: ShellProvidersProps) {
   return (
     <QueryProvider>
@@ -92,7 +69,6 @@ export function ShellProviders({ children, detectFn }: ShellProvidersProps) {
               <ThemeSettingsBridge />
               <LocalDataPrefetch />
               <KeyboardShortcuts />
-              <NavigationTracker />
               <CommandPalette />
               <LocalDbErrorBanner />
               <OnboardingGate>

@@ -44,12 +44,6 @@ export {
 } from './page-cache-store.js';
 
 export {
-  prefetchMangaCover,
-  scheduleMangaCoverPrefetch,
-  cancelMangaCoverPrefetch,
-} from './prefetch-manga.js';
-
-export {
   CoverCacheProvider,
   useCoverCacheContext,
   type CoverCacheProviderProps,

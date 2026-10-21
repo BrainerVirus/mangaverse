@@ -73,11 +73,12 @@ function SidebarNavLink({
 }
 
 export function DesktopSidebar() {
-  const { sidebarOpen, sidebarExpanded, toggleSidebarExpand } = useLayoutStore();
+  const sidebarOpen = useLayoutStore((s) => s.sidebarOpen);
+  const sidebarExpanded = useLayoutStore((s) => s.sidebarExpanded);
+  const toggleSidebarExpand = useLayoutStore((s) => s.toggleSidebarExpand);
   const openCommandPalette = useCommandPaletteStore((s) => s.open);
   const { theme, setTheme } = useTheme();
-  const routerState = useRouterState();
-  const currentPath = routerState.location.pathname;
+  const currentPath = useRouterState({ select: (state) => state.location.pathname });
   const expandTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [hoverExpanded, setHoverExpanded] = useState(false);
 

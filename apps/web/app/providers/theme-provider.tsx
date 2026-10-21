@@ -114,6 +114,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   );
   const hydratedRef = useRef(false);
   const persistRef = useRef<ThemeSettingsPersistence | null>(null);
+  const appliedRef = useRef<{
+    settings: ThemeSettings;
+    definition: ThemeDefinition | undefined;
+  } | null>(null);
 
   const theme = resolveThemeAppearance(settings);
 
@@ -157,7 +161,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-dom-write: writing the theme to <html> and localStorage is a DOM/storage side effect keyed on the resolved settings; it cannot run in render (double-invoked) and the resolved definition arrives asynchronously from the themes table.
   useEffect(() => {
-    applyThemeToRoot(document.documentElement, appliedTheme.settings, appliedTheme.definition);
+    // Startup applies the default, then the stored settings, then the same
+    // settings again from the themes table (a different object, equal values).
+    // Skip the style writes when nothing changed; `system` still re-registers
+    // its listener below.
+    const previous = appliedRef.current;
+    const alreadyApplied =
+      previous !== null &&
+      previous.definition === appliedTheme.definition &&
+      previous.settings.themeId === appliedTheme.settings.themeId &&
+      previous.settings.dark === appliedTheme.settings.dark;
+    if (!alreadyApplied) {
+      applyThemeToRoot(document.documentElement, appliedTheme.settings, appliedTheme.definition);
+      appliedRef.current = appliedTheme;
+    }
     persistThemeLocally(settings);
 
     if (settings.themeId !== 'system') {

@@ -33,7 +33,8 @@ vi.mock('@app/design-system', () => ({
 }));
 
 vi.mock('../../stores/useLayoutStore', () => ({
-  useLayoutStore: () => storeState.layout,
+  useLayoutStore: (selector?: (state: typeof storeState.layout) => unknown) =>
+    selector ? selector(storeState.layout) : storeState.layout,
 }));
 
 vi.mock('../../stores/useCommandPaletteStore', () => ({

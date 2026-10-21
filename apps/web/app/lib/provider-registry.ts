@@ -21,6 +21,7 @@ import type { MangaDetailData } from '@app/library';
 import type {
   ChapterId,
   ChapterPage,
+  ExtensionInstallMetadata,
   MangaId,
   MangaIdentity,
   ProviderCapabilityKey,
@@ -92,16 +93,16 @@ export function getBindingForChapterId(chapterId: ChapterId): ProviderAppBinding
   return PROVIDER_BINDINGS.find((binding) => binding.parseAppChapterId(chapterId) !== null) ?? null;
 }
 
-/**
- * Resolves the runtime contract for an installed and enabled provider.
- * Disabled or unknown providers resolve to null — no remote call may happen
- * through a provider the user turned off.
- */
-export async function resolveInstalledProvider(
-  db: AppDrizzleDb,
+/** Reads the install table for a caller that resolves several providers at once. */
+export function readInstalledExtensions(db: AppDrizzleDb): Promise<ExtensionInstallMetadata[]> {
+  return listInstalledExtensions(db);
+}
+
+/** Resolves a runtime contract from an already-read install list. */
+export function resolveInstalledProviderFrom(
+  installed: readonly ExtensionInstallMetadata[],
   providerId: string,
-): Promise<ProviderContract | null> {
-  const installed = await listInstalledExtensions(db);
+): ProviderContract | null {
   const entry = installed.find((item) => String(item.manifest.id) === providerId && item.enabled);
   if (entry === undefined) {
     return null;
@@ -113,4 +114,16 @@ export async function resolveInstalledProvider(
   }
 
   return binding.createProvider();
+}
+
+/**
+ * Resolves the runtime contract for an installed and enabled provider.
+ * Disabled or unknown providers resolve to null — no remote call may happen
+ * through a provider the user turned off.
+ */
+export async function resolveInstalledProvider(
+  db: AppDrizzleDb,
+  providerId: string,
+): Promise<ProviderContract | null> {
+  return resolveInstalledProviderFrom(await listInstalledExtensions(db), providerId);
 }

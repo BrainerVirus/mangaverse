@@ -151,6 +151,16 @@ function useExpandedSection(
   return { expandedSection, expandedSectionState, isError: sectionQuery.isError, loadMoreSection };
 }
 
+/** Only a ready, settled, error-free feed with nothing to show offers "Browse providers". */
+function shouldShowProviderHint(
+  dbStatus: LocalDbStatus,
+  isLoading: boolean,
+  isError: boolean,
+  providerCount: number,
+): boolean {
+  return dbStatus === 'ready' && !isLoading && !isError && providerCount === 0;
+}
+
 function DiscoverRoute() {
   const navigate = useNavigate({ from: '/discover' });
   const search = Route.useSearch();
@@ -176,7 +186,7 @@ function DiscoverRoute() {
   });
 
   const providers = data?.providers ?? NO_PROVIDERS;
-  const showProviderHint = dbStatus === 'ready' && !isLoading && providers.length === 0;
+  const showProviderHint = shouldShowProviderHint(dbStatus, isLoading, isError, providers.length);
 
   const {
     expandedSection,
