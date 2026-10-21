@@ -10,6 +10,17 @@ import {
 import { formatUnavailableOfflinePages } from '../offline-pages.js';
 import type { ReaderPageData } from '../reader-page-data.js';
 
+/**
+ * A rejected reader lock leaves this tab invisible to other tabs' eviction
+ * probes, so the chapter it is reading can be reclaimed underneath it. Reading
+ * cannot block on the lock, so the failure is surfaced instead of swallowed.
+ */
+function reportReaderLocksUnavailable(): void {
+  // oxlint-disable-next-line no-console -- ruling: web-console-diagnostics: a missing reader lock is non-fatal and has no UI state; this warn is the only signal that another tab cannot see this open chapter.
+  // react-doctor-disable-next-line eslint/no-console -- ruling: web-console-diagnostics: a missing reader lock is non-fatal and has no UI state; this warn is the only signal that another tab cannot see this open chapter.
+  console.warn('[reader] Web Locks unavailable; another tab may evict this open chapter.');
+}
+
 /** Warms the chapter's pages into the blob cache and marks them read. */
 export function useChapterPrefetch(
   data: ReaderPageData | undefined,
@@ -32,7 +43,7 @@ export function useChapterPrefetch(
     if (providerId === undefined || mangaId === undefined || chapterId === undefined) {
       return;
     }
-    return holdReaderLocks({ providerId, mangaId, chapterId });
+    return holdReaderLocks({ providerId, mangaId, chapterId }, reportReaderLocksUnavailable);
   }, [chapterId, mangaId, providerId]);
 
   // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: prefetching writes to the DB and blob storage

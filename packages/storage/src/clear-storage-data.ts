@@ -27,7 +27,7 @@ export async function clearStorageData(input: {
     const blobKeys = entries.flatMap((entry) =>
       entry.blobKey === undefined ? [] : [entry.blobKey],
     );
-    const blobs = await deleteBlobKeys(adapter, blobKeys);
+    const blobs = await deleteBlobKeys(adapter, blobKeys, { allowUnlocked: true });
     const failedKeys = new Set(blobs.failedKeys);
     const clearedIds = entries
       .filter((entry) => entry.blobKey === undefined || !failedKeys.has(entry.blobKey))

@@ -113,9 +113,59 @@ describe('reader locks', () => {
     const noLocks = installNoWebLocks();
     try {
       expect(await probeReaderPresence()).toEqual({ status: 'unknown' });
-      expect(holdReaderLocks(CHAPTER_1)()).toBeUndefined();
+      const onUnavailable = vi.fn<() => void>();
+      expect(holdReaderLocks(CHAPTER_1, onUnavailable)()).toBeUndefined();
+      expect(onUnavailable).toHaveBeenCalledTimes(1);
     } finally {
       noLocks.restore();
+    }
+  });
+
+  it('Given an ifAvailable conflict, When the fake grants, Then the callback receives null and no lock is held', async () => {
+    const { fake, restore } = installFakeWebLocks();
+    const release = fake.hold(READER_PRESENCE_LOCK);
+    try {
+      const callback = vi.fn<(lock: unknown) => void>();
+
+      await fake.locks.request(
+        READER_PRESENCE_LOCK,
+        { mode: 'exclusive', ifAvailable: true },
+        callback,
+      );
+
+      expect(callback).toHaveBeenCalledWith(null);
+      expect(await fake.locks.query()).toMatchObject({
+        held: [{ name: READER_PRESENCE_LOCK, mode: 'shared' }],
+      });
+    } finally {
+      release();
+      restore();
+    }
+  });
+
+  it('Given a rejected shared-lock request, When a reader mounts, Then the caller is told it is unprotected', async () => {
+    const { restore } = installFakeWebLocks();
+    const original = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value: {
+        locks: {
+          query: async () => ({ held: [], pending: [] }),
+          request: () => Promise.reject(new Error('locks unavailable')),
+        },
+      },
+    });
+    const onUnavailable = vi.fn<() => void>();
+    try {
+      holdReaderLocks(CHAPTER_1, onUnavailable);
+
+      await vi.waitFor(() => {
+        expect(onUnavailable).toHaveBeenCalledTimes(1);
+      });
+    } finally {
+      if (original === undefined) Reflect.deleteProperty(globalThis, 'navigator');
+      else Object.defineProperty(globalThis, 'navigator', original);
+      restore();
     }
   });
 
@@ -137,6 +187,29 @@ describe('reader locks', () => {
       if (original === undefined) Reflect.deleteProperty(globalThis, 'navigator');
       else Object.defineProperty(globalThis, 'navigator', original);
       restore();
+    }
+  });
+
+  it('Given a rejected lock query, When probing, Then the result is unknown', async () => {
+    const original = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value: {
+        locks: {
+          query: () => Promise.reject(new Error('query unavailable')),
+          request: (_name: string, _options: unknown, callback: (lock: unknown) => void) => {
+            // The exclusive request is denied, so the probe falls through to query().
+            callback(null);
+            return Promise.resolve();
+          },
+        },
+      },
+    });
+    try {
+      expect(await probeReaderPresence()).toEqual({ status: 'unknown' });
+    } finally {
+      if (original === undefined) Reflect.deleteProperty(globalThis, 'navigator');
+      else Object.defineProperty(globalThis, 'navigator', original);
     }
   });
 });

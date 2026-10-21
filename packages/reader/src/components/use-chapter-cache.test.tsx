@@ -83,11 +83,14 @@ describe('useChapterPrefetch cache sweep', () => {
         chapterId: 'chapter-1',
       },
     });
-    expect(mocks.holdReaderLocks).toHaveBeenCalledWith({
-      providerId: 'mangadex',
-      mangaId: 'manga-1',
-      chapterId: 'chapter-1',
-    });
+    expect(mocks.holdReaderLocks).toHaveBeenCalledWith(
+      {
+        providerId: 'mangadex',
+        mangaId: 'manga-1',
+        chapterId: 'chapter-1',
+      },
+      expect.any(Function),
+    );
     const releaseLocks = mocks.holdReaderLocks.mock.results[0]?.value;
 
     act(() => root.unmount());

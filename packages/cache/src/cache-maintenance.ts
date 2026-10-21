@@ -1,8 +1,14 @@
 import type { AppDrizzleDb, CacheEntryRecord } from '@app/db';
-import { deleteCacheEntries, listCacheEntriesByKind, summarizeCacheStorage } from '@app/db';
+import {
+  deleteCacheEntries,
+  getCacheEntryById,
+  listCacheEntriesByKind,
+  summarizeCacheStorage,
+} from '@app/db';
 import type { PlatformAdapter } from '@app/platform';
 
 import { deleteBlobKeys } from './blob-deletes.js';
+import { isBlobWriteInFlight } from './blob-writes.js';
 import { COVER_CACHE_KIND, PAGE_CACHE_KIND } from './constants.js';
 import { reclaimOrphanBlobs } from './orphan-blobs.js';
 import { probeReaderPresence } from './reader-locks.js';
@@ -77,6 +83,11 @@ function groupPagesByChapter(entries: readonly CacheEntryRecord[]): EvictionCand
  * separate stores, so no individual pair is deleted atomically and a concurrent
  * write can land between the batch and the sweep.
  *
+ * Each blob delete takes the key's exclusive lock and re-checks the row inside
+ * it: a writer from another tab that re-created the row after the batch deleted
+ * it keeps its bytes, and a writer that starts later waits for the delete
+ * instead of landing in the middle of it.
+ *
  * Reader presence is proven with Web Locks, never a timed message: with no
  * reader, the exclusive presence lock is held for the whole eviction so a
  * reader cannot mount mid-sweep. If presence cannot be proven, nothing is
@@ -140,7 +151,22 @@ export async function evictCacheToLimit(
     const blobKeys = selected.flatMap((entry) =>
       entry.blobKey === undefined ? [] : [entry.blobKey],
     );
-    const blobs = await deleteBlobKeys(adapter, blobKeys);
+    // Selected rows were just deleted. A row that exists again under the same id
+    // was re-created by a concurrent writer, so its blob must survive: skip is
+    // evaluated inside the key's exclusive blob lock, after any in-flight write
+    // has released its shared lock and landed the row.
+    const entryIdByBlobKey = new Map(
+      selected.flatMap((entry) =>
+        entry.blobKey === undefined ? [] : [[entry.blobKey, entry.id] as const],
+      ),
+    );
+    const blobs = await deleteBlobKeys(adapter, blobKeys, {
+      skip: async (key) => {
+        if (isBlobWriteInFlight(key)) return true;
+        const entryId = entryIdByBlobKey.get(key);
+        return entryId !== undefined && (await getCacheEntryById(db, entryId)) !== undefined;
+      },
+    });
 
     return { evictedCount: selected.length, failedBlobKeys: blobs.failedKeys };
   } finally {

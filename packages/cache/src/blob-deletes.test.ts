@@ -58,11 +58,9 @@ describe('deleteBlobKeys', () => {
   it('Given a key skipped by the caller, When deleting, Then it is neither deleted nor failed', async () => {
     const { adapter, deleted } = createDeletingAdapter();
 
-    const outcome = await deleteBlobKeys(
-      adapter,
-      ['page:0', 'page:1', 'page:2'],
-      (key) => key === 'page:1',
-    );
+    const outcome = await deleteBlobKeys(adapter, ['page:0', 'page:1', 'page:2'], {
+      skip: (key) => key === 'page:1',
+    });
 
     expect(outcome).toEqual({ deletedKeys: ['page:0', 'page:2'], failedKeys: [] });
     expect(deleted).toEqual(['page:0', 'page:2']);

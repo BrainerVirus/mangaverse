@@ -227,6 +227,16 @@ export async function listCacheBlobKeys(db: AppDrizzleDb): Promise<string[]> {
     .filter((key): key is string => typeof key === 'string' && key.length > 0);
 }
 
+/** Whether a row still references this blob key; re-checked inside a delete's per-key lock. */
+export async function hasCacheBlobKey(db: AppDrizzleDb, blobKey: string): Promise<boolean> {
+  const row = db
+    .select({ id: cacheEntries.id })
+    .from(cacheEntries)
+    .where(eq(cacheEntries.blobKey, blobKey))
+    .get();
+  return row !== undefined;
+}
+
 export async function listAllCacheEntries(db: AppDrizzleDb): Promise<CacheEntryRecord[]> {
   const rows = db.select().from(cacheEntries).orderBy(asc(cacheEntries.id)).all();
   return rows.map(mapCacheRow);

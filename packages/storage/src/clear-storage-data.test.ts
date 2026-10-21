@@ -55,9 +55,11 @@ describe('clearStorageData', () => {
       value: {
         locks: {
           query: async () => ({ held: [], pending: [] }),
-          request: async (_name: string, _options: unknown, callback: () => Promise<void>) => {
-            await callback();
-          },
+          request: async (
+            _name: string,
+            _options: unknown,
+            callback: () => Promise<unknown>,
+          ): Promise<unknown> => callback(),
         },
       },
     });

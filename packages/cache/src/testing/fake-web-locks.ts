@@ -2,8 +2,9 @@
  * Minimal in-memory Web Locks manager for tests. Node only gained
  * `navigator.locks` in 24.5 and jsdom has none, so the cache tests cannot rely
  * on the runtime's implementation. Semantics match the spec subset the cache
- * uses: shared/exclusive compatibility, `ifAvailable`, and a request that stays
- * pending until the callback's promise settles.
+ * uses: shared/exclusive compatibility, an `ifAvailable` conflict invokes the
+ * callback with a `null` lock (it never skips or rejects), and a granted
+ * request stays pending until the callback's promise settles.
  */
 type FakeLockMode = 'shared' | 'exclusive';
 
@@ -24,7 +25,7 @@ export interface FakeWebLocks {
     request(
       name: string,
       options: { readonly mode?: FakeLockMode; readonly ifAvailable?: boolean },
-      callback: () => Promise<void> | void,
+      callback: (lock: { name: string; mode: FakeLockMode } | null) => Promise<void> | void,
     ): Promise<unknown>;
   };
   /** Simulates another tab holding a lock for its lifetime; call to release. */
@@ -66,7 +67,10 @@ function createFakeWebLocks(): FakeWebLocks {
   return {
     hold,
     locks: {
-      query: async () => ({ held: held.map((lock) => ({ ...lock })), pending: [] }),
+      query: async () => ({
+        held: held.map((lock) => ({ ...lock })),
+        pending: waiting.map(({ name, mode }) => ({ name, mode })),
+      }),
       request: (name, options, callback) =>
         new Promise<unknown>((resolve, reject) => {
           const mode = options.mode ?? 'exclusive';
@@ -74,20 +78,20 @@ function createFakeWebLocks(): FakeWebLocks {
             const lock: HeldLock = { name, mode };
             held.push(lock);
             let settled = false;
-            const settle = (error?: unknown): void => {
+            const settle = (value: unknown, error?: unknown): void => {
               if (settled) return;
               settled = true;
               release(lock);
-              if (error === undefined) resolve(undefined);
+              if (error === undefined) resolve(value);
               else reject(error);
             };
             try {
-              Promise.resolve(callback()).then(
-                () => settle(),
-                (error: unknown) => settle(error),
+              Promise.resolve(callback({ ...lock })).then(
+                (value) => settle(value),
+                (error: unknown) => settle(undefined, error),
               );
             } catch (error) {
-              settle(error);
+              settle(undefined, error);
             }
           };
 
@@ -96,7 +100,14 @@ function createFakeWebLocks(): FakeWebLocks {
             return;
           }
           if (options.ifAvailable === true) {
-            resolve(undefined);
+            // Spec: the callback runs with `null` and the request resolves with
+            // its return value; no lock is held and nothing is queued.
+            Promise.resolve()
+              .then(() => callback(null))
+              .then(
+                (value) => resolve(value),
+                (error: unknown) => reject(error),
+              );
             return;
           }
           waiting.push({ name, mode, grant });

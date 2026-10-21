@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { err, ok, type AppResult } from '@app/shared';
 import type { PlatformAdapter } from '@app/platform';
 import type { AppDrizzleDb } from '@app/db';
+import { upsertCacheEntry } from '@app/db';
 import { createSqlJsHarness } from '@app/db/testing';
 
 import {
@@ -10,7 +11,13 @@ import {
   runCacheMaintenance,
 } from './cache-maintenance.js';
 import { getCoverCacheUsage, storeCoverInCache } from './cover-cache-store.js';
-import { buildCoverBlobKey, buildPageBlobKey } from './constants.js';
+import {
+  buildCoverBlobKey,
+  buildCoverCacheEntryId,
+  buildPageBlobKey,
+  COVER_CACHE_KIND,
+} from './constants.js';
+import { blobLockName } from './blob-writes.js';
 import {
   getCachedPageObjectUrl,
   listCachedChapterPageIndexes,
@@ -447,7 +454,7 @@ describe('cache maintenance', () => {
     }
   });
 
-  it('Given a blob put whose row upsert is still pending, When maintenance runs, Then the blob is not swept', async () => {
+  it('Given a blob put whose row upsert is still pending, When maintenance runs, Then the delete waits and the blob survives', async () => {
     const { db } = await createSqlJsHarness();
     const { adapter, blobs } = createAdapter();
     const pageKey = buildPageBlobKey('mangadex', 'dev-md-abc', 'chapter-1', 0);
@@ -478,16 +485,24 @@ describe('cache maintenance', () => {
     });
     await putStarted;
 
-    // The blob exists but its cache row does not; only the in-flight guard
-    // distinguishes this from a true orphan.
-    const outcome = await runCacheMaintenance(db, adapter, 1000);
-    expect(outcome.reclaimedBlobs).toBe(0);
+    // The blob exists but its cache row does not. The writer holds the key's
+    // shared lock, so the sweep's exclusive delete queues behind it instead of
+    // testing a snapshot taken before the bytes landed.
+    const maintenance = runCacheMaintenance(db, adapter, 1000);
+    await vi.waitFor(async () => {
+      expect((await fakeLocks.fake.locks.query()).pending).toContainEqual({
+        name: blobLockName(pageKey),
+        mode: 'exclusive',
+      });
+    });
     expect(blobs.has(pageKey)).toBe(true);
 
     releasePut();
     await storing;
-    expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toEqual([0]);
+    const outcome = await maintenance;
+    expect(outcome.reclaimedBlobs).toBe(0);
     expect(blobs.has(pageKey)).toBe(true);
+    expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toEqual([0]);
   });
 
   it('Given a delete that fails in eviction but succeeds in the sweep, When maintaining, Then it is not reported as failed', async () => {
@@ -508,6 +523,75 @@ describe('cache maintenance', () => {
     expect(outcome.reclaimedBlobs).toBe(1);
     expect(outcome.failedBlobDeletes).toBe(0);
     expect(blobs.has(failedKey)).toBe(false);
+  });
+
+  it('Given another tab mid-cover-write, When reclaiming, Then the blob waits for the row and survives', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter, blobs } = createAdapter();
+    const coverKey = buildCoverBlobKey('mangadex', 'dev-md-cross-tab');
+    blobs.set(coverKey, new ArrayBuffer(1));
+    // Another tab's put has landed and its row upsert is still pending: it
+    // holds the shared blob lock, and this process cannot see its in-flight map.
+    const releaseWriter = fakeLocks.fake.hold(blobLockName(coverKey));
+
+    const maintenance = runCacheMaintenance(db, adapter, 1000);
+    await vi.waitFor(async () => {
+      expect((await fakeLocks.fake.locks.query()).pending).toContainEqual({
+        name: blobLockName(coverKey),
+        mode: 'exclusive',
+      });
+    });
+    expect(blobs.has(coverKey)).toBe(true);
+
+    // The writer's row lands, then it releases the lock. The delete must see the
+    // row inside the lock and leave the bytes alone.
+    await upsertCacheEntry(db, {
+      id: buildCoverCacheEntryId('mangadex', 'dev-md-cross-tab'),
+      providerId: 'mangadex',
+      mangaId: 'dev-md-cross-tab',
+      cacheKind: COVER_CACHE_KIND,
+      byteSize: 1,
+      blobKey: coverKey,
+    });
+    releaseWriter();
+
+    const outcome = await maintenance;
+    expect(outcome.reclaimedBlobs).toBe(0);
+    expect(outcome.failedBlobDeletes).toBe(0);
+    expect(blobs.has(coverKey)).toBe(true);
+    expect((await getCoverCacheUsage(db)).totalCount).toBe(1);
+  });
+
+  it('Given another tab re-creates an evicted cover, When deleting its blob, Then the delete sees the row and skips', async () => {
+    const { db } = await createSqlJsHarness();
+    const coverKey = buildCoverBlobKey('mangadex', 'dev-md-abc');
+    const { adapter, blobs } = createAdapter();
+    await seedCover(db, adapter, 'dev-md-abc');
+    const releaseWriter = fakeLocks.fake.hold(blobLockName(coverKey));
+
+    const eviction = evictCacheToLimit(db, adapter, { limitBytes: 0 });
+    await vi.waitFor(async () => {
+      expect((await fakeLocks.fake.locks.query()).pending).toContainEqual({
+        name: blobLockName(coverKey),
+        mode: 'exclusive',
+      });
+    });
+    // The batch deleted the row; the writer's upsert lands after it.
+    await upsertCacheEntry(db, {
+      id: buildCoverCacheEntryId('mangadex', 'dev-md-abc'),
+      providerId: 'mangadex',
+      mangaId: 'dev-md-abc',
+      cacheKind: COVER_CACHE_KIND,
+      byteSize: 100,
+      blobKey: coverKey,
+    });
+    releaseWriter();
+
+    const outcome = await eviction;
+    expect(outcome.evictedCount).toBe(1);
+    expect(outcome.failedBlobKeys).toEqual([]);
+    expect(blobs.has(coverKey)).toBe(true);
+    expect((await getCoverCacheUsage(db)).totalCount).toBe(1);
   });
 });
 

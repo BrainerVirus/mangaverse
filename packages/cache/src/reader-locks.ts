@@ -1,22 +1,10 @@
 import type { CacheChapterRef } from './cache-maintenance.js';
+import { resolveLockManager, type LockManagerLike } from './web-locks.js';
 
 /** Shared lock every mounted reader holds for its lifetime. */
 export const READER_PRESENCE_LOCK = 'mangaverse:reader';
 
 const READER_CHAPTER_LOCK_PREFIX = `${READER_PRESENCE_LOCK}:`;
-
-interface HeldLock {
-  readonly name?: string;
-}
-
-interface LockManagerLike {
-  query(): Promise<{ readonly held?: readonly HeldLock[] }>;
-  request(
-    name: string,
-    options: { readonly mode: 'shared' | 'exclusive'; readonly ifAvailable?: boolean },
-    callback: () => Promise<void>,
-  ): Promise<unknown>;
-}
 
 /**
  * Presence of readers, as far as this runtime can prove it:
@@ -35,11 +23,6 @@ type ExclusiveProbe =
   | { readonly status: 'unknown' }
   | { readonly status: 'busy' }
   | { readonly status: 'acquired'; readonly release: () => void };
-
-function resolveLockManager(): LockManagerLike | undefined {
-  if (typeof navigator === 'undefined') return undefined;
-  return Reflect.get(navigator, 'locks') as LockManagerLike | undefined;
-}
 
 function chapterKey(chapter: CacheChapterRef): string {
   return `${chapter.providerId}\u0000${chapter.mangaId}\u0000${chapter.chapterId}`;
@@ -69,6 +52,11 @@ function parseChapterLock(name: string): CacheChapterRef | undefined {
  * reader holds it, and keeps it until `release` when it wins. A background or
  * throttled reader still holds its shared lock, which is the point: this never
  * depends on a tab answering a message in time.
+ *
+ * `ifAvailable` never skips or rejects on conflict: the spec invokes the
+ * callback with a `null` lock. Treating `null` as granted would report "no
+ * readers" while one holds the lock and let eviction delete the open chapter,
+ * so only a non-null lock marks the probe acquired.
  */
 async function probeExclusive(locks: LockManagerLike): Promise<ExclusiveProbe> {
   let release!: () => void;
@@ -82,10 +70,15 @@ async function probeExclusive(locks: LockManagerLike): Promise<ExclusiveProbe> {
 
   let request: Promise<unknown>;
   try {
-    request = locks.request(READER_PRESENCE_LOCK, { mode: 'exclusive', ifAvailable: true }, () => {
-      markAcquired();
-      return hold;
-    });
+    request = locks.request(
+      READER_PRESENCE_LOCK,
+      { mode: 'exclusive', ifAvailable: true },
+      (lock) => {
+        if (lock === null) return Promise.resolve();
+        markAcquired();
+        return hold;
+      },
+    );
   } catch {
     return { status: 'unknown' };
   }
@@ -105,7 +98,7 @@ async function probeExclusive(locks: LockManagerLike): Promise<ExclusiveProbe> {
 }
 
 async function readOpenChapters(locks: LockManagerLike): Promise<ReaderPresence> {
-  let held: readonly HeldLock[];
+  let held: readonly { readonly name?: string }[];
   try {
     held = (await locks.query()).held ?? [];
   } catch {
@@ -146,6 +139,7 @@ function requestSharedLock(
   locks: LockManagerLike,
   name: string,
   onHeld?: () => void,
+  onUnavailable?: () => void,
 ): (() => void) | undefined {
   let release!: () => void;
   const held = new Promise<void>((resolve) => {
@@ -157,8 +151,13 @@ function requestSharedLock(
         onHeld?.();
         await held;
       })
-      .catch(() => undefined);
+      .catch(() => {
+        // The reader keeps running without protection, but the caller is told
+        // rather than left believing another tab can see this chapter.
+        onUnavailable?.();
+      });
   } catch {
+    onUnavailable?.();
     return undefined;
   }
   return release;
@@ -170,17 +169,33 @@ function requestSharedLock(
  * so an exclusive presence probe blocks a mounting reader before it can take a
  * chapter lock. The browser releases both when the document unloads or crashes,
  * so a dead tab cannot protect a chapter forever.
+ *
+ * `onUnavailable` runs when the browser refuses either request (or there is no
+ * Web Locks API): the reader is then invisible to other tabs' eviction probes.
  */
-export function holdReaderLocks(chapter: CacheChapterRef): () => void {
+export function holdReaderLocks(chapter: CacheChapterRef, onUnavailable?: () => void): () => void {
   const locks = resolveLockManager();
-  if (locks === undefined) return () => undefined;
+  if (locks === undefined) {
+    onUnavailable?.();
+    return () => undefined;
+  }
 
   let cancelled = false;
   let releaseChapter: (() => void) | undefined;
-  const releasePresence = requestSharedLock(locks, READER_PRESENCE_LOCK, () => {
-    if (cancelled) return;
-    releaseChapter = requestSharedLock(locks, readerChapterLockName(chapter));
-  });
+  const releasePresence = requestSharedLock(
+    locks,
+    READER_PRESENCE_LOCK,
+    () => {
+      if (cancelled) return;
+      releaseChapter = requestSharedLock(
+        locks,
+        readerChapterLockName(chapter),
+        undefined,
+        onUnavailable,
+      );
+    },
+    onUnavailable,
+  );
 
   return () => {
     cancelled = true;

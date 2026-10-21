@@ -1,5 +1,5 @@
 import type { AppDrizzleDb } from '@app/db';
-import { listCacheBlobKeys } from '@app/db';
+import { hasCacheBlobKey, listCacheBlobKeys } from '@app/db';
 import type { PlatformAdapter } from '@app/platform';
 
 import { deleteBlobKeys } from './blob-deletes.js';
@@ -21,12 +21,15 @@ export interface OrphanBlobReclaimResult {
  * (`retryKeys`), or a write that never reached its row. Row accounting cannot
  * see those bytes, so only enumerating the blob store can.
  *
- * Cross-store limit: rows live in SQLite and blobs in IndexedDB, so this is not
- * atomic with a writer in another tab. A reader can have a blob put before its
- * row upsert, so blobs belonging to a chapter another tab holds a reader lock
- * for are skipped; readers in this process are additionally covered by the
- * in-flight guard. No full scan of either store is repeated per key: one key
- * enumeration, one row-key read, one bounded delete pass.
+ * Cross-tab writes are serialized by the per-key Web Lock (`withBlobWrite`
+ * shares it, the delete takes it exclusively): the delete waits for a write
+ * that already started and blocks one that starts after. Once the lock is held,
+ * the row key is read again because a writer that finished after enumeration
+ * may have created the row; deleting its blob would lose the bytes it just
+ * wrote. The local in-flight guard is re-checked inside the same lock for
+ * writers that fell back to unlocked operation. The pass stays bounded: one key
+ * enumeration, one row-key prefilter, one read per candidate inside its lock,
+ * and one bounded delete batch.
  */
 export async function reclaimOrphanBlobs(
   db: AppDrizzleDb,
@@ -64,7 +67,9 @@ export async function reclaimOrphanBlobs(
       return { reclaimedKeys: [], failedBlobKeys: [] };
     }
 
-    const outcome = await deleteBlobKeys(adapter, orphanKeys, isBlobWriteInFlight);
+    const outcome = await deleteBlobKeys(adapter, orphanKeys, {
+      skip: async (key) => isBlobWriteInFlight(key) || (await hasCacheBlobKey(db, key)),
+    });
     return { reclaimedKeys: outcome.deletedKeys, failedBlobKeys: outcome.failedKeys };
   } finally {
     if (presence.status === 'none') presence.release();
