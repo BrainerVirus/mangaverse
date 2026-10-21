@@ -20,8 +20,13 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
+    // Wrapping keeps the actions on a second line when the content column is narrower than
+    // title + actions (expanded rail plus safe-area insets), instead of squeezing both.
     <div
-      className={cn('flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between', className)}
+      className={cn(
+        'flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between',
+        className,
+      )}
     >
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-3">
@@ -35,7 +40,9 @@ export function PageHeader({
         {description ? <p className="type-body text-muted-foreground">{description}</p> : null}
       </div>
       {actions ? (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">{actions}</div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          {actions}
+        </div>
       ) : null}
     </div>
   );
