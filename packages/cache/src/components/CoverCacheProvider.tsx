@@ -3,7 +3,7 @@ import type { AppDrizzleDb } from '@app/db';
 import type { PlatformAdapter } from '@app/platform';
 import { DEFAULT_IMAGE_CACHE_LIMIT_BYTES } from '@app/shared';
 
-import { runCacheMaintenance } from '../cache-maintenance.js';
+import { requestCacheMaintenance } from '../cache-maintenance.js';
 
 export interface CoverCacheContextValue {
   readonly db: AppDrizzleDb;
@@ -36,7 +36,11 @@ export function CoverCacheProvider({
     if (value === null) {
       return;
     }
-    void runCacheMaintenance(value.db, value.adapter, value.cacheLimitBytes);
+    requestCacheMaintenance({
+      db: value.db,
+      adapter: value.adapter,
+      limitBytes: value.cacheLimitBytes,
+    });
   }, [value]);
 
   // Always render the same tree shape: switching between bare children and a

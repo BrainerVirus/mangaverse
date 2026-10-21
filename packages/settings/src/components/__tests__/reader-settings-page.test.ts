@@ -149,6 +149,30 @@ describe('ReaderSettingsPage', () => {
     expect(await getReaderSettings(db)).toEqual(settings);
   });
 
+  it('Given a discrete toggle, When it changes, Then the interaction commits after the change', () => {
+    const onChange = vi.fn<(next: ReaderSettings) => void>();
+    const onInteractionEnd = vi.fn<() => void>();
+    const page = ReaderSettingsPage({
+      settings: getDefaultReaderSettings(),
+      isLoading: false,
+      isError: false,
+      onChange,
+      onInteractionEnd,
+    });
+    const toggle = collectElements(page).find(
+      (element) => (element.props as { id?: unknown }).id === 'keep-screen-on',
+    );
+    if (toggle === undefined) throw new Error('keep-screen-on toggle is missing');
+    const props = toggle.props as {
+      onCheckedChange?: (checked: boolean) => void;
+    };
+
+    props.onCheckedChange?.(true);
+
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ keepScreenOn: true }));
+    expect(onInteractionEnd).toHaveBeenCalledTimes(1);
+  });
+
   it('Given the budget slider, Then it shows MiB, reaches the cap and saves bytes', () => {
     const onChange = vi.fn<(next: ReaderSettings) => void>();
     const page = ReaderSettingsPage({

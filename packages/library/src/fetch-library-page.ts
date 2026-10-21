@@ -7,7 +7,7 @@ export async function fetchLibraryPage(
   db: AppDrizzleDb,
   viewState: LibraryViewState,
 ): Promise<LibraryPageData> {
-  const { getMangaIdentity, listLibraryCategories, listLibraryEntries } = await import('@app/db');
+  const { getMangaIdentities, listLibraryCategories, listLibraryEntries } = await import('@app/db');
   const { query, ...repoFilter } = viewState.filter;
   const [entries, categories] = await Promise.all([
     listLibraryEntries(db, {
@@ -17,15 +17,16 @@ export async function fetchLibraryPage(
     listLibraryCategories(db),
   ]);
 
-  const resolved = await Promise.all(
-    entries.map(async (entry): Promise<LibraryItem | undefined> => {
-      const manga = await getMangaIdentity(db, entry.mangaId);
-      if (manga === undefined) {
-        return undefined;
-      }
-      return { entry, manga };
-    }),
+  const identities = await getMangaIdentities(
+    db,
+    entries.map((entry) => entry.mangaId),
   );
+  const identityById = new Map(identities.map((identity) => [identity.id, identity]));
+
+  const resolved = entries.map((entry): LibraryItem | undefined => {
+    const manga = identityById.get(entry.mangaId);
+    return manga === undefined ? undefined : { entry, manga };
+  });
 
   const items = resolved.filter((item): item is LibraryItem => item !== undefined);
   const filtered =

@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { useDeferredValue, useRef, useState } from 'react';
 import {
   DEFAULT_SEARCH_VIEW_STATE,
   mergeSearchPageData,
@@ -41,15 +41,20 @@ function SearchRoute() {
   });
 
   const explicitContent = appSettingsQuery.data?.settings.explicitContent ?? false;
-  const searchReady = dbStatus === 'ready' && db !== null && appSettingsQuery.isSuccess;
+  // The input stays immediate. Local reads and provider calls follow the
+  // deferred value, so a fast typist issues one query per pause instead of one
+  // per keystroke.
+  const deferredQuery = useDeferredValue(viewState.query);
+  const deferredViewState = { query: deferredQuery };
+  const providerReady = dbStatus === 'ready' && db !== null && appSettingsQuery.isSuccess;
 
   const localQuery = useQuery({
-    ...searchPageQueryOptions(db!, viewState, explicitContent),
-    enabled: searchReady,
+    ...searchPageQueryOptions(db!, deferredViewState),
+    enabled: dbStatus === 'ready' && db !== null,
   });
 
   const providerQuery = useQuery({
-    ...searchProviderQueryOptions(db!, viewState.query, explicitContent, searchReady),
+    ...searchProviderQueryOptions(db!, deferredViewState.query, explicitContent, providerReady),
   });
 
   const data = mergeSearchPageData(localQuery.data, providerQuery.data);
@@ -63,7 +68,7 @@ function SearchRoute() {
       // before refreshing so the blank-query read cannot precede it.
       const pending = pendingSearchWrite.current;
       pendingSearchWrite.current = null;
-      void refreshRecentSearchesAfterWrite(queryClient, pending, explicitContent);
+      void refreshRecentSearchesAfterWrite(queryClient, pending);
       return;
     }
     if (dbStatus === 'error' || trimmed === lastRecordedQuery.current) {
@@ -75,13 +80,13 @@ function SearchRoute() {
     // against the session promise so that search still reaches history.
     const write = recordSearchQuery(db ?? getLocalDb(), trimmed).catch(() => undefined);
     pendingSearchWrite.current = write;
-    void write.then(() => refreshRecentSearches(queryClient, explicitContent));
+    void write.then(() => refreshRecentSearches(queryClient));
   };
 
   return (
     <SearchPage
       data={data}
-      isLoading={dbStatus === 'loading' || localQuery.isLoading || appSettingsQuery.isLoading}
+      isLoading={dbStatus === 'loading' || localQuery.isLoading}
       isError={dbStatus === 'error' || localQuery.isError}
       isProviderPending={providerQuery.isFetching}
       isProviderError={providerQuery.isError}

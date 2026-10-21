@@ -20,6 +20,7 @@ import {
   useReportPersistenceError,
 } from '../providers/local-db-provider.js';
 import { useOnlineStatus } from '../lib/use-online-status.js';
+import { useCoalescedSettingsWrite } from '../lib/use-coalesced-settings-write.js';
 import { getBindingForChapterId } from '../lib/provider-registry.js';
 import { useLayoutStore } from '../stores/useLayoutStore.js';
 import { PersistenceErrorBanner } from '../components/PersistenceErrorBanner.js';
@@ -99,33 +100,43 @@ function ReaderRoute() {
     },
     onMutate: async (next) => {
       await queryClient.cancelQueries({ queryKey: readerQueryKeys.chapter(chapterId) });
-      const previous = queryClient.getQueryData<ReaderPageData>(readerQueryKeys.chapter(chapterId));
       queryClient.setQueryData<ReaderPageData>(readerQueryKeys.chapter(chapterId), (current) =>
         current === undefined
           ? current
           : { ...current, settings: next, engineSettings: toReaderEngineSettings(next) },
       );
-      return { previous };
     },
-    onError: (error, _next, context) => {
-      if (context?.previous !== undefined) {
-        queryClient.setQueryData(readerQueryKeys.chapter(chapterId), context.previous);
-      }
+    onError: (error) => {
+      // The cache already shows the attempted value; re-read the durable one.
+      void queryClient.invalidateQueries({ queryKey: readerQueryKeys.chapter(chapterId) });
       // The reader has no shell banner above it; report through the same sink.
       reportPersistenceError(formatWriteError(error));
     },
-    onSettled: () => {
+    onSettled: (_data, _error, next) => {
+      const current = queryClient.getQueryData<ReaderPageData>(
+        readerQueryKeys.chapter(chapterId),
+      )?.settings;
+      // A newer edit owns the cache; its own write will invalidate.
+      if (current !== next) return;
       void queryClient.invalidateQueries({ queryKey: readerQueryKeys.chapter(chapterId) });
       void queryClient.invalidateQueries({ queryKey: settingsQueryKeys.reader() });
     },
   });
 
+  const settingsWriter = useCoalescedSettingsWrite(saveSettings);
   const handleChangeSettings = useCallback(
     (patch: Partial<ReaderSettings>) => {
       if (db === null || data?.settings === undefined) return;
-      saveSettings({ ...data.settings, ...patch });
+      const next = { ...data.settings, ...patch };
+      // Paint every change; the DB write waits for the gesture to rest.
+      queryClient.setQueryData<ReaderPageData>(readerQueryKeys.chapter(chapterId), (current) =>
+        current === undefined
+          ? current
+          : { ...current, settings: next, engineSettings: toReaderEngineSettings(next) },
+      );
+      settingsWriter.schedule(next);
     },
-    [data, db, saveSettings],
+    [chapterId, data, db, queryClient, settingsWriter],
   );
 
   // The library keeps a five-minute staleTime, so reading must mark it stale or

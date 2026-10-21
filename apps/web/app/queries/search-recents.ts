@@ -6,12 +6,10 @@ import { DEFAULT_SEARCH_VIEW_STATE, searchQueryKeys } from '@app/search';
  * invalidating: a pending blank-query result can otherwise resolve after a
  * history write and restore the stale list as fresh. Scoped to the blank key so
  * clearing a non-empty search never aborts the provider search being shown.
+ * The key carries no explicit-content partition: recents do not depend on it.
  */
-export async function refreshRecentSearches(
-  queryClient: QueryClient,
-  explicitContent = false,
-): Promise<void> {
-  const key = searchQueryKeys.page(DEFAULT_SEARCH_VIEW_STATE, explicitContent);
+export async function refreshRecentSearches(queryClient: QueryClient): Promise<void> {
+  const key = searchQueryKeys.page(DEFAULT_SEARCH_VIEW_STATE);
   await queryClient.cancelQueries({ queryKey: key });
   await queryClient.invalidateQueries({ queryKey: key });
 }
@@ -24,11 +22,10 @@ export async function refreshRecentSearches(
 export async function refreshRecentSearchesAfterWrite(
   queryClient: QueryClient,
   write: Promise<unknown> | null,
-  explicitContent = false,
 ): Promise<void> {
   if (write !== null) {
     // A failed history write must not block clearing the search box.
     await write.catch(() => undefined);
   }
-  await refreshRecentSearches(queryClient, explicitContent);
+  await refreshRecentSearches(queryClient);
 }

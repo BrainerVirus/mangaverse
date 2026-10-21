@@ -32,6 +32,8 @@ export interface ReaderSettingsPageProps {
   readonly isError: boolean;
   readonly isSaving?: boolean;
   onChange: (next: ReaderSettings) => void;
+  /** Pointer-up or blur: commit a coalesced edit without waiting for the quiet window. */
+  onInteractionEnd?: () => void;
 }
 
 const READING_MODE_OPTIONS: readonly { value: ReadingMode; label: string }[] = [
@@ -175,6 +177,7 @@ function SettingSliderRow({
   disabled,
   formatValue,
   onChange,
+  onCommit,
 }: {
   id: string;
   label: string;
@@ -186,6 +189,7 @@ function SettingSliderRow({
   disabled?: boolean;
   formatValue?: (value: number) => string;
   onChange: (value: number) => void;
+  onCommit?: (() => void) | undefined;
 }) {
   const display = formatValue ? formatValue(value) : String(value);
 
@@ -204,6 +208,8 @@ function SettingSliderRow({
         step={step}
         disabled={disabled}
         aria-valuetext={display}
+        onPointerUp={onCommit}
+        onBlur={onCommit}
         onChange={(event) => onChange(Number(event.target.value))}
       />
     </div>
@@ -216,6 +222,7 @@ export function ReaderSettingsPage({
   isError,
   isSaving = false,
   onChange,
+  onInteractionEnd,
 }: ReaderSettingsPageProps) {
   if (isLoading) {
     return (
@@ -238,6 +245,10 @@ export function ReaderSettingsPage({
 
   const update = (patch: Partial<ReaderSettings>) => {
     onChange({ ...settings, ...patch });
+  };
+  const commit = (patch: Partial<ReaderSettings>) => {
+    update(patch);
+    onInteractionEnd?.();
   };
 
   return (
@@ -262,26 +273,23 @@ export function ReaderSettingsPage({
             id="reading-mode"
             label="Reading mode"
             value={settings.readingMode}
-            disabled={isSaving}
             options={READING_MODE_OPTIONS}
-            onChange={(readingMode) => update({ readingMode: readingMode as ReadingMode })}
+            onChange={(readingMode) => commit({ readingMode: readingMode as ReadingMode })}
           />
           <SettingSelectRow
             id="page-layout"
             label="Page layout"
             description="How many pages appear at once in paged modes."
             value={settings.pageLayout}
-            disabled={isSaving}
             options={PAGE_LAYOUT_OPTIONS}
-            onChange={(pageLayout) => update({ pageLayout: pageLayout as PageLayoutMode })}
+            onChange={(pageLayout) => commit({ pageLayout: pageLayout as PageLayoutMode })}
           />
           <SettingSelectRow
             id="fit-mode"
             label="Page fit"
             value={settings.fitMode}
-            disabled={isSaving}
             options={FIT_MODE_OPTIONS}
-            onChange={(fitMode) => update({ fitMode: fitMode as FitMode })}
+            onChange={(fitMode) => commit({ fitMode: fitMode as FitMode })}
           />
         </div>
       </SettingsSection>
@@ -296,27 +304,24 @@ export function ReaderSettingsPage({
             label="Tap zones"
             description="Screen regions used for previous and next page taps."
             value={settings.tapZoneLayout}
-            disabled={isSaving}
             options={TAP_ZONE_OPTIONS}
-            onChange={(tapZoneLayout) => update({ tapZoneLayout: tapZoneLayout as TapZoneLayout })}
+            onChange={(tapZoneLayout) => commit({ tapZoneLayout: tapZoneLayout as TapZoneLayout })}
           />
           <SettingSelectRow
             id="navigation-direction"
             label="Navigation direction"
             value={settings.navigationDirection}
-            disabled={isSaving}
             options={NAV_DIRECTION_OPTIONS}
             onChange={(navigationDirection) =>
-              update({ navigationDirection: navigationDirection as NavigationDirection })
+              commit({ navigationDirection: navigationDirection as NavigationDirection })
             }
           />
           <SettingSelectRow
             id="wheel-behavior"
             label="Mouse wheel"
             value={settings.wheelBehavior}
-            disabled={isSaving}
             options={WHEEL_BEHAVIOR_OPTIONS}
-            onChange={(wheelBehavior) => update({ wheelBehavior: wheelBehavior as WheelBehavior })}
+            onChange={(wheelBehavior) => commit({ wheelBehavior: wheelBehavior as WheelBehavior })}
           />
         </div>
       </SettingsSection>
@@ -328,20 +333,18 @@ export function ReaderSettingsPage({
             label="Reader chrome"
             description="Controls visibility of the top and bottom toolbars."
             value={settings.chromeVisibility}
-            disabled={isSaving}
             options={CHROME_VISIBILITY_OPTIONS}
             onChange={(chromeVisibility) =>
-              update({ chromeVisibility: chromeVisibility as ReaderChromeVisibility })
+              commit({ chromeVisibility: chromeVisibility as ReaderChromeVisibility })
             }
           />
           <SettingSelectRow
             id="page-transition"
             label="Page transition"
             value={settings.pageTransition}
-            disabled={isSaving}
             options={PAGE_TRANSITION_OPTIONS}
             onChange={(pageTransition) =>
-              update({ pageTransition: pageTransition as PageTransitionMode })
+              commit({ pageTransition: pageTransition as PageTransitionMode })
             }
           />
           <div className="grid gap-2">
@@ -350,8 +353,8 @@ export function ReaderSettingsPage({
               id="background-color"
               type="color"
               value={settings.backgroundColor}
-              disabled={isSaving}
               className="h-10 w-20 cursor-pointer p-1"
+              onBlur={onInteractionEnd}
               onChange={(event) => update({ backgroundColor: event.target.value })}
             />
           </div>
@@ -362,9 +365,9 @@ export function ReaderSettingsPage({
             min={0}
             max={1}
             step={0.05}
-            disabled={isSaving}
             formatValue={(value) => `${Math.round(value * 100)}%`}
             onChange={(brightness) => update({ brightness })}
+            onCommit={onInteractionEnd}
           />
           <SettingSliderRow
             id="vertical-gap"
@@ -374,9 +377,9 @@ export function ReaderSettingsPage({
             min={0}
             max={64}
             step={1}
-            disabled={isSaving}
             formatValue={(value) => `${value}px`}
             onChange={(verticalGapPx) => update({ verticalGapPx })}
+            onCommit={onInteractionEnd}
           />
         </div>
       </SettingsSection>
@@ -388,32 +391,28 @@ export function ReaderSettingsPage({
             label="Keep screen on"
             description="Prevent the display from sleeping while reading."
             checked={settings.keepScreenOn}
-            disabled={isSaving}
-            onCheckedChange={(keepScreenOn) => update({ keepScreenOn })}
+            onCheckedChange={(keepScreenOn) => commit({ keepScreenOn })}
           />
           <SettingToggleRow
             id="fullscreen-on-open"
             label="Fullscreen on open"
             description="Enter fullscreen when opening the reader."
             checked={settings.fullscreenOnOpen}
-            disabled={isSaving}
-            onCheckedChange={(fullscreenOnOpen) => update({ fullscreenOnOpen })}
+            onCheckedChange={(fullscreenOnOpen) => commit({ fullscreenOnOpen })}
           />
           <SettingToggleRow
             id="image-smoothing"
             label="Image smoothing"
             description="Apply browser filtering when scaling page images."
             checked={settings.imageSmoothing}
-            disabled={isSaving}
-            onCheckedChange={(imageSmoothing) => update({ imageSmoothing })}
+            onCheckedChange={(imageSmoothing) => commit({ imageSmoothing })}
           />
           <SettingToggleRow
             id="remember-per-title"
             label="Remember per-title overrides"
             description="Save reading mode changes per manga when enabled."
             checked={settings.rememberPerTitleOverrides}
-            disabled={isSaving}
-            onCheckedChange={(rememberPerTitleOverrides) => update({ rememberPerTitleOverrides })}
+            onCheckedChange={(rememberPerTitleOverrides) => commit({ rememberPerTitleOverrides })}
           />
         </div>
       </SettingsSection>
@@ -428,8 +427,8 @@ export function ReaderSettingsPage({
             min={0}
             max={10}
             step={1}
-            disabled={isSaving}
             onChange={(preloadAhead) => update({ preloadAhead })}
+            onCommit={onInteractionEnd}
           />
           <SettingSliderRow
             id="prefetch-budget"
@@ -439,9 +438,9 @@ export function ReaderSettingsPage({
             min={0}
             max={PREFETCH_BUDGET_MAX_BYTES / PREFETCH_BUDGET_MIB}
             step={PREFETCH_BUDGET_STEP_MIB}
-            disabled={isSaving}
             formatValue={(mib) => (mib === 0 ? 'Unlimited' : `${mib} MiB`)}
             onChange={(mib) => update({ prefetchBudgetBytes: mib * PREFETCH_BUDGET_MIB })}
+            onCommit={onInteractionEnd}
           />
         </div>
       </SettingsSection>
@@ -457,32 +456,28 @@ export function ReaderSettingsPage({
             label="Low-memory mode"
             description="Reduce preloading and image quality on constrained devices."
             checked={settings.lowMemoryMode}
-            disabled={isSaving}
-            onCheckedChange={(lowMemoryMode) => update({ lowMemoryMode })}
+            onCheckedChange={(lowMemoryMode) => commit({ lowMemoryMode })}
           />
           <SettingToggleRow
             id="long-strip-optimization"
             label="Long strip optimization"
             description="Optimize rendering for very long vertical chapters."
             checked={settings.longStripOptimization}
-            disabled={isSaving}
-            onCheckedChange={(longStripOptimization) => update({ longStripOptimization })}
+            onCheckedChange={(longStripOptimization) => commit({ longStripOptimization })}
           />
           <SettingToggleRow
             id="tap-zone-debug-overlay"
             label="Tap zone debug overlay"
             description="Show the active tap zones on top of the page."
             checked={settings.tapZoneDebugOverlay}
-            disabled={isSaving}
-            onCheckedChange={(tapZoneDebugOverlay) => update({ tapZoneDebugOverlay })}
+            onCheckedChange={(tapZoneDebugOverlay) => commit({ tapZoneDebugOverlay })}
           />
           <SettingToggleRow
             id="diagnostics-enabled"
             label="Diagnostics"
             description="Collect reader diagnostics while reading."
             checked={settings.diagnosticsEnabled}
-            disabled={isSaving}
-            onCheckedChange={(diagnosticsEnabled) => update({ diagnosticsEnabled })}
+            onCheckedChange={(diagnosticsEnabled) => commit({ diagnosticsEnabled })}
           />
         </div>
       </SettingsSection>

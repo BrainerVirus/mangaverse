@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { QueryClient } from '@tanstack/react-query';
+import { keepPreviousData, QueryClient } from '@tanstack/react-query';
 import { DEFAULT_LIBRARY_VIEW_STATE, libraryQueryKeys } from '@app/library';
 import { DEFAULT_SEARCH_VIEW_STATE, searchQueryKeys } from '@app/search';
 import { settingsQueryKeys } from '@app/settings';
@@ -39,6 +39,7 @@ describe('searchPageQueryOptions', () => {
     const options = searchPageQueryOptions(mockDb, DEFAULT_SEARCH_VIEW_STATE);
 
     expect(options.queryKey).toEqual(searchQueryKeys.page(DEFAULT_SEARCH_VIEW_STATE));
+    expect(options.placeholderData).toBe(keepPreviousData);
     expect(options.staleTime).toBe(QUERY_STALE_TIMES.search);
     expect(options.gcTime).toBe(QUERY_GC_TIMES.search);
   });
@@ -51,6 +52,7 @@ describe('searchProviderQueryOptions', () => {
 
     expect(blank.enabled).toBe(false);
     expect(typed.enabled).toBe(true);
+    expect(typed.placeholderData).toBe(keepPreviousData);
     expect(typed.queryKey).toEqual(searchQueryKeys.provider('berserk', true));
     expect(typed.staleTime).toBe(QUERY_STALE_TIMES.search);
     expect(typed.gcTime).toBe(QUERY_GC_TIMES.search);
@@ -76,18 +78,16 @@ describe('settings query options', () => {
 });
 
 describe('prefetchCoreLocalData', () => {
-  it('prefetches library, search, and settings queries', async () => {
+  it('prefetches library and search only; settings belong to their own bridges', async () => {
     const queryClient = new QueryClient();
     const prefetchSpy = vi.spyOn(queryClient, 'prefetchQuery').mockResolvedValue(undefined);
 
     await prefetchCoreLocalData(queryClient, mockDb);
 
-    expect(prefetchSpy).toHaveBeenCalledTimes(4);
+    expect(prefetchSpy).toHaveBeenCalledTimes(2);
     expect(prefetchSpy.mock.calls.map(([options]) => options.queryKey)).toEqual([
       libraryQueryKeys.page(DEFAULT_LIBRARY_VIEW_STATE),
       searchQueryKeys.page(DEFAULT_SEARCH_VIEW_STATE),
-      settingsQueryKeys.app(),
-      settingsQueryKeys.reader(),
     ]);
   });
 });

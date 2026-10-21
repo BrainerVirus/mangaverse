@@ -318,4 +318,51 @@ describe('/search route', () => {
 
     await vi.waitFor(() => expect(signals[0]?.aborted).toBe(true));
   });
+
+  it('Given a slow local read for the next query, When typing, Then previous results stay on screen', async () => {
+    let resolveNext!: (page: SearchPageData) => void;
+    mocks.fetchSearchPage.mockImplementation((_db, viewState: SearchViewState) => {
+      if (viewState.query === 'naruto') {
+        return new Promise<SearchPageData>((resolve) => (resolveNext = resolve));
+      }
+      return Promise.resolve(localPage(viewState));
+    });
+
+    await act(async () => setQuery('berserk'));
+    await vi.waitFor(() => expect(buttonByText('Local berserk')).toBeDefined());
+
+    await act(async () => setQuery('naruto'));
+    await vi.waitFor(() =>
+      expect(mocks.fetchSearchPage).toHaveBeenCalledWith(
+        db,
+        expect.objectContaining({ query: 'naruto' }),
+      ),
+    );
+
+    // The grid is not replaced by a loading state while the next read runs.
+    expect(buttonByText('Local berserk')).toBeDefined();
+
+    await act(async () => resolveNext(localPage({ query: 'naruto' })));
+    await vi.waitFor(() => expect(buttonByText('Local naruto')).toBeDefined());
+  });
+
+  it('Given app settings still loading, When a query is typed, Then local results are not gated', async () => {
+    act(() => root.unmount());
+    mocks.fetchAppSettings.mockImplementation(() => new Promise(() => {}));
+    root = createRoot(container);
+    await act(async () => {
+      root.render(
+        <QueryClientProvider
+          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+        >
+          <SearchRoute />
+        </QueryClientProvider>,
+      );
+    });
+
+    await act(async () => setQuery('berserk'));
+
+    await vi.waitFor(() => expect(buttonByText('Local berserk')).toBeDefined());
+    expect(mocks.fetchProviderSearchIdentities).not.toHaveBeenCalled();
+  });
 });

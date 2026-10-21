@@ -78,10 +78,10 @@ async function renderRoute(): Promise<{ root: Root; container: HTMLElement }> {
   return { root, container };
 }
 
-/** Flushes the mutation's async tail so its callbacks have run. */
+/** Flushes the debounced write and the mutation's async tail. */
 async function settle() {
   await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 350));
   });
 }
 

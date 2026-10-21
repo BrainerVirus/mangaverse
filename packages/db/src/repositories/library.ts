@@ -45,16 +45,15 @@ async function categoryIdsForEntry(
   return rows.map((r) => toCategoryId(r.categoryId));
 }
 
-export async function toLibraryEntry(
-  db: AppDrizzleDb,
+function mapLibraryEntry(
   row: typeof libraryEntries.$inferSelect,
-): Promise<LibraryEntry> {
-  const categoryIds = await categoryIdsForEntry(db, toLibraryEntryId(row.id));
+  categoryIds: readonly CategoryId[],
+): LibraryEntry {
   return {
     id: toLibraryEntryId(row.id),
     mangaId: toMangaId(row.mangaId),
     favorite: row.favorite,
-    categoryIds,
+    categoryIds: [...categoryIds],
     status: row.status as LibraryEntry['status'],
     unreadCount: row.unreadCount,
     ...(row.lastReadChapterId !== null &&
@@ -82,11 +81,45 @@ export async function toLibraryEntry(
   };
 }
 
+export async function toLibraryEntry(
+  db: AppDrizzleDb,
+  row: typeof libraryEntries.$inferSelect,
+): Promise<LibraryEntry> {
+  const categoryIds = await categoryIdsForEntry(db, toLibraryEntryId(row.id));
+  return mapLibraryEntry(row, categoryIds);
+}
+
+/** One membership read for the whole page instead of one per entry. */
+function categoryIdsByEntry(
+  db: AppDrizzleDb,
+  entryIds: readonly LibraryEntryId[],
+): Map<string, CategoryId[]> {
+  const grouped = new Map<string, CategoryId[]>();
+  if (entryIds.length === 0) return grouped;
+
+  const rows = db
+    .select({
+      libraryEntryId: libraryCategoryMemberships.libraryEntryId,
+      categoryId: libraryCategoryMemberships.categoryId,
+    })
+    .from(libraryCategoryMemberships)
+    .where(inArray(libraryCategoryMemberships.libraryEntryId, [...entryIds]))
+    .all();
+
+  for (const row of rows) {
+    const list = grouped.get(row.libraryEntryId);
+    const categoryId = toCategoryId(row.categoryId);
+    if (list === undefined) grouped.set(row.libraryEntryId, [categoryId]);
+    else list.push(categoryId);
+  }
+  return grouped;
+}
+
 function sortLibraryRows(
   db: AppDrizzleDb,
   rows: (typeof libraryEntries.$inferSelect)[],
   sort?: LibrarySort,
-): Promise<LibraryEntry[]> {
+): LibraryEntry[] {
   const key: LibrarySortKey = sort?.key ?? 'date_added';
   const dir = sort?.direction ?? 'desc';
   const mul = dir === 'asc' ? 1 : -1;
@@ -101,7 +134,11 @@ function sortLibraryRows(
     return mul * String(a.updatedAt ?? '').localeCompare(String(b.updatedAt ?? ''));
   });
 
-  return Promise.all(sorted.map((r) => toLibraryEntry(db, r)));
+  const categoriesByEntry = categoryIdsByEntry(
+    db,
+    sorted.map((row) => toLibraryEntryId(row.id)),
+  );
+  return sorted.map((row) => mapLibraryEntry(row, categoriesByEntry.get(row.id) ?? []));
 }
 
 export async function listLibraryCategories(db: AppDrizzleDb): Promise<LibraryCategory[]> {

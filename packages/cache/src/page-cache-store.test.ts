@@ -5,35 +5,57 @@ import { createSqlJsHarness } from '@app/db/testing';
 
 import {
   listCachedChapterPageIndexes,
+  markChapterPagesAsRead,
   prefetchChapterPages,
   resolvePageObjectUrl,
   runPrefetchQueue,
 } from './page-cache-store.js';
+import { listCacheEntriesForManga } from '@app/db';
 
 /** Only `blobStorage` and `network` are touched by the page cache store. */
-function createPageAdapter(): { adapter: PlatformAdapter; peakFetches: () => number } {
+function createPageAdapter(): {
+  adapter: PlatformAdapter;
+  peakFetches: () => number;
+  calls: {
+    readonly createObjectUrl: () => number;
+    readonly get: () => number;
+    readonly put: () => number;
+    readonly fetch: () => number;
+  };
+} {
   const blobs = new Map<string, { data: ArrayBuffer; mimeType: string }>();
   let inFlight = 0;
   let peak = 0;
+  let creates = 0;
+  let gets = 0;
+  let puts = 0;
+  let fetches = 0;
 
   return {
     adapter: {
       blobStorage: {
         put: async (key: string, data: ArrayBuffer, mimeType: string) => {
+          puts += 1;
           blobs.set(key, { data, mimeType });
           return ok(undefined);
         },
-        get: async (key: string) => ok(blobs.get(key)),
+        get: async (key: string) => {
+          gets += 1;
+          return ok(blobs.get(key));
+        },
         delete: async (key: string) => {
           blobs.delete(key);
           return ok(undefined);
         },
-        createObjectUrl: async (_data: ArrayBuffer, _mimeType: string) =>
-          ok(`blob:page-${blobs.size}`),
+        createObjectUrl: async (_data: ArrayBuffer, _mimeType: string) => {
+          creates += 1;
+          return ok(`blob:page-${blobs.size}`);
+        },
         revokeObjectUrl: async (_url: string) => ok(undefined),
       },
       network: {
         fetchBytes: async () => {
+          fetches += 1;
           inFlight += 1;
           peak = Math.max(peak, inFlight);
           // Yield so every queued page overlaps the ones already in flight.
@@ -44,6 +66,12 @@ function createPageAdapter(): { adapter: PlatformAdapter; peakFetches: () => num
       },
     } as unknown as PlatformAdapter,
     peakFetches: () => peak,
+    calls: {
+      createObjectUrl: () => creates,
+      get: () => gets,
+      put: () => puts,
+      fetch: () => fetches,
+    },
   };
 }
 
@@ -172,5 +200,122 @@ describe('page cache store', () => {
     });
 
     expect(await listCachedChapterPageIndexes(db, CHAPTER)).toEqual([0, 2]);
+  });
+
+  it('Given prefetched pages, When prefetching runs, Then no object URL is created or leaked', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter, calls } = createPageAdapter();
+    const pages = Array.from({ length: 12 }, (_value, pageIndex) => ({
+      pageIndex,
+      remoteUrl: `https://uploads.mangadex.org/urls${pageIndex}.jpg`,
+    }));
+
+    await prefetchChapterPages({ db, adapter, ...CHAPTER, pages, retention: 'read' });
+
+    expect(calls.createObjectUrl()).toBe(0);
+    expect(await listCachedChapterPageIndexes(db, CHAPTER)).toHaveLength(12);
+  });
+
+  it('Given already cached pages, When prefetching again, Then it reads metadata only and touches nothing', async () => {
+    const { db, raw } = await createSqlJsHarness();
+    const { adapter, calls } = createPageAdapter();
+    const pages = Array.from({ length: 5 }, (_value, pageIndex) => ({
+      pageIndex,
+      remoteUrl: `https://uploads.mangadex.org/repeat${pageIndex}.jpg`,
+    }));
+    await prefetchChapterPages({ db, adapter, ...CHAPTER, pages, retention: 'read' });
+    const before = (await listCacheEntriesForManga(db, CHAPTER.providerId, CHAPTER.mangaId)).map(
+      (entry) => ({ id: entry.id, lastAccessAt: entry.lastAccessAt }),
+    );
+
+    const putsBefore = calls.put();
+    const getsBefore = calls.get();
+    const fetchesBefore = calls.fetch();
+    const statements: string[] = [];
+    const prepare = raw.prepare.bind(raw);
+    raw.prepare = (sql: string) => {
+      statements.push(sql);
+      return prepare(sql);
+    };
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await prefetchChapterPages({ db, adapter, ...CHAPTER, pages, retention: 'read' });
+
+    // Only the chapter-scoped index read runs; no per-page existence check.
+    expect(new Set(statements).size).toBe(1);
+    expect(calls.put()).toBe(putsBefore);
+    expect(calls.get()).toBe(getsBefore);
+    expect(calls.fetch()).toBe(fetchesBefore);
+    expect(calls.createObjectUrl()).toBe(0);
+    expect(
+      (await listCacheEntriesForManga(db, CHAPTER.providerId, CHAPTER.mangaId)).map((entry) => ({
+        id: entry.id,
+        lastAccessAt: entry.lastAccessAt,
+      })),
+    ).toEqual(before);
+  });
+
+  it('Given pages already marked read, When marking again, Then no row is written', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter } = createPageAdapter();
+    const pages = Array.from({ length: 3 }, (_value, pageIndex) => ({
+      pageIndex,
+      remoteUrl: `https://uploads.mangadex.org/mark${pageIndex}.jpg`,
+    }));
+    await prefetchChapterPages({ db, adapter, ...CHAPTER, pages, retention: 'read' });
+    await markChapterPagesAsRead(db, CHAPTER);
+    const first = await listCacheEntriesForManga(db, CHAPTER.providerId, CHAPTER.mangaId);
+    expect(first.map((entry) => entry.metadata?.retention)).toEqual(['read', 'read', 'read']);
+    const accessBefore = new Map(first.map((entry) => [entry.id, entry.lastAccessAt]));
+
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await markChapterPagesAsRead(db, CHAPTER);
+
+    const accessAfter = new Map(
+      (await listCacheEntriesForManga(db, CHAPTER.providerId, CHAPTER.mangaId)).map((entry) => [
+        entry.id,
+        entry.lastAccessAt,
+      ]),
+    );
+    expect(accessAfter).toEqual(accessBefore);
+  });
+
+  it('Given an aborted prefetch, When the fetch resolves, Then it does not store the page', async () => {
+    const { db } = await createSqlJsHarness();
+    let resolveFetch!: (value: unknown) => void;
+    const putCalls: string[] = [];
+    const adapter = {
+      blobStorage: {
+        put: async (key: string) => {
+          putCalls.push(key);
+          return ok(undefined);
+        },
+        get: async () => ok(undefined),
+        delete: async () => ok(undefined),
+        createObjectUrl: async () => ok('blob:page'),
+        revokeObjectUrl: async () => ok(undefined),
+      },
+      network: {
+        fetchBytes: () =>
+          new Promise((resolve) => {
+            resolveFetch = resolve;
+          }),
+      },
+    } as unknown as PlatformAdapter;
+    const controller = new AbortController();
+
+    const prefetch = prefetchChapterPages({
+      db,
+      adapter,
+      ...CHAPTER,
+      pages: [{ pageIndex: 0, remoteUrl: 'https://uploads.mangadex.org/abort.jpg' }],
+      signal: controller.signal,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    controller.abort();
+    resolveFetch({ data: new Uint8Array([1]).buffer, mimeType: 'image/jpeg' });
+    await prefetch;
+
+    expect(putCalls).toEqual([]);
+    expect(await listCachedChapterPageIndexes(db, CHAPTER)).toEqual([]);
   });
 });

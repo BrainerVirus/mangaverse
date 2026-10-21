@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
+import { isRedirect } from '@tanstack/react-router';
 import { getRouter } from '../router.js';
 import { routeTree } from '../routeTree.gen.js';
+import { Route as IndexRoute } from '../routes/index.js';
 
 const PHASE_8_ROUTES = [
   '/',
@@ -54,5 +56,17 @@ describe('router', () => {
     for (const expected of PHASE_8_ROUTES) {
       expect(paths).toContain(expected);
     }
+  });
+
+  it('redirects / to /discover before the landing document renders', () => {
+    let thrown: unknown;
+    try {
+      IndexRoute.options.beforeLoad?.({} as never);
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(isRedirect(thrown)).toBe(true);
+    expect(thrown).toMatchObject({ options: { to: '/discover' } });
   });
 });
