@@ -97,9 +97,9 @@ export function MobileBottomNav() {
         </SheetContent>
       </Sheet>
 
-      <GlassSurface level="thick" className="fixed bottom-0 left-0 right-0 z-50 h-14 md:hidden">
+      <GlassSurface level="thick" className="fixed bottom-0 left-0 right-0 z-50 min-h-14 md:hidden">
         <nav className="h-full safe-area-bottom">
-          <div className="flex h-full items-center justify-around px-4">
+          <div className="flex h-14 items-center justify-around px-4">
             {primaryTabs.map(({ label, to, icon: Icon }) => {
               const isActive = currentPath === to || currentPath.startsWith(to + '/');
               return (

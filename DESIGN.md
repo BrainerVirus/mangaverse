@@ -280,13 +280,13 @@ it one step shallow.
 - **No-support fallback (landed in P1):** `@supports not (backdrop-filter: blur(1px))` applies the same
   opaque resolution. Never ship a translucent layer without a blur: the text contrast maths in §3.5
   assumes the blur is doing its part.
-- **`prefers-reduced-transparency` (landed in P1):** warranted, and it is the _second_ half of the story.
-  Where the UA supports it (Safari 18+/iOS 18+ today; Chromium support is still partial), it resolves
-  every glass tier to opaque automatically. Because support is uneven, the reliable path is the
-  user-facing **Transparency** setting (Full / Reduced, default Full) in appearance settings, stored
-  like every other preference and applied as `data-transparency="solid"` on the root — same resolution
-  as `data-glass="cheap"`, plus the ambient backdrop off. The CSS path ships in P1; the user setting
-  landed in #104.
+- **`prefers-reduced-transparency` (landed in P1):** support is uneven. Chromium/Edge 118+ honour it;
+  Firefox 113+ supports it only behind a flag (not the default); Safari/iOS do not support it. Where
+  the UA honours it, every glass tier resolves to opaque automatically. Because the query cannot be
+  relied on, the required fallback is the user-facing **Transparency** setting (Full / Reduced,
+  default Full) in appearance settings, stored like every other preference and applied as
+  `data-transparency="solid"` on the root — same resolution as `data-glass="cheap"`, plus the ambient
+  backdrop off. The CSS path ships in P1; the user setting landed in #104.
 - **SSR:** glass is CSS-only, so nothing needs a client guard; do not branch rendering on
   `matchMedia` during the first paint.
 
@@ -993,9 +993,9 @@ page (#107).
   `--success` `#16a34a` 3.21:1 on the light glass fill (regular, alpha .68) over `--background`; the
   shipped glass tokens `#b45309` / `#15803d` measure 4.89:1, and destructive `#b91c1c` 6.30:1, pinned by
   the token test.
-- **`prefers-reduced-transparency` support is uneven.** The CSS resolution path ships in P1; the in-app
-  setting (#104) is the reliable path. The `/design-system` page (#107) shows the fallback note; a real
-  Safari check remains open.
+- **`prefers-reduced-transparency` support is uneven.** Chromium/Edge 118+ honour it; Firefox 113+
+  only behind a flag; Safari/iOS do not support it. The in-app Transparency setting (#104) is the
+  required fallback; the `/design-system` page (#107) shows the fallback note.
 - **Displacement refraction has no budget number yet.** It is capped to two hero surfaces by rule; measure
   the frame cost on a low-end profile before allowing a third.
 - **No webfonts are bundled.** Inter and JetBrains Mono are stacks today; the display scale assumes Inter.

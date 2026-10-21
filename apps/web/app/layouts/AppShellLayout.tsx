@@ -36,10 +36,13 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
   }, [toggleSidebar]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background max-md:flex-col max-md:overflow-visible">
+    <div
+      data-app-shell
+      className="flex overflow-hidden bg-background max-md:flex-col max-md:overflow-visible"
+    >
       <AmbientBackdrop />
       <DesktopSidebar />
-      <main className="flex-1 overflow-auto bg-background max-md:pb-16">
+      <main data-app-nav-offset className="flex-1 overflow-auto bg-background">
         <PersistenceErrorBanner />
         <AnimatedRouteOutlet>{children}</AnimatedRouteOutlet>
       </main>

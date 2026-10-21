@@ -266,14 +266,24 @@
   #root {
     isolation: isolate;
     min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  /* The shell fills the visible viewport so mobile browser chrome cannot hide the bottom nav;
+     the 100vh line is the fallback for engines without `dvh`. */
+  [data-app-shell] {
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  @media (width < 48rem) {
+    [data-app-nav-offset] {
+      padding-bottom: calc(3.5rem + env(safe-area-inset-bottom));
+    }
   }
 }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-
   .surface-panel {
     background-color: var(--surface);
     border: 1px solid var(--border);
