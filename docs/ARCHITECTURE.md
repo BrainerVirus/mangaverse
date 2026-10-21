@@ -446,6 +446,10 @@ Reader-safe motion is restricted to chrome opacity/position, page transition opt
 - Keep route files thin; route files compose feature screens and loaders.
 - Code-split large feature screens and settings sections.
 
+## React Compiler
+
+`apps/web` enables React Compiler through Babel in `vite.config.ts` for the client and SSR builds. Write components to the compiler rules (no ref reads during render, no prop/state mutation) instead of opting out; an intentional exception gets a narrow `"use no memo"` directive with a reason. Workspace package `dist` output is compiled too, so package components must stay compiler-safe.
+
 ## TanStack Query Architecture
 
 - Use query key factories or typed query options per package.
