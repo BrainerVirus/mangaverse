@@ -77,7 +77,7 @@ describe('MobileBottomNav', () => {
     const { MobileBottomNav } = await import('../shell/MobileBottomNav.js');
     const html = renderWithProviders(<MobileBottomNav />);
     expect(html).toContain('fixed bottom-0');
-    expect(html).toContain('h-14');
+    expect(html).toContain('min-h-14');
   });
 
   it('renders the bottom navigation as thick glass', async () => {

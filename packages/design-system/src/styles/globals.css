@@ -266,14 +266,35 @@
   #root {
     isolation: isolate;
     min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  /* The shell fills the visible viewport so mobile browser chrome cannot hide the bottom nav;
+     the 100vh line is the fallback for engines without `dvh`. Its background still paints under
+     the notch; the padded content box keeps the rail and main inside the safe area. */
+  [data-app-shell] {
+    height: 100vh;
+    height: 100dvh;
+    padding-block-start: env(safe-area-inset-top);
+    padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
+  }
+
+  /* Below `md` the bottom bar and this offset reserve the home indicator together. */
+  @media (width < 48rem) {
+    [data-app-nav-offset] {
+      padding-bottom: calc(3.5rem + env(safe-area-inset-bottom));
+    }
+  }
+
+  /* From `md` up the rail exists and the shell itself clears the indicator. */
+  @media (width >= 48rem) {
+    [data-app-shell] {
+      padding-block-end: env(safe-area-inset-bottom);
+    }
   }
 }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-
   .surface-panel {
     background-color: var(--surface);
     border: 1px solid var(--border);
@@ -417,6 +438,18 @@
 
 @utility safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Edge rows under `viewport-fit=cover`: 1rem of design padding plus the notch inset, so text and
+   controls never sit in the unsafe band while the surface behind them still bleeds to the edge. */
+@utility safe-area-x {
+  padding-inline-start: calc(var(--spacing) * 4 + env(safe-area-inset-left));
+  padding-inline-end: calc(var(--spacing) * 4 + env(safe-area-inset-right));
+}
+
+/* The reader chrome's top row: its 0.75rem padding plus the top inset. */
+@utility safe-area-top {
+  padding-top: calc(var(--spacing) * 3 + env(safe-area-inset-top));
 }
 
 @utility width-transition {

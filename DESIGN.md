@@ -280,13 +280,13 @@ it one step shallow.
 - **No-support fallback (landed in P1):** `@supports not (backdrop-filter: blur(1px))` applies the same
   opaque resolution. Never ship a translucent layer without a blur: the text contrast maths in §3.5
   assumes the blur is doing its part.
-- **`prefers-reduced-transparency` (landed in P1):** warranted, and it is the _second_ half of the story.
-  Where the UA supports it (Safari 18+/iOS 18+ today; Chromium support is still partial), it resolves
-  every glass tier to opaque automatically. Because support is uneven, the reliable path is the
-  user-facing **Transparency** setting (Full / Reduced, default Full) in appearance settings, stored
-  like every other preference and applied as `data-transparency="solid"` on the root — same resolution
-  as `data-glass="cheap"`, plus the ambient backdrop off. The CSS path ships in P1; the user setting
-  landed in #104.
+- **`prefers-reduced-transparency` (landed in P1):** support is uneven. Chromium/Edge 118+ honour it;
+  Firefox 113+ supports it only behind a flag (not the default); Safari/iOS do not support it. Where
+  the UA honours it, every glass tier resolves to opaque automatically. Because the query cannot be
+  relied on, the required fallback is the user-facing **Transparency** setting (Full / Reduced,
+  default Full) in appearance settings, stored like every other preference and applied as
+  `data-transparency="solid"` on the root — same resolution as `data-glass="cheap"`, plus the ambient
+  backdrop off. The CSS path ships in P1; the user setting landed in #104.
 - **SSR:** glass is CSS-only, so nothing needs a client guard; do not branch rendering on
   `matchMedia` during the first paint.
 
@@ -660,11 +660,11 @@ gesture set.
 
 ### 6.3 Breakpoints
 
-| Range                  | Shell                                                                                        | Reader                                                                                            |
-| ---------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `< 768px` (below `md`) | Bottom bar (glass-thick, 4 destinations + a "More" sheet), content reserves `pb-16`; no rail | Single page; chrome top bar + bottom rail; tap zones on; dense chrome (icons only)                |
-| `768–1023px`           | Rail collapsed to 52px icons, expandable; floating over the ambient band                     | Single page, or double when `pageLayout = double` and the page is landscape; chrome labels appear |
-| `≥ 1024px`             | Persistent rail, 220px expanded / 52px collapsed (`Cmd/Ctrl+B`), glass-thick, elevation-4    | Double-page layout honoured; preview rail on the progress bar; keyboard-first                     |
+| Range                  | Shell                                                                                                                             | Reader                                                                                            |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `< 768px` (below `md`) | Bottom bar (glass-thick, 4 destinations + a "More" sheet), content reserves `calc(3.5rem + env(safe-area-inset-bottom))`; no rail | Single page; chrome top bar + bottom rail; tap zones on; dense chrome (icons only)                |
+| `768–1023px`           | Rail collapsed to 52px icons, expandable; floating over the ambient band                                                          | Single page, or double when `pageLayout = double` and the page is landscape; chrome labels appear |
+| `≥ 1024px`             | Persistent rail, 220px expanded / 52px collapsed (`Cmd/Ctrl+B`), glass-thick, elevation-4                                         | Double-page layout honoured; preview rail on the progress bar; keyboard-first                     |
 
 Grids keep their existing rhythm (library 2 → 3 → 4 → 5 → 6 columns, discover 2 → 3 → 4 → 6, `gap-4`).
 The glass budget is per view, not per breakpoint (§2.5): a view shows 1–2 blurred layers in normal use
@@ -823,7 +823,7 @@ and `chromeShow`/`chromeHide` from `@app/motion`. The material is what changes:
   `--accent` **plus** a 2px `--primary` edge bar.
 - **Mobile bottom bar (P5 #94 shipped):** 56px, `GlassSurface level="thick"` with `--glass-edge` and
   `--elevation-4`, safe-area inset, four destinations with 20px icons and `type-micro` labels, active in
-  `--primary`, plus a ghost "More" sheet; content reserves `pb-16`.
+  `--primary`, plus a ghost "More" sheet; content reserves `calc(3.5rem + env(safe-area-inset-bottom))`.
 - **Page header / sticky bars (proposed):** a sticky `GlassSurface level="regular"` header on long
   surfaces, elevation-2 once scrolled, with the title at `type-title`.
 
@@ -846,7 +846,11 @@ and `chromeShow`/`chromeHide` from `@app/motion`. The material is what changes:
 
 A full-height flex row: navigation rail, scrolling main column; the reader route opts out into
 `fixed inset-0` with no global navigation. Below `md` the rail is replaced by the bottom bar and the main
-column gains `pb-16`. The ambient band (§2.3) sits behind the whole shell, fixed, and never scrolls.
+column gains `calc(3.5rem + env(safe-area-inset-bottom))`. Under `viewport-fit=cover` the shell pads its
+inline and top edges by the safe-area insets (and its bottom edge from `md` up), so the rail and main sit
+inside the notch area while the shell background still bleeds to the edge. The reader's chrome rows take
+the same inline padding, plus the top inset on the top row. The ambient band (§2.3) sits behind the whole
+shell, fixed, and never scrolls.
 
 ### Page structure
 
@@ -993,9 +997,9 @@ page (#107).
   `--success` `#16a34a` 3.21:1 on the light glass fill (regular, alpha .68) over `--background`; the
   shipped glass tokens `#b45309` / `#15803d` measure 4.89:1, and destructive `#b91c1c` 6.30:1, pinned by
   the token test.
-- **`prefers-reduced-transparency` support is uneven.** The CSS resolution path ships in P1; the in-app
-  setting (#104) is the reliable path. The `/design-system` page (#107) shows the fallback note; a real
-  Safari check remains open.
+- **`prefers-reduced-transparency` support is uneven.** Chromium/Edge 118+ honour it; Firefox 113+
+  only behind a flag; Safari/iOS do not support it. The in-app Transparency setting (#104) is the
+  required fallback; the `/design-system` page (#107) shows the fallback note.
 - **Displacement refraction has no budget number yet.** It is capped to two hero surfaces by rule; measure
   the frame cost on a low-end profile before allowing a third.
 - **No webfonts are bundled.** Inter and JetBrains Mono are stacks today; the display scale assumes Inter.
