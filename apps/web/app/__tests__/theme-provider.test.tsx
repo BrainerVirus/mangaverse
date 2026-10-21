@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import type * as ThemeModule from '@app/theme';
-import { buildThemeCssVariables, getBuiltInThemeDefinition } from '@app/theme';
+import { buildThemeCssVariables, getBuiltInThemeDefinition, themeQueryKeys } from '@app/theme';
 import type { ThemeDefinition } from '@app/shared';
 import { ThemeProvider, useTheme } from '../providers/theme-provider.js';
 import { ThemeSettingsBridge } from '../providers/theme-settings-bridge.js';
@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   fetchThemeDefinitions: vi.fn<() => Promise<readonly ThemeDefinition[]>>(),
   fetchThemeSettings: vi.fn<() => Promise<{ settings: { themeId: string; dark: boolean } }>>(),
   saveThemeSettings: vi.fn<() => Promise<{ ok: true; value: undefined }>>(),
+  applyThemeToRoot:
+    vi.fn<(element: HTMLElement, settings: unknown, definition?: unknown) => void>(),
   fakeDb: { id: 'fake-db' },
 }));
 
@@ -19,6 +21,14 @@ vi.mock('@app/theme', async (importOriginal) => {
   const actual = await importOriginal<typeof ThemeModule>();
   return {
     ...actual,
+    applyThemeToRoot: (
+      element: HTMLElement,
+      settings: Parameters<typeof actual.applyThemeToRoot>[1],
+      definition?: Parameters<typeof actual.applyThemeToRoot>[2],
+    ) => {
+      mocks.applyThemeToRoot(element, settings, definition);
+      actual.applyThemeToRoot(element, settings, definition);
+    },
     fetchThemeDefinitions: mocks.fetchThemeDefinitions,
     fetchThemeSettings: mocks.fetchThemeSettings,
     saveThemeSettings: mocks.saveThemeSettings,
@@ -268,5 +278,63 @@ describe('ThemeProvider stored settings', () => {
       expect(localStorage.getItem('themeId')).toBe('default');
     });
     expect(localStorage.getItem('dark')).toBe('false');
+  });
+
+  it('Given the themes table repeats the stored settings, Then the theme is not applied twice', async () => {
+    localStorage.setItem('themeId', 'sakura');
+    localStorage.setItem('dark', 'true');
+    let resolveSettings!: (value: { settings: { themeId: string; dark: boolean } }) => void;
+    mocks.fetchThemeSettings.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSettings = resolve;
+      }),
+    );
+    mocks.applyThemeToRoot.mockClear();
+
+    // Shares the bridge's query cache and renders once the themes table has
+    // answered, so the assertions run after hydration instead of on a guess.
+    function SettingsArrivedProbe() {
+      const { data } = useQuery({
+        queryKey: themeQueryKeys.settings(),
+        queryFn: () => mocks.fetchThemeSettings(),
+      });
+      return <output data-testid="settings-arrived">{data ? 'loaded' : 'pending'}</output>;
+    }
+
+    act(() => {
+      root.render(
+        <QueryClientProvider client={createTestQueryClient()}>
+          <ThemeProvider>
+            <ThemeSettingsBridge />
+            <SettingsArrivedProbe />
+          </ThemeProvider>
+        </QueryClientProvider>,
+      );
+    });
+
+    const expected = buildThemeCssVariables({ themeId: 'sakura', dark: true });
+    // Default, then the stored value read after hydration.
+    await vi.waitFor(() => {
+      expect(mocks.applyThemeToRoot).toHaveBeenCalledTimes(2);
+      expect(document.documentElement.style.getPropertyValue('--background')).toBe(
+        expected['--background'],
+      );
+    });
+
+    await act(async () => {
+      resolveSettings({ settings: { themeId: 'sakura', dark: true } });
+    });
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="settings-arrived"]')?.textContent).toBe(
+        'loaded',
+      );
+    });
+    // Let the bridge's cache-to-context effect and any re-apply commit.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    // Same values from the database: no third set of style writes.
+    expect(mocks.applyThemeToRoot).toHaveBeenCalledTimes(2);
   });
 });
