@@ -68,7 +68,7 @@ function SearchRoute() {
       // before refreshing so the blank-query read cannot precede it.
       const pending = pendingSearchWrite.current;
       pendingSearchWrite.current = null;
-      void refreshRecentSearchesAfterWrite(queryClient, pending, explicitContent);
+      void refreshRecentSearchesAfterWrite(queryClient, pending);
       return;
     }
     if (dbStatus === 'error' || trimmed === lastRecordedQuery.current) {
@@ -80,7 +80,7 @@ function SearchRoute() {
     // against the session promise so that search still reaches history.
     const write = recordSearchQuery(db ?? getLocalDb(), trimmed).catch(() => undefined);
     pendingSearchWrite.current = write;
-    void write.then(() => refreshRecentSearches(queryClient, explicitContent));
+    void write.then(() => refreshRecentSearches(queryClient));
   };
 
   return (

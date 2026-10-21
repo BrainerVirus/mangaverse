@@ -2,11 +2,14 @@ import { describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryObserver } from '@tanstack/react-query';
 import { DEFAULT_SEARCH_VIEW_STATE, searchQueryKeys } from '@app/search';
 import { refreshRecentSearches, refreshRecentSearchesAfterWrite } from '../search-recents.js';
+import { searchPageQueryOptions } from '../search-query-options.js';
+
+const mockDb = {} as Parameters<typeof searchPageQueryOptions>[0];
 
 describe('refreshRecentSearches', () => {
   it('Given a pending blank-query prefetch, When recents refresh, Then the stale result cannot win', async () => {
     const queryClient = new QueryClient();
-    const key = searchQueryKeys.page(DEFAULT_SEARCH_VIEW_STATE, false);
+    const key = searchQueryKeys.page(DEFAULT_SEARCH_VIEW_STATE);
 
     let resolveStale!: (value: string) => void;
     const stale = new Promise<string>((resolve) => {
@@ -25,9 +28,38 @@ describe('refreshRecentSearches', () => {
     expect(queryClient.getQueryData(key)).toBeUndefined();
   });
 
+  it('Given an explicit-content setting, When recents refresh, Then the exact blank key the route observes is invalidated', async () => {
+    const queryClient = new QueryClient();
+    // The route keys its local page query with the view state only; explicit
+    // content partitions the provider query, never recents.
+    const observedKey = searchPageQueryOptions(mockDb).queryKey;
+
+    await queryClient.prefetchQuery({
+      queryKey: observedKey,
+      queryFn: () => 'recents',
+      staleTime: Number.POSITIVE_INFINITY,
+    });
+    expect(queryClient.getQueryState(observedKey)?.isInvalidated).toBe(false);
+
+    await refreshRecentSearches(queryClient);
+
+    const state = queryClient.getQueryState(observedKey);
+    expect(state?.isInvalidated).toBe(true);
+    expect(
+      queryClient.getQueryCache().find({ queryKey: observedKey, exact: true })?.isStale(),
+    ).toBe(true);
+    // No explicit-content partition is left behind unobserved.
+    expect(
+      queryClient
+        .getQueryCache()
+        .getAll()
+        .map((query) => query.queryKey),
+    ).toEqual([observedKey]);
+  });
+
   it('Given a pending non-empty search, When recents refresh, Then that search is not aborted', async () => {
     const queryClient = new QueryClient();
-    const key = searchQueryKeys.page({ ...DEFAULT_SEARCH_VIEW_STATE, query: 'berserk' }, false);
+    const key = searchQueryKeys.page({ ...DEFAULT_SEARCH_VIEW_STATE, query: 'berserk' });
 
     let resolveResults!: (value: string) => void;
     const results = new Promise<string>((resolve) => {
@@ -48,7 +80,7 @@ describe('refreshRecentSearches', () => {
 
   it('Given a pending history write, When the box clears, Then recents read only after the write', async () => {
     const queryClient = new QueryClient();
-    const key = searchQueryKeys.page(DEFAULT_SEARCH_VIEW_STATE, false);
+    const key = searchQueryKeys.page(DEFAULT_SEARCH_VIEW_STATE);
 
     let written = false;
     let reads = 0;

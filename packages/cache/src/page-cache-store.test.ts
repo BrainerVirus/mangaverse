@@ -217,7 +217,7 @@ describe('page cache store', () => {
   });
 
   it('Given already cached pages, When prefetching again, Then it reads metadata only and touches nothing', async () => {
-    const { db } = await createSqlJsHarness();
+    const { db, raw } = await createSqlJsHarness();
     const { adapter, calls } = createPageAdapter();
     const pages = Array.from({ length: 5 }, (_value, pageIndex) => ({
       pageIndex,
@@ -231,9 +231,17 @@ describe('page cache store', () => {
     const putsBefore = calls.put();
     const getsBefore = calls.get();
     const fetchesBefore = calls.fetch();
+    const statements: string[] = [];
+    const prepare = raw.prepare.bind(raw);
+    raw.prepare = (sql: string) => {
+      statements.push(sql);
+      return prepare(sql);
+    };
     await new Promise((resolve) => setTimeout(resolve, 5));
     await prefetchChapterPages({ db, adapter, ...CHAPTER, pages, retention: 'read' });
 
+    // Only the chapter-scoped index read runs; no per-page existence check.
+    expect(new Set(statements).size).toBe(1);
     expect(calls.put()).toBe(putsBefore);
     expect(calls.get()).toBe(getsBefore);
     expect(calls.fetch()).toBe(fetchesBefore);
