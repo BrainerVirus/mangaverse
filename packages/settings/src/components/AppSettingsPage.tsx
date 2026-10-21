@@ -22,6 +22,8 @@ export interface AppSettingsPageProps {
   readonly isSaving?: boolean;
   readonly cacheUsageBytes?: number;
   onChange: (next: AppSettings) => void;
+  /** Pointer-up or blur: commit a coalesced edit without waiting for the quiet window. */
+  onInteractionEnd?: () => void;
 }
 
 const LOCALE_OPTIONS = [
@@ -84,6 +86,7 @@ export function AppSettingsPage({
   isSaving = false,
   cacheUsageBytes,
   onChange,
+  onInteractionEnd,
 }: AppSettingsPageProps) {
   if (isLoading) {
     return (
@@ -107,6 +110,10 @@ export function AppSettingsPage({
   const update = (patch: Partial<AppSettings>) => {
     onChange({ ...settings, ...patch });
   };
+  const commit = (patch: Partial<AppSettings>) => {
+    update(patch);
+    onInteractionEnd?.();
+  };
 
   return (
     <section aria-label="App settings" className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6">
@@ -128,16 +135,14 @@ export function AppSettingsPage({
             label="Motion"
             description={settings.reduceMotion ? 'Reduced motion' : 'Full motion'}
             checked={settings.reduceMotion}
-            disabled={isSaving}
-            onCheckedChange={(reduceMotion) => update({ reduceMotion })}
+            onCheckedChange={(reduceMotion) => commit({ reduceMotion })}
           />
           <SettingToggleRow
             id="reduce-transparency"
             label="Transparency"
             description={settings.reduceTransparency ? 'Reduced transparency' : 'Full transparency'}
             checked={settings.reduceTransparency}
-            disabled={isSaving}
-            onCheckedChange={(reduceTransparency) => update({ reduceTransparency })}
+            onCheckedChange={(reduceTransparency) => commit({ reduceTransparency })}
           />
         </div>
       </SettingsSection>
@@ -152,16 +157,14 @@ export function AppSettingsPage({
             label="Explicit content"
             description="Allow mature series in search and browse results."
             checked={settings.explicitContent}
-            disabled={isSaving}
-            onCheckedChange={(explicitContent) => update({ explicitContent })}
+            onCheckedChange={(explicitContent) => commit({ explicitContent })}
           />
           <SettingToggleRow
             id="provider-errors"
             label="Show provider errors"
             description="Surface provider failures in the UI instead of hiding them silently."
             checked={settings.showProviderErrors}
-            disabled={isSaving}
-            onCheckedChange={(showProviderErrors) => update({ showProviderErrors })}
+            onCheckedChange={(showProviderErrors) => commit({ showProviderErrors })}
           />
         </div>
       </SettingsSection>
@@ -173,8 +176,7 @@ export function AppSettingsPage({
             label="Low-memory mode"
             description="Reduce preloading, thumbnails, and animation intensity."
             checked={settings.lowMemoryMode}
-            disabled={isSaving}
-            onCheckedChange={(lowMemoryMode) => update({ lowMemoryMode })}
+            onCheckedChange={(lowMemoryMode) => commit({ lowMemoryMode })}
           />
           <div className="grid gap-2">
             <Label htmlFor="image-cache-limit">Local cache limit</Label>
@@ -184,8 +186,8 @@ export function AppSettingsPage({
               min={50}
               max={10240}
               step={50}
-              disabled={isSaving}
               value={bytesToMegabytes(settings.imageCacheLimitBytes)}
+              onBlur={onInteractionEnd}
               onChange={(event) => {
                 const megabytes = Number(event.target.value);
                 if (!Number.isFinite(megabytes)) {
@@ -215,7 +217,7 @@ export function AppSettingsPage({
             <Input
               id="preferred-languages"
               value={settings.preferredLanguages.join(', ')}
-              disabled={isSaving}
+              onBlur={onInteractionEnd}
               placeholder="en, ja"
               onChange={(event) =>
                 update({
@@ -233,11 +235,7 @@ export function AppSettingsPage({
 
           <div className="grid gap-2">
             <Label htmlFor="locale">Locale</Label>
-            <Select
-              value={settings.locale}
-              disabled={isSaving}
-              onValueChange={(value) => update({ locale: value })}
-            >
+            <Select value={settings.locale} onValueChange={(value) => commit({ locale: value })}>
               <SelectTrigger id="locale" aria-label="Locale">
                 <SelectValue />
               </SelectTrigger>

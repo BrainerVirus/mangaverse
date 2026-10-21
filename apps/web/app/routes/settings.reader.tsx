@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ReaderSettingsPage, saveReaderSettings, settingsQueryKeys } from '@app/settings';
 import { readerSettingsQueryOptions } from '../queries/settings-query-options.js';
 import type { ReaderSettings } from '@app/shared';
+import { useCoalescedSettingsWrite } from '../lib/use-coalesced-settings-write.js';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 
 export const Route = createFileRoute('/settings/reader')({
@@ -28,21 +29,28 @@ function SettingsReaderRoute() {
     },
     onMutate: async (nextSettings) => {
       await queryClient.cancelQueries({ queryKey: settingsQueryKeys.reader() });
-      const previous = queryClient.getQueryData<{ settings: ReaderSettings }>(
-        settingsQueryKeys.reader(),
-      );
       queryClient.setQueryData(settingsQueryKeys.reader(), { settings: nextSettings });
-      return { previous };
     },
-    onError: (_error, _settings, context) => {
-      if (context?.previous !== undefined) {
-        queryClient.setQueryData(settingsQueryKeys.reader(), context.previous);
-      }
+    onError: () => {
+      // The cache already shows the attempted value; re-read the durable one.
+      void queryClient.invalidateQueries({ queryKey: settingsQueryKeys.reader() });
     },
-    onSettled: () => {
+    onSettled: (_data, _error, nextSettings) => {
+      const current = queryClient.getQueryData<{ settings: ReaderSettings }>(
+        settingsQueryKeys.reader(),
+      )?.settings;
+      // A newer edit owns the cache; its own write will invalidate.
+      if (current !== nextSettings) return;
       void queryClient.invalidateQueries({ queryKey: settingsQueryKeys.reader() });
     },
   });
+
+  const settingsWriter = useCoalescedSettingsWrite(saveMutation.mutate);
+  const handleChange = (next: ReaderSettings) => {
+    // Every edit paints immediately; a slider gesture writes once at rest.
+    queryClient.setQueryData(settingsQueryKeys.reader(), { settings: next });
+    settingsWriter.schedule(next);
+  };
 
   return (
     <ReaderSettingsPage
@@ -50,7 +58,8 @@ function SettingsReaderRoute() {
       isLoading={dbStatus === 'loading' || isLoading}
       isError={dbStatus === 'error' || isError}
       isSaving={saveMutation.isPending}
-      onChange={(next) => saveMutation.mutate(next)}
+      onChange={handleChange}
+      onInteractionEnd={() => settingsWriter.flush()}
     />
   );
 }
