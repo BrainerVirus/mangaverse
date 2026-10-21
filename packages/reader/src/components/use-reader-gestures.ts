@@ -23,6 +23,7 @@ import type {
   TapZoneRegion,
   ZoomStateSummary,
 } from '../types.js';
+import { measureZoomBox, type ZoomBox } from './zoom-box.js';
 
 function findTapZone(
   zones: readonly TapZoneRegion[],
@@ -53,14 +54,12 @@ interface PointerGesture {
   lastTap: { readonly time: number; readonly x: number; readonly y: number } | null;
   /** Set once a drag passes the pan threshold, so its pointer-up is not a tap. */
   moved: boolean;
-  /** The layer the gesture started on, so its box can be re-measured after a resize. */
-  layer: HTMLDivElement | null;
   /**
-   * Layer box measured on the gesture's first pointer-down. A resize drops it
-   * (see the resize listener below) and the next flush re-measures, so a
-   * mid-gesture resize can never clamp against the old box.
+   * Surface layout box measured on the gesture's first pointer-down. The resize
+   * observer below re-measures it, so a mid-gesture resize can never clamp
+   * against the old box.
    */
-  rect: DOMRect | null;
+  box: ZoomBox | null;
   /** Pan travel accumulated since the last frame. */
   pendingPan: { readonly x: number; readonly y: number } | null;
   /** A two-pointer move is waiting for the next frame. */
@@ -73,8 +72,7 @@ function createPointerGesture(): PointerGesture {
     pinch: null,
     lastTap: null,
     moved: false,
-    layer: null,
-    rect: null,
+    box: null,
     pendingPan: null,
     pendingPinch: false,
   };
@@ -91,6 +89,8 @@ export interface ReaderGestures {
 interface UseReaderGesturesInput {
   readonly sessionInput: ReaderSessionInput | null;
   readonly readerState: ReaderState | null;
+  /** The surface the zoom layer fills; its rect is the layer's layout box. */
+  readonly surface: HTMLDivElement | null;
   readonly overlayInsets: ReaderOverlayInsets;
   readonly navigate: (action: ReaderNavigationAction) => void;
   readonly onToggleChrome: () => void;
@@ -106,6 +106,7 @@ interface UseReaderGesturesInput {
 export function useReaderGestures({
   sessionInput,
   readerState,
+  surface,
   overlayInsets,
   navigate,
   onToggleChrome,
@@ -123,20 +124,22 @@ export function useReaderGestures({
     [setReaderState],
   );
 
-  // A resize makes the box measured at pointer-down wrong; dropping it here lets
-  // the next flush re-measure before clamping, including mid-gesture.
-  // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: window resize invalidates the active gesture's cached layer box
+  // A reader resize (window, sidebar or shell collapse) changes the box the
+  // gesture clamps against, so an active gesture re-measures it. The layer is
+  // inset-0 in the surface, so observing the surface covers every layer resize.
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: ResizeObserver on the reader surface re-measures the active gesture's box
   useEffect(() => {
-    const invalidate = () => {
+    if (surface === null) return;
+    const observer = new ResizeObserver(() => {
       const gesture = pointerRef.current;
-      if (gesture !== null) gesture.rect = null;
-    };
-    window.addEventListener('resize', invalidate);
-    return () => window.removeEventListener('resize', invalidate);
-  }, []);
+      if (gesture !== null) gesture.box = measureZoomBox(surface);
+    });
+    observer.observe(surface);
+    return () => observer.disconnect();
+  }, [surface]);
 
   // Pinch and pan publish one zoom state per frame instead of one per pointer
-  // sample, and read the layer box cached at gesture start.
+  // sample, and clamp against the cached surface box.
   const flushZoom = useCallback(() => {
     if (frameRef.current !== null) {
       cancelAnimationFrame(frameRef.current);
@@ -144,9 +147,8 @@ export function useReaderGestures({
     }
     const gesture = pointerRef.current;
     if (gesture === null) return;
-    gesture.rect ??= gesture.layer?.getBoundingClientRect() ?? null;
-    const rect = gesture.rect;
-    if (rect === null) return;
+    const box = gesture.box;
+    if (box === null) return;
 
     const pan = gesture.pendingPan;
     const pinch = gesture.pendingPinch ? gesture.pinch : null;
@@ -159,13 +161,13 @@ export function useReaderGestures({
       updateZoom((zoom) =>
         clampZoomTransform(
           applyPinchZoom(zoom, zoom.scale, pinchScale(pinch, pointerDistance(first, second)), {
-            centerX: (first.x + second.x) / 2 - rect.left,
-            centerY: (first.y + second.y) / 2 - rect.top,
+            centerX: (first.x + second.x) / 2 - box.left,
+            centerY: (first.y + second.y) / 2 - box.top,
           }),
-          rect.width,
-          rect.height,
-          rect.width,
-          rect.height,
+          box.width,
+          box.height,
+          box.width,
+          box.height,
         ),
       );
       return;
@@ -175,10 +177,10 @@ export function useReaderGestures({
       updateZoom((zoom) =>
         clampZoomTransform(
           applyPan(zoom, pan.x, pan.y),
-          rect.width,
-          rect.height,
-          rect.width,
-          rect.height,
+          box.width,
+          box.height,
+          box.width,
+          box.height,
         ),
       );
     }
@@ -196,8 +198,7 @@ export function useReaderGestures({
       gesture.moved = false;
       gesture.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       if (wasEmpty) {
-        gesture.layer = event.currentTarget;
-        gesture.rect = event.currentTarget.getBoundingClientRect();
+        gesture.box = measureZoomBox(surface);
       }
 
       if (gesture.pointers.size === 2 && readerState !== null) {
@@ -213,7 +214,7 @@ export function useReaderGestures({
         }
       }
     },
-    [readerState],
+    [readerState, surface],
   );
 
   const handleZoomPointerMove = useCallback(

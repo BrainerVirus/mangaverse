@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { resolveKeyboardAction, resolveWheelAction } from '../navigation.js';
 import { computeScrollTargetTop, resolveVerticalNavigationTarget } from '../scroll-navigation.js';
 import { applyPinchZoom, clampZoomTransform } from '../zoom.js';
+import { measureZoomBox } from './zoom-box.js';
 import type { ReaderNavigationAction, ReaderSessionInput, ZoomStateSummary } from '../types.js';
 import type { ReaderScrollViewHandle } from './ReaderScrollView.js';
 
@@ -72,21 +73,26 @@ export function useReaderKeyboard({
  */
 export function useReaderWheelZoom({
   sessionInput,
+  surface,
   updateZoom,
 }: {
   readonly sessionInput: ReaderSessionInput | null;
+  /** The surface the zoom layer fills; its rect is the layer's layout box. */
+  readonly surface: HTMLDivElement | null;
   readonly updateZoom: (transform: (zoom: ZoomStateSummary) => ZoomStateSummary) => void;
 }): { readonly zoomLayerRef: (node: HTMLDivElement | null) => void } {
   const [zoomLayer, setZoomLayer] = useState<HTMLDivElement | null>(null);
 
   // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: a non-passive wheel listener on the zoom layer
   useEffect(() => {
-    if (zoomLayer === null || sessionInput === null) return;
+    if (zoomLayer === null || surface === null || sessionInput === null) return;
 
     // Trackpads send many small deltas per frame; queue them and apply the whole
     // burst against one measured box in one state commit. Sequential
     // application keeps the result identical to applying each event alone.
-    let rect = zoomLayer.getBoundingClientRect();
+    const initial = measureZoomBox(surface);
+    if (initial === null) return;
+    let box = initial;
     let steps: { readonly delta: number; readonly x: number; readonly y: number }[] = [];
     let frame: number | null = null;
 
@@ -104,10 +110,10 @@ export function useReaderWheelZoom({
               centerX: step.x,
               centerY: step.y,
             }),
-            rect.width,
-            rect.height,
-            rect.width,
-            rect.height,
+            box.width,
+            box.height,
+            box.width,
+            box.height,
           );
         }
         return next;
@@ -120,16 +126,16 @@ export function useReaderWheelZoom({
       event.preventDefault();
       steps.push({
         delta: action.delta ?? 0,
-        x: event.clientX - rect.left,
-        y: event.clientY - rect.top,
+        x: event.clientX - box.left,
+        y: event.clientY - box.top,
       });
       frame ??= window.requestAnimationFrame(flush);
     };
 
     const observer = new ResizeObserver(() => {
-      rect = zoomLayer.getBoundingClientRect();
+      box = measureZoomBox(surface) ?? box;
     });
-    observer.observe(zoomLayer);
+    observer.observe(surface);
     zoomLayer.addEventListener('wheel', handleWheel, { passive: false });
     return () => {
       if (frame !== null) window.cancelAnimationFrame(frame);
@@ -137,7 +143,7 @@ export function useReaderWheelZoom({
       zoomLayer.removeEventListener('wheel', handleWheel);
     };
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- updateZoom is read by the deferred frame flush, not in the effect body
-  }, [sessionInput, updateZoom, zoomLayer]);
+  }, [sessionInput, surface, updateZoom, zoomLayer]);
 
   return { zoomLayerRef: setZoomLayer };
 }

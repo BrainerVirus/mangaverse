@@ -19,6 +19,8 @@ const DEFAULT_VIEWPORT: ReaderViewport = {
  */
 export function useReaderViewport(): {
   readonly containerRef: (node: HTMLDivElement | null) => void;
+  /** The measured surface node, for code that needs the box, not just its size. */
+  readonly surface: HTMLDivElement | null;
   readonly viewport: ReaderViewport;
 } {
   const [node, setNode] = useState<HTMLDivElement | null>(null);
@@ -34,11 +36,13 @@ export function useReaderViewport(): {
       // An unmeasurable node (jsdom, a hidden container) keeps the default
       // viewport instead of collapsing every fit box to zero.
       if (width <= 0 || height <= 0) return;
-      setViewport({
-        width,
-        height,
-        orientation: width >= height ? 'landscape' : 'portrait',
-      });
+      // An unchanged box keeps the previous object: a fresh viewport rebuilds
+      // the session (and resets zoom) even when nothing moved.
+      setViewport((previous) =>
+        previous.width === width && previous.height === height
+          ? previous
+          : { width, height, orientation: width >= height ? 'landscape' : 'portrait' },
+      );
     };
 
     update();
@@ -47,5 +51,5 @@ export function useReaderViewport(): {
     return () => observer.disconnect();
   }, [node]);
 
-  return { containerRef: setNode, viewport };
+  return { containerRef: setNode, surface: node, viewport };
 }

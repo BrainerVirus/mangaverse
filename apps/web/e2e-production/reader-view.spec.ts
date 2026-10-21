@@ -142,9 +142,11 @@ test('Given the paged reader at scale 1, When double-clicking, Then it zooms to 
   const zoomed = await zoomState(layer);
   expect(zoomed.scale).toBeLessThanOrEqual(3);
 
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  // A drag longer than the widest allowed pan (surface width * (scale - 1))
+  // must stop at the content edge instead of following the pointer off-screen.
+  await page.mouse.move(box.x + box.width - 20, box.y + box.height / 2);
   await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2 - 200, box.y + box.height / 2 - 120, { steps: 5 });
+  await page.mouse.move(box.x + 20, box.y + box.height / 2, { steps: 10 });
   await page.mouse.up();
 
   const panned = await zoomState(layer);

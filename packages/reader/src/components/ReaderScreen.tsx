@@ -213,7 +213,7 @@ export function ReaderScreen({
   const verticalTargetPendingRef = useRef(false);
   const reducedMotion = useReducedMotion();
   const cacheContext = useCoverCacheContext();
-  const { containerRef, viewport } = useReaderViewport();
+  const { containerRef, surface, viewport } = useReaderViewport();
   const { sessionInput, readerState, setReaderState, navigate } = useReaderSession(data, viewport);
   useReaderProgress(data, readerState, onPersistProgress);
   useChapterPrefetch(data, cacheContext);
@@ -228,12 +228,13 @@ export function ReaderScreen({
   } = useReaderGestures({
     sessionInput,
     readerState,
+    surface,
     overlayInsets: CHROME_INSETS,
     navigate,
     onToggleChrome,
     setReaderState,
   });
-  const { zoomLayerRef } = useReaderWheelZoom({ sessionInput, updateZoom });
+  const { zoomLayerRef } = useReaderWheelZoom({ sessionInput, surface, updateZoom });
   useReaderKeyboard({
     sessionInput,
     navigate,
