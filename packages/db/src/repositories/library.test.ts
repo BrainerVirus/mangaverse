@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { toProviderId } from '@app/shared';
+import { toLibraryEntryId, toProviderId } from '@app/shared';
 import { createSqlJsHarness } from '../testing/sqljs-harness.js';
 import { createMangaIdentityWithInitialMapping } from './identities.js';
 import { addLibraryEntry, listLibraryEntries } from './library.js';
@@ -33,6 +33,19 @@ describe('addLibraryEntry', () => {
     expect(second.error.code).toBe('db.library.duplicate');
     expect(second.error.message).toBe('Manga is already in the library.');
     expect(await listLibraryEntries(db)).toHaveLength(1);
+  });
+
+  it('persists an explicit id instead of generating one', async () => {
+    const { db } = await createSqlJsHarness();
+    const mangaId = await createManga(db, 'explicit-id');
+    const id = toLibraryEntryId('entry-explicit');
+
+    const result = await addLibraryEntry(db, { mangaId, status: 'reading', id });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toBe(id);
+
+    expect((await listLibraryEntries(db)).map((entry) => entry.id)).toEqual([id]);
   });
 
   it('maps a concurrent insert that lands after the pre-check', async () => {

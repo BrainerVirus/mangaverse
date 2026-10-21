@@ -446,6 +446,16 @@ describe('dedupeBackupLibrary', () => {
     expect(result.library[0]?.id).toBe(toLibraryEntryId('le-real'));
   });
 
+  it('treats an empty-string updatedAt as absent against an omitted one', () => {
+    const result = dedupeBackupLibrary([
+      // Codepoint-smaller id, so it wins only if '' is treated like an absent timestamp.
+      libraryEntry('le-a'),
+      libraryEntry('le-b', { updatedAt: '' }),
+    ]);
+
+    expect(result.library[0]?.id).toBe(toLibraryEntryId('le-a'));
+  });
+
   it('falls back to addedAt when updatedAt is empty', () => {
     const result = dedupeBackupLibrary([
       libraryEntry('le-a', { updatedAt: '', addedAt: '2026-01-01T00:00:00.000Z' }),

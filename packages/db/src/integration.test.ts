@@ -419,6 +419,13 @@ describe('@app/db', () => {
     state = await getChapterReadState(db, chapter.value);
     expect(state?.progress.completed).toBe(true);
 
+    // Only stale events lose: a later event replaces a higher page/percent.
+    await write('2026-01-01T00:00:20.000Z', 1, 10);
+    state = await getChapterReadState(db, chapter.value);
+    expect(state?.progress.lastPageIndex).toBe(1);
+    expect(state?.progress.readPercent).toBe(10);
+    expect(state?.progress.completed).toBe(false);
+
     await updateLibraryEntryReadingProgress(db, {
       mangaId: created.value.mangaId,
       chapterId: chapter.value,
@@ -446,6 +453,16 @@ describe('@app/db', () => {
 
     const entry = await getLibraryEntryForManga(db, created.value.mangaId);
     expect(entry?.progressPercent).toBe(60);
+
+    // A later event wins even with a lower percent; only stale events lose.
+    await updateLibraryEntryReadingProgress(db, {
+      mangaId: created.value.mangaId,
+      chapterId: chapter.value,
+      progressPercent: 5,
+      updatedAt: '2026-01-01T00:00:20.000Z',
+    });
+    const afterNewerLower = await getLibraryEntryForManga(db, created.value.mangaId);
+    expect(afterNewerLower?.progressPercent).toBe(5);
 
     // A restored backup can carry a resume chapter with no updatedAt; that
     // sentinel shape must not permanently freeze future progress.
