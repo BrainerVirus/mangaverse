@@ -660,11 +660,11 @@ gesture set.
 
 ### 6.3 Breakpoints
 
-| Range                  | Shell                                                                                        | Reader                                                                                            |
-| ---------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `< 768px` (below `md`) | Bottom bar (glass-thick, 4 destinations + a "More" sheet), content reserves `pb-16`; no rail | Single page; chrome top bar + bottom rail; tap zones on; dense chrome (icons only)                |
-| `768–1023px`           | Rail collapsed to 52px icons, expandable; floating over the ambient band                     | Single page, or double when `pageLayout = double` and the page is landscape; chrome labels appear |
-| `≥ 1024px`             | Persistent rail, 220px expanded / 52px collapsed (`Cmd/Ctrl+B`), glass-thick, elevation-4    | Double-page layout honoured; preview rail on the progress bar; keyboard-first                     |
+| Range                  | Shell                                                                                                                             | Reader                                                                                            |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `< 768px` (below `md`) | Bottom bar (glass-thick, 4 destinations + a "More" sheet), content reserves `calc(3.5rem + env(safe-area-inset-bottom))`; no rail | Single page; chrome top bar + bottom rail; tap zones on; dense chrome (icons only)                |
+| `768–1023px`           | Rail collapsed to 52px icons, expandable; floating over the ambient band                                                          | Single page, or double when `pageLayout = double` and the page is landscape; chrome labels appear |
+| `≥ 1024px`             | Persistent rail, 220px expanded / 52px collapsed (`Cmd/Ctrl+B`), glass-thick, elevation-4                                         | Double-page layout honoured; preview rail on the progress bar; keyboard-first                     |
 
 Grids keep their existing rhythm (library 2 → 3 → 4 → 5 → 6 columns, discover 2 → 3 → 4 → 6, `gap-4`).
 The glass budget is per view, not per breakpoint (§2.5): a view shows 1–2 blurred layers in normal use
@@ -823,7 +823,7 @@ and `chromeShow`/`chromeHide` from `@app/motion`. The material is what changes:
   `--accent` **plus** a 2px `--primary` edge bar.
 - **Mobile bottom bar (P5 #94 shipped):** 56px, `GlassSurface level="thick"` with `--glass-edge` and
   `--elevation-4`, safe-area inset, four destinations with 20px icons and `type-micro` labels, active in
-  `--primary`, plus a ghost "More" sheet; content reserves `pb-16`.
+  `--primary`, plus a ghost "More" sheet; content reserves `calc(3.5rem + env(safe-area-inset-bottom))`.
 - **Page header / sticky bars (proposed):** a sticky `GlassSurface level="regular"` header on long
   surfaces, elevation-2 once scrolled, with the title at `type-title`.
 
@@ -846,7 +846,11 @@ and `chromeShow`/`chromeHide` from `@app/motion`. The material is what changes:
 
 A full-height flex row: navigation rail, scrolling main column; the reader route opts out into
 `fixed inset-0` with no global navigation. Below `md` the rail is replaced by the bottom bar and the main
-column gains `pb-16`. The ambient band (§2.3) sits behind the whole shell, fixed, and never scrolls.
+column gains `calc(3.5rem + env(safe-area-inset-bottom))`. Under `viewport-fit=cover` the shell pads its
+inline and top edges by the safe-area insets (and its bottom edge from `md` up), so the rail and main sit
+inside the notch area while the shell background still bleeds to the edge. The reader's chrome rows take
+the same inline padding, plus the top inset on the top row. The ambient band (§2.3) sits behind the whole
+shell, fixed, and never scrolls.
 
 ### Page structure
 

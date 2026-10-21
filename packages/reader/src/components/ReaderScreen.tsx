@@ -445,7 +445,7 @@ function ReaderPendingStage({
       data-testid={kind === 'hydrating' ? 'reader-hydrating' : 'reader-hydration-error'}
       aria-busy={kind === 'hydrating' || undefined}
     >
-      <div className="flex items-center px-4 py-3">
+      <div className="safe-area-x safe-area-top flex items-center pb-3">
         <span className="text-sm font-medium text-white">{title}</span>
       </div>
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">

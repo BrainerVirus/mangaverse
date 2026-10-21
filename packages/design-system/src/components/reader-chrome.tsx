@@ -119,7 +119,7 @@ export function ReaderChrome({
 
       <div
         data-reader-chrome-row="top"
-        className="relative isolate flex items-center justify-between px-4 py-3"
+        className="safe-area-x safe-area-top relative isolate flex items-center justify-between pb-3"
       >
         <div
           aria-hidden="true"
@@ -193,7 +193,7 @@ export function ReaderChrome({
 
       <div
         data-reader-chrome-row="rail"
-        className="relative isolate flex items-center justify-between px-4 py-2"
+        className="safe-area-x relative isolate flex items-center justify-between py-2"
       >
         <div
           aria-hidden="true"

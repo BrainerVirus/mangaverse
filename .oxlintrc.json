@@ -77,6 +77,8 @@
           "rounded-btn",
           "rounded-control",
           "safe-area-bottom",
+          "safe-area-top",
+          "safe-area-x",
           "type-body",
           "type-display-lg",
           "type-heading",
