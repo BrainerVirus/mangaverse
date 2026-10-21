@@ -7,7 +7,11 @@ import { createSqlJsHarness } from '@app/db/testing';
 import { evictCacheToLimit, runCacheMaintenance } from './cache-maintenance.js';
 import { getCoverCacheUsage } from './cover-cache-store.js';
 import { buildCoverBlobKey, buildPageBlobKey } from './constants.js';
-import { listCachedChapterPageIndexes, storePageInCache } from './page-cache-store.js';
+import {
+  getCachedPageObjectUrl,
+  listCachedChapterPageIndexes,
+  storePageInCache,
+} from './page-cache-store.js';
 import { storeCoverInCache } from './cover-cache-store.js';
 
 const CHAPTER_1 = { providerId: 'mangadex', mangaId: 'dev-md-abc', chapterId: 'chapter-1' };
@@ -151,7 +155,7 @@ describe('cache maintenance', () => {
     expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toEqual([]);
   });
 
-  it('Given a failing blob delete, When sweeping, Then the row is kept and other candidates are still evicted', async () => {
+  it('Given a failing cover blob delete, When sweeping, Then the row is still freed and the sweep stops at the cap', async () => {
     const { db } = await createSqlJsHarness();
     const failedKey = buildCoverBlobKey('mangadex', 'dev-md-abc');
     const { adapter, blobs } = createAdapter((key) => key === failedKey);
@@ -163,13 +167,15 @@ describe('cache maintenance', () => {
 
     const evicted = await evictCacheToLimit(db, adapter, { limitBytes: 100 });
 
-    expect(evicted).toBe(6);
+    expect(evicted).toBe(1);
+    // The cover's orphan blob stays, but its row is gone so nothing claims it.
     expect(blobs.has(failedKey)).toBe(true);
-    expect((await getCoverCacheUsage(db)).totalCount).toBe(1);
-    expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toEqual([]);
+    // Only the chapter's six pages remain in row-based accounting.
+    expect((await getCoverCacheUsage(db)).totalBytes).toBe(60);
+    expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toEqual([0, 1, 2, 3, 4, 5]);
   });
 
-  it('Given one page blob delete failing, When sweeping, Then the whole chapter stays cached', async () => {
+  it('Given one page blob delete failing, When sweeping, Then rows go first and only the blob is orphaned', async () => {
     const { db } = await createSqlJsHarness();
     const failedKey = buildPageBlobKey('mangadex', 'dev-md-abc', 'chapter-1', 2);
     const { adapter, blobs } = createAdapter((key) => key === failedKey);
@@ -178,11 +184,23 @@ describe('cache maintenance', () => {
 
     const evicted = await evictCacheToLimit(db, adapter, { limitBytes: 50 });
 
-    expect(evicted).toBe(0);
-    expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toEqual([0, 1, 2, 3, 4, 5]);
-    expect(blobs.has(failedKey)).toBe(true);
-    // Nothing freed: the sweep leaves the store above the cap on purpose.
-    expect((await getCoverCacheUsage(db)).totalBytes).toBe(60);
+    expect(evicted).toBe(6);
+    expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toEqual([]);
+    for (let pageIndex = 0; pageIndex < 6; pageIndex += 1) {
+      const key = buildPageBlobKey('mangadex', 'dev-md-abc', 'chapter-1', pageIndex);
+      expect(blobs.has(key)).toBe(pageIndex === 2);
+    }
+    expect(
+      await getCachedPageObjectUrl({
+        db,
+        adapter,
+        ...CHAPTER_1,
+        pageIndex: 0,
+        remoteUrl: 'https://example.com/chapter-1/0.jpg',
+      }),
+    ).toBeUndefined();
+    // The whole candidate counts as freed, so row-based usage meets the cap.
+    expect((await getCoverCacheUsage(db)).totalBytes).toBe(0);
   });
 
   it('Given an older cover and a newer chapter, When sweeping, Then the cover goes first and the chapter stays whole', async () => {

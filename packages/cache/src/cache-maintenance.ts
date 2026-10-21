@@ -60,8 +60,9 @@ function groupPagesByChapter(entries: readonly CacheEntryRecord[]): EvictionCand
 /**
  * Evicts covers and whole chapters oldest-first until the store fits `limitBytes`.
  * The protected chapter is skipped entirely: if it is the only candidate the store
- * stays above the limit until the reader closes it. A candidate whose blob delete
- * fails keeps every row, so no chapter is left half-cached offline.
+ * stays above the limit until the reader closes it. Every candidate's rows are
+ * deleted before its blobs, so a row never outlives the blob it points at; a failed
+ * blob delete only leaks an orphan blob that row-based accounting cannot see.
  */
 export async function evictCacheToLimit(
   db: AppDrizzleDb,
@@ -92,30 +93,22 @@ export async function evictCacheToLimit(
       continue;
     }
 
-    // All-or-nothing: delete every blob first and abort the whole candidate on the
-    // first failure, so a chapter is never left half-cached. Its rows stay put for
-    // the next sweep.
-    let blobFailed = false;
-    for (const entry of candidate.entries) {
-      if (entry.blobKey === undefined) {
-        continue;
-      }
-      // react-doctor-disable-next-line react-doctor/async-await-in-loop -- blob deletes must stay ordered so a failure can abort the candidate before any row is deleted
-      const result = await adapter.blobStorage.delete(entry.blobKey);
-      if (!result.ok) {
-        blobFailed = true;
-        break;
-      }
-    }
-    if (blobFailed) {
-      continue;
-    }
-
-    // react-doctor-disable-next-line react-doctor/async-await-in-loop -- each candidate is freed and accounted for before the next, so the sweep stops as soon as the cap is met
+    // Rows first, in one batch: the offline note and the row-based cap read rows,
+    // so a row must never outlive its blob. Blob deletes are best-effort; a failed
+    // one leaves an orphan the accounting cannot see.
+    // shortcut: orphans are never retried; sweep them separately if delete failures grow.
+    // react-doctor-disable-next-line react-doctor/async-await-in-loop -- each candidate's rows are freed before the next candidate is measured
     await deleteCacheEntries(
       db,
       candidate.entries.map((entry) => entry.id),
     );
+    for (const entry of candidate.entries) {
+      if (entry.blobKey === undefined) {
+        continue;
+      }
+      // react-doctor-disable-next-line react-doctor/async-await-in-loop -- blob deletes stay ordered per entry and never gate eviction
+      await adapter.blobStorage.delete(entry.blobKey);
+    }
     for (const entry of candidate.entries) {
       bytesToFree -= entry.byteSize;
       evicted += 1;
