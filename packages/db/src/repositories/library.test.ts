@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { toLibraryEntryId, toProviderId } from '@app/shared';
+import { toCategoryId, toLibraryEntryId, toProviderId } from '@app/shared';
 import { createSqlJsHarness } from '../testing/sqljs-harness.js';
 import { createMangaIdentityWithInitialMapping } from './identities.js';
-import { addLibraryEntry, listLibraryEntries } from './library.js';
+import { addLibraryEntry, listLibraryEntries, setLibraryEntryCategories } from './library.js';
 
 async function createManga(
   db: Awaited<ReturnType<typeof createSqlJsHarness>>['db'],
@@ -20,6 +20,63 @@ async function createManga(
 }
 
 describe('addLibraryEntry', () => {
+  it('Given 32767 library entries, When listing and filtering, Then memberships survive chunk boundaries without duplicate entries', async () => {
+    const { db, raw } = await createSqlJsHarness();
+    raw.run(`
+      WITH RECURSIVE n(x) AS (SELECT 0 UNION ALL SELECT x+1 FROM n WHERE x < 32766)
+      INSERT INTO manga_identities (id, canonical_title, status, content_rating, merged, default_provider_mapping_id)
+      SELECT 'm-'||x, 'Series '||x, 'ongoing', 'safe', 0, 'mapping-'||x FROM n;
+      INSERT INTO library_entries (id, manga_id, favorite, status, unread_count, added_at)
+      SELECT id, id, 0, 'reading', 0, id FROM manga_identities;
+      INSERT INTO categories (id, name) VALUES ('category', 'Category');
+      INSERT INTO library_category_memberships (library_entry_id, category_id)
+      SELECT id, 'category' FROM library_entries;
+    `);
+    const all = await listLibraryEntries(db, { sort: { key: 'date_added', direction: 'asc' } });
+    expect(all).toHaveLength(32767);
+    expect(all[0]?.id).toBe('m-0');
+    expect(all[500]?.categoryIds).toEqual(['category']);
+    expect(all.at(-1)?.categoryIds).toEqual(['category']);
+    const categoryIds = Array.from({ length: 32767 }, (_, index) =>
+      toCategoryId(`missing-${index}`),
+    );
+    categoryIds[500] = toCategoryId('category');
+    const filtered = await listLibraryEntries(db, {
+      filter: { categoryIds: [...categoryIds, toCategoryId('category')] },
+      sort: { key: 'date_added', direction: 'asc' },
+    });
+    expect(filtered.map((entry) => entry.id)).toEqual(all.map((entry) => entry.id));
+    raw.close();
+  }, 30_000);
+  it('sets categories across the SQL ceiling and preserves validation and clearing semantics', async () => {
+    const { db, raw } = await createSqlJsHarness();
+    const mangaId = await createManga(db, 'categories');
+    const entryId = toLibraryEntryId('entry');
+    await addLibraryEntry(db, { mangaId, id: entryId, status: 'reading' });
+    raw.run(`
+      WITH RECURSIVE n(x) AS (SELECT 0 UNION ALL SELECT x+1 FROM n WHERE x < 32766)
+      INSERT INTO categories (id, name) SELECT 'c-'||x, 'Category '||x FROM n;
+    `);
+    const ids = Array.from({ length: 32767 }, (_, index) => toCategoryId(`c-${index}`));
+    const prepare = raw.prepare.bind(raw);
+    raw.prepare = (sql, ...args) => {
+      const limit = sql.startsWith('insert') ? 1000 : 500;
+      expect((sql.match(/\?/g) ?? []).length).toBeLessThanOrEqual(limit);
+      return prepare(sql, ...args);
+    };
+    expect((await setLibraryEntryCategories(db, entryId, ids)).ok).toBe(true);
+    const memberships = () =>
+      raw.exec('SELECT category_id FROM library_category_memberships')[0]?.values.flat();
+    expect(new Set(memberships())).toEqual(new Set(ids));
+    const duplicate = await setLibraryEntryCategories(db, entryId, [ids[0]!, ids[0]!]);
+    expect(duplicate).toMatchObject({ ok: false, error: { code: 'db.library.category_missing' } });
+    const missing = await setLibraryEntryCategories(db, entryId, [...ids, toCategoryId('missing')]);
+    expect(missing).toMatchObject({ ok: false, error: { code: 'db.library.category_missing' } });
+    expect(new Set(memberships())).toEqual(new Set(ids));
+    expect((await setLibraryEntryCategories(db, entryId, [])).ok).toBe(true);
+    expect(memberships()).toBeUndefined();
+    raw.close();
+  }, 30_000);
   it('adds once and rejects a duplicate manga', async () => {
     const { db } = await createSqlJsHarness();
     const mangaId = await createManga(db, 'plain');

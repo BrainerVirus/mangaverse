@@ -9,6 +9,7 @@ import type * as SearchModule from '@app/search';
 import type * as SettingsModule from '@app/settings';
 import type { MangaIdentity } from '@app/shared';
 import type { SearchPageData, SearchViewState } from '@app/search';
+import { settingsQueryKeys } from '@app/settings';
 
 const mocks = vi.hoisted(() => ({
   fetchSearchPage: vi.fn<(db: unknown, viewState: SearchViewState) => Promise<SearchPageData>>(),
@@ -16,8 +17,6 @@ const mocks = vi.hoisted(() => ({
     vi.fn<(db: unknown, query: string, signal: AbortSignal) => Promise<readonly MangaIdentity[]>>(),
   fetchAppSettings: vi.fn<(db: unknown) => Promise<{ settings: { explicitContent: boolean } }>>(),
   recordSearchQuery: vi.fn<(db: unknown, query: string) => Promise<void>>(),
-  refreshRecentSearches: vi.fn<() => Promise<void>>(),
-  refreshRecentSearchesAfterWrite: vi.fn<() => Promise<void>>(),
   navigate: vi.fn<(options: unknown) => void>(),
 }));
 
@@ -54,11 +53,6 @@ vi.mock('../../providers/local-db-provider.js', () => ({
 
 vi.mock('../../queries/provider-query-options.js', () => ({
   fetchProviderSearchIdentities: mocks.fetchProviderSearchIdentities,
-}));
-
-vi.mock('../../queries/search-recents.js', () => ({
-  refreshRecentSearches: mocks.refreshRecentSearches,
-  refreshRecentSearchesAfterWrite: mocks.refreshRecentSearchesAfterWrite,
 }));
 
 import { Route } from '../../routes/search.js';
@@ -109,6 +103,7 @@ function emptyPage(viewState: SearchViewState): SearchPageData {
 describe('/search route', () => {
   let container: HTMLDivElement;
   let root: Root;
+  let queryClient: QueryClient;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -118,18 +113,15 @@ describe('/search route', () => {
     );
     mocks.fetchProviderSearchIdentities.mockResolvedValue([]);
     mocks.recordSearchQuery.mockResolvedValue(undefined);
-    mocks.refreshRecentSearches.mockResolvedValue(undefined);
-    mocks.refreshRecentSearchesAfterWrite.mockResolvedValue(undefined);
 
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
     act(() => {
       root.render(
-        <QueryClientProvider
-          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-        >
+        <QueryClientProvider client={queryClient}>
           <SearchRoute />
         </QueryClientProvider>,
       );
@@ -279,6 +271,48 @@ describe('/search route', () => {
 
     expect(mocks.fetchProviderSearchIdentities).not.toHaveBeenCalled();
   });
+
+  it.each([false, true])(
+    'Given explicit content is %s, When a pending history write finishes after clearing, Then fresh recents render',
+    async (explicitContent) => {
+      await vi.waitFor(() => expect(buttonByText('berserk')).toBeDefined());
+      await act(async () => {
+        queryClient.setQueryData(settingsQueryKeys.app(), { settings: { explicitContent } });
+      });
+
+      let savedQuery = 'berserk';
+      let finishWrite!: () => void;
+      mocks.fetchSearchPage.mockImplementation((_db, viewState) =>
+        Promise.resolve({
+          ...localPage(viewState),
+          recentSearches: [
+            { id: 'recent-1', query: savedQuery, searchedAt: '2026-10-20T00:00:00Z' },
+          ],
+        }),
+      );
+      mocks.recordSearchQuery.mockImplementation(
+        (_db, query) =>
+          new Promise<void>((resolve) => {
+            finishWrite = () => {
+              savedQuery = query;
+              resolve();
+            };
+          }),
+      );
+
+      await act(async () => setQuery('naruto'));
+      await vi.waitFor(() => expect(buttonByText('Local naruto')).toBeDefined());
+      await act(async () => setQuery(''));
+      await vi.waitFor(() => expect(buttonByText('berserk')).toBeDefined());
+      const providerCalls = mocks.fetchProviderSearchIdentities.mock.calls.length;
+
+      await act(async () => finishWrite());
+
+      await vi.waitFor(() => expect(buttonByText('naruto')).toBeDefined());
+      expect(buttonByText('berserk')).toBeUndefined();
+      expect(mocks.fetchProviderSearchIdentities).toHaveBeenCalledTimes(providerCalls);
+    },
+  );
 
   it('Given a slow provider, When the query clears, Then recent searches render without waiting', async () => {
     let resolveProvider!: (identities: readonly MangaIdentity[]) => void;

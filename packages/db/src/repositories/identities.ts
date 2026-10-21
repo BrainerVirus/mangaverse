@@ -19,6 +19,7 @@ import {
   type UserTitleOverride,
 } from '@app/shared';
 import type { AppDrizzleDb } from '../adapter.js';
+import { readIdChunks } from '../read-id-chunks.js';
 import {
   mangaIdentities,
   mangaPeople,
@@ -147,7 +148,7 @@ function groupByManga<T extends { readonly mangaId: string }>(
 }
 
 /**
- * Batched identity read: seven queries for any number of ids instead of ~11 per
+ * Batched identity read: up to seven queries per chunk instead of ~11 per
  * identity. Library and search both fan out to this.
  */
 export async function getMangaIdentities(
@@ -157,32 +158,40 @@ export async function getMangaIdentities(
   if (mangaIds.length === 0) return [];
   const ids = [...mangaIds];
 
-  const rows = db.select().from(mangaIdentities).where(inArray(mangaIdentities.id, ids)).all();
+  const rows = readIdChunks(ids, (chunk) =>
+    db.select().from(mangaIdentities).where(inArray(mangaIdentities.id, chunk)).all(),
+  );
   if (rows.length === 0) return [];
   const rowById = new Map(rows.map((row) => [row.id, row]));
 
-  const mappingsRows = db
-    .select()
-    .from(mangaProviderMappings)
-    .where(inArray(mangaProviderMappings.mangaId, ids))
-    .all();
-  const titlesRows = db.select().from(mangaTitles).where(inArray(mangaTitles.mangaId, ids)).all();
-  const peopleRows = db.select().from(mangaPeople).where(inArray(mangaPeople.mangaId, ids)).all();
-  const tagMemberships = db
-    .select({ mangaId: mangaTagMemberships.mangaId, tagId: mangaTagMemberships.tagId })
-    .from(mangaTagMemberships)
-    .where(inArray(mangaTagMemberships.mangaId, ids))
-    .all();
+  const foundIds = rows.map((row) => row.id);
+  const mappingsRows = readIdChunks(foundIds, (chunk) =>
+    db
+      .select()
+      .from(mangaProviderMappings)
+      .where(inArray(mangaProviderMappings.mangaId, chunk))
+      .all(),
+  );
+  const titlesRows = readIdChunks(foundIds, (chunk) =>
+    db.select().from(mangaTitles).where(inArray(mangaTitles.mangaId, chunk)).all(),
+  );
+  const peopleRows = readIdChunks(foundIds, (chunk) =>
+    db.select().from(mangaPeople).where(inArray(mangaPeople.mangaId, chunk)).all(),
+  );
+  const tagMemberships = readIdChunks(foundIds, (chunk) =>
+    db
+      .select({ mangaId: mangaTagMemberships.mangaId, tagId: mangaTagMemberships.tagId })
+      .from(mangaTagMemberships)
+      .where(inArray(mangaTagMemberships.mangaId, chunk))
+      .all(),
+  );
   const tagIds = [...new Set(tagMemberships.map((membership) => membership.tagId))];
-  const tagRows =
-    tagIds.length === 0
-      ? []
-      : db.select().from(mangaTags).where(inArray(mangaTags.id, tagIds)).all();
-  const trackingRows = db
-    .select()
-    .from(trackingLinks)
-    .where(inArray(trackingLinks.mangaId, ids))
-    .all();
+  const tagRows = readIdChunks(tagIds, (chunk) =>
+    db.select().from(mangaTags).where(inArray(mangaTags.id, chunk)).all(),
+  );
+  const trackingRows = readIdChunks(foundIds, (chunk) =>
+    db.select().from(trackingLinks).where(inArray(trackingLinks.mangaId, chunk)).all(),
+  );
 
   const mappingsByManga = groupByManga(mappingsRows);
   const titlesByManga = groupByManga(titlesRows);
