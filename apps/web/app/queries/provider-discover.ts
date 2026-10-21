@@ -1,4 +1,5 @@
 import type { AppDrizzleDb } from '@app/db/browser';
+import type { ProviderContract } from '@app/extensions-sdk';
 import type { MangaIdentity } from '@app/shared';
 import type { DiscoverPageData, DiscoverSection } from '@app/search';
 
@@ -25,7 +26,7 @@ export function getSectionTitle(binding: ProviderAppBinding, sectionId: string):
 }
 
 async function fetchSection(
-  db: AppDrizzleDb,
+  provider: ProviderContract,
   binding: ProviderAppBinding,
   sectionId: string,
   page: number,
@@ -37,10 +38,6 @@ async function fetchSection(
     return null;
   }
 
-  const provider = await resolveInstalledProvider(db, binding.providerId);
-  if (provider === null) {
-    return null;
-  }
   const ctx = {
     manifest: provider.manifest,
     providerId: binding.providerId,
@@ -73,7 +70,11 @@ export async function fetchProviderSectionPage(
   signal?: AbortSignal,
 ): Promise<ProviderSectionPage> {
   const page = Math.floor(offset / Math.max(limit, 1)) + 1;
-  const fetched = await fetchSection(db, binding, sectionId, page, limit, signal);
+  const provider = await resolveInstalledProvider(db, binding.providerId);
+  if (provider === null) {
+    return { results: [], hasMore: false, offset };
+  }
+  const fetched = await fetchSection(provider, binding, sectionId, page, limit, signal);
   if (fetched === null) {
     return { results: [], hasMore: false, offset };
   }
@@ -100,7 +101,7 @@ export async function fetchProviderDiscoverData(
     const settled = await Promise.allSettled(
       enabled.map(async (section): Promise<DiscoverSection> => {
         const fetched = await fetchSection(
-          db,
+          provider,
           binding,
           section.id,
           1,
