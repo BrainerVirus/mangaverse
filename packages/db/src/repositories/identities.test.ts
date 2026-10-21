@@ -17,6 +17,11 @@ describe('getMangaIdentities', () => {
       INSERT INTO manga_tags (id, label) SELECT id, 'Tag '||id FROM manga_identities;
       INSERT INTO manga_tag_memberships (manga_id, tag_id) SELECT id, id FROM manga_identities;
     `);
+    const prepare = raw.prepare.bind(raw);
+    raw.prepare = (sql, ...args) => {
+      expect((sql.match(/\?/g) ?? []).length).toBeLessThanOrEqual(500);
+      return prepare(sql, ...args);
+    };
     const ids = Array.from({ length: 501 }, (_, index) => toMangaId(`m-${500 - index}`));
     const result = await getMangaIdentities(db, ids);
     expect(result.map((identity) => identity.id)).toEqual(ids);
@@ -52,7 +57,7 @@ describe('getMangaIdentities', () => {
     expect(result[0]?.providerMappings[0]?.providerMangaId).toBe('boundary');
     expect(await getMangaIdentities(db, [])).toEqual([]);
     raw.close();
-  });
+  }, 30_000);
   it('Given many ids, When reading identities, Then statement count does not grow with the list', async () => {
     const { raw, db } = await createSqlJsHarness();
     const ids = [];

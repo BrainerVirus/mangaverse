@@ -322,11 +322,9 @@ export async function setLibraryEntryCategories(
   }
 
   if (categoryIds.length > 0) {
-    const found = db
-      .select({ id: categories.id })
-      .from(categories)
-      .where(inArray(categories.id, [...categoryIds]))
-      .all();
+    const found = readIdChunks(categoryIds, (chunk) =>
+      db.select({ id: categories.id }).from(categories).where(inArray(categories.id, chunk)).all(),
+    );
     if (found.length !== categoryIds.length) {
       return err(
         createAppError({
@@ -341,9 +339,12 @@ export async function setLibraryEntryCategories(
     .delete(libraryCategoryMemberships)
     .where(eq(libraryCategoryMemberships.libraryEntryId, entryId));
   if (categoryIds.length > 0) {
-    await db
-      .insert(libraryCategoryMemberships)
-      .values(categoryIds.map((categoryId) => ({ libraryEntryId: entryId, categoryId })));
+    readIdChunks(categoryIds, (chunk) => {
+      db.insert(libraryCategoryMemberships)
+        .values(chunk.map((categoryId) => ({ libraryEntryId: entryId, categoryId })))
+        .run();
+      return [];
+    });
   }
 
   await db
