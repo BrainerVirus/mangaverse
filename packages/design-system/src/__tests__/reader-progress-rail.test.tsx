@@ -112,6 +112,25 @@ describe('ReaderProgressRail', () => {
     ).toBe('none');
   });
 
+  it('Given the page changed elsewhere, When the rail is pressed on the previous page, Then it reports it again', () => {
+    const onChange = vi.fn<(value: number) => void>();
+    const { rerender } = render(
+      <ReaderProgressRail value={1} min={1} max={11} onChange={onChange} />,
+    );
+    const track = screen.getByRole('slider', { name: 'Page slider' });
+
+    // A drag published page 4, then the reader moved on by keyboard or tap.
+    fireEvent.pointerDown(track, { clientX: 25, pointerId: 1 });
+    fireEvent.pointerUp(track, { clientX: 25, pointerId: 1 });
+    expect(onChange).toHaveBeenLastCalledWith(4);
+    rerender(<ReaderProgressRail value={7} min={1} max={11} onChange={onChange} />);
+    onChange.mockClear();
+
+    // Scrubbing back to the page the rail published before must still commit.
+    fireEvent.pointerDown(track, { clientX: 25, pointerId: 1 });
+    expect(onChange).toHaveBeenCalledWith(4);
+  });
+
   it('Given a drag in progress, When the pointer moves, Then the value keeps following until release', () => {
     const onChange = vi.fn<(value: number) => void>();
     const onScrubEnd = vi.fn<() => void>();
