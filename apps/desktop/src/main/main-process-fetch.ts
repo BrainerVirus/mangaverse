@@ -2,12 +2,20 @@ import type { ClientRequest, ClientRequestConstructorOptions, IncomingMessage } 
 import type { NetworkFetchResult } from '@app/platform';
 
 const MAX_REDIRECTS = 5;
-/** Cap one download so a hostile host cannot exhaust main-process memory. */
+/**
+ * Cap one buffered body so a hostile host cannot exhaust main-process memory.
+ * Redirect and error responses are aborted before their body is read, so only
+ * one body is ever buffered: this per-response cap is also the aggregate cap.
+ */
 const MAX_RESPONSE_BYTES = 64 * 1024 * 1024;
 /** Bound one hop so a silent socket cannot leave the IPC handler pending forever. */
 const HOP_TIMEOUT_MS = 30_000;
+/** Bound the redirect chain; six hops at HOP_TIMEOUT_MS could otherwise run 3 minutes. */
+const REQUEST_TIMEOUT_MS = 60_000;
 
 type RequestFactory = (options: ClientRequestConstructorOptions) => ClientRequest;
+
+type CancellableRequest = ClientRequest & { destroy?: () => void };
 
 type HopOutcome =
   | { readonly redirectUrl: string }
@@ -19,13 +27,29 @@ function firstHeader(headers: Record<string, string | string[]>, name: string): 
   return Array.isArray(value) ? value[0] : value;
 }
 
+/** Close the socket, not just the promise: a timed-out hop must not keep reading. */
+function cancelRequest(req: ClientRequest): void {
+  try {
+    req.abort();
+  } catch {
+    // Already closed.
+  }
+  try {
+    // Electron's ClientRequest types expose only abort(); destroy releases the
+    // socket on implementations that provide it.
+    (req as CancellableRequest).destroy?.();
+  } catch {
+    // Already closed.
+  }
+}
+
 /**
  * One request that never follows redirects automatically. Electron requires
  * `followRedirect()` synchronously during the `redirect` event, but SSRF checks
  * are async, so the redirect target is returned and validated before the next
  * hop is requested.
  */
-function requestHop(request: RequestFactory, url: string): Promise<HopOutcome> {
+function requestHop(request: RequestFactory, url: string, timeoutMs: number): Promise<HopOutcome> {
   return new Promise((resolve) => {
     let settled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -35,7 +59,11 @@ function requestHop(request: RequestFactory, url: string): Promise<HopOutcome> {
       clearTimeout(timer);
       resolve(outcome);
     };
-    timer = setTimeout(() => finish(undefined), HOP_TIMEOUT_MS);
+    timer = setTimeout(() => {
+      // Abort before settling so the caller resuming cannot leave the socket open.
+      cancelRequest(req);
+      finish(undefined);
+    }, timeoutMs);
 
     let req: ClientRequest;
     try {
@@ -62,12 +90,12 @@ function requestHop(request: RequestFactory, url: string): Promise<HopOutcome> {
       if (status >= 300 && status < 400) {
         const location = firstHeader(response.headers, 'location');
         finish(location === undefined ? undefined : { redirectUrl: location });
-        req.abort();
+        cancelRequest(req);
         return;
       }
       if (status < 200 || status >= 300) {
         finish(undefined);
-        req.abort();
+        cancelRequest(req);
         return;
       }
 
@@ -76,15 +104,17 @@ function requestHop(request: RequestFactory, url: string): Promise<HopOutcome> {
       let bytes = 0;
 
       response.on('data', (chunk: Buffer) => {
+        if (settled) return;
         bytes += chunk.byteLength;
         if (bytes > MAX_RESPONSE_BYTES) {
           finish(undefined);
-          req.abort();
+          cancelRequest(req);
           return;
         }
         chunks.push(chunk);
       });
       response.on('end', () => {
+        if (settled) return;
         if (bytes === 0) {
           finish(undefined);
           return;
@@ -119,19 +149,25 @@ function requestHop(request: RequestFactory, url: string): Promise<HopOutcome> {
  *
  * shortcut: DNS is resolved for validation and then again by Chromium, so a
  * fast rebind can still race the request; pin the address when Electron
- * exposes a hook.
+ * exposes a hook. A lookup that never resolves also outlives the deadline
+ * because it has no abort signal; race it when the resolver gains one.
  */
 export async function fetchMainProcessBytes(
   request: RequestFactory,
   url: string,
   isAllowedUrl: (url: string) => Promise<boolean>,
 ): Promise<NetworkFetchResult | undefined> {
+  const deadline = Date.now() + REQUEST_TIMEOUT_MS;
   let target = url;
   for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
     if (!(await isAllowedUrl(target))) {
       return undefined;
     }
-    const hop = await requestHop(request, target);
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      return undefined;
+    }
+    const hop = await requestHop(request, target, Math.min(HOP_TIMEOUT_MS, remaining));
     if (hop === undefined) {
       return undefined;
     }

@@ -1,12 +1,13 @@
 import { EventEmitter } from 'node:events';
 import type { ClientRequest, ClientRequestConstructorOptions, IncomingMessage } from 'electron';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, type MockInstance } from 'vitest';
 import { fetchMainProcessBytes } from './main-process-fetch.js';
 
 type FakeRequest = EventEmitter & {
   end: () => void;
   abort: () => void;
   followRedirect?: () => void;
+  destroy?: () => void;
 };
 
 type FakeResponse = EventEmitter & {
@@ -185,6 +186,23 @@ describe('fetchMainProcessBytes', () => {
     expect(result).toBeUndefined();
   });
 
+  it('still caps the body after a redirect hop', async () => {
+    const request = requestFactory((options, req) => {
+      if (options.url === initialUrl) {
+        redirect(req, 'https://cdn.example.com/page.png');
+        return;
+      }
+      sent(req);
+      const res = response(req, 200, { 'content-type': 'image/png' });
+      res.emit('data', { byteLength: 64 * 1024 * 1024 + 1 });
+    });
+
+    const result = await fetchMainProcessBytes(request as never, initialUrl, async () => true);
+
+    expect(result).toBeUndefined();
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+
   it('returns undefined for an empty or failed response', async () => {
     const empty = requestFactory((_options, req) => {
       sent(req);
@@ -222,6 +240,71 @@ describe('fetchMainProcessBytes', () => {
       expect(resolved).toBe(false);
 
       await vi.advanceTimersByTimeAsync(30_000);
+      await expect(pending).resolves.toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('aborts the in-flight request when a hop times out', async () => {
+    vi.useFakeTimers();
+    try {
+      let abort: MockInstance<() => void> | undefined;
+      let destroy: MockInstance<() => void> | undefined;
+      const request = requestFactory((_options, req) => {
+        sent(req);
+        abort = vi.spyOn(req, 'abort');
+        destroy = vi.fn<() => void>();
+        req.destroy = destroy;
+      });
+      const pending = fetchMainProcessBytes(request as never, initialUrl, async () => true);
+
+      await vi.advanceTimersByTimeAsync(0);
+      const abortSpy = abort;
+      const destroySpy = destroy;
+      expect(abortSpy).toBeDefined();
+
+      await vi.advanceTimersByTimeAsync(30_000);
+      await expect(pending).resolves.toBeUndefined();
+      expect(abortSpy).toHaveBeenCalledOnce();
+      expect(destroySpy).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('enforces the overall deadline across slow hops', async () => {
+    vi.useFakeTimers();
+    try {
+      const request = requestFactory((options, req) => {
+        sent(req);
+        if (options.url === 'https://example.com/final') {
+          return; // Third hop stalls.
+        }
+        const next =
+          options.url === initialUrl ? 'https://example.com/second' : 'https://example.com/final';
+        setTimeout(() => {
+          req.emit('redirect', 302, 'GET', next, {});
+          req.emit('error', new Error('Redirect was cancelled'));
+        }, 20_000);
+      });
+      let settled: unknown = 'pending';
+      const pending = fetchMainProcessBytes(request as never, initialUrl, async () => true).then(
+        (value) => {
+          settled = value;
+          return value;
+        },
+      );
+
+      await vi.advanceTimersByTimeAsync(40_000);
+      expect(request).toHaveBeenCalledTimes(3);
+
+      // Two 20s hops leave 20s of the 60s deadline, so the third hop must fail at
+      // 60s rather than after its own 30s hop timeout at 70s.
+      await vi.advanceTimersByTimeAsync(21_000);
+      expect(settled).toBeUndefined();
+
+      await vi.runOnlyPendingTimersAsync();
       await expect(pending).resolves.toBeUndefined();
     } finally {
       vi.useRealTimers();
