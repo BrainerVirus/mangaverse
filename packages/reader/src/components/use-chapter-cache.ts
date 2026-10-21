@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
-  announceOpenChapter,
   evictCacheToLimit,
+  holdReaderLocks,
   listCachedChapterPageIndexes,
   markChapterPagesAsRead,
   prefetchChapterPages,
@@ -24,6 +24,17 @@ export function useChapterPrefetch(
   const chapterId = data?.chapterId;
   const budgetBytes = data?.settings.prefetchBudgetBytes ?? 0;
 
+  // The locks live as long as this chapter is open, not as long as one prefetch
+  // sweep: a settings change releases and re-runs the sweep below, and a gap
+  // there would let another tab evict the chapter being read.
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: Web Locks presence must be held until the reader unmounts
+  useEffect(() => {
+    if (providerId === undefined || mangaId === undefined || chapterId === undefined) {
+      return;
+    }
+    return holdReaderLocks({ providerId, mangaId, chapterId });
+  }, [chapterId, mangaId, providerId]);
+
   // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: prefetching writes to the DB and blob storage
   useEffect(() => {
     if (
@@ -37,9 +48,6 @@ export function useChapterPrefetch(
     }
 
     const controller = new AbortController();
-    // Another tab's sweep probes for open chapters before evicting; the open
-    // chapter must be announced for the whole time this reader is mounted.
-    announceOpenChapter({ providerId, mangaId, chapterId });
     const prefetchPages = pages.map((page, pageIndex) => ({
       pageIndex,
       remoteUrl: page.image.url,
@@ -69,7 +77,6 @@ export function useChapterPrefetch(
     });
 
     return () => {
-      announceOpenChapter(undefined);
       controller.abort();
     };
   }, [budgetBytes, cacheContext, chapterId, mangaId, pages, providerId]);

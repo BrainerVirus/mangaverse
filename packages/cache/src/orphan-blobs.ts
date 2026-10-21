@@ -3,13 +3,16 @@ import { listCacheBlobKeys } from '@app/db';
 import type { PlatformAdapter } from '@app/platform';
 
 import { deleteBlobKeys } from './blob-deletes.js';
-import { isCacheBlobKey } from './constants.js';
+import { isBlobWriteInFlight } from './blob-writes.js';
+import type { CacheChapterRef } from './cache-maintenance.js';
+import { isCacheBlobKey, PAGE_CACHE_KIND } from './constants.js';
+import { probeReaderPresence } from './reader-locks.js';
 
 /** One sweep reclaims at most this many orphan blobs; the rest wait for the next run. */
 const ORPHAN_DELETE_LIMIT = 200;
 
 export interface OrphanBlobReclaimResult {
-  readonly reclaimedBlobs: number;
+  readonly reclaimedKeys: readonly string[];
   readonly failedBlobKeys: readonly string[];
 }
 
@@ -19,10 +22,10 @@ export interface OrphanBlobReclaimResult {
  * see those bytes, so only enumerating the blob store can.
  *
  * Cross-store limit: rows live in SQLite and blobs in IndexedDB, so this is not
- * atomic with a writer in another tab (or this one). A blob put just before its
- * row upsert can be seen as an orphan and deleted; every read then treats the
- * surviving row as a cache miss and refetches, so the cost is a refetch, not a
- * broken page. No full scan of either store is repeated per key: one key
+ * atomic with a writer in another tab. A reader can have a blob put before its
+ * row upsert, so blobs belonging to a chapter another tab holds a reader lock
+ * for are skipped; readers in this process are additionally covered by the
+ * in-flight guard. No full scan of either store is repeated per key: one key
  * enumeration, one row-key read, one bounded delete pass.
  */
 export async function reclaimOrphanBlobs(
@@ -30,26 +33,48 @@ export async function reclaimOrphanBlobs(
   adapter: PlatformAdapter,
   retryKeys: readonly string[] = [],
 ): Promise<OrphanBlobReclaimResult> {
-  const knownKeys = new Set(await listCacheBlobKeys(db));
-  const listed = await adapter.blobStorage.listKeys();
-  if (!listed.ok) {
-    // No enumerable blob store on this runtime: nothing can be reclaimed here.
-    return { reclaimedBlobs: 0, failedBlobKeys: [] };
+  const presence = await probeReaderPresence();
+  // Without a presence answer we cannot tell an in-flight write from an orphan.
+  if (presence.status === 'unknown') {
+    return { reclaimedKeys: [], failedBlobKeys: [] };
   }
+  const openChapters = presence.status === 'readers' ? presence.chapters : [];
 
-  const candidates = new Set(retryKeys);
-  for (const key of listed.value) {
-    if (!knownKeys.has(key)) {
-      candidates.add(key);
+  try {
+    const knownKeys = new Set(await listCacheBlobKeys(db));
+    const listed = await adapter.blobStorage.listKeys();
+    if (!listed.ok) {
+      // No enumerable blob store on this runtime: nothing can be reclaimed here.
+      return { reclaimedKeys: [], failedBlobKeys: [] };
     }
-  }
-  const orphanKeys = [...candidates]
-    .filter((key) => isCacheBlobKey(key) && !knownKeys.has(key))
-    .slice(0, ORPHAN_DELETE_LIMIT);
-  if (orphanKeys.length === 0) {
-    return { reclaimedBlobs: 0, failedBlobKeys: [] };
-  }
 
-  const outcome = await deleteBlobKeys(adapter, orphanKeys);
-  return { reclaimedBlobs: outcome.deletedCount, failedBlobKeys: outcome.failedKeys };
+    const candidates = new Set(retryKeys);
+    for (const key of listed.value) {
+      if (!knownKeys.has(key)) {
+        candidates.add(key);
+      }
+    }
+    const orphanKeys = [...candidates]
+      .filter(
+        (key) =>
+          isCacheBlobKey(key) && !knownKeys.has(key) && !isOpenChapterBlob(key, openChapters),
+      )
+      .slice(0, ORPHAN_DELETE_LIMIT);
+    if (orphanKeys.length === 0) {
+      return { reclaimedKeys: [], failedBlobKeys: [] };
+    }
+
+    const outcome = await deleteBlobKeys(adapter, orphanKeys, isBlobWriteInFlight);
+    return { reclaimedKeys: outcome.deletedKeys, failedBlobKeys: outcome.failedKeys };
+  } finally {
+    if (presence.status === 'none') presence.release();
+  }
+}
+
+function isOpenChapterBlob(key: string, chapters: readonly CacheChapterRef[]): boolean {
+  return chapters.some((chapter) =>
+    key.startsWith(
+      `${PAGE_CACHE_KIND}:${chapter.providerId}:${chapter.mangaId}:${chapter.chapterId}:`,
+    ),
+  );
 }

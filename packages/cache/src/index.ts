@@ -29,7 +29,7 @@ export {
 export { evictCacheToLimit, runCacheMaintenance } from './cache-maintenance.js';
 export { deleteBlobKeys } from './blob-deletes.js';
 export { reclaimOrphanBlobs } from './orphan-blobs.js';
-export { announceOpenChapter } from './open-chapters.js';
+export { holdReaderLocks } from './reader-locks.js';
 
 export {
   getCachedPageObjectUrl,

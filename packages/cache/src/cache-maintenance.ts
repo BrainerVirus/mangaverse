@@ -4,8 +4,8 @@ import type { PlatformAdapter } from '@app/platform';
 
 import { deleteBlobKeys } from './blob-deletes.js';
 import { COVER_CACHE_KIND, PAGE_CACHE_KIND } from './constants.js';
-import { listOpenChapters } from './open-chapters.js';
 import { reclaimOrphanBlobs } from './orphan-blobs.js';
+import { probeReaderPresence } from './reader-locks.js';
 
 export interface CacheChapterRef {
   readonly providerId: string;
@@ -68,14 +68,20 @@ function groupPagesByChapter(entries: readonly CacheEntryRecord[]): EvictionCand
 
 /**
  * Evicts covers and whole chapters oldest-first until the store fits `limitBytes`.
- * The chapter open in this tab, and any chapter another live tab reports open, is
- * skipped entirely: if it is the only candidate the store stays above the limit
- * until the reader closes it. Candidates are selected first and deleted in one
- * batched row statement, then their blobs; a row never outlives the blob it
- * points at. A failed blob delete only leaks an orphan blob, which the next
- * maintenance sweep retries. Rows (SQLite) and blobs (IndexedDB) are separate
- * stores, so no individual pair is deleted atomically and a concurrent write can
- * land between the batch and the sweep.
+ * The chapter open in this tab, and any chapter a live tab holds a reader lock
+ * for, is skipped entirely: if it is the only candidate the store stays above
+ * the limit until the reader closes it. Candidates are selected first and
+ * deleted in one batched row statement, then their blobs; a row never outlives
+ * the blob it points at. A failed blob delete only leaks an orphan blob, which
+ * the next maintenance sweep retries. Rows (SQLite) and blobs (IndexedDB) are
+ * separate stores, so no individual pair is deleted atomically and a concurrent
+ * write can land between the batch and the sweep.
+ *
+ * Reader presence is proven with Web Locks, never a timed message: with no
+ * reader, the exclusive presence lock is held for the whole eviction so a
+ * reader cannot mount mid-sweep. If presence cannot be proven, nothing is
+ * evicted; a background or throttled reader is still visible through
+ * `navigator.locks.query()`.
  */
 export async function evictCacheToLimit(
   db: AppDrizzleDb,
@@ -87,51 +93,59 @@ export async function evictCacheToLimit(
     return { evictedCount: 0, failedBlobKeys: [] };
   }
 
-  const [covers, pages, openChapters] = await Promise.all([
-    listCacheEntriesByKind(db, COVER_CACHE_KIND),
-    listCacheEntriesByKind(db, PAGE_CACHE_KIND),
-    listOpenChapters(),
-  ]);
-  const protectedChapters = [
-    ...(options.protectChapter !== undefined ? [options.protectChapter] : []),
-    ...openChapters,
-  ];
-  const candidates = [
-    ...covers.map((entry) => ({ lastAccessAt: entry.lastAccessAt, entries: [entry] })),
-    ...groupPagesByChapter(pages),
-  ].sort((left, right) => left.lastAccessAt.localeCompare(right.lastAccessAt));
-
-  let bytesToFree = summary.totalBytes - options.limitBytes;
-  const selected: CacheEntryRecord[] = [];
-  for (const candidate of candidates) {
-    if (bytesToFree <= 0) {
-      break;
-    }
-    if (isProtectedChapter(candidate.entries[0]!, protectedChapters)) {
-      continue;
-    }
-    for (const entry of candidate.entries) {
-      selected.push(entry);
-      bytesToFree -= entry.byteSize;
-    }
-  }
-
-  if (selected.length === 0) {
+  const presence = await probeReaderPresence();
+  if (presence.status === 'unknown') {
     return { evictedCount: 0, failedBlobKeys: [] };
   }
 
-  // Rows first, in one batched statement: the offline note and the row-based cap
-  // read rows, so a row must never outlive its blob.
-  await deleteCacheEntries(
-    db,
-    selected.map((entry) => entry.id),
-  );
-  const blobKeys = selected.flatMap((entry) =>
-    entry.blobKey === undefined ? [] : [entry.blobKey],
-  );
-  const blobs = await deleteBlobKeys(adapter, blobKeys);
+  try {
+    const [covers, pages] = await Promise.all([
+      listCacheEntriesByKind(db, COVER_CACHE_KIND),
+      listCacheEntriesByKind(db, PAGE_CACHE_KIND),
+    ]);
+    const protectedChapters = [
+      ...(options.protectChapter !== undefined ? [options.protectChapter] : []),
+      ...(presence.status === 'readers' ? presence.chapters : []),
+    ];
+    const candidates = [
+      ...covers.map((entry) => ({ lastAccessAt: entry.lastAccessAt, entries: [entry] })),
+      ...groupPagesByChapter(pages),
+    ].sort((left, right) => left.lastAccessAt.localeCompare(right.lastAccessAt));
 
-  return { evictedCount: selected.length, failedBlobKeys: blobs.failedKeys };
+    let bytesToFree = summary.totalBytes - options.limitBytes;
+    const selected: CacheEntryRecord[] = [];
+    for (const candidate of candidates) {
+      if (bytesToFree <= 0) {
+        break;
+      }
+      if (isProtectedChapter(candidate.entries[0]!, protectedChapters)) {
+        continue;
+      }
+      for (const entry of candidate.entries) {
+        selected.push(entry);
+        bytesToFree -= entry.byteSize;
+      }
+    }
+
+    if (selected.length === 0) {
+      return { evictedCount: 0, failedBlobKeys: [] };
+    }
+
+    // Rows first, in one batched statement: the offline note and the row-based cap
+    // read rows, so a row must never outlive its blob.
+    await deleteCacheEntries(
+      db,
+      selected.map((entry) => entry.id),
+    );
+    const blobKeys = selected.flatMap((entry) =>
+      entry.blobKey === undefined ? [] : [entry.blobKey],
+    );
+    const blobs = await deleteBlobKeys(adapter, blobKeys);
+
+    return { evictedCount: selected.length, failedBlobKeys: blobs.failedKeys };
+  } finally {
+    if (presence.status === 'none') presence.release();
+  }
 }
 
 export interface CacheMaintenanceOutcome {
@@ -152,17 +166,22 @@ export async function runCacheMaintenance(
   // The sweep retries eviction's failed deletes in the same pass. It runs even
   // under the limit: an orphan inflated real storage without a row, so row
   // accounting alone would never shrink it. Row totals are unaffected by the
-  // sweep, so they can be read alongside it.
+  // sweep, so they can be read alongside it. A key eviction failed to delete
+  // but the sweep did delete is settled, not still failing.
   const [orphans, summary] = await Promise.all([
     reclaimOrphanBlobs(db, adapter, eviction.failedBlobKeys),
     summarizeCacheStorage(db),
   ]);
-  const failedBlobKeys = new Set([...eviction.failedBlobKeys, ...orphans.failedBlobKeys]);
+  const reclaimed = new Set(orphans.reclaimedKeys);
+  const failedBlobKeys = new Set(orphans.failedBlobKeys);
+  for (const key of eviction.failedBlobKeys) {
+    if (!reclaimed.has(key)) failedBlobKeys.add(key);
+  }
   return {
     evictedCount: eviction.evictedCount,
     totalBytes: summary.totalBytes,
     failedBlobDeletes: failedBlobKeys.size,
-    reclaimedBlobs: orphans.reclaimedBlobs,
+    reclaimedBlobs: orphans.reclaimedKeys.length,
   };
 }
 

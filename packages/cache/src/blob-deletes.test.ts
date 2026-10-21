@@ -41,7 +41,7 @@ describe('deleteBlobKeys', () => {
 
     const outcome = await deleteBlobKeys(adapter, keys);
 
-    expect(outcome).toEqual({ deletedCount: 10, failedKeys: [] });
+    expect(outcome).toEqual({ deletedKeys: keys, failedKeys: [] });
     expect(deleted).toEqual(keys);
     expect(peakInFlight()).toBeLessThanOrEqual(4);
   });
@@ -51,15 +51,27 @@ describe('deleteBlobKeys', () => {
 
     const outcome = await deleteBlobKeys(adapter, ['page:0', 'page:1', 'page:2']);
 
-    expect(outcome.deletedCount).toBe(2);
-    expect(outcome.failedKeys).toEqual(['page:1']);
+    expect(outcome).toEqual({ deletedKeys: ['page:0', 'page:2'], failedKeys: ['page:1'] });
+    expect(deleted).toEqual(['page:0', 'page:2']);
+  });
+
+  it('Given a key skipped by the caller, When deleting, Then it is neither deleted nor failed', async () => {
+    const { adapter, deleted } = createDeletingAdapter();
+
+    const outcome = await deleteBlobKeys(
+      adapter,
+      ['page:0', 'page:1', 'page:2'],
+      (key) => key === 'page:1',
+    );
+
+    expect(outcome).toEqual({ deletedKeys: ['page:0', 'page:2'], failedKeys: [] });
     expect(deleted).toEqual(['page:0', 'page:2']);
   });
 
   it('Given no keys, When deleting, Then nothing is attempted', async () => {
     const { adapter, deleted } = createDeletingAdapter();
 
-    expect(await deleteBlobKeys(adapter, [])).toEqual({ deletedCount: 0, failedKeys: [] });
+    expect(await deleteBlobKeys(adapter, [])).toEqual({ deletedKeys: [], failedKeys: [] });
     expect(deleted).toEqual([]);
   });
 });

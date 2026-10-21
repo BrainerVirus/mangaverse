@@ -16,17 +16,8 @@ import {
   listCachedChapterPageIndexes,
   storePageInCache,
 } from './page-cache-store.js';
-
-import type * as OpenChaptersModule from './open-chapters.js';
-
-const openChapterState = vi.hoisted(() => ({
-  open: [] as { providerId: string; mangaId: string; chapterId: string }[],
-}));
-
-vi.mock('./open-chapters.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof OpenChaptersModule>();
-  return { ...actual, listOpenChapters: async () => openChapterState.open };
-});
+import { READER_PRESENCE_LOCK, readerChapterLockName } from './reader-locks.js';
+import { installFakeWebLocks, installNoWebLocks } from './testing/fake-web-locks.js';
 
 const CHAPTER_1 = { providerId: 'mangadex', mangaId: 'dev-md-abc', chapterId: 'chapter-1' };
 const CHAPTER_2 = { providerId: 'mangadex', mangaId: 'dev-md-abc', chapterId: 'chapter-2' };
@@ -102,11 +93,15 @@ async function seedCover(
 }
 
 describe('cache maintenance', () => {
+  let fakeLocks: ReturnType<typeof installFakeWebLocks>;
+
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] });
+    fakeLocks = installFakeWebLocks();
   });
 
   afterEach(() => {
+    fakeLocks.restore();
     vi.useRealTimers();
   });
 
@@ -350,12 +345,13 @@ describe('cache maintenance', () => {
     expect(blobs.size).toBe(1);
   });
 
-  it('Given another tab reports a chapter open, When sweeping, Then that chapter is not evicted', async () => {
+  it('Given a background tab holding reader locks, When sweeping, Then its chapter is skipped without any message from that tab', async () => {
     const { db } = await createSqlJsHarness();
     const { adapter } = createAdapter();
-    // The registry's BroadcastChannel path is covered by open-chapters.test.ts;
-    // here the sweep only needs to honor what it reports.
-    openChapterState.open = [CHAPTER_1];
+    // A throttled background tab never answers a probe; it only keeps its
+    // shared locks held, which `query()` reports synchronously.
+    const releasePresence = fakeLocks.fake.hold(READER_PRESENCE_LOCK);
+    const releaseChapter = fakeLocks.fake.hold(readerChapterLockName(CHAPTER_1));
 
     try {
       vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
@@ -369,8 +365,149 @@ describe('cache maintenance', () => {
       expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toEqual([0, 1, 2, 3, 4, 5]);
       expect(await listCachedChapterPageIndexes(db, CHAPTER_2)).toEqual([]);
     } finally {
-      openChapterState.open = [];
+      releaseChapter();
+      releasePresence();
     }
+  });
+
+  it('Given another tab reads a chapter, When maintenance runs, Then its row-less page blob is not reclaimed', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter, blobs } = createAdapter();
+    const openKey = buildPageBlobKey('mangadex', 'dev-md-abc', 'chapter-1', 3);
+    const orphanKey = buildPageBlobKey('mangadex', 'dev-md-orphan', 'chapter-9', 0);
+    blobs.set(openKey, new ArrayBuffer(1));
+    blobs.set(orphanKey, new ArrayBuffer(1));
+    const releasePresence = fakeLocks.fake.hold(READER_PRESENCE_LOCK);
+    const releaseChapter = fakeLocks.fake.hold(readerChapterLockName(CHAPTER_1));
+
+    try {
+      const outcome = await runCacheMaintenance(db, adapter, 1000);
+
+      // A row-less page in the open chapter may be a put whose row has not
+      // landed yet; unrelated orphans are still reclaimed.
+      expect(outcome.reclaimedBlobs).toBe(1);
+      expect(blobs.has(openKey)).toBe(true);
+      expect(blobs.has(orphanKey)).toBe(false);
+    } finally {
+      releaseChapter();
+      releasePresence();
+    }
+  });
+
+  it('Given no Web Locks API, When sweeping over the limit, Then nothing is evicted and orphan reclaim is skipped', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter, blobs } = createAdapter();
+    const orphanKey = buildPageBlobKey('mangadex', 'dev-md-orphan', 'chapter-9', 0);
+    blobs.set(orphanKey, new ArrayBuffer(1));
+    await seedChapter(db, adapter, CHAPTER_1);
+
+    const noLocks = installNoWebLocks();
+    try {
+      expect(await evictCacheToLimit(db, adapter, { limitBytes: 0 })).toEqual({
+        evictedCount: 0,
+        failedBlobKeys: [],
+      });
+      expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toEqual([0, 1, 2, 3, 4, 5]);
+
+      const outcome = await runCacheMaintenance(db, adapter, 0);
+
+      expect(outcome.evictedCount).toBe(0);
+      expect(outcome.reclaimedBlobs).toBe(0);
+      expect(blobs.has(orphanKey)).toBe(true);
+    } finally {
+      noLocks.restore();
+    }
+  });
+
+  it('Given a lock manager that rejects the presence probe, When sweeping, Then nothing is deleted', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter } = createAdapter();
+    await seedChapter(db, adapter, CHAPTER_1);
+
+    const original = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value: {
+        locks: {
+          query: async () => ({ held: [] }),
+          request: () => Promise.reject(new Error('locks unavailable')),
+        },
+      },
+    });
+
+    try {
+      expect(await evictCacheToLimit(db, adapter, { limitBytes: 0 })).toEqual({
+        evictedCount: 0,
+        failedBlobKeys: [],
+      });
+      expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toHaveLength(6);
+    } finally {
+      if (original === undefined) Reflect.deleteProperty(globalThis, 'navigator');
+      else Object.defineProperty(globalThis, 'navigator', original);
+    }
+  });
+
+  it('Given a blob put whose row upsert is still pending, When maintenance runs, Then the blob is not swept', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter, blobs } = createAdapter();
+    const pageKey = buildPageBlobKey('mangadex', 'dev-md-abc', 'chapter-1', 0);
+    const basePut = adapter.blobStorage.put.bind(adapter.blobStorage);
+    let releasePut!: () => void;
+    let markPutStarted!: () => void;
+    const putStarted = new Promise<void>((resolve) => {
+      markPutStarted = resolve;
+    });
+    const blocked = new Promise<void>((resolve) => {
+      releasePut = resolve;
+    });
+    adapter.blobStorage.put = async (key, data, mimeType) => {
+      const result = await basePut(key, data, mimeType);
+      markPutStarted();
+      await blocked;
+      return result;
+    };
+
+    const storing = storePageInCache({
+      db,
+      adapter,
+      ...CHAPTER_1,
+      pageIndex: 0,
+      remoteUrl: 'https://example.com/chapter-1/0.jpg',
+      data: new Uint8Array(PAGE_BYTES).buffer,
+      mimeType: 'image/jpeg',
+    });
+    await putStarted;
+
+    // The blob exists but its cache row does not; only the in-flight guard
+    // distinguishes this from a true orphan.
+    const outcome = await runCacheMaintenance(db, adapter, 1000);
+    expect(outcome.reclaimedBlobs).toBe(0);
+    expect(blobs.has(pageKey)).toBe(true);
+
+    releasePut();
+    await storing;
+    expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toEqual([0]);
+    expect(blobs.has(pageKey)).toBe(true);
+  });
+
+  it('Given a delete that fails in eviction but succeeds in the sweep, When maintaining, Then it is not reported as failed', async () => {
+    const { db } = await createSqlJsHarness();
+    const failedKey = buildPageBlobKey('mangadex', 'dev-md-abc', 'chapter-1', 2);
+    let attempts = 0;
+    const { adapter, blobs } = createAdapter((key) => {
+      if (key !== failedKey) return false;
+      attempts += 1;
+      return attempts === 1;
+    });
+
+    await seedChapter(db, adapter, CHAPTER_1);
+
+    const outcome = await runCacheMaintenance(db, adapter, 50);
+
+    expect(outcome.evictedCount).toBe(6);
+    expect(outcome.reclaimedBlobs).toBe(1);
+    expect(outcome.failedBlobDeletes).toBe(0);
+    expect(blobs.has(failedKey)).toBe(false);
   });
 });
 

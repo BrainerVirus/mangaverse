@@ -42,7 +42,7 @@ export async function clearStorageData(input: {
       target,
       clearedCount: clearedIds.length,
       failedCount: entries.length - clearedIds.length,
-      reclaimedBlobs: orphans.reclaimedBlobs,
+      reclaimedBlobs: orphans.reclaimedKeys.length,
     };
   }
 

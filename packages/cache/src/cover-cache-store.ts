@@ -9,6 +9,7 @@ import type { PlatformAdapter } from '@app/platform';
 import type { MangaId, ProviderId } from '@app/shared';
 
 import { buildCoverBlobKey, buildCoverCacheEntryId, COVER_CACHE_KIND } from './constants.js';
+import { withBlobWrite } from './blob-writes.js';
 
 export interface CoverCacheLookupInput {
   readonly db: AppDrizzleDb;
@@ -83,21 +84,24 @@ export async function storeCoverInCache(
   const blobKey = buildCoverBlobKey(providerId, mangaId);
   const entryId = buildCoverCacheEntryId(providerId, mangaId);
 
-  const putResult = await input.adapter.blobStorage.put(blobKey, input.data, input.mimeType);
-  if (!putResult.ok) {
+  const putResult = await withBlobWrite(blobKey, async () => {
+    const put = await input.adapter.blobStorage.put(blobKey, input.data, input.mimeType);
+    if (!put.ok) return false;
+    await upsertCacheEntry(input.db, {
+      id: entryId,
+      providerId,
+      mangaId,
+      cacheKind: COVER_CACHE_KIND,
+      sourceUrl: input.remoteUrl,
+      mimeType: input.mimeType,
+      byteSize: input.data.byteLength,
+      blobKey,
+    });
+    return true;
+  });
+  if (!putResult) {
     return undefined;
   }
-
-  await upsertCacheEntry(input.db, {
-    id: entryId,
-    providerId,
-    mangaId,
-    cacheKind: COVER_CACHE_KIND,
-    sourceUrl: input.remoteUrl,
-    mimeType: input.mimeType,
-    byteSize: input.data.byteLength,
-    blobKey,
-  });
 
   const objectUrl = await createObjectUrlFromBlob(input.adapter, input.data, input.mimeType);
   if (objectUrl === undefined) {

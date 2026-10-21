@@ -7,8 +7,10 @@ import type { ReaderSettings } from '@app/shared';
 
 vi.mock('@app/cache', () => ({
   CachedPageImage: () => null,
-  announceOpenChapter: vi.fn<(chapter: unknown) => void>(),
-  evictCacheToLimit: vi.fn<() => Promise<number>>(async () => 0),
+  holdReaderLocks: vi.fn<(chapter: unknown) => () => void>(() => () => {}),
+  evictCacheToLimit: vi.fn<() => Promise<{ evictedCount: number; failedBlobKeys: string[] }>>(
+    async () => ({ evictedCount: 0, failedBlobKeys: [] }),
+  ),
   listCachedChapterPageIndexes: vi.fn<() => Promise<number[]>>(async () => []),
   markChapterPagesAsRead: vi.fn<() => Promise<void>>(async () => {}),
   prefetchChapterPages: vi.fn<() => Promise<void>>(async () => {}),

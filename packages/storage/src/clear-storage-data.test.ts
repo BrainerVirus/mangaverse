@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { clearStorageData } from './clear-storage-data.js';
 import {
@@ -46,6 +46,31 @@ function createBlobAdapter(failingKeys: readonly string[] = []) {
 }
 
 describe('clearStorageData', () => {
+  let restoreLocks: () => void;
+
+  beforeEach(() => {
+    const original = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value: {
+        locks: {
+          query: async () => ({ held: [], pending: [] }),
+          request: async (_name: string, _options: unknown, callback: () => Promise<void>) => {
+            await callback();
+          },
+        },
+      },
+    });
+    restoreLocks = () => {
+      if (original === undefined) Reflect.deleteProperty(globalThis, 'navigator');
+      else Object.defineProperty(globalThis, 'navigator', original);
+    };
+  });
+
+  afterEach(() => {
+    restoreLocks();
+  });
+
   it('deletes provider cache blobs with their rows and leaves unrelated blobs alone', async () => {
     const { db } = await createSqlJsHarness();
     const { adapter, blobs } = createBlobAdapter();
