@@ -373,6 +373,34 @@ describe('registerPlatformIpc', () => {
     expect(request).not.toHaveBeenCalled();
   });
 
+  it('settles a network fetch whose lookup never resolves', async () => {
+    vi.useFakeTimers();
+    try {
+      const request = vi.fn<() => void>();
+      const handlers = register({
+        net: { request } as never,
+        resolveHostAddresses: () => new Promise<readonly string[]>(() => {}),
+      });
+      const fn = handlers.get(PLATFORM_IPC.NETWORK_FETCH_BYTES)!;
+      let settled = false;
+      const pending = fn(null, 'https://example.com/page.png').then((value) => {
+        settled = true;
+        return value;
+      });
+
+      await vi.advanceTimersByTimeAsync(59_999);
+      expect(settled).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(1);
+      const r = (await pending) as { ok: boolean; error?: { code?: string } };
+      expect(r.ok).toBe(false);
+      expect(r.error?.code).toBe('platform.io-failed');
+      expect(request).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('fetches a public hostname through net.request', async () => {
     const request = fakeRequest((req) => {
       // Electron 44: finish and close arrive before response.

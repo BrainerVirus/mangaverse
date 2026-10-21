@@ -10,17 +10,32 @@ const MAX_REDIRECTS = 5;
 const MAX_RESPONSE_BYTES = 64 * 1024 * 1024;
 /** Bound one hop so a silent socket cannot leave the IPC handler pending forever. */
 const HOP_TIMEOUT_MS = 30_000;
-/** Bound the redirect chain; six hops at HOP_TIMEOUT_MS could otherwise run 3 minutes. */
-const REQUEST_TIMEOUT_MS = 60_000;
+/** Bound validation plus the redirect chain; six hops alone could run 3 minutes. */
+export const REQUEST_TIMEOUT_MS = 60_000;
 
 type RequestFactory = (options: ClientRequestConstructorOptions) => ClientRequest;
-
-type CancellableRequest = ClientRequest & { destroy?: () => void };
 
 type HopOutcome =
   | { readonly redirectUrl: string }
   | { readonly result: NetworkFetchResult }
   | undefined;
+
+/**
+ * Resolve `work` by the absolute `deadline`, or `undefined` once it passes.
+ * A lookup has no abort hook, so a hung one is abandoned; the attached rejection
+ * handler keeps a late failure from becoming an unhandled rejection.
+ */
+export function settleByDeadline<T>(work: Promise<T>, deadline: number): Promise<T | undefined> {
+  const remaining = deadline - Date.now();
+  if (remaining <= 0) {
+    return Promise.resolve(undefined);
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const expired = new Promise<undefined>((resolve) => {
+    timer = setTimeout(() => resolve(undefined), remaining);
+  });
+  return Promise.race([work.catch(() => undefined), expired]).finally(() => clearTimeout(timer));
+}
 
 function firstHeader(headers: Record<string, string | string[]>, name: string): string | undefined {
   const value = headers[name];
@@ -31,13 +46,6 @@ function firstHeader(headers: Record<string, string | string[]>, name: string): 
 function cancelRequest(req: ClientRequest): void {
   try {
     req.abort();
-  } catch {
-    // Already closed.
-  }
-  try {
-    // Electron's ClientRequest types expose only abort(); destroy releases the
-    // socket on implementations that provide it.
-    (req as CancellableRequest).destroy?.();
   } catch {
     // Already closed.
   }
@@ -149,18 +157,18 @@ function requestHop(request: RequestFactory, url: string, timeoutMs: number): Pr
  *
  * shortcut: DNS is resolved for validation and then again by Chromium, so a
  * fast rebind can still race the request; pin the address when Electron
- * exposes a hook. A lookup that never resolves also outlives the deadline
- * because it has no abort signal; race it when the resolver gains one.
+ * exposes a hook.
  */
 export async function fetchMainProcessBytes(
   request: RequestFactory,
   url: string,
   isAllowedUrl: (url: string) => Promise<boolean>,
+  deadline = Date.now() + REQUEST_TIMEOUT_MS,
 ): Promise<NetworkFetchResult | undefined> {
-  const deadline = Date.now() + REQUEST_TIMEOUT_MS;
   let target = url;
   for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
-    if (!(await isAllowedUrl(target))) {
+    const allowed = await settleByDeadline(isAllowedUrl(target), deadline);
+    if (allowed !== true) {
       return undefined;
     }
     const remaining = deadline - Date.now();

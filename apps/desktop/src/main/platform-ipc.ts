@@ -24,7 +24,11 @@ import {
   type PlatformIpcChannel,
   type PlatformIpcRequest,
 } from '@app/platform';
-import { fetchMainProcessBytes } from './main-process-fetch.js';
+import {
+  fetchMainProcessBytes,
+  REQUEST_TIMEOUT_MS,
+  settleByDeadline,
+} from './main-process-fetch.js';
 
 export function toIpcAppResult<T>(r: AppResult<T>): AppResult<T> {
   if (r.ok) {
@@ -240,7 +244,13 @@ export function registerPlatformIpc(deps: PlatformIpcDeps): void {
   handle(PLATFORM_IPC.LOCAL_SERVICE_GET_INFO, async () => ok(deps.getLocalServiceInfo()));
 
   handle(PLATFORM_IPC.NETWORK_FETCH_BYTES, async ([url]) => {
-    if (!(await networkFetchAllowed(url))) {
+    // The deadline starts before DNS so a hung lookup cannot outlive the request.
+    const deadline = Date.now() + REQUEST_TIMEOUT_MS;
+    const allowed = await settleByDeadline(networkFetchAllowed(url), deadline);
+    if (allowed === undefined) {
+      return err(platformIoFailed('Network fetch timed out.'));
+    }
+    if (!allowed) {
       return err(platformInvalidUrl('Network fetch target is not allowed.'));
     }
     try {
@@ -248,7 +258,11 @@ export function registerPlatformIpc(deps: PlatformIpcDeps): void {
         (options) => deps.net.request(options),
         url,
         networkFetchAllowed,
+        deadline,
       );
+      if (result === undefined && Date.now() >= deadline) {
+        return err(platformIoFailed('Network fetch timed out.'));
+      }
       return ok(result);
     } catch (e) {
       return err(platformIoFailed('Network fetch failed.', e));
