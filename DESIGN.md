@@ -860,7 +860,9 @@ shell, fixed, and never scrolls.
   `space-y-8`.
 - Detail pages: a 160px cover (192px from `md`) beside the metadata, description capped at `max-w-3xl`;
   chapter lists stay a single bordered, divider-separated block.
-- Page headers: title, count badge and description left; actions right; stacking below `sm`.
+- Page headers: title, count badge and description left; actions right; the row stacks while the
+  header's own container is below 36rem (`@xl`), so a narrow main column in a wide window stacks too.
+  Long unbreakable titles wrap inside the column rather than widening it.
 
 ### Grids
 
