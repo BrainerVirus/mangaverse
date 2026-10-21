@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useRef,
   type Dispatch,
   type PointerEvent as ReactPointerEvent,
@@ -52,10 +53,12 @@ interface PointerGesture {
   lastTap: { readonly time: number; readonly x: number; readonly y: number } | null;
   /** Set once a drag passes the pan threshold, so its pointer-up is not a tap. */
   moved: boolean;
+  /** The layer the gesture started on, so its box can be re-measured after a resize. */
+  layer: HTMLDivElement | null;
   /**
-   * Layer box measured on the gesture's first pointer-down. The layer fills the
-   * reader surface, so it cannot move or resize mid-gesture in practice.
-   * shortcut: a resize mid-gesture keeps the start box until the next gesture; upgrade only if the layer can resize while a pointer is captured.
+   * Layer box measured on the gesture's first pointer-down. A resize drops it
+   * (see the resize listener below) and the next flush re-measures, so a
+   * mid-gesture resize can never clamp against the old box.
    */
   rect: DOMRect | null;
   /** Pan travel accumulated since the last frame. */
@@ -70,6 +73,7 @@ function createPointerGesture(): PointerGesture {
     pinch: null,
     lastTap: null,
     moved: false,
+    layer: null,
     rect: null,
     pendingPan: null,
     pendingPinch: false,
@@ -119,6 +123,18 @@ export function useReaderGestures({
     [setReaderState],
   );
 
+  // A resize makes the box measured at pointer-down wrong; dropping it here lets
+  // the next flush re-measure before clamping, including mid-gesture.
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: window resize invalidates the active gesture's cached layer box
+  useEffect(() => {
+    const invalidate = () => {
+      const gesture = pointerRef.current;
+      if (gesture !== null) gesture.rect = null;
+    };
+    window.addEventListener('resize', invalidate);
+    return () => window.removeEventListener('resize', invalidate);
+  }, []);
+
   // Pinch and pan publish one zoom state per frame instead of one per pointer
   // sample, and read the layer box cached at gesture start.
   const flushZoom = useCallback(() => {
@@ -127,8 +143,10 @@ export function useReaderGestures({
       frameRef.current = null;
     }
     const gesture = pointerRef.current;
-    const rect = gesture?.rect;
-    if (gesture === null || rect === undefined || rect === null) return;
+    if (gesture === null) return;
+    gesture.rect ??= gesture.layer?.getBoundingClientRect() ?? null;
+    const rect = gesture.rect;
+    if (rect === null) return;
 
     const pan = gesture.pendingPan;
     const pinch = gesture.pendingPinch ? gesture.pinch : null;
@@ -178,6 +196,7 @@ export function useReaderGestures({
       gesture.moved = false;
       gesture.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       if (wasEmpty) {
+        gesture.layer = event.currentTarget;
         gesture.rect = event.currentTarget.getBoundingClientRect();
       }
 

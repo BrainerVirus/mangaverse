@@ -65,6 +65,18 @@ const VIEWPORT_RECT = {
   y: 0,
 };
 
+/** The same layer after the window shrank under a gesture. */
+const SHRUNK_RECT = {
+  width: 300,
+  height: 200,
+  left: 0,
+  top: 0,
+  right: 300,
+  bottom: 200,
+  x: 0,
+  y: 0,
+};
+
 function buildData(overrides: Partial<ReaderSettings> = {}): ReaderPageData {
   const settings = { ...getDefaultReaderSettings(), ...overrides };
   const pages = Array.from({ length: 37 }, (_value, index) => ({
@@ -122,7 +134,10 @@ function mount(overrides: Partial<ReaderSettings> = {}): Mounted {
   Object.defineProperty(surface, 'getBoundingClientRect', { value: () => VIEWPORT_RECT });
   Object.defineProperty(surface, 'clientWidth', { value: VIEWPORT_RECT.width });
   Object.defineProperty(surface, 'clientHeight', { value: VIEWPORT_RECT.height });
-  Object.defineProperty(layer, 'getBoundingClientRect', { value: () => VIEWPORT_RECT });
+  Object.defineProperty(layer, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => VIEWPORT_RECT,
+  });
 
   return { root, container, surface, layer };
 }
@@ -302,30 +317,59 @@ describe('ReaderScreen zoom and pan', () => {
     }
   });
 
-  it('Given a zoomed view, When dragging, Then the view pans and stays clamped', () => {
+  it('Given a zoomed view, When the drag is released before its frame, Then the last move lands and stays clamped', () => {
+    const mounted = mount();
+    doubleTap(mounted.layer);
+    expect(scaleOf(mounted.layer)).toBe(1.5);
+
+    act(() => {
+      // The drag starts at the layer origin, so its queued travel is only ever
+      // applied by the release flush: the frame it was scheduled on never runs.
+      mounted.layer.dispatchEvent(
+        pointerEvent('pointerdown', { pointerId: 3, clientX: 0, clientY: 0 }),
+      );
+      mounted.layer.dispatchEvent(
+        pointerEvent('pointermove', { pointerId: 3, clientX: 400, clientY: 300 }),
+      );
+      mounted.layer.dispatchEvent(
+        pointerEvent('pointerup', { pointerId: 3, clientX: 400, clientY: 300 }),
+      );
+    });
+
+    // -200/-150 from the double tap, +400/+300 from the drag: without the
+    // release flush the translate would still be -200/-150.
+    expect(translateOf(mounted.layer)).toEqual({ x: 0, y: 0 });
+    unmount(mounted);
+  });
+
+  it('Given the layer shrinks mid-drag, When the drag is released, Then the pan clamps against the new box', () => {
     const mounted = mount();
     doubleTap(mounted.layer);
     expect(scaleOf(mounted.layer)).toBe(1.5);
 
     act(() => {
       mounted.layer.dispatchEvent(
-        pointerEvent('pointerdown', { pointerId: 3, clientX: 400, clientY: 300 }),
+        pointerEvent('pointerdown', { pointerId: 8, clientX: 400, clientY: 300 }),
+      );
+      // The window shrinks before the gesture ends; the box measured at
+      // pointer-down is stale until the resize drops it.
+      Object.defineProperty(mounted.layer, 'getBoundingClientRect', {
+        configurable: true,
+        value: () => SHRUNK_RECT,
+      });
+      window.dispatchEvent(new Event('resize'));
+      mounted.layer.dispatchEvent(
+        pointerEvent('pointermove', { pointerId: 8, clientX: 100, clientY: 150 }),
       );
       mounted.layer.dispatchEvent(
-        pointerEvent('pointermove', { pointerId: 3, clientX: 200, clientY: 150 }),
-      );
-      // The release applies the last move even though its frame never ran.
-      mounted.layer.dispatchEvent(
-        pointerEvent('pointerup', { pointerId: 3, clientX: 200, clientY: 150 }),
+        pointerEvent('pointerup', { pointerId: 8, clientX: 100, clientY: 150 }),
       );
     });
 
-    const translate = translateOf(mounted.layer);
-    expect(translate.x).toBeLessThan(0);
-    expect(translate.y).toBeLessThan(0);
-    // Clamped to the scaled content: never panned past its edges.
-    expect(translate.x).toBeGreaterThanOrEqual(-400);
-    expect(translate.y).toBeGreaterThanOrEqual(-300);
+    // Drag -300/-150 from the double-tap offset: the 300x200 box clamps the
+    // 450x300 scaled layer at -150/-100, where the stale 800x600 box allowed
+    // -400/-300.
+    expect(translateOf(mounted.layer)).toEqual({ x: -150, y: -100 });
     unmount(mounted);
   });
 
