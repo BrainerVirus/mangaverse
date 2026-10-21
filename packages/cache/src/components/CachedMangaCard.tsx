@@ -1,8 +1,6 @@
-import { useRef } from 'react';
 import { MangaCard, type MangaCardProps } from '@app/design-system';
 import { cn } from '@app/design-system';
 
-import { cancelMangaCoverPrefetch, scheduleMangaCoverPrefetch } from '../prefetch-manga.js';
 import { CachedMangaCardCover } from './CachedCoverImage.js';
 import { useCoverCacheContext } from './CoverCacheProvider.js';
 
@@ -11,17 +9,6 @@ export function CachedMangaCard(props: MangaCardProps) {
   const { manga, variant = 'grid' } = props;
   const isGrid = variant === 'grid';
   const isCompact = variant === 'compact';
-  const wrapperRef = useRef<HTMLDivElement>(null);
-
-  const handlePointerEnter = () => {
-    if (context !== null) {
-      scheduleMangaCoverPrefetch(context, manga);
-    }
-  };
-
-  const handlePointerLeave = () => {
-    cancelMangaCoverPrefetch(manga);
-  };
 
   const coverSlot = (
     <div
@@ -41,15 +28,5 @@ export function CachedMangaCard(props: MangaCardProps) {
     </div>
   );
 
-  return (
-    <div
-      ref={wrapperRef}
-      onMouseEnter={handlePointerEnter}
-      onMouseLeave={handlePointerLeave}
-      onFocus={handlePointerEnter}
-      onBlur={handlePointerLeave}
-    >
-      <MangaCard {...props} coverSlot={coverSlot} />
-    </div>
-  );
+  return <MangaCard {...props} coverSlot={coverSlot} />;
 }
