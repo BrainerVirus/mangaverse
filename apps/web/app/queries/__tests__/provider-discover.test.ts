@@ -13,11 +13,16 @@ const mocks = vi.hoisted(() => {
     ],
     toSearchIdentities: (items: readonly unknown[]) => items as readonly MangaIdentity[],
   };
-  return { binding, resolveInstalledProvider: vi.fn<() => Promise<ProviderContract | null>>() };
+  return {
+    binding,
+    bindings: [binding],
+    resolveInstalledProvider:
+      vi.fn<(db: unknown, providerId: string) => Promise<ProviderContract | null>>(),
+  };
 });
 
 vi.mock('../../lib/provider-registry.js', () => ({
-  listProviderBindings: () => [mocks.binding as unknown as ProviderAppBinding],
+  listProviderBindings: () => mocks.bindings as unknown as readonly ProviderAppBinding[],
   resolveInstalledProvider: mocks.resolveInstalledProvider,
 }));
 
@@ -37,6 +42,7 @@ function installedProvider(): ProviderContract {
 
 describe('fetchProviderDiscoverData', () => {
   beforeEach(() => {
+    mocks.bindings = [mocks.binding];
     mocks.resolveInstalledProvider.mockReset().mockResolvedValue(installedProvider());
   });
 
@@ -56,5 +62,19 @@ describe('fetchProviderDiscoverData', () => {
     const { fetchProviderDiscoverData } = await import('../provider-discover.js');
 
     await expect(fetchProviderDiscoverData(db)).resolves.toEqual({ providers: [] });
+  });
+
+  it('keeps healthy providers when another provider throws while resolving', async () => {
+    mocks.bindings = [{ ...mocks.binding, providerId: 'broken' }, mocks.binding];
+    mocks.resolveInstalledProvider.mockImplementation(async (_db, providerId) => {
+      if (providerId === 'broken') throw new Error('createProvider failed');
+      return installedProvider();
+    });
+    const { fetchProviderDiscoverData } = await import('../provider-discover.js');
+
+    const data = await fetchProviderDiscoverData(db);
+
+    expect(data.providers.map((provider) => provider.providerId)).toEqual(['fake']);
+    expect(data.providers[0]?.sections.map((section) => section.id)).toEqual(['latest', 'popular']);
   });
 });

@@ -82,8 +82,8 @@ export async function fetchProviderSectionPage(
 }
 
 /**
- * Provider previews for the discover grid. Section failures are isolated: one
- * broken section never blanks the whole page.
+ * Provider previews for the discover grid. Failures are isolated: one broken
+ * provider or section never blanks the whole page.
  */
 export async function fetchProviderDiscoverData(
   db: AppDrizzleDb,
@@ -92,7 +92,8 @@ export async function fetchProviderDiscoverData(
   const entries: DiscoverPageData['providers'][number][] = [];
 
   for (const binding of listProviderBindings()) {
-    const provider = await resolveInstalledProvider(db, binding.providerId);
+    // A provider that throws while resolving must not blank the whole feed.
+    const provider = await resolveInstalledProvider(db, binding.providerId).catch(() => null);
     if (provider === null) {
       continue;
     }
