@@ -1,12 +1,13 @@
 import { EventEmitter } from 'node:events';
 import type { ClientRequest, ClientRequestConstructorOptions, IncomingMessage } from 'electron';
-import { describe, expect, it, vi } from 'vitest';
-import { fetchMainProcessBytes } from './main-process-fetch.js';
+import { describe, expect, it, vi, type MockInstance } from 'vitest';
+import { fetchMainProcessBytes, settleByDeadline } from './main-process-fetch.js';
 
 type FakeRequest = EventEmitter & {
   end: () => void;
   abort: () => void;
   followRedirect?: () => void;
+  destroy?: () => void;
 };
 
 type FakeResponse = EventEmitter & {
@@ -185,6 +186,23 @@ describe('fetchMainProcessBytes', () => {
     expect(result).toBeUndefined();
   });
 
+  it('still caps the body after a redirect hop', async () => {
+    const request = requestFactory((options, req) => {
+      if (options.url === initialUrl) {
+        redirect(req, 'https://cdn.example.com/page.png');
+        return;
+      }
+      sent(req);
+      const res = response(req, 200, { 'content-type': 'image/png' });
+      res.emit('data', { byteLength: 64 * 1024 * 1024 + 1 });
+    });
+
+    const result = await fetchMainProcessBytes(request as never, initialUrl, async () => true);
+
+    expect(result).toBeUndefined();
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+
   it('returns undefined for an empty or failed response', async () => {
     const empty = requestFactory((_options, req) => {
       sent(req);
@@ -222,6 +240,182 @@ describe('fetchMainProcessBytes', () => {
       expect(resolved).toBe(false);
 
       await vi.advanceTimersByTimeAsync(30_000);
+      await expect(pending).resolves.toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('aborts the in-flight request when a hop times out', async () => {
+    vi.useFakeTimers();
+    try {
+      let abort: MockInstance<() => void> | undefined;
+      const request = requestFactory((_options, req) => {
+        sent(req);
+        abort = vi.spyOn(req, 'abort');
+      });
+      const pending = fetchMainProcessBytes(request as never, initialUrl, async () => true);
+
+      await vi.advanceTimersByTimeAsync(0);
+      const abortSpy = abort;
+      expect(abortSpy).toBeDefined();
+
+      await vi.advanceTimersByTimeAsync(30_000);
+      await expect(pending).resolves.toBeUndefined();
+      expect(abortSpy).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('settles a fetch whose validation never resolves', async () => {
+    vi.useFakeTimers();
+    try {
+      const request = requestFactory((_options, req) => body(req));
+      let settled: unknown = 'pending';
+      const pending = fetchMainProcessBytes(
+        request as never,
+        initialUrl,
+        () => new Promise<boolean>(() => {}),
+      ).then((value) => {
+        settled = value;
+        return value;
+      });
+
+      await vi.advanceTimersByTimeAsync(59_999);
+      expect(settled).toBe('pending');
+
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(pending).resolves.toBeUndefined();
+      expect(request).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('stays clear of a validation that rejects after the deadline already passed', async () => {
+    let reject: ((error: Error) => void) | undefined;
+    const work = new Promise<boolean>((_resolve, onReject) => {
+      reject = onReject;
+    });
+    const unhandled = vi.fn<(...args: unknown[]) => void>();
+    process.on('unhandledRejection', unhandled);
+    try {
+      await expect(settleByDeadline(work, Date.now() - 1)).resolves.toBeUndefined();
+      reject!(new Error('late lookup failure'));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(unhandled).not.toHaveBeenCalled();
+    } finally {
+      process.off('unhandledRejection', unhandled);
+    }
+  });
+
+  it('treats a rejected validation as disallowed', async () => {
+    const request = requestFactory((_options, req) => body(req));
+
+    const result = await fetchMainProcessBytes(request as never, initialUrl, async () => {
+      throw new Error('lookup failed');
+    });
+
+    expect(result).toBeUndefined();
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it('charges a slow validation against the deadline', async () => {
+    vi.useFakeTimers();
+    try {
+      const request = requestFactory((_options, req) => {
+        sent(req); // The hop stalls.
+      });
+      let settled: unknown = 'pending';
+      const pending = fetchMainProcessBytes(request as never, initialUrl, async () => {
+        await new Promise<void>((resolve) => setTimeout(() => resolve(), 40_000));
+        return true;
+      }).then((value) => {
+        settled = value;
+        return value;
+      });
+
+      await vi.advanceTimersByTimeAsync(40_000);
+      expect(request).toHaveBeenCalledOnce();
+
+      // 40s of validation leaves 20s, not a fresh 30s hop timeout.
+      await vi.advanceTimersByTimeAsync(19_999);
+      expect(settled).toBe('pending');
+
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(pending).resolves.toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('ignores data and end that arrive after the hop timeout', async () => {
+    vi.useFakeTimers();
+    const concat = vi.spyOn(Buffer, 'concat');
+    try {
+      let late: FakeResponse | undefined;
+      const request = requestFactory((_options, req) => {
+        sent(req);
+        late = response(req, 200, { 'content-type': 'image/png' });
+        // Buffered before the timeout: a late end would concat it.
+        late.emit('data', Buffer.from([1, 2, 3]));
+      });
+      const pending = fetchMainProcessBytes(request as never, initialUrl, async () => true);
+
+      await vi.advanceTimersByTimeAsync(30_000);
+      await expect(pending).resolves.toBeUndefined();
+      expect(late).toBeDefined();
+
+      let lateReads = 0;
+      late!.emit('data', {
+        get byteLength() {
+          lateReads += 1;
+          return 1;
+        },
+      });
+      late!.emit('end');
+
+      expect(lateReads).toBe(0);
+      expect(concat).not.toHaveBeenCalled();
+    } finally {
+      concat.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it('enforces the overall deadline across slow hops', async () => {
+    vi.useFakeTimers();
+    try {
+      const request = requestFactory((options, req) => {
+        sent(req);
+        if (options.url === 'https://example.com/final') {
+          return; // Third hop stalls.
+        }
+        const next =
+          options.url === initialUrl ? 'https://example.com/second' : 'https://example.com/final';
+        setTimeout(() => {
+          req.emit('redirect', 302, 'GET', next, {});
+          req.emit('error', new Error('Redirect was cancelled'));
+        }, 20_000);
+      });
+      let settled: unknown = 'pending';
+      const pending = fetchMainProcessBytes(request as never, initialUrl, async () => true).then(
+        (value) => {
+          settled = value;
+          return value;
+        },
+      );
+
+      await vi.advanceTimersByTimeAsync(40_000);
+      expect(request).toHaveBeenCalledTimes(3);
+
+      // Two 20s hops leave 20s of the 60s deadline, so the third hop must fail at
+      // 60s rather than after its own 30s hop timeout at 70s.
+      await vi.advanceTimersByTimeAsync(21_000);
+      expect(settled).toBeUndefined();
+
+      await vi.runOnlyPendingTimersAsync();
       await expect(pending).resolves.toBeUndefined();
     } finally {
       vi.useRealTimers();

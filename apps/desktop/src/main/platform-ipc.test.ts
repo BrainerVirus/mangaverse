@@ -373,6 +373,78 @@ describe('registerPlatformIpc', () => {
     expect(request).not.toHaveBeenCalled();
   });
 
+  it('settles a network fetch whose lookup never resolves', async () => {
+    vi.useFakeTimers();
+    try {
+      const request = vi.fn<() => void>();
+      const handlers = register({
+        net: { request } as never,
+        resolveHostAddresses: () => new Promise<readonly string[]>(() => {}),
+      });
+      const fn = handlers.get(PLATFORM_IPC.NETWORK_FETCH_BYTES)!;
+      let settled = false;
+      const pending = fn(null, 'https://example.com/page.png').then((value) => {
+        settled = true;
+        return value;
+      });
+
+      await vi.advanceTimersByTimeAsync(59_999);
+      expect(settled).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(1);
+      const r = (await pending) as { ok: boolean; error?: { code?: string } };
+      expect(r.ok).toBe(false);
+      expect(r.error?.code).toBe('platform.io-failed');
+      expect(request).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('shares the 60s deadline between slow validation and a stalled hop', async () => {
+    vi.useFakeTimers();
+    try {
+      let lookups = 0;
+      const request = fakeRequest(() => {
+        // The hop stalls: no response, redirect or error.
+      });
+      const handlers = register({
+        net: { request } as never,
+        resolveHostAddresses: async () => {
+          lookups += 1;
+          // Only the handler's pre-validation is slow; the fetch's own
+          // re-validation is instant, so the request starts at 40s.
+          if (lookups === 1) {
+            await new Promise<void>((resolve) => setTimeout(() => resolve(), 40_000));
+          }
+          return ['93.184.216.34'];
+        },
+      });
+      const fn = handlers.get(PLATFORM_IPC.NETWORK_FETCH_BYTES)!;
+      let settled = false;
+      const pending = fn(null, 'https://example.com/page.png').then((value) => {
+        settled = true;
+        return value;
+      });
+
+      await vi.advanceTimersByTimeAsync(40_000);
+      expect(request).toHaveBeenCalledOnce();
+      expect(settled).toBe(false);
+
+      // 20s of the one 60s budget remain: the hop must not get a fresh 30s.
+      await vi.advanceTimersByTimeAsync(19_999);
+      expect(settled).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(settled).toBe(true);
+      const r = (await pending) as { ok: boolean; error?: { code?: string } };
+      expect(r.ok).toBe(false);
+      expect(r.error?.code).toBe('platform.io-failed');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('fetches a public hostname through net.request', async () => {
     const request = fakeRequest((req) => {
       // Electron 44: finish and close arrive before response.
