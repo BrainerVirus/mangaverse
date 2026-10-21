@@ -21,6 +21,7 @@ import {
   type ProviderMappingId,
 } from '@app/shared';
 import type { AppDrizzleDb } from '../adapter.js';
+import { readIdChunks } from '../read-id-chunks.js';
 import {
   categories,
   libraryCategoryMemberships,
@@ -89,7 +90,7 @@ export async function toLibraryEntry(
   return mapLibraryEntry(row, categoryIds);
 }
 
-/** One membership read for the whole page instead of one per entry. */
+/** One membership read per chunk instead of one per entry. */
 function categoryIdsByEntry(
   db: AppDrizzleDb,
   entryIds: readonly LibraryEntryId[],
@@ -97,14 +98,16 @@ function categoryIdsByEntry(
   const grouped = new Map<string, CategoryId[]>();
   if (entryIds.length === 0) return grouped;
 
-  const rows = db
-    .select({
-      libraryEntryId: libraryCategoryMemberships.libraryEntryId,
-      categoryId: libraryCategoryMemberships.categoryId,
-    })
-    .from(libraryCategoryMemberships)
-    .where(inArray(libraryCategoryMemberships.libraryEntryId, [...entryIds]))
-    .all();
+  const rows = readIdChunks(entryIds, (chunk) =>
+    db
+      .select({
+        libraryEntryId: libraryCategoryMemberships.libraryEntryId,
+        categoryId: libraryCategoryMemberships.categoryId,
+      })
+      .from(libraryCategoryMemberships)
+      .where(inArray(libraryCategoryMemberships.libraryEntryId, chunk))
+      .all(),
+  );
 
   for (const row of rows) {
     const list = grouped.get(row.libraryEntryId);
@@ -171,11 +174,13 @@ export async function listLibraryEntries(
 
   const filter = options?.filter;
   if (filter?.categoryIds !== undefined && filter.categoryIds.length > 0) {
-    const entryIds = db
-      .select({ libraryEntryId: libraryCategoryMemberships.libraryEntryId })
-      .from(libraryCategoryMemberships)
-      .where(inArray(libraryCategoryMemberships.categoryId, [...filter.categoryIds]))
-      .all();
+    const entryIds = readIdChunks(filter.categoryIds, (chunk) =>
+      db
+        .select({ libraryEntryId: libraryCategoryMemberships.libraryEntryId })
+        .from(libraryCategoryMemberships)
+        .where(inArray(libraryCategoryMemberships.categoryId, chunk))
+        .all(),
+    );
     const idSet = new Set(entryIds.map((e) => e.libraryEntryId));
     const rows = query.all();
     const filtered = rows.filter((r) => idSet.has(r.id));
