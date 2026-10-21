@@ -72,9 +72,11 @@ const ScrollPageRow = memo(function ScrollPageRow({
 });
 
 /**
- * Reads page offsets once. Document order is strip order, so the result is
- * already sorted by `top` — the precondition for the binary search in
- * `findActiveScrollPage`.
+ * Reads page offsets from the strip. `findActiveScrollPage` binary-searches its
+ * input, so the result must be sorted by `top`; the flex column makes document
+ * order strip order, and the sort keeps that precondition true even when the
+ * DOM order and the measured offsets disagree. Reads happen once per strip
+ * geometry (not per scroll frame), so the sort costs nothing on a scroll.
  */
 function readPageMetrics(container: HTMLElement): readonly ScrollPageMetric[] {
   const metrics: ScrollPageMetric[] = [];
@@ -85,7 +87,7 @@ function readPageMetrics(container: HTMLElement): readonly ScrollPageMetric[] {
       height: node.offsetHeight,
     });
   }
-  return metrics;
+  return metrics.sort((a, b) => a.top - b.top);
 }
 
 function pageNode(container: HTMLElement, index: number): HTMLElement | null {
