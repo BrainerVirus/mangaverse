@@ -164,6 +164,13 @@ function wheel(layer: HTMLElement, init: { deltaY: number; ctrlKey?: boolean }) 
   });
 }
 
+/** Lets the next animation frame apply a coalesced zoom update. */
+async function settleFrame() {
+  await act(async () => {
+    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+  });
+}
+
 function scaleOf(layer: HTMLElement): number {
   const match = /scale\(([\d.]+)\)/.exec(layer.style.transform);
   return Number(match?.[1] ?? '0');
@@ -257,26 +264,29 @@ describe('ReaderScreen zoom and pan', () => {
     unmount(mounted);
   });
 
-  it('Given wheelBehavior zoom, When Ctrl+wheel, Then the view zooms in', () => {
+  it('Given wheelBehavior zoom, When Ctrl+wheel, Then the view zooms in', async () => {
     const mounted = mount({ wheelBehavior: 'zoom' });
 
     wheel(mounted.layer, { deltaY: -100, ctrlKey: true });
+    await settleFrame();
 
     expect(scaleOf(mounted.layer)).toBeGreaterThan(1);
     unmount(mounted);
   });
 
-  it('Given wheelBehavior zoom, When Ctrl+wheel repeats, Then the scale stays within minZoom and maxZoom', () => {
+  it('Given wheelBehavior zoom, When Ctrl+wheel repeats, Then the scale stays within minZoom and maxZoom', async () => {
     const mounted = mount({ wheelBehavior: 'zoom', minZoom: 1.2, maxZoom: 1.5 });
 
     for (let index = 0; index < 10; index += 1) {
       wheel(mounted.layer, { deltaY: -100, ctrlKey: true });
     }
+    await settleFrame();
     expect(scaleOf(mounted.layer)).toBe(1.5);
 
     for (let index = 0; index < 20; index += 1) {
       wheel(mounted.layer, { deltaY: 100, ctrlKey: true });
     }
+    await settleFrame();
     expect(scaleOf(mounted.layer)).toBe(1.2);
     unmount(mounted);
   });
@@ -304,6 +314,10 @@ describe('ReaderScreen zoom and pan', () => {
       mounted.layer.dispatchEvent(
         pointerEvent('pointermove', { pointerId: 3, clientX: 200, clientY: 150 }),
       );
+      // The release applies the last move even though its frame never ran.
+      mounted.layer.dispatchEvent(
+        pointerEvent('pointerup', { pointerId: 3, clientX: 200, clientY: 150 }),
+      );
     });
 
     const translate = translateOf(mounted.layer);
@@ -312,6 +326,30 @@ describe('ReaderScreen zoom and pan', () => {
     // Clamped to the scaled content: never panned past its edges.
     expect(translate.x).toBeGreaterThanOrEqual(-400);
     expect(translate.y).toBeGreaterThanOrEqual(-300);
+    unmount(mounted);
+  });
+
+  it('Given two pointers, When pinching over one frame, Then the scale follows the separation', async () => {
+    const mounted = mount({ minZoom: 1, maxZoom: 3 });
+
+    act(() => {
+      mounted.layer.dispatchEvent(
+        pointerEvent('pointerdown', { pointerId: 6, clientX: 300, clientY: 300 }),
+      );
+      mounted.layer.dispatchEvent(
+        pointerEvent('pointerdown', { pointerId: 7, clientX: 500, clientY: 300 }),
+      );
+      mounted.layer.dispatchEvent(
+        pointerEvent('pointermove', { pointerId: 6, clientX: 200, clientY: 300 }),
+      );
+      mounted.layer.dispatchEvent(
+        pointerEvent('pointermove', { pointerId: 7, clientX: 600, clientY: 300 }),
+      );
+    });
+    await settleFrame();
+
+    // Separation 200 -> 400 is a 2x pinch.
+    expect(scaleOf(mounted.layer)).toBeCloseTo(2, 5);
     unmount(mounted);
   });
 

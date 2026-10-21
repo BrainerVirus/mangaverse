@@ -83,28 +83,60 @@ export function useReaderWheelZoom({
   useEffect(() => {
     if (zoomLayer === null || sessionInput === null) return;
 
+    // Trackpads send many small deltas per frame; queue them and apply the whole
+    // burst against one measured box in one state commit. Sequential
+    // application keeps the result identical to applying each event alone.
+    let rect = zoomLayer.getBoundingClientRect();
+    let steps: { readonly delta: number; readonly x: number; readonly y: number }[] = [];
+    let frame: number | null = null;
+
+    const flush = () => {
+      frame = null;
+      const pending = steps;
+      steps = [];
+      if (pending.length === 0) return;
+      updateZoom((zoom) => {
+        let next = zoom;
+        for (const step of pending) {
+          next = clampZoomTransform(
+            // One ~100px wheel notch is ~22%; trackpads send many small deltas.
+            applyPinchZoom(next, next.scale, next.scale * Math.exp(-step.delta * 0.002), {
+              centerX: step.x,
+              centerY: step.y,
+            }),
+            rect.width,
+            rect.height,
+            rect.width,
+            rect.height,
+          );
+        }
+        return next;
+      });
+    };
+
     const handleWheel = (event: WheelEvent) => {
       const action = resolveWheelAction(event, sessionInput.settings);
       if (action.type !== 'zoom') return;
       event.preventDefault();
-      const rect = zoomLayer.getBoundingClientRect();
-      // One ~100px wheel notch is ~22%; trackpads send many small deltas.
-      updateZoom((zoom) =>
-        clampZoomTransform(
-          applyPinchZoom(zoom, zoom.scale, zoom.scale * Math.exp(-(action.delta ?? 0) * 0.002), {
-            centerX: event.clientX - rect.left,
-            centerY: event.clientY - rect.top,
-          }),
-          rect.width,
-          rect.height,
-          rect.width,
-          rect.height,
-        ),
-      );
+      steps.push({
+        delta: action.delta ?? 0,
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      });
+      frame ??= window.requestAnimationFrame(flush);
     };
 
+    const observer = new ResizeObserver(() => {
+      rect = zoomLayer.getBoundingClientRect();
+    });
+    observer.observe(zoomLayer);
     zoomLayer.addEventListener('wheel', handleWheel, { passive: false });
-    return () => zoomLayer.removeEventListener('wheel', handleWheel);
+    return () => {
+      if (frame !== null) window.cancelAnimationFrame(frame);
+      observer.disconnect();
+      zoomLayer.removeEventListener('wheel', handleWheel);
+    };
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- updateZoom is read by the deferred frame flush, not in the effect body
   }, [sessionInput, updateZoom, zoomLayer]);
 
   return { zoomLayerRef: setZoomLayer };
