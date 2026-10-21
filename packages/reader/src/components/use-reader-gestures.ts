@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useRef,
   type Dispatch,
   type PointerEvent as ReactPointerEvent,
@@ -22,6 +23,7 @@ import type {
   TapZoneRegion,
   ZoomStateSummary,
 } from '../types.js';
+import { measureZoomBox, type ZoomBox } from './zoom-box.js';
 
 function findTapZone(
   zones: readonly TapZoneRegion[],
@@ -52,10 +54,28 @@ interface PointerGesture {
   lastTap: { readonly time: number; readonly x: number; readonly y: number } | null;
   /** Set once a drag passes the pan threshold, so its pointer-up is not a tap. */
   moved: boolean;
+  /**
+   * Surface layout box measured on the gesture's first pointer-down. The resize
+   * observer below re-measures it, so a mid-gesture resize can never clamp
+   * against the old box.
+   */
+  box: ZoomBox | null;
+  /** Pan travel accumulated since the last frame. */
+  pendingPan: { readonly x: number; readonly y: number } | null;
+  /** A two-pointer move is waiting for the next frame. */
+  pendingPinch: boolean;
 }
 
 function createPointerGesture(): PointerGesture {
-  return { pointers: new Map(), pinch: null, lastTap: null, moved: false };
+  return {
+    pointers: new Map(),
+    pinch: null,
+    lastTap: null,
+    moved: false,
+    box: null,
+    pendingPan: null,
+    pendingPinch: false,
+  };
 }
 
 export interface ReaderGestures {
@@ -69,6 +89,8 @@ export interface ReaderGestures {
 interface UseReaderGesturesInput {
   readonly sessionInput: ReaderSessionInput | null;
   readonly readerState: ReaderState | null;
+  /** The surface the zoom layer fills; its rect is the layer's layout box. */
+  readonly surface: HTMLDivElement | null;
   readonly overlayInsets: ReaderOverlayInsets;
   readonly navigate: (action: ReaderNavigationAction) => void;
   readonly onToggleChrome: () => void;
@@ -84,12 +106,14 @@ interface UseReaderGesturesInput {
 export function useReaderGestures({
   sessionInput,
   readerState,
+  surface,
   overlayInsets,
   navigate,
   onToggleChrome,
   setReaderState,
 }: UseReaderGesturesInput): ReaderGestures {
   const pointerRef = useRef<PointerGesture | null>(null);
+  const frameRef = useRef<number | null>(null);
 
   const updateZoom = useCallback(
     (transform: (zoom: ZoomStateSummary) => ZoomStateSummary) => {
@@ -100,15 +124,89 @@ export function useReaderGestures({
     [setReaderState],
   );
 
+  // A reader resize (window, sidebar or shell collapse) changes the box the
+  // gesture clamps against, so an active gesture re-measures it. The layer is
+  // inset-0 in the surface, so observing the surface covers every layer resize.
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: ResizeObserver on the reader surface re-measures the active gesture's box
+  useEffect(() => {
+    if (surface === null) return;
+    const observer = new ResizeObserver(() => {
+      const gesture = pointerRef.current;
+      if (gesture !== null) gesture.box = measureZoomBox(surface);
+    });
+    observer.observe(surface);
+    return () => observer.disconnect();
+  }, [surface]);
+
+  // Pinch and pan publish one zoom state per frame instead of one per pointer
+  // sample, and clamp against the cached surface box.
+  const flushZoom = useCallback(() => {
+    if (frameRef.current !== null) {
+      cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+    }
+    const gesture = pointerRef.current;
+    if (gesture === null) return;
+    const box = gesture.box;
+    if (box === null) return;
+
+    const pan = gesture.pendingPan;
+    const pinch = gesture.pendingPinch ? gesture.pinch : null;
+    gesture.pendingPan = null;
+    gesture.pendingPinch = false;
+
+    if (pinch !== null) {
+      const [first, second] = [...gesture.pointers.values()];
+      if (first === undefined || second === undefined) return;
+      updateZoom((zoom) =>
+        clampZoomTransform(
+          applyPinchZoom(zoom, zoom.scale, pinchScale(pinch, pointerDistance(first, second)), {
+            centerX: (first.x + second.x) / 2 - box.left,
+            centerY: (first.y + second.y) / 2 - box.top,
+          }),
+          box.width,
+          box.height,
+          box.width,
+          box.height,
+        ),
+      );
+      return;
+    }
+
+    if (pan !== null) {
+      updateZoom((zoom) =>
+        clampZoomTransform(
+          applyPan(zoom, pan.x, pan.y),
+          box.width,
+          box.height,
+          box.width,
+          box.height,
+        ),
+      );
+    }
+  }, [updateZoom]);
+
+  const scheduleZoomFlush = useCallback(() => {
+    frameRef.current ??= requestAnimationFrame(flushZoom);
+    // oxlint-disable-next-line react/memo-dependencies -- flushZoom runs from the deferred frame callback, not in this body; the rule cannot see that use
+  }, [flushZoom]);
+
   const handleZoomPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       const gesture = (pointerRef.current ??= createPointerGesture());
+      const wasEmpty = gesture.pointers.size === 0;
       gesture.moved = false;
       gesture.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (wasEmpty) {
+        gesture.box = measureZoomBox(surface);
+      }
 
       if (gesture.pointers.size === 2 && readerState !== null) {
         const [first, second] = [...gesture.pointers.values()];
         if (first !== undefined && second !== undefined) {
+          // The second finger starts a pinch; travel queued by the first one
+          // belongs to no gesture the user is still making.
+          gesture.pendingPan = null;
           gesture.pinch = {
             scale: readerState.zoom.scale,
             distance: pointerDistance(first, second),
@@ -116,7 +214,7 @@ export function useReaderGestures({
         }
       }
     },
-    [readerState],
+    [readerState, surface],
   );
 
   const handleZoomPointerMove = useCallback(
@@ -126,29 +224,11 @@ export function useReaderGestures({
       if (pointer === undefined || readerState === null) return;
 
       gesture.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      const rect = event.currentTarget.getBoundingClientRect();
 
       if (gesture.pointers.size >= 2 && gesture.pinch !== null) {
-        const [first, second] = [...gesture.pointers.values()];
-        if (first === undefined || second === undefined) return;
         gesture.moved = true;
-        updateZoom((zoom) =>
-          clampZoomTransform(
-            applyPinchZoom(
-              zoom,
-              zoom.scale,
-              pinchScale(gesture.pinch!, pointerDistance(first, second)),
-              {
-                centerX: (first.x + second.x) / 2 - rect.left,
-                centerY: (first.y + second.y) / 2 - rect.top,
-              },
-            ),
-            rect.width,
-            rect.height,
-            rect.width,
-            rect.height,
-          ),
-        );
+        gesture.pendingPinch = true;
+        scheduleZoomFlush();
         return;
       }
 
@@ -160,26 +240,27 @@ export function useReaderGestures({
         return;
       }
       gesture.moved = true;
-      updateZoom((zoom) =>
-        clampZoomTransform(
-          applyPan(zoom, deltaX, deltaY),
-          rect.width,
-          rect.height,
-          rect.width,
-          rect.height,
-        ),
-      );
+      const pan = gesture.pendingPan;
+      gesture.pendingPan =
+        pan === null ? { x: deltaX, y: deltaY } : { x: pan.x + deltaX, y: pan.y + deltaY };
+      scheduleZoomFlush();
     },
-    [readerState, updateZoom],
+    [readerState, scheduleZoomFlush],
   );
 
-  const handleZoomPointerUp = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    const gesture = (pointerRef.current ??= createPointerGesture());
-    gesture.pointers.delete(event.pointerId);
-    if (gesture.pointers.size < 2) {
-      gesture.pinch = null;
-    }
-  }, []);
+  const handleZoomPointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const gesture = (pointerRef.current ??= createPointerGesture());
+      // The last move always lands, even when its frame never ran.
+      flushZoom();
+      gesture.pointers.delete(event.pointerId);
+      if (gesture.pointers.size < 2) {
+        gesture.pinch = null;
+        gesture.pendingPinch = false;
+      }
+    },
+    [flushZoom],
+  );
 
   const handlePointerUp = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {

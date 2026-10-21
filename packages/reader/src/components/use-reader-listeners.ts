@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { resolveKeyboardAction, resolveWheelAction } from '../navigation.js';
 import { computeScrollTargetTop, resolveVerticalNavigationTarget } from '../scroll-navigation.js';
 import { applyPinchZoom, clampZoomTransform } from '../zoom.js';
+import { measureZoomBox } from './zoom-box.js';
 import type { ReaderNavigationAction, ReaderSessionInput, ZoomStateSummary } from '../types.js';
 import type { ReaderScrollViewHandle } from './ReaderScrollView.js';
 
@@ -72,40 +73,77 @@ export function useReaderKeyboard({
  */
 export function useReaderWheelZoom({
   sessionInput,
+  surface,
   updateZoom,
 }: {
   readonly sessionInput: ReaderSessionInput | null;
+  /** The surface the zoom layer fills; its rect is the layer's layout box. */
+  readonly surface: HTMLDivElement | null;
   readonly updateZoom: (transform: (zoom: ZoomStateSummary) => ZoomStateSummary) => void;
 }): { readonly zoomLayerRef: (node: HTMLDivElement | null) => void } {
   const [zoomLayer, setZoomLayer] = useState<HTMLDivElement | null>(null);
 
   // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: a non-passive wheel listener on the zoom layer
   useEffect(() => {
-    if (zoomLayer === null || sessionInput === null) return;
+    if (zoomLayer === null || surface === null || sessionInput === null) return;
+
+    // Trackpads send many small deltas per frame; queue them and apply the whole
+    // burst against one measured box in one state commit. Sequential
+    // application keeps the result identical to applying each event alone.
+    const initial = measureZoomBox(surface);
+    if (initial === null) return;
+    let box = initial;
+    let steps: { readonly delta: number; readonly x: number; readonly y: number }[] = [];
+    let frame: number | null = null;
+
+    const flush = () => {
+      frame = null;
+      const pending = steps;
+      steps = [];
+      if (pending.length === 0) return;
+      updateZoom((zoom) => {
+        let next = zoom;
+        for (const step of pending) {
+          next = clampZoomTransform(
+            // One ~100px wheel notch is ~22%; trackpads send many small deltas.
+            applyPinchZoom(next, next.scale, next.scale * Math.exp(-step.delta * 0.002), {
+              centerX: step.x,
+              centerY: step.y,
+            }),
+            box.width,
+            box.height,
+            box.width,
+            box.height,
+          );
+        }
+        return next;
+      });
+    };
 
     const handleWheel = (event: WheelEvent) => {
       const action = resolveWheelAction(event, sessionInput.settings);
       if (action.type !== 'zoom') return;
       event.preventDefault();
-      const rect = zoomLayer.getBoundingClientRect();
-      // One ~100px wheel notch is ~22%; trackpads send many small deltas.
-      updateZoom((zoom) =>
-        clampZoomTransform(
-          applyPinchZoom(zoom, zoom.scale, zoom.scale * Math.exp(-(action.delta ?? 0) * 0.002), {
-            centerX: event.clientX - rect.left,
-            centerY: event.clientY - rect.top,
-          }),
-          rect.width,
-          rect.height,
-          rect.width,
-          rect.height,
-        ),
-      );
+      steps.push({
+        delta: action.delta ?? 0,
+        x: event.clientX - box.left,
+        y: event.clientY - box.top,
+      });
+      frame ??= window.requestAnimationFrame(flush);
     };
 
+    const observer = new ResizeObserver(() => {
+      box = measureZoomBox(surface) ?? box;
+    });
+    observer.observe(surface);
     zoomLayer.addEventListener('wheel', handleWheel, { passive: false });
-    return () => zoomLayer.removeEventListener('wheel', handleWheel);
-  }, [sessionInput, updateZoom, zoomLayer]);
+    return () => {
+      if (frame !== null) window.cancelAnimationFrame(frame);
+      observer.disconnect();
+      zoomLayer.removeEventListener('wheel', handleWheel);
+    };
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- updateZoom is read by the deferred frame flush, not in the effect body
+  }, [sessionInput, surface, updateZoom, zoomLayer]);
 
   return { zoomLayerRef: setZoomLayer };
 }

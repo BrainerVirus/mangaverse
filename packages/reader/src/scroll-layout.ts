@@ -34,19 +34,34 @@ export function computeScrollPageMetrics(
 /**
  * The page occupying the viewport center, clamped to the strip. The center (not
  * the top edge) keeps the active page stable while a tall page scrolls through.
+ * `metrics` must be sorted by `top` (strip order); it is searched with a binary
+ * search so a scroll frame stays O(log n) on a long chapter.
  */
 export function findActiveScrollPage(
   metrics: readonly ScrollPageMetric[],
   viewportCenter: number,
 ): number {
   if (metrics.length === 0) return 0;
-  for (const metric of metrics) {
-    if (viewportCenter < metric.top + metric.height) {
-      return metric.index;
+
+  // Last page whose top is at or above the center: the only candidate whose
+  // body can contain it, and its successor when the center falls in a gap.
+  let low = 0;
+  let high = metrics.length - 1;
+  while (low < high) {
+    const middle = (low + high + 1) >> 1;
+    const metric = metrics[middle];
+    if (metric !== undefined && metric.top <= viewportCenter) {
+      low = middle;
+    } else {
+      high = middle - 1;
     }
   }
-  const last = metrics[metrics.length - 1];
-  return last === undefined ? 0 : last.index;
+  const candidate = metrics[low];
+  const first = metrics[0];
+  if (candidate === undefined || first === undefined) return 0;
+  if (viewportCenter < candidate.top + candidate.height) return candidate.index;
+  const next = metrics[low + 1];
+  return next === undefined ? candidate.index : next.index;
 }
 
 /** Page indexes to mount around the active one; the rest render placeholders. */

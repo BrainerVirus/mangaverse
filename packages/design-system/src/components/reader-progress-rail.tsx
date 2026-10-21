@@ -48,44 +48,93 @@ export function ReaderProgressRail({
   const [hovering, setHovering] = React.useState(false);
   const [hoverValue, setHoverValue] = React.useState(value);
   const [hoverX, setHoverX] = React.useState(0);
+  // Pointer moves fire faster than frames; one preview/commit per frame is
+  // everything the reader can show, so moves queue and the frame loops over
+  // the latest position only.
+  const pendingRef = React.useRef<{ clientX: number; commit: boolean } | null>(null);
+  const frameRef = React.useRef<number | null>(null);
+  const committedRef = React.useRef<number | null>(null);
+  // Track box measured once per hover/drag: the rail does not move beneath the
+  // pointer, and re-measuring per move is a layout read per pointer sample.
+  // shortcut: a resize mid-drag keeps the start width until release; upgrade only if the rail can resize while captured.
+  const rectRef = React.useRef<DOMRect | null>(null);
 
   const span = Math.max(1, max - min);
   const percent = clamp(((value - min) / span) * 100, 0, 100);
+
+  const commit = React.useCallback(
+    (next: number) => {
+      if (next === committedRef.current || next === value) return;
+      committedRef.current = next;
+      onChange(next);
+    },
+    [onChange, value],
+  );
 
   const valueFromClientX = React.useCallback(
     (clientX: number): { next: number; x: number } => {
       const track = trackRef.current;
       if (track === null) return { next: value, x: 0 };
-      const rect = track.getBoundingClientRect();
+      const rect = rectRef.current ?? track.getBoundingClientRect();
       const ratio = clamp((clientX - rect.left) / Math.max(1, rect.width), 0, 1);
       return { next: Math.round(min + ratio * span), x: ratio * rect.width };
     },
     [min, span, value],
   );
 
+  const flushPending = React.useCallback(() => {
+    if (frameRef.current !== null) {
+      cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+    }
+    const pending = pendingRef.current;
+    pendingRef.current = null;
+    if (pending === null) return;
+    const { next, x } = valueFromClientX(pending.clientX);
+    setHoverValue(next);
+    setHoverX(x);
+    if (pending.commit) commit(next);
+  }, [commit, valueFromClientX]);
+
+  const queuePointer = React.useCallback(
+    (clientX: number, commitValue: boolean) => {
+      const previous = pendingRef.current;
+      pendingRef.current = { clientX, commit: commitValue || previous?.commit === true };
+      frameRef.current ??= requestAnimationFrame(flushPending);
+    },
+    // oxlint-disable-next-line react/memo-dependencies -- flushPending runs from the deferred frame callback, not in this body; the rule cannot see that use
+    [flushPending],
+  );
+
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: a pending frame belongs to the browser frame loop and must not commit after the rail unmounts
+  React.useEffect(() => {
+    return () => {
+      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+    };
+  }, []);
+
   const handlePointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       event.currentTarget.setPointerCapture?.(event.pointerId);
+      rectRef.current = event.currentTarget.getBoundingClientRect();
+      // Each drag dedupes from the page the reader actually shows, so a page
+      // turned elsewhere (keyboard, tap, scroll) can be scrubbed back to.
+      committedRef.current = value;
       const { next, x } = valueFromClientX(event.clientX);
       setScrubbing(true);
       setHoverValue(next);
       setHoverX(x);
       onScrubStart?.();
-      onChange(next);
+      commit(next);
     },
-    [onChange, onScrubStart, valueFromClientX],
+    [commit, onScrubStart, value, valueFromClientX],
   );
 
   const handlePointerMove = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      const { next, x } = valueFromClientX(event.clientX);
-      setHoverValue(next);
-      setHoverX(x);
-      if (scrubbing) {
-        onChange(next);
-      }
+      queuePointer(event.clientX, scrubbing);
     },
-    [onChange, scrubbing, valueFromClientX],
+    [queuePointer, scrubbing],
   );
 
   const endScrub = React.useCallback(
@@ -94,10 +143,13 @@ export function ReaderProgressRail({
       if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
         event.currentTarget.releasePointerCapture?.(event.pointerId);
       }
+      // The release position always wins, even if its frame never ran.
+      flushPending();
+      rectRef.current = null;
       setScrubbing(false);
       onScrubEnd?.();
     },
-    [onScrubEnd, scrubbing],
+    [flushPending, onScrubEnd, scrubbing],
   );
 
   const handleKeyDown = React.useCallback(
@@ -158,8 +210,14 @@ export function ReaderProgressRail({
         onPointerMove={handlePointerMove}
         onPointerUp={endScrub}
         onPointerCancel={endScrub}
-        onPointerEnter={() => setHovering(true)}
-        onPointerLeave={() => setHovering(false)}
+        onPointerEnter={(event) => {
+          rectRef.current = event.currentTarget.getBoundingClientRect();
+          setHovering(true);
+        }}
+        onPointerLeave={() => {
+          rectRef.current = null;
+          setHovering(false);
+        }}
         onKeyDown={handleKeyDown}
       >
         <div
