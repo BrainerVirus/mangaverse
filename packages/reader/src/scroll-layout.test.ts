@@ -57,6 +57,28 @@ describe('findActiveScrollPage', () => {
     expect(findActiveScrollPage(metrics, 10_000)).toBe(2);
   });
 
+  it('Given a center inside the gap after a page, When resolved, Then the following page is active', () => {
+    // Gap after page 1 is [210, 220).
+    expect(findActiveScrollPage(metrics, 215)).toBe(2);
+  });
+
+  it('Given mixed page heights, When resolved, Then the page whose body contains the center wins', () => {
+    const mixed = computeScrollPageMetrics(
+      [
+        { index: 0, height: 300 },
+        { index: 1, height: 40 },
+        { index: 2, height: 900 },
+      ],
+      0,
+    );
+    expect(findActiveScrollPage(mixed, 340)).toBe(2);
+    expect(findActiveScrollPage(mixed, 120)).toBe(0);
+  });
+
+  it('Given a center exactly on a page top, When resolved, Then that page is active', () => {
+    expect(findActiveScrollPage(metrics, 110)).toBe(1);
+  });
+
   it('Given an empty strip, When resolved, Then index 0 is returned', () => {
     expect(findActiveScrollPage([], 500)).toBe(0);
   });
