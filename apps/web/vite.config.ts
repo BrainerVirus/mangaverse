@@ -1,5 +1,6 @@
 import { defineConfig, type Plugin } from 'vite';
-import viteReact from '@vitejs/plugin-react';
+import viteReact, { reactCompilerPreset } from '@vitejs/plugin-react';
+import babel from '@rolldown/plugin-babel';
 import { nitro } from 'nitro/vite';
 import { tanstackStart } from '@tanstack/react-start/plugin/vite';
 import tailwindcss from '@tailwindcss/vite';
@@ -23,6 +24,16 @@ function baseUiShimInterop(): Plugin {
     },
   };
 }
+
+// React Compiler through Babel: the experimental `compiler` option skips SSR, so use the
+// documented preset and apply it to every environment. `panicThreshold: none` skips a
+// component the compiler cannot handle instead of failing the build.
+// Keep @babel/core on 7: compiler 1.0.0 errors on destructuring defaults under Babel 8.
+const reactCompiler = reactCompilerPreset({
+  target: '19',
+  panicThreshold: 'none',
+});
+reactCompiler.rolldown.applyToEnvironmentHook = () => true;
 
 export default defineConfig({
   server: {
@@ -52,6 +63,7 @@ export default defineConfig({
       srcDirectory: 'app',
     }),
     viteReact(),
+    babel({ presets: [reactCompiler] }),
     baseUiShimInterop(),
     nitro(),
   ],
