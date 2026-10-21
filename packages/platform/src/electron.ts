@@ -1,6 +1,11 @@
 import { err, ok, type AppResult } from '@app/shared';
 import { platformInvalidUrl, platformUnexpected, platformUnsupported } from './errors.js';
-import { deleteIndexedDbBlob, getIndexedDbBlob, putIndexedDbBlob } from './blob-storage-idb.js';
+import {
+  deleteIndexedDbBlob,
+  getIndexedDbBlob,
+  listIndexedDbBlobKeys,
+  putIndexedDbBlob,
+} from './blob-storage-idb.js';
 import { isValidSecureStorageKey } from './secure-storage-key.js';
 import type {
   DesktopPlatformBridge,
@@ -133,6 +138,16 @@ export function createElectronPlatformAdapter(bridge: DesktopPlatformBridge): Pl
           return ok(undefined);
         } catch {
           return err(platformUnsupported('Could not delete blob on desktop.'));
+        }
+      },
+      listKeys: async () => {
+        if (typeof globalThis.indexedDB === 'undefined') {
+          return err(platformUnsupported('Blob storage is not available on desktop.'));
+        }
+        try {
+          return ok(await listIndexedDbBlobKeys({ indexedDB: globalThis.indexedDB }));
+        } catch {
+          return err(platformUnsupported('Could not list blobs on desktop.'));
         }
       },
       createObjectUrl: async (data: ArrayBuffer, mimeType: string) => {

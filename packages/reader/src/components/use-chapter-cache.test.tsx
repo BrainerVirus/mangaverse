@@ -10,9 +10,12 @@ import { toReaderEngineSettings } from '../to-reader-engine-settings.js';
 import type { ReaderPageData } from '../reader-page-data.js';
 
 const mocks = vi.hoisted(() => ({
+  holdReaderLocks: vi.fn<(chapter: unknown) => () => void>(() => vi.fn<() => void>()),
   prefetchChapterPages: vi.fn<(input: { signal?: AbortSignal }) => Promise<void>>(async () => {}),
   markChapterPagesAsRead: vi.fn<() => Promise<void>>(async () => {}),
-  evictCacheToLimit: vi.fn<() => Promise<number>>(async () => 0),
+  evictCacheToLimit: vi.fn<() => Promise<{ evictedCount: number; failedBlobKeys: string[] }>>(
+    async () => ({ evictedCount: 0, failedBlobKeys: [] }),
+  ),
   listCachedChapterPageIndexes: vi.fn<() => Promise<number[]>>(async () => []),
 }));
 
@@ -80,15 +83,26 @@ describe('useChapterPrefetch cache sweep', () => {
         chapterId: 'chapter-1',
       },
     });
+    expect(mocks.holdReaderLocks).toHaveBeenCalledWith(
+      {
+        providerId: 'mangadex',
+        mangaId: 'manga-1',
+        chapterId: 'chapter-1',
+      },
+      expect.any(Function),
+    );
+    const releaseLocks = mocks.holdReaderLocks.mock.results[0]?.value;
 
     act(() => root.unmount());
+    expect(releaseLocks).toHaveBeenCalledTimes(1);
     container.remove();
   });
 
-  it('Given a settings change, When the same chapter rerenders, Then prefetch does not run twice', async () => {
+  it('Given a settings change, When the same chapter rerenders, Then prefetch does not run twice and the locks stay held', async () => {
     mocks.prefetchChapterPages.mockClear();
     mocks.markChapterPagesAsRead.mockClear();
     mocks.evictCacheToLimit.mockClear();
+    mocks.holdReaderLocks.mockClear();
     const db = { id: 'db' } as unknown as CoverCacheContextValue['db'];
     const adapter = {} as unknown as CoverCacheContextValue['adapter'];
     const context = { db, adapter, cacheLimitBytes: 1024 };
@@ -105,6 +119,7 @@ describe('useChapterPrefetch cache sweep', () => {
     await act(async () => root.render(<Probe data={changed} context={context} />));
 
     expect(mocks.prefetchChapterPages).toHaveBeenCalledTimes(1);
+    expect(mocks.holdReaderLocks).toHaveBeenCalledTimes(1);
     act(() => root.unmount());
     container.remove();
   });

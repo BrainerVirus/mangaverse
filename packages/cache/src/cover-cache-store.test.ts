@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ok } from '@app/shared';
 import type { PlatformAdapter } from '@app/platform';
 import { createSqlJsHarness } from '@app/db/testing';
@@ -11,6 +11,7 @@ import {
 } from './cover-cache-store.js';
 import { evictCacheToLimit } from './cache-maintenance.js';
 import { buildCoverBlobKey } from './constants.js';
+import { installFakeWebLocks } from './testing/fake-web-locks.js';
 
 function createMockAdapter(
   store = new Map<string, { data: ArrayBuffer; mimeType: string }>(),
@@ -65,6 +66,7 @@ function createMockAdapter(
         store.delete(key);
         return ok(undefined);
       },
+      listKeys: async () => ok([...store.keys()]),
       createObjectUrl: async (_data, mimeType) => {
         const url = `blob:mock-${urlCounter++}`;
         objectUrls.set(url, mimeType);
@@ -87,6 +89,16 @@ function createMockAdapter(
 }
 
 describe('cover cache store', () => {
+  let fakeLocks: ReturnType<typeof installFakeWebLocks>;
+
+  beforeEach(() => {
+    fakeLocks = installFakeWebLocks();
+  });
+
+  afterEach(() => {
+    fakeLocks.restore();
+  });
+
   it('stores and reads cover blobs from cache metadata + blob storage', async () => {
     const { db } = await createSqlJsHarness();
     const adapter = createMockAdapter();
@@ -146,8 +158,8 @@ describe('cover cache store', () => {
       mimeType: 'image/jpeg',
     });
 
-    const evicted = await evictCacheToLimit(db, adapter, { limitBytes: 250 });
-    expect(evicted).toBe(1);
+    const eviction = await evictCacheToLimit(db, adapter, { limitBytes: 250 });
+    expect(eviction.evictedCount).toBe(1);
 
     const usage = await getCoverCacheUsage(db);
     expect(usage.totalBytes).toBe(200);

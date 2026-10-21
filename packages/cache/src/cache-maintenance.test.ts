@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { err, ok } from '@app/shared';
+import { err, ok, type AppResult } from '@app/shared';
 import type { PlatformAdapter } from '@app/platform';
 import type { AppDrizzleDb } from '@app/db';
+import { upsertCacheEntry } from '@app/db';
 import { createSqlJsHarness } from '@app/db/testing';
 
 import {
@@ -9,20 +10,30 @@ import {
   evictCacheToLimit,
   runCacheMaintenance,
 } from './cache-maintenance.js';
-import { getCoverCacheUsage } from './cover-cache-store.js';
-import { buildCoverBlobKey, buildPageBlobKey } from './constants.js';
+import { getCoverCacheUsage, storeCoverInCache } from './cover-cache-store.js';
+import {
+  buildCoverBlobKey,
+  buildCoverCacheEntryId,
+  buildPageBlobKey,
+  COVER_CACHE_KIND,
+} from './constants.js';
+import { blobLockName } from './blob-writes.js';
 import {
   getCachedPageObjectUrl,
   listCachedChapterPageIndexes,
   storePageInCache,
 } from './page-cache-store.js';
-import { storeCoverInCache } from './cover-cache-store.js';
+import { READER_PRESENCE_LOCK, readerChapterLockName } from './reader-locks.js';
+import { installFakeWebLocks, installNoWebLocks } from './testing/fake-web-locks.js';
 
 const CHAPTER_1 = { providerId: 'mangadex', mangaId: 'dev-md-abc', chapterId: 'chapter-1' };
 const CHAPTER_2 = { providerId: 'mangadex', mangaId: 'dev-md-abc', chapterId: 'chapter-2' };
 const PAGE_BYTES = 10;
 
-function createAdapter(failDelete: (key: string) => boolean = () => false): {
+function createAdapter(
+  failDelete: (key: string) => boolean = () => false,
+  overrides: { readonly listKeys?: () => Promise<AppResult<readonly string[]>> } = {},
+): {
   adapter: PlatformAdapter;
   blobs: Map<string, ArrayBuffer>;
 } {
@@ -45,6 +56,7 @@ function createAdapter(failDelete: (key: string) => boolean = () => false): {
           blobs.delete(key);
           return ok(undefined);
         },
+        listKeys: overrides.listKeys ?? (async () => ok([...blobs.keys()])),
         createObjectUrl: async () => ok('blob:mock'),
         revokeObjectUrl: async () => ok(undefined),
       },
@@ -88,11 +100,15 @@ async function seedCover(
 }
 
 describe('cache maintenance', () => {
+  let fakeLocks: ReturnType<typeof installFakeWebLocks>;
+
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] });
+    fakeLocks = installFakeWebLocks();
   });
 
   afterEach(() => {
+    fakeLocks.restore();
     vi.useRealTimers();
   });
 
@@ -107,9 +123,10 @@ describe('cache maintenance', () => {
     vi.setSystemTime(new Date('2026-01-01T00:00:02.000Z'));
     await seedChapter(db, adapter, CHAPTER_2);
 
-    const evicted = await evictCacheToLimit(db, adapter, { limitBytes: 200 });
+    const eviction = await evictCacheToLimit(db, adapter, { limitBytes: 200 });
 
-    expect(evicted).toBe(6);
+    expect(eviction.evictedCount).toBe(6);
+    expect(eviction.failedBlobKeys).toEqual([]);
     expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toEqual([]);
     expect(await listCachedChapterPageIndexes(db, CHAPTER_2)).toEqual([0, 1, 2, 3, 4, 5]);
     expect(blobs.has(buildPageBlobKey('mangadex', 'dev-md-abc', 'chapter-1', 0))).toBe(false);
@@ -124,12 +141,12 @@ describe('cache maintenance', () => {
 
     await seedChapter(db, adapter, CHAPTER_1, 40);
 
-    const evicted = await evictCacheToLimit(db, adapter, {
+    const eviction = await evictCacheToLimit(db, adapter, {
       limitBytes: 200,
       protectChapter: CHAPTER_1,
     });
 
-    expect(evicted).toBe(0);
+    expect(eviction.evictedCount).toBe(0);
     expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toHaveLength(40);
     expect(blobs.size).toBe(40);
     // Explicit overshoot: 400 bytes cached against a 200-byte limit.
@@ -153,9 +170,9 @@ describe('cache maintenance', () => {
       });
     }
 
-    const evicted = await evictCacheToLimit(db, adapter, { limitBytes: 100 });
+    const eviction = await evictCacheToLimit(db, adapter, { limitBytes: 100 });
 
-    expect(evicted).toBe(4);
+    expect(eviction.evictedCount).toBe(4);
     expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toEqual([]);
   });
 
@@ -169,9 +186,10 @@ describe('cache maintenance', () => {
     vi.setSystemTime(new Date('2026-01-01T00:00:01.000Z'));
     await seedChapter(db, adapter, CHAPTER_1);
 
-    const evicted = await evictCacheToLimit(db, adapter, { limitBytes: 100 });
+    const eviction = await evictCacheToLimit(db, adapter, { limitBytes: 100 });
 
-    expect(evicted).toBe(1);
+    expect(eviction.evictedCount).toBe(1);
+    expect(eviction.failedBlobKeys).toEqual([failedKey]);
     // The cover's orphan blob stays, but its row is gone so nothing claims it.
     expect(blobs.has(failedKey)).toBe(true);
     // Only the chapter's six pages remain in row-based accounting.
@@ -186,9 +204,10 @@ describe('cache maintenance', () => {
 
     await seedChapter(db, adapter, CHAPTER_1);
 
-    const evicted = await evictCacheToLimit(db, adapter, { limitBytes: 50 });
+    const eviction = await evictCacheToLimit(db, adapter, { limitBytes: 50 });
 
-    expect(evicted).toBe(6);
+    expect(eviction.evictedCount).toBe(6);
+    expect(eviction.failedBlobKeys).toEqual([failedKey]);
     expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toEqual([]);
     for (let pageIndex = 0; pageIndex < 6; pageIndex += 1) {
       const key = buildPageBlobKey('mangadex', 'dev-md-abc', 'chapter-1', pageIndex);
@@ -216,9 +235,9 @@ describe('cache maintenance', () => {
     vi.setSystemTime(new Date('2026-01-01T00:00:01.000Z'));
     await seedChapter(db, adapter, CHAPTER_1);
 
-    const evicted = await evictCacheToLimit(db, adapter, { limitBytes: 100 });
+    const eviction = await evictCacheToLimit(db, adapter, { limitBytes: 100 });
 
-    expect(evicted).toBe(1);
+    expect(eviction.evictedCount).toBe(1);
     expect(blobs.has(buildCoverBlobKey('mangadex', 'dev-md-abc'))).toBe(false);
     expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toEqual([0, 1, 2, 3, 4, 5]);
     expect((await getCoverCacheUsage(db)).totalBytes).toBe(60);
@@ -233,12 +252,12 @@ describe('cache maintenance', () => {
     vi.setSystemTime(new Date('2026-01-01T00:00:01.000Z'));
     await seedChapter(db, adapter, CHAPTER_2);
 
-    const evicted = await evictCacheToLimit(db, adapter, {
+    const eviction = await evictCacheToLimit(db, adapter, {
       limitBytes: 60,
       protectChapter: CHAPTER_1,
     });
 
-    expect(evicted).toBe(6);
+    expect(eviction.evictedCount).toBe(6);
     expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toEqual([0, 1, 2, 3, 4, 5]);
     expect(await listCachedChapterPageIndexes(db, CHAPTER_2)).toEqual([]);
   });
@@ -252,7 +271,327 @@ describe('cache maintenance', () => {
     expect(await runCacheMaintenance(db, adapter, 1000)).toEqual({
       evictedCount: 0,
       totalBytes: 60,
+      failedBlobDeletes: 0,
+      reclaimedBlobs: 0,
     });
+  });
+
+  it('Given a runtime without an enumerable blob store, When maintaining, Then the sweep is a no-op', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter } = createAdapter(() => false, {
+      listKeys: async () => err({ code: 'platform.unsupported', message: 'no blob keys' }),
+    });
+
+    await seedCover(db, adapter, 'dev-md-abc');
+
+    expect(await runCacheMaintenance(db, adapter, 1000)).toEqual({
+      evictedCount: 0,
+      totalBytes: 100,
+      failedBlobDeletes: 0,
+      reclaimedBlobs: 0,
+    });
+  });
+
+  it('Given a blob left row-less by a failed delete, When maintenance runs, Then it is reclaimed', async () => {
+    const { db } = await createSqlJsHarness();
+    const failedKey = buildCoverBlobKey('mangadex', 'dev-md-abc');
+    let failDelete = true;
+    const { adapter, blobs } = createAdapter((key) => failDelete && key === failedKey);
+
+    await seedCover(db, adapter, 'dev-md-abc');
+    await evictCacheToLimit(db, adapter, { limitBytes: 0 });
+    expect(blobs.has(failedKey)).toBe(true);
+
+    failDelete = false;
+    const outcome = await runCacheMaintenance(db, adapter, 1000);
+
+    // The cover row is gone, so the blob is an orphan only enumeration can find.
+    expect(outcome.reclaimedBlobs).toBe(1);
+    expect(outcome.failedBlobDeletes).toBe(0);
+    expect(blobs.has(failedKey)).toBe(false);
+  });
+
+  it('Given a persistent orphan delete failure, When maintenance runs, Then the failure is reported and retried later', async () => {
+    const { db } = await createSqlJsHarness();
+    const failedKey = buildCoverBlobKey('mangadex', 'dev-md-abc');
+    const { adapter, blobs } = createAdapter((key) => key === failedKey);
+
+    await seedCover(db, adapter, 'dev-md-abc');
+    await evictCacheToLimit(db, adapter, { limitBytes: 0 });
+
+    // Eviction reports the first failure; the sweep retries it in the same pass.
+    const outcome = await runCacheMaintenance(db, adapter, 1000);
+
+    expect(outcome.reclaimedBlobs).toBe(0);
+    expect(outcome.failedBlobDeletes).toBe(1);
+    expect(blobs.has(failedKey)).toBe(true);
+  });
+
+  it('Given unrelated blobs and more orphans than one pass may delete, When maintenance runs, Then only cache keys are reclaimed and the pass is bounded', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter, blobs } = createAdapter();
+    blobs.set('unrelated-download', new ArrayBuffer(1));
+    for (let index = 0; index < 201; index += 1) {
+      blobs.set(
+        buildPageBlobKey('mangadex', 'orphan-manga', 'chapter-x', index),
+        new ArrayBuffer(1),
+      );
+    }
+
+    const first = await runCacheMaintenance(db, adapter, 1000);
+
+    // One pass reclaims at most 200; the remainder is retried next pass.
+    expect(first.reclaimedBlobs).toBe(200);
+    expect(blobs.has('unrelated-download')).toBe(true);
+    expect(blobs.size).toBe(2);
+
+    const second = await runCacheMaintenance(db, adapter, 1000);
+
+    expect(second.reclaimedBlobs).toBe(1);
+    expect(blobs.has('unrelated-download')).toBe(true);
+    expect(blobs.size).toBe(1);
+  });
+
+  it('Given a background tab holding reader locks, When sweeping, Then its chapter is skipped without any message from that tab', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter } = createAdapter();
+    // A throttled background tab never answers a probe; it only keeps its
+    // shared locks held, which `query()` reports synchronously.
+    const releasePresence = fakeLocks.fake.hold(READER_PRESENCE_LOCK);
+    const releaseChapter = fakeLocks.fake.hold(readerChapterLockName(CHAPTER_1));
+
+    try {
+      vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
+      await seedChapter(db, adapter, CHAPTER_1);
+      vi.setSystemTime(new Date('2026-01-01T00:00:01.000Z'));
+      await seedChapter(db, adapter, CHAPTER_2);
+
+      const eviction = await evictCacheToLimit(db, adapter, { limitBytes: 60 });
+
+      expect(eviction.evictedCount).toBe(6);
+      expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toEqual([0, 1, 2, 3, 4, 5]);
+      expect(await listCachedChapterPageIndexes(db, CHAPTER_2)).toEqual([]);
+    } finally {
+      releaseChapter();
+      releasePresence();
+    }
+  });
+
+  it('Given another tab reads a chapter, When maintenance runs, Then its row-less page blob is not reclaimed', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter, blobs } = createAdapter();
+    const openKey = buildPageBlobKey('mangadex', 'dev-md-abc', 'chapter-1', 3);
+    const orphanKey = buildPageBlobKey('mangadex', 'dev-md-orphan', 'chapter-9', 0);
+    blobs.set(openKey, new ArrayBuffer(1));
+    blobs.set(orphanKey, new ArrayBuffer(1));
+    const releasePresence = fakeLocks.fake.hold(READER_PRESENCE_LOCK);
+    const releaseChapter = fakeLocks.fake.hold(readerChapterLockName(CHAPTER_1));
+
+    try {
+      const outcome = await runCacheMaintenance(db, adapter, 1000);
+
+      // A row-less page in the open chapter may be a put whose row has not
+      // landed yet; unrelated orphans are still reclaimed.
+      expect(outcome.reclaimedBlobs).toBe(1);
+      expect(blobs.has(openKey)).toBe(true);
+      expect(blobs.has(orphanKey)).toBe(false);
+    } finally {
+      releaseChapter();
+      releasePresence();
+    }
+  });
+
+  it('Given no Web Locks API, When sweeping over the limit, Then nothing is evicted and orphan reclaim is skipped', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter, blobs } = createAdapter();
+    const orphanKey = buildPageBlobKey('mangadex', 'dev-md-orphan', 'chapter-9', 0);
+    blobs.set(orphanKey, new ArrayBuffer(1));
+    await seedChapter(db, adapter, CHAPTER_1);
+
+    const noLocks = installNoWebLocks();
+    try {
+      expect(await evictCacheToLimit(db, adapter, { limitBytes: 0 })).toEqual({
+        evictedCount: 0,
+        failedBlobKeys: [],
+      });
+      expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toEqual([0, 1, 2, 3, 4, 5]);
+
+      const outcome = await runCacheMaintenance(db, adapter, 0);
+
+      expect(outcome.evictedCount).toBe(0);
+      expect(outcome.reclaimedBlobs).toBe(0);
+      expect(blobs.has(orphanKey)).toBe(true);
+    } finally {
+      noLocks.restore();
+    }
+  });
+
+  it('Given a lock manager that rejects the presence probe, When sweeping, Then nothing is deleted', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter } = createAdapter();
+    await seedChapter(db, adapter, CHAPTER_1);
+
+    const original = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value: {
+        locks: {
+          query: async () => ({ held: [] }),
+          request: () => Promise.reject(new Error('locks unavailable')),
+        },
+      },
+    });
+
+    try {
+      expect(await evictCacheToLimit(db, adapter, { limitBytes: 0 })).toEqual({
+        evictedCount: 0,
+        failedBlobKeys: [],
+      });
+      expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toHaveLength(6);
+    } finally {
+      if (original === undefined) Reflect.deleteProperty(globalThis, 'navigator');
+      else Object.defineProperty(globalThis, 'navigator', original);
+    }
+  });
+
+  it('Given a blob put whose row upsert is still pending, When maintenance runs, Then the delete waits and the blob survives', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter, blobs } = createAdapter();
+    const pageKey = buildPageBlobKey('mangadex', 'dev-md-abc', 'chapter-1', 0);
+    const basePut = adapter.blobStorage.put.bind(adapter.blobStorage);
+    let releasePut!: () => void;
+    let markPutStarted!: () => void;
+    const putStarted = new Promise<void>((resolve) => {
+      markPutStarted = resolve;
+    });
+    const blocked = new Promise<void>((resolve) => {
+      releasePut = resolve;
+    });
+    adapter.blobStorage.put = async (key, data, mimeType) => {
+      const result = await basePut(key, data, mimeType);
+      markPutStarted();
+      await blocked;
+      return result;
+    };
+
+    const storing = storePageInCache({
+      db,
+      adapter,
+      ...CHAPTER_1,
+      pageIndex: 0,
+      remoteUrl: 'https://example.com/chapter-1/0.jpg',
+      data: new Uint8Array(PAGE_BYTES).buffer,
+      mimeType: 'image/jpeg',
+    });
+    await putStarted;
+
+    // The blob exists but its cache row does not. The writer holds the key's
+    // shared lock, so the sweep's exclusive delete queues behind it instead of
+    // testing a snapshot taken before the bytes landed.
+    const maintenance = runCacheMaintenance(db, adapter, 1000);
+    await vi.waitFor(async () => {
+      expect((await fakeLocks.fake.locks.query()).pending).toContainEqual({
+        name: blobLockName(pageKey),
+        mode: 'exclusive',
+      });
+    });
+    expect(blobs.has(pageKey)).toBe(true);
+
+    releasePut();
+    await storing;
+    const outcome = await maintenance;
+    expect(outcome.reclaimedBlobs).toBe(0);
+    expect(blobs.has(pageKey)).toBe(true);
+    expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toEqual([0]);
+  });
+
+  it('Given a delete that fails in eviction but succeeds in the sweep, When maintaining, Then it is not reported as failed', async () => {
+    const { db } = await createSqlJsHarness();
+    const failedKey = buildPageBlobKey('mangadex', 'dev-md-abc', 'chapter-1', 2);
+    let attempts = 0;
+    const { adapter, blobs } = createAdapter((key) => {
+      if (key !== failedKey) return false;
+      attempts += 1;
+      return attempts === 1;
+    });
+
+    await seedChapter(db, adapter, CHAPTER_1);
+
+    const outcome = await runCacheMaintenance(db, adapter, 50);
+
+    expect(outcome.evictedCount).toBe(6);
+    expect(outcome.reclaimedBlobs).toBe(1);
+    expect(outcome.failedBlobDeletes).toBe(0);
+    expect(blobs.has(failedKey)).toBe(false);
+  });
+
+  it('Given another tab mid-cover-write, When reclaiming, Then the blob waits for the row and survives', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter, blobs } = createAdapter();
+    const coverKey = buildCoverBlobKey('mangadex', 'dev-md-cross-tab');
+    blobs.set(coverKey, new ArrayBuffer(1));
+    // Another tab's put has landed and its row upsert is still pending: it
+    // holds the shared blob lock, and this process cannot see its in-flight map.
+    const releaseWriter = fakeLocks.fake.hold(blobLockName(coverKey));
+
+    const maintenance = runCacheMaintenance(db, adapter, 1000);
+    await vi.waitFor(async () => {
+      expect((await fakeLocks.fake.locks.query()).pending).toContainEqual({
+        name: blobLockName(coverKey),
+        mode: 'exclusive',
+      });
+    });
+    expect(blobs.has(coverKey)).toBe(true);
+
+    // The writer's row lands, then it releases the lock. The delete must see the
+    // row inside the lock and leave the bytes alone.
+    await upsertCacheEntry(db, {
+      id: buildCoverCacheEntryId('mangadex', 'dev-md-cross-tab'),
+      providerId: 'mangadex',
+      mangaId: 'dev-md-cross-tab',
+      cacheKind: COVER_CACHE_KIND,
+      byteSize: 1,
+      blobKey: coverKey,
+    });
+    releaseWriter();
+
+    const outcome = await maintenance;
+    expect(outcome.reclaimedBlobs).toBe(0);
+    expect(outcome.failedBlobDeletes).toBe(0);
+    expect(blobs.has(coverKey)).toBe(true);
+    expect((await getCoverCacheUsage(db)).totalCount).toBe(1);
+  });
+
+  it('Given another tab re-creates an evicted cover, When deleting its blob, Then the delete sees the row and skips', async () => {
+    const { db } = await createSqlJsHarness();
+    const coverKey = buildCoverBlobKey('mangadex', 'dev-md-abc');
+    const { adapter, blobs } = createAdapter();
+    await seedCover(db, adapter, 'dev-md-abc');
+    const releaseWriter = fakeLocks.fake.hold(blobLockName(coverKey));
+
+    const eviction = evictCacheToLimit(db, adapter, { limitBytes: 0 });
+    await vi.waitFor(async () => {
+      expect((await fakeLocks.fake.locks.query()).pending).toContainEqual({
+        name: blobLockName(coverKey),
+        mode: 'exclusive',
+      });
+    });
+    // The batch deleted the row; the writer's upsert lands after it.
+    await upsertCacheEntry(db, {
+      id: buildCoverCacheEntryId('mangadex', 'dev-md-abc'),
+      providerId: 'mangadex',
+      mangaId: 'dev-md-abc',
+      cacheKind: COVER_CACHE_KIND,
+      byteSize: 100,
+      blobKey: coverKey,
+    });
+    releaseWriter();
+
+    const outcome = await eviction;
+    expect(outcome.evictedCount).toBe(1);
+    expect(outcome.failedBlobKeys).toEqual([]);
+    expect(blobs.has(coverKey)).toBe(true);
+    expect((await getCoverCacheUsage(db)).totalCount).toBe(1);
   });
 });
 

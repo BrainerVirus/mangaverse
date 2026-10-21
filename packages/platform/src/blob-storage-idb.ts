@@ -103,6 +103,22 @@ export async function deleteIndexedDbBlob(
   }
 }
 
+export async function listIndexedDbBlobKeys(environment?: BlobStoreEnvironment): Promise<string[]> {
+  const db = await openBlobDatabase(environment);
+  try {
+    const keys = await new Promise<IDBValidKey[]>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.getAllKeys();
+      request.onerror = () => reject(request.error ?? new Error('Failed to list blobs.'));
+      request.onsuccess = () => resolve(request.result);
+    });
+    return keys.map(String);
+  } finally {
+    db.close();
+  }
+}
+
 export async function clearIndexedDbBlobs(environment?: BlobStoreEnvironment): Promise<void> {
   const db = await openBlobDatabase(environment);
   try {

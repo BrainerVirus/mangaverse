@@ -1,6 +1,30 @@
 import { expect, it } from 'vitest';
 import { createSqlJsHarness } from '../testing/sqljs-harness.js';
-import { deleteCacheEntries } from './cache.js';
+import {
+  deleteCacheEntries,
+  hasCacheBlobKey,
+  listCacheBlobKeys,
+  upsertCacheEntry,
+} from './cache.js';
+
+it('lists only blob keys a row still references', async () => {
+  const { db } = await createSqlJsHarness();
+  await upsertCacheEntry(db, {
+    providerId: 'prov-a',
+    mangaId: 'manga-1',
+    cacheKind: 'cover',
+    blobKey: 'cover:prov-a:manga-1',
+  });
+  await upsertCacheEntry(db, {
+    providerId: 'prov-a',
+    mangaId: 'manga-2',
+    cacheKind: 'cover',
+  });
+
+  expect(await listCacheBlobKeys(db)).toEqual(['cover:prov-a:manga-1']);
+  expect(await hasCacheBlobKey(db, 'cover:prov-a:manga-1')).toBe(true);
+  expect(await hasCacheBlobKey(db, 'cover:prov-a:manga-2')).toBe(false);
+});
 
 it('deletes across the SQL ceiling, counting duplicates and missing ids only once', async () => {
   const { db, raw } = await createSqlJsHarness();

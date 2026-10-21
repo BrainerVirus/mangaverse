@@ -50,7 +50,11 @@ function StorageRoute() {
         );
       } else {
         setLastActionError(null);
-        setLastActionMessage(`Cleared ${result.clearedCount} ${label}.`);
+        const reclaimed =
+          result.reclaimedBlobs > 0
+            ? ` Reclaimed ${result.reclaimedBlobs} orphaned cached images.`
+            : '';
+        setLastActionMessage(`Cleared ${result.clearedCount} ${label}.${reclaimed}`);
       }
       void queryClient.invalidateQueries({ queryKey: storageQueryKeys.summary() });
     },

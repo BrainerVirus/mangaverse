@@ -70,6 +70,7 @@ export function createUnsupportedPlatformAdapter(reason: string): PlatformAdapte
       put: async () => deny<void>(),
       get: async () => deny<PlatformBlobRecord | undefined>(),
       delete: async () => deny<void>(),
+      listKeys: async () => deny<readonly string[]>(),
       createObjectUrl: async () => deny<string>(),
       revokeObjectUrl: async () => deny<void>(),
     },

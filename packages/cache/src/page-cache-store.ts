@@ -14,6 +14,7 @@ import {
   CACHE_RETENTION_READ,
   PAGE_CACHE_KIND,
 } from './constants.js';
+import { withBlobWrite } from './blob-writes.js';
 
 export interface PageCacheLookupInput {
   readonly db: AppDrizzleDb;
@@ -129,26 +130,32 @@ async function storePageBlob(
   const blobKey = buildPageBlobKey(providerId, mangaId, chapterId, input.pageIndex);
   const entryId = buildPageCacheEntryId(providerId, mangaId, chapterId, input.pageIndex);
 
-  const putResult = await input.adapter.blobStorage.put(blobKey, input.data, input.mimeType);
-  if (!putResult.ok) {
+  const stored = await withBlobWrite(blobKey, async () => {
+    const putResult = await input.adapter.blobStorage.put(blobKey, input.data, input.mimeType);
+    if (!putResult.ok) {
+      return false;
+    }
+
+    await upsertCacheEntry(input.db, {
+      id: entryId,
+      providerId,
+      mangaId,
+      chapterId,
+      cacheKind: PAGE_CACHE_KIND,
+      sourceUrl: input.remoteUrl,
+      mimeType: input.mimeType,
+      byteSize: input.data.byteLength,
+      blobKey,
+      metadata: {
+        pageIndex: input.pageIndex,
+        retention: input.retention ?? 'normal',
+      },
+    });
+    return true;
+  });
+  if (!stored) {
     return undefined;
   }
-
-  await upsertCacheEntry(input.db, {
-    id: entryId,
-    providerId,
-    mangaId,
-    chapterId,
-    cacheKind: PAGE_CACHE_KIND,
-    sourceUrl: input.remoteUrl,
-    mimeType: input.mimeType,
-    byteSize: input.data.byteLength,
-    blobKey,
-    metadata: {
-      pageIndex: input.pageIndex,
-      retention: input.retention ?? 'normal',
-    },
-  });
 
   return input.data.byteLength;
 }

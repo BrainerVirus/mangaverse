@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   evictCacheToLimit,
+  holdReaderLocks,
   listCachedChapterPageIndexes,
   markChapterPagesAsRead,
   prefetchChapterPages,
@@ -8,6 +9,17 @@ import {
 } from '@app/cache';
 import { formatUnavailableOfflinePages } from '../offline-pages.js';
 import type { ReaderPageData } from '../reader-page-data.js';
+
+/**
+ * A rejected reader lock leaves this tab invisible to other tabs' eviction
+ * probes, so the chapter it is reading can be reclaimed underneath it. Reading
+ * cannot block on the lock, so the failure is surfaced instead of swallowed.
+ */
+function reportReaderLocksUnavailable(): void {
+  // oxlint-disable-next-line no-console -- ruling: web-console-diagnostics: a missing reader lock is non-fatal and has no UI state; this warn is the only signal that another tab cannot see this open chapter.
+  // react-doctor-disable-next-line eslint/no-console -- ruling: web-console-diagnostics: a missing reader lock is non-fatal and has no UI state; this warn is the only signal that another tab cannot see this open chapter.
+  console.warn('[reader] Web Locks unavailable; another tab may evict this open chapter.');
+}
 
 /** Warms the chapter's pages into the blob cache and marks them read. */
 export function useChapterPrefetch(
@@ -22,6 +34,17 @@ export function useChapterPrefetch(
   const mangaId = data?.mangaId;
   const chapterId = data?.chapterId;
   const budgetBytes = data?.settings.prefetchBudgetBytes ?? 0;
+
+  // The locks live as long as this chapter is open, not as long as one prefetch
+  // sweep: a settings change releases and re-runs the sweep below, and a gap
+  // there would let another tab evict the chapter being read.
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: Web Locks presence must be held until the reader unmounts
+  useEffect(() => {
+    if (providerId === undefined || mangaId === undefined || chapterId === undefined) {
+      return;
+    }
+    return holdReaderLocks({ providerId, mangaId, chapterId }, reportReaderLocksUnavailable);
+  }, [chapterId, mangaId, providerId]);
 
   // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: prefetching writes to the DB and blob storage
   useEffect(() => {
@@ -64,7 +87,9 @@ export function useChapterPrefetch(
       });
     });
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+    };
   }, [budgetBytes, cacheContext, chapterId, mangaId, pages, providerId]);
 }
 
