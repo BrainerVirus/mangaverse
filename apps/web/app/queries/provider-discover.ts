@@ -5,7 +5,9 @@ import type { DiscoverPageData, DiscoverSection } from '@app/search';
 
 import {
   listProviderBindings,
+  readInstalledExtensions,
   resolveInstalledProvider,
+  resolveInstalledProviderFrom,
   type ProviderAppBinding,
   type ProviderSectionDefinition,
 } from '../lib/provider-registry.js';
@@ -82,23 +84,35 @@ export async function fetchProviderSectionPage(
 }
 
 /**
- * Provider previews for the discover grid. Failures are isolated: one broken
- * provider or section never blanks the whole page.
+ * Provider previews for the discover grid. A failed install read rejects so the
+ * route shows its error state; one broken provider or section is dropped and
+ * never blanks the rest of the page.
  */
 export async function fetchProviderDiscoverData(
   db: AppDrizzleDb,
   signal?: AbortSignal,
 ): Promise<DiscoverPageData> {
   const entries: DiscoverPageData['providers'][number][] = [];
+  const installed = await readInstalledExtensions(db);
 
   for (const binding of listProviderBindings()) {
-    // A provider that throws while resolving must not blank the whole feed.
-    const provider = await resolveInstalledProvider(db, binding.providerId).catch(() => null);
-    if (provider === null) {
+    let provider: ProviderContract;
+    let providerName: string;
+    let enabled: readonly ProviderSectionDefinition[];
+    // A provider that throws while resolving, or ships a malformed manifest,
+    // must not blank the whole feed.
+    try {
+      const resolved = resolveInstalledProviderFrom(installed, binding.providerId);
+      if (resolved === null) {
+        continue;
+      }
+      provider = resolved;
+      providerName = resolved.manifest.name;
+      enabled = getEnabledSections(binding, resolved.manifest.capabilities);
+    } catch {
       continue;
     }
 
-    const enabled = getEnabledSections(binding, provider.manifest.capabilities);
     const settled = await Promise.allSettled(
       enabled.map(async (section): Promise<DiscoverSection> => {
         const fetched = await fetchSection(
@@ -128,7 +142,7 @@ export async function fetchProviderDiscoverData(
 
     entries.push({
       providerId: binding.providerId,
-      providerName: provider.manifest.name,
+      providerName,
       sections,
     });
   }

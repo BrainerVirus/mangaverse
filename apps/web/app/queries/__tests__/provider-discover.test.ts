@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { AppDrizzleDb } from '@app/db/browser';
 import type { ProviderContract } from '@app/extensions-sdk';
-import type { MangaIdentity } from '@app/shared';
+import type { ExtensionInstallMetadata, MangaIdentity } from '@app/shared';
 import type { ProviderAppBinding } from '../../lib/provider-registry.js';
 
 const mocks = vi.hoisted(() => {
@@ -16,23 +16,31 @@ const mocks = vi.hoisted(() => {
   return {
     binding,
     bindings: [binding],
-    resolveInstalledProvider:
-      vi.fn<(db: unknown, providerId: string) => Promise<ProviderContract | null>>(),
+    readInstalledExtensions: vi.fn<(db: unknown) => Promise<readonly ExtensionInstallMetadata[]>>(),
+    resolveInstalledProviderFrom:
+      vi.fn<
+        (
+          installed: readonly ExtensionInstallMetadata[],
+          providerId: string,
+        ) => ProviderContract | null
+      >(),
   };
 });
 
 vi.mock('../../lib/provider-registry.js', () => ({
   listProviderBindings: () => mocks.bindings as unknown as readonly ProviderAppBinding[],
-  resolveInstalledProvider: mocks.resolveInstalledProvider,
+  readInstalledExtensions: mocks.readInstalledExtensions,
+  resolveInstalledProviderFrom: mocks.resolveInstalledProviderFrom,
 }));
 
 const db = {} as AppDrizzleDb;
+const installed = [] as readonly ExtensionInstallMetadata[];
 
-function installedProvider(): ProviderContract {
+function installedProvider(name = 'Fake'): ProviderContract {
   return {
     manifest: {
       id: 'fake',
-      name: 'Fake',
+      name,
       capabilities: { 'discovery.latest': true, 'discovery.popular': true },
     },
     browseLatest: async () => ({ items: [{ id: 'latest-1' }], hasMore: false }),
@@ -43,22 +51,31 @@ function installedProvider(): ProviderContract {
 describe('fetchProviderDiscoverData', () => {
   beforeEach(() => {
     mocks.bindings = [mocks.binding];
-    mocks.resolveInstalledProvider.mockReset().mockResolvedValue(installedProvider());
+    mocks.readInstalledExtensions.mockReset().mockResolvedValue(installed);
+    mocks.resolveInstalledProviderFrom
+      .mockReset()
+      .mockImplementation((_installed, providerId) =>
+        providerId === 'fake' ? installedProvider() : null,
+      );
   });
 
-  it('resolves the installed provider once for every section it previews', async () => {
+  it('reads the install table once and resolves every binding once', async () => {
+    mocks.bindings = [{ ...mocks.binding, providerId: 'broken' }, mocks.binding];
     const { fetchProviderDiscoverData } = await import('../provider-discover.js');
 
     const data = await fetchProviderDiscoverData(db);
 
-    expect(mocks.resolveInstalledProvider).toHaveBeenCalledTimes(1);
-    expect(mocks.resolveInstalledProvider).toHaveBeenCalledWith(db, 'fake');
+    expect(mocks.readInstalledExtensions).toHaveBeenCalledTimes(1);
+    expect(mocks.readInstalledExtensions).toHaveBeenCalledWith(db);
+    expect(mocks.resolveInstalledProviderFrom).toHaveBeenCalledTimes(2);
+    expect(mocks.resolveInstalledProviderFrom).toHaveBeenCalledWith(installed, 'broken');
+    expect(mocks.resolveInstalledProviderFrom).toHaveBeenCalledWith(installed, 'fake');
     expect(data.providers).toHaveLength(1);
     expect(data.providers[0]?.sections.map((section) => section.id)).toEqual(['latest', 'popular']);
   });
 
   it('drops the provider when it is not installed', async () => {
-    mocks.resolveInstalledProvider.mockResolvedValue(null);
+    mocks.resolveInstalledProviderFrom.mockReturnValue(null);
     const { fetchProviderDiscoverData } = await import('../provider-discover.js');
 
     await expect(fetchProviderDiscoverData(db)).resolves.toEqual({ providers: [] });
@@ -66,7 +83,7 @@ describe('fetchProviderDiscoverData', () => {
 
   it('keeps healthy providers when another provider throws while resolving', async () => {
     mocks.bindings = [{ ...mocks.binding, providerId: 'broken' }, mocks.binding];
-    mocks.resolveInstalledProvider.mockImplementation(async (_db, providerId) => {
+    mocks.resolveInstalledProviderFrom.mockImplementation((_installed, providerId) => {
       if (providerId === 'broken') throw new Error('createProvider failed');
       return installedProvider();
     });
@@ -76,5 +93,39 @@ describe('fetchProviderDiscoverData', () => {
 
     expect(data.providers.map((provider) => provider.providerId)).toEqual(['fake']);
     expect(data.providers[0]?.sections.map((section) => section.id)).toEqual(['latest', 'popular']);
+  });
+
+  it('drops only the provider whose manifest is malformed', async () => {
+    mocks.bindings = [{ ...mocks.binding, providerId: 'broken' }, mocks.binding];
+    const malformed = {
+      manifest: {
+        id: 'broken',
+        name: 'Broken',
+        capabilities: { 'discovery.latest': true },
+      },
+      browseLatest: async () => ({ items: [], hasMore: false }),
+    } as unknown as ProviderContract;
+    Object.defineProperty(malformed.manifest, 'capabilities', {
+      get() {
+        throw new Error('malformed manifest');
+      },
+    });
+    mocks.resolveInstalledProviderFrom.mockImplementation((_installed, providerId) =>
+      providerId === 'broken' ? malformed : installedProvider(),
+    );
+    const { fetchProviderDiscoverData } = await import('../provider-discover.js');
+
+    const data = await fetchProviderDiscoverData(db);
+
+    expect(data.providers.map((provider) => provider.providerId)).toEqual(['fake']);
+    expect(data.providers[0]?.providerName).toBe('Fake');
+  });
+
+  it('surfaces an install read failure instead of an empty feed', async () => {
+    mocks.readInstalledExtensions.mockRejectedValue(new Error('db offline'));
+    const { fetchProviderDiscoverData } = await import('../provider-discover.js');
+
+    await expect(fetchProviderDiscoverData(db)).rejects.toThrow('db offline');
+    expect(mocks.resolveInstalledProviderFrom).not.toHaveBeenCalled();
   });
 });
