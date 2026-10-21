@@ -28,6 +28,7 @@ type HopOutcome =
 export function settleByDeadline<T>(work: Promise<T>, deadline: number): Promise<T | undefined> {
   const remaining = deadline - Date.now();
   if (remaining <= 0) {
+    void work.catch(() => undefined);
     return Promise.resolve(undefined);
   }
   let timer: ReturnType<typeof setTimeout> | undefined;

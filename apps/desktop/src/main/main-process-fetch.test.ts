@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import type { ClientRequest, ClientRequestConstructorOptions, IncomingMessage } from 'electron';
 import { describe, expect, it, vi, type MockInstance } from 'vitest';
-import { fetchMainProcessBytes } from './main-process-fetch.js';
+import { fetchMainProcessBytes, settleByDeadline } from './main-process-fetch.js';
 
 type FakeRequest = EventEmitter & {
   end: () => void;
@@ -290,6 +290,23 @@ describe('fetchMainProcessBytes', () => {
       expect(request).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
+    }
+  });
+
+  it('stays clear of a validation that rejects after the deadline already passed', async () => {
+    let reject: ((error: Error) => void) | undefined;
+    const work = new Promise<boolean>((_resolve, onReject) => {
+      reject = onReject;
+    });
+    const unhandled = vi.fn<(...args: unknown[]) => void>();
+    process.on('unhandledRejection', unhandled);
+    try {
+      await expect(settleByDeadline(work, Date.now() - 1)).resolves.toBeUndefined();
+      reject!(new Error('late lookup failure'));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(unhandled).not.toHaveBeenCalled();
+    } finally {
+      process.off('unhandledRejection', unhandled);
     }
   });
 
