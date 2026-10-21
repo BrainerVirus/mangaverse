@@ -10,10 +10,10 @@ import { payloadError } from './errors.js';
  * (`exactOptionalPropertyTypes`) and locale maps keep only their string entries,
  * exactly as the hand-rolled validators did.
  *
- * Ruling (2026-10-17): the standard runtime parser, not `z.compile()`. AOT
- * compilation emits validators through `new Function()`, which the Electron
- * production CSP forbids, and its bundle cost is paid by every consumer. See the
- * ledger ruling on `feat/mangadex-zod-schemas` before switching.
+ * Ruling (2026-10-17): the standard runtime parser, not `z.compile()`. CSP does
+ * not forbid AOT; under the Electron production CSP `z.compile()` silently
+ * returns the schema uncompiled, so its ~7 KB bundle cost is paid with no
+ * speedup. See the ledger ruling on `feat/mangadex-zod-schemas` before switching.
  */
 
 interface MdRelationship {

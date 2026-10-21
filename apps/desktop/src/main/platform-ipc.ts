@@ -5,23 +5,26 @@ import type {
   Dialog,
   IpcMain,
   Net,
+  OpenDialogOptions,
   SaveDialogOptions,
   Shell,
 } from 'electron';
 import {
   PLATFORM_IPC,
-  fetchMainProcessBytes,
-  isSafeExternalUrl,
-  isValidSecureStorageKey,
+  isBlockedIpAddress,
+  isSafeNetworkFetchUrl,
   platformInvalidUrl,
   platformIoFailed,
   platformPermissionDenied,
+  platformUnexpected,
+  platformIpcRequestSchema,
   type LocalServiceInfo,
   type PlatformCapabilities,
   type PlatformDiagnosticsSnapshot,
-  type PlatformFileOpenOptions,
-  type PlatformFileSaveOptions,
+  type PlatformIpcChannel,
+  type PlatformIpcRequest,
 } from '@app/platform';
+import { fetchMainProcessBytes } from './main-process-fetch.js';
 
 export function toIpcAppResult<T>(r: AppResult<T>): AppResult<T> {
   if (r.ok) {
@@ -60,193 +63,195 @@ export interface PlatformIpcDeps {
   readonly secureStorage: SecureStorageHandlers;
   readonly getLocalServiceInfo: () => LocalServiceInfo;
   readonly buildDiagnosticsSnapshot: () => PlatformDiagnosticsSnapshot;
+  readonly resolveHostAddresses: (hostname: string) => Promise<readonly string[]>;
 }
+
+type RequestArgs<C extends PlatformIpcChannel> = {
+  [K in PlatformIpcChannel]: Extract<PlatformIpcRequest, { channel: K }>['args'];
+}[C];
 
 export function registerPlatformIpc(deps: PlatformIpcDeps): void {
   const { ipcMain } = deps;
 
-  ipcMain.handle(PLATFORM_IPC.CAPABILITIES_GET, async () =>
-    toIpcAppResult(ok(deps.getCapabilities())),
-  );
+  /** Parse `{ channel, args }` against the shared union; raw exceptions never cross IPC. */
+  function handle<C extends PlatformIpcChannel>(
+    channel: C,
+    handler: (args: RequestArgs<C>) => Promise<AppResult<unknown>>,
+  ): void {
+    ipcMain.handle(channel, async (_event, ...rawArgs: unknown[]) => {
+      const parsed = platformIpcRequestSchema.safeParse({ channel, args: rawArgs });
+      if (!parsed.success) {
+        return toIpcAppResult(err(platformInvalidUrl('IPC request payload is invalid.')));
+      }
+      try {
+        // The parsed channel literal selects this handler's member of the union.
+        const args = parsed.data.args as RequestArgs<C>;
+        return toIpcAppResult(await handler(args));
+      } catch (e) {
+        return toIpcAppResult(err(platformUnexpected('IPC handler failed.', e)));
+      }
+    });
+  }
 
-  ipcMain.handle(PLATFORM_IPC.CLIPBOARD_READ_TEXT, async () => {
+  async function networkFetchAllowed(url: string): Promise<boolean> {
+    if (!isSafeNetworkFetchUrl(url)) {
+      return false;
+    }
     try {
-      return toIpcAppResult(ok(deps.clipboard.readText()));
+      // shortcut: the resolved address is checked, not pinned, so a fast DNS
+      // rebind can still race the fetch; pin it when Electron exposes a hook.
+      const addresses = await deps.resolveHostAddresses(
+        new URL(url).hostname.replace(/^\[|\]$/g, ''),
+      );
+      return addresses.length > 0 && addresses.every((address) => !isBlockedIpAddress(address));
     } catch {
-      return toIpcAppResult(err(platformPermissionDenied('Could not read clipboard.')));
+      return false;
+    }
+  }
+
+  handle(PLATFORM_IPC.CAPABILITIES_GET, async () => ok(deps.getCapabilities()));
+
+  handle(PLATFORM_IPC.CLIPBOARD_READ_TEXT, async () => {
+    try {
+      return ok(deps.clipboard.readText());
+    } catch {
+      return err(platformPermissionDenied('Could not read clipboard.'));
     }
   });
 
-  ipcMain.handle(PLATFORM_IPC.CLIPBOARD_WRITE_TEXT, async (_e, text: string) => {
-    if (typeof text !== 'string') {
-      return toIpcAppResult(err(platformInvalidUrl('Clipboard payload invalid.')));
-    }
+  handle(PLATFORM_IPC.CLIPBOARD_WRITE_TEXT, async ([text]) => {
     try {
       await deps.clipboard.writeText(text);
-      return toIpcAppResult(ok(undefined));
+      return ok(undefined);
     } catch {
-      return toIpcAppResult(err(platformPermissionDenied('Could not write clipboard.')));
+      return err(platformPermissionDenied('Could not write clipboard.'));
     }
   });
 
-  ipcMain.handle(
-    PLATFORM_IPC.FILE_OPEN_TEXT,
-    async (_e, options: PlatformFileOpenOptions | undefined) => {
-      const win = deps.getTargetWindow();
-      const picked = win
-        ? await deps.dialog.showOpenDialog(win, {
-            properties: ['openFile'],
-            filters: [
-              { name: 'Text', extensions: ['txt', 'md', 'json'] },
-              { name: 'All Files', extensions: ['*'] },
-            ],
-            ...(options?.suggestedName ? { defaultPath: options.suggestedName } : {}),
-          })
-        : await deps.dialog.showOpenDialog({
-            properties: ['openFile'],
-            filters: [
-              { name: 'Text', extensions: ['txt', 'md', 'json'] },
-              { name: 'All Files', extensions: ['*'] },
-            ],
-            ...(options?.suggestedName ? { defaultPath: options.suggestedName } : {}),
-          });
-      if (picked.canceled || picked.filePaths[0] === undefined) {
-        return toIpcAppResult(ok({ content: '', cancelled: true }));
-      }
-      const path = picked.filePaths[0];
-      try {
-        const content = await deps.readFileUtf8(path);
-        return toIpcAppResult(ok({ path, content }));
-      } catch (e) {
-        return toIpcAppResult(err(platformIoFailed('Could not read file.', e)));
-      }
-    },
-  );
+  handle(PLATFORM_IPC.FILE_OPEN_TEXT, async ([options]) => {
+    const win = deps.getTargetWindow();
+    const dialogOptions: OpenDialogOptions = {
+      properties: ['openFile'],
+      filters: [
+        { name: 'Text', extensions: ['txt', 'md', 'json'] },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+      ...(options?.suggestedName ? { defaultPath: options.suggestedName } : {}),
+    };
+    const picked = win
+      ? await deps.dialog.showOpenDialog(win, dialogOptions)
+      : await deps.dialog.showOpenDialog(dialogOptions);
+    if (picked.canceled || picked.filePaths[0] === undefined) {
+      return ok({ content: '', cancelled: true });
+    }
+    const path = picked.filePaths[0];
+    try {
+      const content = await deps.readFileUtf8(path);
+      return ok({ path, content });
+    } catch (e) {
+      return err(platformIoFailed('Could not read file.', e));
+    }
+  });
 
-  ipcMain.handle(
-    PLATFORM_IPC.FILE_SAVE_TEXT,
-    async (_e, options: PlatformFileSaveOptions | undefined) => {
-      if (!options || typeof options.content !== 'string') {
-        return toIpcAppResult(err(platformInvalidUrl('Save options are invalid.')));
-      }
-      const win = deps.getTargetWindow();
-      const saveOpts: SaveDialogOptions = {
-        filters: [
-          { name: 'Text', extensions: ['txt', 'md', 'json'] },
-          { name: 'All Files', extensions: ['*'] },
-        ],
-      };
-      if (options.defaultPath !== undefined) {
-        saveOpts.defaultPath = options.defaultPath;
-      } else if (options.suggestedName !== undefined) {
-        saveOpts.defaultPath = options.suggestedName;
-      }
-      const picked = win
-        ? await deps.dialog.showSaveDialog(win, saveOpts)
-        : await deps.dialog.showSaveDialog(saveOpts);
-      if (picked.canceled || picked.filePath === undefined) {
-        return toIpcAppResult(ok({ content: options.content, cancelled: true }));
-      }
-      try {
-        await deps.writeFileUtf8(picked.filePath, options.content);
-        return toIpcAppResult(ok({ path: picked.filePath, content: options.content }));
-      } catch (e) {
-        return toIpcAppResult(err(platformIoFailed('Could not write file.', e)));
-      }
-    },
-  );
+  handle(PLATFORM_IPC.FILE_SAVE_TEXT, async ([options]) => {
+    const win = deps.getTargetWindow();
+    const saveOpts: SaveDialogOptions = {
+      filters: [
+        { name: 'Text', extensions: ['txt', 'md', 'json'] },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+    };
+    if (options.defaultPath !== undefined) {
+      saveOpts.defaultPath = options.defaultPath;
+    } else if (options.suggestedName !== undefined) {
+      saveOpts.defaultPath = options.suggestedName;
+    }
+    const picked = win
+      ? await deps.dialog.showSaveDialog(win, saveOpts)
+      : await deps.dialog.showSaveDialog(saveOpts);
+    if (picked.canceled || picked.filePath === undefined) {
+      return ok({ content: options.content, cancelled: true });
+    }
+    try {
+      await deps.writeFileUtf8(picked.filePath, options.content);
+      return ok({ path: picked.filePath, content: options.content });
+    } catch (e) {
+      return err(platformIoFailed('Could not write file.', e));
+    }
+  });
 
-  ipcMain.handle(PLATFORM_IPC.FULLSCREEN_ENTER, async () => {
+  handle(PLATFORM_IPC.FULLSCREEN_ENTER, async () => {
     const win = deps.getTargetWindow();
     if (!win) {
-      return toIpcAppResult(err(platformPermissionDenied('No active window for fullscreen.')));
+      return err(platformPermissionDenied('No active window for fullscreen.'));
     }
     try {
       win.setFullScreen(true);
-      return toIpcAppResult(ok(undefined));
+      return ok(undefined);
     } catch (e) {
-      return toIpcAppResult(err(platformIoFailed('Could not enter fullscreen.', e)));
+      return err(platformIoFailed('Could not enter fullscreen.', e));
     }
   });
 
-  ipcMain.handle(PLATFORM_IPC.FULLSCREEN_EXIT, async () => {
+  handle(PLATFORM_IPC.FULLSCREEN_EXIT, async () => {
     const win = deps.getTargetWindow();
     if (!win) {
-      return toIpcAppResult(err(platformPermissionDenied('No active window for fullscreen.')));
+      return err(platformPermissionDenied('No active window for fullscreen.'));
     }
     try {
       win.setFullScreen(false);
-      return toIpcAppResult(ok(undefined));
+      return ok(undefined);
     } catch (e) {
-      return toIpcAppResult(err(platformIoFailed('Could not exit fullscreen.', e)));
+      return err(platformIoFailed('Could not exit fullscreen.', e));
     }
   });
 
-  ipcMain.handle(PLATFORM_IPC.FULLSCREEN_IS_ACTIVE, async () => {
+  handle(PLATFORM_IPC.FULLSCREEN_IS_ACTIVE, async () => {
     const win = deps.getTargetWindow();
     if (!win) {
-      return toIpcAppResult(ok(false));
+      return ok(false);
     }
-    return toIpcAppResult(ok(win.isFullScreen()));
+    return ok(win.isFullScreen());
   });
 
-  ipcMain.handle(PLATFORM_IPC.EXTERNAL_LINK_OPEN, async (_e, url: unknown) => {
-    if (typeof url !== 'string' || !isSafeExternalUrl(url)) {
-      return toIpcAppResult(err(platformInvalidUrl('Only http and https URLs are allowed.')));
-    }
+  handle(PLATFORM_IPC.EXTERNAL_LINK_OPEN, async ([url]) => {
     try {
       await deps.shell.openExternal(url);
-      return toIpcAppResult(ok(undefined));
+      return ok(undefined);
     } catch (e) {
-      return toIpcAppResult(err(platformIoFailed('Could not open external link.', e)));
+      return err(platformIoFailed('Could not open external link.', e));
     }
   });
 
-  ipcMain.handle(PLATFORM_IPC.PROTOCOL_GET_PENDING_INSTALL_URL, async () =>
-    toIpcAppResult(ok(deps.protocolTakePendingInstallUrl())),
+  handle(PLATFORM_IPC.PROTOCOL_GET_PENDING_INSTALL_URL, async () =>
+    ok(deps.protocolTakePendingInstallUrl()),
   );
 
-  ipcMain.handle(PLATFORM_IPC.SECURE_STORAGE_GET, async (_e, key: unknown) => {
-    if (typeof key !== 'string' || !isValidSecureStorageKey(key)) {
-      return toIpcAppResult(err(platformInvalidUrl('Secure storage key is invalid.')));
-    }
-    return toIpcAppResult(await deps.secureStorage.get(key));
-  });
+  handle(PLATFORM_IPC.SECURE_STORAGE_GET, async ([key]) => deps.secureStorage.get(key));
 
-  ipcMain.handle(PLATFORM_IPC.SECURE_STORAGE_SET, async (_e, key: unknown, value: unknown) => {
-    if (typeof key !== 'string' || !isValidSecureStorageKey(key)) {
-      return toIpcAppResult(err(platformInvalidUrl('Secure storage key is invalid.')));
-    }
-    if (typeof value !== 'string') {
-      return toIpcAppResult(err(platformInvalidUrl('Secure storage value is invalid.')));
-    }
-    return toIpcAppResult(await deps.secureStorage.set(key, value));
-  });
-
-  ipcMain.handle(PLATFORM_IPC.SECURE_STORAGE_DELETE, async (_e, key: unknown) => {
-    if (typeof key !== 'string' || !isValidSecureStorageKey(key)) {
-      return toIpcAppResult(err(platformInvalidUrl('Secure storage key is invalid.')));
-    }
-    return toIpcAppResult(await deps.secureStorage.delete(key));
-  });
-
-  ipcMain.handle(PLATFORM_IPC.DIAGNOSTICS_GET, async () =>
-    toIpcAppResult(ok(deps.buildDiagnosticsSnapshot())),
+  handle(PLATFORM_IPC.SECURE_STORAGE_SET, async ([key, value]) =>
+    deps.secureStorage.set(key, value),
   );
 
-  ipcMain.handle(PLATFORM_IPC.LOCAL_SERVICE_GET_INFO, async () =>
-    toIpcAppResult(ok(deps.getLocalServiceInfo())),
-  );
+  handle(PLATFORM_IPC.SECURE_STORAGE_DELETE, async ([key]) => deps.secureStorage.delete(key));
 
-  ipcMain.handle(PLATFORM_IPC.NETWORK_FETCH_BYTES, async (_e, url: unknown) => {
-    if (typeof url !== 'string' || !isSafeExternalUrl(url)) {
-      return toIpcAppResult(err(platformInvalidUrl('Only http and https URLs are allowed.')));
+  handle(PLATFORM_IPC.DIAGNOSTICS_GET, async () => ok(deps.buildDiagnosticsSnapshot()));
+
+  handle(PLATFORM_IPC.LOCAL_SERVICE_GET_INFO, async () => ok(deps.getLocalServiceInfo()));
+
+  handle(PLATFORM_IPC.NETWORK_FETCH_BYTES, async ([url]) => {
+    if (!(await networkFetchAllowed(url))) {
+      return err(platformInvalidUrl('Network fetch target is not allowed.'));
     }
     try {
-      const result = await fetchMainProcessBytes(deps.net.fetch.bind(deps.net), url);
-      return toIpcAppResult(ok(result));
+      const result = await fetchMainProcessBytes(
+        (options) => deps.net.request(options),
+        url,
+        networkFetchAllowed,
+      );
+      return ok(result);
     } catch (e) {
-      return toIpcAppResult(err(platformIoFailed('Network fetch failed.', e)));
+      return err(platformIoFailed('Network fetch failed.', e));
     }
   });
 }
