@@ -40,8 +40,7 @@ const secondaryItems = [
 
 export function MobileBottomNav() {
   const [sheetOpen, setSheetOpen] = useState(false);
-  const routerState = useRouterState();
-  const currentPath = routerState.location.pathname;
+  const currentPath = useRouterState({ select: (state) => state.location.pathname });
 
   return (
     <>

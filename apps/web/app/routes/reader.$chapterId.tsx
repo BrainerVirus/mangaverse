@@ -42,7 +42,8 @@ function ReaderRoute() {
   const dbStatus = useLocalDbStatus();
   const retryDb = useLocalDbRetry();
   const reportPersistenceError = useReportPersistenceError();
-  const { readerChromeVisible, toggleReaderChrome } = useLayoutStore();
+  const readerChromeVisible = useLayoutStore((s) => s.readerChromeVisible);
+  const toggleReaderChrome = useLayoutStore((s) => s.toggleReaderChrome);
 
   const isOnline = useOnlineStatus();
   const { data, isLoading, isError } = useQuery({

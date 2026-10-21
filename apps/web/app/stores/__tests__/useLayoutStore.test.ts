@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useLayoutStore } from '../useLayoutStore';
 
 describe('useLayoutStore', () => {
@@ -61,6 +61,14 @@ describe('useLayoutStore', () => {
     it('sets deviceLayout to mobile', () => {
       useLayoutStore.getState().setDeviceLayout('mobile');
       expect(useLayoutStore.getState().deviceLayout).toBe('mobile');
+    });
+
+    it('does not notify subscribers when the layout is unchanged', () => {
+      const listener = vi.fn<() => void>();
+      const unsubscribe = useLayoutStore.subscribe(listener);
+      useLayoutStore.getState().setDeviceLayout('desktop');
+      unsubscribe();
+      expect(listener).not.toHaveBeenCalled();
     });
   });
 

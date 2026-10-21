@@ -23,7 +23,7 @@ import { usePlatform } from '@/providers/platform-provider.js';
 
 function useBuiltInCommands() {
   const navigate = useNavigate();
-  const { toggleSidebar } = useLayoutStore();
+  const toggleSidebar = useLayoutStore((s) => s.toggleSidebar);
   const { theme, setTheme } = useTheme();
 
   // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-module-registry: `registry` is a module-level mutable registry; registering on mount and unregistering on unmount is subscription bookkeeping. The handlers close over navigate/theme, which have no module-scope home.
@@ -116,7 +116,7 @@ function groupBySection(commands: ReturnType<typeof registry.search>) {
 }
 
 export function CommandPalette() {
-  const { deviceLayout } = useLayoutStore();
+  const deviceLayout = useLayoutStore((s) => s.deviceLayout);
   const { runtime } = usePlatform();
   const { isOpen, query, selectedIndex, close, setQuery, moveSelection, setSelectedIndex } =
     useCommandPaletteStore();

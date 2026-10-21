@@ -16,7 +16,10 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
     ...actual,
     useLocation: () => ({ pathname: '/library' }),
     useRouter: () => ({ navigate: vi.fn<(options: unknown) => void>(), subscribe: () => () => {} }),
-    useRouterState: () => ({ location: { pathname: '/library' } }),
+    useRouterState: (opts?: { select?: (state: { location: { pathname: string } }) => unknown }) =>
+      opts?.select
+        ? opts.select({ location: { pathname: '/library' } })
+        : { location: { pathname: '/library' } },
     useNavigate: () => vi.fn<() => void>(),
     Link: ({ children, to, ...props }: { to: string; children: React.ReactNode }) => (
       <a href={to} {...props}>
