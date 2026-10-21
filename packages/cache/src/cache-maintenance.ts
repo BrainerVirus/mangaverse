@@ -127,3 +127,69 @@ export async function runCacheMaintenance(
   const summary = await summarizeCacheStorage(db);
   return { evictedCount, totalBytes: summary.totalBytes };
 }
+
+export interface CacheMaintenanceRequest {
+  readonly db: AppDrizzleDb;
+  readonly adapter: PlatformAdapter;
+  readonly limitBytes: number;
+}
+
+export interface CacheMaintenanceScheduler {
+  /** Coalesces a burst of misses into one run; a request during a run is trailed once. */
+  request(input: CacheMaintenanceRequest): void;
+}
+
+/**
+ * A grid load reports one cache miss per cover. Running a full summary + scan
+ * for each was the maintenance storm; this keeps at most one run per quiet
+ * window and never two at once. The delay is not a durability point: cache
+ * rows are already written before maintenance is requested.
+ */
+export function createCacheMaintenanceScheduler(
+  run: (input: CacheMaintenanceRequest) => Promise<unknown>,
+  delayMs = 250,
+): CacheMaintenanceScheduler {
+  let pending: CacheMaintenanceRequest | null = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let running: Promise<void> | null = null;
+
+  const drain = async (): Promise<void> => {
+    const next = pending;
+    pending = null;
+    if (next === null) return;
+
+    running = Promise.resolve(run(next))
+      .then(() => undefined)
+      .catch(() => undefined)
+      .finally(() => {
+        running = null;
+      });
+    await running;
+    // A miss that arrived while the scan was running gets its own trailing run.
+    if (pending !== null) schedule();
+  };
+
+  const schedule = (): void => {
+    if (timer !== null || running !== null) return;
+    timer = setTimeout(() => {
+      timer = null;
+      void drain();
+    }, delayMs);
+  };
+
+  return {
+    request(input) {
+      pending = input;
+      schedule();
+    },
+  };
+}
+
+const coverMaintenanceScheduler = createCacheMaintenanceScheduler((input) =>
+  runCacheMaintenance(input.db, input.adapter, input.limitBytes),
+);
+
+/** Queues one coalesced maintenance pass for the current cache limit. */
+export function requestCacheMaintenance(input: CacheMaintenanceRequest): void {
+  coverMaintenanceScheduler.request(input);
+}

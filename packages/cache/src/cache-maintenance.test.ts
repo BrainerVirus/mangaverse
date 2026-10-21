@@ -4,7 +4,11 @@ import type { PlatformAdapter } from '@app/platform';
 import type { AppDrizzleDb } from '@app/db';
 import { createSqlJsHarness } from '@app/db/testing';
 
-import { evictCacheToLimit, runCacheMaintenance } from './cache-maintenance.js';
+import {
+  createCacheMaintenanceScheduler,
+  evictCacheToLimit,
+  runCacheMaintenance,
+} from './cache-maintenance.js';
 import { getCoverCacheUsage } from './cover-cache-store.js';
 import { buildCoverBlobKey, buildPageBlobKey } from './constants.js';
 import {
@@ -249,5 +253,66 @@ describe('cache maintenance', () => {
       evictedCount: 0,
       totalBytes: 60,
     });
+  });
+});
+
+describe('cache maintenance scheduler', () => {
+  it('Given 24 cold covers, When each requests maintenance, Then only one scan runs', async () => {
+    vi.useFakeTimers();
+    try {
+      const runs: { db: unknown; adapter: unknown; limitBytes: number }[] = [];
+      const scheduler = createCacheMaintenanceScheduler(async (input) => {
+        runs.push(input);
+      }, 250);
+      const adapter = {} as PlatformAdapter;
+      const db = {} as AppDrizzleDb;
+
+      for (let i = 0; i < 24; i++) scheduler.request({ db, adapter, limitBytes: 1000 + i });
+      expect(runs).toHaveLength(0);
+
+      await vi.advanceTimersByTimeAsync(249);
+      expect(runs).toHaveLength(0);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(runs).toHaveLength(1);
+      // The latest limit wins: a settings change before the run must apply.
+      expect(runs[0]?.limitBytes).toBe(1023);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('Given a request during a run, When it finishes, Then one trailing scan runs and they never overlap', async () => {
+    vi.useFakeTimers();
+    try {
+      let running = 0;
+      let peak = 0;
+      let runs = 0;
+      let release!: () => void;
+      const scheduler = createCacheMaintenanceScheduler(async () => {
+        runs += 1;
+        running += 1;
+        peak = Math.max(peak, running);
+        if (runs === 1) await new Promise<void>((resolve) => (release = resolve));
+        running -= 1;
+      }, 250);
+      const adapter = {} as PlatformAdapter;
+      const db = {} as AppDrizzleDb;
+
+      scheduler.request({ db, adapter, limitBytes: 1 });
+      await vi.advanceTimersByTimeAsync(250);
+      expect(runs).toBe(1);
+
+      scheduler.request({ db, adapter, limitBytes: 2 });
+      await vi.advanceTimersByTimeAsync(250);
+      expect(runs).toBe(1);
+
+      release();
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(250);
+      expect(runs).toBe(2);
+      expect(peak).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

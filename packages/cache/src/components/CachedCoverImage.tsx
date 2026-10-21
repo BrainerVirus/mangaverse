@@ -3,6 +3,7 @@ import type { MangaId, MangaIdentity, ProviderId } from '@app/shared';
 import { cn } from '@app/design-system';
 
 import { resolveCoverObjectUrl } from '../cover-cache-store.js';
+import { requestCacheMaintenance } from '../cache-maintenance.js';
 import { useCoverCacheContext } from './CoverCacheProvider.js';
 
 export interface CachedCoverImageProps {
@@ -74,7 +75,11 @@ export function CachedCoverImage({
       setSrc(result.objectUrl);
 
       if (!result.fromCache) {
-        void runMaintenance(context);
+        requestCacheMaintenance({
+          db: context.db,
+          adapter: context.adapter,
+          limitBytes: context.cacheLimitBytes,
+        });
       }
     })();
 
@@ -101,11 +106,6 @@ export function CachedCoverImage({
   }
 
   return <img src={src} alt={alt} className={className} loading="lazy" />;
-}
-
-async function runMaintenance(context: NonNullable<ReturnType<typeof useCoverCacheContext>>) {
-  const { runCacheMaintenance } = await import('../cache-maintenance.js');
-  await runCacheMaintenance(context.db, context.adapter, context.cacheLimitBytes);
 }
 
 export function getDefaultProviderId(manga: MangaIdentity): string {
