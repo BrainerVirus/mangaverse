@@ -1,26 +1,31 @@
-import { useEffect, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import type { ReaderViewport } from '../types.js';
+
+const DEFAULT_VIEWPORT: ReaderViewport = {
+  width: 800,
+  height: 600,
+  orientation: 'landscape',
+};
 
 /**
  * The reader surface reports its own box, not the window's: the surface only
  * renders after loading, so a callback ref (not a mount effect) is what keeps
- * the measured viewport on the real container — an effect with `[]` deps ran
- * while the ref was still null and never observed it, leaving tap zones
- * computed against the 800x600 default.
+ * the measured viewport on the real container — a mount effect with `[]` deps
+ * ran while the ref was still null and never observed it.
+ *
+ * The measurement is a layout effect so it is flushed with the commit, before
+ * the browser paints: the first visible frame is fitted to the real box
+ * instead of the 800x600 default (a passive effect ran after that paint).
  */
 export function useReaderViewport(): {
   readonly containerRef: (node: HTMLDivElement | null) => void;
   readonly viewport: ReaderViewport;
 } {
   const [node, setNode] = useState<HTMLDivElement | null>(null);
-  const [viewport, setViewport] = useState<ReaderViewport>({
-    width: 800,
-    height: 600,
-    orientation: 'landscape',
-  });
+  const [viewport, setViewport] = useState<ReaderViewport>(DEFAULT_VIEWPORT);
 
   // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: the viewport follows the DOM node's ResizeObserver
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!node) return;
 
     const update = () => {
