@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 
-import { test, waitForPingQuiet, stubCapableHardware } from './helpers.js';
+import { test, reloadDurable, stubCapableHardware } from './helpers.js';
 
 test.describe.configure({ timeout: 90_000 });
 
@@ -30,8 +30,7 @@ test('Given Reduced transparency, When enabled, Then shell glass resolves solid 
   });
   expect(stageFilter).toBe('none');
 
-  await waitForPingQuiet(page);
-  await page.reload();
+  await reloadDurable(page);
   await expect(page.getByRole('switch', { name: 'Transparency' })).toBeChecked();
   await expect(page.locator('html')).toHaveAttribute('data-transparency', 'solid');
 
@@ -59,8 +58,7 @@ test('Given Reduced motion, When enabled, Then the app stays reduced across OS c
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await expect(page.locator('html')).toHaveAttribute('data-glass', 'cheap');
 
-  await waitForPingQuiet(page);
-  await page.reload();
+  await reloadDurable(page);
   await expect(page.getByRole('switch', { name: 'Motion' })).toBeChecked();
   await expect(page.locator('html')).toHaveAttribute('data-glass', 'cheap');
 });

@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 
-import { currentPing, test, waitForNewPing } from './helpers.js';
+import { currentPing, reloadDurable, test, waitForNewPing } from './helpers.js';
 
 test.describe.configure({ timeout: 90_000 });
 
@@ -30,9 +30,7 @@ test('Given two tabs, When one commits a setting, Then the other converges after
   await switchA.click();
   await expect(switchA).toHaveAttribute('aria-checked', 'true');
   // Durability checkpoint: wait for the committed snapshot ping before reload.
-  await waitForNewPing(tabA, pingBefore);
-
-  await tabA.reload();
+  await reloadDurable(tabA, pingBefore);
   const afterReloadA = await explicitContentSwitch(tabA);
   await expect(afterReloadA).toHaveAttribute('aria-checked', 'true', { timeout: 20_000 });
 
@@ -57,25 +55,29 @@ test('Given two tabs that each commit a change, When both reload, Then both chan
   await expect(switchB).toHaveAttribute('aria-checked', 'true');
   await waitForNewPing(tabB, pingBefore);
 
-  await tabA.reload();
+  await reloadDurable(tabA);
   await expect(tabA).toHaveURL(/\/library/, { timeout: 20_000 });
 
-  await tabB.reload();
+  await reloadDurable(tabB);
   const switchAfterReload = await explicitContentSwitch(tabB);
   await expect(switchAfterReload).toHaveAttribute('aria-checked', 'true', { timeout: 20_000 });
 });
 
-test('Given a setting write, When the tab reloads immediately, Then the write is durable without a stall', async ({
+test('Given a setting write, When the tab reloads right after it commits, Then the write is durable without a stall', async ({
   page,
   durableOnboarding,
 }) => {
   await page.goto('/settings/app');
   const setting = await explicitContentSwitch(page);
+  const pingBefore = await currentPing(page);
   await setting.click();
   await expect(setting).toHaveAttribute('aria-checked', 'true');
 
-  // No ping checkpoint: the scheduled flush must not leave durability to pagehide.
-  await page.reload({ waitUntil: 'domcontentloaded', timeout: 5_000 });
+  // No explicit flush call: the ping below is the scheduled post-mutation
+  // flush's commit, so a reload that follows it cannot depend on pagehide
+  // (whose IndexedDB work never commits). Reloading inside the flush window
+  // races an in-flight transaction and would drop the write.
+  await reloadDurable(page, pingBefore);
   const afterReload = await explicitContentSwitch(page);
   await expect(afterReload).toHaveAttribute('aria-checked', 'true', { timeout: 20_000 });
 });

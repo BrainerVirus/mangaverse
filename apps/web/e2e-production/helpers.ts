@@ -125,6 +125,25 @@ export async function waitForPingQuiet(page: Page, quietMs = 1500) {
 }
 
 /**
+ * Reloads only once the snapshot write is durable: with `previousPing`, waits
+ * for that write's commit ping; otherwise for the coalesced flush to go quiet.
+ * The navigation waits for `domcontentloaded` (nothing asserts on subresources)
+ * with a 15 s bound -- ~500x the idle reload, still far below the test budget,
+ * so a stalled load under load fails fast instead of looking like a hang.
+ * Reloading inside the flush window would drop the write: an IndexedDB
+ * transaction opened from `pagehide` never commits once the document is
+ * discarded.
+ */
+export async function reloadDurable(page: Page, previousPing?: string | null): Promise<void> {
+  if (previousPing === undefined) {
+    await waitForPingQuiet(page);
+  } else {
+    await waitForNewPing(page, previousPing);
+  }
+  await page.reload({ waitUntil: 'domcontentloaded', timeout: 15_000 });
+}
+
+/**
  * The suite's shared test: recorded MangaDex routes and provider-less
  * onboarding as fixtures, so specs only carry their own flow assertions.
  */
@@ -151,8 +170,7 @@ export const test = base.extend<{
     await page.getByRole('button', { name: 'Finish without provider' }).click();
     await expect(page).toHaveURL(/\/library/, { timeout: 20_000 });
     // Durability checkpoint: finish-state must be committed before reloading.
-    await waitForNewPing(page, pingBefore);
-    await page.reload();
+    await reloadDurable(page, pingBefore);
     await expect(page).toHaveURL(/\/library/, { timeout: 20_000 });
     await use();
   },

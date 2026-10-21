@@ -1,12 +1,12 @@
 import { expect } from '@playwright/test';
 
-import { clickContinue, currentPing, test, waitForPingQuiet } from './helpers.js';
+import { clickContinue, currentPing, reloadDurable, test, waitForPingQuiet } from './helpers.js';
 
 test('Given finished onboarding, When the page reloads, Then setup is not repeated', async ({
   page,
   quickOnboarding,
 }) => {
-  await page.reload();
+  await reloadDurable(page);
   await expect(page).toHaveURL(/\/library/, { timeout: 20_000 });
 });
 
@@ -20,12 +20,11 @@ test('Given the onboarding theme step, When Dark is toggled and the page reloads
   await darkToggle.click();
   await expect(page.locator('html')).toHaveClass(/\bdark\b/);
 
-  // The saving indicator clears only when the theme write settles, so the
-  // reload below fires straight after it -- no deliberate wait, and no way to
-  // fall into a gap the ~400 ms coalesced flush would still cover.
+  // The saving indicator clears only when the theme write's own flush settles,
+  // so the reload below fires straight after a committed snapshot.
   await expect(darkToggle).toBeEnabled();
 
-  await page.reload();
+  await reloadDurable(page);
   await expect(page.getByRole('button', { name: 'Continue', exact: true })).toBeEnabled({
     timeout: 20_000,
   });

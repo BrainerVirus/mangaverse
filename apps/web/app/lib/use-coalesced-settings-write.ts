@@ -5,7 +5,7 @@ export const SETTINGS_WRITE_DELAY_MS = 300;
 export interface CoalescedSettingsWriter<T> {
   /** Queues the latest value; a 300 ms quiet window writes it once. */
   schedule(value: T): void;
-  /** Commits the pending value immediately (pointer-up, blur, page hide). */
+  /** Commits the pending value immediately (pointer-up, blur). */
   flush(): void;
 }
 

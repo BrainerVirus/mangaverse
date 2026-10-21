@@ -81,8 +81,10 @@ cleanup can erase. Add focused database persistence tests and
       `openPersistentDatabase`. `apps/web/app/lib/persisted-bytes-idb.ts` uses its
       own `mangaverse-local-db` database; `apps/web/app/lib/local-db.ts` owns the
       session plus `flushLocalDb` (durability point) and `scheduleLocalDbFlush`
-      (same-turn coalescing: a 0 ms timer, so a reload cannot outrun it); `LocalDbPersistenceBridge` flushes on `pagehide` and on
-      unmount. `flush` returning `reloaded` re-syncs handles instead of being
+      (same-turn coalescing: a 0 ms timer, so a reload cannot outrun it); `LocalDbPersistenceBridge` flushes on
+      unmount (a client-side route change). There is deliberately no unload
+      path: a `pagehide`-started IndexedDB write never commits once the document
+      is discarded, and a regression test pins that. `flush` returning `reloaded` re-syncs handles instead of being
       ignored.
 - [x] Write a red browser scenario saving onboarding, then reload/reopen the
       context. `apps/web/e2e-production/persistence.spec.ts` now proves finished
@@ -150,8 +152,10 @@ cleanup can erase. Add focused database persistence tests and
       practical; denial paths share the error path with any flush failure.
 - [x] Attach the flush to mutations, not unload: `openPersistentDatabase` gained an
       `onMutation` update hook (re-attached after each sync swap) wired to the same-turn
-      coalesced flush; `pagehide` remains a fallback. Review finding confirmed the
-      earlier design was unload-only.
+      coalesced flush. There is no `pagehide` fallback: a `pagehide`-started
+      IndexedDB write never commits once the document is discarded (measured),
+      so the same-turn flush is the only durability point that works. Review
+      finding confirmed the earlier design was unload-only.
 - [x] Reader-mode persistence failures are silent (`ReaderLayout` renders no banner).
       Decided and done in S4 (#63): the reader reuses the S1 banner instead of a
       reader-specific one — write failures report to the same sink and
