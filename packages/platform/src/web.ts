@@ -1,6 +1,11 @@
 import { err, ok, type AppResult } from '@app/shared';
 import { detectWebCapabilities } from './capabilities.js';
-import { deleteIndexedDbBlob, getIndexedDbBlob, putIndexedDbBlob } from './blob-storage-idb.js';
+import {
+  deleteIndexedDbBlob,
+  getIndexedDbBlob,
+  listIndexedDbBlobKeys,
+  putIndexedDbBlob,
+} from './blob-storage-idb.js';
 import { fetchNetworkBytes } from './network-fetch.js';
 import { platformInvalidUrl, platformPermissionDenied, platformUnsupported } from './errors.js';
 import type {
@@ -374,6 +379,16 @@ export function createWebPlatformAdapter(environment?: WebPlatformEnvironment): 
           return ok(undefined);
         } catch {
           return err(platformUnsupported('Could not delete blob.'));
+        }
+      },
+      listKeys: async () => {
+        if (!env.indexedDB) {
+          return err(platformUnsupported('Blob storage is not available in this environment.'));
+        }
+        try {
+          return ok(await listIndexedDbBlobKeys({ indexedDB: env.indexedDB }));
+        } catch {
+          return err(platformUnsupported('Could not list blobs.'));
         }
       },
       createObjectUrl: async (data: ArrayBuffer, mimeType: string) => {

@@ -2,7 +2,10 @@ import type { AppDrizzleDb, CacheEntryRecord } from '@app/db';
 import { deleteCacheEntries, listCacheEntriesByKind, summarizeCacheStorage } from '@app/db';
 import type { PlatformAdapter } from '@app/platform';
 
+import { deleteBlobKeys } from './blob-deletes.js';
 import { COVER_CACHE_KIND, PAGE_CACHE_KIND } from './constants.js';
+import { listOpenChapters } from './open-chapters.js';
+import { reclaimOrphanBlobs } from './orphan-blobs.js';
 
 export interface CacheChapterRef {
   readonly providerId: string;
@@ -16,6 +19,12 @@ export interface EvictCacheOptions {
   readonly protectChapter?: CacheChapterRef;
 }
 
+export interface CacheEvictionOutcome {
+  readonly evictedCount: number;
+  /** Row-less blobs left behind; the next maintenance sweep retries them. */
+  readonly failedBlobKeys: readonly string[];
+}
+
 interface EvictionCandidate {
   readonly lastAccessAt: string;
   readonly entries: readonly CacheEntryRecord[];
@@ -23,13 +32,13 @@ interface EvictionCandidate {
 
 function isProtectedChapter(
   entry: CacheEntryRecord,
-  chapter: CacheChapterRef | undefined,
+  chapters: readonly CacheChapterRef[],
 ): boolean {
-  return (
-    chapter !== undefined &&
-    entry.providerId === chapter.providerId &&
-    entry.mangaId === chapter.mangaId &&
-    entry.chapterId === chapter.chapterId
+  return chapters.some(
+    (chapter) =>
+      entry.providerId === chapter.providerId &&
+      entry.mangaId === chapter.mangaId &&
+      entry.chapterId === chapter.chapterId,
   );
 }
 
@@ -59,73 +68,102 @@ function groupPagesByChapter(entries: readonly CacheEntryRecord[]): EvictionCand
 
 /**
  * Evicts covers and whole chapters oldest-first until the store fits `limitBytes`.
- * The protected chapter is skipped entirely: if it is the only candidate the store
- * stays above the limit until the reader closes it. Every candidate's rows are
- * deleted before its blobs, so a row never outlives the blob it points at; a failed
- * blob delete only leaks an orphan blob that row-based accounting cannot see.
+ * The chapter open in this tab, and any chapter another live tab reports open, is
+ * skipped entirely: if it is the only candidate the store stays above the limit
+ * until the reader closes it. Candidates are selected first and deleted in one
+ * batched row statement, then their blobs; a row never outlives the blob it
+ * points at. A failed blob delete only leaks an orphan blob, which the next
+ * maintenance sweep retries. Rows (SQLite) and blobs (IndexedDB) are separate
+ * stores, so no individual pair is deleted atomically and a concurrent write can
+ * land between the batch and the sweep.
  */
 export async function evictCacheToLimit(
   db: AppDrizzleDb,
   adapter: PlatformAdapter,
   options: EvictCacheOptions,
-): Promise<number> {
+): Promise<CacheEvictionOutcome> {
   const summary = await summarizeCacheStorage(db);
   if (summary.totalBytes <= options.limitBytes) {
-    return 0;
+    return { evictedCount: 0, failedBlobKeys: [] };
   }
 
-  let bytesToFree = summary.totalBytes - options.limitBytes;
-  let evicted = 0;
-  const [covers, pages] = await Promise.all([
+  const [covers, pages, openChapters] = await Promise.all([
     listCacheEntriesByKind(db, COVER_CACHE_KIND),
     listCacheEntriesByKind(db, PAGE_CACHE_KIND),
+    listOpenChapters(),
   ]);
+  const protectedChapters = [
+    ...(options.protectChapter !== undefined ? [options.protectChapter] : []),
+    ...openChapters,
+  ];
   const candidates = [
     ...covers.map((entry) => ({ lastAccessAt: entry.lastAccessAt, entries: [entry] })),
     ...groupPagesByChapter(pages),
   ].sort((left, right) => left.lastAccessAt.localeCompare(right.lastAccessAt));
 
+  let bytesToFree = summary.totalBytes - options.limitBytes;
+  const selected: CacheEntryRecord[] = [];
   for (const candidate of candidates) {
     if (bytesToFree <= 0) {
       break;
     }
-    if (isProtectedChapter(candidate.entries[0]!, options.protectChapter)) {
+    if (isProtectedChapter(candidate.entries[0]!, protectedChapters)) {
       continue;
     }
-
-    // Rows first, in one batch: the offline note and the row-based cap read rows,
-    // so a row must never outlive its blob. Blob deletes are best-effort; a failed
-    // one leaves an orphan the accounting cannot see.
-    // shortcut: orphans are never retried; sweep them separately if delete failures grow.
-    // react-doctor-disable-next-line react-doctor/async-await-in-loop -- each candidate's rows are freed before the next candidate is measured
-    await deleteCacheEntries(
-      db,
-      candidate.entries.map((entry) => entry.id),
-    );
     for (const entry of candidate.entries) {
-      if (entry.blobKey === undefined) {
-        continue;
-      }
-      // react-doctor-disable-next-line react-doctor/async-await-in-loop -- blob deletes stay ordered per entry and never gate eviction
-      await adapter.blobStorage.delete(entry.blobKey);
-    }
-    for (const entry of candidate.entries) {
+      selected.push(entry);
       bytesToFree -= entry.byteSize;
-      evicted += 1;
     }
   }
 
-  return evicted;
+  if (selected.length === 0) {
+    return { evictedCount: 0, failedBlobKeys: [] };
+  }
+
+  // Rows first, in one batched statement: the offline note and the row-based cap
+  // read rows, so a row must never outlive its blob.
+  await deleteCacheEntries(
+    db,
+    selected.map((entry) => entry.id),
+  );
+  const blobKeys = selected.flatMap((entry) =>
+    entry.blobKey === undefined ? [] : [entry.blobKey],
+  );
+  const blobs = await deleteBlobKeys(adapter, blobKeys);
+
+  return { evictedCount: selected.length, failedBlobKeys: blobs.failedKeys };
+}
+
+export interface CacheMaintenanceOutcome {
+  readonly evictedCount: number;
+  readonly totalBytes: number;
+  /** Blobs still row-less after this pass; the next pass retries them. */
+  readonly failedBlobDeletes: number;
+  /** Orphan blobs claimed this pass, including a same-pass retry of a failed delete. */
+  readonly reclaimedBlobs: number;
 }
 
 export async function runCacheMaintenance(
   db: AppDrizzleDb,
   adapter: PlatformAdapter,
   limitBytes: number,
-): Promise<{ evictedCount: number; totalBytes: number }> {
-  const evictedCount = await evictCacheToLimit(db, adapter, { limitBytes });
-  const summary = await summarizeCacheStorage(db);
-  return { evictedCount, totalBytes: summary.totalBytes };
+): Promise<CacheMaintenanceOutcome> {
+  const eviction = await evictCacheToLimit(db, adapter, { limitBytes });
+  // The sweep retries eviction's failed deletes in the same pass. It runs even
+  // under the limit: an orphan inflated real storage without a row, so row
+  // accounting alone would never shrink it. Row totals are unaffected by the
+  // sweep, so they can be read alongside it.
+  const [orphans, summary] = await Promise.all([
+    reclaimOrphanBlobs(db, adapter, eviction.failedBlobKeys),
+    summarizeCacheStorage(db),
+  ]);
+  const failedBlobKeys = new Set([...eviction.failedBlobKeys, ...orphans.failedBlobKeys]);
+  return {
+    evictedCount: eviction.evictedCount,
+    totalBytes: summary.totalBytes,
+    failedBlobDeletes: failedBlobKeys.size,
+    reclaimedBlobs: orphans.reclaimedBlobs,
+  };
 }
 
 export interface CacheMaintenanceRequest {

@@ -219,6 +219,14 @@ export async function summarizeCacheStorage(db: AppDrizzleDb): Promise<CacheStor
   return { totalCount, totalBytes, byProvider };
 }
 
+/** Blob keys referenced by a cache row; the orphan sweep keeps these and reclaims the rest. */
+export async function listCacheBlobKeys(db: AppDrizzleDb): Promise<string[]> {
+  const rows = db.select({ blobKey: cacheEntries.blobKey }).from(cacheEntries).all();
+  return rows
+    .map((row) => row.blobKey)
+    .filter((key): key is string => typeof key === 'string' && key.length > 0);
+}
+
 export async function listAllCacheEntries(db: AppDrizzleDb): Promise<CacheEntryRecord[]> {
   const rows = db.select().from(cacheEntries).orderBy(asc(cacheEntries.id)).all();
   return rows.map(mapCacheRow);

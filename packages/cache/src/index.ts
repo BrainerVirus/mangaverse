@@ -27,6 +27,9 @@ export {
 } from './cover-cache-store.js';
 
 export { evictCacheToLimit, runCacheMaintenance } from './cache-maintenance.js';
+export { deleteBlobKeys } from './blob-deletes.js';
+export { reclaimOrphanBlobs } from './orphan-blobs.js';
+export { announceOpenChapter } from './open-chapters.js';
 
 export {
   getCachedPageObjectUrl,

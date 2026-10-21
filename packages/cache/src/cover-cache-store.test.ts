@@ -65,6 +65,7 @@ function createMockAdapter(
         store.delete(key);
         return ok(undefined);
       },
+      listKeys: async () => ok([...store.keys()]),
       createObjectUrl: async (_data, mimeType) => {
         const url = `blob:mock-${urlCounter++}`;
         objectUrls.set(url, mimeType);
@@ -146,8 +147,8 @@ describe('cover cache store', () => {
       mimeType: 'image/jpeg',
     });
 
-    const evicted = await evictCacheToLimit(db, adapter, { limitBytes: 250 });
-    expect(evicted).toBe(1);
+    const eviction = await evictCacheToLimit(db, adapter, { limitBytes: 250 });
+    expect(eviction.evictedCount).toBe(1);
 
     const usage = await getCoverCacheUsage(db);
     expect(usage.totalBytes).toBe(200);

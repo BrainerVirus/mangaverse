@@ -131,6 +131,8 @@ export interface PlatformAdapter {
     put(key: string, data: ArrayBuffer, mimeType: string): Promise<AppResult<void>>;
     get(key: string): Promise<AppResult<PlatformBlobRecord | undefined>>;
     delete(key: string): Promise<AppResult<void>>;
+    /** Enumerates stored keys so cache maintenance can reclaim blobs whose row is gone. */
+    listKeys(): Promise<AppResult<readonly string[]>>;
     createObjectUrl(data: ArrayBuffer, mimeType: string): Promise<AppResult<string>>;
     revokeObjectUrl(url: string): Promise<AppResult<void>>;
   };

@@ -76,7 +76,7 @@ describe('formatUnavailableOfflinePages', () => {
       });
     }
 
-    expect(await evictCacheToLimit(db, adapter, { limitBytes: 50 })).toBe(6);
+    expect((await evictCacheToLimit(db, adapter, { limitBytes: 50 })).evictedCount).toBe(6);
     expect(
       formatUnavailableOfflinePages(
         [0, 1, 2, 3, 4, 5],

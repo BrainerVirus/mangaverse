@@ -21,4 +21,6 @@ export interface ClearStorageResult {
   readonly clearedCount: number;
   /** Entries kept because their blob could not be deleted; a retry clears them. */
   readonly failedCount: number;
+  /** Row-less cache blobs an earlier failed delete left behind and this clear reclaimed. */
+  readonly reclaimedBlobs: number;
 }

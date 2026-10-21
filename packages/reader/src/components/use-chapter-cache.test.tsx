@@ -10,6 +10,7 @@ import { toReaderEngineSettings } from '../to-reader-engine-settings.js';
 import type { ReaderPageData } from '../reader-page-data.js';
 
 const mocks = vi.hoisted(() => ({
+  announceOpenChapter: vi.fn<(chapter: unknown) => void>(),
   prefetchChapterPages: vi.fn<(input: { signal?: AbortSignal }) => Promise<void>>(async () => {}),
   markChapterPagesAsRead: vi.fn<() => Promise<void>>(async () => {}),
   evictCacheToLimit: vi.fn<() => Promise<number>>(async () => 0),
@@ -80,8 +81,14 @@ describe('useChapterPrefetch cache sweep', () => {
         chapterId: 'chapter-1',
       },
     });
+    expect(mocks.announceOpenChapter).toHaveBeenCalledWith({
+      providerId: 'mangadex',
+      mangaId: 'manga-1',
+      chapterId: 'chapter-1',
+    });
 
     act(() => root.unmount());
+    expect(mocks.announceOpenChapter).toHaveBeenLastCalledWith(undefined);
     container.remove();
   });
 

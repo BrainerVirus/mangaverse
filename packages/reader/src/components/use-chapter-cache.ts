@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  announceOpenChapter,
   evictCacheToLimit,
   listCachedChapterPageIndexes,
   markChapterPagesAsRead,
@@ -36,6 +37,9 @@ export function useChapterPrefetch(
     }
 
     const controller = new AbortController();
+    // Another tab's sweep probes for open chapters before evicting; the open
+    // chapter must be announced for the whole time this reader is mounted.
+    announceOpenChapter({ providerId, mangaId, chapterId });
     const prefetchPages = pages.map((page, pageIndex) => ({
       pageIndex,
       remoteUrl: page.image.url,
@@ -64,7 +68,10 @@ export function useChapterPrefetch(
       });
     });
 
-    return () => controller.abort();
+    return () => {
+      announceOpenChapter(undefined);
+      controller.abort();
+    };
   }, [budgetBytes, cacheContext, chapterId, mangaId, pages, providerId]);
 }
 

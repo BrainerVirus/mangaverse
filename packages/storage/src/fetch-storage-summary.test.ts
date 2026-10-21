@@ -13,6 +13,9 @@ const adapter = {
       value: { quota: 1024 * 1024, usage: 512 * 1024, persisted: false },
     }),
   },
+  blobStorage: {
+    listKeys: async () => ({ ok: true as const, value: [] }),
+  },
 } as unknown as PlatformAdapter;
 
 const webCapabilities: PlatformCapabilities = {
@@ -82,10 +85,20 @@ describe('storage services', () => {
     await appendSearchHistory(db, { query: 'bleach' });
 
     const cacheResult = await clearStorageData({ db, adapter, target: 'provider_cache' });
-    expect(cacheResult).toEqual({ target: 'provider_cache', clearedCount: 1, failedCount: 0 });
+    expect(cacheResult).toEqual({
+      target: 'provider_cache',
+      clearedCount: 1,
+      failedCount: 0,
+      reclaimedBlobs: 0,
+    });
 
     const historyResult = await clearStorageData({ db, adapter, target: 'search_history' });
-    expect(historyResult).toEqual({ target: 'search_history', clearedCount: 1, failedCount: 0 });
+    expect(historyResult).toEqual({
+      target: 'search_history',
+      clearedCount: 1,
+      failedCount: 0,
+      reclaimedBlobs: 0,
+    });
 
     const summary = await fetchStorageSummary({
       db,
