@@ -6,6 +6,7 @@ import { fetchMainProcessBytes } from './main-process-fetch.js';
 type FakeRequest = EventEmitter & {
   end: () => void;
   abort: () => void;
+  followRedirect?: () => void;
 };
 
 type FakeResponse = EventEmitter & {
@@ -24,8 +25,15 @@ function requestFactory(
     req.abort = () => {
       req.emit('close');
     };
+    req.followRedirect = vi.fn<() => void>();
     return req as unknown as ClientRequest;
   });
+}
+
+/** Electron 44 emits finish then close right after end(), before response/redirect. */
+function sent(req: FakeRequest): void {
+  req.emit('finish');
+  req.emit('close');
 }
 
 function response(
@@ -40,7 +48,15 @@ function response(
   return res;
 }
 
+function body(req: FakeRequest, mimeType = 'image/png'): void {
+  sent(req);
+  const res = response(req, 200, { 'content-type': mimeType });
+  res.emit('data', Buffer.from([1, 2, 3]));
+  res.emit('end');
+}
+
 function redirect(req: FakeRequest, location: string): void {
+  sent(req);
   req.emit('redirect', 302, 'GET', location, {});
   // Electron cancels a manual redirect when followRedirect() is not called.
   req.emit('error', new Error('Redirect was cancelled'));
@@ -50,15 +66,27 @@ function redirect(req: FakeRequest, location: string): void {
 const initialUrl = 'https://example.com/page.png';
 
 describe('fetchMainProcessBytes', () => {
-  it('follows a public redirect only after validating the new host', async () => {
+  it('reads a body when finish and close arrive before the response', async () => {
+    const request = requestFactory((_options, req) => body(req));
+    const isAllowed = vi.fn<(url: string) => Promise<boolean>>(async () => true);
+
+    const result = await fetchMainProcessBytes(request as never, initialUrl, isAllowed);
+
+    expect(result?.mimeType).toBe('image/png');
+    expect(new Uint8Array(result!.data)).toEqual(new Uint8Array([1, 2, 3]));
+    expect(isAllowed).toHaveBeenCalledOnce();
+    expect(request).toHaveBeenCalledOnce();
+  });
+
+  it('follows a redirect that arrives after close, without following it inline', async () => {
+    let followRedirect: (() => void) | undefined;
     const request = requestFactory((options, req) => {
       if (options.url === initialUrl) {
+        followRedirect = req.followRedirect;
         redirect(req, 'https://cdn.example.com/page.png');
         return;
       }
-      const res = response(req, 200, { 'content-type': 'image/png' });
-      res.emit('data', Buffer.from([1, 2, 3]));
-      res.emit('end');
+      body(req);
     });
     const isAllowed = vi.fn<(url: string) => Promise<boolean>>(
       async (url) => !url.includes('127.0.0.1'),
@@ -68,6 +96,7 @@ describe('fetchMainProcessBytes', () => {
 
     expect(result?.mimeType).toBe('image/png');
     expect(new Uint8Array(result!.data)).toEqual(new Uint8Array([1, 2, 3]));
+    expect(followRedirect).not.toHaveBeenCalled();
     expect(isAllowed.mock.calls.map(([url]) => url)).toEqual([
       initialUrl,
       'https://cdn.example.com/page.png',
@@ -121,9 +150,21 @@ describe('fetchMainProcessBytes', () => {
 
   it('rejects a redirect without a usable location', async () => {
     const request = requestFactory((_options, req) => {
+      sent(req);
       req.emit('redirect', 302, 'GET', 'http://[::1', {});
       req.emit('error', new Error('Redirect was cancelled'));
-      req.emit('close');
+    });
+
+    const result = await fetchMainProcessBytes(request as never, initialUrl, async () => true);
+
+    expect(result).toBeUndefined();
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails on a transport error', async () => {
+    const request = requestFactory((_options, req) => {
+      sent(req);
+      req.emit('error', new Error('net::ERR_CONNECTION_REFUSED'));
     });
 
     const result = await fetchMainProcessBytes(request as never, initialUrl, async () => true);
@@ -134,6 +175,7 @@ describe('fetchMainProcessBytes', () => {
 
   it('aborts a response larger than the byte cap', async () => {
     const request = requestFactory((_options, req) => {
+      sent(req);
       const res = response(req, 200, { 'content-type': 'image/png' });
       res.emit('data', { byteLength: 64 * 1024 * 1024 + 1 });
     });
@@ -145,10 +187,12 @@ describe('fetchMainProcessBytes', () => {
 
   it('returns undefined for an empty or failed response', async () => {
     const empty = requestFactory((_options, req) => {
+      sent(req);
       const res = response(req, 200, {});
       res.emit('end');
     });
     const failed = requestFactory((_options, req) => {
+      sent(req);
       response(req, 404, {});
     });
 
@@ -158,5 +202,29 @@ describe('fetchMainProcessBytes', () => {
     expect(
       await fetchMainProcessBytes(failed as never, initialUrl, async () => true),
     ).toBeUndefined();
+  });
+
+  it('does not settle on an early close; the bounded timeout fails the hop', async () => {
+    vi.useFakeTimers();
+    try {
+      const request = requestFactory((_options, req) => {
+        sent(req);
+      });
+      let resolved = false;
+      const pending = fetchMainProcessBytes(request as never, initialUrl, async () => true).then(
+        (value) => {
+          resolved = true;
+          return value;
+        },
+      );
+
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(resolved).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(30_000);
+      await expect(pending).resolves.toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

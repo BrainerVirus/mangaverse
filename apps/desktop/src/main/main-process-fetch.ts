@@ -4,6 +4,8 @@ import type { NetworkFetchResult } from '@app/platform';
 const MAX_REDIRECTS = 5;
 /** Cap one download so a hostile host cannot exhaust main-process memory. */
 const MAX_RESPONSE_BYTES = 64 * 1024 * 1024;
+/** Bound one hop so a silent socket cannot leave the IPC handler pending forever. */
+const HOP_TIMEOUT_MS = 30_000;
 
 type RequestFactory = (options: ClientRequestConstructorOptions) => ClientRequest;
 
@@ -26,12 +28,14 @@ function firstHeader(headers: Record<string, string | string[]>, name: string): 
 function requestHop(request: RequestFactory, url: string): Promise<HopOutcome> {
   return new Promise((resolve) => {
     let settled = false;
-    let redirectUrl: string | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const finish = (outcome: HopOutcome): void => {
       if (settled) return;
       settled = true;
+      clearTimeout(timer);
       resolve(outcome);
     };
+    timer = setTimeout(() => finish(undefined), HOP_TIMEOUT_MS);
 
     let req: ClientRequest;
     try {
@@ -50,7 +54,7 @@ function requestHop(request: RequestFactory, url: string): Promise<HopOutcome> {
 
     req.on('redirect', (_statusCode, _method, nextUrl) => {
       // Do not call followRedirect(): the next hop needs async validation.
-      redirectUrl = nextUrl;
+      finish({ redirectUrl: nextUrl });
     });
 
     req.on('response', (response: IncomingMessage) => {
@@ -62,8 +66,8 @@ function requestHop(request: RequestFactory, url: string): Promise<HopOutcome> {
         return;
       }
       if (status < 200 || status >= 300) {
-        req.abort();
         finish(undefined);
+        req.abort();
         return;
       }
 
@@ -74,8 +78,8 @@ function requestHop(request: RequestFactory, url: string): Promise<HopOutcome> {
       response.on('data', (chunk: Buffer) => {
         bytes += chunk.byteLength;
         if (bytes > MAX_RESPONSE_BYTES) {
-          req.abort();
           finish(undefined);
+          req.abort();
           return;
         }
         chunks.push(chunk);
@@ -97,10 +101,14 @@ function requestHop(request: RequestFactory, url: string): Promise<HopOutcome> {
       response.on('aborted', () => finish(undefined));
     });
 
-    // A manual redirect cancels the request and surfaces as an error/close.
-    req.on('error', () => finish(redirectUrl === undefined ? undefined : { redirectUrl }));
-    req.on('close', () => finish(redirectUrl === undefined ? undefined : { redirectUrl }));
-    req.end();
+    req.on('error', () => finish(undefined));
+    // Electron 44 emits finish and close right after end(), before
+    // response/redirect, so close is not a settlement signal; the timeout bounds it.
+    try {
+      req.end();
+    } catch {
+      finish(undefined);
+    }
   });
 }
 

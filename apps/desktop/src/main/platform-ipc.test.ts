@@ -375,6 +375,9 @@ describe('registerPlatformIpc', () => {
 
   it('fetches a public hostname through net.request', async () => {
     const request = fakeRequest((req) => {
+      // Electron 44: finish and close arrive before response.
+      req.emit('finish');
+      req.emit('close');
       const res = new EventEmitter() as EventEmitter & {
         statusCode: number;
         headers: Record<string, string>;
@@ -404,9 +407,11 @@ describe('registerPlatformIpc', () => {
 
   it('rejects a redirect to a private host before requesting it', async () => {
     const request = fakeRequest((req) => {
+      // Electron 44: finish and close arrive before the redirect.
+      req.emit('finish');
+      req.emit('close');
       req.emit('redirect', 302, 'GET', 'http://127.0.0.1/secret', {});
       req.emit('error', new Error('Redirect was cancelled'));
-      req.emit('close');
     });
     const handlers = register({ net: { request } as never });
     const fn = handlers.get(PLATFORM_IPC.NETWORK_FETCH_BYTES)!;
