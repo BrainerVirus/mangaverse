@@ -33,48 +33,37 @@ function newId(): string {
   return crypto.randomUUID();
 }
 
-export async function getMangaIdentity(
-  db: AppDrizzleDb,
-  mangaId: MangaId,
-): Promise<MangaIdentity | undefined> {
-  const row = db.select().from(mangaIdentities).where(eq(mangaIdentities.id, mangaId)).get();
-  if (row === undefined) return undefined;
+interface IdentityRelations {
+  readonly mappings: readonly (typeof mangaProviderMappings.$inferSelect)[];
+  readonly titles: readonly (typeof mangaTitles.$inferSelect)[];
+  readonly people: readonly (typeof mangaPeople.$inferSelect)[];
+  readonly tags: readonly MangaTag[];
+  readonly tracking: readonly (typeof trackingLinks.$inferSelect)[];
+}
 
-  const mappingsRows = db
-    .select()
-    .from(mangaProviderMappings)
-    .where(eq(mangaProviderMappings.mangaId, mangaId))
-    .all();
+function buildMangaIdentity(
+  row: typeof mangaIdentities.$inferSelect,
+  relations: IdentityRelations,
+): MangaIdentity {
+  const alternativeTitles: MangaTitle[] = relations.titles.map((t) => ({
+    value: t.value,
+    ...(t.locale !== null && t.locale !== undefined && t.locale !== '' ? { locale: t.locale } : {}),
+  }));
 
-  const titlesRows = db.select().from(mangaTitles).where(eq(mangaTitles.mangaId, mangaId)).all();
-  const peopleRows = db.select().from(mangaPeople).where(eq(mangaPeople.mangaId, mangaId)).all();
-
-  const tagMemberships = db
-    .select({ tagId: mangaTagMemberships.tagId })
-    .from(mangaTagMemberships)
-    .where(eq(mangaTagMemberships.mangaId, mangaId))
-    .all();
-
-  let tags: MangaTag[] = [];
-  if (tagMemberships.length > 0) {
-    const tagIds = tagMemberships.map((m) => m.tagId);
-    const tagRows = db.select().from(mangaTags).where(inArray(mangaTags.id, tagIds)).all();
-    tags = tagRows.map((t) => ({
-      id: t.id,
-      label: t.label,
-      ...(t.namespace !== null && t.namespace !== undefined && t.namespace !== ''
-        ? { namespace: t.namespace }
-        : {}),
+  const authors: MangaPerson[] = relations.people
+    .filter((p) => p.kind === 'author')
+    .map((p) => ({
+      name: p.name,
+      ...(p.role !== null && p.role !== undefined && p.role !== '' ? { role: p.role } : {}),
     }));
-  }
+  const artists: MangaPerson[] = relations.people
+    .filter((p) => p.kind === 'artist')
+    .map((p) => ({
+      name: p.name,
+      ...(p.role !== null && p.role !== undefined && p.role !== '' ? { role: p.role } : {}),
+    }));
 
-  const trackingRows = db
-    .select()
-    .from(trackingLinks)
-    .where(eq(trackingLinks.mangaId, mangaId))
-    .all();
-
-  const providerMappings: MangaProviderMapping[] = mappingsRows.map((m) => ({
+  const providerMappings: MangaProviderMapping[] = relations.mappings.map((m) => ({
     id: toProviderMappingId(m.id),
     providerId: toProviderId(m.providerId),
     providerMangaId: toProviderMangaId(m.providerMangaId),
@@ -89,25 +78,7 @@ export async function getMangaIdentity(
       : {}),
   }));
 
-  const alternativeTitles: MangaTitle[] = titlesRows.map((t) => ({
-    value: t.value,
-    ...(t.locale !== null && t.locale !== undefined && t.locale !== '' ? { locale: t.locale } : {}),
-  }));
-
-  const authors: MangaPerson[] = peopleRows
-    .filter((p) => p.kind === 'author')
-    .map((p) => ({
-      name: p.name,
-      ...(p.role !== null && p.role !== undefined && p.role !== '' ? { role: p.role } : {}),
-    }));
-  const artists: MangaPerson[] = peopleRows
-    .filter((p) => p.kind === 'artist')
-    .map((p) => ({
-      name: p.name,
-      ...(p.role !== null && p.role !== undefined && p.role !== '' ? { role: p.role } : {}),
-    }));
-
-  const trackingLinksOut: TrackingLink[] = trackingRows.map((t) => ({
+  const trackingLinksOut: TrackingLink[] = relations.tracking.map((t) => ({
     service: t.service,
     externalId: t.externalId,
     ...(t.externalUrl !== null && t.externalUrl !== undefined && t.externalUrl !== ''
@@ -123,13 +94,13 @@ export async function getMangaIdentity(
       ? row.mergedFromIdsJson.map((id) => toMangaId(id))
       : undefined;
 
-  const identity: MangaIdentity = {
+  return {
     id: toMangaId(row.id),
     canonicalTitle: row.canonicalTitle,
     alternativeTitles,
     authors,
     artists,
-    tags,
+    tags: [...relations.tags],
     status: row.status as MangaIdentity['status'],
     contentRating: row.contentRating as MangaIdentity['contentRating'],
     providerMappings,
@@ -161,8 +132,102 @@ export async function getMangaIdentity(
       ? { updatedAt: row.updatedAt }
       : {}),
   };
+}
 
-  return identity;
+function groupByManga<T extends { readonly mangaId: string }>(
+  rows: readonly T[],
+): Map<string, T[]> {
+  const grouped = new Map<string, T[]>();
+  for (const row of rows) {
+    const list = grouped.get(row.mangaId);
+    if (list === undefined) grouped.set(row.mangaId, [row]);
+    else list.push(row);
+  }
+  return grouped;
+}
+
+/**
+ * Batched identity read: seven queries for any number of ids instead of ~11 per
+ * identity. Library and search both fan out to this.
+ */
+export async function getMangaIdentities(
+  db: AppDrizzleDb,
+  mangaIds: readonly MangaId[],
+): Promise<MangaIdentity[]> {
+  if (mangaIds.length === 0) return [];
+  const ids = [...mangaIds];
+
+  const rows = db.select().from(mangaIdentities).where(inArray(mangaIdentities.id, ids)).all();
+  if (rows.length === 0) return [];
+  const rowById = new Map(rows.map((row) => [row.id, row]));
+
+  const mappingsRows = db
+    .select()
+    .from(mangaProviderMappings)
+    .where(inArray(mangaProviderMappings.mangaId, ids))
+    .all();
+  const titlesRows = db.select().from(mangaTitles).where(inArray(mangaTitles.mangaId, ids)).all();
+  const peopleRows = db.select().from(mangaPeople).where(inArray(mangaPeople.mangaId, ids)).all();
+  const tagMemberships = db
+    .select({ mangaId: mangaTagMemberships.mangaId, tagId: mangaTagMemberships.tagId })
+    .from(mangaTagMemberships)
+    .where(inArray(mangaTagMemberships.mangaId, ids))
+    .all();
+  const tagIds = [...new Set(tagMemberships.map((membership) => membership.tagId))];
+  const tagRows =
+    tagIds.length === 0
+      ? []
+      : db.select().from(mangaTags).where(inArray(mangaTags.id, tagIds)).all();
+  const trackingRows = db
+    .select()
+    .from(trackingLinks)
+    .where(inArray(trackingLinks.mangaId, ids))
+    .all();
+
+  const mappingsByManga = groupByManga(mappingsRows);
+  const titlesByManga = groupByManga(titlesRows);
+  const peopleByManga = groupByManga(peopleRows);
+  const trackingByManga = groupByManga(trackingRows);
+  const tagById = new Map(tagRows.map((t) => [t.id, t]));
+  const tagsByManga = new Map<string, MangaTag[]>();
+  for (const membership of tagMemberships) {
+    const tag = tagById.get(membership.tagId);
+    if (tag === undefined) continue;
+    const list = tagsByManga.get(membership.mangaId);
+    const mapped: MangaTag = {
+      id: tag.id,
+      label: tag.label,
+      ...(tag.namespace !== null && tag.namespace !== undefined && tag.namespace !== ''
+        ? { namespace: tag.namespace }
+        : {}),
+    };
+    if (list === undefined) tagsByManga.set(membership.mangaId, [mapped]);
+    else list.push(mapped);
+  }
+
+  const identities: MangaIdentity[] = [];
+  for (const id of ids) {
+    const row = rowById.get(id);
+    if (row === undefined) continue;
+    identities.push(
+      buildMangaIdentity(row, {
+        mappings: mappingsByManga.get(id) ?? [],
+        titles: titlesByManga.get(id) ?? [],
+        people: peopleByManga.get(id) ?? [],
+        tags: tagsByManga.get(id) ?? [],
+        tracking: trackingByManga.get(id) ?? [],
+      }),
+    );
+  }
+  return identities;
+}
+
+export async function getMangaIdentity(
+  db: AppDrizzleDb,
+  mangaId: MangaId,
+): Promise<MangaIdentity | undefined> {
+  const identities = await getMangaIdentities(db, [mangaId]);
+  return identities[0];
 }
 
 export interface CreateMangaIdentityInput {
@@ -328,8 +393,10 @@ export async function clearIdentityMergeMetadata(
 
 export async function listMangaIdentities(db: AppDrizzleDb): Promise<MangaIdentity[]> {
   const rows = db.select({ id: mangaIdentities.id }).from(mangaIdentities).all();
-  const loaded = await Promise.all(rows.map((row) => getMangaIdentity(db, toMangaId(row.id))));
-  return loaded.filter((x): x is MangaIdentity => x !== undefined);
+  return getMangaIdentities(
+    db,
+    rows.map((row) => toMangaId(row.id)),
+  );
 }
 
 /** Insert or update a manga identity and its provider mappings (metadata fields only). */

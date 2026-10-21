@@ -36,6 +36,41 @@ describe('fetchLibraryPage', () => {
     ).toEqual(['Alpha Series', 'Beta Chronicles']);
   });
 
+  it('reads a 24-entry library with the same statement count as a 2-entry library', async () => {
+    const { raw, db } = await createSqlJsHarness();
+    const add = async (index: number) => {
+      const created = await createMangaIdentityWithInitialMapping(db, {
+        canonicalTitle: `Series ${index}`,
+        status: 'ongoing',
+        contentRating: 'safe',
+        providerId: toProviderId('prov-a'),
+        providerMangaId: `series-${index}`,
+      });
+      expect(created.ok).toBe(true);
+      if (!created.ok) return;
+      await addLibraryEntry(db, { mangaId: created.value.mangaId, status: 'reading' });
+    };
+    await add(0);
+    await add(1);
+
+    let statements = 0;
+    const prepare = raw.prepare.bind(raw);
+    raw.prepare = (...args) => {
+      statements += 1;
+      return prepare(...args);
+    };
+
+    await fetchLibraryPage(db, DEFAULT_LIBRARY_VIEW_STATE);
+    const forTwo = statements;
+
+    for (let index = 2; index < 24; index++) await add(index);
+    statements = 0;
+    const page = await fetchLibraryPage(db, DEFAULT_LIBRARY_VIEW_STATE);
+
+    expect(page.items).toHaveLength(24);
+    expect(statements).toBe(forTwo);
+  });
+
   it('filters items by query on canonical titles', async () => {
     const { db } = await createSqlJsHarness();
 
