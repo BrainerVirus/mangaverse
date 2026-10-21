@@ -658,6 +658,26 @@ Both tools are green at the current head; do not raise thresholds to make a run 
   consumer-scope `no-restyle`, per-file dynamic inline-style allowlists, and the
   `@shadcn/lint` `@utility` resolution gap (upstream).
 
+## Backlog #99 sweep (2026-10-21)
+
+Issue #99's bundle was re-verified at `ac2e9dc`; every mechanical item had already
+landed, so this sweep changed no product code.
+
+| #   | Item                                           | Status    | Evidence                                                                                                                           |
+| --- | ---------------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | extensions missing `<Outlet/>`                 | done      | `extensions.tsx` renders `<Outlet/>` off the index path; `extensions-composition.spec.ts` covers list/detail/history (#111, #118). |
+| 2   | desktop deep-imports `@app/web/app/router.js`  | done      | `App.tsx` imports the public `@app/web/router` export; no `@app/web/app/*` path (#122).                                            |
+| 3   | `tsc-alias` used but undeclared                | done      | declared in `packages/design-system/package.json` (#111).                                                                          |
+| 4   | DB-open `errorMessage` write-only              | done      | `LocalDbErrorBanner` renders the message with a reopen action (#119).                                                              |
+| 5   | no offline-note absence assertion while online | done      | assertion in `reader-offline-cache.spec.ts` (#118).                                                                                |
+| 6   | uncached chapter prefetch/retention            | done      | 250 MB `prefetchBudgetBytes` default, `retention: 'read'`, 4-worker queue and total cache eviction (#71, #123, #164).              |
+| 7   | Inter/JetBrains Mono not bundled               | done      | fontsource faces imported and aliased in `globals.css` (#121).                                                                     |
+| 8   | `@shadcn/lint` `@utility` false positive       | remaining | still real on 0.2.3; consumer-package theme resolution is upstream (see P3/P4/P6/P7 note above).                                   |
+| 9   | tracked `package-lock.json`                    | done      | removed (#111).                                                                                                                    |
+| 10  | AMOLED accent/sidebar ΔE00 2.13                | done      | oklch retune; accent/sidebar ΔE00 3.37 (was 2.13) (#122).                                                                          |
+| 11  | `docs/` outside format gates                   | done      | `docs` is in `format`/`format:check` (#117).                                                                                       |
+| 12  | `.husky/`, empty `electron/`/`plugins/` dirs   | done      | none present at `ac2e9dc`.                                                                                                         |
+
 ## Exit criteria per implementing session
 
 One slice, real RED/GREEN, configured gates, built-app observation, reviewed diff,
