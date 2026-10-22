@@ -1,7 +1,22 @@
 import type { BackupValidationIssue } from '@app/shared';
-import { dedupeBackupLibrary, validateBackupDocument, toMangaId } from '@app/shared';
+import {
+  BACKUP_SCHEMA_VERSION,
+  dedupeBackupLibrary,
+  validateBackupDocument,
+  toMangaId,
+} from '@app/shared';
 import type { AppDrizzleDb } from '../adapter.js';
-import { libraryEntries, mangaIdentities, mangaProviderMappings, themes } from '../schema.js';
+import {
+  categories,
+  chapterReadState,
+  chapters,
+  libraryEntries,
+  mangaIdentities,
+  mangaProviderMappings,
+  migrationHistory,
+  readingHistory,
+  themes,
+} from '../schema.js';
 import { listInstalledExtensions } from '../repositories/extensions.js';
 import { getMangaIdentity } from '../repositories/identities.js';
 
@@ -14,10 +29,33 @@ export interface RestorePreviewIssue {
   readonly details?: Readonly<Record<string, string | number | boolean | null>>;
 }
 
+export interface RestorePreviewCounts {
+  readonly libraryEntries: number;
+  readonly categories: number;
+  readonly categoryMemberships: number;
+  readonly chapters: number;
+  readonly chapterReadStates: number;
+  readonly readingHistory: number;
+  readonly migrationHistory: number;
+}
+
+const EMPTY_COUNTS: RestorePreviewCounts = {
+  libraryEntries: 0,
+  categories: 0,
+  categoryMemberships: 0,
+  chapters: 0,
+  chapterReadStates: 0,
+  readingHistory: 0,
+  migrationHistory: 0,
+};
+
 export interface RestorePreviewReport {
   readonly backupOk: boolean;
   readonly backupIssues: readonly BackupValidationIssue[];
   readonly previewIssues: readonly RestorePreviewIssue[];
+  /** Null when the document did not validate. */
+  readonly schemaVersion: number | null;
+  readonly counts: RestorePreviewCounts;
 }
 
 function add(
@@ -46,10 +84,17 @@ export async function previewBackupRestore(
 ): Promise<RestorePreviewReport> {
   const validation = validateBackupDocument(input);
   if (!validation.ok) {
-    return { backupOk: false, backupIssues: validation.issues, previewIssues: [] };
+    return {
+      backupOk: false,
+      backupIssues: validation.issues,
+      previewIssues: [],
+      schemaVersion: null,
+      counts: EMPTY_COUNTS,
+    };
   }
 
   const doc = validation.value;
+  const schemaVersion = Number((input as { readonly schemaVersion?: unknown }).schemaVersion);
   const previewIssues: RestorePreviewIssue[] = [];
 
   const remoteKey = (providerId: string, providerMangaId: string) =>
@@ -98,6 +143,72 @@ export async function previewBackupRestore(
   }
 
   const identityIds = new Set(doc.mangaIdentities.map((m) => m.id));
+  const mappingIdsByManga = new Map<string, Set<string>>();
+  for (const identity of doc.mangaIdentities) {
+    mappingIdsByManga.set(identity.id, new Set(identity.providerMappings.map((m) => m.id)));
+  }
+  const mappingBelongsToManga = (mangaId: string, mappingId: string): boolean =>
+    mappingIdsByManga.get(mangaId)?.has(mappingId) ?? false;
+
+  const localCategoryIds = new Set(
+    db
+      .select({ id: categories.id })
+      .from(categories)
+      .all()
+      .map((row) => row.id),
+  );
+  const carriedCategoryIds = new Set<string>();
+  for (const category of doc.categories ?? []) {
+    if (carriedCategoryIds.has(category.id)) {
+      add(previewIssues, {
+        code: 'restore.duplicate_category',
+        message: 'Backup contains the same category id more than once.',
+        severity: 'error',
+        details: { categoryId: category.id },
+      });
+    }
+    carriedCategoryIds.add(category.id);
+  }
+
+  const carriedChapterIds = new Set<string>();
+  const carriedChapterSlots = new Set<string>();
+  for (const chapter of doc.chapters ?? []) {
+    if (carriedChapterIds.has(chapter.id)) {
+      add(previewIssues, {
+        code: 'restore.duplicate_chapter',
+        message: 'Backup contains the same chapter id more than once.',
+        severity: 'error',
+        details: { chapterId: chapter.id },
+      });
+    }
+    carriedChapterIds.add(chapter.id);
+    const slot = `${chapter.providerMappingId}::${chapter.index}`;
+    if (carriedChapterSlots.has(slot)) {
+      add(previewIssues, {
+        code: 'restore.duplicate_chapter_slot',
+        message: 'Backup contains two chapters for the same provider mapping and index.',
+        severity: 'error',
+        details: { providerMappingId: chapter.providerMappingId, index: chapter.index },
+      });
+    }
+    carriedChapterSlots.add(slot);
+    if (!identityIds.has(chapter.mangaId)) {
+      add(previewIssues, {
+        code: 'restore.chapter_missing_identity',
+        message: 'Chapter references a manga identity missing from the backup document.',
+        severity: 'error',
+        details: { chapterId: chapter.id, mangaId: chapter.mangaId },
+      });
+    } else if (!mappingBelongsToManga(chapter.mangaId, chapter.providerMappingId)) {
+      add(previewIssues, {
+        code: 'restore.chapter_mapping_missing',
+        message: 'Chapter references a provider mapping missing from the backup document.',
+        severity: 'error',
+        details: { chapterId: chapter.id, providerMappingId: chapter.providerMappingId },
+      });
+    }
+  }
+
   const dedupedLibrary = dedupeBackupLibrary(doc.library);
   for (const merge of dedupedLibrary.merges) {
     add(previewIssues, {
@@ -112,6 +223,8 @@ export async function previewBackupRestore(
       },
     });
   }
+
+  const membershipKeys = new Set<string>();
   for (const entry of dedupedLibrary.library) {
     if (!identityIds.has(entry.mangaId)) {
       add(previewIssues, {
@@ -120,6 +233,153 @@ export async function previewBackupRestore(
         severity: 'error',
         details: { libraryEntryId: entry.id, mangaId: entry.mangaId },
       });
+    }
+    for (const categoryId of new Set(entry.categoryIds)) {
+      membershipKeys.add(`${entry.id}::${categoryId}`);
+      if (doc.categories !== undefined) {
+        if (!carriedCategoryIds.has(categoryId)) {
+          add(previewIssues, {
+            code: 'restore.category_missing',
+            message: 'Library entry references a category missing from the backup document.',
+            severity: 'error',
+            details: { libraryEntryId: entry.id, categoryId },
+          });
+        }
+      } else if (!localCategoryIds.has(categoryId)) {
+        // v1-v3 backups carry no category definitions: keep the link only when
+        // the category still exists locally instead of failing the whole restore.
+        add(previewIssues, {
+          code: 'restore.category_missing',
+          message:
+            'Library entry references a category that is neither in this older backup nor in the local database; the link is skipped on restore.',
+          severity: 'warning',
+          details: { libraryEntryId: entry.id, categoryId },
+        });
+      }
+    }
+    if (
+      doc.chapters !== undefined &&
+      entry.lastReadChapterId !== undefined &&
+      !carriedChapterIds.has(entry.lastReadChapterId)
+    ) {
+      add(previewIssues, {
+        code: 'restore.library_chapter_missing',
+        message: 'Library entry resume chapter is missing from the backup document.',
+        severity: 'error',
+        details: { libraryEntryId: entry.id, chapterId: entry.lastReadChapterId },
+      });
+    }
+  }
+
+  const seenReadChapterIds = new Set<string>();
+  for (const state of doc.chapterReadStates ?? []) {
+    if (seenReadChapterIds.has(state.chapterId)) {
+      add(previewIssues, {
+        code: 'restore.duplicate_chapter_read_state',
+        message: 'Backup contains read state for the same chapter more than once.',
+        severity: 'error',
+        details: { chapterId: state.chapterId },
+      });
+    }
+    seenReadChapterIds.add(state.chapterId);
+    if (doc.chapters !== undefined && !carriedChapterIds.has(state.chapterId)) {
+      add(previewIssues, {
+        code: 'restore.read_state_chapter_missing',
+        message: 'Chapter read state points at a chapter missing from the backup document.',
+        severity: 'error',
+        details: { chapterId: state.chapterId },
+      });
+    } else if (!identityIds.has(state.mangaId)) {
+      add(previewIssues, {
+        code: 'restore.read_state_missing_identity',
+        message: 'Chapter read state references a manga identity missing from the backup document.',
+        severity: 'error',
+        details: { chapterId: state.chapterId, mangaId: state.mangaId },
+      });
+    } else if (
+      state.providerMappingId !== undefined &&
+      !mappingBelongsToManga(state.mangaId, state.providerMappingId)
+    ) {
+      add(previewIssues, {
+        code: 'restore.read_state_mapping_missing',
+        message:
+          'Chapter read state references a provider mapping missing from the backup document.',
+        severity: 'error',
+        details: { chapterId: state.chapterId, providerMappingId: state.providerMappingId },
+      });
+    }
+  }
+
+  const seenHistoryIds = new Set<string>();
+  for (const entry of doc.readingHistory ?? []) {
+    if (seenHistoryIds.has(entry.id)) {
+      add(previewIssues, {
+        code: 'restore.duplicate_reading_history',
+        message: 'Backup contains the same reading-history id more than once.',
+        severity: 'error',
+        details: { historyId: entry.id },
+      });
+    }
+    seenHistoryIds.add(entry.id);
+    if (doc.chapters !== undefined && !carriedChapterIds.has(entry.chapterId)) {
+      add(previewIssues, {
+        code: 'restore.history_chapter_missing',
+        message: 'Reading history points at a chapter missing from the backup document.',
+        severity: 'error',
+        details: { historyId: entry.id, chapterId: entry.chapterId },
+      });
+    } else if (!identityIds.has(entry.mangaId)) {
+      add(previewIssues, {
+        code: 'restore.history_missing_identity',
+        message: 'Reading history references a manga identity missing from the backup document.',
+        severity: 'error',
+        details: { historyId: entry.id, mangaId: entry.mangaId },
+      });
+    } else if (
+      entry.providerMappingId !== undefined &&
+      !mappingBelongsToManga(entry.mangaId, entry.providerMappingId)
+    ) {
+      add(previewIssues, {
+        code: 'restore.history_mapping_missing',
+        message: 'Reading history references a provider mapping missing from the backup document.',
+        severity: 'error',
+        details: { historyId: entry.id, providerMappingId: entry.providerMappingId },
+      });
+    }
+  }
+
+  const seenMigrationIds = new Set<string>();
+  for (const entry of doc.migrationHistory ?? []) {
+    if (seenMigrationIds.has(entry.id)) {
+      add(previewIssues, {
+        code: 'restore.duplicate_migration_history',
+        message: 'Backup contains the same migration-history id more than once.',
+        severity: 'error',
+        details: { migrationId: entry.id },
+      });
+    }
+    seenMigrationIds.add(entry.id);
+    if (!identityIds.has(entry.mangaId)) {
+      add(previewIssues, {
+        code: 'restore.migration_missing_identity',
+        message: 'Migration history references a manga identity missing from the backup document.',
+        severity: 'error',
+        details: { migrationId: entry.id, mangaId: entry.mangaId },
+      });
+      continue;
+    }
+    for (const [field, mappingId] of [
+      ['previousDefaultMappingId', entry.previousDefaultMappingId],
+      ['previousActiveMappingId', entry.previousActiveMappingId],
+    ] as const) {
+      if (mappingId !== undefined && !mappingBelongsToManga(entry.mangaId, mappingId)) {
+        add(previewIssues, {
+          code: 'restore.migration_mapping_missing',
+          message: `Migration history ${field} points at a mapping missing from the backup document.`,
+          severity: 'error',
+          details: { migrationId: entry.id, providerMappingId: mappingId },
+        });
+      }
     }
   }
 
@@ -219,5 +479,85 @@ export async function previewBackupRestore(
     }),
   );
 
-  return { backupOk: true, backupIssues: [], previewIssues };
+  const localReadStateCount = db
+    .select({ chapterId: chapterReadState.chapterId })
+    .from(chapterReadState)
+    .all().length;
+  const localHistoryCount = db.select({ id: readingHistory.id }).from(readingHistory).all().length;
+  const localMigrationCount = db
+    .select({ id: migrationHistory.id })
+    .from(migrationHistory)
+    .all().length;
+
+  const localChapterCount = db.select({ id: chapters.id }).from(chapters).all().length;
+  const counts: RestorePreviewCounts = {
+    libraryEntries: dedupedLibrary.library.length,
+    categories: doc.categories?.length ?? 0,
+    categoryMemberships: membershipKeys.size,
+    chapters: doc.chapters?.length ?? 0,
+    chapterReadStates: doc.chapterReadStates?.length ?? 0,
+    readingHistory: doc.readingHistory?.length ?? 0,
+    migrationHistory: doc.migrationHistory?.length ?? 0,
+  };
+
+  if (doc.categories !== undefined) {
+    const removed = [...localCategoryIds].filter((id) => !carriedCategoryIds.has(id)).length;
+    if (removed > 0) {
+      add(previewIssues, {
+        code: 'restore.destructive.categories_removed',
+        message: 'Restoring this backup would remove local categories the backup does not contain.',
+        severity: 'info',
+        details: { count: removed },
+      });
+    }
+  }
+  if (doc.chapterReadStates !== undefined && localReadStateCount > counts.chapterReadStates) {
+    add(previewIssues, {
+      code: 'restore.destructive.read_state_replaced',
+      message: 'Restoring this backup would replace local chapter progress with the backup copy.',
+      severity: 'info',
+      details: { localCount: localReadStateCount, backupCount: counts.chapterReadStates },
+    });
+  }
+  if (doc.readingHistory !== undefined && localHistoryCount > counts.readingHistory) {
+    add(previewIssues, {
+      code: 'restore.destructive.reading_history_replaced',
+      message: 'Restoring this backup would replace local reading history with the backup copy.',
+      severity: 'info',
+      details: { localCount: localHistoryCount, backupCount: counts.readingHistory },
+    });
+  }
+  if (doc.migrationHistory !== undefined && localMigrationCount > counts.migrationHistory) {
+    add(previewIssues, {
+      code: 'restore.destructive.migration_history_replaced',
+      message: 'Restoring this backup would replace local migration history with the backup copy.',
+      severity: 'info',
+      details: { localCount: localMigrationCount, backupCount: counts.migrationHistory },
+    });
+  }
+  if (doc.chapters !== undefined && localChapterCount > counts.chapters) {
+    add(previewIssues, {
+      code: 'restore.destructive.chapters_replaced',
+      message: 'Restoring this backup would replace local chapter metadata with the backup copy.',
+      severity: 'info',
+      details: { localCount: localChapterCount, backupCount: counts.chapters },
+    });
+  }
+  if (schemaVersion < BACKUP_SCHEMA_VERSION) {
+    add(previewIssues, {
+      code: 'restore.legacy_sections_preserved',
+      message:
+        'This backup predates categories, chapter metadata, chapter progress, reading history and migration history. Local records for those sections are kept.',
+      severity: 'info',
+      details: { schemaVersion },
+    });
+  }
+
+  return {
+    backupOk: true,
+    backupIssues: [],
+    previewIssues,
+    schemaVersion,
+    counts,
+  };
 }

@@ -20,9 +20,11 @@ import {
   clearAllCacheEntries,
   clearSearchHistory,
   countSearchHistory,
+  createLibraryCategory,
   createMangaIdentityWithInitialMapping,
   deleteCacheEntries,
   exportBackupDocumentV1,
+  getChapter,
   getChapterReadState,
   getLibraryEntryForManga,
   getMangaIdentity,
@@ -30,10 +32,18 @@ import {
   getReaderSettings,
   getThemeDefinition,
   getThemeSettings,
+  listChapterReadStates,
+  listChaptersForManga,
+  listLibraryCategories,
   listLibraryEntries,
+  listMigrationHistory,
+  listReadingHistory,
   listRecentReadingHistory,
   previewBackupRestore,
+  recordMigrationHistory,
+  setLibraryCategoryPinned,
   setLibraryEntryActiveProviderMapping,
+  setLibraryEntryCategories,
   summarizeCacheStorage,
   upsertAppSettings,
   upsertCacheEntry,
@@ -47,7 +57,15 @@ import {
 } from './index.js';
 import { migrateDatabaseToLatest } from './node.js';
 import { createSqlJsHarness } from './testing/sqljs-harness.js';
-import { libraryEntries, readerPreferences, themePreferences } from './schema.js';
+import {
+  categories,
+  chapterReadState,
+  libraryEntries,
+  migrationHistory,
+  readerPreferences,
+  readingHistory,
+  themePreferences,
+} from './schema.js';
 
 describe('@app/db', () => {
   it('exports PACKAGE_NAME', () => {
@@ -1034,5 +1052,308 @@ describe('app settings backup', () => {
     const restored = await applyBackupRestore(db, legacy);
     expect(restored.ok).toBe(true);
     expect(await getAppSettings(db)).toEqual(local);
+  });
+});
+
+describe('backup v4 library organization and reading state', () => {
+  const metadata = { createdAt: '2026-04-01T00:00:00.000Z', appVersion: 'test' };
+
+  async function seedCoveredData(db: Awaited<ReturnType<typeof createSqlJsHarness>>['db']) {
+    const created = await createMangaIdentityWithInitialMapping(db, {
+      canonicalTitle: 'Covered Manga',
+      status: 'ongoing',
+      contentRating: 'safe',
+      providerId: 'prov-cover',
+      providerMangaId: 'remote-cover',
+    });
+    if (!created.ok) throw new Error(created.error.message);
+    const { mangaId, mappingId } = created.value;
+
+    const entry = await addLibraryEntry(db, { mangaId, status: 'reading' });
+    if (!entry.ok) throw new Error(entry.error.message);
+
+    const category = await createLibraryCategory(db, { name: 'Fantasy', color: '#ff00aa' });
+    if (!category.ok) throw new Error(category.error.message);
+    await setLibraryCategoryPinned(db, category.value, true);
+    await setLibraryEntryActiveProviderMapping(db, entry.value, mappingId);
+    const assigned = await setLibraryEntryCategories(db, entry.value, [category.value]);
+    if (!assigned.ok) throw new Error(assigned.error.message);
+
+    const chapter = await upsertChapterWithPages(db, {
+      mangaId,
+      providerMappingId: mappingId,
+      title: 'Chapter 1',
+      index: 1,
+      pages: [],
+    });
+    if (!chapter.ok) throw new Error(chapter.error.message);
+
+    const state = await upsertChapterReadState(db, {
+      chapterId: chapter.value,
+      mangaId,
+      providerMappingId: mappingId,
+      progress: {
+        readPercent: 42,
+        lastPageIndex: 1,
+        completed: false,
+        startedAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-02T00:00:00.000Z',
+      },
+    });
+    if (!state.ok) throw new Error(state.error.message);
+
+    await appendReadingHistory(db, {
+      mangaId,
+      chapterId: chapter.value,
+      providerMappingId: mappingId,
+    });
+    await recordMigrationHistory(db, {
+      mangaId,
+      sourceProviderId: 'prov-source',
+      sourceProviderMangaId: 'remote-source',
+      targetProviderId: 'prov-cover',
+      targetProviderMangaId: 'remote-cover',
+      batchId: 'batch-cover',
+      previousDefaultMappingId: mappingId,
+      previousActiveMappingId: mappingId,
+    });
+
+    return {
+      mangaId,
+      mappingId,
+      entryId: entry.value,
+      categoryId: category.value,
+      chapterId: chapter.value,
+    };
+  }
+
+  it('round-trips categories, memberships, read state, reading history and migration history', async () => {
+    const { db: sourceDb } = await createSqlJsHarness();
+    const seeded = await seedCoveredData(sourceDb);
+
+    const doc = await exportBackupDocumentV1(sourceDb, metadata);
+    expect(doc.schemaVersion).toBe(4);
+    expect(doc.categories).toHaveLength(1);
+    expect(doc.library[0]?.categoryIds).toEqual([seeded.categoryId]);
+    expect(doc.chapterReadStates).toHaveLength(1);
+    expect(doc.readingHistory).toHaveLength(1);
+    expect(doc.migrationHistory).toHaveLength(1);
+
+    const preview = await previewBackupRestore(sourceDb, doc);
+    expect(preview.schemaVersion).toBe(4);
+    expect(preview.counts).toEqual({
+      libraryEntries: 1,
+      categories: 1,
+      categoryMemberships: 1,
+      chapters: 1,
+      chapterReadStates: 1,
+      readingHistory: 1,
+      migrationHistory: 1,
+    });
+    expect(preview.previewIssues.filter((issue) => issue.severity === 'error')).toEqual([]);
+
+    const { db: targetDb } = await createSqlJsHarness();
+    const restored = await applyBackupRestore(targetDb, doc);
+    expect(restored.ok).toBe(true);
+
+    expect(await listLibraryCategories(targetDb)).toEqual([
+      expect.objectContaining({
+        id: seeded.categoryId,
+        name: 'Fantasy',
+        color: '#ff00aa',
+        pinned: true,
+        sortIndex: 0,
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String),
+      }),
+    ]);
+    const entries = await listLibraryEntries(targetDb);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.categoryIds).toEqual([seeded.categoryId]);
+
+    const restoredChapter = await getChapter(targetDb, seeded.chapterId);
+    expect(restoredChapter).toMatchObject({
+      id: seeded.chapterId,
+      mangaId: seeded.mangaId,
+      title: 'Chapter 1',
+      index: 1,
+    });
+
+    expect(await listChapterReadStates(targetDb)).toEqual([
+      {
+        chapterId: seeded.chapterId,
+        mangaId: seeded.mangaId,
+        providerMappingId: seeded.mappingId,
+        progress: {
+          readPercent: 42,
+          lastPageIndex: 1,
+          completed: false,
+          startedAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-02T00:00:00.000Z',
+        },
+      },
+    ]);
+
+    const history = await listReadingHistory(targetDb);
+    expect(history).toHaveLength(1);
+    expect(history[0]).toMatchObject({
+      mangaId: seeded.mangaId,
+      chapterId: seeded.chapterId,
+      providerMappingId: seeded.mappingId,
+    });
+
+    const migrations = await listMigrationHistory(targetDb, undefined);
+    expect(migrations).toHaveLength(1);
+    expect(migrations[0]).toMatchObject({
+      mangaId: seeded.mangaId,
+      sourceProviderId: 'prov-source',
+      sourceProviderMangaId: 'remote-source',
+      targetProviderId: 'prov-cover',
+      targetProviderMangaId: 'remote-cover',
+      batchId: 'batch-cover',
+      previousDefaultMappingId: seeded.mappingId,
+      previousActiveMappingId: seeded.mappingId,
+      canonicalTitle: 'Covered Manga',
+    });
+  });
+
+  it('keeps local categories and progress when a v3 backup carries none of the new sections', async () => {
+    const { db: sourceDb } = await createSqlJsHarness();
+    const seeded = await seedCoveredData(sourceDb);
+    const doc = await exportBackupDocumentV1(sourceDb, metadata);
+
+    const { db } = await createSqlJsHarness();
+    expect((await applyBackupRestore(db, doc)).ok).toBe(true);
+
+    const localCategory = await createLibraryCategory(db, { name: 'Local only' });
+    if (!localCategory.ok) throw new Error(localCategory.error.message);
+    const localAssign = await setLibraryEntryCategories(db, seeded.entryId, [
+      seeded.categoryId,
+      localCategory.value,
+    ]);
+    expect(localAssign.ok).toBe(true);
+
+    const secondChapter = await upsertChapterWithPages(db, {
+      mangaId: seeded.mangaId,
+      providerMappingId: seeded.mappingId,
+      title: 'Chapter 2',
+      index: 2,
+      pages: [],
+    });
+    if (!secondChapter.ok) throw new Error(secondChapter.error.message);
+    await upsertChapterReadState(db, {
+      chapterId: secondChapter.value,
+      mangaId: seeded.mangaId,
+      progress: { readPercent: 10, lastPageIndex: 0, completed: false },
+    });
+    await appendReadingHistory(db, { mangaId: seeded.mangaId, chapterId: secondChapter.value });
+    await recordMigrationHistory(db, {
+      mangaId: seeded.mangaId,
+      sourceProviderId: 'local-source',
+      sourceProviderMangaId: 'local-source-remote',
+      targetProviderId: 'prov-cover',
+      targetProviderMangaId: 'remote-cover',
+      batchId: 'local-batch',
+    });
+    expect(await listChaptersForManga(db, seeded.mangaId)).toHaveLength(2);
+
+    const legacy = structuredClone(doc) as unknown as Record<string, unknown>;
+    legacy['schemaVersion'] = 3;
+    delete legacy['categories'];
+    delete legacy['chapters'];
+    delete legacy['chapterReadStates'];
+    delete legacy['readingHistory'];
+    delete legacy['migrationHistory'];
+
+    const preview = await previewBackupRestore(db, legacy);
+    expect(preview.schemaVersion).toBe(3);
+    expect(preview.counts).toMatchObject({ categories: 0, chapterReadStates: 0 });
+    expect(
+      preview.previewIssues.some((issue) => issue.code === 'restore.legacy_sections_preserved'),
+    ).toBe(true);
+
+    const restored = await applyBackupRestore(db, legacy);
+    expect(restored.ok).toBe(true);
+
+    expect((await listLibraryCategories(db)).map((category) => category.name).sort()).toEqual([
+      'Fantasy',
+      'Local only',
+    ]);
+    expect((await listLibraryEntries(db))[0]?.categoryIds).toEqual([seeded.categoryId]);
+    expect(await listChaptersForManga(db, seeded.mangaId)).toHaveLength(2);
+    expect(await listChapterReadStates(db)).toHaveLength(2);
+    expect(await listReadingHistory(db)).toHaveLength(2);
+    expect(await listMigrationHistory(db, undefined)).toHaveLength(2);
+  });
+
+  it('blocks malformed category, chapter and migration references without touching local data', async () => {
+    const { db } = await createSqlJsHarness();
+    const seeded = await seedCoveredData(db);
+    const doc = await exportBackupDocumentV1(db, metadata);
+
+    type MutableDoc = {
+      schemaVersion: number;
+      library: { categoryIds: string[] }[];
+      chapterReadStates: {
+        chapterId: string;
+        mangaId: string;
+        providerMappingId?: string;
+        progress: { readPercent: number; lastPageIndex: number; completed: boolean };
+      }[];
+      readingHistory: { id: string; mangaId: string }[];
+      migrationHistory: { id: string; previousDefaultMappingId?: string }[];
+    };
+    const mutableDoc = (): MutableDoc => structuredClone(doc) as unknown as MutableDoc;
+
+    const assertUntouched = async (): Promise<void> => {
+      expect((await listLibraryEntries(db))[0]?.id).toBe(seeded.entryId);
+      expect((await listLibraryCategories(db))[0]?.id).toBe(seeded.categoryId);
+      expect(await listChapterReadStates(db)).toHaveLength(1);
+      expect(await listReadingHistory(db)).toHaveLength(1);
+      expect(await listMigrationHistory(db, undefined)).toHaveLength(1);
+    };
+
+    const missingManga = mutableDoc();
+    missingManga.chapterReadStates[0]!.mangaId = 'ghost-manga';
+    const missingMangaResult = await applyBackupRestore(db, missingManga);
+    expect(missingMangaResult.ok ? 'ok' : missingMangaResult.error.code).toBe(
+      'backup.restore.blocked',
+    );
+    await assertUntouched();
+
+    const missingCategory = mutableDoc();
+    missingCategory.library[0]!.categoryIds = ['ghost-category'];
+    const missingCategoryResult = await applyBackupRestore(db, missingCategory);
+    expect(missingCategoryResult.ok).toBe(false);
+    await assertUntouched();
+
+    const missingMapping = mutableDoc();
+    missingMapping.chapterReadStates[0]!.providerMappingId = 'ghost-mapping';
+    const missingMappingResult = await applyBackupRestore(db, missingMapping);
+    expect(missingMappingResult.ok).toBe(false);
+    await assertUntouched();
+
+    const duplicateState = mutableDoc();
+    duplicateState.chapterReadStates.push(structuredClone(duplicateState.chapterReadStates[0]!));
+    const duplicateResult = await applyBackupRestore(db, duplicateState);
+    expect(duplicateResult.ok).toBe(false);
+    await assertUntouched();
+
+    const missingHistoryManga = mutableDoc();
+    missingHistoryManga.readingHistory[0]!.mangaId = 'ghost-manga';
+    expect((await applyBackupRestore(db, missingHistoryManga)).ok).toBe(false);
+    await assertUntouched();
+
+    const missingPreviousMapping = mutableDoc();
+    missingPreviousMapping.migrationHistory[0]!.previousDefaultMappingId = 'ghost-mapping';
+    expect((await applyBackupRestore(db, missingPreviousMapping)).ok).toBe(false);
+    await assertUntouched();
+
+    // A direct insert of a category link with a missing category would fail the
+    // transaction; the preview error above must stop it before that point.
+    expect(db.select().from(categories).all()).toHaveLength(1);
+    expect(db.select().from(chapterReadState).all()).toHaveLength(1);
+    expect(db.select().from(readingHistory).all()).toHaveLength(1);
+    expect(db.select().from(migrationHistory).all()).toHaveLength(1);
   });
 });

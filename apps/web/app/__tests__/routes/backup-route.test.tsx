@@ -85,7 +85,7 @@ async function click(element: HTMLElement): Promise<void> {
   });
 }
 
-async function runRestore(): Promise<void> {
+async function selectBackupFile(): Promise<void> {
   const fileInput = document.querySelector<HTMLInputElement>('input[type="file"]');
   if (fileInput === null) throw new Error('Backup file input not found.');
   const file = new File(['{}'], 'backup.json', { type: 'application/json' });
@@ -94,6 +94,10 @@ async function runRestore(): Promise<void> {
     fileInput.dispatchEvent(new Event('change', { bubbles: true }));
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
+}
+
+async function runRestore(): Promise<void> {
+  await selectBackupFile();
 
   await click(await vi.waitFor(() => getButton('Restore backup')));
   await click(await vi.waitFor(() => getButton('Confirm restore')));
@@ -132,6 +136,16 @@ describe('/backup restore and /settings/app freshness', () => {
       backupOk: true,
       backupIssues: [],
       previewIssues: [],
+      schemaVersion: 4,
+      counts: {
+        libraryEntries: 0,
+        categories: 0,
+        categoryMemberships: 0,
+        chapters: 0,
+        chapterReadStates: 0,
+        readingHistory: 0,
+        migrationHistory: 0,
+      },
     });
     mocks.applyBackupImport.mockReset();
     mocks.applyBackupImport.mockImplementation(async () => {
@@ -171,6 +185,45 @@ describe('/backup restore and /settings/app freshness', () => {
       expect.anything(),
       expect.objectContaining({ explicitContent: true, reduceMotion: true }),
     );
+
+    act(() => root.unmount());
+    container.remove();
+    client.clear();
+  });
+
+  it('Given a valid backup, When previewed, Then the counts for the new sections are visible', async () => {
+    mocks.previewBackupImport.mockResolvedValue({
+      backupOk: true,
+      backupIssues: [],
+      previewIssues: [],
+      schemaVersion: 4,
+      counts: {
+        libraryEntries: 3,
+        categories: 2,
+        categoryMemberships: 4,
+        chapters: 37,
+        chapterReadStates: 7,
+        readingHistory: 9,
+        migrationHistory: 1,
+      },
+    });
+
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { root, container } = await renderRoutes(client);
+
+    await selectBackupFile();
+
+    await vi.waitFor(() => {
+      const list = document.querySelector('dl[aria-label="Backup contents"]');
+      expect(list).not.toBeNull();
+      expect(list?.textContent).toContain('Categories');
+      expect(list?.textContent).toContain('2');
+      expect(list?.textContent).toContain('Chapter progress');
+      expect(list?.textContent).toContain('7');
+      expect(list?.textContent).toContain('Reading history');
+      expect(list?.textContent).toContain('9');
+      expect(list?.textContent).toContain('Migration history');
+    });
 
     act(() => root.unmount());
     container.remove();

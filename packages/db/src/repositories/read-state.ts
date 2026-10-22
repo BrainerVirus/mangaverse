@@ -282,7 +282,10 @@ export async function getChapterReadState(
     .where(eq(chapterReadState.chapterId, chapterId))
     .get();
   if (row === undefined) return undefined;
+  return mapChapterReadState(row);
+}
 
+function mapChapterReadState(row: typeof chapterReadState.$inferSelect): ChapterReadState {
   const progress: ReadingProgress = {
     readPercent: row.readPercent,
     lastPageIndex: row.lastPageIndex,
@@ -305,6 +308,10 @@ export async function getChapterReadState(
       ? { providerMappingId: toProviderMappingId(row.providerMappingId) }
       : {}),
   };
+}
+
+export async function listChapterReadStates(db: AppDrizzleDb): Promise<ChapterReadState[]> {
+  return db.select().from(chapterReadState).all().map(mapChapterReadState);
 }
 
 export async function appendReadingHistory(
@@ -343,4 +350,32 @@ export async function listRecentReadingHistory(
     chapterId: toChapterId(r.chapterId),
     readAt: r.readAt,
   }));
+}
+
+export interface ReadingHistoryEntry {
+  readonly id: string;
+  readonly mangaId: MangaId;
+  readonly chapterId: ChapterId;
+  readonly readAt: string;
+  readonly providerMappingId?: ProviderMappingId;
+}
+
+/** Every reading-history row, newest first: backup export carries the whole list. */
+export async function listReadingHistory(db: AppDrizzleDb): Promise<ReadingHistoryEntry[]> {
+  return db
+    .select()
+    .from(readingHistory)
+    .orderBy(desc(readingHistory.readAt))
+    .all()
+    .map((row) => ({
+      id: row.id,
+      mangaId: toMangaId(row.mangaId),
+      chapterId: toChapterId(row.chapterId),
+      readAt: row.readAt,
+      ...(row.providerMappingId !== null &&
+      row.providerMappingId !== undefined &&
+      row.providerMappingId !== ''
+        ? { providerMappingId: toProviderMappingId(row.providerMappingId) }
+        : {}),
+    }));
 }

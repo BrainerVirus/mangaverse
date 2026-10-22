@@ -65,7 +65,7 @@ const minimalValidBackup = {
 };
 
 describe('backup document', () => {
-  it('accepts a current v3 backup', () => {
+  it('accepts a current v4 backup', () => {
     const res = validateBackupDocument(minimalValidBackup);
     expect(res.ok).toBe(true);
     if (!res.ok) {
@@ -73,6 +73,87 @@ describe('backup document', () => {
     }
     expect(res.value.schemaVersion).toBe(BACKUP_SCHEMA_VERSION);
     expect(res.value.library).toHaveLength(1);
+  });
+
+  it('keeps the v4 sections absent on a v3 backup', () => {
+    const res = validateBackupDocument({ ...minimalValidBackup, schemaVersion: 3 });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.value.categories).toBeUndefined();
+    expect(res.value.chapters).toBeUndefined();
+    expect(res.value.chapterReadStates).toBeUndefined();
+    expect(res.value.readingHistory).toBeUndefined();
+    expect(res.value.migrationHistory).toBeUndefined();
+  });
+
+  it('validates categories, read state, reading history and migration history', () => {
+    const res = validateBackupDocument({
+      ...minimalValidBackup,
+      categories: [
+        {
+          id: 'c1',
+          name: 'Fantasy',
+          color: '#ff00aa',
+          pinned: true,
+          sortIndex: 0,
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+      library: [{ ...minimalValidBackup.library[0], categoryIds: ['c1'] }],
+      chapters: [
+        {
+          id: 'ch1',
+          mangaId: 'm1',
+          providerMappingId: 'map1',
+          providerId: 'p1',
+          providerChapterId: 'remote-ch1',
+          title: 'Chapter 1',
+          index: 1,
+        },
+      ],
+      chapterReadStates: [
+        {
+          chapterId: 'ch1',
+          mangaId: 'm1',
+          providerMappingId: 'map1',
+          progress: {
+            readPercent: 42,
+            lastPageIndex: 3,
+            completed: false,
+            startedAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-02T00:00:00.000Z',
+          },
+        },
+      ],
+      readingHistory: [
+        {
+          id: 'h1',
+          mangaId: 'm1',
+          chapterId: 'ch1',
+          readAt: '2026-01-02T00:00:00.000Z',
+          providerMappingId: 'map1',
+        },
+      ],
+      migrationHistory: [
+        {
+          id: 'mh1',
+          mangaId: 'm1',
+          sourceProviderId: 'p2',
+          sourceProviderMangaId: 'remote-2',
+          targetProviderId: 'p1',
+          targetProviderMangaId: 'pm1',
+          completedAt: '2026-01-03T00:00:00.000Z',
+          batchId: 'batch-1',
+          previousDefaultMappingId: 'map2',
+        },
+      ],
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.value.categories?.[0]?.pinned).toBe(true);
+    expect(res.value.chapterReadStates?.[0]?.progress.readPercent).toBe(42);
+    expect(res.value.readingHistory?.[0]?.chapterId).toBe('ch1');
+    expect(res.value.migrationHistory?.[0]?.batchId).toBe('batch-1');
   });
 
   it('accepts a legacy v1 backup and maps presetId', () => {
@@ -114,9 +195,36 @@ describe('backup document', () => {
   });
 
   it('rejects an unknown schema version', () => {
-    const res = validateBackupDocument({ ...minimalValidBackup, schemaVersion: 4 });
+    const res = validateBackupDocument({ ...minimalValidBackup, schemaVersion: 5 });
     expect(res.ok).toBe(false);
     expect(res.issues.length).toBeGreaterThan(0);
+  });
+
+  it('rejects malformed v4 sections with their field paths', () => {
+    const res = validateBackupDocument({
+      ...minimalValidBackup,
+      categories: [{ id: '', name: 'Fantasy' }],
+      chapterReadStates: [
+        {
+          chapterId: 'ch1',
+          mangaId: 'm1',
+          progress: { readPercent: 140, lastPageIndex: -1, completed: 'yes' },
+        },
+      ],
+      readingHistory: [{ id: 'h1', mangaId: 'm1', chapterId: 'ch1' }],
+      migrationHistory: [{ id: 'mh1' }],
+    });
+    expect(res.ok).toBe(false);
+    expect(res.issues.map((issue) => issue.path)).toEqual(
+      expect.arrayContaining([
+        'categories.0.id',
+        'chapterReadStates.0.progress.readPercent',
+        'chapterReadStates.0.progress.lastPageIndex',
+        'chapterReadStates.0.progress.completed',
+        'readingHistory.0.readAt',
+        'migrationHistory.0.mangaId',
+      ]),
+    );
   });
 
   it('rejects invalid reader settings', () => {

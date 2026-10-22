@@ -150,6 +150,16 @@ describe('summarizeRestorePreview', () => {
       backupOk: false,
       backupIssues: [{ path: 'schemaVersion', code: 'backup.invalid', message: 'bad schema' }],
       previewIssues: [],
+      schemaVersion: null,
+      counts: {
+        libraryEntries: 0,
+        categories: 0,
+        categoryMemberships: 0,
+        chapters: 0,
+        chapterReadStates: 0,
+        readingHistory: 0,
+        migrationHistory: 0,
+      },
     });
     expect(summary.canRestore).toBe(false);
     expect(summary.errorCount).toBe(1);

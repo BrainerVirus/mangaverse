@@ -12,6 +12,8 @@ import {
   previewBackupImport,
 } from '@app/backup';
 import { libraryQueryKeys } from '@app/library';
+import { migrationQueryKeys } from '@app/migration';
+import { readerQueryKeys } from '@app/reader';
 import { settingsQueryKeys } from '@app/settings';
 import { themeQueryKeys } from '@app/theme';
 
@@ -83,10 +85,13 @@ function BackupRoute() {
       setPreview(null);
       setPendingDocument(null);
       void queryClient.invalidateQueries({ queryKey: libraryQueryKeys.all });
-      // Restore rewrites reader settings and (v3) app settings. Mounted bridges
-      // hold the pre-restore rows for the 10-minute stale window.
+      // Restore rewrites reader settings, app settings, chapter read state and
+      // migration history. Mounted bridges and the reader hold the pre-restore
+      // rows for the stale window, so every affected surface refetches.
       void queryClient.invalidateQueries({ queryKey: settingsQueryKeys.all });
       void queryClient.invalidateQueries({ queryKey: themeQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: migrationQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: readerQueryKeys.all });
     },
     onError: (error) => {
       setRestoreSuccess(false);
