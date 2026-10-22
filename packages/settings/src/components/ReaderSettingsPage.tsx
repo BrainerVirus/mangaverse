@@ -1,4 +1,5 @@
 import {
+  Button,
   ErrorState,
   Input,
   Label,
@@ -12,7 +13,6 @@ import {
   SettingsSection,
   Slider,
   Switch,
-  Button,
 } from '@app/design-system';
 import { useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import {
@@ -45,6 +45,11 @@ export interface ReaderSettingsPageProps {
   onChange: (patch: Partial<ReaderSettings>) => void;
   /** Pointer-up or blur: commit a coalesced edit without waiting for the quiet window. */
   onInteractionEnd?: () => void;
+  /** Present when the page edits one title's overrides instead of the global defaults. */
+  readonly titleScope?: {
+    onReset: () => void;
+    isResetting?: boolean;
+  };
 }
 
 const READING_MODE_OPTIONS: readonly { value: ReadingMode; label: string }[] = [
@@ -439,6 +444,7 @@ export function ReaderSettingsPage({
   isSaving = false,
   onChange,
   onInteractionEnd,
+  titleScope,
 }: ReaderSettingsPageProps) {
   if (isLoading) {
     return (
@@ -474,12 +480,27 @@ export function ReaderSettingsPage({
       aria-label="Reader settings"
       className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6"
     >
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Reader settings</h1>
-        <p className="text-sm text-muted-foreground">
-          Default reading mode, layout, gestures, and display preferences.
-          {isSaving ? ' Saving…' : null}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Reader settings</h1>
+          <p className="text-sm text-muted-foreground">
+            {titleScope !== undefined
+              ? 'Reading mode, layout, gestures, and display preferences for this title.'
+              : 'Default reading mode, layout, gestures, and display preferences.'}
+            {isSaving ? ' Saving…' : null}
+          </p>
+        </div>
+        {titleScope !== undefined ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={titleScope.isResetting === true}
+            onClick={titleScope.onReset}
+          >
+            {titleScope.isResetting === true ? 'Resetting…' : 'Reset title settings'}
+          </Button>
+        ) : null}
       </div>
 
       <SettingsSection

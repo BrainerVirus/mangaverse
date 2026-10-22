@@ -34,11 +34,15 @@ interface LastApply {
  * Migration page state and side effects, kept out of the route component so the
  * page stays a thin render of one props object.
  */
-export function useMigrationController(): MigrationPageProps {
+export function useMigrationController(options?: {
+  readonly initialSourceProviderId?: string | null;
+}): MigrationPageProps {
   const queryClient = useQueryClient();
   const db = useLocalDb();
   const dbStatus = useLocalDbStatus();
-  const [sourceProviderId, setSourceProviderId] = useState<string | null>(null);
+  const [sourceProviderId, setSourceProviderId] = useState<string | null>(
+    options?.initialSourceProviderId ?? null,
+  );
   const [targetProviderId, setTargetProviderId] = useState<string | null>(null);
   const [selections, setSelections] = useState<Record<string, string>>({});
   const [searchQueries, setSearchQueries] = useState<Record<string, string>>({});

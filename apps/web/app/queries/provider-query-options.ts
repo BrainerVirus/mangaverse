@@ -4,7 +4,13 @@ import { applyExplicitContentGate, loadProviderSettings } from '@app/extensions'
 import type { ProviderContext, ProviderContract } from '@app/extensions-sdk';
 import { normalizeProviderError } from '@app/extensions-sdk';
 import type { MangaDetailData } from '@app/library';
-import type { ChapterId, MangaId, MangaIdentity } from '@app/shared';
+import type {
+  ChapterId,
+  MangaId,
+  MangaIdentity,
+  MangaProviderMapping,
+  ProviderCapabilityKey,
+} from '@app/shared';
 import { hasProviderCapability, toProviderMangaId } from '@app/shared';
 
 import {
@@ -133,6 +139,49 @@ export async function fetchProviderMangaDetail(
   const { fetchMangaDetail } = await import('@app/library');
   const refreshed = await fetchMangaDetail(db, mangaId);
   return mergeMangaDetailWithLibrary(refreshed ?? remote, local);
+}
+
+export type ProviderRelatedKind = 'recommendations' | 'relatedTitles';
+
+const RELATED_CAPABILITY: Readonly<Record<ProviderRelatedKind, ProviderCapabilityKey>> = {
+  recommendations: 'metadata.recommendations',
+  relatedTitles: 'metadata.relatedTitles',
+};
+
+/**
+ * Provider recommendations/related titles for one attached mapping. Returns
+ * empty without a call when the provider lacks the capability, so the detail
+ * page can hide the section instead of inventing one.
+ */
+export async function fetchProviderRelatedTitles(
+  db: AppDrizzleDb,
+  mapping: MangaProviderMapping,
+  kind: ProviderRelatedKind,
+  signal?: AbortSignal,
+): Promise<readonly MangaIdentity[]> {
+  const binding = getProviderBinding(String(mapping.providerId));
+  if (binding === null) return [];
+
+  const context = await providerContext(db, binding.providerId, signal);
+  if (context === null) return [];
+  if (!hasProviderCapability(context.provider.manifest, RELATED_CAPABILITY[kind])) return [];
+
+  const method =
+    kind === 'recommendations'
+      ? context.provider.getRecommendations
+      : context.provider.getRelatedTitles;
+  if (method === undefined) return [];
+
+  try {
+    const result = await method.call(context.provider, context.ctx, mapping.providerMangaId);
+    return binding.toSearchIdentities(result.items);
+  } catch (error) {
+    if (signal?.aborted === true) throw error;
+    throw new Error(
+      normalizeProviderError(error, { providerId: binding.providerId, operation: kind }).message,
+      { cause: error },
+    );
+  }
 }
 
 /**
