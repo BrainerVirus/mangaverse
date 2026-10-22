@@ -24,6 +24,8 @@ vi.mock('../../lib/provider-registry.js', () => ({
 
 vi.mock('@app/db/browser', () => ({
   getChapter: vi.fn<(...args: unknown[]) => unknown>(),
+  getLibraryEntryForManga: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => undefined),
+  getMangaIdentity: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => undefined),
   refreshLibraryUnreadCount: vi.fn<(...args: unknown[]) => Promise<number>>(async () => 0),
   upsertChapterWithPages: mocks.upsertChapterWithPages,
 }));

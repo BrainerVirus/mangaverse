@@ -1,5 +1,11 @@
 import type { AppDrizzleDb } from '@app/db/browser';
-import { getChapter, refreshLibraryUnreadCount, upsertChapterWithPages } from '@app/db/browser';
+import {
+  getChapter,
+  getLibraryEntryForManga,
+  getMangaIdentity,
+  refreshLibraryUnreadCount,
+  upsertChapterWithPages,
+} from '@app/db/browser';
 import { applyExplicitContentGate, loadProviderSettings } from '@app/extensions';
 import type { ProviderContext, ProviderContract } from '@app/extensions-sdk';
 import { normalizeProviderError } from '@app/extensions-sdk';
@@ -250,8 +256,28 @@ export async function hydrateProviderChaptersForMapping(
   signal?: AbortSignal,
 ): Promise<number> {
   const written = await ensureProviderChaptersForMapping(db, mangaId, mapping, signal);
-  await refreshLibraryUnreadCount(db, mangaId, mapping.id);
+  // A hydration started for the previous mapping must not repaint its badge
+  // after the user has switched away.
+  if (signal?.aborted !== true && (await isActiveMapping(db, mangaId, mapping.id))) {
+    await refreshLibraryUnreadCount(db, mangaId, mapping.id);
+  }
   return written;
+}
+
+async function isActiveMapping(
+  db: AppDrizzleDb,
+  mangaId: MangaId,
+  mappingId: MangaProviderMapping['id'],
+): Promise<boolean> {
+  const [entry, manga] = await Promise.all([
+    getLibraryEntryForManga(db, mangaId),
+    getMangaIdentity(db, mangaId),
+  ]);
+  const activeId =
+    entry?.activeProviderMappingId ??
+    manga?.preferredChapterSourceId ??
+    manga?.defaultProviderMappingId;
+  return activeId === mappingId;
 }
 
 /**

@@ -145,10 +145,52 @@ describe('switching to an empty mapping', () => {
     expect(entry?.unreadCount).toBe(bChapters?.length);
   });
 
+  it('Given hydration for the previous mapping, When it finishes after a switch, Then it cannot overwrite the new badge', async () => {
+    const { db, mangaId, sourceMappingId } = await seed();
+    const mappingB = await targetMapping(db, mangaId, 'remote-b');
+
+    let releaseChapters!: () => void;
+    const chaptersGate = new Promise<void>((resolve) => {
+      releaseChapters = resolve;
+    });
+    mocks.resolveInstalledProvider.mockResolvedValue({
+      manifest: { id: 'prov-b', name: 'Provider B', capabilities: { 'metadata.chapters': true } },
+      getChapters: async () => {
+        await chaptersGate;
+        return [
+          { id: 'a-1', title: 'Chapter 1', index: 1 },
+          { id: 'a-2', title: 'Chapter 2', index: 2 },
+        ];
+      },
+    } as unknown as ProviderContract);
+
+    const hydration = hydrateProviderChaptersForMapping(db, mangaId, {
+      id: sourceMappingId,
+      providerId: toProviderId('prov-a'),
+      providerMangaId: 'remote-a',
+    });
+
+    await runProviderAction(db, mangaId, await fetchMangaDetail(db, mangaId), {
+      type: 'select',
+      mappingId: mappingB.id,
+    });
+    expect((await getLibraryEntryForManga(db, mangaId))?.unreadCount).toBe(0);
+
+    releaseChapters();
+    await hydration;
+
+    // The late hydration belongs to A; B's badge must survive it.
+    expect((await getLibraryEntryForManga(db, mangaId))?.unreadCount).toBe(0);
+  });
+
   it('Given a provider without chapter support, When hydration is skipped, Then the stored badge still follows that mapping', async () => {
     const { db, mangaId } = await seed();
     const mappingB = await targetMapping(db, mangaId, 'remote-b');
-    expect((await getLibraryEntryForManga(db, mangaId))?.unreadCount).toBe(2);
+    await runProviderAction(db, mangaId, await fetchMangaDetail(db, mangaId), {
+      type: 'select',
+      mappingId: mappingB.id,
+    });
+    expect((await getLibraryEntryForManga(db, mangaId))?.unreadCount).toBe(0);
 
     mocks.resolveInstalledProvider.mockResolvedValue({
       manifest: { id: 'prov-b', name: 'Provider B', capabilities: { 'metadata.details': true } },
