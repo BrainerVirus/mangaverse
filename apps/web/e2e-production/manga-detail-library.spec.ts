@@ -38,13 +38,13 @@ test('Given a provider manga, When it is added, favorited and removed, Then ever
   await waitForPingQuiet(page);
 
   await page.goto('/library');
-  await expect(page.getByRole('button', { name: new RegExp(TITLE) })).toBeVisible({
-    timeout: 20_000,
-  });
+  // The recent-updates row also names the title; target the shelf card itself.
+  const card = page.locator('[data-library-card]').filter({ hasText: TITLE }).first();
+  await expect(card.getByRole('button')).toBeVisible({ timeout: 20_000 });
   await page.reload();
-  await expect(page.getByRole('button', { name: new RegExp(TITLE) })).toBeVisible({
-    timeout: 20_000,
-  });
+  await expect(
+    page.locator('[data-library-card]').filter({ hasText: TITLE }).first().getByRole('button'),
+  ).toBeVisible({ timeout: 20_000 });
 
   await page.goto(MANGA_PATH);
   await expect(page.getByRole('button', { name: 'Remove from library' })).toBeVisible({
