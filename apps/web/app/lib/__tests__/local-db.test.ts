@@ -22,6 +22,8 @@ const LIBRARY_CATEGORY_PINNED_MIGRATION_HASH =
   'f88fba5bb7715abf811036f0da8d3a895956819fc07782392454640c3ae755b9';
 const INSTALLED_EXTENSION_MANIFEST_URL_MIGRATION_HASH =
   'bd9dd7619965a6b2a7d88a59d84e65b58f179683c738edcf676703a04047f6fc';
+const EXTENSION_LOGS_MIGRATION_HASH =
+  'f5f3e68be2c6f46ff21681f230763e499e788ed133b0de3df942b443b5f07d12';
 
 function loadBundledMigrationFixtures() {
   const testDir = dirname(fileURLToPath(import.meta.url));
@@ -46,6 +48,7 @@ function loadBundledMigrationFixtures() {
       join(migrationsRoot, '0006_installed_extension_manifest_url.sql'),
       'utf8',
     ),
+    extensionLogsSql: readFileSync(join(migrationsRoot, '0007_extension_logs.sql'), 'utf8'),
     journal: JSON.parse(readFileSync(join(migrationsRoot, 'meta/_journal.json'), 'utf8')),
   };
 }
@@ -103,6 +106,7 @@ describe('local-db bundled migration path', () => {
       migrationHistoryUndoSql,
       libraryCategoryPinnedSql,
       installedExtensionManifestUrlSql,
+      extensionLogsSql,
       journal,
     } = loadBundledMigrationFixtures();
     const SQL = await initSqlJs();
@@ -144,6 +148,11 @@ describe('local-db bundled migration path', () => {
         sql: installedExtensionManifestUrlSql,
         hash: INSTALLED_EXTENSION_MANIFEST_URL_MIGRATION_HASH,
       },
+      {
+        tag: '0007_extension_logs',
+        sql: extensionLogsSql,
+        hash: EXTENSION_LOGS_MIGRATION_HASH,
+      },
     ]);
 
     const tables = db
@@ -151,6 +160,7 @@ describe('local-db bundled migration path', () => {
       .flatMap((result) => result.values.map((row) => row[0]));
 
     expect(tables).toContain('installed_extensions');
+    expect(tables).toContain('extension_logs');
     expect(tables).toContain('library_entries');
     expect(tables).toContain('themes');
     expect(tables).toContain('__drizzle_migrations');

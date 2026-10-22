@@ -13,6 +13,8 @@ export interface LocalDataSummary {
   readonly brokenExtensionCount: number;
   readonly categoryCount: number;
   readonly providerSettingsCount: number;
+  readonly extensionLogCount: number;
+  readonly extensionErrorLogCount: number;
 }
 
 export interface DiagnosticsReport {

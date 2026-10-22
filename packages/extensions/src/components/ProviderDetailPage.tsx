@@ -13,14 +13,61 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   SettingsSection,
   Switch,
 } from '@app/design-system';
+import type {
+  ExtensionLogCounts,
+  ExtensionLogEntry,
+  ExtensionLogLevel,
+  ProviderHealthCheckReport,
+  ProviderUpdateCheck,
+} from '@app/extensions-core';
 import type { ProviderSettingsValues } from '@app/shared';
 import { ExternalLink } from 'lucide-react';
 import { useState } from 'react';
+import { downloadJson } from '../download-json.js';
 import type { ProviderDetailData } from '../types.js';
 import { ProviderSettingsForm } from './ProviderSettingsForm.js';
+
+export type ActivityLevelFilter = 'all' | ExtensionLogLevel;
+
+export interface ProviderActivityState {
+  readonly logs: readonly ExtensionLogEntry[] | null;
+  readonly counts: ExtensionLogCounts;
+  readonly isLoading: boolean;
+  readonly error: string | null;
+  readonly level: ActivityLevelFilter;
+  readonly onLevelChange: (level: ActivityLevelFilter) => void;
+  readonly onClear: () => void;
+  readonly isClearing: boolean;
+}
+
+export interface ProviderHealthState {
+  readonly report: ProviderHealthCheckReport | null;
+  readonly isChecking: boolean;
+  readonly error: string | null;
+  readonly canRunNetworkCheck: boolean;
+  readonly includeNetwork: boolean;
+  readonly onIncludeNetworkChange: (enabled: boolean) => void;
+  readonly onRun: () => void;
+  readonly onCancel?: () => void;
+  readonly lastCheckedAt: string | null;
+}
+
+export interface ProviderUpdateState {
+  readonly check: ProviderUpdateCheck | null;
+  readonly isChecking: boolean;
+  readonly error: string | null;
+  readonly onCheck: () => void;
+  readonly onApply: () => void;
+  readonly isApplying: boolean;
+}
 
 export interface ProviderDetailPageProps {
   providerId: string;
@@ -35,6 +82,9 @@ export interface ProviderDetailPageProps {
   isSavingSettings?: boolean;
   settingsSaved?: boolean;
   settingsError?: string | null;
+  activity?: ProviderActivityState | undefined;
+  health?: ProviderHealthState | undefined;
+  update?: ProviderUpdateState | undefined;
 }
 
 function UninstallProviderDialog({
@@ -101,7 +151,359 @@ function backAction(onBack: (() => void) | undefined): {
   return onBack === undefined ? {} : { action: { label: 'Back to extensions', onClick: onBack } };
 }
 
+function checkBadgeVariant(
+  status: ProviderHealthCheckReport['checks'][number]['status'],
+): 'default' | 'secondary' | 'destructive' | 'outline' {
+  if (status === 'fail') return 'destructive';
+  if (status === 'degraded') return 'outline';
+  if (status === 'skipped') return 'outline';
+  return 'secondary';
+}
+
+function reportBadgeVariant(
+  status: ProviderHealthCheckReport['status'],
+): 'secondary' | 'destructive' | 'outline' {
+  if (status === 'broken') return 'destructive';
+  if (status === 'degraded') return 'outline';
+  return 'secondary';
+}
+
+function logBadgeVariant(level: ExtensionLogLevel): 'secondary' | 'outline' | 'destructive' {
+  if (level === 'error') return 'destructive';
+  if (level === 'warn') return 'outline';
+  return 'secondary';
+}
+
+function HealthCheckSection({ health }: { health: ProviderHealthState }) {
+  return (
+    <SettingsSection
+      title="Health check"
+      description="Runs static checks on the install, runtime binding and declared capabilities. The optional network check runs the provider's search once and is off by default."
+    >
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={health.onRun}
+            disabled={health.isChecking}
+          >
+            {health.isChecking ? 'Checking…' : 'Run health check'}
+          </Button>
+          {health.isChecking && health.onCancel !== undefined ? (
+            <Button type="button" variant="outline" onClick={health.onCancel}>
+              Cancel
+            </Button>
+          ) : null}
+          {health.canRunNetworkCheck ? (
+            <div className="flex items-center gap-2 text-sm">
+              <Switch
+                checked={health.includeNetwork}
+                onCheckedChange={health.onIncludeNetworkChange}
+                aria-label="Include network check (runs provider search)"
+              />
+              <span>Include network check (runs provider search)</span>
+            </div>
+          ) : null}
+        </div>
+
+        <p className="text-sm text-muted-foreground">
+          {health.lastCheckedAt === null
+            ? 'No health check has run yet.'
+            : `Last check: ${new Date(health.lastCheckedAt).toLocaleString()}`}
+        </p>
+
+        {health.error !== null ? (
+          <Alert variant="destructive">
+            <AlertTitle>Health check failed</AlertTitle>
+            <AlertDescription>{health.error}</AlertDescription>
+          </Alert>
+        ) : null}
+
+        {health.report !== null ? (
+          <output aria-label="Health check results" className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Overall</span>
+              <Badge variant={reportBadgeVariant(health.report.status)}>
+                {health.report.status}
+              </Badge>
+            </div>
+            <ul className="flex flex-col gap-2">
+              {health.report.checks.map((item) => (
+                <li
+                  key={item.id}
+                  className="flex flex-col gap-1 rounded-control bg-muted/40 p-3 sm:flex-row sm:items-baseline sm:justify-between"
+                >
+                  <span className="font-medium">{item.label}</span>
+                  <span className="flex flex-col gap-1 sm:items-end">
+                    <Badge variant={checkBadgeVariant(item.status)}>{item.status}</Badge>
+                    {item.reason !== undefined ? (
+                      <span className="text-sm text-muted-foreground">{item.reason}</span>
+                    ) : null}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </output>
+        ) : null}
+      </div>
+    </SettingsSection>
+  );
+}
+
+function UpdateSection({
+  data,
+  update,
+  confirmOpen,
+  onConfirmOpenChange,
+  providerName,
+}: {
+  data: ProviderDetailData;
+  update: ProviderUpdateState;
+  confirmOpen: boolean;
+  onConfirmOpenChange: (open: boolean) => void;
+  providerName: string;
+}) {
+  const hasManifestUrl = data.provider.manifestUrl !== undefined;
+  const available = update.check?.remoteManifest;
+  return (
+    <SettingsSection
+      title="Updates"
+      description="Checks the recorded manifest URL; nothing is installed until you confirm."
+    >
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={update.onCheck}
+            disabled={update.isChecking || !hasManifestUrl}
+          >
+            {update.isChecking ? 'Checking…' : 'Check for updates'}
+          </Button>
+          {update.check?.status === 'available' ? (
+            <Button type="button" onClick={() => onConfirmOpenChange(true)}>
+              Update to v{update.check.remoteVersion}
+            </Button>
+          ) : null}
+        </div>
+        {!hasManifestUrl ? (
+          <p className="text-sm text-muted-foreground">
+            No manifest URL is recorded for this provider, so updates cannot be checked.
+          </p>
+        ) : null}
+        {update.error !== null ? (
+          <Alert variant="destructive">
+            <AlertTitle>Update check failed</AlertTitle>
+            <AlertDescription>{update.error}</AlertDescription>
+          </Alert>
+        ) : null}
+        {update.check !== null ? (
+          <output className="block text-sm text-muted-foreground">
+            {update.check.message ?? `Update check: ${update.check.status}.`}
+          </output>
+        ) : (
+          <p className="text-sm text-muted-foreground">No update check has run yet.</p>
+        )}
+      </div>
+
+      <Dialog open={confirmOpen} onOpenChange={onConfirmOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Update {providerName} to v{available?.version}?
+            </DialogTitle>
+            <DialogDescription>
+              The provider manifest is replaced with the validated remote manifest. Enabled state
+              and saved settings stay as they are.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onConfirmOpenChange(false)}
+              disabled={update.isApplying}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                onConfirmOpenChange(false);
+                update.onApply();
+              }}
+              disabled={update.isApplying}
+            >
+              {update.isApplying ? 'Updating…' : 'Update provider'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </SettingsSection>
+  );
+}
+
+function levelCount(counts: ExtensionLogCounts, level: ActivityLevelFilter): number {
+  if (level === 'all') return counts.total;
+  if (level === 'error') return counts.errors;
+  if (level === 'warn') return counts.warnings;
+  return counts.info;
+}
+
+const ACTIVITY_LEVEL_LABEL: Record<ActivityLevelFilter, string> = {
+  all: 'activity',
+  info: 'info',
+  warn: 'warnings',
+  error: 'errors',
+};
+
+function ActivityEmptyMessage({
+  level,
+  retained,
+}: {
+  level: ActivityLevelFilter;
+  retained: number;
+}) {
+  if (retained > 0) return null;
+  return (
+    <p className="text-sm text-muted-foreground">
+      No {ACTIVITY_LEVEL_LABEL[level]} recorded for this provider.
+    </p>
+  );
+}
+
+function ActivitySection({
+  providerId,
+  activity,
+}: {
+  providerId: string;
+  activity: ProviderActivityState;
+}) {
+  const logs = activity.logs ?? [];
+  const retainedForLevel = levelCount(activity.counts, activity.level);
+
+  return (
+    <SettingsSection
+      title="Recent activity"
+      description="Provider operations, failures and health checks stored on this device."
+    >
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Select
+            value={activity.level}
+            onValueChange={(value) => {
+              if (value === 'all' || value === 'info' || value === 'warn' || value === 'error') {
+                activity.onLevelChange(value);
+              }
+            }}
+          >
+            <SelectTrigger aria-label="Filter activity by level" className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All levels</SelectItem>
+              <SelectItem value="info">Info</SelectItem>
+              <SelectItem value="warn">Warnings</SelectItem>
+              <SelectItem value="error">Errors</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              downloadJson(
+                `${providerId}-activity.json`,
+                JSON.stringify(
+                  { providerId, exportedAt: new Date().toISOString(), level: activity.level, logs },
+                  null,
+                  2,
+                ),
+              );
+            }}
+            disabled={logs.length === 0}
+          >
+            Export activity
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={activity.onClear}
+            disabled={activity.isClearing || activity.counts.total === 0}
+          >
+            {activity.isClearing ? 'Clearing…' : 'Clear activity'}
+          </Button>
+        </div>
+
+        {activity.isLoading ? (
+          <LoadingState type="list" />
+        ) : activity.error !== null ? (
+          <Alert variant="destructive">
+            <AlertTitle>Could not load activity</AlertTitle>
+            <AlertDescription>{activity.error}</AlertDescription>
+          </Alert>
+        ) : logs.length === 0 ? (
+          <ActivityEmptyMessage level={activity.level} retained={retainedForLevel} />
+        ) : (
+          <ul aria-label="Provider activity entries" className="flex flex-col gap-2">
+            {logs.map((entry) => (
+              <li key={entry.id} className="flex flex-col gap-1 rounded-control bg-muted/40 p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={logBadgeVariant(entry.level)}>{entry.level}</Badge>
+                  <code className="text-xs text-muted-foreground">{entry.code}</code>
+                  {/* react-doctor-disable-next-line react-doctor/no-locale-format-in-render -- ruling: extensions-activity-local-time: the section only renders from a client-side local DB query, so the reader's locale cannot mismatch SSR markup. */}
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(entry.createdAt).toLocaleString()}
+                  </span>
+                </div>
+                <p className="break-words text-sm">{entry.message}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </SettingsSection>
+  );
+}
+
+function ProviderOperationsSections({
+  providerId,
+  data,
+  activity,
+  health,
+  update,
+  updateConfirmOpen,
+  onUpdateConfirmOpenChange,
+}: {
+  providerId: string;
+  data: ProviderDetailData;
+  activity?: ProviderActivityState | undefined;
+  health?: ProviderHealthState | undefined;
+  update?: ProviderUpdateState | undefined;
+  updateConfirmOpen: boolean;
+  onUpdateConfirmOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <>
+      {health !== undefined ? <HealthCheckSection health={health} /> : null}
+      {update !== undefined ? (
+        <UpdateSection
+          data={data}
+          update={update}
+          confirmOpen={updateConfirmOpen}
+          onConfirmOpenChange={onUpdateConfirmOpenChange}
+          providerName={data.provider.manifest.name}
+        />
+      ) : null}
+      {activity !== undefined ? (
+        <ActivitySection providerId={providerId} activity={activity} />
+      ) : null}
+    </>
+  );
+}
+
 export function ProviderDetailPage({
+  providerId,
   data,
   isLoading,
   isError,
@@ -113,8 +515,12 @@ export function ProviderDetailPage({
   isSavingSettings = false,
   settingsSaved = false,
   settingsError = null,
+  activity,
+  health,
+  update,
 }: ProviderDetailPageProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -232,6 +638,16 @@ export function ProviderDetailPage({
           </div>
         </dl>
       </SettingsSection>
+
+      <ProviderOperationsSections
+        providerId={providerId}
+        data={data}
+        activity={activity}
+        health={health}
+        update={update}
+        updateConfirmOpen={updateConfirmOpen}
+        onUpdateConfirmOpenChange={setUpdateConfirmOpen}
+      />
 
       <ProviderSettingsForm
         key={`${provider.id}:${JSON.stringify(data.settings)}`}

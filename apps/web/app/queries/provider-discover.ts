@@ -1,5 +1,9 @@
 import type { AppDrizzleDb } from '@app/db/browser';
-import { applyExplicitContentGate, loadProviderSettings } from '@app/extensions';
+import {
+  applyExplicitContentGate,
+  loadProviderSettings,
+  recordProviderFailure,
+} from '@app/extensions';
 import type { ProviderContract } from '@app/extensions-sdk';
 import type { MangaIdentity, ProviderSettingsValues } from '@app/shared';
 import type { DiscoverPageData, DiscoverSection } from '@app/search';
@@ -84,7 +88,23 @@ export async function fetchProviderSectionPage(
     await loadProviderSettings(db, binding.providerId),
     explicitContent,
   );
-  const fetched = await fetchSection(provider, binding, sectionId, page, limit, settings, signal);
+  const fetched = await fetchSection(
+    provider,
+    binding,
+    sectionId,
+    page,
+    limit,
+    settings,
+    signal,
+  ).catch(async (error: unknown) => {
+    await recordProviderFailure(db, {
+      providerId: binding.providerId,
+      operation: 'discover',
+      error,
+      ...(signal !== undefined ? { signal } : {}),
+    });
+    throw error;
+  });
   if (fetched === null) {
     return { results: [], hasMore: false, offset };
   }
@@ -137,7 +157,15 @@ export async function fetchProviderDiscoverData(
           PROVIDER_SECTION_PREVIEW_SIZE,
           settings,
           signal,
-        );
+        ).catch(async (error: unknown) => {
+          await recordProviderFailure(db, {
+            providerId: binding.providerId,
+            operation: 'discover',
+            error,
+            ...(signal !== undefined ? { signal } : {}),
+          });
+          throw error;
+        });
         return {
           id: section.id,
           title: section.title,

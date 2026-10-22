@@ -7,6 +7,7 @@ import { upsertInstalledExtension } from '@app/db';
 
 import { transitionExtensionInstall } from './install-session.js';
 import type { ExtensionInstallSession } from './install-types.js';
+import { recordExtensionLog, recordProviderFailure } from './extension-logs.js';
 
 export interface ExtensionCoreDependencies {
   readonly db: AppDrizzleDb;
@@ -52,10 +53,22 @@ export async function confirmExtensionInstall(
 
   const write = await upsertInstalledExtension(deps.db, metadata);
   if (!write.ok) {
+    await recordProviderFailure(deps.db, {
+      providerId: metadata.id,
+      operation: 'install',
+      error: write.error,
+    });
     next = transitionExtensionInstall(next, { type: 'installFailed', error: write.error });
     return err(write.error);
   }
 
   next = transitionExtensionInstall(next, { type: 'installSucceeded' });
+  await recordExtensionLog(deps.db, {
+    providerId: metadata.id,
+    level: 'info',
+    code: 'extensions.ops.installed',
+    message: `Installed provider v${manifest.version}.`,
+    details: { version: manifest.version },
+  });
   return ok(next);
 }

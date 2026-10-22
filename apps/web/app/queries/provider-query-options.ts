@@ -6,8 +6,18 @@ import {
   refreshLibraryUnreadCount,
   upsertChapterWithPages,
 } from '@app/db/browser';
-import { applyExplicitContentGate, loadProviderSettings } from '@app/extensions';
-import type { ProviderContext, ProviderContract } from '@app/extensions-sdk';
+import {
+  applyExplicitContentGate,
+  loadProviderSettings,
+  recordProviderFailure,
+} from '@app/extensions';
+import type {
+  ProviderChapter,
+  ProviderContext,
+  ProviderContract,
+  ProviderDetails,
+  ProviderPage,
+} from '@app/extensions-sdk';
 import { normalizeProviderError } from '@app/extensions-sdk';
 import type { MangaDetailData } from '@app/library';
 import type {
@@ -106,6 +116,12 @@ export async function fetchProviderSearchIdentities(
     });
     return binding.toSearchIdentities(result.items);
   } catch (error) {
+    await recordProviderFailure(db, {
+      providerId,
+      operation: 'search',
+      error,
+      ...(signal !== undefined ? { signal } : {}),
+    });
     // A cancelled query is not a provider failure; React Query drops it.
     if (signal?.aborted === true) throw error;
     throw new Error(normalizeProviderError(error, { providerId, operation: 'search' }).message, {
@@ -133,11 +149,34 @@ export async function fetchProviderMangaDetail(
   if (!shouldRefreshMangaDetail(local)) return null;
 
   const providerId = toProviderMangaId(providerMangaId);
-  const details = await context.provider.getDetails(context.ctx, providerId);
-  const chapters =
-    context.provider.getChapters !== undefined
-      ? await context.provider.getChapters(context.ctx, providerId)
-      : [];
+  let details: ProviderDetails;
+  try {
+    details = await context.provider.getDetails(context.ctx, providerId);
+  } catch (error) {
+    await recordProviderFailure(db, {
+      providerId: binding.providerId,
+      operation: 'details',
+      error,
+      ...(signal !== undefined ? { signal } : {}),
+    });
+    throw error;
+  }
+  let chapters: readonly ProviderChapter[];
+  if (context.provider.getChapters !== undefined) {
+    try {
+      chapters = await context.provider.getChapters(context.ctx, providerId);
+    } catch (error) {
+      await recordProviderFailure(db, {
+        providerId: binding.providerId,
+        operation: 'chapters',
+        error,
+        ...(signal !== undefined ? { signal } : {}),
+      });
+      throw error;
+    }
+  } else {
+    chapters = [];
+  }
 
   const remote = binding.toMangaDetailData(providerMangaId, details, chapters);
   await persistMangaDetailToDb(db, remote);
@@ -316,11 +355,22 @@ export async function ensureProviderChapterPages(
     throw new Error(`${binding.providerId} provider is not available to load this chapter`);
   }
 
-  const pages = await context.provider.getPages(
-    context.ctx,
-    toProviderMangaId(providerMangaId),
-    providerChapterId,
-  );
+  let pages: readonly ProviderPage[];
+  try {
+    pages = await context.provider.getPages(
+      context.ctx,
+      toProviderMangaId(providerMangaId),
+      providerChapterId,
+    );
+  } catch (error) {
+    await recordProviderFailure(db, {
+      providerId: binding.providerId,
+      operation: 'pages',
+      error,
+      ...(signal !== undefined ? { signal } : {}),
+    });
+    throw error;
+  }
 
   await persistChapterPagesToDb(db, chapter, binding.toChapterPages(providerChapterId, pages));
 }

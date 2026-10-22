@@ -1,6 +1,7 @@
 import type { AppDrizzleDb } from '../adapter.js';
 import {
   categories,
+  extensionLogs,
   installedExtensions,
   libraryEntries,
   mangaIdentities,
@@ -15,6 +16,8 @@ export interface LocalDatabaseSummary {
   readonly brokenExtensionCount: number;
   readonly categoryCount: number;
   readonly providerSettingsCount: number;
+  readonly extensionLogCount: number;
+  readonly extensionErrorLogCount: number;
 }
 
 export async function summarizeLocalDatabase(db: AppDrizzleDb): Promise<LocalDatabaseSummary> {
@@ -29,6 +32,7 @@ export async function summarizeLocalDatabase(db: AppDrizzleDb): Promise<LocalDat
     .select({ providerId: providerSettings.providerId })
     .from(providerSettings)
     .all();
+  const extensionLogRows = db.select({ level: extensionLogs.level }).from(extensionLogs).all();
 
   return {
     libraryEntryCount: libraryRows.length,
@@ -38,5 +42,7 @@ export async function summarizeLocalDatabase(db: AppDrizzleDb): Promise<LocalDat
     brokenExtensionCount: extensionRows.filter((row) => row.health === 'broken').length,
     categoryCount: categoryRows.length,
     providerSettingsCount: providerSettingsRows.length,
+    extensionLogCount: extensionLogRows.length,
+    extensionErrorLogCount: extensionLogRows.filter((row) => row.level === 'error').length,
   };
 }

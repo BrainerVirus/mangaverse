@@ -48,6 +48,8 @@ describe('formatDiagnosticsReport', () => {
         brokenExtensionCount: 0,
         categoryCount: 0,
         providerSettingsCount: 1,
+        extensionLogCount: 3,
+        extensionErrorLogCount: 1,
       },
       localDatabaseReady: true,
     };
@@ -56,6 +58,8 @@ describe('formatDiagnosticsReport', () => {
     expect(text).toContain('MangaVerse diagnostics');
     expect(text).toContain('libraryEntries: 2');
     expect(text).toContain('runtime: web');
+    expect(text).toContain('extensionLogs: 3');
+    expect(text).toContain('extensionErrorLogs: 1');
   });
 });
 

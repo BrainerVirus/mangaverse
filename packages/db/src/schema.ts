@@ -385,6 +385,24 @@ export const syncState = sqliteTable('sync_state', {
   updatedAt: text('updated_at'),
 });
 
+/** Bounded, provider-scoped activity log for operations, failures and health checks. */
+export const extensionLogs = sqliteTable(
+  'extension_logs',
+  {
+    id: text('id').primaryKey(),
+    providerId: text('provider_id').notNull(),
+    level: text('level').notNull(),
+    code: text('code').notNull(),
+    message: text('message').notNull(),
+    detailsJson: text('details_json', { mode: 'json' }).$type<Record<string, unknown> | null>(),
+    createdAt: text('created_at').notNull(),
+  },
+  (t) => [
+    index('extension_logs_provider_created_idx').on(t.providerId, t.createdAt),
+    index('extension_logs_level_created_idx').on(t.level, t.createdAt),
+  ],
+);
+
 export const schema = {
   readerPreferences,
   themePreferences,
@@ -413,6 +431,7 @@ export const schema = {
   savedSearches,
   cacheEntries,
   syncState,
+  extensionLogs,
 };
 
 export type AppSchema = typeof schema;

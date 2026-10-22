@@ -14,6 +14,7 @@ import {
   updateInstalledProviderManifest,
 } from './providers-ops.js';
 import { getProviderSettings, saveProviderSettings } from './settings-persistence.js';
+import { listProviderActivity } from './extension-logs.js';
 
 const manifestV1: ProviderManifest = {
   id: toProviderId('demo'),
@@ -124,6 +125,10 @@ describe('uninstallInstalledProvider', () => {
     const id = listed.value[0]!.id;
     const u = await uninstallInstalledProvider(id, { db });
     expect(u.ok).toBe(true);
+    const activity = await listProviderActivity(db, id);
+    expect(activity.map((entry) => entry.code)).toEqual(
+      expect.arrayContaining(['extensions.ops.installed', 'extensions.ops.uninstalled']),
+    );
     const listed2 = await listInstalledProviders(db);
     if (!listed2.ok) {
       throw new Error('expected listed2.ok to be true');

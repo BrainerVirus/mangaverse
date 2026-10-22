@@ -7,12 +7,20 @@ import {
   removeProvider,
   setProviderEnabled,
   updateProviderSettings,
+  type ProviderDetailData,
 } from '@app/extensions';
 import type { ProviderSettingsValues } from '@app/shared';
+import { hasProviderCapability } from '@app/shared';
 import { useState } from 'react';
 import { searchQueryKeys } from '@app/search';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 import { flushLocalDb } from '../lib/local-db.js';
+import { getProviderBinding } from '../lib/provider-registry.js';
+import {
+  useProviderActivity,
+  useProviderHealth,
+  useProviderUpdate,
+} from '../lib/provider-operations.js';
 
 function errorMessageOf(error: unknown): string {
   if (error instanceof Error) return error.message;
@@ -21,6 +29,14 @@ function errorMessageOf(error: unknown): string {
     if (typeof message === 'string') return message;
   }
   return 'Could not save provider settings.';
+}
+
+function canProbeNetwork(data: ProviderDetailData | null | undefined): boolean {
+  if (data === null || data === undefined) return false;
+  return (
+    hasProviderCapability(data.provider.manifest, 'discovery.search') &&
+    getProviderBinding(String(data.provider.id))?.createProvider().search !== undefined
+  );
 }
 
 export const Route = createFileRoute('/extensions/$providerId')({
@@ -40,6 +56,15 @@ function ProviderDetailRoute() {
     queryFn: () => fetchProviderDetail(db!, providerId),
     enabled: dbStatus === 'ready' && db !== null,
   });
+
+  const activity = useProviderActivity(db, providerId, dbStatus === 'ready');
+  const health = useProviderHealth(db, providerId, {
+    enabled: dbStatus === 'ready',
+    manifest: data?.provider.manifest,
+    canRunNetworkCheck: canProbeNetwork(data),
+    lastCheckedAt: activity.lastHealthCheckAt,
+  });
+  const update = useProviderUpdate(db, providerId, dbStatus === 'ready');
 
   const toggleEnabledMutation = useMutation({
     mutationFn: async (enabled: boolean) => {
@@ -113,6 +138,9 @@ function ProviderDetailRoute() {
       isSavingSettings={saveSettingsMutation.isPending}
       settingsSaved={saveSettingsMutation.isSuccess && settingsError === null}
       settingsError={settingsError}
+      activity={activity.state}
+      health={health.state}
+      update={update.state}
       onBack={() => void navigate({ to: '/extensions' })}
       onToggleEnabled={(enabled) => {
         toggleEnabledMutation.mutate(enabled);

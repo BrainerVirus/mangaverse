@@ -80,6 +80,8 @@ export function formatDiagnosticsReport(report: DiagnosticsReport): string {
     lines.push(`  brokenExtensions: ${report.localData.brokenExtensionCount}`);
     lines.push(`  categories: ${report.localData.categoryCount}`);
     lines.push(`  providerSettings: ${report.localData.providerSettingsCount}`);
+    lines.push(`  extensionLogs: ${report.localData.extensionLogCount}`);
+    lines.push(`  extensionErrorLogs: ${report.localData.extensionErrorLogCount}`);
   }
 
   if (report.localService !== null) {
