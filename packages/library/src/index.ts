@@ -52,6 +52,11 @@ export {
 } from './update-queue.js';
 export { filterLibraryItemsByQuery } from './filter-items.js';
 export {
+  collectLibraryMigrationSelection,
+  libraryMigrationSelectionError,
+  type LibraryMigrationSelection,
+} from './migration-selection.js';
+export {
   addMangaToLibrary,
   applyLibraryOrganizationAction,
   markPreviousChaptersRead,

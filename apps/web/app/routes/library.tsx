@@ -8,8 +8,10 @@ import {
   LibraryPage,
   libraryQueryKeys,
   runLibraryUpdateQueue,
+  type LibraryMigrationSelection,
   type LibraryUpdateReport,
 } from '@app/library';
+import { MIGRATION_BATCH_LIMIT } from '@app/migration';
 import type { ChapterId, LibraryEntryId, LibraryViewState, MangaId } from '@app/shared';
 import {
   libraryOverviewQueryOptions,
@@ -69,6 +71,20 @@ function LibraryRoute() {
     },
     [navigate],
   );
+  const migrateSelection = useCallback(
+    (selection: LibraryMigrationSelection) => {
+      void navigate({
+        to: '/migration',
+        search: {
+          ids: [...selection.mangaIds],
+          ...(selection.sourceProviderIds.length === 0
+            ? {}
+            : { sources: [...selection.sourceProviderIds] }),
+        },
+      });
+    },
+    [navigate],
+  );
 
   const { data, isLoading, isError } = useQuery({
     ...libraryPageQueryOptions(db!, viewState),
@@ -122,6 +138,8 @@ function LibraryRoute() {
         onClearReport: () => void clearReport(),
       }}
       onOrganize={(action) => organizeMutation.mutateAsync(action)}
+      onMigrate={migrateSelection}
+      migrationBatchLimit={MIGRATION_BATCH_LIMIT}
       onBrowse={() => void navigate({ to: '/extensions' })}
       {...(dbStatus === 'error' ? { onRetry: retryDb } : {})}
     />

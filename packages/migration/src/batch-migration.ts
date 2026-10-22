@@ -1,6 +1,34 @@
 import type { MigrationBatchSummary, MigrationCandidate, MigrationSearchResult } from './types.js';
 
 /**
+ * Titles carried by one migration hand-off. The ids travel in the URL, so the
+ * limit keeps a full batch under the request-line size servers accept.
+ * 150 UUIDs serialize to a 6,768-char `/migration?ids=...` URL (the router sends
+ * one encoded JSON array), leaving ~1.4KB of the 8KB request line for `sources`.
+ * Raising this needs the encoded-length test in the web route suite updated.
+ */
+export const MIGRATION_BATCH_LIMIT = 150;
+
+/** Limits a source provider's candidates to the ids handed over from the library. */
+export function filterMigrationCandidatesByIds(
+  candidates: readonly MigrationCandidate[],
+  mangaIds: readonly string[],
+): MigrationCandidate[] {
+  if (mangaIds.length === 0) return [...candidates];
+  const requested = new Set(mangaIds);
+  return candidates.filter((candidate) => requested.has(candidate.mangaId));
+}
+
+/** Requested ids with no migratable candidate under the selected source provider. */
+export function findMissingMigrationMangaIds(
+  candidates: readonly MigrationCandidate[],
+  mangaIds: readonly string[],
+): string[] {
+  const available = new Set(candidates.map((candidate) => candidate.mangaId));
+  return mangaIds.filter((mangaId) => !available.has(mangaId));
+}
+
+/**
  * Fills a target id for every matched, unblocked title that has none yet.
  * Explicit selections (including manual ids) are kept.
  */

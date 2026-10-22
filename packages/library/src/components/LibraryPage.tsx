@@ -10,6 +10,11 @@ import type {
 } from '@app/shared';
 import type { LibraryItem, LibraryPageData, LibraryOrganizationAction } from '../types.js';
 import type { LibraryOverviewData } from '../fetch-library-overview.js';
+import {
+  collectLibraryMigrationSelection,
+  libraryMigrationSelectionError,
+  type LibraryMigrationSelection,
+} from '../migration-selection.js';
 import { hasLibraryFilters } from '../view-state.js';
 import { BulkEditBar } from './BulkEditBar.js';
 import { LibraryToolbar } from './LibraryToolbar.js';
@@ -22,6 +27,21 @@ import {
 import { VirtualLibraryGrid } from './VirtualLibraryGrid.js';
 
 const NOOP_ORGANIZE = async (): Promise<void> => {};
+const NOOP_MIGRATE = (): void => {};
+
+/** Validates the batch, then hands it off; a rejected batch reports instead of navigating. */
+function handOffMigrationSelection(input: {
+  readonly items: readonly LibraryItem[];
+  readonly entryIds: readonly LibraryEntryId[];
+  readonly limit: number | undefined;
+  readonly onError: (error: string | null) => void;
+  readonly onMigrate: (selection: LibraryMigrationSelection) => void;
+}): void {
+  const handoff = collectLibraryMigrationSelection(input.items, input.entryIds);
+  const error = libraryMigrationSelectionError(handoff, input.limit);
+  input.onError(error);
+  if (error === null) input.onMigrate(handoff);
+}
 
 export interface LibraryPageProps {
   data: LibraryPageData | undefined;
@@ -33,6 +53,10 @@ export interface LibraryPageProps {
   onBrowse?: () => void;
   onRetry?: () => void;
   onOrganize?: (action: LibraryOrganizationAction) => Promise<void>;
+  /** Hands the selection to the migration flow; grouped by reading provider. */
+  onMigrate?: (selection: LibraryMigrationSelection) => void;
+  /** Maximum titles one migration hand-off can carry; the app supplies it. */
+  migrationBatchLimit?: number;
   /** Continue reading and recently updated, already filtered like the grid. */
   overview?: LibraryOverviewData;
   onOpenChapter?: (chapterId: ChapterId) => void;
@@ -133,6 +157,22 @@ function LibraryStatus({
   );
 }
 
+function LibraryUpdatesSection({
+  updates,
+  isLoading,
+  isError,
+  itemCount,
+}: {
+  updates: LibraryPageProps['updates'];
+  isLoading: boolean;
+  isError: boolean;
+  itemCount: number;
+}) {
+  if (isLoading || isError || updates === undefined) return null;
+  if (itemCount === 0 && updates.report === undefined) return null;
+  return <LibraryUpdatePanel updates={updates} />;
+}
+
 export function LibraryPage({
   data,
   isLoading,
@@ -143,6 +183,8 @@ export function LibraryPage({
   onBrowse,
   onRetry,
   onOrganize,
+  onMigrate = NOOP_MIGRATE,
+  migrationBatchLimit,
   overview,
   onOpenChapter,
   updates,
@@ -153,7 +195,24 @@ export function LibraryPage({
   const providers = data?.providers ?? collectProviders(items);
   const filtersActive = hasLibraryFilters(viewState.filter);
   const selection = useLibrarySelection(items);
-  const clearSelection = selection.clearSelection;
+  const [migrationError, setMigrationError] = useState<string | null>(null);
+  const { clearSelection: clearSelectedIds } = selection;
+  const clearSelection = useCallback(() => {
+    clearSelectedIds();
+    setMigrationError(null);
+  }, [clearSelectedIds]);
+  const toggleSelectionMode = () => {
+    setMigrationError(null);
+    selection.toggleSelectionMode();
+  };
+  const migrateSelected = () =>
+    handOffMigrationSelection({
+      items,
+      entryIds: selection.selectedEntryIds,
+      limit: migrationBatchLimit,
+      onError: setMigrationError,
+      onMigrate,
+    });
 
   // Filter changes start a new result set; carrying ids from the old one would
   // let a bulk action touch titles the user can no longer see.
@@ -190,12 +249,12 @@ export function LibraryPage({
         onClearFilters={() => handleFilterChange({})}
       />
 
-      {!isLoading &&
-      !isError &&
-      updates !== undefined &&
-      (itemCount > 0 || updates.report !== undefined) ? (
-        <LibraryUpdatePanel updates={updates} />
-      ) : null}
+      <LibraryUpdatesSection
+        updates={updates}
+        isLoading={isLoading}
+        isError={isError}
+        itemCount={itemCount}
+      />
 
       {itemCount > 0 && !isLoading && !isError ? (
         <>
@@ -215,11 +274,17 @@ export function LibraryPage({
             visibleCount={itemCount}
             allVisibleSelected={selection.allVisibleSelected}
             categories={categories}
-            onToggleSelectionMode={selection.toggleSelectionMode}
+            onToggleSelectionMode={toggleSelectionMode}
             onSelectAllVisible={selection.selectAllVisible}
-            onClearSelection={selection.clearSelection}
+            onClearSelection={clearSelection}
             onOrganize={onOrganize ?? NOOP_ORGANIZE}
+            onMigrateSelected={migrateSelected}
           />
+          {migrationError !== null ? (
+            <p role="alert" className="text-sm text-destructive">
+              {migrationError}
+            </p>
+          ) : null}
           <VirtualLibraryGrid
             items={items}
             layout={viewState.layout}

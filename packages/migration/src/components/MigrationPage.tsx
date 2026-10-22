@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import type { MigrationHistoryEntry, MigrationPreviewReport } from '@app/db';
 import {
   Alert,
@@ -25,13 +25,14 @@ import {
   SettingsSection,
 } from '@app/design-system';
 
-import { summarizeMigrationBatch } from '../batch-migration.js';
+import { MIGRATION_BATCH_LIMIT, summarizeMigrationBatch } from '../batch-migration.js';
 import { migrationConfidenceBand } from '../score-migration-match.js';
 import { summarizeMigrationPreview } from '../summarize-migration.js';
 import type {
   MigrationApplyReportView,
   MigrationCandidate,
   MigrationConfidenceBand,
+  MigrationHandoffError,
   MigrationProviderOption,
   MigrationRollbackSummary,
   MigrationSearchResult,
@@ -59,6 +60,20 @@ export interface MigrationPageProps {
   readonly rollbackSummary: MigrationRollbackSummary | null;
   readonly rollbackError: string | null;
   readonly history: readonly MigrationHistoryEntry[];
+  /** Manga ids handed over by the library bulk action. */
+  readonly requestedMangaIds?: readonly string[];
+  /** Providers the hand-off titles read from; more than one asks the user to choose. */
+  readonly requestedSourceProviderIds?: readonly string[];
+  /** Requested ids absent from the selected source, shown as skipped. */
+  readonly skippedRequestedIds?: readonly string[];
+  /** Titles for the skipped ids, when the local database still knows them. */
+  readonly requestedTitles?: Readonly<Record<string, string>>;
+  /** A prefilled source that is no longer installed or enabled. */
+  readonly unavailableRequestedSourceProviderId?: string | null;
+  /** Set when the link could not be read as a batch; batch mode stays blocked. */
+  readonly handoffError?: MigrationHandoffError;
+  /** How many ids an over-limit link carried. */
+  readonly handoffIdCount?: number;
   onSourceProviderChange: (providerId: string) => void;
   onTargetProviderChange: (providerId: string) => void;
   onTargetMangaIdChange: (mangaId: string, targetProviderMangaId: string) => void;
@@ -72,6 +87,8 @@ export interface MigrationPageProps {
   onDismissApplyStatus: () => void;
   onRollback: () => void;
   onOpenBackup: () => void;
+  /** Clears a rejected hand-off link and returns to a plain migration page. */
+  onClearHandoff?: () => void;
 }
 
 const PRESERVED_ITEMS = [
@@ -87,6 +104,9 @@ const NOT_MIGRATED_ITEMS = [
   'Source provider ids, auth and provider-only metadata',
   'Provider-specific URLs and page caches',
 ] as const;
+
+const EMPTY_REQUESTED_IDS: readonly string[] = [];
+const EMPTY_REQUESTED_TITLES: Readonly<Record<string, string>> = {};
 
 function targetMappingLabel(item: {
   readonly targetProviderTitle?: string;
@@ -817,6 +837,222 @@ function HistorySection({
   );
 }
 
+function RequestedTitleList({
+  mangaIds,
+  titles,
+}: {
+  mangaIds: readonly string[];
+  titles: Readonly<Record<string, string>>;
+}) {
+  return (
+    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm" aria-label="Skipped selected titles">
+      {mangaIds.map((mangaId) => (
+        <li key={mangaId}>{titles[mangaId] ?? mangaId}</li>
+      ))}
+    </ul>
+  );
+}
+
+function SelectionHandoffNotice({
+  requestedMangaIds,
+  requestedSourceProviderIds,
+  sourceProviderId,
+  providers,
+}: {
+  requestedMangaIds: readonly string[];
+  requestedSourceProviderIds: readonly string[];
+  sourceProviderId: string | null;
+  providers: readonly MigrationProviderOption[];
+}) {
+  if (requestedMangaIds.length === 0) return null;
+
+  const nameFor = (providerId: string) =>
+    providers.find((provider) => provider.id === providerId)?.name ?? providerId;
+  const sourceNames = requestedSourceProviderIds.map(nameFor);
+  const selectedName = sourceProviderId === null ? undefined : nameFor(sourceProviderId);
+
+  if (sourceNames.length > 1) {
+    return (
+      <Alert>
+        <AlertTitle>Multiple source providers in this selection</AlertTitle>
+        <AlertDescription>
+          This batch groups titles by their preferred provider mapping across{' '}
+          {sourceNames.join(', ')}. Migration works one source mapping at a time: choose the
+          provider whose mappings you want to migrate. Titles without a mapping on that provider are
+          skipped and listed below.
+          {selectedName !== undefined ? ` Showing ${selectedName}.` : ''}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  return (
+    <Alert>
+      <AlertTitle>Library selection</AlertTitle>
+      <AlertDescription>
+        {requestedMangaIds.length} selected {requestedMangaIds.length === 1 ? 'title' : 'titles'}
+        {sourceNames.length === 1 ? ` with a mapping on ${sourceNames[0]}` : ''}. Only mappings for
+        this batch are offered.
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+function UnavailableSourceNotice({
+  providerId,
+  requestedMangaIds,
+  requestedTitles,
+}: {
+  providerId: string;
+  requestedMangaIds: readonly string[];
+  requestedTitles: Readonly<Record<string, string>>;
+}) {
+  return (
+    <Alert variant="destructive">
+      <AlertTitle>Selected source provider is unavailable</AlertTitle>
+      <AlertDescription>
+        {providerId} is not installed or enabled, so the {requestedMangaIds.length} selected{' '}
+        {requestedMangaIds.length === 1 ? 'title' : 'titles'} cannot be migrated from it. Install or
+        enable the provider, choose another source, or start again from the library.
+      </AlertDescription>
+      <RequestedTitleList mangaIds={requestedMangaIds} titles={requestedTitles} />
+    </Alert>
+  );
+}
+
+function SkippedSelectionNotice({
+  skippedRequestedIds,
+  requestedTitles,
+  sourceProviderName,
+}: {
+  skippedRequestedIds: readonly string[];
+  requestedTitles: Readonly<Record<string, string>>;
+  sourceProviderName: string;
+}) {
+  if (skippedRequestedIds.length === 0) return null;
+
+  return (
+    <Alert variant="destructive">
+      <AlertTitle>Some selected titles were skipped</AlertTitle>
+      <AlertDescription>
+        {skippedRequestedIds.length} {skippedRequestedIds.length === 1 ? 'title is' : 'titles are'}{' '}
+        no longer in the library or have no mapping on {sourceProviderName}.
+      </AlertDescription>
+      <RequestedTitleList mangaIds={skippedRequestedIds} titles={requestedTitles} />
+    </Alert>
+  );
+}
+
+function HandoffErrorNotice({
+  error,
+  idCount,
+  onClearHandoff,
+}: {
+  error: MigrationHandoffError;
+  idCount?: number;
+  onClearHandoff?: () => void;
+}) {
+  const tooMany = error === 'too-many';
+
+  return (
+    <Alert variant="destructive">
+      <AlertTitle>
+        {tooMany ? 'Too many titles for one migration batch' : 'Invalid migration link'}
+      </AlertTitle>
+      <AlertDescription>
+        {tooMany
+          ? `This link carries ${idCount ?? 'too many'} titles; one batch accepts at most ${MIGRATION_BATCH_LIMIT}. Reduce the selection in the library and try again.`
+          : 'The title list in this link could not be read, so no batch was loaded. Return to the library and choose Migrate selected again.'}
+      </AlertDescription>
+      {onClearHandoff !== undefined ? (
+        <Button className="mt-3" variant="outline" size="sm" onClick={onClearHandoff}>
+          Clear this link
+        </Button>
+      ) : null}
+    </Alert>
+  );
+}
+
+function HandoffSection({
+  handoffError,
+  handoffIdCount,
+  onClearHandoff,
+  requestedMangaIds,
+  requestedSourceProviderIds,
+  skippedRequestedIds,
+  requestedTitles,
+  unavailableRequestedSourceProviderId,
+  providers,
+  sourceProviderId,
+  targetProviderId,
+  onSourceProviderChange,
+  onTargetProviderChange,
+  children,
+}: {
+  handoffError: MigrationHandoffError | undefined;
+  handoffIdCount: number | undefined;
+  onClearHandoff: (() => void) | undefined;
+  requestedMangaIds: readonly string[];
+  requestedSourceProviderIds: readonly string[];
+  skippedRequestedIds: readonly string[];
+  requestedTitles: Readonly<Record<string, string>>;
+  unavailableRequestedSourceProviderId: string | null;
+  providers: readonly MigrationProviderOption[];
+  sourceProviderId: string | null;
+  targetProviderId: string | null;
+  onSourceProviderChange: (providerId: string) => void;
+  onTargetProviderChange: (providerId: string) => void;
+  children: ReactNode;
+}) {
+  if (handoffError !== undefined) {
+    return (
+      <HandoffErrorNotice
+        error={handoffError}
+        {...(handoffIdCount === undefined ? {} : { idCount: handoffIdCount })}
+        {...(onClearHandoff === undefined ? {} : { onClearHandoff })}
+      />
+    );
+  }
+
+  return (
+    <>
+      <SelectionHandoffNotice
+        requestedMangaIds={requestedMangaIds}
+        requestedSourceProviderIds={requestedSourceProviderIds}
+        sourceProviderId={sourceProviderId}
+        providers={providers}
+      />
+
+      <ProviderSection
+        providers={providers}
+        sourceProviderId={sourceProviderId}
+        targetProviderId={targetProviderId}
+        onSourceProviderChange={onSourceProviderChange}
+        onTargetProviderChange={onTargetProviderChange}
+      />
+
+      {unavailableRequestedSourceProviderId !== null ? (
+        <UnavailableSourceNotice
+          providerId={unavailableRequestedSourceProviderId}
+          requestedMangaIds={requestedMangaIds}
+          requestedTitles={requestedTitles}
+        />
+      ) : (
+        <SkippedSelectionNotice
+          skippedRequestedIds={skippedRequestedIds}
+          requestedTitles={requestedTitles}
+          sourceProviderName={
+            providers.find((provider) => provider.id === sourceProviderId)?.name ??
+            'the selected source provider'
+          }
+        />
+      )}
+
+      {children}
+    </>
+  );
+}
+
 export function MigrationPage({
   isLoading,
   isError,
@@ -838,6 +1074,13 @@ export function MigrationPage({
   rollbackSummary,
   rollbackError,
   history,
+  requestedMangaIds = EMPTY_REQUESTED_IDS,
+  requestedSourceProviderIds = EMPTY_REQUESTED_IDS,
+  skippedRequestedIds = EMPTY_REQUESTED_IDS,
+  requestedTitles = EMPTY_REQUESTED_TITLES,
+  unavailableRequestedSourceProviderId = null,
+  handoffError,
+  handoffIdCount,
   onSourceProviderChange,
   onTargetProviderChange,
   onTargetMangaIdChange,
@@ -851,6 +1094,7 @@ export function MigrationPage({
   onDismissApplyStatus,
   onRollback,
   onOpenBackup,
+  onClearHandoff,
 }: MigrationPageProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -917,45 +1161,53 @@ export function MigrationPage({
         onDismissApplyStatus={onDismissApplyStatus}
       />
 
-      <ProviderSection
+      <HandoffSection
+        handoffError={handoffError}
+        handoffIdCount={handoffIdCount}
+        onClearHandoff={onClearHandoff}
+        requestedMangaIds={requestedMangaIds}
+        requestedSourceProviderIds={requestedSourceProviderIds}
+        skippedRequestedIds={skippedRequestedIds}
+        requestedTitles={requestedTitles}
+        unavailableRequestedSourceProviderId={unavailableRequestedSourceProviderId}
         providers={providers}
         sourceProviderId={sourceProviderId}
         targetProviderId={targetProviderId}
         onSourceProviderChange={onSourceProviderChange}
         onTargetProviderChange={onTargetProviderChange}
-      />
+      >
+        {showCandidates ? (
+          <CandidateSection
+            candidates={candidates}
+            selections={selections}
+            searchQueries={searchQueries}
+            committedSearchQueries={committedSearchQueries}
+            targetSearches={targetSearches}
+            preview={preview}
+            targetProviderName={targetProviderName}
+            isPreviewing={isPreviewing}
+            isApplying={isApplying}
+            canPreview={canPreview}
+            hasPreview={preview !== null}
+            onSearchQueryChange={onSearchQueryChange}
+            onRetryTargetSearch={onRetryTargetSearch}
+            onTargetMangaIdChange={onTargetMangaIdChange}
+            onSelectAllMatched={onSelectAllMatched}
+            onDeselectAll={onDeselectAll}
+            onPreview={onPreview}
+            onClearPreview={onClearPreview}
+          />
+        ) : null}
 
-      {showCandidates ? (
-        <CandidateSection
-          candidates={candidates}
-          selections={selections}
-          searchQueries={searchQueries}
-          committedSearchQueries={committedSearchQueries}
-          targetSearches={targetSearches}
-          preview={preview}
-          targetProviderName={targetProviderName}
-          isPreviewing={isPreviewing}
-          isApplying={isApplying}
-          canPreview={canPreview}
-          hasPreview={preview !== null}
-          onSearchQueryChange={onSearchQueryChange}
-          onRetryTargetSearch={onRetryTargetSearch}
-          onTargetMangaIdChange={onTargetMangaIdChange}
-          onSelectAllMatched={onSelectAllMatched}
-          onDeselectAll={onDeselectAll}
-          onPreview={onPreview}
-          onClearPreview={onClearPreview}
-        />
-      ) : null}
-
-      {preview !== null ? (
-        <ReviewSection
-          preview={preview}
-          isPreviewing={isPreviewing}
-          isApplying={isApplying}
-          onRequestApply={() => setConfirmOpen(true)}
-        />
-      ) : null}
+        {preview !== null ? (
+          <ReviewSection
+            preview={preview}
+            isPreviewing={isPreviewing}
+            isApplying={isApplying}
+            onRequestApply={() => setConfirmOpen(true)}
+          />
+        ) : null}
+      </HandoffSection>
 
       <HistorySection history={history} titleFor={(mangaId) => titlesById[mangaId] ?? mangaId} />
 

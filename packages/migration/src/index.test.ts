@@ -7,6 +7,8 @@ import {
   buildMigrationApplyReport,
   fetchMigrationCandidates,
   fetchMigrationProviders,
+  filterMigrationCandidatesByIds,
+  findMissingMigrationMangaIds,
   MigrationPage,
   migrationConfidenceBand,
   PACKAGE_NAME,
@@ -221,6 +223,14 @@ describe('batch migration helpers', () => {
         blockedMangaIds,
       }),
     ).toEqual({ totalCount: 3, selectedCount: 2, matchedCount: 2, blockedCount: 1 });
+  });
+
+  it('limits candidates to the requested ids and reports stale ones', () => {
+    expect(
+      filterMigrationCandidatesByIds(candidates, ['c', 'a']).map((item) => item.mangaId),
+    ).toEqual(['a', 'c']);
+    expect(findMissingMigrationMangaIds(candidates, ['a', 'gone'])).toEqual(['gone']);
+    expect(filterMigrationCandidatesByIds(candidates, [])).toEqual(candidates);
   });
 });
 

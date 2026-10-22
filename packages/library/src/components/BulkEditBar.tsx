@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@app/design-system';
-import { CheckSquare, Heart, HeartOff, ListChecks, Tags } from 'lucide-react';
+import { ArrowRightLeft, CheckSquare, Heart, HeartOff, ListChecks, Tags } from 'lucide-react';
 import type { CategoryId, LibraryCategory, LibraryEntryId, LibraryStatus } from '@app/shared';
 import { compareLibraryCategories } from '@app/shared';
 import type { LibraryOrganizationAction } from '../types.js';
@@ -38,6 +38,7 @@ export interface BulkEditBarProps {
   onSelectAllVisible: () => void;
   onClearSelection: () => void;
   onOrganize: (action: LibraryOrganizationAction) => Promise<void>;
+  onMigrateSelected?: () => void;
 }
 
 export function BulkEditBar({
@@ -50,6 +51,7 @@ export function BulkEditBar({
   onSelectAllVisible,
   onClearSelection,
   onOrganize,
+  onMigrateSelected,
 }: BulkEditBarProps) {
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -193,6 +195,19 @@ export function BulkEditBar({
           <Tags aria-hidden className="size-4" />
           Categories
         </Button>
+
+        {onMigrateSelected !== undefined ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={selectedCount === 0}
+            onClick={onMigrateSelected}
+          >
+            <ArrowRightLeft aria-hidden className="size-4" />
+            Migrate selected
+          </Button>
+        ) : null}
 
         <Button
           type="button"
