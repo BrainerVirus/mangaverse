@@ -39,6 +39,33 @@ const defaultSettings: ReaderEngineSettings = {
 };
 
 describe('createReaderState', () => {
+  it('pairs RTL spreads without repeating the cover', () => {
+    const settings = {
+      ...defaultSettings,
+      readingMode: 'rtl' as const,
+      pageLayout: 'double' as const,
+      treatFirstPageAsCover: true,
+    };
+    for (const initialPageIndex of [1, 2]) {
+      expect(
+        createReaderState({
+          chapter: mockChapter,
+          viewport: mockViewport,
+          settings,
+          initialPageIndex,
+        }).visiblePageIndexes,
+      ).toEqual([2, 1]);
+    }
+  });
+  it('does not preload in low-memory mode when preload is zero', () => {
+    expect(
+      createReaderState({
+        chapter: mockChapter,
+        viewport: mockViewport,
+        settings: { ...defaultSettings, lowMemoryMode: true, preloadAhead: 0 },
+      }).preloadQueue,
+    ).toEqual([]);
+  });
   it('should create reader state with single page layout', () => {
     const input: ReaderSessionInput = {
       chapter: mockChapter,
