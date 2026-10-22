@@ -204,7 +204,8 @@
         "**/apps/web/app/lib/provider-registry.ts",
         "**/apps/web/app/lib/first-party-providers.ts",
         "**/apps/web/app/lib/__tests__/provider-registry.test.ts",
-        "**/apps/web/app/lib/__tests__/first-party-providers.test.ts"
+        "**/apps/web/app/lib/__tests__/first-party-providers.test.ts",
+        "**/apps/web/app/lib/__tests__/library-update-provider.test.ts"
       ],
       "rules": { "no-restricted-imports": "off" }
     },

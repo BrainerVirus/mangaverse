@@ -3,12 +3,16 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import {
   toCategoryId,
+  toChapterId,
   toLibraryEntryId,
   toMangaId,
   toProviderMappingId,
   type CategoryId,
+  type Chapter,
+  type LibraryStatus,
 } from '@app/shared';
 import type * as MotionModule from '@app/motion';
 
@@ -145,6 +149,76 @@ describe('MangaDetailPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove title' }));
 
     expect(onRemove).toHaveBeenCalledTimes(1);
+  });
+
+  it('Given a read title, Then unread, last read and last updated facts render from stored rows', () => {
+    const chapters: Chapter[] = [
+      {
+        id: toChapterId('ch-1'),
+        mangaId: MANGA_ID,
+        title: 'Chapter 1',
+        index: 1,
+        pages: [],
+        createdAt: '2026-03-04T10:00:00.000Z',
+      },
+      {
+        id: toChapterId('ch-2'),
+        mangaId: MANGA_ID,
+        title: 'Chapter 2',
+        index: 2,
+        pages: [],
+        createdAt: '2026-03-05T10:00:00.000Z',
+      },
+    ];
+
+    const { container } = render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={makeDetail({
+          chapters,
+          libraryEntry: {
+            ...inLibrary,
+            status: 'reading',
+            unreadCount: 1,
+            lastReadChapterId: toChapterId('ch-1'),
+          },
+        })}
+        isLoading={false}
+        isError={false}
+        onOpenChapter={() => {}}
+      />,
+    );
+
+    expect(screen.getByText('Unread')).toBeInTheDocument();
+    expect(screen.getByText('1 chapter')).toBeInTheDocument();
+    expect(screen.getByText('Last read')).toBeInTheDocument();
+    expect(screen.getByText('Last updated')).toBeInTheDocument();
+    // The updated stamp is the newest chapter's createdAt, never its sync time.
+    expect(container.querySelector('time')?.getAttribute('datetime')).toBe(
+      '2026-03-05T10:00:00.000Z',
+    );
+  });
+
+  it('Given a library title, When a status is picked, Then the change is reported', async () => {
+    const user = userEvent.setup();
+    const onStatusChange = vi.fn<(status: LibraryStatus) => void>();
+
+    render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={makeDetail({ libraryEntry: { ...inLibrary, status: 'planned' } })}
+        isLoading={false}
+        isError={false}
+        onOpenChapter={() => {}}
+        onStatusChange={onStatusChange}
+      />,
+    );
+
+    const trigger = screen.getByLabelText('Reading status');
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    await user.click(screen.getByRole('option', { name: 'Completed' }));
+
+    expect(onStatusChange).toHaveBeenCalledWith('completed');
   });
 
   it('Given a failing category write, Then the editor stays open and shows the error', async () => {

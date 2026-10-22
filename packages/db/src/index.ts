@@ -14,6 +14,7 @@ export { withTransaction } from './transactions.js';
 
 export * from './repositories/identities.js';
 export * from './repositories/library.js';
+export * from './repositories/library-activity.js';
 export * from './repositories/chapters.js';
 export * from './repositories/read-state.js';
 export * from './repositories/progress-ordering.js';

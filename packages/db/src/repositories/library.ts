@@ -27,6 +27,7 @@ import {
 import type { AppDrizzleDb } from '../adapter.js';
 import { readIdChunks } from '../read-id-chunks.js';
 import { withTransaction } from '../transactions.js';
+import { getLibraryChapterStats } from './library-activity.js';
 import {
   categories,
   chapterReadState,
@@ -265,11 +266,11 @@ function lastReadAtByEntryId(
   );
 }
 
-function sortLibraryRows(
+async function sortLibraryRows(
   db: AppDrizzleDb,
   rows: (typeof libraryEntries.$inferSelect)[],
   sort?: LibrarySort,
-): LibraryEntry[] {
+): Promise<LibraryEntry[]> {
   const key: LibrarySortKey = sort?.key ?? 'date_added';
   const direction = sort?.direction ?? 'desc';
   const titles = key === 'title' ? canonicalTitlesByMangaId(db, rows) : new Map<string, string>();
@@ -277,6 +278,26 @@ function sortLibraryRows(
     key === 'provider' ? providerKeysByEntryId(db, rows) : new Map<string, string>();
   const lastReadAt =
     key === 'last_read' ? lastReadAtByEntryId(db, rows) : new Map<string, string>();
+
+  const categoriesByEntry = categoryIdsByEntry(
+    db,
+    rows.map((row) => toLibraryEntryId(row.id)),
+  );
+  const mapped = rows.map((row) => mapLibraryEntry(row, categoriesByEntry.get(row.id) ?? []));
+  // Unread is counted from chapter read state, not the stored column: the queue
+  // persists it for reload, but the page must never show a stale count.
+  const liveUnread = await getLibraryChapterStats(db, mapped);
+  const entryById = new Map(
+    mapped.map((entry) => {
+      const stats = liveUnread.get(entry.id);
+      return [
+        entry.id,
+        stats === undefined || stats.chapterCount === 0 || stats.unreadCount === entry.unreadCount
+          ? entry
+          : { ...entry, unreadCount: stats.unreadCount },
+      ] as const;
+    }),
+  );
 
   const sorted = [...rows].sort((a, b) => {
     const byId = a.id.localeCompare(b.id);
@@ -296,7 +317,13 @@ function sortLibraryRows(
           byId
         );
       case 'unread':
-        return compareSortNumbers(a.unreadCount, b.unreadCount, direction) || byId;
+        return (
+          compareSortNumbers(
+            entryById.get(toLibraryEntryId(a.id))?.unreadCount ?? 0,
+            entryById.get(toLibraryEntryId(b.id))?.unreadCount ?? 0,
+            direction,
+          ) || byId
+        );
       case 'progress':
         return compareOptionalSortNumbers(a.progressPercent, b.progressPercent, direction) || byId;
       case 'provider':
@@ -311,11 +338,10 @@ function sortLibraryRows(
     return 0;
   });
 
-  const categoriesByEntry = categoryIdsByEntry(
-    db,
-    sorted.map((row) => toLibraryEntryId(row.id)),
-  );
-  return sorted.map((row) => mapLibraryEntry(row, categoriesByEntry.get(row.id) ?? []));
+  return sorted.flatMap((row) => {
+    const entry = entryById.get(toLibraryEntryId(row.id));
+    return entry === undefined ? [] : [entry];
+  });
 }
 
 export async function listLibraryCategories(db: AppDrizzleDb): Promise<LibraryCategory[]> {
@@ -388,7 +414,7 @@ export async function listLibraryEntries(
     rows = rows.filter((row) => mangaIds.has(row.mangaId));
   }
 
-  return sortLibraryRows(db, rows, options?.sort);
+  return await sortLibraryRows(db, rows, options?.sort);
 }
 
 /**

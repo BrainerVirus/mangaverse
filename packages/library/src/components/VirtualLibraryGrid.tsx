@@ -2,7 +2,14 @@ import { memo, useMemo, useRef } from 'react';
 import { useGridStaggerReveal } from '@app/motion';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { CachedMangaCard } from '@app/cache';
-import type { LibraryEntryId, LibraryLayoutMode, MangaId, MangaIdentity } from '@app/shared';
+import type {
+  LibraryEntry,
+  LibraryEntryId,
+  LibraryLayoutMode,
+  MangaId,
+  MangaIdentity,
+} from '@app/shared';
+import { libraryStatusLabel } from '@app/shared';
 import type { LibraryItem } from '../types.js';
 import {
   estimateRowHeight,
@@ -26,9 +33,8 @@ export interface VirtualLibraryGridProps {
 }
 
 interface LibraryCardProps {
-  entryId: LibraryEntryId;
+  entry: LibraryEntry;
   manga: MangaIdentity;
-  unreadCount: number;
   variant: LibraryLayoutMode;
   selectionMode: boolean;
   selected: boolean;
@@ -36,18 +42,24 @@ interface LibraryCardProps {
   onToggleSelected: ((entryId: LibraryEntryId) => void) | undefined;
 }
 
-/** Cards read the title identity plus its unread count; entry ids only key the list. */
+function cardProgress(entry: LibraryEntry): string | undefined {
+  if (entry.progressPercent === undefined) return undefined;
+  return `${Math.round(Math.min(100, Math.max(0, entry.progressPercent)))}% read`;
+}
+
+/** Cards read the entry's display fields; the entry id only keys the list. */
 const LibraryCard = memo(function LibraryCard({
-  entryId,
+  entry,
   manga,
-  unreadCount,
   variant,
   selectionMode,
   selected,
   onOpenManga,
   onToggleSelected,
 }: LibraryCardProps) {
+  const entryId = entry.id;
   const toggle = () => onToggleSelected?.(entryId);
+  const progress = cardProgress(entry);
   return (
     <div data-library-card className="relative">
       {selectionMode ? (
@@ -64,9 +76,18 @@ const LibraryCard = memo(function LibraryCard({
       <CachedMangaCard
         manga={manga}
         variant={variant}
-        unreadCount={unreadCount}
+        // The unread badge shares the top-left corner with the selection
+        // checkbox; in selection mode the checkbox owns it.
+        {...(selectionMode ? {} : { unreadCount: entry.unreadCount })}
         onClick={selectionMode ? toggle : () => onOpenManga(manga.id)}
       />
+      <div
+        data-library-card-meta
+        className="mt-1 flex flex-wrap items-center gap-x-2 px-1 text-xs text-muted-foreground"
+      >
+        <span>{libraryStatusLabel(entry.status)}</span>
+        {progress !== undefined ? <span>{progress}</span> : null}
+      </div>
     </div>
   );
 });
@@ -125,9 +146,8 @@ export function VirtualLibraryGrid({
         {fallbackItems.map(({ entry, manga }) => (
           <LibraryCard
             key={entry.id}
-            entryId={entry.id}
+            entry={entry}
             manga={manga}
-            unreadCount={entry.unreadCount}
             variant={layout}
             selectionMode={selectionMode}
             selected={selectedIds?.has(entry.id) ?? false}
@@ -177,9 +197,8 @@ export function VirtualLibraryGrid({
               {rowItems.map(({ entry, manga }) => (
                 <LibraryCard
                   key={entry.id}
-                  entryId={entry.id}
+                  entry={entry}
                   manga={manga}
-                  unreadCount={entry.unreadCount}
                   variant={layout}
                   selectionMode={selectionMode}
                   selected={selectedIds?.has(entry.id) ?? false}

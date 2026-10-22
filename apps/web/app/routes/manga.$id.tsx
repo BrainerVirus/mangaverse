@@ -93,6 +93,15 @@ function MangaDetailRoute() {
           categoryIds,
         });
       }}
+      onStatusChange={(status) => {
+        const entryId = data?.libraryEntry?.id;
+        if (entryId === undefined) return;
+        organizeMutation.mutate({
+          type: 'set_entries_status',
+          entryIds: [entryId],
+          status,
+        });
+      }}
       isLibraryActionPending={isLibraryActionPending}
     />
   );

@@ -1,12 +1,28 @@
 import { useState } from 'react';
-import { Badge, Button, EmptyState, ErrorState, LoadingState } from '@app/design-system';
+import {
+  Badge,
+  Button,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@app/design-system';
 import { CachedCoverImage, getDefaultProviderId } from '@app/cache';
 import {
+  LIBRARY_STATUS_OPTIONS,
   compareLibraryCategories,
+  libraryStatusLabel,
   toReadableDescription,
   type CategoryId,
+  type Chapter,
   type ChapterId,
   type LibraryCategory,
+  type LibraryEntry,
+  type LibraryStatus,
   type MangaId,
   type MangaIdentity,
 } from '@app/shared';
@@ -25,7 +41,15 @@ export interface MangaDetailPageProps {
   onRemoveFromLibrary?: () => void;
   onToggleFavorite?: () => void;
   onCategoriesChange?: (categoryIds: readonly CategoryId[]) => Promise<void> | void;
+  onStatusChange?: (status: LibraryStatus) => void;
   isLibraryActionPending?: boolean;
+}
+
+const dateFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
+
+function formatDate(iso: string): string {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? iso : dateFormatter.format(date);
 }
 
 function formatPeople(names: readonly { name: string }[]): string | undefined {
@@ -167,6 +191,84 @@ function CategoryEditor({
   );
 }
 
+interface LibraryStatusPickerProps {
+  readonly status: LibraryStatus;
+  readonly disabled: boolean;
+  readonly onChange: (status: LibraryStatus) => void;
+}
+
+/** Quick status change on the title itself; the library grid also supports it in bulk. */
+function LibraryStatusPicker({ status, disabled, onChange }: LibraryStatusPickerProps) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-sm font-medium text-muted-foreground">Reading status</span>
+      <Select
+        value={status}
+        onValueChange={(value) => {
+          const next = LIBRARY_STATUS_OPTIONS.find((option) => option.value === value);
+          if (next !== undefined) onChange(next.value);
+        }}
+      >
+        <SelectTrigger className="h-9 w-40" aria-label="Reading status" disabled={disabled}>
+          <SelectValue placeholder={libraryStatusLabel(status)} />
+        </SelectTrigger>
+        <SelectContent>
+          {LIBRARY_STATUS_OPTIONS.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+interface ReadingFactsProps {
+  readonly entry: LibraryEntry;
+  readonly chapters: readonly Chapter[];
+}
+
+function latestChapter(chapters: readonly Chapter[]): Chapter | undefined {
+  return chapters.reduce<Chapter | undefined>(
+    (best, chapter) => (best === undefined || chapter.index > best.index ? chapter : best),
+    undefined,
+  );
+}
+
+/**
+ * Per-title progress facts. The updated stamp prefers the provider's release
+ * date and falls back to the row's `createdAt`: a provider re-check bumps
+ * `updatedAt` on unchanged chapters too, so that column would claim a new
+ * chapter every check.
+ */
+function ReadingFacts({ entry, chapters }: ReadingFactsProps) {
+  const lastRead = chapters.find((chapter) => chapter.id === entry.lastReadChapterId);
+  const newest = latestChapter(chapters);
+  const updatedAt = newest?.publishedAt ?? newest?.createdAt;
+
+  return (
+    <dl className="grid gap-2 text-sm">
+      <div>
+        <dt className="font-medium text-muted-foreground">Unread</dt>
+        <dd>{entry.unreadCount === 1 ? '1 chapter' : `${entry.unreadCount} chapters`}</dd>
+      </div>
+      <div>
+        <dt className="font-medium text-muted-foreground">Last read</dt>
+        <dd>{lastRead?.title ?? 'Not started'}</dd>
+      </div>
+      {updatedAt !== undefined ? (
+        <div>
+          <dt className="font-medium text-muted-foreground">Last updated</dt>
+          <dd>
+            <time dateTime={updatedAt}>{formatDate(updatedAt)}</time>
+          </dd>
+        </div>
+      ) : null}
+    </dl>
+  );
+}
+
 interface SummaryProps {
   data: MangaDetailData;
   onOpenChapter: (chapterId: ChapterId) => void;
@@ -175,6 +277,7 @@ interface SummaryProps {
   onRemoveFromLibrary: (() => void) | undefined;
   onToggleFavorite: (() => void) | undefined;
   onCategoriesChange: ((categoryIds: readonly CategoryId[]) => Promise<void> | void) | undefined;
+  onStatusChange: ((status: LibraryStatus) => void) | undefined;
   isLibraryActionPending: boolean;
 }
 
@@ -277,14 +380,18 @@ function MangaSummary({
   onRemoveFromLibrary,
   onToggleFavorite,
   onCategoriesChange,
+  onStatusChange,
   isLibraryActionPending,
 }: SummaryProps) {
-  const { manga, libraryEntry, continueChapterId } = data;
+  const { manga, libraryEntry, continueChapterId, chapters } = data;
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-4">
       <MangaSummaryHeader manga={manga} inLibrary={libraryEntry !== undefined} />
       <MangaFacts manga={manga} />
+      {libraryEntry !== undefined ? (
+        <ReadingFacts entry={libraryEntry} chapters={chapters} />
+      ) : null}
       <ReadingAction
         continueChapterId={continueChapterId}
         hasLastReadChapter={libraryEntry?.lastReadChapterId !== undefined}
@@ -299,6 +406,14 @@ function MangaSummary({
         onToggleFavorite={onToggleFavorite}
         isLibraryActionPending={isLibraryActionPending}
       />
+
+      {libraryEntry !== undefined && onStatusChange !== undefined ? (
+        <LibraryStatusPicker
+          status={libraryEntry.status}
+          disabled={isLibraryActionPending}
+          onChange={onStatusChange}
+        />
+      ) : null}
 
       {libraryEntry !== undefined && onCategoriesChange !== undefined ? (
         <CategoryEditor
@@ -353,6 +468,7 @@ export function MangaDetailPage({
   onRemoveFromLibrary,
   onToggleFavorite,
   onCategoriesChange,
+  onStatusChange,
   isLibraryActionPending = false,
 }: MangaDetailPageProps) {
   if (isLoading) {
@@ -419,6 +535,7 @@ export function MangaDetailPage({
             onRemoveFromLibrary={onRemoveFromLibrary}
             onToggleFavorite={onToggleFavorite}
             onCategoriesChange={onCategoriesChange}
+            onStatusChange={onStatusChange}
             isLibraryActionPending={isLibraryActionPending}
           />
         </div>

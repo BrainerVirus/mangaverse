@@ -174,6 +174,10 @@ export async function upsertAppSetting(
     });
 }
 
+export async function deleteAppSetting(db: AppDrizzleDb, key: string): Promise<void> {
+  await db.delete(appSettings).where(eq(appSettings.key, key));
+}
+
 export async function getProviderSettingsRecord(
   db: AppDrizzleDb,
   providerId: string,

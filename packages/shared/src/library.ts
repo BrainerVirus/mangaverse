@@ -19,6 +19,21 @@ export function toCategoryId(id: string): CategoryId {
 
 export type LibraryStatus = 'reading' | 'completed' | 'on_hold' | 'dropped' | 'planned';
 
+export const LIBRARY_STATUS_OPTIONS: readonly {
+  readonly value: LibraryStatus;
+  readonly label: string;
+}[] = [
+  { value: 'reading', label: 'Reading' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'on_hold', label: 'On hold' },
+  { value: 'dropped', label: 'Dropped' },
+  { value: 'planned', label: 'Planned' },
+];
+
+export function libraryStatusLabel(status: LibraryStatus): string {
+  return LIBRARY_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
+}
+
 export type LibraryLayoutMode = 'grid' | 'list' | 'compact';
 
 export type LibrarySortKey =
