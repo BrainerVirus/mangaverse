@@ -47,6 +47,9 @@ for (const width of [390, 1440]) {
     await waitForPingQuiet(page);
 
     // Custom cover: set a real URL through the dialog, then reset it.
+    const detailCover = page.locator(`img[alt="${TITLE}"]`).first();
+    await expect(detailCover).toHaveAttribute('src', /^blob:/);
+    const providerCoverSrc = await detailCover.getAttribute('src');
     await page.getByRole('button', { name: 'Custom cover' }).click();
     const coverDialog = page.getByRole('dialog');
     await expect(coverDialog).toBeVisible();
@@ -58,8 +61,8 @@ for (const width of [390, 1440]) {
       .fill('https://uploads.mangadex.org/covers/custom.jpg');
     await coverDialog.getByRole('button', { name: 'Save cover' }).click();
     await expect(page.getByRole('button', { name: 'Change cover' })).toBeVisible();
-    const detailCover = page.locator(`img[alt="${TITLE}"]`).first();
-    await expect(detailCover).toHaveAttribute('src', /^blob:/);
+    // The custom blob must replace the provider blob, not just sit beside it.
+    await expect(detailCover).not.toHaveAttribute('src', providerCoverSrc ?? '');
     await expect(detailCover).toHaveAttribute(
       'data-cover-url',
       'https://uploads.mangadex.org/covers/custom.jpg',
