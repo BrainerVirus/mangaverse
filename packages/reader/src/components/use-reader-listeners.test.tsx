@@ -163,6 +163,18 @@ describe('useReaderKeyboard', () => {
     unmount(mounted);
   });
 
+  it('Given inverted navigation, When the arrows are pressed, Then they follow the tap zones', () => {
+    const settings = toReaderEngineSettings({
+      ...getDefaultReaderSettings(),
+      navigationDirection: 'inverted',
+    });
+    const mounted = mount({ settings });
+    press('ArrowLeft');
+    press('ArrowRight');
+    expect(mounted.actions).toEqual([{ type: 'nextPage' }, { type: 'prevPage' }]);
+    unmount(mounted);
+  });
+
   it('Given a saved page shortcut, When its key is pressed, Then that action runs', () => {
     const settings = {
       ...toReaderEngineSettings(getDefaultReaderSettings()),

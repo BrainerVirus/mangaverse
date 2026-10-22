@@ -128,6 +128,23 @@ export async function refreshLibraryUnreadCount(
 }
 
 /**
+ * Recomputes the badge after a reader-driven natural completion, where only the
+ * chapter's own provider count may change.
+ */
+export async function refreshLibraryUnreadCountForChapter(
+  db: AppDrizzleDb,
+  chapterId: ChapterId,
+): Promise<number | undefined> {
+  const chapter = db
+    .select({ mangaId: chapters.mangaId, providerId: chapters.providerId })
+    .from(chapters)
+    .where(eq(chapters.id, chapterId))
+    .get();
+  if (chapter === undefined) return undefined;
+  return refreshLibraryUnreadCount(db, toMangaId(chapter.mangaId), chapter.providerId ?? undefined);
+}
+
+/**
  * Explicit mark read/unread from the reader. The upsert is guarded by timestamp,
  * so this wins over an older progress write, while a newer progress write still
  * wins over it.

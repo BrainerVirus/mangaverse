@@ -1,4 +1,9 @@
-import type { KeyboardShortcut, KeyboardShortcutAction } from './reader-settings.js';
+import type {
+  KeyboardShortcut,
+  KeyboardShortcutAction,
+  NavigationDirection,
+  ReadingMode,
+} from './reader-settings.js';
 
 export const KEYBOARD_SHORTCUT_ACTIONS: readonly KeyboardShortcutAction[] = [
   'nextPage',
@@ -98,7 +103,8 @@ export function findKeyboardShortcutConflict(
 }
 
 export function isReservedShortcutKey(key: string): boolean {
-  return RESERVED_KEYS.includes(normalizeShortcutKey(key));
+  const normalized = normalizeShortcutKey(key);
+  return RESERVED_KEYS.some((reserved) => reserved.toLowerCase() === normalized.toLowerCase());
 }
 
 const KEY_LABELS: Readonly<Record<string, string>> = {
@@ -121,12 +127,16 @@ export function formatKeyboardShortcut(shortcut: KeyboardShortcut): string {
 
 /** Default bindings shown in the editor; the reader also keeps its wider built-in fallbacks. */
 export function defaultKeyboardShortcuts(
-  readingMode: 'rtl' | 'ltr' | 'vertical',
+  readingMode: ReadingMode,
+  navigationDirection: NavigationDirection = 'default',
 ): readonly KeyboardShortcut[] {
   const rtl = readingMode === 'rtl';
+  const inverted = navigationDirection === 'inverted';
+  const nextKey = inverted !== rtl ? 'ArrowLeft' : 'ArrowRight';
+  const prevKey = inverted !== rtl ? 'ArrowRight' : 'ArrowLeft';
   return [
-    { action: 'nextPage', key: rtl ? 'ArrowLeft' : 'ArrowRight' },
-    { action: 'prevPage', key: rtl ? 'ArrowRight' : 'ArrowLeft' },
+    { action: 'nextPage', key: nextKey },
+    { action: 'prevPage', key: prevKey },
     { action: 'firstPage', key: 'Home' },
     { action: 'lastPage', key: 'End' },
     { action: 'nextChapter', key: 'ArrowRight', modifiers: ['Shift'] },

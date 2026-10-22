@@ -19,6 +19,7 @@ export interface ReaderPagedLayerProps {
   readonly cacheContext: CoverCacheContextValue | null;
   readonly imageSmoothing: boolean;
   readonly setPagedLayer: (node: HTMLDivElement | null) => void;
+  readonly setPageTransitionLayer: (node: HTMLDivElement | null) => void;
   readonly onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
   readonly onPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void;
   readonly onPointerUp: (event: ReactPointerEvent<HTMLDivElement>) => void;
@@ -41,6 +42,7 @@ export function ReaderPagedLayer({
   cacheContext,
   imageSmoothing,
   setPagedLayer,
+  setPageTransitionLayer,
   onPointerDown,
   onPointerMove,
   onPointerUp,
@@ -64,19 +66,30 @@ export function ReaderPagedLayer({
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
     >
-      {visiblePages.map((page) => (
-        <ReaderPageBox
-          key={page.id}
-          page={page}
-          data={data}
-          fitInput={fitInput}
-          cacheContext={cacheContext}
-          imageSmoothing={imageSmoothing}
-          onPageMetric={onPageMetric}
-          onSkip={onSkip}
-          onBack={onBack}
-        />
-      ))}
+      {/*
+        GSAP animates this inner layer only. The zoom transform above is React's
+        inline style; letting a transition tween share that element would make
+        its revert restore a stale transform after a zoom or mode change.
+      */}
+      <div
+        ref={setPageTransitionLayer}
+        data-testid="reader-page-transition-layer"
+        className="flex w-max shrink-0"
+      >
+        {visiblePages.map((page) => (
+          <ReaderPageBox
+            key={page.id}
+            page={page}
+            data={data}
+            fitInput={fitInput}
+            cacheContext={cacheContext}
+            imageSmoothing={imageSmoothing}
+            onPageMetric={onPageMetric}
+            onSkip={onSkip}
+            onBack={onBack}
+          />
+        ))}
+      </div>
     </div>
   );
 }

@@ -257,7 +257,7 @@ export function KeyboardShortcutsEditor({
   const bindings =
     settings.keyboardShortcuts.length > 0
       ? settings.keyboardShortcuts
-      : defaultKeyboardShortcuts(settings.readingMode);
+      : defaultKeyboardShortcuts(settings.readingMode, settings.navigationDirection);
 
   const bindingFor = (action: KeyboardShortcutAction): KeyboardShortcut | undefined =>
     bindings.find((shortcut) => shortcut.action === action);

@@ -7,8 +7,8 @@ import {
   keyboardEventMatches,
   normalizeKeyboardShortcut,
 } from './keyboard-shortcuts.js';
+import { getDefaultReaderSettings, validateReaderSettings } from './reader-settings.js';
 import type { KeyboardShortcut } from './reader-settings.js';
-import { validateReaderSettings } from './reader-settings.js';
 
 const next = { action: 'nextPage', key: 'n' } as const;
 const prev = { action: 'prevPage', key: 'p' } as const;
@@ -49,11 +49,14 @@ describe('keyboard shortcut helpers', () => {
     ).toBe('Shift + →');
   });
 
-  it('defaults follow the reading direction', () => {
+  it('defaults follow the reading direction and inversion', () => {
     const ltr = defaultKeyboardShortcuts('ltr');
     const rtl = defaultKeyboardShortcuts('rtl');
+    const inverted = defaultKeyboardShortcuts('ltr', 'inverted');
     expect(ltr.find((shortcut) => shortcut.action === 'nextPage')?.key).toBe('ArrowRight');
     expect(rtl.find((shortcut) => shortcut.action === 'nextPage')?.key).toBe('ArrowLeft');
+    expect(inverted.find((shortcut) => shortcut.action === 'nextPage')?.key).toBe('ArrowLeft');
+    expect(inverted.find((shortcut) => shortcut.action === 'prevPage')?.key).toBe('ArrowRight');
   });
 });
 
@@ -101,5 +104,58 @@ describe('keyboard shortcut validation', () => {
         keyboardShortcuts: [{ action: 'nextPage', key: 'n', modifiers: ['Hyper'] }],
       }).ok,
     ).toBe(false);
+  });
+
+  it('Given reserved, duplicate, or partial bindings, When validating, Then the settings are rejected', () => {
+    const base = { ...getDefaultReaderSettings() };
+    const complete = defaultKeyboardShortcuts('ltr');
+    const replace = (action: string, patch: Partial<KeyboardShortcut>): KeyboardShortcut[] =>
+      complete.map((shortcut) =>
+        shortcut.action === action ? ({ ...shortcut, ...patch } as KeyboardShortcut) : shortcut,
+      );
+
+    for (const key of ['Tab', 'Escape', 'tab']) {
+      expect(
+        validateReaderSettings({ ...base, keyboardShortcuts: replace('nextPage', { key }) }).ok,
+      ).toBe(false);
+    }
+    // Same key as another action.
+    expect(
+      validateReaderSettings({ ...base, keyboardShortcuts: replace('nextPage', { key: 'End' }) })
+        .ok,
+    ).toBe(false);
+    // Same action twice also leaves another action unbound.
+    expect(
+      validateReaderSettings({
+        ...base,
+        keyboardShortcuts: [complete[0]!, complete[0]!, ...complete.slice(2)],
+      }).ok,
+    ).toBe(false);
+    // Partial lists silently mix custom and built-in bindings.
+    expect(validateReaderSettings({ ...base, keyboardShortcuts: [complete[0]!] }).ok).toBe(false);
+  });
+
+  it('Given a complete custom list, When validating, Then it round-trips', () => {
+    const base = getDefaultReaderSettings();
+    const complete = defaultKeyboardShortcuts('ltr').map((shortcut) =>
+      shortcut.action === 'nextPage' ? { ...shortcut, key: 'n' } : shortcut,
+    );
+
+    const result = validateReaderSettings({ ...base, keyboardShortcuts: complete });
+
+    expect(result.ok).toBe(true);
+    expect(result.ok ? result.value.keyboardShortcuts[0] : undefined).toMatchObject({
+      action: 'nextPage',
+      key: 'n',
+    });
+  });
+
+  it('Given a row written before shortcuts existed, When validating, Then defaults fill the list', () => {
+    const { keyboardShortcuts: _omitted, ...legacy } = getDefaultReaderSettings();
+
+    const result = validateReaderSettings(legacy);
+
+    expect(result.ok).toBe(true);
+    expect(result.ok ? result.value.keyboardShortcuts : undefined).toEqual([]);
   });
 });

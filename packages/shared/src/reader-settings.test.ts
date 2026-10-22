@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { defaultKeyboardShortcuts } from './keyboard-shortcuts';
 import {
   getDefaultReaderSettings,
   resolveReaderSettings,
+  sanitizeReaderSettings,
   validateReaderSettings,
 } from './reader-settings';
 
@@ -88,14 +90,52 @@ describe('reader settings', () => {
     expect(
       validateReaderSettings({ ...base, keyboardShortcuts: [{ action: 'nextPage' }] }).ok,
     ).toBe(false);
+    expect(validateReaderSettings({ ...base, keyboardShortcuts: [shortcut] }).ok).toBe(false);
 
-    const valid = validateReaderSettings({
-      ...base,
-      keyboardShortcuts: [{ ...shortcut, modifiers: ['Shift'] }],
-    });
+    const complete = defaultKeyboardShortcuts('ltr').map((binding) =>
+      binding.action === 'nextPage' ? { ...binding, key: 'n', modifiers: ['Shift'] } : binding,
+    );
+    const valid = validateReaderSettings({ ...base, keyboardShortcuts: complete });
     expect(valid.ok).toBe(true);
-    expect(valid.ok ? valid.value.keyboardShortcuts : []).toEqual([
-      { action: 'nextPage', key: 'ArrowRight', modifiers: ['Shift'] },
-    ]);
+    expect(valid.ok ? valid.value.keyboardShortcuts[0] : undefined).toEqual({
+      action: 'nextPage',
+      key: 'n',
+      modifiers: ['Shift'],
+    });
+  });
+
+  it('Given legacy or free-form shortcuts, When sanitizing, Then unrelated settings survive', () => {
+    const stored = {
+      ...getDefaultReaderSettings(),
+      readingMode: 'rtl' as const,
+      doubleTapZoom: 2.5,
+      keyboardShortcuts: [
+        { action: 'teleport', key: 'x' },
+        { action: 'nextPage', key: 'Tab' },
+      ],
+    };
+
+    const settings = sanitizeReaderSettings(stored);
+
+    expect(settings.readingMode).toBe('rtl');
+    expect(settings.doubleTapZoom).toBe(2.5);
+    expect(settings.keyboardShortcuts).toEqual([]);
+
+    const partial = sanitizeReaderSettings({
+      ...getDefaultReaderSettings(),
+      readingMode: 'vertical' as const,
+      keyboardShortcuts: [{ action: 'nextPage', key: 'n' }],
+    });
+    expect(partial.readingMode).toBe('vertical');
+    expect(partial.keyboardShortcuts).toEqual([]);
+  });
+
+  it('Given a row written before shortcuts existed, When sanitizing, Then defaults fill the list', () => {
+    const { keyboardShortcuts: _omitted, ...legacy } = getDefaultReaderSettings();
+
+    const settings = sanitizeReaderSettings(legacy);
+
+    expect(settings.readingMode).toBe('ltr');
+    expect(settings.keyboardShortcuts).toEqual([]);
   });
 });

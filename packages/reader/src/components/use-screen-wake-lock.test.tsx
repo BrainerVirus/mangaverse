@@ -29,6 +29,24 @@ function unmount({ root, container }: { root: Root; container: HTMLElement }) {
   container.remove();
 }
 
+function createSentinel(): MockSentinel {
+  const sentinel: MockSentinel = {
+    released: 0,
+    release: async () => {
+      sentinel.released += 1;
+    },
+  };
+  return sentinel;
+}
+
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
 describe('useScreenWakeLock', () => {
   const sentinels: MockSentinel[] = [];
   const request = vi.fn<() => Promise<MockSentinel>>(async () => {
@@ -102,6 +120,65 @@ describe('useScreenWakeLock', () => {
   it('Given unmounting, When a lock is held, Then it is released', async () => {
     const mounted = mount(true);
     await act(async () => {});
+    unmount(mounted);
+    await act(async () => {});
+    expect(sentinels[0]?.released).toBe(1);
+  });
+
+  it('Given a hide/visible flip while requesting, Then the late lock is released and a fresh one is taken', async () => {
+    const first = deferred<MockSentinel>();
+    request.mockImplementationOnce(() => first.promise);
+    const mounted = mount(true);
+    expect(request).toHaveBeenCalledTimes(1);
+
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    // The pending request is not duplicated while it is still in flight.
+    expect(request).toHaveBeenCalledTimes(1);
+
+    const late = createSentinel();
+    await act(async () => {
+      first.resolve(late);
+    });
+
+    expect(late.released).toBe(1);
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(sentinels[0]?.released).toBe(0);
+
+    unmount(mounted);
+    await act(async () => {});
+    expect(sentinels[0]?.released).toBe(1);
+  });
+
+  it('Given a request that lands while hidden, Then it is released and never adopted', async () => {
+    const first = deferred<MockSentinel>();
+    request.mockImplementationOnce(() => first.promise);
+    const mounted = mount(true);
+
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    const late = createSentinel();
+    await act(async () => {
+      first.resolve(late);
+    });
+    expect(late.released).toBe(1);
+
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await act(async () => {});
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(sentinels[0]?.released).toBe(0);
+
     unmount(mounted);
     await act(async () => {});
     expect(sentinels[0]?.released).toBe(1);

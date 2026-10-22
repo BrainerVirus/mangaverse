@@ -17,6 +17,7 @@ async function persistOnce(db: AppDrizzleDb, event: ReaderProgressEvent): Promis
     appendReadingHistory,
     getChapterReadStateOrdering,
     getLibraryResumeOrdering,
+    refreshLibraryUnreadCountForChapter,
     updateLibraryEntryReadingProgress,
     upsertChapterReadState,
   } = await import('@app/db');
@@ -51,6 +52,12 @@ async function persistOnce(db: AppDrizzleDb, event: ReaderProgressEvent): Promis
     mangaId: event.mangaId as MangaId,
     progress,
   });
+
+  // Reaching the last page is a natural completion: refresh the stored badge
+  // the chapter list would otherwise leave stale until an explicit mark.
+  if (event.completed) {
+    await refreshLibraryUnreadCountForChapter(db, event.chapterId as ChapterId);
+  }
 
   // The chapter guard is chapter-local, so a stale event for *another* chapter
   // would still move "continue reading". The library entry carries the same

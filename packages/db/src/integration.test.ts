@@ -179,6 +179,42 @@ describe('@app/db', () => {
     expect(loaded.readingMode).toBe(settings.readingMode);
   });
 
+  it('keeps unrelated reader settings when legacy or invalid shortcuts are stored', async () => {
+    const { db } = await createSqlJsHarness();
+    const now = new Date().toISOString();
+    const { keyboardShortcuts: _omitted, ...legacy } = {
+      ...getDefaultReaderSettings(),
+      readingMode: 'rtl' as const,
+      doubleTapZoom: 2.25,
+    };
+
+    await db.insert(readerPreferences).values({
+      id: 'global',
+      settingsJson: legacy as unknown as Record<string, unknown>,
+      updatedAt: now,
+    });
+
+    const migrated = await getReaderSettings(db);
+    expect(migrated.readingMode).toBe('rtl');
+    expect(migrated.doubleTapZoom).toBe(2.25);
+    expect(migrated.keyboardShortcuts).toEqual([]);
+
+    await db
+      .update(readerPreferences)
+      .set({
+        settingsJson: {
+          ...legacy,
+          keyboardShortcuts: [{ action: 'teleport', key: 'x' }],
+        } as unknown as Record<string, unknown>,
+      })
+      .where(eq(readerPreferences.id, 'global'));
+
+    const sanitized = await getReaderSettings(db);
+    expect(sanitized.readingMode).toBe('rtl');
+    expect(sanitized.doubleTapZoom).toBe(2.25);
+    expect(sanitized.keyboardShortcuts).toEqual([]);
+  });
+
   it('rolls back writes when a synchronous error is thrown inside withTransaction', async () => {
     const { db } = await createSqlJsHarness();
     const now = new Date().toISOString();

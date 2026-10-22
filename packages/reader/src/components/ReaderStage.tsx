@@ -37,6 +37,7 @@ export interface ReaderStageProps {
   readonly onZoomPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void;
   readonly onZoomPointerUp: (event: ReactPointerEvent<HTMLDivElement>) => void;
   readonly setPagedLayer: (node: HTMLDivElement | null) => void;
+  readonly setPageTransitionLayer: (node: HTMLDivElement | null) => void;
   readonly onPageMetric: (metric: {
     pageIndex: number;
     status: 'loaded' | 'failed';
@@ -67,6 +68,7 @@ export function ReaderStage({
   onZoomPointerMove,
   onZoomPointerUp,
   setPagedLayer,
+  setPageTransitionLayer,
   onPageMetric,
 }: ReaderStageProps) {
   const isScrollMode = readerState.mode === 'scroll';
@@ -111,6 +113,7 @@ export function ReaderStage({
           cacheContext={cacheContext}
           imageSmoothing={data.engineSettings.imageSmoothing !== false}
           setPagedLayer={setPagedLayer}
+          setPageTransitionLayer={setPageTransitionLayer}
           onPointerDown={onZoomPointerDown}
           onPointerMove={onZoomPointerMove}
           onPointerUp={onZoomPointerUp}

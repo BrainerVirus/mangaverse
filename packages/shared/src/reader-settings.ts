@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { isReservedShortcutKey, keyboardShortcutId } from './keyboard-shortcuts.js';
 import type { AppResult } from './result.js';
 import { createAppError, err, ok } from './result.js';
 
@@ -60,7 +61,10 @@ const keyboardShortcutSchema = z.object(
     action: keyboardShortcutActionSchema,
     key: z
       .string({ error: 'Shortcut key must be a string.' })
-      .min(1, { error: 'Shortcut key must not be empty.' }),
+      .min(1, { error: 'Shortcut key must not be empty.' })
+      .refine((key) => !isReservedShortcutKey(key), {
+        error: 'Escape and Tab are reserved by the reader.',
+      }),
     modifiers: z
       .array(z.enum(['Control', 'Alt', 'Shift', 'Meta'], { error: 'Unknown shortcut modifier.' }), {
         error: 'Shortcut modifiers must be an array.',
@@ -68,6 +72,47 @@ const keyboardShortcutSchema = z.object(
       .exactOptional(),
   },
   { error: 'Each keyboard shortcut must be an object.' },
+);
+
+/**
+ * A saved list is either empty (the direction-aware defaults apply) or a full
+ * binding set: a partial list would silently mix custom and built-in bindings,
+ * and duplicates would make the reader's key resolution order-dependent.
+ */
+const keyboardShortcutListSchema = z.preprocess(
+  (value) => value ?? [],
+  z
+    .array(keyboardShortcutSchema, { error: 'keyboardShortcuts must be an array.' })
+    .superRefine((shortcuts, ctx) => {
+      const actions = new Set<KeyboardShortcutAction>();
+      const bindings = new Set<string>();
+      shortcuts.forEach((shortcut, index) => {
+        if (actions.has(shortcut.action)) {
+          ctx.addIssue({
+            code: 'custom',
+            message: 'Each shortcut action can be bound only once.',
+            path: [index, 'action'],
+          });
+        }
+        actions.add(shortcut.action);
+        const id = keyboardShortcutId(shortcut);
+        if (bindings.has(id)) {
+          ctx.addIssue({
+            code: 'custom',
+            message: 'Each shortcut key can be bound only once.',
+            path: [index, 'key'],
+          });
+        }
+        bindings.add(id);
+      });
+      if (shortcuts.length > 0 && actions.size !== keyboardShortcutActionSchema.options.length) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Every shortcut action must be bound.',
+          path: [],
+        });
+      }
+    }),
 );
 
 const prefetchBudgetBytesMessage = `prefetchBudgetBytes must be 0 (unlimited) or between 1 and ${PREFETCH_BUDGET_MAX_BYTES}.`;
@@ -147,9 +192,7 @@ const readerSettingsSchema = z
         error: 'rememberPerTitleOverrides must be boolean.',
       }),
       // Last so a malformed array is reported after the scalar fields, as before.
-      keyboardShortcuts: z.array(keyboardShortcutSchema, {
-        error: 'keyboardShortcuts must be an array.',
-      }),
+      keyboardShortcuts: keyboardShortcutListSchema,
     },
     { error: 'Reader settings must be an object.' },
   )
@@ -244,4 +287,25 @@ export function validateReaderSettings(input: unknown): AppResult<ReaderSettings
       message: result.error.issues[0]?.message ?? 'Invalid reader settings.',
     }),
   );
+}
+
+/**
+ * Reads settings that may predate the shortcut schema. Only a shortcut failure
+ * is salvaged: old rows keep every unrelated preference and fall back to the
+ * default shortcuts instead of losing their reading mode, zoom or layout.
+ */
+export function sanitizeReaderSettings(input: unknown): ReaderSettings {
+  const parsed = readerSettingsSchema.safeParse(input);
+  if (parsed.success) return parsed.data;
+  if (typeof input !== 'object' || input === null) return getDefaultReaderSettings();
+
+  const { keyboardShortcuts: storedShortcuts, ...fields } = input as Record<string, unknown>;
+  const fieldResult = readerSettingsSchema.safeParse({ ...fields, keyboardShortcuts: [] });
+  if (!fieldResult.success) return getDefaultReaderSettings();
+
+  const shortcutResult = keyboardShortcutListSchema.safeParse(storedShortcuts);
+  return {
+    ...fieldResult.data,
+    keyboardShortcuts: shortcutResult.success ? shortcutResult.data : [],
+  };
 }

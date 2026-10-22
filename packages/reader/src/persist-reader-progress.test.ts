@@ -4,6 +4,7 @@ import {
   createMangaIdentityWithInitialMapping,
   getChapterReadState,
   getLibraryEntryForManga,
+  refreshLibraryUnreadCount,
   upsertChapterWithPages,
 } from '@app/db';
 import {
@@ -49,6 +50,7 @@ describe('persistReaderProgress', () => {
     });
 
     await addLibraryEntry(db, { mangaId, status: 'reading' });
+    expect(await refreshLibraryUnreadCount(db, mangaId)).toBe(1);
 
     const event = buildProgressEvent(chapterId, mangaId, 0, 1);
     await persistReaderProgress(db, event);
@@ -61,6 +63,8 @@ describe('persistReaderProgress', () => {
     const libraryEntry = await getLibraryEntryForManga(db, mangaId);
     expect(libraryEntry?.lastReadChapterId).toBe(chapterId);
     expect(libraryEntry?.progressPercent).toBe(100);
+    // Natural completion refreshes the badge instead of waiting for a manual mark.
+    expect(libraryEntry?.unreadCount).toBe(0);
   });
 
   it('does not roll progress back when an older event arrives late', async () => {

@@ -28,6 +28,7 @@ export interface VirtualLibraryGridProps {
 interface LibraryCardProps {
   entryId: LibraryEntryId;
   manga: MangaIdentity;
+  unreadCount: number;
   variant: LibraryLayoutMode;
   selectionMode: boolean;
   selected: boolean;
@@ -35,10 +36,11 @@ interface LibraryCardProps {
   onToggleSelected: ((entryId: LibraryEntryId) => void) | undefined;
 }
 
-/** Cards only read these props; entry ids only key the list. */
+/** Cards read the title identity plus its unread count; entry ids only key the list. */
 const LibraryCard = memo(function LibraryCard({
   entryId,
   manga,
+  unreadCount,
   variant,
   selectionMode,
   selected,
@@ -62,6 +64,7 @@ const LibraryCard = memo(function LibraryCard({
       <CachedMangaCard
         manga={manga}
         variant={variant}
+        unreadCount={unreadCount}
         onClick={selectionMode ? toggle : () => onOpenManga(manga.id)}
       />
     </div>
@@ -124,6 +127,7 @@ export function VirtualLibraryGrid({
             key={entry.id}
             entryId={entry.id}
             manga={manga}
+            unreadCount={entry.unreadCount}
             variant={layout}
             selectionMode={selectionMode}
             selected={selectedIds?.has(entry.id) ?? false}
@@ -175,6 +179,7 @@ export function VirtualLibraryGrid({
                   key={entry.id}
                   entryId={entry.id}
                   manga={manga}
+                  unreadCount={entry.unreadCount}
                   variant={layout}
                   selectionMode={selectionMode}
                   selected={selectedIds?.has(entry.id) ?? false}

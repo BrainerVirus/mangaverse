@@ -45,15 +45,6 @@ function resolveChromeVisible(settings: ReaderSettings | undefined, visible: boo
   );
 }
 
-function toggleFullscreen(): void {
-  if (typeof document === 'undefined') return;
-  if (document.fullscreenElement) {
-    void document.exitFullscreen();
-    return;
-  }
-  void document.documentElement.requestFullscreen?.();
-}
-
 function resolveChromeMode(
   settings: ReaderSettings | undefined,
   isScrollMode: boolean,
@@ -326,7 +317,7 @@ function ReaderReadyView({
   const [status, setStatus] = useState<string | null>(null);
   const scrollHandleRef = useRef<ReaderScrollViewHandle | null>(null);
   const settingsButtonRef = useRef<HTMLButtonElement | null>(null);
-  const pageLayerRef = useRef<HTMLDivElement | null>(null);
+  const pageTransitionLayerRef = useRef<HTMLDivElement | null>(null);
   // Vertical navigation resolves from the last target, not the centre-based
   // active page: during a smooth scroll the active page lags behind and rapid
   // presses would otherwise all resolve to the same index. `verticalTargetPending`
@@ -339,7 +330,10 @@ function ReaderReadyView({
   const progress = useReaderProgress(data, readerState, onPersistProgress);
   useChapterPrefetch(data, cacheContext, readerState.activePageIndex, diagnostics.recordPrefetch);
   useScreenWakeLock(data.settings.keepScreenOn);
-  useReaderFullscreen(data.settings.fullscreenOnOpen, reducedMotion);
+  const { toggleFullscreen } = useReaderFullscreen({
+    openOnEnter: data.settings.fullscreenOnOpen,
+    reducedMotion,
+  });
   const offlineNote = useOfflinePagesNote(data, cacheContext, isOffline);
 
   const {
@@ -358,13 +352,9 @@ function ReaderReadyView({
     setReaderState,
   });
   const { zoomLayerRef } = useReaderWheelZoom({ sessionInput, surface, updateZoom });
-  const setPagedLayer = useCallback(
-    (node: HTMLDivElement | null) => {
-      pageLayerRef.current = node;
-      zoomLayerRef(node);
-    },
-    [zoomLayerRef],
-  );
+  const setPageTransitionLayer = useCallback((node: HTMLDivElement | null) => {
+    pageTransitionLayerRef.current = node;
+  }, []);
   useReaderKeyboard({
     sessionInput,
     navigate,
@@ -380,7 +370,7 @@ function ReaderReadyView({
     onNextChapter,
   });
   useReaderPageTransition({
-    pageLayer: pageLayerRef,
+    pageLayer: pageTransitionLayerRef,
     activePageIndex: readerState.activePageIndex,
     mode: data.engineSettings.pageTransition ?? 'none',
     rtl: data.engineSettings.readingMode === 'rtl',
@@ -455,7 +445,8 @@ function ReaderReadyView({
         onZoomPointerDown={handleZoomPointerDown}
         onZoomPointerMove={handleZoomPointerMove}
         onZoomPointerUp={handleZoomPointerUp}
-        setPagedLayer={setPagedLayer}
+        setPagedLayer={zoomLayerRef}
+        setPageTransitionLayer={setPageTransitionLayer}
         onPageMetric={diagnostics.recordPageLoad}
       />
 

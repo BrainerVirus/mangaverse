@@ -266,6 +266,41 @@ describe('resolveKeyboardAction with saved shortcuts', () => {
   });
 });
 
+describe('resolveKeyboardAction reading direction', () => {
+  const cases = [
+    { readingMode: 'ltr', navigationDirection: 'default', next: 'ArrowRight', prev: 'ArrowLeft' },
+    { readingMode: 'ltr', navigationDirection: 'inverted', next: 'ArrowLeft', prev: 'ArrowRight' },
+    { readingMode: 'rtl', navigationDirection: 'default', next: 'ArrowLeft', prev: 'ArrowRight' },
+    { readingMode: 'rtl', navigationDirection: 'inverted', next: 'ArrowRight', prev: 'ArrowLeft' },
+  ] as const;
+
+  for (const { readingMode, navigationDirection, next, prev } of cases) {
+    it(`Given ${readingMode}/${navigationDirection}, Then the arrows follow the tap zones`, () => {
+      const settings: ReaderEngineSettings = {
+        ...defaultSettings,
+        readingMode,
+        navigationDirection,
+      };
+
+      expect(resolveKeyboardAction({ key: next }, settings).type).toBe('nextPage');
+      expect(resolveKeyboardAction({ key: prev }, settings).type).toBe('prevPage');
+    });
+  }
+
+  it('Given a custom binding, Then it wins while the remaining defaults stay direction-aware', () => {
+    const settings: ReaderEngineSettings = {
+      ...defaultSettings,
+      readingMode: 'ltr',
+      navigationDirection: 'inverted',
+      keyboardShortcuts: [{ action: 'nextPage', key: 'n' }],
+    };
+
+    expect(resolveKeyboardAction({ key: 'n' }, settings).type).toBe('nextPage');
+    expect(resolveKeyboardAction({ key: 'ArrowLeft' }, settings).type).toBe('nextPage');
+    expect(resolveKeyboardAction({ key: 'ArrowRight' }, settings).type).toBe('prevPage');
+  });
+});
+
 describe('resolveWheelAction', () => {
   it('should return scroll action for wheel events in vertical mode', () => {
     const settings = {

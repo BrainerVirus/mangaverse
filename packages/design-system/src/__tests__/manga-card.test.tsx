@@ -119,6 +119,15 @@ describe('MangaCard', () => {
     expect(button).toHaveClass('aspect-3/4');
   });
 
+  it('Given an unread count, Then the card shows a badge and hides zero', () => {
+    const first = render(<MangaCard manga={createMockManga()} unreadCount={3} />);
+    expect(screen.getByText('3 unread')).toBeInTheDocument();
+    first.unmount();
+
+    render(<MangaCard manga={createMockManga()} unreadCount={0} />);
+    expect(screen.queryByText('0 unread')).toBeNull();
+  });
+
   it('Given the grid variant, Then the title and source sit on a card-toned plate over the art', () => {
     const { container } = render(<MangaCard manga={createMockManga()} variant="grid" />);
 

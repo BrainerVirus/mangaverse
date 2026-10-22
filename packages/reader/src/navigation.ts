@@ -91,7 +91,7 @@ export function resolveKeyboardAction(
   const shortcuts =
     settings.keyboardShortcuts !== undefined && settings.keyboardShortcuts.length > 0
       ? settings.keyboardShortcuts
-      : defaultKeyboardShortcuts(settings.readingMode);
+      : defaultKeyboardShortcuts(settings.readingMode, settings.navigationDirection);
   const custom = shortcuts.find((shortcut) => keyboardEventMatches(event, shortcut));
   if (custom !== undefined) return { type: custom.action };
   if (event.ctrlKey === true || event.metaKey === true || event.altKey === true) {
