@@ -7,6 +7,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { MigrationPreviewReport } from '@app/db';
 
 import { MigrationPage, type MigrationPageProps } from './MigrationPage.js';
+import { MIGRATION_BATCH_LIMIT } from '../batch-migration.js';
 import type { MigrationCandidate, MigrationSearchResult } from '../types.js';
 
 afterEach(() => {
@@ -197,11 +198,20 @@ describe('MigrationPage library hand-off', () => {
   });
 
   it('rejects an over-limit link with the cap instead of truncating it', () => {
-    render(<MigrationPage {...pageProps({ handoffError: 'too-many', handoffIdCount: 201 })} />);
+    render(
+      <MigrationPage
+        {...pageProps({
+          handoffError: 'too-many',
+          handoffIdCount: MIGRATION_BATCH_LIMIT + 1,
+        })}
+      />,
+    );
 
     expect(screen.getByText('Too many titles for one migration batch')).toBeInTheDocument();
-    expect(screen.getByText(/carries 201 titles/)).toBeInTheDocument();
-    expect(screen.getByText(/at most 200/)).toBeInTheDocument();
+    expect(
+      screen.getByText(new RegExp(`carries ${MIGRATION_BATCH_LIMIT + 1} titles`)),
+    ).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`at most ${MIGRATION_BATCH_LIMIT}`))).toBeInTheDocument();
     expect(screen.queryByRole('list', { name: 'Migration candidates' })).toBeNull();
   });
 });

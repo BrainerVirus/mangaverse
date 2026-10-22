@@ -3,8 +3,11 @@ import type { MigrationBatchSummary, MigrationCandidate, MigrationSearchResult }
 /**
  * Titles carried by one migration hand-off. The ids travel in the URL, so the
  * limit keeps a full batch under the request-line size servers accept.
+ * 150 UUIDs serialize to a 6,768-char `/migration?ids=...` URL (the router sends
+ * one encoded JSON array), leaving ~1.4KB of the 8KB request line for `sources`.
+ * Raising this needs the encoded-length test in the web route suite updated.
  */
-export const MIGRATION_BATCH_LIMIT = 200;
+export const MIGRATION_BATCH_LIMIT = 150;
 
 /** Limits a source provider's candidates to the ids handed over from the library. */
 export function filterMigrationCandidatesByIds(

@@ -56,7 +56,13 @@ export function parseMigrationSearch(search: Record<string, unknown>): Migration
     return { handoffError: 'invalid' };
   }
 
-  const source = typeof search['source'] === 'string' ? search['source'].trim() : '';
+  // A repeated `?source=` arrives as an array; reject it instead of letting Zod
+  // fail the route and hide the friendly handoff notice.
+  const rawSource = search['source'];
+  if (rawSource !== undefined && typeof rawSource !== 'string') {
+    return { handoffError: 'invalid' };
+  }
+  const source = rawSource?.trim() ?? '';
 
   return {
     ...(ids.status === 'ok' ? { ids: ids.ids } : {}),
@@ -69,6 +75,7 @@ export const migrationSearchSchema = z
   .object({
     ids: z.unknown().optional(),
     sources: z.unknown().optional(),
-    source: z.string().optional(),
+    // Parsed by `parseMigrationSearch`: a repeated `?source=` is an array, not a string.
+    source: z.unknown().optional(),
   })
   .transform((search) => parseMigrationSearch(search));

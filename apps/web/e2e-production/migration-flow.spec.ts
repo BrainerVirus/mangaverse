@@ -471,7 +471,7 @@ test('Given a searchable target provider, When a title is searched, Then the ran
   ).toBeVisible({ timeout: 20_000 });
 });
 
-const HANDOFF_LIMIT = 200;
+const HANDOFF_LIMIT = 150;
 
 function handoffIds(count: number): string[] {
   return Array.from(
@@ -490,18 +490,21 @@ test('Given a full-size hand-off link, When migration opens, Then the limit load
   quickOnboarding,
 }) => {
   await page.goto(handoffUrl(HANDOFF_LIMIT));
+  // A full batch must stay inside the 8KB request line an nginx proxy accepts.
+  const fullUrl = new URL(page.url());
+  expect(fullUrl.pathname.length + fullUrl.search.length).toBeLessThan(8 * 1024);
 
   // A server 431 would fail this load before the page renders.
   await expect(page.getByRole('heading', { name: 'Migration', exact: true })).toBeVisible({
     timeout: 30_000,
   });
-  await expect(page.getByText(/200 selected titles/)).toBeVisible();
+  await expect(page.getByText(new RegExp(`${HANDOFF_LIMIT} selected titles`))).toBeVisible();
 
   await page.goto(handoffUrl(HANDOFF_LIMIT + 1));
   await expect(page.getByText('Too many titles for one migration batch')).toBeVisible({
     timeout: 30_000,
   });
-  await expect(page.getByText(/carries 201 titles/)).toBeVisible();
+  await expect(page.getByText(new RegExp(`carries ${HANDOFF_LIMIT + 1} titles`))).toBeVisible();
   await expect(page.getByRole('list', { name: 'Migration candidates' })).toHaveCount(0);
 });
 
@@ -520,6 +523,21 @@ test('Given a malformed hand-off link, When migration opens, Then no unfiltered 
     timeout: 20_000,
   });
   await expect(page.getByText('Invalid migration link')).toHaveCount(0);
+});
+
+test('Given a repeated source parameter, When migration opens, Then the invalid-link notice replaces the route error', async ({
+  page,
+  quickOnboarding,
+}) => {
+  await page.goto('/migration?source=mangadex&source=other');
+
+  await expect(page.getByText('Invalid migration link')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('combobox', { name: 'Source provider' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Clear this link' }).click();
+  await expect(page.getByRole('combobox', { name: 'Source provider' })).toBeVisible({
+    timeout: 20_000,
+  });
 });
 
 test('Given a hand-off spanning two source providers, When migration opens, Then it asks for one source and shows no candidates', async ({

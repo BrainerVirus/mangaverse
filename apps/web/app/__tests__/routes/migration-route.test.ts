@@ -34,6 +34,12 @@ describe('/migration route', () => {
     expect(validateSearch?.({ ids: ['', '   '], sources: [] })).toEqual({
       handoffError: 'invalid',
     });
+    expect(validateSearch?.({ source: ' mangadex ' })).toEqual({ source: 'mangadex' });
+    expect(validateSearch?.({ source: '' })).toEqual({});
+    expect(validateSearch?.({ source: ['mangadex', 'other'] })).toEqual({
+      handoffError: 'invalid',
+    });
+    expect(validateSearch?.({ source: 42 })).toEqual({ handoffError: 'invalid' });
     expect(validateSearch?.({ id: ['m1'] })).toEqual({});
   });
 
@@ -45,5 +51,16 @@ describe('/migration route', () => {
       handoffError: 'too-many',
       handoffIdCount: MIGRATION_BATCH_LIMIT + 1,
     });
+  });
+
+  it('keeps a full-batch URL under the 8KB request-line limit', () => {
+    const uuids = Array.from(
+      { length: MIGRATION_BATCH_LIMIT },
+      (_, index) => `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
+    );
+    // The router sends the ids as one encoded JSON array; nginx 431s past 8KB.
+    const url = `/migration?ids=${encodeURIComponent(JSON.stringify(uuids))}`;
+
+    expect(url.length).toBeLessThanOrEqual(7 * 1024);
   });
 });
