@@ -24,6 +24,7 @@ export type LibraryLayoutMode = 'grid' | 'list' | 'compact';
 export type LibrarySortKey =
   | 'title'
   | 'last_read'
+  | 'last_updated'
   | 'date_added'
   | 'unread'
   | 'provider'
@@ -48,9 +49,18 @@ export interface LibraryCategory {
   readonly id: CategoryId;
   readonly name: string;
   readonly color?: string;
+  readonly pinned?: boolean;
   readonly sortIndex?: number;
   readonly createdAt?: string;
   readonly updatedAt?: string;
+}
+
+/** Pinned categories first, then the stored order, then the name. */
+export function compareLibraryCategories(a: LibraryCategory, b: LibraryCategory): number {
+  if (a.pinned !== b.pinned) return a.pinned === true ? -1 : 1;
+  const order = (a.sortIndex ?? 0) - (b.sortIndex ?? 0);
+  if (order !== 0) return order;
+  return a.name.localeCompare(b.name);
 }
 
 export interface LibraryEntry {

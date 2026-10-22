@@ -139,6 +139,7 @@ export const categories = sqliteTable('categories', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   color: text('color'),
+  pinned: integer('pinned', { mode: 'boolean' }).notNull().default(false),
   sortIndex: integer('sort_index'),
   createdAt: text('created_at'),
   updatedAt: text('updated_at'),

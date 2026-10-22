@@ -6,7 +6,7 @@ export async function fetchMangaDetail(
   db: AppDrizzleDb,
   mangaId: MangaId,
 ): Promise<MangaDetailData | null> {
-  const { getLibraryEntryForManga, getMangaIdentity, listChaptersForManga } =
+  const { getLibraryEntryForManga, getMangaIdentity, listChaptersForManga, listLibraryCategories } =
     await import('@app/db');
 
   const manga = await getMangaIdentity(db, mangaId);
@@ -14,9 +14,10 @@ export async function fetchMangaDetail(
     return null;
   }
 
-  const [chapters, libraryEntry] = await Promise.all([
+  const [chapters, libraryEntry, categories] = await Promise.all([
     listChaptersForManga(db, mangaId),
     getLibraryEntryForManga(db, mangaId),
+    listLibraryCategories(db),
   ]);
 
   const continueChapterId: ChapterId | undefined =
@@ -27,5 +28,6 @@ export async function fetchMangaDetail(
     chapters,
     libraryEntry,
     continueChapterId,
+    categories,
   };
 }

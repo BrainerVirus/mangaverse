@@ -1,6 +1,7 @@
-import { eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import type { AppResult } from '@app/shared';
 import {
+  compareLibraryCategories,
   createAppError,
   err,
   ok,
@@ -8,6 +9,7 @@ import {
   toChapterId,
   toLibraryEntryId,
   toMangaId,
+  toProviderId,
   toProviderMappingId,
   type CategoryId,
   type ChapterId,
@@ -17,11 +19,14 @@ import {
   type LibraryFilter,
   type LibrarySort,
   type LibrarySortKey,
+  type LibraryStatus,
   type MangaId,
+  type ProviderId,
   type ProviderMappingId,
 } from '@app/shared';
 import type { AppDrizzleDb } from '../adapter.js';
 import { readIdChunks } from '../read-id-chunks.js';
+import { withTransaction } from '../transactions.js';
 import {
   categories,
   chapterReadState,
@@ -119,23 +124,191 @@ function categoryIdsByEntry(
   return grouped;
 }
 
+function canonicalTitlesByMangaId(
+  db: AppDrizzleDb,
+  rows: readonly (typeof libraryEntries.$inferSelect)[],
+): Map<string, string> {
+  const titles = new Map<string, string>();
+  if (rows.length === 0) return titles;
+  const identities = readIdChunks(
+    rows.map((row) => row.mangaId),
+    (chunk) =>
+      db
+        .select({ id: mangaIdentities.id, canonicalTitle: mangaIdentities.canonicalTitle })
+        .from(mangaIdentities)
+        .where(inArray(mangaIdentities.id, chunk))
+        .all(),
+  );
+  for (const identity of identities) titles.set(identity.id, identity.canonicalTitle);
+  return titles;
+}
+
+function compareSortValues(a: string, b: string, direction: LibrarySort['direction']): number {
+  // Empty timestamps sort last in both directions instead of posing as "the oldest".
+  if (a === '' || b === '') {
+    if (a === b) return 0;
+    return a === '' ? 1 : -1;
+  }
+  return (direction === 'asc' ? 1 : -1) * a.localeCompare(b);
+}
+
+function compareSortNumbers(a: number, b: number, direction: LibrarySort['direction']): number {
+  if (a === b) return 0;
+  return (direction === 'asc' ? 1 : -1) * (a - b);
+}
+
+function compareOptionalSortNumbers(
+  a: number | null,
+  b: number | null,
+  direction: LibrarySort['direction'],
+): number {
+  // No progress yet ranks last in both directions, like empty timestamps.
+  if (a === null || b === null) {
+    if (a === b) return 0;
+    return a === null ? 1 : -1;
+  }
+  return compareSortNumbers(a, b, direction);
+}
+
+/**
+ * The provider a title is filed under: the active mapping, then the manga's
+ * default mapping, then any mapping. Missing providers sort last.
+ */
+function providerKeysByEntryId(
+  db: AppDrizzleDb,
+  rows: readonly (typeof libraryEntries.$inferSelect)[],
+): Map<string, string> {
+  const keys = new Map<string, string>();
+  if (rows.length === 0) return keys;
+  const mangaIds = rows.map((row) => row.mangaId);
+
+  const defaultMappingByMangaId = new Map(
+    readIdChunks(mangaIds, (chunk) =>
+      db
+        .select({
+          id: mangaIdentities.id,
+          defaultProviderMappingId: mangaIdentities.defaultProviderMappingId,
+        })
+        .from(mangaIdentities)
+        .where(inArray(mangaIdentities.id, chunk))
+        .all(),
+    ).map((identity) => [identity.id, identity.defaultProviderMappingId]),
+  );
+
+  const providerByMappingId = new Map<string, string>();
+  const firstProviderByMangaId = new Map<string, string>();
+  for (const mapping of readIdChunks(mangaIds, (chunk) =>
+    db
+      .select({
+        id: mangaProviderMappings.id,
+        mangaId: mangaProviderMappings.mangaId,
+        providerId: mangaProviderMappings.providerId,
+      })
+      .from(mangaProviderMappings)
+      .where(inArray(mangaProviderMappings.mangaId, chunk))
+      .all(),
+  )) {
+    providerByMappingId.set(mapping.id, mapping.providerId);
+    if (!firstProviderByMangaId.has(mapping.mangaId)) {
+      firstProviderByMangaId.set(mapping.mangaId, mapping.providerId);
+    }
+  }
+
+  for (const row of rows) {
+    const providerId =
+      (row.activeProviderMappingId === null || row.activeProviderMappingId === undefined
+        ? undefined
+        : providerByMappingId.get(row.activeProviderMappingId)) ??
+      providerByMappingId.get(defaultMappingByMangaId.get(row.mangaId) ?? '') ??
+      firstProviderByMangaId.get(row.mangaId) ??
+      '';
+    keys.set(row.id, providerId);
+  }
+  return keys;
+}
+
+/**
+ * Reading time per title comes from the chapter read state, one grouped query
+ * for the whole library instead of one per entry. `library_entries.updated_at`
+ * is only a fallback: favorites, status and category edits bump it too, so it
+ * cannot rank "last read". The fallback still helps entries restored from a
+ * backup that carried resume metadata but no read-state rows. Entries that were
+ * never opened rank last.
+ */
+function lastReadAtByEntryId(
+  db: AppDrizzleDb,
+  rows: readonly (typeof libraryEntries.$inferSelect)[],
+): Map<string, string> {
+  const readAtByMangaId = new Map(
+    readIdChunks(
+      rows.map((row) => row.mangaId),
+      (chunk) =>
+        db
+          .select({
+            mangaId: chapterReadState.mangaId,
+            lastReadAt: sql<string | null>`max(${chapterReadState.updatedAt})`,
+          })
+          .from(chapterReadState)
+          .where(inArray(chapterReadState.mangaId, chunk))
+          .groupBy(chapterReadState.mangaId)
+          .all(),
+    ).map((row) => [row.mangaId, row.lastReadAt ?? '']),
+  );
+
+  return new Map(
+    rows.map((row) => {
+      const readAt = readAtByMangaId.get(row.mangaId) ?? '';
+      const hasResumeMetadata = row.lastReadChapterId !== null && row.lastReadChapterId !== '';
+      const fallback = hasResumeMetadata ? (row.updatedAt ?? '') : '';
+      return [row.id, readAt === '' ? fallback : readAt];
+    }),
+  );
+}
+
 function sortLibraryRows(
   db: AppDrizzleDb,
   rows: (typeof libraryEntries.$inferSelect)[],
   sort?: LibrarySort,
 ): LibraryEntry[] {
   const key: LibrarySortKey = sort?.key ?? 'date_added';
-  const dir = sort?.direction ?? 'desc';
-  const mul = dir === 'asc' ? 1 : -1;
+  const direction = sort?.direction ?? 'desc';
+  const titles = key === 'title' ? canonicalTitlesByMangaId(db, rows) : new Map<string, string>();
+  const providerKeys =
+    key === 'provider' ? providerKeysByEntryId(db, rows) : new Map<string, string>();
+  const lastReadAt =
+    key === 'last_read' ? lastReadAtByEntryId(db, rows) : new Map<string, string>();
 
   const sorted = [...rows].sort((a, b) => {
-    if (key === 'title') {
-      return mul * String(a.mangaId).localeCompare(String(b.mangaId));
+    const byId = a.id.localeCompare(b.id);
+    switch (key) {
+      case 'title':
+        return (
+          compareSortValues(titles.get(a.mangaId) ?? '', titles.get(b.mangaId) ?? '', direction) ||
+          byId
+        );
+      case 'date_added':
+        return compareSortValues(a.addedAt ?? '', b.addedAt ?? '', direction) || byId;
+      case 'last_updated':
+        return compareSortValues(a.updatedAt ?? '', b.updatedAt ?? '', direction) || byId;
+      case 'last_read':
+        return (
+          compareSortValues(lastReadAt.get(a.id) ?? '', lastReadAt.get(b.id) ?? '', direction) ||
+          byId
+        );
+      case 'unread':
+        return compareSortNumbers(a.unreadCount, b.unreadCount, direction) || byId;
+      case 'progress':
+        return compareOptionalSortNumbers(a.progressPercent, b.progressPercent, direction) || byId;
+      case 'provider':
+        return (
+          compareSortValues(
+            providerKeys.get(a.id) ?? '',
+            providerKeys.get(b.id) ?? '',
+            direction,
+          ) || byId
+        );
     }
-    if (key === 'date_added') {
-      return mul * String(a.addedAt ?? '').localeCompare(String(b.addedAt ?? ''));
-    }
-    return mul * String(a.updatedAt ?? '').localeCompare(String(b.updatedAt ?? ''));
+    return 0;
   });
 
   const categoriesByEntry = categoryIdsByEntry(
@@ -154,6 +327,7 @@ export async function listLibraryCategories(db: AppDrizzleDb): Promise<LibraryCa
       ...(row.color !== null && row.color !== undefined && row.color !== ''
         ? { color: row.color }
         : {}),
+      ...(row.pinned ? { pinned: true } : {}),
       ...(row.sortIndex !== null && row.sortIndex !== undefined
         ? { sortIndex: row.sortIndex }
         : {}),
@@ -164,45 +338,56 @@ export async function listLibraryCategories(db: AppDrizzleDb): Promise<LibraryCa
         ? { updatedAt: row.updatedAt }
         : {}),
     }))
-    .sort((a, b) => (a.sortIndex ?? 0) - (b.sortIndex ?? 0));
+    .sort(compareLibraryCategories);
+}
+
+function entriesInCategories(db: AppDrizzleDb, categoryIds: readonly CategoryId[]): Set<string> {
+  const rows = readIdChunks(categoryIds, (chunk) =>
+    db
+      .select({ libraryEntryId: libraryCategoryMemberships.libraryEntryId })
+      .from(libraryCategoryMemberships)
+      .where(inArray(libraryCategoryMemberships.categoryId, chunk))
+      .all(),
+  );
+  return new Set(rows.map((row) => row.libraryEntryId));
+}
+
+function mangaIdsForProviders(db: AppDrizzleDb, providerIds: readonly ProviderId[]): Set<string> {
+  const rows = readIdChunks(providerIds, (chunk) =>
+    db
+      .select({ mangaId: mangaProviderMappings.mangaId })
+      .from(mangaProviderMappings)
+      .where(inArray(mangaProviderMappings.providerId, chunk))
+      .all(),
+  );
+  return new Set(rows.map((row) => row.mangaId));
 }
 
 export async function listLibraryEntries(
   db: AppDrizzleDb,
   options?: { readonly filter?: LibraryFilter; readonly sort?: LibrarySort },
 ): Promise<LibraryEntry[]> {
-  const query = db.select().from(libraryEntries);
-
   const filter = options?.filter;
-  if (filter?.categoryIds !== undefined && filter.categoryIds.length > 0) {
-    const entryIds = readIdChunks(filter.categoryIds, (chunk) =>
-      db
-        .select({ libraryEntryId: libraryCategoryMemberships.libraryEntryId })
-        .from(libraryCategoryMemberships)
-        .where(inArray(libraryCategoryMemberships.categoryId, chunk))
-        .all(),
-    );
-    const idSet = new Set(entryIds.map((e) => e.libraryEntryId));
-    const rows = query.all();
-    const filtered = rows.filter((r) => idSet.has(r.id));
-    return sortLibraryRows(db, filtered, options?.sort);
-  }
+  let rows: (typeof libraryEntries.$inferSelect)[] = db.select().from(libraryEntries).all();
 
-  if (filter?.statuses !== undefined && filter.statuses.length > 0) {
-    const rows = query.all();
-    const filtered = rows.filter((r) =>
-      filter.statuses!.includes(r.status as LibraryEntry['status']),
-    );
-    return sortLibraryRows(db, filtered, options?.sort);
-  }
-
+  // Every filter narrows the same row set; they must combine instead of
+  // replacing each other, which the old exclusive branches did.
   if (filter?.favoritesOnly === true) {
-    const rows = query.all();
-    const filtered = rows.filter((r) => r.favorite);
-    return sortLibraryRows(db, filtered, options?.sort);
+    rows = rows.filter((row) => row.favorite);
+  }
+  if (filter?.statuses !== undefined && filter.statuses.length > 0) {
+    const statuses = filter.statuses;
+    rows = rows.filter((row) => statuses.includes(row.status as LibraryStatus));
+  }
+  if (filter?.categoryIds !== undefined && filter.categoryIds.length > 0) {
+    const entryIds = entriesInCategories(db, filter.categoryIds);
+    rows = rows.filter((row) => entryIds.has(row.id));
+  }
+  if (filter?.providerIds !== undefined && filter.providerIds.length > 0) {
+    const mangaIds = mangaIdsForProviders(db, filter.providerIds);
+    rows = rows.filter((row) => mangaIds.has(row.mangaId));
   }
 
-  const rows = query.all();
   return sortLibraryRows(db, rows, options?.sort);
 }
 
@@ -236,6 +421,17 @@ export async function listRecentlyReadLibraryEntries(
     rows.map((row) => toLibraryEntryId(row.entry.id)),
   );
   return rows.map((row) => mapLibraryEntry(row.entry, categoriesByEntry.get(row.entry.id) ?? []));
+}
+
+export async function listLibraryProviderIds(db: AppDrizzleDb): Promise<ProviderId[]> {
+  const rows = db
+    .select({ providerId: mangaProviderMappings.providerId })
+    .from(mangaProviderMappings)
+    .innerJoin(libraryEntries, eq(libraryEntries.mangaId, mangaProviderMappings.mangaId))
+    .all();
+  return [...new Set(rows.map((row) => row.providerId))]
+    .sort((a, b) => a.localeCompare(b))
+    .map(toProviderId);
 }
 
 export async function addLibraryEntry(
@@ -434,43 +630,319 @@ export async function setLibraryEntryActiveProviderMapping(
   return ok(undefined);
 }
 
-export async function upsertCategory(
+function normalizeCategoryName(name: string): string {
+  return name.trim().replace(/\s+/g, ' ');
+}
+
+function categoryNameConflict(db: AppDrizzleDb, name: string, exemptId?: CategoryId): boolean {
+  const key = name.toLowerCase();
+  return db
+    .select({ id: categories.id, name: categories.name })
+    .from(categories)
+    .all()
+    .some((row) => row.id !== exemptId && row.name.trim().toLowerCase() === key);
+}
+
+function categoryNameError(db: AppDrizzleDb, name: string, exemptId?: CategoryId) {
+  if (name.length === 0) {
+    return createAppError({
+      code: 'db.library.category_name_empty',
+      message: 'Category name cannot be empty.',
+    });
+  }
+  if (categoryNameConflict(db, name, exemptId)) {
+    return createAppError({
+      code: 'db.library.category_name_duplicate',
+      message: 'A category with this name already exists.',
+    });
+  }
+  return undefined;
+}
+
+export async function createLibraryCategory(
   db: AppDrizzleDb,
-  input: {
-    readonly id?: CategoryId;
-    readonly name: string;
-    readonly color?: string;
-    readonly sortIndex?: number;
-  },
-): Promise<CategoryId> {
-  const id = input.id ?? toCategoryId(newId());
+  input: { readonly name: string; readonly color?: string },
+): Promise<AppResult<CategoryId>> {
+  const name = normalizeCategoryName(input.name);
+  const nameError = categoryNameError(db, name);
+  if (nameError !== undefined) return err(nameError);
+
+  const rows = db.select({ sortIndex: categories.sortIndex }).from(categories).all();
+  const nextIndex = rows.reduce((max, row) => Math.max(max, row.sortIndex ?? -1), -1) + 1;
+  const id = toCategoryId(newId());
   const now = new Date().toISOString();
+  await db.insert(categories).values({
+    id,
+    name,
+    ...(input.color !== undefined && input.color.trim().length > 0
+      ? { color: input.color.trim() }
+      : {}),
+    pinned: false,
+    sortIndex: nextIndex,
+    createdAt: now,
+    updatedAt: now,
+  });
+  return ok(id);
+}
+
+export async function updateLibraryCategory(
+  db: AppDrizzleDb,
+  id: CategoryId,
+  input: { readonly name: string; readonly color?: string },
+): Promise<AppResult<void>> {
   const existing = db
     .select({ id: categories.id })
     .from(categories)
     .where(eq(categories.id, id))
     .get();
   if (existing === undefined) {
-    await db.insert(categories).values({
-      id,
-      name: input.name,
-      ...(input.color !== undefined ? { color: input.color } : {}),
-      ...(input.sortIndex !== undefined ? { sortIndex: input.sortIndex } : {}),
-      createdAt: now,
-      updatedAt: now,
-    });
-  } else {
-    await db
-      .update(categories)
-      .set({
-        name: input.name,
-        ...(input.color !== undefined ? { color: input.color } : {}),
-        ...(input.sortIndex !== undefined ? { sortIndex: input.sortIndex } : {}),
-        updatedAt: now,
-      })
-      .where(eq(categories.id, id));
+    return err(
+      createAppError({ code: 'db.library.category_missing', message: 'Category not found.' }),
+    );
   }
-  return id;
+
+  const name = normalizeCategoryName(input.name);
+  const nameError = categoryNameError(db, name, id);
+  if (nameError !== undefined) return err(nameError);
+
+  await db
+    .update(categories)
+    .set({
+      name,
+      color: input.color !== undefined && input.color.trim().length > 0 ? input.color.trim() : null,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(categories.id, id));
+  return ok(undefined);
+}
+
+export async function deleteLibraryCategory(
+  db: AppDrizzleDb,
+  id: CategoryId,
+): Promise<AppResult<void>> {
+  const existing = db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(eq(categories.id, id))
+    .get();
+  if (existing === undefined) {
+    return err(
+      createAppError({ code: 'db.library.category_missing', message: 'Category not found.' }),
+    );
+  }
+
+  // Memberships cascade; the titles themselves stay in the library.
+  await db.delete(categories).where(eq(categories.id, id));
+  return ok(undefined);
+}
+
+export async function setLibraryCategoryPinned(
+  db: AppDrizzleDb,
+  id: CategoryId,
+  pinned: boolean,
+): Promise<AppResult<void>> {
+  const existing = db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(eq(categories.id, id))
+    .get();
+  if (existing === undefined) {
+    return err(
+      createAppError({ code: 'db.library.category_missing', message: 'Category not found.' }),
+    );
+  }
+
+  await db
+    .update(categories)
+    .set({ pinned, updatedAt: new Date().toISOString() })
+    .where(eq(categories.id, id));
+  return ok(undefined);
+}
+
+export async function reorderLibraryCategories(
+  db: AppDrizzleDb,
+  categoryIds: readonly CategoryId[],
+): Promise<AppResult<void>> {
+  const existingIds = db
+    .select({ id: categories.id })
+    .from(categories)
+    .all()
+    .map((row) => row.id);
+  const given = new Set(categoryIds);
+  if (given.size !== categoryIds.length || given.size !== existingIds.length) {
+    return err(
+      createAppError({
+        code: 'db.library.category_order_invalid',
+        message: 'The category order must contain every category exactly once.',
+      }),
+    );
+  }
+
+  const now = new Date().toISOString();
+  withTransaction(db, (tx) => {
+    for (const [index, id] of categoryIds.entries()) {
+      tx.update(categories)
+        .set({ sortIndex: index, updatedAt: now })
+        .where(eq(categories.id, id))
+        .run();
+    }
+  });
+  return ok(undefined);
+}
+
+function validateEntryIds(db: AppDrizzleDb, entryIds: readonly LibraryEntryId[]): boolean {
+  const found = new Set(
+    readIdChunks(entryIds, (chunk) =>
+      db
+        .select({ id: libraryEntries.id })
+        .from(libraryEntries)
+        .where(inArray(libraryEntries.id, chunk))
+        .all(),
+    ).map((row) => row.id),
+  );
+  return entryIds.every((id) => found.has(id));
+}
+
+function chunkIds<T extends string>(ids: readonly T[], size = 500): T[][] {
+  const unique = [...new Set(ids)];
+  const chunks: T[][] = [];
+  for (let offset = 0; offset < unique.length; offset += size) {
+    chunks.push(unique.slice(offset, offset + size));
+  }
+  return chunks;
+}
+
+function validateCategoryIds(db: AppDrizzleDb, categoryIds: readonly CategoryId[]): boolean {
+  const found = new Set(
+    readIdChunks(categoryIds, (chunk) =>
+      db.select({ id: categories.id }).from(categories).where(inArray(categories.id, chunk)).all(),
+    ).map((row) => row.id),
+  );
+  return categoryIds.every((id) => found.has(id));
+}
+
+export async function addLibraryEntriesToCategories(
+  db: AppDrizzleDb,
+  entryIds: readonly LibraryEntryId[],
+  categoryIds: readonly CategoryId[],
+): Promise<AppResult<void>> {
+  if (assignmentIdsInvalid(db, entryIds, categoryIds)) {
+    return err(
+      createAppError({
+        code: 'db.library.category_assignment_invalid',
+        message: 'The selected titles or categories no longer exist.',
+      }),
+    );
+  }
+  const now = new Date().toISOString();
+  withTransaction(db, (tx) => {
+    for (const entryChunk of chunkIds(entryIds)) {
+      for (const categoryChunk of chunkIds(categoryIds)) {
+        tx.insert(libraryCategoryMemberships)
+          .values(
+            entryChunk.flatMap((libraryEntryId) =>
+              categoryChunk.map((categoryId) => ({ libraryEntryId, categoryId })),
+            ),
+          )
+          .onConflictDoNothing()
+          .run();
+      }
+    }
+    for (const entryChunk of chunkIds(entryIds)) {
+      tx.update(libraryEntries)
+        .set({ updatedAt: now })
+        .where(inArray(libraryEntries.id, entryChunk))
+        .run();
+    }
+  });
+  return ok(undefined);
+}
+
+export async function removeLibraryEntriesFromCategories(
+  db: AppDrizzleDb,
+  entryIds: readonly LibraryEntryId[],
+  categoryIds: readonly CategoryId[],
+): Promise<AppResult<void>> {
+  if (assignmentIdsInvalid(db, entryIds, categoryIds)) {
+    return err(
+      createAppError({
+        code: 'db.library.category_assignment_invalid',
+        message: 'The selected titles or categories no longer exist.',
+      }),
+    );
+  }
+  const now = new Date().toISOString();
+  withTransaction(db, (tx) => {
+    for (const entryChunk of chunkIds(entryIds)) {
+      for (const categoryChunk of chunkIds(categoryIds)) {
+        tx.delete(libraryCategoryMemberships)
+          .where(
+            and(
+              inArray(libraryCategoryMemberships.libraryEntryId, entryChunk),
+              inArray(libraryCategoryMemberships.categoryId, categoryChunk),
+            ),
+          )
+          .run();
+      }
+      tx.update(libraryEntries)
+        .set({ updatedAt: now })
+        .where(inArray(libraryEntries.id, entryChunk))
+        .run();
+    }
+  });
+  return ok(undefined);
+}
+
+function assignmentIdsInvalid(
+  db: AppDrizzleDb,
+  entryIds: readonly LibraryEntryId[],
+  categoryIds: readonly CategoryId[],
+): boolean {
+  return !validateEntryIds(db, entryIds) || !validateCategoryIds(db, categoryIds);
+}
+
+export async function setLibraryEntriesStatus(
+  db: AppDrizzleDb,
+  entryIds: readonly LibraryEntryId[],
+  status: LibraryStatus,
+): Promise<AppResult<void>> {
+  if (!validateEntryIds(db, entryIds)) {
+    return err(
+      createAppError({ code: 'db.library.entry_missing', message: 'Library entry not found.' }),
+    );
+  }
+  const now = new Date().toISOString();
+  withTransaction(db, (tx) => {
+    for (const chunk of chunkIds(entryIds)) {
+      tx.update(libraryEntries)
+        .set({ status, updatedAt: now })
+        .where(inArray(libraryEntries.id, chunk))
+        .run();
+    }
+  });
+  return ok(undefined);
+}
+
+export async function setLibraryEntriesFavorite(
+  db: AppDrizzleDb,
+  entryIds: readonly LibraryEntryId[],
+  favorite: boolean,
+): Promise<AppResult<void>> {
+  if (!validateEntryIds(db, entryIds)) {
+    return err(
+      createAppError({ code: 'db.library.entry_missing', message: 'Library entry not found.' }),
+    );
+  }
+  const now = new Date().toISOString();
+  withTransaction(db, (tx) => {
+    for (const chunk of chunkIds(entryIds)) {
+      tx.update(libraryEntries)
+        .set({ favorite, updatedAt: now })
+        .where(inArray(libraryEntries.id, chunk))
+        .run();
+    }
+  });
+  return ok(undefined);
 }
 
 export async function getLibraryEntry(

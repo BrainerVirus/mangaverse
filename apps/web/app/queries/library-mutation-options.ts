@@ -1,12 +1,15 @@
 import type { AppDrizzleDb } from '@app/db';
 import {
   addMangaToLibrary,
+  applyLibraryOrganizationAction,
   libraryQueryKeys,
   optimisticallyAddMangaToLibrary,
+  optimisticallyApplyLibraryOrganizationAction,
   optimisticallyRemoveMangaFromLibrary,
   optimisticallySetMangaFavorite,
   removeMangaFromLibrary,
   setMangaFavorite,
+  type LibraryOrganizationAction,
   type MangaDetailData,
 } from '@app/library';
 import type { LibraryEntryId, MangaId } from '@app/shared';
@@ -110,6 +113,33 @@ export function createToggleFavoriteMutationOptions(
       await queryClient.cancelQueries({ queryKey: libraryQueryKeys.detail(mangaId) });
 
       optimisticallySetMangaFavorite(queryClient, mangaId, favorite);
+    },
+    onError: () => {
+      invalidateLibraryQueries(queryClient);
+    },
+    onSettled: () => {
+      if (db !== null) {
+        invalidateLibraryQueries(queryClient);
+      }
+    },
+  };
+}
+
+export function createLibraryOrganizationMutationOptions(
+  db: AppDrizzleDb | null,
+  queryClient: QueryClient,
+) {
+  return {
+    mutationFn: async (action: LibraryOrganizationAction): Promise<void> => {
+      assertDb(db);
+      const result = await applyLibraryOrganizationAction(db, action);
+      if (!result.ok) {
+        throw new Error(result.error.message);
+      }
+    },
+    onMutate: async (action: LibraryOrganizationAction) => {
+      await queryClient.cancelQueries({ queryKey: libraryQueryKeys.all });
+      optimisticallyApplyLibraryOrganizationAction(queryClient, action);
     },
     onError: () => {
       invalidateLibraryQueries(queryClient);

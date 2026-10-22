@@ -5,6 +5,7 @@ import type { AppDrizzleDb } from '@app/db/browser';
 import { toLibraryEntryId, toMangaId, type MangaId } from '@app/shared';
 import {
   createAddToLibraryMutationOptions,
+  createLibraryOrganizationMutationOptions,
   createRemoveFromLibraryMutationOptions,
   createToggleFavoriteMutationOptions,
 } from '../queries/library-mutation-options.js';
@@ -55,8 +56,12 @@ function MangaDetailRoute() {
   const favoriteMutation = useMutation(
     createToggleFavoriteMutationOptions(db, queryClient, mangaId),
   );
+  const organizeMutation = useMutation(createLibraryOrganizationMutationOptions(db, queryClient));
   const isLibraryActionPending =
-    addMutation.isPending || removeMutation.isPending || favoriteMutation.isPending;
+    addMutation.isPending ||
+    removeMutation.isPending ||
+    favoriteMutation.isPending ||
+    organizeMutation.isPending;
 
   return (
     <MangaDetailPage
@@ -79,6 +84,15 @@ function MangaDetailRoute() {
       onAddToLibrary={() => addMutation.mutate(toLibraryEntryId(globalThis.crypto.randomUUID()))}
       onRemoveFromLibrary={() => removeMutation.mutate()}
       onToggleFavorite={() => favoriteMutation.mutate(!(data?.libraryEntry?.favorite ?? false))}
+      onCategoriesChange={(categoryIds) => {
+        const entryId = data?.libraryEntry?.id;
+        if (entryId === undefined) return;
+        return organizeMutation.mutateAsync({
+          type: 'set_entry_categories',
+          entryIds: [entryId],
+          categoryIds,
+        });
+      }}
       isLibraryActionPending={isLibraryActionPending}
     />
   );

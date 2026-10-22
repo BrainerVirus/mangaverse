@@ -18,6 +18,8 @@ const LIBRARY_UNIQUE_MANGA_MIGRATION_HASH =
 
 const MIGRATION_HISTORY_UNDO_MIGRATION_HASH =
   'bd23ab297e509cdcf4fd4ed91bb7cebb3a4236549257c507bb6d103cf9a7f6ef';
+const LIBRARY_CATEGORY_PINNED_MIGRATION_HASH =
+  'f88fba5bb7715abf811036f0da8d3a895956819fc07782392454640c3ae755b9';
 
 function loadBundledMigrationFixtures() {
   const testDir = dirname(fileURLToPath(import.meta.url));
@@ -32,6 +34,10 @@ function loadBundledMigrationFixtures() {
     ),
     migrationHistoryUndoSql: readFileSync(
       join(migrationsRoot, '0004_migration_history_undo.sql'),
+      'utf8',
+    ),
+    libraryCategoryPinnedSql: readFileSync(
+      join(migrationsRoot, '0005_library_category_pinned.sql'),
       'utf8',
     ),
     journal: JSON.parse(readFileSync(join(migrationsRoot, 'meta/_journal.json'), 'utf8')),
@@ -89,6 +95,7 @@ describe('local-db bundled migration path', () => {
       themesSql,
       libraryUniqueMangaSql,
       migrationHistoryUndoSql,
+      libraryCategoryPinnedSql,
       journal,
     } = loadBundledMigrationFixtures();
     const SQL = await initSqlJs();
@@ -119,6 +126,11 @@ describe('local-db bundled migration path', () => {
         tag: '0004_migration_history_undo',
         sql: migrationHistoryUndoSql,
         hash: MIGRATION_HISTORY_UNDO_MIGRATION_HASH,
+      },
+      {
+        tag: '0005_library_category_pinned',
+        sql: libraryCategoryPinnedSql,
+        hash: LIBRARY_CATEGORY_PINNED_MIGRATION_HASH,
       },
     ]);
 
