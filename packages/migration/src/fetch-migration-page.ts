@@ -1,4 +1,4 @@
-import type { AppDrizzleDb } from '@app/db';
+import type { AppDrizzleDb, MigrationHistoryEntry } from '@app/db';
 
 import type { MigrationCandidate, MigrationProviderOption } from './types.js';
 
@@ -32,4 +32,13 @@ export async function fetchMigrationCandidates(
     isDefaultProvider: entry.isDefaultProvider,
     isActiveProvider: entry.isActiveProvider,
   }));
+}
+
+/** Latest migrations, newest first, for the report and undo surface. */
+export async function fetchMigrationHistory(
+  db: AppDrizzleDb,
+  limit = 8,
+): Promise<MigrationHistoryEntry[]> {
+  const { listMigrationHistory } = await import('@app/db');
+  return listMigrationHistory(db, limit);
 }

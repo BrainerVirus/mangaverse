@@ -1,4 +1,8 @@
-import type { MigrationSearchCandidate, MigrationSearchResult } from './types.js';
+import type {
+  MigrationConfidenceBand,
+  MigrationSearchCandidate,
+  MigrationSearchResult,
+} from './types.js';
 
 function normalizeTitle(value: string): string {
   return value
@@ -49,4 +53,12 @@ export function rankMigrationSearchResults(
     .filter((candidate) => candidate.confidence > 0)
     .slice()
     .sort((a, b) => b.confidence - a.confidence || a.title.localeCompare(b.title));
+}
+
+/** Buckets a score into the confidence label the review UI shows. */
+export function migrationConfidenceBand(confidence: number): MigrationConfidenceBand {
+  if (confidence >= 0.99) return 'exact';
+  if (confidence >= 0.75) return 'high';
+  if (confidence >= 0.4) return 'medium';
+  return 'low';
 }

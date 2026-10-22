@@ -1,6 +1,10 @@
-import type { MigrationPreviewReport } from '@app/db';
+import type { MigrationApplyReport, MigrationPreviewReport } from '@app/db';
 
-import type { MigrationApplySummary } from './types.js';
+import type {
+  MigrationApplyReportView,
+  MigrationApplySummary,
+  MigrationRollbackSummary,
+} from './types.js';
 
 export function summarizeMigrationPreview(preview: MigrationPreviewReport): MigrationApplySummary {
   const blockedCount = preview.items.filter((item) => item.blocked).length;
@@ -12,15 +16,46 @@ export function summarizeMigrationPreview(preview: MigrationPreviewReport): Migr
   };
 }
 
-export function summarizeMigrationApply(report: MigrationApplyReportLike): MigrationApplySummary {
+/** Per-title apply report; skipped entries carry the reason the DB reported. */
+export function buildMigrationApplyReport(
+  report: MigrationApplyReport,
+  titles: Readonly<Record<string, string>>,
+): MigrationApplyReportView {
   return {
     appliedCount: report.applied.length,
     skippedCount: report.skipped.length,
-    canApply: report.applied.length > 0,
+    items: [
+      ...report.applied.map((item) => ({
+        mangaId: item.mangaId,
+        title: titles[item.mangaId] ?? item.mangaId,
+        status: 'applied' as const,
+      })),
+      ...report.skipped.map((item) => ({
+        mangaId: item.mangaId,
+        title: titles[item.mangaId] ?? item.mangaId,
+        status: 'skipped' as const,
+        ...(item.error !== undefined ? { reason: item.error } : {}),
+      })),
+    ],
   };
 }
 
-interface MigrationApplyReportLike {
-  readonly applied: readonly unknown[];
-  readonly skipped: readonly unknown[];
+export function summarizeMigrationRollback(
+  report: MigrationRollbackReportLike,
+  titles: Readonly<Record<string, string>>,
+): MigrationRollbackSummary {
+  return {
+    restoredCount: report.restored.length,
+    skippedCount: report.skipped.length,
+    skipped: report.skipped.map((item) => ({
+      mangaId: item.mangaId,
+      title: titles[item.mangaId] ?? item.mangaId,
+      reason: item.error ?? 'Not restored.',
+    })),
+  };
+}
+
+interface MigrationRollbackReportLike {
+  readonly restored: readonly { readonly mangaId: string }[];
+  readonly skipped: readonly { readonly mangaId: string; readonly error?: string }[];
 }

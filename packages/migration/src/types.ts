@@ -33,3 +33,44 @@ export interface MigrationApplySummary {
   readonly skippedCount: number;
   readonly canApply: boolean;
 }
+
+export type MigrationConfidenceBand = 'exact' | 'high' | 'medium' | 'low';
+
+/** What one title's target search is doing right now. */
+export interface MigrationTargetSearchState {
+  readonly isLoading: boolean;
+  readonly error: string | null;
+  readonly results: readonly MigrationSearchResult[];
+}
+
+export interface MigrationBatchSummary {
+  readonly totalCount: number;
+  readonly selectedCount: number;
+  readonly matchedCount: number;
+  readonly blockedCount: number;
+}
+
+export interface MigrationApplyReportLine {
+  readonly mangaId: string;
+  readonly title: string;
+  readonly status: 'applied' | 'skipped';
+  readonly reason?: string;
+}
+
+export interface MigrationApplyReportView {
+  readonly appliedCount: number;
+  readonly skippedCount: number;
+  readonly items: readonly MigrationApplyReportLine[];
+}
+
+export interface MigrationRollbackReportLine {
+  readonly mangaId: string;
+  readonly title: string;
+  readonly reason: string;
+}
+
+export interface MigrationRollbackSummary {
+  readonly restoredCount: number;
+  readonly skippedCount: number;
+  readonly skipped: readonly MigrationRollbackReportLine[];
+}
