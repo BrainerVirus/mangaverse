@@ -2,6 +2,7 @@ import { useRef, type RefObject } from 'react';
 import { Button, Sheet, SheetContent, SheetHeader, SheetTitle } from '@app/design-system';
 import { settingsDrawerTransition, useGsapContext, useReducedMotion } from '@app/motion';
 import type { ReaderSettings } from '@app/shared';
+import type { ReaderMetricsSnapshot } from '../reader-metrics.js';
 
 export interface ReaderSettingsSheetProps {
   open: boolean;
@@ -10,7 +11,14 @@ export interface ReaderSettingsSheetProps {
   onClose: () => void;
   settingsButtonRef?: RefObject<HTMLButtonElement | null> | undefined;
   onResetSettings?: (() => void) | undefined;
-  onMarkRead?: ((completed: boolean) => void) | undefined;
+  diagnostics?: ReaderMetricsSnapshot | undefined;
+  onClearDiagnostics?: (() => void) | undefined;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes <= 0) return '0 B';
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KiB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
 }
 
 export function ReaderSettingsSheet({
@@ -20,7 +28,8 @@ export function ReaderSettingsSheet({
   onClose,
   settingsButtonRef,
   onResetSettings,
-  onMarkRead,
+  diagnostics,
+  onClearDiagnostics,
 }: ReaderSettingsSheetProps) {
   const sheetRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
@@ -160,18 +169,73 @@ export function ReaderSettingsSheet({
               </Button>
             </div>
           ) : null}
-          {onMarkRead ? (
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={() => onMarkRead(true)}>
-                Mark chapter read
-              </Button>
-              <Button variant="outline" onClick={() => onMarkRead(false)}>
-                Mark chapter unread
-              </Button>
-            </div>
+          {settings.diagnosticsEnabled && diagnostics ? (
+            <DiagnosticsPanel diagnostics={diagnostics} onClear={onClearDiagnostics} />
           ) : null}
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+function DiagnosticsPanel({
+  diagnostics,
+  onClear,
+}: {
+  diagnostics: ReaderMetricsSnapshot;
+  onClear?: (() => void) | undefined;
+}) {
+  const rows: readonly [string, string][] = [
+    ['Pages loaded', String(diagnostics.pageLoads)],
+    ['Page failures', String(diagnostics.pageFailures)],
+    ['Cache hits', String(diagnostics.cacheHits)],
+    ['Cache misses', String(diagnostics.cacheMisses)],
+    ['Last page load', `${diagnostics.lastLoadMs} ms`],
+    ['Slowest page load', `${diagnostics.maxLoadMs} ms`],
+    ['Prefetch runs', String(diagnostics.prefetchRuns)],
+    ['Prefetched pages', String(diagnostics.prefetchPages)],
+    ['Prefetch failures', String(diagnostics.prefetchFailures)],
+    ['Prefetched bytes', formatBytes(diagnostics.prefetchedBytes)],
+    ['Last prefetch', `${diagnostics.lastPrefetchMs} ms`],
+  ];
+
+  return (
+    <section aria-label="Reader diagnostics" data-testid="reader-diagnostics" className="space-y-3">
+      <div>
+        <p className="text-sm font-medium">Reader diagnostics</p>
+        <p className="text-sm text-muted-foreground">
+          Page, cache, and prefetch timings for this reading session.
+        </p>
+      </div>
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+        {rows.map(([label, value]) => (
+          <div key={label} className="flex items-baseline justify-between gap-2">
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd className="tabular-nums">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      {diagnostics.events.length > 0 ? (
+        <ol className="max-h-40 space-y-1 overflow-y-auto text-xs" aria-label="Recent events">
+          {diagnostics.events.slice(0, 6).map((event) => (
+            <li key={event.id} className="flex justify-between gap-2">
+              <span>
+                {event.kind === 'page'
+                  ? `Page ${event.pageIndex !== undefined ? event.pageIndex + 1 : '?'}`
+                  : `Prefetch ${event.pages ?? 0}`}
+              </span>
+              <span className="text-muted-foreground tabular-nums">
+                {event.status} · {event.durationMs} ms
+              </span>
+            </li>
+          ))}
+        </ol>
+      ) : null}
+      {onClear ? (
+        <Button variant="outline" size="sm" onClick={onClear}>
+          Clear diagnostics
+        </Button>
+      ) : null}
+    </section>
   );
 }

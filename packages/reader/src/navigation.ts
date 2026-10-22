@@ -1,4 +1,14 @@
+import { defaultKeyboardShortcuts, keyboardEventMatches } from '@app/shared';
 import type { ReaderState, ReaderNavigationAction, ReaderEngineSettings } from './types.js';
+
+export function isChapterEndNavigation(
+  state: { readonly activePageIndex: number; readonly pages: readonly unknown[] } | null,
+  action: ReaderNavigationAction,
+): boolean {
+  return (
+    action.type === 'nextPage' && state !== null && state.activePageIndex >= state.pages.length - 1
+  );
+}
 
 export function resolveNavigationAction(
   state: ReaderState,
@@ -37,7 +47,13 @@ export function applyNavigationAction(
   state: ReaderState,
   action: ReaderNavigationAction,
 ): ReaderState {
-  if (action.type === 'none' || action.type === 'prevChapter' || action.type === 'nextChapter') {
+  if (
+    action.type === 'none' ||
+    action.type === 'prevChapter' ||
+    action.type === 'nextChapter' ||
+    action.type === 'toggleChrome' ||
+    action.type === 'toggleFullscreen'
+  ) {
     return state;
   }
 
@@ -61,9 +77,27 @@ export function applyNavigationAction(
 }
 
 export function resolveKeyboardAction(
-  event: { key: string },
+  event: {
+    key: string;
+    ctrlKey?: boolean;
+    altKey?: boolean;
+    shiftKey?: boolean;
+    metaKey?: boolean;
+  },
   settings: ReaderEngineSettings,
 ): ReaderNavigationAction {
+  // Saved bindings win over the built-in map; with none saved, the editor's
+  // direction-aware defaults are the same bindings the reader applies.
+  const shortcuts =
+    settings.keyboardShortcuts !== undefined && settings.keyboardShortcuts.length > 0
+      ? settings.keyboardShortcuts
+      : defaultKeyboardShortcuts(settings.readingMode);
+  const custom = shortcuts.find((shortcut) => keyboardEventMatches(event, shortcut));
+  if (custom !== undefined) return { type: custom.action };
+  if (event.ctrlKey === true || event.metaKey === true || event.altKey === true) {
+    return { type: 'none' };
+  }
+
   const { readingMode, navigationDirection } = settings;
   const rtl = readingMode === 'rtl';
   const inverted = navigationDirection === 'inverted';

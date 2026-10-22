@@ -3,6 +3,7 @@ import { CachedPageImage } from '@app/cache';
 import type { ReaderPage } from '../types.js';
 import {
   findActiveScrollPage,
+  resolveScrollPreloadAhead,
   windowedScrollPages,
   type ScrollPageMetric,
 } from '../scroll-layout.js';
@@ -28,6 +29,16 @@ interface ReaderScrollViewProps {
   readonly onHandle: (handle: ReaderScrollViewHandle | null) => void;
   readonly preloadAhead?: number;
   readonly lowMemoryMode?: boolean;
+  readonly longStripOptimization?: boolean;
+  readonly imageSmoothing?: boolean;
+  readonly onPageMetric?:
+    | ((metric: {
+        pageIndex: number;
+        status: 'loaded' | 'failed';
+        fromCache: boolean;
+        durationMs: number;
+      }) => void)
+    | undefined;
   readonly onBack?: (() => void) | undefined;
 }
 
@@ -48,6 +59,8 @@ const ScrollPageRow = memo(function ScrollPageRow({
   chapterId,
   onSkipPage,
   onBack,
+  imageSmoothing,
+  onMetric,
 }: {
   readonly page: ReaderPage;
   readonly index: number;
@@ -58,6 +71,15 @@ const ScrollPageRow = memo(function ScrollPageRow({
   readonly chapterId: string;
   readonly onSkipPage?: ((index: number) => void) | undefined;
   readonly onBack?: (() => void) | undefined;
+  readonly imageSmoothing: boolean;
+  readonly onMetric?:
+    | ((metric: {
+        pageIndex: number;
+        status: 'loaded' | 'failed';
+        fromCache: boolean;
+        durationMs: number;
+      }) => void)
+    | undefined;
 }) {
   const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
   const width = page.image.width ?? natural?.width ?? 2;
@@ -77,9 +99,15 @@ const ScrollPageRow = memo(function ScrollPageRow({
           remoteUrl={page.image.url}
           className="h-auto w-full select-none"
           retention="read"
+          imageRendering={imageSmoothing ? 'auto' : 'pixelated'}
           onLoad={setNatural}
           onSkip={onSkipPage ? () => onSkipPage(index) : undefined}
           onBack={onBack}
+          onMetric={
+            onMetric === undefined
+              ? undefined
+              : (metric) => onMetric({ pageIndex: index, ...metric })
+          }
         />
       ) : (
         <div className="h-full w-full animate-pulse bg-muted/40" aria-hidden />
@@ -129,6 +157,9 @@ export function ReaderScrollView({
   onHandle,
   preloadAhead = WINDOW_RADIUS,
   lowMemoryMode = false,
+  longStripOptimization = false,
+  imageSmoothing = true,
+  onPageMetric,
   onBack,
 }: ReaderScrollViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -237,7 +268,12 @@ export function ReaderScrollView({
   const mounted = windowedScrollPages(
     pages,
     activePageIndex,
-    lowMemoryMode ? Math.min(1, preloadAhead) : preloadAhead,
+    resolveScrollPreloadAhead({
+      pages,
+      preloadAhead,
+      lowMemoryMode,
+      longStripOptimization,
+    }),
   );
 
   return (
@@ -260,6 +296,8 @@ export function ReaderScrollView({
             chapterId={chapterId}
             onSkipPage={skipPage}
             onBack={onBack}
+            imageSmoothing={imageSmoothing}
+            onMetric={onPageMetric}
           />
         ))}
         {spacerPx > 0 ? <div aria-hidden style={{ height: `${spacerPx}px` }} /> : null}

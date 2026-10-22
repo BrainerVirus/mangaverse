@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   createProgressEvent,
   shouldCheckpointOnUnmount,
@@ -18,7 +18,7 @@ export function useReaderProgress(
   data: ReaderPageData | undefined,
   readerState: ReaderState | null,
   onPersistProgress: ((event: ReaderProgressEvent) => void) | undefined,
-): void {
+): { readonly cancelPendingCheckpoint: () => void } {
   const lastPersistedRef = useRef<ReaderProgressEvent | null>(null);
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingEventRef = useRef<ReaderProgressEvent | null>(null);
@@ -38,6 +38,20 @@ export function useReaderProgress(
     );
 
     const previous = lastPersistedRef.current;
+    // A completed chapter marked from the chapter list may never have had its
+    // pages hydrated, so it resumes on page 1. Opening it must not write page 1
+    // as incomplete progress and undo the completion.
+    if (previous === null && data.initialCompleted === true) {
+      lastPersistedRef.current = {
+        chapterId: data.chapterId,
+        mangaId: data.mangaId,
+        pageIndex: readerState.activePageIndex,
+        readPercent: 100,
+        completed: true,
+        timestamp: new Date(0).toISOString(),
+      };
+      return;
+    }
     if (
       previous !== null &&
       !shouldPersistProgress(previous, nextEvent, { minPagesBetweenPersists: 1 })
@@ -111,4 +125,18 @@ export function useReaderProgress(
     },
     [],
   );
+
+  /**
+   * An explicit mark read/unread is newer than the page the reader opened on;
+   * a pending checkpoint would write that page back with a later timestamp.
+   */
+  const cancelPendingCheckpoint = useCallback(() => {
+    if (persistTimerRef.current !== null) {
+      clearTimeout(persistTimerRef.current);
+      persistTimerRef.current = null;
+    }
+    pendingEventRef.current = null;
+  }, []);
+
+  return { cancelPendingCheckpoint };
 }

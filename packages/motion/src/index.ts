@@ -24,6 +24,11 @@ export { createTimeline } from './helpers/timeline.js';
 export { chromeShow, chromeHide } from './reader-safe/chrome.js';
 export { readerModePill, type ReaderModePillOptions } from './reader-safe/mode-pill.js';
 export { pageTurn } from './reader-safe/page-turn.js';
+export {
+  readerPageEnter,
+  type ReaderPageEnterOptions,
+  type ReaderPageTransition,
+} from './reader-safe/page-enter.js';
 export { settingsDrawerTransition } from './reader-safe/settings-drawer.js';
 
 export {

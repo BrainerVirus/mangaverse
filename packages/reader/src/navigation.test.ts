@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { toChapterPageId } from '@app/shared';
+import type { KeyboardShortcut } from '@app/shared';
 import {
   resolveNavigationAction,
   applyNavigationAction,
@@ -220,6 +221,48 @@ describe('resolveKeyboardAction', () => {
     const action = resolveKeyboardAction({ key: 'a' }, defaultSettings);
 
     expect(action.type).toBe('none');
+  });
+});
+
+describe('resolveKeyboardAction with saved shortcuts', () => {
+  it('Given no saved bindings, When the displayed chapter shortcuts are pressed, Then they apply', () => {
+    expect(resolveKeyboardAction({ key: 'ArrowRight', shiftKey: true }, defaultSettings).type).toBe(
+      'nextChapter',
+    );
+    expect(resolveKeyboardAction({ key: 'h' }, defaultSettings).type).toBe('toggleChrome');
+  });
+
+  it('Given a saved key, When pressed, Then it resolves the bound action', () => {
+    const settings = {
+      ...defaultSettings,
+      keyboardShortcuts: [{ action: 'nextPage' as const, key: 'n' }],
+    };
+    expect(resolveKeyboardAction({ key: 'n' }, settings).type).toBe('nextPage');
+  });
+
+  it('Given a saved binding on a built-in key, When pressed, Then the saved action wins', () => {
+    const settings = {
+      ...defaultSettings,
+      keyboardShortcuts: [{ action: 'prevPage' as const, key: 'ArrowRight' }],
+    };
+    expect(resolveKeyboardAction({ key: 'ArrowRight' }, settings).type).toBe('prevPage');
+  });
+
+  it('Given a modifier binding, When pressed without the modifier, Then it does not fire', () => {
+    const settings = {
+      ...defaultSettings,
+      keyboardShortcuts: [
+        { action: 'toggleChrome', key: 'h', modifiers: ['Shift'] },
+      ] as KeyboardShortcut[],
+    };
+    expect(resolveKeyboardAction({ key: 'h' }, settings).type).toBe('none');
+    expect(resolveKeyboardAction({ key: 'h', shiftKey: true }, settings).type).toBe('toggleChrome');
+  });
+
+  it('Given a modified key with no binding, When pressed, Then the reader ignores it', () => {
+    expect(resolveKeyboardAction({ key: 'ArrowRight', ctrlKey: true }, defaultSettings).type).toBe(
+      'none',
+    );
   });
 });
 

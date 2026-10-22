@@ -6,7 +6,7 @@ import {
   upsertChapterWithPages,
 } from '@app/db';
 import { createSqlJsHarness } from '@app/db/testing';
-import { toChapterId, toChapterPageId, toProviderId } from '@app/shared';
+import { toChapterId, toChapterPageId, toExtensionInstallId, toProviderId } from '@app/shared';
 import { fetchReaderPage } from './fetch-reader-page.js';
 
 describe('fetchReaderPage', () => {
@@ -78,6 +78,8 @@ describe('fetchReaderPage', () => {
     const page = await fetchReaderPage(db, chapterId);
     expect(page).toBeDefined();
     expect(page?.chapter.title).toBe('Chapter 1');
+    expect(page?.sourceName).toBeUndefined();
+    expect(page?.initialCompleted).toBe(false);
     expect(page?.chapter.pageCount).toBe(2);
     expect(page?.initialPageIndex).toBe(1);
     expect(page?.engineSettings.readingMode).toBe('ltr');
@@ -109,5 +111,52 @@ describe('fetchReaderPage', () => {
     });
     await resetTitleReaderSettings(db, mangaId);
     expect((await fetchReaderPage(db, chapterId))?.settings.readingMode).toBe('ltr');
+  });
+
+  it('Given an installed provider, When the reader opens a chapter, Then it carries the display name', async () => {
+    const { db } = await createSqlJsHarness();
+    const created = await createMangaIdentityWithInitialMapping(db, {
+      canonicalTitle: 'Attributed',
+      status: 'ongoing',
+      contentRating: 'safe',
+      providerId: toProviderId('prov-a'),
+      providerMangaId: 'attributed',
+    });
+    if (!created.ok) throw new Error(created.error.message);
+    const chapterId = toChapterId('chapter-attributed');
+    await upsertChapterWithPages(db, {
+      chapterId,
+      mangaId: created.value.mangaId,
+      providerMappingId: created.value.mappingId,
+      providerId: 'prov-a',
+      title: 'Chapter 1',
+      index: 1,
+      pages: [],
+    });
+    const { upsertInstalledExtension } = await import('@app/db');
+    const installed = await upsertInstalledExtension(db, {
+      id: toExtensionInstallId('ext-prov-a'),
+      manifest: {
+        id: toProviderId('prov-a'),
+        name: 'Provider A',
+        version: '1.0.0',
+        source: { url: 'https://example.com/src' },
+        compatibility: { platforms: ['web'] },
+        capabilities: { 'discovery.search': true },
+        permissions: ['network.http'],
+        languages: ['en'],
+        contentFlags: { nsfw: false, suggestive: false, violence: false },
+      },
+      sourceUrl: 'https://example.com/ext',
+      installedVersion: '1.0.0',
+      enabled: true,
+      installedAt: new Date().toISOString(),
+      state: 'installed',
+      health: 'ok',
+      warnings: [],
+    });
+    expect(installed.ok).toBe(true);
+
+    expect((await fetchReaderPage(db, chapterId))?.sourceName).toBe('Provider A');
   });
 });

@@ -1,61 +1,43 @@
-import { useCallback, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
-  EmptyState,
-  Button,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  ErrorState,
-  GlassSurface,
-  LoadingState,
-  ReaderChrome,
-} from '@app/design-system';
+  useCallback,
+  useRef,
+  useState,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from 'react';
+import { EmptyState, Button, ErrorState, GlassSurface, LoadingState } from '@app/design-system';
 import { useReducedMotion } from '@app/motion';
 import type { ReaderSettings } from '@app/shared';
-import { CachedPageImage, useCoverCacheContext, type CoverCacheContextValue } from '@app/cache';
-import { resolvePageFit, type PageFitInput } from '../page-fit.js';
+import { useCoverCacheContext, CachedPageImage } from '@app/cache';
+import type { PageFitInput } from '../page-fit.js';
 import type { ReaderPageData } from '../reader-page-data.js';
-import { ReaderScrollView, type ReaderScrollViewHandle } from './ReaderScrollView.js';
-import { ReaderSettingsSheet } from './reader-settings-sheet.js';
+import { ReaderOverlays } from './ReaderOverlays.js';
+import { ReaderStage } from './ReaderStage.js';
+import type { ReaderScrollViewHandle } from './ReaderScrollView.js';
 import { useChapterPrefetch, useOfflinePagesNote } from './use-chapter-cache.js';
+import { useReaderDiagnostics } from './use-reader-diagnostics.js';
+import { useReaderFullscreen } from './use-reader-fullscreen.js';
 import { useReaderGestures } from './use-reader-gestures.js';
 import { useReaderKeyboard, useReaderWheelZoom } from './use-reader-listeners.js';
+import { useReaderPageTransition } from './use-reader-page-transition.js';
 import { useReaderProgress } from './use-reader-progress.js';
 import { useReaderSession } from './use-reader-session.js';
 import { useReaderViewport } from './use-reader-viewport.js';
-import { calculateTapZones } from '../tap-zones.js';
+import { useScreenWakeLock } from './use-screen-wake-lock.js';
 import type {
-  ReaderOverlayInsets,
   ReaderNavigationAction,
+  ReaderOverlayInsets,
   ReaderPage,
   ReaderProgressEvent,
   ReaderSessionInput,
   ReaderState,
+  ReaderViewport,
 } from '../types.js';
 
 const CHROME_INSETS: ReaderOverlayInsets = { top: 96, right: 0, bottom: 48, left: 0 };
 
-const OBJECT_FIT_CLASS = {
-  contain: 'object-contain',
-  cover: 'object-cover',
-  none: 'object-none',
-} as const;
-
 type ChromeMode = 'single' | 'double' | 'scroll';
-
-function readerTouchAction(scale: number): string {
-  return scale > 1 ? 'none' : 'pan-x pan-y';
-}
-
-function isChapterEndNavigation(
-  state: ReaderState | null,
-  action: ReaderNavigationAction,
-): boolean {
-  return (
-    action.type === 'nextPage' && state !== null && state.activePageIndex >= state.pages.length - 1
-  );
-}
 
 function resolveChromeVisible(settings: ReaderSettings | undefined, visible: boolean): boolean {
   return (
@@ -106,7 +88,22 @@ function applyReadingModeChange(
   );
 }
 
-/** The surface for a gate that replaces the reading view, in gate priority order. */
+/** One chapter action, one status line: persistence failures must never be silent. */
+async function runReaderAction(
+  action: (() => void | Promise<void>) | undefined,
+  success: string,
+  setStatus: (message: string) => void,
+  onSuccess?: () => void,
+): Promise<void> {
+  if (action === undefined) return;
+  try {
+    await action();
+    onSuccess?.();
+    setStatus(success);
+  } catch {
+    setStatus('Could not update read state. Try again.');
+  }
+}
 function readerGateView({
   gate,
   title,
@@ -217,94 +214,29 @@ export interface ReaderScreenProps {
   onPreviousChapter?: (() => void) | undefined;
   onNextChapter?: (() => void) | undefined;
   onResetSettings?: (() => void) | undefined;
-  onMarkRead?: ((completed: boolean) => void) | undefined;
+  /** Persists the current chapter's read/unread state; resolves once durable. */
+  onMarkRead?: ((completed: boolean) => void | Promise<void>) | undefined;
+  onMarkPreviousRead?: (() => void | Promise<void>) | undefined;
 }
 
-export function ReaderScreen({
-  data,
-  isLoading,
-  isError,
-  isHydrating = false,
-  isHydrationError = false,
-  chromeVisible,
-  onToggleChrome,
-  onPersistProgress,
-  onChangeSettings,
-  onRetry,
-  isOffline = false,
-  onClose,
-  onPreviousChapter,
-  onNextChapter,
-  onResetSettings,
-  onMarkRead,
-}: ReaderScreenProps) {
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [chapterEndOpen, setChapterEndOpen] = useState(false);
-  const scrollHandleRef = useRef<ReaderScrollViewHandle | null>(null);
-  const settingsButtonRef = useRef<HTMLButtonElement | null>(null);
-  // Vertical navigation resolves from the last target, not the centre-based
-  // active page: during a smooth scroll the active page lags behind and rapid
-  // presses would otherwise all resolve to the same index. `verticalTargetPending`
-  // keeps scroll-driven updates from overwriting a burst that is still landing.
-  const verticalTargetRef = useRef(0);
-  const verticalTargetPendingRef = useRef(false);
-  const reducedMotion = useReducedMotion();
-  const cacheContext = useCoverCacheContext();
-  const { containerRef, surface, viewport } = useReaderViewport();
+export function ReaderScreen(props: ReaderScreenProps) {
   const {
-    sessionInput,
-    readerState,
-    setReaderState,
-    navigate: navigatePage,
-  } = useReaderSession(data, viewport);
-  const navigate = useCallback(
-    (action: Parameters<typeof navigatePage>[0]) => {
-      if (isChapterEndNavigation(readerState, action)) {
-        setChapterEndOpen(true);
-        return;
-      }
-      navigatePage(action);
-    },
-    [navigatePage, readerState],
-  );
-  useReaderProgress(data, readerState, onPersistProgress);
-  useChapterPrefetch(data, cacheContext, readerState?.activePageIndex);
-  const offlineNote = useOfflinePagesNote(data, cacheContext, isOffline);
-
-  const {
-    updateZoom,
-    handleZoomPointerDown,
-    handleZoomPointerMove,
-    handleZoomPointerUp,
-    handlePointerUp,
-  } = useReaderGestures({
-    sessionInput,
-    readerState,
-    surface,
-    overlayInsets: CHROME_INSETS,
-    navigate,
-    onToggleChrome,
-    setReaderState,
-  });
-  const { zoomLayerRef } = useReaderWheelZoom({ sessionInput, surface, updateZoom });
-  useReaderKeyboard({
-    sessionInput,
-    navigate,
-    reducedMotion,
-    scrollHandle: scrollHandleRef,
-    verticalTarget: verticalTargetRef,
-    verticalTargetPending: verticalTargetPendingRef,
-    disabled: settingsOpen || chapterEndOpen,
+    data,
+    isLoading,
+    isError,
+    isHydrating = false,
+    isHydrationError = false,
+    isOffline = false,
     onClose,
-  });
-
-  const settings = data?.settings;
-  const isScrollMode = readerState?.mode === 'scroll';
-  const chromeMode = resolveChromeMode(settings, isScrollMode === true);
-  const handleModeChange = useCallback(
-    (mode: 'single' | 'double' | 'scroll' | 'webtoon') =>
-      applyReadingModeChange(mode, settings, onChangeSettings),
-    [onChangeSettings, settings],
+  } = props;
+  const [chapterEndOpen, setChapterEndOpen] = useState(false);
+  const handleChapterEnd = useCallback(() => setChapterEndOpen(true), []);
+  const reducedMotion = useReducedMotion();
+  const { containerRef, surface, viewport } = useReaderViewport();
+  const { sessionInput, readerState, setReaderState, navigate } = useReaderSession(
+    data,
+    viewport,
+    handleChapterEnd,
   );
 
   const gate = resolveReaderGate({
@@ -324,7 +256,7 @@ export function ReaderScreen({
             Close reader
           </Button>
         ) : null}
-        {readerGateView({ gate, title: data?.chapter.title ?? '', onRetry })}
+        {readerGateView({ gate, title: data?.chapter.title ?? '', onRetry: props.onRetry })}
       </>
     );
   }
@@ -333,17 +265,166 @@ export function ReaderScreen({
     return <LoadingState type="detail" />;
   }
 
+  return (
+    <ReaderReadyView
+      {...props}
+      data={data}
+      readerState={readerState}
+      sessionInput={sessionInput}
+      setReaderState={setReaderState}
+      navigate={navigate}
+      viewport={viewport}
+      surface={surface}
+      containerRef={containerRef}
+      reducedMotion={reducedMotion}
+      chapterEndOpen={chapterEndOpen}
+      onChapterEndOpenChange={setChapterEndOpen}
+    />
+  );
+}
+
+type ReaderReadyProps = ReaderScreenProps & {
+  readonly data: ReaderPageData;
+  readonly readerState: ReaderState;
+  readonly sessionInput: ReaderSessionInput | null;
+  readonly setReaderState: Dispatch<SetStateAction<ReaderState | null>>;
+  readonly navigate: (action: ReaderNavigationAction) => void;
+  readonly viewport: ReaderViewport;
+  readonly surface: HTMLDivElement | null;
+  readonly containerRef: (node: HTMLDivElement | null) => void;
+  readonly reducedMotion: boolean;
+  readonly chapterEndOpen: boolean;
+  readonly onChapterEndOpenChange: (open: boolean) => void;
+};
+
+function ReaderReadyView({
+  data,
+  readerState,
+  sessionInput,
+  setReaderState,
+  navigate,
+  viewport,
+  surface,
+  containerRef,
+  reducedMotion,
+  chapterEndOpen,
+  onChapterEndOpenChange,
+  chromeVisible,
+  onToggleChrome,
+  onPersistProgress,
+  onChangeSettings,
+  isOffline = false,
+  onClose,
+  onPreviousChapter,
+  onNextChapter,
+  onResetSettings,
+  onMarkRead,
+  onMarkPreviousRead,
+}: ReaderReadyProps) {
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [chapterActionsOpen, setChapterActionsOpen] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+  const scrollHandleRef = useRef<ReaderScrollViewHandle | null>(null);
+  const settingsButtonRef = useRef<HTMLButtonElement | null>(null);
+  const pageLayerRef = useRef<HTMLDivElement | null>(null);
+  // Vertical navigation resolves from the last target, not the centre-based
+  // active page: during a smooth scroll the active page lags behind and rapid
+  // presses would otherwise all resolve to the same index. `verticalTargetPending`
+  // keeps scroll-driven updates from overwriting a burst that is still landing.
+  const verticalTargetRef = useRef(0);
+  const verticalTargetPendingRef = useRef(false);
+  const cacheContext = useCoverCacheContext();
+  const diagnosticsEnabled = data.settings.diagnosticsEnabled;
+  const diagnostics = useReaderDiagnostics(diagnosticsEnabled);
+  const progress = useReaderProgress(data, readerState, onPersistProgress);
+  useChapterPrefetch(data, cacheContext, readerState.activePageIndex, diagnostics.recordPrefetch);
+  useScreenWakeLock(data.settings.keepScreenOn);
+  useReaderFullscreen(data.settings.fullscreenOnOpen, reducedMotion);
+  const offlineNote = useOfflinePagesNote(data, cacheContext, isOffline);
+
+  const {
+    updateZoom,
+    handleZoomPointerDown,
+    handleZoomPointerMove,
+    handleZoomPointerUp,
+    handlePointerUp,
+  } = useReaderGestures({
+    sessionInput,
+    readerState,
+    surface,
+    overlayInsets: CHROME_INSETS,
+    navigate,
+    onToggleChrome,
+    setReaderState,
+  });
+  const { zoomLayerRef } = useReaderWheelZoom({ sessionInput, surface, updateZoom });
+  const setPagedLayer = useCallback(
+    (node: HTMLDivElement | null) => {
+      pageLayerRef.current = node;
+      zoomLayerRef(node);
+    },
+    [zoomLayerRef],
+  );
+  useReaderKeyboard({
+    sessionInput,
+    navigate,
+    reducedMotion,
+    scrollHandle: scrollHandleRef,
+    verticalTarget: verticalTargetRef,
+    verticalTargetPending: verticalTargetPendingRef,
+    disabled: settingsOpen || chapterEndOpen || chapterActionsOpen,
+    onClose,
+    onToggleChrome,
+    onToggleFullscreen: toggleFullscreen,
+    onPreviousChapter,
+    onNextChapter,
+  });
+  useReaderPageTransition({
+    pageLayer: pageLayerRef,
+    activePageIndex: readerState.activePageIndex,
+    mode: data.engineSettings.pageTransition ?? 'none',
+    rtl: data.engineSettings.readingMode === 'rtl',
+    reducedMotion,
+  });
+
+  const settings = data.settings;
+  const isScrollMode = readerState.mode === 'scroll';
+  const chromeMode = resolveChromeMode(settings, isScrollMode);
+  const handleModeChange = useCallback(
+    (mode: 'single' | 'double' | 'scroll' | 'webtoon') =>
+      applyReadingModeChange(mode, settings, onChangeSettings),
+    [onChangeSettings, settings],
+  );
+  const handleMarkRead = useCallback(
+    (completed: boolean) =>
+      runReaderAction(
+        onMarkRead === undefined ? undefined : () => onMarkRead(completed),
+        completed ? 'Chapter marked read' : 'Chapter marked unread',
+        setStatus,
+        progress.cancelPendingCheckpoint,
+      ),
+    [onMarkRead, progress.cancelPendingCheckpoint],
+  );
+  const handleMarkPreviousRead = useCallback(
+    () =>
+      runReaderAction(
+        onMarkPreviousRead,
+        'Previous chapters marked read',
+        setStatus,
+        progress.cancelPendingCheckpoint,
+      ),
+    [onMarkPreviousRead, progress.cancelPendingCheckpoint],
+  );
+
   const visiblePages = readerState.visiblePageIndexes
     .map((index) => data.chapter.pages[index])
     .filter((page) => page !== undefined);
-  const activePage = data.chapter.pages[readerState.activePageIndex];
-  const naturalSize = resolveNaturalSize(activePage);
   const fitInput: PageFitInput = {
     fitMode: data.engineSettings.fitMode,
     availableWidth: viewport.width - CHROME_INSETS.left - CHROME_INSETS.right,
     availableHeight: viewport.height - CHROME_INSETS.top - CHROME_INSETS.bottom,
     pageCount: visiblePages.length,
-    naturalSize,
+    naturalSize: resolveNaturalSize(data.chapter.pages[readerState.activePageIndex]),
   };
 
   return (
@@ -353,94 +434,48 @@ export function ReaderScreen({
         sheet are siblings, so their pointer events can never reach the tap-zone
         logic and skip a page while the user adjusts settings.
       */}
-      <div
-        ref={containerRef}
-        className="reader-stage-background relative h-full w-full overflow-hidden"
-        style={{ '--reader-stage-color': settings?.backgroundColor } as CSSProperties}
+      <ReaderStage
+        data={data}
+        readerState={readerState}
+        sessionInput={sessionInput}
+        cacheContext={cacheContext}
+        reducedMotion={reducedMotion}
+        fitInput={fitInput}
+        visiblePages={visiblePages}
+        overlayInsets={CHROME_INSETS}
+        containerRef={containerRef}
+        scrollHandleRef={scrollHandleRef}
+        verticalTargetRef={verticalTargetRef}
+        verticalTargetPendingRef={verticalTargetPendingRef}
+        setReaderState={setReaderState}
+        navigate={navigate}
+        onClose={onClose}
+        onToggleChrome={onToggleChrome}
         onPointerUp={handlePointerUp}
-        data-testid="reader-surface"
-      >
-        {isScrollMode ? (
-          <ReaderScrollView
-            pages={data.chapter.pages}
-            gapPx={data.engineSettings.verticalGapPx}
-            activePageIndex={readerState.activePageIndex}
-            onActivePageChange={(index) => {
-              // Keyboard presses own the target while a burst is landing; any
-              // other change (user scroll, scroll settling on the target) wins.
-              if (!verticalTargetPendingRef.current || index === verticalTargetRef.current) {
-                verticalTargetRef.current = index;
-                verticalTargetPendingRef.current = false;
-              }
-              setReaderState((previous) =>
-                previous === null
-                  ? previous
-                  : { ...previous, activePageIndex: index, visiblePageIndexes: [index] },
-              );
-            }}
-            providerId={data.providerId}
-            mangaId={data.mangaId}
-            chapterId={data.chapterId}
-            cacheReady={cacheContext !== null}
-            reducedMotion={reducedMotion}
-            preloadAhead={data.engineSettings.preloadAhead}
-            lowMemoryMode={data.engineSettings.lowMemoryMode}
-            onBack={onClose}
-            onHandle={(handle) => {
-              scrollHandleRef.current = handle;
-            }}
-          />
-        ) : (
-          /*
-            The zoom layer is the surface-sized box the pure zoom helpers were
-            written for: transform-origin top-left, so translate clamps against
-            the same dimensions the helpers receive.
-          */
-          <div
-            ref={zoomLayerRef}
-            className="reader-page-scroll absolute inset-0 flex overflow-auto"
-            data-testid="reader-zoom-layer"
-            style={{
-              transform: `translate(${readerState.zoom.translateX}px, ${readerState.zoom.translateY}px) scale(${readerState.zoom.scale})`,
-              transformOrigin: 'top left',
-              touchAction: readerTouchAction(readerState.zoom.scale),
-            }}
-            onPointerDown={handleZoomPointerDown}
-            onPointerMove={handleZoomPointerMove}
-            onPointerUp={handleZoomPointerUp}
-            onPointerCancel={handleZoomPointerUp}
-          >
-            {visiblePages.map((page) => (
-              <ReaderPageBox
-                key={page.id}
-                page={page}
-                providerId={data.providerId}
-                mangaId={data.mangaId}
-                chapterId={data.chapterId}
-                fitInput={fitInput}
-                fitMode={data.engineSettings.fitMode}
-                cacheContext={cacheContext}
-                onSkip={() => navigate({ type: 'nextPage' })}
-                onBack={onClose}
-              />
-            ))}
-          </div>
-        )}
-
-        {data.engineSettings.tapZoneDebugOverlay && sessionInput ? (
-          <TapZoneDebugOverlay input={sessionInput} zoom={readerState.zoom} />
-        ) : null}
-      </div>
+        onZoomPointerDown={handleZoomPointerDown}
+        onZoomPointerMove={handleZoomPointerMove}
+        onZoomPointerUp={handleZoomPointerUp}
+        setPagedLayer={setPagedLayer}
+        onPageMetric={diagnostics.recordPageLoad}
+      />
 
       <OfflineNote note={offlineNote} />
 
-      <ReaderChrome
-        visible={resolveChromeVisible(settings, chromeVisible)}
-        onClose={onClose}
-        onChapterEnd={() => setChapterEndOpen(true)}
+      <ReaderOverlays
         chapterTitle={data.chapter.title}
+        sourceName={data.sourceName}
         currentPage={readerState.activePageIndex + 1}
         totalPages={data.chapter.pageCount}
+        visible={resolveChromeVisible(settings, chromeVisible)}
+        mode={chromeMode}
+        settingsOpen={settingsOpen}
+        settings={settings}
+        status={status}
+        chapterEndOpen={chapterEndOpen}
+        chapterActionsOpen={chapterActionsOpen}
+        diagnostics={diagnosticsEnabled ? diagnostics.snapshot : undefined}
+        settingsButtonRef={settingsButtonRef}
+        onClose={onClose}
         onPageChange={(page) =>
           isScrollMode
             ? scrollHandleRef.current?.scrollToPage(page - 1)
@@ -449,47 +484,22 @@ export function ReaderScreen({
         renderPagePreview={(page) => (
           <PagePreview data={data} page={page} cacheReady={cacheContext !== null} />
         )}
-        mode={chromeMode}
         onModeChange={handleModeChange}
         onOpenSettings={() => setSettingsOpen(true)}
-        settingsButtonRef={settingsButtonRef}
+        onOpenChapterActions={() => setChapterActionsOpen(true)}
         onToggleFullscreen={toggleFullscreen}
-      />
-
-      <ReaderSettingsSheet
-        open={settingsOpen}
-        settings={data.settings}
+        onCloseSettings={() => setSettingsOpen(false)}
         onChangeSettings={onChangeSettings}
-        onClose={() => setSettingsOpen(false)}
-        settingsButtonRef={settingsButtonRef}
         onResetSettings={onResetSettings}
-        onMarkRead={onMarkRead}
+        onClearDiagnostics={diagnostics.clear}
+        onChapterEndOpenChange={onChapterEndOpenChange}
+        onChapterActionsOpenChange={setChapterActionsOpen}
+        onNextChapter={onNextChapter}
+        onPreviousChapter={onPreviousChapter}
+        onMarkRead={onMarkRead === undefined ? undefined : handleMarkRead}
+        onMarkPreviousRead={onMarkPreviousRead === undefined ? undefined : handleMarkPreviousRead}
       />
-      <HiddenReaderExit visible={resolveChromeVisible(settings, chromeVisible)} onClose={onClose} />
-      {chapterEndOpen ? (
-        <ChapterTransition
-          onOpenChange={setChapterEndOpen}
-          onNextChapter={onNextChapter}
-          onPreviousChapter={onPreviousChapter}
-          onClose={onClose}
-        />
-      ) : null}
     </>
-  );
-}
-
-function HiddenReaderExit({
-  visible,
-  onClose,
-}: {
-  visible: boolean;
-  onClose: ReaderScreenProps['onClose'];
-}) {
-  if (visible || !onClose) return null;
-  return (
-    <Button size="sm" variant="secondary" className="fixed top-2 left-2 z-50" onClick={onClose}>
-      Close reader
-    </Button>
   );
 }
 
@@ -537,46 +547,6 @@ function PagePreview({
   );
 }
 
-function ChapterTransition({
-  onOpenChange,
-  onNextChapter,
-  onPreviousChapter,
-  onClose,
-}: Pick<ReaderScreenProps, 'onNextChapter' | 'onPreviousChapter' | 'onClose'> & {
-  onOpenChange: (open: boolean) => void;
-}) {
-  return (
-    <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Chapter complete</DialogTitle>
-        </DialogHeader>
-        <p>
-          {onNextChapter
-            ? 'Ready for the next chapter?'
-            : 'You reached the last available chapter.'}
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {onNextChapter ? <Button onClick={onNextChapter}>Read next chapter</Button> : null}
-          {onPreviousChapter ? (
-            <Button variant="outline" onClick={onPreviousChapter}>
-              Previous chapter
-            </Button>
-          ) : null}
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Back to chapter
-          </Button>
-          {onClose ? (
-            <Button variant="outline" onClick={onClose}>
-              Close reader
-            </Button>
-          ) : null}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 /**
  * The reader's pre-pages surface: the local chapter title stays visible while
  * provider pages hydrate, or while a failed hydration waits for Retry.
@@ -605,105 +575,6 @@ function ReaderPendingStage({
           <output className="mt-4 block text-sm text-white/70">Loading chapter pages…</output>
         ) : null}
       </div>
-    </div>
-  );
-}
-
-/**
- * One fitted page box. Without a cache context there is nothing to read from
- * yet, so the box keeps its size and pulses instead of collapsing.
- */
-function ReaderPageBox({
-  page,
-  providerId,
-  mangaId,
-  chapterId,
-  fitInput,
-  fitMode,
-  cacheContext,
-  onSkip,
-  onBack,
-}: {
-  readonly page: ReaderPage;
-  readonly providerId: string;
-  readonly mangaId: string;
-  readonly chapterId: string;
-  readonly fitInput: PageFitInput;
-  readonly fitMode: string;
-  readonly cacheContext: CoverCacheContextValue | null;
-  readonly onSkip?: (() => void) | undefined;
-  readonly onBack?: (() => void) | undefined;
-}) {
-  const [natural, setNatural] = useState<{ width: number; height: number } | undefined>(undefined);
-  const fit = resolvePageFit({ ...fitInput, naturalSize: resolveNaturalSize(page) ?? natural });
-  if (cacheContext === null) {
-    return (
-      <div
-        data-testid="reader-page-box"
-        data-fit-mode={fitMode}
-        data-object-fit={fit.objectFit}
-        style={{
-          width: `${fit.box.width}px`,
-          height: `${fit.box.height}px`,
-          flex: '0 0 auto',
-        }}
-        className="animate-pulse bg-muted/80"
-        aria-hidden
-      />
-    );
-  }
-
-  return (
-    <div
-      data-testid="reader-page-box"
-      data-fit-mode={fitMode}
-      data-object-fit={fit.objectFit}
-      style={{
-        width: `${fit.box.width}px`,
-        height: `${fit.box.height}px`,
-        flex: '0 0 auto',
-        overflow: 'hidden',
-      }}
-    >
-      <CachedPageImage
-        providerId={providerId}
-        mangaId={mangaId}
-        chapterId={chapterId}
-        pageIndex={page.index}
-        remoteUrl={page.image.url}
-        className={`h-full w-full select-none ${OBJECT_FIT_CLASS[fit.objectFit]}`}
-        retention="read"
-        onLoad={setNatural}
-        onSkip={onSkip}
-        onBack={onBack}
-      />
-    </div>
-  );
-}
-
-function TapZoneDebugOverlay({
-  input,
-  zoom,
-}: {
-  input: ReaderSessionInput;
-  zoom: ReaderState['zoom'];
-}) {
-  const zones = calculateTapZones(input, CHROME_INSETS, zoom);
-
-  return (
-    <div className="pointer-events-none absolute inset-0 z-40" aria-hidden="true">
-      {zones.map((zone) => (
-        <div
-          key={zone.id}
-          className="absolute border border-dashed border-primary/70 bg-primary/10"
-          style={{
-            left: zone.x,
-            top: zone.y,
-            width: zone.width,
-            height: zone.height,
-          }}
-        />
-      ))}
     </div>
   );
 }

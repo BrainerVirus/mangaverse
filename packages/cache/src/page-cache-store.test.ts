@@ -118,6 +118,32 @@ describe('page cache store', () => {
     expect(outcome.downloadedBytes).toBe(4 * 1024);
   });
 
+  it('Given mixed outcomes, When prefetching, Then cached, fetched and failed pages are counted', async () => {
+    const pages = Array.from({ length: 4 }, (_value, pageIndex) => ({
+      pageIndex,
+      remoteUrl: `https://uploads.mangadex.org/outcome${pageIndex}.jpg`,
+    }));
+    const outcome = await runPrefetchQueue({
+      pages,
+      budgetBytes: 0,
+      resolvePage: async (page) =>
+        page.pageIndex === 0
+          ? { fromCache: true, byteSize: 90 }
+          : page.pageIndex === 1
+            ? { fromCache: false, byteSize: 100 }
+            : page.pageIndex === 2
+              ? undefined
+              : { fromCache: false, byteSize: 50 },
+    });
+
+    expect(outcome).toMatchObject({
+      cachedPages: 1,
+      fetchedPages: 2,
+      failedPages: 1,
+      downloadedBytes: 150,
+    });
+  });
+
   it('Given cache hits, When prefetching, Then they do not consume the download budget', async () => {
     const pages = Array.from({ length: 8 }, (_value, pageIndex) => ({
       pageIndex,

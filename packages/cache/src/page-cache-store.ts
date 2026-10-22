@@ -281,6 +281,9 @@ export interface PrefetchPage {
 export interface PrefetchQueueOutcome {
   /** Bytes downloaded by this run; cache hits are free. */
   readonly downloadedBytes: number;
+  readonly cachedPages: number;
+  readonly fetchedPages: number;
+  readonly failedPages: number;
 }
 
 /**
@@ -300,6 +303,9 @@ export async function runPrefetchQueue(input: {
 }): Promise<PrefetchQueueOutcome> {
   const queue = [...input.pages];
   let downloadedBytes = 0;
+  let cachedPages = 0;
+  let fetchedPages = 0;
+  let failedPages = 0;
   const budgetReached = (): boolean =>
     input.budgetBytes > 0 && downloadedBytes >= input.budgetBytes;
 
@@ -309,14 +315,19 @@ export async function runPrefetchQueue(input: {
       // oxlint-disable-next-line eslint/no-await-in-loop
       // react-doctor-disable-next-line react-doctor/async-await-in-loop -- the 4-at-a-time bound from #71 (ruling mvd745t3): this worker pool IS the prefetch limiter
       const result = await input.resolvePage(page);
-      if (result !== undefined && !result.fromCache) {
+      if (result === undefined) {
+        failedPages += 1;
+      } else if (result.fromCache) {
+        cachedPages += 1;
+      } else {
+        fetchedPages += 1;
         downloadedBytes += result.byteSize;
       }
     }
   };
 
   await Promise.all(Array.from({ length: Math.min(PREFETCH_CONCURRENCY, queue.length) }, worker));
-  return { downloadedBytes };
+  return { downloadedBytes, cachedPages, fetchedPages, failedPages };
 }
 
 export async function prefetchChapterPages(
@@ -327,7 +338,7 @@ export async function prefetchChapterPages(
     readonly budgetBytes?: number;
     readonly signal?: AbortSignal;
   },
-): Promise<void> {
+): Promise<PrefetchQueueOutcome> {
   // One chapter-scoped read beats one existence check per page on every reader
   // mount and settings edit.
   const cachedIndexes = new Set(
@@ -338,7 +349,7 @@ export async function prefetchChapterPages(
     }),
   );
 
-  await runPrefetchQueue({
+  return runPrefetchQueue({
     pages: input.pages,
     budgetBytes: input.budgetBytes ?? 0,
     ...(input.signal !== undefined ? { signal: input.signal } : {}),

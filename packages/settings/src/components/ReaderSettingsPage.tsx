@@ -12,10 +12,21 @@ import {
   SettingsSection,
   Slider,
   Switch,
+  Button,
 } from '@app/design-system';
+import { useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import {
+  KEYBOARD_SHORTCUT_ACTION_LABELS,
+  KEYBOARD_SHORTCUT_ACTIONS,
   PREFETCH_BUDGET_MAX_BYTES,
+  defaultKeyboardShortcuts,
+  findKeyboardShortcutConflict,
+  formatKeyboardShortcut,
+  isReservedShortcutKey,
+  normalizeKeyboardShortcut,
   type FitMode,
+  type KeyboardShortcut,
+  type KeyboardShortcutAction,
   type NavigationDirection,
   type PageLayoutMode,
   type PageTransitionMode,
@@ -216,6 +227,211 @@ function SettingSliderRow({
   );
 }
 
+function modifierNames(event: {
+  readonly ctrlKey: boolean;
+  readonly altKey: boolean;
+  readonly shiftKey: boolean;
+  readonly metaKey: boolean;
+}): NonNullable<KeyboardShortcut['modifiers']> {
+  return [
+    ...(event.ctrlKey ? (['Control'] as const) : []),
+    ...(event.altKey ? (['Alt'] as const) : []),
+    ...(event.shiftKey ? (['Shift'] as const) : []),
+    ...(event.metaKey ? (['Meta'] as const) : []),
+  ];
+}
+
+export function KeyboardShortcutsEditor({
+  settings,
+  onChange,
+  onCommit,
+}: {
+  settings: ReaderSettings;
+  onChange: (patch: Partial<ReaderSettings>) => void;
+  onCommit?: (() => void) | undefined;
+}) {
+  const [capturing, setCapturing] = useState<KeyboardShortcutAction | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  // An empty saved list means "use the defaults", including direction-aware
+  // arrows; editing materializes them so the saved list is exactly what is shown.
+  const bindings =
+    settings.keyboardShortcuts.length > 0
+      ? settings.keyboardShortcuts
+      : defaultKeyboardShortcuts(settings.readingMode);
+
+  const bindingFor = (action: KeyboardShortcutAction): KeyboardShortcut | undefined =>
+    bindings.find((shortcut) => shortcut.action === action);
+
+  const saveBindings = (next: readonly KeyboardShortcut[]) => {
+    onChange({ keyboardShortcuts: next });
+    onCommit?.();
+  };
+
+  const capture = (action: KeyboardShortcutAction, event: ReactKeyboardEvent) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setCapturing(null);
+      setError(null);
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    if (isReservedShortcutKey(event.key)) {
+      setError(`${event.key} is reserved by the reader.`);
+      return;
+    }
+    const candidate = normalizeKeyboardShortcut({
+      action,
+      key: event.key,
+      modifiers: modifierNames(event),
+    });
+    const conflict = findKeyboardShortcutConflict(bindings, candidate);
+    if (conflict !== undefined) {
+      setError(
+        `${formatKeyboardShortcut(candidate)} is already used for ${KEYBOARD_SHORTCUT_ACTION_LABELS[conflict.action]}.`,
+      );
+      return;
+    }
+    const next = bindings.some((shortcut) => shortcut.action === action)
+      ? bindings.map((shortcut) => (shortcut.action === action ? candidate : shortcut))
+      : [...bindings, candidate];
+    saveBindings(next);
+    setCapturing(null);
+    setError(null);
+  };
+
+  return (
+    <div className="grid gap-3" data-testid="keyboard-shortcut-editor">
+      <div className="grid gap-2">
+        {KEYBOARD_SHORTCUT_ACTIONS.map((action) => {
+          const binding = bindingFor(action);
+          const isCapturing = capturing === action;
+          return (
+            <div key={action} className="flex items-center justify-between gap-4">
+              <span className="text-sm">{KEYBOARD_SHORTCUT_ACTION_LABELS[action]}</span>
+              <Button
+                variant={isCapturing ? 'default' : 'outline'}
+                size="sm"
+                aria-label={`Change shortcut for ${KEYBOARD_SHORTCUT_ACTION_LABELS[action]}`}
+                aria-pressed={isCapturing}
+                onClick={() => {
+                  setCapturing(isCapturing ? null : action);
+                  setError(null);
+                }}
+                onKeyDown={(event) => {
+                  if (isCapturing) capture(action, event);
+                }}
+                data-testid={`shortcut-${action}`}
+              >
+                {isCapturing
+                  ? 'Press keys…'
+                  : binding
+                    ? formatKeyboardShortcut(binding)
+                    : 'Not set'}
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-sm text-muted-foreground">
+        Press Change, then the key combination. Escape still closes the reader and Tab still moves
+        focus.
+      </p>
+      {error ? (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      ) : null}
+      <Button variant="ghost" size="sm" className="w-fit" onClick={() => saveBindings([])}>
+        Reset to defaults
+      </Button>
+    </div>
+  );
+}
+
+export function KeyboardShortcutsSection({
+  settings,
+  onChange,
+  onCommit,
+}: {
+  settings: ReaderSettings;
+  onChange: (patch: Partial<ReaderSettings>) => void;
+  onCommit?: (() => void) | undefined;
+}) {
+  return (
+    <SettingsSection
+      title="Keyboard shortcuts"
+      description="Rebind the keys that drive the reader while reading."
+    >
+      <KeyboardShortcutsEditor settings={settings} onChange={onChange} onCommit={onCommit} />
+    </SettingsSection>
+  );
+}
+
+export function GestureSettingsSection({
+  settings,
+  onChange,
+  onCommit,
+}: {
+  settings: ReaderSettings;
+  onChange: (patch: Partial<ReaderSettings>) => void;
+  onCommit?: (() => void) | undefined;
+}) {
+  return (
+    <SettingsSection title="Gestures" description="Touch sensitivity and zoom levels.">
+      <div className="grid gap-4">
+        <SettingSliderRow
+          id="gesture-sensitivity"
+          label="Gesture sensitivity"
+          description="Higher values accept a looser double tap and start panning sooner."
+          value={settings.gestureSensitivity}
+          min={0.5}
+          max={2}
+          step={0.1}
+          formatValue={(value) => `${value.toFixed(1)}×`}
+          onChange={(gestureSensitivity) => onChange({ gestureSensitivity })}
+          onCommit={onCommit}
+        />
+        <SettingSliderRow
+          id="pinch-sensitivity"
+          label="Pinch zoom sensitivity"
+          description="How strongly a pinch changes the zoom level."
+          value={settings.pinchSensitivity}
+          min={0.5}
+          max={2}
+          step={0.1}
+          formatValue={(value) => `${value.toFixed(1)}×`}
+          onChange={(pinchSensitivity) => onChange({ pinchSensitivity })}
+          onCommit={onCommit}
+        />
+        <SettingSliderRow
+          id="double-tap-zoom"
+          label="Double-tap zoom"
+          description="Zoom level a double tap opens to; a second double tap returns to fit."
+          value={settings.doubleTapZoom}
+          min={1}
+          max={5}
+          step={0.1}
+          formatValue={(value) => `${Math.round(value * 100)}%`}
+          onChange={(doubleTapZoom) => onChange({ doubleTapZoom })}
+          onCommit={onCommit}
+        />
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-fit"
+          onClick={() => {
+            onChange({ gestureSensitivity: 1, pinchSensitivity: 1, doubleTapZoom: 1.5 });
+            onCommit?.();
+          }}
+        >
+          Reset gesture settings
+        </Button>
+      </div>
+    </SettingsSection>
+  );
+}
+
 export function ReaderSettingsPage({
   settings,
   isLoading,
@@ -327,6 +543,10 @@ export function ReaderSettingsPage({
           />
         </div>
       </SettingsSection>
+
+      <KeyboardShortcutsSection settings={settings} onChange={update} onCommit={onInteractionEnd} />
+
+      <GestureSettingsSection settings={settings} onChange={update} onCommit={onInteractionEnd} />
 
       <SettingsSection title="Display" description="Reader chrome, transitions, and background.">
         <div className="grid gap-4">

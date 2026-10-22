@@ -1,6 +1,13 @@
 import { useRef, useCallback, type ReactNode } from 'react';
 import { useGSAP } from '@gsap/react';
-import { ArrowLeft, Maximize2, Settings, SkipBack, SkipForward } from 'lucide-react';
+import {
+  ArrowLeft,
+  Maximize2,
+  MoreHorizontal,
+  Settings,
+  SkipBack,
+  SkipForward,
+} from 'lucide-react';
 import { cn } from '../lib/cn.js';
 import { chromeShow, chromeHide, readerModePill } from '@app/motion';
 import { useReducedMotion } from '@app/motion';
@@ -14,12 +21,15 @@ export type ReaderMode = 'single' | 'double' | 'scroll' | 'webtoon';
 export interface ReaderChromeProps {
   visible: boolean;
   chapterTitle?: string;
+  /** Provider display name shown as quiet attribution beside the chapter title. */
+  sourceName?: string;
   currentPage: number;
   totalPages: number;
   onPageChange?: (page: number) => void;
   mode?: ReaderMode;
   onModeChange?: (mode: ReaderMode) => void;
   onOpenSettings?: () => void;
+  onOpenChapterActions?: () => void;
   onToggleFullscreen?: () => void;
   /** Small page thumbnail for the rail's hover/drag preview. */
   renderPagePreview?: (page: number) => ReactNode;
@@ -38,12 +48,14 @@ const readerModes: { value: ReaderMode; label: string }[] = [
 export function ReaderChrome({
   visible,
   chapterTitle,
+  sourceName,
   currentPage,
   totalPages,
   onPageChange,
   mode = 'single',
   onModeChange,
   onOpenSettings,
+  onOpenChapterActions,
   onToggleFullscreen,
   renderPagePreview,
   settingsButtonRef,
@@ -149,6 +161,15 @@ export function ReaderChrome({
           {chapterTitle && (
             <span className="min-w-0 truncate text-sm font-medium text-white">{chapterTitle}</span>
           )}
+          {sourceName ? (
+            <span
+              className="type-meta min-w-0 truncate text-white/60"
+              title={sourceName}
+              data-testid="reader-source"
+            >
+              {sourceName}
+            </span>
+          ) : null}
           <Badge
             size="meta"
             variant="secondary"
@@ -190,6 +211,17 @@ export function ReaderChrome({
               </GlassSurface>
             </div>
           )}
+          {onOpenChapterActions ? (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="text-white hover:bg-primary/20"
+              aria-label="Chapter actions"
+              onClick={onOpenChapterActions}
+            >
+              <MoreHorizontal className="h-5 w-5" />
+            </Button>
+          ) : null}
           <Button
             size="icon"
             variant="ghost"

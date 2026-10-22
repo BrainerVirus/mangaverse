@@ -41,12 +41,28 @@ const chromeVisibilitySchema = z.enum(['auto', 'always', 'hidden'], {
   error: 'Invalid chromeVisibility.',
 });
 
+const keyboardShortcutActionSchema = z.enum(
+  [
+    'nextPage',
+    'prevPage',
+    'firstPage',
+    'lastPage',
+    'nextChapter',
+    'prevChapter',
+    'toggleChrome',
+    'toggleFullscreen',
+  ],
+  { error: 'Unknown shortcut action.' },
+);
+
 const keyboardShortcutSchema = z.object(
   {
-    action: z.string({ error: 'Shortcut action must be a string.' }),
-    key: z.string({ error: 'Shortcut key must be a string.' }),
+    action: keyboardShortcutActionSchema,
+    key: z
+      .string({ error: 'Shortcut key must be a string.' })
+      .min(1, { error: 'Shortcut key must not be empty.' }),
     modifiers: z
-      .array(z.string({ error: 'Shortcut modifiers must be strings.' }), {
+      .array(z.enum(['Control', 'Alt', 'Shift', 'Meta'], { error: 'Unknown shortcut modifier.' }), {
         error: 'Shortcut modifiers must be an array.',
       })
       .exactOptional(),
@@ -164,6 +180,8 @@ export type WheelBehavior = z.infer<typeof wheelBehaviorSchema>;
 export type ReaderChromeVisibility = z.infer<typeof chromeVisibilitySchema>;
 
 export type KeyboardShortcut = z.infer<typeof keyboardShortcutSchema>;
+
+export type KeyboardShortcutAction = z.infer<typeof keyboardShortcutActionSchema>;
 
 type ReaderSettingsShape = z.infer<typeof readerSettingsSchema>;
 

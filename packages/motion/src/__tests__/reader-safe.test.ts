@@ -4,6 +4,7 @@ import { chromeShow, chromeHide } from '../reader-safe/chrome.js';
 import { pageTurn } from '../reader-safe/page-turn.js';
 import { readerModePill } from '../reader-safe/mode-pill.js';
 import { settingsDrawerTransition } from '../reader-safe/settings-drawer.js';
+import { readerPageEnter } from '../reader-safe/page-enter.js';
 
 vi.mock('gsap', () => ({
   gsap: {
@@ -105,6 +106,55 @@ describe('pageTurn', () => {
         ease: 'power3.inOut',
       }),
     );
+  });
+});
+
+describe('readerPageEnter', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('Given a fade transition, When a page enters, Then only its own opacity animates', () => {
+    readerPageEnter('.page-layer', 'fade', { reducedMotion: false });
+
+    expect(gsap.fromTo).toHaveBeenCalledWith(
+      '.page-layer',
+      { opacity: 0 },
+      expect.objectContaining({ opacity: 1, duration: 0.14 }),
+    );
+  });
+
+  it('Given a slide transition, When moving forward, Then the page enters from the right in LTR', () => {
+    readerPageEnter('.page-layer', 'slide', {
+      reducedMotion: false,
+      direction: 'forward',
+      rtl: false,
+    });
+    expect(gsap.fromTo).toHaveBeenCalledWith(
+      '.page-layer',
+      { xPercent: 6, opacity: 0.4 },
+      expect.objectContaining({ xPercent: 0, opacity: 1 }),
+    );
+  });
+
+  it('Given a slide transition, When moving forward in RTL, Then the entering side flips', () => {
+    readerPageEnter('.page-layer', 'slide', {
+      reducedMotion: false,
+      direction: 'forward',
+      rtl: true,
+    });
+    expect(gsap.fromTo).toHaveBeenCalledWith(
+      '.page-layer',
+      { xPercent: -6, opacity: 0.4 },
+      expect.anything(),
+    );
+  });
+
+  it('Given reduced motion or no transition, When a page enters, Then it snaps without a tween', () => {
+    readerPageEnter('.page-layer', 'slide', { reducedMotion: true });
+    readerPageEnter('.page-layer', 'none', { reducedMotion: false });
+    expect(gsap.fromTo).not.toHaveBeenCalled();
+    expect(gsap.set).toHaveBeenCalledTimes(2);
   });
 });
 

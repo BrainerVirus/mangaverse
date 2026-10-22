@@ -6,7 +6,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type SetStateAction,
 } from 'react';
-import { isDoubleTap, PAN_THRESHOLD_PX, pinchScale, pointerDistance } from '../gestures.js';
+import { isDoubleTap, pinchScale, pointerDistance, resolveGestureThresholds } from '../gestures.js';
 import { calculateTapZones } from '../tap-zones.js';
 import {
   applyDoubleTapZoom,
@@ -114,6 +114,8 @@ export function useReaderGestures({
 }: UseReaderGesturesInput): ReaderGestures {
   const pointerRef = useRef<PointerGesture | null>(null);
   const frameRef = useRef<number | null>(null);
+  const pinchSensitivity = sessionInput?.settings.pinchSensitivity ?? 1;
+  const gestureSensitivity = sessionInput?.settings.gestureSensitivity ?? 1;
 
   const updateZoom = useCallback(
     (transform: (zoom: ZoomStateSummary) => ZoomStateSummary) => {
@@ -160,10 +162,15 @@ export function useReaderGestures({
       if (first === undefined || second === undefined) return;
       updateZoom((zoom) =>
         clampZoomTransform(
-          applyPinchZoom(zoom, zoom.scale, pinchScale(pinch, pointerDistance(first, second)), {
-            centerX: (first.x + second.x) / 2 - box.left,
-            centerY: (first.y + second.y) / 2 - box.top,
-          }),
+          applyPinchZoom(
+            zoom,
+            zoom.scale,
+            pinchScale(pinch, pointerDistance(first, second), pinchSensitivity),
+            {
+              centerX: (first.x + second.x) / 2 - box.left,
+              centerY: (first.y + second.y) / 2 - box.top,
+            },
+          ),
           box.width,
           box.height,
           box.width,
@@ -184,7 +191,7 @@ export function useReaderGestures({
         ),
       );
     }
-  }, [updateZoom]);
+  }, [updateZoom, pinchSensitivity]);
 
   const scheduleZoomFlush = useCallback(() => {
     frameRef.current ??= requestAnimationFrame(flushZoom);
@@ -236,7 +243,10 @@ export function useReaderGestures({
 
       const deltaX = event.clientX - pointer.x;
       const deltaY = event.clientY - pointer.y;
-      if (!gesture.moved && Math.hypot(deltaX, deltaY) < PAN_THRESHOLD_PX) {
+      if (
+        !gesture.moved &&
+        Math.hypot(deltaX, deltaY) < resolveGestureThresholds(gestureSensitivity).panThresholdPx
+      ) {
         return;
       }
       gesture.moved = true;
@@ -245,7 +255,7 @@ export function useReaderGestures({
         pan === null ? { x: deltaX, y: deltaY } : { x: pan.x + deltaX, y: pan.y + deltaY };
       scheduleZoomFlush();
     },
-    [readerState, scheduleZoomFlush],
+    [gestureSensitivity, readerState, scheduleZoomFlush],
   );
 
   const handleZoomPointerUp = useCallback(
@@ -274,7 +284,7 @@ export function useReaderGestures({
       // A double tap zooms instead of turning the page (pointer-based, so touch
       // devices get it too; `dblclick` never fires there).
       const tap = { time: Date.now(), x: event.clientX, y: event.clientY };
-      const doubleTap = !gesture.moved && isDoubleTap(gesture.lastTap, tap);
+      const doubleTap = !gesture.moved && isDoubleTap(gesture.lastTap, tap, gestureSensitivity);
       gesture.lastTap = gesture.moved ? null : tap;
       gesture.moved = false;
       if (doubleTap) {
@@ -309,7 +319,15 @@ export function useReaderGestures({
         navigate({ type: action.type });
       }
     },
-    [navigate, onToggleChrome, overlayInsets, readerState, sessionInput, updateZoom],
+    [
+      gestureSensitivity,
+      navigate,
+      onToggleChrome,
+      overlayInsets,
+      readerState,
+      sessionInput,
+      updateZoom,
+    ],
   );
 
   return {
