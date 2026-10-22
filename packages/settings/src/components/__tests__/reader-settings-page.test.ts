@@ -12,6 +12,7 @@ import {
 } from '@app/shared';
 
 import { ReaderSettingsPage } from '../ReaderSettingsPage.js';
+import { GestureSettingsSection, KeyboardShortcutsSection } from '../ReaderSettingsPage.js';
 
 interface SectionProps {
   readonly title?: string;
@@ -26,6 +27,13 @@ function collectElements(node: ReactNode): ReactElement[] {
   }
   if (!isValidElement(node)) return [];
   const element = node as ReactElement<{ children?: ReactNode }>;
+  const type = element.type as unknown;
+  // Section components are plain functions; expanding them keeps this walk
+  // inspecting the same element tree the page actually composes.
+  if (type === KeyboardShortcutsSection || type === GestureSettingsSection) {
+    const render = type as (props: unknown) => ReactElement;
+    return [element, ...collectElements(render(element.props))];
+  }
   return [element, ...collectElements(element.props.children)];
 }
 
@@ -57,12 +65,16 @@ describe('ReaderSettingsPage', () => {
     expect(sections.map((section) => section.props.title)).toEqual([
       'Reading mode',
       'Navigation',
+      'Keyboard shortcuts',
+      'Gestures',
       'Display',
       'Behavior',
       'Performance',
       'Advanced',
     ]);
     expect(sections.map((section) => section.props.collapsed === true)).toEqual([
+      false,
+      false,
       false,
       false,
       false,
@@ -84,6 +96,9 @@ describe('ReaderSettingsPage', () => {
         'tap-zone-layout',
         'navigation-direction',
         'wheel-behavior',
+        'gesture-sensitivity',
+        'pinch-sensitivity',
+        'double-tap-zoom',
         'chrome-visibility',
         'page-transition',
         'background-color',

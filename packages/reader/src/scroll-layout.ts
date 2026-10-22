@@ -78,3 +78,33 @@ export function windowedScrollPages(
   }
   return mounted;
 }
+
+/** A page at least three screens tall is a long strip, not an ordinary page. */
+export const LONG_STRIP_ASPECT_RATIO = 3;
+
+export function isLongStripPage(page: ReaderPage): boolean {
+  const width = page.image.width ?? page.width;
+  const height = page.image.height ?? page.height;
+  return (
+    width !== undefined &&
+    height !== undefined &&
+    width > 0 &&
+    height / width >= LONG_STRIP_ASPECT_RATIO
+  );
+}
+
+/**
+ * Long-strip optimization keeps a single page of look-ahead around the active
+ * one: a chapter of 10,000px strips would otherwise decode several full strips
+ * into memory for one scroll frame.
+ */
+export function resolveScrollPreloadAhead(input: {
+  readonly pages: readonly ReaderPage[];
+  readonly preloadAhead: number;
+  readonly lowMemoryMode?: boolean;
+  readonly longStripOptimization?: boolean;
+}): number {
+  const base = input.lowMemoryMode ? Math.min(1, input.preloadAhead) : input.preloadAhead;
+  if (input.longStripOptimization !== true) return base;
+  return input.pages.some(isLongStripPage) ? Math.min(base, 1) : base;
+}

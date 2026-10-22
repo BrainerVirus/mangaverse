@@ -569,4 +569,22 @@ describe('ReaderScreen zoom and pan', () => {
     expect(scaleOf(mounted.layer)).toBe(1.5);
     unmount(mounted);
   });
+
+  it('Given slide transitions, Then the animation target sits inside the zoom transform', async () => {
+    const mounted = mount({ pageTransition: 'slide' });
+    const transition = mounted.container.querySelector<HTMLElement>(
+      '[data-testid="reader-page-transition-layer"]',
+    );
+    expect(transition?.parentElement).toBe(mounted.layer);
+
+    doubleTap(mounted.layer);
+    await settleFrame();
+    expect(scaleOf(mounted.layer)).toBe(1.5);
+
+    // A GSAP revert restores only its own wrapper's inline transform; the zoom
+    // transform above it stays authoritative.
+    if (transition !== null) transition.style.transform = 'translate(-6%)';
+    expect(scaleOf(mounted.layer)).toBe(1.5);
+    unmount(mounted);
+  });
 });

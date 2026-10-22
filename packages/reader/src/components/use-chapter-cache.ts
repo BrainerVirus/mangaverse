@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import {
   evictCacheToLimit,
   holdReaderLocks,
@@ -9,6 +9,7 @@ import {
 } from '@app/cache';
 import { formatUnavailableOfflinePages } from '../offline-pages.js';
 import type { ReaderPageData } from '../reader-page-data.js';
+import { resolveScrollPreloadAhead } from '../scroll-layout.js';
 
 /**
  * A rejected reader lock leaves this tab invisible to other tabs' eviction
@@ -26,6 +27,12 @@ export function useChapterPrefetch(
   data: ReaderPageData | undefined,
   cacheContext: CoverCacheContextValue | null,
   activePageIndex = data?.initialPageIndex ?? 0,
+  onPrefetchMetric?: (metric: {
+    readonly pages: number;
+    readonly failures: number;
+    readonly bytes: number;
+    readonly durationMs: number;
+  }) => void,
 ): void {
   // Depend on the chapter's page array, ids, and budget — not on `data`, which
   // is replaced whenever a reader setting changes. A settings toggle must not
@@ -37,7 +44,22 @@ export function useChapterPrefetch(
   const budgetBytes = data?.settings.prefetchBudgetBytes ?? 0;
   const preloadAhead = data?.settings.preloadAhead ?? 0;
   const lowMemoryMode = data?.settings.lowMemoryMode ?? false;
-  const preloadCount = lowMemoryMode ? Math.min(1, preloadAhead) : preloadAhead;
+  const preloadCount = resolveScrollPreloadAhead({
+    pages: pages ?? [],
+    preloadAhead,
+    lowMemoryMode,
+    longStripOptimization: data?.settings.longStripOptimization ?? false,
+  });
+  const onPrefetchMetricRef = useEffectEvent(
+    (metric: {
+      readonly pages: number;
+      readonly failures: number;
+      readonly bytes: number;
+      readonly durationMs: number;
+    }) => {
+      onPrefetchMetric?.(metric);
+    },
+  );
 
   // The locks live as long as this chapter is open, not as long as one prefetch
   // sweep: a settings change releases and re-runs the sweep below, and a gap
@@ -64,6 +86,7 @@ export function useChapterPrefetch(
     }
 
     const controller = new AbortController();
+    const startedAt = performance.now();
     const prefetchPages = pages
       .slice(activePageIndex + 1, activePageIndex + 1 + preloadCount)
       .map((page) => ({
@@ -81,10 +104,17 @@ export function useChapterPrefetch(
       retention: 'read',
       budgetBytes,
       signal: controller.signal,
-    }).then(async () => {
+    }).then(async (outcome) => {
       // Unmounting cancels the sweep; the rows it already wrote are still a
       // valid prefetch, but no cleanup may run against a route that is gone.
       if (controller.signal.aborted) return;
+      onPrefetchMetricRef({
+        pages:
+          (outcome?.cachedPages ?? 0) + (outcome?.fetchedPages ?? 0) + (outcome?.failedPages ?? 0),
+        failures: outcome?.failedPages ?? 0,
+        bytes: outcome?.downloadedBytes ?? 0,
+        durationMs: performance.now() - startedAt,
+      });
       await markChapterPagesAsRead(cacheContext.db, { providerId, mangaId, chapterId });
       if (controller.signal.aborted) return;
       await evictCacheToLimit(cacheContext.db, cacheContext.adapter, {

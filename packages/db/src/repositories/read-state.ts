@@ -1,4 +1,4 @@
-import { desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, lt, sql } from 'drizzle-orm';
 import type { AppResult } from '@app/shared';
 import {
   createAppError,
@@ -14,7 +14,13 @@ import {
   type ReadingProgress,
 } from '@app/shared';
 import type { AppDrizzleDb } from '../adapter.js';
-import { chapterReadState, chapters, readingHistory } from '../schema.js';
+import {
+  chapterReadState,
+  chapterPages,
+  chapters,
+  libraryEntries,
+  readingHistory,
+} from '../schema.js';
 
 function newId(): string {
   return crypto.randomUUID();
@@ -93,6 +99,177 @@ export async function upsertChapterReadState(
     });
 
   return ok(undefined);
+}
+
+/**
+ * Recomputes the library badge from durable read state instead of decrementing
+ * it: marking previous chapters or unmarking one keeps the same count truthful.
+ * Scoped to the chapter's provider so a duplicate chapter from another source
+ * cannot change this source's unread count.
+ */
+export async function refreshLibraryUnreadCount(
+  db: AppDrizzleDb,
+  mangaId: MangaId,
+  providerId?: string,
+): Promise<number> {
+  const rows = db
+    .select({ completed: chapterReadState.completed })
+    .from(chapters)
+    .leftJoin(chapterReadState, eq(chapterReadState.chapterId, chapters.id))
+    .where(
+      providerId === undefined
+        ? eq(chapters.mangaId, mangaId)
+        : and(eq(chapters.mangaId, mangaId), eq(chapters.providerId, providerId)),
+    )
+    .all();
+  const unreadCount = rows.filter((row) => row.completed !== true).length;
+  await db.update(libraryEntries).set({ unreadCount }).where(eq(libraryEntries.mangaId, mangaId));
+  return unreadCount;
+}
+
+/**
+ * Recomputes the badge after a reader-driven natural completion, where only the
+ * chapter's own provider count may change.
+ */
+export async function refreshLibraryUnreadCountForChapter(
+  db: AppDrizzleDb,
+  chapterId: ChapterId,
+): Promise<number | undefined> {
+  const chapter = db
+    .select({ mangaId: chapters.mangaId, providerId: chapters.providerId })
+    .from(chapters)
+    .where(eq(chapters.id, chapterId))
+    .get();
+  if (chapter === undefined) return undefined;
+  return refreshLibraryUnreadCount(db, toMangaId(chapter.mangaId), chapter.providerId ?? undefined);
+}
+
+/**
+ * Explicit mark read/unread from the reader. The upsert is guarded by timestamp,
+ * so this wins over an older progress write, while a newer progress write still
+ * wins over it.
+ */
+export async function setChapterCompleted(
+  db: AppDrizzleDb,
+  chapterId: ChapterId,
+  completed: boolean,
+): Promise<AppResult<void>> {
+  const chapter = db
+    .select({
+      id: chapters.id,
+      mangaId: chapters.mangaId,
+      providerId: chapters.providerId,
+      providerMappingId: chapters.providerMappingId,
+    })
+    .from(chapters)
+    .where(eq(chapters.id, chapterId))
+    .get();
+  if (chapter === undefined) {
+    return err(
+      createAppError({ code: 'db.read_state.chapter_missing', message: 'Chapter does not exist.' }),
+    );
+  }
+
+  const pageCount =
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(chapterPages)
+      .where(eq(chapterPages.chapterId, chapterId))
+      .get()?.count ?? 0;
+  const existing = await getChapterReadState(db, chapterId);
+  const now = new Date().toISOString();
+  const lastPageIndex = completed ? Math.max(0, pageCount - 1) : 0;
+
+  await upsertChapterReadState(db, {
+    chapterId,
+    mangaId: toMangaId(chapter.mangaId),
+    providerMappingId: toProviderMappingId(chapter.providerMappingId),
+    progress: {
+      completed,
+      lastPageIndex,
+      readPercent: completed ? 100 : 0,
+      startedAt: existing?.progress.startedAt ?? now,
+      updatedAt: now,
+    },
+  });
+
+  await refreshLibraryUnreadCount(db, toMangaId(chapter.mangaId), chapter.providerId ?? undefined);
+  return ok(undefined);
+}
+
+/** Marks every earlier chapter of the same provider read in one pass. */
+export async function markPreviousChaptersCompleted(
+  db: AppDrizzleDb,
+  chapterId: ChapterId,
+): Promise<AppResult<{ readonly updated: number }>> {
+  const chapter = db
+    .select({
+      mangaId: chapters.mangaId,
+      providerId: chapters.providerId,
+      chapterIndex: chapters.chapterIndex,
+    })
+    .from(chapters)
+    .where(eq(chapters.id, chapterId))
+    .get();
+  if (chapter === undefined) {
+    return err(
+      createAppError({ code: 'db.read_state.chapter_missing', message: 'Chapter does not exist.' }),
+    );
+  }
+
+  const previous = db
+    .select({ id: chapters.id, providerMappingId: chapters.providerMappingId })
+    .from(chapters)
+    .where(
+      and(
+        eq(chapters.mangaId, chapter.mangaId),
+        lt(chapters.chapterIndex, chapter.chapterIndex),
+        ...(chapter.providerId === null || chapter.providerId === undefined
+          ? []
+          : [eq(chapters.providerId, chapter.providerId)]),
+      ),
+    )
+    .all();
+  if (previous.length > 0) {
+    const ids = previous.map((row) => row.id);
+    const pageCounts = new Map(
+      db
+        .select({ chapterId: chapterPages.chapterId, count: sql<number>`count(*)` })
+        .from(chapterPages)
+        .where(inArray(chapterPages.chapterId, ids))
+        .groupBy(chapterPages.chapterId)
+        .all()
+        .map((row) => [row.chapterId, row.count]),
+    );
+    const existing = new Map(
+      db
+        .select({ chapterId: chapterReadState.chapterId, startedAt: chapterReadState.startedAt })
+        .from(chapterReadState)
+        .where(inArray(chapterReadState.chapterId, ids))
+        .all()
+        .map((row) => [row.chapterId, row.startedAt]),
+    );
+    const now = new Date().toISOString();
+
+    for (const row of previous) {
+      // oxlint-disable-next-line react-doctor/async-await-in-loop -- one row per chapter against the browser-SQLite runtime; parallel writes would contend for the same write lock
+      await upsertChapterReadState(db, {
+        chapterId: toChapterId(row.id),
+        mangaId: toMangaId(chapter.mangaId),
+        providerMappingId: toProviderMappingId(row.providerMappingId),
+        progress: {
+          completed: true,
+          lastPageIndex: Math.max(0, (pageCounts.get(row.id) ?? 0) - 1),
+          readPercent: 100,
+          startedAt: existing.get(row.id) || now,
+          updatedAt: now,
+        },
+      });
+    }
+  }
+
+  await refreshLibraryUnreadCount(db, toMangaId(chapter.mangaId), chapter.providerId ?? undefined);
+  return ok({ updated: previous.length });
 }
 
 export async function getChapterReadState(

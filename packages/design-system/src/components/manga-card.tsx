@@ -11,6 +11,8 @@ export interface MangaCardProps {
   onClick?: () => void;
   variant?: 'grid' | 'list' | 'compact';
   coverSlot?: React.ReactNode;
+  /** Unread chapter count shown as a badge; omitted or zero renders nothing. */
+  unreadCount?: number;
 }
 
 interface CoverProps {
@@ -124,7 +126,36 @@ function ContentRatingBadge({ manga, variant }: MetaProps) {
   );
 }
 
-export function MangaCard({ manga, onClick, variant = 'grid', coverSlot }: MangaCardProps) {
+function UnreadBadge({
+  unreadCount,
+  variant,
+}: {
+  readonly unreadCount: number | undefined;
+  readonly variant: 'grid' | 'list' | 'compact';
+}) {
+  if (unreadCount === undefined || unreadCount <= 0) return null;
+
+  return (
+    <Badge
+      variant="secondary"
+      className={cn(
+        'absolute z-20',
+        variant === 'grid' ? 'top-2 left-2' : 'top-1 left-1',
+        variant === 'compact' && '!type-rating-compact',
+      )}
+    >
+      {unreadCount} unread
+    </Badge>
+  );
+}
+
+export function MangaCard({
+  manga,
+  onClick,
+  variant = 'grid',
+  coverSlot,
+  unreadCount,
+}: MangaCardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const reducedMotion = useReducedMotion();
@@ -185,6 +216,8 @@ export function MangaCard({ manga, onClick, variant = 'grid', coverSlot }: Manga
         <CardMeta manga={manga} variant={variant} />
 
         <ContentRatingBadge manga={manga} variant={variant} />
+
+        <UnreadBadge unreadCount={unreadCount} variant={variant} />
       </button>
     </div>
   );

@@ -2,7 +2,13 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
 import { saveReaderSettings, settingsQueryKeys } from '@app/settings';
-import { upsertTitleReaderSettings, resetTitleReaderSettings } from '@app/db';
+import {
+  markPreviousChaptersCompleted,
+  setChapterCompleted,
+  upsertTitleReaderSettings,
+  resetTitleReaderSettings,
+} from '@app/db';
+import type { AppDrizzleDb } from '@app/db';
 import { libraryQueryKeys } from '@app/library';
 import type { ReaderSettings } from '@app/shared';
 import {
@@ -199,7 +205,7 @@ function ReaderRouteSession({ chapterIdParam }: { chapterIdParam: string }) {
     }
     void queryClient.invalidateQueries({ queryKey: readerQueryKeys.chapter(chapterId) });
   }, [chapterId, dbStatus, hydrationFailed, queryClient, retryDb, retryHydration, shouldHydrate]);
-  const chapterActions = useReaderChapterActions(data, handlePersistProgress);
+  const chapterActions = useReaderChapterActions(data, db, queryClient);
 
   return (
     <>
@@ -236,7 +242,8 @@ function ReaderRouteSession({ chapterIdParam }: { chapterIdParam: string }) {
 
 function useReaderChapterActions(
   data: ReaderPageData | undefined,
-  persistProgress: Parameters<typeof ReaderScreen>[0]['onPersistProgress'],
+  db: AppDrizzleDb | null,
+  queryClient: ReturnType<typeof useQueryClient>,
 ) {
   const navigate = useNavigate();
   const previous = data?.previousChapterId;
@@ -254,19 +261,28 @@ function useReaderChapterActions(
       void navigate({ to: '/library' });
     }
   };
+  // Read state and the library badge both derive from SQLite. The open reader
+  // is deliberately not refetched: its page position is newer than the action,
+  // and invalidating would re-run the progress effect with the old resume page.
+  const afterWrite = async () => {
+    await queryClient.invalidateQueries({
+      queryKey: libraryQueryKeys.all,
+      refetchType: 'none',
+    });
+  };
   return {
     onClose: handleClose,
-    onMarkRead: (completed: boolean) => {
-      if (!data) return;
-      persistProgress?.({
-        chapterId: data.chapterId,
-        mangaId: data.mangaId,
-        pageIndex: completed ? Math.max(0, data.chapter.pageCount - 1) : 0,
-        completed,
-        readPercent: completed ? 100 : 0,
-        timestamp: new Date().toISOString(),
-      });
-      handleClose();
+    onMarkRead: async (completed: boolean) => {
+      if (!db || !data) return;
+      const result = await setChapterCompleted(db, data.chapterId, completed);
+      if (!result.ok) throw new Error(result.error.message);
+      await afterWrite();
+    },
+    onMarkPreviousRead: async () => {
+      if (!db || !data) return;
+      const result = await markPreviousChaptersCompleted(db, data.chapterId);
+      if (!result.ok) throw new Error(result.error.message);
+      await afterWrite();
     },
     onPreviousChapter: previous ? handlePrevious : undefined,
     onNextChapter: next ? handleNext : undefined,

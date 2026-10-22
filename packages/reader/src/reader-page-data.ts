@@ -6,7 +6,11 @@ export interface ReaderPageData {
   readonly mangaId: MangaId;
   readonly chapterId: ChapterId;
   readonly providerId: string;
+  /** Human-readable provider name for the reading surface, when one is installed. */
+  readonly sourceName?: string | undefined;
   readonly initialPageIndex: number;
+  /** True when the saved read state is completed; opening must not unmark it. */
+  readonly initialCompleted?: boolean;
   readonly settings: ReaderSettings;
   readonly engineSettings: ReaderEngineSettings;
   readonly previousChapterId?: ChapterId | undefined;

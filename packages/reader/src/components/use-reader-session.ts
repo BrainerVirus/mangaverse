@@ -1,5 +1,9 @@
 import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
-import { applyNavigationAction, resolveNavigationAction } from '../navigation.js';
+import {
+  applyNavigationAction,
+  isChapterEndNavigation,
+  resolveNavigationAction,
+} from '../navigation.js';
 import type { ReaderPageData } from '../reader-page-data.js';
 import { createReaderState } from '../state.js';
 import type {
@@ -23,6 +27,7 @@ export interface ReaderSession {
 export function useReaderSession(
   data: ReaderPageData | undefined,
   viewport: ReaderViewport,
+  onChapterEnd?: () => void,
 ): ReaderSession {
   const [readerState, setReaderState] = useState<ReaderState | null>(null);
   // The session input the state below was built from. Keeping it as state lets
@@ -71,6 +76,12 @@ export function useReaderSession(
   const navigate = useCallback(
     (action: ReaderNavigationAction) => {
       if (!sessionInput) return;
+      // The chapter-end screen replaces a silent no-op on the last page; it is
+      // a navigation concern, not a surface one.
+      if (isChapterEndNavigation(readerState, action)) {
+        onChapterEnd?.();
+        return;
+      }
 
       setReaderState((current) => {
         if (!current) return current;
@@ -82,7 +93,7 @@ export function useReaderSession(
         });
       });
     },
-    [sessionInput],
+    [onChapterEnd, readerState, sessionInput],
   );
 
   return {

@@ -179,6 +179,42 @@ describe('@app/db', () => {
     expect(loaded.readingMode).toBe(settings.readingMode);
   });
 
+  it('keeps unrelated reader settings when legacy or invalid shortcuts are stored', async () => {
+    const { db } = await createSqlJsHarness();
+    const now = new Date().toISOString();
+    const { keyboardShortcuts: _omitted, ...legacy } = {
+      ...getDefaultReaderSettings(),
+      readingMode: 'rtl' as const,
+      doubleTapZoom: 2.25,
+    };
+
+    await db.insert(readerPreferences).values({
+      id: 'global',
+      settingsJson: legacy as unknown as Record<string, unknown>,
+      updatedAt: now,
+    });
+
+    const migrated = await getReaderSettings(db);
+    expect(migrated.readingMode).toBe('rtl');
+    expect(migrated.doubleTapZoom).toBe(2.25);
+    expect(migrated.keyboardShortcuts).toEqual([]);
+
+    await db
+      .update(readerPreferences)
+      .set({
+        settingsJson: {
+          ...legacy,
+          keyboardShortcuts: [{ action: 'teleport', key: 'x' }],
+        } as unknown as Record<string, unknown>,
+      })
+      .where(eq(readerPreferences.id, 'global'));
+
+    const sanitized = await getReaderSettings(db);
+    expect(sanitized.readingMode).toBe('rtl');
+    expect(sanitized.doubleTapZoom).toBe(2.25);
+    expect(sanitized.keyboardShortcuts).toEqual([]);
+  });
+
   it('rolls back writes when a synchronous error is thrown inside withTransaction', async () => {
     const { db } = await createSqlJsHarness();
     const now = new Date().toISOString();
@@ -576,6 +612,38 @@ describe('@app/db', () => {
 
     const identity = await getMangaIdentity(targetDb, created.value.mangaId);
     expect(identity?.canonicalTitle).toBe('Restore Me');
+  });
+
+  it('restores a v3 backup with pre-PR free-form shortcuts using defaults', async () => {
+    const { db } = await createSqlJsHarness();
+    const doc = {
+      schemaVersion: BACKUP_SCHEMA_VERSION,
+      metadata: { createdAt: new Date().toISOString(), appVersion: 't' },
+      library: [],
+      mangaIdentities: [],
+      installedExtensions: [],
+      readerSettings: {
+        ...getDefaultReaderSettings(),
+        readingMode: 'vertical',
+        fitMode: 'height',
+        verticalGapPx: 24,
+        keyboardShortcuts: [
+          { action: 'teleport', key: 'x' },
+          { action: 'nextPage', key: 'Tab' },
+        ],
+      },
+      providerSettings: { providerSnapshots: [] },
+      themeSettings: { themeId: 'default', dark: false },
+    };
+
+    const result = await applyBackupRestore(db, doc);
+    expect(result.ok).toBe(true);
+
+    const settings = await getReaderSettings(db);
+    expect(settings.keyboardShortcuts).toEqual([]);
+    expect(settings.readingMode).toBe('vertical');
+    expect(settings.fitMode).toBe('height');
+    expect(settings.verticalGapPx).toBe(24);
   });
 
   it('blocks restore when preview reports error severity issues', async () => {

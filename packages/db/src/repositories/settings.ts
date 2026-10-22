@@ -6,6 +6,7 @@ import {
   APP_SETTINGS_STORAGE_KEY,
   getDefaultAppSettings,
   getDefaultReaderSettings,
+  sanitizeReaderSettings,
   validateAppSettings,
   validateReaderSettings,
   type AppSettings,
@@ -29,8 +30,7 @@ export async function getTitleReaderSettings(
     .from(readerPreferences)
     .where(eq(readerPreferences.id, `title:${mangaId}`))
     .get();
-  const parsed = validateReaderSettings({ ...global, ...row?.settingsJson });
-  return parsed.ok ? parsed.value : global;
+  return sanitizeReaderSettings({ ...global, ...row?.settingsJson });
 }
 
 export async function upsertTitleReaderSettings(
@@ -69,9 +69,7 @@ export async function getReaderSettings(db: AppDrizzleDb): Promise<ReaderSetting
     .where(eq(readerPreferences.id, GLOBAL_READER_ID))
     .get();
   if (row === undefined) return getDefaultReaderSettings();
-  const parsed = validateReaderSettings(row.settingsJson);
-  if (!parsed.ok) return getDefaultReaderSettings();
-  return parsed.value;
+  return sanitizeReaderSettings(row.settingsJson);
 }
 
 export async function upsertReaderSettings(

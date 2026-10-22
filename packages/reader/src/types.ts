@@ -1,4 +1,4 @@
-import type { ChapterPage, FitMode } from '@app/shared';
+import type { ChapterPage, FitMode, KeyboardShortcut, PageTransitionMode } from '@app/shared';
 
 export interface ReaderPage extends ChapterPage {
   readonly width?: number;
@@ -98,6 +98,15 @@ export interface ReaderEngineSettings {
   readonly lowMemoryMode: boolean;
   readonly wheelBehavior: 'none' | 'scroll' | 'zoom';
   readonly verticalGapPx: number;
+  /** Populated by toReaderEngineSettings; optional so hand-built engine settings stay valid. */
+  readonly pageTransition?: PageTransitionMode;
+  readonly pinchSensitivity?: number;
+  readonly imageSmoothing?: boolean;
+  readonly keepScreenOn?: boolean;
+  readonly fullscreenOnOpen?: boolean;
+  readonly longStripOptimization?: boolean;
+  readonly diagnosticsEnabled?: boolean;
+  readonly keyboardShortcuts?: readonly KeyboardShortcut[];
 }
 
 export type NavigationActionType =
@@ -108,6 +117,8 @@ export type NavigationActionType =
   | 'firstPage'
   | 'lastPage'
   | 'goToPage'
+  | 'toggleChrome'
+  | 'toggleFullscreen'
   | 'none';
 
 export interface ReaderNavigationAction {

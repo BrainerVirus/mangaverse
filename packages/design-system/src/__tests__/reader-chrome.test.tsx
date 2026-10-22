@@ -47,6 +47,37 @@ describe('ReaderChrome', () => {
     expect(screen.getByText('Chapter 1: The Beginning')).toBeInTheDocument();
   });
 
+  it('Given a source name, When the chrome is visible, Then attribution is quiet but present', () => {
+    render(
+      <ReaderChrome
+        visible={true}
+        chapterTitle="Chapter 1"
+        sourceName="MangaDex"
+        currentPage={1}
+        totalPages={10}
+      />,
+    );
+
+    expect(screen.getByTestId('reader-source')).toHaveTextContent('MangaDex');
+    expect(screen.getByTestId('reader-source')).toHaveAttribute('title', 'MangaDex');
+  });
+
+  it('Given chapter actions, When the menu button is clicked, Then the handler runs', async () => {
+    const user = userEvent.setup();
+    const onOpenChapterActions = vi.fn<() => void>();
+    render(
+      <ReaderChrome
+        visible={true}
+        currentPage={1}
+        totalPages={10}
+        onOpenChapterActions={onOpenChapterActions}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Chapter actions' }));
+    expect(onOpenChapterActions).toHaveBeenCalledTimes(1);
+  });
+
   it('displays page badge with correct format', () => {
     render(<ReaderChrome visible={true} currentPage={3} totalPages={20} />);
 

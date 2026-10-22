@@ -39,12 +39,21 @@ vi.mock('@tanstack/react-virtual', () => ({
 
 vi.mock('@app/design-system', () => ({
   cn: (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' '),
-  MangaCard: ({ manga, onClick }: { manga: { canonicalTitle: string }; onClick?: () => void }) => {
+  MangaCard: ({
+    manga,
+    onClick,
+    unreadCount,
+  }: {
+    manga: { canonicalTitle: string };
+    onClick?: () => void;
+    unreadCount?: number;
+  }) => {
     cardRenderSpy();
 
     return (
       <button type="button" onClick={onClick}>
         {manga.canonicalTitle}
+        {unreadCount !== undefined && unreadCount > 0 ? <span>{unreadCount} unread</span> : null}
       </button>
     );
   },
@@ -161,7 +170,7 @@ describe('VirtualLibraryGrid', () => {
     expect(cardRenderSpy.mock.calls.length - before).toBe(0);
   });
 
-  it('does not re-render cards when an entry changes but manga refs are reused', () => {
+  it('re-renders only the card whose unread count changed', () => {
     const items = createItems(200);
     const onOpenManga = vi.fn<(mangaId: string) => void>();
     const { rerender } = render(
@@ -179,7 +188,8 @@ describe('VirtualLibraryGrid', () => {
       ),
     );
 
-    expect(cardRenderSpy.mock.calls.length - before).toBe(0);
+    expect(screen.getByText('3 unread')).toBeInTheDocument();
+    expect(cardRenderSpy.mock.calls.length - before).toBe(1);
   });
 
   it('re-renders only the visible cards when every manga ref changes', () => {

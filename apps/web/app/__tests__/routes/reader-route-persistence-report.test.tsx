@@ -12,11 +12,18 @@ const {
   saveGlobalSettings,
   resetTitleSettings,
   fetchReaderPage,
+  setChapterCompleted,
+  markPreviousChaptersCompleted,
 } = vi.hoisted(() => ({
   persistReaderProgress: vi.fn<(...args: unknown[]) => Promise<void>>(async () => {}),
   saveTitleSettings: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({ ok: true })),
   saveGlobalSettings: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({ ok: true })),
   resetTitleSettings: vi.fn<(...args: unknown[]) => Promise<void>>(async () => {}),
+  setChapterCompleted: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({ ok: true })),
+  markPreviousChaptersCompleted: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
+    ok: true,
+    value: { updated: 0 },
+  })),
   fetchReaderPage: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
     mangaId: 'dev-md-manga-1',
     chapterId: 'dev-md-ch-1',
@@ -71,6 +78,8 @@ vi.mock('@app/settings', () => ({
 vi.mock('@app/db', () => ({
   upsertTitleReaderSettings: saveTitleSettings,
   resetTitleReaderSettings: resetTitleSettings,
+  setChapterCompleted,
+  markPreviousChaptersCompleted,
 }));
 
 import { Route } from '@/routes/reader.$chapterId.js';
@@ -105,22 +114,24 @@ async function settle() {
 }
 
 describe('/reader/$chapterId persistence reporting', () => {
-  it('marks a chapter unread through the progress persistence path', async () => {
-    persistReaderProgress.mockClear();
+  it('marks a chapter unread through the read-state repository without leaving the reader', async () => {
+    setChapterCompleted.mockClear();
     const { root, container } = await renderRoute();
     await act(async () => {
-      (screenProps.onMarkRead as (completed: boolean) => void)(false);
+      await (screenProps.onMarkRead as (completed: boolean) => Promise<void>)(false);
     });
-    expect(persistReaderProgress).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        chapterId: 'dev-md-ch-1',
-        mangaId: 'dev-md-manga-1',
-        completed: false,
-        pageIndex: 0,
-        readPercent: 0,
-      }),
-    );
+    expect(setChapterCompleted).toHaveBeenCalledWith(expect.anything(), 'dev-md-ch-1', false);
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it('marks previous chapters read through the read-state repository', async () => {
+    markPreviousChaptersCompleted.mockClear();
+    const { root, container } = await renderRoute();
+    await act(async () => {
+      await (screenProps.onMarkPreviousRead as () => Promise<void>)();
+    });
+    expect(markPreviousChaptersCompleted).toHaveBeenCalledWith(expect.anything(), 'dev-md-ch-1');
     act(() => root.unmount());
     container.remove();
   });

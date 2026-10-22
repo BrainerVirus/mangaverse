@@ -41,6 +41,7 @@ export {
   prefetchChapterPages,
   type PageCacheLookupInput,
   type PageCacheStoreResult,
+  type PrefetchQueueOutcome,
 } from './page-cache-store.js';
 
 export {
@@ -60,4 +61,8 @@ export {
 
 export { CachedMangaCard } from './components/CachedMangaCard.js';
 
-export { CachedPageImage, type CachedPageImageProps } from './components/CachedPageImage.js';
+export {
+  CachedPageImage,
+  type CachedPageImageMetric,
+  type CachedPageImageProps,
+} from './components/CachedPageImage.js';

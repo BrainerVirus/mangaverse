@@ -61,7 +61,20 @@ export {
 export { resolvePageFit } from './page-fit.js';
 export type { PageFit, PageFitInput } from './page-fit.js';
 export { computeScrollTargetTop, resolveVerticalNavigationTarget } from './scroll-navigation.js';
-export { isDoubleTap, pinchScale, pointerDistance } from './gestures.js';
+export {
+  isDoubleTap,
+  pinchScale,
+  pointerDistance,
+  resolveGestureThresholds,
+  clampGestureSensitivity,
+  GESTURE_SENSITIVITY_MAX,
+  GESTURE_SENSITIVITY_MIN,
+} from './gestures.js';
+export {
+  isLongStripPage,
+  resolveScrollPreloadAhead,
+  LONG_STRIP_ASPECT_RATIO,
+} from './scroll-layout.js';
 
 // Webtoon functions
 export { calculateWebtoonWindow, estimateWebtoonLayout } from './webtoon.js';
@@ -78,6 +91,13 @@ export {
 
 // Diagnostics
 export { createReaderDiagnostics } from './diagnostics.js';
+export {
+  createReaderMetricsCollector,
+  EMPTY_READER_METRICS,
+  type ReaderMetricEvent,
+  type ReaderMetricsCollector,
+  type ReaderMetricsSnapshot,
+} from './reader-metrics.js';
 
 // Feature page integration
 export { ReaderScreen, type ReaderScreenProps } from './components/ReaderScreen.js';

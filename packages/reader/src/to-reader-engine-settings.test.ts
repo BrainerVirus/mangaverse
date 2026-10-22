@@ -11,5 +11,13 @@ describe('toReaderEngineSettings', () => {
     expect(engine.pageLayout).toBe(settings.pageLayout);
     expect(engine.preloadAhead).toBe(settings.preloadAhead);
     expect(engine.treatFirstPageAsCover).toBe(true);
+    expect(engine.pageTransition).toBe(settings.pageTransition);
+    expect(engine.pinchSensitivity).toBe(settings.pinchSensitivity);
+    expect(engine.imageSmoothing).toBe(settings.imageSmoothing);
+    expect(engine.keepScreenOn).toBe(settings.keepScreenOn);
+    expect(engine.fullscreenOnOpen).toBe(settings.fullscreenOnOpen);
+    expect(engine.longStripOptimization).toBe(settings.longStripOptimization);
+    expect(engine.diagnosticsEnabled).toBe(settings.diagnosticsEnabled);
+    expect(engine.keyboardShortcuts).toEqual(settings.keyboardShortcuts);
   });
 });

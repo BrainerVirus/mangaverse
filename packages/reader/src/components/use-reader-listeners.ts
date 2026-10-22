@@ -21,6 +21,10 @@ export function useReaderKeyboard({
   verticalTargetPending,
   disabled = false,
   onClose,
+  onToggleChrome,
+  onToggleFullscreen,
+  onPreviousChapter,
+  onNextChapter,
 }: {
   readonly sessionInput: ReaderSessionInput | null;
   readonly navigate: (action: ReaderNavigationAction) => void;
@@ -30,13 +34,16 @@ export function useReaderKeyboard({
   readonly verticalTargetPending: { current: boolean };
   readonly disabled?: boolean;
   readonly onClose?: (() => void) | undefined;
+  readonly onToggleChrome?: (() => void) | undefined;
+  readonly onToggleFullscreen?: (() => void) | undefined;
+  readonly onPreviousChapter?: (() => void) | undefined;
+  readonly onNextChapter?: (() => void) | undefined;
 }): void {
   // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: a window-level keydown listener, bound and unbound with the session
   useEffect(() => {
     const pageCount = sessionInput?.chapter.pageCount ?? 0;
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (disabled || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey)
-        return;
+      if (disabled || event.defaultPrevented) return;
       if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
       const target = event.target instanceof Element ? event.target : null;
       if (event.key === 'Escape' && onClose) {
@@ -57,6 +64,27 @@ export function useReaderKeyboard({
       if (!sessionInput) return;
       const action = resolveKeyboardAction(event, sessionInput.settings);
       if (action.type === 'none') return;
+
+      if (action.type === 'toggleChrome') {
+        if (!onToggleChrome) return;
+        event.preventDefault();
+        onToggleChrome();
+        return;
+      }
+      if (action.type === 'toggleFullscreen') {
+        if (!onToggleFullscreen) return;
+        event.preventDefault();
+        onToggleFullscreen();
+        return;
+      }
+      if (action.type === 'prevChapter' || action.type === 'nextChapter') {
+        const goToChapter = action.type === 'nextChapter' ? onNextChapter : onPreviousChapter;
+        if (!goToChapter) return;
+        event.preventDefault();
+        goToChapter();
+        return;
+      }
+
       event.preventDefault();
       if (sessionInput.settings.readingMode === 'vertical') {
         if (action.type === 'nextPage' && verticalTarget.current >= pageCount - 1) {
@@ -93,6 +121,10 @@ export function useReaderKeyboard({
     disabled,
     navigate,
     onClose,
+    onNextChapter,
+    onPreviousChapter,
+    onToggleChrome,
+    onToggleFullscreen,
     reducedMotion,
     scrollHandle,
     sessionInput,

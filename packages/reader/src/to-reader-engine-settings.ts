@@ -18,5 +18,13 @@ export function toReaderEngineSettings(settings: ReaderSettings): ReaderEngineSe
     lowMemoryMode: settings.lowMemoryMode,
     wheelBehavior: settings.wheelBehavior,
     verticalGapPx: settings.verticalGapPx,
+    pageTransition: settings.pageTransition,
+    pinchSensitivity: settings.pinchSensitivity,
+    imageSmoothing: settings.imageSmoothing,
+    keepScreenOn: settings.keepScreenOn,
+    fullscreenOnOpen: settings.fullscreenOnOpen,
+    longStripOptimization: settings.longStripOptimization,
+    diagnosticsEnabled: settings.diagnosticsEnabled,
+    keyboardShortcuts: settings.keyboardShortcuts,
   };
 }

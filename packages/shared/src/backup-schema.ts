@@ -7,7 +7,7 @@ import type { ContentRating, MangaStatus } from './manga.js';
 import type { ProviderManifest } from './provider.js';
 import { validateProviderManifest } from './provider.js';
 import type { ReaderSettings } from './reader-settings.js';
-import { validateReaderSettings } from './reader-settings.js';
+import { validateReaderSettingsForBackup } from './reader-settings.js';
 import { createAppError, ok, type AppError, type AppResult } from './result.js';
 import type { ThemeDefinition } from './theme-definition.js';
 import { normalizeThemeDefinitionShape, validateThemeDefinitionShape } from './theme-definition.js';
@@ -178,7 +178,7 @@ function fromValidator<T>(
     });
 }
 
-const readerSettingsSchema = fromValidator<ReaderSettings>(validateReaderSettings);
+const readerSettingsSchema = fromValidator<ReaderSettings>(validateReaderSettingsForBackup);
 
 /** Missing in v1 and v2 backups; when present it must satisfy the settings contract. */
 const appSettingsBackupSchema = fromValidator<AppSettings>(validateAppSettings).exactOptional();

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react';
 import { getDefaultReaderSettings } from '@app/shared';
+import type { KeyboardShortcut } from '@app/shared';
 import { toReaderEngineSettings } from '../to-reader-engine-settings.js';
 import type { ReaderNavigationAction, ReaderSessionInput } from '../types.js';
 import { useReaderKeyboard } from './use-reader-listeners.js';
@@ -23,13 +24,23 @@ function Harness({
   actions,
   disabled = false,
   onClose,
+  settings,
+  onToggleChrome,
+  onToggleFullscreen,
+  onPreviousChapter,
+  onNextChapter,
 }: {
   actions: ReaderNavigationAction[];
   disabled?: boolean;
   onClose?: (() => void) | undefined;
+  settings?: ReaderSessionInput['settings'];
+  onToggleChrome?: (() => void) | undefined;
+  onToggleFullscreen?: (() => void) | undefined;
+  onPreviousChapter?: (() => void) | undefined;
+  onNextChapter?: (() => void) | undefined;
 }) {
   useReaderKeyboard({
-    sessionInput,
+    sessionInput: { ...sessionInput, settings: settings ?? sessionInput.settings },
     navigate: (action) => actions.push(action),
     reducedMotion: true,
     scrollHandle: { current: null },
@@ -37,11 +48,25 @@ function Harness({
     verticalTargetPending: { current: false },
     disabled,
     onClose,
+    onToggleChrome,
+    onToggleFullscreen,
+    onPreviousChapter,
+    onNextChapter,
   });
   return null;
 }
 
-function mount(options: { disabled?: boolean; onClose?: () => void } = {}): {
+function mount(
+  options: {
+    disabled?: boolean;
+    onClose?: () => void;
+    settings?: ReaderSessionInput['settings'];
+    onToggleChrome?: () => void;
+    onToggleFullscreen?: () => void;
+    onPreviousChapter?: () => void;
+    onNextChapter?: () => void;
+  } = {},
+): {
   root: Root;
   container: HTMLElement;
   actions: ReaderNavigationAction[];
@@ -61,9 +86,15 @@ function unmount({ root, container }: { root: Root; container: HTMLElement }) {
   container.remove();
 }
 
-function press(key: string, target: EventTarget = window) {
+function press(
+  key: string,
+  target: EventTarget = window,
+  modifiers: { shiftKey?: boolean; ctrlKey?: boolean } = {},
+) {
   act(() => {
-    target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+    target.dispatchEvent(
+      new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...modifiers }),
+    );
   });
 }
 
@@ -128,6 +159,65 @@ describe('useReaderKeyboard', () => {
     const mounted = mount({ onClose });
     press('Escape');
     expect(onClose).toHaveBeenCalledTimes(1);
+    expect(mounted.actions).toEqual([]);
+    unmount(mounted);
+  });
+
+  it('Given inverted navigation, When the arrows are pressed, Then they follow the tap zones', () => {
+    const settings = toReaderEngineSettings({
+      ...getDefaultReaderSettings(),
+      navigationDirection: 'inverted',
+    });
+    const mounted = mount({ settings });
+    press('ArrowLeft');
+    press('ArrowRight');
+    expect(mounted.actions).toEqual([{ type: 'nextPage' }, { type: 'prevPage' }]);
+    unmount(mounted);
+  });
+
+  it('Given a saved page shortcut, When its key is pressed, Then that action runs', () => {
+    const settings = {
+      ...toReaderEngineSettings(getDefaultReaderSettings()),
+      keyboardShortcuts: [{ action: 'nextPage' as const, key: 'n' }],
+    };
+    const mounted = mount({ settings });
+    press('n');
+    expect(mounted.actions).toEqual([{ type: 'nextPage' }]);
+    unmount(mounted);
+  });
+
+  it('Given chapter and chrome bindings, When pressed, Then they reach their callbacks instead of paging', () => {
+    const onNextChapter = vi.fn<() => void>();
+    const onToggleChrome = vi.fn<() => void>();
+    const onToggleFullscreen = vi.fn<() => void>();
+    const bindings: KeyboardShortcut[] = [
+      { action: 'nextChapter', key: 'ArrowRight', modifiers: ['Shift'] },
+      { action: 'toggleChrome', key: 'h' },
+      { action: 'toggleFullscreen', key: 'f' },
+    ];
+    const settings = {
+      ...toReaderEngineSettings(getDefaultReaderSettings()),
+      keyboardShortcuts: bindings,
+    };
+    const mounted = mount({
+      settings,
+      onNextChapter,
+      onToggleChrome,
+      onToggleFullscreen,
+    });
+    press('ArrowRight', window, { shiftKey: true });
+    press('h');
+    press('f');
+    expect(onNextChapter).toHaveBeenCalledTimes(1);
+    expect(onToggleChrome).toHaveBeenCalledTimes(1);
+    expect(onToggleFullscreen).toHaveBeenCalledTimes(1);
+    expect(mounted.actions).toEqual([]);
+    unmount(mounted);
+  });
+
+  it('Given an unbound modifier combination, When pressed, Then the reader ignores it', () => {
+    const mounted = mount();
+    press('ArrowRight', window, { ctrlKey: true });
     expect(mounted.actions).toEqual([]);
     unmount(mounted);
   });

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { toChapterPageId } from '@app/shared';
+import type { KeyboardShortcut } from '@app/shared';
 import {
   resolveNavigationAction,
   applyNavigationAction,
@@ -220,6 +221,83 @@ describe('resolveKeyboardAction', () => {
     const action = resolveKeyboardAction({ key: 'a' }, defaultSettings);
 
     expect(action.type).toBe('none');
+  });
+});
+
+describe('resolveKeyboardAction with saved shortcuts', () => {
+  it('Given no saved bindings, When the displayed chapter shortcuts are pressed, Then they apply', () => {
+    expect(resolveKeyboardAction({ key: 'ArrowRight', shiftKey: true }, defaultSettings).type).toBe(
+      'nextChapter',
+    );
+    expect(resolveKeyboardAction({ key: 'h' }, defaultSettings).type).toBe('toggleChrome');
+  });
+
+  it('Given a saved key, When pressed, Then it resolves the bound action', () => {
+    const settings = {
+      ...defaultSettings,
+      keyboardShortcuts: [{ action: 'nextPage' as const, key: 'n' }],
+    };
+    expect(resolveKeyboardAction({ key: 'n' }, settings).type).toBe('nextPage');
+  });
+
+  it('Given a saved binding on a built-in key, When pressed, Then the saved action wins', () => {
+    const settings = {
+      ...defaultSettings,
+      keyboardShortcuts: [{ action: 'prevPage' as const, key: 'ArrowRight' }],
+    };
+    expect(resolveKeyboardAction({ key: 'ArrowRight' }, settings).type).toBe('prevPage');
+  });
+
+  it('Given a modifier binding, When pressed without the modifier, Then it does not fire', () => {
+    const settings = {
+      ...defaultSettings,
+      keyboardShortcuts: [
+        { action: 'toggleChrome', key: 'h', modifiers: ['Shift'] },
+      ] as KeyboardShortcut[],
+    };
+    expect(resolveKeyboardAction({ key: 'h' }, settings).type).toBe('none');
+    expect(resolveKeyboardAction({ key: 'h', shiftKey: true }, settings).type).toBe('toggleChrome');
+  });
+
+  it('Given a modified key with no binding, When pressed, Then the reader ignores it', () => {
+    expect(resolveKeyboardAction({ key: 'ArrowRight', ctrlKey: true }, defaultSettings).type).toBe(
+      'none',
+    );
+  });
+});
+
+describe('resolveKeyboardAction reading direction', () => {
+  const cases = [
+    { readingMode: 'ltr', navigationDirection: 'default', next: 'ArrowRight', prev: 'ArrowLeft' },
+    { readingMode: 'ltr', navigationDirection: 'inverted', next: 'ArrowLeft', prev: 'ArrowRight' },
+    { readingMode: 'rtl', navigationDirection: 'default', next: 'ArrowLeft', prev: 'ArrowRight' },
+    { readingMode: 'rtl', navigationDirection: 'inverted', next: 'ArrowRight', prev: 'ArrowLeft' },
+  ] as const;
+
+  for (const { readingMode, navigationDirection, next, prev } of cases) {
+    it(`Given ${readingMode}/${navigationDirection}, Then the arrows follow the tap zones`, () => {
+      const settings: ReaderEngineSettings = {
+        ...defaultSettings,
+        readingMode,
+        navigationDirection,
+      };
+
+      expect(resolveKeyboardAction({ key: next }, settings).type).toBe('nextPage');
+      expect(resolveKeyboardAction({ key: prev }, settings).type).toBe('prevPage');
+    });
+  }
+
+  it('Given a custom binding, Then it wins while the remaining defaults stay direction-aware', () => {
+    const settings: ReaderEngineSettings = {
+      ...defaultSettings,
+      readingMode: 'ltr',
+      navigationDirection: 'inverted',
+      keyboardShortcuts: [{ action: 'nextPage', key: 'n' }],
+    };
+
+    expect(resolveKeyboardAction({ key: 'n' }, settings).type).toBe('nextPage');
+    expect(resolveKeyboardAction({ key: 'ArrowLeft' }, settings).type).toBe('nextPage');
+    expect(resolveKeyboardAction({ key: 'ArrowRight' }, settings).type).toBe('prevPage');
   });
 });
 

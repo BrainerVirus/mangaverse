@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { isReservedShortcutKey, keyboardShortcutId } from './keyboard-shortcuts.js';
 import type { AppResult } from './result.js';
 import { createAppError, err, ok } from './result.js';
 
@@ -41,17 +42,77 @@ const chromeVisibilitySchema = z.enum(['auto', 'always', 'hidden'], {
   error: 'Invalid chromeVisibility.',
 });
 
+const keyboardShortcutActionSchema = z.enum(
+  [
+    'nextPage',
+    'prevPage',
+    'firstPage',
+    'lastPage',
+    'nextChapter',
+    'prevChapter',
+    'toggleChrome',
+    'toggleFullscreen',
+  ],
+  { error: 'Unknown shortcut action.' },
+);
+
 const keyboardShortcutSchema = z.object(
   {
-    action: z.string({ error: 'Shortcut action must be a string.' }),
-    key: z.string({ error: 'Shortcut key must be a string.' }),
+    action: keyboardShortcutActionSchema,
+    key: z
+      .string({ error: 'Shortcut key must be a string.' })
+      .min(1, { error: 'Shortcut key must not be empty.' })
+      .refine((key) => !isReservedShortcutKey(key), {
+        error: 'Escape and Tab are reserved by the reader.',
+      }),
     modifiers: z
-      .array(z.string({ error: 'Shortcut modifiers must be strings.' }), {
+      .array(z.enum(['Control', 'Alt', 'Shift', 'Meta'], { error: 'Unknown shortcut modifier.' }), {
         error: 'Shortcut modifiers must be an array.',
       })
       .exactOptional(),
   },
   { error: 'Each keyboard shortcut must be an object.' },
+);
+
+/**
+ * A saved list is either empty (the direction-aware defaults apply) or a full
+ * binding set: a partial list would silently mix custom and built-in bindings,
+ * and duplicates would make the reader's key resolution order-dependent.
+ */
+const keyboardShortcutListSchema = z.preprocess(
+  (value) => value ?? [],
+  z
+    .array(keyboardShortcutSchema, { error: 'keyboardShortcuts must be an array.' })
+    .superRefine((shortcuts, ctx) => {
+      const actions = new Set<KeyboardShortcutAction>();
+      const bindings = new Set<string>();
+      shortcuts.forEach((shortcut, index) => {
+        if (actions.has(shortcut.action)) {
+          ctx.addIssue({
+            code: 'custom',
+            message: 'Each shortcut action can be bound only once.',
+            path: [index, 'action'],
+          });
+        }
+        actions.add(shortcut.action);
+        const id = keyboardShortcutId(shortcut);
+        if (bindings.has(id)) {
+          ctx.addIssue({
+            code: 'custom',
+            message: 'Each shortcut key can be bound only once.',
+            path: [index, 'key'],
+          });
+        }
+        bindings.add(id);
+      });
+      if (shortcuts.length > 0 && actions.size !== keyboardShortcutActionSchema.options.length) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Every shortcut action must be bound.',
+          path: [],
+        });
+      }
+    }),
 );
 
 const prefetchBudgetBytesMessage = `prefetchBudgetBytes must be 0 (unlimited) or between 1 and ${PREFETCH_BUDGET_MAX_BYTES}.`;
@@ -131,9 +192,7 @@ const readerSettingsSchema = z
         error: 'rememberPerTitleOverrides must be boolean.',
       }),
       // Last so a malformed array is reported after the scalar fields, as before.
-      keyboardShortcuts: z.array(keyboardShortcutSchema, {
-        error: 'keyboardShortcuts must be an array.',
-      }),
+      keyboardShortcuts: keyboardShortcutListSchema,
     },
     { error: 'Reader settings must be an object.' },
   )
@@ -164,6 +223,8 @@ export type WheelBehavior = z.infer<typeof wheelBehaviorSchema>;
 export type ReaderChromeVisibility = z.infer<typeof chromeVisibilitySchema>;
 
 export type KeyboardShortcut = z.infer<typeof keyboardShortcutSchema>;
+
+export type KeyboardShortcutAction = z.infer<typeof keyboardShortcutActionSchema>;
 
 type ReaderSettingsShape = z.infer<typeof readerSettingsSchema>;
 
@@ -226,4 +287,41 @@ export function validateReaderSettings(input: unknown): AppResult<ReaderSettings
       message: result.error.issues[0]?.message ?? 'Invalid reader settings.',
     }),
   );
+}
+
+/**
+ * Backup restore stays strict on every scalar field but accepts pre-PR free-form
+ * shortcut lists: an invalid or partial list restores as the default bindings
+ * instead of rejecting the whole backup.
+ */
+export function validateReaderSettingsForBackup(input: unknown): AppResult<ReaderSettings> {
+  const strict = validateReaderSettings(input);
+  if (strict.ok) return strict;
+  if (typeof input !== 'object' || input === null) return strict;
+
+  const { keyboardShortcuts: _stored, ...fields } = input as Record<string, unknown>;
+  const fieldResult = readerSettingsSchema.safeParse({ ...fields, keyboardShortcuts: [] });
+  if (!fieldResult.success) return strict;
+  return ok({ ...fieldResult.data, keyboardShortcuts: [] });
+}
+
+/**
+ * Reads settings that may predate the shortcut schema. Only a shortcut failure
+ * is salvaged: old rows keep every unrelated preference and fall back to the
+ * default shortcuts instead of losing their reading mode, zoom or layout.
+ */
+export function sanitizeReaderSettings(input: unknown): ReaderSettings {
+  const parsed = readerSettingsSchema.safeParse(input);
+  if (parsed.success) return parsed.data;
+  if (typeof input !== 'object' || input === null) return getDefaultReaderSettings();
+
+  const { keyboardShortcuts: storedShortcuts, ...fields } = input as Record<string, unknown>;
+  const fieldResult = readerSettingsSchema.safeParse({ ...fields, keyboardShortcuts: [] });
+  if (!fieldResult.success) return getDefaultReaderSettings();
+
+  const shortcutResult = keyboardShortcutListSchema.safeParse(storedShortcuts);
+  return {
+    ...fieldResult.data,
+    keyboardShortcuts: shortcutResult.success ? shortcutResult.data : [],
+  };
 }

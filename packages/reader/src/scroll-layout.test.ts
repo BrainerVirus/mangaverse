@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   computeScrollPageMetrics,
   findActiveScrollPage,
+  isLongStripPage,
+  resolveScrollPreloadAhead,
   windowedScrollPages,
 } from './scroll-layout.js';
 import type { ReaderPage } from './types.js';
@@ -97,5 +99,60 @@ describe('windowedScrollPages', () => {
 
   it('Given an active page at the end, When windowed, Then the window clamps to the last page', () => {
     expect([...windowedScrollPages(pages, 9, 2)].sort((a, b) => a - b)).toEqual([7, 8, 9]);
+  });
+});
+
+describe('long-strip optimization', () => {
+  const tallPage = {
+    index: 0,
+    image: { url: 'https://example.com/tall.jpg', width: 800, height: 6000 },
+  } as ReaderPage;
+  const ordinaryPage = {
+    index: 1,
+    image: { url: 'https://example.com/page.jpg', width: 800, height: 1200 },
+  } as ReaderPage;
+
+  it('Given a 7.5:1 page, When classified, Then it is a long strip', () => {
+    expect(isLongStripPage(tallPage)).toBe(true);
+    expect(isLongStripPage(ordinaryPage)).toBe(false);
+    expect(isLongStripPage({ index: 2, image: { url: 'x' } } as ReaderPage)).toBe(false);
+  });
+
+  it('Given a tall chapter with optimization on, When resolving preload, Then look-ahead drops to one page', () => {
+    expect(
+      resolveScrollPreloadAhead({
+        pages: [tallPage, ordinaryPage],
+        preloadAhead: 8,
+        longStripOptimization: true,
+      }),
+    ).toBe(1);
+  });
+
+  it('Given ordinary pages, When resolving preload, Then the configured amount is kept', () => {
+    expect(
+      resolveScrollPreloadAhead({
+        pages: [ordinaryPage],
+        preloadAhead: 4,
+        longStripOptimization: true,
+      }),
+    ).toBe(4);
+    expect(
+      resolveScrollPreloadAhead({
+        pages: [tallPage],
+        preloadAhead: 4,
+        longStripOptimization: false,
+      }),
+    ).toBe(4);
+  });
+
+  it('Given low-memory mode already caps preload, When a tall chapter is optimized, Then it never grows', () => {
+    expect(
+      resolveScrollPreloadAhead({
+        pages: [tallPage],
+        preloadAhead: 0,
+        lowMemoryMode: true,
+        longStripOptimization: true,
+      }),
+    ).toBe(0);
   });
 });
