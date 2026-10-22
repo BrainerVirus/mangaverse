@@ -48,6 +48,8 @@ describe('formatDiagnosticsReport', () => {
         brokenExtensionCount: 0,
         categoryCount: 0,
         providerSettingsCount: 1,
+        extensionLogCount: 3,
+        extensionErrorLogCount: 1,
       },
       localDatabaseReady: true,
     };

@@ -144,6 +144,8 @@ function LocalDatabaseSection({ report }: { report: DiagnosticsReport }) {
         <InfoRow label="Broken extensions" value={String(localData.brokenExtensionCount)} />
         <InfoRow label="Categories" value={String(localData.categoryCount)} />
         <InfoRow label="Provider settings" value={String(localData.providerSettingsCount)} />
+        <InfoRow label="Extension log entries" value={String(localData.extensionLogCount)} />
+        <InfoRow label="Extension errors logged" value={String(localData.extensionErrorLogCount)} />
       </dl>
     </SettingsSection>
   );
