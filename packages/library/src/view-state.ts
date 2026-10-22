@@ -12,3 +12,13 @@ export function withLibraryLayout(
 ): LibraryViewState {
   return { ...viewState, layout };
 }
+
+export function hasLibraryFilters(filter: LibraryViewState['filter']): boolean {
+  return (
+    (filter.query ?? '').trim().length > 0 ||
+    (filter.categoryIds?.length ?? 0) > 0 ||
+    (filter.statuses?.length ?? 0) > 0 ||
+    filter.favoritesOnly === true ||
+    (filter.providerIds?.length ?? 0) > 0
+  );
+}

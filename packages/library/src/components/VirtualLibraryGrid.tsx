@@ -2,7 +2,7 @@ import { memo, useMemo, useRef } from 'react';
 import { useGridStaggerReveal } from '@app/motion';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { CachedMangaCard } from '@app/cache';
-import type { LibraryLayoutMode, MangaId, MangaIdentity } from '@app/shared';
+import type { LibraryEntryId, LibraryLayoutMode, MangaId, MangaIdentity } from '@app/shared';
 import type { LibraryItem } from '../types.js';
 import {
   estimateRowHeight,
@@ -20,24 +20,62 @@ export interface VirtualLibraryGridProps {
   items: readonly LibraryItem[];
   layout: LibraryLayoutMode;
   onOpenManga: (mangaId: MangaId) => void;
+  selectionMode?: boolean;
+  selectedIds?: ReadonlySet<LibraryEntryId>;
+  onToggleSelected?: (entryId: LibraryEntryId) => void;
 }
 
 interface LibraryCardProps {
+  entryId: LibraryEntryId;
   manga: MangaIdentity;
   variant: LibraryLayoutMode;
+  selectionMode: boolean;
+  selected: boolean;
   onOpenManga: (mangaId: MangaId) => void;
+  onToggleSelected: ((entryId: LibraryEntryId) => void) | undefined;
 }
 
 /** Cards only read these props; entry ids only key the list. */
-const LibraryCard = memo(function LibraryCard({ manga, variant, onOpenManga }: LibraryCardProps) {
+const LibraryCard = memo(function LibraryCard({
+  entryId,
+  manga,
+  variant,
+  selectionMode,
+  selected,
+  onOpenManga,
+  onToggleSelected,
+}: LibraryCardProps) {
+  const toggle = () => onToggleSelected?.(entryId);
   return (
-    <div data-library-card>
-      <CachedMangaCard manga={manga} variant={variant} onClick={() => onOpenManga(manga.id)} />
+    <div data-library-card className="relative">
+      {selectionMode ? (
+        <label className="absolute top-2 left-2 z-20 flex size-7 cursor-pointer items-center justify-center rounded-control border border-border bg-background/90 shadow-sm">
+          <input
+            type="checkbox"
+            className="size-4 accent-foreground"
+            aria-label={`Select ${manga.canonicalTitle}`}
+            checked={selected}
+            onChange={toggle}
+          />
+        </label>
+      ) : null}
+      <CachedMangaCard
+        manga={manga}
+        variant={variant}
+        onClick={selectionMode ? toggle : () => onOpenManga(manga.id)}
+      />
     </div>
   );
 });
 
-export function VirtualLibraryGrid({ items, layout, onOpenManga }: VirtualLibraryGridProps) {
+export function VirtualLibraryGrid({
+  items,
+  layout,
+  onOpenManga,
+  selectionMode = false,
+  selectedIds,
+  onToggleSelected,
+}: VirtualLibraryGridProps) {
   const containerRef = useRef<HTMLElement>(null);
   const { scrollParent, isMeasured } = useScrollParent(containerRef);
   const containerWidth = useContainerWidth(containerRef);
@@ -82,7 +120,16 @@ export function VirtualLibraryGrid({ items, layout, onOpenManga }: VirtualLibrar
         }
       >
         {fallbackItems.map(({ entry, manga }) => (
-          <LibraryCard key={entry.id} manga={manga} variant={layout} onOpenManga={onOpenManga} />
+          <LibraryCard
+            key={entry.id}
+            entryId={entry.id}
+            manga={manga}
+            variant={layout}
+            selectionMode={selectionMode}
+            selected={selectedIds?.has(entry.id) ?? false}
+            onOpenManga={onOpenManga}
+            onToggleSelected={onToggleSelected}
+          />
         ))}
       </section>
     );
@@ -126,9 +173,13 @@ export function VirtualLibraryGrid({ items, layout, onOpenManga }: VirtualLibrar
               {rowItems.map(({ entry, manga }) => (
                 <LibraryCard
                   key={entry.id}
+                  entryId={entry.id}
                   manga={manga}
                   variant={layout}
+                  selectionMode={selectionMode}
+                  selected={selectedIds?.has(entry.id) ?? false}
                   onOpenManga={onOpenManga}
+                  onToggleSelected={onToggleSelected}
                 />
               ))}
             </div>

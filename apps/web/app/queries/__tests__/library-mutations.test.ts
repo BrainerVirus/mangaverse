@@ -1,9 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import { DEFAULT_LIBRARY_VIEW_STATE, libraryQueryKeys, type MangaDetailData } from '@app/library';
-import { toLibraryEntryId, toMangaId, toProviderId, toProviderMappingId } from '@app/shared';
+import {
+  toCategoryId,
+  toLibraryEntryId,
+  toMangaId,
+  toProviderId,
+  toProviderMappingId,
+} from '@app/shared';
 import {
   createAddToLibraryMutationOptions,
+  createLibraryOrganizationMutationOptions,
   createRemoveFromLibraryMutationOptions,
   createToggleFavoriteMutationOptions,
 } from '../library-mutation-options.js';
@@ -154,6 +161,24 @@ describe('library mutation options', () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: libraryQueryKeys.all });
   });
 
+  it('applies category pinning optimistically before the refetch', async () => {
+    const queryClient = new QueryClient();
+    const pageKey = libraryQueryKeys.page(DEFAULT_LIBRARY_VIEW_STATE);
+    const categoryId = toCategoryId('category-pin');
+    queryClient.setQueryData(pageKey, {
+      items: [],
+      categories: [{ id: categoryId, name: 'Pinned' }],
+      viewState: DEFAULT_LIBRARY_VIEW_STATE,
+    });
+
+    const options = createLibraryOrganizationMutationOptions(null, queryClient);
+    await options.onMutate?.({ type: 'set_category_pinned', categoryId, pinned: true });
+
+    expect(queryClient.getQueryData(pageKey)).toMatchObject({
+      categories: [{ id: categoryId, pinned: true }],
+    });
+  });
+
   it('invalidates library queries after settled mutations', () => {
     const queryClient = new QueryClient();
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries').mockResolvedValue(undefined);
@@ -162,7 +187,8 @@ describe('library mutation options', () => {
     createAddToLibraryMutationOptions(db, queryClient, mangaId).onSettled?.();
     createRemoveFromLibraryMutationOptions(db, queryClient, mangaId).onSettled?.();
     createToggleFavoriteMutationOptions(db, queryClient, mangaId).onSettled?.();
+    createLibraryOrganizationMutationOptions(db, queryClient).onSettled?.();
 
-    expect(invalidateSpy).toHaveBeenCalledTimes(3);
+    expect(invalidateSpy).toHaveBeenCalledTimes(4);
   });
 });

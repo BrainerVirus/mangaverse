@@ -1,16 +1,32 @@
 export { LibraryPage, type LibraryPageProps } from './components/LibraryPage.js';
 export { LibraryToolbar, type LibraryToolbarProps } from './components/LibraryToolbar.js';
+export {
+  CategoryManagerDialog,
+  type CategoryManagerDialogProps,
+} from './components/CategoryManagerDialog.js';
+export { BulkEditBar, type BulkEditBarProps } from './components/BulkEditBar.js';
 export { MangaDetailPage, type MangaDetailPageProps } from './components/MangaDetailPage.js';
 export { fetchLibraryPage } from './fetch-library-page.js';
 export { fetchMangaDetail } from './fetch-manga-detail.js';
 export { fetchRecentLibrary, RECENT_LIBRARY_LIMIT } from './fetch-recent-library.js';
 export { filterLibraryItemsByQuery } from './filter-items.js';
-export { addMangaToLibrary, removeMangaFromLibrary, setMangaFavorite } from './library-actions.js';
+export {
+  addMangaToLibrary,
+  applyLibraryOrganizationAction,
+  removeMangaFromLibrary,
+  setMangaFavorite,
+} from './library-actions.js';
 export {
   optimisticallyAddMangaToLibrary,
+  optimisticallyApplyLibraryOrganizationAction,
   optimisticallyRemoveMangaFromLibrary,
   optimisticallySetMangaFavorite,
 } from './optimistic-library-cache.js';
 export { libraryQueryKeys } from './query-keys.js';
-export { DEFAULT_LIBRARY_VIEW_STATE, withLibraryLayout } from './view-state.js';
-export type { LibraryItem, LibraryPageData, MangaDetailData } from './types.js';
+export { DEFAULT_LIBRARY_VIEW_STATE, hasLibraryFilters, withLibraryLayout } from './view-state.js';
+export type {
+  LibraryItem,
+  LibraryOrganizationAction,
+  LibraryPageData,
+  MangaDetailData,
+} from './types.js';

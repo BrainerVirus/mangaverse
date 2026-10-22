@@ -7,14 +7,16 @@ export async function fetchLibraryPage(
   db: AppDrizzleDb,
   viewState: LibraryViewState,
 ): Promise<LibraryPageData> {
-  const { getMangaIdentities, listLibraryCategories, listLibraryEntries } = await import('@app/db');
+  const { getMangaIdentities, listLibraryCategories, listLibraryEntries, listLibraryProviderIds } =
+    await import('@app/db');
   const { query, ...repoFilter } = viewState.filter;
-  const [entries, categories] = await Promise.all([
+  const [entries, categories, providers] = await Promise.all([
     listLibraryEntries(db, {
       filter: repoFilter,
       sort: viewState.sort,
     }),
     listLibraryCategories(db),
+    listLibraryProviderIds(db),
   ]);
 
   const identities = await getMangaIdentities(
@@ -37,6 +39,7 @@ export async function fetchLibraryPage(
   return {
     items: filtered,
     categories,
+    providers,
     viewState,
   };
 }

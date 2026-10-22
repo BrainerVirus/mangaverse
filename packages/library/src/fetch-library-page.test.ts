@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { addLibraryEntry, createMangaIdentityWithInitialMapping } from '@app/db';
+import {
+  addLibraryEntriesToCategories,
+  addLibraryEntry,
+  createLibraryCategory,
+  createMangaIdentityWithInitialMapping,
+} from '@app/db';
 import { createSqlJsHarness } from '@app/db/testing';
 import { toProviderId } from '@app/shared';
 import { DEFAULT_LIBRARY_VIEW_STATE } from './view-state.js';
@@ -97,5 +102,42 @@ describe('fetchLibraryPage', () => {
       filter: { query: 'missing' },
     });
     expect(none.items).toHaveLength(0);
+  });
+});
+
+describe('fetchLibraryPage organization', () => {
+  it('combines a repository filter with the query filter and lists providers', async () => {
+    const { db } = await createSqlJsHarness();
+    const category = await createLibraryCategory(db, { name: 'Action' });
+    expect(category.ok).toBe(true);
+    if (!category.ok) return;
+
+    const add = async (title: string, status: 'reading' | 'completed') => {
+      const created = await createMangaIdentityWithInitialMapping(db, {
+        canonicalTitle: title,
+        status: 'ongoing',
+        contentRating: 'safe',
+        providerId: toProviderId('prov-a'),
+        providerMangaId: `org-${title}`,
+      });
+      expect(created.ok).toBe(true);
+      if (!created.ok) return;
+      const entry = await addLibraryEntry(db, { mangaId: created.value.mangaId, status });
+      expect(entry.ok).toBe(true);
+      if (!entry.ok) return;
+      await addLibraryEntriesToCategories(db, [entry.value], [category.value]);
+    };
+
+    await add('Alpha Action', 'reading');
+    await add('Beta Action', 'completed');
+
+    const page = await fetchLibraryPage(db, {
+      ...DEFAULT_LIBRARY_VIEW_STATE,
+      filter: { categoryIds: [category.value], statuses: ['reading'], query: 'alpha' },
+    });
+
+    expect(page.items.map((item) => item.manga.canonicalTitle)).toEqual(['Alpha Action']);
+    expect(page.providers).toEqual([toProviderId('prov-a')]);
+    expect(page.categories.map((item) => item.name)).toEqual(['Action']);
   });
 });

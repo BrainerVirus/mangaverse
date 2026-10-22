@@ -1,0 +1,114 @@
+/**
+ * @vitest-environment jsdom
+ */
+import { describe, expect, it, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import {
+  toCategoryId,
+  toLibraryEntryId,
+  type LibraryCategory,
+  type LibraryEntryId,
+} from '@app/shared';
+import { BulkEditBar } from './BulkEditBar.js';
+import type { LibraryOrganizationAction } from '../types.js';
+
+const categories: LibraryCategory[] = [
+  { id: toCategoryId('action'), name: 'Action' },
+  { id: toCategoryId('drama'), name: 'Drama' },
+];
+const selected: LibraryEntryId[] = [toLibraryEntryId('entry-1'), toLibraryEntryId('entry-2')];
+
+function renderBulk(overrides: Partial<Parameters<typeof BulkEditBar>[0]> = {}) {
+  const props = {
+    selectionMode: true,
+    selectedEntryIds: selected,
+    visibleCount: 2,
+    allVisibleSelected: false,
+    categories,
+    onToggleSelectionMode: vi.fn<() => void>(),
+    onSelectAllVisible: vi.fn<() => void>(),
+    onClearSelection: vi.fn<() => void>(),
+    onOrganize: vi.fn<(action: LibraryOrganizationAction) => Promise<void>>(async () => {}),
+    ...overrides,
+  };
+  render(<BulkEditBar {...props} />);
+  return props;
+}
+
+describe('BulkEditBar', () => {
+  it('enters selection mode from the passive state', async () => {
+    const user = userEvent.setup();
+    const props = renderBulk({ selectionMode: false });
+
+    await user.click(screen.getByRole('button', { name: 'Select titles' }));
+    expect(props.onToggleSelectionMode).toHaveBeenCalledTimes(1);
+  });
+
+  it('favorites the selected titles', async () => {
+    const user = userEvent.setup();
+    const props = renderBulk();
+
+    await user.click(screen.getByRole('button', { name: 'Favorite selected' }));
+    expect(props.onOrganize).toHaveBeenCalledWith({
+      type: 'set_entries_favorite',
+      entryIds: selected,
+      favorite: true,
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Unfavorite selected' }));
+    expect(props.onOrganize).toHaveBeenCalledWith({
+      type: 'set_entries_favorite',
+      entryIds: selected,
+      favorite: false,
+    });
+  });
+
+  it('sets a status and adds categories to the selection', async () => {
+    const user = userEvent.setup();
+    const props = renderBulk();
+
+    const status = screen.getByLabelText('Set status for selected');
+    status.focus();
+    await user.keyboard('{ArrowDown}{Enter}');
+    expect(props.onOrganize).toHaveBeenCalledWith({
+      type: 'set_entries_status',
+      entryIds: selected,
+      status: 'reading',
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Bulk categories' }));
+    await user.click(screen.getByLabelText('Drama'));
+    await user.click(screen.getByRole('button', { name: 'Add to selected' }));
+    expect(props.onOrganize).toHaveBeenCalledWith({
+      type: 'add_entry_categories',
+      entryIds: selected,
+      categoryIds: [toCategoryId('drama')],
+    });
+  });
+
+  it('removes categories and clears the selection', async () => {
+    const user = userEvent.setup();
+    const props = renderBulk();
+
+    await user.click(screen.getByRole('button', { name: 'Bulk categories' }));
+    await user.click(screen.getByLabelText('Action'));
+    await user.click(screen.getByRole('button', { name: 'Remove from selected' }));
+    expect(props.onOrganize).toHaveBeenCalledWith({
+      type: 'remove_entry_categories',
+      entryIds: selected,
+      categoryIds: [toCategoryId('action')],
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Clear selection' }));
+    expect(props.onClearSelection).toHaveBeenCalledTimes(1);
+  });
+
+  it('selects all visible through the checkbox', async () => {
+    const user = userEvent.setup();
+    const props = renderBulk();
+
+    await user.click(screen.getByLabelText('Select all visible titles'));
+    expect(props.onSelectAllVisible).toHaveBeenCalledTimes(1);
+  });
+});

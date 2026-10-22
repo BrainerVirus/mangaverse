@@ -1,7 +1,15 @@
 import { useState } from 'react';
 import { Badge, Button, EmptyState, ErrorState, LoadingState } from '@app/design-system';
 import { CachedCoverImage, getDefaultProviderId } from '@app/cache';
-import { toReadableDescription, type ChapterId, type MangaId } from '@app/shared';
+import {
+  compareLibraryCategories,
+  toReadableDescription,
+  type CategoryId,
+  type ChapterId,
+  type LibraryCategory,
+  type MangaId,
+  type MangaIdentity,
+} from '@app/shared';
 import { Heart, Library, Trash2 } from 'lucide-react';
 import type { MangaDetailData } from '../types.js';
 import { ConfirmRemoveFromLibraryDialog } from './ConfirmRemoveFromLibraryDialog.js';
@@ -16,6 +24,7 @@ export interface MangaDetailPageProps {
   onAddToLibrary?: () => void;
   onRemoveFromLibrary?: () => void;
   onToggleFavorite?: () => void;
+  onCategoriesChange?: (categoryIds: readonly CategoryId[]) => void;
   isLibraryActionPending?: boolean;
 }
 
@@ -99,6 +108,55 @@ function LibraryActions({
   );
 }
 
+interface CategoryEditorProps {
+  categories: readonly LibraryCategory[];
+  selectedCategoryIds: readonly CategoryId[];
+  disabled: boolean;
+  onChange: (categoryIds: readonly CategoryId[]) => void;
+}
+
+function CategoryEditor({
+  categories,
+  selectedCategoryIds,
+  disabled,
+  onChange,
+}: CategoryEditorProps) {
+  const ordered = [...categories].sort(compareLibraryCategories);
+  const selectedSet = new Set(selectedCategoryIds);
+  if (ordered.length === 0) return null;
+
+  function toggle(categoryId: CategoryId): void {
+    const next = selectedSet.has(categoryId)
+      ? selectedCategoryIds.filter((id) => id !== categoryId)
+      : [...selectedCategoryIds, categoryId];
+    onChange(next);
+  }
+
+  return (
+    <fieldset className="flex flex-col gap-2" aria-label="Categories">
+      <legend className="text-sm font-medium text-muted-foreground">Categories</legend>
+      <div className="flex flex-wrap gap-2">
+        {ordered.map((category) => {
+          const selected = selectedSet.has(category.id);
+          return (
+            <Button
+              key={category.id}
+              type="button"
+              size="sm"
+              variant={selected ? 'default' : 'outline'}
+              aria-pressed={selected}
+              disabled={disabled}
+              onClick={() => toggle(category.id)}
+            >
+              {category.name}
+            </Button>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
 interface SummaryProps {
   data: MangaDetailData;
   onOpenChapter: (chapterId: ChapterId) => void;
@@ -106,18 +164,33 @@ interface SummaryProps {
   onAddToLibrary: (() => void) | undefined;
   onRemoveFromLibrary: (() => void) | undefined;
   onToggleFavorite: (() => void) | undefined;
+  onCategoriesChange: ((categoryIds: readonly CategoryId[]) => void) | undefined;
   isLibraryActionPending: boolean;
 }
 
-function MangaSummary({
-  data,
-  onOpenChapter,
-  onAddToLibrary,
-  onRemoveFromLibrary,
-  onToggleFavorite,
-  isLibraryActionPending,
-}: SummaryProps) {
-  const { manga, libraryEntry, continueChapterId } = data;
+function MangaSummaryHeader({ manga, inLibrary }: { manga: MangaIdentity; inLibrary: boolean }) {
+  return (
+    <div className="space-y-2">
+      <h1 className="text-3xl font-bold tracking-tight">{manga.canonicalTitle}</h1>
+
+      {manga.alternativeTitles.length > 0 ? (
+        <p className="text-sm text-muted-foreground">
+          {manga.alternativeTitles.map((title) => title.value).join(' · ')}
+        </p>
+      ) : null}
+
+      <div className="flex flex-wrap gap-2">
+        <Badge variant="secondary">{manga.status}</Badge>
+        {manga.contentRating !== 'safe' && manga.contentRating !== 'unknown' ? (
+          <Badge variant="destructive">{manga.contentRating}</Badge>
+        ) : null}
+        {inLibrary ? <Badge variant="outline">In library</Badge> : null}
+      </div>
+    </div>
+  );
+}
+
+function MangaFacts({ manga }: { manga: MangaIdentity }) {
   const authors = formatPeople(manga.authors);
   const artists = formatPeople(manga.artists);
   const description =
@@ -127,25 +200,7 @@ function MangaSummary({
   );
 
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-4">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">{manga.canonicalTitle}</h1>
-
-        {manga.alternativeTitles.length > 0 ? (
-          <p className="text-sm text-muted-foreground">
-            {manga.alternativeTitles.map((title) => title.value).join(' · ')}
-          </p>
-        ) : null}
-
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="secondary">{manga.status}</Badge>
-          {manga.contentRating !== 'safe' && manga.contentRating !== 'unknown' ? (
-            <Badge variant="destructive">{manga.contentRating}</Badge>
-          ) : null}
-          {libraryEntry !== undefined ? <Badge variant="outline">In library</Badge> : null}
-        </div>
-      </div>
-
+    <>
       <dl className="grid gap-2 text-sm">
         {authors !== undefined ? (
           <div>
@@ -182,14 +237,49 @@ function MangaSummary({
           ))}
         </div>
       ) : null}
+    </>
+  );
+}
 
-      {continueChapterId !== undefined ? (
-        <div className="flex flex-wrap gap-3">
-          <Button type="button" onClick={() => onOpenChapter(continueChapterId)}>
-            {libraryEntry?.lastReadChapterId !== undefined ? 'Continue reading' : 'Start reading'}
-          </Button>
-        </div>
-      ) : null}
+function ReadingAction({
+  continueChapterId,
+  hasLastReadChapter,
+  onOpenChapter,
+}: {
+  continueChapterId: ChapterId | undefined;
+  hasLastReadChapter: boolean;
+  onOpenChapter: (chapterId: ChapterId) => void;
+}) {
+  if (continueChapterId === undefined) return null;
+  return (
+    <div className="flex flex-wrap gap-3">
+      <Button type="button" onClick={() => onOpenChapter(continueChapterId)}>
+        {hasLastReadChapter ? 'Continue reading' : 'Start reading'}
+      </Button>
+    </div>
+  );
+}
+
+function MangaSummary({
+  data,
+  onOpenChapter,
+  onAddToLibrary,
+  onRemoveFromLibrary,
+  onToggleFavorite,
+  onCategoriesChange,
+  isLibraryActionPending,
+}: SummaryProps) {
+  const { manga, libraryEntry, continueChapterId } = data;
+
+  return (
+    <div className="flex min-w-0 flex-1 flex-col gap-4">
+      <MangaSummaryHeader manga={manga} inLibrary={libraryEntry !== undefined} />
+      <MangaFacts manga={manga} />
+      <ReadingAction
+        continueChapterId={continueChapterId}
+        hasLastReadChapter={libraryEntry?.lastReadChapterId !== undefined}
+        onOpenChapter={onOpenChapter}
+      />
 
       <LibraryActions
         libraryEntry={libraryEntry}
@@ -199,6 +289,15 @@ function MangaSummary({
         onToggleFavorite={onToggleFavorite}
         isLibraryActionPending={isLibraryActionPending}
       />
+
+      {libraryEntry !== undefined && onCategoriesChange !== undefined ? (
+        <CategoryEditor
+          categories={data.categories ?? []}
+          selectedCategoryIds={libraryEntry.categoryIds}
+          disabled={isLibraryActionPending}
+          onChange={onCategoriesChange}
+        />
+      ) : null}
     </div>
   );
 }
@@ -243,6 +342,7 @@ export function MangaDetailPage({
   onAddToLibrary,
   onRemoveFromLibrary,
   onToggleFavorite,
+  onCategoriesChange,
   isLibraryActionPending = false,
 }: MangaDetailPageProps) {
   if (isLoading) {
@@ -308,6 +408,7 @@ export function MangaDetailPage({
             onAddToLibrary={onAddToLibrary}
             onRemoveFromLibrary={onRemoveFromLibrary}
             onToggleFavorite={onToggleFavorite}
+            onCategoriesChange={onCategoriesChange}
             isLibraryActionPending={isLibraryActionPending}
           />
         </div>
