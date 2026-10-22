@@ -2,8 +2,9 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { MergePreview, UnmergeMappingPreview } from '@app/db';
 import {
   toCategoryId,
   toChapterId,
@@ -546,5 +547,321 @@ describe('MangaDetailPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Custom cover' }));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByLabelText('Cover image URL')).toHaveValue('');
+  });
+});
+
+const DUPLICATE_ID = toMangaId('dev-md-duplicate');
+const DUPLICATE_MAPPING = toProviderMappingId('map-duplicate');
+
+const duplicateCandidate = {
+  mangaId: DUPLICATE_ID,
+  canonicalTitle: 'Kuro no Shoukanshi',
+  providerIds: ['prov-b'],
+  score: 0.9,
+  confidence: 'high' as const,
+  matchedTitle: 'Kuro no Shoukanshi',
+};
+
+function mergePreview(): MergePreview {
+  const targetEntry = {
+    id: 'entry-1',
+    status: 'reading' as const,
+    favorite: false,
+    categoryIds: ['cat-a'],
+    unreadCount: 2,
+    progressPercent: 40,
+    lastReadChapterId: toChapterId('chapter-1'),
+  };
+  return {
+    target: {
+      mangaId: MANGA_ID,
+      canonicalTitle: 'Kuro no Shoukanshi',
+      merged: false,
+      providerIds: ['prov-a'],
+      mappingCount: 1,
+      chapterCount: 2,
+      readChapterCount: 1,
+      trackingLinkCount: 0,
+      hasUserOverrides: false,
+      defaultProviderMappingId: toProviderMappingId(MAP_A),
+      libraryEntry: targetEntry,
+    },
+    source: {
+      mangaId: DUPLICATE_ID,
+      canonicalTitle: 'Kuro no Shoukanshi',
+      merged: false,
+      providerIds: ['prov-b'],
+      mappingCount: 1,
+      chapterCount: 1,
+      readChapterCount: 0,
+      trackingLinkCount: 0,
+      hasUserOverrides: false,
+      defaultProviderMappingId: DUPLICATE_MAPPING,
+    },
+    mappings: [
+      {
+        id: toProviderMappingId(MAP_A),
+        providerId: 'prov-a',
+        providerMangaId: 'remote-a',
+        side: 'target',
+        action: 'keep',
+        isTargetDefault: true,
+        isSourceDefault: false,
+        isTargetPreferred: false,
+        isSourcePreferred: false,
+      },
+      {
+        id: DUPLICATE_MAPPING,
+        providerId: 'prov-b',
+        providerMangaId: 'remote-b',
+        side: 'source',
+        action: 'move',
+        isTargetDefault: false,
+        isSourceDefault: true,
+        isTargetPreferred: false,
+        isSourcePreferred: false,
+      },
+    ],
+    duplicateMappingCount: 0,
+    duplicateChapterCount: 0,
+    resultDefaultMappingId: toProviderMappingId(MAP_A),
+    canMerge: true,
+    issues: [
+      {
+        code: 'identity.merge.both_in_library',
+        message: 'Both titles are in your library.',
+        severity: 'warning',
+      },
+    ],
+  };
+}
+
+function unmergePreview(): UnmergeMappingPreview {
+  return {
+    mangaId: MANGA_ID,
+    canonicalTitle: 'Kuro no Shoukanshi',
+    mapping: {
+      id: toProviderMappingId(MAP_B),
+      providerId: 'prov-b',
+      providerMangaId: 'remote-b',
+    },
+    chapterCount: 1,
+    readChapterCount: 1,
+    historyCount: 0,
+    remainingMappingCount: 1,
+    trackingLinkCount: 0,
+    libraryActiveMappingWillChange: false,
+    libraryLastReadWillChange: true,
+    canUnmerge: true,
+    issues: [
+      {
+        code: 'identity.unmerge.library_progress',
+        message: 'Reading progress for the moved chapters follows the new title.',
+        severity: 'warning',
+      },
+    ],
+  };
+}
+
+describe('MangaDetailPage identity merge', () => {
+  it('Given duplicate detection states, Then loading, empty and candidate rows are rendered without provider calls', () => {
+    const view = render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={makeDetail()}
+        isLoading={false}
+        isError={false}
+        onOpenChapter={() => {}}
+        duplicates={{ isLoading: true }}
+      />,
+    );
+
+    expect(screen.getByRole('region', { name: 'Possible duplicates' })).toBeInTheDocument();
+
+    view.rerender(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={makeDetail()}
+        isLoading={false}
+        isError={false}
+        onOpenChapter={() => {}}
+        duplicates={{ items: [] }}
+      />,
+    );
+    expect(screen.getByText('No possible duplicates found.')).toBeInTheDocument();
+
+    view.rerender(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={makeDetail()}
+        isLoading={false}
+        isError={false}
+        onOpenChapter={() => {}}
+        duplicates={{ items: [duplicateCandidate] }}
+        onMerge={async () => {}}
+        loadMergePreview={async () => mergePreview()}
+      />,
+    );
+    expect(screen.getByText(/90% match/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Merge' })).toBeInTheDocument();
+  });
+
+  it('Given a candidate, When merging, Then the preview lists both titles, mappings and warnings before the confirmed write', async () => {
+    const onMerge = vi.fn<(input: { targetId: string; sourceId: string }) => Promise<void>>(
+      async () => {},
+    );
+    const onMerged = vi.fn<(targetId: string) => void>();
+    const loadPreview = vi.fn<() => Promise<MergePreview>>(async () => mergePreview());
+
+    render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={makeDetail({ libraryEntry: inLibrary })}
+        isLoading={false}
+        isError={false}
+        providerLabels={{ 'prov-a': 'Provider A', 'prov-b': 'Provider B' }}
+        onOpenChapter={() => {}}
+        duplicates={{ items: [duplicateCandidate] }}
+        onMerge={onMerge}
+        onMerged={onMerged}
+        loadMergePreview={loadPreview}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Merge' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Merge duplicates')).toBeInTheDocument();
+    expect(loadPreview).toHaveBeenCalledWith(MANGA_ID, DUPLICATE_ID);
+    expect(await within(dialog).findByRole('region', { name: 'Kept title' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('region', { name: 'Merged title' })).toBeInTheDocument();
+    expect(within(dialog).getByText('Provider B')).toBeInTheDocument();
+    expect(within(dialog).getByText('Both titles are in your library.')).toBeInTheDocument();
+    expect(onMerge).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Merge titles' }));
+    await waitFor(() =>
+      expect(onMerge).toHaveBeenCalledWith({ targetId: MANGA_ID, sourceId: DUPLICATE_ID }),
+    );
+    await waitFor(() => expect(onMerged).toHaveBeenCalledWith(MANGA_ID));
+  });
+
+  it('Given a candidate, When the candidate is kept instead, Then the preview reloads for the reversed target and confirm uses it', async () => {
+    const user = userEvent.setup();
+    const onMerge = vi.fn<(input: { targetId: string; sourceId: string }) => Promise<void>>(
+      async () => {},
+    );
+    const loadPreview = vi.fn<() => Promise<MergePreview>>(async () => mergePreview());
+
+    render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={makeDetail()}
+        isLoading={false}
+        isError={false}
+        onOpenChapter={() => {}}
+        duplicates={{ items: [duplicateCandidate] }}
+        onMerge={onMerge}
+        loadMergePreview={loadPreview}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Merge' }));
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByRole('region', { name: 'Kept title' });
+
+    await user.click(within(dialog).getByLabelText('Keep title'));
+    await user.click(screen.getByRole('option', { name: 'Kuro no Shoukanshi' }));
+    await waitFor(() => expect(loadPreview).toHaveBeenLastCalledWith(DUPLICATE_ID, MANGA_ID));
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Merge titles' }));
+    await waitFor(() =>
+      expect(onMerge).toHaveBeenCalledWith({ targetId: DUPLICATE_ID, sourceId: MANGA_ID }),
+    );
+  });
+
+  it('Given a merged title, When splitting a provider source, Then the dialog warns about moving progress and confirms first', async () => {
+    const onUnmerge = vi.fn<(mappingId: string) => Promise<void>>(async () => {});
+    const loadPreview = vi.fn<() => Promise<UnmergeMappingPreview>>(async () => unmergePreview());
+    const detail = makeDetail({
+      manga: {
+        ...makeDetail().manga,
+        providerMappings: [
+          mapping(MAP_A, 'prov-a', 'remote-a'),
+          mapping(MAP_B, 'prov-b', 'remote-b'),
+        ],
+        defaultProviderMappingId: toProviderMappingId(MAP_A),
+      },
+    });
+
+    render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={detail}
+        isLoading={false}
+        isError={false}
+        providerLabels={{ 'prov-a': 'Provider A', 'prov-b': 'Provider B' }}
+        onOpenChapter={() => {}}
+        onUnmerge={onUnmerge}
+        loadUnmergePreview={loadPreview}
+      />,
+    );
+
+    const providers = screen.getByRole('region', { name: 'Providers' });
+    const row = within(providers)
+      .getByText(/remote-b/)
+      .closest('li');
+    if (row === null) throw new Error('provider row missing');
+    fireEvent.click(within(row).getByRole('button', { name: 'Split title' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(loadPreview).toHaveBeenCalledWith(MAP_B);
+    expect(
+      await within(dialog).findByText(
+        'Reading progress for the moved chapters follows the new title.',
+      ),
+    ).toBeInTheDocument();
+    expect(onUnmerge).not.toHaveBeenCalled();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Split source' }));
+    await waitFor(() => expect(onUnmerge).toHaveBeenCalledWith(MAP_B));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('Given an unmerge preview failure, Then the dialog shows the error and keeps confirming disabled', async () => {
+    const detail = makeDetail({
+      manga: {
+        ...makeDetail().manga,
+        providerMappings: [
+          mapping(MAP_A, 'prov-a', 'remote-a'),
+          mapping(MAP_B, 'prov-b', 'remote-b'),
+        ],
+        defaultProviderMappingId: toProviderMappingId(MAP_A),
+      },
+    });
+
+    render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={detail}
+        isLoading={false}
+        isError={false}
+        onOpenChapter={() => {}}
+        onUnmerge={async () => {}}
+        loadUnmergePreview={async () => {
+          throw new Error('Preview failed');
+        }}
+      />,
+    );
+
+    const providers = screen.getByRole('region', { name: 'Providers' });
+    const row = within(providers)
+      .getByText(/remote-b/)
+      .closest('li');
+    if (row === null) throw new Error('provider row missing');
+    fireEvent.click(within(row).getByRole('button', { name: 'Split title' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Preview failed');
+    expect(within(dialog).getByRole('button', { name: 'Split source' })).toBeDisabled();
   });
 });

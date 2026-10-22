@@ -12,6 +12,7 @@ export interface MangaProviderSwitcherProps {
   onSelectMapping?: (mappingId: ProviderMappingId) => Promise<void> | void;
   onSetDefault?: (mappingId: ProviderMappingId) => Promise<void> | void;
   onSetPreferred?: (mappingId: ProviderMappingId) => Promise<void> | void;
+  onUnmergeMapping?: (mappingId: ProviderMappingId) => Promise<void> | void;
 }
 
 export function MangaProviderSwitcher({
@@ -24,6 +25,7 @@ export function MangaProviderSwitcher({
   onSelectMapping,
   onSetDefault,
   onSetPreferred,
+  onUnmergeMapping,
 }: MangaProviderSwitcherProps) {
   const [error, setError] = useState<string | undefined>();
 
@@ -98,6 +100,17 @@ export function MangaProviderSwitcher({
                       onClick={() => run(() => onSetPreferred(mapping.id))}
                     >
                       Use for chapters
+                    </Button>
+                  ) : null}
+                  {mappings.length > 1 && onUnmergeMapping !== undefined ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      disabled={isPending}
+                      onClick={() => run(() => onUnmergeMapping(mapping.id))}
+                    >
+                      Split title
                     </Button>
                   ) : null}
                 </div>
