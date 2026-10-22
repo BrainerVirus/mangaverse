@@ -80,6 +80,26 @@ describe('provider manifest', () => {
     expect(res.value.capabilityDetails?.[0]?.key).toBe('discovery.search');
   });
 
+  it('validateProviderManifest accepts declared settings support', () => {
+    const res = validateProviderManifest({
+      ...validManifestInput,
+      settingsSupport: {
+        regionLocales: ['en-US', 'ja-JP'],
+        defaultSorts: ['latest', 'popular'],
+        providerOptionKeys: ['quality'],
+      },
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error('expected res.ok to be true');
+    expect(res.value.settingsSupport?.defaultSorts).toEqual(['latest', 'popular']);
+  });
+
+  it('validateProviderManifest rejects empty settings support lists', () => {
+    expect(
+      validateProviderManifest({ ...validManifestInput, settingsSupport: { defaultSorts: [] } }).ok,
+    ).toBe(false);
+  });
+
   it('validateProviderManifest rejects invalid capability details', () => {
     const res = validateProviderManifest({
       ...validManifestInput,

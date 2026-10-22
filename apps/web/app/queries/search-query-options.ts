@@ -37,7 +37,7 @@ export function searchProviderQueryOptions(
 
   return queryOptions({
     queryKey: searchQueryKeys.provider(trimmed, explicitContent),
-    queryFn: ({ signal }) => fetchProviderSearchIdentities(db, trimmed, signal),
+    queryFn: ({ signal }) => fetchProviderSearchIdentities(db, trimmed, signal, explicitContent),
     placeholderData: keepPreviousData,
     staleTime: QUERY_STALE_TIMES.search,
     gcTime: QUERY_GC_TIMES.search,

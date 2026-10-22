@@ -1,4 +1,10 @@
-import type { ContentRating, MangaTitle, ProviderManifest, ProviderMangaId } from '@app/shared';
+import type {
+  ContentRating,
+  MangaTitle,
+  ProviderManifest,
+  ProviderMangaId,
+  ProviderSettingsValues,
+} from '@app/shared';
 
 export type ProviderMethodName =
   | 'search'
@@ -27,6 +33,8 @@ export interface ProviderRequest {
 export interface ProviderContext {
   readonly manifest: ProviderManifest;
   readonly providerId: string;
+  /** User settings for this provider; providers fall back to their documented defaults. */
+  readonly settings?: ProviderSettingsValues;
   readonly signal?: AbortSignal;
 }
 

@@ -79,6 +79,16 @@ export interface ProviderSourceInfo {
   readonly publisher?: string;
 }
 
+/**
+ * Which optional provider settings the provider actually consumes. Settings
+ * without an entry here must not be offered in the UI.
+ */
+export interface ProviderSettingsSupport {
+  readonly regionLocales?: readonly string[];
+  readonly defaultSorts?: readonly string[];
+  readonly providerOptionKeys?: readonly string[];
+}
+
 export interface ProviderManifest {
   readonly id: ProviderId;
   readonly name: string;
@@ -88,6 +98,7 @@ export interface ProviderManifest {
   readonly compatibility: ProviderCompatibility;
   readonly capabilities: ProviderCapabilityMap;
   readonly capabilityDetails?: readonly ProviderCapabilityDetail[];
+  readonly settingsSupport?: ProviderSettingsSupport;
   readonly permissions: readonly ProviderPermission[];
   readonly languages: readonly string[];
   readonly contentFlags: ProviderContentFlags;
@@ -191,6 +202,26 @@ const capabilityDetailSchema = z.object(
   { error: 'Each capability detail must be an object.' },
 );
 
+const providerSettingsSupportSchema = z
+  .object(
+    {
+      regionLocales: z
+        .array(nonEmptyString('settingsSupport.regionLocales must be non-empty strings.'))
+        .min(1, { error: 'settingsSupport.regionLocales must be a non-empty array.' })
+        .exactOptional(),
+      defaultSorts: z
+        .array(nonEmptyString('settingsSupport.defaultSorts must be non-empty strings.'))
+        .min(1, { error: 'settingsSupport.defaultSorts must be a non-empty array.' })
+        .exactOptional(),
+      providerOptionKeys: z
+        .array(nonEmptyString('settingsSupport.providerOptionKeys must be non-empty strings.'))
+        .min(1, { error: 'settingsSupport.providerOptionKeys must be a non-empty array.' })
+        .exactOptional(),
+    },
+    { error: 'Manifest settingsSupport must be an object.' },
+  )
+  .exactOptional();
+
 const providerManifestSchema = z.object(
   {
     id: nonEmptyString('Manifest id is required.'),
@@ -234,6 +265,7 @@ const providerManifestSchema = z.object(
     capabilityDetails: z
       .array(capabilityDetailSchema, { error: 'Manifest capabilityDetails must be an array.' })
       .exactOptional(),
+    settingsSupport: providerSettingsSupportSchema,
     permissions: z
       .array(
         z.enum(PERMISSION_KEYS, { error: 'Manifest permissions contains unknown permission.' }),
@@ -312,6 +344,7 @@ export function validateProviderManifest(input: unknown): AppResult<ProviderMani
     },
     capabilities: data.capabilities,
     ...(data.capabilityDetails !== undefined ? { capabilityDetails: data.capabilityDetails } : {}),
+    ...(data.settingsSupport !== undefined ? { settingsSupport: data.settingsSupport } : {}),
     permissions: data.permissions,
     languages: data.languages,
     contentFlags: data.contentFlags,

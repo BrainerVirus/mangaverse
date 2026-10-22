@@ -25,6 +25,10 @@ export const MANGADEX_MANIFEST: ProviderManifest = {
     'metadata.details': true,
     'metadata.chapters': true,
     'metadata.pages': true,
+    'metadata.languages': true,
+    'content.nsfw': true,
+    'content.ratingFilter': true,
+    'content.tagFilter': true,
     'ops.officialApi': true,
   },
   capabilityDetails: [
@@ -32,9 +36,14 @@ export const MANGADEX_MANIFEST: ProviderManifest = {
     {
       key: 'metadata.chapters',
       supported: true,
-      knownRestrictions: ['Only English-translated chapters are requested in v1.'],
+      knownRestrictions: [
+        'Translated chapters follow the preferred languages; English by default.',
+      ],
     },
   ],
+  settingsSupport: {
+    defaultSorts: ['latest', 'popular'],
+  },
   permissions: ['network.http'],
   languages: ['en'],
   contentFlags: {

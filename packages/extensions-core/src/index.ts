@@ -25,8 +25,15 @@ export type { ExtensionInstallPolicy } from './install-policy.js';
 export { validateManifestInstallPolicy } from './install-policy.js';
 export { confirmExtensionInstall } from './confirm-install.js';
 export type { ExtensionCoreDependencies } from './confirm-install.js';
-export { importExtensionRegistry } from './registry-import.js';
+export {
+  exportExtensionRegistryData,
+  fetchExtensionRegistryDocumentFromUrl,
+  importExtensionRegistry,
+  parseExtensionRegistryDocument,
+} from './registry-import.js';
 export type {
+  ExtensionRegistryExport,
+  ExtensionRegistryExportEntry,
   ExtensionRegistryImportDocument,
   ExtensionRegistryImportResult,
 } from './registry-import.js';
