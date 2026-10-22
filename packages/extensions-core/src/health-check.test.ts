@@ -10,6 +10,7 @@ import type { ExtensionInstallPreview } from './install-types.js';
 import {
   listInstalledProviders,
   disableInstalledProvider,
+  enableInstalledProvider,
   markProviderBroken,
 } from './providers-ops.js';
 import { parseSemver, compareSemver, runProviderHealthCheck } from './health-check.js';
@@ -95,6 +96,15 @@ describe('semver helpers', () => {
     expect(parseSemver('1.2.3-01')).toBeNull();
     expect(compareSemver('1.2.3', 'not-a-version')).toBeNull();
   });
+
+  it('rejects leading zeros in core identifiers while keeping ordering', () => {
+    expect(parseSemver('01.2.3')).toBeNull();
+    expect(parseSemver('1.02.3')).toBeNull();
+    expect(parseSemver('1.2.03')).toBeNull();
+    expect(parseSemver('0.1.2')).toEqual([0, 1, 2, null]);
+    expect(compareSemver('1.10.0', '1.9.0')).toBeGreaterThan(0);
+    expect(compareSemver('1.2.3', '01.2.3')).toBeNull();
+  });
 });
 
 describe('runProviderHealthCheck', () => {
@@ -130,7 +140,7 @@ describe('runProviderHealthCheck', () => {
     expect(installed.value[0]?.health).toBe('broken');
   });
 
-  it('reports a transient network failure as degraded without persisting broken', async () => {
+  it('stores degraded for a transient network failure without persisting broken', async () => {
     const { db } = await createSqlJsHarness();
     await install(db);
 
@@ -148,9 +158,56 @@ describe('runProviderHealthCheck', () => {
     expect(report.checks.find((item) => item.id === 'network')?.status).toBe('degraded');
     const installed = await listInstalledProviders(db);
     if (!installed.ok) throw new Error('expected installed list');
-    expect(installed.value[0]?.health).toBe('ok');
+    expect(installed.value[0]?.health).toBe('degraded');
+    expect(installed.value[0]?.enabled).toBe(true);
     const activity = await listProviderActivity(db, providerId);
     expect(activity[0]?.code).toBe('extensions.health.degraded');
+  });
+
+  it('clears a broken health to degraded when only the network probe fails', async () => {
+    const { db } = await createSqlJsHarness();
+    await install(db);
+    await markProviderBroken(providerId, { code: 'x', message: 'broken' }, { db });
+    expect((await enableInstalledProvider(providerId, { db })).ok).toBe(true);
+
+    const report = await runProviderHealthCheck(providerId, {
+      db,
+      runtimeAvailable: () => true,
+      includeNetwork: true,
+      networkProbe: async () => {
+        throw new Error('Network still down');
+      },
+    });
+
+    expect(report.status).toBe('degraded');
+    const installed = await listInstalledProviders(db);
+    if (!installed.ok) throw new Error('expected installed list');
+    expect(installed.value[0]?.health).toBe('degraded');
+    expect(installed.value[0]?.enabled).toBe(true);
+    const activity = await listProviderActivity(db, providerId);
+    expect(activity[0]?.code).toBe('extensions.health.degraded');
+  });
+
+  it('does not roll back an enable/disable change made during the check', async () => {
+    const { db } = await createSqlJsHarness();
+    await install(db);
+
+    const report = await runProviderHealthCheck(providerId, {
+      db,
+      runtimeAvailable: () => true,
+      includeNetwork: true,
+      networkProbe: async () => {
+        const disabled = await disableInstalledProvider(providerId, { db });
+        expect(disabled.ok).toBe(true);
+        throw new Error('Network down');
+      },
+    });
+
+    expect(report.status).toBe('degraded');
+    const installed = await listInstalledProviders(db);
+    if (!installed.ok) throw new Error('expected installed list');
+    expect(installed.value[0]?.enabled).toBe(false);
+    expect(installed.value[0]?.health).toBe('degraded');
   });
 
   it('treats a cancelled network check as degraded', async () => {
@@ -189,6 +246,14 @@ describe('runProviderHealthCheck', () => {
     const installed = await listInstalledProviders(db);
     if (!installed.ok) throw new Error('expected installed list');
     expect(installed.value[0]?.health).toBe('ok');
+
+    // markProviderBroken disables the provider; a recovered check must let the
+    // user turn it back on instead of leaving the toggle stuck disabled.
+    const enabled = await enableInstalledProvider(providerId, { db });
+    expect(enabled.ok).toBe(true);
+    const afterEnable = await listInstalledProviders(db);
+    if (!afterEnable.ok) throw new Error('expected installed list');
+    expect(afterEnable.value[0]?.enabled).toBe(true);
   });
 
   it('fails when capability details reference an undeclared capability', async () => {

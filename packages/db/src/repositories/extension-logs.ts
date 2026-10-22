@@ -1,4 +1,4 @@
-import { and, desc, eq, like, notInArray } from 'drizzle-orm';
+import { and, desc, eq, like, notInArray, sql } from 'drizzle-orm';
 import type { AppDrizzleDb } from '../adapter.js';
 import { extensionLogs } from '../schema.js';
 
@@ -46,7 +46,7 @@ function prune(db: AppDrizzleDb, providerId: string): void {
     .select({ id: extensionLogs.id })
     .from(extensionLogs)
     .where(eq(extensionLogs.providerId, providerId))
-    .orderBy(desc(extensionLogs.createdAt), desc(extensionLogs.id))
+    .orderBy(desc(extensionLogs.createdAt), desc(sql`extension_logs.rowid`))
     .limit(EXTENSION_LOG_RETENTION_PER_PROVIDER)
     .all()
     .map((row) => row.id);
@@ -57,7 +57,7 @@ function prune(db: AppDrizzleDb, providerId: string): void {
   const globalIds = db
     .select({ id: extensionLogs.id })
     .from(extensionLogs)
-    .orderBy(desc(extensionLogs.createdAt), desc(extensionLogs.id))
+    .orderBy(desc(extensionLogs.createdAt), desc(sql`extension_logs.rowid`))
     .limit(EXTENSION_LOG_RETENTION_GLOBAL)
     .all()
     .map((row) => row.id);
@@ -91,7 +91,7 @@ export async function listExtensionLogs(
   const query = db.select().from(extensionLogs);
   const filtered = conditions.length > 0 ? query.where(and(...conditions)) : query;
   const rows = filtered
-    .orderBy(desc(extensionLogs.createdAt), desc(extensionLogs.id))
+    .orderBy(desc(extensionLogs.createdAt), desc(sql`extension_logs.rowid`))
     .limit(filter.limit ?? 100)
     .all();
 

@@ -1,5 +1,5 @@
 import type { AppDrizzleDb } from '@app/db';
-import { listInstalledExtensions, upsertInstalledExtension } from '@app/db';
+import { listInstalledExtensions, updateInstalledExtensionHealth } from '@app/db';
 import type { ExtensionInstallMetadata } from '@app/shared';
 import { validateProviderManifest } from '@app/shared';
 
@@ -36,7 +36,7 @@ export interface ProviderHealthCheckDependencies {
 }
 
 const SEMVER =
-  /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
+  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 
 /**
  * Strict enough to compare safely; malformed versions are rejected, not
@@ -162,12 +162,8 @@ function updateHealth(
   db: AppDrizzleDb,
   metadata: ExtensionInstallMetadata,
   status: ProviderHealthStatus,
-): Promise<unknown> {
-  return upsertInstalledExtension(db, {
-    ...metadata,
-    health: status,
-    updatedAt: new Date().toISOString(),
-  });
+): Promise<void> {
+  return updateInstalledExtensionHealth(db, String(metadata.id), status);
 }
 
 /**
@@ -313,10 +309,13 @@ export async function runProviderHealthCheck(
       ? 'degraded'
       : 'ok';
 
+  // A structural pass always replaces a stale broken/unknown health, including
+  // when only the optional network probe failed (degraded). Structural failures
+  // remain broken until a later check actually passes.
   if (status === 'broken') {
     await updateHealth(deps.db, metadata, 'broken');
-  } else if (status === 'ok' && metadata.health !== 'ok') {
-    await updateHealth(deps.db, metadata, 'ok');
+  } else if (metadata.health !== status) {
+    await updateHealth(deps.db, metadata, status);
   }
 
   const passed = checks.filter((item) => item.status === 'pass').length;
