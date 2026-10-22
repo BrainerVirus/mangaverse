@@ -639,6 +639,7 @@ describe('/search route', () => {
         'prov-b',
         'berserk',
         expect.any(AbortSignal),
+        false,
       ),
     );
     expect(

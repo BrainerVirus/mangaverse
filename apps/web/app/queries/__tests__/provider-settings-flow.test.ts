@@ -28,6 +28,8 @@ const binding = {
 
 vi.mock('../../lib/provider-registry.js', () => ({
   listProviderBindings: () => [binding],
+  getProviderBinding: () => binding,
+  getBindingForChapterId: () => null,
   resolveInstalledProvider: mocks.resolveInstalledProvider,
   resolveInstalledProviderFrom: mocks.resolveInstalledProviderFrom,
   readInstalledExtensions: mocks.readInstalledExtensions,
@@ -71,7 +73,7 @@ describe('provider calls receive saved settings', () => {
     mocks.resolveInstalledProvider.mockResolvedValue(provider);
     const { fetchProviderSearchIdentities } = await import('../provider-query-options.js');
 
-    await fetchProviderSearchIdentities(db, 'query', undefined, false);
+    await fetchProviderSearchIdentities(db, 'fake', 'query', undefined, false);
 
     expect(mocks.loadProviderSettings).toHaveBeenCalledWith(db, 'fake');
     expect(contexts[0]?.settings).toEqual({
@@ -86,7 +88,7 @@ describe('provider calls receive saved settings', () => {
     mocks.resolveInstalledProvider.mockResolvedValue(provider);
     const { fetchProviderSearchIdentities } = await import('../provider-query-options.js');
 
-    await fetchProviderSearchIdentities(db, 'query', undefined, true);
+    await fetchProviderSearchIdentities(db, 'fake', 'query', undefined, true);
 
     expect(contexts[0]?.settings).toEqual({
       nsfwAllowed: true,
