@@ -19,6 +19,8 @@ export function useReaderKeyboard({
   scrollHandle,
   verticalTarget,
   verticalTargetPending,
+  disabled = false,
+  onClose,
 }: {
   readonly sessionInput: ReaderSessionInput | null;
   readonly navigate: (action: ReaderNavigationAction) => void;
@@ -26,17 +28,41 @@ export function useReaderKeyboard({
   readonly scrollHandle: { readonly current: ReaderScrollViewHandle | null };
   readonly verticalTarget: { current: number };
   readonly verticalTargetPending: { current: boolean };
+  readonly disabled?: boolean;
+  readonly onClose?: (() => void) | undefined;
 }): void {
   // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: a window-level keydown listener, bound and unbound with the session
   useEffect(() => {
-    if (!sessionInput) return;
-
-    const pageCount = sessionInput.chapter.pageCount;
+    const pageCount = sessionInput?.chapter.pageCount ?? 0;
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (disabled || event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey)
+        return;
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+      const target = event.target instanceof Element ? event.target : null;
+      if (event.key === 'Escape' && onClose) {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      // Typing and slider/select keys belong to the control. Arrows on a focused
+      // button still page: closing the settings sheet returns focus to its
+      // trigger and must not deaden the reader.
+      if (
+        target?.closest(
+          'input, textarea, select, [contenteditable="true"], [role="combobox"], [role="slider"]',
+        )
+      )
+        return;
+      if (event.key === ' ' && target?.closest('button, a, [role="button"]')) return;
+      if (!sessionInput) return;
       const action = resolveKeyboardAction(event, sessionInput.settings);
       if (action.type === 'none') return;
       event.preventDefault();
       if (sessionInput.settings.readingMode === 'vertical') {
+        if (action.type === 'nextPage' && verticalTarget.current >= pageCount - 1) {
+          navigate(action);
+          return;
+        }
         // In the continuous strip, navigation moves the scroll position to the
         // target page's centre; the target advances on the press itself, so a
         // burst of presses is never resolved from a stale (centre-based) index.
@@ -63,7 +89,16 @@ export function useReaderKeyboard({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [navigate, reducedMotion, scrollHandle, sessionInput, verticalTarget, verticalTargetPending]);
+  }, [
+    disabled,
+    navigate,
+    onClose,
+    reducedMotion,
+    scrollHandle,
+    sessionInput,
+    verticalTarget,
+    verticalTargetPending,
+  ]);
 }
 
 /**
