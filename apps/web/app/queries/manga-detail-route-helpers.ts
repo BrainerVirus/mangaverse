@@ -65,12 +65,9 @@ function requireDb(db: AppDrizzleDb | null): AppDrizzleDb {
 async function refreshUnreadForMapping(
   db: AppDrizzleDb,
   mangaId: MangaId,
-  data: MangaDetailData | null | undefined,
   mappingId: ProviderMappingId,
 ): Promise<void> {
-  const mapping = data?.manga.providerMappings.find((item) => item.id === mappingId);
-  if (mapping === undefined) return;
-  await refreshLibraryUnreadCount(db, mangaId, String(mapping.providerId));
+  await refreshLibraryUnreadCount(db, mangaId, mappingId);
 }
 
 export async function runProviderAction(
@@ -88,7 +85,7 @@ export async function runProviderAction(
         action.mappingId,
       );
       if (!result.ok) throw new Error(result.error.message);
-      await refreshUnreadForMapping(ready, mangaId, data, action.mappingId);
+      await refreshUnreadForMapping(ready, mangaId, action.mappingId);
       return;
     }
     // Outside the library there is no active-mapping column, so the switch is
@@ -115,7 +112,7 @@ export async function runProviderAction(
     );
     if (!active.ok) throw new Error(active.error.message);
   }
-  await refreshUnreadForMapping(ready, mangaId, data, action.mappingId);
+  await refreshUnreadForMapping(ready, mangaId, action.mappingId);
 }
 
 export async function runCoverAction(
@@ -203,11 +200,12 @@ export function countChaptersForMapping(
   return data.chapters.filter((chapter) => chapter.providerMappingId === mapping.id).length;
 }
 
+/** Kept outside `libraryQueryKeys.all`: hydrating invalidates the library, not itself. */
 export function chapterHydrationQueryKey(
   mangaId: MangaId,
   mapping: MangaProviderMapping | undefined,
 ): readonly unknown[] {
-  return [...libraryQueryKeys.detail(mangaId), 'chapters', mapping?.id ?? 'none'];
+  return ['manga-detail-chapters', mangaId, mapping?.id ?? 'none'];
 }
 
 export function queryErrorMessage(error: unknown): string | undefined {

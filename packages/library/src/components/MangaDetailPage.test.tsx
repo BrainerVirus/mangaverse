@@ -346,6 +346,58 @@ describe('MangaDetailPage', () => {
     expect(chapterButtons).toHaveLength(1);
   });
 
+  it('Given a viewed mapping, When a newer snapshot changes the active mapping, Then the persisted mapping wins', () => {
+    const entry = {
+      ...inLibrary,
+      activeProviderMappingId: toProviderMappingId(MAP_A),
+    };
+    const detail = makeDetail({
+      manga: {
+        ...makeDetail().manga,
+        providerMappings: [
+          mapping(MAP_A, 'prov-a', 'remote-a'),
+          mapping(MAP_B, 'prov-b', 'remote-b'),
+        ],
+        defaultProviderMappingId: toProviderMappingId(MAP_A),
+      },
+      chapters: [
+        { ...chapter('a-1', 1, MAP_A), title: 'Alpha chapter' },
+        { ...chapter('b-1', 1, MAP_B), title: 'Beta chapter' },
+      ],
+      libraryEntry: entry,
+    });
+
+    const view = render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={detail}
+        isLoading={false}
+        isError={false}
+        providerLabels={{ 'prov-a': 'Provider A', 'prov-b': 'Provider B' }}
+        onOpenChapter={() => {}}
+        onSelectProvider={async () => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'View chapters' }));
+    expect(screen.getByText('Beta chapter')).toBeInTheDocument();
+
+    view.rerender(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={{ ...detail, libraryEntry: { ...entry } }}
+        isLoading={false}
+        isError={false}
+        providerLabels={{ 'prov-a': 'Provider A', 'prov-b': 'Provider B' }}
+        onOpenChapter={() => {}}
+        onSelectProvider={async () => {}}
+      />,
+    );
+
+    expect(screen.getByText('Alpha chapter')).toBeInTheDocument();
+    expect(screen.queryByText('Beta chapter')).toBeNull();
+  });
+
   it('shows tracking links only when the title carries them', () => {
     const withTracking = makeDetail({
       manga: {
@@ -356,6 +408,11 @@ describe('MangaDetailPage', () => {
             externalId: 'anilist-1',
             externalUrl: 'https://anilist.co/manga/1',
             lastSyncedAt: '2026-01-01T00:00:00Z',
+          },
+          {
+            service: 'Imported',
+            externalId: 'imported-1',
+            externalUrl: 'javascript:alert(1)',
           },
         ],
       },
@@ -376,6 +433,9 @@ describe('MangaDetailPage', () => {
       'https://anilist.co/manga/1',
     );
     expect(screen.getByText('synced 2026-01-01T00:00:00Z')).toBeInTheDocument();
+    // An imported non-http URL renders as text, never as a link.
+    expect(screen.getByText('imported-1').tagName).toBe('SPAN');
+    expect(screen.queryByRole('link', { name: /imported-1/ })).toBeNull();
 
     view.rerender(
       <MangaDetailPage

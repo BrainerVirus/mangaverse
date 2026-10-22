@@ -11,7 +11,13 @@ import {
   upsertChapterWithPages,
 } from '@app/db';
 import { createSqlJsHarness } from '@app/db/testing';
-import { toChapterPageId, type ChapterId } from '@app/shared';
+import {
+  toChapterId,
+  toChapterPageId,
+  toProviderId,
+  type ChapterId,
+  type ChapterPage,
+} from '@app/shared';
 
 import { persistChapterPagesToDb } from '../manga-detail-persist.js';
 
@@ -63,5 +69,51 @@ describe('persistChapterPagesToDb', () => {
     expect(reloaded?.id).toBe(chapter.value);
     expect(reloaded?.pages).toHaveLength(1);
     expect(await getChapterProviderMappingId(db, chapter.value)).toBe(mappingId);
+  });
+
+  it('keeps a switched mapping on the chapter instead of rewriting it under the default mapping', async () => {
+    const harness = await createSqlJsHarness();
+    const created = await createMangaIdentityWithInitialMapping(harness.db, {
+      canonicalTitle: 'Persisted',
+      status: 'ongoing',
+      contentRating: 'safe',
+      providerId: toProviderId('prov-a'),
+      providerMangaId: 'remote-a',
+    });
+    if (!created.ok) throw new Error(created.error.message);
+    const mapping = await addProviderMapping(harness.db, {
+      mangaId: created.value.mangaId,
+      providerId: toProviderId('prov-b'),
+      providerMangaId: 'remote-b',
+    });
+    if (!mapping.ok) throw new Error(mapping.error.message);
+
+    const chapterId = toChapterId('switched-chapter');
+    const written = await upsertChapterWithPages(harness.db, {
+      chapterId,
+      mangaId: created.value.mangaId,
+      providerMappingId: mapping.value,
+      providerId: 'prov-b',
+      title: 'Chapter 1',
+      index: 1,
+      pages: [],
+    });
+    if (!written.ok) throw new Error(written.error.message);
+
+    const chapter = await getChapter(harness.db, chapterId);
+    if (chapter === undefined) throw new Error('chapter should exist');
+    const pages: ChapterPage[] = [
+      {
+        id: toChapterPageId('page-0'),
+        index: 0,
+        image: { url: 'https://example.com/0.jpg' },
+      },
+    ];
+
+    await persistChapterPagesToDb(harness.db, chapter, pages);
+
+    const persisted = await getChapter(harness.db, chapterId);
+    expect(persisted?.providerMappingId).toBe(mapping.value);
+    expect(persisted?.pages.map((page) => page.image.url)).toEqual(['https://example.com/0.jpg']);
   });
 });

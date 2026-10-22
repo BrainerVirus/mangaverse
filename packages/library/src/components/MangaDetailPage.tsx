@@ -314,33 +314,46 @@ function ReadingFacts({ entry, chapters }: ReadingFactsProps) {
   );
 }
 
+function httpUrl(value: string): string | undefined {
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function TrackingLinks({ links }: { links: readonly TrackingLink[] }) {
   return (
     <div>
       <dt className="font-medium text-muted-foreground">Tracking</dt>
       <dd>
         <ul className="flex flex-col gap-1">
-          {links.map((link) => (
-            <li key={`${link.service}:${link.externalId}`} className="flex items-center gap-2">
-              <span className="font-medium">{link.service}</span>
-              {link.externalUrl !== undefined ? (
-                <a
-                  href={link.externalUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
-                >
-                  {link.externalId}
-                  <ExternalLink aria-hidden className="size-3" />
-                </a>
-              ) : (
-                <span>{link.externalId}</span>
-              )}
-              {link.lastSyncedAt !== undefined ? (
-                <span className="text-xs text-muted-foreground">synced {link.lastSyncedAt}</span>
-              ) : null}
-            </li>
-          ))}
+          {links.map((link) => {
+            // Backup import can supply any string; only http(s) may become a link.
+            const href = link.externalUrl === undefined ? undefined : httpUrl(link.externalUrl);
+            return (
+              <li key={`${link.service}:${link.externalId}`} className="flex items-center gap-2">
+                <span className="font-medium">{link.service}</span>
+                {href !== undefined ? (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
+                  >
+                    {link.externalId}
+                    <ExternalLink aria-hidden className="size-3" />
+                  </a>
+                ) : (
+                  <span>{link.externalId}</span>
+                )}
+                {link.lastSyncedAt !== undefined ? (
+                  <span className="text-xs text-muted-foreground">synced {link.lastSyncedAt}</span>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       </dd>
     </div>
@@ -847,6 +860,14 @@ function MangaRelatedSections({
 
 function MangaDetailContent(props: MangaDetailPageProps & { readonly data: MangaDetailData }) {
   const [viewedMappingId, setViewedMappingId] = useState<ProviderMappingId | null>(null);
+  // The optimistic view must not outlive the snapshot it was clicked against:
+  // otherwise a later action that changes the active mapping (e.g. "Use for
+  // chapters") keeps painting the old one. Reset during render on a new snapshot.
+  const [viewedData, setViewedData] = useState(props.data);
+  if (viewedData !== props.data) {
+    setViewedData(props.data);
+    setViewedMappingId(null);
+  }
   const [coverDialogOpen, setCoverDialogOpen] = useState(false);
   const view = buildMangaDetailView(props.data, viewedMappingId);
   const { customCoverUrl } = view;

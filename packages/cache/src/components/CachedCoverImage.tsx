@@ -105,7 +105,9 @@ export function CachedCoverImage({
     );
   }
 
-  return <img src={src} alt={alt} className={className} loading="lazy" />;
+  return (
+    <img src={src} alt={alt} className={className} loading="lazy" data-cover-url={remoteUrl} />
+  );
 }
 
 export function getDefaultProviderId(manga: MangaIdentity): string {

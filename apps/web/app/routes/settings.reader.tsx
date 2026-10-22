@@ -4,13 +4,10 @@ import {
   fetchReaderSettings,
   ReaderSettingsPage,
   saveReaderSettings,
+  saveTitleReaderSettings,
   settingsQueryKeys,
 } from '@app/settings';
-import {
-  getTitleReaderSettings,
-  resetTitleReaderSettings,
-  upsertTitleReaderSettings,
-} from '@app/db';
+import { getTitleReaderSettings, resetTitleReaderSettings } from '@app/db';
 import type { ReaderSettings } from '@app/shared';
 import { QUERY_GC_TIMES, QUERY_STALE_TIMES } from '../queries/query-timing.js';
 import { useCoalescedSettingsWrite } from '../lib/use-coalesced-settings-write.js';
@@ -53,8 +50,7 @@ function SettingsReaderRoute() {
     mutationFn: async (settings: ReaderSettings) => {
       if (db === null) throw new Error('Local database is not ready.');
       if (title !== undefined && settings.rememberPerTitleOverrides) {
-        const result = await upsertTitleReaderSettings(db, title, settings);
-        if (!result.ok) throw new Error(result.error.message);
+        await saveTitleReaderSettings(db, title, settings);
         return;
       }
       const result = await saveReaderSettings(db, settings);
@@ -66,13 +62,15 @@ function SettingsReaderRoute() {
     },
     onError: () => {
       // The cache already shows the attempted value; re-read the durable one.
-      void queryClient.invalidateQueries({ queryKey });
+      void queryClient.invalidateQueries({ queryKey: settingsQueryKeys.reader() });
     },
     onSettled: (_data, _error, nextSettings) => {
       const current = queryClient.getQueryData<{ settings: ReaderSettings }>(queryKey)?.settings;
       // A newer edit owns the cache; its own write will invalidate.
       if (current !== nextSettings) return;
-      void queryClient.invalidateQueries({ queryKey });
+      // `reader()` also matches the title key, and the title helper may have
+      // enabled the global remember flag.
+      void queryClient.invalidateQueries({ queryKey: settingsQueryKeys.reader() });
     },
   });
 
@@ -82,7 +80,7 @@ function SettingsReaderRoute() {
       await resetTitleReaderSettings(db, title);
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey });
+      void queryClient.invalidateQueries({ queryKey: settingsQueryKeys.reader() });
     },
   });
 

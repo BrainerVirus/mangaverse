@@ -23,9 +23,9 @@ import {
 } from './library.js';
 import { upsertChapterWithPages } from './chapters.js';
 import {
-  clearChapterReadState,
   listChapterReadStatesForManga,
   refreshLibraryUnreadCount,
+  setChapterCompleted,
   upsertChapterReadState,
 } from './read-state.js';
 
@@ -109,8 +109,16 @@ describe('manga detail state repositories', () => {
       [String(second), false],
     ]);
 
-    await clearChapterReadState(harness.db, first);
-    expect(await listChapterReadStatesForManga(harness.db, mangaId)).toHaveLength(1);
+    await setChapterCompleted(harness.db, first, false);
+    const afterUnmark = await listChapterReadStatesForManga(harness.db, mangaId);
+    expect(
+      afterUnmark
+        .map((state) => [String(state.chapterId), state.progress.completed] as const)
+        .sort((left, right) => left[0].localeCompare(right[0])),
+    ).toEqual([
+      [String(first), false],
+      [String(second), false],
+    ]);
   });
 
   it('counts unread chapters only from the active provider mapping', async () => {
@@ -127,7 +135,7 @@ describe('manga detail state repositories', () => {
     await seedChapter(harness, mangaId, mappingId, 'prov-a', 'c-2', 2);
     await markCompleted(harness, mangaId, mappingId, first);
 
-    expect(await refreshLibraryUnreadCount(harness.db, mangaId, 'prov-a')).toBe(1);
+    expect(await refreshLibraryUnreadCount(harness.db, mangaId, mappingId)).toBe(1);
 
     const other = await addProviderMapping(harness.db, {
       mangaId,
@@ -146,11 +154,25 @@ describe('manga detail state repositories', () => {
     const switched = await setLibraryEntryActiveProviderMapping(harness.db, entry.id, other.value);
     expect(switched.ok).toBe(true);
 
-    expect(await refreshLibraryUnreadCount(harness.db, mangaId, 'prov-b')).toBe(3);
+    expect(await refreshLibraryUnreadCount(harness.db, mangaId, other.value)).toBe(3);
     const refreshed = await getLibraryEntryForManga(harness.db, mangaId);
     expect(refreshed?.unreadCount).toBe(3);
     expect(refreshed?.favorite).toBe(false);
     expect(refreshed?.status).toBe('reading');
+
+    // A second mapping from the same provider must not leak into this mapping's
+    // count; provider-scoped counting would report 5 here.
+    const sameProvider = await addProviderMapping(harness.db, {
+      mangaId,
+      providerId: toProviderId('prov-b'),
+      providerMangaId: 'detail-state-3',
+    });
+    expect(sameProvider.ok).toBe(true);
+    if (!sameProvider.ok) return;
+    await seedChapter(harness, mangaId, sameProvider.value, 'prov-b', 'c-6', 1);
+    await seedChapter(harness, mangaId, sameProvider.value, 'prov-b', 'c-7', 2);
+    expect(await refreshLibraryUnreadCount(harness.db, mangaId, other.value)).toBe(3);
+    expect(await refreshLibraryUnreadCount(harness.db, mangaId, sameProvider.value)).toBe(2);
   });
 
   it('sets and clears the preferred chapter source with a mapping guard', async () => {

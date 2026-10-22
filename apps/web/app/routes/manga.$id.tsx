@@ -16,9 +16,9 @@ import {
   createToggleFavoriteMutationOptions,
 } from '../queries/library-mutation-options.js';
 import {
-  ensureProviderChaptersForMapping,
   fetchProviderMangaDetail,
   fetchProviderRelatedTitles,
+  hydrateProviderChaptersForMapping,
 } from '../queries/provider-query-options.js';
 import {
   anyActionPending,
@@ -138,11 +138,9 @@ function MangaDetailRoute() {
   const chapterHydrationQuery = useQuery({
     queryKey: chapterHydrationQueryKey(mangaId, activeMapping),
     queryFn: async ({ signal }) => {
-      await ensureProviderChaptersForMapping(db!, mangaId, activeMapping!, signal);
-      await queryClient.invalidateQueries({
-        queryKey: libraryQueryKeys.detail(mangaId),
-        exact: true,
-      });
+      await hydrateProviderChaptersForMapping(db!, mangaId, activeMapping!, signal);
+      // The badge, not only the detail list, changed with the hydrated rows.
+      await queryClient.invalidateQueries({ queryKey: libraryQueryKeys.all });
     },
     enabled: canHydrateChapters(
       activeProvider,
@@ -167,6 +165,9 @@ function MangaDetailRoute() {
   const providerMutation = useMutation({
     mutationFn: (action: Parameters<typeof runProviderAction>[3]) =>
       runProviderAction(db, mangaId, data, action),
+    // A detail/card refetch started before the write would otherwise land after
+    // it and repaint the previous mapping.
+    onMutate: () => queryClient.cancelQueries({ queryKey: libraryQueryKeys.all }),
     onSettled: () => invalidateMangaCaches(queryClient),
   });
 

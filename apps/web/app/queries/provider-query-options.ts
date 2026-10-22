@@ -1,5 +1,5 @@
 import type { AppDrizzleDb } from '@app/db/browser';
-import { getChapter, upsertChapterWithPages } from '@app/db/browser';
+import { getChapter, refreshLibraryUnreadCount, upsertChapterWithPages } from '@app/db/browser';
 import { applyExplicitContentGate, loadProviderSettings } from '@app/extensions';
 import type { ProviderContext, ProviderContract } from '@app/extensions-sdk';
 import { normalizeProviderError } from '@app/extensions-sdk';
@@ -234,6 +234,24 @@ export async function ensureProviderChaptersForMapping(
       { cause: error },
     );
   }
+}
+
+/**
+ * Hydrates one mapping's chapters, then recomputes the badge that mapping
+ * drives. The switch handler can only see pre-hydration chapters, so without
+ * this second refresh the card would keep the zero it wrote for an empty
+ * mapping. Runs even when hydration is skipped for an unsupported provider so
+ * the stored count always matches the mapping now being viewed.
+ */
+export async function hydrateProviderChaptersForMapping(
+  db: AppDrizzleDb,
+  mangaId: MangaId,
+  mapping: MangaProviderMapping,
+  signal?: AbortSignal,
+): Promise<number> {
+  const written = await ensureProviderChaptersForMapping(db, mangaId, mapping, signal);
+  await refreshLibraryUnreadCount(db, mangaId, mapping.id);
+  return written;
 }
 
 /**

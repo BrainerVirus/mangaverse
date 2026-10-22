@@ -58,12 +58,39 @@ for (const width of [390, 1440]) {
       .fill('https://uploads.mangadex.org/covers/custom.jpg');
     await coverDialog.getByRole('button', { name: 'Save cover' }).click();
     await expect(page.getByRole('button', { name: 'Change cover' })).toBeVisible();
-    await waitForPingQuiet(page);
+    const detailCover = page.locator(`img[alt="${TITLE}"]`).first();
+    await expect(detailCover).toHaveAttribute('src', /^blob:/);
+    await expect(detailCover).toHaveAttribute(
+      'data-cover-url',
+      'https://uploads.mangadex.org/covers/custom.jpg',
+    );
 
+    // The library card must paint the same override, not just the detail page.
+    await page.getByRole('button', { name: 'Add to library' }).click();
+    await expect(page.getByText('In library')).toBeVisible();
+    await waitForPingQuiet(page);
+    await page.goto('/library');
+    const cardCover = page.locator(`img[alt="${TITLE}"]`).first();
+    await expect(cardCover).toHaveAttribute('src', /^blob:/);
+    await expect(cardCover).toHaveAttribute(
+      'data-cover-url',
+      'https://uploads.mangadex.org/covers/custom.jpg',
+    );
+
+    await page.goto(MANGA_PATH);
+    await expect(page.getByRole('heading', { name: TITLE })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('button', { name: 'Change cover' })).toBeVisible();
+    await waitForPingQuiet(page);
     await page.reload();
     await expect(page.getByRole('button', { name: 'Change cover' })).toBeVisible({
       timeout: 30_000,
     });
+    const reloadedCover = page.locator(`img[alt="${TITLE}"]`).first();
+    await expect(reloadedCover).toHaveAttribute('src', /^blob:/);
+    await expect(reloadedCover).toHaveAttribute(
+      'data-cover-url',
+      'https://uploads.mangadex.org/covers/custom.jpg',
+    );
     await page.getByRole('button', { name: 'Change cover' }).click();
     await page.getByRole('button', { name: 'Reset to provider cover' }).click();
     await expect(page.getByRole('button', { name: 'Custom cover' })).toBeVisible();
