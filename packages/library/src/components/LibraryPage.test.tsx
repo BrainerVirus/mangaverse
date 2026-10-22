@@ -51,7 +51,12 @@ function overviewItem(
     item,
     chapterCount: 2,
     unreadCount: 0,
-    latestChapter: { id: toChapterId('ch-2'), title: 'Chapter 2', index: 2 },
+    latestChapter: {
+      id: toChapterId('ch-2'),
+      providerMappingId: toProviderMappingId('map-one'),
+      title: 'Chapter 2',
+      index: 2,
+    },
     ...overrides,
   };
 }
@@ -182,7 +187,12 @@ describe('LibraryPage', () => {
         overview={{
           continueReading: [
             overviewItem(alpha, {
-              lastReadChapter: { id: toChapterId('ch-1'), title: 'Chapter 1', index: 1 },
+              lastReadChapter: {
+                id: toChapterId('ch-1'),
+                providerMappingId: toProviderMappingId('map-one'),
+                title: 'Chapter 1',
+                index: 1,
+              },
             }),
           ],
           recentlyUpdated: [
@@ -190,6 +200,7 @@ describe('LibraryPage', () => {
               unreadCount: 2,
               latestChapter: {
                 id: toChapterId('ch-3'),
+                providerMappingId: toProviderMappingId('map-two'),
                 title: 'Chapter 3',
                 index: 3,
                 addedAt: '2026-02-01T00:00:00.000Z',
@@ -215,6 +226,7 @@ describe('LibraryPage', () => {
     const onCheck = vi.fn<() => void>();
     const onRetry = vi.fn<(entryIds: readonly LibraryEntryId[]) => void>();
     const onCancel = vi.fn<() => void>();
+    const onClearReport = vi.fn<() => void>();
     const item = createItem('one', 'Title 1');
 
     const { rerender } = render(
@@ -231,6 +243,7 @@ describe('LibraryPage', () => {
           onCheck,
           onCancel,
           onRetry,
+          onClearReport,
         }}
       />,
     );
@@ -239,6 +252,8 @@ describe('LibraryPage', () => {
     expect(screen.getByRole('status')).toHaveTextContent('1 failed');
     await user.click(screen.getByRole('button', { name: /^Retry$/ }));
     expect(onRetry).toHaveBeenCalledWith([toLibraryEntryId('entry-one')]);
+    await user.click(screen.getByRole('button', { name: 'Clear report' }));
+    expect(onClearReport).toHaveBeenCalledTimes(1);
 
     rerender(
       <LibraryPage
@@ -254,6 +269,7 @@ describe('LibraryPage', () => {
           onCheck,
           onCancel,
           onRetry,
+          onClearReport: () => {},
         }}
       />,
     );

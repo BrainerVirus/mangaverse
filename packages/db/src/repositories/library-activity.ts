@@ -1,6 +1,6 @@
 import { eq, inArray } from 'drizzle-orm';
-import type { ChapterId, LibraryEntry, LibraryEntryId } from '@app/shared';
-import { toChapterId } from '@app/shared';
+import type { ChapterId, LibraryEntry, LibraryEntryId, ProviderMappingId } from '@app/shared';
+import { toChapterId, toProviderMappingId } from '@app/shared';
 import type { AppDrizzleDb } from '../adapter.js';
 import { readIdChunks } from '../read-id-chunks.js';
 import { withTransaction } from '../transactions.js';
@@ -8,6 +8,7 @@ import { chapterReadState, chapters, libraryEntries, mangaIdentities } from '../
 
 export interface LibraryChapterRef {
   readonly id: ChapterId;
+  readonly providerMappingId: ProviderMappingId;
   readonly title: string;
   readonly index: number;
   /** When the provider released the chapter, when it says so. */
@@ -37,6 +38,7 @@ interface ChapterRow {
 function toChapterRef(row: ChapterRow): LibraryChapterRef {
   return {
     id: toChapterId(row.id),
+    providerMappingId: toProviderMappingId(row.providerMappingId),
     title: row.title,
     index: row.index,
     ...(row.publishedAt !== null && row.publishedAt !== '' ? { publishedAt: row.publishedAt } : {}),

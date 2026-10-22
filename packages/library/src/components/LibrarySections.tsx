@@ -153,6 +153,8 @@ export interface LibraryUpdatesControl {
   readonly onCancel: () => void;
   /** Runs the check again for the given titles only. */
   readonly onRetry: (entryIds: readonly LibraryEntryId[]) => void;
+  /** Drops the last report from the settings row and the panel. */
+  readonly onClearReport: () => void;
 }
 
 export interface LibraryUpdatePanelProps {
@@ -204,7 +206,7 @@ function summarize(report: LibraryUpdateReport | undefined, running: boolean): s
 
 /** User-triggered library update check: progress, cancel and the failure report. */
 export function LibraryUpdatePanel({ updates }: LibraryUpdatePanelProps) {
-  const { report, status, onCheck, onCancel, onRetry } = updates;
+  const { report, status, onCheck, onCancel, onRetry, onClearReport } = updates;
   const running = status === 'running';
   const problems = (report?.items ?? []).filter(isProblem);
   const failed = problems.filter((item) => item.status === 'failed');
@@ -235,6 +237,11 @@ export function LibraryUpdatePanel({ updates }: LibraryUpdatePanelProps) {
               onClick={() => onRetry(failed.map((item) => item.entryId))}
             >
               Retry failed
+            </Button>
+          ) : null}
+          {!running && report !== undefined ? (
+            <Button type="button" size="sm" variant="ghost" onClick={onClearReport}>
+              Clear report
             </Button>
           ) : null}
           <Button type="button" size="sm" onClick={onCheck} disabled={running}>

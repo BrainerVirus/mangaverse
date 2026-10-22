@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 import { useCallback, useRef, useState } from 'react';
 import type { AppDrizzleDb } from '@app/db';
 import {
+  clearLibraryUpdateReport,
   DEFAULT_LIBRARY_VIEW_STATE,
   LibraryPage,
   libraryQueryKeys,
@@ -95,6 +96,13 @@ function LibraryRoute() {
     [db, queryClient],
   );
 
+  const clearReport = useCallback(async () => {
+    if (db === null) return;
+    setProgress(undefined);
+    await clearLibraryUpdateReport(db);
+    queryClient.removeQueries({ queryKey: libraryQueryKeys.updateReport() });
+  }, [db, queryClient]);
+
   return (
     <LibraryPage
       data={data}
@@ -111,6 +119,7 @@ function LibraryRoute() {
         onCheck: () => void runCheck(),
         onCancel: () => abortRef.current?.abort(),
         onRetry: (entryIds) => void runCheck(entryIds),
+        onClearReport: () => void clearReport(),
       }}
       onOrganize={(action) => organizeMutation.mutateAsync(action)}
       onBrowse={() => void navigate({ to: '/extensions' })}

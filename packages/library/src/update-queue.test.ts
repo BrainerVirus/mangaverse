@@ -5,6 +5,7 @@ import {
   getChapter,
   getLibraryEntryForManga,
   listChapterHeadersForMapping,
+  removeLibraryEntry,
   upsertAppSetting,
   upsertChapterWithPages,
   type AppDrizzleDb,
@@ -19,6 +20,7 @@ import {
   type ProviderMappingId,
 } from '@app/shared';
 import {
+  clearLibraryUpdateReport,
   LIBRARY_UPDATE_REPORT_KEY,
   readLibraryUpdateReport,
   runLibraryUpdateQueue,
@@ -324,6 +326,59 @@ describe('runLibraryUpdateQueue', () => {
       status: 'done',
       newChapterCount: 1,
     });
+  });
+
+  it('drops a failed row when the retried title is no longer in the library', async () => {
+    const { db } = await createSqlJsHarness();
+    const alpha = await addTitle(db, 'Alpha Series', 'prov-a');
+    const beta = await addTitle(db, 'Beta Chronicles', 'prov-b');
+    await addChapter(db, alpha, 1);
+    await addChapter(db, beta, 1);
+
+    const resolveProvider: LibraryUpdateProviderResolver = async (providerId) => {
+      if (String(providerId) === 'prov-b') {
+        return {
+          status: 'available',
+          provider: provider(() => {
+            throw new Error('Feed unavailable');
+          }),
+        };
+      }
+      return { status: 'available', provider: provider(() => [chapter(1)]) };
+    };
+
+    const first = await runLibraryUpdateQueue(db, { resolveProvider });
+    expect(first.items.find((item) => item.entryId === beta.entryId)?.status).toBe('failed');
+
+    await removeLibraryEntry(db, beta.entryId);
+    const retried = await runLibraryUpdateQueue(db, {
+      resolveProvider,
+      entryIds: [beta.entryId],
+    });
+
+    expect(retried.items.map((item) => item.entryId)).not.toContain(beta.entryId);
+    expect(retried.items.find((item) => item.entryId === alpha.entryId)).toMatchObject({
+      status: 'done',
+    });
+
+    const stored = await readLibraryUpdateReport(db);
+    expect(stored?.items.map((item) => item.entryId)).not.toContain(beta.entryId);
+    expect(stored?.items.find((item) => item.entryId === alpha.entryId)).toMatchObject({
+      status: 'done',
+    });
+  });
+
+  it('clears the stored report so a reload shows nothing', async () => {
+    const { db } = await createSqlJsHarness();
+    await addTitle(db, 'Alpha Series', 'prov-a');
+
+    await runLibraryUpdateQueue(db, {
+      resolveProvider: resolver({ 'prov-a': provider(() => [chapter(1)]) }),
+    });
+    expect(await readLibraryUpdateReport(db)).toBeDefined();
+
+    await clearLibraryUpdateReport(db);
+    expect(await readLibraryUpdateReport(db)).toBeUndefined();
   });
 
   it('reads an interrupted running report as cancelled', async () => {

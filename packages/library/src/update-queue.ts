@@ -201,6 +201,12 @@ async function persistReport(db: AppDrizzleDb, report: LibraryUpdateReport): Pro
   }
 }
 
+/** Removes the stored report; a reload then has nothing to show. */
+export async function clearLibraryUpdateReport(db: AppDrizzleDb): Promise<void> {
+  const { deleteAppSetting } = await import('@app/db');
+  await deleteAppSetting(db, LIBRARY_UPDATE_REPORT_KEY);
+}
+
 interface QueueJob {
   readonly entryId: LibraryEntryId;
   readonly title: string;
@@ -397,8 +403,15 @@ export async function runLibraryUpdateQueue(
     const previous = await readLibraryUpdateReport(db);
     if (previous !== undefined) {
       const replaced = new Map(items.map((item) => [item.entryId, item]));
+      const merged = previous.items.flatMap((item) => {
+        const replacement = replaced.get(item.entryId);
+        if (replacement !== undefined) return [replacement];
+        // The retried title is gone from the library, so its old row can never
+        // run again: drop it instead of leaving an un-retryable entry.
+        return wantedIds.has(item.entryId) ? [] : [item];
+      });
       items = [
-        ...previous.items.map((item) => replaced.get(item.entryId) ?? item),
+        ...merged,
         ...items.filter((item) => !previous.items.some((old) => old.entryId === item.entryId)),
       ];
     }

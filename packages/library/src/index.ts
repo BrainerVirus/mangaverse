@@ -19,6 +19,7 @@ export {
 export { fetchMangaDetail } from './fetch-manga-detail.js';
 export { fetchRecentLibrary, RECENT_LIBRARY_LIMIT } from './fetch-recent-library.js';
 export {
+  clearLibraryUpdateReport,
   LIBRARY_UPDATE_REPORT_KEY,
   readLibraryUpdateReport,
   runLibraryUpdateQueue,

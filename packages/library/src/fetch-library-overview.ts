@@ -1,5 +1,5 @@
 import type { AppDrizzleDb } from '@app/db';
-import type { ChapterId, LibraryFilter } from '@app/shared';
+import type { ChapterId, LibraryFilter, ProviderMappingId } from '@app/shared';
 import { filterLibraryItemsByQuery } from './filter-items.js';
 import type { LibraryItem } from './types.js';
 
@@ -8,6 +8,7 @@ export const RECENTLY_UPDATED_LIMIT = 8;
 
 export interface LibraryChapterRef {
   readonly id: ChapterId;
+  readonly providerMappingId: ProviderMappingId;
   readonly title: string;
   readonly index: number;
   /** When the provider released the chapter, when it says so. */
@@ -64,6 +65,8 @@ function lastReadFirst(a: LibraryOverviewItem, b: LibraryOverviewItem): number {
  *
  * "Recently updated" means chapters past the last read one, not a provider sync
  * timestamp: chapter `updatedAt` moves on every re-check and would fake a change.
+ * Chapter indexes only compare inside one provider mapping; a provider switch can
+ * renumber them, so across mappings the title's unread state decides.
  */
 export async function fetchLibraryOverview(
   db: AppDrizzleDb,
@@ -123,10 +126,13 @@ export async function fetchLibraryOverview(
 
   const recentlyUpdated = items
     .filter((item) => {
-      if (item.unreadCount === 0 || item.latestChapter === undefined) return false;
-      return (
-        item.lastReadChapter === undefined || item.latestChapter.index > item.lastReadChapter.index
-      );
+      const latest = item.latestChapter;
+      if (item.unreadCount === 0 || latest === undefined) return false;
+      const lastRead = item.lastReadChapter;
+      if (lastRead === undefined || lastRead.providerMappingId !== latest.providerMappingId) {
+        return true;
+      }
+      return latest.index > lastRead.index;
     })
     .sort(newestFirst)
     .slice(0, options.recentlyUpdatedLimit ?? RECENTLY_UPDATED_LIMIT);

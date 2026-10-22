@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   addLibraryEntry,
+  addProviderMapping,
   createLibraryCategory,
   createMangaIdentityWithInitialMapping,
   getLibraryEntryForManga,
+  setLibraryEntryActiveProviderMapping,
   setLibraryEntryCategories,
   updateLibraryEntryReadingProgress,
   upsertChapterReadState,
@@ -56,13 +58,17 @@ async function addChapter(
   db: AppDrizzleDb,
   title: TestTitle,
   index: number,
-  options: { readonly completed?: boolean } = {},
+  options: { readonly completed?: boolean; readonly mappingId?: ProviderMappingId } = {},
 ): Promise<void> {
-  const chapterId = toChapterId(`chapter-${title.mangaId}-${index}`);
+  const chapterId = toChapterId(
+    options.mappingId === undefined
+      ? `chapter-${title.mangaId}-${index}`
+      : `chapter-${title.mangaId}-${options.mappingId}-${index}`,
+  );
   await upsertChapterWithPages(db, {
     chapterId,
     mangaId: title.mangaId,
-    providerMappingId: title.mappingId,
+    providerMappingId: options.mappingId ?? title.mappingId,
     title: `Chapter ${index}`,
     index,
     pages: [],
@@ -181,6 +187,48 @@ describe('fetchLibraryOverview', () => {
       overview.recentlyUpdated.find((item) => item.item.manga.canonicalTitle === 'Untouched')
         ?.latestChapter?.title,
     ).toBe('Chapter 1');
+  });
+
+  it('Given unread chapters at or before the last read one, Then the title is not recently updated', async () => {
+    const { db } = await createSqlJsHarness();
+    const title = await addTitle(db, 'Read To Latest');
+    await addChapter(db, title, 1);
+    await addChapter(db, title, 2);
+    // Progress without a completed read state leaves unread > 0 and the latest
+    // index equal to the last read index: only the index guard hides it.
+    await markRead(db, title, 2, '2026-01-01T00:00:00.000Z');
+
+    const overview = await fetchLibraryOverview(db);
+    expect(overview.recentlyUpdated).toEqual([]);
+  });
+
+  it('Given a provider switch with lower chapter numbers, Then unread state still lists the title', async () => {
+    const { db } = await createSqlJsHarness();
+    const title = await addTitle(db, 'Switched Series');
+    await addChapter(db, title, 1);
+    await addChapter(db, title, 2);
+    await addChapter(db, title, 3);
+    await markRead(db, title, 3, '2026-01-01T00:00:00.000Z');
+
+    const added = await addProviderMapping(db, {
+      mangaId: title.mangaId,
+      providerId: 'prov-b',
+      providerMangaId: 'switched-series-remote',
+    });
+    expect(added.ok).toBe(true);
+    if (!added.ok) return;
+    await addChapter(db, title, 1, { mappingId: added.value });
+    await addChapter(db, title, 2, { mappingId: added.value });
+    const switched = await setLibraryEntryActiveProviderMapping(db, title.entryId, added.value);
+    expect(switched.ok).toBe(true);
+
+    const overview = await fetchLibraryOverview(db);
+    const item = overview.recentlyUpdated.find(
+      (entry) => entry.item.manga.canonicalTitle === 'Switched Series',
+    );
+    expect(item?.unreadCount).toBe(2);
+    expect(item?.latestChapter?.providerMappingId).toBe(added.value);
+    expect(item?.lastReadChapter?.providerMappingId).toBe(title.mappingId);
   });
 
   it('applies the page filter to both sections', async () => {

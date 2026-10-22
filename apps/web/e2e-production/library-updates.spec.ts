@@ -182,6 +182,18 @@ test('Given two titles and one failing provider, When updates are checked, Then 
   });
   await expect(updatesRegion(page).getByRole('status')).not.toContainText('failed');
   await expect(updatesRegion(page).getByRole('list', { name: 'Update failures' })).toHaveCount(0);
+
+  // Clearing the report is persisted: a reload shows the empty prompt.
+  await updatesRegion(page).getByRole('button', { name: 'Clear report' }).click();
+  await expect(updatesRegion(page).getByRole('status')).toContainText(
+    'Check your providers for new chapters.',
+  );
+  await reloadDurable(page);
+  await expect(updatesRegion(page).getByRole('status')).toContainText(
+    'Check your providers for new chapters.',
+    { timeout: 20_000 },
+  );
+  await expect(updatesRegion(page).getByRole('list', { name: 'Update failures' })).toHaveCount(0);
 });
 
 test('Given a phone viewport, When the library and a title are opened, Then sections fit, status persists and progress resumes', async ({
