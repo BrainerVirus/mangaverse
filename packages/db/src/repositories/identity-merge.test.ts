@@ -50,6 +50,10 @@ interface SeedIdentity {
   readonly createdAt?: string;
 }
 
+function sorted(values: readonly string[]): string[] {
+  return [...values].sort((left, right) => left.localeCompare(right));
+}
+
 function seedIdentity(raw: Database, seed: SeedIdentity): void {
   raw.run(
     `INSERT INTO manga_identities
@@ -378,21 +382,21 @@ describe('mergeMangaIdentities', () => {
     expect(merged.merged).toBe(true);
     expect(merged.mergedFromIds).toEqual([source]);
     expect(merged.defaultProviderMappingId).toBe('target-mapping');
-    expect(merged.providerMappings.map((mapping) => mapping.providerId).sort()).toEqual([
+    expect(sorted(merged.providerMappings.map((mapping) => mapping.providerId))).toEqual([
       'alpha',
       'beta',
     ]);
     expect(merged.alternativeTitles.map((title) => title.value)).toEqual(
       expect.arrayContaining(['Kuro no Shoukanshi (Alt)', 'Dark Summoner']),
     );
-    expect(merged.authors.map((person) => person.name).sort()).toEqual([
+    expect(sorted(merged.authors.map((person) => person.name))).toEqual([
       'Author One',
       'Author Two',
     ]);
     expect(merged.artists.map((person) => person.name)).toEqual(['Artist One']);
-    expect(merged.tags.map((tag) => tag.label).sort()).toEqual(['Action', 'Fantasy']);
+    expect(sorted(merged.tags.map((tag) => tag.label))).toEqual(['Action', 'Fantasy']);
     expect(
-      merged.trackingLinks?.map((link) => `${link.service}:${link.externalId}`).sort(),
+      sorted((merged.trackingLinks ?? []).map((link) => `${link.service}:${link.externalId}`)),
     ).toEqual(['AniList:1', 'MAL:2']);
     expect(merged.userOverrides).toEqual({
       coverImageUrl: 'https://covers/custom.jpg',
@@ -410,7 +414,7 @@ describe('mergeMangaIdentities', () => {
       lastReadChapterId: 'source-chapter-1',
       activeProviderMappingId: 'target-mapping',
     });
-    expect([...(entry?.categoryIds ?? [])].sort()).toEqual(['cat-a', 'cat-b']);
+    expect(sorted(entry?.categoryIds ?? [])).toEqual(['cat-a', 'cat-b']);
     // Two chapters have no read state; the target's stored badge is recomputed.
     expect(entry?.unreadCount).toBe(2);
 
