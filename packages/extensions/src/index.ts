@@ -17,6 +17,7 @@ export {
 } from './components/InstallProviderDialog.js';
 export { fetchExtensionsPage, demoInstallMetadata } from './fetch-extensions-page.js';
 export { fetchProviderDetail } from './fetch-provider-detail.js';
+export { fetchProviderUiInfo, type ProviderUiInfo } from './fetch-provider-ui-info.js';
 export {
   applyExplicitContentGate,
   loadProviderSettings,

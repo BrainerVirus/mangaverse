@@ -9,10 +9,13 @@ import {
   toChapterId,
   toLibraryEntryId,
   toMangaId,
+  toProviderId,
+  toProviderMangaId,
   toProviderMappingId,
   type CategoryId,
   type Chapter,
   type LibraryStatus,
+  type MangaProviderMapping,
 } from '@app/shared';
 import type * as MotionModule from '@app/motion';
 
@@ -66,6 +69,28 @@ const inLibrary: MangaDetailData['libraryEntry'] = {
   status: 'planned',
   unreadCount: 0,
 };
+
+function mapping(id: string, providerId: string, remoteId: string): MangaProviderMapping {
+  return {
+    id: toProviderMappingId(id),
+    providerId: toProviderId(providerId),
+    providerMangaId: toProviderMangaId(remoteId),
+  };
+}
+
+function chapter(id: string, index: number, mappingId: string): Chapter {
+  return {
+    id: toChapterId(id),
+    mangaId: MANGA_ID,
+    providerMappingId: toProviderMappingId(mappingId),
+    title: `Chapter ${index}`,
+    index,
+    pages: [],
+  };
+}
+
+const MAP_A = 'map-a';
+const MAP_B = 'map-b';
 
 describe('MangaDetailPage', () => {
   it('Given an unknown id, Then it names the missing title instead of showing a search empty state', () => {
@@ -249,5 +274,216 @@ describe('MangaDetailPage', () => {
       'aria-pressed',
       'false',
     );
+  });
+
+  it('Given two providers, When the active mapping changes, Then the chapter list follows it', () => {
+    const onSelectProvider = vi.fn<(mappingId: unknown) => void>();
+    const entry = {
+      ...inLibrary,
+      favorite: true,
+      categoryIds: [toCategoryId('fantasy')],
+      activeProviderMappingId: toProviderMappingId(MAP_A),
+      lastReadChapterId: toChapterId('a-1'),
+    };
+    const detail = makeDetail({
+      manga: {
+        ...makeDetail().manga,
+        providerMappings: [
+          mapping(MAP_A, 'prov-a', 'remote-a'),
+          mapping(MAP_B, 'prov-b', 'remote-b'),
+        ],
+        defaultProviderMappingId: toProviderMappingId(MAP_A),
+      },
+      chapters: [chapter('a-1', 1, MAP_A), chapter('b-1', 1, MAP_B)],
+      libraryEntry: entry,
+      categories: [{ id: toCategoryId('fantasy'), name: 'Fantasy' }],
+    });
+
+    const view = render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={detail}
+        isLoading={false}
+        isError={false}
+        providerLabels={{ 'prov-a': 'Provider A', 'prov-b': 'Provider B' }}
+        onOpenChapter={() => {}}
+        onSelectProvider={onSelectProvider}
+        onToggleFavorite={() => {}}
+        onCategoriesChange={async () => {}}
+      />,
+    );
+
+    // Provider A is viewed: only its chapter row exists.
+    expect(screen.getAllByText('Chapter 1')).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'View chapters' }));
+    expect(onSelectProvider).toHaveBeenCalledWith(toProviderMappingId(MAP_B));
+
+    view.rerender(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={{
+          ...detail,
+          libraryEntry: { ...entry, activeProviderMappingId: toProviderMappingId(MAP_B) },
+        }}
+        isLoading={false}
+        isError={false}
+        providerLabels={{ 'prov-a': 'Provider A', 'prov-b': 'Provider B' }}
+        onOpenChapter={() => {}}
+        onSelectProvider={onSelectProvider}
+        onToggleFavorite={() => {}}
+        onCategoriesChange={async () => {}}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Favorited' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByRole('button', { name: 'Fantasy' })).toHaveAttribute('aria-pressed', 'true');
+    // The chapter row belongs to provider B now; the title is the same fixture text.
+    const chapterButtons = screen.getAllByRole('button', { name: /Chapter 1/ });
+    expect(chapterButtons).toHaveLength(1);
+  });
+
+  it('shows tracking links only when the title carries them', () => {
+    const withTracking = makeDetail({
+      manga: {
+        ...makeDetail().manga,
+        trackingLinks: [
+          {
+            service: 'AniList',
+            externalId: 'anilist-1',
+            externalUrl: 'https://anilist.co/manga/1',
+            lastSyncedAt: '2026-01-01T00:00:00Z',
+          },
+        ],
+      },
+    });
+
+    const view = render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={withTracking}
+        isLoading={false}
+        isError={false}
+        onOpenChapter={() => {}}
+      />,
+    );
+    expect(screen.getByText('AniList')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /anilist-1/ })).toHaveAttribute(
+      'href',
+      'https://anilist.co/manga/1',
+    );
+    expect(screen.getByText('synced 2026-01-01T00:00:00Z')).toBeInTheDocument();
+
+    view.rerender(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={makeDetail()}
+        isLoading={false}
+        isError={false}
+        onOpenChapter={() => {}}
+      />,
+    );
+    expect(screen.queryByText('AniList')).toBeNull();
+  });
+
+  it('renders recommendation states without hiding the rest of the page', () => {
+    const related = {
+      id: toMangaId('related-1'),
+      canonicalTitle: 'Related Title',
+      alternativeTitles: [],
+      authors: [],
+      artists: [],
+      tags: [],
+      status: 'ongoing' as const,
+      contentRating: 'safe' as const,
+      providerMappings: [mapping('related-map', 'prov-a', 'remote-related')],
+      defaultProviderMappingId: toProviderMappingId('related-map'),
+      merged: false,
+    };
+    const onRetry = vi.fn<() => void>();
+    const onOpenRelatedManga = vi.fn<(mangaId: unknown) => void>();
+
+    const view = render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={makeDetail({ libraryEntry: inLibrary })}
+        isLoading={false}
+        isError={false}
+        onOpenChapter={() => {}}
+        recommendations={{ items: [related], isLoading: false }}
+        onOpenRelatedManga={onOpenRelatedManga}
+      />,
+    );
+
+    expect(screen.getByRole('region', { name: 'Recommendations' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Related Title/ }));
+    expect(onOpenRelatedManga).toHaveBeenCalledWith(toMangaId('related-1'));
+
+    view.rerender(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={makeDetail({ libraryEntry: inLibrary })}
+        isLoading={false}
+        isError={false}
+        onOpenChapter={() => {}}
+        recommendations={{ error: 'Provider is down.', onRetry }}
+      />,
+    );
+    expect(screen.getByText('Provider is down.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('exposes migration, provider settings and per-title reader settings shortcuts', () => {
+    const onOpenMigration = vi.fn<() => void>();
+    const onOpenProviderSettings = vi.fn<(providerId: string) => void>();
+    const onOpenReaderSettings = vi.fn<() => void>();
+
+    render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={makeDetail({
+          manga: {
+            ...makeDetail().manga,
+            providerMappings: [mapping(MAP_A, 'prov-a', 'remote-a')],
+            defaultProviderMappingId: toProviderMappingId(MAP_A),
+          },
+        })}
+        isLoading={false}
+        isError={false}
+        onOpenChapter={() => {}}
+        onOpenMigration={onOpenMigration}
+        onOpenProviderSettings={onOpenProviderSettings}
+        onOpenReaderSettings={onOpenReaderSettings}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Migrate' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Provider settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reader settings' }));
+
+    expect(onOpenMigration).toHaveBeenCalledTimes(1);
+    expect(onOpenProviderSettings).toHaveBeenCalledWith('prov-a');
+    expect(onOpenReaderSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens the custom cover dialog from the title actions', () => {
+    render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={makeDetail()}
+        isLoading={false}
+        isError={false}
+        onOpenChapter={() => {}}
+        onSetCoverImageUrl={async () => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Custom cover' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByLabelText('Cover image URL')).toHaveValue('');
   });
 });
