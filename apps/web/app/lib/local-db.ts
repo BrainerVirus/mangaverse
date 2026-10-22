@@ -18,10 +18,15 @@ const THEMES_MIGRATION_HASH = 'b82ae03e19ad700a913d2407db98b5c89dbe24913d764eaa0
 const LIBRARY_UNIQUE_MANGA_MIGRATION_HASH =
   '438c0cf16e33a1fbd49d724396f8babf64c778498ff3daffbafd76a690fdbf42';
 
+<<<<<<< HEAD
 const MIGRATION_HISTORY_UNDO_MIGRATION_HASH =
   'bd23ab297e509cdcf4fd4ed91bb7cebb3a4236549257c507bb6d103cf9a7f6ef';
 const LIBRARY_CATEGORY_PINNED_MIGRATION_HASH =
   'f88fba5bb7715abf811036f0da8d3a895956819fc07782392454640c3ae755b9';
+=======
+const INSTALLED_EXTENSION_MANIFEST_URL_MIGRATION_HASH =
+  'bd9dd7619965a6b2a7d88a59d84e65b58f179683c738edcf676703a04047f6fc';
+>>>>>>> fbdf022b (fix(extensions): make extension export round-trip)
 
 type InitSqlJs = (config?: { locateFile?: (file: string) => string }) => Promise<SqlJsStatic>;
 
@@ -94,8 +99,12 @@ export function getLocalDbSession(): Promise<PersistentDatabase> {
           { default: cacheAssetMigrationSql },
           { default: themesMigrationSql },
           { default: libraryUniqueMangaMigrationSql },
+<<<<<<< HEAD
           { default: migrationHistoryUndoMigrationSql },
           { default: libraryCategoryPinnedMigrationSql },
+=======
+          { default: installedExtensionManifestUrlMigrationSql },
+>>>>>>> fbdf022b (fix(extensions): make extension export round-trip)
           { default: migrationJournal },
           { createIndexedDbPersistedBytesStore },
         ] = await Promise.all([
@@ -106,8 +115,12 @@ export function getLocalDbSession(): Promise<PersistentDatabase> {
           import('@app/db/migrations/0001_cache_asset_metadata.sql?raw'),
           import('@app/db/migrations/0002_themes.sql?raw'),
           import('@app/db/migrations/0003_library_unique_manga.sql?raw'),
+<<<<<<< HEAD
           import('@app/db/migrations/0004_migration_history_undo.sql?raw'),
           import('@app/db/migrations/0005_library_category_pinned.sql?raw'),
+=======
+          import('@app/db/migrations/0006_installed_extension_manifest_url.sql?raw'),
+>>>>>>> fbdf022b (fix(extensions): make extension export round-trip)
           import('@app/db/migrations/meta/_journal.json'),
           import('./persisted-bytes-idb.js'),
         ]);
@@ -152,6 +165,7 @@ export function getLocalDbSession(): Promise<PersistentDatabase> {
                 hash: LIBRARY_UNIQUE_MANGA_MIGRATION_HASH,
               },
               {
+<<<<<<< HEAD
                 tag: '0004_migration_history_undo',
                 sql: migrationHistoryUndoMigrationSql,
                 hash: MIGRATION_HISTORY_UNDO_MIGRATION_HASH,
@@ -160,6 +174,11 @@ export function getLocalDbSession(): Promise<PersistentDatabase> {
                 tag: '0005_library_category_pinned',
                 sql: libraryCategoryPinnedMigrationSql,
                 hash: LIBRARY_CATEGORY_PINNED_MIGRATION_HASH,
+=======
+                tag: '0006_installed_extension_manifest_url',
+                sql: installedExtensionManifestUrlMigrationSql,
+                hash: INSTALLED_EXTENSION_MANIFEST_URL_MIGRATION_HASH,
+>>>>>>> fbdf022b (fix(extensions): make extension export round-trip)
               },
             ],
           },

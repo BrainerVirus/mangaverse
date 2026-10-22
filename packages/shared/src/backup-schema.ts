@@ -135,6 +135,7 @@ const installedExtensionSchema = z.object({
   id: nonEmptyString,
   manifest: providerManifestSchema,
   sourceUrl: nonEmptyString,
+  manifestUrl: optionalText,
   registryUrl: optionalText,
   checksum: optionalText,
   installedVersion: nonEmptyString,

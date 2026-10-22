@@ -29,6 +29,9 @@ export async function listInstalledExtensions(
       id: toExtensionInstallId(row.id),
       manifest: manifestResult.value,
       sourceUrl: row.sourceUrl,
+      ...(row.manifestUrl !== null && row.manifestUrl !== undefined && row.manifestUrl !== ''
+        ? { manifestUrl: row.manifestUrl }
+        : {}),
       ...(row.registryUrl !== null && row.registryUrl !== undefined && row.registryUrl !== ''
         ? { registryUrl: row.registryUrl }
         : {}),
@@ -71,6 +74,7 @@ export async function upsertInstalledExtension(
       id: metadata.id,
       manifestJson: manifestResult.value as unknown as Record<string, unknown>,
       sourceUrl: metadata.sourceUrl,
+      manifestUrl: metadata.manifestUrl,
       registryUrl: metadata.registryUrl,
       checksum: metadata.checksum,
       installedVersion: metadata.installedVersion,
@@ -86,6 +90,7 @@ export async function upsertInstalledExtension(
       set: {
         manifestJson: manifestResult.value as unknown as Record<string, unknown>,
         sourceUrl: metadata.sourceUrl,
+        manifestUrl: metadata.manifestUrl,
         registryUrl: metadata.registryUrl,
         checksum: metadata.checksum,
         installedVersion: metadata.installedVersion,
@@ -115,7 +120,15 @@ export async function upsertExtensionRegistry(
   db: AppDrizzleDb,
   input: ExtensionRegistryEntry & { readonly id?: string },
 ): Promise<void> {
-  const id = input.id ?? newId();
+  // Re-importing the same registry URL must update that row, not add a duplicate.
+  const existingId =
+    input.id ??
+    db
+      .select({ id: extensionRegistries.id })
+      .from(extensionRegistries)
+      .where(eq(extensionRegistries.registryUrl, input.registryUrl))
+      .all()[0]?.id;
+  const id = existingId ?? newId();
   const now = new Date().toISOString();
   await db
     .insert(extensionRegistries)

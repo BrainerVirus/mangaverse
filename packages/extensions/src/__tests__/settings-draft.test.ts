@@ -68,6 +68,18 @@ describe('providerSettingsSupport', () => {
       true,
     );
   });
+
+  it('keeps auth-only settings editable so the auth placeholder is not hidden', () => {
+    const support = providerSettingsSupport(
+      manifest({
+        capabilities: { 'auth.login': true },
+        capabilityDetails: [],
+        settingsSupport: {},
+      }),
+    );
+    expect(support.auth).toBe(true);
+    expect(hasEditableProviderSettings(support)).toBe(true);
+  });
 });
 
 describe('settingsFromDraft', () => {
@@ -168,6 +180,33 @@ describe('settingsFromDraft', () => {
     const result = settingsFromDraft(draftFromSettings(saved), support);
     if (!result.ok) throw new Error('expected settings');
     expect(result.value).toEqual(saved);
+  });
+
+  it('preserves the auth placeholder on save for auth-capable providers', () => {
+    const authManifest = manifest({
+      capabilities: { 'auth.login': true },
+      capabilityDetails: [],
+      settingsSupport: {},
+    });
+    const support = providerSettingsSupport(authManifest);
+    expect(draftFromSettings({ authStatePlaceholder: 'session' }).authStatePlaceholder).toBe(
+      'session',
+    );
+    const result = settingsFromDraft(
+      draftFromSettings({ authStatePlaceholder: 'session' }),
+      support,
+    );
+    if (!result.ok) throw new Error('expected settings');
+    expect(result.value).toEqual({ authStatePlaceholder: 'session' });
+  });
+
+  it('drops the auth placeholder when the provider declares no auth capability', () => {
+    const result = settingsFromDraft(
+      { ...emptyProviderSettingsDraft(), authStatePlaceholder: 'session' },
+      providerSettingsSupport(manifest({ capabilities: { 'metadata.languages': true } })),
+    );
+    if (!result.ok) throw new Error('expected settings');
+    expect(result.value.authStatePlaceholder).toBeUndefined();
   });
 });
 

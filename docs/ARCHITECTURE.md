@@ -151,6 +151,7 @@ Responsibilities:
 - Capability negotiation.
 - Provider permissions.
 - Provider settings.
+- Registry and installed-extension list import/export.
 - Provider health checks.
 - Provider request handling and rate limits.
 - Error normalization.
@@ -162,6 +163,7 @@ Rules:
 - Provider-specific hacks stay here or in extension packages, never in app UI or feature packages.
 - Provider calls must return normalized domain data or normalized errors.
 - Capability checks must drive UI availability.
+- Exports contain metadata only (manifest URL, version, enabled, registry); never provider code. Imports preview manifests through the normal fetch/validation path and install only after explicit confirmation, skipping providers whose install-time manifest URL is missing.
 
 ### `@app/extensions-sdk`
 

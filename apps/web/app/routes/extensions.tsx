@@ -2,18 +2,27 @@ import { createFileRoute, Outlet, useLocation, useNavigate } from '@tanstack/rea
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
-import type { ExtensionInstallSession, ExtensionRegistryImportResult } from '@app/extensions';
+import type {
+  ExtensionImportPreview,
+  ExtensionInstallSession,
+  ExtensionListImportPreparation,
+  ExtensionListImportResult,
+  ExtensionRegistryExport,
+} from '@app/extensions';
 import {
+  confirmExtensionImport,
   confirmProviderInstall,
   createExtensionInstallSession,
+  downloadJson,
   exportExtensionRegistryData,
   ExtensionsPage,
   extensionsQueryKeys,
-  fetchExtensionRegistryDocumentFromUrl,
+  fetchExtensionImportDocumentFromUrl,
   fetchExtensionsPage,
   importExtensionRegistry,
   InstallProviderDialog,
-  parseExtensionRegistryDocument,
+  parseExtensionImportDocument,
+  prepareExtensionImport,
   prepareManualProviderInstall,
   RegistryImportDialog,
   setProviderEnabled,
@@ -43,28 +52,26 @@ function errorMessageOf(error: unknown, fallback: string): string {
   return fallback;
 }
 
-function downloadJson(filename: string, contents: string): void {
-  const blob = new Blob([contents], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
-
 function useRegistryImport(db: AppDrizzleDb | null, queryClient: QueryClient) {
   const [open, setOpen] = useState(false);
   const [jsonText, setJsonText] = useState('');
   const [url, setUrl] = useState('');
-  const [preview, setPreview] = useState<ExtensionRegistryImportResult | null>(null);
+  const [preview, setPreview] = useState<ExtensionImportPreview | null>(null);
+  const [preparation, setPreparation] = useState<ExtensionListImportPreparation | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [importWarnings, setImportWarnings] = useState<string[]>([]);
   const document = useRef<unknown>(undefined);
+  const controller = useRef<AbortController | null>(null);
 
-  // react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- ruling: web-mutation-no-cache-write: a registry URL preview writes fetched entries to local dialog state before the user confirms; the import mutation below invalidates the extensions query once it actually persists.
-  const loadUrlMutation = useMutation({
-    mutationFn: async (value: string) => {
-      const result = await fetchExtensionRegistryDocumentFromUrl(value, {
+  function abortLoad() {
+    controller.current?.abort();
+    controller.current = null;
+  }
+
+  // react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- ruling: web-mutation-no-cache-write: this preview fetch only writes fetched entries to local dialog state; the import mutations invalidate the extensions query when they persist.
+  const prepareMutation = useMutation({
+    mutationFn: async (nextPreview: ExtensionImportPreview) => {
+      const result = await prepareExtensionImport(nextPreview, {
         fetch: globalThis.fetch.bind(globalThis),
       });
       if (!result.ok) {
@@ -72,28 +79,50 @@ function useRegistryImport(db: AppDrizzleDb | null, queryClient: QueryClient) {
       }
       return result.value;
     },
-    onSuccess: (nextPreview) => {
-      setPreview(nextPreview);
-      // The normalized preview is a valid registry document on its own, so a
-      // URL import confirms without refetching the URL.
-      document.current = {
-        name: nextPreview.registry.name,
-        registryUrl: nextPreview.registry.registryUrl,
-        ...(nextPreview.registry.description !== undefined
-          ? { description: nextPreview.registry.description }
-          : {}),
-        entries: nextPreview.entries,
-      };
+    onSuccess: (value) => {
+      setPreparation(value);
       setError(null);
     },
     onError: (cause) => {
-      setPreview(null);
-      document.current = undefined;
-      setError(errorMessageOf(cause, 'Could not load the registry.'));
+      setPreparation(null);
+      setError(errorMessageOf(cause, 'Could not review the exported providers.'));
     },
   });
 
-  const importMutation = useMutation({
+  // react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- ruling: web-mutation-no-cache-write: a document preview writes fetched data to local dialog state before the user confirms; the import mutations below invalidate the extensions query once they persist.
+  const loadUrlMutation = useMutation({
+    mutationFn: async (value: string) => {
+      abortLoad();
+      const next = new AbortController();
+      controller.current = next;
+      const result = await fetchExtensionImportDocumentFromUrl(value, {
+        fetch: globalThis.fetch.bind(globalThis),
+        signal: next.signal,
+      });
+      controller.current = null;
+      if (!result.ok) {
+        throw result.error;
+      }
+      return result.value;
+    },
+    onSuccess: ({ document: loaded, preview: nextPreview }) => {
+      document.current = loaded;
+      setPreview(nextPreview);
+      setPreparation(null);
+      setError(null);
+      if (nextPreview.kind === 'extension-list') {
+        prepareMutation.mutate(nextPreview);
+      }
+    },
+    onError: (cause) => {
+      setPreview(null);
+      setPreparation(null);
+      document.current = undefined;
+      setError(errorMessageOf(cause, 'Could not load the document.'));
+    },
+  });
+
+  const importRegistryMutation = useMutation({
     mutationFn: async () => {
       if (db === null) {
         throw new Error('Database is not ready.');
@@ -115,19 +144,73 @@ function useRegistryImport(db: AppDrizzleDb | null, queryClient: QueryClient) {
     },
   });
 
+  const importExtensionsMutation = useMutation({
+    mutationFn: async (nextPreparation: ExtensionListImportPreparation) => {
+      if (db === null) {
+        throw new Error('Database is not ready.');
+      }
+      const result = await confirmExtensionImport(nextPreparation, { db });
+      if (!result.ok) {
+        throw result.error;
+      }
+      // Durability point: confirmed installs must survive an immediate reload.
+      await flushLocalDb();
+      return result.value;
+    },
+    onSuccess: (result: ExtensionListImportResult) => {
+      reset();
+      setImportWarnings(result.warnings.map((warning) => warning.message));
+      void queryClient.invalidateQueries({ queryKey: extensionsQueryKeys.all });
+    },
+    onError: (cause) => {
+      setError(errorMessageOf(cause, 'Could not import the extensions.'));
+    },
+  });
+
   function reset() {
+    abortLoad();
     setOpen(false);
     setJsonText('');
     setUrl('');
     setPreview(null);
+    setPreparation(null);
     document.current = undefined;
     setError(null);
+  }
+
+  function previewText() {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(jsonText);
+    } catch {
+      setPreview(null);
+      setPreparation(null);
+      document.current = undefined;
+      setError('Import JSON is not valid JSON.');
+      return;
+    }
+    const result = parseExtensionImportDocument(parsed);
+    if (!result.ok) {
+      setPreview(null);
+      setPreparation(null);
+      document.current = undefined;
+      setError(result.error.message);
+      return;
+    }
+    document.current = parsed;
+    setPreview(result.value);
+    setPreparation(null);
+    setError(null);
+    if (result.value.kind === 'extension-list') {
+      prepareMutation.mutate(result.value);
+    }
   }
 
   return {
     open,
     openDialog() {
       setPreview(null);
+      setPreparation(null);
       document.current = undefined;
       setError(null);
       setOpen(true);
@@ -138,42 +221,35 @@ function useRegistryImport(db: AppDrizzleDb | null, queryClient: QueryClient) {
     url,
     setUrl,
     preview,
+    preparation,
     error,
-    isLoading: loadUrlMutation.isPending || importMutation.isPending,
-    previewText() {
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(jsonText);
-      } catch {
-        setPreview(null);
-        document.current = undefined;
-        setError('Registry JSON is not valid JSON.');
-        return;
-      }
-      const result = parseExtensionRegistryDocument(parsed);
-      if (!result.ok) {
-        setPreview(null);
-        document.current = undefined;
-        setError(result.error.message);
-        return;
-      }
-      document.current = parsed;
-      setPreview(result.value);
-      setError(null);
-    },
+    importWarnings,
+    isLoading:
+      loadUrlMutation.isPending ||
+      prepareMutation.isPending ||
+      importRegistryMutation.isPending ||
+      importExtensionsMutation.isPending,
+    previewText,
     previewUrl() {
       loadUrlMutation.mutate(url.trim());
     },
     confirm() {
-      importMutation.mutate();
+      if (preview?.kind === 'registry') {
+        importRegistryMutation.mutate();
+        return;
+      }
+      if (preparation !== null) {
+        importExtensionsMutation.mutate(preparation);
+      }
     },
   };
 }
 
 function useExtensionExport(db: AppDrizzleDb | null) {
   const [error, setError] = useState<string | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
   const mutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (): Promise<ExtensionRegistryExport> => {
       if (db === null) {
         throw new Error('Database is not ready.');
       }
@@ -181,13 +257,18 @@ function useExtensionExport(db: AppDrizzleDb | null) {
       if (!result.ok) {
         throw result.error;
       }
-      return JSON.stringify(result.value, null, 2);
+      return result.value;
     },
-    onSuccess: (json) => {
+    onSuccess: (data) => {
       setError(null);
-      downloadJson(`mangaverse-extensions-${new Date().toISOString().slice(0, 10)}.json`, json);
+      setWarnings(data.warnings.map((warning) => warning.message));
+      downloadJson(
+        `mangaverse-extensions-${new Date().toISOString().slice(0, 10)}.json`,
+        JSON.stringify(data, null, 2),
+      );
     },
     onError: (cause) => {
+      setWarnings([]);
       setError(errorMessageOf(cause, 'Could not export installed extensions.'));
     },
   });
@@ -195,8 +276,10 @@ function useExtensionExport(db: AppDrizzleDb | null) {
   return {
     isExporting: mutation.isPending,
     error,
+    warnings,
     exportExtensions() {
       setError(null);
+      setWarnings([]);
       mutation.mutate();
     },
   };
@@ -349,6 +432,8 @@ function ExtensionsRoute() {
           pendingProviderId={pendingProviderId}
           isExporting={exporter.isExporting}
           exportError={exporter.error}
+          exportWarnings={exporter.warnings}
+          importWarnings={registry.importWarnings}
           onOpenProvider={(providerId) =>
             void navigate({ to: '/extensions/$providerId', params: { providerId } })
           }
@@ -408,6 +493,7 @@ function ExtensionsRoute() {
         url={registry.url}
         onUrlChange={registry.setUrl}
         preview={registry.preview}
+        preparation={registry.preparation}
         isLoading={registry.isLoading}
         errorMessage={registry.error}
         onPreviewText={() => {

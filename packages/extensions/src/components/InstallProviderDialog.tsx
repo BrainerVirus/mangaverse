@@ -34,7 +34,7 @@ const CONTENT_FLAGS = [
   { key: 'violence', label: 'Violence' },
 ] as const;
 
-function PreviewPanel({ preview }: { preview: ExtensionInstallPreview }) {
+export function InstallPreviewPanel({ preview }: { preview: ExtensionInstallPreview }) {
   const enabledCapabilities = Object.entries(preview.capabilities)
     .filter(([, enabled]) => enabled)
     .map(([key]) => key);
@@ -170,7 +170,7 @@ export function InstallProviderDialog({
             </Alert>
           ) : null}
 
-          {awaitingConfirmation ? <PreviewPanel preview={session.preview!} /> : null}
+          {awaitingConfirmation ? <InstallPreviewPanel preview={session.preview!} /> : null}
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">

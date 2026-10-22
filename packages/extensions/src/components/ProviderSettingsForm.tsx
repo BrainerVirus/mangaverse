@@ -320,13 +320,11 @@ function OptionalFields({
 
 function AdvancedFields({
   manifest,
-  settings,
   support,
   draft,
   update,
 }: {
   manifest: ProviderManifest;
-  settings: ProviderSettingsValues;
   support: ProviderSettingsSupportView;
   draft: ProviderSettingsDraft;
   update: DraftUpdate;
@@ -374,7 +372,11 @@ function AdvancedFields({
           />
         </div>
       ) : null}
-      {support.auth ? <AuthPlaceholder state={settings.authStatePlaceholder} /> : null}
+      {support.auth ? (
+        <AuthPlaceholder
+          state={draft.authStatePlaceholder === '' ? undefined : draft.authStatePlaceholder}
+        />
+      ) : null}
     </>
   );
 }
@@ -438,18 +440,15 @@ export function ProviderSettingsForm({
           update={update}
           onToggleRating={toggleRating}
         />
-        <AdvancedFields
-          manifest={manifest}
-          settings={settings}
-          support={support}
-          draft={draft}
-          update={update}
-        />
+        <AdvancedFields manifest={manifest} support={support} draft={draft} update={update} />
         <SettingsFeedback localError={localError} errorMessage={errorMessage} isSaved={isSaved} />
         <SettingsActions
           isSaving={isSaving}
           onReset={() => {
-            setDraft(emptyProviderSettingsDraft());
+            setDraft((current) => ({
+              ...emptyProviderSettingsDraft(),
+              authStatePlaceholder: current.authStatePlaceholder,
+            }));
             setLocalError(null);
           }}
           onSubmit={submit}

@@ -139,6 +139,56 @@ describe('fetchManifestFromUrl', () => {
     expect(r.value.rawText).toBe(originalText);
     expect(r.value.json).toEqual({ checksum: 'test' });
   });
+
+  it('reports a cancelled fetch when the caller aborts', async () => {
+    const controller = new AbortController();
+    const fetch = vi.fn<(input: unknown, init?: unknown) => Promise<Response>>(
+      (_input: unknown, init?: unknown) =>
+        new Promise<Response>((_resolve, reject) => {
+          (init as RequestInit | undefined)?.signal?.addEventListener('abort', () =>
+            reject(new DOMException('Aborted', 'AbortError')),
+          );
+        }),
+    );
+
+    const pending = fetchManifestFromUrl('https://example.com/m.json', {
+      fetch,
+      signal: controller.signal,
+    });
+    controller.abort();
+    const r = await pending;
+
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error('expected failure');
+    expect(r.error.code).toBe('extensions.core.fetch.aborted');
+  });
+
+  it('aborts a request that exceeds the configured timeout', async () => {
+    vi.useFakeTimers();
+    try {
+      const fetch = vi.fn<(input: unknown, init?: unknown) => Promise<Response>>(
+        (_input: unknown, init?: unknown) =>
+          new Promise<Response>((_resolve, reject) => {
+            (init as RequestInit | undefined)?.signal?.addEventListener('abort', () =>
+              reject(new DOMException('Aborted', 'AbortError')),
+            );
+          }),
+      );
+
+      const pending = fetchManifestFromUrl('https://example.com/m.json', {
+        fetch,
+        timeoutMs: 50,
+      });
+      await vi.advanceTimersByTimeAsync(50);
+      const r = await pending;
+
+      expect(r.ok).toBe(false);
+      if (r.ok) throw new Error('expected failure');
+      expect(r.error.code).toBe('extensions.core.fetch.timeout');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('fetchAndValidateManifestFromUrl', () => {

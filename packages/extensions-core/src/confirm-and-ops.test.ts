@@ -75,6 +75,7 @@ describe('confirmExtensionInstall', () => {
     }
     expect(listed.value).toHaveLength(1);
     expect(listed.value[0]!.id).toBe(toExtensionInstallId(String(manifestV1.id)));
+    expect(listed.value[0]!.manifestUrl).toBe(url);
   });
 
   it('reinstalling same provider updates row and keeps single install', async () => {

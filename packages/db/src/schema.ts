@@ -270,6 +270,7 @@ export const installedExtensions = sqliteTable('installed_extensions', {
   id: text('id').primaryKey(),
   manifestJson: text('manifest_json', { mode: 'json' }).notNull().$type<Record<string, unknown>>(),
   sourceUrl: text('source_url').notNull(),
+  manifestUrl: text('manifest_url'),
   registryUrl: text('registry_url'),
   checksum: text('checksum'),
   installedVersion: text('installed_version').notNull(),

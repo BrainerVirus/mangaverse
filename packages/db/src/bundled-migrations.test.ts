@@ -17,12 +17,17 @@ const libraryUniqueMangaSql = readFileSync(
   `${migrationsRoot}/0003_library_unique_manga.sql`,
   'utf8',
 );
+<<<<<<< HEAD
 const migrationHistoryUndoSql = readFileSync(
   `${migrationsRoot}/0004_migration_history_undo.sql`,
   'utf8',
 );
 const libraryCategoryPinnedSql = readFileSync(
   `${migrationsRoot}/0005_library_category_pinned.sql`,
+=======
+const installedExtensionManifestUrlSql = readFileSync(
+  `${migrationsRoot}/0006_installed_extension_manifest_url.sql`,
+>>>>>>> fbdf022b (fix(extensions): make extension export round-trip)
   'utf8',
 );
 const journal = JSON.parse(readFileSync(`${migrationsRoot}/meta/_journal.json`, 'utf8'));
@@ -49,6 +54,7 @@ const migrationFiles = [
     hash: '438c0cf16e33a1fbd49d724396f8babf64c778498ff3daffbafd76a690fdbf42',
   },
   {
+<<<<<<< HEAD
     tag: '0004_migration_history_undo',
     sql: migrationHistoryUndoSql,
     hash: 'bd23ab297e509cdcf4fd4ed91bb7cebb3a4236549257c507bb6d103cf9a7f6ef',
@@ -57,6 +63,11 @@ const migrationFiles = [
     tag: '0005_library_category_pinned',
     sql: libraryCategoryPinnedSql,
     hash: 'f88fba5bb7715abf811036f0da8d3a895956819fc07782392454640c3ae755b9',
+=======
+    tag: '0006_installed_extension_manifest_url',
+    sql: installedExtensionManifestUrlSql,
+    hash: 'bd9dd7619965a6b2a7d88a59d84e65b58f179683c738edcf676703a04047f6fc',
+>>>>>>> fbdf022b (fix(extensions): make extension export round-trip)
   },
 ];
 
