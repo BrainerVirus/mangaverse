@@ -161,6 +161,7 @@ describe('CommandPalette', () => {
     // The built-in commands register in an effect and the mocked store never
     // notifies, so render once more for `registry.search` to see them.
     await render();
+    return { render };
   };
 
   it('uses the shared scrim utility while open', async () => {
@@ -233,6 +234,75 @@ describe('CommandPalette', () => {
     expect(navigation).toBeGreaterThanOrEqual(0);
     expect(recent).toBeGreaterThan(navigation);
     expect(settings).toBeGreaterThan(recent);
+  });
+
+  it('selects and runs the first displayed row, not the first registry result', async () => {
+    const handler = vi.fn<() => void>();
+    sourceState.commands = [
+      {
+        id: 'recent-continue',
+        label: 'Continue reading Read Me',
+        section: 'Recent',
+        handler,
+      },
+    ];
+    await openPalette('read');
+
+    const items = [...container.querySelectorAll('[data-selected]')];
+    expect(items[0]?.textContent).toBe('Continue reading Read Me');
+    expect(container.querySelector('[data-selected="true"]')?.textContent).toBe(
+      'Continue reading Read Me',
+    );
+
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="Search commands"]');
+    input?.focus();
+    await act(async () => {
+      input?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(navigateMock).not.toHaveBeenCalled();
+  });
+
+  it('moves through displayed order on ArrowDown with an empty query', async () => {
+    const handler = vi.fn<() => void>();
+    sourceState.commands = [
+      {
+        id: 'recent-continue',
+        label: 'Continue reading Read Me',
+        section: 'Recent',
+        handler,
+      },
+    ];
+    const { render } = await openPalette();
+
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="Search commands"]');
+    input?.focus();
+    // Navigation has three rows; the fourth displayed row is the local Recent
+    // command, while the fourth registry result is the first Settings row.
+    await act(async () => {
+      for (let press = 0; press < 3; press++) {
+        input?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+      }
+    });
+    expect(storeState.palette.moveSelection).toHaveBeenCalledWith(
+      1,
+      container.querySelectorAll('[data-selected]').length - 1,
+    );
+    expect(storeState.palette.selectedIndex).toBe(3);
+
+    // The mocked store does not notify subscribers; re-render to observe the
+    // selection the next Enter would run.
+    await render();
+    expect(container.querySelector('[data-selected="true"]')?.textContent).toBe(
+      'Continue reading Read Me',
+    );
+
+    await act(async () => {
+      input?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(navigateMock).not.toHaveBeenCalled();
   });
 
   it('runs a local data command on Enter', async () => {

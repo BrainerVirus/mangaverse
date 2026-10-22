@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { Command, CommandInput, CommandList, CommandItem } from '../../components/ui/command.js';
 
 describe('Command Palette Keyboard Navigation', () => {
@@ -66,5 +66,14 @@ describe('Command Palette Keyboard Navigation', () => {
 
     const items = screen.getAllByRole('listitem');
     expect(items.length).toBe(4);
+  });
+
+  it('runs its click handler when a command item is clicked', () => {
+    const onClick = vi.fn<() => void>();
+    render(<CommandItem onClick={onClick}>Open Manga</CommandItem>);
+
+    fireEvent.click(screen.getByText('Open Manga'));
+
+    expect(onClick).toHaveBeenCalledTimes(1);
   });
 });

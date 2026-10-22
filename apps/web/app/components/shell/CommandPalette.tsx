@@ -209,6 +209,9 @@ export function CommandPalette() {
     ...localCommands.filter((command) => commandMatchesQuery(command, query)),
   ];
   const grouped = groupCommandsBySection(results);
+  // Selection follows the rendered order, not registry order: grouping moves
+  // local-data sections (Recent) ahead of the settings they were registered after.
+  const renderedCommands = grouped.flatMap(([, commands]) => commands);
 
   // Not memoized on purpose: `results` is rebuilt every render, so a manual
   // dependency list cannot be preserved (react/preserve-manual-memoization),
@@ -219,7 +222,7 @@ export function CommandPalette() {
       close();
       return;
     }
-    const maxIndex = Math.max(0, results.length - 1);
+    const maxIndex = Math.max(0, renderedCommands.length - 1);
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       moveSelection(1, maxIndex);
@@ -230,7 +233,7 @@ export function CommandPalette() {
     }
     if (e.key === 'Enter') {
       e.preventDefault();
-      const cmd = results[selectedIndex];
+      const cmd = renderedCommands[selectedIndex];
       if (cmd) {
         cmd.handler();
         close();
@@ -281,7 +284,7 @@ export function CommandPalette() {
                       {section}
                     </div>
                     {cmds.map((cmd) => {
-                      const globalIndex = results.indexOf(cmd);
+                      const globalIndex = renderedCommands.indexOf(cmd);
                       const selected = globalIndex === selectedIndex;
                       return (
                         <CommandItem
