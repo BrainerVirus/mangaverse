@@ -100,6 +100,7 @@ export async function previewBackupRestore(
   const remoteKey = (providerId: string, providerMangaId: string) =>
     `${providerId}::${providerMangaId}`;
   const seenRemotes = new Set<string>();
+  const seenMappingIds = new Set<string>();
   for (const identity of doc.mangaIdentities) {
     for (const mapping of identity.providerMappings) {
       const key = remoteKey(mapping.providerId, mapping.providerMangaId);
@@ -112,6 +113,17 @@ export async function previewBackupRestore(
         });
       }
       seenRemotes.add(key);
+      // Mapping ids are primary keys: a duplicate only fails mid-transaction,
+      // after the delete pass, unless the preview blocks it here.
+      if (seenMappingIds.has(mapping.id)) {
+        add(previewIssues, {
+          code: 'restore.duplicate_mapping_id',
+          message: 'Backup contains the same provider mapping id more than once.',
+          severity: 'error',
+          details: { mappingId: mapping.id, mangaId: identity.id },
+        });
+      }
+      seenMappingIds.add(mapping.id);
     }
   }
 

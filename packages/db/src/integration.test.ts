@@ -8,6 +8,7 @@ import {
   toChapterPageId,
   toProviderId,
   toExtensionInstallId,
+  type BackupDocumentV1,
   type ExtensionInstallMetadata,
   type MangaId,
 } from '@app/shared';
@@ -1127,6 +1128,55 @@ describe('backup v4 library organization and reading state', () => {
     };
   }
 
+  type MutableV4Doc = {
+    mangaIdentities: {
+      id: string;
+      canonicalTitle: string;
+      providerMappings: { id: string; providerId: string; providerMangaId: string }[];
+      defaultProviderMappingId: string;
+    }[];
+    library: { id: string; mangaId: string; lastReadChapterId?: string }[];
+    chapters?: { id: string; mangaId: string; providerMappingId: string; index: number }[];
+    chapterReadStates?: { chapterId: string; mangaId: string; providerMappingId?: string }[];
+  };
+
+  /** Adds a second identity so cross-identity mapping references can be tested. */
+  function mutableDocWithSecondIdentity(doc: BackupDocumentV1): MutableV4Doc {
+    const mutable = structuredClone(doc) as unknown as MutableV4Doc;
+    const first = mutable.mangaIdentities[0]!;
+    const second = structuredClone(first);
+    second.id = 'manga-second';
+    second.canonicalTitle = 'Second Manga';
+    second.providerMappings = [
+      {
+        id: 'mapping-second',
+        providerId: first.providerMappings[0]!.providerId,
+        providerMangaId: 'remote-second',
+      },
+    ];
+    second.defaultProviderMappingId = 'mapping-second';
+    mutable.mangaIdentities.push(second);
+    return mutable;
+  }
+
+  async function expectSeededDataIntact(
+    db: Awaited<ReturnType<typeof createSqlJsHarness>>['db'],
+    seeded: Awaited<ReturnType<typeof seedCoveredData>>,
+  ): Promise<void> {
+    expect((await listLibraryEntries(db)).map((entry) => entry.id)).toEqual([seeded.entryId]);
+    expect((await listLibraryCategories(db)).map((category) => category.id)).toEqual([
+      seeded.categoryId,
+    ]);
+    expect(await listChaptersForManga(db, seeded.mangaId)).toHaveLength(1);
+    expect(await listChapterReadStates(db)).toHaveLength(1);
+    expect(await listReadingHistory(db)).toHaveLength(1);
+    expect(await listMigrationHistory(db, undefined)).toHaveLength(1);
+    expect((await getChapterReadState(db, seeded.chapterId))?.progress).toMatchObject({
+      readPercent: 42,
+      lastPageIndex: 1,
+    });
+  }
+
   it('round-trips categories, memberships, read state, reading history and migration history', async () => {
     const { db: sourceDb } = await createSqlJsHarness();
     const seeded = await seedCoveredData(sourceDb);
@@ -1356,5 +1406,126 @@ describe('backup v4 library organization and reading state', () => {
     expect(db.select().from(chapterReadState).all()).toHaveLength(1);
     expect(db.select().from(readingHistory).all()).toHaveLength(1);
     expect(db.select().from(migrationHistory).all()).toHaveLength(1);
+  });
+
+  it('rolls back every local section when an insert fails mid-restore', async () => {
+    const { db } = await createSqlJsHarness();
+    const seeded = await seedCoveredData(db);
+    const doc = await exportBackupDocumentV1(db, metadata);
+
+    // Local rows the backup does not carry: they only survive a rollback.
+    const localCategory = await createLibraryCategory(db, { name: 'Local only' });
+    if (!localCategory.ok) throw new Error(localCategory.error.message);
+    const localChapter = await upsertChapterWithPages(db, {
+      mangaId: seeded.mangaId,
+      providerMappingId: seeded.mappingId,
+      title: 'Local chapter',
+      index: 2,
+      pages: [],
+    });
+    if (!localChapter.ok) throw new Error(localChapter.error.message);
+    await upsertChapterReadState(db, {
+      chapterId: localChapter.value,
+      mangaId: seeded.mangaId,
+      progress: { readPercent: 5, lastPageIndex: 0, completed: false },
+    });
+    await appendReadingHistory(db, { mangaId: seeded.mangaId, chapterId: localChapter.value });
+
+    // Validation and preview accept two library entries sharing an id across two
+    // identities; the second insert hits the primary key inside the transaction.
+    const failing = mutableDocWithSecondIdentity(doc);
+    const second = failing.mangaIdentities[1]!;
+    failing.library.push({ ...structuredClone(failing.library[0]!), mangaId: second.id });
+
+    const result = await applyBackupRestore(db, failing);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected the restore to fail.');
+    expect(result.error.code).toBe('backup.restore.failed');
+
+    expect(
+      (await listLibraryCategories(db))
+        .map((category) => category.name)
+        .sort((a, b) => a.localeCompare(b)),
+    ).toEqual(['Fantasy', 'Local only']);
+    expect((await listLibraryEntries(db)).map((entry) => entry.id)).toEqual([seeded.entryId]);
+    expect(await listChaptersForManga(db, seeded.mangaId)).toHaveLength(2);
+    expect(await listChapterReadStates(db)).toHaveLength(2);
+    expect(await listReadingHistory(db)).toHaveLength(2);
+    expect(await listMigrationHistory(db, undefined)).toHaveLength(1);
+  });
+
+  it('blocks a chapter whose provider mapping belongs to another backup identity', async () => {
+    const { db } = await createSqlJsHarness();
+    const seeded = await seedCoveredData(db);
+    const doc = await exportBackupDocumentV1(db, metadata);
+
+    // The mapping id still exists in the document (so the FK passes), but it
+    // belongs to the first identity while the chapter claims the second.
+    const wrongOwner = mutableDocWithSecondIdentity(doc);
+    wrongOwner.chapters![0]!.mangaId = wrongOwner.mangaIdentities[1]!.id;
+
+    const preview = await previewBackupRestore(db, wrongOwner);
+    expect(preview.previewIssues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'restore.chapter_mapping_missing', severity: 'error' }),
+      ]),
+    );
+
+    const result = await applyBackupRestore(db, wrongOwner);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected the restore to be blocked.');
+    expect(result.error.code).toBe('backup.restore.blocked');
+    await expectSeededDataIntact(db, seeded);
+  });
+
+  it('blocks read state that points at a chapter missing from the backup', async () => {
+    const { db } = await createSqlJsHarness();
+    const seeded = await seedCoveredData(db);
+    const doc = await exportBackupDocumentV1(db, metadata);
+
+    const ghostChapter = structuredClone(doc) as unknown as MutableV4Doc;
+    ghostChapter.chapterReadStates![0]!.chapterId = 'ghost-chapter';
+
+    const preview = await previewBackupRestore(db, ghostChapter);
+    expect(preview.previewIssues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'restore.read_state_chapter_missing',
+          severity: 'error',
+        }),
+      ]),
+    );
+
+    const result = await applyBackupRestore(db, ghostChapter);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected the restore to be blocked.');
+    expect(result.error.code).toBe('backup.restore.blocked');
+    await expectSeededDataIntact(db, seeded);
+  });
+
+  it('blocks duplicate provider mapping ids across identities before writing', async () => {
+    const { db } = await createSqlJsHarness();
+    const seeded = await seedCoveredData(db);
+    const doc = await exportBackupDocumentV1(db, metadata);
+
+    // A duplicate mapping id is a primary-key clash, not an FK clash: it passes
+    // validation and would only surface as a generic mid-transaction failure.
+    const duplicateMapping = mutableDocWithSecondIdentity(doc);
+    const sharedMappingId = duplicateMapping.mangaIdentities[0]!.providerMappings[0]!.id;
+    duplicateMapping.mangaIdentities[1]!.providerMappings[0]!.id = sharedMappingId;
+    duplicateMapping.mangaIdentities[1]!.defaultProviderMappingId = sharedMappingId;
+
+    const preview = await previewBackupRestore(db, duplicateMapping);
+    expect(preview.previewIssues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'restore.duplicate_mapping_id', severity: 'error' }),
+      ]),
+    );
+
+    const result = await applyBackupRestore(db, duplicateMapping);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected the restore to be blocked.');
+    expect(result.error.code).toBe('backup.restore.blocked');
+    await expectSeededDataIntact(db, seeded);
   });
 });

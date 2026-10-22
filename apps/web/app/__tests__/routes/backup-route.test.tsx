@@ -4,10 +4,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import type * as BackupModule from '@app/backup';
 import type * as CacheModule from '@app/cache';
+import type * as ExtensionsModule from '@app/extensions';
+import type { ExtensionsPageData } from '@app/extensions';
 import type * as SettingsModule from '@app/settings';
+import { extensionsQueryKeys } from '@app/extensions';
+import { searchQueryKeys } from '@app/search';
 import { getDefaultAppSettings, type AppSettings } from '@app/shared';
 
 const mocks = vi.hoisted(() => ({
@@ -18,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   previewBackupImport: vi.fn<(db: unknown, doc: unknown) => Promise<unknown>>(),
   fetchAppSettings: vi.fn<(db: unknown) => Promise<{ settings: AppSettings }>>(),
   saveAppSettings: vi.fn<(db: unknown, next: AppSettings) => Promise<unknown>>(),
+  fetchExtensionsPage: vi.fn<() => Promise<ExtensionsPageData>>(),
   getCoverCacheUsage: vi.fn<() => Promise<{ totalBytes: number }>>(),
 }));
 
@@ -47,6 +52,11 @@ vi.mock('@app/cache', async (importOriginal) => {
   return { ...actual, getCoverCacheUsage: mocks.getCoverCacheUsage };
 });
 
+vi.mock('@app/extensions', async (importOriginal) => {
+  const actual = await importOriginal<typeof ExtensionsModule>();
+  return { ...actual, fetchExtensionsPage: mocks.fetchExtensionsPage };
+});
+
 vi.mock('../../providers/local-db-provider.js', () => ({
   useLocalDb: () => ({ id: 'fake-db' }),
   useLocalDbStatus: () => 'ready',
@@ -63,6 +73,16 @@ const SETTINGS_STALE_TIME_MS = 10 * 60 * 1_000;
 
 const backupDocument = { schemaVersion: 3, metadata: { createdAt: '', appVersion: 'test' } };
 
+/** Mirrors the /extensions page query so the restore invalidation is observable. */
+function ExtensionsProbe() {
+  const extensions = useQuery({
+    queryKey: extensionsQueryKeys.page(),
+    queryFn: () => mocks.fetchExtensionsPage(),
+    staleTime: Infinity,
+  });
+  return <output data-testid="extensions-probe">{extensions.data?.providers.length ?? -1}</output>;
+}
+
 async function renderRoutes(client: QueryClient): Promise<{ root: Root; container: HTMLElement }> {
   const container = document.createElement('div');
   document.body.appendChild(container);
@@ -72,6 +92,7 @@ async function renderRoutes(client: QueryClient): Promise<{ root: Root; containe
       <QueryClientProvider client={client}>
         <BackupRoute.options.component />
         <SettingsAppRoute.options.component />
+        <ExtensionsProbe />
       </QueryClientProvider>,
     );
   });
@@ -154,6 +175,8 @@ describe('/backup restore and /settings/app freshness', () => {
     });
     mocks.getCoverCacheUsage.mockReset();
     mocks.getCoverCacheUsage.mockResolvedValue({ totalBytes: 0 });
+    mocks.fetchExtensionsPage.mockReset();
+    mocks.fetchExtensionsPage.mockResolvedValue({ providers: [] });
   });
 
   afterEach(() => {
@@ -224,6 +247,25 @@ describe('/backup restore and /settings/app freshness', () => {
       expect(list?.textContent).toContain('9');
       expect(list?.textContent).toContain('Migration history');
     });
+
+    act(() => root.unmount());
+    container.remove();
+    client.clear();
+  });
+
+  it('Given a restore, When the extensions list is mounted, Then providers are refetched and search providers invalidated', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidate = vi.spyOn(client, 'invalidateQueries');
+    const { root, container } = await renderRoutes(client);
+
+    await vi.waitFor(() => expect(mocks.fetchExtensionsPage).toHaveBeenCalledTimes(1));
+
+    await runRestore();
+
+    // Without the extensions invalidation the page keeps the pre-restore providers.
+    await vi.waitFor(() => expect(mocks.fetchExtensionsPage).toHaveBeenCalledTimes(2));
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: extensionsQueryKeys.all });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: searchQueryKeys.providers() });
 
     act(() => root.unmount());
     container.remove();

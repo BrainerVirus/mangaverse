@@ -11,9 +11,11 @@ import {
   parseBackupFileContent,
   previewBackupImport,
 } from '@app/backup';
+import { extensionsQueryKeys } from '@app/extensions';
 import { libraryQueryKeys } from '@app/library';
 import { migrationQueryKeys } from '@app/migration';
 import { readerQueryKeys } from '@app/reader';
+import { searchQueryKeys } from '@app/search';
 import { settingsQueryKeys } from '@app/settings';
 import { themeQueryKeys } from '@app/theme';
 
@@ -92,6 +94,10 @@ function BackupRoute() {
       void queryClient.invalidateQueries({ queryKey: themeQueryKeys.all });
       void queryClient.invalidateQueries({ queryKey: migrationQueryKeys.all });
       void queryClient.invalidateQueries({ queryKey: readerQueryKeys.all });
+      // Restore also replaces the installed-extension snapshots and provider
+      // settings the provider pickers and search fan-out read.
+      void queryClient.invalidateQueries({ queryKey: extensionsQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: searchQueryKeys.providers() });
     },
     onError: (error) => {
       setRestoreSuccess(false);
