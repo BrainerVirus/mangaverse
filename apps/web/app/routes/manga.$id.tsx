@@ -3,12 +3,27 @@ import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchMangaDetail,
+  findDuplicateCandidates,
   libraryQueryKeys,
   MangaDetailPage,
+  type DuplicateCandidatesState,
   type MangaDetailData,
+  type MergeDuplicateInput,
 } from '@app/library';
 import { extensionsQueryKeys, fetchProviderUiInfo } from '@app/extensions';
-import { toLibraryEntryId, toMangaId, type MangaId, type MangaProviderMapping } from '@app/shared';
+import {
+  mergeMangaIdentities,
+  previewMergeMangaIdentities,
+  previewUnmergeProviderMapping,
+  unmergeProviderMapping,
+} from '@app/db';
+import {
+  toLibraryEntryId,
+  toMangaId,
+  type MangaId,
+  type MangaProviderMapping,
+  type ProviderMappingId,
+} from '@app/shared';
 import {
   createAddToLibraryMutationOptions,
   createLibraryOrganizationMutationOptions,
@@ -29,6 +44,7 @@ import {
   countChaptersForMapping,
   detailOrNull,
   goBackOrLibrary,
+  invalidateIdentityMergeCaches,
   invalidateMangaCaches,
   isDbReady,
   isPageError,
@@ -108,6 +124,12 @@ function MangaDetailRoute() {
     enabled: ready,
   });
 
+  const duplicatesQuery = useQuery({
+    queryKey: libraryQueryKeys.duplicates(mangaId),
+    queryFn: () => findDuplicateCandidates(db!, mangaId),
+    enabled: ready,
+  });
+
   const providerLabels = useMemo(() => {
     const labels: Record<string, string> = {};
     for (const provider of providerInfoQuery.data ?? []) labels[provider.id] = provider.name;
@@ -181,6 +203,40 @@ function MangaDetailRoute() {
       runChapterAction(db, mangaId, action),
     onSettled: () => invalidateMangaCaches(queryClient),
   });
+
+  const mergeMutation = useMutation({
+    mutationFn: async (input: MergeDuplicateInput) => {
+      if (db === null) throw new Error('Local database is not ready.');
+      const result = await mergeMangaIdentities(db, input);
+      if (!result.ok) throw new Error(result.error.message);
+      return result.value;
+    },
+    onMutate: () => queryClient.cancelQueries({ queryKey: libraryQueryKeys.all }),
+    onSettled: () => {
+      invalidateIdentityMergeCaches(queryClient);
+    },
+  });
+
+  const unmergeMutation = useMutation({
+    mutationFn: async (mappingId: ProviderMappingId) => {
+      if (db === null) throw new Error('Local database is not ready.');
+      const result = await unmergeProviderMapping(db, { mangaId, mappingId });
+      if (!result.ok) throw new Error(result.error.message);
+      return result.value;
+    },
+    onMutate: () => queryClient.cancelQueries({ queryKey: libraryQueryKeys.all }),
+    onSettled: () => {
+      invalidateIdentityMergeCaches(queryClient);
+    },
+  });
+
+  const duplicatesError = queryErrorMessage(duplicatesQuery.error);
+  const duplicatesState: DuplicateCandidatesState = {
+    ...(duplicatesQuery.data === undefined ? {} : { items: duplicatesQuery.data }),
+    isLoading: duplicatesQuery.isLoading,
+    ...(duplicatesError === undefined ? {} : { error: duplicatesError }),
+    onRetry: () => void duplicatesQuery.refetch(),
+  };
 
   const chaptersError = queryErrorMessage(chapterHydrationQuery.error);
   const isLibraryActionPending = anyActionPending([
@@ -257,6 +313,24 @@ function MangaDetailRoute() {
       onOpenRelatedManga={(relatedMangaId) =>
         void navigate({ to: '/manga/$id', params: { id: relatedMangaId } })
       }
+      duplicates={duplicatesState}
+      isMergePending={mergeMutation.isPending}
+      loadMergePreview={(targetId, sourceId) => {
+        if (db === null) throw new Error('Local database is not ready.');
+        return previewMergeMangaIdentities(db, targetId, sourceId);
+      }}
+      onMerge={(input) => mergeMutation.mutateAsync(input).then(() => undefined)}
+      onMerged={(targetId) => {
+        if (targetId !== mangaId) {
+          void navigate({ to: '/manga/$id', params: { id: targetId } });
+        }
+      }}
+      isUnmergePending={unmergeMutation.isPending}
+      loadUnmergePreview={(mappingId) => {
+        if (db === null) throw new Error('Local database is not ready.');
+        return previewUnmergeProviderMapping(db, mangaId, mappingId);
+      }}
+      onUnmerge={(mappingId) => unmergeMutation.mutateAsync(mappingId).then(() => undefined)}
     />
   );
 }
