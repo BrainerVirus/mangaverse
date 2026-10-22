@@ -36,6 +36,13 @@
       "when": 1792627200000,
       "tag": "0004_migration_history_undo",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1795046400000,
+      "tag": "0005_library_category_pinned",
+      "breakpoints": true
     }
   ]
 }

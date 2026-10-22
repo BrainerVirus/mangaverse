@@ -28,7 +28,8 @@
     "./migrations/meta/_journal.json": "./migrations/meta/_journal.json",
     "./migrations/0002_themes.sql": "./migrations/0002_themes.sql",
     "./migrations/0003_library_unique_manga.sql": "./migrations/0003_library_unique_manga.sql",
-    "./migrations/0004_migration_history_undo.sql": "./migrations/0004_migration_history_undo.sql"
+    "./migrations/0004_migration_history_undo.sql": "./migrations/0004_migration_history_undo.sql",
+    "./migrations/0005_library_category_pinned.sql": "./migrations/0005_library_category_pinned.sql"
   },
   "scripts": {
     "clean": "rm -rf dist",

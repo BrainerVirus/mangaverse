@@ -21,6 +21,10 @@ const migrationHistoryUndoSql = readFileSync(
   `${migrationsRoot}/0004_migration_history_undo.sql`,
   'utf8',
 );
+const libraryCategoryPinnedSql = readFileSync(
+  `${migrationsRoot}/0005_library_category_pinned.sql`,
+  'utf8',
+);
 const journal = JSON.parse(readFileSync(`${migrationsRoot}/meta/_journal.json`, 'utf8'));
 
 const migrationFiles = [
@@ -48,6 +52,11 @@ const migrationFiles = [
     tag: '0004_migration_history_undo',
     sql: migrationHistoryUndoSql,
     hash: 'bd23ab297e509cdcf4fd4ed91bb7cebb3a4236549257c507bb6d103cf9a7f6ef',
+  },
+  {
+    tag: '0005_library_category_pinned',
+    sql: libraryCategoryPinnedSql,
+    hash: 'f88fba5bb7715abf811036f0da8d3a895956819fc07782392454640c3ae755b9',
   },
 ];
 
