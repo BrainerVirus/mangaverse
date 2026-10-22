@@ -48,15 +48,15 @@ describe('resolvePageFit', () => {
     expect(fit.objectFit).toBe('none');
   });
 
-  it('Given a natural page larger than the area, When fit original, Then the box shrinks to fit without cropping', () => {
+  it('Given a natural page larger than the area, When fit original, Then the scrollable box keeps the natural size', () => {
     const fit = resolvePageFit({
       ...area,
       fitMode: 'original',
       naturalSize: { width: 1800, height: 2700 },
     });
 
-    expect(fit.box.width).toBeLessThanOrEqual(area.availableWidth);
-    expect(fit.box.height).toBeLessThanOrEqual(area.availableHeight);
+    expect(fit.box.width).toBe(1800);
+    expect(fit.box.height).toBe(2700);
     expect(fit.box.width / fit.box.height).toBeCloseTo(2 / 3, 5);
   });
 

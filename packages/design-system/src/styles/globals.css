@@ -630,3 +630,11 @@
 [data-glass-tone="reader"] {
   --glass-opaque: rgb(0 0 0 / 0.88);
 }
+@utility reader-stage-background {
+  background-color: var(--reader-stage-color, var(--reader-background));
+}
+
+@utility reader-page-scroll {
+  align-items: safe center;
+  justify-content: safe center;
+}

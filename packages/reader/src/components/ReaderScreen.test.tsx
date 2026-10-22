@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
-import { act, type ReactNode } from 'react';
+import { act, type ComponentProps, type ReactNode } from 'react';
 import { getDefaultReaderSettings, toChapterPageId } from '@app/shared';
 
 const cacheState = vi.hoisted(() => ({
@@ -24,7 +24,13 @@ vi.mock('@app/cache', () => ({
 }));
 
 vi.mock('@app/design-system', () => ({
-  Button: () => null,
+  Button: ({ children, ...props }: { children?: ReactNode } & Record<string, unknown>) => (
+    <button {...props}>{children}</button>
+  ),
+  Dialog: ({ children }: { children: ReactNode }) => <dialog open>{children}</dialog>,
+  DialogContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DialogHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DialogTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
   EmptyState: () => null,
   ErrorState: ({
     title,
@@ -126,6 +132,40 @@ function mount(
     );
   });
   return { root, container };
+}
+
+function renderScreen(overrides: Partial<ComponentProps<typeof ReaderScreen>> = {}): {
+  root: Root;
+  container: HTMLElement;
+} {
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  act(() => {
+    root.render(
+      <ReaderScreen
+        data={buildData()}
+        isLoading={false}
+        isError={false}
+        chromeVisible={true}
+        onToggleChrome={() => {}}
+        {...overrides}
+      />,
+    );
+  });
+  return { root, container };
+}
+
+function buttonNamed(container: HTMLElement, name: string): HTMLButtonElement | undefined {
+  return [...container.querySelectorAll('button')].find((button) => button.textContent === name) as
+    | HTMLButtonElement
+    | undefined;
+}
+
+function pressKey(key: string) {
+  act(() => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+  });
 }
 
 function buildEmptyData(): ReaderPageData {
@@ -333,6 +373,90 @@ describe('ReaderScreen offline state', () => {
     });
     container.remove();
     cacheState.context = null;
+  });
+});
+
+describe('ReaderScreen close and chapter transition', () => {
+  it('Given the last page, When the next page is requested, Then the chapter transition offers both chapters', () => {
+    const onNextChapter = vi.fn<() => void>();
+    const onPreviousChapter = vi.fn<() => void>();
+    const { root, container } = renderScreen({
+      data: {
+        ...buildData(),
+        previousChapterId: 'chapter-0' as ReaderPageData['chapterId'],
+        nextChapterId: 'chapter-2' as ReaderPageData['chapterId'],
+      },
+      onNextChapter,
+      onPreviousChapter,
+    });
+
+    pressKey('End');
+    pressKey('ArrowRight');
+
+    const dialog = container.querySelector('dialog');
+    expect(dialog?.textContent).toContain('Chapter complete');
+    act(() => buttonNamed(container, 'Read next chapter')?.click());
+    expect(onNextChapter).toHaveBeenCalledTimes(1);
+
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it('Given the only chapter, When the last page ends, Then the transition says it is the last chapter', () => {
+    const { root, container } = renderScreen();
+    pressKey('End');
+    pressKey('ArrowRight');
+
+    expect(container.querySelector('dialog')?.textContent).toContain(
+      'You reached the last available chapter.',
+    );
+    expect(buttonNamed(container, 'Read next chapter')).toBeUndefined();
+
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it('Given hidden chrome, When rendered, Then a close action stays reachable', () => {
+    const onClose = vi.fn<() => void>();
+    const base = buildData();
+    const settings = { ...base.settings, chromeVisibility: 'hidden' as const };
+    const { root, container } = renderScreen({
+      data: { ...base, settings, engineSettings: toReaderEngineSettings(settings) },
+      chromeVisible: true,
+      onClose,
+    });
+
+    act(() => buttonNamed(container, 'Close reader')?.click());
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it('Given always-visible chrome, When the chrome toggle says hidden, Then the extra close action is not drawn', () => {
+    const base = buildData();
+    const settings = { ...base.settings, chromeVisibility: 'always' as const };
+    const { root, container } = renderScreen({
+      data: { ...base, settings, engineSettings: toReaderEngineSettings(settings) },
+      chromeVisible: false,
+      onClose: () => {},
+    });
+
+    expect(buttonNamed(container, 'Close reader')).toBeUndefined();
+
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it('Given a failed chapter load, When rendered, Then the reader can still be closed', () => {
+    const onClose = vi.fn<() => void>();
+    const { root, container } = renderScreen({ isError: true, onClose });
+
+    act(() => buttonNamed(container, 'Close reader')?.click());
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    act(() => root.unmount());
+    container.remove();
   });
 });
 

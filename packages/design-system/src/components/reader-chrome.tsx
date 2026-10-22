@@ -1,6 +1,6 @@
 import { useRef, useCallback, type ReactNode } from 'react';
 import { useGSAP } from '@gsap/react';
-import { Maximize2, Settings, SkipBack, SkipForward } from 'lucide-react';
+import { ArrowLeft, Maximize2, Settings, SkipBack, SkipForward } from 'lucide-react';
 import { cn } from '../lib/cn.js';
 import { chromeShow, chromeHide, readerModePill } from '@app/motion';
 import { useReducedMotion } from '@app/motion';
@@ -25,6 +25,8 @@ export interface ReaderChromeProps {
   renderPagePreview?: (page: number) => ReactNode;
   /** Ref for the settings button so sheets can restore focus to it on close. */
   settingsButtonRef?: React.Ref<HTMLButtonElement>;
+  onClose?: (() => void) | undefined;
+  onChapterEnd?: (() => void) | undefined;
 }
 
 const readerModes: { value: ReaderMode; label: string }[] = [
@@ -45,6 +47,8 @@ export function ReaderChrome({
   onToggleFullscreen,
   renderPagePreview,
   settingsButtonRef,
+  onClose,
+  onChapterEnd,
 }: ReaderChromeProps) {
   const ref = useRef<HTMLDivElement>(null);
   const modeBarRef = useRef<HTMLDivElement>(null);
@@ -91,8 +95,10 @@ export function ReaderChrome({
   const handleNext = useCallback(() => {
     if (currentPage < totalPages && onPageChange) {
       onPageChange(currentPage + 1);
+    } else if (currentPage >= totalPages) {
+      onChapterEnd?.();
     }
-  }, [currentPage, totalPages, onPageChange]);
+  }, [currentPage, totalPages, onPageChange, onChapterEnd]);
 
   return (
     <div
@@ -103,6 +109,8 @@ export function ReaderChrome({
       )}
       role="toolbar"
       aria-label="Reader controls"
+      inert={!visible}
+      aria-hidden={!visible}
     >
       <GlassSurface
         level="stage"
@@ -119,25 +127,38 @@ export function ReaderChrome({
 
       <div
         data-reader-chrome-row="top"
-        className="safe-area-x safe-area-top relative isolate flex items-center justify-between pb-3"
+        className="safe-area-x safe-area-top relative isolate flex flex-wrap items-center justify-between gap-2 pb-3"
       >
         <div
           aria-hidden="true"
           data-glass-plate=""
           className="glass-plate pointer-events-none absolute inset-0 -z-10"
         />
-        <div className="flex items-center gap-2">
-          {chapterTitle && <span className="text-sm font-medium text-white">{chapterTitle}</span>}
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          {onClose ? (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="shrink-0 text-white"
+              aria-label="Close reader"
+              onClick={onClose}
+            >
+              <ArrowLeft />
+            </Button>
+          ) : null}
+          {chapterTitle && (
+            <span className="min-w-0 truncate text-sm font-medium text-white">{chapterTitle}</span>
+          )}
           <Badge
             size="meta"
             variant="secondary"
-            className="border border-glass-edge bg-glass-plate text-white"
+            className="shrink-0 whitespace-nowrap border border-glass-edge bg-glass-plate text-white"
           >
             {currentPage} / {totalPages}
           </Badge>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto">
           {mode && onModeChange && (
             <div ref={modeBarRef} className="relative">
               <GlassSurface
@@ -228,7 +249,7 @@ export function ReaderChrome({
           size="icon"
           variant="ghost"
           onClick={handleNext}
-          disabled={currentPage >= totalPages}
+          disabled={currentPage >= totalPages && !onChapterEnd}
           className="text-white hover:bg-primary/20 disabled:opacity-30"
           aria-label="Next page"
         >

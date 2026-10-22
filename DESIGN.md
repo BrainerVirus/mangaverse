@@ -793,6 +793,13 @@ is not a dependency of the package, so `GlassPanel` renders a `div` and forwards
 
 ### 7.6 Reader chrome (the priority surface)
 
+Reader audit corrections: chrome wraps at mobile widths, keeps the page counter on one line,
+and provides a Close action. Hidden chrome is inert, and a close action stays reachable whenever
+no chrome is shown. Chapter completion uses the existing dialog surface, with next/previous chapter
+and an explicit last-chapter state. Image failures use Retry/Skip/Back. Fit-width and original pages
+scroll with safe centering (`reader-page-scroll`), the saved stage color uses `--reader-stage-color`
+(`reader-stage-background`), and strip rows use provider or decoded dimensions.
+
 Structure is unchanged: a fixed top bar (chapter title, mode pill, settings, fullscreen), a fixed bottom
 rail (prev/next, page counter, progress rail with page previews), `CHROME_INSETS { top: 96, bottom: 48 }`,
 and `chromeShow`/`chromeHide` from `@app/motion`. The material is what changes:

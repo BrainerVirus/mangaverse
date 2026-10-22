@@ -72,6 +72,8 @@
         "allow": [
           "glass-scrim",
           "palette-top",
+          "reader-stage-background",
+          "reader-page-scroll",
           "rounded-badge",
           "rounded-box",
           "rounded-btn",

@@ -424,6 +424,7 @@ The easing presets are defined in `packages/motion/src/tokens/easing.ts` and doc
 - Partial failure should not become a full-page failure.
 - Destructive restore errors must preserve user confidence and explain what changed.
 - Reader image errors need retry and skip/back options.
+- Width and original-size pages scroll from a reachable top/leading edge, never from a clipped negative origin. `reader-page-scroll` owns safe centering; `reader-stage-background` applies the saved background through `--reader-stage-color`. Strip rows use provider or decoded dimensions rather than fixed portrait boxes.
 
 ## Responsive Behavior
 
