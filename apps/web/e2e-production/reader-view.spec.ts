@@ -40,6 +40,21 @@ async function switchToVertical(page: Page) {
   await expect(page.getByTestId('reader-scroll-view')).toBeVisible({ timeout: 20_000 });
 }
 
+/**
+ * Serves portrait pages. The shared TINY_JPEG is 1x1, and strip rows now take
+ * their ratio from the decoded image, so a square source would re-flow the
+ * strip after load and move the page the tests position by hand.
+ */
+async function servePortraitPages(page: Page) {
+  await page.route('**/*.mangadex.network/**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1200"><rect width="800" height="1200" fill="white"/></svg>',
+    }),
+  );
+}
+
 /** Parses the inline `translate(Xpx, Ypx) scale(S)` the zoom layer renders. */
 function parseTransform(style: string | null): { scale: number; x: number; y: number } {
   const match = /translate\((-?[\d.]+)px, (-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(style ?? '');
@@ -201,6 +216,7 @@ test('Given the vertical strip, When the current page is shorter than half the v
   quickOnboarding,
   mockMangaDex,
 }) => {
+  await servePortraitPages(page);
   await openReader(page);
   await switchToVertical(page);
   const strip = page.getByTestId('reader-scroll-view');
@@ -230,6 +246,7 @@ test('Given the vertical strip, When ArrowRight is pressed five times rapidly, T
   quickOnboarding,
   mockMangaDex,
 }) => {
+  await servePortraitPages(page);
   await openReader(page);
   await switchToVertical(page);
   const strip = page.getByTestId('reader-scroll-view');
