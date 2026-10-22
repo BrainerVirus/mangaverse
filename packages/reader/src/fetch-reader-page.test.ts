@@ -75,5 +75,13 @@ describe('fetchReaderPage', () => {
 
     const readState = await getChapterReadState(db, chapterId);
     expect(readState?.progress.lastPageIndex).toBe(1);
+
+    const { upsertTitleReaderSettings, resetTitleReaderSettings, getReaderSettings } =
+      await import('@app/db');
+    await upsertTitleReaderSettings(db, mangaId, { ...page!.settings, readingMode: 'rtl' });
+    expect((await fetchReaderPage(db, chapterId))?.settings.readingMode).toBe('rtl');
+    expect((await getReaderSettings(db)).readingMode).toBe('ltr');
+    await resetTitleReaderSettings(db, mangaId);
+    expect((await fetchReaderPage(db, chapterId))?.settings.readingMode).toBe('ltr');
   });
 });

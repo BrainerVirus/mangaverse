@@ -8,16 +8,18 @@ export async function fetchReaderPage(
   db: AppDrizzleDb,
   chapterId: ChapterId,
 ): Promise<ReaderPageData | undefined> {
-  const { getChapter, getChapterReadState, getReaderSettings } = await import('@app/db');
+  const { getChapter, getChapterReadState, getTitleReaderSettings, listChaptersForManga } =
+    await import('@app/db');
 
   const chapter = await getChapter(db, chapterId);
   if (chapter === undefined) {
     return undefined;
   }
 
-  const [readState, settings] = await Promise.all([
+  const [readState, settings, chapters] = await Promise.all([
     getChapterReadState(db, chapterId),
-    getReaderSettings(db),
+    getTitleReaderSettings(db, chapter.mangaId),
+    listChaptersForManga(db, chapter.mangaId),
   ]);
 
   const initialPageIndex =
@@ -29,6 +31,8 @@ export async function fetchReaderPage(
       : 0;
 
   const engineSettings = toReaderEngineSettings(settings);
+  const sourceChapters = chapters.filter((item) => item.providerId === chapter.providerId);
+  const position = sourceChapters.findIndex((item) => item.id === chapter.id);
 
   return {
     chapter: mapChapterToReaderChapter(chapter),
@@ -38,5 +42,7 @@ export async function fetchReaderPage(
     initialPageIndex,
     settings,
     engineSettings,
+    previousChapterId: sourceChapters[position - 1]?.id,
+    nextChapterId: sourceChapters[position + 1]?.id,
   };
 }
