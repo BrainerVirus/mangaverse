@@ -75,7 +75,6 @@ function isTargetSearchEnabled(input: {
     input.activeSourceProviderId !== input.targetProviderId
   );
 }
-}
 
 /**
  * Migration page state and side effects, kept out of the route component so the

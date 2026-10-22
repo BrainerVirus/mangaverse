@@ -33,6 +33,13 @@ describe('readHandoff', () => {
     });
   });
 
+  it('prefills the manga-detail source when there is no bulk hand-off', () => {
+    expect(readHandoff({ source: 'source' })).toMatchObject({
+      requestedMangaIds: [],
+      initialSourceProviderId: 'source',
+    });
+  });
+
   it('asks for a source when the selection spans providers', () => {
     const handoff = readHandoff({ ids: ['m1', 'm2'], sources: ['source', 'target'] });
 
