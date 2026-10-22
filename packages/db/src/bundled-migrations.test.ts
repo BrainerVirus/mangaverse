@@ -17,6 +17,10 @@ const libraryUniqueMangaSql = readFileSync(
   `${migrationsRoot}/0003_library_unique_manga.sql`,
   'utf8',
 );
+const migrationHistoryUndoSql = readFileSync(
+  `${migrationsRoot}/0004_migration_history_undo.sql`,
+  'utf8',
+);
 const journal = JSON.parse(readFileSync(`${migrationsRoot}/meta/_journal.json`, 'utf8'));
 
 const migrationFiles = [
@@ -39,6 +43,11 @@ const migrationFiles = [
     tag: '0003_library_unique_manga',
     sql: libraryUniqueMangaSql,
     hash: '438c0cf16e33a1fbd49d724396f8babf64c778498ff3daffbafd76a690fdbf42',
+  },
+  {
+    tag: '0004_migration_history_undo',
+    sql: migrationHistoryUndoSql,
+    hash: 'bd23ab297e509cdcf4fd4ed91bb7cebb3a4236549257c507bb6d103cf9a7f6ef',
   },
 ];
 

@@ -10,6 +10,27 @@ import { QUERY_GC_TIMES, QUERY_STALE_TIMES } from './query-timing.js';
 const TARGET_SEARCH_LIMIT = 12;
 
 /**
+ * Large libraries would otherwise issue one provider search per title at once.
+ * Queries still run per row (and retry per row); only the provider calls queue.
+ */
+const TARGET_SEARCH_CONCURRENCY = 4;
+let activeTargetSearches = 0;
+const waitingTargetSearches: (() => void)[] = [];
+
+async function withTargetSearchSlot<T>(task: () => Promise<T>): Promise<T> {
+  if (activeTargetSearches >= TARGET_SEARCH_CONCURRENCY) {
+    await new Promise<void>((resolve) => waitingTargetSearches.push(resolve));
+  }
+  activeTargetSearches += 1;
+  try {
+    return await task();
+  } finally {
+    activeTargetSearches -= 1;
+    waitingTargetSearches.shift()?.();
+  }
+}
+
+/**
  * Searches one installed provider for a title through its runtime contract.
  * Provider ids stay raw here so the migration selection can persist them.
  */
@@ -26,17 +47,20 @@ export async function searchProviderMangaTargets(
   if (provider === null) {
     throw new Error(`${providerId} is not installed or enabled.`);
   }
-  if (provider.search === undefined) {
+  const search = provider.search;
+  if (search === undefined) {
     throw new Error(`${providerId} does not support search.`);
   }
 
-  const result = await provider.search(
-    {
-      manifest: provider.manifest,
-      providerId,
-      ...(signal !== undefined ? { signal } : {}),
-    },
-    { query: trimmed, limit: TARGET_SEARCH_LIMIT },
+  const result = await withTargetSearchSlot(() =>
+    search(
+      {
+        manifest: provider.manifest,
+        providerId,
+        ...(signal !== undefined ? { signal } : {}),
+      },
+      { query: trimmed, limit: TARGET_SEARCH_LIMIT },
+    ),
   );
 
   return result.items.map((item) => ({

@@ -301,6 +301,10 @@ export const migrationHistory = sqliteTable(
       .references(() => mangaIdentities.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
     completedAt: text('completed_at').notNull(),
     notes: text('notes'),
+    /** One id per apply call so undo targets that batch, not the latest by title. */
+    batchId: text('batch_id'),
+    previousDefaultMappingId: text('previous_default_mapping_id'),
+    previousActiveMappingId: text('previous_active_mapping_id'),
   },
   (t) => [
     index('migration_history_providers_idx').on(
@@ -309,6 +313,7 @@ export const migrationHistory = sqliteTable(
       t.targetProviderId,
       t.targetProviderMangaId,
     ),
+    index('migration_history_batch_idx').on(t.batchId),
   ],
 );
 

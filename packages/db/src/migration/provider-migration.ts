@@ -24,8 +24,9 @@ import {
 } from '../repositories/library.js';
 import {
   recordMigrationHistory,
-  findLatestMigrationHistoryForManga,
+  listMigrationHistoryByBatch,
 } from '../repositories/migration-history.js';
+import type { MigrationHistoryEntry } from '../repositories/migration-history.js';
 
 export type MigrationPreviewSeverity = 'info' | 'warning' | 'error';
 
@@ -59,6 +60,8 @@ export interface MigrationPreviewItem {
   readonly sourceProviderMangaId: string;
   readonly targetProviderId: string;
   readonly targetProviderMangaId: string;
+  /** Target title picked in search, when one was known; manual ids have none. */
+  readonly targetProviderTitle?: string;
   readonly willAddMapping: boolean;
   readonly willUpdateDefault: boolean;
   readonly willUpdateActive: boolean;
@@ -81,6 +84,8 @@ export interface MigrationApplyItemResult {
 }
 
 export interface MigrationApplyReport {
+  /** Groups every row written by one apply call; undo uses it. */
+  readonly batchId: string;
   readonly applied: readonly MigrationApplyItemResult[];
   readonly skipped: readonly MigrationApplyItemResult[];
 }
@@ -93,6 +98,8 @@ export interface MigrationRollbackItemResult {
 
 export interface MigrationRollbackReport {
   readonly restored: readonly MigrationRollbackItemResult[];
+  /** Titles whose pointers already matched the pre-migration state. */
+  readonly alreadyRestored: readonly MigrationRollbackItemResult[];
   readonly skipped: readonly MigrationRollbackItemResult[];
 }
 
@@ -159,6 +166,9 @@ async function buildPreviewItem(
       sourceProviderMangaId: '',
       targetProviderId,
       targetProviderMangaId: selection.targetProviderMangaId,
+      ...(selection.targetProviderTitle !== undefined
+        ? { targetProviderTitle: selection.targetProviderTitle }
+        : {}),
       willAddMapping: false,
       willUpdateDefault: false,
       willUpdateActive: false,
@@ -241,6 +251,9 @@ async function buildPreviewItem(
     sourceProviderMangaId: sourceMapping?.providerMangaId ?? '',
     targetProviderId,
     targetProviderMangaId: selection.targetProviderMangaId,
+    ...(selection.targetProviderTitle !== undefined
+      ? { targetProviderTitle: selection.targetProviderTitle }
+      : {}),
     willAddMapping: willAddMapping && !blocked,
     willUpdateDefault: willUpdateDefault && !blocked,
     willUpdateActive: willUpdateActive && !blocked,
@@ -280,6 +293,7 @@ export async function previewProviderMigration(
 async function applySingleMigration(
   db: AppDrizzleDb,
   input: {
+    readonly batchId: string;
     readonly sourceProviderId: string;
     readonly targetProviderId: string;
     readonly selection: MigrationTargetSelection;
@@ -310,6 +324,10 @@ async function applySingleMigration(
       }),
     );
   }
+
+  const previousDefaultMappingId = identity.defaultProviderMappingId;
+  const libraryEntry = await getLibraryEntryForManga(db, input.selection.mangaId);
+  const previousActiveMappingId = libraryEntry?.activeProviderMappingId;
 
   let targetMappingId: ProviderMappingId;
   const existingTarget = db
@@ -343,7 +361,6 @@ async function applySingleMigration(
     if (!updated.ok) return updated;
   }
 
-  const libraryEntry = await getLibraryEntryForManga(db, input.selection.mangaId);
   if (libraryEntry !== undefined && libraryEntry.activeProviderMappingId === sourceMapping.id) {
     const updated = await setLibraryEntryActiveProviderMapping(
       db,
@@ -359,6 +376,9 @@ async function applySingleMigration(
     sourceProviderMangaId: sourceMapping.providerMangaId,
     targetProviderId: input.targetProviderId,
     targetProviderMangaId: input.selection.targetProviderMangaId,
+    batchId: input.batchId,
+    previousDefaultMappingId,
+    ...(previousActiveMappingId !== undefined ? { previousActiveMappingId } : {}),
   });
 
   await db
@@ -398,6 +418,7 @@ export async function applyProviderMigration(
 
   const applied: MigrationApplyItemResult[] = [];
   const skipped: MigrationApplyItemResult[] = [];
+  const batchId = crypto.randomUUID();
 
   for (const selection of input.selections) {
     const itemPreview = preview.items.find((item) => item.mangaId === selection.mangaId);
@@ -412,6 +433,7 @@ export async function applyProviderMigration(
     }
 
     const result = await applySingleMigration(db, {
+      batchId,
       sourceProviderId: input.sourceProviderId,
       targetProviderId: input.targetProviderId,
       selection,
@@ -434,60 +456,63 @@ export async function applyProviderMigration(
     );
   }
 
-  return ok({ applied, skipped });
+  return ok({ batchId, applied, skipped });
 }
 
 async function rollbackSingleMigration(
   db: AppDrizzleDb,
   input: {
-    readonly sourceProviderId: string;
-    readonly targetProviderId: string;
-    readonly mangaId: MangaId;
+    readonly history: MigrationHistoryEntry;
   },
-): Promise<AppResult<void>> {
-  const history = await findLatestMigrationHistoryForManga(db, {
-    mangaId: input.mangaId,
-    sourceProviderId: input.sourceProviderId,
-    targetProviderId: input.targetProviderId,
-  });
-  if (history === undefined) {
-    return err(
-      createAppError({
-        code: 'migration.rollback_history_missing',
-        message: 'No migration history exists for this title.',
-      }),
-    );
-  }
+): Promise<AppResult<'restored' | 'already_restored'>> {
+  const { history } = input;
+  const mangaId = toMangaId(history.mangaId);
 
-  const identity = await getMangaIdentity(db, input.mangaId);
+  const identity = await getMangaIdentity(db, mangaId);
   if (identity === undefined) {
     return err(
       createAppError({ code: 'migration.manga_missing', message: 'Manga identity was not found.' }),
     );
   }
 
-  const sourceMapping = identity.providerMappings.find(
-    (mapping) =>
-      mapping.providerId === input.sourceProviderId &&
-      mapping.providerMangaId === history.sourceProviderMangaId,
-  );
   const targetMapping = identity.providerMappings.find(
     (mapping) =>
-      mapping.providerId === input.targetProviderId &&
+      mapping.providerId === history.targetProviderId &&
       mapping.providerMangaId === history.targetProviderMangaId,
   );
-  if (sourceMapping === undefined || targetMapping === undefined) {
+  if (targetMapping === undefined) {
     return err(
       createAppError({
         code: 'migration.rollback_mapping_missing',
-        message: 'The source or target mapping no longer exists.',
+        message: 'The target mapping no longer exists.',
       }),
     );
   }
 
-  const defaultIsTarget = identity.defaultProviderMappingId === targetMapping.id;
-  const defaultIsSource = identity.defaultProviderMappingId === sourceMapping.id;
-  if (!defaultIsTarget && !defaultIsSource) {
+  const sourceMapping = identity.providerMappings.find(
+    (mapping) =>
+      mapping.providerId === history.sourceProviderId &&
+      mapping.providerMangaId === history.sourceProviderMangaId,
+  );
+  // Older rows have no recorded pointers; the source mapping is the only
+  // pre-migration state they can describe.
+  const previousDefaultMappingId =
+    history.previousDefaultMappingId === undefined
+      ? sourceMapping?.id
+      : toProviderMappingId(history.previousDefaultMappingId);
+  if (previousDefaultMappingId === undefined) {
+    return err(
+      createAppError({
+        code: 'migration.rollback_history_missing',
+        message: 'The migration history does not record the previous default provider.',
+      }),
+    );
+  }
+
+  const currentDefault = identity.defaultProviderMappingId;
+  const defaultAlreadyRestored = currentDefault === previousDefaultMappingId;
+  const defaultNeedsRestore = !defaultAlreadyRestored && currentDefault === targetMapping.id;
+  if (!defaultAlreadyRestored && !defaultNeedsRestore) {
     return err(
       createAppError({
         code: 'migration.rollback_not_feasible',
@@ -496,13 +521,14 @@ async function rollbackSingleMigration(
     );
   }
 
-  const libraryEntry = await getLibraryEntryForManga(db, input.mangaId);
-  const active = libraryEntry?.activeProviderMappingId;
-  const activeIsTarget = active !== undefined && active === targetMapping.id;
-  const activeIsSource = active !== undefined && active === sourceMapping.id;
+  const libraryEntry = await getLibraryEntryForManga(db, mangaId);
+  const currentActive = libraryEntry?.activeProviderMappingId;
+  const previousActiveMappingId = history.previousActiveMappingId;
+  const activeAlreadyRestored = currentActive === previousActiveMappingId;
+  const activeNeedsRestore = !activeAlreadyRestored && currentActive === targetMapping.id;
   // No active mapping is a valid pre-migration state; only a mapping the user
   // pointed elsewhere makes the undo unsafe.
-  if (libraryEntry !== undefined && active !== undefined && !activeIsTarget && !activeIsSource) {
+  if (libraryEntry !== undefined && !activeAlreadyRestored && !activeNeedsRestore) {
     return err(
       createAppError({
         code: 'migration.rollback_not_feasible',
@@ -511,25 +537,22 @@ async function rollbackSingleMigration(
     );
   }
 
-  if (!defaultIsTarget && !activeIsTarget) {
-    return err(
-      createAppError({
-        code: 'migration.rollback_not_feasible',
-        message: 'This title is already on the source provider.',
-      }),
-    );
+  if (!defaultNeedsRestore && !activeNeedsRestore) {
+    return ok('already_restored');
   }
 
-  if (defaultIsTarget) {
-    const restored = await setDefaultProviderMapping(db, input.mangaId, sourceMapping.id);
+  if (defaultNeedsRestore) {
+    const restored = await setDefaultProviderMapping(db, mangaId, previousDefaultMappingId);
     if (!restored.ok) return restored;
   }
 
-  if (activeIsTarget && libraryEntry !== undefined) {
+  if (activeNeedsRestore && libraryEntry !== undefined) {
     const restored = await setLibraryEntryActiveProviderMapping(
       db,
       libraryEntry.id,
-      sourceMapping.id,
+      previousActiveMappingId === undefined
+        ? undefined
+        : toProviderMappingId(previousActiveMappingId),
     );
     if (!restored.ok) return restored;
   }
@@ -537,52 +560,53 @@ async function rollbackSingleMigration(
   await db
     .update(mangaIdentities)
     .set({ updatedAt: new Date().toISOString() })
-    .where(eq(mangaIdentities.id, input.mangaId));
+    .where(eq(mangaIdentities.id, mangaId));
 
-  return ok(undefined);
+  return ok('restored');
 }
 
 /**
- * Undo the mapping pointers a migration changed for an explicit set of titles.
+ * Undo the mapping pointers one applied batch changed.
  * Added target mappings stay: deleting them would discard library state the
  * user may already be reading from.
  */
 export async function rollbackProviderMigration(
   db: AppDrizzleDb,
   input: {
-    readonly sourceProviderId: string;
-    readonly targetProviderId: string;
-    readonly mangaIds: readonly MangaId[];
+    readonly batchId: string;
   },
 ): Promise<AppResult<MigrationRollbackReport>> {
-  if (input.mangaIds.length === 0) {
+  const history = await listMigrationHistoryByBatch(db, input.batchId);
+  if (history.length === 0) {
     return err(
       createAppError({
-        code: 'migration.rollback_empty',
-        message: 'No titles to roll back.',
+        code: 'migration.rollback_history_missing',
+        message: 'No migration history exists for this batch.',
       }),
     );
   }
 
   const restored: MigrationRollbackItemResult[] = [];
+  const alreadyRestored: MigrationRollbackItemResult[] = [];
   const skipped: MigrationRollbackItemResult[] = [];
 
-  for (const mangaId of input.mangaIds) {
-    const result = await rollbackSingleMigration(db, {
-      sourceProviderId: input.sourceProviderId,
-      targetProviderId: input.targetProviderId,
-      mangaId,
-    });
+  for (const entry of history) {
+    const result = await rollbackSingleMigration(db, { history: entry });
 
-    if (result.ok) {
-      restored.push({ mangaId, ok: true });
+    if (!result.ok) {
+      skipped.push({ mangaId: toMangaId(entry.mangaId), ok: false, error: result.error.message });
       continue;
     }
 
-    skipped.push({ mangaId, ok: false, error: result.error.message });
+    if (result.value === 'already_restored') {
+      alreadyRestored.push({ mangaId: toMangaId(entry.mangaId), ok: true });
+      continue;
+    }
+
+    restored.push({ mangaId: toMangaId(entry.mangaId), ok: true });
   }
 
-  if (restored.length === 0) {
+  if (restored.length === 0 && alreadyRestored.length === 0) {
     return err(
       createAppError({
         code: 'migration.rollback_unavailable',
@@ -591,5 +615,5 @@ export async function rollbackProviderMigration(
     );
   }
 
-  return ok({ restored, skipped });
+  return ok({ restored, alreadyRestored, skipped });
 }

@@ -1,4 +1,3 @@
-import { useNavigate } from '@tanstack/react-router';
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useRef, useState } from 'react';
 import type { MigrationApplyReport, MigrationPreviewReport } from '@app/db';
@@ -14,6 +13,7 @@ import {
   rollbackMigration,
   selectAllMatched,
   summarizeMigrationRollback,
+  toMigrationTargetSearchState,
   type MigrationPageProps,
   type MigrationTargetSearchState,
 } from '@app/migration';
@@ -35,7 +35,6 @@ interface LastApply {
  * page stays a thin render of one props object.
  */
 export function useMigrationController(): MigrationPageProps {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const db = useLocalDb();
   const dbStatus = useLocalDbStatus();
@@ -99,26 +98,11 @@ export function useMigrationController(): MigrationPageProps {
 
     candidates.forEach((candidate, index) => {
       const query = targetSearchResults[index];
-      const data = query?.data;
-
-      if (data === undefined) {
-        map[candidate.mangaId] = {
-          isLoading: query?.isFetching ?? false,
-          error:
-            query?.isError === true
-              ? query.error instanceof Error
-                ? query.error.message
-                : 'Target search failed.'
-              : null,
-          results: [],
-        };
-        return;
-      }
-
-      map[candidate.mangaId] =
-        data.status === 'error'
-          ? { isLoading: false, error: data.message, results: [] }
-          : { isLoading: false, error: null, results: data.results };
+      map[candidate.mangaId] = toMigrationTargetSearchState({
+        data: query?.data,
+        isFetching: query?.isFetching ?? false,
+        error: query?.error ?? null,
+      });
     });
 
     return map;
@@ -131,6 +115,12 @@ export function useMigrationController(): MigrationPageProps {
     }
     return map;
   }, [candidates, targetSearches]);
+
+  const targetTitleFor = (mangaId: string, targetProviderMangaId: string): string | undefined => {
+    return resultsByMangaId[mangaId]?.find(
+      (result) => result.providerMangaId === targetProviderMangaId,
+    )?.title;
+  };
 
   const titlesById = useMemo(() => {
     const map: Record<string, string> = {};
@@ -157,12 +147,20 @@ export function useMigrationController(): MigrationPageProps {
         throw new Error('Select source and target providers.');
       }
 
-      const draftSelections = Object.entries(selections)
-        .map(([mangaId, targetProviderMangaId]) => ({
-          mangaId: toMangaId(mangaId),
-          targetProviderMangaId: targetProviderMangaId.trim(),
-        }))
-        .filter((selection) => selection.targetProviderMangaId.length > 0);
+      const draftSelections = Object.entries(selections).flatMap(
+        ([mangaId, targetProviderMangaId]) => {
+          const targetId = targetProviderMangaId.trim();
+          if (targetId.length === 0) return [];
+          const targetProviderTitle = targetTitleFor(mangaId, targetId);
+          return [
+            {
+              mangaId: toMangaId(mangaId),
+              targetProviderMangaId: targetId,
+              ...(targetProviderTitle !== undefined ? { targetProviderTitle } : {}),
+            },
+          ];
+        },
+      );
 
       return previewMigration(db!, {
         sourceProviderId,
@@ -191,6 +189,9 @@ export function useMigrationController(): MigrationPageProps {
         .map((item) => ({
           mangaId: item.mangaId,
           targetProviderMangaId: item.targetProviderMangaId,
+          ...(item.targetProviderTitle !== undefined
+            ? { targetProviderTitle: item.targetProviderTitle }
+            : {}),
         }));
 
       const result = await applyMigration(db!, {
@@ -228,9 +229,7 @@ export function useMigrationController(): MigrationPageProps {
       }
 
       const result = await rollbackMigration(db!, {
-        sourceProviderId: lastApply.sourceProviderId,
-        targetProviderId: lastApply.targetProviderId,
-        mangaIds: lastApply.report.applied.map((item) => item.mangaId),
+        batchId: lastApply.report.batchId,
       });
 
       if (!result.ok) {
@@ -263,6 +262,7 @@ export function useMigrationController(): MigrationPageProps {
     targetProviderId,
     selections,
     searchQueries,
+    committedSearchQueries: committedQueries,
     targetSearches,
     preview,
     applyReport,
@@ -339,7 +339,8 @@ export function useMigrationController(): MigrationPageProps {
     },
     onRollback: () => rollbackMutation.mutate(),
     onOpenBackup: () => {
-      void navigate({ to: '/backup' });
+      // New tab: navigating away would unmount the prepared preview and draft.
+      window.open('/backup', '_blank', 'noopener,noreferrer');
     },
   };
 }

@@ -46,6 +46,7 @@ export function summarizeMigrationRollback(
 ): MigrationRollbackSummary {
   return {
     restoredCount: report.restored.length,
+    alreadyRestoredCount: report.alreadyRestored?.length ?? 0,
     skippedCount: report.skipped.length,
     skipped: report.skipped.map((item) => ({
       mangaId: item.mangaId,
@@ -57,5 +58,6 @@ export function summarizeMigrationRollback(
 
 interface MigrationRollbackReportLike {
   readonly restored: readonly { readonly mangaId: string }[];
+  readonly alreadyRestored?: readonly { readonly mangaId: string }[];
   readonly skipped: readonly { readonly mangaId: string; readonly error?: string }[];
 }

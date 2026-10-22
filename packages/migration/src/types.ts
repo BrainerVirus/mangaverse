@@ -71,6 +71,7 @@ export interface MigrationRollbackReportLine {
 
 export interface MigrationRollbackSummary {
   readonly restoredCount: number;
+  readonly alreadyRestoredCount: number;
   readonly skippedCount: number;
   readonly skipped: readonly MigrationRollbackReportLine[];
 }

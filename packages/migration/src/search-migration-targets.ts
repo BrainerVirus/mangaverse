@@ -1,9 +1,42 @@
 import { rankMigrationSearchResults } from './score-migration-match.js';
-import type { MigrationSearchCandidate, MigrationSearchResult } from './types.js';
+import type {
+  MigrationSearchCandidate,
+  MigrationSearchResult,
+  MigrationTargetSearchState,
+} from './types.js';
 
 export type MigrationTargetSearchOutcome =
   | { readonly status: 'ok'; readonly results: readonly MigrationSearchResult[] }
   | { readonly status: 'error'; readonly message: string };
+
+/**
+ * Renders one query's data, in-flight flag and error as row state. A retry that
+ * keeps the previous error data still reports loading, not a stale error.
+ */
+export function toMigrationTargetSearchState(input: {
+  readonly data: MigrationTargetSearchOutcome | undefined;
+  readonly isFetching: boolean;
+  readonly error: unknown;
+}): MigrationTargetSearchState {
+  if (input.data === undefined) {
+    return {
+      isLoading: input.isFetching,
+      error:
+        input.error === null || input.error === undefined
+          ? null
+          : input.error instanceof Error
+            ? input.error.message
+            : 'Target search failed.',
+      results: [],
+    };
+  }
+
+  if (input.data.status === 'error') {
+    return { isLoading: input.isFetching, error: input.data.message, results: [] };
+  }
+
+  return { isLoading: input.isFetching, error: null, results: input.data.results };
+}
 
 /**
  * Searches one provider for a title and ranks what came back. A provider error

@@ -18,6 +18,7 @@ import {
   summarizeMigrationBatch,
   summarizeMigrationPreview,
   summarizeMigrationRollback,
+  toMigrationTargetSearchState,
 } from './index.js';
 import type { MigrationCandidate, MigrationSearchResult } from './types.js';
 
@@ -37,6 +38,25 @@ describe('scoreMigrationMatch', () => {
     expect(scoreMigrationMatch('Naruto', 'Naruto')).toBe(1);
     expect(scoreMigrationMatch('Naruto Shippuden', 'Naruto')).toBeGreaterThan(0.7);
     expect(scoreMigrationMatch('Naruto', 'One Piece')).toBeLessThan(0.3);
+  });
+
+  it('reserves an exact score for the normalized exact string', () => {
+    const permuted = scoreMigrationMatch('Naruto Shippuden', 'Shippuden Naruto');
+    expect(permuted).toBeLessThan(1);
+    expect(permuted).toBeGreaterThanOrEqual(0.75);
+  });
+
+  it('matches CJK, Cyrillic and Korean titles instead of stripping them', () => {
+    expect(scoreMigrationMatch('進撃の巨人', '進撃の巨人')).toBe(1);
+    expect(scoreMigrationMatch('進撃の巨人', '進撃の巨人 第2部')).toBeGreaterThan(0.7);
+
+    expect(scoreMigrationMatch('Мастер и Маргарита', 'Мастер и Маргарита')).toBe(1);
+    expect(scoreMigrationMatch('Мастер и Маргарита', 'Мастер и Маргарита (роман)')).toBeGreaterThan(
+      0.7,
+    );
+
+    expect(scoreMigrationMatch('나 혼자만 레벨업', '나 혼자만 레벨업')).toBe(1);
+    expect(scoreMigrationMatch('나 혼자만 레벨업', '나 혼자만 레벨업 2')).toBeGreaterThan(0.7);
   });
 
   it('ranks search candidates by confidence', () => {
@@ -131,6 +151,43 @@ describe('searchMigrationTargets', () => {
   });
 });
 
+describe('toMigrationTargetSearchState', () => {
+  it('keeps the previous error visible while a retry is in flight', () => {
+    expect(
+      toMigrationTargetSearchState({
+        data: { status: 'error', message: 'provider unavailable' },
+        isFetching: true,
+        error: null,
+      }),
+    ).toEqual({ isLoading: true, error: 'provider unavailable', results: [] });
+  });
+
+  it('maps a query rejection and a ranked result to row state', () => {
+    expect(
+      toMigrationTargetSearchState({
+        data: undefined,
+        isFetching: false,
+        error: new Error('network down'),
+      }),
+    ).toEqual({ isLoading: false, error: 'network down', results: [] });
+
+    expect(
+      toMigrationTargetSearchState({
+        data: {
+          status: 'ok',
+          results: [{ providerMangaId: '1', title: 'Naruto', confidence: 1 }],
+        },
+        isFetching: false,
+        error: null,
+      }),
+    ).toEqual({
+      isLoading: false,
+      error: null,
+      results: [{ providerMangaId: '1', title: 'Naruto', confidence: 1 }],
+    });
+  });
+});
+
 describe('batch migration helpers', () => {
   const candidates = [
     candidate('a', 'Naruto'),
@@ -200,8 +257,27 @@ describe('migration reports', () => {
 
     expect(summary).toEqual({
       restoredCount: 1,
+      alreadyRestoredCount: 0,
       skippedCount: 1,
       skipped: [{ mangaId: 'b', title: 'Bleach', reason: 'The default provider changed.' }],
+    });
+  });
+
+  it('counts titles that were already back on the previous mapping', () => {
+    expect(
+      summarizeMigrationRollback(
+        {
+          restored: [],
+          alreadyRestored: [{ mangaId: 'a' }],
+          skipped: [],
+        },
+        { a: 'Naruto' },
+      ),
+    ).toEqual({
+      restoredCount: 0,
+      alreadyRestoredCount: 1,
+      skippedCount: 0,
+      skipped: [],
     });
   });
 });

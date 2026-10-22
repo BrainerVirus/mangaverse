@@ -16,6 +16,7 @@ export {
 } from './score-migration-match.js';
 export {
   searchMigrationTargets,
+  toMigrationTargetSearchState,
   type MigrationTargetSearchOutcome,
 } from './search-migration-targets.js';
 export {

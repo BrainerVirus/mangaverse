@@ -1,14 +1,10 @@
-import type { AppDrizzleDb, MigrationApplyReport } from '@app/db';
+import type { AppDrizzleDb } from '@app/db';
 
-type MigrationMangaId = MigrationApplyReport['applied'][number]['mangaId'];
-
-/** Undo the mapping pointers of the last applied batch. */
+/** Undo the mapping pointers one applied batch changed. */
 export async function rollbackMigration(
   db: AppDrizzleDb,
   input: {
-    readonly sourceProviderId: string;
-    readonly targetProviderId: string;
-    readonly mangaIds: readonly MigrationMangaId[];
+    readonly batchId: string;
   },
 ) {
   const { rollbackProviderMigration } = await import('@app/db');

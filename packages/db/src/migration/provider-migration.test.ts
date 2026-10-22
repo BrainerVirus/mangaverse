@@ -4,6 +4,7 @@ import {
   addProviderMapping,
   createMangaIdentityWithInitialMapping,
   findMigrationHistoryByProviders,
+  getLibraryEntryForManga,
   getMangaIdentity,
   listMigratableLibraryEntries,
   listMigrationHistory,
@@ -164,21 +165,23 @@ describe('provider migration rollback', () => {
     expect(applied.ok).toBe(true);
     if (!applied.ok) throw new Error('migration did not apply');
 
-    return { db, mangaId: created.value.mangaId, libraryEntryId: lib.value };
+    return {
+      db,
+      mangaId: created.value.mangaId,
+      libraryEntryId: lib.value,
+      batchId: applied.value.batchId,
+    };
   }
 
   it('restores the default and active mapping of the last batch', async () => {
-    const { db, mangaId, libraryEntryId } = await migrateOneTitle();
+    const { db, mangaId, libraryEntryId, batchId } = await migrateOneTitle();
 
-    const rolledBack = await rollbackProviderMigration(db, {
-      sourceProviderId: 'prov-old',
-      targetProviderId: 'prov-new',
-      mangaIds: [mangaId],
-    });
+    const rolledBack = await rollbackProviderMigration(db, { batchId });
 
     expect(rolledBack.ok).toBe(true);
     if (!rolledBack.ok) return;
     expect(rolledBack.value.restored).toHaveLength(1);
+    expect(rolledBack.value.alreadyRestored).toHaveLength(0);
 
     const identity = await getMangaIdentity(db, mangaId);
     const source = identity?.providerMappings.find((m) => m.providerId === 'prov-old');
@@ -188,6 +191,52 @@ describe('provider migration rollback', () => {
 
     const { getLibraryEntry } = await import('../index.js');
     const entry = await getLibraryEntry(db, libraryEntryId);
+    expect(entry?.activeProviderMappingId).toBe(source?.id);
+  });
+
+  it('restores the active mapping when the default already belonged to a third provider', async () => {
+    const { db } = await createSqlJsHarness();
+    const created = await createMangaIdentityWithInitialMapping(db, {
+      canonicalTitle: 'Vinland Saga',
+      status: 'ongoing',
+      contentRating: 'safe',
+      providerId: 'prov-old',
+      providerMangaId: 'vinland-old',
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    const lib = await addLibraryEntry(db, { mangaId: created.value.mangaId, status: 'reading' });
+    expect(lib.ok).toBe(true);
+    if (!lib.ok) return;
+    await setLibraryEntryActiveProviderMapping(db, lib.value, created.value.mappingId);
+
+    const third = await addProviderMapping(db, {
+      mangaId: created.value.mangaId,
+      providerId: 'prov-third',
+      providerMangaId: 'vinland-third',
+    });
+    expect(third.ok).toBe(true);
+    if (!third.ok) return;
+    await setDefaultProviderMapping(db, created.value.mangaId, third.value);
+
+    const applied = await applyProviderMigration(db, {
+      sourceProviderId: 'prov-old',
+      targetProviderId: 'prov-new',
+      selections: [{ mangaId: created.value.mangaId, targetProviderMangaId: 'vinland-new' }],
+    });
+    expect(applied.ok).toBe(true);
+    if (!applied.ok) return;
+
+    const rolledBack = await rollbackProviderMigration(db, { batchId: applied.value.batchId });
+    expect(rolledBack.ok).toBe(true);
+    if (!rolledBack.ok) return;
+    expect(rolledBack.value.restored).toHaveLength(1);
+
+    const identity = await getMangaIdentity(db, created.value.mangaId);
+    const source = identity?.providerMappings.find((m) => m.providerId === 'prov-old');
+    const entry = await getLibraryEntryForManga(db, created.value.mangaId);
+    expect(identity?.defaultProviderMappingId).toBe(third.value);
     expect(entry?.activeProviderMappingId).toBe(source?.id);
   });
 
@@ -210,12 +259,9 @@ describe('provider migration rollback', () => {
       selections: [{ mangaId: created.value.mangaId, targetProviderMangaId: 'vagabond-new' }],
     });
     expect(applied.ok).toBe(true);
+    if (!applied.ok) return;
 
-    const rolledBack = await rollbackProviderMigration(db, {
-      sourceProviderId: 'prov-old',
-      targetProviderId: 'prov-new',
-      mangaIds: [created.value.mangaId],
-    });
+    const rolledBack = await rollbackProviderMigration(db, { batchId: applied.value.batchId });
     expect(rolledBack.ok).toBe(true);
 
     const identity = await getMangaIdentity(db, created.value.mangaId);
@@ -223,8 +269,68 @@ describe('provider migration rollback', () => {
     expect(identity?.defaultProviderMappingId).toBe(source?.id);
   });
 
+  it('treats a batch that only gained a mapping as already restored', async () => {
+    const { db } = await createSqlJsHarness();
+    const created = await createMangaIdentityWithInitialMapping(db, {
+      canonicalTitle: 'No-op Migration',
+      status: 'ongoing',
+      contentRating: 'safe',
+      providerId: 'prov-old',
+      providerMangaId: 'noop-old',
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    const lib = await addLibraryEntry(db, { mangaId: created.value.mangaId, status: 'reading' });
+    expect(lib.ok).toBe(true);
+    if (!lib.ok) return;
+
+    const target = await addProviderMapping(db, {
+      mangaId: created.value.mangaId,
+      providerId: 'prov-new',
+      providerMangaId: 'noop-new',
+    });
+    expect(target.ok).toBe(true);
+    if (!target.ok) return;
+    await setDefaultProviderMapping(db, created.value.mangaId, target.value);
+    await setLibraryEntryActiveProviderMapping(db, lib.value, target.value);
+
+    const applied = await applyProviderMigration(db, {
+      sourceProviderId: 'prov-old',
+      targetProviderId: 'prov-new',
+      selections: [{ mangaId: created.value.mangaId, targetProviderMangaId: 'noop-new' }],
+    });
+    expect(applied.ok).toBe(true);
+    if (!applied.ok) return;
+
+    const rolledBack = await rollbackProviderMigration(db, { batchId: applied.value.batchId });
+    expect(rolledBack.ok).toBe(true);
+    if (!rolledBack.ok) return;
+    expect(rolledBack.value.restored).toHaveLength(0);
+    expect(rolledBack.value.alreadyRestored).toHaveLength(1);
+  });
+
+  it('is idempotent when the same batch is undone twice', async () => {
+    const { db, mangaId, batchId } = await migrateOneTitle();
+
+    const first = await rollbackProviderMigration(db, { batchId });
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+    expect(first.value.restored).toHaveLength(1);
+
+    const second = await rollbackProviderMigration(db, { batchId });
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+    expect(second.value.restored).toHaveLength(0);
+    expect(second.value.alreadyRestored).toHaveLength(1);
+
+    const identity = await getMangaIdentity(db, mangaId);
+    const source = identity?.providerMappings.find((m) => m.providerId === 'prov-old');
+    expect(identity?.defaultProviderMappingId).toBe(source?.id);
+  });
+
   it('skips titles whose default provider changed after the migration', async () => {
-    const { db, mangaId } = await migrateOneTitle();
+    const { db, mangaId, batchId } = await migrateOneTitle();
 
     const third = await addProviderMapping(db, {
       mangaId,
@@ -236,45 +342,50 @@ describe('provider migration rollback', () => {
     const changed = await setDefaultProviderMapping(db, mangaId, third.value);
     expect(changed.ok).toBe(true);
 
-    const rolledBack = await rollbackProviderMigration(db, {
-      sourceProviderId: 'prov-old',
-      targetProviderId: 'prov-new',
-      mangaIds: [mangaId],
-    });
+    const rolledBack = await rollbackProviderMigration(db, { batchId });
 
     expect(rolledBack.ok).toBe(false);
     if (rolledBack.ok) return;
     expect(rolledBack.error.message).toContain('default provider changed');
   });
 
-  it('reports titles without migration history instead of replacing state', async () => {
-    const { db } = await createSqlJsHarness();
-    const created = await createMangaIdentityWithInitialMapping(db, {
-      canonicalTitle: 'Untouched',
-      status: 'ongoing',
-      contentRating: 'safe',
-      providerId: 'prov-old',
-      providerMangaId: 'untouched-old',
-    });
-    expect(created.ok).toBe(true);
-    if (!created.ok) return;
+  it('skips titles whose active provider changed after the migration', async () => {
+    const { db, mangaId, libraryEntryId, batchId } = await migrateOneTitle();
 
-    const rolledBack = await rollbackProviderMigration(db, {
-      sourceProviderId: 'prov-old',
-      targetProviderId: 'prov-new',
-      mangaIds: [created.value.mangaId],
+    const third = await addProviderMapping(db, {
+      mangaId,
+      providerId: 'prov-third',
+      providerMangaId: 'berserk-third',
     });
+    expect(third.ok).toBe(true);
+    if (!third.ok) return;
+    const changed = await setLibraryEntryActiveProviderMapping(db, libraryEntryId, third.value);
+    expect(changed.ok).toBe(true);
+
+    const rolledBack = await rollbackProviderMigration(db, { batchId });
+
+    expect(rolledBack.ok).toBe(false);
+    if (rolledBack.ok) return;
+    expect(rolledBack.error.message).toContain('active provider changed');
+  });
+
+  it('reports a batch without migration history instead of replacing state', async () => {
+    const { db } = await createSqlJsHarness();
+
+    const rolledBack = await rollbackProviderMigration(db, { batchId: 'missing-batch' });
 
     expect(rolledBack.ok).toBe(false);
     if (rolledBack.ok) return;
     expect(rolledBack.error.message).toContain('migration history');
   });
 
-  it('lists the latest migrations first', async () => {
+  it('lists the latest migrations first with a readable title', async () => {
     const { db } = await migrateOneTitle();
     const history = await listMigrationHistory(db);
     expect(history).toHaveLength(1);
     expect(history[0]?.targetProviderId).toBe('prov-new');
     expect(history[0]?.mangaId).toBeTypeOf('string');
+    expect(history[0]?.canonicalTitle).toBe('Berserk');
+    expect(history[0]?.batchId).toBeTypeOf('string');
   });
 });

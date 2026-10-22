@@ -18,6 +18,9 @@ const THEMES_MIGRATION_HASH = 'b82ae03e19ad700a913d2407db98b5c89dbe24913d764eaa0
 const LIBRARY_UNIQUE_MANGA_MIGRATION_HASH =
   '438c0cf16e33a1fbd49d724396f8babf64c778498ff3daffbafd76a690fdbf42';
 
+const MIGRATION_HISTORY_UNDO_MIGRATION_HASH =
+  'bd23ab297e509cdcf4fd4ed91bb7cebb3a4236549257c507bb6d103cf9a7f6ef';
+
 type InitSqlJs = (config?: { locateFile?: (file: string) => string }) => Promise<SqlJsStatic>;
 
 export type SqlJsDynamicModule = {
@@ -89,6 +92,7 @@ export function getLocalDbSession(): Promise<PersistentDatabase> {
           { default: cacheAssetMigrationSql },
           { default: themesMigrationSql },
           { default: libraryUniqueMangaMigrationSql },
+          { default: migrationHistoryUndoMigrationSql },
           { default: migrationJournal },
           { createIndexedDbPersistedBytesStore },
         ] = await Promise.all([
@@ -99,6 +103,7 @@ export function getLocalDbSession(): Promise<PersistentDatabase> {
           import('@app/db/migrations/0001_cache_asset_metadata.sql?raw'),
           import('@app/db/migrations/0002_themes.sql?raw'),
           import('@app/db/migrations/0003_library_unique_manga.sql?raw'),
+          import('@app/db/migrations/0004_migration_history_undo.sql?raw'),
           import('@app/db/migrations/meta/_journal.json'),
           import('./persisted-bytes-idb.js'),
         ]);
@@ -141,6 +146,11 @@ export function getLocalDbSession(): Promise<PersistentDatabase> {
                 tag: '0003_library_unique_manga',
                 sql: libraryUniqueMangaMigrationSql,
                 hash: LIBRARY_UNIQUE_MANGA_MIGRATION_HASH,
+              },
+              {
+                tag: '0004_migration_history_undo',
+                sql: migrationHistoryUndoMigrationSql,
+                hash: MIGRATION_HISTORY_UNDO_MIGRATION_HASH,
               },
             ],
           },

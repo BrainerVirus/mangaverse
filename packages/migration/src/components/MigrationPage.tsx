@@ -50,6 +50,7 @@ export interface MigrationPageProps {
   readonly targetProviderId: string | null;
   readonly selections: Readonly<Record<string, string>>;
   readonly searchQueries: Readonly<Record<string, string>>;
+  readonly committedSearchQueries: Readonly<Record<string, string>>;
   readonly targetSearches: Readonly<Record<string, MigrationTargetSearchState>>;
   readonly preview: MigrationPreviewReport | null;
   readonly applyReport: MigrationApplyReportView | null;
@@ -86,6 +87,15 @@ const NOT_MIGRATED_ITEMS = [
   'Source provider ids, auth and provider-only metadata',
   'Provider-specific URLs and page caches',
 ] as const;
+
+function targetMappingLabel(item: {
+  readonly targetProviderTitle?: string;
+  readonly targetProviderMangaId: string;
+}): string {
+  return item.targetProviderTitle !== undefined
+    ? `${item.targetProviderTitle} (${item.targetProviderMangaId})`
+    : item.targetProviderMangaId;
+}
 
 function confidenceVariant(band: MigrationConfidenceBand) {
   if (band === 'exact') return 'default' as const;
@@ -165,7 +175,7 @@ function PreviewIssueList({ preview }: { preview: MigrationPreviewReport }) {
               )}
             </div>
             <p className="text-muted-foreground">
-              {item.sourceProviderMangaId} → {item.targetProviderMangaId}
+              {item.sourceProviderMangaId} → {targetMappingLabel(item)}
             </p>
             {item.issues.length > 0 ? (
               <ul className="mt-2 space-y-1">
@@ -257,6 +267,7 @@ function CandidateRow({
   candidate,
   targetProviderName,
   searchQuery,
+  committedQuery,
   searchState,
   selectedId,
   blocked,
@@ -267,6 +278,7 @@ function CandidateRow({
   candidate: MigrationCandidate;
   targetProviderName: string;
   searchQuery: string;
+  committedQuery: string;
   searchState: MigrationTargetSearchState;
   selectedId: string;
   blocked: boolean;
@@ -274,8 +286,14 @@ function CandidateRow({
   onRetryTargetSearch: (mangaId: string) => void;
   onTargetMangaIdChange: (mangaId: string, targetProviderMangaId: string) => void;
 }) {
+  const isStale = searchQuery.trim() !== committedQuery.trim();
+  // Results belong to the committed query; hide them the moment the input moves
+  // ahead of the debounce so an old match cannot be clicked under new text.
+  const state: MigrationTargetSearchState = isStale
+    ? { isLoading: true, error: null, results: [] }
+    : searchState;
   const hasSelection = selectedId.length > 0;
-  const canInclude = hasSelection || searchState.results.length > 0;
+  const canInclude = hasSelection || state.results.length > 0;
 
   return (
     <li key={candidate.mangaId} className="rounded-control bg-muted/40 p-3">
@@ -292,7 +310,7 @@ function CandidateRow({
             disabled={blocked || !canInclude}
             aria-label={`Include ${candidate.canonicalTitle} in migration`}
             onChange={(event) => {
-              const best = searchState.results[0];
+              const best = state.results[0];
               if (event.target.checked && best !== undefined) {
                 onTargetMangaIdChange(candidate.mangaId, best.providerMangaId);
                 return;
@@ -318,11 +336,11 @@ function CandidateRow({
         />
         <TargetSearchStatus
           providerName={targetProviderName}
-          state={searchState}
+          state={state}
           onRetry={() => onRetryTargetSearch(candidate.mangaId)}
         />
         <ul className="space-y-2" aria-label={`Target matches for ${candidate.canonicalTitle}`}>
-          {searchState.results.map((result) => {
+          {state.results.map((result) => {
             const isSelected = selectedId === result.providerMangaId;
             return (
               <li key={result.providerMangaId}>
@@ -363,6 +381,7 @@ function CandidateSection({
   candidates,
   selections,
   searchQueries,
+  committedSearchQueries,
   targetSearches,
   preview,
   targetProviderName,
@@ -381,6 +400,7 @@ function CandidateSection({
   candidates: readonly MigrationCandidate[];
   selections: Readonly<Record<string, string>>;
   searchQueries: Readonly<Record<string, string>>;
+  committedSearchQueries: Readonly<Record<string, string>>;
   targetSearches: Readonly<Record<string, MigrationTargetSearchState>>;
   preview: MigrationPreviewReport | null;
   targetProviderName: string;
@@ -475,6 +495,9 @@ function CandidateSection({
                 candidate={candidate}
                 targetProviderName={targetProviderName}
                 searchQuery={searchQueries[candidate.mangaId] ?? candidate.canonicalTitle}
+                committedQuery={
+                  committedSearchQueries[candidate.mangaId] ?? candidate.canonicalTitle
+                }
                 searchState={
                   targetSearches[candidate.mangaId] ?? {
                     isLoading: false,
@@ -582,7 +605,7 @@ function SummaryDialog({
                 <li key={item.mangaId} className="rounded-control bg-muted/40 p-2">
                   <span className="font-medium">{item.canonicalTitle}</span>
                   <span className="block text-xs text-muted-foreground">
-                    {item.sourceProviderMangaId} → {item.targetProviderMangaId}
+                    {item.sourceProviderMangaId} → {targetMappingLabel(item)}
                   </span>
                 </li>
               ))}
@@ -638,6 +661,49 @@ function SummaryDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function RollbackStatus({
+  summary,
+  error,
+}: {
+  summary: MigrationRollbackSummary | null;
+  error: string | null;
+}) {
+  if (summary === null && error === null) return null;
+
+  return (
+    <>
+      {summary !== null ? (
+        <Alert>
+          <AlertTitle>Migration undone</AlertTitle>
+          <AlertDescription>
+            {summary.restoredCount} title(s) restored.
+            {summary.alreadyRestoredCount > 0
+              ? ` ${summary.alreadyRestoredCount} already matched the previous state.`
+              : ''}
+            {summary.skippedCount > 0 ? ` ${summary.skippedCount} could not be restored.` : ''}
+          </AlertDescription>
+          {summary.skipped.length > 0 ? (
+            <ul className="mt-2 space-y-1 text-sm">
+              {summary.skipped.map((item) => (
+                <li key={item.mangaId}>
+                  {item.title}: {item.reason}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </Alert>
+      ) : null}
+
+      {error !== null ? (
+        <Alert variant="destructive">
+          <AlertTitle>Undo unavailable</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+    </>
   );
 }
 
@@ -701,33 +767,7 @@ function ApplyReportPanel({
         </ul>
       ) : null}
 
-      {rollbackSummary !== null ? (
-        <Alert>
-          <AlertTitle>Migration undone</AlertTitle>
-          <AlertDescription>
-            {rollbackSummary.restoredCount} title(s) restored.
-            {rollbackSummary.skippedCount > 0
-              ? ` ${rollbackSummary.skippedCount} could not be restored.`
-              : ''}
-          </AlertDescription>
-          {rollbackSummary.skipped.length > 0 ? (
-            <ul className="mt-2 space-y-1 text-sm">
-              {rollbackSummary.skipped.map((item) => (
-                <li key={item.mangaId}>
-                  {item.title}: {item.reason}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </Alert>
-      ) : null}
-
-      {rollbackError !== null ? (
-        <Alert variant="destructive">
-          <AlertTitle>Undo unavailable</AlertTitle>
-          <AlertDescription>{rollbackError}</AlertDescription>
-        </Alert>
-      ) : null}
+      <RollbackStatus summary={rollbackSummary} error={rollbackError} />
 
       <div className="flex flex-wrap items-center gap-3">
         <Button variant="outline" onClick={onRollback} disabled={!canRollback || isRollingBack}>
@@ -764,7 +804,7 @@ function HistorySection({
         <ul className="space-y-2" aria-label="Migration history">
           {history.map((entry) => (
             <li key={entry.id} className="rounded-control bg-muted/40 p-2 text-sm">
-              <span className="font-medium">{titleFor(entry.mangaId)}</span>
+              <span className="font-medium">{entry.canonicalTitle ?? titleFor(entry.mangaId)}</span>
               <span className="block text-xs text-muted-foreground">
                 {entry.sourceProviderId} → {entry.targetProviderId} ·{' '}
                 {new Date(entry.completedAt).toLocaleString()}
@@ -789,6 +829,7 @@ export function MigrationPage({
   targetProviderId,
   selections,
   searchQueries,
+  committedSearchQueries,
   targetSearches,
   preview,
   applyReport,
@@ -889,6 +930,7 @@ export function MigrationPage({
           candidates={candidates}
           selections={selections}
           searchQueries={searchQueries}
+          committedSearchQueries={committedSearchQueries}
           targetSearches={targetSearches}
           preview={preview}
           targetProviderName={targetProviderName}
@@ -922,10 +964,7 @@ export function MigrationPage({
         onOpenChange={setConfirmOpen}
         preview={preview}
         isApplying={isApplying}
-        onOpenBackup={() => {
-          setConfirmOpen(false);
-          onOpenBackup();
-        }}
+        onOpenBackup={onOpenBackup}
         onConfirm={() => {
           setConfirmOpen(false);
           onApply();

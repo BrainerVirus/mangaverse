@@ -5,12 +5,15 @@ import type {
 } from './types.js';
 
 function normalizeTitle(value: string): string {
-  return value
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
+  return (
+    value
+      .normalize('NFKD')
+      // NFKD splits accents; strip the combining marks and keep every script.
+      .replace(/\p{M}+/gu, '')
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}]+/gu, ' ')
+      .trim()
+  );
 }
 
 function tokenSet(value: string): Set<string> {
@@ -38,7 +41,8 @@ export function scoreMigrationMatch(sourceTitle: string, candidateTitle: string)
     if (candidateTokens.has(token)) overlap += 1;
   }
 
-  return overlap / Math.max(sourceTokens.size, candidateTokens.size);
+  // Same tokens in a different order are a high match, not an exact string.
+  return Math.min(0.9, overlap / Math.max(sourceTokens.size, candidateTokens.size));
 }
 
 export function rankMigrationSearchResults(

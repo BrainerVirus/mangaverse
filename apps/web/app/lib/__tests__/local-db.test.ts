@@ -16,6 +16,9 @@ const THEMES_MIGRATION_HASH = 'b82ae03e19ad700a913d2407db98b5c89dbe24913d764eaa0
 const LIBRARY_UNIQUE_MANGA_MIGRATION_HASH =
   '438c0cf16e33a1fbd49d724396f8babf64c778498ff3daffbafd76a690fdbf42';
 
+const MIGRATION_HISTORY_UNDO_MIGRATION_HASH =
+  'bd23ab297e509cdcf4fd4ed91bb7cebb3a4236549257c507bb6d103cf9a7f6ef';
+
 function loadBundledMigrationFixtures() {
   const testDir = dirname(fileURLToPath(import.meta.url));
   const migrationsRoot = join(testDir, '../../../../../packages/db/migrations');
@@ -25,6 +28,10 @@ function loadBundledMigrationFixtures() {
     themesSql: readFileSync(join(migrationsRoot, '0002_themes.sql'), 'utf8'),
     libraryUniqueMangaSql: readFileSync(
       join(migrationsRoot, '0003_library_unique_manga.sql'),
+      'utf8',
+    ),
+    migrationHistoryUndoSql: readFileSync(
+      join(migrationsRoot, '0004_migration_history_undo.sql'),
       'utf8',
     ),
     journal: JSON.parse(readFileSync(join(migrationsRoot, 'meta/_journal.json'), 'utf8')),
@@ -76,8 +83,14 @@ describe('local-db bundled migration path', () => {
   });
 
   it('applies the same bundled migration files used by getLocalDb()', async () => {
-    const { initialSql, cacheAssetSql, themesSql, libraryUniqueMangaSql, journal } =
-      loadBundledMigrationFixtures();
+    const {
+      initialSql,
+      cacheAssetSql,
+      themesSql,
+      libraryUniqueMangaSql,
+      migrationHistoryUndoSql,
+      journal,
+    } = loadBundledMigrationFixtures();
     const SQL = await initSqlJs();
     const db = new SQL.Database();
 
@@ -101,6 +114,11 @@ describe('local-db bundled migration path', () => {
         tag: '0003_library_unique_manga',
         sql: libraryUniqueMangaSql,
         hash: LIBRARY_UNIQUE_MANGA_MIGRATION_HASH,
+      },
+      {
+        tag: '0004_migration_history_undo',
+        sql: migrationHistoryUndoSql,
+        hash: MIGRATION_HISTORY_UNDO_MIGRATION_HASH,
       },
     ]);
 

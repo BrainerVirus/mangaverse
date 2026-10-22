@@ -1,6 +1,6 @@
 import { and, desc, eq } from 'drizzle-orm';
 import type { AppDrizzleDb } from '../adapter.js';
-import { migrationHistory } from '../schema.js';
+import { mangaIdentities, migrationHistory } from '../schema.js';
 
 export interface MigrationHistoryEntry {
   readonly id: string;
@@ -10,6 +10,11 @@ export interface MigrationHistoryEntry {
   readonly targetProviderId: string;
   readonly targetProviderMangaId: string;
   readonly completedAt: string;
+  readonly batchId?: string;
+  readonly previousDefaultMappingId?: string;
+  readonly previousActiveMappingId?: string;
+  /** Readable title at read time; the manga row can outlive the migration form. */
+  readonly canonicalTitle?: string;
   readonly notes?: string;
 }
 
@@ -19,7 +24,15 @@ function newId(): string {
 
 type MigrationHistoryRow = typeof migrationHistory.$inferSelect;
 
-function toEntry(row: MigrationHistoryRow): MigrationHistoryEntry {
+function optionalText(value: string | null | undefined): string | undefined {
+  return value !== null && value !== undefined && value !== '' ? value : undefined;
+}
+
+function toEntry(row: MigrationHistoryRow, canonicalTitle?: string): MigrationHistoryEntry {
+  const batchId = optionalText(row.batchId);
+  const previousDefaultMappingId = optionalText(row.previousDefaultMappingId);
+  const previousActiveMappingId = optionalText(row.previousActiveMappingId);
+  const notes = optionalText(row.notes);
   return {
     id: row.id,
     mangaId: row.mangaId,
@@ -28,9 +41,11 @@ function toEntry(row: MigrationHistoryRow): MigrationHistoryEntry {
     targetProviderId: row.targetProviderId,
     targetProviderMangaId: row.targetProviderMangaId,
     completedAt: row.completedAt,
-    ...(row.notes !== null && row.notes !== undefined && row.notes !== ''
-      ? { notes: row.notes }
-      : {}),
+    ...(batchId !== undefined ? { batchId } : {}),
+    ...(previousDefaultMappingId !== undefined ? { previousDefaultMappingId } : {}),
+    ...(previousActiveMappingId !== undefined ? { previousActiveMappingId } : {}),
+    ...(canonicalTitle !== undefined && canonicalTitle !== '' ? { canonicalTitle } : {}),
+    ...(notes !== undefined ? { notes } : {}),
   };
 }
 
@@ -42,6 +57,9 @@ export async function recordMigrationHistory(
     readonly sourceProviderMangaId: string;
     readonly targetProviderId: string;
     readonly targetProviderMangaId: string;
+    readonly batchId?: string;
+    readonly previousDefaultMappingId?: string;
+    readonly previousActiveMappingId?: string;
     readonly notes?: string;
   },
 ): Promise<void> {
@@ -53,6 +71,9 @@ export async function recordMigrationHistory(
     targetProviderId: input.targetProviderId,
     targetProviderMangaId: input.targetProviderMangaId,
     completedAt: new Date().toISOString(),
+    batchId: input.batchId,
+    previousDefaultMappingId: input.previousDefaultMappingId,
+    previousActiveMappingId: input.previousActiveMappingId,
     notes: input.notes,
   });
 }
@@ -84,43 +105,33 @@ export async function findMigrationHistoryByProviders(
   return toEntry(row);
 }
 
-/** Most recent migrations first, for the post-apply report and undo surface. */
+/** Most recent migrations first, with the title the history list can show. */
 export async function listMigrationHistory(
   db: AppDrizzleDb,
   limit = 10,
 ): Promise<MigrationHistoryEntry[]> {
   const rows = db
-    .select()
+    .select({ history: migrationHistory, canonicalTitle: mangaIdentities.canonicalTitle })
     .from(migrationHistory)
+    .leftJoin(mangaIdentities, eq(mangaIdentities.id, migrationHistory.mangaId))
     .orderBy(desc(migrationHistory.completedAt))
     .limit(limit)
     .all();
 
-  return rows.map(toEntry);
+  return rows.map((row) => toEntry(row.history, row.canonicalTitle ?? undefined));
 }
 
-/** The latest migration of one title between two providers, used to undo a batch. */
-export async function findLatestMigrationHistoryForManga(
+/** Every title recorded by one apply call, so undo restores exactly that batch. */
+export async function listMigrationHistoryByBatch(
   db: AppDrizzleDb,
-  input: {
-    readonly mangaId: string;
-    readonly sourceProviderId: string;
-    readonly targetProviderId: string;
-  },
-): Promise<MigrationHistoryEntry | undefined> {
-  const row = db
+  batchId: string,
+): Promise<MigrationHistoryEntry[]> {
+  const rows = db
     .select()
     .from(migrationHistory)
-    .where(
-      and(
-        eq(migrationHistory.mangaId, input.mangaId),
-        eq(migrationHistory.sourceProviderId, input.sourceProviderId),
-        eq(migrationHistory.targetProviderId, input.targetProviderId),
-      ),
-    )
+    .where(eq(migrationHistory.batchId, batchId))
     .orderBy(desc(migrationHistory.completedAt))
-    .limit(1)
-    .get();
+    .all();
 
-  return row === undefined ? undefined : toEntry(row);
+  return rows.map((row) => toEntry(row));
 }

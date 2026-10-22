@@ -59,6 +59,36 @@ describe('searchProviderMangaTargets', () => {
       'provider unavailable',
     );
   });
+
+  it('caps concurrent target provider searches', async () => {
+    let active = 0;
+    let peak = 0;
+    const releases: (() => void)[] = [];
+
+    resolveInstalledProvider.mockResolvedValue(
+      provider(async () => {
+        active += 1;
+        peak = Math.max(peak, active);
+        await new Promise<void>((resolve) => releases.push(resolve));
+        active -= 1;
+        return { items: [] };
+      }),
+    );
+
+    const calls = Array.from({ length: 8 }, (_, index) =>
+      searchProviderMangaTargets(db, 'target', `title-${index}`),
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(peak).toBe(4);
+
+    while (releases.length > 0) {
+      releases.shift()?.();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    await Promise.all(calls);
+    expect(peak).toBe(4);
+  });
 });
 
 describe('migrationTargetSearchQueryOptions', () => {
