@@ -45,16 +45,16 @@ test('Given provider settings, When saved and reloaded, Then they persist and re
   expect(params.getAll('contentRating[]')).not.toContain('erotica');
 });
 
-test('Given a registry document, When previewed, Then entries and warnings show before import', async ({
+test('Given a registry document, When previewed and imported, Then it is listed and installs no provider', async ({
   page,
   quickOnboarding,
 }) => {
   await page.goto('/extensions');
-  await page.getByRole('button', { name: 'Import registry' }).click();
+  await page.getByRole('button', { name: 'Import', exact: true }).click();
 
-  const dialog = page.getByRole('dialog', { name: 'Import registry' });
+  const dialog = page.getByRole('dialog', { name: 'Import registry or extensions' });
   await expect(dialog).toBeVisible();
-  await dialog.getByLabel('Registry JSON').fill(
+  await dialog.getByLabel('Registry or extension JSON').fill(
     JSON.stringify({
       name: 'Audit Registry',
       registryUrl: 'https://registry.audit.test/index.json',
@@ -64,13 +64,18 @@ test('Given a registry document, When previewed, Then entries and warnings show 
       ],
     }),
   );
-  await dialog.getByRole('button', { name: 'Preview registry' }).click();
+  await dialog.getByRole('button', { name: 'Preview' }).click();
 
   const preview = dialog.getByTestId('registry-import-preview');
   await expect(preview).toContainText('Audit Registry');
   await expect(preview).toContainText('Audit Provider');
   await expect(preview).toContainText('Entry 1 is missing a manifest URL.');
+  await expect(preview).toContainText('adds no provider entries');
 
-  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await dialog.getByRole('button', { name: 'Import registry' }).click();
   await expect(dialog).not.toBeVisible();
+
+  const registries = page.getByRole('region', { name: 'Imported registries' });
+  await expect(registries).toContainText('Audit Registry');
+  await expect(registries).toContainText('https://registry.audit.test/index.json');
 });

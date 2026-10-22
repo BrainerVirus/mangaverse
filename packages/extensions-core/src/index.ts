@@ -26,12 +26,22 @@ export { validateManifestInstallPolicy } from './install-policy.js';
 export { confirmExtensionInstall } from './confirm-install.js';
 export type { ExtensionCoreDependencies } from './confirm-install.js';
 export {
+  confirmExtensionImport,
   exportExtensionRegistryData,
+  fetchExtensionImportDocumentFromUrl,
   fetchExtensionRegistryDocumentFromUrl,
   importExtensionRegistry,
+  parseExtensionImportDocument,
   parseExtensionRegistryDocument,
+  prepareExtensionImport,
 } from './registry-import.js';
 export type {
+  ExtensionImportKind,
+  ExtensionImportPreview,
+  ExtensionListImportPreparation,
+  ExtensionListImportResult,
+  ExtensionListImportSession,
+  ExtensionListProviderEntry,
   ExtensionRegistryExport,
   ExtensionRegistryExportEntry,
   ExtensionRegistryImportDocument,

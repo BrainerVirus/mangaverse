@@ -40,10 +40,22 @@ export {
 export type { ExtensionInstallSession } from './install-provider.js';
 export { extensionsQueryKeys } from './query-keys.js';
 export type { ExtensionsPageData, InstalledProviderSummary, ProviderDetailData } from './types.js';
+export { downloadJson } from './download-json.js';
 export {
+  confirmExtensionImport,
   exportExtensionRegistryData,
+  fetchExtensionImportDocumentFromUrl,
   fetchExtensionRegistryDocumentFromUrl,
   importExtensionRegistry,
+  parseExtensionImportDocument,
   parseExtensionRegistryDocument,
+  prepareExtensionImport,
 } from '@app/extensions-core';
-export type { ExtensionRegistryExport, ExtensionRegistryImportResult } from '@app/extensions-core';
+export type {
+  ExtensionImportPreview,
+  ExtensionListImportPreparation,
+  ExtensionListImportResult,
+  ExtensionListProviderEntry,
+  ExtensionRegistryExport,
+  ExtensionRegistryImportResult,
+} from '@app/extensions-core';

@@ -20,6 +20,8 @@ const MIGRATION_HISTORY_UNDO_MIGRATION_HASH =
   'bd23ab297e509cdcf4fd4ed91bb7cebb3a4236549257c507bb6d103cf9a7f6ef';
 const LIBRARY_CATEGORY_PINNED_MIGRATION_HASH =
   'f88fba5bb7715abf811036f0da8d3a895956819fc07782392454640c3ae755b9';
+const INSTALLED_EXTENSION_MANIFEST_URL_MIGRATION_HASH =
+  'bd9dd7619965a6b2a7d88a59d84e65b58f179683c738edcf676703a04047f6fc';
 
 function loadBundledMigrationFixtures() {
   const testDir = dirname(fileURLToPath(import.meta.url));
@@ -38,6 +40,10 @@ function loadBundledMigrationFixtures() {
     ),
     libraryCategoryPinnedSql: readFileSync(
       join(migrationsRoot, '0005_library_category_pinned.sql'),
+      'utf8',
+    ),
+    installedExtensionManifestUrlSql: readFileSync(
+      join(migrationsRoot, '0006_installed_extension_manifest_url.sql'),
       'utf8',
     ),
     journal: JSON.parse(readFileSync(join(migrationsRoot, 'meta/_journal.json'), 'utf8')),
@@ -96,6 +102,7 @@ describe('local-db bundled migration path', () => {
       libraryUniqueMangaSql,
       migrationHistoryUndoSql,
       libraryCategoryPinnedSql,
+      installedExtensionManifestUrlSql,
       journal,
     } = loadBundledMigrationFixtures();
     const SQL = await initSqlJs();
@@ -131,6 +138,11 @@ describe('local-db bundled migration path', () => {
         tag: '0005_library_category_pinned',
         sql: libraryCategoryPinnedSql,
         hash: LIBRARY_CATEGORY_PINNED_MIGRATION_HASH,
+      },
+      {
+        tag: '0006_installed_extension_manifest_url',
+        sql: installedExtensionManifestUrlSql,
+        hash: INSTALLED_EXTENSION_MANIFEST_URL_MIGRATION_HASH,
       },
     ]);
 

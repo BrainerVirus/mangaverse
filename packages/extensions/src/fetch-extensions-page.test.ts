@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { upsertInstalledExtension } from '@app/db';
+import { upsertExtensionRegistry, upsertInstalledExtension } from '@app/db';
 import { createSqlJsHarness } from '@app/db/testing';
 import { toExtensionInstallId, toProviderId } from '@app/shared';
 
@@ -44,9 +44,35 @@ describe('fetchExtensionsPage', () => {
     expect(page.providers[0]?.capabilityCount).toBeGreaterThan(0);
   });
 
+  it('lists imported registries sorted by name', async () => {
+    const { db } = await createSqlJsHarness();
+    await upsertExtensionRegistry(db, {
+      name: 'Zeta registry',
+      registryUrl: 'https://zeta.example/index.json',
+    });
+    await upsertExtensionRegistry(db, {
+      name: 'Alpha registry',
+      registryUrl: 'https://alpha.example/index.json',
+      description: 'First',
+    });
+
+    const page = await fetchExtensionsPage(db);
+
+    expect(page.providers).toEqual([]);
+    expect(page.registries).toEqual([
+      {
+        name: 'Alpha registry',
+        registryUrl: 'https://alpha.example/index.json',
+        description: 'First',
+      },
+      { name: 'Zeta registry', registryUrl: 'https://zeta.example/index.json' },
+    ]);
+  });
+
   it('returns empty list when no providers are installed', async () => {
     const { db } = await createSqlJsHarness();
     const page = await fetchExtensionsPage(db);
     expect(page.providers).toEqual([]);
+    expect(page.registries).toEqual([]);
   });
 });

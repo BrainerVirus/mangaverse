@@ -35,6 +35,8 @@ export interface ExtensionInstallMetadata {
   readonly id: ExtensionInstallId;
   readonly manifest: ProviderManifest;
   readonly sourceUrl: string;
+  /** Manifest URL the install was fetched from; absent for bundled providers. */
+  readonly manifestUrl?: string;
   readonly registryUrl?: string;
   readonly checksum?: string;
   readonly installedVersion: string;

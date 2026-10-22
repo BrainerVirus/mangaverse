@@ -38,6 +38,7 @@ export async function confirmExtensionInstall(
     id: toExtensionInstallId(String(manifest.id)),
     manifest,
     sourceUrl,
+    manifestUrl: session.source.manifestUrl,
     ...(session.source.kind === 'registry' ? { registryUrl: session.source.registryUrl } : {}),
     ...(manifest.checksum !== undefined ? { checksum: manifest.checksum } : {}),
     installedVersion: manifest.version,

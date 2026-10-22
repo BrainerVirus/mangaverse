@@ -44,6 +44,7 @@ export function hasEditableProviderSettings(support: ProviderSettingsSupportView
     support.nsfw ||
     support.ratings ||
     support.tags ||
+    support.auth ||
     support.rateLimit ||
     support.regionLocales.length > 0 ||
     support.defaultSorts.length > 0 ||
@@ -61,6 +62,8 @@ export interface ProviderSettingsDraft {
   readonly rateLimitOverrideRpm: string;
   readonly defaultSort: string;
   readonly providerOptions: Readonly<Record<string, string>>;
+  /** Read-only state loaded from the provider; preserved across saves. */
+  readonly authStatePlaceholder: '' | 'anonymous' | 'session' | 'unknown';
 }
 
 export function draftFromSettings(settings: ProviderSettingsValues): ProviderSettingsDraft {
@@ -79,6 +82,7 @@ export function draftFromSettings(settings: ProviderSettingsValues): ProviderSet
       settings.rateLimitOverrideRpm === undefined ? '' : String(settings.rateLimitOverrideRpm),
     defaultSort: settings.defaultSort ?? '',
     providerOptions: options,
+    authStatePlaceholder: settings.authStatePlaceholder ?? '',
   };
 }
 
@@ -148,6 +152,9 @@ export function settingsFromDraft(
       if (value.length > 0) options[key] = value;
     }
     if (Object.keys(options).length > 0) out.providerOptions = options;
+  }
+  if (support.auth && draft.authStatePlaceholder !== '') {
+    out.authStatePlaceholder = draft.authStatePlaceholder;
   }
 
   return { ok: true, value: out as ProviderSettingsValues };

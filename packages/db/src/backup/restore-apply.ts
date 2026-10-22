@@ -190,6 +190,7 @@ function upsertInstalledExtensionSync(tx: AppDrizzleDb, metadata: ExtensionInsta
       id: metadata.id,
       manifestJson: manifestResult.value as unknown as Record<string, unknown>,
       sourceUrl: metadata.sourceUrl,
+      manifestUrl: metadata.manifestUrl,
       registryUrl: metadata.registryUrl,
       checksum: metadata.checksum,
       installedVersion: metadata.installedVersion,
@@ -205,6 +206,7 @@ function upsertInstalledExtensionSync(tx: AppDrizzleDb, metadata: ExtensionInsta
       set: {
         manifestJson: manifestResult.value as unknown as Record<string, unknown>,
         sourceUrl: metadata.sourceUrl,
+        manifestUrl: metadata.manifestUrl,
         registryUrl: metadata.registryUrl,
         checksum: metadata.checksum,
         installedVersion: metadata.installedVersion,

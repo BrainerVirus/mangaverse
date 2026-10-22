@@ -25,6 +25,10 @@ const libraryCategoryPinnedSql = readFileSync(
   `${migrationsRoot}/0005_library_category_pinned.sql`,
   'utf8',
 );
+const installedExtensionManifestUrlSql = readFileSync(
+  `${migrationsRoot}/0006_installed_extension_manifest_url.sql`,
+  'utf8',
+);
 const journal = JSON.parse(readFileSync(`${migrationsRoot}/meta/_journal.json`, 'utf8'));
 
 const migrationFiles = [
@@ -57,6 +61,11 @@ const migrationFiles = [
     tag: '0005_library_category_pinned',
     sql: libraryCategoryPinnedSql,
     hash: 'f88fba5bb7715abf811036f0da8d3a895956819fc07782392454640c3ae755b9',
+  },
+  {
+    tag: '0006_installed_extension_manifest_url',
+    sql: installedExtensionManifestUrlSql,
+    hash: 'bd9dd7619965a6b2a7d88a59d84e65b58f179683c738edcf676703a04047f6fc',
   },
 ];
 

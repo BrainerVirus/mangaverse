@@ -1,5 +1,9 @@
 import type { AppDrizzleDb } from '@app/db';
-import type { ExtensionInstallMetadata, ProviderManifest } from '@app/shared';
+import type {
+  ExtensionInstallMetadata,
+  ExtensionRegistryEntry,
+  ProviderManifest,
+} from '@app/shared';
 import { toExtensionInstallId, toProviderId } from '@app/shared';
 
 import type { InstalledProviderSummary } from './types.js';
@@ -20,9 +24,15 @@ function summarizeInstalledProvider(provider: ExtensionInstallMetadata): Install
 
 export async function fetchExtensionsPage(
   db: AppDrizzleDb,
-): Promise<{ providers: InstalledProviderSummary[] }> {
-  const { listInstalledProviders } = await import('@app/extensions-core');
-  const result = await listInstalledProviders(db);
+): Promise<{ providers: InstalledProviderSummary[]; registries: ExtensionRegistryEntry[] }> {
+  const [{ listInstalledProviders }, { listExtensionRegistries }] = await Promise.all([
+    import('@app/extensions-core'),
+    import('@app/db'),
+  ]);
+  const [result, registries] = await Promise.all([
+    listInstalledProviders(db),
+    listExtensionRegistries(db),
+  ]);
   if (!result.ok) {
     throw result.error;
   }
@@ -30,8 +40,9 @@ export async function fetchExtensionsPage(
   const providers = [...result.value.map(summarizeInstalledProvider)].sort((a, b) =>
     a.name.localeCompare(b.name),
   );
+  registries.sort((a, b) => a.name.localeCompare(b.name));
 
-  return { providers };
+  return { providers, registries };
 }
 
 const demoProviderManifest: ProviderManifest = {
@@ -58,6 +69,7 @@ export function demoInstallMetadata(
     id: toExtensionInstallId(String(demoProviderManifest.id)),
     manifest: demoProviderManifest,
     sourceUrl: 'https://example.com/demo/manifest.json',
+    manifestUrl: 'https://example.com/demo/manifest.json',
     installedVersion: demoProviderManifest.version,
     enabled: true,
     installedAt: now,

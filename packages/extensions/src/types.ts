@@ -3,7 +3,7 @@ import type {
   PermissionDisplayRow,
   ProviderSettingsValues,
 } from '@app/extensions-core';
-import type { ExtensionInstallMetadata } from '@app/shared';
+import type { ExtensionInstallMetadata, ExtensionRegistryEntry } from '@app/shared';
 
 export interface InstalledProviderSummary {
   readonly id: string;
@@ -18,6 +18,7 @@ export interface InstalledProviderSummary {
 
 export interface ExtensionsPageData {
   readonly providers: readonly InstalledProviderSummary[];
+  readonly registries: readonly ExtensionRegistryEntry[];
 }
 
 export interface ProviderDetailData {
