@@ -34,6 +34,28 @@ describe('downloadJson', () => {
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:mangaverse');
   });
 
+  it('appends the anchor before clicking and removes it after', () => {
+    vi.stubGlobal('URL', {
+      ...URL,
+      createObjectURL: () => 'blob:mangaverse',
+      revokeObjectURL: () => {},
+    });
+    let connectedAtClick = false;
+    let hiddenAtClick = false;
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      connectedAtClick = this.isConnected;
+      hiddenAtClick = this.hidden === true;
+    });
+
+    downloadJson('extensions.json', '{}');
+
+    expect(connectedAtClick).toBe(true);
+    expect(hiddenAtClick).toBe(true);
+    expect(document.querySelector('a[download="extensions.json"]')).toBeNull();
+  });
+
   it('names the download file', () => {
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
       this: HTMLAnchorElement,

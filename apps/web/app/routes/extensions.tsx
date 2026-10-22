@@ -61,11 +61,25 @@ function useRegistryImport(db: AppDrizzleDb | null, queryClient: QueryClient) {
   const [error, setError] = useState<string | null>(null);
   const [importWarnings, setImportWarnings] = useState<string[]>([]);
   const document = useRef<unknown>(undefined);
-  const controller = useRef<AbortController | null>(null);
+  const documentController = useRef<AbortController | null>(null);
+  const prepareController = useRef<AbortController | null>(null);
+
+  function abortPrepare() {
+    prepareController.current?.abort();
+    prepareController.current = null;
+  }
 
   function abortLoad() {
-    controller.current?.abort();
-    controller.current = null;
+    documentController.current?.abort();
+    documentController.current = null;
+    abortPrepare();
+  }
+
+  function nextPrepareSignal(): AbortSignal {
+    abortPrepare();
+    const next = new AbortController();
+    prepareController.current = next;
+    return next.signal;
   }
 
   // react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- ruling: web-mutation-no-cache-write: this preview fetch only writes fetched entries to local dialog state; the import mutations invalidate the extensions query when they persist.
@@ -73,6 +87,7 @@ function useRegistryImport(db: AppDrizzleDb | null, queryClient: QueryClient) {
     mutationFn: async (nextPreview: ExtensionImportPreview) => {
       const result = await prepareExtensionImport(nextPreview, {
         fetch: globalThis.fetch.bind(globalThis),
+        signal: nextPrepareSignal(),
       });
       if (!result.ok) {
         throw result.error;
@@ -94,12 +109,12 @@ function useRegistryImport(db: AppDrizzleDb | null, queryClient: QueryClient) {
     mutationFn: async (value: string) => {
       abortLoad();
       const next = new AbortController();
-      controller.current = next;
+      documentController.current = next;
       const result = await fetchExtensionImportDocumentFromUrl(value, {
         fetch: globalThis.fetch.bind(globalThis),
         signal: next.signal,
       });
-      controller.current = null;
+      documentController.current = null;
       if (!result.ok) {
         throw result.error;
       }
@@ -138,6 +153,7 @@ function useRegistryImport(db: AppDrizzleDb | null, queryClient: QueryClient) {
     onSuccess: () => {
       reset();
       void queryClient.invalidateQueries({ queryKey: extensionsQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: searchQueryKeys.providers() });
     },
     onError: (cause) => {
       setError(errorMessageOf(cause, 'Could not import the registry.'));
@@ -161,6 +177,7 @@ function useRegistryImport(db: AppDrizzleDb | null, queryClient: QueryClient) {
       reset();
       setImportWarnings(result.warnings.map((warning) => warning.message));
       void queryClient.invalidateQueries({ queryKey: extensionsQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: searchQueryKeys.providers() });
     },
     onError: (cause) => {
       setError(errorMessageOf(cause, 'Could not import the extensions.'));
@@ -308,6 +325,12 @@ function ExtensionsRoute() {
   const registry = useRegistryImport(db, queryClient);
   const exporter = useExtensionExport(db);
   const autoInstallStarted = useRef(false);
+  const manifestController = useRef<AbortController | null>(null);
+
+  function abortManifestFetch() {
+    manifestController.current?.abort();
+    manifestController.current = null;
+  }
 
   const { data, isLoading, isError } = useQuery({
     queryKey: extensionsQueryKeys.page(),
@@ -318,8 +341,12 @@ function ExtensionsRoute() {
   // react-doctor-disable-next-line react-doctor/query-mutation-missing-invalidation -- ruling: web-mutation-no-cache-write: `prepareManualProviderInstall` fetches a remote manifest and writes it to local component state (`installSession`); it mutates no cached query, and the confirm mutation below already invalidates `extensionsQueryKeys.all` once it writes.
   const fetchManifestMutation = useMutation({
     mutationFn: async (url: string) => {
+      abortManifestFetch();
+      const next = new AbortController();
+      manifestController.current = next;
       const result = await prepareManualProviderInstall(url, {
         fetch: globalThis.fetch.bind(globalThis),
+        signal: next.signal,
       });
       if (!result.ok) {
         throw result.error;
@@ -388,6 +415,7 @@ function ExtensionsRoute() {
   });
 
   function resetInstallState() {
+    abortManifestFetch();
     setInstallOpen(false);
     setManifestUrl('');
     setInstallSession(null);
