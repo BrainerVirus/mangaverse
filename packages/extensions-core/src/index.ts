@@ -61,3 +61,32 @@ export { buildCapabilityDisplay, buildPermissionDisplay } from './display.js';
 export type { CapabilityDisplayRow, PermissionDisplayRow } from './display.js';
 export { validateProviderSettings } from './settings.js';
 export type { ProviderSettingsValues } from './settings.js';
+export {
+  clearProviderActivity,
+  listProviderActivity,
+  recordExtensionLog,
+  recordProviderFailure,
+  resetExtensionLogThrottle,
+  sanitizeLogDetails,
+  sanitizeLogMessage,
+} from './extension-logs.js';
+export type {
+  ExtensionLogEntry,
+  ExtensionLogInput,
+  ExtensionLogLevel,
+  ProviderOperation,
+} from './extension-logs.js';
+export { parseSemver, compareSemver, runProviderHealthCheck } from './health-check.js';
+export type {
+  ProviderHealthCheckDependencies,
+  ProviderHealthCheckItem,
+  ProviderHealthCheckReport,
+  ProviderHealthCheckStatus,
+  ProviderHealthStatus,
+} from './health-check.js';
+export { applyProviderUpdate, checkProviderUpdate } from './update-check.js';
+export type {
+  ProviderUpdateCheck,
+  ProviderUpdateDependencies,
+  ProviderUpdateStatus,
+} from './update-check.js';

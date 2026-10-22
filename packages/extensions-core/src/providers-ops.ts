@@ -12,6 +12,8 @@ import {
   upsertInstalledExtension,
 } from '@app/db';
 
+import { recordExtensionLog, recordProviderFailure } from './extension-logs.js';
+
 export async function listInstalledProviders(
   db: AppDrizzleDb,
 ): Promise<AppResult<readonly ExtensionInstallMetadata[]>> {
@@ -97,8 +99,21 @@ export async function uninstallInstalledProvider(
   deps: { readonly db: AppDrizzleDb },
 ): Promise<AppResult<void>> {
   const cur = await loadById(deps.db, id);
-  if (!cur.ok) return err(cur.error);
+  if (!cur.ok) {
+    await recordProviderFailure(deps.db, {
+      providerId: id,
+      operation: 'uninstall',
+      error: cur.error,
+    });
+    return err(cur.error);
+  }
   await deleteInstalledExtension(deps.db, id);
+  await recordExtensionLog(deps.db, {
+    providerId: id,
+    level: 'info',
+    code: 'extensions.ops.uninstalled',
+    message: 'Provider uninstalled.',
+  });
   return ok(undefined);
 }
 
@@ -125,5 +140,21 @@ export async function updateInstalledProviderManifest(
     updatedAt: new Date().toISOString(),
     state: 'installed',
   };
-  return upsertInstalledExtension(deps.db, next);
+  const write = await upsertInstalledExtension(deps.db, next);
+  if (!write.ok) {
+    await recordProviderFailure(deps.db, {
+      providerId: id,
+      operation: 'update',
+      error: write.error,
+    });
+    return write;
+  }
+  await recordExtensionLog(deps.db, {
+    providerId: id,
+    level: 'info',
+    code: 'extensions.ops.updated',
+    message: `Updated provider to v${manifest.version}.`,
+    details: { version: manifest.version },
+  });
+  return ok(undefined);
 }
