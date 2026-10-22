@@ -163,9 +163,22 @@ describe('theme gallery', () => {
     gallery.cleanup();
   });
 
-  it('Then every card action names the theme it changes', () => {
+  it('Given the gallery, Then every preview fills its card column instead of shrinking to its label', () => {
     const gallery = renderGallery();
 
+    const previews = [...gallery.container.querySelectorAll('[data-theme-preview]')];
+    expect(previews.length).toBeGreaterThan(1);
+
+    for (const preview of previews) {
+      expect(preview.className).not.toContain('max-w-70');
+      expect(preview.parentElement?.className).toContain('w-full');
+    }
+
+    gallery.cleanup();
+  });
+
+  it('Then every card action names the theme it changes', () => {
+    const gallery = renderGallery();
     expect(
       gallery.container.querySelector('button[aria-label="Duplicate Sakura theme"]'),
     ).not.toBeNull();

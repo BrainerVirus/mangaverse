@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { Badge, Button, EmptyState, ErrorState, LoadingState } from '@app/design-system';
 import { CachedCoverImage, getDefaultProviderId } from '@app/cache';
-import type { ChapterId, MangaId } from '@app/shared';
+import { toReadableDescription, type ChapterId, type MangaId } from '@app/shared';
 import { Heart, Library, Trash2 } from 'lucide-react';
 import type { MangaDetailData } from '../types.js';
+import { ConfirmRemoveFromLibraryDialog } from './ConfirmRemoveFromLibraryDialog.js';
 
 export interface MangaDetailPageProps {
   mangaId: MangaId;
@@ -24,6 +26,7 @@ function formatPeople(names: readonly { name: string }[]): string | undefined {
 
 interface LibraryActionProps {
   libraryEntry: MangaDetailData['libraryEntry'];
+  mangaTitle: string;
   onAddToLibrary: (() => void) | undefined;
   onRemoveFromLibrary: (() => void) | undefined;
   onToggleFavorite: (() => void) | undefined;
@@ -32,11 +35,13 @@ interface LibraryActionProps {
 
 function LibraryActions({
   libraryEntry,
+  mangaTitle,
   onAddToLibrary,
   onRemoveFromLibrary,
   onToggleFavorite,
   isLibraryActionPending,
 }: LibraryActionProps) {
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
   const inLibrary = libraryEntry !== undefined;
   const isFavorite = libraryEntry?.favorite === true;
 
@@ -68,15 +73,27 @@ function LibraryActions({
       ) : null}
 
       {inLibrary && onRemoveFromLibrary !== undefined ? (
-        <Button
-          type="button"
-          variant="ghost"
-          disabled={isLibraryActionPending}
-          onClick={onRemoveFromLibrary}
-        >
-          <Trash2 aria-hidden className="size-4" />
-          Remove from library
-        </Button>
+        <>
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={isLibraryActionPending}
+            onClick={() => setConfirmingRemove(true)}
+          >
+            <Trash2 aria-hidden className="size-4" />
+            Remove from library
+          </Button>
+          <ConfirmRemoveFromLibraryDialog
+            open={confirmingRemove}
+            mangaTitle={mangaTitle}
+            isRemoving={isLibraryActionPending}
+            onOpenChange={setConfirmingRemove}
+            onConfirm={() => {
+              setConfirmingRemove(false);
+              onRemoveFromLibrary();
+            }}
+          />
+        </>
       ) : null}
     </div>
   );
@@ -103,6 +120,8 @@ function MangaSummary({
   const { manga, libraryEntry, continueChapterId } = data;
   const authors = formatPeople(manga.authors);
   const artists = formatPeople(manga.artists);
+  const description =
+    manga.description === undefined ? '' : toReadableDescription(manga.description);
   const defaultProvider = manga.providerMappings.find(
     (mapping) => mapping.id === manga.defaultProviderMappingId,
   );
@@ -148,9 +167,9 @@ function MangaSummary({
         ) : null}
       </dl>
 
-      {manga.description !== undefined && manga.description.length > 0 ? (
-        <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
-          {manga.description}
+      {description.length > 0 ? (
+        <p className="max-w-3xl whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+          {description}
         </p>
       ) : null}
 
@@ -174,6 +193,7 @@ function MangaSummary({
 
       <LibraryActions
         libraryEntry={libraryEntry}
+        mangaTitle={manga.canonicalTitle}
         onAddToLibrary={onAddToLibrary}
         onRemoveFromLibrary={onRemoveFromLibrary}
         onToggleFavorite={onToggleFavorite}
@@ -247,7 +267,12 @@ export function MangaDetailPage({
   if (data === undefined || data === null) {
     return (
       <section aria-label="Manga details" className="p-6">
-        <EmptyState type="no-results" />
+        <EmptyState
+          type="manga-not-found"
+          {...(onBack === undefined
+            ? {}
+            : { action: { label: 'Back to library', onClick: onBack } })}
+        />
       </section>
     );
   }

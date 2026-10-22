@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchMangaDetail, libraryQueryKeys, MangaDetailPage } from '@app/library';
 import type { AppDrizzleDb } from '@app/db/browser';
@@ -35,6 +35,7 @@ async function resolveMangaDetail(db: AppDrizzleDb, mangaId: MangaId, signal?: A
 
 function MangaDetailRoute() {
   const navigate = useNavigate();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { id } = Route.useParams();
   const mangaId = toMangaId(id);
@@ -63,7 +64,15 @@ function MangaDetailRoute() {
       data={data ?? null}
       isLoading={dbStatus === 'loading' || isLoading}
       isError={dbStatus === 'error' || isError}
-      onBack={() => void navigate({ to: '/search' })}
+      onBack={() => {
+        // Return to the real origin (library, search, discover). A direct link has no in-app
+        // history, so it falls back to the library instead of leaving the app.
+        if (router.history.canGoBack()) {
+          router.history.back();
+          return;
+        }
+        void navigate({ to: '/library' });
+      }}
       onOpenChapter={(chapterId) =>
         void navigate({ to: '/reader/$chapterId', params: { chapterId } })
       }

@@ -475,9 +475,15 @@ importers:
         specifier: ^19.3.0
         version: 19.3.0
     devDependencies:
+      jsdom:
+        specifier: ^30.1.2
+        version: 30.1.2
       oxlint:
         specifier: ^1.87.0
         version: 1.87.0(oxlint-tsgolint@7.0.2004)
+      react-dom:
+        specifier: ^19.3.0
+        version: 19.3.0(react@19.3.0)
       typescript:
         specifier: ^7.0.2
         version: 7.0.2

@@ -30,7 +30,9 @@
     "react": "^19.3.0"
   },
   "devDependencies": {
+    "jsdom": "^30.1.2",
     "oxlint": "^1.87.0",
+    "react-dom": "^19.3.0",
     "typescript": "^7.0.2",
     "vitest": "^5.0.4"
   }
