@@ -5,8 +5,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { CachedPageImage } from './CachedPageImage.js';
 
 const mocks = vi.hoisted(() => ({
-  resolve: vi.fn(),
-  context: { db: {}, adapter: { blobStorage: { revokeObjectUrl: vi.fn() } } },
+  resolve: vi.fn<(...args: unknown[]) => Promise<{ objectUrl: string } | undefined>>(),
+  context: { db: {}, adapter: { blobStorage: { revokeObjectUrl: vi.fn<() => void>() } } },
 }));
 vi.mock('../page-cache-store.js', () => ({ resolvePageObjectUrl: mocks.resolve }));
 vi.mock('./CoverCacheProvider.js', () => ({ useCoverCacheContext: () => mocks.context }));

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import type { ChapterId, MangaId, ProviderId } from '@app/shared';
 import { Button, cn } from '@app/design-system';
 
@@ -41,6 +41,9 @@ export function CachedPageImage({
     setSrc(undefined);
     setAttempt((value) => value + 1);
   };
+  const retryOnReconnect = useEffectEvent(() => {
+    if (failed) retry();
+  });
   const objectUrlRef = useRef<string | undefined>(undefined);
   const requestKey = `${providerId}\u0000${mangaId}\u0000${chapterId}\u0000${String(pageIndex)}\u0000${remoteUrl}\u0000${retention}`;
 
@@ -66,7 +69,7 @@ export function CachedPageImage({
     let cancelled = false;
 
     const recoverOnline = () => {
-      if (!cancelled) retry();
+      if (!cancelled) retryOnReconnect();
     };
     window.addEventListener('online', recoverOnline);
     void (async () => {
