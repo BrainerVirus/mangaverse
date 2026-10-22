@@ -54,8 +54,11 @@ function renderPage(onRemove: () => void) {
 }
 
 describe('ProviderDetailPage uninstall confirmation', () => {
-  it('keeps the provider until the confirmation is accepted', async () => {
-    const user = userEvent.setup();
+  // The detail page renders the whole extension surface in jsdom; on a loaded CI
+  // runner that costs seconds per interaction (run 39723952949 hit the 5 s default
+  // just on the cancel path), so this suite gets headroom instead of a global bump.
+  it('keeps the provider until the confirmation is accepted', { timeout: 15_000 }, async () => {
+    const user = userEvent.setup({ delay: null });
     const onRemove = vi.fn<() => void>();
     renderPage(onRemove);
 
@@ -74,7 +77,7 @@ describe('ProviderDetailPage uninstall confirmation', () => {
   });
 
   it('removes the provider after the confirmation is accepted', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     const onRemove = vi.fn<() => void>();
     renderPage(onRemove);
 
