@@ -26,6 +26,34 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Could not save the category.';
 }
 
+interface DeleteCategoryPromptProps {
+  name: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}
+
+function DeleteCategoryPrompt({ name, onCancel, onConfirm }: DeleteCategoryPromptProps) {
+  return (
+    <div className="flex flex-col gap-2 rounded-control bg-muted/50 p-2 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm">Delete “{name}”? Titles stay in your library.</p>
+      <div className="flex gap-2">
+        <Button type="button" size="sm" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="destructive"
+          aria-label={`Confirm delete ${name}`}
+          onClick={onConfirm}
+        >
+          Delete category
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function CategoryManagerDialog({
   open,
   categories,
@@ -53,11 +81,15 @@ export function CategoryManagerDialog({
     onOpenChange(next);
   }
 
-  function run(action: LibraryOrganizationAction): Promise<void> {
+  function run(action: LibraryOrganizationAction): Promise<boolean> {
     setFormError(undefined);
-    return onOrganize(action).catch((error: unknown) => {
-      setFormError(errorMessage(error));
-    });
+    return onOrganize(action).then(
+      () => true,
+      (error: unknown) => {
+        setFormError(errorMessage(error));
+        return false;
+      },
+    );
   }
 
   async function createCategory(): Promise<void> {
@@ -98,14 +130,26 @@ export function CategoryManagerDialog({
     }
   }
 
+  /** Pinned and unpinned categories are separate bands; arrows only move within one band. */
+  function neighborInGroup(categoryId: CategoryId, offset: -1 | 1): CategoryId | undefined {
+    const category = ordered.find((item) => item.id === categoryId);
+    if (category === undefined) return undefined;
+    const group = ordered.filter((item) => (item.pinned === true) === (category.pinned === true));
+    const index = group.findIndex((item) => item.id === categoryId);
+    return group[index + offset]?.id;
+  }
+
   function move(categoryId: CategoryId, offset: -1 | 1): void {
-    const index = ordered.findIndex((category) => category.id === categoryId);
-    const target = index + offset;
-    if (index < 0 || target < 0 || target >= ordered.length) return;
+    const targetId = neighborInGroup(categoryId, offset);
+    if (targetId === undefined) return;
+    const from = ordered.findIndex((category) => category.id === categoryId);
+    const to = ordered.findIndex((category) => category.id === targetId);
     const reordered = [...ordered];
-    const [moved] = reordered.splice(index, 1);
-    if (moved === undefined) return;
-    reordered.splice(target, 0, moved);
+    const moved = reordered[from];
+    const target = reordered[to];
+    if (moved === undefined || target === undefined) return;
+    reordered[from] = target;
+    reordered[to] = moved;
     void run({ type: 'reorder_categories', categoryIds: reordered.map((item) => item.id) });
   }
 
@@ -161,7 +205,7 @@ export function CategoryManagerDialog({
           <p className="mt-4 text-sm text-muted-foreground">No categories yet.</p>
         ) : (
           <ul className="mt-4 flex flex-col divide-y divide-border rounded-box border border-border">
-            {ordered.map((category, index) => (
+            {ordered.map((category) => (
               <li key={category.id} className="flex flex-col gap-2 p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
@@ -240,7 +284,7 @@ export function CategoryManagerDialog({
                           variant="ghost"
                           size="sm"
                           aria-label={`Move ${category.name} up`}
-                          disabled={index === 0}
+                          disabled={neighborInGroup(category.id, -1) === undefined}
                           onClick={() => move(category.id, -1)}
                         >
                           <ArrowUp aria-hidden className="size-4" />
@@ -250,7 +294,7 @@ export function CategoryManagerDialog({
                           variant="ghost"
                           size="sm"
                           aria-label={`Move ${category.name} down`}
-                          disabled={index === ordered.length - 1}
+                          disabled={neighborInGroup(category.id, 1) === undefined}
                           onClick={() => move(category.id, 1)}
                         >
                           <ArrowDown aria-hidden className="size-4" />
@@ -283,34 +327,17 @@ export function CategoryManagerDialog({
                 </div>
 
                 {deletingId === category.id ? (
-                  <div className="flex flex-col gap-2 rounded-control bg-muted/50 p-2 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-sm">
-                      Delete “{category.name}”? Titles stay in your library.
-                    </p>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setDeletingId(undefined)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="destructive"
-                        aria-label={`Confirm delete ${category.name}`}
-                        onClick={() => {
-                          void run({ type: 'delete_category', categoryId: category.id }).then(() =>
-                            setDeletingId(undefined),
-                          );
-                        }}
-                      >
-                        Delete category
-                      </Button>
-                    </div>
-                  </div>
+                  <DeleteCategoryPrompt
+                    name={category.name}
+                    onCancel={() => setDeletingId(undefined)}
+                    onConfirm={() => {
+                      void run({ type: 'delete_category', categoryId: category.id }).then(
+                        (saved) => {
+                          if (saved) setDeletingId(undefined);
+                        },
+                      );
+                    }}
+                  />
                 ) : null}
               </li>
             ))}

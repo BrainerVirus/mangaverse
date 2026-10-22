@@ -104,6 +104,22 @@ describe('BulkEditBar', () => {
     expect(props.onClearSelection).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps the category dialog open and shows the error when the write fails', async () => {
+    const user = userEvent.setup();
+    const onOrganize = vi.fn<(action: LibraryOrganizationAction) => Promise<void>>(async () => {
+      throw new Error('Could not save categories.');
+    });
+    renderBulk({ onOrganize });
+
+    await user.click(screen.getByRole('button', { name: 'Bulk categories' }));
+    await user.click(screen.getByLabelText('Drama'));
+    await user.click(screen.getByRole('button', { name: 'Add to selected' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not save categories.');
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByLabelText('Drama')).toBeChecked();
+  });
+
   it('selects all visible through the checkbox', async () => {
     const user = userEvent.setup();
     const props = renderBulk();

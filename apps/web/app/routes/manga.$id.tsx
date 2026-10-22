@@ -87,7 +87,7 @@ function MangaDetailRoute() {
       onCategoriesChange={(categoryIds) => {
         const entryId = data?.libraryEntry?.id;
         if (entryId === undefined) return;
-        organizeMutation.mutate({
+        return organizeMutation.mutateAsync({
           type: 'set_entry_categories',
           entryIds: [entryId],
           categoryIds,

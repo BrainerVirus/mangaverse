@@ -4,7 +4,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { toCategoryId, type LibraryCategory } from '@app/shared';
+import { toCategoryId, toProviderId, type LibraryCategory } from '@app/shared';
 import { LibraryToolbar } from './LibraryToolbar.js';
 import { DEFAULT_LIBRARY_VIEW_STATE } from '../view-state.js';
 import type { LibraryOrganizationAction } from '../types.js';
@@ -104,12 +104,78 @@ describe('LibraryToolbar', () => {
       color: '',
     });
 
-    // "Pinned" is first, so moving Later up swaps them.
-    await user.click(screen.getByRole('button', { name: 'Move Later up' }));
+    // "Later" is the first unpinned category and "Pinned" is the only pinned one,
+    // so neither arrow can cross the pinned boundary.
+    expect(screen.getByRole('button', { name: 'Move Later up' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Move Pinned down' })).toBeDisabled();
+  });
+
+  it('reorders categories only inside their pinned or unpinned group', async () => {
+    const user = userEvent.setup();
+    const props = renderToolbar({
+      categories: [
+        { id: toCategoryId('pin-a'), name: 'Pin A', pinned: true, sortIndex: 0 },
+        { id: toCategoryId('pin-b'), name: 'Pin B', pinned: true, sortIndex: 1 },
+        { id: toCategoryId('later'), name: 'Later', sortIndex: 2 },
+        { id: toCategoryId('drama'), name: 'Drama', sortIndex: 3 },
+      ],
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Manage categories' }));
+
+    expect(screen.getByRole('button', { name: 'Move Pin A up' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Move Pin B down' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Move Later up' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Move Drama down' })).toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: 'Move Drama up' }));
     expect(props.onOrganize).toHaveBeenCalledWith({
       type: 'reorder_categories',
-      categoryIds: [toCategoryId('later'), toCategoryId('pinned')],
+      categoryIds: [
+        toCategoryId('pin-a'),
+        toCategoryId('pin-b'),
+        toCategoryId('drama'),
+        toCategoryId('later'),
+      ],
     });
+  });
+
+  it('clears the status and provider filters individually', async () => {
+    const user = userEvent.setup();
+    const props = renderToolbar({
+      providers: [toProviderId('prov-a')],
+      viewState: {
+        ...DEFAULT_LIBRARY_VIEW_STATE,
+        filter: { statuses: ['reading'], providerIds: [toProviderId('prov-a')] },
+      },
+    });
+
+    const status = screen.getByLabelText('Filter by status');
+    fireEvent.keyDown(status, { key: 'ArrowDown' });
+    await user.click(screen.getByRole('option', { name: 'All statuses' }));
+    expect(props.onFilterChange).toHaveBeenCalledWith({ providerIds: [toProviderId('prov-a')] });
+
+    const provider = screen.getByLabelText('Filter by provider');
+    fireEvent.keyDown(provider, { key: 'ArrowDown' });
+    await user.click(screen.getByRole('option', { name: 'All providers' }));
+    expect(props.onFilterChange).toHaveBeenCalledWith({ statuses: ['reading'] });
+  });
+
+  it('exposes the reading-status and provider sorts', async () => {
+    const user = userEvent.setup();
+    const props = renderToolbar();
+
+    const trigger = screen.getByLabelText('Sort library');
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    await user.click(screen.getByRole('option', { name: 'Unread · most' }));
+    expect(props.onViewStateChange).toHaveBeenCalledWith({
+      ...DEFAULT_LIBRARY_VIEW_STATE,
+      sort: { key: 'unread', direction: 'desc' },
+    });
+
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    expect(screen.getByRole('option', { name: 'Last read · recent' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Provider · A–Z' })).toBeInTheDocument();
   });
 
   it('pins and confirms deletion from the manager dialog', async () => {

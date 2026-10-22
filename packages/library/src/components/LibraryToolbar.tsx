@@ -72,7 +72,14 @@ const SORT_OPTIONS: {
     key: 'last_updated',
     direction: 'asc',
   },
+  { value: 'last_read:desc', label: 'Last read · recent', key: 'last_read', direction: 'desc' },
+  { value: 'unread:desc', label: 'Unread · most', key: 'unread', direction: 'desc' },
+  { value: 'progress:desc', label: 'Progress · furthest', key: 'progress', direction: 'desc' },
+  { value: 'provider:asc', label: 'Provider · A–Z', key: 'provider', direction: 'asc' },
 ];
+
+/** Select sentinel for "no filter"; provider ids and statuses never use it. */
+const ALL_OPTION = '__all__';
 
 function sortValue(sort: LibrarySort): string {
   const match = SORT_OPTIONS.find(
@@ -211,7 +218,7 @@ export function LibraryToolbar({
 
         <div className="flex flex-wrap items-center gap-2">
           <Select
-            value={activeStatus ?? null}
+            value={activeStatus ?? ALL_OPTION}
             onValueChange={(value) => {
               const status = STATUS_OPTIONS.find((option) => option.value === value);
               changeFilter({ statuses: status === undefined ? undefined : [status.value] });
@@ -221,6 +228,7 @@ export function LibraryToolbar({
               <SelectValue placeholder="All statuses" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value={ALL_OPTION}>All statuses</SelectItem>
               {STATUS_OPTIONS.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
@@ -245,15 +253,18 @@ export function LibraryToolbar({
 
           {providers.length > 0 ? (
             <Select
-              value={activeProvider ?? null}
+              value={activeProvider ?? ALL_OPTION}
               onValueChange={(value) =>
-                changeFilter({ providerIds: value.length > 0 ? [value as ProviderId] : undefined })
+                changeFilter({
+                  providerIds: value === ALL_OPTION ? undefined : [value as ProviderId],
+                })
               }
             >
               <SelectTrigger className="h-9 w-44" aria-label="Filter by provider">
                 <SelectValue placeholder="All providers" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value={ALL_OPTION}>All providers</SelectItem>
                 {providers.map((providerId) => (
                   <SelectItem key={providerId} value={providerId}>
                     {providerId}

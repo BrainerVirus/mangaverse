@@ -3,7 +3,13 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { toLibraryEntryId, toMangaId, toProviderMappingId } from '@app/shared';
+import {
+  toCategoryId,
+  toLibraryEntryId,
+  toMangaId,
+  toProviderMappingId,
+  type CategoryId,
+} from '@app/shared';
 import type * as MotionModule from '@app/motion';
 
 vi.mock('@app/motion', async (importOriginal) => {
@@ -139,5 +145,35 @@ describe('MangaDetailPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove title' }));
 
     expect(onRemove).toHaveBeenCalledTimes(1);
+  });
+
+  it('Given a failing category write, Then the editor stays open and shows the error', async () => {
+    const onCategoriesChange = vi.fn<(categoryIds: readonly CategoryId[]) => Promise<void>>(
+      async () => {
+        throw new Error('Could not update categories.');
+      },
+    );
+
+    render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={makeDetail({
+          libraryEntry: inLibrary,
+          categories: [{ id: toCategoryId('fantasy'), name: 'Fantasy' }],
+        })}
+        isLoading={false}
+        isError={false}
+        onOpenChapter={() => {}}
+        onCategoriesChange={onCategoriesChange}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fantasy' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not update categories.');
+    expect(screen.getByRole('button', { name: 'Fantasy' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
   });
 });

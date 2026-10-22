@@ -60,11 +60,15 @@ export function BulkEditBar({
   const orderedCategories = [...categories].sort(compareLibraryCategories);
   const selectedCategoryIds = new Set(categoryIds);
 
-  function run(action: LibraryOrganizationAction): Promise<void> {
+  function run(action: LibraryOrganizationAction): Promise<boolean> {
     setError(undefined);
-    return onOrganize(action).catch((caught: unknown) => {
-      setError(caught instanceof Error ? caught.message : 'Could not update the selection.');
-    });
+    return onOrganize(action).then(
+      () => true,
+      (caught: unknown) => {
+        setError(caught instanceof Error ? caught.message : 'Could not update the selection.');
+        return false;
+      },
+    );
   }
 
   function toggleCategory(categoryId: CategoryId): void {
@@ -275,7 +279,9 @@ export function BulkEditBar({
                   type: 'remove_entry_categories',
                   entryIds: selectedEntryIds,
                   categoryIds,
-                }).then(() => closeCategoryDialog(false));
+                }).then((saved) => {
+                  if (saved) closeCategoryDialog(false);
+                });
               }}
             >
               Remove from selected
@@ -288,7 +294,9 @@ export function BulkEditBar({
                   type: 'add_entry_categories',
                   entryIds: selectedEntryIds,
                   categoryIds,
-                }).then(() => closeCategoryDialog(false));
+                }).then((saved) => {
+                  if (saved) closeCategoryDialog(false);
+                });
               }}
             >
               Add to selected

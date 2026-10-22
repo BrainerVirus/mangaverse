@@ -24,7 +24,7 @@ export interface MangaDetailPageProps {
   onAddToLibrary?: () => void;
   onRemoveFromLibrary?: () => void;
   onToggleFavorite?: () => void;
-  onCategoriesChange?: (categoryIds: readonly CategoryId[]) => void;
+  onCategoriesChange?: (categoryIds: readonly CategoryId[]) => Promise<void> | void;
   isLibraryActionPending?: boolean;
 }
 
@@ -112,7 +112,7 @@ interface CategoryEditorProps {
   categories: readonly LibraryCategory[];
   selectedCategoryIds: readonly CategoryId[];
   disabled: boolean;
-  onChange: (categoryIds: readonly CategoryId[]) => void;
+  onChange: (categoryIds: readonly CategoryId[]) => Promise<void> | void;
 }
 
 function CategoryEditor({
@@ -121,6 +121,7 @@ function CategoryEditor({
   disabled,
   onChange,
 }: CategoryEditorProps) {
+  const [error, setError] = useState<string | undefined>();
   const ordered = [...categories].sort(compareLibraryCategories);
   const selectedSet = new Set(selectedCategoryIds);
   if (ordered.length === 0) return null;
@@ -129,7 +130,11 @@ function CategoryEditor({
     const next = selectedSet.has(categoryId)
       ? selectedCategoryIds.filter((id) => id !== categoryId)
       : [...selectedCategoryIds, categoryId];
-    onChange(next);
+    setError(undefined);
+    // Keep the editor open and the current selection unchanged when the write fails.
+    void Promise.resolve(onChange(next)).catch((caught: unknown) => {
+      setError(caught instanceof Error ? caught.message : 'Could not update categories.');
+    });
   }
 
   return (
@@ -153,6 +158,11 @@ function CategoryEditor({
           );
         })}
       </div>
+      {error !== undefined ? (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      ) : null}
     </fieldset>
   );
 }
@@ -164,7 +174,7 @@ interface SummaryProps {
   onAddToLibrary: (() => void) | undefined;
   onRemoveFromLibrary: (() => void) | undefined;
   onToggleFavorite: (() => void) | undefined;
-  onCategoriesChange: ((categoryIds: readonly CategoryId[]) => void) | undefined;
+  onCategoriesChange: ((categoryIds: readonly CategoryId[]) => Promise<void> | void) | undefined;
   isLibraryActionPending: boolean;
 }
 

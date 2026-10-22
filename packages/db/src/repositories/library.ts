@@ -152,6 +152,93 @@ function compareSortValues(a: string, b: string, direction: LibrarySort['directi
   return (direction === 'asc' ? 1 : -1) * a.localeCompare(b);
 }
 
+function compareSortNumbers(a: number, b: number, direction: LibrarySort['direction']): number {
+  if (a === b) return 0;
+  return (direction === 'asc' ? 1 : -1) * (a - b);
+}
+
+function compareOptionalSortNumbers(
+  a: number | null,
+  b: number | null,
+  direction: LibrarySort['direction'],
+): number {
+  // No progress yet ranks last in both directions, like empty timestamps.
+  if (a === null || b === null) {
+    if (a === b) return 0;
+    return a === null ? 1 : -1;
+  }
+  return compareSortNumbers(a, b, direction);
+}
+
+/**
+ * The provider a title is filed under: the active mapping, then the manga's
+ * default mapping, then any mapping. Missing providers sort last.
+ */
+function providerKeysByEntryId(
+  db: AppDrizzleDb,
+  rows: readonly (typeof libraryEntries.$inferSelect)[],
+): Map<string, string> {
+  const keys = new Map<string, string>();
+  if (rows.length === 0) return keys;
+  const mangaIds = rows.map((row) => row.mangaId);
+
+  const defaultMappingByMangaId = new Map(
+    readIdChunks(mangaIds, (chunk) =>
+      db
+        .select({
+          id: mangaIdentities.id,
+          defaultProviderMappingId: mangaIdentities.defaultProviderMappingId,
+        })
+        .from(mangaIdentities)
+        .where(inArray(mangaIdentities.id, chunk))
+        .all(),
+    ).map((identity) => [identity.id, identity.defaultProviderMappingId]),
+  );
+
+  const providerByMappingId = new Map<string, string>();
+  const firstProviderByMangaId = new Map<string, string>();
+  for (const mapping of readIdChunks(mangaIds, (chunk) =>
+    db
+      .select({
+        id: mangaProviderMappings.id,
+        mangaId: mangaProviderMappings.mangaId,
+        providerId: mangaProviderMappings.providerId,
+      })
+      .from(mangaProviderMappings)
+      .where(inArray(mangaProviderMappings.mangaId, chunk))
+      .all(),
+  )) {
+    providerByMappingId.set(mapping.id, mapping.providerId);
+    if (!firstProviderByMangaId.has(mapping.mangaId)) {
+      firstProviderByMangaId.set(mapping.mangaId, mapping.providerId);
+    }
+  }
+
+  for (const row of rows) {
+    const providerId =
+      (row.activeProviderMappingId === null || row.activeProviderMappingId === undefined
+        ? undefined
+        : providerByMappingId.get(row.activeProviderMappingId)) ??
+      providerByMappingId.get(defaultMappingByMangaId.get(row.mangaId) ?? '') ??
+      firstProviderByMangaId.get(row.mangaId) ??
+      '';
+    keys.set(row.id, providerId);
+  }
+  return keys;
+}
+
+/** Only entries that were opened have a last-read timestamp; unread entries rank last. */
+function lastReadAtByEntryId(
+  rows: readonly (typeof libraryEntries.$inferSelect)[],
+): Map<string, string> {
+  return new Map(
+    rows.map((row) => [
+      row.id,
+      row.lastReadChapterId === null || row.lastReadChapterId === '' ? '' : (row.updatedAt ?? ''),
+    ]),
+  );
+}
+
 function sortLibraryRows(
   db: AppDrizzleDb,
   rows: (typeof libraryEntries.$inferSelect)[],
@@ -160,26 +247,39 @@ function sortLibraryRows(
   const key: LibrarySortKey = sort?.key ?? 'date_added';
   const direction = sort?.direction ?? 'desc';
   const titles = key === 'title' ? canonicalTitlesByMangaId(db, rows) : new Map<string, string>();
+  const providerKeys =
+    key === 'provider' ? providerKeysByEntryId(db, rows) : new Map<string, string>();
+  const lastReadAt = key === 'last_read' ? lastReadAtByEntryId(rows) : new Map<string, string>();
 
   const sorted = [...rows].sort((a, b) => {
-    if (key === 'title') {
-      const byTitle = compareSortValues(
-        titles.get(a.mangaId) ?? '',
-        titles.get(b.mangaId) ?? '',
-        direction,
-      );
-      return byTitle !== 0 ? byTitle : a.id.localeCompare(b.id);
-    }
-    if (key === 'date_added') {
-      return (
-        compareSortValues(a.addedAt ?? '', b.addedAt ?? '', direction) || a.id.localeCompare(b.id)
-      );
-    }
-    if (key === 'last_updated') {
-      return (
-        compareSortValues(a.updatedAt ?? '', b.updatedAt ?? '', direction) ||
-        a.id.localeCompare(b.id)
-      );
+    const byId = a.id.localeCompare(b.id);
+    switch (key) {
+      case 'title':
+        return (
+          compareSortValues(titles.get(a.mangaId) ?? '', titles.get(b.mangaId) ?? '', direction) ||
+          byId
+        );
+      case 'date_added':
+        return compareSortValues(a.addedAt ?? '', b.addedAt ?? '', direction) || byId;
+      case 'last_updated':
+        return compareSortValues(a.updatedAt ?? '', b.updatedAt ?? '', direction) || byId;
+      case 'last_read':
+        return (
+          compareSortValues(lastReadAt.get(a.id) ?? '', lastReadAt.get(b.id) ?? '', direction) ||
+          byId
+        );
+      case 'unread':
+        return compareSortNumbers(a.unreadCount, b.unreadCount, direction) || byId;
+      case 'progress':
+        return compareOptionalSortNumbers(a.progressPercent, b.progressPercent, direction) || byId;
+      case 'provider':
+        return (
+          compareSortValues(
+            providerKeys.get(a.id) ?? '',
+            providerKeys.get(b.id) ?? '',
+            direction,
+          ) || byId
+        );
     }
     return 0;
   });

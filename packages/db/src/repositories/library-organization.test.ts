@@ -7,7 +7,7 @@ import {
   type LibraryEntryId,
 } from '@app/shared';
 import { createSqlJsHarness, type SqlJsHarness } from '../testing/sqljs-harness.js';
-import { createMangaIdentityWithInitialMapping } from './identities.js';
+import { createMangaIdentityWithInitialMapping, addProviderMapping } from './identities.js';
 import {
   addLibraryEntriesToCategories,
   addLibraryEntry,
@@ -22,6 +22,7 @@ import {
   setLibraryCategoryPinned,
   setLibraryEntriesFavorite,
   setLibraryEntriesStatus,
+  setLibraryEntryActiveProviderMapping,
   updateLibraryCategory,
 } from './library.js';
 
@@ -125,29 +126,33 @@ describe('listLibraryEntries filters', () => {
 
   it('Given titles whose ids and titles sort differently, Then title sort uses the canonical title', async () => {
     const harness = await createSqlJsHarness();
-    const first = await createManga(harness.db, 'a', 'prov-a', 'Zulu');
-    const second = await createManga(harness.db, 'b', 'prov-a', 'Alpha');
-    // Force ids whose lexical order is the opposite of the title order.
-    harness.raw.run('UPDATE manga_identities SET id = ? WHERE id = ?', ['zz-id', first]);
-    harness.raw.run('UPDATE manga_identities SET id = ? WHERE id = ?', ['aa-id', second]);
-    await addLibraryEntry(harness.db, { mangaId: toMangaId('zz-id'), status: 'reading' });
-    await addLibraryEntry(harness.db, { mangaId: toMangaId('aa-id'), status: 'reading' });
+    const zulu = await createManga(harness.db, 'zulu', 'prov-a', 'Zulu');
+    const alpha = await createManga(harness.db, 'alpha', 'prov-a', 'Alpha');
+    // Title order (Alpha, Zulu) is the opposite of the id order (aa-zulu, zz-alpha),
+    // so an id-based sort cannot pass this test.
+    harness.raw.run('UPDATE manga_identities SET id = ? WHERE id = ?', ['aa-zulu', zulu]);
+    harness.raw.run('UPDATE manga_identities SET id = ? WHERE id = ?', ['zz-alpha', alpha]);
+    await addLibraryEntry(harness.db, { mangaId: toMangaId('aa-zulu'), status: 'reading' });
+    await addLibraryEntry(harness.db, { mangaId: toMangaId('zz-alpha'), status: 'reading' });
+
+    const titles = new Map([
+      ['aa-zulu', 'Zulu'],
+      ['zz-alpha', 'Alpha'],
+    ]);
 
     const ascending = await listLibraryEntries(harness.db, {
       sort: { key: 'title', direction: 'asc' },
     });
+    expect(ascending.map((entry) => titles.get(entry.mangaId))).toEqual(['Alpha', 'Zulu']);
     expect(ascending.map((entry) => entry.mangaId)).toEqual([
-      toMangaId('aa-id'),
-      toMangaId('zz-id'),
+      toMangaId('zz-alpha'),
+      toMangaId('aa-zulu'),
     ]);
 
     const descending = await listLibraryEntries(harness.db, {
       sort: { key: 'title', direction: 'desc' },
     });
-    expect(descending.map((entry) => entry.mangaId)).toEqual([
-      toMangaId('zz-id'),
-      toMangaId('aa-id'),
-    ]);
+    expect(descending.map((entry) => titles.get(entry.mangaId))).toEqual(['Zulu', 'Alpha']);
   });
 
   it('Given date_added and last_updated, Then both sort in either direction with empty values last', async () => {
@@ -187,6 +192,101 @@ describe('listLibraryEntries filters', () => {
       sort: { key: 'date_added', direction: 'asc' },
     });
     expect(addedAscending.at(-1)?.id).toBe(empty);
+  });
+
+  it('sorts by last read, unread count, provider and progress with stable tie-breakers', async () => {
+    const harness = await createSqlJsHarness();
+    const startedEarlier = await entryFor(harness, 'started-earlier', {
+      updatedAt: '2026-03-01T00:00:00.000Z',
+    });
+    const startedLater = await entryFor(harness, 'started-later', {
+      updatedAt: '2026-04-01T00:00:00.000Z',
+    });
+    const neverStarted = await entryFor(harness, 'never-started', {
+      updatedAt: '2026-05-01T00:00:00.000Z',
+    });
+    harness.raw.run(
+      "UPDATE library_entries SET last_read_chapter_id = 'chapter-1' WHERE id IN (?, ?)",
+      [startedEarlier, startedLater],
+    );
+
+    const byLastRead = await listLibraryEntries(harness.db, {
+      sort: { key: 'last_read', direction: 'desc' },
+    });
+    expect(byLastRead.map((entry) => entry.id)).toEqual([
+      startedLater,
+      startedEarlier,
+      neverStarted,
+    ]);
+    // Never-opened titles stay last in the other direction too.
+    const byLastReadAscending = await listLibraryEntries(harness.db, {
+      sort: { key: 'last_read', direction: 'asc' },
+    });
+    expect(byLastReadAscending.at(-1)?.id).toBe(neverStarted);
+
+    const aaa = await entryFor(harness, 'aaa');
+    const two = await entryFor(harness, 'two');
+    const many = await entryFor(harness, 'many');
+    harness.raw.run('UPDATE library_entries SET unread_count = ? WHERE id = ?', [2, aaa]);
+    harness.raw.run('UPDATE library_entries SET unread_count = ? WHERE id = ?', [2, two]);
+    harness.raw.run('UPDATE library_entries SET unread_count = ? WHERE id = ?', [7, many]);
+
+    const byUnread = await listLibraryEntries(harness.db, {
+      sort: { key: 'unread', direction: 'desc' },
+    });
+    const unreadOrder = (entries: typeof byUnread) =>
+      entries.filter((entry) => [aaa, two, many].includes(entry.id)).map((entry) => entry.id);
+    expect(unreadOrder(byUnread)).toEqual([many, aaa, two]);
+    const byUnreadAscending = await listLibraryEntries(harness.db, {
+      sort: { key: 'unread', direction: 'asc' },
+    });
+    expect(unreadOrder(byUnreadAscending)).toEqual([aaa, two, many]);
+
+    harness.raw.run('UPDATE library_entries SET progress_percent = ? WHERE id = ?', [20, aaa]);
+    harness.raw.run('UPDATE library_entries SET progress_percent = ? WHERE id = ?', [80, two]);
+    const byProgress = await listLibraryEntries(harness.db, {
+      sort: { key: 'progress', direction: 'desc' },
+    });
+    expect(unreadOrder(byProgress)).toEqual([two, aaa, many]);
+    const byProgressAscending = await listLibraryEntries(harness.db, {
+      sort: { key: 'progress', direction: 'asc' },
+    });
+    expect(unreadOrder(byProgressAscending)).toEqual([aaa, two, many]);
+  });
+
+  it('sorts by provider, preferring the active mapping then the manga default', async () => {
+    const harness = await createSqlJsHarness();
+    const zeta = await entryFor(harness, 'zeta', { providerId: 'prov-a' });
+    const alpha = await entryFor(harness, 'alpha', { providerId: 'prov-b' });
+    expect(await listLibraryProviderIds(harness.db)).toEqual([
+      toProviderId('prov-a'),
+      toProviderId('prov-b'),
+    ]);
+
+    const byProvider = await listLibraryEntries(harness.db, {
+      sort: { key: 'provider', direction: 'asc' },
+    });
+    expect(byProvider.map((entry) => entry.id)).toEqual([zeta, alpha]);
+
+    // Switching the active mapping files the title under another provider.
+    const zetaMangaId = (await getLibraryEntry(harness.db, zeta))?.mangaId;
+    expect(zetaMangaId).toBeDefined();
+    if (zetaMangaId === undefined) return;
+    const added = await addProviderMapping(harness.db, {
+      mangaId: zetaMangaId,
+      providerId: toProviderId('prov-b'),
+      providerMangaId: 'zeta-other',
+    });
+    expect(added.ok).toBe(true);
+    if (!added.ok) return;
+    const switched = await setLibraryEntryActiveProviderMapping(harness.db, zeta, added.value);
+    expect(switched.ok).toBe(true);
+
+    const byActiveProvider = await listLibraryEntries(harness.db, {
+      sort: { key: 'provider', direction: 'asc' },
+    });
+    // Both are now prov-b; the equal-provider tie-break keeps entry order stable.
+    expect(byActiveProvider.map((entry) => entry.id)).toEqual([alpha, zeta]);
   });
 
   it('lists the providers present in the library for the toolbar', async () => {
