@@ -7,6 +7,7 @@ export interface CoalescedSettingsWriter<T> {
   schedule(value: T): void;
   /** Commits the pending value immediately (pointer-up, blur). */
   flush(): void;
+  cancel(): void;
 }
 
 /**
@@ -43,5 +44,10 @@ export function useCoalescedSettingsWrite<T>(
     [delayMs, flush],
   );
 
-  return { schedule, flush };
+  const cancel = useCallback(() => {
+    if (timer.current !== null) clearTimeout(timer.current);
+    timer.current = null;
+    pending.current = null;
+  }, []);
+  return { schedule, flush, cancel };
 }

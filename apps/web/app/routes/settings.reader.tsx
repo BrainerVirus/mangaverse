@@ -21,6 +21,9 @@ function SettingsReaderRoute() {
   });
 
   const saveMutation = useMutation({
+    // One write at a time: a burst of coalesced edits can otherwise resolve out
+    // of order and the last snapshot to land would not be the last value painted.
+    scope: { id: 'reader-settings' },
     mutationFn: async (settings: ReaderSettings) => {
       const result = await saveReaderSettings(db!, settings);
       if (!result.ok) {
@@ -46,7 +49,14 @@ function SettingsReaderRoute() {
   });
 
   const settingsWriter = useCoalescedSettingsWrite(saveMutation.mutate);
-  const handleChange = (next: ReaderSettings) => {
+  const handleChange = (patch: Partial<ReaderSettings>) => {
+    // Merge over the cache, not over the last render: a control can change
+    // before React has re-rendered with the previous edit's new settings.
+    const current = queryClient.getQueryData<{ settings: ReaderSettings }>(
+      settingsQueryKeys.reader(),
+    )?.settings;
+    if (current === undefined) return;
+    const next = { ...current, ...patch };
     // Every edit paints immediately; a slider gesture writes once at rest.
     queryClient.setQueryData(settingsQueryKeys.reader(), { settings: next });
     settingsWriter.schedule(next);

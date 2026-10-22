@@ -31,7 +31,7 @@ export interface ReaderSettingsPageProps {
   readonly isLoading: boolean;
   readonly isError: boolean;
   readonly isSaving?: boolean;
-  onChange: (next: ReaderSettings) => void;
+  onChange: (patch: Partial<ReaderSettings>) => void;
   /** Pointer-up or blur: commit a coalesced edit without waiting for the quiet window. */
   onInteractionEnd?: () => void;
 }
@@ -244,7 +244,9 @@ export function ReaderSettingsPage({
   }
 
   const update = (patch: Partial<ReaderSettings>) => {
-    onChange({ ...settings, ...patch });
+    // A patch, not a full object: the route merges it over the freshest cached
+    // settings, so two quick edits can never write one over the other.
+    onChange(patch);
   };
   const commit = (patch: Partial<ReaderSettings>) => {
     update(patch);

@@ -1,7 +1,8 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
 import { saveReaderSettings, settingsQueryKeys } from '@app/settings';
+import { upsertTitleReaderSettings, resetTitleReaderSettings } from '@app/db';
 import { libraryQueryKeys } from '@app/library';
 import type { ReaderSettings } from '@app/shared';
 import {
@@ -36,6 +37,10 @@ function formatWriteError(error: unknown): string {
 
 function ReaderRoute() {
   const { chapterId: chapterIdParam } = Route.useParams();
+  return <ReaderRouteSession key={chapterIdParam} chapterIdParam={chapterIdParam} />;
+}
+
+function ReaderRouteSession({ chapterIdParam }: { chapterIdParam: string }) {
   const chapterId = toChapterId(chapterIdParam);
   const queryClient = useQueryClient();
   const db = useLocalDb();
@@ -93,14 +98,25 @@ function ReaderRoute() {
   const retryHydration = hydration.refetch;
 
   const { mutate: saveSettings } = useMutation({
-    mutationFn: async (next: ReaderSettings) => {
-      const result = await saveReaderSettings(db!, next);
+    scope: { id: `reader-settings:${data?.mangaId ?? chapterId}` },
+    mutationFn: async (next: ReaderSettings | null) => {
+      if (!data) return;
+      if (next === null) {
+        await resetTitleReaderSettings(db!, data.mangaId);
+        return;
+      }
+      // The reader is the place reading settings are tuned: with per-title
+      // overrides on they belong to this manga, otherwise they are the defaults.
+      const result = next.rememberPerTitleOverrides
+        ? await upsertTitleReaderSettings(db!, data.mangaId, next)
+        : await saveReaderSettings(db!, next);
       if (!result.ok) {
         throw new Error(result.error.message);
       }
     },
     onMutate: async (next) => {
       await queryClient.cancelQueries({ queryKey: readerQueryKeys.chapter(chapterId) });
+      if (next === null) return;
       queryClient.setQueryData<ReaderPageData>(readerQueryKeys.chapter(chapterId), (current) =>
         current === undefined
           ? current
@@ -118,7 +134,7 @@ function ReaderRoute() {
         readerQueryKeys.chapter(chapterId),
       )?.settings;
       // A newer edit owns the cache; its own write will invalidate.
-      if (current !== next) return;
+      if (next !== null && current !== next) return;
       void queryClient.invalidateQueries({ queryKey: readerQueryKeys.chapter(chapterId) });
       void queryClient.invalidateQueries({ queryKey: settingsQueryKeys.reader() });
     },
@@ -183,6 +199,7 @@ function ReaderRoute() {
     }
     void queryClient.invalidateQueries({ queryKey: readerQueryKeys.chapter(chapterId) });
   }, [chapterId, dbStatus, hydrationFailed, queryClient, retryDb, retryHydration, shouldHydrate]);
+  const chapterActions = useReaderChapterActions(data, handlePersistProgress);
 
   return (
     <>
@@ -194,6 +211,7 @@ function ReaderRoute() {
         <PersistenceErrorBanner />
       </div>
       <ReaderScreen
+        key={chapterId}
         data={data}
         isLoading={dbStatus === 'loading' || isLoading}
         isError={dbStatus === 'error' || isError}
@@ -205,7 +223,52 @@ function ReaderRoute() {
         onChangeSettings={handleChangeSettings}
         isOffline={!isOnline}
         onRetry={handleRetry}
+        {...chapterActions}
+        onResetSettings={() => {
+          if (!db || !data) return;
+          settingsWriter.cancel();
+          saveSettings(null);
+        }}
       />
     </>
   );
+}
+
+function useReaderChapterActions(
+  data: ReaderPageData | undefined,
+  persistProgress: Parameters<typeof ReaderScreen>[0]['onPersistProgress'],
+) {
+  const navigate = useNavigate();
+  const previous = data?.previousChapterId;
+  const next = data?.nextChapterId;
+  const handlePrevious = () => {
+    if (previous) void navigate({ to: '/reader/$chapterId', params: { chapterId: previous } });
+  };
+  const handleNext = () => {
+    if (next) void navigate({ to: '/reader/$chapterId', params: { chapterId: next } });
+  };
+  const handleClose = () => {
+    if (data) {
+      void navigate({ to: '/manga/$id', params: { id: data.mangaId } });
+    } else {
+      void navigate({ to: '/library' });
+    }
+  };
+  return {
+    onClose: handleClose,
+    onMarkRead: (completed: boolean) => {
+      if (!data) return;
+      persistProgress?.({
+        chapterId: data.chapterId,
+        mangaId: data.mangaId,
+        pageIndex: completed ? Math.max(0, data.chapter.pageCount - 1) : 0,
+        completed,
+        readPercent: completed ? 100 : 0,
+        timestamp: new Date().toISOString(),
+      });
+      handleClose();
+    },
+    onPreviousChapter: previous ? handlePrevious : undefined,
+    onNextChapter: next ? handleNext : undefined,
+  };
 }
