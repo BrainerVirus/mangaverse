@@ -371,6 +371,90 @@ export async function setDefaultProviderMapping(
   return ok(undefined);
 }
 
+export async function setPreferredChapterSource(
+  db: AppDrizzleDb,
+  mangaId: MangaId,
+  mappingId: ProviderMappingId | undefined,
+): Promise<AppResult<void>> {
+  if (mappingId !== undefined) {
+    const mapping = db
+      .select({ id: mangaProviderMappings.id })
+      .from(mangaProviderMappings)
+      .where(
+        and(eq(mangaProviderMappings.id, mappingId), eq(mangaProviderMappings.mangaId, mangaId)),
+      )
+      .get();
+    if (mapping === undefined) {
+      return err(
+        createAppError({
+          code: 'db.identity.mapping_not_found',
+          message: 'Provider mapping does not exist for this manga.',
+        }),
+      );
+    }
+  }
+
+  await db
+    .update(mangaIdentities)
+    .set({ preferredChapterSourceId: mappingId ?? null, updatedAt: new Date().toISOString() })
+    .where(eq(mangaIdentities.id, mangaId));
+
+  return ok(undefined);
+}
+
+function httpUrl(value: string): string | undefined {
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Sets or clears the custom cover while keeping every other user override intact. */
+export async function setMangaCoverOverride(
+  db: AppDrizzleDb,
+  mangaId: MangaId,
+  coverImageUrl: string | undefined,
+): Promise<AppResult<void>> {
+  const row = db
+    .select({ userOverridesJson: mangaIdentities.userOverridesJson })
+    .from(mangaIdentities)
+    .where(eq(mangaIdentities.id, mangaId))
+    .get();
+  if (row === undefined) {
+    return err(
+      createAppError({ code: 'db.identity.missing', message: 'Manga identity was not found.' }),
+    );
+  }
+
+  const overrides: Record<string, unknown> = { ...(row.userOverridesJson ?? {}) };
+  if (coverImageUrl === undefined) {
+    delete overrides.coverImageUrl;
+  } else {
+    const validated = httpUrl(coverImageUrl);
+    if (validated === undefined) {
+      return err(
+        createAppError({
+          code: 'db.identity.invalid_cover_url',
+          message: 'Cover image URL must be an http(s) URL.',
+        }),
+      );
+    }
+    overrides.coverImageUrl = validated;
+  }
+
+  await db
+    .update(mangaIdentities)
+    .set({
+      userOverridesJson: Object.keys(overrides).length === 0 ? null : overrides,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(mangaIdentities.id, mangaId));
+
+  return ok(undefined);
+}
+
 export async function markIdentityMerged(
   db: AppDrizzleDb,
   mangaId: MangaId,

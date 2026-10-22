@@ -3,6 +3,7 @@ import {
   getAllTitles,
   getCanonicalTitle,
   getDefaultProviderMapping,
+  getMangaCoverUrl,
   toMangaId,
   toProviderId,
   toProviderMappingId,
@@ -92,5 +93,30 @@ describe('manga identity', () => {
     expect(all).toContain('Canon');
     expect(all).toContain('Alt1');
     expect(all).toContain('Alt2');
+  });
+
+  it('prefers the custom cover override and falls back to provider art', () => {
+    const identity: MangaIdentity = {
+      id: toMangaId('m1'),
+      canonicalTitle: 'Cover',
+      alternativeTitles: [],
+      authors: [],
+      artists: [],
+      tags: [],
+      status: 'ongoing',
+      contentRating: 'safe',
+      merged: false,
+      coverImageUrl: 'https://example.com/provider.jpg',
+      defaultProviderMappingId: toProviderMappingId('map-a'),
+      providerMappings: [],
+    };
+
+    expect(getMangaCoverUrl(identity)).toBe('https://example.com/provider.jpg');
+    expect(
+      getMangaCoverUrl({
+        ...identity,
+        userOverrides: { coverImageUrl: 'https://example.com/custom.jpg' },
+      }),
+    ).toBe('https://example.com/custom.jpg');
   });
 });

@@ -272,19 +272,6 @@ export async function markPreviousChaptersCompleted(
   return ok({ updated: previous.length });
 }
 
-export async function getChapterReadState(
-  db: AppDrizzleDb,
-  chapterId: ChapterId,
-): Promise<ChapterReadState | undefined> {
-  const row = db
-    .select()
-    .from(chapterReadState)
-    .where(eq(chapterReadState.chapterId, chapterId))
-    .get();
-  if (row === undefined) return undefined;
-  return mapChapterReadState(row);
-}
-
 function mapChapterReadState(row: typeof chapterReadState.$inferSelect): ChapterReadState {
   const progress: ReadingProgress = {
     readPercent: row.readPercent,
@@ -310,8 +297,39 @@ function mapChapterReadState(row: typeof chapterReadState.$inferSelect): Chapter
   };
 }
 
+export async function getChapterReadState(
+  db: AppDrizzleDb,
+  chapterId: ChapterId,
+): Promise<ChapterReadState | undefined> {
+  const row = db
+    .select()
+    .from(chapterReadState)
+    .where(eq(chapterReadState.chapterId, chapterId))
+    .get();
+  if (row === undefined) return undefined;
+  return mapChapterReadState(row);
+}
+
 export async function listChapterReadStates(db: AppDrizzleDb): Promise<ChapterReadState[]> {
   return db.select().from(chapterReadState).all().map(mapChapterReadState);
+}
+
+/** Read states for a whole title, so the detail chapter list needs one query, not one per row. */
+export async function listChapterReadStatesForManga(
+  db: AppDrizzleDb,
+  mangaId: MangaId,
+): Promise<ChapterReadState[]> {
+  return db
+    .select()
+    .from(chapterReadState)
+    .where(eq(chapterReadState.mangaId, mangaId))
+    .all()
+    .map(mapChapterReadState);
+}
+
+/** Marks a chapter unread by dropping its progress row; read state has no "unread but progressed". */
+export async function clearChapterReadState(db: AppDrizzleDb, chapterId: ChapterId): Promise<void> {
+  await db.delete(chapterReadState).where(eq(chapterReadState.chapterId, chapterId));
 }
 
 export async function appendReadingHistory(

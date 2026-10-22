@@ -1,5 +1,12 @@
 import type { AppDrizzleDb } from '@app/db';
-import type { AppResult, CategoryId, LibraryEntryId, LibraryStatus, MangaId } from '@app/shared';
+import type {
+  AppResult,
+  CategoryId,
+  ChapterId,
+  LibraryEntryId,
+  LibraryStatus,
+  MangaId,
+} from '@app/shared';
 import { createAppError, err, ok } from '@app/shared';
 import type { LibraryOrganizationAction } from './types.js';
 
@@ -47,6 +54,46 @@ export async function setMangaFavorite(
   }
 
   return setLibraryEntryFavorite(db, entry.id, favorite);
+}
+
+/** Marks one chapter read or unread and reports the stored library unread count. */
+export async function setChapterRead(
+  db: AppDrizzleDb,
+  mangaId: MangaId,
+  chapterId: ChapterId,
+  read: boolean,
+): Promise<AppResult<number>> {
+  const { getChapter, getLibraryEntryForManga, setChapterCompleted } = await import('@app/db');
+  const chapter = await getChapter(db, chapterId);
+  if (chapter === undefined || chapter.mangaId !== mangaId) {
+    return err(
+      createAppError({ code: 'db.read_state.chapter_missing', message: 'Chapter does not exist.' }),
+    );
+  }
+
+  const written = await setChapterCompleted(db, chapterId, read);
+  if (!written.ok) return written;
+  return ok((await getLibraryEntryForManga(db, mangaId))?.unreadCount ?? 0);
+}
+
+/** Marks every earlier chapter of the same source read, like a "catch up" action. */
+export async function markPreviousChaptersRead(
+  db: AppDrizzleDb,
+  mangaId: MangaId,
+  chapterId: ChapterId,
+): Promise<AppResult<number>> {
+  const { getChapter, getLibraryEntryForManga, markPreviousChaptersCompleted } =
+    await import('@app/db');
+  const target = await getChapter(db, chapterId);
+  if (target === undefined || target.mangaId !== mangaId) {
+    return err(
+      createAppError({ code: 'db.read_state.chapter_missing', message: 'Chapter does not exist.' }),
+    );
+  }
+
+  const written = await markPreviousChaptersCompleted(db, chapterId);
+  if (!written.ok) return written;
+  return ok((await getLibraryEntryForManga(db, mangaId))?.unreadCount ?? 0);
 }
 
 /** Runs one library organization write and maps every DB guard to an AppResult. */
