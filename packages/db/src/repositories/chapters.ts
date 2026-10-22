@@ -8,6 +8,7 @@ import {
   toChapterPageId,
   toMangaId,
   toProviderId,
+  toProviderMappingId,
   type Chapter,
   type ChapterPage,
   type ChapterId,
@@ -189,4 +190,22 @@ export async function listChaptersForManga(db: AppDrizzleDb, mangaId: MangaId): 
   const sorted = [...rows].sort((a, b) => a.chapterIndex - b.chapterIndex);
   const loaded = await Promise.all(sorted.map((row) => getChapter(db, toChapterId(row.id))));
   return loaded.filter((c): c is Chapter => c !== undefined);
+}
+
+/**
+ * The mapping a chapter was stored under. Page hydration must write back to that
+ * mapping, not the manga's current default: after a provider migration the two
+ * differ, and using the default re-inserts the same chapter id under another
+ * mapping and trips the primary key.
+ */
+export async function getChapterProviderMappingId(
+  db: AppDrizzleDb,
+  chapterId: ChapterId,
+): Promise<ProviderMappingId | undefined> {
+  const row = db
+    .select({ providerMappingId: chapters.providerMappingId })
+    .from(chapters)
+    .where(eq(chapters.id, chapterId))
+    .get();
+  return row === undefined ? undefined : toProviderMappingId(row.providerMappingId);
 }
