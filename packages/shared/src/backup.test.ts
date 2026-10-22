@@ -3,6 +3,7 @@ import { BACKUP_SCHEMA_VERSION, dedupeBackupLibrary, validateBackupDocument } fr
 import { toChapterId } from './chapter';
 import { toCategoryId, toLibraryEntryId, type LibraryEntry } from './library';
 import { toMangaId, toProviderMappingId } from './manga';
+import { getDefaultAppSettings } from './app-settings';
 import { getDefaultReaderSettings } from './reader-settings';
 
 const baseManifest = {
@@ -64,7 +65,7 @@ const minimalValidBackup = {
 };
 
 describe('backup document', () => {
-  it('accepts a current v2 backup', () => {
+  it('accepts a current v3 backup', () => {
     const res = validateBackupDocument(minimalValidBackup);
     expect(res.ok).toBe(true);
     if (!res.ok) {
@@ -84,8 +85,36 @@ describe('backup document', () => {
     expect(res.value.themes).toEqual([]);
   });
 
+  it('accepts a v2 backup without app settings and keeps the field absent', () => {
+    const res = validateBackupDocument({ ...minimalValidBackup, schemaVersion: 2 });
+    expect(res.ok).toBe(true);
+    if (!res.ok) {
+      throw new Error('expected res.ok to be true');
+    }
+    expect(res.value.appSettings).toBeUndefined();
+  });
+
+  it('accepts and validates app settings in a v3 backup', () => {
+    const appSettings = { ...getDefaultAppSettings(), explicitContent: true };
+    const res = validateBackupDocument({ ...minimalValidBackup, appSettings });
+    expect(res.ok).toBe(true);
+    if (!res.ok) {
+      throw new Error('expected res.ok to be true');
+    }
+    expect(res.value.appSettings).toEqual(appSettings);
+  });
+
+  it('rejects malformed app settings and names the field', () => {
+    const res = validateBackupDocument({
+      ...minimalValidBackup,
+      appSettings: { ...getDefaultAppSettings(), preferredLanguages: [] },
+    });
+    expect(res.ok).toBe(false);
+    expect(res.issues.map((issue) => issue.path)).toContain('appSettings');
+  });
+
   it('rejects an unknown schema version', () => {
-    const res = validateBackupDocument({ ...minimalValidBackup, schemaVersion: 3 });
+    const res = validateBackupDocument({ ...minimalValidBackup, schemaVersion: 4 });
     expect(res.ok).toBe(false);
     expect(res.issues.length).toBeGreaterThan(0);
   });

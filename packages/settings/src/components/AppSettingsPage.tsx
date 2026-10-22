@@ -71,12 +71,55 @@ function SettingToggleRow({
   );
 }
 
-function parsePreferredLanguages(value: string, fallback: readonly string[]): readonly string[] {
-  const codes = value
+const LANGUAGE_PATTERN = /^[a-z]{2}(-[A-Z]{2})?$/;
+
+/** Comma-separated language codes; invalid fragments are dropped at commit time. */
+function parsePreferredLanguages(value: string): readonly string[] {
+  return value
     .split(',')
     .map((part) => part.trim())
-    .filter((part) => /^[a-z]{2}(-[A-Z]{2})?$/.test(part));
-  return codes.length > 0 ? codes : fallback;
+    .filter((part) => LANGUAGE_PATTERN.test(part));
+}
+
+/**
+ * Uncontrolled on purpose: the field is the draft. Parsing every keystroke made
+ * commas and partial tags vanish while typing, and clearing the box restored the
+ * saved list. Commit on blur or Enter; an empty or wholly invalid list reverts.
+ */
+function PreferredLanguagesField({
+  languages,
+  onChange,
+  onInteractionEnd,
+}: {
+  languages: readonly string[];
+  onChange: (next: readonly string[]) => void;
+  onInteractionEnd: (() => void) | undefined;
+}) {
+  const committed = languages.join(', ');
+
+  const commit = (input: HTMLInputElement) => {
+    const next = parsePreferredLanguages(input.value);
+    if (next.length === 0) {
+      input.value = committed;
+    } else if (next.join(', ') !== committed) {
+      input.value = next.join(', ');
+      onChange(next);
+    }
+    onInteractionEnd?.();
+  };
+
+  return (
+    <Input
+      id="preferred-languages"
+      key={committed}
+      defaultValue={committed}
+      placeholder="en, ja"
+      onBlur={(event) => commit(event.currentTarget)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') event.currentTarget.blur();
+      }}
+    />
+  );
 }
 
 export function AppSettingsPage({
@@ -214,19 +257,10 @@ export function AppSettingsPage({
         <div className="grid gap-4">
           <div className="grid gap-2">
             <Label htmlFor="preferred-languages">Preferred languages</Label>
-            <Input
-              id="preferred-languages"
-              value={settings.preferredLanguages.join(', ')}
-              onBlur={onInteractionEnd}
-              placeholder="en, ja"
-              onChange={(event) =>
-                update({
-                  preferredLanguages: parsePreferredLanguages(
-                    event.target.value,
-                    settings.preferredLanguages,
-                  ),
-                })
-              }
+            <PreferredLanguagesField
+              languages={settings.preferredLanguages}
+              onChange={(preferredLanguages) => update({ preferredLanguages })}
+              onInteractionEnd={onInteractionEnd}
             />
             <p className="text-sm text-muted-foreground">
               Comma-separated ISO language codes used when ranking search and browse results.

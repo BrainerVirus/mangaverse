@@ -228,3 +228,37 @@ describe('shell fills per preset', () => {
     }
   });
 });
+
+// The design-system switch paints its off track with `--muted-foreground`
+// (switch.tsx). WCAG 1.4.11 needs 3:1 for that non-text indicator against the
+// canvas and the card, the two surfaces a settings row sits on.
+describe('switch off track', () => {
+  const surfaces = ['--background', '--card'] as const;
+
+  it.each(['minimal-light', 'minimal-dark'] as const)(
+    '%s clears 3:1 on every surface it is placed on',
+    (themeId) => {
+      const variables = buildThemeCssVariables({ themeId, dark: false });
+
+      for (const surface of surfaces) {
+        expect(
+          contrast(variables['--muted-foreground']!, variables[surface]!),
+          `${themeId}: ${variables['--muted-foreground']} on ${surface} ${variables[surface]}`,
+        ).toBeGreaterThanOrEqual(3);
+      }
+    },
+  );
+
+  it.each(THEME_PRESET_IDS)('%s keeps the floor in both appearances', (themeId) => {
+    for (const dark of [false, true]) {
+      const variables = buildThemeCssVariables({ themeId, dark });
+
+      for (const surface of surfaces) {
+        expect(
+          contrast(variables['--muted-foreground']!, variables[surface]!),
+          `${themeId} (${resolveThemeAppearance({ themeId, dark })}): on ${surface}`,
+        ).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+});

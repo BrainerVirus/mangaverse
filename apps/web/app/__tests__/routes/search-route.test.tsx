@@ -15,7 +15,12 @@ const mocks = vi.hoisted(() => ({
   fetchSearchPage: vi.fn<(db: unknown, viewState: SearchViewState) => Promise<SearchPageData>>(),
   fetchProviderSearchIdentities:
     vi.fn<(db: unknown, query: string, signal: AbortSignal) => Promise<readonly MangaIdentity[]>>(),
-  fetchAppSettings: vi.fn<(db: unknown) => Promise<{ settings: { explicitContent: boolean } }>>(),
+  fetchAppSettings:
+    vi.fn<
+      (
+        db: unknown,
+      ) => Promise<{ settings: { explicitContent: boolean; showProviderErrors: boolean } }>
+    >(),
   recordSearchQuery: vi.fn<(db: unknown, query: string) => Promise<void>>(),
   navigate: vi.fn<(options: unknown) => void>(),
 }));
@@ -107,7 +112,9 @@ describe('/search route', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.fetchAppSettings.mockResolvedValue({ settings: { explicitContent: false } });
+    mocks.fetchAppSettings.mockResolvedValue({
+      settings: { explicitContent: false, showProviderErrors: true },
+    });
     mocks.fetchSearchPage.mockImplementation((_db, viewState: SearchViewState) =>
       Promise.resolve(localPage(viewState)),
     );
@@ -154,6 +161,15 @@ describe('/search route', () => {
 
   function searchGrid(): Element | null {
     return container.querySelector('section[aria-label="Search results"]');
+  }
+
+  async function hideProviderErrors() {
+    await vi.waitFor(() => expect(mocks.fetchAppSettings).toHaveBeenCalled());
+    await act(async () => {
+      queryClient.setQueryData(settingsQueryKeys.app(), {
+        settings: { explicitContent: false, showProviderErrors: false },
+      });
+    });
   }
 
   it('Given local results, When the provider is slow, Then local results render before the provider answers', async () => {
@@ -214,6 +230,36 @@ describe('/search route', () => {
     expect(buttonByText('Retry')).toBeDefined();
     expect(container.textContent).not.toContain('No results found');
     expect(container.textContent).not.toContain('Could not load search');
+  });
+
+  it('Given show provider errors is off and no local matches, Then only the ordinary empty state shows', async () => {
+    mocks.fetchSearchPage.mockImplementation((_db, viewState: SearchViewState) =>
+      Promise.resolve(emptyPage(viewState)),
+    );
+    mocks.fetchProviderSearchIdentities.mockRejectedValue(new Error('provider offline'));
+    await hideProviderErrors();
+
+    await act(async () => setQuery('berserk'));
+
+    await vi.waitFor(() => expect(container.textContent).toContain('No results found'));
+    expect(container.textContent).not.toContain('Provider search unavailable');
+    expect(container.textContent).not.toContain('Searching providers…');
+    expect(buttonByText('Retry')).toBeUndefined();
+    expect(container.textContent).not.toContain('Could not load search');
+  });
+
+  it('Given show provider errors is off and local results, Then the results stay and no notice appears', async () => {
+    mocks.fetchProviderSearchIdentities.mockRejectedValue(new Error('provider offline'));
+    await hideProviderErrors();
+
+    await act(async () => setQuery('berserk'));
+
+    await vi.waitFor(() => expect(buttonByText('Local berserk')).toBeDefined());
+    await vi.waitFor(() => expect(container.textContent).not.toContain('Searching providers…'));
+
+    expect(buttonByText('Local berserk')).toBeDefined();
+    expect(container.textContent).not.toContain('Provider search unavailable');
+    expect(buttonByText('Retry')).toBeUndefined();
   });
 
   it('Given no local matches and a slow provider, Then the empty state waits for the provider', async () => {

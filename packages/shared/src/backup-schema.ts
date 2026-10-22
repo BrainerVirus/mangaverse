@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import type { AppSettings } from './app-settings.js';
+import { validateAppSettings } from './app-settings.js';
 import type { BackupValidationIssue } from './backup.js';
 import type { ContentRating, MangaStatus } from './manga.js';
 import type { ProviderManifest } from './provider.js';
@@ -178,6 +180,9 @@ function fromValidator<T>(
 
 const readerSettingsSchema = fromValidator<ReaderSettings>(validateReaderSettings);
 
+/** Missing in v1 and v2 backups; when present it must satisfy the settings contract. */
+const appSettingsBackupSchema = fromValidator<AppSettings>(validateAppSettings).exactOptional();
+
 const themeSettingsSchema = z
   .object({
     themeId: optionalString,
@@ -243,7 +248,7 @@ const themesSchema = fromValidator<readonly ThemeDefinition[]>(
 );
 
 export const backupDocumentSchema = z.object({
-  schemaVersion: z.union([z.literal(1), z.literal(2)]),
+  schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   metadata: z.object({
     createdAt: nonEmptyString,
     appVersion: nonEmptyString,
@@ -256,6 +261,7 @@ export const backupDocumentSchema = z.object({
   providerSettings: z.object({ providerSnapshots: z.array(providerSnapshotSchema) }),
   themeSettings: themeSettingsSchema,
   themes: themesSchema,
+  appSettings: appSettingsBackupSchema,
 });
 
 function toIssuePath(path: readonly PropertyKey[]): string {

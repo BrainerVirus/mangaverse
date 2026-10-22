@@ -1,20 +1,24 @@
 import type {
   AppResult,
+  AppSettings,
   BackupDocumentV1,
   ExtensionInstallMetadata,
   MangaIdentity,
 } from '@app/shared';
 import {
+  APP_SETTINGS_STORAGE_KEY,
   createAppError,
   dedupeBackupLibrary,
   err,
   ok,
+  validateAppSettings,
   validateBackupDocument,
   validateProviderManifest,
   validateReaderSettings,
 } from '@app/shared';
 import type { AppDrizzleDb } from '../adapter.js';
 import {
+  appSettings,
   installedExtensions,
   libraryCategoryMemberships,
   libraryEntries,
@@ -257,6 +261,26 @@ function upsertThemeSettingsSync(
 }
 
 /**
+ * App settings are absent from v1 and v2 backups: those leave local preferences
+ * untouched instead of resetting them to defaults.
+ */
+function upsertAppSettingsSync(tx: AppDrizzleDb, settings: AppSettings): void {
+  const parsed = validateAppSettings(settings);
+  if (!parsed.ok) {
+    throw new Error(parsed.error.message);
+  }
+
+  const now = new Date().toISOString();
+  tx.insert(appSettings)
+    .values({ key: APP_SETTINGS_STORAGE_KEY, valueJson: parsed.value, updatedAt: now })
+    .onConflictDoUpdate({
+      target: appSettings.key,
+      set: { valueJson: parsed.value, updatedAt: now },
+    })
+    .run();
+}
+
+/**
  * Replaces backup-covered local data with the validated backup document.
  * Chapter progress and categories are outside BackupDocumentV1 and are cleared with identities.
  */
@@ -343,6 +367,9 @@ export async function applyBackupRestore(
 
       upsertReaderSettingsSync(tx, doc.readerSettings);
       upsertThemeSettingsSync(tx, doc.themeSettings);
+      if (doc.appSettings !== undefined) {
+        upsertAppSettingsSync(tx, doc.appSettings);
+      }
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Backup restore failed.';

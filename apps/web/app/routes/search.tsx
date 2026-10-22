@@ -41,6 +41,8 @@ function SearchRoute() {
   });
 
   const explicitContent = appSettingsQuery.data?.settings.explicitContent ?? false;
+  // Default to surfacing failures until the stored preference loads.
+  const showProviderErrors = appSettingsQuery.data?.settings.showProviderErrors ?? true;
   // The input stays immediate. Local reads and provider calls follow the
   // deferred value, so a fast typist issues one query per pause instead of one
   // per keystroke.
@@ -89,7 +91,7 @@ function SearchRoute() {
       isLoading={dbStatus === 'loading' || localQuery.isLoading}
       isError={dbStatus === 'error' || localQuery.isError}
       isProviderPending={providerQuery.isFetching}
-      isProviderError={providerQuery.isError}
+      isProviderError={showProviderErrors && providerQuery.isError}
       onRetryProvider={() => void providerQuery.refetch()}
       viewState={viewState}
       onViewStateChange={handleViewStateChange}
