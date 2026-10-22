@@ -235,7 +235,7 @@ export async function previewBackupRestore(
       });
     }
     for (const categoryId of new Set(entry.categoryIds)) {
-      membershipKeys.add(`${entry.id}::${categoryId}`);
+      membershipKeys.add(`${String(entry.id)}::${String(categoryId)}`);
       if (doc.categories !== undefined) {
         if (!carriedCategoryIds.has(categoryId)) {
           add(previewIssues, {

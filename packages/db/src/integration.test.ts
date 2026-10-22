@@ -1275,10 +1275,11 @@ describe('backup v4 library organization and reading state', () => {
     const restored = await applyBackupRestore(db, legacy);
     expect(restored.ok).toBe(true);
 
-    expect((await listLibraryCategories(db)).map((category) => category.name).sort()).toEqual([
-      'Fantasy',
-      'Local only',
-    ]);
+    expect(
+      (await listLibraryCategories(db))
+        .map((category) => category.name)
+        .sort((a, b) => a.localeCompare(b)),
+    ).toEqual(['Fantasy', 'Local only']);
     expect((await listLibraryEntries(db))[0]?.categoryIds).toEqual([seeded.categoryId]);
     expect(await listChaptersForManga(db, seeded.mangaId)).toHaveLength(2);
     expect(await listChapterReadStates(db)).toHaveLength(2);
