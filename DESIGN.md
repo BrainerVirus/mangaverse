@@ -781,6 +781,8 @@ is not a dependency of the package, so `GlassPanel` renders a `div` and forwards
 - **Focus:** 2px `--ring` at 2px offset. **Labels:** `type-label`, immediately above the control, dimming
   with the field when disabled.
 - **Switch (existing):** 24×44 pill (`--radius-badge`) with a 20px circular thumb carrying `shadow-md`.
+  The off track pairs `--muted-foreground` with a 2px `--ring` rim, so custom theme overrides that
+  flatten the fill cannot erase the control boundary (WCAG 1.4.11).
 - **Slider (existing):** native range with a transparent track and a 16px `--primary` thumb. The reader's
   page rail is the same idea on the stage: an 8px white-at-25% track, a 16px white thumb (positioned by
   `left`), and a fill that scales by `transform` only over a raw 180ms `cubic-bezier(0.22, 1, 0.36, 1)` (a CSS transition

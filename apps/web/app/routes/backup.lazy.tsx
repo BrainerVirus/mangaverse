@@ -12,6 +12,7 @@ import {
   previewBackupImport,
 } from '@app/backup';
 import { libraryQueryKeys } from '@app/library';
+import { settingsQueryKeys } from '@app/settings';
 import { themeQueryKeys } from '@app/theme';
 
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
@@ -82,6 +83,9 @@ function BackupRoute() {
       setPreview(null);
       setPendingDocument(null);
       void queryClient.invalidateQueries({ queryKey: libraryQueryKeys.all });
+      // Restore rewrites reader settings and (v3) app settings. Mounted bridges
+      // hold the pre-restore rows for the 10-minute stale window.
+      void queryClient.invalidateQueries({ queryKey: settingsQueryKeys.all });
       void queryClient.invalidateQueries({ queryKey: themeQueryKeys.all });
     },
     onError: (error) => {

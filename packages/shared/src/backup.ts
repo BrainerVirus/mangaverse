@@ -1,3 +1,4 @@
+import type { AppSettings } from './app-settings.js';
 import { backupDocumentSchema, toBackupValidationIssues } from './backup-schema.js';
 import type { ExtensionInstallMetadata } from './extension-install.js';
 import type { CategoryId, LibraryEntry, LibraryEntryId } from './library.js';
@@ -6,9 +7,9 @@ import type { ReaderSettings } from './reader-settings.js';
 import { createAppError, type AppResult } from './result.js';
 import type { ThemeDefinition } from './theme-definition.js';
 
-export const BACKUP_SCHEMA_VERSION = 2 as const;
-/** v1 predates custom themes; both are readable, new exports write v2. */
-export const SUPPORTED_BACKUP_SCHEMA_VERSIONS: readonly number[] = [1, 2];
+export const BACKUP_SCHEMA_VERSION = 3 as const;
+/** v1 predates custom themes, v2 predates app settings; all are readable, new exports write v3. */
+export const SUPPORTED_BACKUP_SCHEMA_VERSIONS: readonly number[] = [1, 2, 3];
 
 export interface BackupMetadata {
   readonly createdAt: string;
@@ -43,6 +44,8 @@ export interface BackupDocumentV1 {
   readonly themeSettings: ThemeSettings;
   /** Custom themes only: built-ins are resolved from code. */
   readonly themes: readonly ThemeDefinition[];
+  /** Absent in v1 and v2 backups, which predate app settings. */
+  readonly appSettings?: AppSettings;
 }
 
 export interface BackupValidationIssue {

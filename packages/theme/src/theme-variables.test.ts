@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { differenceCiede2000, parse, type Color } from 'culori';
 
+import { buildThemeCssVariablesForDefinition } from './derive.js';
 import { buildThemeCssVariables } from './apply-theme.js';
+import { presetToThemeDefinition } from './built-in-themes.js';
 import { parseCssColor } from './color.js';
-import { THEME_PRESET_IDS } from './presets.js';
+import { getThemePreset, THEME_PRESET_IDS } from './presets.js';
 import { resolveThemeAppearance } from './resolve-theme.js';
 
 const ciede2000 = differenceCiede2000();
@@ -225,6 +227,72 @@ describe('shell fills per preset', () => {
       '--reader-background',
     ] as const) {
       expect(variables[role]).toMatch(/^oklch\(/);
+    }
+  });
+});
+
+// The design-system switch paints its off track with `--muted-foreground`
+// (switch.tsx) plus a `--ring` rim as an independent boundary. WCAG 1.4.11 needs
+// 3:1 for that non-text indicator against the canvas and the card, the two
+// surfaces a settings row sits on; the rim survives a custom override that
+// flattens the fill.
+describe('switch off track', () => {
+  const surfaces = ['--background', '--card'] as const;
+
+  it.each(['minimal-light', 'minimal-dark'] as const)(
+    '%s clears 3:1 on every surface it is placed on',
+    (themeId) => {
+      const variables = buildThemeCssVariables({ themeId, dark: false });
+
+      for (const surface of surfaces) {
+        expect(
+          contrast(variables['--muted-foreground']!, variables[surface]!),
+          `${themeId}: ${variables['--muted-foreground']} on ${surface} ${variables[surface]}`,
+        ).toBeGreaterThanOrEqual(3);
+      }
+    },
+  );
+
+  it.each(THEME_PRESET_IDS)('%s keeps the floor in both appearances', (themeId) => {
+    for (const dark of [false, true]) {
+      const variables = buildThemeCssVariables({ themeId, dark });
+
+      for (const surface of surfaces) {
+        expect(
+          contrast(variables['--muted-foreground']!, variables[surface]!),
+          `${themeId} (${resolveThemeAppearance({ themeId, dark })}): on ${surface}`,
+        ).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+
+  it('keeps the rim boundary when a custom theme flattens the off fill', () => {
+    for (const themeId of ['minimal-light', 'minimal-dark'] as const) {
+      const definition = presetToThemeDefinition(getThemePreset(themeId));
+      const background = definition.light.seeds.background;
+      const hostile = {
+        ...definition,
+        id: `custom:${themeId}`,
+        name: `Custom ${themeId}`,
+        basedOn: themeId,
+        light: {
+          ...definition.light,
+          overrides: { '--muted-foreground': background },
+        },
+      };
+
+      const variables = buildThemeCssVariablesForDefinition(hostile, 'light');
+
+      // The fill alone would vanish; the rim must not depend on it.
+      expect(contrast(variables['--muted-foreground']!, variables['--background']!)).toBeLessThan(
+        3,
+      );
+      for (const surface of surfaces) {
+        expect(
+          contrast(variables['--ring']!, variables[surface]!),
+          `${themeId}: rim ${variables['--ring']} on ${surface} ${variables[surface]}`,
+        ).toBeGreaterThanOrEqual(3);
+      }
     }
   });
 });

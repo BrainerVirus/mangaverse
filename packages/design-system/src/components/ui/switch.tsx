@@ -26,8 +26,11 @@ const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
         disabled={disabled}
         onClick={handleClick}
         className={cn(
-          'peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-badge border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
-          checked ? 'bg-primary' : 'bg-input',
+          'peer inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-badge border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+          // The off track keeps two independent boundaries: the fill and a
+          // `--ring` rim, which the derivation pins above 3:1 on the canvas so a
+          // custom `--muted-foreground` override cannot erase the control.
+          checked ? 'border-transparent bg-primary' : 'border-ring bg-muted-foreground',
           className,
         )}
         {...props}

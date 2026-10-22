@@ -89,7 +89,10 @@ function RestoreStatus({
         <Alert>
           <AlertTitle>Restore complete</AlertTitle>
           <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-            <span>Your local library and settings were replaced with the backup contents.</span>
+            <span>
+              Your local library and the settings this backup carries were replaced. App preferences
+              missing from older backups are kept.
+            </span>
             <Button variant="outline" size="sm" onClick={onDismissRestoreStatus}>
               Dismiss
             </Button>

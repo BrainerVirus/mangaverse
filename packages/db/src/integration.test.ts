@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { eq } from 'drizzle-orm';
 import {
   BACKUP_SCHEMA_VERSION,
+  getDefaultAppSettings,
   getDefaultReaderSettings,
   validateBackupDocument,
   toChapterPageId,
@@ -25,6 +26,7 @@ import {
   getChapterReadState,
   getLibraryEntryForManga,
   getMangaIdentity,
+  getAppSettings,
   getReaderSettings,
   getThemeDefinition,
   getThemeSettings,
@@ -33,6 +35,7 @@ import {
   previewBackupRestore,
   setLibraryEntryActiveProviderMapping,
   summarizeCacheStorage,
+  upsertAppSettings,
   upsertCacheEntry,
   updateLibraryEntryReadingProgress,
   upsertChapterReadState,
@@ -911,5 +914,57 @@ describe('theme settings and custom theme storage', () => {
     const result = await applyBackupRestore(db, doc);
     expect(result.ok).toBe(true);
     expect(await getThemeSettings(db)).toEqual({ themeId: 'high-contrast', dark: true });
+  });
+});
+
+describe('app settings backup', () => {
+  const metadata = { createdAt: new Date().toISOString(), appVersion: 'test' };
+
+  it('round-trips every app preference through export and restore', async () => {
+    const { db } = await createSqlJsHarness();
+    const saved = {
+      ...getDefaultAppSettings(),
+      explicitContent: true,
+      reduceMotion: true,
+      reduceTransparency: true,
+      preferredLanguages: ['en', 'ja'],
+      lowMemoryMode: true,
+      imageCacheLimitBytes: 1_048_576_000,
+      locale: 'ja',
+    };
+    await upsertAppSettings(db, saved);
+
+    const doc = await exportBackupDocumentV1(db, metadata);
+    expect(doc.schemaVersion).toBe(BACKUP_SCHEMA_VERSION);
+    expect(doc.appSettings).toEqual(saved);
+    expect(validateBackupDocument(doc).ok).toBe(true);
+
+    await upsertAppSettings(db, { ...saved, explicitContent: false, preferredLanguages: ['en'] });
+    expect(await getAppSettings(db)).toEqual({
+      ...saved,
+      explicitContent: false,
+      preferredLanguages: ['en'],
+    });
+
+    const restored = await applyBackupRestore(db, doc);
+    expect(restored.ok).toBe(true);
+    expect(await getAppSettings(db)).toEqual(saved);
+  });
+
+  it('leaves local app settings untouched when a v2 backup has none', async () => {
+    const { db } = await createSqlJsHarness();
+    const local = { ...getDefaultAppSettings(), explicitContent: true, preferredLanguages: ['ja'] };
+    await upsertAppSettings(db, local);
+
+    const legacy = {
+      ...(await exportBackupDocumentV1(db, metadata)),
+      schemaVersion: 2,
+    } as Record<string, unknown>;
+    delete legacy['appSettings'];
+    expect(validateBackupDocument(legacy).ok).toBe(true);
+
+    const restored = await applyBackupRestore(db, legacy);
+    expect(restored.ok).toBe(true);
+    expect(await getAppSettings(db)).toEqual(local);
   });
 });
