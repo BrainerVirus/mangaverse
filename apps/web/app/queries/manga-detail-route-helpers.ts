@@ -8,6 +8,7 @@ import {
   type MangaDetailData,
   type MangaDetailRelatedState,
 } from '@app/library';
+import { searchQueryKeys } from '@app/search';
 import type { ProviderUiInfo } from '@app/extensions';
 import {
   refreshLibraryUnreadCount,
@@ -54,6 +55,13 @@ export function detailOrNull(data: MangaDetailData | null | undefined): MangaDet
 
 export function invalidateMangaCaches(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: libraryQueryKeys.all });
+}
+
+/** A merge or split moves rows between titles, so every local surface refreshes. */
+export function invalidateIdentityMergeCaches(queryClient: QueryClient): void {
+  invalidateMangaCaches(queryClient);
+  void queryClient.invalidateQueries({ queryKey: libraryQueryKeys.allDuplicates() });
+  void queryClient.invalidateQueries({ queryKey: searchQueryKeys.all });
 }
 
 function requireDb(db: AppDrizzleDb | null): AppDrizzleDb {

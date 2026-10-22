@@ -7,4 +7,7 @@ export const libraryQueryKeys = {
   recent: (limit: number) => [...libraryQueryKeys.all, 'recent', limit] as const,
   overview: (filter: LibraryFilter) => [...libraryQueryKeys.all, 'overview', filter] as const,
   updateReport: () => [...libraryQueryKeys.all, 'update-report'] as const,
+  /** Local duplicate detection, outside `all` so a merge refreshes it explicitly. */
+  duplicates: (mangaId: MangaId) => ['manga-duplicates', mangaId] as const,
+  allDuplicates: () => ['manga-duplicates'] as const,
 };

@@ -13,6 +13,14 @@ export {
 export { MangaChapterList, type MangaChapterListProps } from './components/MangaChapterList.js';
 export { MangaProviderSwitcher } from './components/MangaProviderSwitcher.js';
 export { MangaCustomCoverDialog } from './components/MangaCustomCoverDialog.js';
+export {
+  MangaDuplicatesSection,
+  MangaUnmergeDialog,
+  type DuplicateCandidatesState,
+  type MangaDuplicatesSectionProps,
+  type MangaUnmergeDialogProps,
+  type MergeDuplicateInput,
+} from './components/MangaIdentityMerge.js';
 export { MangaRelatedTitles } from './components/MangaRelatedTitles.js';
 export {
   chaptersForMapping,
@@ -35,6 +43,17 @@ export {
   type LibraryOverviewItem,
 } from './fetch-library-overview.js';
 export { fetchMangaDetail } from './fetch-manga-detail.js';
+export {
+  DUPLICATE_CANDIDATE_LIMIT,
+  DUPLICATE_CANDIDATE_THRESHOLD,
+  duplicateConfidence,
+  findDuplicateCandidates,
+  rankDuplicateCandidates,
+  scoreDuplicateCandidate,
+  type DuplicateCandidate,
+  type DuplicateConfidence,
+  type RankDuplicateOptions,
+} from './duplicate-candidates.js';
 export { fetchRecentLibrary, RECENT_LIBRARY_LIMIT } from './fetch-recent-library.js';
 export {
   clearLibraryUpdateReport,

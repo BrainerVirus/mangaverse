@@ -13,6 +13,7 @@ export {
 export { withTransaction } from './transactions.js';
 
 export * from './repositories/identities.js';
+export * from './repositories/identity-merge.js';
 export * from './repositories/library.js';
 export * from './repositories/library-activity.js';
 export * from './repositories/chapters.js';

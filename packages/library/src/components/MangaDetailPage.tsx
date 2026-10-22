@@ -42,11 +42,19 @@ import {
 } from 'lucide-react';
 import { chaptersForMapping } from '../chapter-list.js';
 import type { MangaDetailData } from '../types.js';
+import type { MergePreview, UnmergeMappingPreview } from '@app/db';
 import { ConfirmRemoveFromLibraryDialog } from './ConfirmRemoveFromLibraryDialog.js';
 import { MangaChapterList } from './MangaChapterList.js';
 import { MangaCustomCoverDialog } from './MangaCustomCoverDialog.js';
+import {
+  MangaDuplicatesSection,
+  MangaUnmergeDialog,
+  type DuplicateCandidatesState,
+  type MergeDuplicateInput,
+} from './MangaIdentityMerge.js';
 import { MangaProviderSwitcher } from './MangaProviderSwitcher.js';
 import { MangaRelatedTitles } from './MangaRelatedTitles.js';
+import { useUnmergeRequest } from './use-unmerge-request.js';
 
 export interface MangaDetailRelatedState {
   readonly items?: readonly MangaIdentity[];
@@ -88,6 +96,15 @@ export interface MangaDetailPageProps {
   recommendations?: MangaDetailRelatedState;
   relatedTitles?: MangaDetailRelatedState;
   onOpenRelatedManga?: (mangaId: MangaId) => void;
+  /** Local duplicate review; omitted when the caller does not run detection. */
+  duplicates?: DuplicateCandidatesState;
+  isMergePending?: boolean;
+  loadMergePreview?: (targetId: MangaId, sourceId: MangaId) => Promise<MergePreview>;
+  onMerge?: (input: MergeDuplicateInput) => Promise<void>;
+  onMerged?: (targetId: MangaId) => void;
+  isUnmergePending?: boolean;
+  loadUnmergePreview?: (mappingId: ProviderMappingId) => Promise<UnmergeMappingPreview | undefined>;
+  onUnmerge?: (mappingId: ProviderMappingId) => Promise<void>;
 }
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
@@ -763,6 +780,7 @@ function MangaProvidersSection({
   onSelectProvider,
   onSetDefaultProvider,
   onSetPreferredChapterSource,
+  onRequestUnmerge,
 }: {
   readonly view: MangaDetailView;
   readonly providerLabels: Readonly<Record<string, string>> | undefined;
@@ -770,6 +788,7 @@ function MangaProvidersSection({
   onSelectProvider: ((mappingId: ProviderMappingId) => Promise<void> | void) | undefined;
   onSetDefaultProvider: ((mappingId: ProviderMappingId) => Promise<void> | void) | undefined;
   onSetPreferredChapterSource: ((mappingId: ProviderMappingId) => Promise<void> | void) | undefined;
+  onRequestUnmerge: ((mappingId: ProviderMappingId) => void) | undefined;
 }) {
   const { data, activeMappingId } = view;
   const { manga } = data;
@@ -789,6 +808,7 @@ function MangaProvidersSection({
       {...(onSetPreferredChapterSource === undefined
         ? {}
         : { onSetPreferred: onSetPreferredChapterSource })}
+      {...(onRequestUnmerge === undefined ? {} : { onUnmergeMapping: onRequestUnmerge })}
     />
   );
 }
@@ -863,78 +883,119 @@ function MangaRelatedSections({
   );
 }
 
-function MangaDetailContent(props: MangaDetailPageProps & { readonly data: MangaDetailData }) {
-  const [viewedMappingId, setViewedMappingId] = useState<ProviderMappingId | null>(null);
-  // The optimistic view must not outlive the snapshot it was clicked against:
-  // otherwise a later action that changes the active mapping (e.g. "Use for
-  // chapters") keeps painting the old one. Reset during render on a new snapshot.
-  const [viewedData, setViewedData] = useState(props.data);
-  if (viewedData !== props.data) {
-    setViewedData(props.data);
-    setViewedMappingId(null);
-  }
-  const [coverDialogOpen, setCoverDialogOpen] = useState(false);
-  const view = buildMangaDetailView(props.data, viewedMappingId);
-  const { customCoverUrl } = view;
+interface DetailHostProps {
+  readonly props: MangaDetailPageProps;
+  readonly view: MangaDetailView;
+}
 
-  const selectProvider = async (mappingId: ProviderMappingId): Promise<void> => {
-    if (props.onSelectProvider === undefined) return;
-    setViewedMappingId(mappingId);
-    try {
-      await props.onSelectProvider(mappingId);
-    } catch (error) {
-      setViewedMappingId(null);
-      throw error;
-    }
-  };
-
+function MangaHeaderHost({
+  props,
+  view,
+  canSetCover,
+  onOpenCover,
+}: DetailHostProps & { readonly canSetCover: boolean; onOpenCover: () => void }) {
   return (
-    <section aria-label="Manga details" className="flex flex-col gap-8 p-6">
-      <MangaDetailHeader
-        view={view}
-        providerLabels={props.providerLabels}
-        isLibraryActionPending={props.isLibraryActionPending ?? false}
-        isCoverActionPending={props.isCoverActionPending ?? false}
-        onBack={props.onBack}
-        onOpenChapter={props.onOpenChapter}
-        onAddToLibrary={props.onAddToLibrary}
-        onRemoveFromLibrary={props.onRemoveFromLibrary}
-        onToggleFavorite={props.onToggleFavorite}
-        onCategoriesChange={props.onCategoriesChange}
-        onStatusChange={props.onStatusChange}
-        onOpenMigration={props.onOpenMigration}
-        onOpenProviderSettings={props.onOpenProviderSettings}
-        onOpenReaderSettings={props.onOpenReaderSettings}
-        onOpenCover={
-          props.onSetCoverImageUrl === undefined ? undefined : () => setCoverDialogOpen(true)
-        }
-      />
+    <MangaDetailHeader
+      view={view}
+      providerLabels={props.providerLabels}
+      isLibraryActionPending={props.isLibraryActionPending ?? false}
+      isCoverActionPending={props.isCoverActionPending ?? false}
+      onBack={props.onBack}
+      onOpenChapter={props.onOpenChapter}
+      onAddToLibrary={props.onAddToLibrary}
+      onRemoveFromLibrary={props.onRemoveFromLibrary}
+      onToggleFavorite={props.onToggleFavorite}
+      onCategoriesChange={props.onCategoriesChange}
+      onStatusChange={props.onStatusChange}
+      onOpenMigration={props.onOpenMigration}
+      onOpenProviderSettings={props.onOpenProviderSettings}
+      onOpenReaderSettings={props.onOpenReaderSettings}
+      onOpenCover={canSetCover ? onOpenCover : undefined}
+    />
+  );
+}
 
-      <MangaProvidersSection
-        view={view}
-        providerLabels={props.providerLabels}
-        isPending={props.isProviderActionPending ?? false}
-        onSelectProvider={props.onSelectProvider === undefined ? undefined : selectProvider}
-        onSetDefaultProvider={props.onSetDefaultProvider}
-        onSetPreferredChapterSource={props.onSetPreferredChapterSource}
-      />
+function MangaProvidersHost({
+  props,
+  view,
+  selectProvider,
+  canUnmerge,
+  onRequestUnmerge,
+}: DetailHostProps & {
+  selectProvider: (mappingId: ProviderMappingId) => Promise<void>;
+  readonly canUnmerge: boolean;
+  onRequestUnmerge: (mappingId: ProviderMappingId) => void;
+}) {
+  return (
+    <MangaProvidersSection
+      view={view}
+      providerLabels={props.providerLabels}
+      isPending={props.isProviderActionPending ?? false}
+      onSelectProvider={props.onSelectProvider === undefined ? undefined : selectProvider}
+      onSetDefaultProvider={props.onSetDefaultProvider}
+      onSetPreferredChapterSource={props.onSetPreferredChapterSource}
+      onRequestUnmerge={canUnmerge ? onRequestUnmerge : undefined}
+    />
+  );
+}
 
-      <MangaChaptersSection
-        view={view}
-        isPending={props.isChapterActionPending ?? false}
-        isLoading={props.isChaptersLoading ?? false}
-        loadError={props.chaptersError}
-        onOpenChapter={props.onOpenChapter}
-        onRetryLoad={props.onRetryChapters}
-        onSetChapterRead={props.onSetChapterRead}
-        onMarkPreviousChaptersRead={props.onMarkPreviousChaptersRead}
-      />
+function MangaChaptersHost({ props, view }: DetailHostProps) {
+  return (
+    <MangaChaptersSection
+      view={view}
+      isPending={props.isChapterActionPending ?? false}
+      isLoading={props.isChaptersLoading ?? false}
+      loadError={props.chaptersError}
+      onOpenChapter={props.onOpenChapter}
+      onRetryLoad={props.onRetryChapters}
+      onSetChapterRead={props.onSetChapterRead}
+      onMarkPreviousChaptersRead={props.onMarkPreviousChaptersRead}
+    />
+  );
+}
 
-      <MangaRelatedSections
-        recommendations={props.recommendations}
-        relatedTitles={props.relatedTitles}
-        onOpenRelatedManga={props.onOpenRelatedManga}
-      />
+function MangaDuplicatesHost({ props }: { readonly props: MangaDetailPageProps }) {
+  return (
+    <MangaDuplicatesSection
+      currentMangaId={props.mangaId}
+      {...(props.providerLabels === undefined ? {} : { providerLabels: props.providerLabels })}
+      {...(props.duplicates === undefined ? {} : { state: props.duplicates })}
+      isPending={props.isMergePending ?? false}
+      {...(props.loadMergePreview === undefined ? {} : { loadPreview: props.loadMergePreview })}
+      {...(props.onMerge === undefined ? {} : { onMerge: props.onMerge })}
+      {...(props.onMerged === undefined ? {} : { onMerged: props.onMerged })}
+    />
+  );
+}
+
+function MangaDialogsHost({
+  props,
+  view,
+  unmerge,
+  coverDialogOpen,
+  setCoverDialogOpen,
+}: DetailHostProps & {
+  unmerge: ReturnType<typeof useUnmergeRequest>;
+  readonly coverDialogOpen: boolean;
+  setCoverDialogOpen: (open: boolean) => void;
+}) {
+  const customCoverUrl = view.customCoverUrl;
+  return (
+    <>
+      {props.onUnmerge === undefined ? null : (
+        <MangaUnmergeDialog
+          open={unmerge.openMappingId !== undefined}
+          {...(unmerge.preview === undefined ? {} : { preview: unmerge.preview })}
+          isLoading={unmerge.isLoading}
+          {...(unmerge.error === undefined ? {} : { error: unmerge.error })}
+          isPending={props.isUnmergePending ?? false}
+          {...(props.providerLabels === undefined ? {} : { providerLabels: props.providerLabels })}
+          onOpenChange={(open) => {
+            if (!open) unmerge.reset();
+          }}
+          onConfirm={unmerge.confirm}
+        />
+      )}
 
       {props.onSetCoverImageUrl === undefined ? null : (
         <MangaCustomCoverDialog
@@ -953,6 +1014,69 @@ function MangaDetailContent(props: MangaDetailPageProps & { readonly data: Manga
           }}
         />
       )}
+    </>
+  );
+}
+
+function MangaDetailContent(props: MangaDetailPageProps & { readonly data: MangaDetailData }) {
+  const [viewedMappingId, setViewedMappingId] = useState<ProviderMappingId | null>(null);
+  // The optimistic view must not outlive the snapshot it was clicked against:
+  // otherwise a later action that changes the active mapping (e.g. "Use for
+  // chapters") keeps painting the old one. Reset during render on a new snapshot.
+  const [viewedData, setViewedData] = useState(props.data);
+  if (viewedData !== props.data) {
+    setViewedData(props.data);
+    setViewedMappingId(null);
+  }
+  const [coverDialogOpen, setCoverDialogOpen] = useState(false);
+  const unmerge = useUnmergeRequest({
+    ...(props.loadUnmergePreview === undefined ? {} : { loadPreview: props.loadUnmergePreview }),
+    ...(props.onUnmerge === undefined ? {} : { onUnmerge: props.onUnmerge }),
+  });
+  const view = buildMangaDetailView(props.data, viewedMappingId);
+
+  const selectProvider = async (mappingId: ProviderMappingId): Promise<void> => {
+    if (props.onSelectProvider === undefined) return;
+    setViewedMappingId(mappingId);
+    try {
+      await props.onSelectProvider(mappingId);
+    } catch (error) {
+      setViewedMappingId(null);
+      throw error;
+    }
+  };
+
+  const canUnmerge = unmerge.isAvailable && view.data.manga.providerMappings.length > 1;
+
+  return (
+    <section aria-label="Manga details" className="flex flex-col gap-8 p-6">
+      <MangaHeaderHost
+        props={props}
+        view={view}
+        canSetCover={props.onSetCoverImageUrl !== undefined}
+        onOpenCover={() => setCoverDialogOpen(true)}
+      />
+      <MangaProvidersHost
+        props={props}
+        view={view}
+        selectProvider={selectProvider}
+        canUnmerge={canUnmerge}
+        onRequestUnmerge={(mappingId) => void unmerge.open(mappingId)}
+      />
+      <MangaChaptersHost props={props} view={view} />
+      <MangaDuplicatesHost props={props} />
+      <MangaRelatedSections
+        recommendations={props.recommendations}
+        relatedTitles={props.relatedTitles}
+        onOpenRelatedManga={props.onOpenRelatedManga}
+      />
+      <MangaDialogsHost
+        props={props}
+        view={view}
+        unmerge={unmerge}
+        coverDialogOpen={coverDialogOpen}
+        setCoverDialogOpen={setCoverDialogOpen}
+      />
     </section>
   );
 }
