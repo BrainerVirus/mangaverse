@@ -101,9 +101,11 @@ function PreferredLanguagesField({
     const next = parsePreferredLanguages(input.value);
     if (next.length === 0) {
       input.value = committed;
-    } else if (next.join(', ') !== committed) {
+    } else {
+      // Normalize even when the parsed list matches: an invalid fragment must
+      // not stay on screen when only the committed list is stored.
       input.value = next.join(', ');
-      onChange(next);
+      if (next.join(', ') !== committed) onChange(next);
     }
     onInteractionEnd?.();
   };
@@ -204,8 +206,8 @@ export function AppSettingsPage({
           />
           <SettingToggleRow
             id="provider-errors"
-            label="Show provider errors"
-            description="Surface provider failures in the UI instead of hiding them silently."
+            label="Show provider errors in search"
+            description="Surface provider failures in search results instead of hiding them silently."
             checked={settings.showProviderErrors}
             onCheckedChange={(showProviderErrors) => commit({ showProviderErrors })}
           />

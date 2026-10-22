@@ -10,6 +10,7 @@ describe('Switch', () => {
     const control = screen.getByRole('switch', { name: 'Motion' });
     expect(control).toHaveAttribute('aria-checked', 'false');
     expect(control).toHaveClass('bg-muted-foreground');
+    expect(control).toHaveClass('border-ring');
     expect(control).not.toHaveClass('bg-input');
   });
 
@@ -19,6 +20,7 @@ describe('Switch', () => {
     const control = screen.getByRole('switch', { name: 'Motion' });
     expect(control).toHaveAttribute('aria-checked', 'true');
     expect(control).toHaveClass('bg-primary');
+    expect(control).toHaveClass('border-transparent');
     expect(control.firstElementChild).toHaveClass('bg-background');
   });
 

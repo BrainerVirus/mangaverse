@@ -77,6 +77,16 @@ describe('AppSettingsPage preferred languages', () => {
     );
   });
 
+  it('normalizes the draft when the parsed list already matches the committed one', () => {
+    const { input, onChange } = renderPage();
+
+    fireEvent.change(input, { target: { value: 'en, zzz' } });
+    fireEvent.blur(input);
+
+    expect(input.value).toBe('en');
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it('does not save when the committed list is unchanged', () => {
     const { input, onChange, onInteractionEnd } = renderPage();
 
@@ -84,5 +94,13 @@ describe('AppSettingsPage preferred languages', () => {
 
     expect(onChange).not.toHaveBeenCalled();
     expect(onInteractionEnd).toHaveBeenCalled();
+  });
+});
+
+describe('AppSettingsPage provider errors', () => {
+  it('scopes the toggle label to search, the surface it actually controls', () => {
+    renderPage();
+
+    expect(screen.getByText('Show provider errors in search')).toBeInTheDocument();
   });
 });
