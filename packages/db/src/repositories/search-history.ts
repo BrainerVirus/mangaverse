@@ -1,4 +1,4 @@
-import { desc } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import type { AppDrizzleDb } from '../adapter.js';
 import { savedSearches, searchHistory } from '../schema.js';
 
@@ -97,6 +97,15 @@ export async function listSavedSearches(db: AppDrizzleDb): Promise<SavedSearchEn
       ? { createdAt: r.createdAt }
       : {}),
   }));
+}
+
+export async function removeSavedSearch(db: AppDrizzleDb, id: string): Promise<boolean> {
+  const existing = db.select({ id: savedSearches.id }).from(savedSearches).all();
+  if (!existing.some((row) => row.id === id)) {
+    return false;
+  }
+  await db.delete(savedSearches).where(eq(savedSearches.id, id));
+  return true;
 }
 
 export async function countSearchHistory(db: AppDrizzleDb): Promise<number> {

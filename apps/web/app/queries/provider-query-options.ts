@@ -2,9 +2,10 @@ import type { AppDrizzleDb } from '@app/db/browser';
 import { getChapter } from '@app/db/browser';
 import { applyExplicitContentGate, loadProviderSettings } from '@app/extensions';
 import type { ProviderContext, ProviderContract } from '@app/extensions-sdk';
+import { normalizeProviderError } from '@app/extensions-sdk';
 import type { MangaDetailData } from '@app/library';
 import type { ChapterId, MangaId, MangaIdentity } from '@app/shared';
-import { toProviderMangaId } from '@app/shared';
+import { hasProviderCapability, toProviderMangaId } from '@app/shared';
 
 import {
   mergeMangaDetailWithLibrary,
@@ -14,7 +15,9 @@ import {
 } from '../lib/manga-detail-persist.js';
 import {
   getBindingForChapterId,
+  getProviderBinding,
   listProviderBindings,
+  readInstalledExtensions,
   resolveInstalledProvider,
   type ProviderAppBinding,
 } from '../lib/provider-registry.js';
@@ -45,9 +48,34 @@ async function providerContext(
   return { ctx, provider };
 }
 
-/** Provider-backed search results as canonical identities (never persisted here). */
+export interface SearchProviderInfo {
+  readonly providerId: string;
+  readonly label: string;
+}
+
+/**
+ * Installed, enabled providers that declare `discovery.search`. Disabled or
+ * non-search providers never enter the search fan-out.
+ */
+export async function listSearchProviders(db: AppDrizzleDb): Promise<SearchProviderInfo[]> {
+  const installed = await readInstalledExtensions(db);
+  return listProviderBindings()
+    .filter((binding) => {
+      const entry = installed.find(
+        (item) => String(item.manifest.id) === binding.providerId && item.enabled,
+      );
+      return entry !== undefined && hasProviderCapability(entry.manifest, 'discovery.search');
+    })
+    .map((binding) => {
+      const entry = installed.find((item) => String(item.manifest.id) === binding.providerId);
+      return { providerId: binding.providerId, label: entry?.manifest.name ?? binding.providerId };
+    });
+}
+
+/** One provider's search results as canonical identities (never persisted here). */
 export async function fetchProviderSearchIdentities(
   db: AppDrizzleDb,
+  providerId: string,
   query: string,
   signal?: AbortSignal,
   explicitContent = false,
@@ -55,19 +83,23 @@ export async function fetchProviderSearchIdentities(
   const trimmed = query.trim();
   if (trimmed.length === 0) return [];
 
-  const identities: MangaIdentity[] = [];
-  for (const binding of listProviderBindings()) {
-    // react-doctor-disable-next-line react-doctor/async-await-in-loop -- provider sessions share one db handle; resolving them sequentially is deliberate (one binding today, no fan-out)
-    const context = await providerContext(db, binding.providerId, signal, explicitContent);
-    if (context === null || context.provider.search === undefined) continue;
+  const context = await providerContext(db, providerId, signal, explicitContent);
+  const binding = getProviderBinding(providerId);
+  if (context === null || binding === null || context.provider.search === undefined) return [];
 
+  try {
     const result = await context.provider.search(context.ctx, {
       query: trimmed,
       limit: REMOTE_SEARCH_LIMIT,
     });
-    identities.push(...binding.toSearchIdentities(result.items));
+    return binding.toSearchIdentities(result.items);
+  } catch (error) {
+    // A cancelled query is not a provider failure; React Query drops it.
+    if (signal?.aborted === true) throw error;
+    throw new Error(normalizeProviderError(error, { providerId, operation: 'search' }).message, {
+      cause: error,
+    });
   }
-  return identities;
 }
 
 /**

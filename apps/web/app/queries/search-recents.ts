@@ -1,17 +1,29 @@
-import type { QueryClient } from '@tanstack/react-query';
-import { DEFAULT_SEARCH_VIEW_STATE, searchQueryKeys } from '@app/search';
+import type { Query, QueryClient } from '@tanstack/react-query';
+
+/** Blank-query page keys, whatever explicit-content partition they carry. */
+function isBlankSearchPage(query: Query): boolean {
+  const key = query.queryKey;
+  if (!Array.isArray(key) || key[0] !== 'search' || key[1] !== 'page') return false;
+  const viewState = key[2];
+  return (
+    typeof viewState === 'object' &&
+    viewState !== null &&
+    'query' in viewState &&
+    typeof viewState.query === 'string' &&
+    viewState.query.trim().length === 0
+  );
+}
 
 /**
- * Recent searches are the blank-query result. Cancel any in-flight read before
- * invalidating: a pending blank-query result can otherwise resolve after a
- * history write and restore the stale list as fresh. Scoped to the blank key so
- * clearing a non-empty search never aborts the provider search being shown.
- * The key carries no explicit-content partition: recents do not depend on it.
+ * Recent searches are the blank-query result. Cancel any in-flight blank read
+ * before invalidating: a pending blank-query result can otherwise resolve after
+ * a history write and restore the stale list as fresh. Non-empty searches stay
+ * untouched so returning to them does not refetch, and provider queries have
+ * their own keys.
  */
 export async function refreshRecentSearches(queryClient: QueryClient): Promise<void> {
-  const key = searchQueryKeys.page(DEFAULT_SEARCH_VIEW_STATE);
-  await queryClient.cancelQueries({ queryKey: key });
-  await queryClient.invalidateQueries({ queryKey: key });
+  await queryClient.cancelQueries({ predicate: isBlankSearchPage });
+  await queryClient.invalidateQueries({ predicate: isBlankSearchPage });
 }
 
 /**

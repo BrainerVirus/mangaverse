@@ -5,7 +5,11 @@ import { DEFAULT_SEARCH_VIEW_STATE, searchQueryKeys } from '@app/search';
 import { settingsQueryKeys } from '@app/settings';
 import { QUERY_GC_TIMES, QUERY_STALE_TIMES } from '../query-timing.js';
 import { libraryPageQueryOptions } from '../library-query-options.js';
-import { searchPageQueryOptions, searchProviderQueryOptions } from '../search-query-options.js';
+import {
+  savedSearchesQueryOptions,
+  searchPageQueryOptions,
+  searchProviderQueryOptions,
+} from '../search-query-options.js';
 import { appSettingsQueryOptions, readerSettingsQueryOptions } from '../settings-query-options.js';
 import { prefetchCoreLocalData } from '../prefetch-core-local-data.js';
 
@@ -46,16 +50,22 @@ describe('searchPageQueryOptions', () => {
 });
 
 describe('searchProviderQueryOptions', () => {
-  it('uses a provider key and stays disabled for a blank query', () => {
-    const blank = searchProviderQueryOptions(mockDb, '   ');
-    const typed = searchProviderQueryOptions(mockDb, '  berserk  ', true);
+  it('keys the query by provider and stays disabled for a blank query', () => {
+    const blank = searchProviderQueryOptions(mockDb, 'mangadex', '   ');
+    const typed = searchProviderQueryOptions(mockDb, 'mangadex', '  berserk  ', true);
 
     expect(blank.enabled).toBe(false);
     expect(typed.enabled).toBe(true);
-    expect(typed.placeholderData).toBe(keepPreviousData);
-    expect(typed.queryKey).toEqual(searchQueryKeys.provider('berserk', true));
+    expect(typed.queryKey).toEqual(searchQueryKeys.provider('mangadex', 'berserk', true));
     expect(typed.staleTime).toBe(QUERY_STALE_TIMES.search);
     expect(typed.gcTime).toBe(QUERY_GC_TIMES.search);
+  });
+
+  it('keys saved searches separately from the result grid', () => {
+    const options = savedSearchesQueryOptions(mockDb);
+
+    expect(options.queryKey).toEqual(searchQueryKeys.savedSearches());
+    expect(typeof options.queryFn).toBe('function');
   });
 });
 
