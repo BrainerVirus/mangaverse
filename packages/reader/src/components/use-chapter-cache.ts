@@ -25,6 +25,7 @@ function reportReaderLocksUnavailable(): void {
 export function useChapterPrefetch(
   data: ReaderPageData | undefined,
   cacheContext: CoverCacheContextValue | null,
+  activePageIndex = data?.initialPageIndex ?? 0,
 ): void {
   // Depend on the chapter's page array, ids, and budget — not on `data`, which
   // is replaced whenever a reader setting changes. A settings toggle must not
@@ -34,6 +35,9 @@ export function useChapterPrefetch(
   const mangaId = data?.mangaId;
   const chapterId = data?.chapterId;
   const budgetBytes = data?.settings.prefetchBudgetBytes ?? 0;
+  const preloadAhead = data?.settings.preloadAhead ?? 0;
+  const lowMemoryMode = data?.settings.lowMemoryMode ?? false;
+  const preloadCount = lowMemoryMode ? Math.min(1, preloadAhead) : preloadAhead;
 
   // The locks live as long as this chapter is open, not as long as one prefetch
   // sweep: a settings change releases and re-runs the sweep below, and a gap
@@ -53,16 +57,19 @@ export function useChapterPrefetch(
       providerId === undefined ||
       mangaId === undefined ||
       chapterId === undefined ||
-      cacheContext === null
+      cacheContext === null ||
+      preloadCount === 0
     ) {
       return;
     }
 
     const controller = new AbortController();
-    const prefetchPages = pages.map((page, pageIndex) => ({
-      pageIndex,
-      remoteUrl: page.image.url,
-    }));
+    const prefetchPages = pages
+      .slice(activePageIndex + 1, activePageIndex + 1 + preloadCount)
+      .map((page) => ({
+        pageIndex: page.index,
+        remoteUrl: page.image.url,
+      }));
 
     void prefetchChapterPages({
       db: cacheContext.db,
@@ -90,7 +97,16 @@ export function useChapterPrefetch(
     return () => {
       controller.abort();
     };
-  }, [budgetBytes, cacheContext, chapterId, mangaId, pages, providerId]);
+  }, [
+    activePageIndex,
+    budgetBytes,
+    cacheContext,
+    chapterId,
+    mangaId,
+    pages,
+    preloadCount,
+    providerId,
+  ]);
 }
 
 /**

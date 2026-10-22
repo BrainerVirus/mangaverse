@@ -50,12 +50,10 @@ export function resolvePageFit(input: PageFitInput): PageFit {
     case 'cover':
       return { box: { width: availableWidth, height: availableHeight }, objectFit: 'cover' };
     case 'original': {
-      // Never upscale: the natural size wins unless it overflows the area.
       const naturalWidth = natural?.width ?? availableWidth;
       const naturalHeight = natural?.height ?? naturalWidth / aspectRatio;
-      const scale = Math.min(1, availableWidth / naturalWidth, availableHeight / naturalHeight);
       return {
-        box: { width: naturalWidth * scale, height: naturalHeight * scale },
+        box: { width: naturalWidth, height: naturalHeight },
         objectFit: 'none',
       };
     }

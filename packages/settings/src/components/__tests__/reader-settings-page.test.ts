@@ -150,7 +150,7 @@ describe('ReaderSettingsPage', () => {
   });
 
   it('Given a discrete toggle, When it changes, Then the interaction commits after the change', () => {
-    const onChange = vi.fn<(next: ReaderSettings) => void>();
+    const onChange = vi.fn<(patch: Partial<ReaderSettings>) => void>();
     const onInteractionEnd = vi.fn<() => void>();
     const page = ReaderSettingsPage({
       settings: getDefaultReaderSettings(),
@@ -173,8 +173,34 @@ describe('ReaderSettingsPage', () => {
     expect(onInteractionEnd).toHaveBeenCalledTimes(1);
   });
 
+  it('Given two quick edits, When each fires, Then the page emits patches so neither edit is lost', () => {
+    const onChange = vi.fn<(patch: Partial<ReaderSettings>) => void>();
+    const page = ReaderSettingsPage({
+      settings: getDefaultReaderSettings(),
+      isLoading: false,
+      isError: false,
+      onChange,
+    });
+    const rowWithId = (id: string) => {
+      const row = collectElements(page).find(
+        (element) => (element.props as { id?: unknown }).id === id,
+      );
+      if (row === undefined) throw new Error(`${id} row is missing`);
+      return row.props as { onChange: (value: never) => void };
+    };
+
+    rowWithId('chrome-visibility').onChange('always' as never);
+    rowWithId('vertical-gap').onChange(16 as never);
+
+    // A patch carries only the edited field; merging over the cache is the
+    // route's job, so a control rendered before the previous re-render cannot
+    // write its stale copy of every other setting.
+    expect(onChange).toHaveBeenNthCalledWith(1, { chromeVisibility: 'always' });
+    expect(onChange).toHaveBeenNthCalledWith(2, { verticalGapPx: 16 });
+  });
+
   it('Given the budget slider, Then it shows MiB, reaches the cap and saves bytes', () => {
-    const onChange = vi.fn<(next: ReaderSettings) => void>();
+    const onChange = vi.fn<(patch: Partial<ReaderSettings>) => void>();
     const page = ReaderSettingsPage({
       settings: getDefaultReaderSettings(),
       isLoading: false,

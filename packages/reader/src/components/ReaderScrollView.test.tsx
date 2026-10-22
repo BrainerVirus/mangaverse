@@ -6,7 +6,14 @@ import { toChapterPageId } from '@app/shared';
 import type { ReaderPage } from '../types.js';
 import { ReaderScrollView, type ReaderScrollViewHandle } from './ReaderScrollView.js';
 
-vi.mock('@app/cache', () => ({ CachedPageImage: () => null }));
+const cacheRender = vi.hoisted(() => ({ pages: [] as number[] }));
+
+vi.mock('@app/cache', () => ({
+  CachedPageImage: ({ pageIndex }: { pageIndex: number }) => {
+    cacheRender.pages.push(pageIndex);
+    return null;
+  },
+}));
 
 const VIEWPORT_HEIGHT = 100;
 
@@ -50,10 +57,16 @@ function Harness({
   pages,
   onActivePageChange,
   handleRef,
+  preloadAhead,
+  lowMemoryMode,
+  cacheReady = false,
 }: {
   readonly pages: readonly ReaderPage[];
   readonly onActivePageChange: (index: number) => void;
   readonly handleRef: { current: ReaderScrollViewHandle | null };
+  readonly preloadAhead?: number;
+  readonly lowMemoryMode?: boolean;
+  readonly cacheReady?: boolean;
 }) {
   const [active, setActive] = useState(0);
   return (
@@ -68,8 +81,10 @@ function Harness({
       providerId="mangadex"
       mangaId="manga-1"
       chapterId="chapter-1"
-      cacheReady={false}
+      cacheReady={cacheReady}
       reducedMotion
+      {...(preloadAhead === undefined ? {} : { preloadAhead })}
+      {...(lowMemoryMode === undefined ? {} : { lowMemoryMode })}
       onHandle={(handle) => {
         handleRef.current = handle;
       }}
@@ -85,8 +100,17 @@ interface Mounted {
   readonly activeChanges: number[];
 }
 
-function mount(pageCount: number): Mounted {
+function mount(
+  pageCount: number,
+  options: {
+    readonly pages?: readonly ReaderPage[];
+    readonly preloadAhead?: number;
+    readonly lowMemoryMode?: boolean;
+    readonly cacheReady?: boolean;
+  } = {},
+): Mounted {
   observers.length = 0;
+  cacheRender.pages.length = 0;
   const container = document.createElement('div');
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -95,9 +119,12 @@ function mount(pageCount: number): Mounted {
   act(() => {
     root.render(
       <Harness
-        pages={buildPages(pageCount)}
+        pages={options.pages ?? buildPages(pageCount)}
         handleRef={handleRef}
         onActivePageChange={(index) => activeChanges.push(index)}
+        {...(options.preloadAhead === undefined ? {} : { preloadAhead: options.preloadAhead })}
+        {...(options.lowMemoryMode === undefined ? {} : { lowMemoryMode: options.lowMemoryMode })}
+        {...(options.cacheReady === undefined ? {} : { cacheReady: options.cacheReady })}
       />,
     );
   });
@@ -135,6 +162,32 @@ async function scrollTo(strip: HTMLElement, scrollTop: number) {
     await new Promise((resolve) => setTimeout(resolve, 32));
   });
 }
+
+describe('ReaderScrollView strip rows', () => {
+  it('Given provider dimensions, When a landscape page renders, Then the row keeps that ratio', () => {
+    const page: ReaderPage = {
+      id: toChapterPageId('landscape'),
+      index: 0,
+      image: { url: 'https://example.com/landscape.jpg', width: 1600, height: 900 },
+    };
+
+    const mounted = mount(1, { pages: [page] });
+    const row = mounted.container.querySelector<HTMLElement>('[data-page-index="0"]');
+    expect(row?.style.aspectRatio).toBe('1600 / 900');
+
+    unmount(mounted);
+  });
+
+  it('Given a preload budget, When the strip renders, Then only the budgeted neighbours mount', () => {
+    const full = mount(8, { preloadAhead: 5, cacheReady: true });
+    expect([...cacheRender.pages].sort((a, b) => a - b)).toEqual([0, 1, 2, 3, 4, 5]);
+    unmount(full);
+
+    const lowMemory = mount(8, { preloadAhead: 5, lowMemoryMode: true, cacheReady: true });
+    expect([...cacheRender.pages].sort((a, b) => a - b)).toEqual([0, 1]);
+    unmount(lowMemory);
+  });
+});
 
 describe('ReaderScrollView metrics', () => {
   it('Given the strip resized, When scrolling, Then the active page comes from the new offsets', async () => {

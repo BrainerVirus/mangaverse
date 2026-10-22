@@ -208,9 +208,12 @@ async function prefetchPageToCache(
 }
 
 export async function resolvePageObjectUrl(
-  input: PageCacheLookupInput & { readonly retention?: typeof CACHE_RETENTION_READ | 'normal' },
+  input: PageCacheLookupInput & {
+    readonly retention?: typeof CACHE_RETENTION_READ | 'normal';
+    readonly refresh?: boolean;
+  },
 ): Promise<PageCacheStoreResult | undefined> {
-  const cached = await getCachedPageObjectUrl(input);
+  const cached = input.refresh ? undefined : await getCachedPageObjectUrl(input);
   if (cached !== undefined) {
     return cached;
   }

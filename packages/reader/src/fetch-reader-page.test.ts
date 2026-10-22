@@ -54,6 +54,15 @@ describe('fetchReaderPage', () => {
     });
 
     await addLibraryEntry(db, { mangaId, status: 'reading' });
+    const nextChapterId = toChapterId('chapter-reader-2');
+    await upsertChapterWithPages(db, {
+      chapterId: nextChapterId,
+      mangaId,
+      providerMappingId: mappingId,
+      title: 'Chapter 2',
+      index: 2,
+      pages: [],
+    });
 
     const { upsertChapterReadState } = await import('@app/db');
     await upsertChapterReadState(db, {
@@ -72,8 +81,33 @@ describe('fetchReaderPage', () => {
     expect(page?.chapter.pageCount).toBe(2);
     expect(page?.initialPageIndex).toBe(1);
     expect(page?.engineSettings.readingMode).toBe('ltr');
+    expect(page?.nextChapterId).toBe(nextChapterId);
+    expect(page?.previousChapterId).toBeUndefined();
+    const nextPage = await fetchReaderPage(db, nextChapterId);
+    expect(nextPage?.previousChapterId).toBe(chapterId);
+    expect(nextPage?.nextChapterId).toBeUndefined();
 
     const readState = await getChapterReadState(db, chapterId);
     expect(readState?.progress.lastPageIndex).toBe(1);
+
+    const {
+      upsertTitleReaderSettings,
+      resetTitleReaderSettings,
+      getReaderSettings,
+      upsertReaderSettings,
+    } = await import('@app/db');
+    await upsertTitleReaderSettings(db, mangaId, { ...page!.settings, readingMode: 'rtl' });
+    expect((await fetchReaderPage(db, chapterId))?.settings.readingMode).toBe('rtl');
+    expect((await getReaderSettings(db)).readingMode).toBe('ltr');
+    await upsertReaderSettings(db, {
+      ...(await getReaderSettings(db)),
+      backgroundColor: '#ffffff',
+    });
+    expect((await fetchReaderPage(db, chapterId))?.settings).toMatchObject({
+      readingMode: 'rtl',
+      backgroundColor: '#ffffff',
+    });
+    await resetTitleReaderSettings(db, mangaId);
+    expect((await fetchReaderPage(db, chapterId))?.settings.readingMode).toBe('ltr');
   });
 });

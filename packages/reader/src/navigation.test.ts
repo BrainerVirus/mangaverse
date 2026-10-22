@@ -80,6 +80,20 @@ function makeState(
 }
 
 describe('resolveNavigationAction', () => {
+  it.each(['rtl', 'ltr'] as const)(
+    'keeps logical next/previous independent of %s input mapping',
+    (readingMode) => {
+      const state = makeState({ activePageIndex: 1, settings: { readingMode } });
+      const key = readingMode === 'rtl' ? 'ArrowLeft' : 'ArrowRight';
+      expect(
+        resolveNavigationAction(state, resolveKeyboardAction({ key }, state.settings)),
+      ).toEqual({ type: 'goToPage', pageIndex: 2 });
+      expect(resolveNavigationAction(state, { type: 'prevPage' })).toEqual({
+        type: 'goToPage',
+        pageIndex: 0,
+      });
+    },
+  );
   it('should resolve prevPage action in LTR', () => {
     const state = makeState({ activePageIndex: 2 });
     const action = resolveNavigationAction(state, { type: 'prevPage' });

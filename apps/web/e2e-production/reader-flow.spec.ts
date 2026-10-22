@@ -235,14 +235,16 @@ test('Given a durable write fails, When the reader persists progress, Then it su
   await page.getByRole('button', { name: 'Next page' }).click();
   await expect(page.getByText('2 / 37')).toBeVisible();
 
-  await expect(page.getByText('Saving locally failed')).toBeVisible({ timeout: 20_000 });
+  const saveBanner = page.getByRole('alert').filter({ hasText: 'Saving locally failed' });
+  await expect(saveBanner).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText('IndexedDB blocked for test')).toBeVisible();
 
   await page.evaluate(() => {
     (window as unknown as { __blockLocalDb?: boolean }).__blockLocalDb = false;
   });
   const pingBefore = await currentPing(page);
-  await page.getByRole('button', { name: 'Retry' }).click();
+  // The blocked store also fails the page image, which has its own Retry.
+  await saveBanner.getByRole('button', { name: 'Retry' }).click();
   await expect(page.getByText('Saving locally failed')).toHaveCount(0, { timeout: 20_000 });
   // The retry wrote the pending snapshot: a new ping proves it is durable.
   await waitForNewPing(page, pingBefore);

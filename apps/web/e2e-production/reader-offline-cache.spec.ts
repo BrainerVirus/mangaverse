@@ -40,8 +40,17 @@ test('Given a partially cached chapter, When reopened offline, Then the missing 
   await openReader(page);
   // Online every page comes from the network, so the offline note must not render.
   await expect(page.getByTestId('reader-offline-note')).toHaveCount(0);
-  // The reader prefetches the whole chapter; a quiet window covers the bounded
-  // fetches so the cache state below is settled.
+  // Reading now warms only bounded neighbours: visit the chapter to cache its
+  // successful pages, rather than relying on an unbounded background download.
+  for (let index = 2; index <= 37; index += 1) {
+    await page.getByRole('button', { name: 'Next page', exact: true }).click();
+    await expect(page.getByText(`${index} / 37`)).toBeVisible();
+  }
+  await page.evaluate(() => {
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+  });
+  await page.keyboard.press('Home');
+  await expect(page.getByText('1 / 37')).toBeVisible();
   await waitForPingQuiet(page);
 
   // Leave the reader, then cut every provider host before returning offline.

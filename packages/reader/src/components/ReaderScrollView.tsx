@@ -26,6 +26,9 @@ interface ReaderScrollViewProps {
   readonly cacheReady: boolean;
   readonly reducedMotion: boolean;
   readonly onHandle: (handle: ReaderScrollViewHandle | null) => void;
+  readonly preloadAhead?: number;
+  readonly lowMemoryMode?: boolean;
+  readonly onBack?: (() => void) | undefined;
 }
 
 const WINDOW_RADIUS = 3;
@@ -43,6 +46,8 @@ const ScrollPageRow = memo(function ScrollPageRow({
   providerId,
   mangaId,
   chapterId,
+  onSkipPage,
+  onBack,
 }: {
   readonly page: ReaderPage;
   readonly index: number;
@@ -51,9 +56,18 @@ const ScrollPageRow = memo(function ScrollPageRow({
   readonly providerId: string;
   readonly mangaId: string;
   readonly chapterId: string;
+  readonly onSkipPage?: ((index: number) => void) | undefined;
+  readonly onBack?: (() => void) | undefined;
 }) {
+  const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
+  const width = page.image.width ?? natural?.width ?? 2;
+  const height = page.image.height ?? natural?.height ?? 3;
   return (
-    <div data-page-index={index} style={{ aspectRatio: '2 / 3' }} className="w-full shrink-0">
+    <div
+      data-page-index={index}
+      style={{ aspectRatio: `${width} / ${height}` }}
+      className="w-full shrink-0"
+    >
       {cacheReady && mounted ? (
         <CachedPageImage
           providerId={providerId}
@@ -63,6 +77,9 @@ const ScrollPageRow = memo(function ScrollPageRow({
           remoteUrl={page.image.url}
           className="h-auto w-full select-none"
           retention="read"
+          onLoad={setNatural}
+          onSkip={onSkipPage ? () => onSkipPage(index) : undefined}
+          onBack={onBack}
         />
       ) : (
         <div className="h-full w-full animate-pulse bg-muted/40" aria-hidden />
@@ -110,6 +127,9 @@ export function ReaderScrollView({
   cacheReady,
   reducedMotion,
   onHandle,
+  preloadAhead = WINDOW_RADIUS,
+  lowMemoryMode = false,
+  onBack,
 }: ReaderScrollViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<number | null>(null);
@@ -210,7 +230,15 @@ export function ReaderScrollView({
     };
   }, []);
 
-  const mounted = windowedScrollPages(pages, activePageIndex, WINDOW_RADIUS);
+  const skipPage = useCallback(
+    (index: number) => scrollToPage(Math.min(index + 1, pages.length - 1)),
+    [pages.length, scrollToPage],
+  );
+  const mounted = windowedScrollPages(
+    pages,
+    activePageIndex,
+    lowMemoryMode ? Math.min(1, preloadAhead) : preloadAhead,
+  );
 
   return (
     <div
@@ -230,6 +258,8 @@ export function ReaderScrollView({
             providerId={providerId}
             mangaId={mangaId}
             chapterId={chapterId}
+            onSkipPage={skipPage}
+            onBack={onBack}
           />
         ))}
         {spacerPx > 0 ? <div aria-hidden style={{ height: `${spacerPx}px` }} /> : null}

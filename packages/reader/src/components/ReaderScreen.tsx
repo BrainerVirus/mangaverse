@@ -1,6 +1,11 @@
-import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   EmptyState,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   ErrorState,
   GlassSurface,
   LoadingState,
@@ -9,7 +14,7 @@ import {
 import { useReducedMotion } from '@app/motion';
 import type { ReaderSettings } from '@app/shared';
 import { CachedPageImage, useCoverCacheContext, type CoverCacheContextValue } from '@app/cache';
-import { resolvePageFit, type PageFit } from '../page-fit.js';
+import { resolvePageFit, type PageFitInput } from '../page-fit.js';
 import type { ReaderPageData } from '../reader-page-data.js';
 import { ReaderScrollView, type ReaderScrollViewHandle } from './ReaderScrollView.js';
 import { ReaderSettingsSheet } from './reader-settings-sheet.js';
@@ -22,6 +27,7 @@ import { useReaderViewport } from './use-reader-viewport.js';
 import { calculateTapZones } from '../tap-zones.js';
 import type {
   ReaderOverlayInsets,
+  ReaderNavigationAction,
   ReaderPage,
   ReaderProgressEvent,
   ReaderSessionInput,
@@ -37,6 +43,25 @@ const OBJECT_FIT_CLASS = {
 } as const;
 
 type ChromeMode = 'single' | 'double' | 'scroll';
+
+function readerTouchAction(scale: number): string {
+  return scale > 1 ? 'none' : 'pan-x pan-y';
+}
+
+function isChapterEndNavigation(
+  state: ReaderState | null,
+  action: ReaderNavigationAction,
+): boolean {
+  return (
+    action.type === 'nextPage' && state !== null && state.activePageIndex >= state.pages.length - 1
+  );
+}
+
+function resolveChromeVisible(settings: ReaderSettings | undefined, visible: boolean): boolean {
+  return (
+    settings?.chromeVisibility === 'always' || (settings?.chromeVisibility !== 'hidden' && visible)
+  );
+}
 
 function toggleFullscreen(): void {
   if (typeof document === 'undefined') return;
@@ -167,9 +192,10 @@ function resolveReaderGate(input: {
 function resolveNaturalSize(
   page: ReaderPage | undefined,
 ): { readonly width: number; readonly height: number } | undefined {
-  if (page?.width === undefined || page.height === undefined) return undefined;
-  if (page.width <= 0 || page.height <= 0) return undefined;
-  return { width: page.width, height: page.height };
+  const width = page?.image.width ?? page?.width;
+  const height = page?.image.height ?? page?.height;
+  if (width === undefined || height === undefined || width <= 0 || height <= 0) return undefined;
+  return { width, height };
 }
 
 export interface ReaderScreenProps {
@@ -187,6 +213,11 @@ export interface ReaderScreenProps {
   onRetry?: () => void;
   /** True when the data fetch is paused because the browser is offline. */
   isOffline?: boolean;
+  onClose?: (() => void) | undefined;
+  onPreviousChapter?: (() => void) | undefined;
+  onNextChapter?: (() => void) | undefined;
+  onResetSettings?: (() => void) | undefined;
+  onMarkRead?: ((completed: boolean) => void) | undefined;
 }
 
 export function ReaderScreen({
@@ -201,8 +232,14 @@ export function ReaderScreen({
   onChangeSettings,
   onRetry,
   isOffline = false,
+  onClose,
+  onPreviousChapter,
+  onNextChapter,
+  onResetSettings,
+  onMarkRead,
 }: ReaderScreenProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [chapterEndOpen, setChapterEndOpen] = useState(false);
   const scrollHandleRef = useRef<ReaderScrollViewHandle | null>(null);
   const settingsButtonRef = useRef<HTMLButtonElement | null>(null);
   // Vertical navigation resolves from the last target, not the centre-based
@@ -214,9 +251,24 @@ export function ReaderScreen({
   const reducedMotion = useReducedMotion();
   const cacheContext = useCoverCacheContext();
   const { containerRef, surface, viewport } = useReaderViewport();
-  const { sessionInput, readerState, setReaderState, navigate } = useReaderSession(data, viewport);
+  const {
+    sessionInput,
+    readerState,
+    setReaderState,
+    navigate: navigatePage,
+  } = useReaderSession(data, viewport);
+  const navigate = useCallback(
+    (action: Parameters<typeof navigatePage>[0]) => {
+      if (isChapterEndNavigation(readerState, action)) {
+        setChapterEndOpen(true);
+        return;
+      }
+      navigatePage(action);
+    },
+    [navigatePage, readerState],
+  );
   useReaderProgress(data, readerState, onPersistProgress);
-  useChapterPrefetch(data, cacheContext);
+  useChapterPrefetch(data, cacheContext, readerState?.activePageIndex);
   const offlineNote = useOfflinePagesNote(data, cacheContext, isOffline);
 
   const {
@@ -242,6 +294,8 @@ export function ReaderScreen({
     scrollHandle: scrollHandleRef,
     verticalTarget: verticalTargetRef,
     verticalTargetPending: verticalTargetPendingRef,
+    disabled: settingsOpen || chapterEndOpen,
+    onClose,
   });
 
   const settings = data?.settings;
@@ -263,7 +317,16 @@ export function ReaderScreen({
     isHydrationError,
   });
   if (gate !== null) {
-    return readerGateView({ gate, title: data?.chapter.title ?? '', onRetry });
+    return (
+      <>
+        {onClose ? (
+          <Button className="fixed top-4 left-4 z-50" onClick={onClose}>
+            Close reader
+          </Button>
+        ) : null}
+        {readerGateView({ gate, title: data?.chapter.title ?? '', onRetry })}
+      </>
+    );
   }
 
   if (data === undefined || readerState === null) {
@@ -275,13 +338,13 @@ export function ReaderScreen({
     .filter((page) => page !== undefined);
   const activePage = data.chapter.pages[readerState.activePageIndex];
   const naturalSize = resolveNaturalSize(activePage);
-  const fit = resolvePageFit({
+  const fitInput: PageFitInput = {
     fitMode: data.engineSettings.fitMode,
     availableWidth: viewport.width - CHROME_INSETS.left - CHROME_INSETS.right,
     availableHeight: viewport.height - CHROME_INSETS.top - CHROME_INSETS.bottom,
     pageCount: visiblePages.length,
     naturalSize,
-  });
+  };
 
   return (
     <>
@@ -292,7 +355,8 @@ export function ReaderScreen({
       */}
       <div
         ref={containerRef}
-        className="relative h-full w-full overflow-hidden bg-black"
+        className="reader-stage-background relative h-full w-full overflow-hidden"
+        style={{ '--reader-stage-color': settings?.backgroundColor } as CSSProperties}
         onPointerUp={handlePointerUp}
         data-testid="reader-surface"
       >
@@ -319,6 +383,9 @@ export function ReaderScreen({
             chapterId={data.chapterId}
             cacheReady={cacheContext !== null}
             reducedMotion={reducedMotion}
+            preloadAhead={data.engineSettings.preloadAhead}
+            lowMemoryMode={data.engineSettings.lowMemoryMode}
+            onBack={onClose}
             onHandle={(handle) => {
               scrollHandleRef.current = handle;
             }}
@@ -331,12 +398,12 @@ export function ReaderScreen({
           */
           <div
             ref={zoomLayerRef}
-            className="absolute inset-0 flex items-center justify-center"
+            className="reader-page-scroll absolute inset-0 flex overflow-auto"
             data-testid="reader-zoom-layer"
             style={{
               transform: `translate(${readerState.zoom.translateX}px, ${readerState.zoom.translateY}px) scale(${readerState.zoom.scale})`,
               transformOrigin: 'top left',
-              touchAction: 'none',
+              touchAction: readerTouchAction(readerState.zoom.scale),
             }}
             onPointerDown={handleZoomPointerDown}
             onPointerMove={handleZoomPointerMove}
@@ -350,9 +417,11 @@ export function ReaderScreen({
                 providerId={data.providerId}
                 mangaId={data.mangaId}
                 chapterId={data.chapterId}
-                fit={fit}
+                fitInput={fitInput}
                 fitMode={data.engineSettings.fitMode}
                 cacheContext={cacheContext}
+                onSkip={() => navigate({ type: 'nextPage' })}
+                onBack={onClose}
               />
             ))}
           </div>
@@ -363,25 +432,12 @@ export function ReaderScreen({
         ) : null}
       </div>
 
-      {offlineNote !== null ? (
-        <output
-          data-testid="reader-offline-note"
-          className="dark pointer-events-none fixed inset-x-0 bottom-3 z-50 mx-auto block w-fit"
-        >
-          <div className="relative isolate overflow-hidden rounded-full">
-            <GlassSurface
-              level="stage"
-              tone="reader"
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0"
-            />
-            <span className="relative block px-3 py-1 text-xs text-white">{offlineNote}</span>
-          </div>
-        </output>
-      ) : null}
+      <OfflineNote note={offlineNote} />
 
       <ReaderChrome
-        visible={chromeVisible}
+        visible={resolveChromeVisible(settings, chromeVisible)}
+        onClose={onClose}
+        onChapterEnd={() => setChapterEndOpen(true)}
         chapterTitle={data.chapter.title}
         currentPage={readerState.activePageIndex + 1}
         totalPages={data.chapter.pageCount}
@@ -390,23 +446,9 @@ export function ReaderScreen({
             ? scrollHandleRef.current?.scrollToPage(page - 1)
             : navigate({ type: 'goToPage', pageIndex: page - 1 })
         }
-        renderPagePreview={(page) => {
-          const target = data.chapter.pages[page - 1];
-          if (target === undefined || cacheContext === null) {
-            return <div className="h-24 w-16 bg-glass-plate" aria-hidden />;
-          }
-          return (
-            <CachedPageImage
-              providerId={data.providerId}
-              mangaId={data.mangaId}
-              chapterId={data.chapterId}
-              pageIndex={target.index}
-              remoteUrl={target.image.url}
-              className="h-24 w-auto select-none"
-              retention="read"
-            />
-          );
-        }}
+        renderPagePreview={(page) => (
+          <PagePreview data={data} page={page} cacheReady={cacheContext !== null} />
+        )}
         mode={chromeMode}
         onModeChange={handleModeChange}
         onOpenSettings={() => setSettingsOpen(true)}
@@ -414,16 +456,124 @@ export function ReaderScreen({
         onToggleFullscreen={toggleFullscreen}
       />
 
-      {settings ? (
-        <ReaderSettingsSheet
-          open={settingsOpen}
-          settings={settings}
-          onChangeSettings={onChangeSettings}
-          onClose={() => setSettingsOpen(false)}
-          settingsButtonRef={settingsButtonRef}
+      <ReaderSettingsSheet
+        open={settingsOpen}
+        settings={data.settings}
+        onChangeSettings={onChangeSettings}
+        onClose={() => setSettingsOpen(false)}
+        settingsButtonRef={settingsButtonRef}
+        onResetSettings={onResetSettings}
+        onMarkRead={onMarkRead}
+      />
+      <HiddenReaderExit visible={resolveChromeVisible(settings, chromeVisible)} onClose={onClose} />
+      {chapterEndOpen ? (
+        <ChapterTransition
+          onOpenChange={setChapterEndOpen}
+          onNextChapter={onNextChapter}
+          onPreviousChapter={onPreviousChapter}
+          onClose={onClose}
         />
       ) : null}
     </>
+  );
+}
+
+function HiddenReaderExit({
+  visible,
+  onClose,
+}: {
+  visible: boolean;
+  onClose: ReaderScreenProps['onClose'];
+}) {
+  if (visible || !onClose) return null;
+  return (
+    <Button size="sm" variant="secondary" className="fixed top-2 left-2 z-50" onClick={onClose}>
+      Close reader
+    </Button>
+  );
+}
+
+function OfflineNote({ note }: { note: string | null }) {
+  if (note === null) return null;
+  return (
+    <output
+      data-testid="reader-offline-note"
+      className="dark pointer-events-none fixed inset-x-0 bottom-3 z-50 mx-auto block w-fit"
+    >
+      <div className="relative isolate overflow-hidden rounded-full">
+        <GlassSurface
+          level="stage"
+          tone="reader"
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0"
+        />
+        <span className="relative block px-3 py-1 text-xs text-white">{note}</span>
+      </div>
+    </output>
+  );
+}
+
+function PagePreview({
+  data,
+  page,
+  cacheReady,
+}: {
+  data: ReaderPageData;
+  page: number;
+  cacheReady: boolean;
+}) {
+  const target = data.chapter.pages[page - 1];
+  if (!target || !cacheReady) return <div className="h-24 w-16 bg-glass-plate" aria-hidden />;
+  return (
+    <CachedPageImage
+      providerId={data.providerId}
+      mangaId={data.mangaId}
+      chapterId={data.chapterId}
+      pageIndex={target.index}
+      remoteUrl={target.image.url}
+      className="h-24 w-auto select-none"
+      retention="read"
+    />
+  );
+}
+
+function ChapterTransition({
+  onOpenChange,
+  onNextChapter,
+  onPreviousChapter,
+  onClose,
+}: Pick<ReaderScreenProps, 'onNextChapter' | 'onPreviousChapter' | 'onClose'> & {
+  onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Chapter complete</DialogTitle>
+        </DialogHeader>
+        <p>
+          {onNextChapter
+            ? 'Ready for the next chapter?'
+            : 'You reached the last available chapter.'}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {onNextChapter ? <Button onClick={onNextChapter}>Read next chapter</Button> : null}
+          {onPreviousChapter ? (
+            <Button variant="outline" onClick={onPreviousChapter}>
+              Previous chapter
+            </Button>
+          ) : null}
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Back to chapter
+          </Button>
+          {onClose ? (
+            <Button variant="outline" onClick={onClose}>
+              Close reader
+            </Button>
+          ) : null}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -468,18 +618,24 @@ function ReaderPageBox({
   providerId,
   mangaId,
   chapterId,
-  fit,
+  fitInput,
   fitMode,
   cacheContext,
+  onSkip,
+  onBack,
 }: {
   readonly page: ReaderPage;
   readonly providerId: string;
   readonly mangaId: string;
   readonly chapterId: string;
-  readonly fit: PageFit;
+  readonly fitInput: PageFitInput;
   readonly fitMode: string;
   readonly cacheContext: CoverCacheContextValue | null;
+  readonly onSkip?: (() => void) | undefined;
+  readonly onBack?: (() => void) | undefined;
 }) {
+  const [natural, setNatural] = useState<{ width: number; height: number } | undefined>(undefined);
+  const fit = resolvePageFit({ ...fitInput, naturalSize: resolveNaturalSize(page) ?? natural });
   if (cacheContext === null) {
     return (
       <div
@@ -517,6 +673,9 @@ function ReaderPageBox({
         remoteUrl={page.image.url}
         className={`h-full w-full select-none ${OBJECT_FIT_CLASS[fit.objectFit]}`}
         retention="read"
+        onLoad={setNatural}
+        onSkip={onSkip}
+        onBack={onBack}
       />
     </div>
   );

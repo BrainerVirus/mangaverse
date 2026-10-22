@@ -9,4 +9,6 @@ export interface ReaderPageData {
   readonly initialPageIndex: number;
   readonly settings: ReaderSettings;
   readonly engineSettings: ReaderEngineSettings;
+  readonly previousChapterId?: ChapterId | undefined;
+  readonly nextChapterId?: ChapterId | undefined;
 }

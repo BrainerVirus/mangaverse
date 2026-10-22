@@ -226,7 +226,7 @@ describe('ReaderScreen fit modes', () => {
     { fitMode: 'height' as const, width: '304', height: '456', objectFit: 'contain' },
     { fitMode: 'contain' as const, width: '304', height: '456', objectFit: 'contain' },
     { fitMode: 'cover' as const, width: '800', height: '456', objectFit: 'cover' },
-    { fitMode: 'original' as const, width: '304', height: '456', objectFit: 'none' },
+    { fitMode: 'original' as const, width: '800', height: '1200', objectFit: 'none' },
   ];
 
   for (const testCase of cases) {

@@ -18,6 +18,50 @@ import { appSettings, providerSettings, readerPreferences, themePreferences } fr
 const GLOBAL_READER_ID = 'global' as const;
 const GLOBAL_THEME_ID = 'global' as const;
 
+export async function getTitleReaderSettings(
+  db: AppDrizzleDb,
+  mangaId: string,
+): Promise<ReaderSettings> {
+  const global = await getReaderSettings(db);
+  if (!global.rememberPerTitleOverrides) return global;
+  const row = db
+    .select()
+    .from(readerPreferences)
+    .where(eq(readerPreferences.id, `title:${mangaId}`))
+    .get();
+  const parsed = validateReaderSettings({ ...global, ...row?.settingsJson });
+  return parsed.ok ? parsed.value : global;
+}
+
+export async function upsertTitleReaderSettings(
+  db: AppDrizzleDb,
+  mangaId: string,
+  settings: ReaderSettings,
+): Promise<AppResult<void>> {
+  const parsed = validateReaderSettings(settings);
+  if (!parsed.ok) return err(parsed.error);
+  const global = await getReaderSettings(db);
+  const overrides = Object.fromEntries(
+    Object.entries(parsed.value).filter(
+      ([key, value]) =>
+        JSON.stringify(value) !== JSON.stringify(global[key as keyof ReaderSettings]),
+    ),
+  );
+  const now = new Date().toISOString();
+  await db
+    .insert(readerPreferences)
+    .values({ id: `title:${mangaId}`, settingsJson: overrides, updatedAt: now })
+    .onConflictDoUpdate({
+      target: readerPreferences.id,
+      set: { settingsJson: overrides, updatedAt: now },
+    });
+  return ok(undefined);
+}
+
+export async function resetTitleReaderSettings(db: AppDrizzleDb, mangaId: string): Promise<void> {
+  await db.delete(readerPreferences).where(eq(readerPreferences.id, `title:${mangaId}`));
+}
+
 export async function getReaderSettings(db: AppDrizzleDb): Promise<ReaderSettings> {
   const row = db
     .select()

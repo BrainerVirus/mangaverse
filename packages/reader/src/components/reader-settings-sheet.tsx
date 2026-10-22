@@ -9,6 +9,8 @@ export interface ReaderSettingsSheetProps {
   onChangeSettings?: ((patch: Partial<ReaderSettings>) => void) | undefined;
   onClose: () => void;
   settingsButtonRef?: RefObject<HTMLButtonElement | null> | undefined;
+  onResetSettings?: (() => void) | undefined;
+  onMarkRead?: ((completed: boolean) => void) | undefined;
 }
 
 export function ReaderSettingsSheet({
@@ -17,6 +19,8 @@ export function ReaderSettingsSheet({
   onChangeSettings,
   onClose,
   settingsButtonRef,
+  onResetSettings,
+  onMarkRead,
 }: ReaderSettingsSheetProps) {
   const sheetRef = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
@@ -37,6 +41,7 @@ export function ReaderSettingsSheet({
         side="right"
         aria-label="Reader settings"
         surface="glass"
+        className="overflow-y-auto"
         onCloseAutoFocus={(event) => {
           event.preventDefault();
           settingsButtonRef?.current?.focus();
@@ -143,6 +148,28 @@ export function ReaderSettingsSheet({
               ))}
             </div>
           </div>
+          {onResetSettings ? (
+            <div className="flex flex-col gap-2">
+              <p className="text-sm">
+                {settings.rememberPerTitleOverrides
+                  ? 'Changes apply to this title, not your global defaults.'
+                  : 'Changes also update your global reader defaults.'}
+              </p>
+              <Button variant="outline" onClick={onResetSettings}>
+                Reset title settings
+              </Button>
+            </div>
+          ) : null}
+          {onMarkRead ? (
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => onMarkRead(true)}>
+                Mark chapter read
+              </Button>
+              <Button variant="outline" onClick={() => onMarkRead(false)}>
+                Mark chapter unread
+              </Button>
+            </div>
+          ) : null}
         </div>
       </SheetContent>
     </Sheet>

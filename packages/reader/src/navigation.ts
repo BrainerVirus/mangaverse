@@ -9,31 +9,11 @@ export function resolveNavigationAction(
 
   switch (action.type) {
     case 'prevPage': {
-      const rtl = state.settings.readingMode === 'rtl';
-      const inverted = state.settings.navigationDirection === 'inverted';
-      const goingForward = inverted !== rtl;
-
-      if (goingForward) {
-        const nextIndex = Math.min(activePageIndex + 1, pageCount - 1);
-        return { type: 'goToPage', pageIndex: nextIndex };
-      } else {
-        const prevIndex = Math.max(activePageIndex - 1, 0);
-        return { type: 'goToPage', pageIndex: prevIndex };
-      }
+      return { type: 'goToPage', pageIndex: Math.max(activePageIndex - 1, 0) };
     }
 
     case 'nextPage': {
-      const rtl = state.settings.readingMode === 'rtl';
-      const inverted = state.settings.navigationDirection === 'inverted';
-      const goingForward = inverted !== rtl;
-
-      if (goingForward) {
-        const prevIndex = Math.max(activePageIndex - 1, 0);
-        return { type: 'goToPage', pageIndex: prevIndex };
-      } else {
-        const nextIndex = Math.min(activePageIndex + 1, pageCount - 1);
-        return { type: 'goToPage', pageIndex: nextIndex };
-      }
+      return { type: 'goToPage', pageIndex: Math.min(activePageIndex + 1, pageCount - 1) };
     }
 
     case 'goToPage':

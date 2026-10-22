@@ -10,6 +10,7 @@ import { calculatePageSlots } from './spreads.js';
 function findActiveSpreadSlots(
   slots: readonly PageSlot[],
   activePageIndex: number,
+  rtl: boolean,
 ): readonly PageSlot[] {
   const targetSlot = slots.find((s) => s.pageIndex === activePageIndex);
   if (!targetSlot) return [];
@@ -18,24 +19,24 @@ function findActiveSpreadSlots(
     return [targetSlot];
   }
 
-  const isLeftSlot = targetSlot.isLeftPage;
+  const isLeftSlot = rtl ? targetSlot.isRightPage : targetSlot.isLeftPage;
   const startIndex = slots.indexOf(targetSlot);
 
   const result: PageSlot[] = [targetSlot];
 
   if (isLeftSlot && startIndex + 1 < slots.length) {
     const nextSlot = slots[startIndex + 1];
-    if (nextSlot && nextSlot.pageIndex === activePageIndex + 1) {
+    if (nextSlot && !nextSlot.isCover && (rtl ? nextSlot.isLeftPage : nextSlot.isRightPage)) {
       result.push(nextSlot);
     }
   } else if (!isLeftSlot && startIndex - 1 >= 0) {
     const prevSlot = slots[startIndex - 1];
-    if (prevSlot && prevSlot.pageIndex === activePageIndex - 1) {
+    if (prevSlot && !prevSlot.isCover && (rtl ? prevSlot.isRightPage : prevSlot.isLeftPage)) {
       result.unshift(prevSlot);
     }
   }
 
-  return result;
+  return rtl ? result.reverse() : result;
 }
 
 export function createReaderState(input: ReaderSessionInput): ReaderState {
@@ -52,7 +53,11 @@ export function createReaderState(input: ReaderSessionInput): ReaderState {
     visiblePageIndexes = [clampedPageIndex];
   } else {
     const slots = calculatePageSlots(input);
-    const visibleSlots = findActiveSpreadSlots(slots, clampedPageIndex);
+    const visibleSlots = findActiveSpreadSlots(
+      slots,
+      clampedPageIndex,
+      settings.readingMode === 'rtl',
+    );
     if (visibleSlots.length > 1) {
       visiblePageIndexes = visibleSlots.map((s) => s.pageIndex);
     } else {
@@ -112,13 +117,8 @@ function calculatePreloadQueue(
   preloadAhead: number,
   lowMemoryMode: boolean,
 ): readonly number[] {
-  if (lowMemoryMode) {
-    const nextIndex = activePageIndex + 1;
-    return nextIndex < totalPages ? [nextIndex] : [];
-  }
-
   const items: number[] = [];
-  const maxPreload = lowMemoryMode ? 1 : preloadAhead;
+  const maxPreload = lowMemoryMode ? Math.min(1, preloadAhead) : preloadAhead;
 
   for (let i = 1; i <= maxPreload; i++) {
     const nextIndex = activePageIndex + i;

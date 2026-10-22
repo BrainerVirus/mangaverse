@@ -25,6 +25,10 @@ vi.mock('@gsap/react', () => ({
 }));
 
 describe('ReaderChrome', () => {
+  it('removes hidden chrome from keyboard interaction', () => {
+    const { container } = render(<ReaderChrome visible={false} currentPage={1} totalPages={3} />);
+    expect(container.querySelector('[role="toolbar"]')).toHaveAttribute('inert');
+  });
   beforeEach(() => {
     cleanup();
     vi.clearAllMocks();
