@@ -93,12 +93,13 @@ describe('rankDuplicateCandidates', () => {
     expect(ranked[0]?.providerIds).toEqual(['alpha']);
   });
 
-  it('Given equal scores, When ranking, Then the title and id order make the list stable', () => {
+  it('Given equal scores, When ranking, Then title order breaks ties first and ids break equal titles', () => {
     const ranked = rankDuplicateCandidates(target, [
-      profile({ id: 'b', canonicalTitle: 'Kuro no Shoukanshi' }),
-      profile({ id: 'a', canonicalTitle: 'Kuro no Shoukanshi' }),
+      profile({ id: 'z', canonicalTitle: 'Alpha', titles: ['Alpha', 'Kuro no Shoukanshi'] }),
+      profile({ id: 'a', canonicalTitle: 'Zeta', titles: ['Zeta', 'Kuro no Shoukanshi'] }),
+      profile({ id: 'b', canonicalTitle: 'Alpha', titles: ['Alpha', 'Kuro no Shoukanshi'] }),
     ]);
-    expect(ranked.map((candidate) => candidate.mangaId)).toEqual(['a', 'b']);
+    expect(ranked.map((candidate) => candidate.mangaId)).toEqual(['b', 'z', 'a']);
   });
 
   it('Given a zero limit, When ranking, Then the list is empty', () => {

@@ -208,8 +208,8 @@ function MergePreviewBody({
               } are collapsed.`}
         </p>
         <p className="text-muted-foreground">
-          Library categories are combined; favorite, status and reading progress follow the newest
-          event.
+          Library categories are combined; favorite and status follow the newest edit, reading
+          progress follows the latest read.
         </p>
       </div>
       {preview.issues.length === 0 ? null : (
@@ -509,7 +509,7 @@ export function MangaDuplicatesSection({
       <DuplicatesList
         state={state}
         providerLabels={providerLabels}
-        canMerge={onMerge !== undefined}
+        canMerge={onMerge !== undefined && !isPending}
         onMerge={openMerge}
       />
       <MergeDialog
@@ -604,7 +604,11 @@ function useUnmergeSubmit(
     }
   }
 
-  return { isSplitting, error, submit };
+  function resetError(): void {
+    setError(undefined);
+  }
+
+  return { isSplitting, error, submit, resetError };
 }
 
 export interface MangaUnmergeDialogProps {
@@ -631,12 +635,19 @@ export function MangaUnmergeDialog({
 }: MangaUnmergeDialogProps) {
   const submit = useUnmergeSubmit(preview, onConfirm, () => onOpenChange(false));
   const busy = submit.isSplitting || isPending;
+  // The dialog stays mounted between openings; a failed attempt from the last
+  // time must not greet the next one.
+  function close(): void {
+    submit.resetError();
+    onOpenChange(false);
+  }
 
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        onOpenChange(next);
+        if (next) onOpenChange(true);
+        else close();
       }}
     >
       <DialogContent className="max-w-xl">
@@ -663,12 +674,7 @@ export function MangaUnmergeDialog({
         </div>
 
         <DialogFooter className="mt-6 gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={busy}
-            onClick={() => onOpenChange(false)}
-          >
+          <Button type="button" variant="outline" disabled={busy} onClick={close}>
             Cancel
           </Button>
           <Button

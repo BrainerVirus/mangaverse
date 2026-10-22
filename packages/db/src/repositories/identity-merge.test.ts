@@ -544,6 +544,330 @@ describe('mergeMangaIdentities', () => {
     raw.close();
   });
 
+  it('Given a collapsed duplicate chapter, When the target has no pages, Then pages and cache rows follow the kept chapter and cache duplicates are dropped', async () => {
+    const harness = await createSqlJsHarness();
+    const { raw, db } = harness;
+    raw.run('DROP INDEX manga_provider_mappings_provider_remote_uidx');
+    seedIdentity(raw, {
+      id: 'target',
+      mappingId: 'target-mapping',
+      providerId: 'alpha',
+      providerMangaId: 'same-remote',
+      title: 'Duplicate series',
+    });
+    seedIdentity(raw, {
+      id: 'source',
+      mappingId: 'source-mapping',
+      providerId: 'alpha',
+      providerMangaId: 'same-remote',
+      title: 'Duplicate series',
+    });
+    seedChapter(raw, {
+      id: 'target-chapter-1',
+      mangaId: 'target',
+      mappingId: 'target-mapping',
+      providerId: 'alpha',
+      index: 1,
+    });
+    seedReadState(raw, {
+      chapterId: 'target-chapter-1',
+      mangaId: 'target',
+      mappingId: 'target-mapping',
+      completed: false,
+      readPercent: 10,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    seedChapter(raw, {
+      id: 'source-chapter-1',
+      mangaId: 'source',
+      mappingId: 'source-mapping',
+      providerId: 'alpha',
+      index: 1,
+    });
+    seedReadState(raw, {
+      chapterId: 'source-chapter-1',
+      mangaId: 'source',
+      mappingId: 'source-mapping',
+      completed: true,
+      updatedAt: '2026-04-01T00:00:00.000Z',
+    });
+    seedPage(raw, 'source-chapter-1', 0);
+    seedPage(raw, 'source-chapter-1', 1);
+    raw.run(
+      `INSERT INTO cache_entries
+        (id, provider_id, manga_id, chapter_id, cache_kind, last_access_at, source_url, blob_key, byte_size)
+       VALUES
+        ('cache-keep', 'alpha', 'target', 'target-chapter-1', 'page', '2026-01-01T00:00:00.000Z', 'https://img/1', 'blob-1', 10),
+        ('cache-dup', 'alpha', 'source', 'source-chapter-1', 'page', '2026-02-01T00:00:00.000Z', 'https://img/1', 'blob-1', 10),
+        ('cache-extra', 'alpha', 'source', 'source-chapter-1', 'page', '2026-03-01T00:00:00.000Z', 'https://img/2', 'blob-2', 20),
+        ('cache-meta', 'alpha', 'source', 'source-chapter-1', 'meta', '2026-03-01T00:00:00.000Z', NULL, NULL, 1)`,
+    );
+
+    const result = await mergeMangaIdentities(db, {
+      targetId: toMangaId('target'),
+      sourceId: toMangaId('source'),
+    });
+    expect(result.ok).toBe(true);
+
+    // The target had no pages, so the source copy is adopted instead of deleted.
+    const pageChapterIds = raw
+      .exec('SELECT chapter_id FROM chapter_pages ORDER BY chapter_id')[0]
+      ?.values.flat();
+    expect(pageChapterIds).toEqual(['target-chapter-1', 'target-chapter-1']);
+    // The newest real read event wins over the older target row.
+    const state = raw.exec(
+      "SELECT completed, read_percent FROM chapter_read_state WHERE chapter_id = 'target-chapter-1'",
+    )[0]?.values[0];
+    expect(state).toEqual([1, 100]);
+
+    const cacheRows = raw.exec('SELECT id, manga_id, chapter_id FROM cache_entries ORDER BY id')[0]
+      ?.values;
+    expect(cacheRows).toEqual([
+      ['cache-extra', 'target', 'target-chapter-1'],
+      ['cache-keep', 'target', 'target-chapter-1'],
+      ['cache-meta', 'target', 'target-chapter-1'],
+    ]);
+    const orphanCount = raw.exec(
+      `SELECT count(*) FROM cache_entries
+       LEFT JOIN chapters ON chapters.id = cache_entries.chapter_id
+       WHERE cache_entries.chapter_id IS NOT NULL AND chapters.id IS NULL`,
+    )[0]?.values[0]?.[0];
+    expect(orphanCount).toBe(0);
+    raw.close();
+  });
+
+  it('Given the source last read a chapter that collapses, When merging, Then the merged entry resumes the kept chapter', async () => {
+    const harness = await createSqlJsHarness();
+    const { raw, db } = harness;
+    raw.run('DROP INDEX manga_provider_mappings_provider_remote_uidx');
+    seedIdentity(raw, {
+      id: 'target',
+      mappingId: 'target-mapping',
+      providerId: 'alpha',
+      providerMangaId: 'same-remote',
+      title: 'Duplicate series',
+    });
+    seedIdentity(raw, {
+      id: 'source',
+      mappingId: 'source-mapping',
+      providerId: 'alpha',
+      providerMangaId: 'same-remote',
+      title: 'Duplicate series',
+    });
+    seedChapter(raw, {
+      id: 'target-chapter-1',
+      mangaId: 'target',
+      mappingId: 'target-mapping',
+      providerId: 'alpha',
+      index: 1,
+    });
+    seedReadState(raw, {
+      chapterId: 'target-chapter-1',
+      mangaId: 'target',
+      mappingId: 'target-mapping',
+      completed: false,
+      readPercent: 10,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    seedChapter(raw, {
+      id: 'source-chapter-1',
+      mangaId: 'source',
+      mappingId: 'source-mapping',
+      providerId: 'alpha',
+      index: 1,
+    });
+    seedReadState(raw, {
+      chapterId: 'source-chapter-1',
+      mangaId: 'source',
+      mappingId: 'source-mapping',
+      completed: true,
+      updatedAt: '2026-04-01T00:00:00.000Z',
+    });
+    seedLibraryEntry(raw, {
+      id: 'entry-target',
+      mangaId: 'target',
+      status: 'reading',
+      lastReadChapterId: 'target-chapter-1',
+      activeMappingId: 'target-mapping',
+      progressPercent: 10,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    seedLibraryEntry(raw, {
+      id: 'entry-source',
+      mangaId: 'source',
+      status: 'reading',
+      lastReadChapterId: 'source-chapter-1',
+      progressPercent: 100,
+      updatedAt: '2026-04-01T00:00:00.000Z',
+    });
+
+    const result = await mergeMangaIdentities(db, {
+      targetId: toMangaId('target'),
+      sourceId: toMangaId('source'),
+    });
+    expect(result.ok).toBe(true);
+
+    const entry = await getLibraryEntryForManga(db, toMangaId('target'));
+    expect(entry).toMatchObject({
+      lastReadChapterId: 'target-chapter-1',
+      progressPercent: 100,
+      activeProviderMappingId: 'target-mapping',
+    });
+    raw.close();
+  });
+
+  it('Given only one side read, When the other side was only edited more recently, Then the read progress survives in both directions', async () => {
+    const harness = await createSqlJsHarness();
+    const { raw, db } = harness;
+    const { target, source } = await bothIdentities(harness);
+    seedChapter(raw, {
+      id: 'target-chapter-1',
+      mangaId: 'target',
+      mappingId: 'target-mapping',
+      providerId: 'alpha',
+      index: 1,
+    });
+    seedChapter(raw, {
+      id: 'source-chapter-1',
+      mangaId: 'source',
+      mappingId: 'source-mapping',
+      providerId: 'beta',
+      index: 1,
+    });
+    seedReadState(raw, {
+      chapterId: 'target-chapter-1',
+      mangaId: 'target',
+      mappingId: 'target-mapping',
+      completed: false,
+      readPercent: 35,
+      updatedAt: '2026-02-01T00:00:00.000Z',
+    });
+    seedReadState(raw, {
+      chapterId: 'source-chapter-1',
+      mangaId: 'source',
+      mappingId: 'source-mapping',
+      completed: true,
+      updatedAt: '2026-02-01T00:00:00.000Z',
+    });
+    // Favorite/status edits bump updatedAt without reading anything.
+    seedLibraryEntry(raw, {
+      id: 'entry-target',
+      mangaId: 'target',
+      status: 'reading',
+      lastReadChapterId: 'target-chapter-1',
+      progressPercent: 35,
+      updatedAt: '2026-02-01T00:00:00.000Z',
+    });
+    seedLibraryEntry(raw, {
+      id: 'entry-source',
+      mangaId: 'source',
+      favorite: true,
+      status: 'completed',
+      updatedAt: '2026-06-01T00:00:00.000Z',
+    });
+
+    const targetReads = await mergeMangaIdentities(db, { targetId: target, sourceId: source });
+    expect(targetReads.ok).toBe(true);
+    const merged = await getLibraryEntryForManga(db, target);
+    expect(merged).toMatchObject({
+      lastReadChapterId: 'target-chapter-1',
+      progressPercent: 35,
+      favorite: true,
+      status: 'completed',
+    });
+    raw.close();
+
+    // Reverse direction: the source read, the target was only edited recently.
+    const reverse = await createSqlJsHarness();
+    const reverseIds = await bothIdentities(reverse);
+    seedChapter(reverse.raw, {
+      id: 'target-chapter-1',
+      mangaId: 'target',
+      mappingId: 'target-mapping',
+      providerId: 'alpha',
+      index: 1,
+    });
+    seedChapter(reverse.raw, {
+      id: 'source-chapter-1',
+      mangaId: 'source',
+      mappingId: 'source-mapping',
+      providerId: 'beta',
+      index: 1,
+    });
+    seedReadState(reverse.raw, {
+      chapterId: 'target-chapter-1',
+      mangaId: 'target',
+      mappingId: 'target-mapping',
+      completed: false,
+      readPercent: 35,
+      updatedAt: '2026-02-01T00:00:00.000Z',
+    });
+    seedReadState(reverse.raw, {
+      chapterId: 'source-chapter-1',
+      mangaId: 'source',
+      mappingId: 'source-mapping',
+      completed: true,
+      updatedAt: '2026-02-01T00:00:00.000Z',
+    });
+    seedLibraryEntry(reverse.raw, {
+      id: 'entry-target',
+      mangaId: 'target',
+      favorite: true,
+      status: 'completed',
+      updatedAt: '2026-06-01T00:00:00.000Z',
+    });
+    seedLibraryEntry(reverse.raw, {
+      id: 'entry-source',
+      mangaId: 'source',
+      status: 'reading',
+      lastReadChapterId: 'source-chapter-1',
+      progressPercent: 100,
+      updatedAt: '2026-02-01T00:00:00.000Z',
+    });
+
+    const sourceReads = await mergeMangaIdentities(reverse.db, {
+      targetId: reverseIds.target,
+      sourceId: reverseIds.source,
+    });
+    expect(sourceReads.ok).toBe(true);
+    const reversed = await getLibraryEntryForManga(reverse.db, reverseIds.target);
+    expect(reversed).toMatchObject({
+      lastReadChapterId: 'source-chapter-1',
+      progressPercent: 100,
+      favorite: true,
+      status: 'completed',
+    });
+    reverse.raw.close();
+  });
+
+  it('Given neither side read, When merging, Then the merged entry keeps no resume progress', async () => {
+    const harness = await createSqlJsHarness();
+    const { raw, db } = harness;
+    const { target, source } = await bothIdentities(harness);
+    seedLibraryEntry(raw, {
+      id: 'entry-target',
+      mangaId: 'target',
+      status: 'planned',
+      progressPercent: 40,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    seedLibraryEntry(raw, {
+      id: 'entry-source',
+      mangaId: 'source',
+      status: 'completed',
+      progressPercent: 60,
+      updatedAt: '2026-05-01T00:00:00.000Z',
+    });
+
+    const result = await mergeMangaIdentities(db, { targetId: target, sourceId: source });
+    expect(result.ok).toBe(true);
+    const entry = await getLibraryEntryForManga(db, target);
+    expect(entry?.status).toBe('completed');
+    expect(entry?.lastReadChapterId).toBeUndefined();
+    expect(entry?.progressPercent).toBeUndefined();
+    raw.close();
+  });
+
   it('Given a write fails mid-merge, When the transaction rolls back, Then both identities and their children are untouched', async () => {
     const harness = await createSqlJsHarness();
     const { raw, db } = harness;
@@ -674,6 +998,85 @@ describe('previewMergeMangaIdentities', () => {
     const same = await previewMergeMangaIdentities(db, target, target);
     expect(same.canMerge).toBe(false);
     expect(same.issues.map((issue) => issue.code)).toContain('identity.merge.same_identity');
+    raw.close();
+  });
+
+  it('Given both titles read different chapters, When previewing either direction, Then both warn that progress changes', async () => {
+    const harness = await createSqlJsHarness();
+    const { raw, db } = harness;
+    const { target, source } = await bothIdentities(harness);
+    seedChapter(raw, {
+      id: 'target-chapter',
+      mangaId: 'target',
+      mappingId: 'target-mapping',
+      providerId: 'alpha',
+      index: 1,
+    });
+    seedChapter(raw, {
+      id: 'source-chapter',
+      mangaId: 'source',
+      mappingId: 'source-mapping',
+      providerId: 'beta',
+      index: 1,
+    });
+    seedLibraryEntry(raw, {
+      id: 'entry-target',
+      mangaId: 'target',
+      status: 'reading',
+      lastReadChapterId: 'target-chapter',
+      progressPercent: 20,
+    });
+    seedLibraryEntry(raw, {
+      id: 'entry-source',
+      mangaId: 'source',
+      status: 'reading',
+      lastReadChapterId: 'source-chapter',
+      progressPercent: 100,
+    });
+
+    const forward = await previewMergeMangaIdentities(db, target, source);
+    const reverse = await previewMergeMangaIdentities(db, source, target);
+    expect(forward.issues.map((issue) => issue.code)).toContain('identity.merge.progress_differs');
+    expect(reverse.issues.map((issue) => issue.code)).toContain('identity.merge.progress_differs');
+    raw.close();
+  });
+
+  it('Given only one title read, When the other was edited more recently, Then the preview does not warn about progress', async () => {
+    const harness = await createSqlJsHarness();
+    const { raw, db } = harness;
+    const { target, source } = await bothIdentities(harness);
+    seedChapter(raw, {
+      id: 'target-chapter',
+      mangaId: 'target',
+      mappingId: 'target-mapping',
+      providerId: 'alpha',
+      index: 1,
+    });
+    seedLibraryEntry(raw, {
+      id: 'entry-target',
+      mangaId: 'target',
+      status: 'reading',
+      lastReadChapterId: 'target-chapter',
+      progressPercent: 20,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    seedLibraryEntry(raw, {
+      id: 'entry-source',
+      mangaId: 'source',
+      favorite: true,
+      status: 'completed',
+      updatedAt: '2026-06-01T00:00:00.000Z',
+    });
+
+    const forward = await previewMergeMangaIdentities(db, target, source);
+    const reverse = await previewMergeMangaIdentities(db, source, target);
+    expect(forward.issues.map((issue) => issue.code)).toContain('identity.merge.both_in_library');
+    expect(forward.issues.map((issue) => issue.code)).not.toContain(
+      'identity.merge.progress_differs',
+    );
+    expect(reverse.issues.map((issue) => issue.code)).not.toContain(
+      'identity.merge.progress_differs',
+    );
     raw.close();
   });
 });
@@ -851,6 +1254,40 @@ describe('unmergeProviderMapping', () => {
     expect(trackingRows).toEqual([mangaId]);
     const cacheRows = raw.exec('SELECT manga_id FROM cache_entries')[0]?.values.flat();
     expect(cacheRows).toEqual(['source']);
+    raw.close();
+  });
+
+  it('Given the default source is split off, When unmerging, Then the kept title re-points default and active source at the remaining mapping', async () => {
+    const { harness, mangaId, firstMapping, secondMapping } = await mergedHarness();
+    const { db, raw } = harness;
+    await addLibraryEntry(db, {
+      mangaId,
+      status: 'reading',
+      id: toLibraryEntryId('entry'),
+    });
+    await setLibraryEntryActiveProviderMapping(db, toLibraryEntryId('entry'), firstMapping);
+
+    expect((await getMangaIdentity(db, mangaId))?.defaultProviderMappingId).toBe(firstMapping);
+    const preview = await previewUnmergeProviderMapping(db, mangaId, firstMapping);
+    expect(preview?.canUnmerge).toBe(true);
+    expect(preview?.libraryActiveMappingWillChange).toBe(true);
+
+    const result = await unmergeProviderMapping(db, { mangaId, mappingId: firstMapping });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.newMangaId).toBe('source');
+
+    const kept = await getMangaIdentity(db, mangaId);
+    expect(kept?.defaultProviderMappingId).toBe(secondMapping);
+    expect(kept?.preferredChapterSourceId).toBe(secondMapping);
+    expect(kept?.providerMappings.map((mappingRow) => mappingRow.id)).toEqual([secondMapping]);
+
+    const split = await getMangaIdentity(db, toMangaId('source'));
+    expect(split?.defaultProviderMappingId).toBe(firstMapping);
+    expect(split?.providerMappings.map((mappingRow) => mappingRow.id)).toEqual([firstMapping]);
+
+    const entry = await getLibraryEntryForManga(db, mangaId);
+    expect(entry?.activeProviderMappingId).toBe(secondMapping);
     raw.close();
   });
 

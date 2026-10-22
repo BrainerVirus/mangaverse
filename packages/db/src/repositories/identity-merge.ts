@@ -49,6 +49,16 @@ function chapterKey(mappingId: string, index: number): string {
   return `${mappingId}\u0000${index}`;
 }
 
+/** Identity of a cached artifact on a chapter, used to collapse duplicate rows. */
+function cacheEntryKey(row: {
+  readonly providerId: string;
+  readonly cacheKind: string;
+  readonly sourceUrl: string | null;
+  readonly blobKey: string | null;
+}): string {
+  return `${row.providerId}\u0000${row.cacheKind}\u0000${row.sourceUrl ?? ''}\u0000${row.blobKey ?? ''}`;
+}
+
 function mergedFromIdsOf(row: typeof mangaIdentities.$inferSelect): string[] {
   return row.mergedFromIdsJson === null ? [] : [...row.mergedFromIdsJson];
 }
@@ -292,6 +302,14 @@ function emptySide(mangaId: MangaId): MergeSidePreview {
   };
 }
 
+/** Stored progress that a merge could keep or discard; undefined means none. */
+function progressSignature(entry: MergeSideLibraryEntry | undefined): string | undefined {
+  if (entry === undefined) return undefined;
+  const chapterId = optionalText(entry.lastReadChapterId);
+  if (chapterId === undefined && entry.progressPercent === undefined) return undefined;
+  return `${chapterId ?? ''}\u0000${entry.progressPercent ?? ''}`;
+}
+
 export async function previewMergeMangaIdentities(
   db: AppDrizzleDb,
   targetId: MangaId,
@@ -415,17 +433,24 @@ export async function previewMergeMangaIdentities(
       message: 'Both titles are in your library. Their categories and favorite are combined.',
       severity: 'warning',
     });
-    const targetLast = target.libraryEntry.lastReadChapterId;
-    const sourceLast = source.libraryEntry.lastReadChapterId;
+    const targetProgress = progressSignature(target.libraryEntry);
+    const sourceProgress = progressSignature(source.libraryEntry);
+    const targetHasRead = optionalText(target.libraryEntry.lastReadChapterId) !== undefined;
+    const sourceHasRead = optionalText(source.libraryEntry.lastReadChapterId) !== undefined;
+    // Warn whenever stored progress is discarded: differing values, or a
+    // percentage with no chapter to resume from (the merged entry drops it).
     const progressDiffers =
-      (targetLast !== undefined && sourceLast !== undefined && targetLast !== sourceLast) ||
-      (target.libraryEntry.progressPercent !== undefined &&
-        source.libraryEntry.progressPercent !== undefined &&
-        target.libraryEntry.progressPercent !== source.libraryEntry.progressPercent);
+      (targetProgress !== undefined &&
+        sourceProgress !== undefined &&
+        targetProgress !== sourceProgress) ||
+      (!targetHasRead &&
+        !sourceHasRead &&
+        (targetProgress !== undefined || sourceProgress !== undefined));
     if (progressDiffers) {
       issues.push({
         code: 'identity.merge.progress_differs',
-        message: 'Both titles have reading progress. The most recent progress is kept.',
+        message:
+          'Reading progress differs between these titles. The most recent read event is kept.',
         severity: 'warning',
       });
     }
@@ -521,20 +546,15 @@ function newerText(a: string | null | undefined, b: string | null | undefined): 
   return left > right ? left : right;
 }
 
-function readEventAt(
-  tx: AppDrizzleDb,
-  chapterId: string | null | undefined,
-  fallback: string | null | undefined,
-): string {
-  if (optionalText(chapterId) !== undefined) {
-    const row = tx
-      .select({ updatedAt: chapterReadState.updatedAt })
-      .from(chapterReadState)
-      .where(eq(chapterReadState.chapterId, chapterId as string))
-      .get();
-    if (optionalText(row?.updatedAt) !== undefined) return row?.updatedAt as string;
-  }
-  return optionalText(fallback) ?? '';
+/** When the chapter was last read; empty when no read state row exists. */
+function readEventAt(tx: AppDrizzleDb, chapterId: string | null | undefined): string {
+  if (optionalText(chapterId) === undefined) return '';
+  const row = tx
+    .select({ updatedAt: chapterReadState.updatedAt })
+    .from(chapterReadState)
+    .where(eq(chapterReadState.chapterId, chapterId as string))
+    .get();
+  return optionalText(row?.updatedAt) ?? '';
 }
 
 export async function mergeMangaIdentities(
@@ -618,6 +638,31 @@ export async function mergeMangaIdentities(
       }
       const resolveMapping = (mappingId: string): string =>
         mappingRemap.get(mappingId) ?? mappingId;
+
+      // Read the library entries before chapter dedupe rewrites read states:
+      // the progress winner must be decided from the events as they were.
+      const targetEntry = tx
+        .select()
+        .from(libraryEntries)
+        .where(eq(libraryEntries.mangaId, targetId))
+        .get();
+      const sourceEntry = tx
+        .select()
+        .from(libraryEntries)
+        .where(eq(libraryEntries.mangaId, sourceId))
+        .get();
+      const targetHasRead = optionalText(targetEntry?.lastReadChapterId) !== undefined;
+      const sourceHasRead = optionalText(sourceEntry?.lastReadChapterId) !== undefined;
+      // A favorite, status or category edit bumps `updatedAt` without reading,
+      // so it must never outrank a real read event. Only two sides that both
+      // read are ordered by time; a side that never read cannot win progress.
+      const sourceReadsLater =
+        sourceHasRead &&
+        (!targetHasRead ||
+          readEventAt(tx, sourceEntry?.lastReadChapterId) >
+            readEventAt(tx, targetEntry?.lastReadChapterId));
+      const progressSide =
+        !targetHasRead && !sourceHasRead ? undefined : sourceReadsLater ? sourceEntry : targetEntry;
 
       // Chapters: keep one row per mapping + index; when a copy collides, the
       // target row survives and the source read state moves only if it is newer.
@@ -709,6 +754,39 @@ export async function mergeMangaIdentities(
             .run();
         }
 
+        // Cache rows point at a chapter id. Repoint them at the kept copy (or
+        // drop a duplicate of a row it already has) before the chapter goes,
+        // so a collapsed chapter never leaves a dangling chapter_id.
+        const keptCacheKeys = new Set(
+          tx
+            .select({
+              providerId: cacheEntries.providerId,
+              cacheKind: cacheEntries.cacheKind,
+              sourceUrl: cacheEntries.sourceUrl,
+              blobKey: cacheEntries.blobKey,
+            })
+            .from(cacheEntries)
+            .where(eq(cacheEntries.chapterId, existing.id))
+            .all()
+            .map(cacheEntryKey),
+        );
+        for (const cache of tx
+          .select()
+          .from(cacheEntries)
+          .where(eq(cacheEntries.chapterId, row.id))
+          .all()) {
+          const key = cacheEntryKey(cache);
+          if (keptCacheKeys.has(key)) {
+            tx.delete(cacheEntries).where(eq(cacheEntries.id, cache.id)).run();
+            continue;
+          }
+          keptCacheKeys.add(key);
+          tx.update(cacheEntries)
+            .set({ chapterId: existing.id })
+            .where(eq(cacheEntries.id, cache.id))
+            .run();
+        }
+
         const keptHistoryKeys = new Set(
           tx
             .select({ chapterId: readingHistory.chapterId, readAt: readingHistory.readAt })
@@ -784,17 +862,8 @@ export async function mergeMangaIdentities(
           .run();
       }
 
-      // Library entry: one row, union categories, most recent reading event wins.
-      const targetEntry = tx
-        .select()
-        .from(libraryEntries)
-        .where(eq(libraryEntries.mangaId, targetId))
-        .get();
-      const sourceEntry = tx
-        .select()
-        .from(libraryEntries)
-        .where(eq(libraryEntries.mangaId, sourceId))
-        .get();
+      // Library entry: one row; categories and favorite union, reading progress
+      // follows the latest read event, status the newest edit.
       let libraryEntryAction: MergeIdentityResult['libraryEntryAction'] = 'none';
       if (sourceEntry !== undefined && targetEntry === undefined) {
         tx.update(libraryEntries)
@@ -836,14 +905,13 @@ export async function mergeMangaIdentities(
             .run();
         }
 
-        const targetEventAt = readEventAt(tx, targetEntry.lastReadChapterId, targetEntry.updatedAt);
-        const sourceEventAt = readEventAt(tx, sourceEntry.lastReadChapterId, sourceEntry.updatedAt);
-        const sourceWins = sourceEventAt > targetEventAt;
         const statusSource = (sourceEntry.updatedAt ?? '') > (targetEntry.updatedAt ?? '');
-        const lastReadChapterId = sourceWins
-          ? (chapterRemap.get(sourceEntry.lastReadChapterId as string) ??
-            optionalText(sourceEntry.lastReadChapterId))
-          : optionalText(targetEntry.lastReadChapterId);
+        const lastReadChapterId =
+          progressSide === undefined
+            ? null
+            : (chapterRemap.get(progressSide.lastReadChapterId as string) ??
+              optionalText(progressSide.lastReadChapterId) ??
+              null);
 
         tx.update(libraryEntries)
           .set({
@@ -852,10 +920,8 @@ export async function mergeMangaIdentities(
             notes: optionalText(targetEntry.notes) ?? sourceEntry.notes,
             addedAt: earlierText(targetEntry.addedAt, sourceEntry.addedAt),
             updatedAt: newerText(targetEntry.updatedAt, sourceEntry.updatedAt),
-            lastReadChapterId: lastReadChapterId ?? null,
-            progressPercent: sourceWins
-              ? (sourceEntry.progressPercent ?? null)
-              : (targetEntry.progressPercent ?? null),
+            lastReadChapterId,
+            progressPercent: progressSide?.progressPercent ?? null,
             activeProviderMappingId:
               optionalText(targetEntry.activeProviderMappingId) !== undefined
                 ? targetEntry.activeProviderMappingId

@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { MergePreview, UnmergeMappingPreview } from '@app/db';
 import {
@@ -863,5 +863,129 @@ describe('MangaDetailPage identity merge', () => {
     const dialog = await screen.findByRole('dialog');
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('Preview failed');
     expect(within(dialog).getByRole('button', { name: 'Split source' })).toBeDisabled();
+  });
+
+  it('Given a merge is pending, Then every duplicate row action stays disabled', () => {
+    render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={makeDetail()}
+        isLoading={false}
+        isError={false}
+        onOpenChapter={() => {}}
+        duplicates={{ items: [duplicateCandidate] }}
+        isMergePending
+        onMerge={async () => {}}
+        loadMergePreview={async () => mergePreview()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Merge' })).toBeDisabled();
+  });
+
+  it('Given the merge preview is still loading, Then confirming waits for it to resolve', async () => {
+    let resolvePreview: (preview: MergePreview) => void = () => {};
+    const loadPreview = vi.fn<() => Promise<MergePreview>>(
+      () =>
+        new Promise<MergePreview>((resolve) => {
+          resolvePreview = resolve;
+        }),
+    );
+
+    render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={makeDetail()}
+        isLoading={false}
+        isError={false}
+        onOpenChapter={() => {}}
+        duplicates={{ items: [duplicateCandidate] }}
+        onMerge={async () => {}}
+        loadMergePreview={loadPreview}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Merge' }));
+    const dialog = await screen.findByRole('dialog');
+    const confirm = within(dialog).getByRole('button', { name: 'Merge titles' });
+    expect(confirm).toBeDisabled();
+
+    await act(async () => {
+      resolvePreview(mergePreview());
+    });
+    await waitFor(() => expect(confirm).toBeEnabled());
+  });
+
+  it('Given the merge preview fails, Then the error is shown and confirming stays disabled', async () => {
+    render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={makeDetail()}
+        isLoading={false}
+        isError={false}
+        onOpenChapter={() => {}}
+        duplicates={{ items: [duplicateCandidate] }}
+        onMerge={async () => {}}
+        loadMergePreview={async () => {
+          throw new Error('Preview failed');
+        }}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Merge' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Preview failed');
+    expect(within(dialog).getByRole('button', { name: 'Merge titles' })).toBeDisabled();
+  });
+
+  it('Given a failed split, When the dialog is closed and reopened, Then the stale error is cleared', async () => {
+    const onUnmerge = vi.fn<(mappingId: string) => Promise<void>>(async () => {
+      throw new Error('Split failed');
+    });
+    const detail = makeDetail({
+      manga: {
+        ...makeDetail().manga,
+        providerMappings: [
+          mapping(MAP_A, 'prov-a', 'remote-a'),
+          mapping(MAP_B, 'prov-b', 'remote-b'),
+        ],
+        defaultProviderMappingId: toProviderMappingId(MAP_A),
+      },
+    });
+
+    render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={detail}
+        isLoading={false}
+        isError={false}
+        onOpenChapter={() => {}}
+        onUnmerge={onUnmerge}
+        loadUnmergePreview={async () => unmergePreview()}
+      />,
+    );
+
+    const providers = screen.getByRole('region', { name: 'Providers' });
+    const openSplit = () => {
+      const row = within(providers)
+        .getByText(/remote-b/)
+        .closest('li');
+      if (row === null) throw new Error('provider row missing');
+      fireEvent.click(within(row).getByRole('button', { name: 'Split title' }));
+    };
+
+    openSplit();
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByText(/Reading progress for the moved chapters/);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Split source' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Split failed');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    openSplit();
+    const reopened = await screen.findByRole('dialog');
+    await within(reopened).findByText(/Reading progress for the moved chapters/);
+    expect(within(reopened).queryByRole('alert')).toBeNull();
   });
 });
