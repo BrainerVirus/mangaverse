@@ -2,6 +2,10 @@ export { ExtensionsPage, type ExtensionsPageProps } from './components/Extension
 export {
   ProviderDetailPage,
   type ProviderDetailPageProps,
+  type ProviderActivityState,
+  type ProviderHealthState,
+  type ProviderUpdateState,
+  type ActivityLevelFilter,
 } from './components/ProviderDetailPage.js';
 export {
   ProviderSettingsForm,
@@ -32,6 +36,24 @@ export {
 } from './settings-draft.js';
 export type { ProviderSettingsDraft, ProviderSettingsSupportView } from './settings-draft.js';
 export { setProviderEnabled, removeProvider } from './provider-actions.js';
+export {
+  clearProviderActivity,
+  fetchProviderActivity,
+  type ExtensionLogEntry,
+  type ExtensionLogLevel,
+} from './provider-activity.js';
+export { recordProviderFailure } from '@app/extensions-core';
+export {
+  applyProviderUpdate,
+  checkProviderUpdate,
+  runProviderHealthCheck,
+  type ProviderHealthCheckItem,
+  type ProviderHealthCheckReport,
+  type ProviderHealthCheckStatus,
+  type ProviderHealthStatus,
+  type ProviderUpdateCheck,
+  type ProviderUpdateStatus,
+} from '@app/extensions-core';
 export {
   confirmProviderInstall,
   createExtensionInstallSession,

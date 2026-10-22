@@ -1,6 +1,6 @@
 import type { AppDrizzleDb } from '@app/db/browser';
 import { listInstalledExtensions } from '@app/db/browser';
-import { loadProviderSettings } from '@app/extensions';
+import { loadProviderSettings, recordProviderFailure } from '@app/extensions';
 import type { LibraryUpdateProvider, LibraryUpdateProviderResolver } from '@app/library';
 import {
   hasProviderCapability,
@@ -65,21 +65,31 @@ export function createLibraryUpdateProviderResolver(
     const updateProvider: LibraryUpdateProvider = {
       requestIntervalMs: Math.ceil(60_000 / rpm),
       listChapters: async (providerMangaId, { signal }) => {
-        const chapters = await getChapters(
-          {
-            manifest: entry.manifest,
+        try {
+          const chapters = await getChapters(
+            {
+              manifest: entry.manifest,
+              providerId: String(providerId),
+              settings,
+              signal,
+            },
+            toProviderMangaId(providerMangaId),
+          );
+          return chapters.map((chapter) => ({
+            id: chapter.id,
+            title: chapter.title,
+            index: chapter.index,
+            ...(chapter.publishedAt === undefined ? {} : { publishedAt: chapter.publishedAt }),
+          }));
+        } catch (error) {
+          await recordProviderFailure(db, {
             providerId: String(providerId),
-            settings,
-            signal,
-          },
-          toProviderMangaId(providerMangaId),
-        );
-        return chapters.map((chapter) => ({
-          id: chapter.id,
-          title: chapter.title,
-          index: chapter.index,
-          ...(chapter.publishedAt === undefined ? {} : { publishedAt: chapter.publishedAt }),
-        }));
+            operation: 'chapters',
+            error,
+            ...(signal !== undefined ? { signal } : {}),
+          });
+          throw error;
+        }
       },
     };
     return { status: 'available', provider: updateProvider };
