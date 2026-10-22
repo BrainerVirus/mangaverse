@@ -47,6 +47,50 @@ describe('fetchSearchPage', () => {
     expect(page.results).toHaveLength(1);
     expect(page.results[0]?.canonicalTitle).toBe('Alpha Series');
   });
+
+  it('applies language and explicit-content filters to stored identities', async () => {
+    const { db } = await createSqlJsHarness();
+
+    await createMangaIdentityWithInitialMapping(db, {
+      canonicalTitle: 'Alpha English',
+      status: 'ongoing',
+      contentRating: 'safe',
+      language: 'en',
+      providerId: toProviderId('prov-a'),
+      providerMangaId: 'alpha-en',
+    });
+    await createMangaIdentityWithInitialMapping(db, {
+      canonicalTitle: 'Alpha Japanese',
+      status: 'ongoing',
+      contentRating: 'safe',
+      language: 'ja',
+      providerId: toProviderId('prov-a'),
+      providerMangaId: 'alpha-ja',
+    });
+    await createMangaIdentityWithInitialMapping(db, {
+      canonicalTitle: 'Alpha Explicit',
+      status: 'ongoing',
+      contentRating: 'explicit',
+      language: 'en',
+      providerId: toProviderId('prov-a'),
+      providerMangaId: 'alpha-explicit',
+    });
+
+    const filtered = await fetchSearchPage(db, {
+      query: 'alpha',
+      filters: { language: 'en' },
+    });
+    expect(filtered.results.map((item) => item.canonicalTitle)).toEqual(['Alpha English']);
+
+    const allowed = await fetchSearchPage(
+      db,
+      { query: 'alpha', filters: { language: 'en' } },
+      true,
+    );
+    expect(
+      allowed.results.map((item) => item.canonicalTitle).sort((a, b) => a.localeCompare(b)),
+    ).toEqual(['Alpha English', 'Alpha Explicit']);
+  });
 });
 
 describe('recordSearchQuery', () => {

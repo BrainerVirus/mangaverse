@@ -1,28 +1,60 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useDeferredValue, useRef, useState } from 'react';
 import {
   DEFAULT_SEARCH_VIEW_STATE,
   mergeSearchPageData,
+  parseSearchFilters,
   recordSearchQuery,
   SearchPage,
+  searchQueryKeys,
+  type SearchProviderResult,
   type SearchViewState,
 } from '@app/search';
+import { removeSavedSearch, upsertSavedSearch } from '@app/db/browser';
+import type { SavedSearchEntry } from '@app/db';
 import { fetchAppSettings, settingsQueryKeys } from '@app/settings';
 import { getLocalDb } from '../lib/local-db.js';
 import {
+  savedSearchesQueryOptions,
   searchPageQueryOptions,
   searchProviderQueryOptions,
+  searchProvidersQueryOptions,
 } from '../queries/search-query-options.js';
 import {
   refreshRecentSearches,
   refreshRecentSearchesAfterWrite,
 } from '../queries/search-recents.js';
+import type { SearchProviderInfo } from '../queries/provider-query-options.js';
 import { useLocalDb, useLocalDbStatus, useLocalDbRetry } from '../providers/local-db-provider.js';
 
 export const Route = createFileRoute('/search')({
   component: SearchRoute,
 });
+
+/**
+ * A saved search can name a provider that was since disabled or removed. Once
+ * the list has loaded it is authoritative, so the stale selection falls back to
+ * All providers instead of silently querying nobody.
+ */
+function resolveProviderSelection(
+  viewState: SearchViewState,
+  providers: readonly SearchProviderInfo[],
+  providersSettled: boolean,
+): { readonly providerId: string | undefined; readonly viewState: SearchViewState } {
+  const selectedProviderId = viewState.filters?.providerId;
+  if (
+    selectedProviderId === undefined ||
+    !providersSettled ||
+    providers.some((provider) => provider.providerId === selectedProviderId)
+  ) {
+    return { providerId: selectedProviderId, viewState };
+  }
+  return {
+    providerId: undefined,
+    viewState: { ...viewState, filters: { ...(viewState.filters ?? {}), providerId: undefined } },
+  };
+}
 
 function SearchRoute() {
   const navigate = useNavigate();
@@ -47,19 +79,68 @@ function SearchRoute() {
   // deferred value, so a fast typist issues one query per pause instead of one
   // per keystroke.
   const deferredQuery = useDeferredValue(viewState.query);
-  const deferredViewState = { query: deferredQuery };
   const providerReady = dbStatus === 'ready' && db !== null && appSettingsQuery.isSuccess;
 
+  const providersQuery = useQuery({
+    ...searchProvidersQueryOptions(db!),
+    enabled: dbStatus === 'ready' && db !== null,
+  });
+  const providers = providersQuery.data ?? [];
+  const { providerId: activeProviderId, viewState: effectiveViewState } = resolveProviderSelection(
+    viewState,
+    providers,
+    providersQuery.isSuccess,
+  );
+  const deferredViewState = { ...effectiveViewState, query: deferredQuery };
+  const activeProviders =
+    activeProviderId === undefined
+      ? providers
+      : providers.filter((provider) => provider.providerId === activeProviderId);
+
   const localQuery = useQuery({
-    ...searchPageQueryOptions(db!, deferredViewState),
+    ...searchPageQueryOptions(db!, deferredViewState, explicitContent),
     enabled: dbStatus === 'ready' && db !== null,
   });
 
-  const providerQuery = useQuery({
-    ...searchProviderQueryOptions(db!, deferredViewState.query, explicitContent, providerReady),
+  const providerQueries = useQueries({
+    queries: activeProviders.map((provider) => ({
+      ...searchProviderQueryOptions(
+        db!,
+        provider.providerId,
+        deferredQuery,
+        explicitContent,
+        providerReady,
+      ),
+    })),
   });
 
-  const data = mergeSearchPageData(localQuery.data, providerQuery.data);
+  const savedSearchesQuery = useQuery({
+    ...savedSearchesQueryOptions(db!),
+    enabled: dbStatus === 'ready' && db !== null,
+  });
+  const savedSearches = savedSearchesQuery.data ?? [];
+
+  const providerResults: SearchProviderResult[] = activeProviders.flatMap((provider, index) => {
+    const data = providerQueries[index]?.data;
+    return data === undefined ? [] : [{ providerId: provider.providerId, results: data }];
+  });
+  const providerStatuses = activeProviders.map((provider, index) => {
+    const query = providerQueries[index];
+    const error = query?.error;
+    return {
+      providerId: provider.providerId,
+      label: provider.label,
+      pending: query?.isFetching ?? false,
+      ...(query?.isError === true
+        ? { error: error instanceof Error ? error.message : 'Provider search failed.' }
+        : {}),
+    };
+  });
+
+  const data = mergeSearchPageData(localQuery.data, providerResults, {
+    filters: deferredViewState.filters,
+    explicitContent,
+  });
 
   const handleViewStateChange = (next: SearchViewState) => {
     setViewState(next);
@@ -85,15 +166,59 @@ function SearchRoute() {
     void write.then(() => refreshRecentSearches(queryClient));
   };
 
+  const handleRetryProvider = (providerId: string) => {
+    const index = activeProviders.findIndex((provider) => provider.providerId === providerId);
+    void (index >= 0 ? providerQueries[index]?.refetch() : undefined);
+  };
+
+  const refreshSavedSearches = () =>
+    queryClient.invalidateQueries({ queryKey: searchQueryKeys.savedSearches() });
+
+  const handleSaveSearch = async (name: string) => {
+    const trimmedName = name.trim();
+    const query = viewState.query.trim();
+    if (db === null || trimmedName.length === 0 || query.length === 0) return;
+
+    const duplicate = savedSearches.find(
+      (entry) => entry.name.trim().toLowerCase() === trimmedName.toLowerCase(),
+    );
+    await upsertSavedSearch(db, {
+      ...(duplicate !== undefined ? { id: duplicate.id } : {}),
+      name: trimmedName,
+      query,
+      filter: { ...(effectiveViewState.filters ?? {}) },
+    });
+    await refreshSavedSearches();
+  };
+
+  const handleDeleteSavedSearch = async (id: string) => {
+    if (db === null) return;
+    await removeSavedSearch(db, id);
+    await refreshSavedSearches();
+  };
+
+  const handleApplySavedSearch = (entry: SavedSearchEntry) => {
+    handleViewStateChange({
+      query: entry.query,
+      filters: parseSearchFilters(entry.filter),
+    });
+  };
+
   return (
     <SearchPage
       data={data}
       isLoading={dbStatus === 'loading' || localQuery.isLoading}
       isError={dbStatus === 'error' || localQuery.isError}
-      isProviderPending={providerQuery.isFetching}
-      isProviderError={showProviderErrors && providerQuery.isError}
-      onRetryProvider={() => void providerQuery.refetch()}
-      viewState={viewState}
+      providers={providers}
+      providerStatuses={providerStatuses}
+      savedSearches={savedSearches}
+      showProviderErrors={showProviderErrors}
+      explicitContent={explicitContent}
+      onRetryProvider={handleRetryProvider}
+      onSaveSearch={(name) => void handleSaveSearch(name)}
+      onApplySavedSearch={handleApplySavedSearch}
+      onDeleteSavedSearch={(id) => void handleDeleteSavedSearch(id)}
+      viewState={effectiveViewState}
       onViewStateChange={handleViewStateChange}
       onOpenManga={(mangaId) => navigate({ to: '/manga/$id', params: { id: mangaId } })}
       onBrowseProviders={() => void navigate({ to: '/extensions' })}

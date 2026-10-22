@@ -5,16 +5,39 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type * as DbBrowserModule from '@app/db/browser';
+import type { SavedSearchEntry } from '@app/db';
+import type * as ProviderOptionsModule from '../../queries/provider-query-options.js';
 import type * as SearchModule from '@app/search';
 import type * as SettingsModule from '@app/settings';
 import type { MangaIdentity } from '@app/shared';
+import { searchQueryKeys } from '@app/search';
 import type { SearchPageData, SearchViewState } from '@app/search';
+import type { SearchProviderInfo } from '../../queries/provider-query-options.js';
 import { settingsQueryKeys } from '@app/settings';
 
 const mocks = vi.hoisted(() => ({
-  fetchSearchPage: vi.fn<(db: unknown, viewState: SearchViewState) => Promise<SearchPageData>>(),
+  fetchSearchPage:
+    vi.fn<
+      (
+        db: unknown,
+        viewState: SearchViewState,
+        explicitContent?: boolean,
+      ) => Promise<SearchPageData>
+    >(),
+  listSearchProviders: vi.fn<() => Promise<SearchProviderInfo[]>>(),
   fetchProviderSearchIdentities:
-    vi.fn<(db: unknown, query: string, signal: AbortSignal) => Promise<readonly MangaIdentity[]>>(),
+    vi.fn<
+      (
+        db: unknown,
+        providerId: string,
+        query: string,
+        signal: AbortSignal,
+      ) => Promise<readonly MangaIdentity[]>
+    >(),
+  listSavedSearches: vi.fn<() => Promise<readonly SavedSearchEntry[]>>(),
+  upsertSavedSearch: vi.fn<(db: unknown, input: Record<string, unknown>) => Promise<string>>(),
+  removeSavedSearch: vi.fn<(db: unknown, id: string) => Promise<boolean>>(),
   fetchAppSettings:
     vi.fn<
       (
@@ -56,9 +79,25 @@ vi.mock('../../providers/local-db-provider.js', () => ({
   useLocalDbRetry: () => vi.fn<() => void>(),
 }));
 
-vi.mock('../../queries/provider-query-options.js', () => ({
-  fetchProviderSearchIdentities: mocks.fetchProviderSearchIdentities,
-}));
+vi.mock('../../queries/provider-query-options.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof ProviderOptionsModule>();
+  return {
+    ...actual,
+    listSearchProviders: mocks.listSearchProviders,
+    fetchProviderSearchIdentities: mocks.fetchProviderSearchIdentities,
+  };
+});
+
+vi.mock('@app/db/browser', async (importOriginal) => {
+  const actual = await importOriginal<typeof DbBrowserModule>();
+  return {
+    ...actual,
+    listSavedSearches: () => mocks.listSavedSearches(),
+    upsertSavedSearch: (db: unknown, input: Record<string, unknown>) =>
+      mocks.upsertSavedSearch(db, input),
+    removeSavedSearch: (db: unknown, id: string) => mocks.removeSavedSearch(db, id),
+  };
+});
 
 import { Route } from '../../routes/search.js';
 
@@ -118,7 +157,11 @@ describe('/search route', () => {
     mocks.fetchSearchPage.mockImplementation((_db, viewState: SearchViewState) =>
       Promise.resolve(localPage(viewState)),
     );
+    mocks.listSearchProviders.mockResolvedValue([{ providerId: 'fixture', label: 'fixture' }]);
     mocks.fetchProviderSearchIdentities.mockResolvedValue([]);
+    mocks.listSavedSearches.mockResolvedValue([]);
+    mocks.upsertSavedSearch.mockResolvedValue('saved-1');
+    mocks.removeSavedSearch.mockResolvedValue(true);
     mocks.recordSearchQuery.mockResolvedValue(undefined);
 
     container = document.createElement('div');
@@ -145,8 +188,32 @@ describe('/search route', () => {
   function setQuery(value: string) {
     const input = container.querySelector<HTMLInputElement>('input[type="search"]');
     if (!input) throw new Error('Missing search input');
+    setInputValue(input, value);
+  }
+
+  function setInputValue(input: HTMLInputElement, value: string) {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, value);
     input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  async function setProviders(providers: SearchProviderInfo[]) {
+    mocks.listSearchProviders.mockResolvedValue(providers);
+    await act(async () => {
+      await queryClient.invalidateQueries({ queryKey: searchQueryKeys.providers() });
+    });
+  }
+
+  async function setSavedSearches(entries: readonly SavedSearchEntry[]) {
+    mocks.listSavedSearches.mockResolvedValue(entries);
+    await act(async () => {
+      await queryClient.invalidateQueries({ queryKey: searchQueryKeys.savedSearches() });
+    });
+  }
+
+  function inputByLabel(label: string): HTMLInputElement {
+    const input = container.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`);
+    if (!input) throw new Error(`Missing input ${label}`);
+    return input;
   }
 
   function buttonByText(label: string): HTMLButtonElement | undefined {
@@ -159,15 +226,20 @@ describe('/search route', () => {
     return container.querySelector('output');
   }
 
-  function searchGrid(): Element | null {
-    return container.querySelector('section[aria-label="Search results"]');
-  }
-
   async function hideProviderErrors() {
     await vi.waitFor(() => expect(mocks.fetchAppSettings).toHaveBeenCalled());
     await act(async () => {
       queryClient.setQueryData(settingsQueryKeys.app(), {
         settings: { explicitContent: false, showProviderErrors: false },
+      });
+    });
+  }
+
+  async function enableExplicitContent() {
+    await vi.waitFor(() => expect(mocks.fetchAppSettings).toHaveBeenCalled());
+    await act(async () => {
+      queryClient.setQueryData(settingsQueryKeys.app(), {
+        settings: { explicitContent: true, showProviderErrors: true },
       });
     });
   }
@@ -192,13 +264,9 @@ describe('/search route', () => {
     });
 
     await vi.waitFor(() => expect(buttonByText('Provider Series')).toBeDefined());
-    const grid = searchGrid();
-    expect(grid).not.toBeNull();
-    if (grid === null) return;
-    const berserkButtons = [...grid.querySelectorAll('button')].filter((button) =>
-      /berserk/i.test(button.textContent ?? ''),
-    );
-    expect(berserkButtons).toHaveLength(1);
+    // Same title, different provider mapping: both works stay visible.
+    expect(buttonByText('Local berserk')).toBeDefined();
+    expect(buttonByText('LOCAL BERSERK')).toBeDefined();
     expect(providerStatus()).toBeNull();
   });
 
@@ -385,7 +453,7 @@ describe('/search route', () => {
   it('Given a pending provider request, When the query changes, Then the old request is aborted', async () => {
     const signals: AbortSignal[] = [];
     mocks.fetchProviderSearchIdentities.mockImplementation(
-      (_db: unknown, _query: string, signal: AbortSignal) => {
+      (_db: unknown, _providerId: string, _query: string, signal: AbortSignal) => {
         signals.push(signal);
         return new Promise<readonly MangaIdentity[]>(() => {});
       },
@@ -416,6 +484,7 @@ describe('/search route', () => {
       expect(mocks.fetchSearchPage).toHaveBeenCalledWith(
         db,
         expect.objectContaining({ query: 'naruto' }),
+        false,
       ),
     );
 
@@ -444,5 +513,249 @@ describe('/search route', () => {
 
     await vi.waitFor(() => expect(buttonByText('Local berserk')).toBeDefined());
     expect(mocks.fetchProviderSearchIdentities).not.toHaveBeenCalled();
+  });
+
+  it('Given two providers, When one fails, Then the other keeps its results and Retry refetches only the failure', async () => {
+    await setProviders([
+      { providerId: 'prov-a', label: 'prov-a' },
+      { providerId: 'prov-b', label: 'prov-b' },
+    ]);
+    let firstProviderCalls = 0;
+    mocks.fetchProviderSearchIdentities.mockImplementation((_db, providerId) => {
+      if (providerId === 'prov-a') {
+        firstProviderCalls += 1;
+        return firstProviderCalls === 1
+          ? Promise.reject(new Error('provider offline'))
+          : Promise.resolve([makeIdentity('Provider Mars')]);
+      }
+      return Promise.resolve([makeIdentity('Provider Venus')]);
+    });
+
+    await act(async () => setQuery('berserk'));
+
+    await vi.waitFor(() => expect(buttonByText('Provider Venus')).toBeDefined());
+    await vi.waitFor(() => expect(container.textContent).toContain('Provider search unavailable'));
+    expect(buttonByText('Provider Mars')).toBeUndefined();
+
+    await act(async () => {
+      buttonByText('Retry')?.click();
+    });
+
+    await vi.waitFor(() => expect(buttonByText('Provider Mars')).toBeDefined());
+    expect(firstProviderCalls).toBe(2);
+    expect(
+      mocks.fetchProviderSearchIdentities.mock.calls.filter((call) => call[1] === 'prov-b'),
+    ).toHaveLength(1);
+    expect(container.textContent).not.toContain('Provider search unavailable');
+  });
+
+  it('Given two providers, When one is selected, Then its chip is pressed and the other is filtered out', async () => {
+    await setProviders([
+      { providerId: 'prov-a', label: 'prov-a' },
+      { providerId: 'prov-b', label: 'prov-b' },
+    ]);
+    mocks.fetchProviderSearchIdentities.mockResolvedValue([makeIdentity('Remote Series')]);
+
+    await act(async () => setQuery('berserk'));
+    await vi.waitFor(() => expect(buttonByText('prov-b')).toBeDefined());
+
+    await act(async () => {
+      buttonByText('prov-b')?.click();
+    });
+
+    await vi.waitFor(() => {
+      const pressed = [...container.querySelectorAll('button[aria-pressed="true"]')].map((button) =>
+        button.textContent?.trim(),
+      );
+      expect(pressed).toEqual(['prov-b']);
+    });
+  });
+
+  it('Given a selected provider, When All providers is clicked, Then only All stays pressed and every provider is queried', async () => {
+    await setProviders([
+      { providerId: 'prov-a', label: 'prov-a' },
+      { providerId: 'prov-b', label: 'prov-b' },
+    ]);
+    mocks.fetchProviderSearchIdentities.mockResolvedValue([makeIdentity('Remote Series')]);
+
+    await act(async () => setQuery('berserk'));
+    await vi.waitFor(() => expect(buttonByText('prov-b')).toBeDefined());
+
+    await act(async () => {
+      buttonByText('prov-b')?.click();
+    });
+    await vi.waitFor(() => {
+      const pressed = [...container.querySelectorAll('button[aria-pressed="true"]')].map((button) =>
+        button.textContent?.trim(),
+      );
+      expect(pressed).toEqual(['prov-b']);
+    });
+
+    await act(async () => {
+      buttonByText('All providers')?.click();
+    });
+
+    await vi.waitFor(() => {
+      const pressed = [...container.querySelectorAll('button[aria-pressed="true"]')].map((button) =>
+        button.textContent?.trim(),
+      );
+      expect(pressed).toEqual(['All providers']);
+    });
+    await vi.waitFor(() => {
+      const queried = new Set(
+        mocks.fetchProviderSearchIdentities.mock.calls.map((call) => call[1]),
+      );
+      expect(queried).toEqual(new Set(['prov-a', 'prov-b']));
+    });
+  });
+
+  it('Given a saved search naming a removed provider, When applied, Then it recovers to All providers', async () => {
+    await setProviders([{ providerId: 'prov-b', label: 'prov-b' }]);
+    mocks.fetchProviderSearchIdentities.mockResolvedValue([makeIdentity('Remote Series')]);
+    await setSavedSearches([
+      {
+        id: 'saved-1',
+        name: 'Old provider',
+        query: 'berserk',
+        filter: { providerId: 'prov-a' },
+        createdAt: '2026-10-20T00:00:00Z',
+      },
+    ]);
+
+    await vi.waitFor(() => expect(buttonByText('Old provider')).toBeDefined());
+    await act(async () => {
+      buttonByText('Old provider')?.click();
+    });
+
+    await vi.waitFor(() => {
+      const pressed = [...container.querySelectorAll('button[aria-pressed="true"]')].map((button) =>
+        button.textContent?.trim(),
+      );
+      expect(pressed).toEqual(['All providers']);
+    });
+    await vi.waitFor(() =>
+      expect(mocks.fetchProviderSearchIdentities).toHaveBeenCalledWith(
+        db,
+        'prov-b',
+        'berserk',
+        expect.any(AbortSignal),
+        false,
+      ),
+    );
+    expect(
+      mocks.fetchProviderSearchIdentities.mock.calls.filter((call) => call[1] === 'prov-a'),
+    ).toHaveLength(0);
+  });
+
+  it('Given explicit content is on, Then the local page and provider queries carry it', async () => {
+    await setProviders([{ providerId: 'prov-a', label: 'prov-a' }]);
+    await enableExplicitContent();
+
+    await act(async () => setQuery('berserk'));
+
+    await vi.waitFor(() =>
+      expect(mocks.fetchSearchPage).toHaveBeenCalledWith(
+        db,
+        expect.objectContaining({ query: 'berserk' }),
+        true,
+      ),
+    );
+    await vi.waitFor(() =>
+      expect(
+        queryClient
+          .getQueryCache()
+          .find({ queryKey: searchQueryKeys.provider('prov-a', 'berserk', true), exact: true }),
+      ).toBeDefined(),
+    );
+    expect(
+      queryClient
+        .getQueryCache()
+        .find({ queryKey: searchQueryKeys.page({ query: 'berserk' }, true), exact: true }),
+    ).toBeDefined();
+  });
+
+  it('Given local results, When filters change, Then the local read receives them without another provider call', async () => {
+    await act(async () => setQuery('berserk'));
+    await vi.waitFor(() => expect(buttonByText('Local berserk')).toBeDefined());
+    const providerCalls = mocks.fetchProviderSearchIdentities.mock.calls.length;
+
+    await act(async () => setInputValue(inputByLabel('Language filter'), 'en'));
+
+    await vi.waitFor(() =>
+      expect(mocks.fetchSearchPage).toHaveBeenCalledWith(
+        db,
+        expect.objectContaining({
+          query: 'berserk',
+          filters: expect.objectContaining({ language: 'en' }),
+        }),
+        false,
+      ),
+    );
+    expect(mocks.fetchProviderSearchIdentities).toHaveBeenCalledTimes(providerCalls);
+  });
+
+  it('Given saved searches, When one is applied or deleted, Then the view and the saved row follow', async () => {
+    await setSavedSearches([
+      {
+        id: 'saved-1',
+        name: 'English action',
+        query: 'berserk',
+        filter: { language: 'en', sort: 'title' },
+        createdAt: '2026-10-20T00:00:00Z',
+      },
+    ]);
+
+    await vi.waitFor(() => expect(buttonByText('English action')).toBeDefined());
+
+    await act(async () => {
+      buttonByText('English action')?.click();
+    });
+
+    const searchInput = container.querySelector<HTMLInputElement>('input[type="search"]');
+    expect(searchInput?.value).toBe('berserk');
+    expect(inputByLabel('Language filter').value).toBe('en');
+
+    await act(async () => {
+      container
+        .querySelector<HTMLButtonElement>('button[aria-label="Delete saved search English action"]')
+        ?.click();
+    });
+
+    await vi.waitFor(() => expect(mocks.removeSavedSearch).toHaveBeenCalledWith(db, 'saved-1'));
+  });
+
+  it('Given a query, When it is saved with an existing name, Then the existing row is updated', async () => {
+    await setSavedSearches([
+      {
+        id: 'saved-1',
+        name: 'My search',
+        query: 'older query',
+        createdAt: '2026-10-20T00:00:00Z',
+      },
+    ]);
+    await act(async () => setQuery('berserk'));
+    await vi.waitFor(() => expect(buttonByText('Local berserk')).toBeDefined());
+
+    await act(async () => {
+      buttonByText('Save search')?.click();
+    });
+
+    const nameInput = document.querySelector<HTMLInputElement>(
+      'input[aria-label="Saved search name"]',
+    );
+    if (nameInput === null) throw new Error('Missing saved search name input');
+    await act(async () => setInputValue(nameInput, 'My search'));
+
+    const saveButton = [...document.querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === 'Save',
+    );
+    await act(async () => saveButton?.click());
+
+    await vi.waitFor(() =>
+      expect(mocks.upsertSavedSearch).toHaveBeenCalledWith(
+        db,
+        expect.objectContaining({ id: 'saved-1', name: 'My search', query: 'berserk' }),
+      ),
+    );
   });
 });

@@ -16,8 +16,19 @@ describe('@app/search', () => {
     expect(typeof VirtualSearchGrid).toBe('function');
     expect(typeof fetchSearchPage).toBe('function');
     expect(DEFAULT_SEARCH_VIEW_STATE.query).toBe('');
-    expect(searchQueryKeys.page({ query: 'test' })).toEqual(['search', 'page', { query: 'test' }]);
-    expect(searchQueryKeys.provider('test', true)).toEqual(['search', 'provider', 'test', true]);
+    expect(searchQueryKeys.page({ query: 'test' })).toEqual([
+      'search',
+      'page',
+      { query: 'test' },
+      false,
+    ]);
+    expect(searchQueryKeys.provider('mangadex', 'test', true)).toEqual([
+      'search',
+      'provider',
+      'mangadex',
+      'test',
+      true,
+    ]);
     expect(discoverQueryKeys.providers(true)).toEqual(['discover', 'providers', true]);
   });
 });

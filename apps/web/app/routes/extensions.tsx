@@ -19,6 +19,7 @@ import {
   setProviderEnabled,
 } from '@app/extensions';
 import type { AppDrizzleDb } from '@app/db';
+import { searchQueryKeys } from '@app/search';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 import { flushLocalDb } from '../lib/local-db.js';
 
@@ -273,6 +274,7 @@ function ExtensionsRoute() {
     onSuccess: () => {
       resetInstallState();
       void queryClient.invalidateQueries({ queryKey: extensionsQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: searchQueryKeys.providers() });
       void navigate({ search: {} });
     },
     onError: (error: Error) => {
@@ -298,6 +300,7 @@ function ExtensionsRoute() {
     onSettled: () => {
       setPendingProviderId(undefined);
       void queryClient.invalidateQueries({ queryKey: extensionsQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: searchQueryKeys.providers() });
     },
   });
 

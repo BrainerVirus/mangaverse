@@ -3,9 +3,10 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { MangaIdentity } from '@app/shared';
 import { SearchPage } from './SearchPage.js';
-import type { SearchPageData } from '../types.js';
+import type { SearchPageData, SearchViewState } from '../types.js';
 
 function makeIdentity(title: string): MangaIdentity {
   return {
@@ -257,5 +258,59 @@ describe('SearchPage', () => {
     expect(screen.getByText('Could not load search')).toBeInTheDocument();
     expect(screen.queryByText('Provider search unavailable')).toBeNull();
     expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('Given a selected provider, When All providers is clicked, Then the filter drops the provider', () => {
+    const onViewStateChange = vi.fn<(next: SearchViewState) => void>();
+
+    render(
+      <SearchPage
+        data={makeData('berserk')}
+        isLoading={false}
+        isError={false}
+        providers={[{ providerId: 'prov-a', label: 'prov-a' }]}
+        viewState={{ query: 'berserk', filters: { providerId: 'prov-a' } }}
+        onViewStateChange={onViewStateChange}
+        onOpenManga={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'All providers' }));
+
+    expect(onViewStateChange).toHaveBeenCalledTimes(1);
+    expect(onViewStateChange.mock.calls[0]?.[0].filters?.providerId).toBeUndefined();
+  });
+
+  it('Given partial tag input, When typing and committing, Then separators survive and tags parse once', async () => {
+    const user = userEvent.setup();
+    const onViewStateChange = vi.fn<(next: SearchViewState) => void>();
+
+    render(
+      <SearchPage
+        data={makeData('berserk')}
+        isLoading={false}
+        isError={false}
+        viewState={{ query: 'berserk' }}
+        onViewStateChange={onViewStateChange}
+        onOpenManga={() => {}}
+      />,
+    );
+
+    const input = screen.getByLabelText('Included tags');
+    await user.type(input, 'action, comedy');
+
+    // The draft keeps the comma and the not-yet-committed tag.
+    expect(input).toHaveValue('action, comedy');
+    // Typing alone does not churn the query.
+    expect(onViewStateChange).not.toHaveBeenCalled();
+
+    await user.keyboard('{Enter}');
+
+    expect(onViewStateChange).toHaveBeenCalledTimes(1);
+    expect(onViewStateChange.mock.calls[0]?.[0].filters?.includedTags).toEqual([
+      'action',
+      'comedy',
+    ]);
+    expect(input).toHaveValue('action, comedy');
   });
 });

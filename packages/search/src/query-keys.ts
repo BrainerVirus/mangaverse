@@ -2,11 +2,14 @@ import type { SearchViewState } from './types.js';
 
 export const searchQueryKeys = {
   all: ['search'] as const,
-  // Local identities and recents do not depend on explicit content, so they are
-  // not partitioned by it.
-  page: (viewState: SearchViewState) => [...searchQueryKeys.all, 'page', viewState] as const,
-  provider: (query: string, explicitContent = false) =>
-    [...searchQueryKeys.all, 'provider', query, explicitContent] as const,
+  pages: () => [...searchQueryKeys.all, 'page'] as const,
+  // Explicit content gates stored identities too, so the page read is partitioned by it.
+  page: (viewState: SearchViewState, explicitContent = false) =>
+    [...searchQueryKeys.pages(), viewState, explicitContent] as const,
+  providers: () => [...searchQueryKeys.all, 'providers'] as const,
+  provider: (providerId: string, query: string, explicitContent = false) =>
+    [...searchQueryKeys.all, 'provider', providerId, query, explicitContent] as const,
+  savedSearches: () => [...searchQueryKeys.all, 'saved-searches'] as const,
 };
 
 export const discoverQueryKeys = {
