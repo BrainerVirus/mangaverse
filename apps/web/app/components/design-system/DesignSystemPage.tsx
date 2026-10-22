@@ -444,7 +444,7 @@ function ComponentSection() {
                     This dialog uses the shipped thick-glass panel and modal scrim.
                   </DialogDescription>
                 </DialogHeader>
-                <DialogFooter className="mt-6">
+                <DialogFooter>
                   <Button variant="outline" onClick={() => setDialogOpen(false)}>
                     Close dialog
                   </Button>

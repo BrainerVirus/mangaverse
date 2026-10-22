@@ -28,10 +28,19 @@ export interface InstallProviderDialogProps {
   onCancel: () => void;
 }
 
+const CONTENT_FLAGS = [
+  { key: 'nsfw', label: 'NSFW' },
+  { key: 'suggestive', label: 'Suggestive' },
+  { key: 'violence', label: 'Violence' },
+] as const;
+
 function PreviewPanel({ preview }: { preview: ExtensionInstallPreview }) {
   const enabledCapabilities = Object.entries(preview.capabilities)
     .filter(([, enabled]) => enabled)
     .map(([key]) => key);
+  const matureFlags = CONTENT_FLAGS.filter((flag) => preview.contentFlags[flag.key]).map(
+    (flag) => flag.label,
+  );
 
   return (
     <div className="flex flex-col gap-4 rounded-control border border-border p-4">
@@ -42,6 +51,10 @@ function PreviewPanel({ preview }: { preview: ExtensionInstallPreview }) {
         </p>
       </div>
       <dl className="grid gap-2 text-sm sm:grid-cols-2">
+        <div>
+          <dt className="text-muted-foreground">Publisher</dt>
+          <dd>{preview.publisher ?? 'Unknown'}</dd>
+        </div>
         <div>
           <dt className="text-muted-foreground">Source</dt>
           <dd className="break-all">{preview.sourceUrl}</dd>
@@ -59,6 +72,29 @@ function PreviewPanel({ preview }: { preview: ExtensionInstallPreview }) {
           <dd>{preview.permissions.join(', ')}</dd>
         </div>
       </dl>
+      <div>
+        <p className="mb-2 text-sm text-muted-foreground">Content flags</p>
+        <dl className="flex flex-wrap gap-2 text-sm">
+          {CONTENT_FLAGS.map((flag) => (
+            <div
+              key={flag.key}
+              className="flex items-center gap-2 rounded-control border border-border px-2.5 py-1"
+            >
+              <dt>{flag.label}</dt>
+              <dd className="font-medium">{preview.contentFlags[flag.key] ? 'Yes' : 'No'}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+      {matureFlags.length > 0 ? (
+        <Alert variant="destructive">
+          <AlertTitle>Mature content</AlertTitle>
+          <AlertDescription>
+            This provider declares {matureFlags.join(', ')} content. Content from this provider may
+            not be suitable for all readers.
+          </AlertDescription>
+        </Alert>
+      ) : null}
       {enabledCapabilities.length > 0 ? (
         <div className="flex flex-wrap gap-2">
           {enabledCapabilities.map((capability) => (
@@ -111,7 +147,10 @@ export function InstallProviderDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4">
+        <div
+          data-testid="install-provider-body"
+          className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto"
+        >
           <div className="flex flex-col gap-2">
             <Label htmlFor="manifest-url">Manifest URL</Label>
             <Input

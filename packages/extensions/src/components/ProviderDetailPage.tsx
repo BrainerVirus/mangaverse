@@ -4,6 +4,12 @@ import {
   AlertTitle,
   Badge,
   Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   EmptyState,
   ErrorState,
   LoadingState,
@@ -11,6 +17,7 @@ import {
   Switch,
 } from '@app/design-system';
 import { ExternalLink } from 'lucide-react';
+import { useState } from 'react';
 import type { ProviderDetailData } from '../types.js';
 
 export interface ProviderDetailPageProps {
@@ -22,6 +29,56 @@ export interface ProviderDetailPageProps {
   onToggleEnabled: (enabled: boolean) => void;
   onRemove: () => void;
   isUpdating?: boolean;
+}
+
+function UninstallProviderDialog({
+  open,
+  onOpenChange,
+  providerName,
+  isUpdating,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  providerName: string;
+  isUpdating: boolean;
+  onConfirm: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Uninstall {providerName}?</DialogTitle>
+          <DialogDescription>
+            This removes the provider record and its saved settings from this device. Your library,
+            manga entries, and reading progress stay. You can install the provider again from its
+            manifest URL.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isUpdating}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={isUpdating}
+            onClick={() => {
+              onOpenChange(false);
+              onConfirm();
+            }}
+          >
+            {isUpdating ? 'Uninstalling…' : 'Uninstall provider'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 function healthBadgeVariant(
@@ -47,6 +104,8 @@ export function ProviderDetailPage({
   onRemove,
   isUpdating = false,
 }: ProviderDetailPageProps) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
   if (isLoading) {
     return (
       <section aria-label="Provider details" className="p-6">
@@ -79,7 +138,7 @@ export function ProviderDetailPage({
   const disabledCapabilities = capabilities.filter((row) => !row.enabled);
 
   return (
-    <section aria-label="Provider details" className="flex flex-col gap-6 p-6">
+    <section aria-label="Provider details" className="@container flex flex-col gap-6 p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-2">
           {onBack !== undefined ? (
@@ -109,7 +168,12 @@ export function ProviderDetailPage({
           >
             {provider.enabled ? 'Disable provider' : 'Enable provider'}
           </Button>
-          <Button type="button" variant="destructive" disabled={isUpdating} onClick={onRemove}>
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={isUpdating}
+            onClick={() => setConfirmOpen(true)}
+          >
             Uninstall
           </Button>
           <a
@@ -138,7 +202,7 @@ export function ProviderDetailPage({
       ) : null}
 
       <SettingsSection title="Overview" description="Install metadata and supported platforms.">
-        <dl className="grid gap-4 sm:grid-cols-2">
+        <dl className="grid gap-4 @xl:grid-cols-2">
           <div>
             <dt className="text-sm text-muted-foreground">Publisher</dt>
             <dd>{provider.manifest.source.publisher ?? 'Unknown'}</dd>
@@ -153,6 +217,7 @@ export function ProviderDetailPage({
           </div>
           <div>
             <dt className="text-sm text-muted-foreground">Installed</dt>
+            {/* react-doctor-disable-next-line react-doctor/no-locale-format-in-render -- ruling: extensions-installed-at-local-time: this row only renders after the client-side local DB query resolves (the server has no DB), so formatting the install timestamp in the reader's locale cannot mismatch SSR markup. */}
             <dd>{new Date(provider.installedAt).toLocaleString()}</dd>
           </div>
         </dl>
@@ -197,8 +262,11 @@ export function ProviderDetailPage({
         title="Content flags"
         description="Mature content support declared in the manifest."
       >
-        <dl className="grid gap-3 sm:grid-cols-3">
-          <div className="flex items-center justify-between gap-3 rounded-control bg-muted/40 p-3">
+        <dl className="grid gap-3 @2xl:grid-cols-3">
+          <div
+            className="flex min-w-0 items-center justify-between gap-3 rounded-control bg-muted/40 p-3"
+            data-testid="content-flag-tile"
+          >
             <dt>NSFW</dt>
             <dd>
               <Switch
@@ -208,7 +276,10 @@ export function ProviderDetailPage({
               />
             </dd>
           </div>
-          <div className="flex items-center justify-between gap-3 rounded-control bg-muted/40 p-3">
+          <div
+            className="flex min-w-0 items-center justify-between gap-3 rounded-control bg-muted/40 p-3"
+            data-testid="content-flag-tile"
+          >
             <dt>Suggestive</dt>
             <dd>
               <Switch
@@ -218,7 +289,10 @@ export function ProviderDetailPage({
               />
             </dd>
           </div>
-          <div className="flex items-center justify-between gap-3 rounded-control bg-muted/40 p-3">
+          <div
+            className="flex min-w-0 items-center justify-between gap-3 rounded-control bg-muted/40 p-3"
+            data-testid="content-flag-tile"
+          >
             <dt>Violence</dt>
             <dd>
               <Switch
@@ -230,6 +304,14 @@ export function ProviderDetailPage({
           </div>
         </dl>
       </SettingsSection>
+
+      <UninstallProviderDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        providerName={provider.manifest.name}
+        isUpdating={isUpdating}
+        onConfirm={onRemove}
+      />
     </section>
   );
 }
