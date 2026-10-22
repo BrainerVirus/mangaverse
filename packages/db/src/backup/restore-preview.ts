@@ -154,7 +154,7 @@ export async function previewBackupRestore(
     }
   }
 
-  const identityIds = new Set(doc.mangaIdentities.map((m) => m.id));
+  const identityIds = new Set<string>(doc.mangaIdentities.map((m) => m.id));
   const mappingIdsByManga = new Map<string, Set<string>>();
   for (const identity of doc.mangaIdentities) {
     mappingIdsByManga.set(identity.id, new Set(identity.providerMappings.map((m) => m.id)));
@@ -223,6 +223,47 @@ export async function previewBackupRestore(
     }
   }
 
+  // v4 always carries chapters. A document with progress or history but no
+  // chapter section cannot resolve those rows, so importing them unfiltered
+  // would leave orphaned progress behind.
+  if (doc.chapters === undefined) {
+    if (doc.chapterReadStates !== undefined) {
+      add(previewIssues, {
+        code: 'restore.read_state_requires_chapters',
+        message: 'Chapter progress requires the backup chapter section.',
+        severity: 'error',
+        details: { count: doc.chapterReadStates.length },
+      });
+    }
+    if (doc.readingHistory !== undefined) {
+      add(previewIssues, {
+        code: 'restore.history_requires_chapters',
+        message: 'Reading history requires the backup chapter section.',
+        severity: 'error',
+        details: { count: doc.readingHistory.length },
+      });
+    }
+  }
+
+  // Older documents carry no chapter section: the restore keeps local chapters
+  // whose manga and mapping survive, so only those ids can back a resume pointer.
+  const keptLegacyChapterIds = new Set(
+    doc.chapters === undefined
+      ? db
+          .select({
+            id: chapters.id,
+            mangaId: chapters.mangaId,
+            providerMappingId: chapters.providerMappingId,
+          })
+          .from(chapters)
+          .all()
+          .filter(
+            (row) => identityIds.has(row.mangaId) && seenMappingIds.has(row.providerMappingId),
+          )
+          .map((row) => row.id)
+      : [],
+  );
+
   const dedupedLibrary = dedupeBackupLibrary(doc.library);
   for (const merge of dedupedLibrary.merges) {
     add(previewIssues, {
@@ -271,17 +312,32 @@ export async function previewBackupRestore(
         });
       }
     }
-    if (
-      doc.chapters !== undefined &&
-      entry.lastReadChapterId !== undefined &&
-      !carriedChapterIds.has(entry.lastReadChapterId)
-    ) {
-      add(previewIssues, {
-        code: 'restore.library_chapter_missing',
-        message: 'Library entry resume chapter is missing from the backup document.',
-        severity: 'error',
-        details: { libraryEntryId: entry.id, chapterId: entry.lastReadChapterId },
-      });
+    if (entry.lastReadChapterId !== undefined) {
+      const kept =
+        doc.chapters !== undefined
+          ? carriedChapterIds.has(entry.lastReadChapterId)
+          : keptLegacyChapterIds.has(entry.lastReadChapterId);
+      if (!kept) {
+        if (doc.chapters !== undefined) {
+          add(previewIssues, {
+            code: 'restore.library_chapter_missing',
+            message: 'Library entry resume chapter is missing from the backup document.',
+            severity: 'error',
+            details: { libraryEntryId: entry.id, chapterId: entry.lastReadChapterId },
+          });
+        } else {
+          // The resume chapter is local-only metadata this older document does
+          // not carry; clear it instead of leaving a pointer the next export
+          // cannot resolve.
+          add(previewIssues, {
+            code: 'restore.library_resume_chapter_dropped',
+            message:
+              'Library entry resume chapter is not kept by this older backup; the resume pointer is cleared on restore.',
+            severity: 'warning',
+            details: { libraryEntryId: entry.id, chapterId: entry.lastReadChapterId },
+          });
+        }
+      }
     }
   }
 

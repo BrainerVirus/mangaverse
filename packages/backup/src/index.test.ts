@@ -232,6 +232,12 @@ describe('backup duplicate library entries', () => {
         details: { mangaId: 'm-dup', keptId: 'lib-keeper', droppedCount: 1 },
       }),
     );
+    expect(preview.previewIssues).toContainEqual(
+      expect.objectContaining({
+        code: 'restore.library_resume_chapter_dropped',
+        severity: 'warning',
+      }),
+    );
 
     // Applying the same document without calling preview first must still dedupe.
     const restored = await applyBackupImport(db, duplicateDoc);
@@ -245,13 +251,14 @@ describe('backup duplicate library entries', () => {
         categoryIds: ['cat-a', 'cat-b', 'cat-c'],
         status: 'on_hold',
         unreadCount: 4,
-        lastReadChapterId: 'ch-loser',
-        progressPercent: 75,
         notes: 'keeper note',
         addedAt: '2025-01-01T00:00:00.000Z',
         updatedAt: '2025-02-01T00:00:00.000Z',
       },
     ]);
+    // The merged resume chapter is not kept by this legacy restore.
+    expect(restored.value.library[0]?.lastReadChapterId).toBeUndefined();
+    expect(restored.value.library[0]?.progressPercent).toBeUndefined();
   });
 
   it('does not report duplicate merges for unique library entries', async () => {

@@ -758,6 +758,14 @@ describe('@app/db', () => {
         details: { mangaId: 'm-dup', keptId: 'lib-keeper', droppedCount: 1 },
       }),
     );
+    // The merged resume pointer names a chapter this database never had, and
+    // v1 carries no chapter section to restore it from: clear it instead.
+    expect(preview.previewIssues).toContainEqual(
+      expect.objectContaining({
+        code: 'restore.library_resume_chapter_dropped',
+        severity: 'warning',
+      }),
+    );
 
     const result = await applyBackupRestore(db, doc);
     expect(result.ok).toBe(true);
@@ -770,9 +778,7 @@ describe('@app/db', () => {
         categoryIds: ['cat-a', 'cat-b', 'cat-c'],
         status: 'on_hold',
         unreadCount: 4,
-        lastReadChapterId: 'ch-loser',
         activeProviderMappingId: 'map-1',
-        progressPercent: 75,
         notes: 'keeper note',
         addedAt: '2025-01-01T00:00:00.000Z',
         updatedAt: '2025-02-01T00:00:00.000Z',
@@ -786,13 +792,13 @@ describe('@app/db', () => {
       favorite: true,
       status: 'on_hold',
       unreadCount: 4,
-      lastReadChapterId: 'ch-loser',
       activeProviderMappingId: 'map-1',
-      progressPercent: 75,
       notes: 'keeper note',
       addedAt: '2025-01-01T00:00:00.000Z',
       updatedAt: '2025-02-01T00:00:00.000Z',
     });
+    expect(entries[0]?.lastReadChapterId).toBeUndefined();
+    expect(entries[0]?.progressPercent).toBeUndefined();
   });
 
   it('rejects a backup with authors: null before touching local data', async () => {
@@ -1412,6 +1418,53 @@ describe('backup v4 library organization and reading state', () => {
     expect((await applyBackupRestore(db, reexport)).ok).toBe(true);
   });
 
+  it('clears a legacy resume pointer whose chapter the restore does not keep', async () => {
+    const { db } = await createSqlJsHarness();
+    const seeded = await seedCoveredData(db);
+    // A v3 export carries no chapter metadata, so the resume pointer it ships
+    // can name a chapter this database does not have.
+    const legacy = structuredClone(await exportBackupDocumentV1(db, metadata)) as unknown as {
+      schemaVersion: number;
+      library: { lastReadChapterId?: string; progressPercent?: number }[];
+      [key: string]: unknown;
+    };
+    legacy.schemaVersion = 3;
+    delete legacy['categories'];
+    delete legacy['chapters'];
+    delete legacy['chapterReadStates'];
+    delete legacy['readingHistory'];
+    delete legacy['migrationHistory'];
+    legacy.library[0]!.lastReadChapterId = 'ghost-chapter';
+    legacy.library[0]!.progressPercent = 30;
+
+    const preview = await previewBackupRestore(db, legacy);
+    expect(preview.previewIssues).toContainEqual(
+      expect.objectContaining({
+        code: 'restore.library_resume_chapter_dropped',
+        severity: 'warning',
+        details: { libraryEntryId: seeded.entryId, chapterId: 'ghost-chapter' },
+      }),
+    );
+
+    const restored = await applyBackupRestore(db, legacy);
+    expect(restored.ok).toBe(true);
+    if (!restored.ok) throw new Error(restored.error.message);
+    expect(restored.value.library[0]?.lastReadChapterId).toBeUndefined();
+    expect(restored.value.library[0]?.progressPercent).toBeUndefined();
+
+    const entry = await getLibraryEntryForManga(db, seeded.mangaId);
+    expect(entry?.lastReadChapterId).toBeUndefined();
+    expect(entry?.progressPercent).toBeUndefined();
+
+    // The dangling pointer must not leak into the next v4 export.
+    const reexport = await exportBackupDocumentV1(db, metadata);
+    expect(reexport.library[0]?.lastReadChapterId).toBeUndefined();
+    expect(reexport.library[0]?.progressPercent).toBeUndefined();
+    const reexportPreview = await previewBackupRestore(db, reexport);
+    expect(reexportPreview.previewIssues.filter((issue) => issue.severity === 'error')).toEqual([]);
+    expect((await applyBackupRestore(db, reexport)).ok).toBe(true);
+  });
+
   it('blocks malformed category, chapter and migration references without touching local data', async () => {
     const { db } = await createSqlJsHarness();
     const seeded = await seedCoveredData(db);
@@ -1572,6 +1625,33 @@ describe('backup v4 library organization and reading state', () => {
     );
 
     const result = await applyBackupRestore(db, ghostChapter);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected the restore to be blocked.');
+    expect(result.error.code).toBe('backup.restore.blocked');
+    await expectSeededDataIntact(db, seeded);
+  });
+
+  it('blocks progress and history when a crafted document omits the chapter section', async () => {
+    const { db } = await createSqlJsHarness();
+    const seeded = await seedCoveredData(db);
+    const doc = await exportBackupDocumentV1(db, metadata);
+
+    // v4 always carries `chapters`; without it the carried rows cannot resolve.
+    const noChapters = structuredClone(doc) as unknown as MutableV4Doc;
+    delete noChapters.chapters;
+
+    const preview = await previewBackupRestore(db, noChapters);
+    expect(preview.previewIssues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'restore.read_state_requires_chapters',
+          severity: 'error',
+        }),
+        expect.objectContaining({ code: 'restore.history_requires_chapters', severity: 'error' }),
+      ]),
+    );
+
+    const result = await applyBackupRestore(db, noChapters);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected the restore to be blocked.');
     expect(result.error.code).toBe('backup.restore.blocked');

@@ -424,7 +424,9 @@ function upsertAppSettingsSync(tx: AppDrizzleDb, settings: AppSettings): void {
  * history and migration history. Older documents carry none of those sections:
  * their local rows are kept for the manga identities the restore keeps, instead
  * of being cleared. Category links in older documents resolve against the local
- * categories and unknown ids are skipped (the preview reports them).
+ * categories and unknown ids are skipped (the preview reports them). A library
+ * resume pointer whose chapter the restore does not keep is cleared so the next
+ * v4 export stays valid.
  */
 export async function applyBackupRestore(
   db: AppDrizzleDb,
@@ -452,9 +454,6 @@ export async function applyBackupRestore(
   }
 
   const doc = validation.value;
-  // The unique index allows one row per manga; dedupe here too so a direct
-  // apply (without a caller preview) cannot fail on a pre-0003 backup.
-  const library = dedupeBackupLibrary(doc.library).library;
 
   // Legacy backups did not carry these sections. Snapshot the local rows so the
   // identity cascade cannot delete progress the document never described.
@@ -471,6 +470,31 @@ export async function applyBackupRestore(
       identity.providerMappings.map((mapping) => mapping.id),
     ),
   );
+
+  // v4 carries its chapters; older documents keep the local chapters whose manga
+  // and mapping the restore retains. Anything else is dropped, so a resume
+  // pointer to it must drop too or the next v4 export fails its own preview.
+  const keptChapterIds =
+    doc.chapters !== undefined
+      ? new Set(doc.chapters.map((chapter) => chapter.id))
+      : new Set(
+          legacyChapters
+            .filter((row) => identityIds.has(row.mangaId) && mappingIds.has(row.providerMappingId))
+            .map((row) => row.id),
+        );
+  // The unique index allows one row per manga; dedupe here too so a direct
+  // apply (without a caller preview) cannot fail on a pre-0003 backup.
+  const library = dedupeBackupLibrary(doc.library).library.map((entry) => {
+    if (entry.lastReadChapterId === undefined || keptChapterIds.has(entry.lastReadChapterId)) {
+      return entry;
+    }
+    const {
+      lastReadChapterId: _droppedChapterId,
+      progressPercent: _droppedProgress,
+      ...rest
+    } = entry;
+    return rest;
+  });
 
   try {
     withTransaction(db, (tx) => {
@@ -490,21 +514,18 @@ export async function applyBackupRestore(
 
       // Progress for a chapter the restore drops must not survive: an orphan
       // read-state row makes the next v4 export fail its own preview.
-      const keptChapterIds = new Set<string>();
       for (const identity of doc.mangaIdentities) {
         insertMangaIdentitySync(tx, identity);
       }
       if (doc.chapters !== undefined) {
         for (const chapter of doc.chapters) {
           insertChapterRowSync(tx, chapter);
-          keptChapterIds.add(chapter.id);
         }
       } else {
         // Chapters are metadata only; pages are rehydrated by the provider.
         for (const row of legacyChapters) {
           if (!identityIds.has(row.mangaId) || !mappingIds.has(row.providerMappingId)) continue;
           insertChapterRowSync(tx, backupChapterFromRow(row));
-          keptChapterIds.add(row.id);
         }
       }
       for (const category of doc.categories ?? []) {
