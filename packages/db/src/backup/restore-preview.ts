@@ -184,6 +184,7 @@ export async function previewBackupRestore(
 
   const carriedChapterIds = new Set<string>();
   const carriedChapterSlots = new Set<string>();
+  const carriedChapterMangaIds = new Map<string, string>();
   for (const chapter of doc.chapters ?? []) {
     if (carriedChapterIds.has(chapter.id)) {
       add(previewIssues, {
@@ -194,6 +195,7 @@ export async function previewBackupRestore(
       });
     }
     carriedChapterIds.add(chapter.id);
+    carriedChapterMangaIds.set(chapter.id, chapter.mangaId);
     const slot = `${chapter.providerMappingId}::${chapter.index}`;
     if (carriedChapterSlots.has(slot)) {
       add(previewIssues, {
@@ -294,12 +296,20 @@ export async function previewBackupRestore(
       });
     }
     seenReadChapterIds.add(state.chapterId);
-    if (doc.chapters !== undefined && !carriedChapterIds.has(state.chapterId)) {
+    const chapterMangaId = carriedChapterMangaIds.get(state.chapterId);
+    if (doc.chapters !== undefined && chapterMangaId === undefined) {
       add(previewIssues, {
         code: 'restore.read_state_chapter_missing',
         message: 'Chapter read state points at a chapter missing from the backup document.',
         severity: 'error',
         details: { chapterId: state.chapterId },
+      });
+    } else if (chapterMangaId !== undefined && chapterMangaId !== state.mangaId) {
+      add(previewIssues, {
+        code: 'restore.read_state_chapter_mismatch',
+        message: 'Chapter read state belongs to a different manga identity than its chapter.',
+        severity: 'error',
+        details: { chapterId: state.chapterId, mangaId: state.mangaId, chapterMangaId },
       });
     } else if (!identityIds.has(state.mangaId)) {
       add(previewIssues, {
@@ -333,12 +343,20 @@ export async function previewBackupRestore(
       });
     }
     seenHistoryIds.add(entry.id);
-    if (doc.chapters !== undefined && !carriedChapterIds.has(entry.chapterId)) {
+    const chapterMangaId = carriedChapterMangaIds.get(entry.chapterId);
+    if (doc.chapters !== undefined && chapterMangaId === undefined) {
       add(previewIssues, {
         code: 'restore.history_chapter_missing',
         message: 'Reading history points at a chapter missing from the backup document.',
         severity: 'error',
         details: { historyId: entry.id, chapterId: entry.chapterId },
+      });
+    } else if (chapterMangaId !== undefined && chapterMangaId !== entry.mangaId) {
+      add(previewIssues, {
+        code: 'restore.history_chapter_mismatch',
+        message: 'Reading history belongs to a different manga identity than its chapter.',
+        severity: 'error',
+        details: { historyId: entry.id, mangaId: entry.mangaId, chapterMangaId },
       });
     } else if (!identityIds.has(entry.mangaId)) {
       add(previewIssues, {

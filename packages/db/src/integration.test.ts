@@ -15,6 +15,7 @@ import {
 import {
   PACKAGE_NAME,
   addLibraryEntry,
+  addProviderMapping,
   appendReadingHistory,
   appendSearchHistory,
   applyBackupRestore,
@@ -1138,6 +1139,12 @@ describe('backup v4 library organization and reading state', () => {
     library: { id: string; mangaId: string; lastReadChapterId?: string }[];
     chapters?: { id: string; mangaId: string; providerMappingId: string; index: number }[];
     chapterReadStates?: { chapterId: string; mangaId: string; providerMappingId?: string }[];
+    readingHistory?: {
+      id: string;
+      mangaId: string;
+      chapterId: string;
+      providerMappingId?: string;
+    }[];
   };
 
   /** Adds a second identity so cross-identity mapping references can be tested. */
@@ -1337,6 +1344,74 @@ describe('backup v4 library organization and reading state', () => {
     expect(await listMigrationHistory(db, undefined)).toHaveLength(2);
   });
 
+  it('drops legacy progress for a chapter whose mapping an old backup does not carry', async () => {
+    const { db } = await createSqlJsHarness();
+    const seeded = await seedCoveredData(db);
+
+    // Re-apply the same document as an old client would: no chapter, progress
+    // or history sections. Mapping B is added after that export.
+    const legacy = structuredClone(await exportBackupDocumentV1(db, metadata)) as unknown as Record<
+      string,
+      unknown
+    >;
+    legacy['schemaVersion'] = 3;
+    delete legacy['categories'];
+    delete legacy['chapters'];
+    delete legacy['chapterReadStates'];
+    delete legacy['readingHistory'];
+    delete legacy['migrationHistory'];
+
+    const mappingB = await addProviderMapping(db, {
+      mangaId: seeded.mangaId,
+      providerId: 'prov-cover',
+      providerMangaId: 'remote-cover-b',
+    });
+    if (!mappingB.ok) throw new Error(mappingB.error.message);
+    const chapterB = await upsertChapterWithPages(db, {
+      mangaId: seeded.mangaId,
+      providerMappingId: mappingB.value,
+      title: 'Chapter B',
+      index: 1,
+      pages: [],
+    });
+    if (!chapterB.ok) throw new Error(chapterB.error.message);
+    await upsertChapterReadState(db, {
+      chapterId: chapterB.value,
+      mangaId: seeded.mangaId,
+      providerMappingId: mappingB.value,
+      progress: { readPercent: 30, lastPageIndex: 0, completed: false },
+    });
+    await appendReadingHistory(db, {
+      mangaId: seeded.mangaId,
+      chapterId: chapterB.value,
+      providerMappingId: mappingB.value,
+    });
+
+    const restored = await applyBackupRestore(db, legacy);
+    expect(restored.ok).toBe(true);
+    if (!restored.ok) throw new Error(restored.error.message);
+
+    // Mapping B is absent from the backup, so its chapter goes with it and the
+    // progress attached to that chapter must not survive as an orphan.
+    const keptChapters = await listChaptersForManga(db, seeded.mangaId);
+    expect(keptChapters.map((chapter) => chapter.id)).toEqual([seeded.chapterId]);
+    const keptChapterIds = new Set(keptChapters.map((chapter) => chapter.id));
+    const readStates = await listChapterReadStates(db);
+    expect(readStates.every((state) => keptChapterIds.has(state.chapterId))).toBe(true);
+    expect(readStates.map((state) => state.chapterId)).toEqual([seeded.chapterId]);
+    const history = await listReadingHistory(db);
+    expect(history.every((entry) => keptChapterIds.has(entry.chapterId))).toBe(true);
+    expect(history.map((entry) => entry.chapterId)).toEqual([seeded.chapterId]);
+
+    // The next export must preview and restore cleanly: no orphan progress.
+    const reexport = await exportBackupDocumentV1(db, metadata);
+    expect(reexport.schemaVersion).toBe(4);
+    expect(reexport.chapters?.map((chapter) => chapter.id)).toEqual([seeded.chapterId]);
+    const preview = await previewBackupRestore(db, reexport);
+    expect(preview.previewIssues.filter((issue) => issue.severity === 'error')).toEqual([]);
+    expect((await applyBackupRestore(db, reexport)).ok).toBe(true);
+  });
+
   it('blocks malformed category, chapter and migration references without touching local data', async () => {
     const { db } = await createSqlJsHarness();
     const seeded = await seedCoveredData(db);
@@ -1497,6 +1572,37 @@ describe('backup v4 library organization and reading state', () => {
     );
 
     const result = await applyBackupRestore(db, ghostChapter);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('Expected the restore to be blocked.');
+    expect(result.error.code).toBe('backup.restore.blocked');
+    await expectSeededDataIntact(db, seeded);
+  });
+
+  it('blocks progress attached to a sibling identity through another identity of the chapter', async () => {
+    const { db } = await createSqlJsHarness();
+    const seeded = await seedCoveredData(db);
+    const doc = await exportBackupDocumentV1(db, metadata);
+
+    // Every reference resolves on its own: the chapter and the sibling identity
+    // exist, and the mapping belongs to the sibling. Only the chapter's own
+    // manga identity proves the progress was reattached after an edit.
+    const sibling = mutableDocWithSecondIdentity(doc);
+    const second = sibling.mangaIdentities[1]!;
+    const secondMappingId = second.providerMappings[0]!.id;
+    sibling.chapterReadStates![0]!.mangaId = second.id;
+    sibling.chapterReadStates![0]!.providerMappingId = secondMappingId;
+    sibling.readingHistory![0]!.mangaId = second.id;
+    sibling.readingHistory![0]!.providerMappingId = secondMappingId;
+
+    const preview = await previewBackupRestore(db, sibling);
+    expect(preview.previewIssues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'restore.read_state_chapter_mismatch', severity: 'error' }),
+        expect.objectContaining({ code: 'restore.history_chapter_mismatch', severity: 'error' }),
+      ]),
+    );
+
+    const result = await applyBackupRestore(db, sibling);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('Expected the restore to be blocked.');
     expect(result.error.code).toBe('backup.restore.blocked');

@@ -488,18 +488,23 @@ export async function applyBackupRestore(
         tx.delete(categories).run();
       }
 
+      // Progress for a chapter the restore drops must not survive: an orphan
+      // read-state row makes the next v4 export fail its own preview.
+      const keptChapterIds = new Set<string>();
       for (const identity of doc.mangaIdentities) {
         insertMangaIdentitySync(tx, identity);
       }
       if (doc.chapters !== undefined) {
         for (const chapter of doc.chapters) {
           insertChapterRowSync(tx, chapter);
+          keptChapterIds.add(chapter.id);
         }
       } else {
         // Chapters are metadata only; pages are rehydrated by the provider.
         for (const row of legacyChapters) {
           if (!identityIds.has(row.mangaId) || !mappingIds.has(row.providerMappingId)) continue;
           insertChapterRowSync(tx, backupChapterFromRow(row));
+          keptChapterIds.add(row.id);
         }
       }
       for (const category of doc.categories ?? []) {
@@ -535,7 +540,9 @@ export async function applyBackupRestore(
         }
       } else {
         for (const row of legacyReadStates) {
-          if (identityIds.has(row.mangaId)) insertChapterReadStateRowSync(tx, row);
+          if (identityIds.has(row.mangaId) && keptChapterIds.has(row.chapterId)) {
+            insertChapterReadStateRowSync(tx, row);
+          }
         }
       }
 
@@ -545,7 +552,9 @@ export async function applyBackupRestore(
         }
       } else {
         for (const row of legacyReadingHistory) {
-          if (identityIds.has(row.mangaId)) insertReadingHistoryRowSync(tx, row);
+          if (identityIds.has(row.mangaId) && keptChapterIds.has(row.chapterId)) {
+            insertReadingHistoryRowSync(tx, row);
+          }
         }
       }
 

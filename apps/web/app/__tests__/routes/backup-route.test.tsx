@@ -11,7 +11,7 @@ import type * as ExtensionsModule from '@app/extensions';
 import type { ExtensionsPageData } from '@app/extensions';
 import type * as SettingsModule from '@app/settings';
 import { extensionsQueryKeys } from '@app/extensions';
-import { searchQueryKeys } from '@app/search';
+import { DEFAULT_SEARCH_VIEW_STATE, discoverQueryKeys, searchQueryKeys } from '@app/search';
 import { getDefaultAppSettings, type AppSettings } from '@app/shared';
 
 const mocks = vi.hoisted(() => ({
@@ -23,6 +23,8 @@ const mocks = vi.hoisted(() => ({
   fetchAppSettings: vi.fn<(db: unknown) => Promise<{ settings: AppSettings }>>(),
   saveAppSettings: vi.fn<(db: unknown, next: AppSettings) => Promise<unknown>>(),
   fetchExtensionsPage: vi.fn<() => Promise<ExtensionsPageData>>(),
+  fetchSearchPageProbe: vi.fn<() => Promise<{ results: readonly unknown[] }>>(),
+  fetchDiscoverProbe: vi.fn<() => Promise<{ providers: readonly unknown[] }>>(),
   getCoverCacheUsage: vi.fn<() => Promise<{ totalBytes: number }>>(),
 }));
 
@@ -83,6 +85,26 @@ function ExtensionsProbe() {
   return <output data-testid="extensions-probe">{extensions.data?.providers.length ?? -1}</output>;
 }
 
+/** Mirrors the local search page read; restore replaces the identities it reads. */
+function SearchProbe() {
+  const page = useQuery({
+    queryKey: searchQueryKeys.page(DEFAULT_SEARCH_VIEW_STATE),
+    queryFn: () => mocks.fetchSearchPageProbe(),
+    staleTime: Infinity,
+  });
+  return <output data-testid="search-probe">{page.data?.results.length ?? -1}</output>;
+}
+
+/** Mirrors the discover feed; restore replaces the extension rows it reads. */
+function DiscoverProbe() {
+  const discover = useQuery({
+    queryKey: discoverQueryKeys.providers(),
+    queryFn: () => mocks.fetchDiscoverProbe(),
+    staleTime: Infinity,
+  });
+  return <output data-testid="discover-probe">{discover.data?.providers.length ?? -1}</output>;
+}
+
 async function renderRoutes(client: QueryClient): Promise<{ root: Root; container: HTMLElement }> {
   const container = document.createElement('div');
   document.body.appendChild(container);
@@ -93,6 +115,8 @@ async function renderRoutes(client: QueryClient): Promise<{ root: Root; containe
         <BackupRoute.options.component />
         <SettingsAppRoute.options.component />
         <ExtensionsProbe />
+        <SearchProbe />
+        <DiscoverProbe />
       </QueryClientProvider>,
     );
   });
@@ -177,6 +201,10 @@ describe('/backup restore and /settings/app freshness', () => {
     mocks.getCoverCacheUsage.mockResolvedValue({ totalBytes: 0 });
     mocks.fetchExtensionsPage.mockReset();
     mocks.fetchExtensionsPage.mockResolvedValue({ providers: [] });
+    mocks.fetchSearchPageProbe.mockReset();
+    mocks.fetchSearchPageProbe.mockResolvedValue({ results: [] });
+    mocks.fetchDiscoverProbe.mockReset();
+    mocks.fetchDiscoverProbe.mockResolvedValue({ providers: [] });
   });
 
   afterEach(() => {
@@ -266,6 +294,30 @@ describe('/backup restore and /settings/app freshness', () => {
     await vi.waitFor(() => expect(mocks.fetchExtensionsPage).toHaveBeenCalledTimes(2));
     expect(invalidate).toHaveBeenCalledWith({ queryKey: extensionsQueryKeys.all });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: searchQueryKeys.providers() });
+
+    act(() => root.unmount());
+    container.remove();
+    client.clear();
+  });
+
+  it('Given a restore, When search and discover are mounted, Then only their local queries refetch', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidate = vi.spyOn(client, 'invalidateQueries');
+    const { root, container } = await renderRoutes(client);
+
+    await vi.waitFor(() => expect(mocks.fetchSearchPageProbe).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(mocks.fetchDiscoverProbe).toHaveBeenCalledTimes(1));
+
+    await runRestore();
+
+    // Restore replaces the identities search reads and the extensions discover reads.
+    await vi.waitFor(() => expect(mocks.fetchSearchPageProbe).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(mocks.fetchDiscoverProbe).toHaveBeenCalledTimes(2));
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: searchQueryKeys.pages() });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: discoverQueryKeys.all });
+    // Saved searches and provider result grids do not read restored rows.
+    expect(invalidate).not.toHaveBeenCalledWith({ queryKey: searchQueryKeys.all });
+    expect(invalidate).not.toHaveBeenCalledWith({ queryKey: searchQueryKeys.savedSearches() });
 
     act(() => root.unmount());
     container.remove();

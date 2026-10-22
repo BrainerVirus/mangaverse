@@ -15,7 +15,7 @@ import { extensionsQueryKeys } from '@app/extensions';
 import { libraryQueryKeys } from '@app/library';
 import { migrationQueryKeys } from '@app/migration';
 import { readerQueryKeys } from '@app/reader';
-import { searchQueryKeys } from '@app/search';
+import { discoverQueryKeys, searchQueryKeys } from '@app/search';
 import { settingsQueryKeys } from '@app/settings';
 import { themeQueryKeys } from '@app/theme';
 
@@ -98,6 +98,10 @@ function BackupRoute() {
       // settings the provider pickers and search fan-out read.
       void queryClient.invalidateQueries({ queryKey: extensionsQueryKeys.all });
       void queryClient.invalidateQueries({ queryKey: searchQueryKeys.providers() });
+      // Search pages read restored local identities; discover feeds read the
+      // restored extension/provider rows.
+      void queryClient.invalidateQueries({ queryKey: searchQueryKeys.pages() });
+      void queryClient.invalidateQueries({ queryKey: discoverQueryKeys.all });
     },
     onError: (error) => {
       setRestoreSuccess(false);
