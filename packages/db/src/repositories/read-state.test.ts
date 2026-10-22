@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { toChapterId, toChapterPageId, toProviderId } from '@app/shared';
 import { createSqlJsHarness } from '../testing/sqljs-harness.js';
 import { createMangaIdentityWithInitialMapping } from './identities.js';
+import { addProviderMapping } from './identities.js';
 import { addLibraryEntry, getLibraryEntryForManga } from './library.js';
 import { upsertChapterWithPages } from './chapters.js';
 import {
@@ -40,13 +41,13 @@ async function seed() {
       })),
     });
   }
-  return { db, raw, mangaId, ids };
+  return { db, raw, mangaId, mappingId, ids };
 }
 
 describe('setChapterCompleted', () => {
   it('Given a chapter, When marking read then unread, Then progress and the library unread count both follow', async () => {
-    const { db, raw, mangaId, ids } = await seed();
-    expect(await refreshLibraryUnreadCount(db, mangaId, 'prov-a')).toBe(3);
+    const { db, raw, mangaId, mappingId, ids } = await seed();
+    expect(await refreshLibraryUnreadCount(db, mangaId, mappingId)).toBe(3);
 
     expect((await setChapterCompleted(db, ids[1]!, true)).ok).toBe(true);
     expect(await getChapterReadState(db, ids[1]!)).toMatchObject({
@@ -73,8 +74,27 @@ describe('setChapterCompleted', () => {
 });
 
 describe('markPreviousChaptersCompleted', () => {
-  it('Given a middle chapter open, When marking previous read, Then only earlier chapters change and unread counts refresh', async () => {
+  it('Given a middle chapter open, When marking previous read, Then only earlier chapters of that mapping change and unread counts refresh', async () => {
     const { db, raw, mangaId, ids } = await seed();
+
+    // A second mapping from the same provider must be left untouched.
+    const second = await addProviderMapping(db, {
+      mangaId,
+      providerId: toProviderId('prov-a'),
+      providerMangaId: 'read-state-second',
+    });
+    if (!second.ok) throw new Error(second.error.message);
+    for (const index of [1, 2]) {
+      await upsertChapterWithPages(db, {
+        chapterId: toChapterId(`second-${index}`),
+        mangaId,
+        providerMappingId: second.value,
+        providerId: 'prov-a',
+        title: `Second ${index}`,
+        index,
+        pages: [],
+      });
+    }
 
     expect(await markPreviousChaptersCompleted(db, ids[2]!)).toMatchObject({
       ok: true,
@@ -83,6 +103,8 @@ describe('markPreviousChaptersCompleted', () => {
     expect((await getChapterReadState(db, ids[0]!))?.progress.completed).toBe(true);
     expect((await getChapterReadState(db, ids[1]!))?.progress.completed).toBe(true);
     expect(await getChapterReadState(db, ids[2]!)).toBeUndefined();
+    expect(await getChapterReadState(db, toChapterId('second-1'))).toBeUndefined();
+    expect(await getChapterReadState(db, toChapterId('second-2'))).toBeUndefined();
     expect((await getLibraryEntryForManga(db, mangaId))?.unreadCount).toBe(1);
     raw.close();
   });

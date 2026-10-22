@@ -7,6 +7,7 @@ import {
   MANGADEX_SECTION_DEFINITIONS,
   parseMangadexAppChapterId,
   parseMangadexAppMangaId,
+  providerChapterToChapter,
   providerItemToMangaIdentity,
   toMangadexChapterPages,
 } from '@app/extensions-mangadex';
@@ -19,6 +20,7 @@ import type {
 } from '@app/extensions-sdk';
 import type { MangaDetailData } from '@app/library';
 import type {
+  Chapter,
   ChapterId,
   ChapterPage,
   ExtensionInstallMetadata,
@@ -55,6 +57,7 @@ export interface ProviderAppBinding {
     details: ProviderDetails,
     chapters: readonly ProviderChapter[],
   ) => MangaDetailData;
+  readonly toChapter: (providerMangaId: string, chapter: ProviderChapter) => Chapter;
   readonly toChapterPages: (
     providerChapterId: string,
     pages: readonly ProviderPage[],
@@ -71,6 +74,7 @@ const PROVIDER_BINDINGS: readonly ProviderAppBinding[] = [
     parseAppChapterId: parseMangadexAppChapterId,
     toSearchIdentities: (items) => items.map(providerItemToMangaIdentity),
     toMangaDetailData: buildMangaDetailData,
+    toChapter: providerChapterToChapter,
     toChapterPages: toMangadexChapterPages,
   },
 ];

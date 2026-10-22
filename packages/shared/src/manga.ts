@@ -112,6 +112,11 @@ export function getDefaultProviderMapping(
   return identity.providerMappings.find((m) => m.id === identity.defaultProviderMappingId);
 }
 
+/** The cover every surface should show: the user's override wins over provider art. */
+export function getMangaCoverUrl(identity: MangaIdentity): string | undefined {
+  return identity.userOverrides?.coverImageUrl ?? identity.coverImageUrl;
+}
+
 export function getCanonicalTitle(identity: MangaIdentity): string {
   return identity.canonicalTitle;
 }

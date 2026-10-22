@@ -54,8 +54,12 @@ export async function persistChapterPagesToDb(
   if (manga === undefined) {
     return;
   }
+  // A chapter read through a switched mapping must keep that mapping; writing
+  // it under the default one would collide with its primary key instead.
   const mappingId =
-    (await getChapterProviderMappingId(db, chapter.id)) ?? manga.defaultProviderMappingId;
+    (await getChapterProviderMappingId(db, chapter.id)) ??
+    chapter.providerMappingId ??
+    manga.defaultProviderMappingId;
 
   const result = await upsertChapterWithPages(db, {
     chapterId: chapter.id,
@@ -92,6 +96,10 @@ export function mergeMangaDetailWithLibrary(
     ...detail,
     libraryEntry: local.libraryEntry,
     continueChapterId: local.continueChapterId ?? detail.continueChapterId,
+    ...(local.readStates !== undefined ? { readStates: local.readStates } : {}),
+    ...(local.downloadedChapterIds !== undefined
+      ? { downloadedChapterIds: local.downloadedChapterIds }
+      : {}),
   };
 }
 

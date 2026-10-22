@@ -1,5 +1,6 @@
 import { MangaCard, type MangaCardProps } from '@app/design-system';
 import { cn } from '@app/design-system';
+import { getMangaCoverUrl } from '@app/shared';
 
 import { CachedMangaCardCover } from './CachedCoverImage.js';
 import { useCoverCacheContext } from './CoverCacheProvider.js';
@@ -20,7 +21,7 @@ export function CachedMangaCard(props: MangaCardProps) {
     >
       {context !== null ? (
         <CachedMangaCardCover manga={manga} className="h-full w-full object-cover" />
-      ) : manga.coverImageUrl !== undefined ? (
+      ) : getMangaCoverUrl(manga) !== undefined ? (
         <div className="h-full w-full animate-pulse bg-muted" aria-hidden />
       ) : (
         <div className="h-full w-full bg-muted" aria-hidden />

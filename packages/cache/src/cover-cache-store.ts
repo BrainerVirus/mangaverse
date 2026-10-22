@@ -51,7 +51,9 @@ export async function getCachedCoverObjectUrl(
     cacheKind: COVER_CACHE_KIND,
   });
 
-  if (entry?.blobKey === undefined) {
+  // The entry is keyed by provider + manga, so a changed source URL (for
+  // example a custom cover) must miss instead of painting the previous blob.
+  if (entry?.blobKey === undefined || entry.sourceUrl !== input.remoteUrl) {
     return undefined;
   }
 
@@ -130,7 +132,10 @@ export async function resolveCoverObjectUrl(
     return cached;
   }
 
-  const fetchKey = buildCoverBlobKey(String(input.providerId), String(input.mangaId));
+  const fetchKey = `${buildCoverBlobKey(
+    String(input.providerId),
+    String(input.mangaId),
+  )}\u0000${input.remoteUrl}`;
   const existingFetch = inFlightFetches.get(fetchKey);
   if (existingFetch !== undefined) {
     const objectUrl = await existingFetch;

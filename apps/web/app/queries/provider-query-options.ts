@@ -1,10 +1,22 @@
 import type { AppDrizzleDb } from '@app/db/browser';
-import { getChapter } from '@app/db/browser';
+import {
+  getChapter,
+  getLibraryEntryForManga,
+  getMangaIdentity,
+  refreshLibraryUnreadCount,
+  upsertChapterWithPages,
+} from '@app/db/browser';
 import { applyExplicitContentGate, loadProviderSettings } from '@app/extensions';
 import type { ProviderContext, ProviderContract } from '@app/extensions-sdk';
 import { normalizeProviderError } from '@app/extensions-sdk';
 import type { MangaDetailData } from '@app/library';
-import type { ChapterId, MangaId, MangaIdentity } from '@app/shared';
+import type {
+  ChapterId,
+  MangaId,
+  MangaIdentity,
+  MangaProviderMapping,
+  ProviderCapabilityKey,
+} from '@app/shared';
 import { hasProviderCapability, toProviderMangaId } from '@app/shared';
 
 import {
@@ -133,6 +145,139 @@ export async function fetchProviderMangaDetail(
   const { fetchMangaDetail } = await import('@app/library');
   const refreshed = await fetchMangaDetail(db, mangaId);
   return mergeMangaDetailWithLibrary(refreshed ?? remote, local);
+}
+
+export type ProviderRelatedKind = 'recommendations' | 'relatedTitles';
+
+const RELATED_CAPABILITY: Readonly<Record<ProviderRelatedKind, ProviderCapabilityKey>> = {
+  recommendations: 'metadata.recommendations',
+  relatedTitles: 'metadata.relatedTitles',
+};
+
+/**
+ * Provider recommendations/related titles for one attached mapping. Returns
+ * empty without a call when the provider lacks the capability, so the detail
+ * page can hide the section instead of inventing one.
+ */
+export async function fetchProviderRelatedTitles(
+  db: AppDrizzleDb,
+  mapping: MangaProviderMapping,
+  kind: ProviderRelatedKind,
+  signal?: AbortSignal,
+): Promise<readonly MangaIdentity[]> {
+  const binding = getProviderBinding(String(mapping.providerId));
+  if (binding === null) return [];
+
+  const context = await providerContext(db, binding.providerId, signal);
+  if (context === null) return [];
+  if (!hasProviderCapability(context.provider.manifest, RELATED_CAPABILITY[kind])) return [];
+
+  const method =
+    kind === 'recommendations'
+      ? context.provider.getRecommendations
+      : context.provider.getRelatedTitles;
+  if (method === undefined) return [];
+
+  try {
+    const result = await method.call(context.provider, context.ctx, mapping.providerMangaId);
+    return binding.toSearchIdentities(result.items);
+  } catch (error) {
+    if (signal?.aborted === true) throw error;
+    throw new Error(
+      normalizeProviderError(error, { providerId: binding.providerId, operation: kind }).message,
+      { cause: error },
+    );
+  }
+}
+
+/**
+ * Hydrates the chapter list for one attached mapping. Only runs when the
+ * provider declares `metadata.chapters`; the caller polls the local detail
+ * query afterwards instead of trusting the provider response.
+ */
+export async function ensureProviderChaptersForMapping(
+  db: AppDrizzleDb,
+  mangaId: MangaId,
+  mapping: MangaProviderMapping,
+  signal?: AbortSignal,
+): Promise<number> {
+  const binding = getProviderBinding(String(mapping.providerId));
+  if (binding === null) return 0;
+
+  const context = await providerContext(db, binding.providerId, signal);
+  if (context === null || context.provider.getChapters === undefined) return 0;
+  if (!hasProviderCapability(context.provider.manifest, 'metadata.chapters')) return 0;
+
+  try {
+    const chapters = await context.provider.getChapters(context.ctx, mapping.providerMangaId);
+    for (const chapter of chapters) {
+      const mapped = binding.toChapter(String(mapping.providerMangaId), chapter);
+      // oxlint-disable-next-line react-doctor/async-await-in-loop -- one row per chapter against the browser-SQLite runtime; parallel writes would contend for the same write lock
+      const written = await upsertChapterWithPages(db, {
+        chapterId: mapped.id,
+        mangaId,
+        providerMappingId: mapping.id,
+        providerId: String(mapping.providerId),
+        ...(mapped.providerChapterId !== undefined
+          ? { providerChapterId: mapped.providerChapterId }
+          : {}),
+        title: mapped.title,
+        index: mapped.index,
+        ...(mapped.volume !== undefined ? { volume: mapped.volume } : {}),
+        ...(mapped.publishedAt !== undefined ? { publishedAt: mapped.publishedAt } : {}),
+        pages: [],
+      });
+      if (!written.ok) throw new Error(written.error.message);
+    }
+    return chapters.length;
+  } catch (error) {
+    if (signal?.aborted === true) throw error;
+    throw new Error(
+      normalizeProviderError(error, {
+        providerId: binding.providerId,
+        operation: 'chapters',
+      }).message,
+      { cause: error },
+    );
+  }
+}
+
+/**
+ * Hydrates one mapping's chapters, then recomputes the badge that mapping
+ * drives. The switch handler can only see pre-hydration chapters, so without
+ * this second refresh the card would keep the zero it wrote for an empty
+ * mapping. Runs even when hydration is skipped for an unsupported provider so
+ * the stored count always matches the mapping now being viewed.
+ */
+export async function hydrateProviderChaptersForMapping(
+  db: AppDrizzleDb,
+  mangaId: MangaId,
+  mapping: MangaProviderMapping,
+  signal?: AbortSignal,
+): Promise<number> {
+  const written = await ensureProviderChaptersForMapping(db, mangaId, mapping, signal);
+  // A hydration started for the previous mapping must not repaint its badge
+  // after the user has switched away.
+  if (signal?.aborted !== true && (await isActiveMapping(db, mangaId, mapping.id))) {
+    await refreshLibraryUnreadCount(db, mangaId, mapping.id);
+  }
+  return written;
+}
+
+async function isActiveMapping(
+  db: AppDrizzleDb,
+  mangaId: MangaId,
+  mappingId: MangaProviderMapping['id'],
+): Promise<boolean> {
+  const [entry, manga] = await Promise.all([
+    getLibraryEntryForManga(db, mangaId),
+    getMangaIdentity(db, mangaId),
+  ]);
+  const activeId =
+    entry?.activeProviderMappingId ??
+    manga?.preferredChapterSourceId ??
+    manga?.defaultProviderMappingId;
+  return activeId === mappingId;
 }
 
 /**

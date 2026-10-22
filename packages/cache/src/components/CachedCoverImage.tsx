@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { MangaId, MangaIdentity, ProviderId } from '@app/shared';
+import { getMangaCoverUrl, type MangaId, type MangaIdentity, type ProviderId } from '@app/shared';
 import { cn } from '@app/design-system';
 
 import { resolveCoverObjectUrl } from '../cover-cache-store.js';
@@ -105,7 +105,9 @@ export function CachedCoverImage({
     );
   }
 
-  return <img src={src} alt={alt} className={className} loading="lazy" />;
+  return (
+    <img src={src} alt={alt} className={className} loading="lazy" data-cover-url={remoteUrl} />
+  );
 }
 
 export function getDefaultProviderId(manga: MangaIdentity): string {
@@ -121,7 +123,8 @@ export interface CachedMangaCardCoverProps {
 }
 
 export function CachedMangaCardCover({ manga, className }: CachedMangaCardCoverProps) {
-  if (manga.coverImageUrl === undefined) {
+  const coverImageUrl = getMangaCoverUrl(manga);
+  if (coverImageUrl === undefined) {
     return <div className={cn('bg-muted', className)} aria-hidden />;
   }
 
@@ -129,7 +132,7 @@ export function CachedMangaCardCover({ manga, className }: CachedMangaCardCoverP
     <CachedCoverImage
       providerId={getDefaultProviderId(manga)}
       mangaId={manga.id}
-      remoteUrl={manga.coverImageUrl}
+      remoteUrl={coverImageUrl}
       alt={manga.canonicalTitle}
       {...(className !== undefined ? { className } : {})}
     />

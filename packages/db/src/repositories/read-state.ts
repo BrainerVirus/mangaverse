@@ -104,22 +104,22 @@ export async function upsertChapterReadState(
 /**
  * Recomputes the library badge from durable read state instead of decrementing
  * it: marking previous chapters or unmarking one keeps the same count truthful.
- * Scoped to the chapter's provider so a duplicate chapter from another source
- * cannot change this source's unread count.
+ * Scoped to the chapter's provider mapping so another mapping can never change
+ * this mapping's unread count, even when both come from the same provider.
  */
 export async function refreshLibraryUnreadCount(
   db: AppDrizzleDb,
   mangaId: MangaId,
-  providerId?: string,
+  providerMappingId?: ProviderMappingId,
 ): Promise<number> {
   const rows = db
     .select({ completed: chapterReadState.completed })
     .from(chapters)
     .leftJoin(chapterReadState, eq(chapterReadState.chapterId, chapters.id))
     .where(
-      providerId === undefined
+      providerMappingId === undefined
         ? eq(chapters.mangaId, mangaId)
-        : and(eq(chapters.mangaId, mangaId), eq(chapters.providerId, providerId)),
+        : and(eq(chapters.mangaId, mangaId), eq(chapters.providerMappingId, providerMappingId)),
     )
     .all();
   const unreadCount = rows.filter((row) => row.completed !== true).length;
@@ -129,19 +129,23 @@ export async function refreshLibraryUnreadCount(
 
 /**
  * Recomputes the badge after a reader-driven natural completion, where only the
- * chapter's own provider count may change.
+ * chapter's own mapping count may change.
  */
 export async function refreshLibraryUnreadCountForChapter(
   db: AppDrizzleDb,
   chapterId: ChapterId,
 ): Promise<number | undefined> {
   const chapter = db
-    .select({ mangaId: chapters.mangaId, providerId: chapters.providerId })
+    .select({ mangaId: chapters.mangaId, providerMappingId: chapters.providerMappingId })
     .from(chapters)
     .where(eq(chapters.id, chapterId))
     .get();
   if (chapter === undefined) return undefined;
-  return refreshLibraryUnreadCount(db, toMangaId(chapter.mangaId), chapter.providerId ?? undefined);
+  return refreshLibraryUnreadCount(
+    db,
+    toMangaId(chapter.mangaId),
+    toProviderMappingId(chapter.providerMappingId),
+  );
 }
 
 /**
@@ -158,7 +162,6 @@ export async function setChapterCompleted(
     .select({
       id: chapters.id,
       mangaId: chapters.mangaId,
-      providerId: chapters.providerId,
       providerMappingId: chapters.providerMappingId,
     })
     .from(chapters)
@@ -193,11 +196,15 @@ export async function setChapterCompleted(
     },
   });
 
-  await refreshLibraryUnreadCount(db, toMangaId(chapter.mangaId), chapter.providerId ?? undefined);
+  await refreshLibraryUnreadCount(
+    db,
+    toMangaId(chapter.mangaId),
+    toProviderMappingId(chapter.providerMappingId),
+  );
   return ok(undefined);
 }
 
-/** Marks every earlier chapter of the same provider read in one pass. */
+/** Marks every earlier chapter of the same provider mapping read in one pass. */
 export async function markPreviousChaptersCompleted(
   db: AppDrizzleDb,
   chapterId: ChapterId,
@@ -205,7 +212,7 @@ export async function markPreviousChaptersCompleted(
   const chapter = db
     .select({
       mangaId: chapters.mangaId,
-      providerId: chapters.providerId,
+      providerMappingId: chapters.providerMappingId,
       chapterIndex: chapters.chapterIndex,
     })
     .from(chapters)
@@ -224,9 +231,7 @@ export async function markPreviousChaptersCompleted(
       and(
         eq(chapters.mangaId, chapter.mangaId),
         lt(chapters.chapterIndex, chapter.chapterIndex),
-        ...(chapter.providerId === null || chapter.providerId === undefined
-          ? []
-          : [eq(chapters.providerId, chapter.providerId)]),
+        eq(chapters.providerMappingId, chapter.providerMappingId),
       ),
     )
     .all();
@@ -268,21 +273,12 @@ export async function markPreviousChaptersCompleted(
     }
   }
 
-  await refreshLibraryUnreadCount(db, toMangaId(chapter.mangaId), chapter.providerId ?? undefined);
+  await refreshLibraryUnreadCount(
+    db,
+    toMangaId(chapter.mangaId),
+    toProviderMappingId(chapter.providerMappingId),
+  );
   return ok({ updated: previous.length });
-}
-
-export async function getChapterReadState(
-  db: AppDrizzleDb,
-  chapterId: ChapterId,
-): Promise<ChapterReadState | undefined> {
-  const row = db
-    .select()
-    .from(chapterReadState)
-    .where(eq(chapterReadState.chapterId, chapterId))
-    .get();
-  if (row === undefined) return undefined;
-  return mapChapterReadState(row);
 }
 
 function mapChapterReadState(row: typeof chapterReadState.$inferSelect): ChapterReadState {
@@ -310,8 +306,34 @@ function mapChapterReadState(row: typeof chapterReadState.$inferSelect): Chapter
   };
 }
 
+export async function getChapterReadState(
+  db: AppDrizzleDb,
+  chapterId: ChapterId,
+): Promise<ChapterReadState | undefined> {
+  const row = db
+    .select()
+    .from(chapterReadState)
+    .where(eq(chapterReadState.chapterId, chapterId))
+    .get();
+  if (row === undefined) return undefined;
+  return mapChapterReadState(row);
+}
+
 export async function listChapterReadStates(db: AppDrizzleDb): Promise<ChapterReadState[]> {
   return db.select().from(chapterReadState).all().map(mapChapterReadState);
+}
+
+/** Read states for a whole title, so the detail chapter list needs one query, not one per row. */
+export async function listChapterReadStatesForManga(
+  db: AppDrizzleDb,
+  mangaId: MangaId,
+): Promise<ChapterReadState[]> {
+  return db
+    .select()
+    .from(chapterReadState)
+    .where(eq(chapterReadState.mangaId, mangaId))
+    .all()
+    .map(mapChapterReadState);
 }
 
 export async function appendReadingHistory(

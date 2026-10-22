@@ -203,6 +203,7 @@ export async function getChapter(
   const chapter: Chapter = {
     id: toChapterId(row.id),
     mangaId: toMangaId(row.mangaId),
+    providerMappingId: toProviderMappingId(row.providerMappingId),
     title: row.title,
     index: row.chapterIndex,
     pages: chapterPagesOut,

@@ -5,7 +5,25 @@ export {
   type CategoryManagerDialogProps,
 } from './components/CategoryManagerDialog.js';
 export { BulkEditBar, type BulkEditBarProps } from './components/BulkEditBar.js';
-export { MangaDetailPage, type MangaDetailPageProps } from './components/MangaDetailPage.js';
+export {
+  MangaDetailPage,
+  type MangaDetailPageProps,
+  type MangaDetailRelatedState,
+} from './components/MangaDetailPage.js';
+export { MangaChapterList, type MangaChapterListProps } from './components/MangaChapterList.js';
+export { MangaProviderSwitcher } from './components/MangaProviderSwitcher.js';
+export { MangaCustomCoverDialog } from './components/MangaCustomCoverDialog.js';
+export { MangaRelatedTitles } from './components/MangaRelatedTitles.js';
+export {
+  chaptersForMapping,
+  countUnreadChapters,
+  filterChapters,
+  readChapterIds,
+  selectChapters,
+  sortChapters,
+  type ChapterFilter,
+  type ChapterSort,
+} from './chapter-list.js';
 export { fetchLibraryPage } from './fetch-library-page.js';
 export {
   CONTINUE_READING_LIMIT,
@@ -36,7 +54,9 @@ export { filterLibraryItemsByQuery } from './filter-items.js';
 export {
   addMangaToLibrary,
   applyLibraryOrganizationAction,
+  markPreviousChaptersRead,
   removeMangaFromLibrary,
+  setChapterRead,
   setMangaFavorite,
 } from './library-actions.js';
 export {

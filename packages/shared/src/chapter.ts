@@ -36,6 +36,7 @@ export interface ChapterPage {
 export interface Chapter {
   readonly id: ChapterId;
   readonly mangaId: MangaId;
+  readonly providerMappingId?: ProviderMappingId;
   readonly providerId?: ProviderId;
   readonly providerChapterId?: string;
   readonly title: string;

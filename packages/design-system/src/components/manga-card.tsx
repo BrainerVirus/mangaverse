@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { useGSAP } from '@gsap/react';
 import { gsap } from 'gsap';
-import type { MangaIdentity } from '@app/shared';
+import { getMangaCoverUrl, type MangaIdentity } from '@app/shared';
 import { useReducedMotion } from '@app/motion';
 import { cn } from '../lib/cn.js';
 import { Badge } from './ui/badge.js';
@@ -28,7 +28,8 @@ function CardCover({ manga, variant, coverSlot }: CoverProps) {
   // `??` semantics: a null coverSlot falls through to the built-in cover.
   if (coverSlot !== undefined && coverSlot !== null) return <>{coverSlot}</>;
 
-  if (manga.coverImageUrl) {
+  const coverImageUrl = getMangaCoverUrl(manga);
+  if (coverImageUrl) {
     return (
       <div
         className={cn(
@@ -38,7 +39,7 @@ function CardCover({ manga, variant, coverSlot }: CoverProps) {
         )}
       >
         <img
-          src={manga.coverImageUrl}
+          src={coverImageUrl}
           alt={manga.canonicalTitle}
           className="h-full w-full object-cover"
           loading="lazy"

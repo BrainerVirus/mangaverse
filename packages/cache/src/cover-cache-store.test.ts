@@ -167,6 +167,51 @@ describe('cover cache store', () => {
     expect(blobStore.has(buildCoverBlobKey('mangadex', 'dev-md-new'))).toBe(true);
   });
 
+  it('refetches when the cover source URL changes instead of reusing the old blob', async () => {
+    const { db } = await createSqlJsHarness();
+    const adapter = createMockAdapter();
+
+    const old = await storeCoverInCache({
+      db,
+      adapter,
+      providerId: 'mangadex',
+      mangaId: 'dev-md-override',
+      remoteUrl: 'https://uploads.mangadex.org/covers/provider.jpg',
+      data: new Uint8Array([1, 1, 1]).buffer,
+      mimeType: 'image/jpeg',
+    });
+    expect(old?.fromCache).toBe(false);
+
+    const stale = await getCachedCoverObjectUrl({
+      db,
+      adapter,
+      providerId: 'mangadex',
+      mangaId: 'dev-md-override',
+      remoteUrl: 'https://example.com/custom.jpg',
+    });
+    expect(stale).toBeUndefined();
+
+    const resolved = await resolveCoverObjectUrl({
+      db,
+      adapter,
+      providerId: 'mangadex',
+      mangaId: 'dev-md-override',
+      remoteUrl: 'https://example.com/custom.jpg',
+    });
+    expect(resolved?.fromCache).toBe(false);
+    expect(resolved?.objectUrl).not.toBe(old?.objectUrl);
+
+    const cachedNew = await getCachedCoverObjectUrl({
+      db,
+      adapter,
+      providerId: 'mangadex',
+      mangaId: 'dev-md-override',
+      remoteUrl: 'https://example.com/custom.jpg',
+    });
+    expect(cachedNew?.fromCache).toBe(true);
+    expect(cachedNew?.objectUrl).not.toBe(old?.objectUrl);
+  });
+
   it('downloads remote cover bytes via platform network and stores blob URL', async () => {
     const { db } = await createSqlJsHarness();
     const blobStore = new Map<string, { data: ArrayBuffer; mimeType: string }>();

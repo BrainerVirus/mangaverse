@@ -15,6 +15,7 @@ import { CachedCoverImage, getDefaultProviderId } from '@app/cache';
 import {
   LIBRARY_STATUS_OPTIONS,
   compareLibraryCategories,
+  getMangaCoverUrl,
   libraryStatusLabel,
   toReadableDescription,
   type CategoryId,
@@ -25,10 +26,34 @@ import {
   type LibraryStatus,
   type MangaId,
   type MangaIdentity,
+  type MangaProviderMapping,
+  type ProviderMappingId,
+  type TrackingLink,
 } from '@app/shared';
-import { Heart, Library, Trash2 } from 'lucide-react';
+import {
+  ArrowRightLeft,
+  ExternalLink,
+  Heart,
+  Image,
+  Library,
+  Settings,
+  SlidersHorizontal,
+  Trash2,
+} from 'lucide-react';
+import { chaptersForMapping } from '../chapter-list.js';
 import type { MangaDetailData } from '../types.js';
 import { ConfirmRemoveFromLibraryDialog } from './ConfirmRemoveFromLibraryDialog.js';
+import { MangaChapterList } from './MangaChapterList.js';
+import { MangaCustomCoverDialog } from './MangaCustomCoverDialog.js';
+import { MangaProviderSwitcher } from './MangaProviderSwitcher.js';
+import { MangaRelatedTitles } from './MangaRelatedTitles.js';
+
+export interface MangaDetailRelatedState {
+  readonly items?: readonly MangaIdentity[];
+  readonly isLoading?: boolean;
+  readonly error?: string;
+  onRetry?: () => void;
+}
 
 export interface MangaDetailPageProps {
   mangaId: MangaId;
@@ -43,6 +68,26 @@ export interface MangaDetailPageProps {
   onCategoriesChange?: (categoryIds: readonly CategoryId[]) => Promise<void> | void;
   onStatusChange?: (status: LibraryStatus) => void;
   isLibraryActionPending?: boolean;
+  /** Provider names keyed by provider id; falls back to the raw id. */
+  providerLabels?: Readonly<Record<string, string>>;
+  isProviderActionPending?: boolean;
+  onSelectProvider?: (mappingId: ProviderMappingId) => Promise<void> | void;
+  onSetDefaultProvider?: (mappingId: ProviderMappingId) => Promise<void> | void;
+  onSetPreferredChapterSource?: (mappingId: ProviderMappingId) => Promise<void> | void;
+  isChapterActionPending?: boolean;
+  isChaptersLoading?: boolean;
+  chaptersError?: string;
+  onRetryChapters?: () => void;
+  onSetChapterRead?: (chapterId: ChapterId, read: boolean) => Promise<void> | void;
+  onMarkPreviousChaptersRead?: (chapterId: ChapterId) => Promise<void> | void;
+  isCoverActionPending?: boolean;
+  onSetCoverImageUrl?: (url: string | undefined) => Promise<void> | void;
+  onOpenMigration?: () => void;
+  onOpenProviderSettings?: (providerId: string) => void;
+  onOpenReaderSettings?: () => void;
+  recommendations?: MangaDetailRelatedState;
+  relatedTitles?: MangaDetailRelatedState;
+  onOpenRelatedManga?: (mangaId: MangaId) => void;
 }
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' });
@@ -269,16 +314,50 @@ function ReadingFacts({ entry, chapters }: ReadingFactsProps) {
   );
 }
 
-interface SummaryProps {
-  data: MangaDetailData;
-  onOpenChapter: (chapterId: ChapterId) => void;
-  libraryEntry: MangaDetailData['libraryEntry'];
-  onAddToLibrary: (() => void) | undefined;
-  onRemoveFromLibrary: (() => void) | undefined;
-  onToggleFavorite: (() => void) | undefined;
-  onCategoriesChange: ((categoryIds: readonly CategoryId[]) => Promise<void> | void) | undefined;
-  onStatusChange: ((status: LibraryStatus) => void) | undefined;
-  isLibraryActionPending: boolean;
+function httpUrl(value: string): string | undefined {
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function TrackingLinks({ links }: { links: readonly TrackingLink[] }) {
+  return (
+    <div>
+      <dt className="font-medium text-muted-foreground">Tracking</dt>
+      <dd>
+        <ul className="flex flex-col gap-1">
+          {links.map((link) => {
+            // Backup import can supply any string; only http(s) may become a link.
+            const href = link.externalUrl === undefined ? undefined : httpUrl(link.externalUrl);
+            return (
+              <li key={`${link.service}:${link.externalId}`} className="flex items-center gap-2">
+                <span className="font-medium">{link.service}</span>
+                {href !== undefined ? (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
+                  >
+                    {link.externalId}
+                    <ExternalLink aria-hidden className="size-3" />
+                  </a>
+                ) : (
+                  <span>{link.externalId}</span>
+                )}
+                {link.lastSyncedAt !== undefined ? (
+                  <span className="text-xs text-muted-foreground">synced {link.lastSyncedAt}</span>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      </dd>
+    </div>
+  );
 }
 
 function MangaSummaryHeader({ manga, inLibrary }: { manga: MangaIdentity; inLibrary: boolean }) {
@@ -303,14 +382,19 @@ function MangaSummaryHeader({ manga, inLibrary }: { manga: MangaIdentity; inLibr
   );
 }
 
-function MangaFacts({ manga }: { manga: MangaIdentity }) {
+function MangaFacts({
+  manga,
+  activeMapping,
+  providerLabels,
+}: {
+  manga: MangaIdentity;
+  activeMapping: MangaProviderMapping | undefined;
+  providerLabels: Readonly<Record<string, string>> | undefined;
+}) {
   const authors = formatPeople(manga.authors);
   const artists = formatPeople(manga.artists);
   const description =
     manga.description === undefined ? '' : toReadableDescription(manga.description);
-  const defaultProvider = manga.providerMappings.find(
-    (mapping) => mapping.id === manga.defaultProviderMappingId,
-  );
 
   return (
     <>
@@ -327,11 +411,14 @@ function MangaFacts({ manga }: { manga: MangaIdentity }) {
             <dd>{artists}</dd>
           </div>
         ) : null}
-        {defaultProvider !== undefined ? (
+        {activeMapping !== undefined ? (
           <div>
             <dt className="font-medium text-muted-foreground">Source</dt>
-            <dd>{defaultProvider.providerId}</dd>
+            <dd>{providerLabels?.[activeMapping.providerId] ?? activeMapping.providerId}</dd>
           </div>
+        ) : null}
+        {manga.trackingLinks !== undefined && manga.trackingLinks.length > 0 ? (
+          <TrackingLinks links={manga.trackingLinks} />
         ) : null}
       </dl>
 
@@ -344,7 +431,7 @@ function MangaFacts({ manga }: { manga: MangaIdentity }) {
       {manga.tags.length > 0 ? (
         <div className="flex flex-wrap gap-2">
           {manga.tags.map((tag) => (
-            <Badge key={tag.id} variant="outline">
+            <Badge key={tag.id ?? tag.label} variant="outline">
               {tag.label}
             </Badge>
           ))}
@@ -354,27 +441,119 @@ function MangaFacts({ manga }: { manga: MangaIdentity }) {
   );
 }
 
+function ShortcutActions({
+  activeProviderId,
+  hasCustomCover,
+  onSetCustomCover,
+  onOpenMigration,
+  onOpenProviderSettings,
+  onOpenReaderSettings,
+  isCoverActionPending,
+}: {
+  activeProviderId: string | undefined;
+  hasCustomCover: boolean;
+  onSetCustomCover: (() => void) | undefined;
+  onOpenMigration: (() => void) | undefined;
+  onOpenProviderSettings: ((providerId: string) => void) | undefined;
+  onOpenReaderSettings: (() => void) | undefined;
+  isCoverActionPending: boolean;
+}) {
+  if (
+    onSetCustomCover === undefined &&
+    onOpenMigration === undefined &&
+    onOpenProviderSettings === undefined &&
+    onOpenReaderSettings === undefined
+  ) {
+    return null;
+  }
+
+  return (
+    <fieldset aria-label="Title actions" className="m-0 flex min-w-0 flex-wrap gap-2 border-0 p-0">
+      {onOpenMigration !== undefined ? (
+        <Button type="button" size="sm" variant="outline" onClick={onOpenMigration}>
+          <ArrowRightLeft aria-hidden className="size-4" />
+          Migrate
+        </Button>
+      ) : null}
+      {onOpenProviderSettings !== undefined && activeProviderId !== undefined ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => onOpenProviderSettings(activeProviderId)}
+        >
+          <Settings aria-hidden className="size-4" />
+          Provider settings
+        </Button>
+      ) : null}
+      {onOpenReaderSettings !== undefined ? (
+        <Button type="button" size="sm" variant="outline" onClick={onOpenReaderSettings}>
+          <SlidersHorizontal aria-hidden className="size-4" />
+          Reader settings
+        </Button>
+      ) : null}
+      {onSetCustomCover !== undefined ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={isCoverActionPending}
+          onClick={onSetCustomCover}
+        >
+          <Image aria-hidden className="size-4" />
+          {hasCustomCover ? 'Change cover' : 'Custom cover'}
+        </Button>
+      ) : null}
+    </fieldset>
+  );
+}
+
 function ReadingAction({
-  continueChapterId,
-  hasLastReadChapter,
+  chapter,
+  isContinue,
   onOpenChapter,
 }: {
-  continueChapterId: ChapterId | undefined;
-  hasLastReadChapter: boolean;
+  chapter: MangaDetailData['chapters'][number] | undefined;
+  isContinue: boolean;
   onOpenChapter: (chapterId: ChapterId) => void;
 }) {
-  if (continueChapterId === undefined) return null;
+  if (chapter === undefined) return null;
   return (
     <div className="flex flex-wrap gap-3">
-      <Button type="button" onClick={() => onOpenChapter(continueChapterId)}>
-        {hasLastReadChapter ? 'Continue reading' : 'Start reading'}
+      <Button type="button" onClick={() => onOpenChapter(chapter.id)}>
+        {isContinue ? 'Continue reading' : 'Start reading'}
       </Button>
     </div>
   );
 }
 
+interface SummaryProps {
+  data: MangaDetailData;
+  activeMapping: MangaProviderMapping | undefined;
+  providerLabels: Readonly<Record<string, string>> | undefined;
+  continueChapter: MangaDetailData['chapters'][number] | undefined;
+  hasLastReadChapter: boolean;
+  onOpenChapter: (chapterId: ChapterId) => void;
+  onAddToLibrary: (() => void) | undefined;
+  onRemoveFromLibrary: (() => void) | undefined;
+  onToggleFavorite: (() => void) | undefined;
+  onCategoriesChange: ((categoryIds: readonly CategoryId[]) => Promise<void> | void) | undefined;
+  onStatusChange: ((status: LibraryStatus) => void) | undefined;
+  isLibraryActionPending: boolean;
+  onOpenMigration: (() => void) | undefined;
+  onOpenProviderSettings: ((providerId: string) => void) | undefined;
+  onOpenReaderSettings: (() => void) | undefined;
+  onSetCustomCover: (() => void) | undefined;
+  hasCustomCover: boolean;
+  isCoverActionPending: boolean;
+}
+
 function MangaSummary({
   data,
+  activeMapping,
+  providerLabels,
+  continueChapter,
+  hasLastReadChapter,
   onOpenChapter,
   onAddToLibrary,
   onRemoveFromLibrary,
@@ -382,19 +561,25 @@ function MangaSummary({
   onCategoriesChange,
   onStatusChange,
   isLibraryActionPending,
+  onOpenMigration,
+  onOpenProviderSettings,
+  onOpenReaderSettings,
+  onSetCustomCover,
+  hasCustomCover,
+  isCoverActionPending,
 }: SummaryProps) {
-  const { manga, libraryEntry, continueChapterId, chapters } = data;
+  const { manga, libraryEntry, chapters } = data;
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-4">
       <MangaSummaryHeader manga={manga} inLibrary={libraryEntry !== undefined} />
-      <MangaFacts manga={manga} />
+      <MangaFacts manga={manga} activeMapping={activeMapping} providerLabels={providerLabels} />
       {libraryEntry !== undefined ? (
         <ReadingFacts entry={libraryEntry} chapters={chapters} />
       ) : null}
       <ReadingAction
-        continueChapterId={continueChapterId}
-        hasLastReadChapter={libraryEntry?.lastReadChapterId !== undefined}
+        chapter={continueChapter}
+        isContinue={hasLastReadChapter}
         onOpenChapter={onOpenChapter}
       />
 
@@ -415,6 +600,16 @@ function MangaSummary({
         />
       ) : null}
 
+      <ShortcutActions
+        activeProviderId={activeMapping === undefined ? undefined : activeMapping.providerId}
+        hasCustomCover={hasCustomCover}
+        onSetCustomCover={onSetCustomCover}
+        onOpenMigration={onOpenMigration}
+        onOpenProviderSettings={onOpenProviderSettings}
+        onOpenReaderSettings={onOpenReaderSettings}
+        isCoverActionPending={isCoverActionPending}
+      />
+
       {libraryEntry !== undefined && onCategoriesChange !== undefined ? (
         <CategoryEditor
           categories={data.categories ?? []}
@@ -426,42 +621,81 @@ function MangaSummary({
     </div>
   );
 }
-
-function ChapterList({
-  chapters,
-  onOpenChapter,
-}: {
-  chapters: MangaDetailData['chapters'];
-  onOpenChapter: (chapterId: ChapterId) => void;
-}) {
-  if (chapters.length === 0) {
-    return <EmptyState type="no-chapters" />;
-  }
-
-  return (
-    <ol className="divide-y divide-border rounded-box border border-border">
-      {chapters.map((chapter) => (
-        <li key={chapter.id}>
-          <button
-            type="button"
-            className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            onClick={() => onOpenChapter(chapter.id)}
-          >
-            <span className="font-medium">{chapter.title}</span>
-            {chapter.volume !== undefined ? (
-              <span className="text-sm text-muted-foreground">{chapter.volume}</span>
-            ) : null}
-          </button>
-        </li>
-      ))}
-    </ol>
-  );
+interface MangaDetailView {
+  readonly data: MangaDetailData;
+  readonly activeMapping?: MangaProviderMapping;
+  readonly activeMappingId?: ProviderMappingId;
+  readonly activeChapters: readonly Chapter[];
+  readonly continueChapter?: Chapter;
+  readonly lastReadChapter?: Chapter;
+  readonly customCoverUrl?: string;
+  readonly coverUrl?: string;
 }
 
-export function MangaDetailPage({
-  data,
-  isLoading,
-  isError,
+/** Derived display state for one viewed mapping, kept out of the render component. */
+function buildMangaDetailView(
+  data: MangaDetailData,
+  viewedMappingId: ProviderMappingId | null,
+): MangaDetailView {
+  const { manga, chapters, libraryEntry } = data;
+  const mappings = manga.providerMappings;
+  const persistedMappingId =
+    libraryEntry?.activeProviderMappingId ??
+    manga.preferredChapterSourceId ??
+    manga.defaultProviderMappingId;
+  const activeMapping =
+    mappings.find((mapping) => mapping.id === (viewedMappingId ?? persistedMappingId)) ??
+    mappings.find((mapping) => mapping.id === manga.defaultProviderMappingId) ??
+    mappings[0];
+  const activeMappingId = activeMapping?.id;
+  const activeChapters = chaptersForMapping(chapters, activeMappingId);
+  const lastReadInActive = activeChapters.find(
+    (chapter) => chapter.id === libraryEntry?.lastReadChapterId,
+  );
+  // A migrated mapping may have no local chapters yet; the stored last read
+  // still has to open, exactly as it did before the mapping split.
+  const lastReadChapter = chapters.find(
+    (chapter) => chapter.id === libraryEntry?.lastReadChapterId,
+  );
+  const continueChapter = lastReadInActive ?? activeChapters[0] ?? lastReadChapter;
+  const customCoverUrl = manga.userOverrides?.coverImageUrl;
+  const coverUrl = getMangaCoverUrl(manga);
+
+  return {
+    data,
+    activeChapters,
+    ...(activeMapping === undefined ? {} : { activeMapping }),
+    ...(activeMappingId === undefined ? {} : { activeMappingId }),
+    ...(continueChapter === undefined ? {} : { continueChapter }),
+    ...(lastReadChapter === undefined ? {} : { lastReadChapter }),
+    ...(customCoverUrl === undefined ? {} : { customCoverUrl }),
+    ...(coverUrl === undefined ? {} : { coverUrl }),
+  };
+}
+
+interface MangaDetailHeaderProps {
+  readonly view: MangaDetailView;
+  readonly providerLabels: Readonly<Record<string, string>> | undefined;
+  readonly isLibraryActionPending: boolean;
+  readonly isCoverActionPending: boolean;
+  onBack: (() => void) | undefined;
+  onOpenChapter: (chapterId: ChapterId) => void;
+  onAddToLibrary: (() => void) | undefined;
+  onRemoveFromLibrary: (() => void) | undefined;
+  onToggleFavorite: (() => void) | undefined;
+  onCategoriesChange: ((categoryIds: readonly CategoryId[]) => Promise<void> | void) | undefined;
+  onStatusChange: ((status: LibraryStatus) => void) | undefined;
+  onOpenMigration: (() => void) | undefined;
+  onOpenProviderSettings: ((providerId: string) => void) | undefined;
+  onOpenReaderSettings: (() => void) | undefined;
+  onOpenCover: (() => void) | undefined;
+}
+
+function MangaDetailHeader({
+  view,
+  providerLabels,
+  isLibraryActionPending,
+  isCoverActionPending,
   onBack,
   onOpenChapter,
   onAddToLibrary,
@@ -469,9 +703,262 @@ export function MangaDetailPage({
   onToggleFavorite,
   onCategoriesChange,
   onStatusChange,
-  isLibraryActionPending = false,
-}: MangaDetailPageProps) {
-  if (isLoading) {
+  onOpenMigration,
+  onOpenProviderSettings,
+  onOpenReaderSettings,
+  onOpenCover,
+}: MangaDetailHeaderProps) {
+  const { data, activeMapping, continueChapter, lastReadChapter, customCoverUrl, coverUrl } = view;
+
+  return (
+    <div className="flex flex-wrap items-start gap-6">
+      {onBack !== undefined ? (
+        <Button type="button" variant="ghost" onClick={onBack}>
+          Back
+        </Button>
+      ) : null}
+
+      <div className="flex flex-1 flex-col gap-6 md:flex-row">
+        {coverUrl !== undefined ? (
+          <div className="mx-auto w-40 shrink-0 overflow-hidden rounded-box border border-border bg-muted md:mx-0 md:w-48">
+            <CachedCoverImage
+              providerId={getDefaultProviderId(data.manga)}
+              mangaId={data.manga.id}
+              remoteUrl={coverUrl}
+              alt={data.manga.canonicalTitle}
+              className="aspect-3/4 w-full object-cover"
+            />
+          </div>
+        ) : null}
+
+        <MangaSummary
+          data={data}
+          activeMapping={activeMapping}
+          providerLabels={providerLabels}
+          continueChapter={continueChapter}
+          hasLastReadChapter={lastReadChapter !== undefined}
+          onOpenChapter={onOpenChapter}
+          onAddToLibrary={onAddToLibrary}
+          onRemoveFromLibrary={onRemoveFromLibrary}
+          onToggleFavorite={onToggleFavorite}
+          onCategoriesChange={onCategoriesChange}
+          onStatusChange={onStatusChange}
+          isLibraryActionPending={isLibraryActionPending}
+          onOpenMigration={onOpenMigration}
+          onOpenProviderSettings={onOpenProviderSettings}
+          onOpenReaderSettings={onOpenReaderSettings}
+          onSetCustomCover={onOpenCover}
+          hasCustomCover={customCoverUrl !== undefined}
+          isCoverActionPending={isCoverActionPending}
+        />
+      </div>
+    </div>
+  );
+}
+
+function MangaProvidersSection({
+  view,
+  providerLabels,
+  isPending,
+  onSelectProvider,
+  onSetDefaultProvider,
+  onSetPreferredChapterSource,
+}: {
+  readonly view: MangaDetailView;
+  readonly providerLabels: Readonly<Record<string, string>> | undefined;
+  readonly isPending: boolean;
+  onSelectProvider: ((mappingId: ProviderMappingId) => Promise<void> | void) | undefined;
+  onSetDefaultProvider: ((mappingId: ProviderMappingId) => Promise<void> | void) | undefined;
+  onSetPreferredChapterSource: ((mappingId: ProviderMappingId) => Promise<void> | void) | undefined;
+}) {
+  const { data, activeMappingId } = view;
+  const { manga } = data;
+
+  return (
+    <MangaProviderSwitcher
+      mappings={manga.providerMappings}
+      defaultMappingId={manga.defaultProviderMappingId}
+      activeMappingId={activeMappingId ?? manga.defaultProviderMappingId}
+      {...(manga.preferredChapterSourceId === undefined
+        ? {}
+        : { preferredMappingId: manga.preferredChapterSourceId })}
+      {...(providerLabels === undefined ? {} : { providerLabels })}
+      isPending={isPending}
+      {...(onSelectProvider === undefined ? {} : { onSelectMapping: onSelectProvider })}
+      {...(onSetDefaultProvider === undefined ? {} : { onSetDefault: onSetDefaultProvider })}
+      {...(onSetPreferredChapterSource === undefined
+        ? {}
+        : { onSetPreferred: onSetPreferredChapterSource })}
+    />
+  );
+}
+
+function MangaChaptersSection({
+  view,
+  isPending,
+  isLoading,
+  loadError,
+  onOpenChapter,
+  onRetryLoad,
+  onSetChapterRead,
+  onMarkPreviousChaptersRead,
+}: {
+  readonly view: MangaDetailView;
+  readonly isPending: boolean;
+  readonly isLoading: boolean;
+  readonly loadError: string | undefined;
+  onOpenChapter: (chapterId: ChapterId) => void;
+  onRetryLoad: (() => void) | undefined;
+  onSetChapterRead: ((chapterId: ChapterId, read: boolean) => Promise<void> | void) | undefined;
+  onMarkPreviousChaptersRead: ((chapterId: ChapterId) => Promise<void> | void) | undefined;
+}) {
+  const { data, activeMappingId } = view;
+  const lastReadChapterId = data.libraryEntry?.lastReadChapterId;
+
+  return (
+    <MangaChapterList
+      chapters={data.chapters}
+      {...(data.readStates === undefined ? {} : { readStates: data.readStates })}
+      {...(data.downloadedChapterIds === undefined
+        ? {}
+        : { downloadedChapterIds: data.downloadedChapterIds })}
+      {...(activeMappingId === undefined ? {} : { mappingId: activeMappingId })}
+      {...(lastReadChapterId === undefined ? {} : { lastReadChapterId })}
+      isPending={isPending}
+      isLoading={isLoading}
+      {...(loadError === undefined ? {} : { loadError })}
+      onOpenChapter={onOpenChapter}
+      {...(onRetryLoad === undefined ? {} : { onRetryLoad })}
+      {...(onSetChapterRead === undefined ? {} : { onSetChapterRead })}
+      {...(onMarkPreviousChaptersRead === undefined
+        ? {}
+        : { onMarkPreviousRead: onMarkPreviousChaptersRead })}
+    />
+  );
+}
+
+function MangaRelatedSections({
+  recommendations,
+  relatedTitles,
+  onOpenRelatedManga,
+}: {
+  readonly recommendations: MangaDetailRelatedState | undefined;
+  readonly relatedTitles: MangaDetailRelatedState | undefined;
+  onOpenRelatedManga: ((mangaId: MangaId) => void) | undefined;
+}) {
+  const openManga = onOpenRelatedManga ?? (() => {});
+  return (
+    <>
+      {recommendations === undefined ? null : (
+        <MangaRelatedTitles
+          heading="Recommendations"
+          {...recommendations}
+          onOpenManga={openManga}
+        />
+      )}
+      {relatedTitles === undefined ? null : (
+        <MangaRelatedTitles heading="Related titles" {...relatedTitles} onOpenManga={openManga} />
+      )}
+    </>
+  );
+}
+
+function MangaDetailContent(props: MangaDetailPageProps & { readonly data: MangaDetailData }) {
+  const [viewedMappingId, setViewedMappingId] = useState<ProviderMappingId | null>(null);
+  // The optimistic view must not outlive the snapshot it was clicked against:
+  // otherwise a later action that changes the active mapping (e.g. "Use for
+  // chapters") keeps painting the old one. Reset during render on a new snapshot.
+  const [viewedData, setViewedData] = useState(props.data);
+  if (viewedData !== props.data) {
+    setViewedData(props.data);
+    setViewedMappingId(null);
+  }
+  const [coverDialogOpen, setCoverDialogOpen] = useState(false);
+  const view = buildMangaDetailView(props.data, viewedMappingId);
+  const { customCoverUrl } = view;
+
+  const selectProvider = async (mappingId: ProviderMappingId): Promise<void> => {
+    if (props.onSelectProvider === undefined) return;
+    setViewedMappingId(mappingId);
+    try {
+      await props.onSelectProvider(mappingId);
+    } catch (error) {
+      setViewedMappingId(null);
+      throw error;
+    }
+  };
+
+  return (
+    <section aria-label="Manga details" className="flex flex-col gap-8 p-6">
+      <MangaDetailHeader
+        view={view}
+        providerLabels={props.providerLabels}
+        isLibraryActionPending={props.isLibraryActionPending ?? false}
+        isCoverActionPending={props.isCoverActionPending ?? false}
+        onBack={props.onBack}
+        onOpenChapter={props.onOpenChapter}
+        onAddToLibrary={props.onAddToLibrary}
+        onRemoveFromLibrary={props.onRemoveFromLibrary}
+        onToggleFavorite={props.onToggleFavorite}
+        onCategoriesChange={props.onCategoriesChange}
+        onStatusChange={props.onStatusChange}
+        onOpenMigration={props.onOpenMigration}
+        onOpenProviderSettings={props.onOpenProviderSettings}
+        onOpenReaderSettings={props.onOpenReaderSettings}
+        onOpenCover={
+          props.onSetCoverImageUrl === undefined ? undefined : () => setCoverDialogOpen(true)
+        }
+      />
+
+      <MangaProvidersSection
+        view={view}
+        providerLabels={props.providerLabels}
+        isPending={props.isProviderActionPending ?? false}
+        onSelectProvider={props.onSelectProvider === undefined ? undefined : selectProvider}
+        onSetDefaultProvider={props.onSetDefaultProvider}
+        onSetPreferredChapterSource={props.onSetPreferredChapterSource}
+      />
+
+      <MangaChaptersSection
+        view={view}
+        isPending={props.isChapterActionPending ?? false}
+        isLoading={props.isChaptersLoading ?? false}
+        loadError={props.chaptersError}
+        onOpenChapter={props.onOpenChapter}
+        onRetryLoad={props.onRetryChapters}
+        onSetChapterRead={props.onSetChapterRead}
+        onMarkPreviousChaptersRead={props.onMarkPreviousChaptersRead}
+      />
+
+      <MangaRelatedSections
+        recommendations={props.recommendations}
+        relatedTitles={props.relatedTitles}
+        onOpenRelatedManga={props.onOpenRelatedManga}
+      />
+
+      {props.onSetCoverImageUrl === undefined ? null : (
+        <MangaCustomCoverDialog
+          open={coverDialogOpen}
+          {...(customCoverUrl === undefined ? {} : { initialUrl: customCoverUrl })}
+          hasCustomCover={customCoverUrl !== undefined}
+          isSaving={props.isCoverActionPending ?? false}
+          onOpenChange={setCoverDialogOpen}
+          onSave={async (url) => {
+            await props.onSetCoverImageUrl?.(url);
+            setCoverDialogOpen(false);
+          }}
+          onReset={async () => {
+            await props.onSetCoverImageUrl?.(undefined);
+            setCoverDialogOpen(false);
+          }}
+        />
+      )}
+    </section>
+  );
+}
+
+export function MangaDetailPage(props: MangaDetailPageProps) {
+  if (props.isLoading) {
     return (
       <section aria-label="Manga details" className="p-6">
         <LoadingState type="detail" />
@@ -479,7 +966,7 @@ export function MangaDetailPage({
     );
   }
 
-  if (isError) {
+  if (props.isError) {
     return (
       <section aria-label="Manga details" className="p-6">
         <ErrorState
@@ -490,62 +977,18 @@ export function MangaDetailPage({
     );
   }
 
-  if (data === undefined || data === null) {
+  if (props.data === undefined || props.data === null) {
     return (
       <section aria-label="Manga details" className="p-6">
         <EmptyState
           type="manga-not-found"
-          {...(onBack === undefined
+          {...(props.onBack === undefined
             ? {}
-            : { action: { label: 'Back to library', onClick: onBack } })}
+            : { action: { label: 'Back to library', onClick: props.onBack } })}
         />
       </section>
     );
   }
 
-  const { manga, chapters } = data;
-
-  return (
-    <section aria-label="Manga details" className="flex flex-col gap-8 p-6">
-      <div className="flex flex-wrap items-start gap-6">
-        {onBack !== undefined ? (
-          <Button type="button" variant="ghost" onClick={onBack}>
-            Back
-          </Button>
-        ) : null}
-
-        <div className="flex flex-1 flex-col gap-6 md:flex-row">
-          {manga.coverImageUrl ? (
-            <div className="mx-auto w-40 shrink-0 overflow-hidden rounded-box border border-border bg-muted md:mx-0 md:w-48">
-              <CachedCoverImage
-                providerId={getDefaultProviderId(manga)}
-                mangaId={manga.id}
-                remoteUrl={manga.coverImageUrl}
-                alt={manga.canonicalTitle}
-                className="aspect-3/4 w-full object-cover"
-              />
-            </div>
-          ) : null}
-
-          <MangaSummary
-            data={data}
-            onOpenChapter={onOpenChapter}
-            libraryEntry={data.libraryEntry}
-            onAddToLibrary={onAddToLibrary}
-            onRemoveFromLibrary={onRemoveFromLibrary}
-            onToggleFavorite={onToggleFavorite}
-            onCategoriesChange={onCategoriesChange}
-            onStatusChange={onStatusChange}
-            isLibraryActionPending={isLibraryActionPending}
-          />
-        </div>
-      </div>
-
-      <section aria-label="Chapters" className="space-y-4">
-        <h2 className="text-xl font-semibold">Chapters</h2>
-
-        <ChapterList chapters={chapters} onOpenChapter={onOpenChapter} />
-      </section>
-    </section>
-  );
+  return <MangaDetailContent {...props} data={props.data} />;
 }
