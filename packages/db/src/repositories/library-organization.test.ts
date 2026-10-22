@@ -73,6 +73,25 @@ async function entryFor(
   return entryId;
 }
 
+/** Seeds the read-state timestamp the reader writes on progress. */
+function markRead(harness: SqlJsHarness, entryId: LibraryEntryId, readAt: string): void {
+  const entry = harness.raw.exec(`SELECT manga_id FROM library_entries WHERE id = '${entryId}'`);
+  const mangaId = entry[0]?.values[0]?.[0];
+  if (typeof mangaId !== 'string') throw new Error(`Missing manga for ${entryId}`);
+  const chapterId = `chapter-${entryId}`;
+  harness.raw.run(
+    `INSERT INTO chapter_read_state
+       (chapter_id, manga_id, read_percent, last_page_index, completed, started_at, updated_at)
+     VALUES (?, ?, 0.5, 0, 0, ?, ?)`,
+    [chapterId, mangaId, readAt, readAt],
+  );
+  // The real progress write sets both the resume marker and the read state.
+  harness.raw.run('UPDATE library_entries SET last_read_chapter_id = ? WHERE id = ?', [
+    chapterId,
+    entryId,
+  ]);
+}
+
 describe('listLibraryEntries filters', () => {
   it('Given category, status, favorites and provider filters, Then they all combine', async () => {
     const harness = await createSqlJsHarness();
@@ -252,6 +271,69 @@ describe('listLibraryEntries filters', () => {
       sort: { key: 'progress', direction: 'asc' },
     });
     expect(unreadOrder(byProgressAscending)).toEqual([aaa, two, many]);
+  });
+
+  it('sorts last read by reading time, not by favorites, status or category edits', async () => {
+    const harness = await createSqlJsHarness();
+    // Added order and read order disagree on purpose.
+    const newestAdded = await entryFor(harness, 'newest-added', {
+      addedAt: '2026-04-01T00:00:00.000Z',
+      updatedAt: '2026-04-10T00:00:00.000Z',
+    });
+    const newerAdded = await entryFor(harness, 'newer-added', {
+      addedAt: '2026-03-01T00:00:00.000Z',
+      updatedAt: '2026-03-10T00:00:00.000Z',
+    });
+    const olderAdded = await entryFor(harness, 'older-added', {
+      addedAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-10T00:00:00.000Z',
+    });
+    const neverStarted = await entryFor(harness, 'never-started', {
+      addedAt: '2026-05-01T00:00:00.000Z',
+      updatedAt: '2026-05-01T00:00:00.000Z',
+    });
+
+    markRead(harness, newestAdded, '2026-04-10T00:00:00.000Z');
+    markRead(harness, newerAdded, '2026-03-10T00:00:00.000Z');
+    markRead(harness, olderAdded, '2026-01-10T00:00:00.000Z');
+
+    const order = async () =>
+      (await listLibraryEntries(harness.db, { sort: { key: 'last_read', direction: 'desc' } })).map(
+        (entry) => entry.id,
+      );
+
+    expect(await order()).toEqual([newestAdded, newerAdded, olderAdded, neverStarted]);
+
+    // Favoriting bumps library_entries.updated_at. It must not reorder last read.
+    expect((await setLibraryEntriesFavorite(harness.db, [newerAdded], true)).ok).toBe(true);
+    expect(await order()).toEqual([newestAdded, newerAdded, olderAdded, neverStarted]);
+
+    // Status and category edits bump the same column and must not reorder either.
+    expect((await setLibraryEntriesStatus(harness.db, [olderAdded], 'completed')).ok).toBe(true);
+    expect(await order()).toEqual([newestAdded, newerAdded, olderAdded, neverStarted]);
+    const category = await createLibraryCategory(harness.db, { name: 'Read order' });
+    expect(category.ok).toBe(true);
+    if (!category.ok) return;
+    await addLibraryEntriesToCategories(harness.db, [olderAdded], [category.value]);
+    expect(await order()).toEqual([newestAdded, newerAdded, olderAdded, neverStarted]);
+
+    // Reading the older title now moves it first.
+    harness.raw.run(
+      "UPDATE chapter_read_state SET updated_at = '2026-06-01T00:00:00.000Z' WHERE chapter_id = ?",
+      [`chapter-${olderAdded}`],
+    );
+    expect(await order()).toEqual([olderAdded, newestAdded, newerAdded, neverStarted]);
+
+    // Ascending keeps the same stable order and still ranks never-opened last.
+    const ascending = await listLibraryEntries(harness.db, {
+      sort: { key: 'last_read', direction: 'asc' },
+    });
+    expect(ascending.map((entry) => entry.id)).toEqual([
+      newerAdded,
+      newestAdded,
+      olderAdded,
+      neverStarted,
+    ]);
   });
 
   it('sorts by provider, preferring the active mapping then the manga default', async () => {

@@ -227,15 +227,41 @@ function providerKeysByEntryId(
   return keys;
 }
 
-/** Only entries that were opened have a last-read timestamp; unread entries rank last. */
+/**
+ * Reading time per title comes from the chapter read state, one grouped query
+ * for the whole library instead of one per entry. `library_entries.updated_at`
+ * is only a fallback: favorites, status and category edits bump it too, so it
+ * cannot rank "last read". The fallback still helps entries restored from a
+ * backup that carried resume metadata but no read-state rows. Entries that were
+ * never opened rank last.
+ */
 function lastReadAtByEntryId(
+  db: AppDrizzleDb,
   rows: readonly (typeof libraryEntries.$inferSelect)[],
 ): Map<string, string> {
+  const readAtByMangaId = new Map(
+    readIdChunks(
+      rows.map((row) => row.mangaId),
+      (chunk) =>
+        db
+          .select({
+            mangaId: chapterReadState.mangaId,
+            lastReadAt: sql<string | null>`max(${chapterReadState.updatedAt})`,
+          })
+          .from(chapterReadState)
+          .where(inArray(chapterReadState.mangaId, chunk))
+          .groupBy(chapterReadState.mangaId)
+          .all(),
+    ).map((row) => [row.mangaId, row.lastReadAt ?? '']),
+  );
+
   return new Map(
-    rows.map((row) => [
-      row.id,
-      row.lastReadChapterId === null || row.lastReadChapterId === '' ? '' : (row.updatedAt ?? ''),
-    ]),
+    rows.map((row) => {
+      const readAt = readAtByMangaId.get(row.mangaId) ?? '';
+      const hasResumeMetadata = row.lastReadChapterId !== null && row.lastReadChapterId !== '';
+      const fallback = hasResumeMetadata ? (row.updatedAt ?? '') : '';
+      return [row.id, readAt === '' ? fallback : readAt];
+    }),
   );
 }
 
@@ -249,7 +275,8 @@ function sortLibraryRows(
   const titles = key === 'title' ? canonicalTitlesByMangaId(db, rows) : new Map<string, string>();
   const providerKeys =
     key === 'provider' ? providerKeysByEntryId(db, rows) : new Map<string, string>();
-  const lastReadAt = key === 'last_read' ? lastReadAtByEntryId(rows) : new Map<string, string>();
+  const lastReadAt =
+    key === 'last_read' ? lastReadAtByEntryId(db, rows) : new Map<string, string>();
 
   const sorted = [...rows].sort((a, b) => {
     const byId = a.id.localeCompare(b.id);
