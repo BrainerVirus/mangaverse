@@ -53,6 +53,7 @@ export {
 export { filterLibraryItemsByQuery } from './filter-items.js';
 export {
   collectLibraryMigrationSelection,
+  libraryMigrationSelectionError,
   type LibraryMigrationSelection,
 } from './migration-selection.js';
 export {

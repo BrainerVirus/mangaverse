@@ -40,3 +40,16 @@ export function collectLibraryMigrationSelection(
     sourceProviderIds: [...sourceProviderIds].sort((a, b) => a.localeCompare(b)),
   };
 }
+
+/**
+ * Rejects a hand-off that would overflow the migration URL. The batch travels in
+ * the query string, so an oversized selection must be narrowed instead of
+ * silently truncated.
+ */
+export function libraryMigrationSelectionError(
+  selection: LibraryMigrationSelection,
+  limit: number | undefined,
+): string | null {
+  if (limit === undefined || selection.mangaIds.length <= limit) return null;
+  return `Select at most ${limit} ${limit === 1 ? 'title' : 'titles'} per migration batch; ${selection.mangaIds.length} are selected. Narrow the selection and try again.`;
+}

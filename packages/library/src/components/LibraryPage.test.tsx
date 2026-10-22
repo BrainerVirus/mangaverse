@@ -14,6 +14,7 @@ import {
 } from '@app/shared';
 import { LibraryPage } from './LibraryPage.js';
 import { DEFAULT_LIBRARY_VIEW_STATE } from '../view-state.js';
+import type { LibraryMigrationSelection } from '../migration-selection.js';
 import type { LibraryItem } from '../types.js';
 import type { LibraryOverviewItem } from '../fetch-library-overview.js';
 import type { LibraryUpdateReport } from '../update-queue.js';
@@ -276,5 +277,37 @@ describe('LibraryPage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Cancel updates' }));
     expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('Given a selection above the migration batch limit, Then migrate is blocked with a split instruction', async () => {
+    const user = userEvent.setup();
+    const onMigrate = vi.fn<(selection: LibraryMigrationSelection) => void>();
+
+    render(
+      <LibraryPage
+        data={{
+          items: [createItem('one', 'Title 1'), createItem('two', 'Title 2')],
+          categories: [],
+          viewState: DEFAULT_LIBRARY_VIEW_STATE,
+        }}
+        isLoading={false}
+        isError={false}
+        viewState={DEFAULT_LIBRARY_VIEW_STATE}
+        onViewStateChange={() => {}}
+        onOpenManga={() => {}}
+        onMigrate={onMigrate}
+        migrationBatchLimit={1}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Select titles' }));
+    await user.click(screen.getByLabelText('Select Title 1'));
+    await user.click(screen.getByLabelText('Select Title 2'));
+    await user.click(screen.getByRole('button', { name: 'Migrate selected' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Select at most 1 title per migration batch; 2 are selected.',
+    );
+    expect(onMigrate).not.toHaveBeenCalled();
   });
 });

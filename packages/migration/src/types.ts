@@ -1,3 +1,6 @@
+/** Why a library hand-off could not be read as a migration batch. */
+export type MigrationHandoffError = 'invalid' | 'too-many';
+
 export interface MigrationProviderOption {
   readonly id: string;
   readonly name: string;

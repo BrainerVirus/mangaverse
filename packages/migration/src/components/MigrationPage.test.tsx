@@ -118,12 +118,36 @@ describe('MigrationPage library hand-off', () => {
       />,
     );
 
-    expect(screen.getByText('Multiple source providers selected')).toBeInTheDocument();
-    expect(screen.getByText(/The library selection spans Source, Target/)).toBeInTheDocument();
-    expect(screen.getByText(/Choose one source provider/)).toBeInTheDocument();
+    expect(screen.getByText('Multiple source providers in this selection')).toBeInTheDocument();
+    expect(
+      screen.getByText(/preferred provider mapping across Source, Target/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/choose the provider whose mappings/)).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Migration candidates' })).toBeNull();
   });
 
-  it('lists stale requested ids with the reason they were skipped', () => {
+  it('lists stale requested ids with titles and keeps the list out of the description paragraph', () => {
+    render(
+      <MigrationPage
+        {...pageProps({
+          requestedMangaIds: ['m1', 'gone'],
+          requestedSourceProviderIds: ['source'],
+          skippedRequestedIds: ['gone'],
+          requestedTitles: { gone: 'Deleted Title' },
+        })}
+      />,
+    );
+
+    expect(screen.getByText('Some selected titles were skipped')).toBeInTheDocument();
+    expect(
+      screen.getByText(/no longer in the library or have no mapping on Source/),
+    ).toBeInTheDocument();
+    const list = screen.getByRole('list', { name: 'Skipped selected titles' });
+    expect(list).toHaveTextContent('Deleted Title');
+    expect(list.closest('p')).toBeNull();
+  });
+
+  it('falls back to the raw id when no title is known', () => {
     render(
       <MigrationPage
         {...pageProps({
@@ -134,11 +158,51 @@ describe('MigrationPage library hand-off', () => {
       />,
     );
 
-    expect(screen.getByText('Some selected titles were skipped')).toBeInTheDocument();
-    expect(
-      screen.getByText(/no longer in the library or not linked to Source/),
-    ).toBeInTheDocument();
-    expect(screen.getByText('gone')).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Skipped selected titles' })).toHaveTextContent('gone');
+  });
+
+  it('names an unavailable prefilled provider, lists its titles, and blocks candidates', () => {
+    render(
+      <MigrationPage
+        {...pageProps({
+          sourceProviderId: null,
+          requestedMangaIds: ['m1', 'm2'],
+          requestedSourceProviderIds: ['gone'],
+          unavailableRequestedSourceProviderId: 'gone',
+          skippedRequestedIds: ['m1', 'm2'],
+          requestedTitles: { m1: 'Solo Leveling' },
+        })}
+      />,
+    );
+
+    expect(screen.getByText('Selected source provider is unavailable')).toBeInTheDocument();
+    expect(screen.getByText(/gone is not installed or enabled/)).toBeInTheDocument();
+    const list = screen.getByRole('list', { name: 'Skipped selected titles' });
+    expect(list).toHaveTextContent('Solo Leveling');
+    expect(list).toHaveTextContent('m2');
+    expect(screen.queryByRole('list', { name: 'Migration candidates' })).toBeNull();
+  });
+
+  it('blocks batch mode for an invalid link until the hand-off is cleared', () => {
+    const onClearHandoff = vi.fn<() => void>();
+    render(<MigrationPage {...pageProps({ handoffError: 'invalid', onClearHandoff })} />);
+
+    expect(screen.getByText('Invalid migration link')).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Source provider' })).toBeNull();
+    expect(screen.queryByRole('list', { name: 'Migration candidates' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Preview migration' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear this link' }));
+    expect(onClearHandoff).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects an over-limit link with the cap instead of truncating it', () => {
+    render(<MigrationPage {...pageProps({ handoffError: 'too-many', handoffIdCount: 201 })} />);
+
+    expect(screen.getByText('Too many titles for one migration batch')).toBeInTheDocument();
+    expect(screen.getByText(/carries 201 titles/)).toBeInTheDocument();
+    expect(screen.getByText(/at most 200/)).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Migration candidates' })).toBeNull();
   });
 });
 

@@ -262,7 +262,7 @@ for (const viewport of [
       await expect(
         page.getByRole('combobox', { name: 'Source provider', exact: true }),
       ).toContainText('MangaDex', { timeout: 20_000 });
-      await expect(page.getByText(/2 selected titles from MangaDex/)).toBeVisible();
+      await expect(page.getByText(/2 selected titles with a mapping on MangaDex/)).toBeVisible();
 
       await selectProvider(page, 'Target provider', 'Demo Target');
 
@@ -469,4 +469,99 @@ test('Given a searchable target provider, When a title is searched, Then the ran
   await expect(
     page.getByText('0 title(s) restored. 2 already matched the previous state.'),
   ).toBeVisible({ timeout: 20_000 });
+});
+
+const HANDOFF_LIMIT = 200;
+
+function handoffIds(count: number): string[] {
+  return Array.from(
+    { length: count },
+    (_, index) => `dev-md-00000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
+  );
+}
+
+/** Mirrors the router's default array serialization: one JSON `ids` value. */
+function handoffUrl(count: number): string {
+  return `/migration?ids=${encodeURIComponent(JSON.stringify(handoffIds(count)))}`;
+}
+
+test('Given a full-size hand-off link, When migration opens, Then the limit loads and one more id is rejected', async ({
+  page,
+  quickOnboarding,
+}) => {
+  await page.goto(handoffUrl(HANDOFF_LIMIT));
+
+  // A server 431 would fail this load before the page renders.
+  await expect(page.getByRole('heading', { name: 'Migration', exact: true })).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(page.getByText(/200 selected titles/)).toBeVisible();
+
+  await page.goto(handoffUrl(HANDOFF_LIMIT + 1));
+  await expect(page.getByText('Too many titles for one migration batch')).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(page.getByText(/carries 201 titles/)).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Migration candidates' })).toHaveCount(0);
+});
+
+test('Given a malformed hand-off link, When migration opens, Then no unfiltered batch appears and clearing restores the page', async ({
+  page,
+  quickOnboarding,
+}) => {
+  await page.goto('/migration?ids=not-a-title-list');
+
+  await expect(page.getByText('Invalid migration link')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('combobox', { name: 'Source provider' })).toHaveCount(0);
+  await expect(page.getByRole('list', { name: 'Migration candidates' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Clear this link' }).click();
+  await expect(page.getByRole('combobox', { name: 'Source provider' })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.getByText('Invalid migration link')).toHaveCount(0);
+});
+
+test('Given a hand-off spanning two source providers, When migration opens, Then it asks for one source and shows no candidates', async ({
+  page,
+  quickOnboarding,
+}) => {
+  const ids = JSON.stringify(['id-one', 'id-two']);
+  const sources = JSON.stringify(['provider-one', 'provider-two']);
+  await page.goto(
+    `/migration?ids=${encodeURIComponent(ids)}&sources=${encodeURIComponent(sources)}`,
+  );
+
+  await expect(page.getByText('Multiple source providers in this selection')).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(page.getByRole('combobox', { name: 'Source provider' })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Migration candidates' })).toHaveCount(0);
+});
+
+test('Given a hand-off whose source provider is not installed, When migration opens, Then it names the provider and lists the title', async ({
+  page,
+  quickOnboarding,
+}) => {
+  await mockTwoManga(page, [TITLES[0]]);
+  await addToLibrary(page, TITLES[0].id, TITLES[0].title);
+
+  await page.goto('/library');
+  await page.getByRole('button', { name: 'Select titles' }).click();
+  await page.getByLabel(`Select ${TITLES[0].title}`).check();
+  await page.getByRole('button', { name: 'Migrate selected' }).click();
+  await expect(page).toHaveURL(/\/migration\?ids=/, { timeout: 20_000 });
+
+  const url = new URL(page.url());
+  url.searchParams.set('sources', JSON.stringify(['missing-provider']));
+  await page.goto(url.toString());
+
+  await expect(page.getByText('Selected source provider is unavailable')).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(page.getByText(/missing-provider is not installed or enabled/)).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Skipped selected titles' })).toHaveText(
+    TITLES[0].title,
+  );
+  await expect(page.getByRole('list', { name: 'Migration candidates' })).toHaveCount(0);
 });

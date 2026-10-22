@@ -1,5 +1,11 @@
 import type { MigrationBatchSummary, MigrationCandidate, MigrationSearchResult } from './types.js';
 
+/**
+ * Titles carried by one migration hand-off. The ids travel in the URL, so the
+ * limit keeps a full batch under the request-line size servers accept.
+ */
+export const MIGRATION_BATCH_LIMIT = 200;
+
 /** Limits a source provider's candidates to the ids handed over from the library. */
 export function filterMigrationCandidatesByIds(
   candidates: readonly MigrationCandidate[],

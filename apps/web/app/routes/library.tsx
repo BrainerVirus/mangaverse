@@ -11,6 +11,7 @@ import {
   type LibraryMigrationSelection,
   type LibraryUpdateReport,
 } from '@app/library';
+import { MIGRATION_BATCH_LIMIT } from '@app/migration';
 import type { ChapterId, LibraryEntryId, LibraryViewState, MangaId } from '@app/shared';
 import {
   libraryOverviewQueryOptions,
@@ -138,6 +139,7 @@ function LibraryRoute() {
       }}
       onOrganize={(action) => organizeMutation.mutateAsync(action)}
       onMigrate={migrateSelection}
+      migrationBatchLimit={MIGRATION_BATCH_LIMIT}
       onBrowse={() => void navigate({ to: '/extensions' })}
       {...(dbStatus === 'error' ? { onRetry: retryDb } : {})}
     />

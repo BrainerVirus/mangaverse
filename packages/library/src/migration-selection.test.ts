@@ -10,7 +10,10 @@ import {
   type MangaProviderMapping,
 } from '@app/shared';
 
-import { collectLibraryMigrationSelection } from './migration-selection.js';
+import {
+  collectLibraryMigrationSelection,
+  libraryMigrationSelectionError,
+} from './migration-selection.js';
 import type { LibraryItem } from './types.js';
 
 function mapping(id: string, providerId: string): MangaProviderMapping {
@@ -81,5 +84,19 @@ describe('collectLibraryMigrationSelection', () => {
       mangaIds: [toMangaId('one')],
       sourceProviderIds: [toProviderId('first')],
     });
+  });
+
+  it('accepts the batch limit and rejects one more with a split instruction', () => {
+    const selected = (count: number) => ({
+      mangaIds: Array.from({ length: count }, (_, index) => toMangaId(`m${index}`)),
+      sourceProviderIds: [],
+    });
+
+    expect(libraryMigrationSelectionError(selected(200), 200)).toBeNull();
+    expect(libraryMigrationSelectionError(selected(201), 200)).toContain(
+      'Select at most 200 titles',
+    );
+    expect(libraryMigrationSelectionError(selected(201), 200)).toContain('201 are selected');
+    expect(libraryMigrationSelectionError(selected(201), undefined)).toBeNull();
   });
 });

@@ -2,6 +2,7 @@ export { applyMigration, type MigrationApplyReport } from './apply-migration.js'
 export {
   filterMigrationCandidatesByIds,
   findMissingMigrationMangaIds,
+  MIGRATION_BATCH_LIMIT,
   selectAllMatched,
   summarizeMigrationBatch,
 } from './batch-migration.js';
@@ -36,6 +37,7 @@ export type {
   MigrationBatchSummary,
   MigrationCandidate,
   MigrationConfidenceBand,
+  MigrationHandoffError,
   MigrationProviderOption,
   MigrationRollbackReportLine,
   MigrationRollbackSummary,
