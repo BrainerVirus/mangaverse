@@ -90,8 +90,8 @@ function RestoreStatus({
           <AlertTitle>Restore complete</AlertTitle>
           <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
             <span>
-              Your local library and the settings this backup carries were replaced. App preferences
-              missing from older backups are kept.
+              Your local library, categories, chapter progress, migration history and the settings
+              this backup carries were replaced. Sections missing from older backups are kept.
             </span>
             <Button variant="outline" size="sm" onClick={onDismissRestoreStatus}>
               Dismiss
@@ -120,6 +120,16 @@ function RestorePreviewPanel({
   onRequestConfirm: () => void;
 }) {
   const summary = summarizeRestorePreview(preview);
+  const { counts } = preview;
+  const countRows = [
+    { label: 'Library entries', value: counts.libraryEntries },
+    { label: 'Categories', value: counts.categories },
+    { label: 'Category links', value: counts.categoryMemberships },
+    { label: 'Chapters', value: counts.chapters },
+    { label: 'Chapter progress', value: counts.chapterReadStates },
+    { label: 'Reading history', value: counts.readingHistory },
+    { label: 'Migration history', value: counts.migrationHistory },
+  ];
 
   return (
     <div className="space-y-4">
@@ -132,6 +142,23 @@ function RestorePreviewPanel({
         ) : null}
         {summary.infoCount > 0 ? <Badge variant="outline">{summary.infoCount} notes</Badge> : null}
       </div>
+      <dl
+        aria-label="Backup contents"
+        className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-control bg-muted/30 p-3 text-sm sm:grid-cols-3"
+      >
+        {countRows.map((row) => (
+          <div key={row.label} className="flex items-baseline justify-between gap-2">
+            <dt className="text-muted-foreground">{row.label}</dt>
+            <dd className="font-medium tabular-nums text-foreground">{row.value}</dd>
+          </div>
+        ))}
+      </dl>
+      {preview.schemaVersion !== null && preview.schemaVersion < 4 ? (
+        <p className="text-sm text-muted-foreground">
+          This backup predates categories, chapter progress, reading history and migration history.
+          Existing local records for those sections are kept.
+        </p>
+      ) : null}
       <PreviewIssueList preview={preview} />
       <Button
         variant="destructive"
@@ -195,8 +222,8 @@ export function BackupPage({
           Backup &amp; Restore
         </h1>
         <p className="text-sm text-muted-foreground">
-          Export your library, providers, and settings to a local file. Import a backup to replace
-          current local data.
+          Export your library, categories, reading progress, providers, and settings to a local
+          file. Import a backup to replace current local data.
         </p>
       </header>
 
@@ -208,7 +235,7 @@ export function BackupPage({
 
       <SettingsSection
         title="Export backup"
-        description="Download a JSON snapshot of library entries, manga identities, installed providers, and settings."
+        description="Download a JSON snapshot of library entries, categories, chapter progress, reading history, migration history, manga identities, installed providers, and settings."
       >
         <div className="flex flex-wrap items-center gap-3">
           <Button onClick={onExport} disabled={isExporting}>
@@ -217,7 +244,9 @@ export function BackupPage({
           {lastExport !== null ? (
             <p className="text-sm text-muted-foreground">
               Last export: {lastExport.metadata.createdAt} · {lastExport.library.length} library
-              entries · {lastExport.installedExtensions.length} providers
+              entries · {lastExport.categories?.length ?? 0} categories ·{' '}
+              {lastExport.chapterReadStates?.length ?? 0} chapter progress ·{' '}
+              {lastExport.installedExtensions.length} providers
             </p>
           ) : null}
         </div>
@@ -225,7 +254,7 @@ export function BackupPage({
 
       <SettingsSection
         title="Import backup"
-        description="Select a MangaVerse backup file. The app validates format and shows a restore preview before replacing data."
+        description="Select a MangaVerse backup file. The app validates format, shows what the backup carries, and previews conflicts before replacing data."
       >
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -266,9 +295,10 @@ export function BackupPage({
           <DialogHeader>
             <DialogTitle>Replace local data?</DialogTitle>
             <DialogDescription>
-              This will replace your current library, installed provider records, and backup-covered
-              settings. Chapter caches and reading progress outside the backup schema may be removed
-              with library identities. This action cannot be undone automatically.
+              This will replace your current library, categories and category links, chapter
+              progress, reading history, migration history, installed provider records, and
+              backup-covered settings. Older backups that do not carry the newer sections keep their
+              local records. This action cannot be undone automatically.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">

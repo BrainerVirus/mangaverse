@@ -11,7 +11,11 @@ import {
   parseBackupFileContent,
   previewBackupImport,
 } from '@app/backup';
+import { extensionsQueryKeys } from '@app/extensions';
 import { libraryQueryKeys } from '@app/library';
+import { migrationQueryKeys } from '@app/migration';
+import { readerQueryKeys } from '@app/reader';
+import { discoverQueryKeys, searchQueryKeys } from '@app/search';
 import { settingsQueryKeys } from '@app/settings';
 import { themeQueryKeys } from '@app/theme';
 
@@ -83,10 +87,21 @@ function BackupRoute() {
       setPreview(null);
       setPendingDocument(null);
       void queryClient.invalidateQueries({ queryKey: libraryQueryKeys.all });
-      // Restore rewrites reader settings and (v3) app settings. Mounted bridges
-      // hold the pre-restore rows for the 10-minute stale window.
+      // Restore rewrites reader settings, app settings, chapter read state and
+      // migration history. Mounted bridges and the reader hold the pre-restore
+      // rows for the stale window, so every affected surface refetches.
       void queryClient.invalidateQueries({ queryKey: settingsQueryKeys.all });
       void queryClient.invalidateQueries({ queryKey: themeQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: migrationQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: readerQueryKeys.all });
+      // Restore also replaces the installed-extension snapshots and provider
+      // settings the provider pickers and search fan-out read.
+      void queryClient.invalidateQueries({ queryKey: extensionsQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: searchQueryKeys.providers() });
+      // Search pages read restored local identities; discover feeds read the
+      // restored extension/provider rows.
+      void queryClient.invalidateQueries({ queryKey: searchQueryKeys.pages() });
+      void queryClient.invalidateQueries({ queryKey: discoverQueryKeys.all });
     },
     onError: (error) => {
       setRestoreSuccess(false);

@@ -118,6 +118,67 @@ const libraryEntrySchema = z.object({
   updatedAt: optionalText,
 });
 
+const categorySchema = z.object({
+  id: nonEmptyString,
+  name: nonEmptyString,
+  color: optionalText,
+  pinned: z.boolean().exactOptional(),
+  sortIndex: z.number().int().exactOptional(),
+  createdAt: optionalText,
+  updatedAt: optionalText,
+});
+
+const readingProgressSchema = z.object({
+  readPercent: z.number().min(0).max(100),
+  lastPageIndex: z.number().int().nonnegative(),
+  completed: z.boolean(),
+  startedAt: optionalText,
+  updatedAt: optionalText,
+});
+
+const chapterReadStateSchema = z.object({
+  chapterId: nonEmptyString,
+  mangaId: nonEmptyString,
+  providerMappingId: optionalString,
+  progress: readingProgressSchema,
+});
+
+const backupChapterSchema = z.object({
+  id: nonEmptyString,
+  mangaId: nonEmptyString,
+  providerMappingId: nonEmptyString,
+  providerId: optionalString,
+  providerChapterId: optionalString,
+  title: nonEmptyString,
+  index: z.number().int(),
+  volume: optionalText,
+  publishedAt: optionalText,
+  createdAt: optionalText,
+  updatedAt: optionalText,
+});
+
+const readingHistorySchema = z.object({
+  id: nonEmptyString,
+  mangaId: nonEmptyString,
+  chapterId: nonEmptyString,
+  readAt: nonEmptyString,
+  providerMappingId: optionalString,
+});
+
+const migrationHistorySchema = z.object({
+  id: nonEmptyString,
+  mangaId: nonEmptyString,
+  sourceProviderId: nonEmptyString,
+  sourceProviderMangaId: nonEmptyString,
+  targetProviderId: nonEmptyString,
+  targetProviderMangaId: nonEmptyString,
+  completedAt: nonEmptyString,
+  notes: optionalText,
+  batchId: optionalString,
+  previousDefaultMappingId: optionalString,
+  previousActiveMappingId: optionalString,
+});
+
 const extensionWarningSchema = z.object({
   code: nonEmptyString,
   message: nonEmptyString,
@@ -249,7 +310,7 @@ const themesSchema = fromValidator<readonly ThemeDefinition[]>(
 );
 
 export const backupDocumentSchema = z.object({
-  schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+  schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
   metadata: z.object({
     createdAt: nonEmptyString,
     appVersion: nonEmptyString,
@@ -263,6 +324,11 @@ export const backupDocumentSchema = z.object({
   themeSettings: themeSettingsSchema,
   themes: themesSchema,
   appSettings: appSettingsBackupSchema,
+  categories: z.array(categorySchema).exactOptional(),
+  chapters: z.array(backupChapterSchema).exactOptional(),
+  chapterReadStates: z.array(chapterReadStateSchema).exactOptional(),
+  readingHistory: z.array(readingHistorySchema).exactOptional(),
+  migrationHistory: z.array(migrationHistorySchema).exactOptional(),
 });
 
 function toIssuePath(path: readonly PropertyKey[]): string {

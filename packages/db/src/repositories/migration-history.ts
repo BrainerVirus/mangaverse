@@ -108,15 +108,14 @@ export async function findMigrationHistoryByProviders(
 /** Most recent migrations first, with the title the history list can show. */
 export async function listMigrationHistory(
   db: AppDrizzleDb,
-  limit = 10,
+  limit: number | undefined = 10,
 ): Promise<MigrationHistoryEntry[]> {
-  const rows = db
+  const query = db
     .select({ history: migrationHistory, canonicalTitle: mangaIdentities.canonicalTitle })
     .from(migrationHistory)
     .leftJoin(mangaIdentities, eq(mangaIdentities.id, migrationHistory.mangaId))
-    .orderBy(desc(migrationHistory.completedAt))
-    .limit(limit)
-    .all();
+    .orderBy(desc(migrationHistory.completedAt));
+  const rows = limit === undefined ? query.all() : query.limit(limit).all();
 
   return rows.map((row) => toEntry(row.history, row.canonicalTitle ?? undefined));
 }

@@ -1,15 +1,20 @@
 import type { AppSettings } from './app-settings.js';
 import { backupDocumentSchema, toBackupValidationIssues } from './backup-schema.js';
+import type { ChapterId, ChapterReadState } from './chapter.js';
 import type { ExtensionInstallMetadata } from './extension-install.js';
-import type { CategoryId, LibraryEntry, LibraryEntryId } from './library.js';
-import type { MangaId, MangaIdentity, ProviderId } from './manga.js';
+import type { CategoryId, LibraryCategory, LibraryEntry, LibraryEntryId } from './library.js';
+import type { MangaId, MangaIdentity, ProviderId, ProviderMappingId } from './manga.js';
 import type { ReaderSettings } from './reader-settings.js';
 import { createAppError, type AppResult } from './result.js';
 import type { ThemeDefinition } from './theme-definition.js';
 
-export const BACKUP_SCHEMA_VERSION = 3 as const;
-/** v1 predates custom themes, v2 predates app settings; all are readable, new exports write v3. */
-export const SUPPORTED_BACKUP_SCHEMA_VERSIONS: readonly number[] = [1, 2, 3];
+export const BACKUP_SCHEMA_VERSION = 4 as const;
+/**
+ * v1 predates custom themes, v2 predates app settings, v3 predates categories,
+ * chapter metadata, chapter read state, reading history and migration history;
+ * all are readable, new exports write v4.
+ */
+export const SUPPORTED_BACKUP_SCHEMA_VERSIONS: readonly number[] = [1, 2, 3, 4];
 
 export interface BackupMetadata {
   readonly createdAt: string;
@@ -33,6 +38,47 @@ export interface ThemeSettings {
   readonly dark: boolean;
 }
 
+export interface BackupReadingHistoryEntry {
+  readonly id: string;
+  readonly mangaId: MangaId;
+  readonly chapterId: ChapterId;
+  readonly readAt: string;
+  readonly providerMappingId?: ProviderMappingId;
+}
+
+/** Chapter metadata only: pages are rehydrated from the provider on open. */
+export interface BackupChapter {
+  readonly id: ChapterId;
+  readonly mangaId: MangaId;
+  readonly providerMappingId: ProviderMappingId;
+  readonly providerId?: ProviderId;
+  readonly providerChapterId?: string;
+  readonly title: string;
+  readonly index: number;
+  readonly volume?: string;
+  readonly publishedAt?: string;
+  readonly createdAt?: string;
+  readonly updatedAt?: string;
+}
+
+/**
+ * Migration history is stored without titles: `mangaId` still resolves the
+ * canonical title, and provider titles travel on the identity's mappings.
+ */
+export interface BackupMigrationHistoryEntry {
+  readonly id: string;
+  readonly mangaId: MangaId;
+  readonly sourceProviderId: ProviderId;
+  readonly sourceProviderMangaId: string;
+  readonly targetProviderId: ProviderId;
+  readonly targetProviderMangaId: string;
+  readonly completedAt: string;
+  readonly notes?: string;
+  readonly batchId?: string;
+  readonly previousDefaultMappingId?: ProviderMappingId;
+  readonly previousActiveMappingId?: ProviderMappingId;
+}
+
 export interface BackupDocumentV1 {
   readonly schemaVersion: typeof BACKUP_SCHEMA_VERSION;
   readonly metadata: BackupMetadata;
@@ -46,6 +92,16 @@ export interface BackupDocumentV1 {
   readonly themes: readonly ThemeDefinition[];
   /** Absent in v1 and v2 backups, which predate app settings. */
   readonly appSettings?: AppSettings;
+  /** Absent in v1-v3 backups. Category memberships travel on `library[].categoryIds`. */
+  readonly categories?: readonly LibraryCategory[];
+  /** Absent in v1-v3 backups: metadata for the chapters read state points at. */
+  readonly chapters?: readonly BackupChapter[];
+  /** Absent in v1-v3 backups; older restores keep local progress instead of clearing it. */
+  readonly chapterReadStates?: readonly ChapterReadState[];
+  /** Absent in v1-v3 backups; older restores keep local history instead of clearing it. */
+  readonly readingHistory?: readonly BackupReadingHistoryEntry[];
+  /** Absent in v1-v3 backups; older restores keep local migration history. */
+  readonly migrationHistory?: readonly BackupMigrationHistoryEntry[];
 }
 
 export interface BackupValidationIssue {

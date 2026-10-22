@@ -1,5 +1,10 @@
 import type { AppDrizzleDb } from '@app/db/browser';
-import { getMangaIdentity, upsertChapterWithPages, upsertMangaIdentity } from '@app/db/browser';
+import {
+  getChapterProviderMappingId,
+  getMangaIdentity,
+  upsertChapterWithPages,
+  upsertMangaIdentity,
+} from '@app/db/browser';
 import type { MangaDetailData } from '@app/library';
 import type { Chapter, ChapterPage } from '@app/shared';
 import { toChapterPageId } from '@app/shared';
@@ -49,11 +54,13 @@ export async function persistChapterPagesToDb(
   if (manga === undefined) {
     return;
   }
+  const mappingId =
+    (await getChapterProviderMappingId(db, chapter.id)) ?? manga.defaultProviderMappingId;
 
   const result = await upsertChapterWithPages(db, {
     chapterId: chapter.id,
     mangaId: chapter.mangaId,
-    providerMappingId: manga.defaultProviderMappingId,
+    providerMappingId: mappingId,
     ...(chapter.providerId !== undefined ? { providerId: String(chapter.providerId) } : {}),
     ...(chapter.providerChapterId !== undefined
       ? { providerChapterId: chapter.providerChapterId }

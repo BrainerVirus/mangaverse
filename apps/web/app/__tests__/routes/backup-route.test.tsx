@@ -4,10 +4,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import type * as BackupModule from '@app/backup';
 import type * as CacheModule from '@app/cache';
+import type * as ExtensionsModule from '@app/extensions';
+import type { ExtensionsPageData } from '@app/extensions';
 import type * as SettingsModule from '@app/settings';
+import { extensionsQueryKeys } from '@app/extensions';
+import { DEFAULT_SEARCH_VIEW_STATE, discoverQueryKeys, searchQueryKeys } from '@app/search';
 import { getDefaultAppSettings, type AppSettings } from '@app/shared';
 
 const mocks = vi.hoisted(() => ({
@@ -18,6 +22,9 @@ const mocks = vi.hoisted(() => ({
   previewBackupImport: vi.fn<(db: unknown, doc: unknown) => Promise<unknown>>(),
   fetchAppSettings: vi.fn<(db: unknown) => Promise<{ settings: AppSettings }>>(),
   saveAppSettings: vi.fn<(db: unknown, next: AppSettings) => Promise<unknown>>(),
+  fetchExtensionsPage: vi.fn<() => Promise<ExtensionsPageData>>(),
+  fetchSearchPageProbe: vi.fn<() => Promise<{ results: readonly unknown[] }>>(),
+  fetchDiscoverProbe: vi.fn<() => Promise<{ providers: readonly unknown[] }>>(),
   getCoverCacheUsage: vi.fn<() => Promise<{ totalBytes: number }>>(),
 }));
 
@@ -47,6 +54,11 @@ vi.mock('@app/cache', async (importOriginal) => {
   return { ...actual, getCoverCacheUsage: mocks.getCoverCacheUsage };
 });
 
+vi.mock('@app/extensions', async (importOriginal) => {
+  const actual = await importOriginal<typeof ExtensionsModule>();
+  return { ...actual, fetchExtensionsPage: mocks.fetchExtensionsPage };
+});
+
 vi.mock('../../providers/local-db-provider.js', () => ({
   useLocalDb: () => ({ id: 'fake-db' }),
   useLocalDbStatus: () => 'ready',
@@ -63,6 +75,36 @@ const SETTINGS_STALE_TIME_MS = 10 * 60 * 1_000;
 
 const backupDocument = { schemaVersion: 3, metadata: { createdAt: '', appVersion: 'test' } };
 
+/** Mirrors the /extensions page query so the restore invalidation is observable. */
+function ExtensionsProbe() {
+  const extensions = useQuery({
+    queryKey: extensionsQueryKeys.page(),
+    queryFn: () => mocks.fetchExtensionsPage(),
+    staleTime: Infinity,
+  });
+  return <output data-testid="extensions-probe">{extensions.data?.providers.length ?? -1}</output>;
+}
+
+/** Mirrors the local search page read; restore replaces the identities it reads. */
+function SearchProbe() {
+  const page = useQuery({
+    queryKey: searchQueryKeys.page(DEFAULT_SEARCH_VIEW_STATE),
+    queryFn: () => mocks.fetchSearchPageProbe(),
+    staleTime: Infinity,
+  });
+  return <output data-testid="search-probe">{page.data?.results.length ?? -1}</output>;
+}
+
+/** Mirrors the discover feed; restore replaces the extension rows it reads. */
+function DiscoverProbe() {
+  const discover = useQuery({
+    queryKey: discoverQueryKeys.providers(),
+    queryFn: () => mocks.fetchDiscoverProbe(),
+    staleTime: Infinity,
+  });
+  return <output data-testid="discover-probe">{discover.data?.providers.length ?? -1}</output>;
+}
+
 async function renderRoutes(client: QueryClient): Promise<{ root: Root; container: HTMLElement }> {
   const container = document.createElement('div');
   document.body.appendChild(container);
@@ -72,6 +114,9 @@ async function renderRoutes(client: QueryClient): Promise<{ root: Root; containe
       <QueryClientProvider client={client}>
         <BackupRoute.options.component />
         <SettingsAppRoute.options.component />
+        <ExtensionsProbe />
+        <SearchProbe />
+        <DiscoverProbe />
       </QueryClientProvider>,
     );
   });
@@ -85,7 +130,7 @@ async function click(element: HTMLElement): Promise<void> {
   });
 }
 
-async function runRestore(): Promise<void> {
+async function selectBackupFile(): Promise<void> {
   const fileInput = document.querySelector<HTMLInputElement>('input[type="file"]');
   if (fileInput === null) throw new Error('Backup file input not found.');
   const file = new File(['{}'], 'backup.json', { type: 'application/json' });
@@ -94,6 +139,10 @@ async function runRestore(): Promise<void> {
     fileInput.dispatchEvent(new Event('change', { bubbles: true }));
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
+}
+
+async function runRestore(): Promise<void> {
+  await selectBackupFile();
 
   await click(await vi.waitFor(() => getButton('Restore backup')));
   await click(await vi.waitFor(() => getButton('Confirm restore')));
@@ -132,6 +181,16 @@ describe('/backup restore and /settings/app freshness', () => {
       backupOk: true,
       backupIssues: [],
       previewIssues: [],
+      schemaVersion: 4,
+      counts: {
+        libraryEntries: 0,
+        categories: 0,
+        categoryMemberships: 0,
+        chapters: 0,
+        chapterReadStates: 0,
+        readingHistory: 0,
+        migrationHistory: 0,
+      },
     });
     mocks.applyBackupImport.mockReset();
     mocks.applyBackupImport.mockImplementation(async () => {
@@ -140,6 +199,12 @@ describe('/backup restore and /settings/app freshness', () => {
     });
     mocks.getCoverCacheUsage.mockReset();
     mocks.getCoverCacheUsage.mockResolvedValue({ totalBytes: 0 });
+    mocks.fetchExtensionsPage.mockReset();
+    mocks.fetchExtensionsPage.mockResolvedValue({ providers: [] });
+    mocks.fetchSearchPageProbe.mockReset();
+    mocks.fetchSearchPageProbe.mockResolvedValue({ results: [] });
+    mocks.fetchDiscoverProbe.mockReset();
+    mocks.fetchDiscoverProbe.mockResolvedValue({ providers: [] });
   });
 
   afterEach(() => {
@@ -171,6 +236,88 @@ describe('/backup restore and /settings/app freshness', () => {
       expect.anything(),
       expect.objectContaining({ explicitContent: true, reduceMotion: true }),
     );
+
+    act(() => root.unmount());
+    container.remove();
+    client.clear();
+  });
+
+  it('Given a valid backup, When previewed, Then the counts for the new sections are visible', async () => {
+    mocks.previewBackupImport.mockResolvedValue({
+      backupOk: true,
+      backupIssues: [],
+      previewIssues: [],
+      schemaVersion: 4,
+      counts: {
+        libraryEntries: 3,
+        categories: 2,
+        categoryMemberships: 4,
+        chapters: 37,
+        chapterReadStates: 7,
+        readingHistory: 9,
+        migrationHistory: 1,
+      },
+    });
+
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { root, container } = await renderRoutes(client);
+
+    await selectBackupFile();
+
+    await vi.waitFor(() => {
+      const list = document.querySelector('dl[aria-label="Backup contents"]');
+      expect(list).not.toBeNull();
+      expect(list?.textContent).toContain('Categories');
+      expect(list?.textContent).toContain('2');
+      expect(list?.textContent).toContain('Chapter progress');
+      expect(list?.textContent).toContain('7');
+      expect(list?.textContent).toContain('Reading history');
+      expect(list?.textContent).toContain('9');
+      expect(list?.textContent).toContain('Migration history');
+    });
+
+    act(() => root.unmount());
+    container.remove();
+    client.clear();
+  });
+
+  it('Given a restore, When the extensions list is mounted, Then providers are refetched and search providers invalidated', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidate = vi.spyOn(client, 'invalidateQueries');
+    const { root, container } = await renderRoutes(client);
+
+    await vi.waitFor(() => expect(mocks.fetchExtensionsPage).toHaveBeenCalledTimes(1));
+
+    await runRestore();
+
+    // Without the extensions invalidation the page keeps the pre-restore providers.
+    await vi.waitFor(() => expect(mocks.fetchExtensionsPage).toHaveBeenCalledTimes(2));
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: extensionsQueryKeys.all });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: searchQueryKeys.providers() });
+
+    act(() => root.unmount());
+    container.remove();
+    client.clear();
+  });
+
+  it('Given a restore, When search and discover are mounted, Then only their local queries refetch', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidate = vi.spyOn(client, 'invalidateQueries');
+    const { root, container } = await renderRoutes(client);
+
+    await vi.waitFor(() => expect(mocks.fetchSearchPageProbe).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(mocks.fetchDiscoverProbe).toHaveBeenCalledTimes(1));
+
+    await runRestore();
+
+    // Restore replaces the identities search reads and the extensions discover reads.
+    await vi.waitFor(() => expect(mocks.fetchSearchPageProbe).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(mocks.fetchDiscoverProbe).toHaveBeenCalledTimes(2));
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: searchQueryKeys.pages() });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: discoverQueryKeys.all });
+    // Saved searches and provider result grids do not read restored rows.
+    expect(invalidate).not.toHaveBeenCalledWith({ queryKey: searchQueryKeys.all });
+    expect(invalidate).not.toHaveBeenCalledWith({ queryKey: searchQueryKeys.savedSearches() });
 
     act(() => root.unmount());
     container.remove();
