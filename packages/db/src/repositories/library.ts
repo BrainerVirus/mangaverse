@@ -24,6 +24,7 @@ import type { AppDrizzleDb } from '../adapter.js';
 import { readIdChunks } from '../read-id-chunks.js';
 import {
   categories,
+  chapterReadState,
   libraryCategoryMemberships,
   libraryEntries,
   mangaIdentities,
@@ -203,6 +204,38 @@ export async function listLibraryEntries(
 
   const rows = query.all();
   return sortLibraryRows(db, rows, options?.sort);
+}
+
+/**
+ * Recently read entries for resume surfaces, newest reading progress first.
+ * `chapter_read_state.updated_at` is the progress event timestamp, so favorite,
+ * status and mapping writes that bump `library_entries.updated_at` do not move
+ * the list; entries without a read-state row fall back to the library timestamp.
+ */
+export async function listRecentlyReadLibraryEntries(
+  db: AppDrizzleDb,
+  limit: number,
+): Promise<LibraryEntry[]> {
+  if (limit <= 0) return [];
+
+  const rows = db
+    .select({ entry: libraryEntries })
+    .from(libraryEntries)
+    .leftJoin(chapterReadState, eq(chapterReadState.chapterId, libraryEntries.lastReadChapterId))
+    .where(
+      sql`${libraryEntries.lastReadChapterId} IS NOT NULL AND ${libraryEntries.lastReadChapterId} != ''`,
+    )
+    .orderBy(
+      sql`COALESCE(NULLIF(${chapterReadState.updatedAt}, ''), NULLIF(${libraryEntries.updatedAt}, '')) DESC`,
+    )
+    .limit(limit)
+    .all();
+
+  const categoriesByEntry = categoryIdsByEntry(
+    db,
+    rows.map((row) => toLibraryEntryId(row.entry.id)),
+  );
+  return rows.map((row) => mapLibraryEntry(row.entry, categoriesByEntry.get(row.entry.id) ?? []));
 }
 
 export async function addLibraryEntry(

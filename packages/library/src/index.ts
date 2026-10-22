@@ -3,6 +3,7 @@ export { LibraryToolbar, type LibraryToolbarProps } from './components/LibraryTo
 export { MangaDetailPage, type MangaDetailPageProps } from './components/MangaDetailPage.js';
 export { fetchLibraryPage } from './fetch-library-page.js';
 export { fetchMangaDetail } from './fetch-manga-detail.js';
+export { fetchRecentLibrary, RECENT_LIBRARY_LIMIT } from './fetch-recent-library.js';
 export { filterLibraryItemsByQuery } from './filter-items.js';
 export { addMangaToLibrary, removeMangaFromLibrary, setMangaFavorite } from './library-actions.js';
 export {
