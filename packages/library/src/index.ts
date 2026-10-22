@@ -7,8 +7,30 @@ export {
 export { BulkEditBar, type BulkEditBarProps } from './components/BulkEditBar.js';
 export { MangaDetailPage, type MangaDetailPageProps } from './components/MangaDetailPage.js';
 export { fetchLibraryPage } from './fetch-library-page.js';
+export {
+  CONTINUE_READING_LIMIT,
+  RECENTLY_UPDATED_LIMIT,
+  fetchLibraryOverview,
+  type FetchLibraryOverviewOptions,
+  type LibraryChapterRef,
+  type LibraryOverviewData,
+  type LibraryOverviewItem,
+} from './fetch-library-overview.js';
 export { fetchMangaDetail } from './fetch-manga-detail.js';
 export { fetchRecentLibrary, RECENT_LIBRARY_LIMIT } from './fetch-recent-library.js';
+export {
+  LIBRARY_UPDATE_REPORT_KEY,
+  readLibraryUpdateReport,
+  runLibraryUpdateQueue,
+  type LibraryUpdateItem,
+  type LibraryUpdateItemStatus,
+  type LibraryUpdateProvider,
+  type LibraryUpdateProviderChapter,
+  type LibraryUpdateProviderResolution,
+  type LibraryUpdateProviderResolver,
+  type LibraryUpdateReport,
+  type RunLibraryUpdateOptions,
+} from './update-queue.js';
 export { filterLibraryItemsByQuery } from './filter-items.js';
 export {
   addMangaToLibrary,

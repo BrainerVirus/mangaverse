@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { EmptyState, ErrorState, LoadingState } from '@app/design-system';
 import type {
+  ChapterId,
   LibraryEntryId,
   LibraryFilter,
   LibraryViewState,
@@ -8,9 +9,16 @@ import type {
   ProviderId,
 } from '@app/shared';
 import type { LibraryItem, LibraryPageData, LibraryOrganizationAction } from '../types.js';
+import type { LibraryOverviewData } from '../fetch-library-overview.js';
 import { hasLibraryFilters } from '../view-state.js';
 import { BulkEditBar } from './BulkEditBar.js';
 import { LibraryToolbar } from './LibraryToolbar.js';
+import {
+  ContinueReadingSection,
+  LibraryUpdatePanel,
+  RecentlyUpdatedSection,
+  type LibraryUpdatesControl,
+} from './LibrarySections.js';
 import { VirtualLibraryGrid } from './VirtualLibraryGrid.js';
 
 const NOOP_ORGANIZE = async (): Promise<void> => {};
@@ -25,6 +33,10 @@ export interface LibraryPageProps {
   onBrowse?: () => void;
   onRetry?: () => void;
   onOrganize?: (action: LibraryOrganizationAction) => Promise<void>;
+  /** Continue reading and recently updated, already filtered like the grid. */
+  overview?: LibraryOverviewData;
+  onOpenChapter?: (chapterId: ChapterId) => void;
+  updates?: LibraryUpdatesControl;
 }
 
 function collectProviders(items: readonly LibraryItem[]): ProviderId[] {
@@ -131,6 +143,9 @@ export function LibraryPage({
   onBrowse,
   onRetry,
   onOrganize,
+  overview,
+  onOpenChapter,
+  updates,
 }: LibraryPageProps) {
   const items = data?.items ?? [];
   const itemCount = items.length;
@@ -175,8 +190,25 @@ export function LibraryPage({
         onClearFilters={() => handleFilterChange({})}
       />
 
+      {!isLoading &&
+      !isError &&
+      updates !== undefined &&
+      (itemCount > 0 || updates.report !== undefined) ? (
+        <LibraryUpdatePanel updates={updates} />
+      ) : null}
+
       {itemCount > 0 && !isLoading && !isError ? (
         <>
+          {overview !== undefined ? (
+            <>
+              <ContinueReadingSection
+                items={overview.continueReading}
+                onResume={(chapterId) => onOpenChapter?.(chapterId)}
+                showEmpty={!filtersActive}
+              />
+              <RecentlyUpdatedSection items={overview.recentlyUpdated} onOpenManga={onOpenManga} />
+            </>
+          ) : null}
           <BulkEditBar
             selectionMode={selection.selectionMode}
             selectedEntryIds={selection.selectedEntryIds}
