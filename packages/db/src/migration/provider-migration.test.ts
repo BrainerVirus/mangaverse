@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
   addLibraryEntry,
+  addProviderMapping,
   createMangaIdentityWithInitialMapping,
   findMigrationHistoryByProviders,
   getMangaIdentity,
   listMigratableLibraryEntries,
+  listMigrationHistory,
   previewProviderMigration,
   applyProviderMigration,
+  rollbackProviderMigration,
   setLibraryEntryActiveProviderMapping,
+  setDefaultProviderMapping,
 } from '../index.js';
 import { createSqlJsHarness } from '../testing/sqljs-harness.js';
 
@@ -130,5 +134,147 @@ describe('provider migration', () => {
 
     expect(preview.canApply).toBe(false);
     expect(preview.items[0]?.blocked).toBe(true);
+  });
+});
+
+describe('provider migration rollback', () => {
+  async function migrateOneTitle() {
+    const { db } = await createSqlJsHarness();
+
+    const created = await createMangaIdentityWithInitialMapping(db, {
+      canonicalTitle: 'Berserk',
+      status: 'ongoing',
+      contentRating: 'safe',
+      providerId: 'prov-old',
+      providerMangaId: 'berserk-old',
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error('identity was not created');
+
+    const lib = await addLibraryEntry(db, { mangaId: created.value.mangaId, status: 'reading' });
+    expect(lib.ok).toBe(true);
+    if (!lib.ok) throw new Error('library entry was not created');
+    await setLibraryEntryActiveProviderMapping(db, lib.value, created.value.mappingId);
+
+    const applied = await applyProviderMigration(db, {
+      sourceProviderId: 'prov-old',
+      targetProviderId: 'prov-new',
+      selections: [{ mangaId: created.value.mangaId, targetProviderMangaId: 'berserk-new' }],
+    });
+    expect(applied.ok).toBe(true);
+    if (!applied.ok) throw new Error('migration did not apply');
+
+    return { db, mangaId: created.value.mangaId, libraryEntryId: lib.value };
+  }
+
+  it('restores the default and active mapping of the last batch', async () => {
+    const { db, mangaId, libraryEntryId } = await migrateOneTitle();
+
+    const rolledBack = await rollbackProviderMigration(db, {
+      sourceProviderId: 'prov-old',
+      targetProviderId: 'prov-new',
+      mangaIds: [mangaId],
+    });
+
+    expect(rolledBack.ok).toBe(true);
+    if (!rolledBack.ok) return;
+    expect(rolledBack.value.restored).toHaveLength(1);
+
+    const identity = await getMangaIdentity(db, mangaId);
+    const source = identity?.providerMappings.find((m) => m.providerId === 'prov-old');
+    expect(identity?.defaultProviderMappingId).toBe(source?.id);
+    // The added target mapping stays; undo never deletes mapping state.
+    expect(identity?.providerMappings.some((m) => m.providerId === 'prov-new')).toBe(true);
+
+    const { getLibraryEntry } = await import('../index.js');
+    const entry = await getLibraryEntry(db, libraryEntryId);
+    expect(entry?.activeProviderMappingId).toBe(source?.id);
+  });
+
+  it('restores the default when the title had no active mapping', async () => {
+    const { db } = await createSqlJsHarness();
+    const created = await createMangaIdentityWithInitialMapping(db, {
+      canonicalTitle: 'Vagabond',
+      status: 'ongoing',
+      contentRating: 'safe',
+      providerId: 'prov-old',
+      providerMangaId: 'vagabond-old',
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    await addLibraryEntry(db, { mangaId: created.value.mangaId, status: 'planned' });
+
+    const applied = await applyProviderMigration(db, {
+      sourceProviderId: 'prov-old',
+      targetProviderId: 'prov-new',
+      selections: [{ mangaId: created.value.mangaId, targetProviderMangaId: 'vagabond-new' }],
+    });
+    expect(applied.ok).toBe(true);
+
+    const rolledBack = await rollbackProviderMigration(db, {
+      sourceProviderId: 'prov-old',
+      targetProviderId: 'prov-new',
+      mangaIds: [created.value.mangaId],
+    });
+    expect(rolledBack.ok).toBe(true);
+
+    const identity = await getMangaIdentity(db, created.value.mangaId);
+    const source = identity?.providerMappings.find((m) => m.providerId === 'prov-old');
+    expect(identity?.defaultProviderMappingId).toBe(source?.id);
+  });
+
+  it('skips titles whose default provider changed after the migration', async () => {
+    const { db, mangaId } = await migrateOneTitle();
+
+    const third = await addProviderMapping(db, {
+      mangaId,
+      providerId: 'prov-third',
+      providerMangaId: 'berserk-third',
+    });
+    expect(third.ok).toBe(true);
+    if (!third.ok) return;
+    const changed = await setDefaultProviderMapping(db, mangaId, third.value);
+    expect(changed.ok).toBe(true);
+
+    const rolledBack = await rollbackProviderMigration(db, {
+      sourceProviderId: 'prov-old',
+      targetProviderId: 'prov-new',
+      mangaIds: [mangaId],
+    });
+
+    expect(rolledBack.ok).toBe(false);
+    if (rolledBack.ok) return;
+    expect(rolledBack.error.message).toContain('default provider changed');
+  });
+
+  it('reports titles without migration history instead of replacing state', async () => {
+    const { db } = await createSqlJsHarness();
+    const created = await createMangaIdentityWithInitialMapping(db, {
+      canonicalTitle: 'Untouched',
+      status: 'ongoing',
+      contentRating: 'safe',
+      providerId: 'prov-old',
+      providerMangaId: 'untouched-old',
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    const rolledBack = await rollbackProviderMigration(db, {
+      sourceProviderId: 'prov-old',
+      targetProviderId: 'prov-new',
+      mangaIds: [created.value.mangaId],
+    });
+
+    expect(rolledBack.ok).toBe(false);
+    if (rolledBack.ok) return;
+    expect(rolledBack.error.message).toContain('migration history');
+  });
+
+  it('lists the latest migrations first', async () => {
+    const { db } = await migrateOneTitle();
+    const history = await listMigrationHistory(db);
+    expect(history).toHaveLength(1);
+    expect(history[0]?.targetProviderId).toBe('prov-new');
+    expect(history[0]?.mangaId).toBeTypeOf('string');
   });
 });

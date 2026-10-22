@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import type { AppDrizzleDb } from '../adapter.js';
 import { migrationHistory } from '../schema.js';
 
@@ -15,6 +15,23 @@ export interface MigrationHistoryEntry {
 
 function newId(): string {
   return crypto.randomUUID();
+}
+
+type MigrationHistoryRow = typeof migrationHistory.$inferSelect;
+
+function toEntry(row: MigrationHistoryRow): MigrationHistoryEntry {
+  return {
+    id: row.id,
+    mangaId: row.mangaId,
+    sourceProviderId: row.sourceProviderId,
+    sourceProviderMangaId: row.sourceProviderMangaId,
+    targetProviderId: row.targetProviderId,
+    targetProviderMangaId: row.targetProviderMangaId,
+    completedAt: row.completedAt,
+    ...(row.notes !== null && row.notes !== undefined && row.notes !== ''
+      ? { notes: row.notes }
+      : {}),
+  };
 }
 
 export async function recordMigrationHistory(
@@ -64,16 +81,46 @@ export async function findMigrationHistoryByProviders(
 
   if (row === undefined) return undefined;
 
-  return {
-    id: row.id,
-    mangaId: row.mangaId,
-    sourceProviderId: row.sourceProviderId,
-    sourceProviderMangaId: row.sourceProviderMangaId,
-    targetProviderId: row.targetProviderId,
-    targetProviderMangaId: row.targetProviderMangaId,
-    completedAt: row.completedAt,
-    ...(row.notes !== null && row.notes !== undefined && row.notes !== ''
-      ? { notes: row.notes }
-      : {}),
-  };
+  return toEntry(row);
+}
+
+/** Most recent migrations first, for the post-apply report and undo surface. */
+export async function listMigrationHistory(
+  db: AppDrizzleDb,
+  limit = 10,
+): Promise<MigrationHistoryEntry[]> {
+  const rows = db
+    .select()
+    .from(migrationHistory)
+    .orderBy(desc(migrationHistory.completedAt))
+    .limit(limit)
+    .all();
+
+  return rows.map(toEntry);
+}
+
+/** The latest migration of one title between two providers, used to undo a batch. */
+export async function findLatestMigrationHistoryForManga(
+  db: AppDrizzleDb,
+  input: {
+    readonly mangaId: string;
+    readonly sourceProviderId: string;
+    readonly targetProviderId: string;
+  },
+): Promise<MigrationHistoryEntry | undefined> {
+  const row = db
+    .select()
+    .from(migrationHistory)
+    .where(
+      and(
+        eq(migrationHistory.mangaId, input.mangaId),
+        eq(migrationHistory.sourceProviderId, input.sourceProviderId),
+        eq(migrationHistory.targetProviderId, input.targetProviderId),
+      ),
+    )
+    .orderBy(desc(migrationHistory.completedAt))
+    .limit(1)
+    .get();
+
+  return row === undefined ? undefined : toEntry(row);
 }
