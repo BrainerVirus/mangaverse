@@ -127,4 +127,13 @@ describe('BulkEditBar', () => {
     await user.click(screen.getByLabelText('Select all visible titles'));
     expect(props.onSelectAllVisible).toHaveBeenCalledTimes(1);
   });
+
+  it('hands the selection to migration when the action is available', async () => {
+    const user = userEvent.setup();
+    const onMigrateSelected = vi.fn<() => void>();
+    renderBulk({ onMigrateSelected });
+
+    await user.click(screen.getByRole('button', { name: 'Migrate selected' }));
+    expect(onMigrateSelected).toHaveBeenCalledTimes(1);
+  });
 });

@@ -106,6 +106,42 @@ describe('MigrationPage target search', () => {
   });
 });
 
+describe('MigrationPage library hand-off', () => {
+  it('warns that the selection spans multiple source providers and asks to choose one', () => {
+    render(
+      <MigrationPage
+        {...pageProps({
+          sourceProviderId: null,
+          requestedMangaIds: ['m1', 'm2'],
+          requestedSourceProviderIds: ['source', 'target'],
+        })}
+      />,
+    );
+
+    expect(screen.getByText('Multiple source providers selected')).toBeInTheDocument();
+    expect(screen.getByText(/The library selection spans Source, Target/)).toBeInTheDocument();
+    expect(screen.getByText(/Choose one source provider/)).toBeInTheDocument();
+  });
+
+  it('lists stale requested ids with the reason they were skipped', () => {
+    render(
+      <MigrationPage
+        {...pageProps({
+          requestedMangaIds: ['m1', 'gone'],
+          requestedSourceProviderIds: ['source'],
+          skippedRequestedIds: ['gone'],
+        })}
+      />,
+    );
+
+    expect(screen.getByText('Some selected titles were skipped')).toBeInTheDocument();
+    expect(
+      screen.getByText(/no longer in the library or not linked to Source/),
+    ).toBeInTheDocument();
+    expect(screen.getByText('gone')).toBeInTheDocument();
+  });
+});
+
 describe('MigrationPage review dialog', () => {
   const preview: MigrationPreviewReport = {
     sourceProviderId: 'source',

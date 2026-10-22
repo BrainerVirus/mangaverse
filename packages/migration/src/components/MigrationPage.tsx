@@ -59,6 +59,12 @@ export interface MigrationPageProps {
   readonly rollbackSummary: MigrationRollbackSummary | null;
   readonly rollbackError: string | null;
   readonly history: readonly MigrationHistoryEntry[];
+  /** Manga ids handed over by the library bulk action. */
+  readonly requestedMangaIds?: readonly string[];
+  /** Providers the hand-off titles read from; more than one asks the user to choose. */
+  readonly requestedSourceProviderIds?: readonly string[];
+  /** Requested ids absent from the selected source, shown as skipped. */
+  readonly skippedRequestedIds?: readonly string[];
   onSourceProviderChange: (providerId: string) => void;
   onTargetProviderChange: (providerId: string) => void;
   onTargetMangaIdChange: (mangaId: string, targetProviderMangaId: string) => void;
@@ -87,6 +93,8 @@ const NOT_MIGRATED_ITEMS = [
   'Source provider ids, auth and provider-only metadata',
   'Provider-specific URLs and page caches',
 ] as const;
+
+const EMPTY_REQUESTED_IDS: readonly string[] = [];
 
 function targetMappingLabel(item: {
   readonly targetProviderTitle?: string;
@@ -817,6 +825,74 @@ function HistorySection({
   );
 }
 
+function SelectionHandoffNotice({
+  requestedMangaIds,
+  requestedSourceProviderIds,
+  sourceProviderId,
+  providers,
+}: {
+  requestedMangaIds: readonly string[];
+  requestedSourceProviderIds: readonly string[];
+  sourceProviderId: string | null;
+  providers: readonly MigrationProviderOption[];
+}) {
+  if (requestedMangaIds.length === 0) return null;
+
+  const nameFor = (providerId: string) =>
+    providers.find((provider) => provider.id === providerId)?.name ?? providerId;
+  const sourceNames = requestedSourceProviderIds.map(nameFor);
+  const selectedName = sourceProviderId === null ? undefined : nameFor(sourceProviderId);
+
+  if (sourceNames.length > 1) {
+    return (
+      <Alert>
+        <AlertTitle>Multiple source providers selected</AlertTitle>
+        <AlertDescription>
+          The library selection spans {sourceNames.join(', ')}. Choose one source provider to
+          migrate titles from it; titles from the other providers stay in the library.
+          {selectedName !== undefined ? ` Showing ${selectedName}.` : ''}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  return (
+    <Alert>
+      <AlertTitle>Library selection</AlertTitle>
+      <AlertDescription>
+        {requestedMangaIds.length} selected {requestedMangaIds.length === 1 ? 'title' : 'titles'}
+        {sourceNames.length === 1 ? ` from ${sourceNames[0]}` : ''}. Target search is limited to
+        this batch.
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+function SkippedSelectionNotice({
+  skippedRequestedIds,
+  sourceProviderName,
+}: {
+  skippedRequestedIds: readonly string[];
+  sourceProviderName: string;
+}) {
+  if (skippedRequestedIds.length === 0) return null;
+
+  return (
+    <Alert variant="destructive">
+      <AlertTitle>Some selected titles were skipped</AlertTitle>
+      <AlertDescription>
+        {skippedRequestedIds.length} {skippedRequestedIds.length === 1 ? 'title is' : 'titles are'}{' '}
+        no longer in the library or not linked to {sourceProviderName}:
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          {skippedRequestedIds.map((mangaId) => (
+            <li key={mangaId}>{mangaId}</li>
+          ))}
+        </ul>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
 export function MigrationPage({
   isLoading,
   isError,
@@ -838,6 +914,9 @@ export function MigrationPage({
   rollbackSummary,
   rollbackError,
   history,
+  requestedMangaIds = EMPTY_REQUESTED_IDS,
+  requestedSourceProviderIds = EMPTY_REQUESTED_IDS,
+  skippedRequestedIds = EMPTY_REQUESTED_IDS,
   onSourceProviderChange,
   onTargetProviderChange,
   onTargetMangaIdChange,
@@ -877,6 +956,9 @@ export function MigrationPage({
     sourceProviderId !== null && targetProviderId !== null && sourceProviderId !== targetProviderId;
   const targetProviderName =
     providers.find((provider) => provider.id === targetProviderId)?.name ?? 'the target provider';
+  const sourceProviderName =
+    providers.find((provider) => provider.id === sourceProviderId)?.name ??
+    'the selected source provider';
 
   if (isLoading) {
     return (
@@ -917,12 +999,24 @@ export function MigrationPage({
         onDismissApplyStatus={onDismissApplyStatus}
       />
 
+      <SelectionHandoffNotice
+        requestedMangaIds={requestedMangaIds}
+        requestedSourceProviderIds={requestedSourceProviderIds}
+        sourceProviderId={sourceProviderId}
+        providers={providers}
+      />
+
       <ProviderSection
         providers={providers}
         sourceProviderId={sourceProviderId}
         targetProviderId={targetProviderId}
         onSourceProviderChange={onSourceProviderChange}
         onTargetProviderChange={onTargetProviderChange}
+      />
+
+      <SkippedSelectionNotice
+        skippedRequestedIds={skippedRequestedIds}
+        sourceProviderName={sourceProviderName}
       />
 
       {showCandidates ? (

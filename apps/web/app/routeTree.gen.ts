@@ -16,6 +16,7 @@ import { Route as DesignSystemRouteImport } from './routes/design-system'
 import { Route as DiscoverRouteImport } from './routes/discover'
 import { Route as ExtensionsRouteImport } from './routes/extensions'
 import { Route as LibraryRouteImport } from './routes/library'
+import { Route as MigrationRouteImport } from './routes/migration'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ExtensionsProviderIdRouteImport } from './routes/extensions.$providerId'
@@ -26,7 +27,6 @@ import { Route as SettingsReaderRouteImport } from './routes/settings.reader'
 
 const BackupLazyRouteImport = createFileRoute('/backup')()
 const DiagnosticsLazyRouteImport = createFileRoute('/diagnostics')()
-const MigrationLazyRouteImport = createFileRoute('/migration')()
 const OnboardingLazyRouteImport = createFileRoute('/onboarding')()
 const StorageLazyRouteImport = createFileRoute('/storage')()
 const ThemeLazyRouteImport = createFileRoute('/theme')()
@@ -67,7 +67,7 @@ const LibraryRoute = LibraryRouteImport.update({
   path: '/library',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MigrationLazyRoute = MigrationLazyRouteImport.update({
+const MigrationRoute = MigrationRouteImport.update({
   id: '/migration',
   path: '/migration',
   getParentRoute: () => rootRouteImport,
@@ -134,11 +134,11 @@ export interface FileRoutesByFullPath {
   '/discover': typeof DiscoverRoute
   '/extensions': typeof ExtensionsRouteWithChildren
   '/library': typeof LibraryRoute
+  '/migration': typeof MigrationRoute
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRouteWithChildren
   '/backup': typeof BackupLazyRoute
   '/diagnostics': typeof DiagnosticsLazyRoute
-  '/migration': typeof MigrationLazyRoute
   '/onboarding': typeof OnboardingLazyRoute
   '/storage': typeof StorageLazyRoute
   '/theme': typeof ThemeLazyRouteWithChildren
@@ -155,11 +155,11 @@ export interface FileRoutesByTo {
   '/discover': typeof DiscoverRoute
   '/extensions': typeof ExtensionsRouteWithChildren
   '/library': typeof LibraryRoute
+  '/migration': typeof MigrationRoute
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRouteWithChildren
   '/backup': typeof BackupLazyRoute
   '/diagnostics': typeof DiagnosticsLazyRoute
-  '/migration': typeof MigrationLazyRoute
   '/onboarding': typeof OnboardingLazyRoute
   '/storage': typeof StorageLazyRoute
   '/theme': typeof ThemeLazyRouteWithChildren
@@ -177,11 +177,11 @@ export interface FileRoutesById {
   '/discover': typeof DiscoverRoute
   '/extensions': typeof ExtensionsRouteWithChildren
   '/library': typeof LibraryRoute
+  '/migration': typeof MigrationRoute
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRouteWithChildren
   '/backup': typeof BackupLazyRoute
   '/diagnostics': typeof DiagnosticsLazyRoute
-  '/migration': typeof MigrationLazyRoute
   '/onboarding': typeof OnboardingLazyRoute
   '/storage': typeof StorageLazyRoute
   '/theme': typeof ThemeLazyRouteWithChildren
@@ -200,11 +200,11 @@ export interface FileRouteTypes {
     | '/discover'
     | '/extensions'
     | '/library'
+    | '/migration'
     | '/search'
     | '/settings'
     | '/backup'
     | '/diagnostics'
-    | '/migration'
     | '/onboarding'
     | '/storage'
     | '/theme'
@@ -221,11 +221,11 @@ export interface FileRouteTypes {
     | '/discover'
     | '/extensions'
     | '/library'
+    | '/migration'
     | '/search'
     | '/settings'
     | '/backup'
     | '/diagnostics'
-    | '/migration'
     | '/onboarding'
     | '/storage'
     | '/theme'
@@ -242,11 +242,11 @@ export interface FileRouteTypes {
     | '/discover'
     | '/extensions'
     | '/library'
+    | '/migration'
     | '/search'
     | '/settings'
     | '/backup'
     | '/diagnostics'
-    | '/migration'
     | '/onboarding'
     | '/storage'
     | '/theme'
@@ -264,11 +264,11 @@ export interface RootRouteChildren {
   DiscoverRoute: typeof DiscoverRoute
   ExtensionsRoute: typeof ExtensionsRouteWithChildren
   LibraryRoute: typeof LibraryRoute
+  MigrationRoute: typeof MigrationRoute
   SearchRoute: typeof SearchRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   BackupLazyRoute: typeof BackupLazyRoute
   DiagnosticsLazyRoute: typeof DiagnosticsLazyRoute
-  MigrationLazyRoute: typeof MigrationLazyRoute
   OnboardingLazyRoute: typeof OnboardingLazyRoute
   StorageLazyRoute: typeof StorageLazyRoute
   ThemeLazyRoute: typeof ThemeLazyRouteWithChildren
@@ -331,7 +331,7 @@ declare module '@tanstack/react-router' {
       id: '/migration'
       path: '/migration'
       fullPath: '/migration'
-      preLoaderRoute: typeof MigrationLazyRouteImport
+      preLoaderRoute: typeof MigrationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -458,11 +458,11 @@ const rootRouteChildren: RootRouteChildren = {
   DiscoverRoute: DiscoverRoute,
   ExtensionsRoute: ExtensionsRouteWithChildren,
   LibraryRoute: LibraryRoute,
+  MigrationRoute: MigrationRoute,
   SearchRoute: SearchRoute,
   SettingsRoute: SettingsRouteWithChildren,
   BackupLazyRoute: BackupLazyRoute,
   DiagnosticsLazyRoute: DiagnosticsLazyRoute,
-  MigrationLazyRoute: MigrationLazyRoute,
   OnboardingLazyRoute: OnboardingLazyRoute,
   StorageLazyRoute: StorageLazyRoute,
   ThemeLazyRoute: ThemeLazyRouteWithChildren,

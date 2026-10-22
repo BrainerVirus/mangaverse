@@ -1,5 +1,24 @@
 import type { MigrationBatchSummary, MigrationCandidate, MigrationSearchResult } from './types.js';
 
+/** Limits a source provider's candidates to the ids handed over from the library. */
+export function filterMigrationCandidatesByIds(
+  candidates: readonly MigrationCandidate[],
+  mangaIds: readonly string[],
+): MigrationCandidate[] {
+  if (mangaIds.length === 0) return [...candidates];
+  const requested = new Set(mangaIds);
+  return candidates.filter((candidate) => requested.has(candidate.mangaId));
+}
+
+/** Requested ids with no migratable candidate under the selected source provider. */
+export function findMissingMigrationMangaIds(
+  candidates: readonly MigrationCandidate[],
+  mangaIds: readonly string[],
+): string[] {
+  const available = new Set(candidates.map((candidate) => candidate.mangaId));
+  return mangaIds.filter((mangaId) => !available.has(mangaId));
+}
+
 /**
  * Fills a target id for every matched, unblocked title that has none yet.
  * Explicit selections (including manual ids) are kept.

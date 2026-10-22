@@ -1,5 +1,10 @@
 export { applyMigration, type MigrationApplyReport } from './apply-migration.js';
-export { selectAllMatched, summarizeMigrationBatch } from './batch-migration.js';
+export {
+  filterMigrationCandidatesByIds,
+  findMissingMigrationMangaIds,
+  selectAllMatched,
+  summarizeMigrationBatch,
+} from './batch-migration.js';
 export { MigrationPage, type MigrationPageProps } from './components/MigrationPage.js';
 export {
   fetchMigrationCandidates,

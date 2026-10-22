@@ -10,6 +10,10 @@ import type {
 } from '@app/shared';
 import type { LibraryItem, LibraryPageData, LibraryOrganizationAction } from '../types.js';
 import type { LibraryOverviewData } from '../fetch-library-overview.js';
+import {
+  collectLibraryMigrationSelection,
+  type LibraryMigrationSelection,
+} from '../migration-selection.js';
 import { hasLibraryFilters } from '../view-state.js';
 import { BulkEditBar } from './BulkEditBar.js';
 import { LibraryToolbar } from './LibraryToolbar.js';
@@ -22,6 +26,7 @@ import {
 import { VirtualLibraryGrid } from './VirtualLibraryGrid.js';
 
 const NOOP_ORGANIZE = async (): Promise<void> => {};
+const NOOP_MIGRATE = (): void => {};
 
 export interface LibraryPageProps {
   data: LibraryPageData | undefined;
@@ -33,6 +38,8 @@ export interface LibraryPageProps {
   onBrowse?: () => void;
   onRetry?: () => void;
   onOrganize?: (action: LibraryOrganizationAction) => Promise<void>;
+  /** Hands the selection to the migration flow; grouped by reading provider. */
+  onMigrate?: (selection: LibraryMigrationSelection) => void;
   /** Continue reading and recently updated, already filtered like the grid. */
   overview?: LibraryOverviewData;
   onOpenChapter?: (chapterId: ChapterId) => void;
@@ -143,6 +150,7 @@ export function LibraryPage({
   onBrowse,
   onRetry,
   onOrganize,
+  onMigrate = NOOP_MIGRATE,
   overview,
   onOpenChapter,
   updates,
@@ -219,6 +227,9 @@ export function LibraryPage({
             onSelectAllVisible={selection.selectAllVisible}
             onClearSelection={selection.clearSelection}
             onOrganize={onOrganize ?? NOOP_ORGANIZE}
+            onMigrateSelected={() =>
+              onMigrate(collectLibraryMigrationSelection(items, selection.selectedEntryIds))
+            }
           />
           <VirtualLibraryGrid
             items={items}

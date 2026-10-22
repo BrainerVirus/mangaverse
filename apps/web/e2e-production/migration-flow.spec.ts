@@ -15,6 +15,11 @@ const TITLES = [
 
 const TARGET_MANIFEST_URL = 'https://e2e.example/target/manifest.json';
 
+const UNSELECTED = {
+  id: 'a5f0bb11-6d9c-4f39-b1be-4f06c9a8d1a2',
+  title: 'Unselected Title',
+} as const;
+
 const TARGET_MANIFEST = {
   id: 'demo-target',
   name: 'Demo Target',
@@ -48,14 +53,17 @@ function fixtureFeed(idPrefix: string): string {
   return JSON.stringify(feed);
 }
 
-/** Serves two distinct manga details plus their chapter feeds. */
-async function mockTwoManga(page: Page) {
+/** Serves distinct manga details plus their chapter feeds. */
+async function mockTwoManga(
+  page: Page,
+  titles: readonly { readonly id: string; readonly title: string }[] = TITLES,
+) {
   await page.route('**/api.mangadex.org/**', async (route) => {
     const url = route.request().url();
-    const match = TITLES.find((title) => url.includes(title.id));
+    const match = titles.find((title) => url.includes(title.id));
 
     if (/\/feed/.test(url)) {
-      const index = TITLES.findIndex((title) => url.includes(title.id));
+      const index = titles.findIndex((title) => url.includes(title.id));
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -214,6 +222,85 @@ test('Given two library titles and a target provider without search, When migrat
   await expect(reloadedHistory.getByText(TITLES[0].title)).toBeVisible();
   await expect(reloadedHistory.getByText(TITLES[1].title)).toBeVisible();
 });
+
+async function migrateSelectionFromLibrary(page: Page, titles: readonly string[]) {
+  await page.goto('/library');
+  await page.getByRole('button', { name: 'Select titles' }).click();
+  for (const title of titles) {
+    await page.getByLabel(`Select ${title}`).check();
+  }
+  await page.getByRole('button', { name: 'Migrate selected' }).click();
+  await expect(page).toHaveURL(/\/migration\?ids=/, { timeout: 20_000 });
+}
+
+for (const viewport of [
+  { width: 390, height: 844 },
+  { width: 1440, height: 900 },
+] as const) {
+  test.describe(`library bulk migration at ${viewport.width}x${viewport.height}`, () => {
+    test.use({ viewport });
+    test.describe.configure({ timeout: 180_000 });
+
+    test('Given titles selected in the library, When the bulk bar hands them to migration, Then the batch is prefilled, applied and undone', async ({
+      page,
+      quickOnboarding,
+    }) => {
+      await mockTwoManga(page, [...TITLES, UNSELECTED]);
+
+      for (const title of [...TITLES, UNSELECTED]) {
+        await addToLibrary(page, title.id, title.title);
+      }
+      await installTargetProvider(page);
+
+      await migrateSelectionFromLibrary(
+        page,
+        TITLES.map((title) => title.title),
+      );
+
+      // Both titles came from MangaDex, so the source provider is prefilled
+      // and only the handed-over candidates are listed.
+      await expect(
+        page.getByRole('combobox', { name: 'Source provider', exact: true }),
+      ).toContainText('MangaDex', { timeout: 20_000 });
+      await expect(page.getByText(/2 selected titles from MangaDex/)).toBeVisible();
+
+      await selectProvider(page, 'Target provider', 'Demo Target');
+
+      const candidates = page.getByRole('list', { name: 'Migration candidates' });
+      await expect(candidates.locator(':scope > li')).toHaveCount(2, { timeout: 30_000 });
+      await expect(candidates.getByText(UNSELECTED.title)).toHaveCount(0);
+
+      for (const title of TITLES) {
+        await expect(
+          candidateRow(page, title.title).getByText(/not installed or enabled/),
+        ).toBeVisible({ timeout: 30_000 });
+        await candidateRow(page, title.title)
+          .getByLabel('Target provider manga id')
+          .fill(`${title.title.toLowerCase().replaceAll(' ', '-')}-target`);
+      }
+
+      await page.getByRole('button', { name: 'Preview migration' }).click();
+      await expect(page.getByText('2 title(s) ready to migrate. 0 blocked.')).toBeVisible({
+        timeout: 20_000,
+      });
+      await page.getByRole('button', { name: 'Review and apply' }).click();
+      await page
+        .getByRole('dialog', { name: 'Review migration' })
+        .getByRole('button', { name: 'Confirm migration' })
+        .click();
+
+      await expect(page.getByText('2 title(s) migrated. 0 skipped.')).toBeVisible({
+        timeout: 30_000,
+      });
+      const report = page.getByRole('list', { name: 'Migration report items' });
+      await expect(report.getByText(TITLES[0].title)).toBeVisible();
+      await expect(report.getByText(TITLES[1].title)).toBeVisible();
+
+      await page.getByRole('button', { name: 'Undo this migration' }).click();
+      await expect(page.getByText(/2 title\(s\) restored/)).toBeVisible({ timeout: 20_000 });
+    });
+  });
+}
 
 interface BackupMapping {
   id: string;

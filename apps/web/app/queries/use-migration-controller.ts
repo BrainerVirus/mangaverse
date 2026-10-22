@@ -8,17 +8,22 @@ import {
   fetchMigrationCandidates,
   fetchMigrationHistory,
   fetchMigrationProviders,
+  filterMigrationCandidatesByIds,
+  findMissingMigrationMangaIds,
   migrationQueryKeys,
   previewMigration,
   rollbackMigration,
   selectAllMatched,
   summarizeMigrationRollback,
   toMigrationTargetSearchState,
+  type MigrationCandidate,
   type MigrationPageProps,
+  type MigrationProviderOption,
   type MigrationTargetSearchState,
 } from '@app/migration';
 import { libraryQueryKeys } from '@app/library';
 
+import type { MigrationSearch } from '../lib/migration-search.js';
 import { migrationTargetSearchQueryOptions } from './migration-query-options.js';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 
@@ -30,19 +35,67 @@ interface LastApply {
   readonly targetProviderId: string;
 }
 
+const EMPTY_IDS: readonly string[] = [];
+
+/**
+ * Resolves the library hand-off against the selected source: a provider that
+ * is no longer installed prefill nothing, candidates narrow to the requested
+ * ids, and ids without a candidate under that source are reported as skipped.
+ */
+function resolveSourceProviderId(
+  sourceProviderId: string | null,
+  providers: readonly MigrationProviderOption[],
+  providersSettled: boolean,
+): string | null {
+  if (
+    sourceProviderId === null ||
+    !providersSettled ||
+    providers.some((provider) => provider.id === sourceProviderId)
+  ) {
+    return sourceProviderId;
+  }
+  return null;
+}
+
+function useRequestedCandidates(input: {
+  readonly requestedMangaIds: readonly string[];
+  readonly allCandidates: readonly MigrationCandidate[];
+  readonly candidatesLoaded: boolean;
+  readonly activeSourceProviderId: string | null;
+}) {
+  const candidates = filterMigrationCandidatesByIds(input.allCandidates, input.requestedMangaIds);
+  const hasRequestedIds = input.requestedMangaIds.length > 0;
+  const skippedRequestedIds =
+    input.activeSourceProviderId === null || !input.candidatesLoaded || !hasRequestedIds
+      ? EMPTY_IDS
+      : findMissingMigrationMangaIds(input.allCandidates, input.requestedMangaIds);
+
+  return { candidates, skippedRequestedIds };
+}
+
+function readHandoff(search: MigrationSearch) {
+  const requestedMangaIds = search.ids ?? EMPTY_IDS;
+  const requestedSourceProviderIds = search.sources ?? EMPTY_IDS;
+  const initialSourceProviderId =
+    requestedSourceProviderIds.length === 1
+      ? (requestedSourceProviderIds[0] ?? null)
+      : requestedSourceProviderIds.length === 0
+        ? (search.source ?? null)
+        : null;
+  return { requestedMangaIds, requestedSourceProviderIds, initialSourceProviderId };
+}
+
 /**
  * Migration page state and side effects, kept out of the route component so the
  * page stays a thin render of one props object.
  */
-export function useMigrationController(options?: {
-  readonly initialSourceProviderId?: string | null;
-}): MigrationPageProps {
+export function useMigrationController(search: MigrationSearch = {}): MigrationPageProps {
   const queryClient = useQueryClient();
   const db = useLocalDb();
   const dbStatus = useLocalDbStatus();
-  const [sourceProviderId, setSourceProviderId] = useState<string | null>(
-    options?.initialSourceProviderId ?? null,
-  );
+  const { requestedMangaIds, requestedSourceProviderIds, initialSourceProviderId } =
+    readHandoff(search);
+  const [sourceProviderId, setSourceProviderId] = useState<string | null>(initialSourceProviderId);
   const [targetProviderId, setTargetProviderId] = useState<string | null>(null);
   const [selections, setSelections] = useState<Record<string, string>>({});
   const [searchQueries, setSearchQueries] = useState<Record<string, string>>({});
@@ -65,10 +118,21 @@ export function useMigrationController(options?: {
     enabled: db !== null && dbStatus === 'ready',
   });
 
+  const providers = useMemo(() => providersQuery.data ?? [], [providersQuery.data]);
+  const activeSourceProviderId = resolveSourceProviderId(
+    sourceProviderId,
+    providers,
+    providersQuery.isSuccess,
+  );
+
   const candidatesQuery = useQuery({
-    queryKey: migrationQueryKeys.candidates(sourceProviderId ?? 'none'),
-    queryFn: () => fetchMigrationCandidates(db!, sourceProviderId!),
-    enabled: db !== null && dbStatus === 'ready' && sourceProviderId !== null,
+    queryKey: migrationQueryKeys.candidates(activeSourceProviderId ?? 'none'),
+    queryFn: () => fetchMigrationCandidates(db!, activeSourceProviderId!),
+    enabled:
+      db !== null &&
+      dbStatus === 'ready' &&
+      activeSourceProviderId !== null &&
+      providersQuery.isSuccess,
   });
 
   const historyQuery = useQuery({
@@ -77,14 +141,19 @@ export function useMigrationController(options?: {
     enabled: db !== null && dbStatus === 'ready',
   });
 
-  const providers = useMemo(() => providersQuery.data ?? [], [providersQuery.data]);
-  const candidates = useMemo(() => candidatesQuery.data ?? [], [candidatesQuery.data]);
+  const allCandidates = useMemo(() => candidatesQuery.data ?? [], [candidatesQuery.data]);
+  const { candidates, skippedRequestedIds } = useRequestedCandidates({
+    requestedMangaIds,
+    allCandidates,
+    candidatesLoaded: candidatesQuery.isSuccess,
+    activeSourceProviderId,
+  });
 
   const searchEnabled =
     db !== null &&
     dbStatus === 'ready' &&
     targetProviderId !== null &&
-    sourceProviderId !== targetProviderId;
+    activeSourceProviderId !== targetProviderId;
 
   const targetSearchResults = useQueries({
     queries: candidates.map((candidate) =>
@@ -147,7 +216,7 @@ export function useMigrationController(options?: {
 
   const previewMutation = useMutation({
     mutationFn: async () => {
-      if (sourceProviderId === null || targetProviderId === null) {
+      if (activeSourceProviderId === null || targetProviderId === null) {
         throw new Error('Select source and target providers.');
       }
 
@@ -167,7 +236,7 @@ export function useMigrationController(options?: {
       );
 
       return previewMigration(db!, {
-        sourceProviderId,
+        sourceProviderId: activeSourceProviderId,
         targetProviderId,
         selections: draftSelections,
       });
@@ -184,7 +253,7 @@ export function useMigrationController(options?: {
 
   const applyMutation = useMutation({
     mutationFn: async (): Promise<LastApply> => {
-      if (preview === null || sourceProviderId === null || targetProviderId === null) {
+      if (preview === null || activeSourceProviderId === null || targetProviderId === null) {
         throw new Error('Preview migration before applying.');
       }
 
@@ -199,7 +268,7 @@ export function useMigrationController(options?: {
         }));
 
       const result = await applyMigration(db!, {
-        sourceProviderId,
+        sourceProviderId: activeSourceProviderId,
         targetProviderId,
         selections: draftSelections,
       });
@@ -208,7 +277,11 @@ export function useMigrationController(options?: {
         throw new Error(result.error.message);
       }
 
-      return { report: result.value, sourceProviderId, targetProviderId };
+      return {
+        report: result.value,
+        sourceProviderId: activeSourceProviderId,
+        targetProviderId,
+      };
     },
     onSuccess: (applied) => {
       setLastApply(applied);
@@ -262,8 +335,11 @@ export function useMigrationController(options?: {
     isRollingBack: rollbackMutation.isPending,
     providers,
     candidates,
-    sourceProviderId,
+    sourceProviderId: activeSourceProviderId,
     targetProviderId,
+    requestedMangaIds,
+    requestedSourceProviderIds,
+    skippedRequestedIds,
     selections,
     searchQueries,
     committedSearchQueries: committedQueries,
