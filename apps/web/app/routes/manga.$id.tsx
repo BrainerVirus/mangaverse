@@ -16,13 +16,17 @@ import {
   createToggleFavoriteMutationOptions,
 } from '../queries/library-mutation-options.js';
 import {
+  ensureProviderChaptersForMapping,
   fetchProviderMangaDetail,
   fetchProviderRelatedTitles,
 } from '../queries/provider-query-options.js';
 import {
   anyActionPending,
+  canHydrateChapters,
   canLoadRelated,
   categoriesChangeHandler,
+  chapterHydrationQueryKey,
+  countChaptersForMapping,
   detailOrNull,
   goBackOrLibrary,
   invalidateMangaCaches,
@@ -32,6 +36,7 @@ import {
   openMigration,
   pickRelatedProps,
   providerCapability,
+  queryErrorMessage,
   relatedQueryKey,
   runChapterAction,
   runCoverAction,
@@ -130,6 +135,26 @@ function MangaDetailRoute() {
     retry: false,
   });
 
+  const chapterHydrationQuery = useQuery({
+    queryKey: chapterHydrationQueryKey(mangaId, activeMapping),
+    queryFn: async ({ signal }) => {
+      await ensureProviderChaptersForMapping(db!, mangaId, activeMapping!, signal);
+      await queryClient.invalidateQueries({
+        queryKey: libraryQueryKeys.detail(mangaId),
+        exact: true,
+      });
+    },
+    enabled: canHydrateChapters(
+      activeProvider,
+      activeMapping,
+      ready,
+      countChaptersForMapping(data, activeMapping) > 0,
+    ),
+    retry: false,
+    staleTime: Infinity,
+    gcTime: 0,
+  });
+
   const addMutation = useMutation(createAddToLibraryMutationOptions(db, queryClient, mangaId));
   const removeMutation = useMutation(
     createRemoveFromLibraryMutationOptions(db, queryClient, mangaId),
@@ -156,6 +181,7 @@ function MangaDetailRoute() {
     onSettled: () => invalidateMangaCaches(queryClient),
   });
 
+  const chaptersError = queryErrorMessage(chapterHydrationQuery.error);
   const isLibraryActionPending = anyActionPending([
     addMutation.isPending,
     removeMutation.isPending,
@@ -203,6 +229,9 @@ function MangaDetailRoute() {
         providerMutation.mutateAsync({ type: 'preferred', mappingId })
       }
       isChapterActionPending={chapterMutation.isPending}
+      isChaptersLoading={chapterHydrationQuery.isFetching}
+      {...(chaptersError === undefined ? {} : { chaptersError })}
+      onRetryChapters={() => void chapterHydrationQuery.refetch()}
       onSetChapterRead={(chapterId, read) =>
         chapterMutation.mutateAsync({ type: 'set', chapterId, read })
       }
@@ -219,8 +248,8 @@ function MangaDetailRoute() {
         void navigate({ to: '/settings/reader', search: { title: String(mangaId) } } as never)
       }
       {...pickRelatedProps({
-        canRecommend: providerCapability(activeProvider, 'recommendations'),
-        canRelate: providerCapability(activeProvider, 'relatedTitles'),
+        canRecommend: providerCapability(activeProvider, 'metadata.recommendations'),
+        canRelate: providerCapability(activeProvider, 'metadata.relatedTitles'),
         recommendations: recommendationsQuery,
         relatedTitles: relatedTitlesQuery,
       })}

@@ -18,6 +18,7 @@ export {
 } from './ids.js';
 export {
   buildMangaDetailData,
+  providerChapterToChapter,
   providerItemToMangaIdentity,
   toMangadexChapterPages,
 } from './identity-mapping.js';

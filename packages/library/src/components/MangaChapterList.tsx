@@ -3,6 +3,8 @@ import {
   Badge,
   Button,
   EmptyState,
+  ErrorState,
+  LoadingState,
   Select,
   SelectContent,
   SelectItem,
@@ -26,7 +28,10 @@ export interface MangaChapterListProps {
   readonly mappingId?: ProviderMappingId;
   readonly lastReadChapterId?: ChapterId;
   readonly isPending?: boolean;
+  readonly isLoading?: boolean;
+  readonly loadError?: string;
   onOpenChapter: (chapterId: ChapterId) => void;
+  onRetryLoad?: () => void;
   onSetChapterRead?: (chapterId: ChapterId, read: boolean) => Promise<void> | void;
   onMarkPreviousRead?: (chapterId: ChapterId) => Promise<void> | void;
 }
@@ -43,6 +48,28 @@ const FILTER_OPTIONS: readonly { value: ChapterFilter; label: string }[] = [
   { value: 'read', label: 'Read' },
 ];
 
+function ChapterListEmpty({
+  isLoading,
+  loadError,
+  onRetry,
+}: {
+  readonly isLoading: boolean;
+  readonly loadError: string | undefined;
+  onRetry: (() => void) | undefined;
+}) {
+  if (isLoading) return <LoadingState type="list" />;
+  if (loadError !== undefined) {
+    return (
+      <ErrorState
+        title="Could not load chapters"
+        message={loadError}
+        {...(onRetry === undefined ? {} : { onRetry })}
+      />
+    );
+  }
+  return <EmptyState type="no-chapters" />;
+}
+
 export function MangaChapterList({
   chapters,
   readStates,
@@ -50,7 +77,10 @@ export function MangaChapterList({
   mappingId,
   lastReadChapterId,
   isPending = false,
+  isLoading = false,
+  loadError,
   onOpenChapter,
+  onRetryLoad,
   onSetChapterRead,
   onMarkPreviousRead,
 }: MangaChapterListProps) {
@@ -78,11 +108,13 @@ export function MangaChapterList({
         <div className="space-y-1">
           <h2 className="text-xl font-semibold">Chapters</h2>
           <p className="text-sm text-muted-foreground" data-testid="chapter-summary">
-            {unreadCount === 0
-              ? mappingChapters.length === 0
-                ? 'No chapters from this source yet.'
-                : 'All chapters read.'
-              : `${unreadCount} unread`}
+            {isLoading && mappingChapters.length === 0
+              ? 'Loading chapters…'
+              : unreadCount === 0
+                ? mappingChapters.length === 0
+                  ? 'No chapters from this source yet.'
+                  : 'All chapters read.'
+                : `${unreadCount} unread`}
             {lastReadChapter !== undefined ? ` · Last read: ${lastReadChapter.title}` : null}
           </p>
         </div>
@@ -127,7 +159,7 @@ export function MangaChapterList({
       ) : null}
 
       {mappingChapters.length === 0 ? (
-        <EmptyState type="no-chapters" />
+        <ChapterListEmpty isLoading={isLoading} loadError={loadError} onRetry={onRetryLoad} />
       ) : visibleChapters.length === 0 ? (
         <p className="rounded-box border border-border px-4 py-6 text-sm text-muted-foreground">
           {filter === 'unread' ? 'No unread chapters.' : 'No read chapters yet.'}

@@ -88,6 +88,30 @@ describe('MangaChapterList', () => {
     expect(screen.queryByText('Chapter 2')).toBeNull();
   });
 
+  it('shows loading and retryable error states when a new source has no local chapters', () => {
+    const onRetryLoad = vi.fn<() => void>();
+    const view = render(
+      <MangaChapterList chapters={[]} mappingId={MAPPING_ID} isLoading onOpenChapter={() => {}} />,
+    );
+
+    expect(screen.getByTestId('chapter-summary')).toHaveTextContent('Loading chapters…');
+    expect(screen.queryByText("This title doesn't have any chapters yet.")).toBeNull();
+
+    view.rerender(
+      <MangaChapterList
+        chapters={[]}
+        mappingId={MAPPING_ID}
+        loadError="Provider is unavailable."
+        onOpenChapter={() => {}}
+        onRetryLoad={onRetryLoad}
+      />,
+    );
+
+    expect(screen.getByText('Provider is unavailable.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(onRetryLoad).toHaveBeenCalledTimes(1);
+  });
+
   it('reorders chapters by latest publish date', async () => {
     const user = userEvent.setup();
     render(

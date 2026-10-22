@@ -1,5 +1,5 @@
 import type { AppDrizzleDb } from '@app/db/browser';
-import { getChapter } from '@app/db/browser';
+import { getChapter, upsertChapterWithPages } from '@app/db/browser';
 import { applyExplicitContentGate, loadProviderSettings } from '@app/extensions';
 import type { ProviderContext, ProviderContract } from '@app/extensions-sdk';
 import { normalizeProviderError } from '@app/extensions-sdk';
@@ -179,6 +179,58 @@ export async function fetchProviderRelatedTitles(
     if (signal?.aborted === true) throw error;
     throw new Error(
       normalizeProviderError(error, { providerId: binding.providerId, operation: kind }).message,
+      { cause: error },
+    );
+  }
+}
+
+/**
+ * Hydrates the chapter list for one attached mapping. Only runs when the
+ * provider declares `metadata.chapters`; the caller polls the local detail
+ * query afterwards instead of trusting the provider response.
+ */
+export async function ensureProviderChaptersForMapping(
+  db: AppDrizzleDb,
+  mangaId: MangaId,
+  mapping: MangaProviderMapping,
+  signal?: AbortSignal,
+): Promise<number> {
+  const binding = getProviderBinding(String(mapping.providerId));
+  if (binding === null) return 0;
+
+  const context = await providerContext(db, binding.providerId, signal);
+  if (context === null || context.provider.getChapters === undefined) return 0;
+  if (!hasProviderCapability(context.provider.manifest, 'metadata.chapters')) return 0;
+
+  try {
+    const chapters = await context.provider.getChapters(context.ctx, mapping.providerMangaId);
+    for (const chapter of chapters) {
+      const mapped = binding.toChapter(String(mapping.providerMangaId), chapter);
+      // oxlint-disable-next-line react-doctor/async-await-in-loop -- one row per chapter against the browser-SQLite runtime; parallel writes would contend for the same write lock
+      const written = await upsertChapterWithPages(db, {
+        chapterId: mapped.id,
+        mangaId,
+        providerMappingId: mapping.id,
+        providerId: String(mapping.providerId),
+        ...(mapped.providerChapterId !== undefined
+          ? { providerChapterId: mapped.providerChapterId }
+          : {}),
+        title: mapped.title,
+        index: mapped.index,
+        ...(mapped.volume !== undefined ? { volume: mapped.volume } : {}),
+        ...(mapped.publishedAt !== undefined ? { publishedAt: mapped.publishedAt } : {}),
+        pages: [],
+      });
+      if (!written.ok) throw new Error(written.error.message);
+    }
+    return chapters.length;
+  } catch (error) {
+    if (signal?.aborted === true) throw error;
+    throw new Error(
+      normalizeProviderError(error, {
+        providerId: binding.providerId,
+        operation: 'chapters',
+      }).message,
       { cause: error },
     );
   }

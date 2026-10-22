@@ -75,6 +75,9 @@ export interface MangaDetailPageProps {
   onSetDefaultProvider?: (mappingId: ProviderMappingId) => Promise<void> | void;
   onSetPreferredChapterSource?: (mappingId: ProviderMappingId) => Promise<void> | void;
   isChapterActionPending?: boolean;
+  isChaptersLoading?: boolean;
+  chaptersError?: string;
+  onRetryChapters?: () => void;
   onSetChapterRead?: (chapterId: ChapterId, read: boolean) => Promise<void> | void;
   onMarkPreviousChaptersRead?: (chapterId: ChapterId) => Promise<void> | void;
   isCoverActionPending?: boolean;
@@ -775,13 +778,19 @@ function MangaProvidersSection({
 function MangaChaptersSection({
   view,
   isPending,
+  isLoading,
+  loadError,
   onOpenChapter,
+  onRetryLoad,
   onSetChapterRead,
   onMarkPreviousChaptersRead,
 }: {
   readonly view: MangaDetailView;
   readonly isPending: boolean;
+  readonly isLoading: boolean;
+  readonly loadError: string | undefined;
   onOpenChapter: (chapterId: ChapterId) => void;
+  onRetryLoad: (() => void) | undefined;
   onSetChapterRead: ((chapterId: ChapterId, read: boolean) => Promise<void> | void) | undefined;
   onMarkPreviousChaptersRead: ((chapterId: ChapterId) => Promise<void> | void) | undefined;
 }) {
@@ -798,7 +807,10 @@ function MangaChaptersSection({
       {...(activeMappingId === undefined ? {} : { mappingId: activeMappingId })}
       {...(lastReadChapterId === undefined ? {} : { lastReadChapterId })}
       isPending={isPending}
+      isLoading={isLoading}
+      {...(loadError === undefined ? {} : { loadError })}
       onOpenChapter={onOpenChapter}
+      {...(onRetryLoad === undefined ? {} : { onRetryLoad })}
       {...(onSetChapterRead === undefined ? {} : { onSetChapterRead })}
       {...(onMarkPreviousChaptersRead === undefined
         ? {}
@@ -884,7 +896,10 @@ function MangaDetailContent(props: MangaDetailPageProps & { readonly data: Manga
       <MangaChaptersSection
         view={view}
         isPending={props.isChapterActionPending ?? false}
+        isLoading={props.isChaptersLoading ?? false}
+        loadError={props.chaptersError}
         onOpenChapter={props.onOpenChapter}
+        onRetryLoad={props.onRetryChapters}
         onSetChapterRead={props.onSetChapterRead}
         onMarkPreviousChaptersRead={props.onMarkPreviousChaptersRead}
       />

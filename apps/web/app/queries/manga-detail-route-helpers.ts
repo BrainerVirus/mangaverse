@@ -22,6 +22,7 @@ import type {
   MangaId,
   MangaIdentity,
   MangaProviderMapping,
+  ProviderCapabilityKey,
   ProviderMappingId,
 } from '@app/shared';
 import type { ProviderRelatedKind } from './provider-query-options.js';
@@ -88,7 +89,12 @@ export async function runProviderAction(
       );
       if (!result.ok) throw new Error(result.error.message);
       await refreshUnreadForMapping(ready, mangaId, data, action.mappingId);
+      return;
     }
+    // Outside the library there is no active-mapping column, so the switch is
+    // kept as the preferred reading source instead of vanishing on reload.
+    const preferred = await setPreferredChapterSource(ready, mangaId, action.mappingId);
+    if (!preferred.ok) throw new Error(preferred.error.message);
     return;
   }
 
@@ -153,14 +159,10 @@ export function categoriesChangeHandler(
 
 export function providerCapability(
   provider: ProviderUiInfo | undefined,
-  kind: ProviderRelatedKind,
+  capability: ProviderCapabilityKey,
 ): boolean {
   if (provider === undefined || !provider.enabled) return false;
-  return (
-    provider.capabilities[
-      kind === 'recommendations' ? 'metadata.recommendations' : 'metadata.relatedTitles'
-    ] === true
-  );
+  return provider.capabilities[capability] === true;
 }
 
 export function canLoadRelated(
@@ -169,7 +171,48 @@ export function canLoadRelated(
   kind: ProviderRelatedKind,
   ready: boolean,
 ): boolean {
-  return ready && mapping !== undefined && providerCapability(provider, kind);
+  return (
+    ready &&
+    mapping !== undefined &&
+    providerCapability(
+      provider,
+      kind === 'recommendations' ? 'metadata.recommendations' : 'metadata.relatedTitles',
+    )
+  );
+}
+
+export function canHydrateChapters(
+  provider: ProviderUiInfo | undefined,
+  mapping: MangaProviderMapping | undefined,
+  ready: boolean,
+  hasLocalChapters: boolean,
+): boolean {
+  return (
+    ready &&
+    !hasLocalChapters &&
+    mapping !== undefined &&
+    providerCapability(provider, 'metadata.chapters')
+  );
+}
+
+export function countChaptersForMapping(
+  data: MangaDetailData | null | undefined,
+  mapping: MangaProviderMapping | undefined,
+): number {
+  if (data === null || data === undefined || mapping === undefined) return 0;
+  return data.chapters.filter((chapter) => chapter.providerMappingId === mapping.id).length;
+}
+
+export function chapterHydrationQueryKey(
+  mangaId: MangaId,
+  mapping: MangaProviderMapping | undefined,
+): readonly unknown[] {
+  return [...libraryQueryKeys.detail(mangaId), 'chapters', mapping?.id ?? 'none'];
+}
+
+export function queryErrorMessage(error: unknown): string | undefined {
+  if (error === null || error === undefined) return undefined;
+  return error instanceof Error ? error.message : 'The provider request failed.';
 }
 
 export function relatedQueryKey(
