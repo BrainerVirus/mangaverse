@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 
-import { MANGADEX_APP_MANGA_ID, test, waitForPingQuiet } from './helpers.js';
+import { MANGADEX_APP_MANGA_ID, openCommandPalette, test, waitForPingQuiet } from './helpers.js';
 
 test.describe.configure({ timeout: 90_000 });
 
@@ -31,9 +31,7 @@ test('Given a recently read title, When the palette opens, Then it appears under
   await waitForPingQuiet(page);
 
   await page.goto('/library');
-  await page.keyboard.press('ControlOrMeta+k');
-  const palette = page.getByRole('dialog', { name: 'Command palette' });
-  await expect(palette).toBeVisible();
+  const palette = await openCommandPalette(page);
   await expect(palette.getByText(`Continue reading ${TITLE}`)).toBeVisible({ timeout: 20_000 });
   await expect(palette.getByText(`Open ${TITLE}`)).toBeVisible();
 
@@ -49,8 +47,7 @@ test('Given the palette is open, When a settings shortcut runs, Then the setting
 }) => {
   await expect(page).toHaveURL(/\/library/);
 
-  await page.keyboard.press('ControlOrMeta+k');
-  await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible();
+  await openCommandPalette(page);
 
   await page.getByLabel('Search commands').fill('reader settings');
   await page.keyboard.press('Enter');
