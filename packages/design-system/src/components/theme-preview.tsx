@@ -1,5 +1,4 @@
 import type { CSSProperties } from 'react';
-import { cn } from '../lib/cn.js';
 
 type ThemePreviewStyle = CSSProperties & {
   [variable: `--${string}`]: string | number | undefined;
@@ -28,10 +27,8 @@ export function ThemePreview({ theme }: ThemePreviewProps) {
   // Preset colors are runtime data, passed through CSS variables into semantic utilities.
   return (
     <div
-      className={cn(
-        'relative overflow-hidden rounded-box border p-4 transition-all hover:shadow-md theme-preview-color theme-preview-border',
-        'w-full max-w-70',
-      )}
+      data-theme-preview=""
+      className="relative flex h-full w-full flex-col overflow-hidden rounded-box border p-4 transition-shadow hover:shadow-md theme-preview-color theme-preview-border"
       style={
         {
           '--theme-preview-color': theme.background,

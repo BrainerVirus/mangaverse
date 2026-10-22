@@ -64,9 +64,14 @@ function CardMeta({ manga, variant }: MetaProps) {
 
   return (
     <div
+      // DESIGN.md §3.5: text over cover art needs a protected ground. The card's own `--card`
+      // token keeps the plate correct in light, dark and AMOLED instead of a fixed scrim.
+      data-card-plate={isGrid ? '' : undefined}
       className={cn(
         'flex flex-col justify-between',
-        isGrid ? 'absolute bottom-0 left-0 right-0 z-10 p-3' : 'flex-1 py-1',
+        isGrid
+          ? 'absolute bottom-0 left-0 right-0 z-10 rounded-b-box bg-gradient-to-t from-card via-card to-transparent px-3 pb-3 pt-8'
+          : 'flex-1 py-1',
         isCompact && 'min-w-0 py-0.5',
       )}
     >
@@ -165,7 +170,7 @@ export function MangaCard({ manga, onClick, variant = 'grid', coverSlot }: Manga
           }
         }}
         className={cn(
-          'group relative cursor-pointer overflow-hidden rounded-box border border-border bg-card transition-all',
+          'group relative w-full cursor-pointer overflow-hidden rounded-box border border-border bg-card transition-all',
           'hover:border-accent hover:shadow-md',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           {

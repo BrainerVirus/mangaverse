@@ -32,6 +32,12 @@ function healthBadgeVariant(
   return 'secondary';
 }
 
+function backAction(onBack: (() => void) | undefined): {
+  action?: { label: string; onClick: () => void };
+} {
+  return onBack === undefined ? {} : { action: { label: 'Back to extensions', onClick: onBack } };
+}
+
 export function ProviderDetailPage({
   data,
   isLoading,
@@ -63,7 +69,7 @@ export function ProviderDetailPage({
   if (data === null || data === undefined) {
     return (
       <section aria-label="Provider details" className="p-6">
-        <EmptyState type="no-provider" />
+        <EmptyState type="provider-not-found" {...backAction(onBack)} />
       </section>
     );
   }

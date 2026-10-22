@@ -56,6 +56,12 @@ test('Given a provider manga, When it is added, favorited and removed, Then ever
   );
 
   await page.getByRole('button', { name: 'Remove from library' }).click();
+  await expect(page.getByText(`Remove “${TITLE}” from your library?`)).toBeVisible();
+  await page.getByRole('button', { name: 'Keep in library' }).click();
+  await expect(page.getByRole('button', { name: 'Remove from library' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Remove from library' }).click();
+  await page.getByRole('button', { name: 'Remove title' }).click();
   await expect(page.getByRole('button', { name: 'Add to library' })).toBeVisible();
   await waitForPingQuiet(page);
 

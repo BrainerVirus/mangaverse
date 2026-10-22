@@ -7,7 +7,14 @@ import { BookX, Database, Search, ChevronRight, Archive } from 'lucide-react';
 import { cn } from '../lib/cn.js';
 import { Button } from './ui/button.js';
 
-type EmptyStateType = 'no-library' | 'no-provider' | 'no-results' | 'no-chapters' | 'no-backups';
+type EmptyStateType =
+  | 'no-library'
+  | 'no-provider'
+  | 'no-results'
+  | 'manga-not-found'
+  | 'provider-not-found'
+  | 'no-chapters'
+  | 'no-backups';
 
 export interface EmptyStateProps {
   type: EmptyStateType;
@@ -35,6 +42,18 @@ const emptyStateConfig: Record<
     icon: <Search className="h-12 w-12 text-muted-foreground" />,
     title: 'No results found',
     description: 'Try adjusting your search or browse for different content.',
+  },
+  'manga-not-found': {
+    icon: <BookX className="h-12 w-12 text-muted-foreground" />,
+    title: 'Manga not found',
+    description:
+      'This title is not saved on this device. It may have been removed, or the link is wrong.',
+  },
+  'provider-not-found': {
+    icon: <Database className="h-12 w-12 text-muted-foreground" />,
+    title: 'Provider not found',
+    description:
+      'This provider is not installed on this device. It may have been removed, or the link is wrong.',
   },
   'no-chapters': {
     icon: <ChevronRight className="h-12 w-12 text-muted-foreground" />,

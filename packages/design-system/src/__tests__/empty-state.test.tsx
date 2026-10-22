@@ -49,6 +49,20 @@ describe('EmptyState', () => {
     expect(screen.getByText('No results found')).toBeInTheDocument();
   });
 
+  it('renders a specific missing-manga state instead of the search empty state', () => {
+    render(<EmptyState type="manga-not-found" />);
+
+    expect(screen.getByText('Manga not found')).toBeInTheDocument();
+    expect(screen.queryByText('No results found')).toBeNull();
+  });
+
+  it('renders a specific missing-provider state instead of the no-provider state', () => {
+    render(<EmptyState type="provider-not-found" />);
+
+    expect(screen.getByText('Provider not found')).toBeInTheDocument();
+    expect(screen.queryByText('No provider installed')).toBeNull();
+  });
+
   it('renders no-chapters type correctly', () => {
     render(<EmptyState type="no-chapters" />);
 

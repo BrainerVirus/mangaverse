@@ -119,6 +119,23 @@ describe('MangaCard', () => {
     expect(button).toHaveClass('aspect-3/4');
   });
 
+  it('Given the grid variant, Then the title and source sit on a card-toned plate over the art', () => {
+    const { container } = render(<MangaCard manga={createMockManga()} variant="grid" />);
+
+    const plate = container.querySelector('[data-card-plate]');
+    expect(plate).not.toBeNull();
+    expect(plate).toHaveClass('from-card', 'via-card', 'to-transparent');
+  });
+
+  it('Given list and compact variants, Then no overlay plate is added over the cover', () => {
+    const list = render(<MangaCard manga={createMockManga()} variant="list" />);
+    expect(list.container.querySelector('[data-card-plate]')).toBeNull();
+    list.unmount();
+
+    const compact = render(<MangaCard manga={createMockManga()} variant="compact" />);
+    expect(compact.container.querySelector('[data-card-plate]')).toBeNull();
+  });
+
   it('renders list variant correctly', () => {
     const manga = createMockManga();
     const { container } = render(<MangaCard manga={manga} variant="list" />);

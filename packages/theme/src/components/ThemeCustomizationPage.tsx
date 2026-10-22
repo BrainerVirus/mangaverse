@@ -9,6 +9,7 @@ import {
   LoadingState,
   Switch,
   ThemePreview,
+  cn,
 } from '@app/design-system';
 import type { ThemeDefinition, ThemeSettings } from '@app/shared';
 
@@ -67,17 +68,17 @@ function ThemePresetCard({
   const preview = toThemePreviewDefinitionForPreset(presetId, previewDark);
 
   return (
-    <div className="group flex w-full max-w-70 flex-col items-start gap-2">
+    <div className="group flex h-full w-full flex-col gap-2">
       <button
         type="button"
         disabled={disabled}
         aria-pressed={selected}
         aria-label={`Select ${name} theme`}
         onClick={onSelect}
-        className="flex w-full flex-col items-start gap-2 rounded-box border border-transparent p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex w-full flex-col items-stretch gap-2 rounded-box border border-transparent p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
         data-selected={selected ? 'true' : 'false'}
       >
-        <div className={selectedRing(selected)}>
+        <div className={cn('w-full', selectedRing(selected))}>
           <ThemePreview theme={preview} />
         </div>
         <div className="px-1">
@@ -125,17 +126,17 @@ function CustomThemeCard({
   );
 
   return (
-    <div className="group flex w-full max-w-70 flex-col items-start gap-2">
+    <div className="group flex h-full w-full flex-col gap-2">
       <button
         type="button"
         disabled={disabled}
         aria-pressed={selected}
         aria-label={`Select ${definition.name} theme`}
         onClick={onSelect}
-        className="flex w-full flex-col items-start gap-2 rounded-box border border-transparent p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex w-full flex-col items-stretch gap-2 rounded-box border border-transparent p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
         data-selected={selected ? 'true' : 'false'}
       >
-        <div className={selectedRing(selected)}>
+        <div className={cn('w-full', selectedRing(selected))}>
           <ThemePreview theme={preview} />
         </div>
         <div className="px-1">
