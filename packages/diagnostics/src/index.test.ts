@@ -58,6 +58,8 @@ describe('formatDiagnosticsReport', () => {
     expect(text).toContain('MangaVerse diagnostics');
     expect(text).toContain('libraryEntries: 2');
     expect(text).toContain('runtime: web');
+    expect(text).toContain('extensionLogs: 3');
+    expect(text).toContain('extensionErrorLogs: 1');
   });
 });
 

@@ -101,6 +101,7 @@ const activity: NonNullable<Parameters<typeof ProviderDetailPage>[0]['activity']
       createdAt: '2026-01-02T12:00:00.000Z',
     },
   ],
+  counts: { total: 1, info: 0, errors: 1, warnings: 0 },
   isLoading: false,
   error: null,
   level: 'all',
@@ -159,9 +160,47 @@ describe('ProviderDetailPage activity, health and updates', () => {
   });
 
   it('shows the empty activity state', () => {
-    renderWithPanels({ activity: { ...activity, logs: [] } });
+    renderWithPanels({
+      activity: { ...activity, logs: [], counts: { total: 0, info: 0, errors: 0, warnings: 0 } },
+    });
     expect(screen.getByText('No activity recorded for this provider.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Clear activity' })).toBeDisabled();
+  });
+
+  it('bases the empty level copy on the full retained counts', () => {
+    renderWithPanels({
+      activity: {
+        ...activity,
+        logs: [],
+        level: 'error',
+        counts: { total: 0, info: 0, errors: 0, warnings: 0 },
+      },
+    });
+    expect(screen.getByText('No errors recorded for this provider.')).toBeInTheDocument();
+  });
+
+  it('states what the health check runs and labels the network probe', () => {
+    renderWithPanels({
+      health: {
+        report: null,
+        isChecking: false,
+        error: null,
+        canRunNetworkCheck: true,
+        includeNetwork: false,
+        onIncludeNetworkChange: vi.fn<(enabled: boolean) => void>(),
+        onRun: vi.fn<() => void>(),
+        lastCheckedAt: null,
+      },
+    });
+
+    expect(screen.getByText(/Runs static checks on the install/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/optional network check runs the provider's search once/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/without running provider code/)).not.toBeInTheDocument();
+    expect(
+      screen.getByLabelText('Include network check (runs provider search)'),
+    ).toBeInTheDocument();
   });
 
   it('runs a health check and renders each check with reasons', async () => {

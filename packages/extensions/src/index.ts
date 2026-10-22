@@ -39,8 +39,11 @@ export { setProviderEnabled, removeProvider } from './provider-actions.js';
 export {
   clearProviderActivity,
   fetchProviderActivity,
+  fetchProviderActivitySummary,
+  type ExtensionLogCounts,
   type ExtensionLogEntry,
   type ExtensionLogLevel,
+  type ProviderActivitySummary,
 } from './provider-activity.js';
 export { recordProviderFailure } from '@app/extensions-core';
 export {

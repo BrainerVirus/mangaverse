@@ -3,6 +3,7 @@ import { createSqlJsHarness } from '@app/db/testing';
 
 import {
   clearProviderActivity,
+  getProviderActivitySummary,
   listProviderActivity,
   recordExtensionLog,
   recordProviderFailure,
@@ -131,5 +132,72 @@ describe('provider activity log', () => {
       count: 2,
     });
     expect(sanitizeLogMessage('https://x.test/a?key=abc')).toBe('https://x.test/a');
+  });
+
+  it('redacts JSON token fields and auth header values', () => {
+    expect(sanitizeLogMessage('{"token":"s3cr3t","page":2}')).not.toContain('s3cr3t');
+    expect(sanitizeLogMessage('{"api_key":"s3cr3t"}')).not.toContain('s3cr3t');
+    expect(sanitizeLogMessage('X-Api-Key: s3cr3t')).toBe('X-Api-Key: [redacted]');
+    expect(sanitizeLogMessage('authorization: Basic s3cr3t')).toBe('authorization: [redacted]');
+    expect(sanitizeLogMessage('GET https://x.test/a?api_key=s3cr3t&page=2')).toBe(
+      'GET https://x.test/a',
+    );
+  });
+
+  it('leaves normal prose alone', () => {
+    expect(sanitizeLogMessage('The key to success is patience.')).toBe(
+      'The key to success is patience.',
+    );
+    expect(sanitizeLogMessage('monkey=banana is not a credential')).toBe(
+      'monkey=banana is not a credential',
+    );
+  });
+
+  it('filters older errors server-side beyond the latest page', async () => {
+    const { raw, db } = await createSqlJsHarness();
+    for (let index = 0; index < 120; index += 1) {
+      raw.run(
+        `INSERT INTO extension_logs (id, provider_id, level, code, message, created_at)
+         VALUES (?, 'p', 'info', 'extensions.ops.tick', ?, ?)`,
+        [
+          `tick-${index}`,
+          `tick ${index}`,
+          new Date(1_700_000_000_000 + index * 1000).toISOString(),
+        ],
+      );
+    }
+    raw.run(
+      `INSERT INTO extension_logs (id, provider_id, level, code, message, created_at)
+       VALUES ('older-error', 'p', 'error', 'extensions.sdk.request.timeout', 'Older failure.', '2020-01-01T00:00:00.000Z')`,
+    );
+
+    expect(await listProviderActivity(db, 'p')).toHaveLength(100);
+    expect(await listProviderActivity(db, 'p')).not.toContainEqual(
+      expect.objectContaining({ level: 'error' }),
+    );
+    const errors = await listProviderActivity(db, 'p', 'error');
+    expect(errors.map((entry) => entry.message)).toEqual(['Older failure.']);
+    const summary = await getProviderActivitySummary(db, 'p');
+    expect(summary.counts.errors).toBe(1);
+    expect(summary.counts.total).toBe(121);
+  });
+
+  it('reports the latest health check time from the full retained set', async () => {
+    const { db } = await createSqlJsHarness();
+    await recordExtensionLog(db, {
+      providerId: 'p',
+      level: 'info',
+      code: 'extensions.health.ok',
+      message: 'Health check: 1 passed.',
+    });
+    await recordExtensionLog(db, {
+      providerId: 'p',
+      level: 'info',
+      code: 'extensions.ops.installed',
+      message: 'Installed.',
+    });
+
+    const summary = await getProviderActivitySummary(db, 'p');
+    expect(summary.lastHealthCheckAt).not.toBeNull();
   });
 });

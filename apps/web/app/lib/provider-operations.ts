@@ -5,6 +5,7 @@ import {
   clearProviderActivity,
   extensionsQueryKeys,
   fetchProviderActivity,
+  fetchProviderActivitySummary,
   loadProviderSettings,
   runProviderHealthCheck,
   type ActivityLevelFilter,
@@ -42,8 +43,13 @@ export function useProviderActivity(
   const queryClient = useQueryClient();
   const [level, setLevel] = useState<ActivityLevelFilter>('all');
   const query = useQuery({
-    queryKey: extensionsQueryKeys.activity(providerId),
-    queryFn: () => fetchProviderActivity(db!, providerId),
+    queryKey: extensionsQueryKeys.activity(providerId, level),
+    queryFn: () => fetchProviderActivity(db!, providerId, level === 'all' ? undefined : level),
+    enabled: enabled && db !== null,
+  });
+  const summary = useQuery({
+    queryKey: extensionsQueryKeys.activity(providerId, 'summary'),
+    queryFn: () => fetchProviderActivitySummary(db!, providerId),
     enabled: enabled && db !== null,
   });
   const clear = useMutation({
@@ -62,16 +68,20 @@ export function useProviderActivity(
   const logs = query.data ?? [];
   return {
     state: {
-      logs: level === 'all' ? logs : logs.filter((entry) => entry.level === level),
-      isLoading: query.isLoading,
-      error: query.isError ? errorMessageOf(query.error) : null,
+      logs,
+      counts: summary.data?.counts ?? { total: 0, info: 0, errors: 0, warnings: 0 },
+      isLoading: query.isLoading || summary.isLoading,
+      error: query.isError
+        ? errorMessageOf(query.error)
+        : summary.isError
+          ? errorMessageOf(summary.error)
+          : null,
       level,
       onLevelChange: setLevel,
       onClear: () => clear.mutate(),
       isClearing: clear.isPending,
     },
-    lastHealthCheckAt:
-      logs.find((entry) => entry.code.startsWith('extensions.health.'))?.createdAt ?? null,
+    lastHealthCheckAt: summary.data?.lastHealthCheckAt ?? null,
   };
 }
 

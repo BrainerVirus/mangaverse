@@ -4,7 +4,6 @@ import {
   appendExtensionLog,
   clearExtensionLogs,
   countExtensionLogs,
-  EXTENSION_LOG_RETENTION_PER_PROVIDER,
   listExtensionLogs,
 } from './extension-logs.js';
 
@@ -43,12 +42,18 @@ describe('extension log repository', () => {
 
     const global = await listExtensionLogs(db, { limit: 10 });
     expect(global.map((entry) => entry.code)).toEqual(['three', 'two', 'one']);
+
+    const counts = await countExtensionLogs(db, { providerId: 'a' });
+    expect(counts).toEqual({ total: 2, info: 1, errors: 1, warnings: 0 });
+
+    const healthPrefix = await listExtensionLogs(db, { providerId: 'a', codePrefix: 'tw' });
+    expect(healthPrefix.map((entry) => entry.code)).toEqual(['two']);
   });
 
   it('retains only the newest per-provider entries', async () => {
     const { raw, db } = await createSqlJsHarness();
     // Bulk raw inserts keep the test fast; one append runs the retention prune.
-    for (let index = 0; index < EXTENSION_LOG_RETENTION_PER_PROVIDER + 5; index += 1) {
+    for (let index = 0; index < 505; index += 1) {
       raw.run(
         `INSERT INTO extension_logs (id, provider_id, level, code, message, created_at)
          VALUES (?, 'noisy', 'error', 'page-failed', ?, ?)`,
@@ -69,9 +74,9 @@ describe('extension log repository', () => {
 
     const rows = await listExtensionLogs(db, {
       providerId: 'noisy',
-      limit: EXTENSION_LOG_RETENTION_PER_PROVIDER + 10,
+      limit: 510,
     });
-    expect(rows).toHaveLength(EXTENSION_LOG_RETENTION_PER_PROVIDER);
+    expect(rows).toHaveLength(500);
     expect(rows[0]?.message).toBe('newest failure');
     expect(rows.map((entry) => entry.id)).not.toContain('old-0');
   });

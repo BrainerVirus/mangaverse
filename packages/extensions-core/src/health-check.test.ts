@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { toExtensionInstallId, toProviderId } from '@app/shared';
 import type { ProviderManifest } from '@app/shared';
 import { createSqlJsHarness } from '@app/db/testing';
@@ -7,7 +7,11 @@ import type { AppDrizzleDb } from '@app/db';
 import { confirmExtensionInstall } from './confirm-install.js';
 import { createExtensionInstallSession, transitionExtensionInstall } from './install-session.js';
 import type { ExtensionInstallPreview } from './install-types.js';
-import { listInstalledProviders, markProviderBroken } from './providers-ops.js';
+import {
+  listInstalledProviders,
+  disableInstalledProvider,
+  markProviderBroken,
+} from './providers-ops.js';
 import { parseSemver, compareSemver, runProviderHealthCheck } from './health-check.js';
 import { listProviderActivity } from './extension-logs.js';
 
@@ -69,6 +73,27 @@ describe('semver helpers', () => {
     expect(compareSemver('1.2.3', '1.2.3')).toBe(0);
     expect(compareSemver('1.2.3-beta', '1.2.3')).toBeLessThan(0);
     expect(compareSemver('1.2', '1.2.3')).toBeNull();
+  });
+
+  it('orders numeric prerelease identifiers numerically', () => {
+    expect(compareSemver('1.0.0-rc.9', '1.0.0-rc.10')).toBeLessThan(0);
+    expect(compareSemver('1.0.0-rc.10', '1.0.0-rc.9')).toBeGreaterThan(0);
+    expect(compareSemver('1.0.0-alpha', '1.0.0-alpha.1')).toBeLessThan(0);
+    expect(compareSemver('1.0.0-alpha.1', '1.0.0-alpha.beta')).toBeLessThan(0);
+  });
+
+  it('keeps hyphenated prerelease identifiers intact and ignores build metadata', () => {
+    expect(parseSemver('1.0.0-beta-2')).toEqual([1, 0, 0, 'beta-2']);
+    expect(compareSemver('1.0.0-beta-2', '1.0.0-beta')).toBeGreaterThan(0);
+    expect(parseSemver('1.0.0+build.7')).toEqual([1, 0, 0, null]);
+    expect(compareSemver('1.0.0+build.2', '1.0.0+build.1')).toBe(0);
+  });
+
+  it('rejects malformed versions', () => {
+    expect(parseSemver('1.2.3-')).toBeNull();
+    expect(parseSemver('1.2.3-beta..1')).toBeNull();
+    expect(parseSemver('1.2.3-01')).toBeNull();
+    expect(compareSemver('1.2.3', 'not-a-version')).toBeNull();
   });
 });
 
@@ -182,5 +207,60 @@ describe('runProviderHealthCheck', () => {
 
     expect(report.status).toBe('broken');
     expect(report.checks.find((item) => item.id === 'capabilities')?.status).toBe('fail');
+  });
+
+  it('fails a non-http source URL even when the manifest stays valid', async () => {
+    const { db, raw } = await createSqlJsHarness();
+    await install(db);
+    raw.run("UPDATE installed_extensions SET source_url = 'ftp://example.com/provider'");
+
+    const report = await runProviderHealthCheck(providerId, {
+      db,
+      runtimeAvailable: () => true,
+    });
+
+    expect(report.status).toBe('broken');
+    expect(report.checks.find((item) => item.id === 'source-url')?.status).toBe('fail');
+    expect(report.checks.find((item) => item.id === 'source-url')?.reason).toBe(
+      'Source URL must be an http(s) URL.',
+    );
+  });
+
+  it('fails when the installed version diverges from the manifest version', async () => {
+    const { db, raw } = await createSqlJsHarness();
+    await install(db);
+    raw.run("UPDATE installed_extensions SET installed_version = '1.2.3'");
+
+    const report = await runProviderHealthCheck(providerId, {
+      db,
+      runtimeAvailable: () => true,
+    });
+
+    expect(report.status).toBe('broken');
+    expect(report.checks.find((item) => item.id === 'version')?.status).toBe('fail');
+    expect(report.checks.find((item) => item.id === 'version')?.reason).toBe(
+      'Installed version does not match the manifest version.',
+    );
+  });
+
+  it('skips the network probe for a disabled provider without failing the report', async () => {
+    const { db } = await createSqlJsHarness();
+    await install(db);
+    const disabled = await disableInstalledProvider(providerId, { db });
+    expect(disabled.ok).toBe(true);
+    const probe = vi.fn<() => Promise<void>>(async () => {});
+
+    const report = await runProviderHealthCheck(providerId, {
+      db,
+      runtimeAvailable: () => true,
+      includeNetwork: true,
+      networkProbe: probe,
+    });
+
+    expect(probe).not.toHaveBeenCalled();
+    expect(report.networkChecked).toBe(false);
+    expect(report.status).toBe('ok');
+    expect(report.checks.find((item) => item.id === 'enabled')?.status).toBe('skipped');
+    expect(report.checks.find((item) => item.id === 'network')?.status).toBe('skipped');
   });
 });

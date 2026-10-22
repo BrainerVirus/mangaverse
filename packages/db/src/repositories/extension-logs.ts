@@ -1,4 +1,4 @@
-import { and, desc, eq, notInArray } from 'drizzle-orm';
+import { and, desc, eq, like, notInArray } from 'drizzle-orm';
 import type { AppDrizzleDb } from '../adapter.js';
 import { extensionLogs } from '../schema.js';
 
@@ -78,12 +78,15 @@ export async function listExtensionLogs(
   filter: {
     readonly providerId?: string;
     readonly level?: ExtensionLogLevel;
+    /** Prefix match, e.g. `extensions.health.` to find the latest health check. */
+    readonly codePrefix?: string;
     readonly limit?: number;
   } = {},
 ): Promise<ExtensionLogEntry[]> {
   const conditions = [
     ...(filter.providerId !== undefined ? [eq(extensionLogs.providerId, filter.providerId)] : []),
     ...(filter.level !== undefined ? [eq(extensionLogs.level, filter.level)] : []),
+    ...(filter.codePrefix !== undefined ? [like(extensionLogs.code, `${filter.codePrefix}%`)] : []),
   ];
   const query = db.select().from(extensionLogs);
   const filtered = conditions.length > 0 ? query.where(and(...conditions)) : query;
@@ -114,14 +117,29 @@ export async function clearExtensionLogs(db: AppDrizzleDb, providerId?: string):
 
 export interface ExtensionLogCounts {
   readonly total: number;
+  readonly info: number;
   readonly errors: number;
   readonly warnings: number;
 }
 
-export async function countExtensionLogs(db: AppDrizzleDb): Promise<ExtensionLogCounts> {
-  const rows = db.select({ level: extensionLogs.level }).from(extensionLogs).all();
+export interface ExtensionLogCountFilter {
+  readonly providerId?: string;
+  readonly level?: ExtensionLogLevel;
+}
+
+export async function countExtensionLogs(
+  db: AppDrizzleDb,
+  filter: ExtensionLogCountFilter = {},
+): Promise<ExtensionLogCounts> {
+  const conditions = [
+    ...(filter.providerId !== undefined ? [eq(extensionLogs.providerId, filter.providerId)] : []),
+    ...(filter.level !== undefined ? [eq(extensionLogs.level, filter.level)] : []),
+  ];
+  const query = db.select({ level: extensionLogs.level }).from(extensionLogs);
+  const rows = conditions.length > 0 ? query.where(and(...conditions)).all() : query.all();
   return {
     total: rows.length,
+    info: rows.filter((row) => row.level === 'info').length,
     errors: rows.filter((row) => row.level === 'error').length,
     warnings: rows.filter((row) => row.level === 'warn').length,
   };

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { expect, type Page } from '@playwright/test';
 
 import { test } from './helpers.js';
@@ -83,10 +85,43 @@ async function runOperationsFlow(page: Page, remote: Record<string, unknown>) {
   await expect(confirm).not.toBeVisible({ timeout: 20_000 });
   await expect(page.getByText('v2.0.0 · ops-audit')).toBeVisible({ timeout: 20_000 });
 
-  // Activity: the health failure is an error entry; filter, then clear it.
+  // Activity: the health failure is an error entry; filter, then export it.
   await page.getByLabel('Filter activity by level').click();
   await page.getByRole('option', { name: 'Errors' }).click();
   await expect(page.getByText('extensions.health.broken')).toBeVisible({ timeout: 20_000 });
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Export activity' }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe('ops-audit-activity.json');
+  const downloadPath = await download.path();
+  const exported = JSON.parse(readFileSync(downloadPath, 'utf8')) as {
+    providerId: string;
+    exportedAt: string;
+    level: string;
+    logs: Array<Record<string, unknown>>;
+  };
+  expect(exported.providerId).toBe('ops-audit');
+  expect(exported.level).toBe('error');
+  expect(Number.isNaN(Date.parse(exported.exportedAt))).toBe(false);
+  expect(exported.logs.length).toBeGreaterThan(0);
+  expect(exported.logs.some((log) => log.code === 'extensions.health.broken')).toBe(true);
+  for (const log of exported.logs) {
+    expect(Object.keys(log).sort()).toEqual([
+      'code',
+      'createdAt',
+      'details',
+      'id',
+      'level',
+      'message',
+      'providerId',
+    ]);
+    const message = String(log.message);
+    expect(message).not.toMatch(/Bearer\s+(?!\[redacted\])/);
+    expect(message).not.toMatch(/(?:token|api[_-]?key|secret|password)=/i);
+    expect(message).not.toMatch(/https?:\/\/[^\s]*\?/);
+  }
 
   await page.getByLabel('Filter activity by level').click();
   await page.getByRole('option', { name: 'All levels' }).click();

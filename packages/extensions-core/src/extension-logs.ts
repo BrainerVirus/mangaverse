@@ -2,12 +2,14 @@ import type { AppDrizzleDb } from '@app/db';
 import {
   appendExtensionLog,
   clearExtensionLogs,
+  countExtensionLogs,
   listExtensionLogs,
+  type ExtensionLogCounts,
   type ExtensionLogEntry,
   type ExtensionLogLevel,
 } from '@app/db';
 
-export type { ExtensionLogEntry, ExtensionLogLevel };
+export type { ExtensionLogCounts, ExtensionLogEntry, ExtensionLogLevel };
 
 export type ProviderOperation =
   | 'search'
@@ -59,7 +61,16 @@ function truncate(value: string, max: number): string {
 export function sanitizeLogMessage(message: string): string {
   return truncate(
     message
-      .replace(/((?:token|key|secret|password|apikey|api_key)=)[^&\s]+/gi, '$1[redacted]')
+      // Authorization values may contain a scheme and spaces; redact the line remainder.
+      .replace(
+        /\b(authorization|proxy-authorization)\s*:\s*(?:"[^"]*"|'[^']*'|[^\n\r]+)/gi,
+        '$1: [redacted]',
+      )
+      // Bare, quoted-JSON and header-style credential pairs: token=…, "token":"…", X-Api-Key: …
+      .replace(
+        /\b(key|(?:access|refresh)[_-]?token|apikey|api[_-]?key|token|secret|password|x-api-key|x-auth-token)(\s*["']?\s*[:=]\s*["']?)[^\s"'&,;}]+/gi,
+        '$1$2[redacted]',
+      )
       .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, 'Bearer [redacted]')
       .replace(/https?:\/\/[^\s]+/gi, (raw) => {
         try {
@@ -173,6 +184,26 @@ export async function listProviderActivity(
     ...(level !== undefined ? { level } : {}),
     limit,
   });
+}
+
+export interface ProviderActivitySummary {
+  readonly counts: ExtensionLogCounts;
+  readonly lastHealthCheckAt: string | null;
+}
+
+/**
+ * Counts come from the full retained set, not the latest page, so an empty
+ * level filter never hides an older entry that is still retained.
+ */
+export async function getProviderActivitySummary(
+  db: AppDrizzleDb,
+  providerId: string,
+): Promise<ProviderActivitySummary> {
+  const [counts, latestHealth] = await Promise.all([
+    countExtensionLogs(db, { providerId }),
+    listExtensionLogs(db, { providerId, codePrefix: 'extensions.health.', limit: 1 }),
+  ]);
+  return { counts, lastHealthCheckAt: latestHealth[0]?.createdAt ?? null };
 }
 
 export async function clearProviderActivity(db: AppDrizzleDb, providerId: string): Promise<void> {

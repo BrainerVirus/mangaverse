@@ -35,22 +35,54 @@ export interface ProviderHealthCheckDependencies {
   readonly now?: () => Date;
 }
 
-const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
+const SEMVER =
+  /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 
-/** Strict enough to compare safely; malformed versions are rejected, not guessed. */
+/**
+ * Strict enough to compare safely; malformed versions are rejected, not
+ * guessed. Build metadata is accepted and ignored, per semver.
+ */
 export function parseSemver(
   version: string,
 ): readonly [number, number, number, string | null] | null {
-  if (!SEMVER.test(version)) return null;
-  const [core, prerelease] = version.split('-', 2);
-  const parts = (core ?? '').split('.');
-  const major = Number(parts[0]);
-  const minor = Number(parts[1]);
-  const patch = Number(parts[2]);
+  const match = SEMVER.exec(version);
+  if (match === null) return null;
+  const major = Number(match[1]);
+  const minor = Number(match[2]);
+  const patch = Number(match[3]);
   if (!Number.isFinite(major) || !Number.isFinite(minor) || !Number.isFinite(patch)) {
     return null;
   }
-  return [major, minor, patch, prerelease ?? null];
+  const prerelease = match[4] ?? null;
+  if (prerelease !== null && prerelease.split('.').some((part) => /^0\d+$/.test(part))) {
+    return null;
+  }
+  return [major, minor, patch, prerelease];
+}
+
+function comparePrerelease(left: string, right: string): number {
+  const a = left.split('.');
+  const b = right.split('.');
+  const length = Math.max(a.length, b.length);
+  for (let index = 0; index < length; index += 1) {
+    const x = a[index];
+    const y = b[index];
+    if (x === undefined) return -1;
+    if (y === undefined) return 1;
+    const xNumeric = /^\d+$/.test(x);
+    const yNumeric = /^\d+$/.test(y);
+    if (xNumeric && yNumeric) {
+      const delta = Number(x) - Number(y);
+      if (delta !== 0) return delta;
+    } else if (xNumeric) {
+      return -1;
+    } else if (yNumeric) {
+      return 1;
+    } else if (x !== y) {
+      return x < y ? -1 : 1;
+    }
+  }
+  return 0;
 }
 
 /** Positive when `left` is newer than `right`. */
@@ -61,10 +93,10 @@ export function compareSemver(left: string, right: string): number | null {
   const coreDelta = a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
   if (coreDelta !== 0) return coreDelta;
   // A release outranks any prerelease of the same core version.
-  if (a[3] === b[3]) return 0;
+  if (a[3] === null && b[3] === null) return 0;
   if (a[3] === null) return 1;
   if (b[3] === null) return -1;
-  return a[3] < b[3] ? -1 : 1;
+  return comparePrerelease(a[3], b[3]);
 }
 
 function isHttpUrl(value: string | undefined): boolean {
@@ -139,7 +171,8 @@ function updateHealth(
 }
 
 /**
- * Checks a provider installation without running provider code. Structural
+ * Runs static install checks by default. Only when the caller opts into a
+ * network probe does the provider's existing search run once. Structural
  * failures mark the metadata broken; a transient network failure only degrades
  * this report and is logged, never persisted as broken.
  */
@@ -174,7 +207,7 @@ export async function runProviderHealthCheck(
     checks.push(check('manifest', 'Manifest', 'pass'));
   }
 
-  if (!SEMVER.test(metadata.installedVersion)) {
+  if (parseSemver(metadata.installedVersion) === null) {
     checks.push(check('version', 'Version', 'fail', 'Installed version is not valid semver.'));
   } else if (manifestResult.ok && metadata.installedVersion !== manifestResult.value.version) {
     checks.push(

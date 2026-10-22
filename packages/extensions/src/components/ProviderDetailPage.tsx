@@ -22,6 +22,7 @@ import {
   Switch,
 } from '@app/design-system';
 import type {
+  ExtensionLogCounts,
   ExtensionLogEntry,
   ExtensionLogLevel,
   ProviderHealthCheckReport,
@@ -38,6 +39,7 @@ export type ActivityLevelFilter = 'all' | ExtensionLogLevel;
 
 export interface ProviderActivityState {
   readonly logs: readonly ExtensionLogEntry[] | null;
+  readonly counts: ExtensionLogCounts;
   readonly isLoading: boolean;
   readonly error: string | null;
   readonly level: ActivityLevelFilter;
@@ -176,7 +178,7 @@ function HealthCheckSection({ health }: { health: ProviderHealthState }) {
   return (
     <SettingsSection
       title="Health check"
-      description="Validates the install, runtime binding and declared capabilities without running provider code."
+      description="Runs static checks on the install, runtime binding and declared capabilities. The optional network check runs the provider's search once and is off by default."
     >
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center gap-3">
@@ -198,9 +200,9 @@ function HealthCheckSection({ health }: { health: ProviderHealthState }) {
               <Switch
                 checked={health.includeNetwork}
                 onCheckedChange={health.onIncludeNetworkChange}
-                aria-label="Include network check"
+                aria-label="Include network check (runs provider search)"
               />
-              <span>Include network check</span>
+              <span>Include network check (runs provider search)</span>
             </div>
           ) : null}
         </div>
@@ -342,6 +344,35 @@ function UpdateSection({
   );
 }
 
+function levelCount(counts: ExtensionLogCounts, level: ActivityLevelFilter): number {
+  if (level === 'all') return counts.total;
+  if (level === 'error') return counts.errors;
+  if (level === 'warn') return counts.warnings;
+  return counts.info;
+}
+
+const ACTIVITY_LEVEL_LABEL: Record<ActivityLevelFilter, string> = {
+  all: 'activity',
+  info: 'info',
+  warn: 'warnings',
+  error: 'errors',
+};
+
+function ActivityEmptyMessage({
+  level,
+  retained,
+}: {
+  level: ActivityLevelFilter;
+  retained: number;
+}) {
+  if (retained > 0) return null;
+  return (
+    <p className="text-sm text-muted-foreground">
+      No {ACTIVITY_LEVEL_LABEL[level]} recorded for this provider.
+    </p>
+  );
+}
+
 function ActivitySection({
   providerId,
   activity,
@@ -350,12 +381,7 @@ function ActivitySection({
   activity: ProviderActivityState;
 }) {
   const logs = activity.logs ?? [];
-  const levelLabel: Record<ActivityLevelFilter, string> = {
-    all: 'All levels',
-    info: 'Info',
-    warn: 'Warnings',
-    error: 'Errors',
-  };
+  const retainedForLevel = levelCount(activity.counts, activity.level);
 
   return (
     <SettingsSection
@@ -403,7 +429,7 @@ function ActivitySection({
             type="button"
             variant="outline"
             onClick={activity.onClear}
-            disabled={activity.isClearing || logs.length === 0}
+            disabled={activity.isClearing || activity.counts.total === 0}
           >
             {activity.isClearing ? 'Clearing…' : 'Clear activity'}
           </Button>
@@ -417,11 +443,7 @@ function ActivitySection({
             <AlertDescription>{activity.error}</AlertDescription>
           </Alert>
         ) : logs.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            {activity.level === 'all'
-              ? 'No activity recorded for this provider.'
-              : `No ${levelLabel[activity.level].toLowerCase()} recorded for this provider.`}
-          </p>
+          <ActivityEmptyMessage level={activity.level} retained={retainedForLevel} />
         ) : (
           <ul aria-label="Provider activity entries" className="flex flex-col gap-2">
             {logs.map((entry) => (

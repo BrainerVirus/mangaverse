@@ -63,6 +63,7 @@ export { validateProviderSettings } from './settings.js';
 export type { ProviderSettingsValues } from './settings.js';
 export {
   clearProviderActivity,
+  getProviderActivitySummary,
   listProviderActivity,
   recordExtensionLog,
   recordProviderFailure,
@@ -71,9 +72,11 @@ export {
   sanitizeLogMessage,
 } from './extension-logs.js';
 export type {
+  ExtensionLogCounts,
   ExtensionLogEntry,
   ExtensionLogInput,
   ExtensionLogLevel,
+  ProviderActivitySummary,
   ProviderOperation,
 } from './extension-logs.js';
 export { parseSemver, compareSemver, runProviderHealthCheck } from './health-check.js';
