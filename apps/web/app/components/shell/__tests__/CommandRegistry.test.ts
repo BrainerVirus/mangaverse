@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { registry, type Command } from '../CommandRegistry';
+import { groupCommandsBySection, registry, type Command } from '../CommandRegistry';
 
 describe('CommandRegistry', () => {
   const sampleCommand: Command = {
@@ -65,5 +65,21 @@ describe('CommandRegistry', () => {
     registry.register(sampleCommand);
     const results = registry.search('nonexistent');
     expect(results).toHaveLength(0);
+  });
+
+  it('groups known sections in palette order and keeps unknown sections last', () => {
+    const commands: Command[] = [
+      { ...sampleCommand, id: 'app', section: 'App' },
+      { ...sampleCommand, id: 'unknown', section: 'Custom' },
+      { ...sampleCommand, id: 'recent', section: 'Recent' },
+      { ...sampleCommand, id: 'nav', section: 'Navigation' },
+    ];
+
+    expect(groupCommandsBySection(commands).map(([section]) => section)).toEqual([
+      'Navigation',
+      'Recent',
+      'App',
+      'Custom',
+    ]);
   });
 });

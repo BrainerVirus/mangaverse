@@ -17,9 +17,15 @@ import {
 import { commandPaletteEnter, commandPaletteExit, useReducedMotion } from '@app/motion';
 import { useCommandPaletteStore } from '@/stores/useCommandPaletteStore';
 import { useLayoutStore } from '@/stores/useLayoutStore';
-import { registry } from './CommandRegistry';
+import {
+  commandMatchesQuery,
+  groupCommandsBySection,
+  registry,
+  type Command as PaletteCommand,
+} from './CommandRegistry';
 import { useTheme } from '@/providers/theme-provider.js';
 import { usePlatform } from '@/providers/platform-provider.js';
+import { useLocalCommands } from './useLocalCommands.js';
 
 function useBuiltInCommands() {
   const navigate = useNavigate();
@@ -28,91 +34,112 @@ function useBuiltInCommands() {
 
   // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-module-registry: `registry` is a module-level mutable registry; registering on mount and unregistering on unmount is subscription bookkeeping. The handlers close over navigate/theme, which have no module-scope home.
   useEffect(() => {
-    registry.register({
-      id: 'nav-discover',
-      label: 'Go to Discover',
-      section: 'Navigation',
-      keywords: ['discover', 'browse', 'catalog', 'home'],
-      handler: () => navigate({ to: '/discover' } as const),
-    });
+    const commands: PaletteCommand[] = [
+      {
+        id: 'nav-discover',
+        label: 'Go to Discover',
+        section: 'Navigation',
+        keywords: ['discover', 'browse', 'catalog', 'home'],
+        handler: () => navigate({ to: '/discover' } as const),
+      },
+      {
+        id: 'nav-library',
+        label: 'Go to Library',
+        section: 'Navigation',
+        keywords: ['library', 'saved'],
+        handler: () => navigate({ to: '/library' } as const),
+      },
+      {
+        id: 'nav-search',
+        label: 'Go to Search',
+        section: 'Navigation',
+        keywords: ['search', 'find'],
+        handler: () => navigate({ to: '/search' } as const),
+      },
+      {
+        id: 'nav-settings',
+        label: 'Settings',
+        section: 'Settings',
+        keywords: ['settings', 'preferences', 'all'],
+        handler: () => navigate({ to: '/settings' } as const),
+      },
+      {
+        id: 'settings-app',
+        label: 'App settings',
+        section: 'Settings',
+        keywords: ['settings', 'preferences', 'general', 'content', 'performance'],
+        handler: () => navigate({ to: '/settings/app' } as const),
+      },
+      {
+        id: 'settings-reader',
+        label: 'Reader settings',
+        section: 'Settings',
+        keywords: ['settings', 'reader', 'reading', 'layout', 'gestures'],
+        handler: () => navigate({ to: '/settings/reader' } as const),
+      },
+      {
+        id: 'settings-themes',
+        label: 'Themes',
+        section: 'Settings',
+        keywords: ['themes', 'theme', 'appearance', 'colors', 'dark', 'light'],
+        handler: () => navigate({ to: '/theme' } as const),
+      },
+      {
+        id: 'settings-storage',
+        label: 'Storage',
+        section: 'Settings',
+        keywords: ['storage', 'cache', 'disk', 'space', 'usage'],
+        handler: () => navigate({ to: '/storage' } as const),
+      },
+      {
+        id: 'settings-backup',
+        label: 'Backup',
+        section: 'Settings',
+        keywords: ['backup', 'restore', 'export', 'import'],
+        handler: () => navigate({ to: '/backup' } as const),
+      },
+      {
+        id: 'settings-migration',
+        label: 'Migration',
+        section: 'Settings',
+        keywords: ['migration', 'migrate', 'provider', 'move'],
+        handler: () => navigate({ to: '/migration' } as const),
+      },
+      {
+        id: 'settings-diagnostics',
+        label: 'Diagnostics',
+        section: 'Settings',
+        keywords: ['diagnostics', 'debug', 'info', 'logs'],
+        handler: () => navigate({ to: '/diagnostics' } as const),
+      },
+      {
+        id: 'nav-extensions',
+        label: 'Extensions',
+        section: 'Extensions',
+        keywords: ['extensions', 'plugins', 'providers', 'open'],
+        handler: () => navigate({ to: '/extensions' } as const),
+      },
+      {
+        id: 'toggle-sidebar',
+        label: 'Toggle Sidebar',
+        section: 'App',
+        keywords: ['sidebar', 'toggle', 'show', 'hide'],
+        handler: () => toggleSidebar(),
+      },
+      {
+        id: 'toggle-theme',
+        label: 'Toggle Theme',
+        section: 'App',
+        keywords: ['theme', 'dark', 'light', 'mode'],
+        handler: () => setTheme(theme === 'light' ? 'dark' : 'light'),
+      },
+    ];
 
-    registry.register({
-      id: 'nav-library',
-      label: 'Go to Library',
-      section: 'Navigation',
-      keywords: ['library', 'saved'],
-      handler: () => navigate({ to: '/library' } as const),
-    });
-
-    registry.register({
-      id: 'nav-search',
-      label: 'Go to Search',
-      section: 'Navigation',
-      keywords: ['search', 'find'],
-      handler: () => navigate({ to: '/search' } as const),
-    });
-
-    registry.register({
-      id: 'nav-settings',
-      label: 'Settings',
-      section: 'Navigation',
-      keywords: ['settings', 'preferences'],
-      handler: () => navigate({ to: '/settings' } as const),
-    });
-
-    registry.register({
-      id: 'nav-extensions',
-      label: 'Extensions',
-      section: 'Navigation',
-      keywords: ['extensions', 'plugins', 'providers'],
-      handler: () => navigate({ to: '/extensions' } as const),
-    });
-
-    registry.register({
-      id: 'toggle-sidebar',
-      label: 'Toggle Sidebar',
-      section: 'App',
-      keywords: ['sidebar', 'toggle', 'show', 'hide'],
-      handler: () => toggleSidebar(),
-    });
-
-    registry.register({
-      id: 'toggle-theme',
-      label: 'Toggle Theme',
-      section: 'App',
-      keywords: ['theme', 'dark', 'light', 'mode'],
-      handler: () => setTheme(theme === 'light' ? 'dark' : 'light'),
-    });
-
-    registry.register({
-      id: 'nav-diagnostics',
-      label: 'Diagnostics',
-      section: 'Navigation',
-      keywords: ['diagnostics', 'debug', 'info'],
-      handler: () => navigate({ to: '/diagnostics' } as const),
-    });
-
+    for (const command of commands) registry.register(command);
     return () => {
-      registry.unregister('nav-discover');
-      registry.unregister('nav-library');
-      registry.unregister('nav-search');
-      registry.unregister('nav-settings');
-      registry.unregister('nav-extensions');
-      registry.unregister('toggle-sidebar');
-      registry.unregister('toggle-theme');
-      registry.unregister('nav-diagnostics');
+      for (const command of commands) registry.unregister(command.id);
     };
   }, [navigate, toggleSidebar, theme, setTheme]);
-}
-
-function groupBySection(commands: ReturnType<typeof registry.search>) {
-  const groups: Record<string, typeof commands> = {};
-  for (const cmd of commands) {
-    const section = cmd.section;
-    if (!groups[section]) groups[section] = [];
-    groups[section]!.push(cmd);
-  }
-  return groups;
 }
 
 export function CommandPalette() {
@@ -128,6 +155,8 @@ export function CommandPalette() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useBuiltInCommands();
+  const isDesktop = deviceLayout === 'desktop' || runtime === 'electron';
+  const localCommands = useLocalCommands(isDesktop && isOpen);
 
   // Opening must paint the panel in the same commit as `isOpen` flips true; an
   // effect would paint one frame without it (and would cascade a render).
@@ -175,8 +204,11 @@ export function CommandPalette() {
     { scope: scopeRef, dependencies: [isOpen, rendered, reducedMotion] },
   );
 
-  const results = registry.search(query);
-  const grouped = groupBySection(results);
+  const results = [
+    ...registry.search(query),
+    ...localCommands.filter((command) => commandMatchesQuery(command, query)),
+  ];
+  const grouped = groupCommandsBySection(results);
 
   // Not memoized on purpose: `results` is rebuilt every render, so a manual
   // dependency list cannot be preserved (react/preserve-manual-memoization),
@@ -206,7 +238,7 @@ export function CommandPalette() {
     }
   };
 
-  if (deviceLayout !== 'desktop' && runtime !== 'electron') return null;
+  if (!isDesktop) return null;
 
   return (
     <div ref={scopeRef}>
@@ -243,7 +275,7 @@ export function CommandPalette() {
               {results.length === 0 ? (
                 <CommandEmpty>No commands found.</CommandEmpty>
               ) : (
-                Object.entries(grouped).map(([section, cmds]) => (
+                grouped.map(([section, cmds]) => (
                   <CommandGroup key={section}>
                     <div className="px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       {section}
@@ -257,6 +289,10 @@ export function CommandPalette() {
                           data-selected={selected}
                           aria-selected={selected}
                           onMouseEnter={() => setSelectedIndex(globalIndex)}
+                          onClick={() => {
+                            cmd.handler();
+                            close();
+                          }}
                           onSelect={() => {
                             cmd.handler();
                             close();

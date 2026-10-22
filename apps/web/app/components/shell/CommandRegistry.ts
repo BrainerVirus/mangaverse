@@ -7,6 +7,35 @@ export interface Command {
   shortcut?: string;
 }
 
+/** Palette group order; sections outside this list follow in first-seen order. */
+const COMMAND_SECTIONS = ['Navigation', 'Recent', 'Settings', 'Extensions', 'App'] as const;
+
+export function commandMatchesQuery(command: Command, query: string): boolean {
+  const lower = query.toLowerCase().trim();
+  if (!lower) return true;
+  if (command.label.toLowerCase().includes(lower)) return true;
+  return command.keywords?.some((keyword) => keyword.toLowerCase().includes(lower)) ?? false;
+}
+
+export function groupCommandsBySection(commands: readonly Command[]): Array<[string, Command[]]> {
+  const groups = new Map<string, Command[]>();
+  for (const command of commands) {
+    const group = groups.get(command.section);
+    if (group === undefined) {
+      groups.set(command.section, [command]);
+    } else {
+      group.push(command);
+    }
+  }
+
+  const rank = (section: string) => {
+    const index = COMMAND_SECTIONS.findIndex((candidate) => candidate === section);
+    return index === -1 ? COMMAND_SECTIONS.length : index;
+  };
+  // Stable sort: unknown sections keep the order they were registered in.
+  return [...groups.entries()].sort(([a], [b]) => rank(a) - rank(b));
+}
+
 class CommandRegistry {
   private commands: Map<string, Command> = new Map();
 
@@ -26,14 +55,7 @@ class CommandRegistry {
   }
 
   search(query: string): Command[] {
-    const lower = query.toLowerCase().trim();
-    if (!lower) return this.list();
-
-    return Array.from(this.commands.values()).filter((cmd) => {
-      if (cmd.label.toLowerCase().includes(lower)) return true;
-      if (cmd.keywords?.some((k) => k.toLowerCase().includes(lower))) return true;
-      return false;
-    });
+    return Array.from(this.commands.values()).filter((cmd) => commandMatchesQuery(cmd, query));
   }
 }
 
