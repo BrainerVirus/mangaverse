@@ -10,9 +10,10 @@ function mappingKeys(identity: MangaIdentity): string[] {
 }
 
 /**
- * Local results stay first; provider identities only fill titles or provider
- * mappings the merged list does not already contain. Identities keep their own
- * provider mappings, which the result cards use as attribution.
+ * Local results stay first; provider identities only fill mappings the merged
+ * list does not already contain. Titles are never compared: two providers can
+ * carry distinct works that share a title. Identities keep their own provider
+ * mappings, which the result cards use as attribution.
  */
 function mergeSearchResults(
   local: readonly MangaIdentity[],
@@ -20,15 +21,13 @@ function mergeSearchResults(
 ): readonly MangaIdentity[] {
   if (provider.length === 0) return local;
 
-  const seenTitles = new Set(local.map((item) => item.canonicalTitle.toLowerCase()));
   const seenMappings = new Set(local.flatMap(mappingKeys));
   const merged = [...local];
 
   for (const item of provider) {
-    const title = item.canonicalTitle.toLowerCase();
-    if (seenTitles.has(title) || mappingKeys(item).some((key) => seenMappings.has(key))) continue;
-    seenTitles.add(title);
-    for (const key of mappingKeys(item)) seenMappings.add(key);
+    const keys = mappingKeys(item);
+    if (keys.some((key) => seenMappings.has(key))) continue;
+    for (const key of keys) seenMappings.add(key);
     merged.push(item);
   }
 

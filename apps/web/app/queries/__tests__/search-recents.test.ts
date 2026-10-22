@@ -2,9 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryObserver } from '@tanstack/react-query';
 import { DEFAULT_SEARCH_VIEW_STATE, searchQueryKeys } from '@app/search';
 import { refreshRecentSearches, refreshRecentSearchesAfterWrite } from '../search-recents.js';
-import { searchPageQueryOptions } from '../search-query-options.js';
-
-const mockDb = {} as Parameters<typeof searchPageQueryOptions>[0];
 
 describe('refreshRecentSearches', () => {
   it('Given a pending blank-query prefetch, When recents refresh, Then the stale result cannot win', async () => {
@@ -28,33 +25,29 @@ describe('refreshRecentSearches', () => {
     expect(queryClient.getQueryData(key)).toBeUndefined();
   });
 
-  it('Given an explicit-content setting, When recents refresh, Then the exact blank key the route observes is invalidated', async () => {
+  it('Given blank pages in both explicit-content partitions, When recents refresh, Then both invalidate and typed searches do not', async () => {
     const queryClient = new QueryClient();
-    // The route keys its local page query with the view state only; explicit
-    // content partitions the provider query, never recents.
-    const observedKey = searchPageQueryOptions(mockDb).queryKey;
+    const blankPublic = searchQueryKeys.page(DEFAULT_SEARCH_VIEW_STATE, false);
+    const blankExplicit = searchQueryKeys.page(DEFAULT_SEARCH_VIEW_STATE, true);
+    const typedPublic = searchQueryKeys.page(
+      { ...DEFAULT_SEARCH_VIEW_STATE, query: 'berserk' },
+      false,
+    );
+    const typedExplicit = searchQueryKeys.page(
+      { ...DEFAULT_SEARCH_VIEW_STATE, query: 'berserk' },
+      true,
+    );
 
-    await queryClient.prefetchQuery({
-      queryKey: observedKey,
-      queryFn: () => 'recents',
-      staleTime: Number.POSITIVE_INFINITY,
-    });
-    expect(queryClient.getQueryState(observedKey)?.isInvalidated).toBe(false);
+    for (const key of [blankPublic, blankExplicit, typedPublic, typedExplicit]) {
+      queryClient.setQueryData(key, 'page');
+    }
 
     await refreshRecentSearches(queryClient);
 
-    const state = queryClient.getQueryState(observedKey);
-    expect(state?.isInvalidated).toBe(true);
-    expect(
-      queryClient.getQueryCache().find({ queryKey: observedKey, exact: true })?.isStale(),
-    ).toBe(true);
-    // No explicit-content partition is left behind unobserved.
-    expect(
-      queryClient
-        .getQueryCache()
-        .getAll()
-        .map((query) => query.queryKey),
-    ).toEqual([observedKey]);
+    expect(queryClient.getQueryState(blankPublic)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(blankExplicit)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(typedPublic)?.isInvalidated).toBe(false);
+    expect(queryClient.getQueryState(typedExplicit)?.isInvalidated).toBe(false);
   });
 
   it('Given a pending non-empty search, When recents refresh, Then that search is not aborted', async () => {

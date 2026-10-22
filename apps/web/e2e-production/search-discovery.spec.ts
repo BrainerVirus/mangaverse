@@ -130,3 +130,33 @@ for (const viewport of VIEWPORTS) {
     await expect(page.getByText('Provider search unavailable')).toHaveCount(0);
   });
 }
+
+test('Given a selected provider and a tag draft, When both are edited, Then the selection clears and the commas survive', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/search');
+
+  const searchbox = page.getByRole('searchbox', { name: 'Search manga' });
+  await expect(searchbox).toBeVisible({ timeout: 30_000 });
+  await searchbox.fill('berserk');
+
+  const mangadex = page.getByRole('button', { name: 'MangaDex', exact: true });
+  await expect(mangadex).toBeVisible({ timeout: 30_000 });
+  await mangadex.click();
+  await expect(mangadex).toHaveAttribute('aria-pressed', 'true');
+
+  const allProviders = page.getByRole('button', { name: 'All providers' });
+  await allProviders.click();
+  await expect(allProviders).toHaveAttribute('aria-pressed', 'true');
+  await expect(mangadex).toHaveAttribute('aria-pressed', 'false');
+
+  const tags = page.getByLabel('Included tags');
+  await tags.click();
+  await tags.pressSequentially('action, comedy', { delay: 20 });
+  await expect(tags).toHaveValue('action, comedy');
+  await tags.press('Enter');
+  await expect(tags).toHaveValue('action, comedy');
+});

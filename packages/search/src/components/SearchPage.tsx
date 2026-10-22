@@ -51,8 +51,8 @@ export interface SearchPageProps {
   /** When false, provider failures stay quiet; results are unaffected. */
   showProviderErrors?: boolean;
   explicitContent?: boolean;
-  /** Refetches only the named provider; without one, every failed provider. */
-  onRetryProvider?: (providerId?: string) => void;
+  /** Refetches only the named provider, so one failure never re-runs the rest. */
+  onRetryProvider?: (providerId: string) => void;
   onSaveSearch?: (name: string) => void | Promise<void>;
   onApplySavedSearch?: (entry: SavedSearchEntry) => void;
   onDeleteSavedSearch?: (id: string) => void;
@@ -145,6 +145,53 @@ function ProviderFilter({
   );
 }
 
+/**
+ * Uncontrolled on purpose: the field is the draft. Parsing every keystroke made
+ * commas and partial tags vanish while typing. Commit on blur or Enter, the same
+ * contract as the preferred-languages field.
+ */
+function TagFilterField({
+  id,
+  label,
+  ariaLabel,
+  placeholder,
+  tags,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  ariaLabel: string;
+  placeholder: string;
+  tags: readonly string[];
+  onChange: (next: readonly string[]) => void;
+}) {
+  const committed = tags.join(', ');
+  const commit = (input: HTMLInputElement) => {
+    const next = parseTagList(input.value);
+    input.value = next.join(', ');
+    const unchanged =
+      next.length === tags.length && next.every((tag, index) => tag === tags[index]);
+    if (!unchanged) onChange(next);
+  };
+
+  return (
+    <div className="grid gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        aria-label={ariaLabel}
+        placeholder={placeholder}
+        key={committed}
+        defaultValue={committed}
+        onBlur={(event) => commit(event.currentTarget)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') event.currentTarget.blur();
+        }}
+      />
+    </div>
+  );
+}
+
 function FilterBar({
   filters,
   explicitContent,
@@ -191,27 +238,23 @@ function FilterBar({
         />
       </div>
 
-      <div className="grid gap-1.5">
-        <Label htmlFor="search-included-tags">Included tags</Label>
-        <Input
-          id="search-included-tags"
-          aria-label="Included tags"
-          placeholder="action, comedy"
-          value={(filters.includedTags ?? []).join(', ')}
-          onChange={(event) => patch({ includedTags: parseTagList(event.target.value) })}
-        />
-      </div>
+      <TagFilterField
+        id="search-included-tags"
+        label="Included tags"
+        ariaLabel="Included tags"
+        placeholder="action, comedy"
+        tags={filters.includedTags ?? []}
+        onChange={(includedTags) => patch({ includedTags })}
+      />
 
-      <div className="grid gap-1.5">
-        <Label htmlFor="search-excluded-tags">Excluded tags</Label>
-        <Input
-          id="search-excluded-tags"
-          aria-label="Excluded tags"
-          placeholder="drama"
-          value={(filters.excludedTags ?? []).join(', ')}
-          onChange={(event) => patch({ excludedTags: parseTagList(event.target.value) })}
-        />
-      </div>
+      <TagFilterField
+        id="search-excluded-tags"
+        label="Excluded tags"
+        ariaLabel="Excluded tags"
+        placeholder="drama"
+        tags={filters.excludedTags ?? []}
+        onChange={(excludedTags) => patch({ excludedTags })}
+      />
 
       <div className="grid gap-1.5">
         <Label htmlFor="search-rating">Content rating</Label>
@@ -374,7 +417,7 @@ interface SettledSearchProps {
   readonly onViewStateChange: (next: SearchViewState) => void;
   readonly onOpenManga: (mangaId: MangaId) => void;
   readonly onBrowseProviders: (() => void) | undefined;
-  readonly onRetryProvider: ((providerId?: string) => void) | undefined;
+  readonly onRetryProvider: ((providerId: string) => void) | undefined;
   readonly viewState: SearchViewState;
   readonly data: SearchPageData | undefined;
 }
@@ -401,9 +444,7 @@ function SettledSearch({
         <ProviderFilter
           providers={providers}
           selectedProviderId={filters.providerId}
-          onSelect={(providerId) =>
-            setFilters({ ...filters, ...(providerId !== undefined ? { providerId } : {}) })
-          }
+          onSelect={(providerId) => setFilters({ ...filters, providerId })}
         />
       ) : null}
 
@@ -548,7 +589,7 @@ function ProviderErrorNotice({
   onRetryProvider,
 }: {
   failedStatuses: readonly SearchProviderStatus[];
-  onRetryProvider: ((providerId?: string) => void) | undefined;
+  onRetryProvider: ((providerId: string) => void) | undefined;
 }) {
   return (
     <output className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
@@ -577,9 +618,10 @@ function ProviderUnavailable({
   onRetryProvider,
 }: {
   failedStatuses: readonly SearchProviderStatus[];
-  onRetryProvider: ((providerId?: string) => void) | undefined;
+  onRetryProvider: ((providerId: string) => void) | undefined;
 }) {
   const retry = (providerId: string) => () => onRetryProvider?.(providerId);
+  const soleFailure = failedStatuses.length === 1 ? failedStatuses[0] : undefined;
 
   return (
     <div role="alert">
@@ -590,8 +632,8 @@ function ProviderUnavailable({
             ? `Local results found no match and ${failedStatuses.length} providers failed. Try again in a moment.`
             : 'Local results found no match and the provider search failed. Try again in a moment.'
         }
-        {...(onRetryProvider !== undefined && failedStatuses.length === 1
-          ? { onRetry: retry(failedStatuses[0]?.providerId ?? '') }
+        {...(onRetryProvider !== undefined && soleFailure !== undefined
+          ? { onRetry: retry(soleFailure.providerId) }
           : {})}
       />
       {failedStatuses.length > 1 && onRetryProvider !== undefined ? (
@@ -655,7 +697,7 @@ function ResultGrid({
   results: SearchPageData['results'];
   pendingStatuses: readonly SearchProviderStatus[];
   failedStatuses: readonly SearchProviderStatus[];
-  onRetryProvider: ((providerId?: string) => void) | undefined;
+  onRetryProvider: ((providerId: string) => void) | undefined;
   onOpenManga: (mangaId: MangaId) => void;
 }) {
   return (
@@ -681,7 +723,7 @@ function QueryResults({
   results: SearchPageData['results'];
   pendingStatuses: readonly SearchProviderStatus[];
   failedStatuses: readonly SearchProviderStatus[];
-  onRetryProvider: ((providerId?: string) => void) | undefined;
+  onRetryProvider: ((providerId: string) => void) | undefined;
   onOpenManga: (mangaId: MangaId) => void;
   onResetFilters: () => void;
   filtersActive: boolean;
@@ -739,7 +781,7 @@ function SearchResults({
   onViewStateChange: (next: SearchViewState) => void;
   onOpenManga: (mangaId: MangaId) => void;
   onBrowseProviders: (() => void) | undefined;
-  onRetryProvider: ((providerId?: string) => void) | undefined;
+  onRetryProvider: ((providerId: string) => void) | undefined;
   onResetFilters: () => void;
 }) {
   if (!hasQuery) {

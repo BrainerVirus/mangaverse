@@ -25,11 +25,36 @@ import {
   refreshRecentSearches,
   refreshRecentSearchesAfterWrite,
 } from '../queries/search-recents.js';
+import type { SearchProviderInfo } from '../queries/provider-query-options.js';
 import { useLocalDb, useLocalDbStatus, useLocalDbRetry } from '../providers/local-db-provider.js';
 
 export const Route = createFileRoute('/search')({
   component: SearchRoute,
 });
+
+/**
+ * A saved search can name a provider that was since disabled or removed. Once
+ * the list has loaded it is authoritative, so the stale selection falls back to
+ * All providers instead of silently querying nobody.
+ */
+function resolveProviderSelection(
+  viewState: SearchViewState,
+  providers: readonly SearchProviderInfo[],
+  providersSettled: boolean,
+): { readonly providerId: string | undefined; readonly viewState: SearchViewState } {
+  const selectedProviderId = viewState.filters?.providerId;
+  if (
+    selectedProviderId === undefined ||
+    !providersSettled ||
+    providers.some((provider) => provider.providerId === selectedProviderId)
+  ) {
+    return { providerId: selectedProviderId, viewState };
+  }
+  return {
+    providerId: undefined,
+    viewState: { ...viewState, filters: { ...(viewState.filters ?? {}), providerId: undefined } },
+  };
+}
 
 function SearchRoute() {
   const navigate = useNavigate();
@@ -54,24 +79,28 @@ function SearchRoute() {
   // deferred value, so a fast typist issues one query per pause instead of one
   // per keystroke.
   const deferredQuery = useDeferredValue(viewState.query);
-  const deferredViewState = { ...viewState, query: deferredQuery };
   const providerReady = dbStatus === 'ready' && db !== null && appSettingsQuery.isSuccess;
-
-  const localQuery = useQuery({
-    ...searchPageQueryOptions(db!, deferredViewState, explicitContent),
-    enabled: dbStatus === 'ready' && db !== null,
-  });
 
   const providersQuery = useQuery({
     ...searchProvidersQueryOptions(db!),
     enabled: dbStatus === 'ready' && db !== null,
   });
   const providers = providersQuery.data ?? [];
-  const selectedProviderId = viewState.filters?.providerId;
+  const { providerId: activeProviderId, viewState: effectiveViewState } = resolveProviderSelection(
+    viewState,
+    providers,
+    providersQuery.isSuccess,
+  );
+  const deferredViewState = { ...effectiveViewState, query: deferredQuery };
   const activeProviders =
-    selectedProviderId === undefined
+    activeProviderId === undefined
       ? providers
-      : providers.filter((provider) => provider.providerId === selectedProviderId);
+      : providers.filter((provider) => provider.providerId === activeProviderId);
+
+  const localQuery = useQuery({
+    ...searchPageQueryOptions(db!, deferredViewState, explicitContent),
+    enabled: dbStatus === 'ready' && db !== null,
+  });
 
   const providerQueries = useQueries({
     queries: activeProviders.map((provider) => ({
@@ -137,13 +166,9 @@ function SearchRoute() {
     void write.then(() => refreshRecentSearches(queryClient));
   };
 
-  const handleRetryProvider = (providerId?: string) => {
-    const index =
-      providerId === undefined
-        ? providerQueries.findIndex((query) => query.isError)
-        : activeProviders.findIndex((provider) => provider.providerId === providerId);
-    const query = index >= 0 ? providerQueries[index] : undefined;
-    void query?.refetch();
+  const handleRetryProvider = (providerId: string) => {
+    const index = activeProviders.findIndex((provider) => provider.providerId === providerId);
+    void (index >= 0 ? providerQueries[index]?.refetch() : undefined);
   };
 
   const refreshSavedSearches = () =>
@@ -161,7 +186,7 @@ function SearchRoute() {
       ...(duplicate !== undefined ? { id: duplicate.id } : {}),
       name: trimmedName,
       query,
-      filter: { ...(viewState.filters ?? {}) },
+      filter: { ...(effectiveViewState.filters ?? {}) },
     });
     await refreshSavedSearches();
   };
@@ -193,7 +218,7 @@ function SearchRoute() {
       onSaveSearch={(name) => void handleSaveSearch(name)}
       onApplySavedSearch={handleApplySavedSearch}
       onDeleteSavedSearch={(id) => void handleDeleteSavedSearch(id)}
-      viewState={viewState}
+      viewState={effectiveViewState}
       onViewStateChange={handleViewStateChange}
       onOpenManga={(mangaId) => navigate({ to: '/manga/$id', params: { id: mangaId } })}
       onBrowseProviders={() => void navigate({ to: '/extensions' })}

@@ -10,6 +10,7 @@ import {
 } from '@app/extensions';
 import type { ProviderSettingsValues } from '@app/shared';
 import { useState } from 'react';
+import { searchQueryKeys } from '@app/search';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 import { flushLocalDb } from '../lib/local-db.js';
 
@@ -55,6 +56,7 @@ function ProviderDetailRoute() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: extensionsQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: searchQueryKeys.providers() });
     },
   });
 
@@ -96,6 +98,7 @@ function ProviderDetailRoute() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: extensionsQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: searchQueryKeys.providers() });
       void navigate({ to: '/extensions' });
     },
   });

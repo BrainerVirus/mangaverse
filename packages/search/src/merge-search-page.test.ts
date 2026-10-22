@@ -67,7 +67,7 @@ describe('mergeSearchPageData', () => {
     ]);
   });
 
-  it('drops provider titles already present locally regardless of case', () => {
+  it('keeps a provider work that shares a local title but not its provider mapping', () => {
     const local = makePage(['Berserk']);
     const provider = [
       { providerId: 'prov-a', results: [makeIdentity('bErSeRk', { providerId: 'prov-a' })] },
@@ -78,6 +78,7 @@ describe('mergeSearchPageData', () => {
 
     expect(merged?.results.map((item) => item.canonicalTitle)).toEqual([
       'Berserk',
+      'bErSeRk',
       'Berserk Deluxe',
     ]);
   });
@@ -101,14 +102,15 @@ describe('mergeSearchPageData', () => {
     expect(merged?.results.map((item) => item.canonicalTitle)).toEqual(['Local Name']);
   });
 
-  it('drops repeated provider titles across provider groups, keeping the first', () => {
-    const first = makeIdentity('Berserk', { providerId: 'prov-a' });
+  it('keeps the same title from two providers when their mappings differ', () => {
+    const first = makeIdentity('Berserk', { providerId: 'prov-a', providerMangaId: 'a-1' });
+    const second = makeIdentity('BERSERK', { providerId: 'prov-b', providerMangaId: 'b-1' });
     const merged = mergeSearchPageData(makePage([]), [
       { providerId: 'prov-a', results: [first] },
-      { providerId: 'prov-b', results: [makeIdentity('BERSERK', { providerId: 'prov-b' })] },
+      { providerId: 'prov-b', results: [second] },
     ]);
 
-    expect(merged?.results).toEqual([first]);
+    expect(merged?.results).toEqual([first, second]);
   });
 
   it('returns the same local page when the provider has no results', () => {
