@@ -23,6 +23,7 @@ export {
 } from './persisted-bytes-store.js';
 
 export * from './repositories/identities.js';
+export * from './repositories/identity-merge.js';
 export * from './repositories/library.js';
 export * from './repositories/chapters.js';
 export * from './repositories/read-state.js';

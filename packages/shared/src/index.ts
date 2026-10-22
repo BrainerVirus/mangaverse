@@ -3,6 +3,7 @@ export const PACKAGE_NAME = '@app/shared' as const;
 
 export * from './result.js';
 export * from './manga.js';
+export * from './title-match.js';
 export * from './description.js';
 export * from './provider.js';
 export * from './chapter.js';
