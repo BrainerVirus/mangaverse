@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { expect, test as base, type Page } from '@playwright/test';
+import { expect, test as base, type Locator, type Page } from '@playwright/test';
 
 export const fixturesDir = fileURLToPath(
   new URL('../../../packages/extensions-mangadex/src/fixtures/', import.meta.url),
@@ -76,6 +76,23 @@ async function finishOnboardingQuick(page: Page) {
   await advanceOnboarding(page);
   await page.getByRole('button', { name: 'Finish without provider' }).click();
   await expect(page).toHaveURL(/\/library/, { timeout: 20_000 });
+}
+
+/**
+ * Opens the command palette without racing hydration. React attaches the
+ * window-level shortcut in an effect, so a key pressed during the initial load
+ * is dropped; opening is idempotent for as long as we only press while the
+ * dialog is closed. A palette that never opens still fails in this helper.
+ */
+export async function openCommandPalette(page: Page): Promise<Locator> {
+  const palette = page.getByRole('dialog', { name: 'Command palette' });
+  await expect(async () => {
+    if (!(await palette.isVisible())) {
+      await page.keyboard.press('ControlOrMeta+k');
+    }
+    await expect(palette).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 15_000 });
+  return palette;
 }
 
 const PING_KEY = 'mangaverse.local-db.version';
