@@ -12,7 +12,6 @@ import {
   InstallProviderDialog,
   prepareManualProviderInstall,
   setProviderEnabled,
-  transitionExtensionInstall,
 } from '@app/extensions';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 import { flushLocalDb } from '../lib/local-db.js';
@@ -85,9 +84,9 @@ function ExtensionsRoute() {
       if (db === null) {
         throw new Error('Database is not ready.');
       }
-      let next = transitionExtensionInstall(session, { type: 'confirm' });
-      setInstallSession(next);
-      const result = await confirmProviderInstall(db, next);
+      // `confirmProviderInstall` performs the confirm transition itself; pre-transitioning
+      // the session to 'installing' made it reject its own input.
+      const result = await confirmProviderInstall(db, session);
       if (!result.ok) {
         throw result.error;
       }

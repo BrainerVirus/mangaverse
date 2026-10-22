@@ -51,7 +51,7 @@ export function ExtensionsPage({
   const providerCount = providers.length;
 
   return (
-    <section aria-label="Extensions" className="flex flex-col gap-6 p-6">
+    <section aria-label="Extensions" className="@container flex flex-col gap-6 p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Extensions</h1>
@@ -83,24 +83,27 @@ export function ExtensionsPage({
       {!isLoading && !isError && providerCount > 0 ? (
         <section
           aria-label="Installed providers"
-          className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
+          className="grid gap-4 @2xl:grid-cols-2 @5xl:grid-cols-3"
         >
           {providers.map((provider) => {
             const isPending = pendingProviderId === provider.id;
             return (
-              <Card key={provider.id} className="flex flex-col">
-                <CardHeader className="gap-3">
+              <Card key={provider.id} className="flex min-w-0 flex-col" data-testid="provider-card">
+                <CardHeader className="gap-3" data-testid="provider-card-header">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex size-10 items-center justify-center rounded-control bg-accent/10 text-accent">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex size-10 shrink-0 items-center justify-center rounded-control bg-accent/10 text-accent">
                         <Puzzle aria-hidden className="size-5" />
                       </div>
-                      <div>
-                        <CardTitle className="text-base">{provider.name}</CardTitle>
+                      <div className="min-w-0">
+                        <CardTitle className="truncate text-base">{provider.name}</CardTitle>
                         <CardDescription>v{provider.version}</CardDescription>
                       </div>
                     </div>
-                    <div className="flex flex-wrap justify-end gap-2">
+                    <div
+                      className="flex flex-wrap justify-end gap-2"
+                      data-testid="provider-card-badges"
+                    >
                       <Badge variant={provider.enabled ? 'default' : 'outline'}>
                         {provider.enabled ? 'Enabled' : 'Disabled'}
                       </Badge>

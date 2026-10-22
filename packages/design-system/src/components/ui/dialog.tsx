@@ -23,7 +23,13 @@ const DialogContent = React.forwardRef<
         className="pointer-events-auto outline-none"
         aria-modal="true"
       >
-        <GlassSurface level="thick" className={cn('w-full max-w-lg p-6', className)}>
+        <GlassSurface
+          level="thick"
+          className={cn(
+            'flex max-h-dvh w-full max-w-lg flex-col gap-4 overflow-y-auto p-6',
+            className,
+          )}
+        >
           {children}
         </GlassSurface>
       </DialogPrimitive.Popup>
@@ -36,7 +42,7 @@ const DialogHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLD
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('flex flex-col space-y-1.5 text-center sm:text-left', className)}
+      className={cn('flex shrink-0 flex-col space-y-1.5 text-center sm:text-left', className)}
       {...props}
     />
   ),
@@ -47,7 +53,10 @@ const DialogFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLD
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2', className)}
+      className={cn(
+        'flex shrink-0 flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2',
+        className,
+      )}
       {...props}
     />
   ),
