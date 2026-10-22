@@ -128,6 +128,50 @@ describe('backup document', () => {
     expect(res.issues.length).toBeGreaterThan(0);
   });
 
+  it('accepts a v3 backup with pre-PR free-form shortcuts and defaults them', () => {
+    const res = validateBackupDocument({
+      ...minimalValidBackup,
+      readerSettings: {
+        ...getDefaultReaderSettings(),
+        readingMode: 'vertical',
+        pageLayout: 'double',
+        fitMode: 'height',
+        minZoom: 1.25,
+        maxZoom: 4,
+        verticalGapPx: 24,
+        keyboardShortcuts: [
+          { action: 'teleport', key: 'x' },
+          { action: 'nextPage', key: 'Tab' },
+        ],
+      },
+    });
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+
+    expect(res.value.readerSettings.keyboardShortcuts).toEqual([]);
+    expect(res.value.readerSettings).toMatchObject({
+      readingMode: 'vertical',
+      pageLayout: 'double',
+      fitMode: 'height',
+      minZoom: 1.25,
+      maxZoom: 4,
+      verticalGapPx: 24,
+    });
+  });
+
+  it('still rejects invalid non-shortcut fields in a legacy backup', () => {
+    const res = validateBackupDocument({
+      ...minimalValidBackup,
+      readerSettings: {
+        ...getDefaultReaderSettings(),
+        preloadAhead: -2,
+        keyboardShortcuts: [{ action: 'teleport', key: 'x' }],
+      },
+    });
+    expect(res.ok).toBe(false);
+    expect(res.issues.map((issue) => issue.path)).toContain('readerSettings');
+  });
+
   it('rejects invalid extension manifest', () => {
     const res = validateBackupDocument({
       ...minimalValidBackup,

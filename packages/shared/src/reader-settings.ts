@@ -290,6 +290,22 @@ export function validateReaderSettings(input: unknown): AppResult<ReaderSettings
 }
 
 /**
+ * Backup restore stays strict on every scalar field but accepts pre-PR free-form
+ * shortcut lists: an invalid or partial list restores as the default bindings
+ * instead of rejecting the whole backup.
+ */
+export function validateReaderSettingsForBackup(input: unknown): AppResult<ReaderSettings> {
+  const strict = validateReaderSettings(input);
+  if (strict.ok) return strict;
+  if (typeof input !== 'object' || input === null) return strict;
+
+  const { keyboardShortcuts: _stored, ...fields } = input as Record<string, unknown>;
+  const fieldResult = readerSettingsSchema.safeParse({ ...fields, keyboardShortcuts: [] });
+  if (!fieldResult.success) return strict;
+  return ok({ ...fieldResult.data, keyboardShortcuts: [] });
+}
+
+/**
  * Reads settings that may predate the shortcut schema. Only a shortcut failure
  * is salvaged: old rows keep every unrelated preference and fall back to the
  * default shortcuts instead of losing their reading mode, zoom or layout.

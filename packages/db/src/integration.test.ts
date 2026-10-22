@@ -614,6 +614,38 @@ describe('@app/db', () => {
     expect(identity?.canonicalTitle).toBe('Restore Me');
   });
 
+  it('restores a v3 backup with pre-PR free-form shortcuts using defaults', async () => {
+    const { db } = await createSqlJsHarness();
+    const doc = {
+      schemaVersion: BACKUP_SCHEMA_VERSION,
+      metadata: { createdAt: new Date().toISOString(), appVersion: 't' },
+      library: [],
+      mangaIdentities: [],
+      installedExtensions: [],
+      readerSettings: {
+        ...getDefaultReaderSettings(),
+        readingMode: 'vertical',
+        fitMode: 'height',
+        verticalGapPx: 24,
+        keyboardShortcuts: [
+          { action: 'teleport', key: 'x' },
+          { action: 'nextPage', key: 'Tab' },
+        ],
+      },
+      providerSettings: { providerSnapshots: [] },
+      themeSettings: { themeId: 'default', dark: false },
+    };
+
+    const result = await applyBackupRestore(db, doc);
+    expect(result.ok).toBe(true);
+
+    const settings = await getReaderSettings(db);
+    expect(settings.keyboardShortcuts).toEqual([]);
+    expect(settings.readingMode).toBe('vertical');
+    expect(settings.fitMode).toBe('height');
+    expect(settings.verticalGapPx).toBe(24);
+  });
+
   it('blocks restore when preview reports error severity issues', async () => {
     const { db } = await createSqlJsHarness();
     const doc = {
