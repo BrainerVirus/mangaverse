@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   toCategoryId,
@@ -214,7 +214,7 @@ describe('MangaDetailPage', () => {
       />,
     );
 
-    expect(screen.getByText('Unread')).toBeInTheDocument();
+    expect(screen.getByText('Unread', { selector: 'dt' })).toBeInTheDocument();
     expect(screen.getByText('1 chapter')).toBeInTheDocument();
     expect(screen.getByText('Last read')).toBeInTheDocument();
     expect(screen.getByText('Last updated')).toBeInTheDocument();
@@ -314,7 +314,8 @@ describe('MangaDetailPage', () => {
     );
 
     // Provider A is viewed: only its chapter row exists.
-    expect(screen.getAllByText('Chapter 1')).toHaveLength(1);
+    const chaptersRegion = screen.getByRole('region', { name: 'Chapters' });
+    expect(within(chaptersRegion).getAllByText('Chapter 1')).toHaveLength(1);
 
     fireEvent.click(screen.getByRole('button', { name: 'View chapters' }));
     expect(onSelectProvider).toHaveBeenCalledWith(toProviderMappingId(MAP_B));

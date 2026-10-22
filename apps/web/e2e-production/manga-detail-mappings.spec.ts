@@ -110,11 +110,8 @@ test('Given two MangaDex mappings, When switching, setting default and choosing 
   await expect(page.getByRole('region', { name: 'Chapters' }).locator('ol > li')).toHaveCount(3);
 
   await page.goto('/library');
-  const card = page
-    .getByRole('button', { name: new RegExp(TITLE) })
-    .first()
-    .locator('..');
-  await expect(card.getByText('3 unread')).toBeVisible({ timeout: 20_000 });
+  const libraryTitles = page.getByRole('region', { name: 'Library titles' });
+  await expect(libraryTitles.getByText('3 unread')).toBeVisible({ timeout: 20_000 });
 
   // Switching to the other mapping re-counts from its own chapters.
   await page.goto(MANGA_PATH);
@@ -142,10 +139,6 @@ test('Given two MangaDex mappings, When switching, setting default and choosing 
   await expect(page.getByTestId('chapter-summary')).toHaveText('3 unread');
 
   await page.goto('/library');
-  const reloadedCard = page
-    .getByRole('button', { name: new RegExp(TITLE) })
-    .first()
-    .locator('..');
-  await expect(reloadedCard.getByText('3 unread')).toBeVisible({ timeout: 20_000 });
+  await expect(libraryTitles.getByText('3 unread')).toBeVisible({ timeout: 20_000 });
   expect(mockMangaDex.count).toBeGreaterThan(0);
 });

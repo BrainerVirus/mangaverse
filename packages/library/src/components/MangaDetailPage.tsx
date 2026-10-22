@@ -627,7 +627,7 @@ interface MangaDetailView {
   readonly activeMappingId?: ProviderMappingId;
   readonly activeChapters: readonly Chapter[];
   readonly continueChapter?: Chapter;
-  readonly lastReadInActive?: Chapter;
+  readonly lastReadChapter?: Chapter;
   readonly customCoverUrl?: string;
   readonly coverUrl?: string;
 }
@@ -652,7 +652,12 @@ function buildMangaDetailView(
   const lastReadInActive = activeChapters.find(
     (chapter) => chapter.id === libraryEntry?.lastReadChapterId,
   );
-  const continueChapter = lastReadInActive ?? activeChapters[0];
+  // A migrated mapping may have no local chapters yet; the stored last read
+  // still has to open, exactly as it did before the mapping split.
+  const lastReadChapter = chapters.find(
+    (chapter) => chapter.id === libraryEntry?.lastReadChapterId,
+  );
+  const continueChapter = lastReadInActive ?? activeChapters[0] ?? lastReadChapter;
   const customCoverUrl = manga.userOverrides?.coverImageUrl;
   const coverUrl = getMangaCoverUrl(manga);
 
@@ -662,7 +667,7 @@ function buildMangaDetailView(
     ...(activeMapping === undefined ? {} : { activeMapping }),
     ...(activeMappingId === undefined ? {} : { activeMappingId }),
     ...(continueChapter === undefined ? {} : { continueChapter }),
-    ...(lastReadInActive === undefined ? {} : { lastReadInActive }),
+    ...(lastReadChapter === undefined ? {} : { lastReadChapter }),
     ...(customCoverUrl === undefined ? {} : { customCoverUrl }),
     ...(coverUrl === undefined ? {} : { coverUrl }),
   };
@@ -703,7 +708,7 @@ function MangaDetailHeader({
   onOpenReaderSettings,
   onOpenCover,
 }: MangaDetailHeaderProps) {
-  const { data, activeMapping, continueChapter, lastReadInActive, customCoverUrl, coverUrl } = view;
+  const { data, activeMapping, continueChapter, lastReadChapter, customCoverUrl, coverUrl } = view;
 
   return (
     <div className="flex flex-wrap items-start gap-6">
@@ -731,7 +736,7 @@ function MangaDetailHeader({
           activeMapping={activeMapping}
           providerLabels={providerLabels}
           continueChapter={continueChapter}
-          hasLastReadChapter={lastReadInActive !== undefined}
+          hasLastReadChapter={lastReadChapter !== undefined}
           onOpenChapter={onOpenChapter}
           onAddToLibrary={onAddToLibrary}
           onRemoveFromLibrary={onRemoveFromLibrary}
