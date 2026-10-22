@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ChapterId, MangaId, ProviderId } from '@app/shared';
-import { cn } from '@app/design-system';
+import { Button, cn } from '@app/design-system';
 
 import { resolvePageObjectUrl } from '../page-cache-store.js';
 import { useCoverCacheContext } from './CoverCacheProvider.js';
@@ -14,6 +14,9 @@ export interface CachedPageImageProps {
   readonly alt?: string;
   readonly className?: string;
   readonly retention?: 'read' | 'normal';
+  readonly onSkip?: (() => void) | undefined;
+  readonly onBack?: (() => void) | undefined;
+  readonly onLoad?: ((size: { width: number; height: number }) => void) | undefined;
 }
 
 export function CachedPageImage({
@@ -25,10 +28,19 @@ export function CachedPageImage({
   alt = '',
   className,
   retention = 'read',
+  onSkip,
+  onBack,
+  onLoad,
 }: CachedPageImageProps) {
   const context = useCoverCacheContext();
   const [src, setSrc] = useState<string | undefined>(undefined);
   const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const retry = () => {
+    setFailed(false);
+    setSrc(undefined);
+    setAttempt((value) => value + 1);
+  };
   const objectUrlRef = useRef<string | undefined>(undefined);
   const requestKey = `${providerId}\u0000${mangaId}\u0000${chapterId}\u0000${String(pageIndex)}\u0000${remoteUrl}\u0000${retention}`;
 
@@ -53,6 +65,10 @@ export function CachedPageImage({
 
     let cancelled = false;
 
+    const recoverOnline = () => {
+      if (!cancelled) retry();
+    };
+    window.addEventListener('online', recoverOnline);
     void (async () => {
       const result = await resolvePageObjectUrl({
         db: context.db,
@@ -63,9 +79,12 @@ export function CachedPageImage({
         pageIndex,
         remoteUrl,
         retention,
+        refresh: attempt > 0 && navigator.onLine,
       });
 
       if (cancelled) {
+        if (result !== undefined)
+          void context.adapter.blobStorage.revokeObjectUrl(result.objectUrl);
         return;
       }
 
@@ -81,16 +100,50 @@ export function CachedPageImage({
 
       objectUrlRef.current = result.objectUrl;
       setSrc(result.objectUrl);
-    })();
+    })().catch(() => {
+      if (!cancelled) {
+        setFailed(true);
+        setSrc(undefined);
+      }
+    });
 
     return () => {
       cancelled = true;
+      window.removeEventListener('online', recoverOnline);
       if (objectUrlRef.current !== undefined) {
         void context.adapter.blobStorage.revokeObjectUrl(objectUrlRef.current);
         objectUrlRef.current = undefined;
       }
     };
-  }, [chapterId, context, mangaId, pageIndex, providerId, remoteUrl, retention]);
+  }, [attempt, chapterId, context, mangaId, pageIndex, providerId, remoteUrl, retention]);
+
+  if (failed) {
+    return (
+      <div
+        className={cn(
+          'flex min-h-40 flex-col items-center justify-center gap-3 bg-background p-4 text-foreground',
+          className,
+        )}
+        role="alert"
+        onPointerUp={(event) => event.stopPropagation()}
+      >
+        <p>Could not load page {pageIndex + 1}</p>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={retry}>Retry</Button>
+          {onSkip ? (
+            <Button variant="outline" onClick={onSkip}>
+              Skip page
+            </Button>
+          ) : null}
+          {onBack ? (
+            <Button variant="outline" onClick={onBack}>
+              Back
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
 
   if (context === null || failed || src === undefined) {
     return (
@@ -107,5 +160,19 @@ export function CachedPageImage({
     );
   }
 
-  return <img src={src} alt={alt} className={className} draggable={false} />;
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      draggable={false}
+      onError={() => setFailed(true)}
+      onLoad={(event) =>
+        onLoad?.({
+          width: event.currentTarget.naturalWidth,
+          height: event.currentTarget.naturalHeight,
+        })
+      }
+    />
+  );
 }
