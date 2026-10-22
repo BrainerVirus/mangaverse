@@ -216,7 +216,7 @@ export function ReaderScreen({
   const { containerRef, surface, viewport } = useReaderViewport();
   const { sessionInput, readerState, setReaderState, navigate } = useReaderSession(data, viewport);
   useReaderProgress(data, readerState, onPersistProgress);
-  useChapterPrefetch(data, cacheContext);
+  useChapterPrefetch(data, cacheContext, readerState?.activePageIndex);
   const offlineNote = useOfflinePagesNote(data, cacheContext, isOffline);
 
   const {

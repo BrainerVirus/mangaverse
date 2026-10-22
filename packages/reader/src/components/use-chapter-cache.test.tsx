@@ -57,6 +57,32 @@ function Probe({
 }
 
 describe('useChapterPrefetch cache sweep', () => {
+  it('prefetches only upcoming pages and stops when preload is disabled', async () => {
+    mocks.prefetchChapterPages.mockClear();
+    const context = {
+      db: {} as CoverCacheContextValue['db'],
+      adapter: {} as CoverCacheContextValue['adapter'],
+      cacheLimitBytes: 1024,
+    };
+    const data = buildData();
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    await act(async () => root.render(<Probe data={data} context={context} />));
+    expect(mocks.prefetchChapterPages.mock.calls[0]?.[0]).toMatchObject({
+      pages: [{ pageIndex: 1, remoteUrl: 'https://example.com/1.jpg' }],
+    });
+    mocks.prefetchChapterPages.mockClear();
+    await act(async () =>
+      root.render(
+        <Probe
+          data={{ ...data, settings: { ...data.settings, lowMemoryMode: true, preloadAhead: 0 } }}
+          context={context}
+        />,
+      ),
+    );
+    expect(mocks.prefetchChapterPages).not.toHaveBeenCalled();
+    act(() => root.unmount());
+  });
   it('Given a prefetched chapter, When maintenance runs, Then it protects the open chapter with the reader limit', async () => {
     const db = { id: 'db' } as unknown as CoverCacheContextValue['db'];
     const adapter = {} as unknown as CoverCacheContextValue['adapter'];
