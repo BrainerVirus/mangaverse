@@ -10,7 +10,8 @@ import {
   type ExtensionRegistryEntry,
 } from '@app/shared';
 import type { AppDrizzleDb } from '../adapter.js';
-import { extensionRegistries, installedExtensions } from '../schema.js';
+import { extensionRegistries, installedExtensions, providerSettings } from '../schema.js';
+import { withTransaction } from '../transactions.js';
 
 function newId(): string {
   return crypto.randomUUID();
@@ -137,6 +138,10 @@ export async function upsertExtensionRegistry(
     });
 }
 
+/** Uninstall: the install row and its saved settings go together, or neither does. */
 export async function deleteInstalledExtension(db: AppDrizzleDb, id: string): Promise<void> {
-  await db.delete(installedExtensions).where(eq(installedExtensions.id, id));
+  withTransaction(db, (tx) => {
+    tx.delete(installedExtensions).where(eq(installedExtensions.id, id)).run();
+    tx.delete(providerSettings).where(eq(providerSettings.providerId, id)).run();
+  });
 }

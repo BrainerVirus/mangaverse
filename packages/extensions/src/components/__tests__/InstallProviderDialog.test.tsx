@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import type { ProviderManifest } from '@app/shared';
+import type { ProviderContentFlags, ProviderManifest } from '@app/shared';
 import type { ExtensionInstallPreview, ExtensionInstallSession } from '@app/extensions-core';
 
 import { InstallProviderDialog } from '../InstallProviderDialog.js';
@@ -67,5 +67,14 @@ describe('InstallProviderDialog consent metadata', () => {
     expect(screen.getAllByText('No')).toHaveLength(3);
     expect(screen.queryByText('Yes')).not.toBeInTheDocument();
     expect(screen.queryByText('Mature content')).not.toBeInTheDocument();
+  });
+
+  it('renders a consent row for every ProviderContentFlags key', () => {
+    // Annotated with the full interface: a new flag key breaks this line at typecheck,
+    // then the count assertion fails until the consent preview renders it.
+    const allFlagsTrue: ProviderContentFlags = { nsfw: true, suggestive: true, violence: true };
+    renderDialog(preview(allFlagsTrue));
+
+    expect(screen.getAllByText('Yes')).toHaveLength(Object.keys(allFlagsTrue).length);
   });
 });

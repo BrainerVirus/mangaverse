@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { toExtensionInstallId, toProviderId } from '@app/shared';
 import type { ProviderManifest } from '@app/shared';
-import type { AppDrizzleDb } from '@app/db';
+import { getProviderSettingsRecord, type AppDrizzleDb } from '@app/db';
 import { createSqlJsHarness } from '@app/db/testing';
 
 import { confirmExtensionInstall } from './confirm-install.js';
@@ -13,6 +13,7 @@ import {
   uninstallInstalledProvider,
   updateInstalledProviderManifest,
 } from './providers-ops.js';
+import { getProviderSettings, saveProviderSettings } from './settings-persistence.js';
 
 const manifestV1: ProviderManifest = {
   id: toProviderId('demo'),
@@ -127,6 +128,32 @@ describe('uninstallInstalledProvider', () => {
       throw new Error('expected listed2.ok to be true');
     }
     expect(listed2.value).toHaveLength(0);
+  });
+
+  it('removes saved provider settings with the install and reinstalls clean', async () => {
+    const { db } = await createSqlJsHarness();
+    const url = 'https://example.com/m.json';
+    const providerId = String(manifestV1.id);
+    await confirmSession(db, manifestV1, url);
+    const saved = await saveProviderSettings(
+      manifestV1,
+      { regionLocale: 'en-US', defaultSort: 'popular' },
+      { db },
+    );
+    expect(saved.ok).toBe(true);
+    expect(await getProviderSettingsRecord(db, providerId)).toBeDefined();
+
+    const u = await uninstallInstalledProvider(toExtensionInstallId(providerId), { db });
+    expect(u.ok).toBe(true);
+    expect(await getProviderSettingsRecord(db, providerId)).toBeUndefined();
+
+    expect((await confirmSession(db, manifestV1, url)).ok).toBe(true);
+    const reloaded = await getProviderSettings(providerId, { db });
+    expect(reloaded.ok).toBe(true);
+    if (!reloaded.ok) {
+      throw new Error('expected reloaded.ok to be true');
+    }
+    expect(reloaded.value).toEqual({});
   });
 });
 

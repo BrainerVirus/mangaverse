@@ -22,23 +22,40 @@ const richManifest = {
   contentFlags: { nsfw: true, suggestive: true, violence: true },
 };
 
-async function openRichPreview(page: Page) {
+const LONG_NAME_MANIFEST_URL = 'https://manifest.audit.test/long-name.json';
+
+const longNameManifest = {
+  ...richManifest,
+  id: 'audit-long-name',
+  // One unbroken word wider than a tablet card: without min-w-0/truncate the card overflows.
+  name: 'Audit Community Provider WithAnExcessivelyLongUnbrokenVendorIdentifierForTabletLayoutChecks',
+};
+
+async function openManifestPreview(
+  page: Page,
+  manifest: unknown,
+  manifestUrl: string,
+): Promise<Locator> {
   await page.route('https://manifest.audit.test/**', (route) =>
     route.fulfill({
       status: 200,
       contentType: 'application/json',
       headers: { 'access-control-allow-origin': '*' },
-      body: JSON.stringify(richManifest),
+      body: JSON.stringify(manifest),
     }),
   );
 
   await page.goto('/extensions?install=1');
   const dialog = page.getByRole('dialog', { name: 'Install provider' });
   await expect(dialog).toBeVisible({ timeout: 20_000 });
-  await dialog.getByLabel('Manifest URL').fill(RICH_MANIFEST_URL);
+  await dialog.getByLabel('Manifest URL').fill(manifestUrl);
   await dialog.getByRole('button', { name: 'Review manifest' }).click();
   await expect(dialog.getByText('Mature content')).toBeVisible({ timeout: 20_000 });
   return dialog;
+}
+
+async function openRichPreview(page: Page): Promise<Locator> {
+  return openManifestPreview(page, richManifest, RICH_MANIFEST_URL);
 }
 
 async function expectInsideViewport(locator: Locator, page: Page) {
@@ -183,11 +200,34 @@ test.describe('tablet extension internal layout', () => {
     const columns = await grid.evaluate((element) => getComputedStyle(element).gridTemplateColumns);
     expect(columns.split(' ')).toHaveLength(1);
 
-    await expectNoInternalOverflow(page.getByTestId('provider-card').first());
-    await expectNoInternalOverflow(page.getByTestId('provider-card-header').first());
-    await expectNoInternalOverflow(page.getByTestId('provider-card-badges').first());
+    const dialog = await openManifestPreview(page, longNameManifest, LONG_NAME_MANIFEST_URL);
+    await dialog.getByRole('button', { name: 'Confirm install' }).click();
+    await expect(dialog).not.toBeVisible({ timeout: 20_000 });
 
-    await page.getByRole('button', { name: 'Details', exact: true }).click();
+    const cards = page.getByTestId('provider-card');
+    await expect(cards).toHaveCount(2);
+    const gridBox = await grid.boundingBox();
+    expect(gridBox).not.toBeNull();
+    if (gridBox === null) return;
+    await expectNoInternalOverflow(grid);
+    for (const card of await cards.all()) {
+      // A widened card is the first sign the header stopped shrinking; the card
+      // itself keeps scrollWidth == clientWidth once the grid track grows.
+      const cardBox = await card.boundingBox();
+      expect(cardBox).not.toBeNull();
+      if (cardBox === null) continue;
+      expect(cardBox.width).toBeLessThanOrEqual(gridBox.width + 1);
+      await expectNoInternalOverflow(card);
+      await expectNoInternalOverflow(card.getByTestId('provider-card-header'));
+      await expectNoInternalOverflow(card.getByTestId('provider-card-badges'));
+    }
+
+    const longCard = cards.filter({ hasText: 'Audit Community Provider' });
+    await expect(longCard.getByText(longNameManifest.name, { exact: true })).toBeVisible();
+    await expect(longCard.getByText('Enabled', { exact: true })).toBeVisible();
+    await expect(longCard.getByTestId('provider-card-badges').locator('> *')).toHaveCount(2);
+
+    await longCard.getByRole('button', { name: 'Details', exact: true }).click();
     await expect(page.getByRole('region', { name: 'Provider details' })).toBeVisible({
       timeout: 20_000,
     });

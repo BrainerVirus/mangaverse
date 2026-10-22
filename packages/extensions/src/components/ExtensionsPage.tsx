@@ -88,7 +88,7 @@ export function ExtensionsPage({
           {providers.map((provider) => {
             const isPending = pendingProviderId === provider.id;
             return (
-              <Card key={provider.id} className="flex flex-col" data-testid="provider-card">
+              <Card key={provider.id} className="flex min-w-0 flex-col" data-testid="provider-card">
                 <CardHeader className="gap-3" data-testid="provider-card-header">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
