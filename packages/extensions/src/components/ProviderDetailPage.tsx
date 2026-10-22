@@ -16,9 +16,11 @@ import {
   SettingsSection,
   Switch,
 } from '@app/design-system';
+import type { ProviderSettingsValues } from '@app/shared';
 import { ExternalLink } from 'lucide-react';
 import { useState } from 'react';
 import type { ProviderDetailData } from '../types.js';
+import { ProviderSettingsForm } from './ProviderSettingsForm.js';
 
 export interface ProviderDetailPageProps {
   providerId: string;
@@ -27,8 +29,12 @@ export interface ProviderDetailPageProps {
   isError: boolean;
   onBack?: () => void;
   onToggleEnabled: (enabled: boolean) => void;
+  onSaveSettings: (settings: ProviderSettingsValues) => void;
   onRemove: () => void;
   isUpdating?: boolean;
+  isSavingSettings?: boolean;
+  settingsSaved?: boolean;
+  settingsError?: string | null;
 }
 
 function UninstallProviderDialog({
@@ -101,8 +107,12 @@ export function ProviderDetailPage({
   isError,
   onBack,
   onToggleEnabled,
+  onSaveSettings,
   onRemove,
   isUpdating = false,
+  isSavingSettings = false,
+  settingsSaved = false,
+  settingsError = null,
 }: ProviderDetailPageProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -222,6 +232,16 @@ export function ProviderDetailPage({
           </div>
         </dl>
       </SettingsSection>
+
+      <ProviderSettingsForm
+        key={`${provider.id}:${JSON.stringify(data.settings)}`}
+        manifest={provider.manifest}
+        settings={data.settings}
+        isSaving={isSavingSettings}
+        isSaved={settingsSaved}
+        errorMessage={settingsError}
+        onSave={onSaveSettings}
+      />
 
       <SettingsSection title="Capabilities" description="Features exposed by this provider.">
         <div className="flex flex-col gap-4">

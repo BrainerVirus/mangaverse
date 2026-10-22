@@ -115,6 +115,7 @@ function useExpandedSection(
         pageParam,
         PROVIDER_SECTION_PAGE_SIZE,
         signal,
+        explicitContent,
       ),
     initialPageParam: 0,
     getNextPageParam: (lastPage) =>
@@ -181,7 +182,7 @@ function DiscoverRoute() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: discoverQueryKeys.providers(explicitContent),
-    queryFn: ({ signal }) => fetchProviderDiscoverData(db!, signal),
+    queryFn: ({ signal }) => fetchProviderDiscoverData(db!, signal, explicitContent),
     enabled: dbStatus === 'ready' && db !== null && appSettingsQuery.isSuccess,
   });
 

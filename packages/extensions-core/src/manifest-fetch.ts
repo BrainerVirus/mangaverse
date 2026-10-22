@@ -13,6 +13,7 @@ const DEFAULT_MAX_MANIFEST_BYTES = 256_000;
 export async function fetchManifestFromUrl(
   url: string,
   environment: ExtensionFetchEnvironment,
+  label = 'manifest',
 ): Promise<AppResult<{ json: unknown; rawText: string }>> {
   const urlResult = validateRemoteManifestUrlForFetch(url);
   if (!urlResult.ok) return urlResult;
@@ -26,7 +27,7 @@ export async function fetchManifestFromUrl(
     return err(
       createAppError({
         code: 'extensions.core.fetch.failed',
-        message: 'Could not fetch manifest.',
+        message: `Could not fetch ${label}.`,
         cause: e,
       }),
     );
@@ -36,7 +37,7 @@ export async function fetchManifestFromUrl(
     return err(
       createAppError({
         code: 'extensions.core.fetch.http_error',
-        message: `Manifest fetch failed with HTTP ${response.status}.`,
+        message: `${label} fetch failed with HTTP ${response.status}.`,
         details: { status: response.status },
       }),
     );
@@ -47,7 +48,7 @@ export async function fetchManifestFromUrl(
     return err(
       createAppError({
         code: 'extensions.core.fetch.code_response',
-        message: 'Refusing manifest response that looks like executable script.',
+        message: `Refusing ${label} response that looks like executable script.`,
       }),
     );
   }
@@ -59,7 +60,7 @@ export async function fetchManifestFromUrl(
     return err(
       createAppError({
         code: 'extensions.core.fetch.failed',
-        message: 'Could not read manifest response.',
+        message: `Could not read ${label} response.`,
         cause: e,
       }),
     );
@@ -71,7 +72,7 @@ export async function fetchManifestFromUrl(
     return err(
       createAppError({
         code: 'extensions.core.fetch.body_too_large',
-        message: `Manifest body exceeds ${maxBytes} bytes.`,
+        message: `${label} body exceeds ${maxBytes} bytes.`,
         details: { size: sizeBytes, limit: maxBytes },
       }),
     );
@@ -84,7 +85,7 @@ export async function fetchManifestFromUrl(
     return err(
       createAppError({
         code: 'extensions.core.fetch.invalid_json',
-        message: 'Manifest response was not valid JSON.',
+        message: `${label} response was not valid JSON.`,
         cause: e,
       }),
     );

@@ -6,9 +6,11 @@ import type {
   ProviderContentFlags,
 } from '@app/shared';
 import { validateRemoteManifestUrlForFetch } from '@app/extensions-sdk';
-import { upsertExtensionRegistry } from '@app/db';
+import { listExtensionRegistries, listInstalledExtensions, upsertExtensionRegistry } from '@app/db';
 import type { AppDrizzleDb } from '@app/db';
 
+import { fetchManifestFromUrl } from './manifest-fetch.js';
+import type { ExtensionFetchEnvironment } from './manifest-fetch.js';
 import type { RegistryProviderEntry } from './prepare-install.js';
 
 export interface ExtensionRegistryImportDocument {
@@ -22,6 +24,23 @@ export interface ExtensionRegistryImportResult {
   readonly registry: ExtensionRegistryEntry;
   readonly entries: readonly RegistryProviderEntry[];
   readonly warnings: readonly ExtensionInstallWarning[];
+}
+
+export interface ExtensionRegistryExportEntry {
+  readonly name: string;
+  /** Install source; a bundled provider has no fetchable manifest URL. */
+  readonly sourceUrl: string;
+  readonly manifestUrl?: string;
+  readonly installedVersion: string;
+  readonly enabled: boolean;
+  readonly registryUrl?: string;
+}
+
+export interface ExtensionRegistryExport {
+  readonly version: 1;
+  readonly exportedAt: string;
+  readonly registries: readonly ExtensionRegistryEntry[];
+  readonly providers: readonly ExtensionRegistryExportEntry[];
 }
 
 function isNonEmptyString(v: unknown): v is string {
@@ -141,11 +160,14 @@ function normalizeEntry(
   return { entry };
 }
 
-export async function importExtensionRegistry(
-  input: { readonly document: unknown },
-  deps: { readonly db: AppDrizzleDb },
-): Promise<AppResult<ExtensionRegistryImportResult>> {
-  const docResult = validateDocument(input.document);
+/**
+ * Validates a registry document and normalizes its entries without touching the
+ * database, so the UI can preview warnings before the user confirms.
+ */
+export function parseExtensionRegistryDocument(
+  input: unknown,
+): AppResult<ExtensionRegistryImportResult> {
+  const docResult = validateDocument(input);
   if (!docResult.ok) return docResult;
   const doc = docResult.value;
 
@@ -153,7 +175,6 @@ export async function importExtensionRegistry(
   if (!registryUrlResult.ok) {
     return err(registryUrlResult.error);
   }
-  const normalizedRegistryUrl = registryUrlResult.value;
 
   const entries: RegistryProviderEntry[] = [];
   const warnings: ExtensionInstallWarning[] = [];
@@ -164,13 +185,69 @@ export async function importExtensionRegistry(
     if (entry) entries.push(entry);
   });
 
-  const registry: ExtensionRegistryEntry = {
-    name: doc.name,
-    registryUrl: normalizedRegistryUrl,
-    ...(doc.description !== undefined ? { description: doc.description } : {}),
-  };
+  return ok({
+    registry: {
+      name: doc.name,
+      registryUrl: registryUrlResult.value,
+      ...(doc.description !== undefined ? { description: doc.description } : {}),
+    },
+    entries,
+    warnings,
+  });
+}
 
-  await upsertExtensionRegistry(deps.db, registry);
+/** Fetches a registry document over http(s) and returns its preview. */
+export async function fetchExtensionRegistryDocumentFromUrl(
+  url: string,
+  environment: ExtensionFetchEnvironment,
+): Promise<AppResult<ExtensionRegistryImportResult>> {
+  const fetched = await fetchManifestFromUrl(url, environment, 'registry');
+  if (!fetched.ok) return fetched;
+  return parseExtensionRegistryDocument(fetched.value.json);
+}
 
-  return ok({ registry, entries, warnings });
+export async function importExtensionRegistry(
+  input: { readonly document: unknown },
+  deps: { readonly db: AppDrizzleDb },
+): Promise<AppResult<ExtensionRegistryImportResult>> {
+  const parsed = parseExtensionRegistryDocument(input.document);
+  if (!parsed.ok) return parsed;
+
+  await upsertExtensionRegistry(deps.db, parsed.value.registry);
+  return parsed;
+}
+
+/** Serializes the installed registries and providers for a user-held export. */
+export async function exportExtensionRegistryData(deps: {
+  readonly db: AppDrizzleDb;
+}): Promise<AppResult<ExtensionRegistryExport>> {
+  try {
+    const [registries, installed] = await Promise.all([
+      listExtensionRegistries(deps.db),
+      listInstalledExtensions(deps.db),
+    ]);
+    return ok({
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      registries,
+      providers: installed.map((provider) => ({
+        name: provider.manifest.name,
+        sourceUrl: provider.sourceUrl,
+        ...(provider.manifest.source.manifestUrl !== undefined
+          ? { manifestUrl: provider.manifest.source.manifestUrl }
+          : {}),
+        installedVersion: provider.installedVersion,
+        enabled: provider.enabled,
+        ...(provider.registryUrl !== undefined ? { registryUrl: provider.registryUrl } : {}),
+      })),
+    });
+  } catch (e) {
+    return err(
+      createAppError({
+        code: 'extensions.core.registry.export_failed',
+        message: 'Could not export installed extensions.',
+        cause: e,
+      }),
+    );
+  }
 }

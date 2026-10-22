@@ -47,6 +47,7 @@ function renderPage(onRemove: () => void) {
       isLoading={false}
       isError={false}
       onToggleEnabled={vi.fn<(enabled: boolean) => void>()}
+      onSaveSettings={() => {}}
       onRemove={onRemove}
     />,
   );

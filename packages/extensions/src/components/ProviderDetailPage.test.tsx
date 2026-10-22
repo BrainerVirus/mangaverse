@@ -24,6 +24,7 @@ function renderProviderDetail(data: Parameters<typeof ProviderDetailPage>[0]['da
         isError={false}
         onBack={onBack}
         onToggleEnabled={() => {}}
+        onSaveSettings={() => {}}
         onRemove={() => {}}
       />,
     );

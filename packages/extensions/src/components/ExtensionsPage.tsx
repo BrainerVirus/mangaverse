@@ -1,4 +1,7 @@
 import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
   Badge,
   Button,
   Card,
@@ -19,8 +22,12 @@ export interface ExtensionsPageProps {
   isError: boolean;
   onOpenProvider: (providerId: string) => void;
   onInstallProvider: () => void;
+  onImportRegistry: () => void;
+  onExportExtensions: () => void;
   onToggleEnabled: (providerId: string, enabled: boolean) => void;
   pendingProviderId?: string | undefined;
+  isExporting?: boolean;
+  exportError?: string | null;
 }
 
 function healthBadgeVariant(
@@ -44,8 +51,12 @@ export function ExtensionsPage({
   isError,
   onOpenProvider,
   onInstallProvider,
+  onImportRegistry,
+  onExportExtensions,
   onToggleEnabled,
   pendingProviderId,
+  isExporting = false,
+  exportError = null,
 }: ExtensionsPageProps) {
   const providers = data?.providers ?? [];
   const providerCount = providers.length;
@@ -59,10 +70,30 @@ export function ExtensionsPage({
             {providerCount === 1 ? '1 installed provider' : `${providerCount} installed providers`}
           </p>
         </div>
-        <Button type="button" onClick={onInstallProvider}>
-          Install provider
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" onClick={onImportRegistry}>
+            Import registry
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onExportExtensions}
+            disabled={isExporting}
+          >
+            {isExporting ? 'Exporting…' : 'Export installed extensions'}
+          </Button>
+          <Button type="button" onClick={onInstallProvider}>
+            Install provider
+          </Button>
+        </div>
       </div>
+
+      {exportError !== null ? (
+        <Alert variant="destructive">
+          <AlertTitle>Export failed</AlertTitle>
+          <AlertDescription>{exportError}</AlertDescription>
+        </Alert>
+      ) : null}
 
       {isLoading ? <LoadingState type="grid" /> : null}
 

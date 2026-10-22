@@ -1,5 +1,6 @@
 import type { AppDrizzleDb } from '@app/db/browser';
 import { getChapter } from '@app/db/browser';
+import { applyExplicitContentGate, loadProviderSettings } from '@app/extensions';
 import type { ProviderContext, ProviderContract } from '@app/extensions-sdk';
 import type { MangaDetailData } from '@app/library';
 import type { ChapterId, MangaId, MangaIdentity } from '@app/shared';
@@ -25,14 +26,20 @@ async function providerContext(
   db: AppDrizzleDb,
   providerId: string,
   signal?: AbortSignal,
+  explicitContent = false,
 ): Promise<{ ctx: ProviderContext; provider: ProviderContract } | null> {
   const provider = await resolveInstalledProvider(db, providerId);
   if (provider === null) {
     return null;
   }
+  const settings = applyExplicitContentGate(
+    await loadProviderSettings(db, providerId),
+    explicitContent,
+  );
   const ctx: ProviderContext = {
     manifest: provider.manifest,
     providerId,
+    settings,
     ...(signal !== undefined ? { signal } : {}),
   };
   return { ctx, provider };
@@ -43,6 +50,7 @@ export async function fetchProviderSearchIdentities(
   db: AppDrizzleDb,
   query: string,
   signal?: AbortSignal,
+  explicitContent = false,
 ): Promise<readonly MangaIdentity[]> {
   const trimmed = query.trim();
   if (trimmed.length === 0) return [];
@@ -50,7 +58,7 @@ export async function fetchProviderSearchIdentities(
   const identities: MangaIdentity[] = [];
   for (const binding of listProviderBindings()) {
     // react-doctor-disable-next-line react-doctor/async-await-in-loop -- provider sessions share one db handle; resolving them sequentially is deliberate (one binding today, no fan-out)
-    const context = await providerContext(db, binding.providerId, signal);
+    const context = await providerContext(db, binding.providerId, signal, explicitContent);
     if (context === null || context.provider.search === undefined) continue;
 
     const result = await context.provider.search(context.ctx, {

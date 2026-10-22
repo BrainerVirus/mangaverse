@@ -1,6 +1,7 @@
 import type { AppDrizzleDb } from '@app/db/browser';
+import { applyExplicitContentGate, loadProviderSettings } from '@app/extensions';
 import type { ProviderContract } from '@app/extensions-sdk';
-import type { MangaIdentity } from '@app/shared';
+import type { MangaIdentity, ProviderSettingsValues } from '@app/shared';
 import type { DiscoverPageData, DiscoverSection } from '@app/search';
 
 import {
@@ -33,6 +34,7 @@ async function fetchSection(
   sectionId: string,
   page: number,
   limit: number,
+  settings: ProviderSettingsValues,
   signal?: AbortSignal,
 ) {
   const section = binding.sections.find((entry) => entry.id === sectionId);
@@ -43,6 +45,7 @@ async function fetchSection(
   const ctx = {
     manifest: provider.manifest,
     providerId: binding.providerId,
+    settings,
     ...(signal !== undefined ? { signal } : {}),
   };
   const browse = provider[section.browse]?.bind(provider);
@@ -70,13 +73,18 @@ export async function fetchProviderSectionPage(
   offset: number,
   limit: number,
   signal?: AbortSignal,
+  explicitContent = false,
 ): Promise<ProviderSectionPage> {
   const page = Math.floor(offset / Math.max(limit, 1)) + 1;
   const provider = await resolveInstalledProvider(db, binding.providerId);
   if (provider === null) {
     return { results: [], hasMore: false, offset };
   }
-  const fetched = await fetchSection(provider, binding, sectionId, page, limit, signal);
+  const settings = applyExplicitContentGate(
+    await loadProviderSettings(db, binding.providerId),
+    explicitContent,
+  );
+  const fetched = await fetchSection(provider, binding, sectionId, page, limit, settings, signal);
   if (fetched === null) {
     return { results: [], hasMore: false, offset };
   }
@@ -91,6 +99,7 @@ export async function fetchProviderSectionPage(
 export async function fetchProviderDiscoverData(
   db: AppDrizzleDb,
   signal?: AbortSignal,
+  explicitContent = false,
 ): Promise<DiscoverPageData> {
   const entries: DiscoverPageData['providers'][number][] = [];
   const installed = await readInstalledExtensions(db);
@@ -99,6 +108,7 @@ export async function fetchProviderDiscoverData(
     let provider: ProviderContract;
     let providerName: string;
     let enabled: readonly ProviderSectionDefinition[];
+    let settings: ProviderSettingsValues;
     // A provider that throws while resolving, or ships a malformed manifest,
     // must not blank the whole feed.
     try {
@@ -109,6 +119,10 @@ export async function fetchProviderDiscoverData(
       provider = resolved;
       providerName = resolved.manifest.name;
       enabled = getEnabledSections(binding, resolved.manifest.capabilities);
+      settings = applyExplicitContentGate(
+        await loadProviderSettings(db, binding.providerId),
+        explicitContent,
+      );
     } catch {
       continue;
     }
@@ -121,6 +135,7 @@ export async function fetchProviderDiscoverData(
           section.id,
           1,
           PROVIDER_SECTION_PREVIEW_SIZE,
+          settings,
           signal,
         );
         return {
