@@ -87,10 +87,9 @@ describe('fetchSearchPage', () => {
       { query: 'alpha', filters: { language: 'en' } },
       true,
     );
-    expect(allowed.results.map((item) => item.canonicalTitle).sort()).toEqual([
-      'Alpha English',
-      'Alpha Explicit',
-    ]);
+    expect(
+      allowed.results.map((item) => item.canonicalTitle).sort((a, b) => a.localeCompare(b)),
+    ).toEqual(['Alpha English', 'Alpha Explicit']);
   });
 });
 
