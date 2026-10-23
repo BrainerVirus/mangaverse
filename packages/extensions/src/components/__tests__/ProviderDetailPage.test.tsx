@@ -244,6 +244,23 @@ describe('ProviderDetailPage activity, health and updates', () => {
     expect(screen.getByText(/Last check:/)).toBeInTheDocument();
   });
 
+  it('keeps the enable toggle usable once health recovers from broken', () => {
+    const broken: ProviderDetailData = {
+      ...data,
+      provider: { ...data.provider, enabled: false, health: 'broken' },
+    };
+    renderWithPanels({}, broken);
+    expect(screen.getByRole('button', { name: 'Enable provider' })).toBeDisabled();
+
+    cleanup();
+    const degraded: ProviderDetailData = {
+      ...data,
+      provider: { ...data.provider, enabled: false, health: 'degraded' },
+    };
+    renderWithPanels({}, degraded);
+    expect(screen.getByRole('button', { name: 'Enable provider' })).toBeEnabled();
+  });
+
   it('confirms an available update before applying it', async () => {
     const user = userEvent.setup();
     const onCheck = vi.fn<() => void>();

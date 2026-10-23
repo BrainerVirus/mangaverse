@@ -105,6 +105,21 @@ export async function upsertInstalledExtension(
   return ok(undefined);
 }
 
+/**
+ * Updates only the health column. A health check must never rewrite install
+ * state such as `enabled` from a snapshot it read before a user toggle.
+ */
+export async function updateInstalledExtensionHealth(
+  db: AppDrizzleDb,
+  id: string,
+  health: ExtensionInstallMetadata['health'],
+): Promise<void> {
+  await db
+    .update(installedExtensions)
+    .set({ health, updatedAt: new Date().toISOString() })
+    .where(eq(installedExtensions.id, id));
+}
+
 export async function listExtensionRegistries(db: AppDrizzleDb): Promise<ExtensionRegistryEntry[]> {
   const rows = db.select().from(extensionRegistries).all();
   return rows.map((r) => ({

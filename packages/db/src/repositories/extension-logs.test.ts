@@ -50,6 +50,23 @@ describe('extension log repository', () => {
     expect(healthPrefix.map((entry) => entry.code)).toEqual(['two']);
   });
 
+  it('keeps insertion order for entries written in the same millisecond', async () => {
+    const { db } = await createSqlJsHarness();
+    const createdAt = '2026-01-01T00:00:00.000Z';
+    for (const code of ['first', 'second', 'third']) {
+      await appendExtensionLog(db, {
+        providerId: 'a',
+        level: 'info',
+        code,
+        message: code,
+        createdAt,
+      });
+    }
+
+    const rows = await listExtensionLogs(db, { providerId: 'a' });
+    expect(rows.map((entry) => entry.code)).toEqual(['third', 'second', 'first']);
+  });
+
   it('retains only the newest per-provider entries', async () => {
     const { raw, db } = await createSqlJsHarness();
     // Bulk raw inserts keep the test fast; one append runs the retention prune.

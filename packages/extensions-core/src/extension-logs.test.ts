@@ -144,7 +144,35 @@ describe('provider activity log', () => {
     );
   });
 
+  it('redacts cookie headers, quoted JSON credential fields and non-Bearer schemes', () => {
+    expect(sanitizeLogMessage('Cookie: session=s3cr3t; theme=dark')).toBe('Cookie: [redacted]');
+    expect(sanitizeLogMessage('Set-Cookie: session=s3cr3t; HttpOnly; Path=/')).toBe(
+      'Set-Cookie: [redacted]',
+    );
+    expect(sanitizeLogMessage('{"cookie":"session=s3cr3t","page":2}')).toBe(
+      '{"cookie":"[redacted]","page":2}',
+    );
+    expect(sanitizeLogMessage('{"authorization":"Basic dXNlcjpwYXNz"}')).toBe(
+      '{"authorization":"[redacted]"}',
+    );
+    expect(sanitizeLogMessage('"Set-Cookie": "session=s3cr3t"')).toBe('"Set-Cookie":"[redacted]"');
+    expect(sanitizeLogMessage('{"set-cookie":["a=s3cr3t","b=s3cr3t2"]}')).not.toContain('s3cr3t');
+    expect(sanitizeLogMessage('{"cookie":{"session":"s3cr3t"}}')).not.toContain('s3cr3t');
+    expect(sanitizeLogMessage('cookie=s3cr3t; theme=dark')).not.toContain('s3cr3t');
+    expect(sanitizeLogMessage('authorization: Digest username="u", realm="r"')).toBe(
+      'authorization: [redacted]',
+    );
+    expect(sanitizeLogMessage('authorization: Token s3cr3t')).toBe('authorization: [redacted]');
+    expect(sanitizeLogMessage('Proxy-Authorization: Bearer abc.def')).toBe(
+      'Proxy-Authorization: [redacted]',
+    );
+  });
+
   it('leaves normal prose alone', () => {
+    expect(sanitizeLogMessage('The cookie crumbled while the page loaded.')).toBe(
+      'The cookie crumbled while the page loaded.',
+    );
+    expect(sanitizeLogMessage('Set-Cookie is a header name.')).toBe('Set-Cookie is a header name.');
     expect(sanitizeLogMessage('The key to success is patience.')).toBe(
       'The key to success is patience.',
     );
