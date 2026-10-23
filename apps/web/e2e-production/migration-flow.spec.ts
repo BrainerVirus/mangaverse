@@ -98,6 +98,18 @@ async function addToLibrary(page: Page, id: string, title: string) {
   await expect(page.getByRole('button', { name: 'Add to library' })).toHaveCount(0, {
     timeout: 20_000,
   });
+  // The button clears on the in-memory mutation; the next `goto` reloads the
+  // document and would drop a snapshot that has not committed yet.
+  await waitForPingQuiet(page);
+}
+
+/** Reloads the library so only committed adds can seed a later migration batch. */
+async function expectLibraryTitles(page: Page, titles: readonly string[]) {
+  await page.goto('/library');
+  const libraryTitles = page.getByRole('region', { name: 'Library titles' });
+  for (const title of titles) {
+    await expect(libraryTitles.getByText(title, { exact: true })).toBeVisible({ timeout: 20_000 });
+  }
 }
 
 async function installTargetProvider(page: Page) {
@@ -138,6 +150,10 @@ test('Given two library titles and a target provider without search, When migrat
   for (const title of TITLES) {
     await addToLibrary(page, title.id, title.title);
   }
+  await expectLibraryTitles(
+    page,
+    TITLES.map((title) => title.title),
+  );
 
   await installTargetProvider(page);
 
@@ -250,6 +266,10 @@ for (const viewport of [
       for (const title of [...TITLES, UNSELECTED]) {
         await addToLibrary(page, title.id, title.title);
       }
+      await expectLibraryTitles(
+        page,
+        [...TITLES, UNSELECTED].map((title) => title.title),
+      );
       await installTargetProvider(page);
 
       await migrateSelectionFromLibrary(
@@ -414,6 +434,10 @@ test('Given a searchable target provider, When a title is searched, Then the ran
   for (const title of TITLES) {
     await addToLibrary(page, title.id, title.title);
   }
+  await expectLibraryTitles(
+    page,
+    TITLES.map((title) => title.title),
+  );
   await installTargetProvider(page);
 
   // Seed a Demo Target source mapping through backup restore: only MangaDex

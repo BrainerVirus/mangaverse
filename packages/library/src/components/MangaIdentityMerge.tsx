@@ -413,6 +413,13 @@ function MergeDialog({
   const busy = isApplying || isPending || isLoadingPreview;
   const canConfirm = preview?.canMerge === true && !busy && previewError === undefined;
 
+  // The dialog stays mounted between openings, so a failed attempt from the
+  // last time must not greet the next one.
+  function close(): void {
+    setApplyError(undefined);
+    onClose();
+  }
+
   async function confirm(): Promise<void> {
     if (selection === undefined) return;
     const sourceId =
@@ -435,7 +442,7 @@ function MergeDialog({
     <Dialog
       open={selection !== undefined}
       onOpenChange={(open) => {
-        if (!open) onClose();
+        if (!open) close();
       }}
     >
       <DialogContent className="max-w-3xl">
@@ -461,7 +468,7 @@ function MergeDialog({
         )}
 
         <DialogFooter className="mt-6 gap-2">
-          <Button type="button" variant="outline" disabled={isApplying} onClick={onClose}>
+          <Button type="button" variant="outline" disabled={isApplying} onClick={close}>
             Cancel
           </Button>
           <Button type="button" disabled={!canConfirm} onClick={() => void confirm()}>

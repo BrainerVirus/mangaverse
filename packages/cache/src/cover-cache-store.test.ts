@@ -212,6 +212,59 @@ describe('cover cache store', () => {
     expect(cachedNew?.objectUrl).not.toBe(old?.objectUrl);
   });
 
+  it('Given an in-flight fetch for the old URL, When a new URL resolves for the same cover, Then they never share an object URL', async () => {
+    const { db } = await createSqlJsHarness();
+    const adapter = createMockAdapter();
+    let releaseOld: () => void = () => {};
+    const oldGate = new Promise<void>((resolve) => {
+      releaseOld = resolve;
+    });
+    let markOldStarted: () => void = () => {};
+    const oldStarted = new Promise<void>((resolve) => {
+      markOldStarted = resolve;
+    });
+
+    adapter.network.fetchBytes = async (url) => {
+      if (url.includes('/old.jpg')) {
+        markOldStarted();
+        await oldGate;
+      }
+      return ok({
+        data: new Uint8Array(url.includes('/old.jpg') ? [1] : [2]).buffer,
+        mimeType: 'image/jpeg',
+      });
+    };
+
+    const oldFetch = resolveCoverObjectUrl({
+      db,
+      adapter,
+      providerId: 'mangadex',
+      mangaId: 'dev-md-inflight',
+      remoteUrl: 'https://example.com/old.jpg',
+    });
+    await oldStarted;
+
+    // A shared in-flight key would make this await the gated old fetch and hand
+    // back its object URL, so the race reports the regression instead of hanging.
+    const newResult = await Promise.race([
+      resolveCoverObjectUrl({
+        db,
+        adapter,
+        providerId: 'mangadex',
+        mangaId: 'dev-md-inflight',
+        remoteUrl: 'https://example.com/new.jpg',
+      }),
+      new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 3_000)),
+    ]);
+
+    releaseOld();
+    const oldResult = await oldFetch;
+
+    expect(newResult?.objectUrl).toBeDefined();
+    expect(oldResult?.objectUrl).toBeDefined();
+    expect(newResult?.objectUrl).not.toBe(oldResult?.objectUrl);
+  });
+
   it('downloads remote cover bytes via platform network and stores blob URL', async () => {
     const { db } = await createSqlJsHarness();
     const blobStore = new Map<string, { data: ArrayBuffer; mimeType: string }>();

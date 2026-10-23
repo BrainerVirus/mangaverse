@@ -400,6 +400,43 @@ describe('MangaDetailPage', () => {
     expect(screen.queryByText('Beta chapter')).toBeNull();
   });
 
+  it('Given a restored active mapping without chapters, Then continue reading opens the stored last-read chapter', () => {
+    const onOpenChapter = vi.fn<(chapterId: unknown) => void>();
+    const detail = makeDetail({
+      manga: {
+        ...makeDetail().manga,
+        providerMappings: [
+          mapping(MAP_A, 'prov-a', 'remote-a'),
+          mapping(MAP_B, 'prov-b', 'remote-b'),
+        ],
+        defaultProviderMappingId: toProviderMappingId(MAP_A),
+      },
+      // Only the previous mapping has local chapters; the restored active
+      // mapping has not been hydrated yet.
+      chapters: [chapter('a-1', 1, MAP_A)],
+      libraryEntry: {
+        ...inLibrary,
+        activeProviderMappingId: toProviderMappingId(MAP_B),
+        lastReadChapterId: toChapterId('a-1'),
+      },
+    });
+
+    render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={detail}
+        isLoading={false}
+        isError={false}
+        providerLabels={{ 'prov-a': 'Provider A', 'prov-b': 'Provider B' }}
+        onOpenChapter={onOpenChapter}
+        onSelectProvider={async () => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue reading' }));
+    expect(onOpenChapter).toHaveBeenCalledWith(toChapterId('a-1'));
+  });
+
   it('shows tracking links only when the title carries them', () => {
     const withTracking = makeDetail({
       manga: {
@@ -936,6 +973,54 @@ describe('MangaDetailPage identity merge', () => {
     const dialog = await screen.findByRole('dialog');
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('Preview failed');
     expect(within(dialog).getByRole('button', { name: 'Merge titles' })).toBeDisabled();
+  });
+
+  it('Given a failed merge, When the dialog is closed and reopened, Then the stale error is cleared', async () => {
+    const onMerge = vi.fn<(input: { targetId: string; sourceId: string }) => Promise<void>>(
+      async () => {
+        throw new Error('Merge failed');
+      },
+    );
+
+    render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={makeDetail({ libraryEntry: inLibrary })}
+        isLoading={false}
+        isError={false}
+        onOpenChapter={() => {}}
+        duplicates={{ items: [duplicateCandidate] }}
+        onMerge={onMerge}
+        loadMergePreview={async () => mergePreview()}
+      />,
+    );
+
+    const openMerge = async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Merge' }));
+      const dialog = await screen.findByRole('dialog');
+      await within(dialog).findByRole('region', { name: 'Kept title' });
+      return dialog;
+    };
+
+    const dialog = await openMerge();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Merge titles' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Merge failed');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    const reopened = await openMerge();
+    expect(within(reopened).queryByRole('alert')).toBeNull();
+
+    // Escape goes through the dialog's onOpenChange path instead of the
+    // footer button, so both dismissals have to clear the failed attempt.
+    fireEvent.click(within(reopened).getByRole('button', { name: 'Merge titles' }));
+    expect(await within(reopened).findByRole('alert')).toHaveTextContent('Merge failed');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    const reopenedAgain = await openMerge();
+    expect(within(reopenedAgain).queryByRole('alert')).toBeNull();
   });
 
   it('Given a failed split, When the dialog is closed and reopened, Then the stale error is cleared', async () => {
