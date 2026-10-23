@@ -61,11 +61,13 @@ function provider(chapters: number, prefix: string): ProviderContract {
 
 async function seed(): Promise<{
   db: Awaited<ReturnType<typeof createSqlJsHarness>>['db'];
+  raw: Awaited<ReturnType<typeof createSqlJsHarness>>['raw'];
   mangaId: MangaId;
   sourceMappingId: ProviderMappingId;
   targetMapping?: MangaProviderMapping;
 }> {
-  const { db } = await createSqlJsHarness();
+  const harness = await createSqlJsHarness();
+  const { db } = harness;
   const created = await createMangaIdentityWithInitialMapping(db, {
     canonicalTitle: 'Manga One',
     status: 'ongoing',
@@ -88,7 +90,12 @@ async function seed(): Promise<{
     if (!written.ok) throw new Error(written.error.message);
   }
   await refreshLibraryUnreadCount(db, created.value.mangaId, created.value.mappingId);
-  return { db, mangaId: created.value.mangaId, sourceMappingId: created.value.mappingId };
+  return {
+    db,
+    raw: harness.raw,
+    mangaId: created.value.mangaId,
+    sourceMappingId: created.value.mappingId,
+  };
 }
 
 async function targetMapping(
@@ -181,6 +188,27 @@ describe('switching to an empty mapping', () => {
 
     // The late hydration belongs to A; B's badge must survive it.
     expect((await getLibraryEntryForManga(db, mangaId))?.unreadCount).toBe(0);
+  });
+
+  it('Given a dangling active mapping id, When the default mapping hydrates, Then the badge still follows that mapping', async () => {
+    const { db, raw, mangaId, sourceMappingId } = await seed();
+    // A restored or partially migrated row can point at a mapping that is no
+    // longer attached; display and unread recompute both fall back to the
+    // default mapping, so hydration must judge activity the same way.
+    raw.run('UPDATE library_entries SET active_provider_mapping_id = ? WHERE manga_id = ?', [
+      'deleted-mapping',
+      mangaId,
+    ]);
+    raw.run('UPDATE library_entries SET unread_count = 99 WHERE manga_id = ?', [mangaId]);
+
+    mocks.resolveInstalledProvider.mockResolvedValue(provider(0, 'empty'));
+    await hydrateProviderChaptersForMapping(db, mangaId, {
+      id: sourceMappingId,
+      providerId: toProviderId('prov-a'),
+      providerMangaId: 'remote-a',
+    });
+
+    expect((await getLibraryEntryForManga(db, mangaId))?.unreadCount).toBe(2);
   });
 
   it('Given a provider without chapter support, When hydration is skipped, Then the stored badge still follows that mapping', async () => {

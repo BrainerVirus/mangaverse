@@ -312,11 +312,20 @@ async function isActiveMapping(
     getLibraryEntryForManga(db, mangaId),
     getMangaIdentity(db, mangaId),
   ]);
-  const activeId =
+  const preferredId =
     entry?.activeProviderMappingId ??
     manga?.preferredChapterSourceId ??
     manga?.defaultProviderMappingId;
-  return activeId === mappingId;
+  // A stale active id (for example a restored row whose mapping is gone) must
+  // resolve exactly like the detail page and the unread recompute: fall back to
+  // the default mapping, then the first attached one, instead of pinning the
+  // badge to a mapping that no longer exists.
+  const mappings = manga?.providerMappings ?? [];
+  const resolvedId =
+    mappings.find((mapping) => mapping.id === preferredId)?.id ??
+    mappings.find((mapping) => mapping.id === manga?.defaultProviderMappingId)?.id ??
+    mappings[0]?.id;
+  return (resolvedId ?? preferredId) === mappingId;
 }
 
 /**

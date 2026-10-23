@@ -79,18 +79,40 @@ describe('rankDuplicateCandidates', () => {
   it('Given self, merged and mapping-less rows, When ranking, Then they are excluded and the rest are capped', () => {
     const candidates = [
       profile({ id: 'target', canonicalTitle: 'Kuro no Shoukanshi' }),
-      profile({ id: 'merged', canonicalTitle: 'Kuro no Shoukanshi', merged: true }),
-      profile({ id: 'no-mapping', canonicalTitle: 'Kuro no Shoukanshi', providerIds: [] }),
+      // The excluded ids sort before the real duplicates, so dropping the
+      // exclusion filter would put them in the capped list instead of hiding
+      // them behind the limit.
+      profile({ id: 'aaa-merged', canonicalTitle: 'Kuro no Shoukanshi', merged: true }),
+      profile({
+        id: 'aaa-no-mapping',
+        canonicalTitle: 'Kuro no Shoukanshi',
+        providerIds: [],
+      }),
       ...Array.from({ length: 8 }, (_, index) =>
         profile({ id: `dupe-${index}`, canonicalTitle: 'Kuro no Shoukanshi' }),
       ),
     ];
     const ranked = rankDuplicateCandidates(target, candidates);
+    expect(ranked.map((candidate) => candidate.mangaId)).toEqual([
+      'dupe-0',
+      'dupe-1',
+      'dupe-2',
+      'dupe-3',
+      'dupe-4',
+    ]);
     expect(ranked).toHaveLength(DUPLICATE_CANDIDATE_LIMIT);
     expect(ranked.map((candidate) => candidate.mangaId)).not.toContain('target');
-    expect(ranked.map((candidate) => candidate.mangaId)).not.toContain('merged');
-    expect(ranked.map((candidate) => candidate.mangaId)).not.toContain('no-mapping');
+    expect(ranked.map((candidate) => candidate.mangaId)).not.toContain('aaa-merged');
+    expect(ranked.map((candidate) => candidate.mangaId)).not.toContain('aaa-no-mapping');
     expect(ranked[0]?.providerIds).toEqual(['alpha']);
+  });
+
+  it('Given an identity with no provider mappings, When ranking, Then it can never be a merge candidate', () => {
+    const ranked = rankDuplicateCandidates(target, [
+      profile({ id: 'aaa-no-mapping', canonicalTitle: 'Kuro no Shoukanshi', providerIds: [] }),
+      profile({ id: 'dupe', canonicalTitle: 'Kuro no Shoukanshi' }),
+    ]);
+    expect(ranked.map((candidate) => candidate.mangaId)).toEqual(['dupe']);
   });
 
   it('Given equal scores, When ranking, Then title order breaks ties first and ids break equal titles', () => {

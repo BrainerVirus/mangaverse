@@ -716,6 +716,73 @@ describe('mergeMangaIdentities', () => {
     raw.close();
   });
 
+  it('Given both sides read, When the target read event is newer, Then the target progress wins despite a later source edit', async () => {
+    const harness = await createSqlJsHarness();
+    const { raw, db } = harness;
+    const { target, source } = await bothIdentities(harness);
+    seedChapter(raw, {
+      id: 'target-chapter-1',
+      mangaId: 'target',
+      mappingId: 'target-mapping',
+      providerId: 'alpha',
+      index: 1,
+    });
+    seedChapter(raw, {
+      id: 'source-chapter-1',
+      mangaId: 'source',
+      mappingId: 'source-mapping',
+      providerId: 'beta',
+      index: 1,
+    });
+    seedReadState(raw, {
+      chapterId: 'target-chapter-1',
+      mangaId: 'target',
+      mappingId: 'target-mapping',
+      completed: false,
+      readPercent: 45,
+      updatedAt: '2026-05-01T00:00:00.000Z',
+    });
+    seedReadState(raw, {
+      chapterId: 'source-chapter-1',
+      mangaId: 'source',
+      mappingId: 'source-mapping',
+      completed: true,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    seedLibraryEntry(raw, {
+      id: 'entry-target',
+      mangaId: 'target',
+      status: 'reading',
+      lastReadChapterId: 'target-chapter-1',
+      activeMappingId: 'target-mapping',
+      progressPercent: 45,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    // A later favorite/status-style edit on the source must not outrank the
+    // target's newer read event.
+    seedLibraryEntry(raw, {
+      id: 'entry-source',
+      mangaId: 'source',
+      favorite: true,
+      status: 'completed',
+      lastReadChapterId: 'source-chapter-1',
+      progressPercent: 100,
+      updatedAt: '2026-06-01T00:00:00.000Z',
+    });
+
+    const result = await mergeMangaIdentities(db, { targetId: target, sourceId: source });
+    expect(result.ok).toBe(true);
+    const entry = await getLibraryEntryForManga(db, target);
+    expect(entry).toMatchObject({
+      favorite: true,
+      status: 'completed',
+      lastReadChapterId: 'target-chapter-1',
+      progressPercent: 45,
+      activeProviderMappingId: 'target-mapping',
+    });
+    raw.close();
+  });
+
   it('Given only one side read, When the other side was only edited more recently, Then the read progress survives in both directions', async () => {
     const harness = await createSqlJsHarness();
     const { raw, db } = harness;
@@ -1077,6 +1144,30 @@ describe('previewMergeMangaIdentities', () => {
     expect(reverse.issues.map((issue) => issue.code)).not.toContain(
       'identity.merge.progress_differs',
     );
+    raw.close();
+  });
+
+  it('Given neither title has a last-read chapter, When one stores a percentage, Then the preview warns that progress is dropped', async () => {
+    const harness = await createSqlJsHarness();
+    const { raw, db } = harness;
+    const { target, source } = await bothIdentities(harness);
+    seedLibraryEntry(raw, {
+      id: 'entry-target',
+      mangaId: 'target',
+      status: 'reading',
+      progressPercent: 40,
+    });
+    seedLibraryEntry(raw, {
+      id: 'entry-source',
+      mangaId: 'source',
+      status: 'planned',
+    });
+
+    const forward = await previewMergeMangaIdentities(db, target, source);
+    const reverse = await previewMergeMangaIdentities(db, source, target);
+    expect(forward.issues.map((issue) => issue.code)).toContain('identity.merge.progress_differs');
+    expect(reverse.issues.map((issue) => issue.code)).toContain('identity.merge.progress_differs');
+    expect(forward.canMerge).toBe(true);
     raw.close();
   });
 });
