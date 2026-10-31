@@ -15,7 +15,7 @@
     "build": "turbo run build",
     "doctor": "react-doctor --yes --no-telemetry",
     "knip": "knip",
-    "dev:web": "pnpm --filter @app/web dev",
+    "dev:web": "turbo run dev --filter=@app/web",
     "dev:desktop": "pnpm --filter @app/desktop dev",
     "dev": "pnpm dev:web",
     "clean": "turbo run clean"
