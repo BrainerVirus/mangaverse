@@ -42,7 +42,8 @@ Two products share one UI and one set of recipes:
   using approved recipes, and works on phones as an installable PWA. It may never match Electron.
 
 There will never be a native mobile app. An optional account syncs library metadata and shareable
-settings between devices. Page images never leave the device, and the host stores no pages.
+settings between devices. Page images are never synced, and the host never stores or shares them. The
+web gateway only streams them through to the user who asked.
 
 ```text
 ┌─ Electron ──────────────────────┐     ┌─ Website (invite-only) ───────┐
@@ -58,23 +59,23 @@ settings between devices. Page images never leave the device, and the host store
 
 ## Decisions
 
-| #   | Decision                                                                                                   | Why                                                                                    |
-| --- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| D1  | Electron first. Website later. No native mobile, ever.                                                     | Electron has no platform limits, so the core can be proven without compromises.        |
-| D2  | Electron needs no account or external service for any local feature or provider access.                    | The app must keep working if every hosted service disappears.                          |
-| D3  | One UI and one recipe format, with platform services for data, network and files behind interfaces.        | The website reuses the product instead of forking it.                                  |
-| D4  | No hosted pages or shared page cache. Sync carries metadata and settings only.                             | Hosting copies makes the host a distributor. Metadata is light and the most important. |
-| D5  | Recipe providers first: data, not code. Only the owner approves recipes for web; Electron can install any. | Recipes cannot run arbitrary code, and web recipes use a shared gateway.               |
-| D6  | Web uses Supabase for invite-only accounts and a Cloudflare gateway, with no Vercel or Redis.              | Free at small scale. Gated on a real-site test the owner has deferred.                 |
-| D7  | No rotating hosts or proxy pools to evade blocks, no spoofing, and no anti-bot circumvention.              | Respects site decisions and protects accounts.                                         |
-| D8  | Drop SSR for web. Electron and web load a client-rendered shell.                                           | The database is on the client, so SSR renders nothing useful.                          |
-| D9  | Repositories run in one data host: an Electron utility process, later a browser Worker.                    | Keeps the UI responsive and removes snapshot merging. Needs ADR 0001.                  |
-| D10 | `useState` and `try/catch` banned by lint with a shrinking baseline, replaced by a local reducer hook.     | Stops new violations while old ones are migrated.                                      |
-| D11 | Effect 4 for I/O modules only. Zod stays for schemas. TanStack stays for routing and queries.              | I/O needs retries, cancellation and typed errors; rendering and gestures do not.       |
-| D12 | Consolidate to about 8 packages. Advanced features move under an "Advanced" section.                       | Removes seams nothing varies across and simplifies first use.                          |
-| D13 | Telemetry is local-only and redacted. Nothing leaves the device.                                           | Reading data is private.                                                               |
-| D14 | Reader has three levels: defaults, quick panel, advanced.                                                  | Great with no setup, with every detail tunable.                                        |
-| D15 | Rewrite `DESIGN.md` for playful, welcoming liquid glass. Concept screens are approved before UI code.      | Replaces "calm, deep", which conflicts with the goal.                                  |
+| #   | Decision                                                                                                                           | Why                                                                                    |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| D1  | Electron first. Website later. No native mobile, ever.                                                                             | Electron has no platform limits, so the core can be proven without compromises.        |
+| D2  | Electron needs no account or external service for any local feature or provider access.                                            | The app must keep working if every hosted service disappears.                          |
+| D3  | One UI and one recipe format, with platform services for data, network and files behind interfaces.                                | The website reuses the product instead of forking it.                                  |
+| D4  | No persistently hosted pages or shared page cache. Sync carries metadata and settings only. Web gateway streams pages transiently. | Hosting copies makes the host a distributor. Metadata is light and the most important. |
+| D5  | Recipe providers first: data, not code. Only the owner approves recipes for web; Electron can install any.                         | Recipes cannot run arbitrary code, and web recipes use a shared gateway.               |
+| D6  | Web uses Supabase for invite-only accounts and a Cloudflare gateway, with no Vercel or Redis.                                      | Free at small scale. Gated on a real-site test the owner has deferred.                 |
+| D7  | No rotating hosts or proxy pools to evade blocks, no spoofing, and no anti-bot circumvention.                                      | Respects site decisions and protects accounts.                                         |
+| D8  | Drop SSR for web. Electron and web load a client-rendered shell.                                                                   | The database is on the client, so SSR renders nothing useful.                          |
+| D9  | Repositories run in one data host: an Electron utility process, later a browser Worker.                                            | Keeps the UI responsive and removes snapshot merging. Needs ADR 0001.                  |
+| D10 | `useState` and `try/catch` banned by lint with a shrinking baseline, replaced by a local reducer hook.                             | Stops new violations while old ones are migrated.                                      |
+| D11 | Effect 4 for I/O modules only. Zod stays for schemas. TanStack stays for routing and queries.                                      | I/O needs retries, cancellation and typed errors; rendering and gestures do not.       |
+| D12 | Consolidate to about 8 packages. Advanced features move under an "Advanced" section.                                               | Removes seams nothing varies across and simplifies first use.                          |
+| D13 | Telemetry is local-only and redacted. Nothing leaves the device.                                                                   | Reading data is private.                                                               |
+| D14 | Reader has three levels: defaults, quick panel, advanced.                                                                          | Great with no setup, with every detail tunable.                                        |
+| D15 | Rewrite `DESIGN.md` for playful, welcoming liquid glass. Concept screens are approved before UI code.                              | Replaces "calm, deep", which conflicts with the goal.                                  |
 
 ## Limits the product must state plainly
 
@@ -89,7 +90,7 @@ settings between devices. Page images never leave the device, and the host store
 
 ## Not audited yet
 
-Electron launch and packaging, real iOS and Android devices, dark mode, and real pinch and swipe. Each
+Packaged Electron launch, real iOS and Android devices, dark mode, and real pinch and swipe. Each
 is checked when its spec ships.
 
 ## Out of scope

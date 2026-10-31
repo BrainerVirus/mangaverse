@@ -21,6 +21,11 @@ These rules apply to every platform. Electron ships them first; web limits are i
 | O7  | Users set a cache limit; non-downloaded pages leave first, least recently used.      | Disk use stays predictable.                              |
 | O8  | Downloads resume per page after a restart and respect provider rate limits.          | Failed pages retry without restarting the chapter.       |
 
+### Query budgets
+
+Dataset: seeded 1,000 titles and 200,000 chapters. In CI, a test records query plans and fails on a table
+scan of a key query. Timing budgets from spec 4 are measured on the reference machine at each milestone end.
+
 ## Behavior
 
 - Given a downloaded chapter and no network, When it opens, Then every page renders.
@@ -31,7 +36,7 @@ These rules apply to every platform. Electron ships them first; web limits are i
 - Given a full disk, When a page save fails, Then the user is told and offered storage management.
 - Given the cache limit is reached, When eviction runs, Then downloads are kept and the oldest cached pages leave first.
 - Given a removed download, When removal finishes, Then disk use and the UI agree.
-- Given a large library, When key queries run in tests, Then they stay inside their budgets.
+- Given the seeded dataset, When key queries run in tests, Then their plans use indexes and they page results.
 - Given a user adds a title, When saved, Then it appears immediately even if the network fails.
 
 ## Decide after testing

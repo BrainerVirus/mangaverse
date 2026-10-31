@@ -18,7 +18,7 @@ with limits per IP. A page load with no server fails, and storage is limited by 
 | W3  | The gateway only fetches and caches. Recipes run on the device.                                                                     | Parsing avoids Workers' 10 ms CPU limit, and recipes stay shared with Electron.   |
 | W4  | Route order per recipe: local data, direct where CORS allows, then gateway.                                                         | Avoids the shared route when it can.                                              |
 | W5  | Only owner-approved recipes run through the gateway.                                                                                | They use a shared IP and the owner's account.                                     |
-| W6  | Metadata may be cached briefly on the gateway. Pages are streamed and never stored.                                                 | Reduces traffic without hosting pages (D4).                                       |
+| W6  | Metadata may be cached briefly on the gateway. Pages are streamed to the requester and never stored.                                | Reduces traffic without hosting pages (D4).                                       |
 | W7  | Limits: allowlisted hosts, no private addresses, bounded size and time, per-user and per-site rate limits, and a daily budget stop. | The gateway must not become an open proxy.                                        |
 | W8  | SQLite in a Worker with one owning tab; pages as OPFS files. Needs a phone test and ADR.                                            | Same data-host shape as Electron. Hard to reverse on web.                         |
 | W9  | Client-rendered shell with a service worker. Updates ask first.                                                                     | Offline start, with no reader swapped mid-chapter.                                |
@@ -62,6 +62,7 @@ day. Workers Paid starts at $5 a month. Verify limits again when this starts.
 
 ## Behavior
 
+- Given the web build, When SSR is dropped, Then Nitro remains only if the host needs it for the gateway, and the shell is static.
 - Given no account, When the website opens, Then sign-in is required and no gateway request succeeds.
 - Given an uninvited sign-up, When attempted, Then it is refused.
 - Given a disabled user, When their token is used, Then the gateway refuses it soon after.
@@ -80,4 +81,4 @@ day. Workers Paid starts at $5 a month. Verify limits again when this starts.
 
 ## Out of scope
 
-Public launch, rotating hosts, hosted pages, and a paired helper until real need appears.
+Public launch, rotating hosts, persistently hosted pages, and a paired helper, which was rejected.

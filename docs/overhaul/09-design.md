@@ -23,13 +23,15 @@ direction conflicts with the playful, welcoming look the owner wants.
 | V9  | Platform touches: touch-first on phones, hover and keyboard on desktop, native window controls in Electron. | Same design, adapted to each platform.                       |
 | V10 | Devices that cannot afford blur fall back to solid surfaces.                                                | Keeps it smooth on low-end phones.                           |
 
+Functional repairs in earlier milestones use existing tokens and need no concept approval; they are restyled here.
+
 ## Behavior
 
 - Given a concept screen, When it is not approved, Then no UI code starts for it.
 - Given any surface, When it is built, Then it uses tokens and no raw colors.
 - Given a registry component, When it is added, Then its license and source are recorded.
 - Given reduced motion, When any animation would run, Then its end state shows at once.
-- Given a weak device, When glass would hurt performance, Then a solid surface shows and text stays readable.
+- Given the existing reduced glass profile or reduced transparency, When a surface renders, Then it is solid and text stays readable.
 - Given light and dark themes, When text sits on any surface, Then it meets WCAG AA contrast.
 - Given reading is active, When nothing is being interacted with, Then nothing moves on screen.
 

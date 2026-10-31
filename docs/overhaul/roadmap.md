@@ -18,6 +18,9 @@ Milestones 3 and 4 can run in parallel, and concept screens for milestone 7 can 
 
 ## Rules for every milestone
 
+- Milestones 1-6 make functional UI repairs with existing tokens: status pages, toasts, layouts and reader
+  controls. They need no concept approval. Milestone 7 restyles them, and concept approval gates only that.
+- Milestone 2 replaces the forked Nitro server in Electron (X11). Dropping SSR on web happens in milestone 8.
 - Live proof runs against the real app, not only mocks.
 - Implementers, verifiers and reviewers use the models in the Workit config, set explicitly at launch.
 - Authors never verify their own work.
