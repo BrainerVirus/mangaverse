@@ -16,7 +16,7 @@ direction conflicts with the playful, welcoming look the owner wants.
 | V2  | Larger radii, one vivid accent, springy motion.                                                             | These carry most of the playful feel.                        |
 | V3  | Glass only on floating controls and over real content. Content surfaces stay solid.                         | Glass needs something behind it, and blur costs performance. |
 | V4  | Reader stays calm: an undistracted stage, with glass only on its controls.                                  | Reading comes first.                                         |
-| V5  | Three concept screens approved first: Library, Manga detail, Reader.                                        | Agrees the look before any code.                             |
+| V5  | Three concept screens approved before the redesign: Library, Manga detail, Reader.                          | Agrees the look before any code.                             |
 | V6  | Rewrite `DESIGN.md` as a short source of truth, merging `docs/Design.md` into it.                           | One authority that people and agents will actually read.     |
 | V7  | One in-repo shadcn registry: vendored, license-checked, restyled to tokens.                                 | Mixed sources otherwise look inconsistent.                   |
 | V8  | CSS and `tailwind-animations` for micro-animation; GSAP through `@app/motion` for choreography.             | `@midudev/tailwind-animations` is deprecated in its favor.   |
@@ -27,7 +27,7 @@ Functional repairs in earlier milestones use existing tokens and need no concept
 
 ## Behavior
 
-- Given a concept screen, When it is not approved, Then no UI code starts for it.
+- Given a concept screen, When it is not approved, Then no redesign work starts for it. Functional repairs are unaffected.
 - Given any surface, When it is built, Then it uses tokens and no raw colors.
 - Given a registry component, When it is added, Then its license and source are recorded.
 - Given reduced motion, When any animation would run, Then its end state shows at once.

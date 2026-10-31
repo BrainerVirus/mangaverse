@@ -75,7 +75,7 @@ web gateway only streams them through to the user who asked.
 | D12 | Consolidate to about 8 packages. Advanced features move under an "Advanced" section.                                               | Removes seams nothing varies across and simplifies first use.                          |
 | D13 | Telemetry is local-only and redacted. Nothing leaves the device.                                                                   | Reading data is private.                                                               |
 | D14 | Reader has three levels: defaults, quick panel, advanced.                                                                          | Great with no setup, with every detail tunable.                                        |
-| D15 | Rewrite `DESIGN.md` for playful, welcoming liquid glass. Concept screens are approved before UI code.                              | Replaces "calm, deep", which conflicts with the goal.                                  |
+| D15 | Rewrite `DESIGN.md` for playful, welcoming liquid glass. Concept screens are approved before the visual redesign.                  | Replaces "calm, deep", which conflicts with the goal.                                  |
 
 ## Limits the product must state plainly
 
