@@ -1,24 +1,19 @@
 # App overhaul - plan
 
-Decisions and behavior are in `spec.md`. Each wave starts after the previous one lands.
+Status: draft. No wave starts until the owner approves the specs. Each wave starts after the previous
+one lands, except where noted.
 
-| Wave | Work                                                                                                                                  | Shape                           |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| 1    | Telemetry log; status pages, Sonner and query middleware; proxy and live smoke test; responsive fixes; lint baseline and reducer hook | Parallel, one PR per slice      |
-| 2    | Deslop and package consolidation (D9, D10)                                                                                            | One owner; touches all imports  |
-| 3    | Provider gateway on Effect 4 (D8), migrating state and error violations module by module                                              | Parallel by module              |
-| 4    | Offline runtime: drop SSR (D3), service worker and manifest, OPFS (D4), chapter downloads                                             | Stacked; ADR first              |
-| 5    | Reader engine (D5): decode-ahead, virtualized strip, gestures outside React state, webtoon detection                                  | One owner, then parallel polish |
-| 6    | Design reset (D6, D11): concept screens approved, `DESIGN.md` rewritten, registry, then screens                                       | Parallel by surface             |
+| Wave | Spec | Work                                                                                                     | Shape                                |
+| ---- | ---- | -------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| 1    | 1, 2 | Telemetry log, then feedback layer; layout fixes                                                         | Parallel, one PR per slice           |
+| 2    | 3    | Lint baseline and reducer hook, then deslop and consolidation                                            | One owner for consolidation          |
+| 3    | 4    | Transport seam and manifest domains; proxy and live check; recipes; extension                            | Stacked, then parallel               |
+| 4    | 5    | Query speed; SPA shell and service worker; phone test and ADR; Worker database; OPFS pages and downloads | Stacked                              |
+| 5    | 6    | Reader engine, then settings and polish                                                                  | One owner, then parallel             |
+| 6    | 7    | Concept screens, `DESIGN.md`, registry, then surfaces                                                    | Blocked on references, then parallel |
+| 7    | 4    | Electron helper, then headless helper and pairing                                                        | After the web flow works             |
 
-## Wave 1 slices
+Effect and state migrations (spec 3) happen inside waves 3-5 as each module is touched.
 
-| Slice            | Branch                       | Depends on | Acceptance summary                                                                |
-| ---------------- | ---------------------------- | ---------- | --------------------------------------------------------------------------------- |
-| `telemetry-log`  | `feat/telemetry-log`         | -          | Bounded, redacted, local event log; viewable and exportable in Diagnostics        |
-| `feedback-layer` | `feat/feedback-layer`        | telemetry  | `AppError`, Sonner wrapper, status pages, query middleware, undefined-query fixes |
-| `provider-proxy` | `feat/provider-proxy`        | -          | Allowlisted API and image proxy; direct transport kept; scheduled live smoke test |
-| `responsive-fix` | `fix/responsive-audit`       | -          | 320px overflow gone, 44px touch targets, detail layout, virtualized chapter list  |
-| `lint-baseline`  | `chore/state-error-baseline` | -          | Reducer hook; `useState` and `try/catch` frozen at a shrinking baseline           |
-
-Live proof for each slice runs against the production build on a `localhost` origin, not only mocks.
+Live proof for each slice runs against a production build, not only mocks. Implementers, verifiers and
+reviewers run on the models in the Workit config, set explicitly at launch.
