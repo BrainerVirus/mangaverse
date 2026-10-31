@@ -6,6 +6,7 @@
       "outputs": ["dist/**", ".vinxi/**", ".output/**"]
     },
     "dev": {
+      "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
     },
