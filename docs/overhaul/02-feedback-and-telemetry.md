@@ -1,4 +1,4 @@
-# 1. Feedback and telemetry - spec
+# 2. Feedback and telemetry - spec
 
 ## Problem
 
@@ -27,7 +27,7 @@ Nothing reports saving, failure or retry, and failures leave no record.
 | Silent log  | Background work the user did not ask for    | A refresh failed while cached data is showing                  |
 
 Middleware layers: query and mutation cache (classify, log, toast); router (status pages through
-error, not-found and pending boundaries); proxy server (spec 4).
+error, not-found and pending boundaries); gateway (spec 10).
 
 Log events: `error`, `slow-provider-call`, `reader-timing`. Users can view, filter, clear and export
 them in Diagnostics.
@@ -53,4 +53,4 @@ them in Diagnostics.
 ## Out of scope
 
 Remote telemetry or crash reporting. A separate public `/status` route: Diagnostics shows system state.
-Final styling, which spec 7 handles.
+Final styling, which spec 9 handles.

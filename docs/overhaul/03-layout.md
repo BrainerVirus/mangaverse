@@ -1,4 +1,4 @@
-# 2. Layout - spec
+# 3. Layout - spec
 
 ## Problem
 
@@ -11,7 +11,7 @@ labels show. All 138 chapter rows render at once.
 
 | #   | Decision                                                    | Why                                                   |
 | --- | ----------------------------------------------------------- | ----------------------------------------------------- |
-| L1  | Structural fixes only. The look changes in spec 7.          | Working layouts make the redesign safer.              |
+| L1  | Structural fixes only. The look changes in spec 9.          | Working layouts make the redesign safer.              |
 | L2  | Larger targets on coarse pointers only.                     | Desktop stays dense; touch stays comfortable.         |
 | L3  | Virtualize the chapter list with `@tanstack/react-virtual`. | Already used for the library grid; no new dependency. |
 

@@ -1,4 +1,4 @@
-# 7. Design - spec
+# 9. Design - spec
 
 Status: blocked on visual references from the owner.
 

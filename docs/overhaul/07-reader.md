@@ -1,4 +1,4 @@
-# 6. Reader - spec
+# 7. Reader - spec
 
 ## Problem
 
