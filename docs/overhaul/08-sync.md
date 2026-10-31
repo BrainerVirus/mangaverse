@@ -45,7 +45,11 @@ release, because progress covers the need and history grows quickly.
 | Library entry, overrides                                       | Identity UUID                                                              |
 | Category membership                                            | Identity UUID plus category UUID                                           |
 | Installed extension                                            | Provider ID                                                                |
-| Settings                                                       | Setting key                                                                |
+| Alternate title                                                | Identity UUID plus locale plus value                                       |
+| Tracking link                                                  | Identity UUID plus service                                                 |
+| Reader or theme preferences                                    | Row ID: the global ID, or the per-title ID derived from identity UUID      |
+| App setting                                                    | Setting key                                                                |
+| Provider setting                                               | Provider ID plus setting key                                               |
 
 - **Same manga added on two devices:** both create an identity with the same mapping key. The lowest UUID
   wins on every device, and the other identity becomes a redirect to it, so dependents remap automatically.
