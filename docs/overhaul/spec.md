@@ -1,100 +1,99 @@
 # App overhaul - spec
 
-Supersedes the sequence in `docs/recovery/` where they conflict. `docs/SPEC.md` still lists the
-product's features; this file sets priority and the rules for finishing them.
+This is the umbrella spec. It wins over `docs/recovery/` where they conflict. `docs/SPEC.md` still lists
+the product's features; these files set priority and the rules for finishing them. Delivery order and
+issues are in [roadmap.md](roadmap.md). Current state for the next session is in
+[handoff.md](handoff.md).
+
+| Spec                                                          | Covers                                             |
+| ------------------------------------------------------------- | -------------------------------------------------- |
+| [1. Engineering rules](01-engineering-rules.md)               | State and error bans, Effect, deslop, packages     |
+| [2. Feedback and telemetry](02-feedback-and-telemetry.md)     | Status pages, Sonner, middleware, local log        |
+| [3. Layout](03-layout.md)                                     | Responsive fixes on current screens                |
+| [4. Electron runtime](04-electron-runtime.md)                 | Data process, native storage, network, packaging   |
+| [5. Providers](05-providers.md)                               | Transport, manifest domains, recipes, user install |
+| [6. Local data and downloads](06-local-data-and-downloads.md) | Query speed, local-first reads, downloads          |
+| [7. Reader](07-reader.md)                                     | Reader engine and settings                         |
+| [8. Sync](08-sync.md)                                         | Metadata and config sync between devices           |
+| [9. Design](09-design.md)                                     | Playful liquid glass and the component registry    |
+| [10. Web](10-web.md)                                          | Invite-only accounts, gateway, PWA, offline web    |
 
 ## Problem
 
-A live audit (2026-10-31) found the app passes its suite but does not meet the product goal:
+A live audit (2026-10-31) found the app passes its suite but misses the product goal:
 
-- Deployed web cannot reach MangaDex. Its API sends CORS headers only to `localhost` and its own
-  site, and its documentation requires other sites to proxy API and image requests. Discover goes
-  blank with no error when this fails.
-- A page load with no server fails: no service worker, no manifest, and SSR that renders no data.
-- Failures leak raw text, such as `["manga-detail-chapters",…] data is undefined`. Nothing tells
-  users when work is saving, failed or retrying.
-- Most E2E specs mock the network, so the suite cannot detect the problems above.
-- The reader opens slowly (about 2.1s), page turns reach 708ms, webtoons are not detected, and its
-  controls cover 20% of a phone screen on open.
-- Layouts break on phones and tablets. The look is matte white, not playful liquid glass.
-- 12 of 21 packages have a single consumer, and several add no depth.
+- Deployed web cannot reach MangaDex, and a page load with no server fails.
+- Downloads do not exist. Third-party providers cannot run; installing one only stores its manifest.
+- Failures leak raw text, and nothing tells users when work is saving, failed or retrying.
+- Most E2E specs mock the network, so the suite cannot detect these problems.
+- The reader opens slowly (about 2.1s), page turns reach 708ms, and webtoons are not detected.
+- Layouts break at small sizes. The look is matte white, not playful liquid glass.
+- 12 of 21 packages have one consumer, and several add no depth.
+- Electron runs the web app unchanged: browser SQLite, renderer network calls, and no packaging.
+
+## Product position
+
+Two products share one UI and one set of recipes:
+
+- **Electron is built first and is the complete product.** It runs on the device with native storage,
+  direct network requests from the user's own IP, background downloads and user-installed providers.
+  It needs no account and no external service to work.
+- **The website comes later: free and invite-only.** It reaches providers through a Cloudflare gateway
+  using approved recipes, and works on phones as an installable PWA. It may never match Electron.
+
+There will never be a native mobile app. An optional account syncs library metadata and shareable
+settings between devices. Page images are never synced, and the host never stores or shares them. The
+web gateway only streams them through to the user who asked.
+
+```text
+┌─ Electron ──────────────────────┐     ┌─ Website (invite-only) ───────┐
+│ UI and recipes                  │     │ UI and recipes                │
+│ Data process: native SQLite     │     │ Worker: browser SQLite        │
+│ Page files on disk              │     │ OPFS page files               │
+│ Network from the main process   │     │ Login and Cloudflare gateway  │
+└───────┬───────────────┬─────────┘     └───────┬───────────────┬───────┘
+        │ own IP        │ optional              │ shared IP     │
+        ▼               ▼                       ▼               ▼
+   Provider sites    Supabase ◄─── metadata sync ───────► Provider sites
+```
 
 ## Decisions
 
-| #   | Decision                                                                                                                                                                                                           | Why                                                                                                                   |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
-| D1  | Installable PWA first, designed for phones first. Electron second.                                                                                                                                                 | Most reading happens on phones; Electron keeps sharing the same code.                                                 |
-| D2  | Web reaches MangaDex through a same-origin, allowlisted proxy for API and images. Electron and `localhost` dev call it directly.                                                                                   | Required by MangaDex's limits page. Two transports make this a real seam.                                             |
-| D3  | Drop SSR; the web app is a client-rendered shell. A small server stays only for the proxy.                                                                                                                         | The database is browser-only, so SSR renders nothing useful and blocks offline start.                                 |
-| D4  | Move browser SQLite to OPFS, with a one-time import from the IndexedDB snapshot.                                                                                                                                   | Whole-file snapshots get slower as data grows. Hard to reverse: needs its own ADR.                                    |
-| D5  | Reader budgets: cached page turn under 50ms, controls hidden on open, webtoons detected automatically. Filmstrip deferred.                                                                                         | Measured gaps from the audit.                                                                                         |
-| D6  | Rewrite `DESIGN.md` for playful, welcoming liquid glass: larger radii, one vivid accent, springy motion, glass on floating controls only, a calm reading stage. Three concept screens are approved before UI code. | Replaces "calm, deep", which conflicts with the goal.                                                                 |
-| D7  | `useState` and `try/catch` are banned by lint, with a shrinking baseline. Local state uses a typed reducer hook in `@app/shared`, remote state TanStack Query, and shared client state Zustand.                    | The npm `use-state-reducer` is an abandoned 2022 v0.0.3. A baseline stops new violations while old ones are migrated. |
-| D8  | Effect 4 for I/O modules: provider runtime, update queue, cache, database lifecycle. Not in gestures, rendering or the design system. Zod stays for schemas.                                                       | Those modules need retries, cancellation and typed errors; the others do not.                                         |
-| D9  | Keep `shared`, `db`, `design-system` (with `motion`), `theme`, `platform`, `reader`, `extensions-sdk`, `extensions` (with core and MangaDex). Others move into the web app.                                        | Removes seams nothing varies across.                                                                                  |
-| D10 | Theme editor, identity merge, diagnostics and bulk migration move under "Advanced". Data is untouched.                                                                                                             | Simplifies first use.                                                                                                 |
-| D11 | One in-repo shadcn registry, vendored, license-checked and restyled to tokens. `tailwind-animations` for CSS motion; GSAP through `@app/motion` for choreography only.                                             | Mixed sources would look inconsistent; `@midudev/tailwind-animations` is deprecated.                                  |
-| D12 | Telemetry is local-only: a bounded, redacted event log on the device, viewable and exportable from Diagnostics. Nothing leaves the device. A remote sink needs a later explicit opt-in design.                     | Fits a local-first reader, and provider and title data is private.                                                    |
+| #   | Decision                                                                                                                                | Why                                                                                             |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| D1  | Electron first. Website later. No native mobile, ever.                                                                                  | Electron has no platform limits, so the core can be proven without compromises.                 |
+| D2  | Electron needs no account or external service for any local feature or provider access.                                                 | The app must keep working if every hosted service disappears.                                   |
+| D3  | One UI and one recipe format, with platform services for data, network and files behind interfaces.                                     | The website reuses the product instead of forking it.                                           |
+| D4  | No persistently hosted pages or shared page cache. Sync carries metadata and settings only. Web gateway streams pages transiently.      | Hosting copies makes the host a distributor. Metadata is light and the most important.          |
+| D5  | Recipe providers first: data, not code. Only the owner approves recipes for web; Electron can install any.                              | Recipes cannot run arbitrary code, and web recipes use a shared gateway.                        |
+| D6  | Web uses Supabase for invite-only accounts and a Cloudflare gateway, with no Vercel or Redis.                                           | Free at small scale. Gated on a real-site test the owner has deferred.                          |
+| D7  | No rotating hosts or proxy pools to evade blocks, no spoofing, and no anti-bot circumvention.                                           | Respects site decisions and protects accounts.                                                  |
+| D8  | Drop SSR for web. Electron and web load a client-rendered shell.                                                                        | The database is on the client, so SSR renders nothing useful.                                   |
+| D9  | Repositories run in one data host: an Electron utility process, later a browser Worker.                                                 | Keeps the UI responsive and removes snapshot merging. Needs ADR 0001.                           |
+| D10 | `useState` and `try/catch` banned by lint with a shrinking baseline, replaced by a local reducer hook.                                  | Stops new violations while old ones are migrated.                                               |
+| D11 | Effect 4 for I/O modules only. Zod stays for schemas. TanStack stays for routing and queries.                                           | I/O needs retries, cancellation and typed errors; rendering and gestures do not.                |
+| D12 | Consolidate to about 8 packages. Advanced features move under an "Advanced" section.                                                    | Removes seams nothing varies across and simplifies first use.                                   |
+| D13 | Telemetry is local-only and redacted. Nothing leaves the device.                                                                        | Reading data is private.                                                                        |
+| D14 | Reader has three levels: defaults, quick panel, advanced.                                                                               | Great with no setup, with every detail tunable.                                                 |
+| D15 | Rewrite `DESIGN.md` for playful, welcoming liquid glass. Concept screens are approved before the visual redesign.                       | Replaces "calm, deep", which conflicts with the goal.                                           |
+| D16 | TanStack DB is the UI data layer on top of Drizzle and SQLite, which stay the source of truth. Pin the version, and adopt it gradually. | Live queries and optimistic updates, without giving up migrations and multi-table transactions. |
 
-## Failure and feedback model
+## Limits the product must state plainly
 
-Every failure is classified once into a typed `AppError` (`offline`, `provider-unavailable`,
-`rate-limited`, `not-found`, `storage-full`, `database`, `unexpected`), carrying a user message, a
-retry policy and redacted details. Raw error text is never rendered.
-
-The severity of the failure picks the surface:
-
-| Surface     | Used when                                   | Examples                                                       |
-| ----------- | ------------------------------------------- | -------------------------------------------------------------- |
-| Status page | Nothing useful can render on this route     | 404, crash, database failed, storage full, unsupported browser |
-| Inline      | One section failed and the rest still works | Chapter list unavailable, with retry                           |
-| Sonner      | A transient outcome of a user action        | Saved, Added to library, Could not save (retry)                |
-| Silent log  | Background work the user did not ask for    | A background refresh failed while cached data is showing       |
-
-Three middleware layers feed these surfaces, so features declare intent and do not handle errors:
-
-1. Query and mutation cache: classifies errors, records telemetry, and shows toasts from a
-   declarative `meta.feedback` on each mutation.
-2. Router: status pages through default error, not-found and pending boundaries.
-3. Proxy server: allowlist, redirect refusal, size and time limits, rate limits.
-
-Toast rules: toasts come only through the design-system wrapper, are deduplicated by key, and sit
-above the mobile nav. "Saving…" appears only when an action takes over 300ms. Reading never raises
-a toast unless the reader itself cannot continue.
-
-## Behavior
-
-- Given a deployed web origin, When Discover loads, Then covers and titles arrive through the proxy.
-- Given a proxy request for a host outside the allowlist, When it is sent, Then it is refused and no outbound request is made.
-- Given provider failure, When Discover loads, Then an inline state with retry shows instead of a blank page.
-- Given a title with no chapters, When its detail page loads, Then it says there are no chapters and shows no error.
-- Given a query function with no result, When it runs, Then it returns a value and logs no "Query data cannot be undefined".
-- Given a thrown error on a route, When it renders, Then a status page offers recovery and shows no raw text.
-- Given a slow user save, When it passes 300ms, Then "Saving…" appears and resolves to saved or to a failure with retry.
-- Given the same failure repeating, When toasts fire, Then one toast shows.
-- Given any failure, When it is logged, Then Diagnostics lists it with tokens, query strings and credentials redacted.
-- Given a 320px viewport, When any route renders, Then nothing overflows horizontally.
-- Given a touch device, When any route renders, Then interactive targets measure at least 44px.
-- Given a new `useState` or `try/catch` outside the baseline, When lint runs, Then it fails.
-- Given the app was loaded once and the server is gone, When it is reloaded, Then the shell and library open.
-- Given a downloaded chapter and no network, When it is opened, Then every page renders.
-- Given a cached chapter, When a page is turned, Then the new page paints within 50ms.
-- Given a chapter of long-strip pages, When it opens with no saved preference, Then it uses scroll mode at a bounded width.
-- Given a chapter opens, When the first page shows, Then reader controls are hidden until the user taps.
-
-## Known limit
-
-MangaDex rate-limits by IP, about 5 requests per second and 40 At-Home calls per minute. Everyone
-using one proxy shares that allowance, and persistent 429s lead to IP bans. The proxy suits a
-personal or small deployment; it must enforce a global limit below these numbers and honor 429s.
-A large public deployment would need a different provider strategy. Proxied images also bill their
-bandwidth to the host.
+- Sites may refuse requests. Electron users see this per site, one user at a time. On web, a block on the
+  gateway affects every web user of that provider, and Electron is the supported alternative.
+- Running on the user's device reduces copyright exposure but does not remove it. The core app bundles
+  no scrapers, and any registry stays separate. Get legal advice before anything public, especially for
+  the gateway, which fetches and transmits pages itself.
+- Sync stores library and reading progress on Supabase, so the owner's project can read it. Users should
+  be told before they sign in.
+- Web-only limits are in [spec 10](10-web.md).
 
 ## Not audited yet
 
-Real iOS and Android devices, Electron, dark mode, and real pinch and swipe. Each is checked when
-its wave ships.
+Packaged Electron launch, real iOS and Android devices, dark mode, and real pinch and swipe. Each
+is checked when its spec ships.
 
 ## Out of scope
 
-Remote telemetry, cloud sync, new providers, native mobile apps, the filmstrip.
+Native mobile apps, hosted pages, remote telemetry, and public launch of the website.
