@@ -16,7 +16,7 @@ import type { AppResult, ThemeDefinition, ThemeSettings } from '@app/shared';
 
 import { getRouter } from '../../router.js';
 import { Route as ThemeRoute } from '../../routes/theme.lazy.js';
-import { Route as ThemeEditorRoute } from '../../routes/theme.editor.lazy.js';
+import { Route as ThemeEditorRoute } from '../../routes/advanced.theme.js';
 
 const mocks = vi.hoisted(() => ({
   theme: {

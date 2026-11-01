@@ -11,6 +11,8 @@ import {
   Zap,
   Play,
   Compass,
+  Palette,
+  SlidersHorizontal,
 } from 'lucide-react';
 import {
   Separator,
@@ -33,10 +35,51 @@ const primaryTabs = [
 const secondaryItems = [
   { label: 'Extensions', to: '/extensions', icon: Puzzle },
   { label: 'Backup', to: '/backup', icon: Archive },
-  { label: 'Migration', to: '/migration', icon: ArrowRightLeft },
-  { label: 'Diagnostics', to: '/diagnostics', icon: Zap },
   { label: 'Onboarding', to: '/onboarding', icon: Play },
 ] as const;
+
+const advancedItems = [
+  { label: 'Advanced', to: '/advanced', icon: SlidersHorizontal },
+  { label: 'Theme editor', to: '/advanced/theme', icon: Palette },
+  { label: 'Diagnostics', to: '/advanced/diagnostics', icon: Zap },
+  { label: 'Migration', to: '/advanced/migration', icon: ArrowRightLeft },
+] as const;
+
+function SheetLinks({
+  items,
+  currentPath,
+  onNavigate,
+}: {
+  items: readonly { label: string; to: string; icon: typeof BookOpen }[];
+  currentPath: string;
+  onNavigate: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1 px-2">
+      {items.map(({ label, to, icon: Icon }) => {
+        // The hub is only current on itself: each tool below it has its own entry.
+        const isActive =
+          currentPath === to || (to !== '/advanced' && currentPath.startsWith(to + '/'));
+        return (
+          <Link
+            key={to}
+            to={to}
+            aria-label={label}
+            aria-current={isActive ? 'page' : undefined}
+            onClick={onNavigate}
+            className={cn(
+              'flex items-center gap-3 px-2 py-3 type-label transition-colors rounded-md',
+              isActive ? 'text-primary bg-primary/10' : 'text-foreground hover:bg-muted',
+            )}
+          >
+            <Icon className="h-5 w-5" />
+            {label}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
 
 export function MobileBottomNav() {
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -50,49 +93,25 @@ export function MobileBottomNav() {
             <SheetTitle>More</SheetTitle>
             <SheetDescription>Navigate to secondary MangaVerse tools.</SheetDescription>
           </SheetHeader>
-          <div className="mt-4 flex flex-col gap-1 px-2">
-            {secondaryItems.map(({ label, to, icon: Icon }) => {
-              const isActive = currentPath === to || currentPath.startsWith(to + '/');
-              return (
-                <Link
-                  key={to}
-                  to={to}
-                  aria-label={label}
-                  aria-current={isActive ? 'page' : undefined}
-                  onClick={() => setSheetOpen(false)}
-                  className={cn(
-                    'flex items-center gap-3 px-2 py-3 type-label transition-colors rounded-md',
-                    isActive ? 'text-primary bg-primary/10' : 'text-foreground hover:bg-muted',
-                  )}
-                >
-                  <Icon className="h-5 w-5" />
-                  {label}
-                </Link>
-              );
-            })}
+          <div className="mt-4">
+            <SheetLinks
+              items={secondaryItems}
+              currentPath={currentPath}
+              onNavigate={() => setSheetOpen(false)}
+            />
           </div>
           <Separator className="my-4" />
-          <div className="flex flex-col gap-1 px-2">
-            {primaryTabs.map(({ label, to, icon: Icon }) => {
-              const isActive = currentPath === to || currentPath.startsWith(to + '/');
-              return (
-                <Link
-                  key={to}
-                  to={to}
-                  aria-label={label}
-                  aria-current={isActive ? 'page' : undefined}
-                  onClick={() => setSheetOpen(false)}
-                  className={cn(
-                    'flex items-center gap-3 px-2 py-3 type-label transition-colors rounded-md',
-                    isActive ? 'text-primary bg-primary/10' : 'text-foreground hover:bg-muted',
-                  )}
-                >
-                  <Icon className="h-5 w-5" />
-                  {label}
-                </Link>
-              );
-            })}
-          </div>
+          <SheetLinks
+            items={advancedItems}
+            currentPath={currentPath}
+            onNavigate={() => setSheetOpen(false)}
+          />
+          <Separator className="my-4" />
+          <SheetLinks
+            items={primaryTabs}
+            currentPath={currentPath}
+            onNavigate={() => setSheetOpen(false)}
+          />
         </SheetContent>
       </Sheet>
 

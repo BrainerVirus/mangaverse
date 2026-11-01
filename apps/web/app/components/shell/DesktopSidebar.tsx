@@ -13,6 +13,8 @@ import {
   Zap,
   Play,
   Compass,
+  Palette,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { Button, Tooltip, Separator, cn, buttonVariants } from '@app/design-system';
 import { useLayoutStore } from '@/stores/useLayoutStore.js';
@@ -31,9 +33,14 @@ const primaryNavItems = [
 
 const secondaryNavItems = [
   { label: 'Backup', to: '/backup', icon: Archive },
-  { label: 'Migration', to: '/migration', icon: ArrowRightLeft },
-  { label: 'Diagnostics', to: '/diagnostics', icon: Zap },
   { label: 'Onboarding', to: '/onboarding', icon: Play },
+] as const;
+
+const advancedNavItems = [
+  { label: 'Advanced', to: '/advanced', icon: SlidersHorizontal },
+  { label: 'Theme editor', to: '/advanced/theme', icon: Palette },
+  { label: 'Diagnostics', to: '/advanced/diagnostics', icon: Zap },
+  { label: 'Migration', to: '/advanced/migration', icon: ArrowRightLeft },
 ] as const;
 
 function SidebarNavLink({
@@ -82,7 +89,9 @@ export function DesktopSidebar() {
   const expandTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [hoverExpanded, setHoverExpanded] = useState(false);
 
-  const isActive = (to: string) => currentPath === to || currentPath.startsWith(to + '/');
+  // The hub is only current on itself: each tool below it has its own entry.
+  const isActive = (to: string) =>
+    currentPath === to || (to !== '/advanced' && currentPath.startsWith(to + '/'));
 
   const handleMouseEnter = useCallback(() => {
     if (expandTimer.current) clearTimeout(expandTimer.current);
@@ -137,6 +146,17 @@ export function DesktopSidebar() {
         <Separator className="my-2 bg-sidebar-border" />
 
         {secondaryNavItems.map((item) => (
+          <SidebarNavLink
+            key={item.to}
+            {...item}
+            active={isActive(item.to)}
+            expanded={visuallyExpanded}
+          />
+        ))}
+
+        <Separator className="my-2 bg-sidebar-border" />
+
+        {advancedNavItems.map((item) => (
           <SidebarNavLink
             key={item.to}
             {...item}

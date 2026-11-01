@@ -15,6 +15,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SettingsSection,
 } from '@app/design-system';
 import type { MergePreview, UnmergeMappingPreview } from '@app/db';
 import {
@@ -520,13 +521,14 @@ export function MangaDuplicatesSection({
 
   return (
     <section aria-label="Possible duplicates" className="space-y-3">
-      <h2 className="text-xl font-semibold">Possible duplicates</h2>
-      <DuplicatesList
-        state={state}
-        providerLabels={providerLabels}
-        canMerge={onMerge !== undefined && !isPending}
-        onMerge={openMerge}
-      />
+      <SettingsSection title="Possible duplicates" collapsed>
+        <DuplicatesList
+          state={state}
+          providerLabels={providerLabels}
+          canMerge={onMerge !== undefined && !isPending}
+          onMerge={openMerge}
+        />
+      </SettingsSection>
       <MergeDialog
         currentMangaId={currentMangaId}
         providerLabels={providerLabels}

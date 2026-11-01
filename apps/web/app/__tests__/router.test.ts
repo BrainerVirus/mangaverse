@@ -3,6 +3,9 @@ import { isRedirect } from '@tanstack/react-router';
 import { getRouter } from '../router.js';
 import { routeTree } from '../routeTree.gen.js';
 import { Route as IndexRoute } from '../routes/index.js';
+import { Route as DiagnosticsAlias } from '../routes/diagnostics.js';
+import { Route as MigrationAlias } from '../routes/migration.js';
+import { Route as ThemeEditorAlias } from '../routes/theme.editor.js';
 
 const PHASE_8_ROUTES = [
   '/',
@@ -22,6 +25,10 @@ const PHASE_8_ROUTES = [
   '/theme/editor',
   '/diagnostics',
   '/onboarding',
+  '/advanced',
+  '/advanced/theme',
+  '/advanced/diagnostics',
+  '/advanced/migration',
 ] as const;
 
 type RouteNode = {
@@ -69,4 +76,52 @@ describe('router', () => {
     expect(isRedirect(thrown)).toBe(true);
     expect(thrown).toMatchObject({ options: { to: '/discover' } });
   });
+
+  function redirectOf(run: () => unknown): unknown {
+    try {
+      run();
+    } catch (error) {
+      return error;
+    }
+    return undefined;
+  }
+
+  it.each([
+    ['/theme/editor', ThemeEditorAlias, '/advanced/theme'],
+    ['/diagnostics', DiagnosticsAlias, '/advanced/diagnostics'],
+  ] as const)('redirects the old %s URL to its Advanced route', (_path, alias, to) => {
+    const thrown = redirectOf(() => alias.options.beforeLoad?.({} as never));
+
+    expect(isRedirect(thrown)).toBe(true);
+    expect(thrown).toMatchObject({ options: { to } });
+  });
+
+  it('redirects the old /migration URL with its raw search params', () => {
+    const search = MigrationAlias.options.validateSearch?.({
+      ids: 'not-a-title-list',
+      sources: ['mangadex'],
+      source: ['a', 'b'],
+      other: 'dropped',
+    });
+    expect(search).toEqual({
+      ids: 'not-a-title-list',
+      sources: ['mangadex'],
+      source: ['a', 'b'],
+    });
+
+    const thrown = redirectOf(() => MigrationAlias.options.beforeLoad?.({ search } as never));
+
+    expect(isRedirect(thrown)).toBe(true);
+    expect(thrown).toMatchObject({ options: { to: '/advanced/migration', search } });
+  });
+
+  it.each([['/advanced/theme'], ['/advanced/diagnostics'], ['/advanced/migration']])(
+    'matches %s under the hub without an alias shadowing it',
+    (path) => {
+      const matches = getRouter().matchRoutes(path);
+
+      expect(matches.at(-1)?.routeId).toBe(path);
+      expect(matches.map((match) => match.routeId)).toContain('/advanced');
+    },
+  );
 });

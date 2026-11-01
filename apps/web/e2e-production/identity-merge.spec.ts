@@ -78,6 +78,8 @@ async function mergeThenUnmerge(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { name: TITLE })).toBeVisible({ timeout: 30_000 });
 
   const duplicates = page.getByRole('region', { name: 'Possible duplicates' });
+  await expect(duplicates.getByRole('button', { name: 'Merge' })).toHaveCount(0);
+  await duplicates.getByRole('button', { name: 'Possible duplicates' }).click();
   await expect(duplicates.getByRole('button', { name: 'Merge' })).toBeVisible({
     timeout: 20_000,
   });

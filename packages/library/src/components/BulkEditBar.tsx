@@ -14,6 +14,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SettingsSection,
 } from '@app/design-system';
 import { ArrowRightLeft, CheckSquare, Heart, HeartOff, ListChecks, Tags } from 'lucide-react';
 import type { CategoryId, LibraryCategory, LibraryEntryId, LibraryStatus } from '@app/shared';
@@ -196,19 +197,6 @@ export function BulkEditBar({
           Categories
         </Button>
 
-        {onMigrateSelected !== undefined ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={selectedCount === 0}
-            onClick={onMigrateSelected}
-          >
-            <ArrowRightLeft aria-hidden className="size-4" />
-            Migrate selected
-          </Button>
-        ) : null}
-
         <Button
           type="button"
           size="sm"
@@ -223,6 +211,21 @@ export function BulkEditBar({
           Done selecting
         </Button>
       </div>
+
+      {onMigrateSelected !== undefined ? (
+        <SettingsSection title="Advanced" collapsed>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={selectedCount === 0}
+            onClick={onMigrateSelected}
+          >
+            <ArrowRightLeft aria-hidden className="size-4" />
+            Migrate selected
+          </Button>
+        </SettingsSection>
+      ) : null}
 
       {error !== undefined ? (
         <p role="alert" className="text-sm text-destructive">

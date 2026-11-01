@@ -245,8 +245,13 @@ async function migrateSelectionFromLibrary(page: Page, titles: readonly string[]
   for (const title of titles) {
     await page.getByLabel(`Select ${title}`).check();
   }
+  await expect(page.getByRole('button', { name: 'Migrate selected' })).toHaveCount(0);
+  await page
+    .getByRole('region', { name: 'Bulk edit' })
+    .getByRole('button', { name: 'Advanced' })
+    .click();
   await page.getByRole('button', { name: 'Migrate selected' }).click();
-  await expect(page).toHaveURL(/\/migration\?ids=/, { timeout: 20_000 });
+  await expect(page).toHaveURL(/\/advanced\/migration\?ids=/, { timeout: 20_000 });
 }
 
 for (const viewport of [
@@ -591,8 +596,13 @@ test('Given a hand-off whose source provider is not installed, When migration op
   await page.goto('/library');
   await page.getByRole('button', { name: 'Select titles' }).click();
   await page.getByLabel(`Select ${TITLES[0].title}`).check();
+  await expect(page.getByRole('button', { name: 'Migrate selected' })).toHaveCount(0);
+  await page
+    .getByRole('region', { name: 'Bulk edit' })
+    .getByRole('button', { name: 'Advanced' })
+    .click();
   await page.getByRole('button', { name: 'Migrate selected' }).click();
-  await expect(page).toHaveURL(/\/migration\?ids=/, { timeout: 20_000 });
+  await expect(page).toHaveURL(/\/advanced\/migration\?ids=/, { timeout: 20_000 });
 
   const url = new URL(page.url());
   url.searchParams.set('sources', JSON.stringify(['missing-provider']));
