@@ -140,7 +140,7 @@
     "no-use-state": 1
   },
   "packages/extensions-core/src/extension-logs.ts": {
-    "no-try-catch": 2
+    "no-try-catch": 1
   },
   "packages/extensions-core/src/health-check.ts": {
     "no-try-catch": 2
