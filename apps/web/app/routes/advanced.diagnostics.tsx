@@ -1,4 +1,4 @@
-import { createLazyFileRoute } from '@tanstack/react-router';
+import { createFileRoute } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createAppPlatformAdapter,
@@ -12,7 +12,7 @@ import { eventLog } from '../lib/event-log.js';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 import { usePlatform } from '../providers/platform-provider.js';
 
-export const Route = createLazyFileRoute('/diagnostics')({
+export const Route = createFileRoute('/advanced/diagnostics')({
   component: DiagnosticsRoute,
 });
 

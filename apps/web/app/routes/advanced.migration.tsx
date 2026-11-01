@@ -1,9 +1,12 @@
-import { createLazyFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { MigrationPage } from '@app/migration';
 
+import { migrationSearchSchema, type MigrationSearch } from '../lib/migration-search.js';
 import { useMigrationController } from '../queries/use-migration-controller.js';
 
-export const Route = createLazyFileRoute('/migration')({
+export const Route = createFileRoute('/advanced/migration')({
+  validateSearch: (search: Record<string, unknown>): MigrationSearch =>
+    migrationSearchSchema.parse(search),
   component: MigrationRoute,
 });
 
@@ -14,7 +17,7 @@ function MigrationRoute() {
   return (
     <MigrationPage
       {...useMigrationController(search)}
-      onClearHandoff={() => void navigate({ to: '/migration', search: {}, replace: true })}
+      onClearHandoff={() => void navigate({ to: '/advanced/migration', search: {}, replace: true })}
     />
   );
 }
