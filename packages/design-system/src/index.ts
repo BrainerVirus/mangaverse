@@ -2,6 +2,7 @@
 export const PACKAGE_NAME = '@app/design-system' as const;
 
 export { cn } from './lib/cn.js';
+export { useStateReducer } from './hooks/use-state-reducer.js';
 
 export { Button } from './components/ui/button.js';
 export { buttonVariants, buttonSizes } from './components/ui/button-variants.js';
