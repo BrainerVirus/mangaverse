@@ -483,12 +483,16 @@ describe("the shrink-only guard, through the script", () => {
     });
 
     it("does not write a shrink that still fails", () => {
-      write(one);
+      // One entry would drop (b: 2 -> 1) and one would be exceeded (a: 1 -> 2).
+      // A write-before-validation regression would lower b; raw bytes catch it.
+      write({ "apps/a.tsx": { "no-use-state": 1 }, "apps/b.tsx": { "no-use-state": 2 } });
       writeFileSync(join(dir, "apps/a.tsx"), TWO);
-      const before = readBaseline();
+      writeFileSync(join(dir, "apps/b.tsx"), USE);
+      const file = join(dir, "lint/baseline.json");
+      const before = readFileSync(file, "utf8");
       const { status } = check("--shrink");
       assert.equal(status, 1);
-      assert.deepEqual(readBaseline(), before);
+      assert.equal(readFileSync(file, "utf8"), before);
     });
 
     it("refuses an unbalanced move, writing nothing", () => {
