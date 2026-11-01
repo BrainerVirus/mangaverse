@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   toCategoryId,
@@ -70,12 +70,19 @@ describe('BulkEditBar', () => {
 
     const status = screen.getByLabelText('Set status for selected');
     status.focus();
-    await user.keyboard('{ArrowDown}{Enter}');
-    expect(props.onOrganize).toHaveBeenCalledWith({
-      type: 'set_entries_status',
-      entryIds: selected,
-      status: 'reading',
-    });
+    // ArrowDown opens the listbox; the popup must be live before Enter can commit
+    // the highlighted item, otherwise Enter re-toggles the trigger. Waiting for the
+    // option also covers a popup whose mount is deferred under CPU starvation.
+    await user.keyboard('{ArrowDown}');
+    await screen.findByRole('option', { name: 'Reading' });
+    await user.keyboard('{Enter}');
+    await waitFor(() =>
+      expect(props.onOrganize).toHaveBeenCalledWith({
+        type: 'set_entries_status',
+        entryIds: selected,
+        status: 'reading',
+      }),
+    );
 
     await user.click(screen.getByRole('button', { name: 'Bulk categories' }));
     await user.click(screen.getByLabelText('Drama'));

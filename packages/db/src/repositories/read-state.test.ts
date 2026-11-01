@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { toChapterId, toChapterPageId, toProviderId } from '@app/shared';
 import { createSqlJsHarness } from '../testing/sqljs-harness.js';
 import { createMangaIdentityWithInitialMapping } from './identities.js';
@@ -63,6 +63,23 @@ describe('setChapterCompleted', () => {
     });
     expect((await getLibraryEntryForManga(db, mangaId))?.unreadCount).toBe(3);
     raw.close();
+  });
+
+  it('Given a read state written in the same millisecond, When marking unread, Then the explicit action still wins', async () => {
+    const { db, raw, mangaId, ids } = await seed();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
+    try {
+      expect((await setChapterCompleted(db, ids[1]!, true)).ok).toBe(true);
+      expect((await setChapterCompleted(db, ids[1]!, false)).ok).toBe(true);
+      expect(await getChapterReadState(db, ids[1]!)).toMatchObject({
+        progress: { completed: false, readPercent: 0, lastPageIndex: 0 },
+      });
+      expect((await getLibraryEntryForManga(db, mangaId))?.unreadCount).toBe(3);
+    } finally {
+      vi.useRealTimers();
+      raw.close();
+    }
   });
 
   it('Given a missing chapter, When marking it read, Then it reports the missing chapter', async () => {
