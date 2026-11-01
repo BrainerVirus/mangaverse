@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { MigrationCandidate, MigrationProviderOption } from '@app/migration';
+import type { MigrationCandidate, MigrationProviderOption } from '@/features/migration/index.js';
 
 import {
   findUnavailableRequestedSourceProviderId,

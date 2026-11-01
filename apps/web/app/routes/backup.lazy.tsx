@@ -13,7 +13,7 @@ import {
 } from '@/features/backup/index.js';
 import { extensionsQueryKeys } from '@app/extensions';
 import { libraryQueryKeys } from '@app/library';
-import { migrationQueryKeys } from '@app/migration';
+import { migrationQueryKeys } from '@/features/migration/index.js';
 import { readerQueryKeys } from '@app/reader';
 import { discoverQueryKeys, searchQueryKeys } from '@app/search';
 import { settingsQueryKeys } from '@app/settings';

@@ -1,6 +1,6 @@
 import type { AppDrizzleDb } from '@app/db';
-import type { MigrationSearchCandidate } from '@app/migration';
-import { migrationQueryKeys, searchMigrationTargets } from '@app/migration';
+import type { MigrationSearchCandidate } from '@/features/migration/index.js';
+import { migrationQueryKeys, searchMigrationTargets } from '@/features/migration/index.js';
 import { queryOptions } from '@tanstack/react-query';
 
 import { resolveInstalledProvider } from '../lib/provider-registry.js';

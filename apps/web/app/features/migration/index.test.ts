@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { createSqlJsHarness } from '@app/db/testing';
 
@@ -23,7 +24,7 @@ import {
 } from './index.js';
 import type { MigrationCandidate, MigrationSearchResult } from './types.js';
 
-describe('@app/migration exports', () => {
+describe('migration exports', () => {
   it('exports the migration feature surface', () => {
     expect(typeof MigrationPage).toBe('function');
     expect(typeof fetchMigrationProviders).toBe('function');

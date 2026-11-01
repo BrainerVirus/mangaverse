@@ -16,7 +16,7 @@ import {
   toMigrationTargetSearchState,
   type MigrationPageProps,
   type MigrationTargetSearchState,
-} from '@app/migration';
+} from '@/features/migration/index.js';
 import { libraryQueryKeys } from '@app/library';
 
 import { failureMessage } from '../lib/app-feedback.js';

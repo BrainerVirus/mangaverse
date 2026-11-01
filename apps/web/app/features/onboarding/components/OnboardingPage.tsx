@@ -32,7 +32,7 @@ import {
 } from '../onboarding-state.js';
 import type { OnboardingState, OnboardingStepId } from '../types.js';
 
-export interface OnboardingPageProps {
+interface OnboardingPageProps {
   readonly state: OnboardingState | undefined;
   readonly themeSettings: ThemeSettings | undefined;
   readonly appSettings: AppSettings | undefined;

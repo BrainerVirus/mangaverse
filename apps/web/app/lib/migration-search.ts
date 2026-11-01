@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { MIGRATION_BATCH_LIMIT, type MigrationHandoffError } from '@app/migration';
+import { MIGRATION_BATCH_LIMIT, type MigrationHandoffError } from '@/features/migration/index.js';
 
 const MIGRATION_SOURCES_LIMIT = 50;
 

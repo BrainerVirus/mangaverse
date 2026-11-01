@@ -35,6 +35,12 @@
   "apps/web/app/features/diagnostics/components/DiagnosticsPage.tsx": {
     "no-use-state": 1
   },
+  "apps/web/app/features/migration/components/MigrationPage.tsx": {
+    "no-use-state": 2
+  },
+  "apps/web/app/features/migration/search-migration-targets.ts": {
+    "no-try-catch": 1
+  },
   "apps/web/app/features/storage/components/StoragePage.tsx": {
     "no-use-state": 1
   },
@@ -231,12 +237,6 @@
   "packages/library/src/update-queue.ts": {
     "no-try-catch": 3
   },
-  "packages/migration/src/components/MigrationPage.tsx": {
-    "no-use-state": 2
-  },
-  "packages/migration/src/search-migration-targets.ts": {
-    "no-try-catch": 1
-  },
   "packages/platform/src/electron.ts": {
     "no-try-catch": 7
   },
@@ -342,6 +342,20 @@
       "to": "apps/web/app/features/storage/components/StoragePage.tsx",
       "rules": {
         "no-use-state": 1
+      }
+    },
+    {
+      "from": "packages/migration/src/components/MigrationPage.tsx",
+      "to": "apps/web/app/features/migration/components/MigrationPage.tsx",
+      "rules": {
+        "no-use-state": 2
+      }
+    },
+    {
+      "from": "packages/migration/src/search-migration-targets.ts",
+      "to": "apps/web/app/features/migration/search-migration-targets.ts",
+      "rules": {
+        "no-try-catch": 1
       }
     }
   ]
