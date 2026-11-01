@@ -20,6 +20,8 @@ Recorded in the Workit ledger with `workit ledger list --type decision`, and in 
 - Sync metadata and shareable settings only. Page images never sync or get hosted.
 - No native mobile, phone bridge, browser extension route, paired helper, Vercel or Redis.
 - No rotating hosts or anti-bot circumvention.
+- TanStack DB is the UI data layer on Drizzle and SQLite, not a replacement. npm `latest` was `1.0.0-rc.1.1`
+  when decided, so pin it and check for a stable 1.0.
 
 ## Waiting on the owner
 

@@ -38,11 +38,14 @@ scan of a key query. Timing budgets from spec 4 are measured on the reference ma
 - Given a removed download, When removal finishes, Then disk use and the UI agree.
 - Given the seeded dataset, When key queries run in tests, Then their plans use indexes and they page results.
 - Given a user adds a title, When saved, Then it appears immediately even if the network fails.
+- Given a chapter list saved locally and no network, When its title opens, Then chapters show from SQLite without waiting.
 
-## Decide after testing
+### TanStack DB
 
-Live queries through TanStack DB, currently a release candidate. Adopt only if Query plus the data host
-falls short of the budgets.
+Screens read local data through TanStack DB live queries, adopted gradually starting with the library. Small
+sets load eagerly, while large tables such as chapters load on demand from SQLite. The adapter never treats
+TanStack DB persistence as the store, because it has no migration path for local-only rows. Provider calls stay
+in TanStack Query.
 
 ## Out of scope
 

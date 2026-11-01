@@ -11,21 +11,21 @@ dependency.
 
 ## Decisions
 
-| #   | Decision                                                                                                              | Why                                                                                        |
-| --- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| X1  | One data process: an Electron utility process owns native SQLite and runs the repositories.                           | The UI never blocks on the database, and a crash there cannot take the window down.        |
-| X2  | Proposed, pending ADR 0001: repositories stay synchronous inside the data host, and the UI calls them over typed RPC. | Would keep `withTransaction` and most queries, but caller conversion is real work.         |
-| X3  | Proposed, pending ADR 0001: native SQLite through `better-sqlite3`.                                                   | Drizzle 0.45 has a sync driver for it. Type compatibility is not yet proven.               |
-| X4  | The main process makes all provider requests. The renderer has no direct network access to providers.                 | Enforces limits in one place, with no CORS and the user's own IP.                          |
-| X5  | Pages are files on disk, served to the UI by a restricted custom protocol.                                            | Streams images with no blob copies over IPC.                                               |
-| X6  | IPC is the app's backend boundary, validated with Zod. Keep the Express service only if a real need appears.          | Deletion test: nothing uses its HTTP today, and IPC needs no open port.                    |
-| X7  | Downloads and update checks run in the background while the app is open or in the tray.                               | Desktop has no iOS-style limits.                                                           |
-| X8  | Package for Windows, macOS and Linux with auto-update from GitHub Releases.                                           | An app nobody can install is not the product.                                              |
-| X9  | Renderer stays sandboxed with context isolation, a strict security policy, and no Node access.                        | Providers and web content are untrusted.                                                   |
-| X10 | Existing snapshots import once into native SQLite. The old data stays until the import is verified.                   | Protects data on a one-way move.                                                           |
-| X11 | Replace the forked Nitro server with a client-rendered shell served from a custom protocol.                           | Delivers D8 for Electron: no loopback port and offline start. Needs routing and CSP tests. |
-| X12 | The data host sends change events to every window, replacing the `localStorage` ping.                                 | Renderer storage no longer holds the data, so windows need another signal.                 |
-| X13 | The main process owns page files and the cache index, replacing IndexedDB and renderer object URLs.                   | One owner for files, eviction and cleanup.                                                 |
+| #   | Decision                                                                                                                                                        | Why                                                                                        |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| X1  | One data process: an Electron utility process owns native SQLite and runs the repositories.                                                                     | The UI never blocks on the database, and a crash there cannot take the window down.        |
+| X2  | Proposed, pending ADR 0001: repositories stay synchronous inside the data host, and the UI calls them over typed RPC.                                           | Would keep `withTransaction` and most queries, but caller conversion is real work.         |
+| X3  | Proposed, pending ADR 0001: native SQLite through `better-sqlite3`.                                                                                             | Drizzle 0.45 has a sync driver for it. Type compatibility is not yet proven.               |
+| X4  | The main process makes all provider requests. The renderer has no direct network access to providers.                                                           | Enforces limits in one place, with no CORS and the user's own IP.                          |
+| X5  | Pages are files on disk, served to the UI by a restricted custom protocol.                                                                                      | Streams images with no blob copies over IPC.                                               |
+| X6  | IPC is the app's backend boundary, validated with Zod. Keep the Express service only if a real need appears.                                                    | Deletion test: nothing uses its HTTP today, and IPC needs no open port.                    |
+| X7  | Downloads and update checks run in the background while the app is open or in the tray.                                                                         | Desktop has no iOS-style limits.                                                           |
+| X8  | Package for Windows, macOS and Linux with auto-update from GitHub Releases.                                                                                     | An app nobody can install is not the product.                                              |
+| X9  | Renderer stays sandboxed with context isolation, a strict security policy, and no Node access.                                                                  | Providers and web content are untrusted.                                                   |
+| X10 | Existing snapshots import once into native SQLite. The old data stays until the import is verified.                                                             | Protects data on a one-way move.                                                           |
+| X11 | Replace the forked Nitro server with a client-rendered shell served from a custom protocol.                                                                     | Delivers D8 for Electron: no loopback port and offline start. Needs routing and CSP tests. |
+| X12 | TanStack DB collections read from the data host through a custom sync adapter. The host sends change events to every window, replacing the `localStorage` ping. | Live, optimistic UI in every window, with SQLite still the source of truth.                |
+| X13 | The main process owns page files and the cache index, replacing IndexedDB and renderer object URLs.                                                             | One owner for files, eviction and cleanup.                                                 |
 
 ### ADR 0001: data host
 
@@ -37,6 +37,8 @@ Decide before building, with a spike that must prove all of this on real code:
   feature package. Today callers pass a `db` handle to imported functions, so the likely shape is a
   generated typed client with the same names, running each call in the data host.
 - An estimate of the remaining files, from that conversion.
+- The TanStack DB sync adapter: one list view and one optimistic write working end to end, including rollback
+  when the host rejects a write, and on-demand loading of large tables such as chapters.
 - `better-sqlite3` versus `node:sqlite` under Electron 44: native rebuilds per platform, and driver support.
 - Whether the same RPC contract fits a browser Worker later (spec 10).
 
@@ -89,7 +91,8 @@ Dataset: seeded 1,000 titles and 200,000 chapters.
 - Given a failed import, When it happens, Then the old data is untouched and the app explains how to retry or export it.
 - Given a cached page, When it is shown, Then it loads through the custom protocol.
 - Given a page URL outside the store, a symlink, or a request from another frame, When requested, Then it is refused.
-- Given two windows, When one changes data, Then the other updates without a reload.
+- Given two windows, When one changes data, Then live queries in the other update without a reload.
+- Given an optimistic write the data host rejects, When it fails, Then the UI rolls back and reports it.
 - Given a packaged build on each platform, When installed and launched, Then it runs without a dev environment.
 - Given a new release, When the app checks, Then it asks before installing and never interrupts a chapter.
 
