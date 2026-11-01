@@ -1,6 +1,4 @@
 // @app/cache
-export const PACKAGE_NAME = '@app/cache' as const;
-
 export {
   COVER_CACHE_KIND,
   PAGE_CACHE_KIND,

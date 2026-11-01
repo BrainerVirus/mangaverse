@@ -74,6 +74,7 @@ Recorded in the Workit ledger with `workit ledger list --type decision`, and in 
 ## Cleaned up
 
 - The stopped wave 1 worktrees and the `overhaul-wave-1` fanout are retired. Don't resume them.
-- The old plan and recovery ledger moved to `docs/archive/`. `docs/SPEC.md`, `docs/ARCHITECTURE.md`,
-  `DESIGN.md` and `docs/Design.md` point here and lose on any conflict.
+- The old plan, recovery ledger and `superpowers/` phase docs were deleted as dead weight (#208). Nothing
+  archived is current guidance; `docs/SPEC.md`, `docs/ARCHITECTURE.md`, `DESIGN.md` and `docs/Design.md`
+  point here and lose on any conflict.
 - Another session may use the main checkout. Leave it alone.

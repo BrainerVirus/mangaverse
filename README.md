@@ -56,8 +56,8 @@ packages/
   db/                  SQLite schema, repositories, durable storage
   design-system/       shadcn/ui wrappers, reader chrome
   motion/              GSAP helpers
-  library/ search/ migration/ settings/ theme/ platform/ shared/ test-utils/
-docs/                  overhaul/, SPEC, ARCHITECTURE, Design, archive/
+  library/ search/ migration/ settings/ theme/ platform/ shared/
+docs/                  overhaul/, SPEC, ARCHITECTURE, Design
 ```
 
 ## Docs

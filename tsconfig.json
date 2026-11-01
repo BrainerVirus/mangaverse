@@ -5,7 +5,6 @@
     { "path": "./apps/web" },
     { "path": "./apps/desktop" },
     { "path": "./packages/shared" },
-    { "path": "./packages/test-utils" },
     { "path": "./packages/reader" },
     { "path": "./packages/extensions-core" },
     { "path": "./packages/extensions-sdk" },

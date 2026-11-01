@@ -1,6 +1,4 @@
 // @app/platform
-export const PACKAGE_NAME = '@app/platform' as const;
-
 export * from './types.js';
 export * from './errors.js';
 export * from './ipc-channels.js';

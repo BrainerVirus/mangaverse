@@ -27,5 +27,3 @@ export type {
   OnboardingStatus,
   OnboardingStepId,
 } from './types.js';
-
-export const PACKAGE_NAME = '@app/onboarding' as const;

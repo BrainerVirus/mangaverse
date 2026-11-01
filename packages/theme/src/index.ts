@@ -88,5 +88,3 @@ export {
   isCustomThemeId,
   validateThemeSettings,
 } from './validate-theme-settings.js';
-
-export const PACKAGE_NAME = '@app/theme' as const;

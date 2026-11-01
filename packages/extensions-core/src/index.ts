@@ -1,5 +1,3 @@
-export const PACKAGE_NAME = '@app/extensions-core' as const;
-
 export type {
   ExtensionInstallAction,
   ExtensionInstallPreview,
