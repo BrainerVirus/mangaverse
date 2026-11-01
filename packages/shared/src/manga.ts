@@ -136,6 +136,17 @@ export function providerDisplayName(
 }
 
 /**
+ * A readable label for a provider id when no registered display name is
+ * available: `my-provider` becomes `My Provider`. Surfaces that only have the
+ * id print this, never the raw token.
+ */
+export function humanizeProviderId(providerId: string): string {
+  const words = providerId.split(/[-_\s]+/).filter((word) => word.length > 0);
+  if (words.length === 0) return providerId;
+  return words.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+}
+
+/**
  * A status the provider actually supplied. `unknown` is the absence of one, so
  * it gets no badge instead of a raw `unknown` label.
  */

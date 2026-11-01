@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { useLayoutEffect, useReducer, useRef, type RefObject } from 'react';
 import { useVirtualizer, type VirtualItem } from '@tanstack/react-virtual';
 import { useScrollParent } from './use-scroll-parent.js';
 
@@ -16,6 +16,17 @@ export function shouldVirtualizeChapters(rowCount: number): boolean {
   return rowCount >= CHAPTER_VIRTUALIZE_MIN_ROWS;
 }
 
+/** A measured offset only; a reducer keeps the hook free of `useState`. */
+interface MarginAction {
+  readonly type: 'set';
+  readonly value: number;
+}
+
+function marginReducer(state: number, action: MarginAction): number {
+  // Re-measuring on resize often reproduces the same offset; keep the identity.
+  return action.value === state ? state : action.value;
+}
+
 /**
  * The list's offset inside its scroll parent. Unlike the search grid's hook this
  * one does not listen to scroll — the content offset does not change while
@@ -25,19 +36,22 @@ function useListScrollMargin(
   containerRef: RefObject<HTMLElement | null>,
   scrollParent: HTMLElement | null,
 ): number {
-  const [margin, setMargin] = useState(0);
+  const [margin, setMargin] = useReducer(marginReducer, 0);
 
   useLayoutEffect(() => {
     const element = containerRef.current;
     if (!element || scrollParent === null) {
-      setMargin(0);
+      setMargin({ type: 'set', value: 0 });
       return;
     }
 
     const updateMargin = () => {
       const listRect = element.getBoundingClientRect();
       const scrollRect = scrollParent.getBoundingClientRect();
-      setMargin(listRect.top - scrollRect.top + scrollParent.scrollTop);
+      setMargin({
+        type: 'set',
+        value: listRect.top - scrollRect.top + scrollParent.scrollTop,
+      });
     };
 
     updateMargin();

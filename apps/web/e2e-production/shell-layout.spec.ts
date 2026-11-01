@@ -1,4 +1,4 @@
-import { devices, expect, type Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 import { MANGADEX_APP_MANGA_ID, test } from './helpers.js';
 
@@ -96,7 +96,9 @@ for (const width of [320, 390, 768, 1440]) {
 }
 
 test.describe('touch layout', () => {
-  test.use({ ...devices['Pixel 7'], viewport: { width: 390, height: 844 } });
+  // Mobile emulation is what turns `(pointer: coarse)` on in Chromium; the test
+  // proves the media query below before measuring.
+  test.use({ isMobile: true, hasTouch: true, viewport: { width: 390, height: 844 } });
 
   test('Given a coarse pointer at 390px, Then every primary control is at least 44px', async ({
     page,

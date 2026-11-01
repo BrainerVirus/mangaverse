@@ -53,11 +53,13 @@ vi.mock('@app/design-system', () => ({
     cardRenderSpy();
 
     return (
-      <button type="button" onClick={onClick}>
-        {manga.canonicalTitle}
-        {sourceLabel !== undefined ? <span>{sourceLabel}</span> : null}
-        {unreadCount !== undefined && unreadCount > 0 ? <span>{unreadCount} unread</span> : null}
-      </button>
+      <>
+        <button type="button" onClick={onClick}>
+          {manga.canonicalTitle}
+          {unreadCount !== undefined && unreadCount > 0 ? <span>{unreadCount} unread</span> : null}
+        </button>
+        {sourceLabel !== undefined ? <p>{sourceLabel}</p> : null}
+      </>
     );
   },
 }));
@@ -245,7 +247,7 @@ describe('VirtualLibraryGrid', () => {
     expect(screen.queryByText('test-provider')).toBeNull();
   });
 
-  it('Given no registered provider names, Then cards print no source line at all', () => {
+  it('Given no registry lookup, Then the card prints a readable id, never the raw token', () => {
     render(
       <VirtualLibraryGrid
         items={[createItem('1', 'Title 1')]}
@@ -254,6 +256,7 @@ describe('VirtualLibraryGrid', () => {
       />,
     );
 
+    expect(screen.getByText('Test Provider')).toBeInTheDocument();
     expect(screen.queryByText('test-provider')).toBeNull();
   });
 

@@ -41,7 +41,7 @@ async function mockMappingFeeds(page: Page): Promise<void> {
       const body = url.includes(SECOND_REMOTE_ID)
         ? feedFor(3, SECOND_REMOTE_ID)
         : url.includes(SOURCE_REMOTE_ID)
-          ? feedFor(2, SOURCE_REMOTE_ID)
+          ? feedFor(138, SOURCE_REMOTE_ID)
           : undefined;
       if (body !== undefined) {
         await route.fulfill({ status: 200, contentType: 'application/json', body });
