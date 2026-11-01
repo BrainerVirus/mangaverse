@@ -1,0 +1,311 @@
+{
+  "apps/desktop/scripts/dev.mjs": {
+    "no-try-catch": 2
+  },
+  "apps/desktop/src/main/index.ts": {
+    "no-try-catch": 3
+  },
+  "apps/desktop/src/main/main-process-fetch.ts": {
+    "no-try-catch": 4
+  },
+  "apps/desktop/src/main/platform-ipc.ts": {
+    "no-try-catch": 10
+  },
+  "apps/desktop/src/main/secure-storage.ts": {
+    "no-try-catch": 3
+  },
+  "apps/web/app/components/design-system/DesignSystemPage.tsx": {
+    "no-use-state": 2
+  },
+  "apps/web/app/components/shell/CommandPalette.tsx": {
+    "no-use-state": 1
+  },
+  "apps/web/app/components/shell/DesktopSidebar.tsx": {
+    "no-use-state": 1
+  },
+  "apps/web/app/components/shell/MobileBottomNav.tsx": {
+    "no-use-state": 1
+  },
+  "apps/web/app/lib/library-update-provider.ts": {
+    "no-try-catch": 1
+  },
+  "apps/web/app/lib/local-db.ts": {
+    "no-try-catch": 3
+  },
+  "apps/web/app/lib/provider-operations.ts": {
+    "no-use-state": 6
+  },
+  "apps/web/app/providers/local-db-provider.tsx": {
+    "no-try-catch": 1,
+    "no-use-state": 3
+  },
+  "apps/web/app/providers/platform-provider.tsx": {
+    "no-try-catch": 2,
+    "no-use-state": 1
+  },
+  "apps/web/app/providers/theme-provider.tsx": {
+    "no-try-catch": 2,
+    "no-use-state": 3
+  },
+  "apps/web/app/queries/provider-discover.ts": {
+    "no-try-catch": 1
+  },
+  "apps/web/app/queries/provider-query-options.ts": {
+    "no-try-catch": 6
+  },
+  "apps/web/app/queries/use-migration-controller.ts": {
+    "no-use-state": 11
+  },
+  "apps/web/app/routes/backup.lazy.tsx": {
+    "no-use-state": 5
+  },
+  "apps/web/app/routes/discover.tsx": {
+    "no-use-state": 1
+  },
+  "apps/web/app/routes/extensions.$providerId.tsx": {
+    "no-use-state": 1
+  },
+  "apps/web/app/routes/extensions.tsx": {
+    "no-try-catch": 1,
+    "no-use-state": 14
+  },
+  "apps/web/app/routes/library.tsx": {
+    "no-try-catch": 1,
+    "no-use-state": 3
+  },
+  "apps/web/app/routes/manga.$id.tsx": {
+    "no-try-catch": 1
+  },
+  "apps/web/app/routes/search.tsx": {
+    "no-use-state": 1
+  },
+  "apps/web/app/routes/storage.lazy.tsx": {
+    "no-use-state": 2
+  },
+  "apps/web/app/routes/theme.editor.lazy.tsx": {
+    "no-use-state": 3
+  },
+  "apps/web/playwright.production.config.ts": {
+    "no-try-catch": 1
+  },
+  "packages/backup/src/components/BackupPage.tsx": {
+    "no-use-state": 1
+  },
+  "packages/backup/src/parse-backup-file.ts": {
+    "no-try-catch": 1
+  },
+  "packages/cache/src/blob-deletes.ts": {
+    "no-try-catch": 1
+  },
+  "packages/cache/src/blob-writes.ts": {
+    "no-try-catch": 1
+  },
+  "packages/cache/src/components/CachedCoverImage.tsx": {
+    "no-use-state": 3
+  },
+  "packages/cache/src/components/use-page-object-url.ts": {
+    "no-use-state": 4
+  },
+  "packages/cache/src/reader-locks.ts": {
+    "no-try-catch": 4
+  },
+  "packages/cache/src/testing/fake-web-locks.ts": {
+    "no-try-catch": 1
+  },
+  "packages/db/src/backup/restore-apply.ts": {
+    "no-try-catch": 1
+  },
+  "packages/db/src/merge-uncommitted-progress.ts": {
+    "no-try-catch": 1
+  },
+  "packages/db/src/persistent-database.ts": {
+    "no-try-catch": 1
+  },
+  "packages/db/src/repositories/identities.ts": {
+    "no-try-catch": 1
+  },
+  "packages/db/src/repositories/identity-merge.ts": {
+    "no-try-catch": 2
+  },
+  "packages/db/src/repositories/library.ts": {
+    "no-try-catch": 1
+  },
+  "packages/design-system/src/components/reader-progress-rail.tsx": {
+    "no-use-state": 4
+  },
+  "packages/design-system/src/components/settings-section.tsx": {
+    "no-use-state": 1
+  },
+  "packages/diagnostics/src/components/DiagnosticsPage.tsx": {
+    "no-use-state": 1
+  },
+  "packages/extensions-core/src/extension-logs.ts": {
+    "no-try-catch": 2
+  },
+  "packages/extensions-core/src/health-check.ts": {
+    "no-try-catch": 2
+  },
+  "packages/extensions-core/src/manifest-fetch.ts": {
+    "no-try-catch": 3
+  },
+  "packages/extensions-core/src/providers-ops.ts": {
+    "no-try-catch": 1
+  },
+  "packages/extensions-core/src/registry-import.ts": {
+    "no-try-catch": 2
+  },
+  "packages/extensions-mangadex/src/provider.ts": {
+    "no-try-catch": 1
+  },
+  "packages/extensions-sdk/src/contract-tests.ts": {
+    "no-try-catch": 1
+  },
+  "packages/extensions-sdk/src/errors.ts": {
+    "no-try-catch": 1
+  },
+  "packages/extensions-sdk/src/manifest-url.ts": {
+    "no-try-catch": 1
+  },
+  "packages/extensions-sdk/src/parse-html.ts": {
+    "no-try-catch": 2
+  },
+  "packages/extensions-sdk/src/request-client.ts": {
+    "no-try-catch": 1
+  },
+  "packages/extensions/src/components/ProviderDetailPage.tsx": {
+    "no-use-state": 2
+  },
+  "packages/extensions/src/components/ProviderSettingsForm.tsx": {
+    "no-use-state": 2
+  },
+  "packages/extensions/src/components/RegistryImportDialog.tsx": {
+    "no-use-state": 1
+  },
+  "packages/extensions/src/provider-settings.ts": {
+    "no-try-catch": 1
+  },
+  "packages/library/src/components/BulkEditBar.tsx": {
+    "no-use-state": 4
+  },
+  "packages/library/src/components/CategoryManagerDialog.tsx": {
+    "no-try-catch": 2,
+    "no-use-state": 7
+  },
+  "packages/library/src/components/LibraryPage.tsx": {
+    "no-use-state": 3
+  },
+  "packages/library/src/components/LibraryToolbar.tsx": {
+    "no-use-state": 1
+  },
+  "packages/library/src/components/MangaChapterList.tsx": {
+    "no-use-state": 3
+  },
+  "packages/library/src/components/MangaCustomCoverDialog.tsx": {
+    "no-try-catch": 1,
+    "no-use-state": 2
+  },
+  "packages/library/src/components/MangaDetailPage.tsx": {
+    "no-try-catch": 2,
+    "no-use-state": 5
+  },
+  "packages/library/src/components/MangaIdentityMerge.tsx": {
+    "no-try-catch": 3,
+    "no-use-state": 8
+  },
+  "packages/library/src/components/MangaProviderSwitcher.tsx": {
+    "no-use-state": 1
+  },
+  "packages/library/src/components/use-unmerge-request.ts": {
+    "no-try-catch": 1,
+    "no-use-state": 4
+  },
+  "packages/library/src/hooks/use-container-width.ts": {
+    "no-use-state": 1
+  },
+  "packages/library/src/hooks/use-scroll-parent.ts": {
+    "no-use-state": 1
+  },
+  "packages/library/src/update-queue.ts": {
+    "no-try-catch": 3
+  },
+  "packages/migration/src/components/MigrationPage.tsx": {
+    "no-use-state": 2
+  },
+  "packages/migration/src/search-migration-targets.ts": {
+    "no-try-catch": 1
+  },
+  "packages/platform/src/electron.ts": {
+    "no-try-catch": 7
+  },
+  "packages/platform/src/network-fetch.ts": {
+    "no-try-catch": 1
+  },
+  "packages/platform/src/network-url.ts": {
+    "no-try-catch": 1
+  },
+  "packages/platform/src/url-protocol.ts": {
+    "no-try-catch": 4
+  },
+  "packages/platform/src/web.ts": {
+    "no-try-catch": 13
+  },
+  "packages/reader/src/components/ReaderPagedLayer.tsx": {
+    "no-use-state": 1
+  },
+  "packages/reader/src/components/ReaderScreen.tsx": {
+    "no-try-catch": 1,
+    "no-use-state": 4
+  },
+  "packages/reader/src/components/ReaderScrollView.tsx": {
+    "no-use-state": 2
+  },
+  "packages/reader/src/components/use-chapter-cache.ts": {
+    "no-use-state": 1
+  },
+  "packages/reader/src/components/use-reader-diagnostics.ts": {
+    "no-use-state": 2
+  },
+  "packages/reader/src/components/use-reader-listeners.ts": {
+    "no-use-state": 1
+  },
+  "packages/reader/src/components/use-reader-session.ts": {
+    "no-use-state": 2
+  },
+  "packages/reader/src/components/use-reader-viewport.ts": {
+    "no-use-state": 2
+  },
+  "packages/search/src/components/SearchPage.tsx": {
+    "no-use-state": 2
+  },
+  "packages/search/src/hooks/use-container-width.ts": {
+    "no-use-state": 1
+  },
+  "packages/search/src/hooks/use-scroll-margin.ts": {
+    "no-use-state": 1
+  },
+  "packages/search/src/hooks/use-scroll-parent.ts": {
+    "no-use-state": 1
+  },
+  "packages/settings/src/components/ReaderSettingsPage.tsx": {
+    "no-use-state": 2
+  },
+  "packages/storage/src/components/StoragePage.tsx": {
+    "no-use-state": 1
+  },
+  "packages/theme/src/color.ts": {
+    "no-try-catch": 1
+  },
+  "packages/theme/src/components/ThemeAdvancedEditor.tsx": {
+    "no-try-catch": 1,
+    "no-use-state": 1
+  },
+  "packages/theme/src/components/ThemeCustomizationPage.tsx": {
+    "no-use-state": 1
+  },
+  "packages/theme/src/components/ThemeEditorPage.tsx": {
+    "no-use-state": 1
+  },
+  "packages/theme/src/components/theme-advanced.ts": {
+    "no-try-catch": 2
+  }
+}
