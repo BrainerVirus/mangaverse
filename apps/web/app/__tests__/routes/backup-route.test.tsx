@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
-import type * as BackupModule from '@app/backup';
+import type * as BackupModule from '@/features/backup/index.js';
 import type * as CacheModule from '@app/cache';
 import type * as ExtensionsModule from '@app/extensions';
 import type { ExtensionsPageData } from '@app/extensions';
@@ -28,7 +28,7 @@ const mocks = vi.hoisted(() => ({
   getCoverCacheUsage: vi.fn<() => Promise<{ totalBytes: number }>>(),
 }));
 
-vi.mock('@app/backup', async (importOriginal) => {
+vi.mock('@/features/backup/index.js', async (importOriginal) => {
   const actual = await importOriginal<typeof BackupModule>();
   return {
     ...actual,

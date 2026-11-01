@@ -16,7 +16,9 @@ export default defineConfig({
       'app/__tests__/**/*.test.ts',
       'app/__tests__/**/*.test.tsx',
       'app/providers/**/*.test.tsx',
+      'app/features/**/*.test.{ts,tsx}',
     ],
+    setupFiles: ['./test-setup.ts'],
     globals: true,
     // Every one of the ~72 jsdom files boots its own worker and jsdom environment.
     // At the default worker count (one per CPU here = 10) three concurrent suite

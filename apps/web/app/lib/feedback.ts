@@ -1,4 +1,4 @@
-import type { DiagnosticEventInput } from '@app/diagnostics';
+import type { DiagnosticEventInput } from '@/features/diagnostics/index.js';
 import {
   classifyAppError,
   failureLogText,

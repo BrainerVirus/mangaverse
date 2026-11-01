@@ -1,7 +1,7 @@
 import { createLazyFileRoute } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { createAppPlatformAdapter } from '@app/diagnostics';
+import { createAppPlatformAdapter } from '@/features/diagnostics/index.js';
 import {
   StoragePage,
   clearStorageData,
@@ -9,7 +9,7 @@ import {
   requestPersistentStorage,
   storageQueryKeys,
   type StorageClearTarget,
-} from '@app/storage';
+} from '@/features/storage/index.js';
 
 import { failureMessage } from '../lib/app-feedback.js';
 import { saveFeedback } from '../lib/feedback.js';
