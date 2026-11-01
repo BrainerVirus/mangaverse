@@ -14,3 +14,4 @@ export * from './app-settings.js';
 export * from './library.js';
 export * from './extension-install.js';
 export * from './backup.js';
+export * from './redact.js';
