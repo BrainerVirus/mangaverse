@@ -7,7 +7,7 @@ import {
   saveThemeDefinition,
   themeQueryKeys,
   ThemeCustomizationPage,
-} from '@app/theme';
+} from '@/features/theme';
 import type { ThemeDefinition } from '@app/shared';
 
 import { failureMessage } from '../lib/app-feedback.js';

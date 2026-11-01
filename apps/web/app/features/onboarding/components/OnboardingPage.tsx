@@ -22,7 +22,7 @@ import {
   getThemePreset,
   resolveEffectiveDark,
   toThemePreviewDefinitionForPreset,
-} from '@app/theme';
+} from '@/features/theme';
 
 import { ONBOARDING_THEME_PRESET_IDS } from '../constants.js';
 import {

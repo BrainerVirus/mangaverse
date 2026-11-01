@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { buildThemeCssVariables, getBuiltInThemeDefinition, ThemeEditorPage } from '@app/theme';
+import {
+  buildThemeCssVariables,
+  getBuiltInThemeDefinition,
+  ThemeEditorPage,
+} from '@/features/theme';
 import type { ThemeDefinition } from '@app/shared';
 
 const draft: ThemeDefinition = {

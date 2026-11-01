@@ -9,7 +9,7 @@ import type * as BackupModule from '@/features/backup/index.js';
 import type * as CacheModule from '@app/cache';
 import type * as ExtensionsModule from '@app/extensions';
 import type { ExtensionsPageData } from '@app/extensions';
-import type * as SettingsModule from '@app/settings';
+import type * as SettingsModule from '@/features/settings';
 import { extensionsQueryKeys } from '@app/extensions';
 import { DEFAULT_SEARCH_VIEW_STATE, discoverQueryKeys, searchQueryKeys } from '@app/search';
 import { getDefaultAppSettings, type AppSettings } from '@app/shared';
@@ -40,7 +40,7 @@ vi.mock('@/features/backup/index.js', async (importOriginal) => {
   };
 });
 
-vi.mock('@app/settings', async (importOriginal) => {
+vi.mock('@/features/settings', async (importOriginal) => {
   const actual = await importOriginal<typeof SettingsModule>();
   return {
     ...actual,

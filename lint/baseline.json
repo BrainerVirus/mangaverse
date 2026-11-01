@@ -41,8 +41,27 @@
   "apps/web/app/features/migration/search-migration-targets.ts": {
     "no-try-catch": 1
   },
+  "apps/web/app/features/settings/components/ReaderSettingsPage.tsx": {
+    "no-use-state": 2
+  },
   "apps/web/app/features/storage/components/StoragePage.tsx": {
     "no-use-state": 1
+  },
+  "apps/web/app/features/theme/color.ts": {
+    "no-try-catch": 1
+  },
+  "apps/web/app/features/theme/components/ThemeAdvancedEditor.tsx": {
+    "no-try-catch": 1,
+    "no-use-state": 1
+  },
+  "apps/web/app/features/theme/components/ThemeCustomizationPage.tsx": {
+    "no-use-state": 1
+  },
+  "apps/web/app/features/theme/components/ThemeEditorPage.tsx": {
+    "no-use-state": 1
+  },
+  "apps/web/app/features/theme/components/theme-advanced.ts": {
+    "no-try-catch": 2
   },
   "apps/web/app/lib/library-update-provider.ts": {
     "no-try-catch": 1
@@ -289,25 +308,6 @@
   "packages/search/src/hooks/use-scroll-parent.ts": {
     "no-use-state": 1
   },
-  "packages/settings/src/components/ReaderSettingsPage.tsx": {
-    "no-use-state": 2
-  },
-  "packages/theme/src/color.ts": {
-    "no-try-catch": 1
-  },
-  "packages/theme/src/components/ThemeAdvancedEditor.tsx": {
-    "no-try-catch": 1,
-    "no-use-state": 1
-  },
-  "packages/theme/src/components/ThemeCustomizationPage.tsx": {
-    "no-use-state": 1
-  },
-  "packages/theme/src/components/ThemeEditorPage.tsx": {
-    "no-use-state": 1
-  },
-  "packages/theme/src/components/theme-advanced.ts": {
-    "no-try-catch": 2
-  },
   "moves": [
     {
       "from": "apps/web/app/routes/theme.editor.lazy.tsx",
@@ -356,6 +356,49 @@
       "to": "apps/web/app/features/migration/search-migration-targets.ts",
       "rules": {
         "no-try-catch": 1
+      }
+    },
+    {
+      "from": "packages/settings/src/components/ReaderSettingsPage.tsx",
+      "to": "apps/web/app/features/settings/components/ReaderSettingsPage.tsx",
+      "rules": {
+        "no-use-state": 2
+      }
+    },
+    {
+      "from": "packages/theme/src/color.ts",
+      "to": "apps/web/app/features/theme/color.ts",
+      "rules": {
+        "no-try-catch": 1
+      }
+    },
+    {
+      "from": "packages/theme/src/components/ThemeAdvancedEditor.tsx",
+      "to": "apps/web/app/features/theme/components/ThemeAdvancedEditor.tsx",
+      "rules": {
+        "no-use-state": 1,
+        "no-try-catch": 1
+      }
+    },
+    {
+      "from": "packages/theme/src/components/ThemeCustomizationPage.tsx",
+      "to": "apps/web/app/features/theme/components/ThemeCustomizationPage.tsx",
+      "rules": {
+        "no-use-state": 1
+      }
+    },
+    {
+      "from": "packages/theme/src/components/ThemeEditorPage.tsx",
+      "to": "apps/web/app/features/theme/components/ThemeEditorPage.tsx",
+      "rules": {
+        "no-use-state": 1
+      }
+    },
+    {
+      "from": "packages/theme/src/components/theme-advanced.ts",
+      "to": "apps/web/app/features/theme/components/theme-advanced.ts",
+      "rules": {
+        "no-try-catch": 2
       }
     }
   ]

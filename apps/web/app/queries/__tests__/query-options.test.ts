@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { keepPreviousData, QueryClient } from '@tanstack/react-query';
 import { DEFAULT_LIBRARY_VIEW_STATE, libraryQueryKeys } from '@app/library';
 import { DEFAULT_SEARCH_VIEW_STATE, searchQueryKeys } from '@app/search';
-import { settingsQueryKeys } from '@app/settings';
+import { settingsQueryKeys } from '@/features/settings';
 import { QUERY_GC_TIMES, QUERY_STALE_TIMES } from '../query-timing.js';
 import { libraryPageQueryOptions } from '../library-query-options.js';
 import {

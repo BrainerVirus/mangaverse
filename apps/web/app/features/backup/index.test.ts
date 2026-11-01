@@ -8,7 +8,7 @@ import {
 } from '@app/shared';
 import { listThemeDefinitions } from '@app/db';
 import { createSqlJsHarness } from '@app/db/testing';
-import { getThemePreset, presetToThemeDefinition } from '@app/theme';
+import { getThemePreset, presetToThemeDefinition } from '@/features/theme';
 
 import {
   applyBackupImport,

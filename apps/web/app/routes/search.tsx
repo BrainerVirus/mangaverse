@@ -13,7 +13,7 @@ import {
 } from '@app/search';
 import { removeSavedSearch, upsertSavedSearch } from '@app/db/browser';
 import type { SavedSearchEntry } from '@app/db';
-import { fetchAppSettings, settingsQueryKeys } from '@app/settings';
+import { fetchAppSettings, settingsQueryKeys } from '@/features/settings';
 import { failureMessage } from '../lib/app-feedback.js';
 import { getLocalDb } from '../lib/local-db.js';
 import {

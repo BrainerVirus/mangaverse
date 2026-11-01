@@ -129,15 +129,15 @@ importers:
       '@app/search':
         specifier: workspace:*
         version: link:../../packages/search
-      '@app/settings':
-        specifier: workspace:*
-        version: link:../../packages/settings
       '@app/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@app/theme':
-        specifier: workspace:*
-        version: link:../../packages/theme
+      '@codemirror/lang-json':
+        specifier: ^6.0.2
+        version: 6.0.2
+      '@codemirror/lint':
+        specifier: ^6.9.7
+        version: 6.9.7
       '@fontsource-variable/inter':
         specifier: ^5.3.0
         version: 5.3.0
@@ -153,6 +153,12 @@ importers:
       '@tanstack/react-start':
         specifier: ^1.168.61
         version: 1.168.61(crossws@0.4.15(srvx@1.0.5))(esbuild@0.28.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rolldown@1.2.13)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+      '@uiw/react-codemirror':
+        specifier: ^4.25.12
+        version: 4.25.12(@babel/runtime@7.29.10)(@codemirror/autocomplete@6.20.4)(@codemirror/language@6.13.1)(@codemirror/lint@6.9.7)(@codemirror/search@6.7.2)(@codemirror/state@6.7.6)(@codemirror/theme-one-dark@6.1.3)(@codemirror/view@6.43.15)(codemirror@6.0.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      culori:
+        specifier: ^4.0.2
+        version: 4.0.2
       lucide-react:
         specifier: ^1.56.0
         version: 1.56.0(@types/react@19.3.0)(react@19.3.0)
@@ -202,6 +208,9 @@ importers:
       '@types/babel__core':
         specifier: ^7.20.5
         version: 7.20.5
+      '@types/culori':
+        specifier: ^4.0.1
+        version: 4.0.1
       '@types/react':
         specifier: ^19.3.0
         version: 19.3.0
@@ -725,52 +734,6 @@ importers:
         specifier: ^5.0.4
         version: 5.0.4(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(jsdom@30.1.2)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
-  packages/settings:
-    dependencies:
-      '@app/cache':
-        specifier: workspace:*
-        version: link:../cache
-      '@app/db':
-        specifier: workspace:*
-        version: link:../db
-      '@app/design-system':
-        specifier: workspace:*
-        version: link:../design-system
-      '@app/shared':
-        specifier: workspace:*
-        version: link:../shared
-      lucide-react:
-        specifier: ^1.56.0
-        version: 1.56.0(@types/react@19.3.0)(react@19.3.0)
-      react:
-        specifier: ^19.3.0
-        version: 19.3.0
-    devDependencies:
-      '@testing-library/jest-dom':
-        specifier: ^7.0.1
-        version: 7.0.1(@testing-library/dom@10.4.2)(vitest@5.0.4(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(jsdom@30.1.2)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)))
-      '@testing-library/react':
-        specifier: ^16.3.3
-        version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      '@types/react-dom':
-        specifier: ^19.3.0
-        version: 19.3.0(@types/react@19.3.0)
-      jsdom:
-        specifier: ^30.1.2
-        version: 30.1.2
-      oxlint:
-        specifier: ^1.87.0
-        version: 1.87.0(oxlint-tsgolint@7.0.2004)
-      react-dom:
-        specifier: ^19.3.0
-        version: 19.3.0(react@19.3.0)
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-      vitest:
-        specifier: ^5.0.4
-        version: 5.0.4(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(jsdom@30.1.2)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
-
   packages/shared:
     dependencies:
       zod:
@@ -780,58 +743,6 @@ importers:
       oxlint:
         specifier: ^1.87.0
         version: 1.87.0(oxlint-tsgolint@7.0.2004)
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
-      vitest:
-        specifier: ^5.0.4
-        version: 5.0.4(@opentelemetry/api@1.9.1)(@types/node@26.6.5)(jsdom@30.1.2)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
-
-  packages/theme:
-    dependencies:
-      '@app/db':
-        specifier: workspace:*
-        version: link:../db
-      '@app/design-system':
-        specifier: workspace:*
-        version: link:../design-system
-      '@app/shared':
-        specifier: workspace:*
-        version: link:../shared
-      '@codemirror/lang-json':
-        specifier: ^6.0.2
-        version: 6.0.2
-      '@codemirror/lint':
-        specifier: ^6.9.7
-        version: 6.9.7
-      '@uiw/react-codemirror':
-        specifier: ^4.25.12
-        version: 4.25.12(@babel/runtime@7.29.10)(@codemirror/autocomplete@6.20.4)(@codemirror/language@6.13.1)(@codemirror/lint@6.9.7)(@codemirror/search@6.7.2)(@codemirror/state@6.7.6)(@codemirror/theme-one-dark@6.1.3)(@codemirror/view@6.43.15)(codemirror@6.0.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      culori:
-        specifier: ^4.0.2
-        version: 4.0.2
-      react:
-        specifier: ^19.3.0
-        version: 19.3.0
-      zod:
-        specifier: ^4.6.7
-        version: 4.6.7
-    devDependencies:
-      '@types/culori':
-        specifier: ^4.0.1
-        version: 4.0.1
-      '@types/react-dom':
-        specifier: ~19.3.0
-        version: 19.3.0(@types/react@19.3.0)
-      jsdom:
-        specifier: ^30.1.2
-        version: 30.1.2
-      oxlint:
-        specifier: ^1.87.0
-        version: 1.87.0(oxlint-tsgolint@7.0.2004)
-      react-dom:
-        specifier: ^19.3.0
-        version: 19.3.0(react@19.3.0)
       typescript:
         specifier: ^7.0.2
         version: 7.0.2

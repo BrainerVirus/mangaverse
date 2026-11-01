@@ -1,5 +1,5 @@
 import type { ThemeDefinition, ThemeSettings } from '@app/shared';
-import { createCustomThemeId, getBuiltInThemeDefinition, isBuiltInThemeId } from '@app/theme';
+import { createCustomThemeId, getBuiltInThemeDefinition, isBuiltInThemeId } from '@/features/theme';
 
 export interface ThemeEditorDraft {
   readonly definition: ThemeDefinition;

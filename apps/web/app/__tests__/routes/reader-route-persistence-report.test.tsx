@@ -71,7 +71,7 @@ vi.mock('@app/reader', () => ({
   },
 }));
 
-vi.mock('@app/settings', () => ({
+vi.mock('@/features/settings', () => ({
   saveReaderSettings: saveGlobalSettings,
   settingsQueryKeys: { reader: () => ['settings', 'reader'] },
 }));

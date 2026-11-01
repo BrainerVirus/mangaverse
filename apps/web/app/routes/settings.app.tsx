@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getCoverCacheUsage } from '@app/cache';
 import { searchQueryKeys } from '@app/search';
-import { AppSettingsPage, saveAppSettings, settingsQueryKeys } from '@app/settings';
+import { AppSettingsPage, saveAppSettings, settingsQueryKeys } from '@/features/settings';
 import { saveFeedback } from '../lib/feedback.js';
 import { appSettingsQueryOptions } from '../queries/settings-query-options.js';
 import type { AppSettings } from '@app/shared';

@@ -6,7 +6,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { getDefaultAppSettings, getDefaultReaderSettings } from '@app/shared';
 import type { AppSettings, ReaderSettings, ThemeSettings } from '@app/shared';
-import { getDefaultThemeSettings } from '@app/theme';
+import { getDefaultThemeSettings } from '@/features/theme';
 
 import { OnboardingPage } from './OnboardingPage.js';
 import { getDefaultOnboardingState } from '../onboarding-state.js';

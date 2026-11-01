@@ -6,7 +6,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ProviderContract } from '@app/extensions-sdk';
-import type * as SettingsModule from '@app/settings';
+import type * as SettingsModule from '@/features/settings';
 import type { ExtensionInstallMetadata } from '@app/shared';
 import type { ProviderAppBinding } from '../../lib/provider-registry.js';
 
@@ -36,7 +36,7 @@ vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => mocks.navigate,
 }));
 
-vi.mock('@app/settings', async (importOriginal) => {
+vi.mock('@/features/settings', async (importOriginal) => {
   const actual = await importOriginal<typeof SettingsModule>();
   return { ...actual, fetchAppSettings: mocks.fetchAppSettings };
 });

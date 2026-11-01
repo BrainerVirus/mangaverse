@@ -17,9 +17,9 @@ import {
   saveAppSettings,
   saveReaderSettings,
   settingsQueryKeys,
-} from '@app/settings';
+} from '@/features/settings';
 import type { AppSettings, ReaderSettings } from '@app/shared';
-import { saveThemeSettings, themeQueryKeys } from '@app/theme';
+import { saveThemeSettings, themeQueryKeys } from '@/features/theme';
 
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 import { useTheme } from '../providers/theme-provider.js';

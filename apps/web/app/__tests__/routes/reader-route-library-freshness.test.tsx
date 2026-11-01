@@ -40,7 +40,7 @@ vi.mock('@app/reader', () => ({
     return null;
   },
 }));
-vi.mock('@app/settings', () => ({
+vi.mock('@/features/settings', () => ({
   saveReaderSettings: vi.fn<() => Promise<unknown>>(async () => ({ ok: true })),
   settingsQueryKeys: { reader: () => ['settings', 'reader'] },
 }));
