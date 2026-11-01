@@ -1,4 +1,5 @@
-import { useState, type CSSProperties, type Key } from 'react';
+import { useState, type CSSProperties, type Key, type RefObject } from 'react';
+import type { VirtualItem } from '@tanstack/react-virtual';
 import {
   Badge,
   Button,
@@ -57,6 +58,54 @@ interface ChapterListRow {
   readonly dataIndex: number | undefined;
   readonly measure: ((node: Element | null) => void) | undefined;
   readonly style: CSSProperties | undefined;
+}
+
+interface ChapterWindow {
+  readonly rows: readonly VirtualItem[];
+  readonly scrollMargin: number;
+  readonly measureRow: (node: Element | null) => void;
+  readonly isVirtualized: boolean;
+}
+
+/**
+ * The rows to mount: every chapter in the plain path, the virtualizer's window
+ * otherwise. Kept out of the component so its render branches stay shallow.
+ */
+function buildChapterRows(
+  chapters: readonly Chapter[],
+  window: ChapterWindow,
+): readonly ChapterListRow[] {
+  if (!window.isVirtualized) {
+    return chapters.map((chapter, position) => ({
+      key: chapter.id,
+      chapter,
+      position,
+      dataIndex: undefined,
+      measure: undefined,
+      style: undefined,
+    }));
+  }
+
+  return window.rows.flatMap((row) => {
+    const chapter = chapters[row.index];
+    if (chapter === undefined) return [];
+    return [
+      {
+        key: row.key,
+        chapter,
+        position: row.index,
+        dataIndex: row.index,
+        measure: window.measureRow,
+        style: {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          transform: `translateY(${row.start - window.scrollMargin}px)`,
+        },
+      } satisfies ChapterListRow,
+    ];
+  });
 }
 
 interface ChapterRowContentProps {
@@ -165,6 +214,124 @@ function ChapterListEmpty({
   return <EmptyState type="no-chapters" />;
 }
 
+function isFirstVisibleChapter(chapters: readonly Chapter[], chapter: Chapter): boolean {
+  return !chapters.some((item) => item.index < chapter.index && item.id !== chapter.id);
+}
+
+/** The one-line state summary above the list. */
+function chapterSummaryText(isLoading: boolean, unreadCount: number, chapterCount: number): string {
+  if (isLoading && chapterCount === 0) return 'Loading chapters…';
+  if (unreadCount > 0) return `${unreadCount} unread`;
+  return chapterCount === 0 ? 'No chapters from this source yet.' : 'All chapters read.';
+}
+
+interface ChapterRowsProps {
+  readonly rows: readonly ChapterListRow[];
+  readonly totalCount: number;
+  readonly mappingChapters: readonly Chapter[];
+  readonly readIds: ReadonlySet<ChapterId>;
+  readonly downloaded: ReadonlySet<ChapterId>;
+  readonly containerRef: RefObject<HTMLOListElement | null>;
+  readonly isVirtualized: boolean;
+  readonly totalSize: number;
+  readonly isPending: boolean;
+  onOpenChapter: (chapterId: ChapterId) => void;
+  onSetChapterRead: ((chapterId: ChapterId, read: boolean) => Promise<void> | void) | undefined;
+  onMarkPreviousRead: ((chapterId: ChapterId) => Promise<void> | void) | undefined;
+  run: (action: () => Promise<void> | void) => void;
+}
+
+/** The list box: plain flow rows, or absolutely positioned rows in a window. */
+function ChapterRows({
+  rows,
+  totalCount,
+  mappingChapters,
+  readIds,
+  downloaded,
+  containerRef,
+  isVirtualized,
+  totalSize,
+  isPending,
+  onOpenChapter,
+  onSetChapterRead,
+  onMarkPreviousRead,
+  run,
+}: ChapterRowsProps) {
+  return (
+    <ol
+      ref={containerRef}
+      aria-label="Chapters"
+      data-virtualized={isVirtualized ? '' : undefined}
+      className={cn(
+        'rounded-box border border-border',
+        // Windowed rows are absolutely positioned inside the list; the list
+        // keeps the full scroll height from the virtualizer's total size.
+        isVirtualized ? 'relative' : 'divide-y divide-border',
+      )}
+      {...(isVirtualized ? { style: { height: totalSize } } : {})}
+    >
+      {rows.map(({ key, chapter, position, dataIndex, measure, style }) => (
+        <li
+          key={key}
+          data-index={dataIndex}
+          ref={measure}
+          style={style}
+          aria-setsize={totalCount}
+          aria-posinset={position + 1}
+          className={cn(
+            'flex items-center gap-2 px-2 sm:px-4',
+            isVirtualized && 'border-t border-border',
+          )}
+        >
+          <ChapterRowContent
+            chapter={chapter}
+            isFirst={isFirstVisibleChapter(mappingChapters, chapter)}
+            isRead={readIds.has(chapter.id)}
+            isDownloaded={downloaded.has(chapter.id)}
+            isPending={isPending}
+            onOpenChapter={onOpenChapter}
+            onSetChapterRead={onSetChapterRead}
+            onMarkPreviousRead={onMarkPreviousRead}
+            run={run}
+          />
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+interface ChapterBodyProps extends Omit<ChapterRowsProps, 'totalCount'> {
+  readonly chapterCount: number;
+  readonly visibleCount: number;
+  readonly filter: ChapterFilter;
+  readonly isLoading: boolean;
+  readonly loadError: string | undefined;
+  onRetryLoad: (() => void) | undefined;
+}
+
+/** Empty, filtered-empty or rows: one of the three list states. */
+function ChapterBody({
+  chapterCount,
+  visibleCount,
+  filter,
+  isLoading,
+  loadError,
+  onRetryLoad,
+  ...rows
+}: ChapterBodyProps) {
+  if (chapterCount === 0) {
+    return <ChapterListEmpty isLoading={isLoading} loadError={loadError} onRetry={onRetryLoad} />;
+  }
+  if (visibleCount === 0) {
+    return (
+      <p className="rounded-box border border-border px-4 py-6 text-sm text-muted-foreground">
+        {filter === 'unread' ? 'No unread chapters.' : 'No read chapters yet.'}
+      </p>
+    );
+  }
+  return <ChapterRows {...rows} totalCount={visibleCount} />;
+}
+
 export function MangaChapterList({
   chapters,
   readStates,
@@ -198,35 +365,12 @@ export function MangaChapterList({
     measureRow,
   } = useChapterVirtualizer(visibleChapters.length);
 
-  const listRows: readonly ChapterListRow[] = isVirtualized
-    ? virtualRows.flatMap((row) => {
-        const chapter = visibleChapters[row.index];
-        if (chapter === undefined) return [];
-        return [
-          {
-            key: row.key,
-            chapter,
-            position: row.index,
-            dataIndex: row.index,
-            measure: measureRow,
-            style: {
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              transform: `translateY(${row.start - scrollMargin}px)`,
-            },
-          } satisfies ChapterListRow,
-        ];
-      })
-    : visibleChapters.map((chapter, position) => ({
-        key: chapter.id,
-        chapter,
-        position,
-        dataIndex: undefined,
-        measure: undefined,
-        style: undefined,
-      }));
+  const listRows = buildChapterRows(visibleChapters, {
+    rows: virtualRows,
+    scrollMargin,
+    measureRow,
+    isVirtualized,
+  });
 
   function run(action: () => Promise<void> | void): void {
     setError(undefined);
@@ -241,13 +385,7 @@ export function MangaChapterList({
         <div className="space-y-1">
           <h2 className="text-xl font-semibold">Chapters</h2>
           <p className="text-sm text-muted-foreground" data-testid="chapter-summary">
-            {isLoading && mappingChapters.length === 0
-              ? 'Loading chapters…'
-              : unreadCount === 0
-                ? mappingChapters.length === 0
-                  ? 'No chapters from this source yet.'
-                  : 'All chapters read.'
-                : `${unreadCount} unread`}
+            {chapterSummaryText(isLoading, unreadCount, mappingChapters.length)}
             {lastReadChapter !== undefined ? ` · Last read: ${lastReadChapter.title}` : null}
           </p>
         </div>
@@ -291,59 +429,26 @@ export function MangaChapterList({
         </p>
       ) : null}
 
-      {mappingChapters.length === 0 ? (
-        <ChapterListEmpty isLoading={isLoading} loadError={loadError} onRetry={onRetryLoad} />
-      ) : visibleChapters.length === 0 ? (
-        <p className="rounded-box border border-border px-4 py-6 text-sm text-muted-foreground">
-          {filter === 'unread' ? 'No unread chapters.' : 'No read chapters yet.'}
-        </p>
-      ) : (
-        <ol
-          ref={containerRef}
-          aria-label="Chapters"
-          data-virtualized={isVirtualized ? '' : undefined}
-          className={cn(
-            'rounded-box border border-border',
-            // Windowed rows are absolutely positioned inside the list; the list
-            // keeps the full scroll height from the virtualizer's total size.
-            isVirtualized ? 'relative' : 'divide-y divide-border',
-          )}
-          {...(isVirtualized ? { style: { height: totalSize } } : {})}
-        >
-          {listRows.map(({ key, chapter, position, dataIndex, measure, style }) => {
-            const isRead = readIds.has(chapter.id);
-            const isFirst = !mappingChapters.some(
-              (item) => item.index < chapter.index && item.id !== chapter.id,
-            );
-            return (
-              <li
-                key={key}
-                data-index={dataIndex}
-                ref={measure}
-                style={style}
-                aria-setsize={visibleChapters.length}
-                aria-posinset={position + 1}
-                className={cn(
-                  'flex items-center gap-2 px-2 sm:px-4',
-                  isVirtualized && 'border-t border-border',
-                )}
-              >
-                <ChapterRowContent
-                  chapter={chapter}
-                  isFirst={isFirst}
-                  isRead={isRead}
-                  isDownloaded={downloaded.has(chapter.id)}
-                  isPending={isPending}
-                  onOpenChapter={onOpenChapter}
-                  onSetChapterRead={onSetChapterRead}
-                  onMarkPreviousRead={onMarkPreviousRead}
-                  run={run}
-                />
-              </li>
-            );
-          })}
-        </ol>
-      )}
+      <ChapterBody
+        chapterCount={mappingChapters.length}
+        visibleCount={visibleChapters.length}
+        filter={filter}
+        isLoading={isLoading}
+        loadError={loadError}
+        onRetryLoad={onRetryLoad}
+        rows={listRows}
+        mappingChapters={mappingChapters}
+        readIds={readIds}
+        downloaded={downloaded}
+        containerRef={containerRef}
+        isVirtualized={isVirtualized}
+        totalSize={totalSize}
+        isPending={isPending}
+        onOpenChapter={onOpenChapter}
+        onSetChapterRead={onSetChapterRead}
+        onMarkPreviousRead={onMarkPreviousRead}
+        run={run}
+      />
     </section>
   );
 }
