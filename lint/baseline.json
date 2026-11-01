@@ -26,6 +26,18 @@
   "apps/web/app/components/shell/MobileBottomNav.tsx": {
     "no-use-state": 1
   },
+  "apps/web/app/features/backup/components/BackupPage.tsx": {
+    "no-use-state": 1
+  },
+  "apps/web/app/features/backup/parse-backup-file.ts": {
+    "no-try-catch": 1
+  },
+  "apps/web/app/features/diagnostics/components/DiagnosticsPage.tsx": {
+    "no-use-state": 1
+  },
+  "apps/web/app/features/storage/components/StoragePage.tsx": {
+    "no-use-state": 1
+  },
   "apps/web/app/lib/library-update-provider.ts": {
     "no-try-catch": 1
   },
@@ -88,12 +100,6 @@
   "apps/web/playwright.production.config.ts": {
     "no-try-catch": 1
   },
-  "packages/backup/src/components/BackupPage.tsx": {
-    "no-use-state": 1
-  },
-  "packages/backup/src/parse-backup-file.ts": {
-    "no-try-catch": 1
-  },
   "packages/cache/src/blob-deletes.ts": {
     "no-try-catch": 1
   },
@@ -134,9 +140,6 @@
     "no-use-state": 4
   },
   "packages/design-system/src/components/settings-section.tsx": {
-    "no-use-state": 1
-  },
-  "packages/diagnostics/src/components/DiagnosticsPage.tsx": {
     "no-use-state": 1
   },
   "packages/extensions-core/src/extension-logs.ts": {
@@ -289,9 +292,6 @@
   "packages/settings/src/components/ReaderSettingsPage.tsx": {
     "no-use-state": 2
   },
-  "packages/storage/src/components/StoragePage.tsx": {
-    "no-use-state": 1
-  },
   "packages/theme/src/color.ts": {
     "no-try-catch": 1
   },
@@ -314,6 +314,34 @@
       "to": "apps/web/app/routes/advanced.theme.tsx",
       "rules": {
         "no-use-state": 3
+      }
+    },
+    {
+      "from": "packages/backup/src/components/BackupPage.tsx",
+      "to": "apps/web/app/features/backup/components/BackupPage.tsx",
+      "rules": {
+        "no-use-state": 1
+      }
+    },
+    {
+      "from": "packages/backup/src/parse-backup-file.ts",
+      "to": "apps/web/app/features/backup/parse-backup-file.ts",
+      "rules": {
+        "no-try-catch": 1
+      }
+    },
+    {
+      "from": "packages/diagnostics/src/components/DiagnosticsPage.tsx",
+      "to": "apps/web/app/features/diagnostics/components/DiagnosticsPage.tsx",
+      "rules": {
+        "no-use-state": 1
+      }
+    },
+    {
+      "from": "packages/storage/src/components/StoragePage.tsx",
+      "to": "apps/web/app/features/storage/components/StoragePage.tsx",
+      "rules": {
+        "no-use-state": 1
       }
     }
   ]

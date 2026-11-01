@@ -100,7 +100,7 @@ test('Given seeded token-bearing events, When Diagnostics loads, filters, clears
 
   // Covers only the Diagnostics operations below (filter, export, clear), so it
   // starts after the page load, which legitimately fetches app assets. No app
-  // code records events yet; the unit test in packages/diagnostics/src/event-log.test.ts
+  // code records events yet; the unit test in apps/web/app/features/diagnostics/event-log.test.ts
   // spies fetch, XHR and sendBeacon during `record`.
   const outbound: string[] = [];
   page.on('request', (request) => {

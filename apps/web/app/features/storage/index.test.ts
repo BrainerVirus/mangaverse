@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -8,7 +9,7 @@ import {
   storageQueryKeys,
 } from './index.js';
 
-describe('@app/storage exports', () => {
+describe('storage exports', () => {
   it('exports the storage feature surface', () => {
     expect(typeof StoragePage).toBe('function');
     expect(typeof fetchStorageSummary).toBe('function');

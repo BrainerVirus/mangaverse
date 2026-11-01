@@ -5,7 +5,7 @@ import type {
   PlatformStorageEstimate,
 } from '@app/platform';
 
-export interface LocalDataSummary {
+interface LocalDataSummary {
   readonly libraryEntryCount: number;
   readonly mangaIdentityCount: number;
   readonly installedExtensionCount: number;

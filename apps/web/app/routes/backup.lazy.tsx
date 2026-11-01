@@ -10,7 +10,7 @@ import {
   downloadBackupDocument,
   parseBackupFileContent,
   previewBackupImport,
-} from '@app/backup';
+} from '@/features/backup/index.js';
 import { extensionsQueryKeys } from '@app/extensions';
 import { libraryQueryKeys } from '@app/library';
 import { migrationQueryKeys } from '@app/migration';

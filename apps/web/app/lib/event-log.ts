@@ -1,4 +1,4 @@
-import { createEventLog } from '@app/diagnostics';
+import { createEventLog } from '@/features/diagnostics/index.js';
 import { sanitizeLogMessage } from '@app/shared';
 
 /**

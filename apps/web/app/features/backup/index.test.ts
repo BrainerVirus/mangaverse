@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import {
   BACKUP_SCHEMA_VERSION,
@@ -20,7 +21,7 @@ import {
   summarizeRestorePreview,
 } from './index.js';
 
-describe('@app/backup exports', () => {
+describe('backup exports', () => {
   it('exports the backup feature surface', () => {
     expect(typeof BackupPage).toBe('function');
     expect(typeof createBackupExport).toBe('function');

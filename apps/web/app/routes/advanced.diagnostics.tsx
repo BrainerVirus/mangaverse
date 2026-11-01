@@ -6,7 +6,7 @@ import {
   diagnosticsQueryKeys,
   EventLogSection,
   fetchDiagnosticsReport,
-} from '@app/diagnostics';
+} from '@/features/diagnostics/index.js';
 
 import { eventLog } from '../lib/event-log.js';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
