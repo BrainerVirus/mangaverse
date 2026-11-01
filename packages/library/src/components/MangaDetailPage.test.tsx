@@ -837,7 +837,11 @@ describe('MangaDetailPage identity merge', () => {
   });
 
   it('Given a candidate, When the candidate is kept instead, Then the preview reloads for the reversed target and confirm uses it', async () => {
-    const user = userEvent.setup();
+    // `delay: null` dispatches each synthetic interaction without a timer between
+    // events. Under CPU contention those timers let Base UI's press/selection
+    // delays fire mid-gesture, which swallows the trigger click and leaves the
+    // select closed. The interaction, not its wall-clock spacing, is under test.
+    const user = userEvent.setup({ delay: null });
     const onMerge = vi.fn<(input: { targetId: string; sourceId: string }) => Promise<void>>(
       async () => {},
     );
@@ -861,7 +865,7 @@ describe('MangaDetailPage identity merge', () => {
     await within(dialog).findByRole('region', { name: 'Kept title' });
 
     await user.click(within(dialog).getByLabelText('Keep title'));
-    await user.click(screen.getByRole('option', { name: 'Kuro no Shoukanshi' }));
+    await user.click(await screen.findByRole('option', { name: 'Kuro no Shoukanshi' }));
     await waitFor(() => expect(loadPreview).toHaveBeenLastCalledWith(DUPLICATE_ID, MANGA_ID));
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Merge titles' }));
