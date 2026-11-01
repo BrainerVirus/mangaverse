@@ -9,37 +9,28 @@
 //   node lint/state-baseline.mjs --move <old> <new> carry the uses that left <old> and arrived in <new>
 //
 // WORKIT_BASELINE_BASE names the commit to compare the baseline with, instead of the merge base.
-import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { spawnSync } from 'node:child_process';
+import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-export const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const BASELINE_FILE = "lint/baseline.json";
+export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const BASELINE_FILE = 'lint/baseline.json';
 const BASELINE_PATH = join(ROOT, BASELINE_FILE);
-const OXLINT_BIN = join(ROOT, "node_modules/oxlint/bin/oxlint");
-const TARGETS = ["apps", "packages", "vitest.config.ts"];
-const RULES = ["no-use-state", "no-try-catch"];
+const OXLINT_BIN = join(ROOT, 'node_modules/oxlint/bin/oxlint');
+const TARGETS = ['apps', 'packages', 'vitest.config.ts'];
+const RULES = ['no-use-state', 'no-try-catch'];
 
 const SOURCE_FILE = /\.[cm]?[jt]sx?$/;
 // Mirrors ignorePatterns in .oxlintrc.baseline.json; state-baseline.test.mjs keeps them in step.
-export const EXEMPT_FILE =
-  /\.(test|spec)\.|(^|\/)(__tests__|e2e-production)\/|^apps\/web\/app\/routeTree\.gen\.ts$/;
+export const EXEMPT_FILE = /\.(test|spec)\.|(^|\/)(__tests__|e2e-production)\/|^apps\/web\/app\/routeTree\.gen\.ts$/;
 const DISABLE_DIRECTIVE = /(?:oxlint|eslint)-disable(?:-next-line|-line)?\b([^\n]*)/g;
 
 export function runRules(targets = TARGETS) {
   const { status, stdout, stderr, error } = spawnSync(
     process.execPath,
-    [
-      OXLINT_BIN,
-      "-c",
-      ".oxlintrc.baseline.json",
-      "--disable-nested-config",
-      "--format",
-      "json",
-      ...targets,
-    ],
-    { cwd: ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
+    [OXLINT_BIN, '-c', '.oxlintrc.baseline.json', '--disable-nested-config', '--format', 'json', ...targets],
+    { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
   );
   if (error) throw error;
   // oxlint exits 1 whenever it finds a frozen use; anything else means it did not lint.
@@ -90,9 +81,9 @@ export function shrinkBaseline(baseline, current) {
 export function findSuppressions(file, source) {
   const lines = [];
   for (const match of source.matchAll(DISABLE_DIRECTIVE)) {
-    const named = match[1].split("--")[0].replace("*/", "").trim();
-    if (named === "" || RULES.some((rule) => named.includes(rule))) {
-      lines.push(`${file}:${source.slice(0, match.index).split("\n").length}`);
+    const named = match[1].split('--')[0].replace('*/', '').trim();
+    if (named === '' || RULES.some((rule) => named.includes(rule))) {
+      lines.push(`${file}:${source.slice(0, match.index).split('\n').length}`);
     }
   }
   return lines;
@@ -109,34 +100,29 @@ function serializeBaseline(counts, moves) {
 }
 
 export function parseMove(argv) {
-  const at = argv.indexOf("--move");
+  const at = argv.indexOf('--move');
   if (at === -1) return null;
   const [from, to] = argv.slice(at + 1, at + 3);
-  if (argv.includes("--shrink")) return { error: "--move and --shrink run separately." };
-  if (!from || !to || from.startsWith("--") || to.startsWith("--"))
-    return { error: "usage: --move <old> <new>" };
+  if (argv.includes('--shrink')) return { error: '--move and --shrink run separately.' };
+  if (!from || !to || from.startsWith('--') || to.startsWith('--')) return { error: 'usage: --move <old> <new>' };
   return { from: relative(ROOT, resolve(ROOT, from)), to: relative(ROOT, resolve(ROOT, to)) };
 }
 
 // Carries only what the tree shows arrived in `to` and left `from`, so it cannot raise a rule's total.
 export function recordMove(counts, current, from, to) {
   if (from === to) return { error: `--move needs two paths, got ${from} twice.` };
-  if (counts[from] === undefined)
-    return { error: `${from} has no entry in ${BASELINE_FILE}, nothing to move.` };
+  if (counts[from] === undefined) return { error: `${from} has no entry in ${BASELINE_FILE}, nothing to move.` };
   const rules = {};
   for (const rule of RULES) {
     const arrived = (current[to]?.[rule] ?? 0) - (counts[to]?.[rule] ?? 0);
     const left = (counts[from][rule] ?? 0) - (current[from]?.[rule] ?? 0);
     if (arrived <= 0) continue;
     if (arrived > left) {
-      return {
-        error: `${to} gained ${arrived} ${rule} but ${from} lost only ${left}. Remove the new use.`,
-      };
+      return { error: `${to} gained ${arrived} ${rule} but ${from} lost only ${left}. Remove the new use.` };
     }
     rules[rule] = arrived;
   }
-  if (Object.keys(rules).length === 0)
-    return { error: `${to} gained no frozen uses from ${from}, nothing to move.` };
+  if (Object.keys(rules).length === 0) return { error: `${to} gained no frozen uses from ${from}, nothing to move.` };
 
   const next = structuredClone(counts);
   next[to] ??= {};
@@ -160,15 +146,12 @@ export function findNewMoves(baseMoves, moves) {
 }
 
 function isMoveRecord(move) {
-  if (typeof move?.from !== "string" || typeof move.to !== "string" || move.from === move.to)
-    return false;
+  if (typeof move?.from !== 'string' || typeof move.to !== 'string' || move.from === move.to) return false;
   if (!SOURCE_FILE.test(move.from) || !SOURCE_FILE.test(move.to)) return false;
-  if (typeof move.rules !== "object" || move.rules === null || Array.isArray(move.rules))
-    return false;
+  if (typeof move.rules !== 'object' || move.rules === null || Array.isArray(move.rules)) return false;
   const entries = Object.entries(move.rules);
   return (
-    entries.length > 0 &&
-    entries.every(([rule, count]) => RULES.includes(rule) && Number.isInteger(count) && count > 0)
+    entries.length > 0 && entries.every(([rule, count]) => RULES.includes(rule) && Number.isInteger(count) && count > 0)
   );
 }
 
@@ -180,9 +163,7 @@ export function applyMoves(base, moves, working) {
   const destinations = new Set();
   for (const move of moves) {
     if (!isMoveRecord(move)) {
-      errors.push(
-        `${BASELINE_FILE}: move ${JSON.stringify(move)} is malformed. Record it with --move.`,
-      );
+      errors.push(`${BASELINE_FILE}: move ${JSON.stringify(move)} is malformed. Record it with --move.`);
       continue;
     }
     for (const [rule, count] of Object.entries(move.rules)) {
@@ -211,9 +192,9 @@ export function applyMoves(base, moves, working) {
 }
 
 function git(args, cwd) {
-  const { status, stdout, stderr, error } = spawnSync("git", args, {
+  const { status, stdout, stderr, error } = spawnSync('git', args, {
     cwd,
-    encoding: "utf8",
+    encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
   });
   if (error) throw error;
@@ -224,20 +205,19 @@ function git(args, cwd) {
 // A base that cannot be resolved throws: skipping would let a raised baseline through a shallow clone.
 export function baselineBaseRef(env, cwd) {
   if (env.WORKIT_BASELINE_BASE) return env.WORKIT_BASELINE_BASE;
-  return git(["merge-base", "HEAD", `origin/${env.GITHUB_BASE_REF || "main"}`], cwd).trim();
+  return git(['merge-base', 'HEAD', `origin/${env.GITHUB_BASE_REF || 'main'}`], cwd).trim();
 }
 
 export function readBaseBaseline(ref, cwd) {
-  if (git(["ls-tree", ref, "--", BASELINE_FILE], cwd) === "") return null;
-  return JSON.parse(git(["show", `${ref}:${BASELINE_FILE}`], cwd));
+  if (git(['ls-tree', ref, '--', BASELINE_FILE], cwd) === '') return null;
+  return JSON.parse(git(['show', `${ref}:${BASELINE_FILE}`], cwd));
 }
 
 export function findRaised(base, working) {
   const raised = [];
   for (const [file, rules] of Object.entries(working)) {
     const entries = Object.entries(rules);
-    if (entries.length === 0 && base[file] === undefined)
-      raised.push({ file, rule: "(empty)", count: 0 });
+    if (entries.length === 0 && base[file] === undefined) raised.push({ file, rule: '(empty)', count: 0 });
     for (const [rule, count] of entries) {
       const frozen = base[file]?.[rule];
       if (frozen === undefined || !Number.isInteger(count) || count > frozen) {
@@ -249,11 +229,11 @@ export function findRaised(base, working) {
 }
 
 function scanSuppressions() {
-  return git(["ls-files", "-co", "--exclude-standard", "--", ...TARGETS], ROOT)
-    .split("\n")
+  return git(['ls-files', '-co', '--exclude-standard', '--', ...TARGETS], ROOT)
+    .split('\n')
     .filter((file) => SOURCE_FILE.test(file) && !EXEMPT_FILE.test(file))
     .filter((file) => existsSync(join(ROOT, file)))
-    .flatMap((file) => findSuppressions(file, readFileSync(join(ROOT, file), "utf8")));
+    .flatMap((file) => findSuppressions(file, readFileSync(join(ROOT, file), 'utf8')));
 }
 
 function main() {
@@ -261,12 +241,9 @@ function main() {
   const findings = runRules();
   const unexpected = findings.filter(({ rule }) => !RULES.includes(rule));
   const current = countByFile(findings.filter(({ rule }) => RULES.includes(rule)));
-  const { counts: baseline, moves } = splitBaseline(
-    JSON.parse(readFileSync(BASELINE_PATH, "utf8")),
-  );
+  const { counts: baseline, moves } = splitBaseline(JSON.parse(readFileSync(BASELINE_PATH, 'utf8')));
   const request = parseMove(argv);
-  const recorded =
-    request && !request.error ? recordMove(baseline, current, request.from, request.to) : null;
+  const recorded = request && !request.error ? recordMove(baseline, current, request.from, request.to) : null;
   const moveError = request?.error ?? recorded?.error;
   if (moveError) {
     console.error(`state-baseline: ${moveError}`);
@@ -275,23 +252,20 @@ function main() {
   }
   const { exceeded, dropped } = compareCounts(recorded ? recorded.counts : baseline, current);
   const suppressions = scanSuppressions();
-  const shrink = argv.includes("--shrink");
+  const shrink = argv.includes('--shrink');
   const next = recorded ? recorded.counts : shrink ? shrinkBaseline(baseline, current) : baseline;
   const nextMoves = recorded ? [].concat(moves, recorded.move) : moves;
   const baseRef = baselineBaseRef(process.env, ROOT);
   const rawBase = readBaseBaseline(baseRef, ROOT);
   const base = rawBase === null ? null : splitBaseline(rawBase);
   const newMoves = base === null ? [] : findNewMoves(base.moves, nextMoves);
-  const { ceiling, errors: moveErrors } =
-    base === null ? { errors: [] } : applyMoves(base.counts, newMoves, next);
+  const { ceiling, errors: moveErrors } = base === null ? { errors: [] } : applyMoves(base.counts, newMoves, next);
   const raised = base === null ? [] : findRaised(ceiling, next);
 
   if (shrink || recorded) writeFileSync(BASELINE_PATH, serializeBaseline(next, nextMoves));
   if (shrink) dropped.length = 0;
-  if (base === null)
-    console.log(`state-baseline: shrink-only check skipped, ${baseRef} has no ${BASELINE_FILE}.`);
-  if (recorded)
-    console.log(`state-baseline: recorded ${JSON.stringify(recorded.move)} in ${BASELINE_FILE}.`);
+  if (base === null) console.log(`state-baseline: shrink-only check skipped, ${baseRef} has no ${BASELINE_FILE}.`);
+  if (recorded) console.log(`state-baseline: recorded ${JSON.stringify(recorded.move)} in ${BASELINE_FILE}.`);
 
   for (const { file, rule, message, line } of unexpected) {
     console.error(`${file}:${line} ${rule}: ${message}`);
@@ -303,18 +277,14 @@ function main() {
     }
   }
   for (const { file, rule, frozen, found } of dropped) {
-    console.error(
-      `${file}: ${found} ${rule}, baseline still says ${frozen}. Run: pnpm lint:baseline --shrink`,
-    );
+    console.error(`${file}: ${found} ${rule}, baseline still says ${frozen}. Run: pnpm lint:baseline --shrink`);
   }
   for (const site of suppressions) {
-    console.error(
-      `${site} disable comment hides ${RULES.join(" or ")} from the baseline. Remove it.`,
-    );
+    console.error(`${site} disable comment hides ${RULES.join(' or ')} from the baseline. Remove it.`);
   }
   for (const { file, rule, count, frozen } of raised) {
-    const was = frozen === undefined ? "has no such entry" : `has ${frozen}`;
-    const moved = newMoves.length > 0 ? " after its recorded moves" : "";
+    const was = frozen === undefined ? 'has no such entry' : `has ${frozen}`;
+    const moved = newMoves.length > 0 ? ' after its recorded moves' : '';
     console.error(
       `${BASELINE_FILE}: ${file} ${rule} is ${count}, ${baseRef} ${was}${moved}. The baseline only shrinks.`,
     );
@@ -322,20 +292,13 @@ function main() {
   for (const error of moveErrors) console.error(error);
 
   if (
-    unexpected.length +
-      exceeded.length +
-      dropped.length +
-      suppressions.length +
-      raised.length +
-      moveErrors.length >
+    unexpected.length + exceeded.length + dropped.length + suppressions.length + raised.length + moveErrors.length >
     0
   ) {
     process.exitCode = 1;
     return;
   }
-  console.log(
-    `state-baseline: ${findings.length} frozen uses in ${Object.keys(current).length} files match.`,
-  );
+  console.log(`state-baseline: ${findings.length} frozen uses in ${Object.keys(current).length} files match.`);
 }
 
 // realpath: import.meta.url is resolved, so a symlinked invocation would otherwise skip the check and exit 0.
