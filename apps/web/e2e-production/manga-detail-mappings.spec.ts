@@ -136,7 +136,7 @@ test('Given two MangaDex mappings, When switching, setting default and choosing 
   expect(await mountedRows.count()).toBeLessThan(40);
 
   await page.locator('main').evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
-  const lastChapter = page.getByRole('button', { name: 'Open Chapter 138' });
+  const lastChapter = page.getByRole('button', { name: /^Open Ch\. 138 / });
   await expect(lastChapter).toBeVisible({ timeout: 10_000 });
   await lastChapter.focus();
   await page.keyboard.press('Enter');
