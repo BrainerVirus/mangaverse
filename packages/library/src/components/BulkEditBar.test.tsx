@@ -140,6 +140,8 @@ describe('BulkEditBar', () => {
     const onMigrateSelected = vi.fn<() => void>();
     renderBulk({ onMigrateSelected });
 
+    expect(screen.queryByRole('button', { name: 'Migrate selected' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Advanced' }));
     await user.click(screen.getByRole('button', { name: 'Migrate selected' }));
     expect(onMigrateSelected).toHaveBeenCalledTimes(1);
   });

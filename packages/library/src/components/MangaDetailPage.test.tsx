@@ -754,6 +754,10 @@ function unmergePreview(): UnmergeMappingPreview {
   };
 }
 
+function openDuplicates() {
+  fireEvent.click(screen.getByRole('button', { name: 'Possible duplicates' }));
+}
+
 describe('MangaDetailPage identity merge', () => {
   it('Given duplicate detection states, Then loading, empty and candidate rows are rendered without provider calls', () => {
     const view = render(
@@ -768,6 +772,7 @@ describe('MangaDetailPage identity merge', () => {
     );
 
     expect(screen.getByRole('region', { name: 'Possible duplicates' })).toBeInTheDocument();
+    openDuplicates();
 
     view.rerender(
       <MangaDetailPage
@@ -819,6 +824,8 @@ describe('MangaDetailPage identity merge', () => {
       />,
     );
 
+    expect(screen.queryByRole('button', { name: 'Merge' })).toBeNull();
+    openDuplicates();
     fireEvent.click(screen.getByRole('button', { name: 'Merge' }));
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('Merge duplicates')).toBeInTheDocument();
@@ -860,6 +867,7 @@ describe('MangaDetailPage identity merge', () => {
       />,
     );
 
+    openDuplicates();
     fireEvent.click(screen.getByRole('button', { name: 'Merge' }));
     const dialog = await screen.findByRole('dialog');
     await within(dialog).findByRole('region', { name: 'Kept title' });
@@ -975,6 +983,7 @@ describe('MangaDetailPage identity merge', () => {
       />,
     );
 
+    openDuplicates();
     expect(screen.getByRole('button', { name: 'Merge' })).toBeDisabled();
   });
 
@@ -1000,6 +1009,7 @@ describe('MangaDetailPage identity merge', () => {
       />,
     );
 
+    openDuplicates();
     fireEvent.click(screen.getByRole('button', { name: 'Merge' }));
     const dialog = await screen.findByRole('dialog');
     const confirm = within(dialog).getByRole('button', { name: 'Merge titles' });
@@ -1027,6 +1037,7 @@ describe('MangaDetailPage identity merge', () => {
       />,
     );
 
+    openDuplicates();
     fireEvent.click(screen.getByRole('button', { name: 'Merge' }));
     const dialog = await screen.findByRole('dialog');
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('Preview failed');
@@ -1052,6 +1063,8 @@ describe('MangaDetailPage identity merge', () => {
         loadMergePreview={async () => mergePreview()}
       />,
     );
+
+    openDuplicates();
 
     const openMerge = async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Merge' }));

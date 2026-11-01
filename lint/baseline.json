@@ -56,6 +56,9 @@
   "apps/web/app/queries/use-migration-controller.ts": {
     "no-use-state": 11
   },
+  "apps/web/app/routes/advanced.theme.tsx": {
+    "no-use-state": 3
+  },
   "apps/web/app/routes/backup.lazy.tsx": {
     "no-use-state": 5
   },
@@ -81,9 +84,6 @@
   },
   "apps/web/app/routes/storage.lazy.tsx": {
     "no-use-state": 2
-  },
-  "apps/web/app/routes/theme.editor.lazy.tsx": {
-    "no-use-state": 3
   },
   "apps/web/playwright.production.config.ts": {
     "no-try-catch": 1
@@ -307,5 +307,14 @@
   },
   "packages/theme/src/components/theme-advanced.ts": {
     "no-try-catch": 2
-  }
+  },
+  "moves": [
+    {
+      "from": "apps/web/app/routes/theme.editor.lazy.tsx",
+      "to": "apps/web/app/routes/advanced.theme.tsx",
+      "rules": {
+        "no-use-state": 3
+      }
+    }
+  ]
 }

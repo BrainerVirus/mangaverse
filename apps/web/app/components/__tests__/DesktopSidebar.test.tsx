@@ -77,7 +77,7 @@ describe('DesktopSidebar', () => {
     const { DesktopSidebar } = await import('../shell/DesktopSidebar.js');
     const html = renderWithProviders(<DesktopSidebar />);
     expect(html).toContain('href="/backup"');
-    expect(html).toContain('href="/migration"');
+    expect(html).toContain('href="/advanced/migration"');
   });
 
   it('renders with expanded width by default on desktop', async () => {
