@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { detectWebCapabilities } from '@app/platform';
 import { createWebPlatformAdapter } from '@app/platform';
@@ -10,7 +11,7 @@ import {
   formatStorageBytes,
 } from './index.js';
 
-describe('@app/diagnostics exports', () => {
+describe('diagnostics exports', () => {
   it('exports the diagnostics feature surface', () => {
     expect(typeof DiagnosticsPage).toBe('function');
     expect(typeof fetchDiagnosticsReport).toBe('function');
