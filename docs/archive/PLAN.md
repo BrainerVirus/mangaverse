@@ -1,5 +1,7 @@
 # MangaVerse Rewrite Implementation Plan
 
+> **Archived.** Historical only: superseded by [the app overhaul spec](../overhaul/spec.md). Do not plan from it.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `subagent-driven-development` or `executing-plans` when implementing this plan task-by-task. Steps in this document are phase gates and planning tasks; implementation tasks should be expanded into smaller TDD plans before code is written.
 
 **Goal:** Continue the migration as a clean web-native and Electron desktop rewrite with reusable core packages, local-first architecture, Drizzle SQLite, safe extensions, premium design, and a robust reader.

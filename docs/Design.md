@@ -1,5 +1,7 @@
 # MangaVerse Design System
 
+> The visual direction is being replaced by [spec 9](overhaul/09-design.md): playful, welcoming liquid glass, with concept screens first. Until #229 lands, these rules apply to functional repairs only. New visual direction comes from spec 9.
+
 `DESIGN.md` at the repository root is the **target design language**: the material system, colour,
 typography, motion, device adaptation, component recipes, and the roadmap that builds them. This
 document holds the **binding rules** — the constraints a contributor or agent must not break. Where a

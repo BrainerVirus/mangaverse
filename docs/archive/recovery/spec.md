@@ -1,5 +1,7 @@
 # Web-first recovery: spec
 
+> **Archived.** Historical only: superseded by [the app overhaul spec](../../overhaul/spec.md). Do not plan from it.
+
 Date: 2026-10-12.
 
 Status: handoff specification. Only the S0 startup slice is implemented; the rest

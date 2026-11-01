@@ -1,10 +1,12 @@
 # MangaVerse Rewrite Specification
 
+> Feature catalog. Direction, priority and platform decisions come from [the app overhaul spec](overhaul/spec.md), which wins on any conflict: Electron first, website later and invite-only, no native mobile.
+
 ## Purpose
 
-MangaVerse is a web-native, local-first manga, comic, and webtoon reader that also ships as a desktop app for Windows, macOS, and Linux. It replaced an Expo-first app: the rewrite kept the strongest product ideas while replacing unstable architecture with reusable packages, clear boundaries, safe extension loading, robust reader behavior, and a premium user experience.
+MangaVerse is a local-first manga, comic, and webtoon reader: an Electron desktop app for Windows, macOS, and Linux, followed by an invite-only website. It replaced an Expo-first app: the rewrite kept the strongest product ideas while replacing unstable architecture with reusable packages, clear boundaries, safe extension loading, robust reader behavior, and a premium user experience.
 
-The legacy Expo code was removed in the recovery (Phase 10.5); `apps/` and `packages/` are the implementation target. `docs/recovery/plan.md` tracks current state.
+The legacy Expo code was removed in the recovery (Phase 10.5); `apps/` and `packages/` are the implementation target. [`docs/overhaul/roadmap.md`](overhaul/roadmap.md) tracks current state.
 
 ## Product Goals
 

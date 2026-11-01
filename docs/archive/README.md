@@ -11,7 +11,9 @@ current guidance.**
 
 Current truth lives in:
 
-- `docs/recovery/spec.md` — requirements and decisions for the web-first recovery.
-- `docs/recovery/plan.md` — the slice ledger (what is done, what is open).
+- `recovery/spec.md` — requirements and decisions for the old web-first recovery.
+- `recovery/plan.md` — the old slice ledger.
+- `PLAN.md` — the old phase plan.
+- For current work, read `docs/overhaul/spec.md`.
 - `docs/SPEC.md`, `docs/PLAN.md`, `docs/ARCHITECTURE.md`, `docs/Design.md` — the
   product, plan, architecture and design references for the rewrite.
