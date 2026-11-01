@@ -168,6 +168,29 @@ export function isCancellationError(error: unknown): boolean {
   return name === 'AbortError' || name === 'CancelledError';
 }
 
+/**
+ * The message a failure may show, with the caller's copy as the fallback. By
+ * default only a real `Error` is trusted; `acceptSerializedMessage` also reads a
+ * thrown object's `message`, because IPC and provider adapters rethrow serialized
+ * failures and the provider log has always preferred it.
+ */
+export interface ErrorMessageOptions {
+  readonly acceptSerializedMessage?: boolean;
+}
+
+export function errorMessage(
+  error: unknown,
+  fallback: string,
+  options: ErrorMessageOptions = {},
+): string {
+  if (typeof error === 'object' && error !== null) {
+    if (options.acceptSerializedMessage !== true && !(error instanceof Error)) return fallback;
+    const message = field(error, 'message');
+    if (typeof message === 'string' && message.trim().length > 0) return message;
+  }
+  return fallback;
+}
+
 /** The internal text for the local log, which redacts it before keeping it. */
 export function failureLogText(error: ClassifiedAppError): string {
   const { rawText } = readSignals(error.cause);

@@ -1,5 +1,5 @@
 import type { AppResult } from '@app/shared';
-import { createAppError, err, ok } from '@app/shared';
+import { createAppError, err, isPlainObject, ok } from '@app/shared';
 import type {
   ExtensionInstallWarning,
   ExtensionRegistryEntry,
@@ -118,10 +118,6 @@ export interface ExtensionListImportResult {
 
 function isNonEmptyString(v: unknown): v is string {
   return typeof v === 'string' && v.trim().length > 0;
-}
-
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
 function validateDocument(input: unknown): AppResult<ExtensionRegistryImportDocument> {
