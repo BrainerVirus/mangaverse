@@ -52,7 +52,10 @@ jobs:
         run: pnpm typecheck
 
       - name: Test
-        run: pnpm test
+        # The runner has two cores. Uncapped Turbo concurrency started ~10 package
+        # suites (each with jsdom workers) at once and pushed 100ms tests past the
+        # 5s Vitest timeout. Bound the task concurrency instead of raising timeouts.
+        run: pnpm exec turbo run test --concurrency=2 && node --test lint/state-baseline.test.mjs
 
       - name: Build
         run: pnpm build
