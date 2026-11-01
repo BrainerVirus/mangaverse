@@ -116,6 +116,32 @@ describe('provider activity log', () => {
     expect(entry?.details).toBeNull();
   });
 
+  it('fails closed on an apostrophe inside a quoted credential before storing', async () => {
+    const { db } = await createSqlJsHarness();
+    await recordExtensionLog(db, {
+      providerId: 'p',
+      level: 'error',
+      code: 'extensions.test',
+      message: "Login failed: password='it's a secret tail'",
+    });
+
+    const [entry] = await listProviderActivity(db, 'p');
+    expect(entry?.message).toBe("Login failed: password='[redacted]'");
+    expect(entry?.message).not.toContain('a secret tail');
+  });
+
+  it('heals a stored row whose quoted value leaked past its apostrophe', async () => {
+    const { raw, db } = await createSqlJsHarness();
+    raw.run(
+      `INSERT INTO extension_logs (id, provider_id, level, code, message, created_at)
+       VALUES ('apostrophe', 'p', 'error', 'extensions.test', 'login password=''it''s a secret tail''', '2020-01-01T00:00:00.000Z')`,
+    );
+
+    const [entry] = await listProviderActivity(db, 'p');
+    expect(entry?.message).toBe("login password='[redacted]'");
+    expect(entry?.message).not.toContain('a secret tail');
+  });
+
   it('filters activity by level and clears one provider', async () => {
     const { db } = await createSqlJsHarness();
     await recordExtensionLog(db, {

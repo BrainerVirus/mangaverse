@@ -99,6 +99,12 @@ function redactCredentials(text: string): string {
     let valueEnd: number;
     if (isQuoted) {
       valueEnd = endOfQuoted(text, quoteEnd - 1, quoteEnd - 1 - valueAt);
+      // An apostrophe inside a single-quoted value (password='it's a secret')
+      // closes the string early and glues its tail to the quote. A real value is
+      // followed by whitespace or a separator, so fail closed to the line end.
+      if (endOfMatch(BARE_VALUE_AT, text, valueEnd) > valueEnd) {
+        valueEnd = endOfMatch(LINE_REMAINDER_AT, text, valueAt);
+      }
     } else if (isPlaceholder) {
       // An older row may still carry text after the marker; heal it instead of ending the value at `]`.
       valueEnd = endOfMatch(LINE_REMAINDER_AT, text, valueAt);

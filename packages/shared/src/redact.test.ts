@@ -76,6 +76,27 @@ describe('sanitizeLogMessage', () => {
     expect(sanitizeLogMessage(input)).toBe(expected);
   });
 
+  it('fails closed on an apostrophe inside a single-quoted value', () => {
+    expect(sanitizeLogMessage("password='it's a secret'")).toBe("password='[redacted]'");
+    expect(sanitizeLogMessage("password='it's a secret'\nnext line")).toBe(
+      "password='[redacted]'\nnext line",
+    );
+  });
+
+  it('heals a stored quoted value whose tail leaked past its apostrophe', () => {
+    const healed = sanitizeLogMessage("password='[redacted]'s a secret'");
+    expect(healed).toBe("password='[redacted]'");
+    expect(healed).not.toContain('a secret');
+  });
+
+  it('keeps following text after a well-formed single-quoted value', () => {
+    expect(sanitizeLogMessage("secret='abc' next")).toBe("secret='[redacted]' next");
+  });
+
+  it('redacts a double-quoted value containing an apostrophe without failing closed', () => {
+    expect(sanitizeLogMessage('password="it\'s a secret" next')).toBe('password="[redacted]" next');
+  });
+
   it.each([
     [
       'a nested object',
