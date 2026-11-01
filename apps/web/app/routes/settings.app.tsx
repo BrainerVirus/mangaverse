@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getCoverCacheUsage } from '@app/cache';
 import { searchQueryKeys } from '@app/search';
 import { AppSettingsPage, saveAppSettings, settingsQueryKeys } from '@app/settings';
+import { saveFeedback } from '../lib/feedback.js';
 import { appSettingsQueryOptions } from '../queries/settings-query-options.js';
 import type { AppSettings } from '@app/shared';
 import { useCoalescedSettingsWrite } from '../lib/use-coalesced-settings-write.js';
@@ -29,6 +30,7 @@ function SettingsAppRoute() {
   });
 
   const saveMutation = useMutation({
+    meta: saveFeedback('Could not save settings.'),
     mutationFn: async (settings: AppSettings) => {
       const result = await saveAppSettings(db!, settings);
       if (!result.ok) {
@@ -69,7 +71,6 @@ function SettingsAppRoute() {
       settings={data?.settings}
       isLoading={dbStatus === 'loading' || isLoading}
       isError={dbStatus === 'error' || isError}
-      isSaving={saveMutation.isPending}
       {...(cacheUsageQuery.data !== undefined
         ? { cacheUsageBytes: cacheUsageQuery.data.totalBytes }
         : {})}

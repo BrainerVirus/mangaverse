@@ -52,6 +52,13 @@ function renderForm(
 }
 
 describe('ProviderSettingsForm', () => {
+  it('Given a pending save, Then the button keeps its label so a fast save cannot flash', () => {
+    renderForm({}, { isSaving: true });
+
+    expect(screen.getByRole('button', { name: 'Save settings' })).toBeDisabled();
+    expect(screen.queryByText('Saving…')).toBeNull();
+  });
+
   it('Given a provider without declared settings, Then no settings form renders', () => {
     render(
       <ProviderSettingsForm

@@ -19,7 +19,6 @@ export interface AppSettingsPageProps {
   readonly settings: AppSettings | undefined;
   readonly isLoading: boolean;
   readonly isError: boolean;
-  readonly isSaving?: boolean;
   readonly cacheUsageBytes?: number;
   onChange: (next: AppSettings) => void;
   /** Pointer-up or blur: commit a coalesced edit without waiting for the quiet window. */
@@ -128,7 +127,6 @@ export function AppSettingsPage({
   settings,
   isLoading,
   isError,
-  isSaving = false,
   cacheUsageBytes,
   onChange,
   onInteractionEnd,
@@ -166,7 +164,6 @@ export function AppSettingsPage({
         <h1 className="text-2xl font-bold tracking-tight">App settings</h1>
         <p className="text-sm text-muted-foreground">
           Global preferences for content, performance, and localization.
-          {isSaving ? ' Saving…' : null}
         </p>
       </div>
 

@@ -184,7 +184,7 @@ describe('/reader/$chapterId persistence reporting', () => {
     });
     await act(async () => {});
 
-    expect(reported).toContain('progress write rejected');
+    expect(reported.join(' ')).toContain('could not be saved');
 
     act(() => root.unmount());
     container.remove();
@@ -202,7 +202,7 @@ describe('/reader/$chapterId persistence reporting', () => {
     });
     await settle();
 
-    expect(reported).toContain('settings rejected');
+    expect(reported.join(' ')).toContain('could not be saved');
 
     act(() => root.unmount());
     container.remove();

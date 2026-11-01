@@ -127,4 +127,38 @@ describe('fetchProviderDiscoverData', () => {
     await expect(fetchProviderDiscoverData(db)).rejects.toThrow('db offline');
     expect(mocks.resolveInstalledProviderFrom).not.toHaveBeenCalled();
   });
+
+  it('Given every section fails, When the feed loads, Then it rejects instead of showing an empty feed', async () => {
+    mocks.resolveInstalledProviderFrom.mockImplementation(
+      () =>
+        ({
+          ...installedProvider(),
+          browseLatest: async () => {
+            throw new Error('HTTP 503.');
+          },
+          browsePopular: async () => {
+            throw new Error('HTTP 503.');
+          },
+        }) as unknown as ProviderContract,
+    );
+    const { fetchProviderDiscoverData } = await import('../provider-discover.js');
+
+    await expect(fetchProviderDiscoverData(db)).rejects.toThrow('HTTP 503.');
+  });
+
+  it('Given one section fails, When the feed loads, Then the healthy section still shows', async () => {
+    mocks.resolveInstalledProviderFrom.mockImplementation(
+      () =>
+        ({
+          ...installedProvider(),
+          browseLatest: async () => {
+            throw new Error('HTTP 503.');
+          },
+        }) as unknown as ProviderContract,
+    );
+    const { fetchProviderDiscoverData } = await import('../provider-discover.js');
+
+    const data = await fetchProviderDiscoverData(db);
+    expect(data.providers[0]?.sections.map((section) => section.id)).toEqual(['popular']);
+  });
 });

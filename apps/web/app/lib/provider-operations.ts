@@ -18,17 +18,9 @@ import {
 import type { ProviderManifest } from '@app/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
+import { actionFailureMessage } from './app-feedback.js';
 import { getProviderBinding } from './provider-registry.js';
 import { flushLocalDb } from './local-db.js';
-
-function errorMessageOf(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === 'object' && error !== null && 'message' in error) {
-    const message = (error as { message?: unknown }).message;
-    if (typeof message === 'string') return message;
-  }
-  return 'Provider operation failed.';
-}
 
 export interface ProviderActivityOperations {
   readonly state: ProviderActivityState;
@@ -72,9 +64,9 @@ export function useProviderActivity(
       counts: summary.data?.counts ?? { total: 0, info: 0, errors: 0, warnings: 0 },
       isLoading: query.isLoading || summary.isLoading,
       error: query.isError
-        ? errorMessageOf(query.error)
+        ? actionFailureMessage(query.error, 'Provider operation failed.')
         : summary.isError
-          ? errorMessageOf(summary.error)
+          ? actionFailureMessage(summary.error, 'Provider operation failed.')
           : null,
       level,
       onLevelChange: setLevel,
@@ -153,7 +145,7 @@ export function useProviderHealth(
       void queryClient.invalidateQueries({ queryKey: extensionsQueryKeys.all });
     },
     onError: (cause) => {
-      setError(errorMessageOf(cause));
+      setError(actionFailureMessage(cause, 'Provider operation failed.'));
     },
   });
 
@@ -198,7 +190,7 @@ export function useProviderUpdate(
       });
     },
     onError: (cause) => {
-      setError(errorMessageOf(cause));
+      setError(actionFailureMessage(cause, 'Provider operation failed.'));
     },
   });
 
@@ -218,7 +210,7 @@ export function useProviderUpdate(
       });
     },
     onError: (cause) => {
-      setError(errorMessageOf(cause));
+      setError(actionFailureMessage(cause, 'Provider operation failed.'));
     },
   });
 

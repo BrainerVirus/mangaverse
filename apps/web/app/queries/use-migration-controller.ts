@@ -19,6 +19,7 @@ import {
 } from '@app/migration';
 import { libraryQueryKeys } from '@app/library';
 
+import { failureMessage } from '../lib/app-feedback.js';
 import type { MigrationSearch } from '../lib/migration-search.js';
 import {
   findUnavailableRequestedSourceProviderId,
@@ -253,7 +254,7 @@ export function useMigrationController(search: MigrationSearch = {}): MigrationP
     },
     onError: (error) => {
       setPreview(null);
-      setApplyError(error instanceof Error ? error.message : 'Could not preview migration.');
+      setApplyError(failureMessage(error, 'Could not preview migration.'));
     },
   });
 
@@ -301,7 +302,7 @@ export function useMigrationController(search: MigrationSearch = {}): MigrationP
       void queryClient.invalidateQueries({ queryKey: libraryQueryKeys.all });
     },
     onError: (error) => {
-      setApplyError(error instanceof Error ? error.message : 'Migration failed.');
+      setApplyError(failureMessage(error, 'Migration failed.'));
     },
   });
 
@@ -329,7 +330,7 @@ export function useMigrationController(search: MigrationSearch = {}): MigrationP
       void queryClient.invalidateQueries({ queryKey: libraryQueryKeys.all });
     },
     onError: (error) => {
-      setRollbackError(error instanceof Error ? error.message : 'Could not undo migration.');
+      setRollbackError(failureMessage(error, 'Could not undo migration.'));
     },
   });
 

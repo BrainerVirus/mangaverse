@@ -197,7 +197,7 @@ export function ThemeEditorPage({
             </Button>
           ) : null}
           <Button onClick={onSave} disabled={busy}>
-            {isSaving ? 'Saving…' : 'Save theme'}
+            Save theme
           </Button>
         </div>
       </header>

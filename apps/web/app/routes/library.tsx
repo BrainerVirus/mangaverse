@@ -142,7 +142,7 @@ function LibraryRoute() {
       {...(overview.data === undefined ? {} : { overview: overview.data })}
       updates={{
         status: isChecking ? 'running' : 'idle',
-        report: progress ?? savedReport.data,
+        report: progress ?? savedReport.data ?? undefined,
         onCheck: () => void runCheck(),
         onCancel: () => abortRef.current?.abort(),
         onRetry: (entryIds) => void runCheck(entryIds),

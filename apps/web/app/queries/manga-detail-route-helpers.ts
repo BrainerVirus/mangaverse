@@ -26,6 +26,7 @@ import type {
   ProviderCapabilityKey,
   ProviderMappingId,
 } from '@app/shared';
+import { failureMessage } from '../lib/app-feedback.js';
 import type { ProviderRelatedKind } from './provider-query-options.js';
 
 export type ProviderAction =
@@ -218,7 +219,7 @@ export function chapterHydrationQueryKey(
 
 export function queryErrorMessage(error: unknown): string | undefined {
   if (error === null || error === undefined) return undefined;
-  return error instanceof Error ? error.message : 'The provider request failed.';
+  return failureMessage(error, 'The provider request failed.');
 }
 
 export function relatedQueryKey(
@@ -243,8 +244,7 @@ function toRelatedState(query: RelatedQueryState): MangaDetailRelatedState {
     ...(query.error === null || query.error === undefined
       ? {}
       : {
-          error:
-            query.error instanceof Error ? query.error.message : 'The provider request failed.',
+          error: failureMessage(query.error, 'The provider request failed.'),
         }),
     onRetry: () => {
       void query.refetch();

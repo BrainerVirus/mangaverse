@@ -14,6 +14,7 @@ import {
 } from '@app/library';
 import type { LibraryEntryId, MangaId } from '@app/shared';
 import type { QueryClient } from '@tanstack/react-query';
+import { saveFeedback } from '../lib/feedback.js';
 
 function assertDb(db: AppDrizzleDb | null): asserts db is AppDrizzleDb {
   if (db === null) {
@@ -31,6 +32,7 @@ export function createAddToLibraryMutationOptions(
   mangaId: MangaId,
 ) {
   return {
+    meta: saveFeedback('Could not add this title to your library.', 'Added to library'),
     mutationFn: async (entryId: LibraryEntryId) => {
       assertDb(db);
       const result = await addMangaToLibrary(db, mangaId, 'planned', entryId);
@@ -69,6 +71,7 @@ export function createRemoveFromLibraryMutationOptions(
   mangaId: MangaId,
 ) {
   return {
+    meta: saveFeedback('Could not remove this title from your library.'),
     mutationFn: async () => {
       assertDb(db);
       const result = await removeMangaFromLibrary(db, mangaId);
@@ -101,6 +104,7 @@ export function createToggleFavoriteMutationOptions(
   mangaId: MangaId,
 ) {
   return {
+    meta: saveFeedback('Could not update favorites.'),
     mutationFn: async (favorite: boolean) => {
       assertDb(db);
       const result = await setMangaFavorite(db, mangaId, favorite);
@@ -130,6 +134,7 @@ export function createLibraryOrganizationMutationOptions(
   queryClient: QueryClient,
 ) {
   return {
+    meta: saveFeedback('Could not update your library.'),
     mutationFn: async (action: LibraryOrganizationAction): Promise<void> => {
       assertDb(db);
       const result = await applyLibraryOrganizationAction(db, action);

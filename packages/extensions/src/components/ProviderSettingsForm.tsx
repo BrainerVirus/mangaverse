@@ -234,7 +234,7 @@ function SettingsActions({
         Reset to defaults
       </Button>
       <Button type="button" disabled={isSaving} onClick={onSubmit}>
-        {isSaving ? 'Saving…' : 'Save settings'}
+        Save settings
       </Button>
     </div>
   );

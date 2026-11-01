@@ -171,7 +171,7 @@ describe('/reader/$chapterId library freshness', () => {
     expect(client.getQueryState(LIBRARY_PAGE_KEY)?.isInvalidated).toBe(false);
     expect(observer.getCurrentResult().isStale).toBe(false);
     expect(libraryFn).toHaveBeenCalledTimes(1);
-    expect(reported).toContain('progress write rejected');
+    expect(reported.join(' ')).toContain('could not be saved');
 
     teardown(root, container, unsubscribe, observer);
   });

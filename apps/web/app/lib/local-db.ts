@@ -2,6 +2,7 @@ import type { AppDrizzleDb } from '@app/db/browser';
 import type { BundledMigrationJournal } from '@app/db/browser';
 import type { PersistentDatabase } from '@app/db/browser';
 import type { SqlJsStatic } from 'sql.js';
+import { failureMessage } from './app-feedback.js';
 import { createFlushCoordinator } from './local-db-flush.js';
 
 let dbPromise: Promise<PersistentDatabase> | undefined;
@@ -247,7 +248,7 @@ export async function flushLocalDb(): Promise<void> {
     persistenceErrorHandler?.(null);
   } catch (error) {
     // Surface the failure for the UI and keep it out of unhandled rejections.
-    persistenceErrorHandler?.(error instanceof Error ? error.message : String(error));
+    persistenceErrorHandler?.(failureMessage(error, 'The local save did not finish.'));
     // oxlint-disable-next-line no-console -- ruling: web-console-diagnostics: the handler above forwards only the message to the banner; the Error object here keeps the stack for a dev.
     // react-doctor-disable-next-line eslint/no-console -- ruling: web-console-diagnostics: the handler above forwards only the message to the banner; the Error object here keeps the stack for a dev.
     console.error('[local-db] Failed to persist database snapshot:', error);

@@ -1,10 +1,12 @@
 import { createRouter } from '@tanstack/react-router';
 import type { PlatformCapabilities } from '@app/platform';
 import { routeTree } from './routeTree.gen';
-import { LoadingState, ErrorState, EmptyState } from '@app/design-system';
+import { LoadingState } from '@app/design-system';
 import { useRef } from 'react';
 import { useGSAP } from '@gsap/react';
 import { routeEnter, useReducedMotion } from '@app/motion';
+import { NotFoundPage, RouteErrorPage } from './components/StatusPages.js';
+import { feedback } from './lib/app-feedback.js';
 
 interface RouterContext {
   platformDetectFn?: () => PlatformCapabilities;
@@ -36,19 +38,9 @@ export function getRouter(options: { platformDetectFn?: () => PlatformCapabiliti
         <LoadingState type="grid" />
       </RouteTransition>
     ),
-    defaultErrorComponent: ({ error }) => (
-      <section aria-label="Something went wrong">
-        <ErrorState
-          title="Something went wrong"
-          message={error instanceof Error ? error.message : 'An unexpected error occurred'}
-        />
-      </section>
-    ),
-    defaultNotFoundComponent: () => (
-      <section aria-label="Page not found">
-        <EmptyState type="no-results" />
-      </section>
-    ),
+    defaultErrorComponent: RouteErrorPage,
+    defaultOnCatch: (error) => feedback.log(error, 'route'),
+    defaultNotFoundComponent: NotFoundPage,
     scrollRestoration: true,
   });
 }

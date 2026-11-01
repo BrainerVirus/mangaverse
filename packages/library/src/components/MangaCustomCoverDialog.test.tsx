@@ -19,6 +19,13 @@ function renderDialog(overrides: Partial<Parameters<typeof MangaCustomCoverDialo
 }
 
 describe('MangaCustomCoverDialog', () => {
+  it('Given a pending save, Then the button keeps its label so a fast save cannot flash', () => {
+    renderDialog({ isSaving: true });
+
+    expect(screen.getByRole('button', { name: 'Save cover' })).toBeDisabled();
+    expect(screen.queryByText('Saving…')).toBeNull();
+  });
+
   it('rejects an invalid URL without calling the write', () => {
     const props = renderDialog();
 

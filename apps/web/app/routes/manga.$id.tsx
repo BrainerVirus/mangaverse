@@ -58,6 +58,8 @@ import {
   runCoverAction,
   runProviderAction,
 } from '../queries/manga-detail-route-helpers.js';
+import { feedback } from '../lib/app-feedback.js';
+import { saveFeedback } from '../lib/feedback.js';
 import { getBindingForMangaId } from '../lib/provider-registry.js';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 
@@ -80,8 +82,9 @@ async function resolveMangaDetail(
   try {
     const refreshed = await fetchProviderMangaDetail(db, binding, mangaId, local, signal);
     return refreshed ?? local;
-  } catch {
+  } catch (error) {
     // Provider failure must not blank a locally available detail page.
+    feedback.log(error, 'manga detail refresh');
     return local;
   }
 }
@@ -160,10 +163,12 @@ function MangaDetailRoute() {
   const chapterHydrationQuery = useQuery({
     queryKey: chapterHydrationQueryKey(mangaId, activeMapping),
     queryFn: async ({ signal }) => {
-      await hydrateProviderChaptersForMapping(db!, mangaId, activeMapping!, signal);
+      const written = await hydrateProviderChaptersForMapping(db!, mangaId, activeMapping!, signal);
       // The badge, not only the detail list, changed with the hydrated rows.
       await queryClient.invalidateQueries({ queryKey: libraryQueryKeys.all });
+      return written;
     },
+    meta: { feedback: { surface: 'inline' } },
     enabled: canHydrateChapters(
       activeProvider,
       activeMapping,
@@ -185,6 +190,7 @@ function MangaDetailRoute() {
   const organizeMutation = useMutation(createLibraryOrganizationMutationOptions(db, queryClient));
 
   const providerMutation = useMutation({
+    meta: saveFeedback('Could not update the source.'),
     mutationFn: (action: Parameters<typeof runProviderAction>[3]) =>
       runProviderAction(db, mangaId, data, action),
     // A detail/card refetch started before the write would otherwise land after
@@ -194,11 +200,13 @@ function MangaDetailRoute() {
   });
 
   const coverMutation = useMutation({
+    meta: saveFeedback('Could not update the cover.'),
     mutationFn: (coverImageUrl: string | undefined) => runCoverAction(db, mangaId, coverImageUrl),
     onSettled: () => invalidateMangaCaches(queryClient),
   });
 
   const chapterMutation = useMutation({
+    meta: saveFeedback('Could not update read progress.'),
     mutationFn: (action: Parameters<typeof runChapterAction>[2]) =>
       runChapterAction(db, mangaId, action),
     onSettled: () => invalidateMangaCaches(queryClient),

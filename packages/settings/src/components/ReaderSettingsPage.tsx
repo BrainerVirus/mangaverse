@@ -41,7 +41,6 @@ export interface ReaderSettingsPageProps {
   readonly settings: ReaderSettings | undefined;
   readonly isLoading: boolean;
   readonly isError: boolean;
-  readonly isSaving?: boolean;
   onChange: (patch: Partial<ReaderSettings>) => void;
   /** Pointer-up or blur: commit a coalesced edit without waiting for the quiet window. */
   onInteractionEnd?: () => void;
@@ -441,7 +440,6 @@ export function ReaderSettingsPage({
   settings,
   isLoading,
   isError,
-  isSaving = false,
   onChange,
   onInteractionEnd,
   titleScope,
@@ -487,7 +485,6 @@ export function ReaderSettingsPage({
             {titleScope !== undefined
               ? 'Reading mode, layout, gestures, and display preferences for this title.'
               : 'Default reading mode, layout, gestures, and display preferences.'}
-            {isSaving ? ' Saving…' : null}
           </p>
         </div>
         {titleScope !== undefined ? (
