@@ -1,5 +1,13 @@
 import type { ChapterId } from './chapter.js';
-import type { MangaId, ProviderId, ProviderMappingId } from './manga.js';
+import {
+  getPrimaryProviderMapping,
+  humanizeProviderId,
+  providerDisplayName,
+  type MangaId,
+  type MangaIdentity,
+  type ProviderId,
+  type ProviderMappingId,
+} from './manga.js';
 
 declare const libraryEntryIdBrand: unique symbol;
 export type LibraryEntryId = string & {
@@ -32,6 +40,23 @@ export const LIBRARY_STATUS_OPTIONS: readonly {
 
 export function libraryStatusLabel(status: LibraryStatus): string {
   return LIBRARY_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
+}
+
+/**
+ * The source line a library card shows: the default provider's registered
+ * display name, or a readable form of its id when the caller has no registry
+ * lookup. Never the raw id token.
+ */
+export function librarySourceLabel(
+  manga: MangaIdentity,
+  providerLabels: Readonly<Record<string, string>> | undefined,
+): string | undefined {
+  const mapping = getPrimaryProviderMapping(manga);
+  if (mapping === undefined) return undefined;
+  return (
+    providerDisplayName(mapping.providerId, providerLabels) ??
+    humanizeProviderId(mapping.providerId)
+  );
 }
 
 export type LibraryLayoutMode = 'grid' | 'list' | 'compact';

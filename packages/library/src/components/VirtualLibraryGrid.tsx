@@ -9,7 +9,7 @@ import type {
   MangaId,
   MangaIdentity,
 } from '@app/shared';
-import { libraryStatusLabel } from '@app/shared';
+import { librarySourceLabel, libraryStatusLabel } from '@app/shared';
 import type { LibraryItem } from '../types.js';
 import {
   estimateRowHeight,
@@ -30,6 +30,8 @@ export interface VirtualLibraryGridProps {
   selectionMode?: boolean;
   selectedIds?: ReadonlySet<LibraryEntryId>;
   onToggleSelected?: (entryId: LibraryEntryId) => void;
+  /** Registered provider names keyed by provider id; omitted labels print nothing. */
+  sourceLabels?: Readonly<Record<string, string>>;
 }
 
 interface LibraryCardProps {
@@ -38,6 +40,7 @@ interface LibraryCardProps {
   variant: LibraryLayoutMode;
   selectionMode: boolean;
   selected: boolean;
+  sourceLabel: string | undefined;
   onOpenManga: (mangaId: MangaId) => void;
   onToggleSelected: ((entryId: LibraryEntryId) => void) | undefined;
 }
@@ -54,6 +57,7 @@ const LibraryCard = memo(function LibraryCard({
   variant,
   selectionMode,
   selected,
+  sourceLabel,
   onOpenManga,
   onToggleSelected,
 }: LibraryCardProps) {
@@ -76,6 +80,7 @@ const LibraryCard = memo(function LibraryCard({
       <CachedMangaCard
         manga={manga}
         variant={variant}
+        {...(sourceLabel === undefined ? {} : { sourceLabel })}
         // The unread badge shares the top-left corner with the selection
         // checkbox; in selection mode the checkbox owns it.
         {...(selectionMode ? {} : { unreadCount: entry.unreadCount })}
@@ -99,6 +104,7 @@ export function VirtualLibraryGrid({
   selectionMode = false,
   selectedIds,
   onToggleSelected,
+  sourceLabels,
 }: VirtualLibraryGridProps) {
   const containerRef = useRef<HTMLElement>(null);
   const { scrollParent, isMeasured } = useScrollParent(containerRef);
@@ -151,6 +157,7 @@ export function VirtualLibraryGrid({
             variant={layout}
             selectionMode={selectionMode}
             selected={selectedIds?.has(entry.id) ?? false}
+            sourceLabel={librarySourceLabel(manga, sourceLabels)}
             onOpenManga={onOpenManga}
             onToggleSelected={onToggleSelected}
           />
@@ -202,6 +209,7 @@ export function VirtualLibraryGrid({
                   variant={layout}
                   selectionMode={selectionMode}
                   selected={selectedIds?.has(entry.id) ?? false}
+                  sourceLabel={librarySourceLabel(manga, sourceLabels)}
                   onOpenManga={onOpenManga}
                   onToggleSelected={onToggleSelected}
                 />

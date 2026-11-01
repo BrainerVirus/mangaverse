@@ -98,7 +98,9 @@ export function MobileBottomNav() {
 
       <GlassSurface level="thick" className="fixed bottom-0 left-0 right-0 z-50 min-h-14 md:hidden">
         <nav className="h-full safe-area-bottom">
-          <div className="safe-area-x flex h-14 items-center justify-around">
+          {/* Equal-width tabs: five `flex-1 basis-0` items share the bar, so the
+              longest label truncates instead of pushing the row past 320px. */}
+          <div className="safe-area-x flex h-14 items-stretch">
             {primaryTabs.map(({ label, to, icon: Icon }) => {
               const isActive = currentPath === to || currentPath.startsWith(to + '/');
               return (
@@ -108,12 +110,12 @@ export function MobileBottomNav() {
                   aria-label={label}
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(
-                    'flex flex-col items-center gap-0.5 px-3 py-1.5 type-micro transition-colors',
+                    'flex min-w-0 flex-1 basis-0 flex-col items-center justify-center gap-0.5 px-1 py-1.5 type-micro transition-colors',
                     isActive ? 'text-primary' : 'text-muted-foreground',
                   )}
                 >
                   <Icon className="h-5 w-5" />
-                  <span>{label}</span>
+                  <span className="max-w-full truncate">{label}</span>
                 </Link>
               );
             })}
@@ -121,11 +123,11 @@ export function MobileBottomNav() {
             <button
               type="button"
               aria-label="Open navigation menu"
-              className="flex flex-col items-center gap-0.5 px-3 py-1.5 type-micro text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex min-w-0 flex-1 basis-0 flex-col items-center justify-center gap-0.5 px-1 py-1.5 type-micro text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => setSheetOpen(true)}
             >
               <Menu className="h-5 w-5" />
-              <span>More</span>
+              <span className="max-w-full truncate">More</span>
             </button>
           </div>
         </nav>

@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { AppDrizzleDb } from '@app/db';
+import { extensionsQueryKeys, fetchProviderUiInfo } from '@app/extensions';
 import {
   clearLibraryUpdateReport,
   DEFAULT_LIBRARY_VIEW_STATE,
@@ -98,6 +99,16 @@ function LibraryRoute() {
     ...libraryUpdateReportQueryOptions(db!),
     enabled: dbStatus === 'ready' && db !== null,
   });
+  const providerInfo = useQuery({
+    queryKey: extensionsQueryKeys.ui(),
+    queryFn: () => fetchProviderUiInfo(db!),
+    enabled: dbStatus === 'ready' && db !== null,
+  });
+  const sourceLabels = useMemo(() => {
+    const labels: Record<string, string> = {};
+    for (const provider of providerInfo.data ?? []) labels[provider.id] = provider.name;
+    return labels;
+  }, [providerInfo.data]);
 
   const runCheck = useCallback(
     async (entryIds?: readonly LibraryEntryId[]) => {
@@ -140,6 +151,7 @@ function LibraryRoute() {
       onOrganize={(action) => organizeMutation.mutateAsync(action)}
       onMigrate={migrateSelection}
       migrationBatchLimit={MIGRATION_BATCH_LIMIT}
+      sourceLabels={sourceLabels}
       onBrowse={() => void navigate({ to: '/extensions' })}
       {...(dbStatus === 'error' ? { onRetry: retryDb } : {})}
     />

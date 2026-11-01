@@ -17,7 +17,13 @@ import {
   SelectValue,
 } from '@app/design-system';
 import type { MergePreview, UnmergeMappingPreview } from '@app/db';
-import { libraryStatusLabel, toMangaId, type MangaId, type ProviderMappingId } from '@app/shared';
+import {
+  libraryStatusLabel,
+  providerDisplayName,
+  toMangaId,
+  type MangaId,
+  type ProviderMappingId,
+} from '@app/shared';
 import { ArrowRightLeft } from 'lucide-react';
 import type { DuplicateCandidate } from '../duplicate-candidates.js';
 
@@ -53,7 +59,10 @@ function providerNames(
   providerIds: readonly string[],
   providerLabels: Readonly<Record<string, string>> | undefined,
 ): string {
-  return providerIds.map((providerId) => providerLabels?.[providerId] ?? providerId).join(', ');
+  return providerIds
+    .map((providerId) => providerDisplayName(providerId, providerLabels))
+    .filter((label): label is string => label !== undefined)
+    .join(', ');
 }
 
 function errorMessage(error: unknown, fallback: string): string {
@@ -143,9 +152,11 @@ function MergeMappingList({
             className="flex flex-wrap items-center justify-between gap-2 rounded-control border border-border px-3 py-2 text-sm"
           >
             <span className="min-w-0">
-              <span className="font-medium">
-                {providerLabels?.[mapping.providerId] ?? mapping.providerId}
-              </span>{' '}
+              {providerDisplayName(mapping.providerId, providerLabels) !== undefined ? (
+                <span className="font-medium">
+                  {providerDisplayName(mapping.providerId, providerLabels)}
+                </span>
+              ) : null}{' '}
               <span className="truncate text-xs text-muted-foreground">
                 {mapping.providerMangaId}
               </span>
@@ -183,7 +194,7 @@ function MergePreviewBody({
     const mapping = preview.mappings.find((item) => item.id === mappingId);
     return mapping === undefined
       ? 'None'
-      : (providerLabels?.[mapping.providerId] ?? mapping.providerId);
+      : (providerDisplayName(mapping.providerId, providerLabels) ?? mapping.providerMangaId);
   };
 
   return (
@@ -560,7 +571,8 @@ function UnmergeDialogBody({
     <>
       <p>
         <span className="font-medium">
-          {providerLabels?.[preview.mapping.providerId] ?? preview.mapping.providerId}
+          {providerDisplayName(preview.mapping.providerId, providerLabels) ??
+            preview.mapping.providerMangaId}
         </span>{' '}
         · {preview.mapping.providerMangaId}
       </p>

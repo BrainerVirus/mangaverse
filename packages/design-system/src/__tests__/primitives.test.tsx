@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest';
+import { renderToStaticMarkup } from 'react-dom/server';
+import type {
+  MangaId,
+  MangaIdentity,
+  ProviderId,
+  ProviderMangaId,
+  ProviderMappingId,
+} from '@app/shared';
 import { cn } from '../lib/cn.js';
+import { MangaCard } from '../components/manga-card.js';
 
 describe('cn() utility', () => {
   it('merges duplicate classes with cn', () => {
@@ -66,5 +75,40 @@ describe('cn() utility', () => {
     const result = cn({ 'bg-blue-500': true, 'bg-red-500': false });
     expect(result).toContain('bg-blue-500');
     expect(result).not.toContain('bg-red-500');
+  });
+});
+
+const mappedManga: MangaIdentity = {
+  id: 'manga-1' as MangaId,
+  canonicalTitle: 'Manga',
+  alternativeTitles: [],
+  authors: [],
+  artists: [],
+  tags: [],
+  status: 'ongoing',
+  contentRating: 'safe',
+  providerMappings: [
+    {
+      id: 'mapping-1' as ProviderMappingId,
+      providerId: 'mangadex' as ProviderId,
+      providerMangaId: 'remote-1' as ProviderMangaId,
+    },
+  ],
+  defaultProviderMappingId: 'mapping-1' as ProviderMappingId,
+  merged: false,
+};
+
+describe('MangaCard source label', () => {
+  it('Given a provider display name, Then the card shows it instead of the raw id', () => {
+    const html = renderToStaticMarkup(<MangaCard manga={mappedManga} sourceLabel="MangaDex" />);
+
+    expect(html).toContain('MangaDex');
+    expect(html).not.toContain('mangadex');
+  });
+
+  it('Given no registered provider name, Then the card prints no raw id', () => {
+    const html = renderToStaticMarkup(<MangaCard manga={mappedManga} />);
+
+    expect(html).not.toContain('mangadex');
   });
 });

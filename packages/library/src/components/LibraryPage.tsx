@@ -57,6 +57,8 @@ export interface LibraryPageProps {
   onMigrate?: (selection: LibraryMigrationSelection) => void;
   /** Maximum titles one migration hand-off can carry; the app supplies it. */
   migrationBatchLimit?: number;
+  /** Registered provider names keyed by provider id, so cards show the manifest name. */
+  sourceLabels?: Readonly<Record<string, string>>;
   /** Continue reading and recently updated, already filtered like the grid. */
   overview?: LibraryOverviewData;
   onOpenChapter?: (chapterId: ChapterId) => void;
@@ -185,6 +187,7 @@ export function LibraryPage({
   onOrganize,
   onMigrate = NOOP_MIGRATE,
   migrationBatchLimit,
+  sourceLabels,
   overview,
   onOpenChapter,
   updates,
@@ -292,6 +295,7 @@ export function LibraryPage({
             selectionMode={selection.selectionMode}
             selectedIds={selection.selectedIds}
             onToggleSelected={selection.toggleSelected}
+            {...(sourceLabels === undefined ? {} : { sourceLabels })}
           />
         </>
       ) : null}

@@ -162,7 +162,7 @@ describe('MangaCard', () => {
     expect(button).toHaveClass('flex-row');
   });
 
-  it('displays provider name when in list variant', () => {
+  it('Given a source label, Then the list variant shows the provider display name', () => {
     const manga = createMockManga({
       canonicalTitle: 'Test Manga',
       providerMappings: [
@@ -175,9 +175,11 @@ describe('MangaCard', () => {
       ],
     });
 
-    render(<MangaCard manga={manga} variant="list" />);
+    render(<MangaCard manga={manga} variant="list" sourceLabel="Manga Provider" />);
 
-    expect(screen.getByText('manga-provider')).toBeInTheDocument();
+    expect(screen.getByText('Manga Provider')).toBeInTheDocument();
+    // The provider id is an implementation token, never a card label.
+    expect(screen.queryByText('manga-provider')).toBeNull();
   });
 
   it('displays tags when available and not compact', () => {

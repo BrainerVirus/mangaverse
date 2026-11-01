@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { Badge, Button } from '@app/design-system';
-import type { MangaProviderMapping, ProviderMappingId } from '@app/shared';
+import {
+  providerDisplayName,
+  type MangaProviderMapping,
+  type ProviderMappingId,
+} from '@app/shared';
 
 export interface MangaProviderSwitcherProps {
   readonly mappings: readonly MangaProviderMapping[];
@@ -47,7 +51,7 @@ export function MangaProviderSwitcher({
       ) : (
         <ul className="flex flex-col gap-2">
           {mappings.map((mapping) => {
-            const name = providerLabels?.[mapping.providerId] ?? mapping.providerId;
+            const name = providerDisplayName(mapping.providerId, providerLabels);
             const isDefault = mapping.id === defaultMappingId;
             const isActive = mapping.id === activeMappingId;
             const isPreferred = mapping.id === preferredMappingId;
@@ -58,13 +62,15 @@ export function MangaProviderSwitcher({
               >
                 <div className="min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium">{name}</span>
+                    {name !== undefined ? <span className="font-medium">{name}</span> : null}
                     {isDefault ? <Badge variant="secondary">Default</Badge> : null}
                     {isPreferred ? <Badge variant="outline">Chapter source</Badge> : null}
                     {isActive ? <Badge>Viewing</Badge> : null}
                   </div>
+                  {/* The remote id identifies the source; the provider id stays out
+                      of the UI because it is an implementation token. */}
                   <p className="truncate text-xs text-muted-foreground">
-                    {mapping.providerId} · {mapping.providerMangaId}
+                    {mapping.providerMangaId}
                   </p>
                 </div>
 

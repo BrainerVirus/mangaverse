@@ -106,8 +106,8 @@
     // react/incompatible-library and react/purity all report 0 findings (43 fixed,
     // measured 2026-10-17). Four keeps are
     // inline ignores with recorded rulings: react/set-state-in-effect on the two SSR
-    // hooks (use-is-client, use-reduced-motion) and react/incompatible-library on the two
-    // TanStack Virtual grids. The vitest family is enabled now and clean too: all five
+    // hooks (use-is-client, use-reduced-motion) and react/incompatible-library on the three
+    // TanStack Virtual call sites (library grid, search grid, chapter list). The vitest family is enabled now and clean too: all five
     // rules report 0 findings (354 fixed, measured 2026-10-17 with the five rules forced
     // to `error`: require-mock-type-parameters 253, no-conditional-expect 99,
     // valid-expect 1, require-to-throw-message 1, expect-expect 0). The jsx-a11y block
@@ -226,6 +226,7 @@
       // <style> elements stay checked, and every other file keeps the rule at error.
       "files": [
         "**/packages/library/src/components/VirtualLibraryGrid.tsx",
+        "**/packages/library/src/components/MangaChapterList.tsx",
         "**/packages/search/src/components/VirtualSearchGrid.tsx"
       ],
       "rules": {
@@ -249,6 +250,7 @@
     },
     {
       "files": [
+        "**/packages/library/src/components/MangaChapterList.test.tsx",
         "**/packages/library/src/components/VirtualLibraryGrid.test.tsx",
         "**/packages/search/src/components/VirtualSearchGrid.test.tsx"
       ],

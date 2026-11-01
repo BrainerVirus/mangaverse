@@ -21,7 +21,7 @@ import {
 } from '@app/design-system';
 import type { SavedSearchEntry } from '@app/db';
 import type { ContentRating, MangaId } from '@app/shared';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { parseTagList } from '../search-filters.js';
 import type { SearchFilters, SearchPageData, SearchSort, SearchViewState } from '../types.js';
 import { VirtualSearchGrid } from './VirtualSearchGrid.js';
@@ -437,6 +437,11 @@ function SettledSearch({
   data,
 }: SettledSearchProps) {
   const setFilters = (next: SearchFilters) => onViewStateChange({ ...viewState, filters: next });
+  const sourceLabels = useMemo(() => {
+    const labels: Record<string, string> = {};
+    for (const provider of providers) labels[provider.providerId] = provider.label;
+    return labels;
+  }, [providers]);
 
   return (
     <>
@@ -464,6 +469,7 @@ function SettledSearch({
         onBrowseProviders={onBrowseProviders}
         onRetryProvider={onRetryProvider}
         onResetFilters={() => setFilters({})}
+        sourceLabels={sourceLabels}
       />
     </>
   );
@@ -693,12 +699,14 @@ function ResultGrid({
   failedStatuses,
   onRetryProvider,
   onOpenManga,
+  sourceLabels,
 }: {
   results: SearchPageData['results'];
   pendingStatuses: readonly SearchProviderStatus[];
   failedStatuses: readonly SearchProviderStatus[];
   onRetryProvider: ((providerId: string) => void) | undefined;
   onOpenManga: (mangaId: MangaId) => void;
+  sourceLabels: Readonly<Record<string, string>>;
 }) {
   return (
     <>
@@ -706,7 +714,7 @@ function ResultGrid({
       {failedStatuses.length > 0 && pendingStatuses.length === 0 ? (
         <ProviderErrorNotice failedStatuses={failedStatuses} onRetryProvider={onRetryProvider} />
       ) : null}
-      <VirtualSearchGrid results={results} onOpenManga={onOpenManga} />
+      <VirtualSearchGrid results={results} onOpenManga={onOpenManga} sourceLabels={sourceLabels} />
     </>
   );
 }
@@ -719,6 +727,7 @@ function QueryResults({
   onOpenManga,
   onResetFilters,
   filtersActive,
+  sourceLabels,
 }: {
   results: SearchPageData['results'];
   pendingStatuses: readonly SearchProviderStatus[];
@@ -727,6 +736,7 @@ function QueryResults({
   onOpenManga: (mangaId: MangaId) => void;
   onResetFilters: () => void;
   filtersActive: boolean;
+  sourceLabels: Readonly<Record<string, string>>;
 }) {
   if (results.length > 0) {
     return (
@@ -736,6 +746,7 @@ function QueryResults({
         failedStatuses={failedStatuses}
         onRetryProvider={onRetryProvider}
         onOpenManga={onOpenManga}
+        sourceLabels={sourceLabels}
       />
     );
   }
@@ -771,6 +782,7 @@ function SearchResults({
   onBrowseProviders,
   onRetryProvider,
   onResetFilters,
+  sourceLabels,
 }: {
   hasQuery: boolean;
   results: SearchPageData['results'];
@@ -783,6 +795,7 @@ function SearchResults({
   onBrowseProviders: (() => void) | undefined;
   onRetryProvider: ((providerId: string) => void) | undefined;
   onResetFilters: () => void;
+  sourceLabels: Readonly<Record<string, string>>;
 }) {
   if (!hasQuery) {
     return recentSearches.length > 0 ? (
@@ -806,6 +819,7 @@ function SearchResults({
       onOpenManga={onOpenManga}
       onResetFilters={onResetFilters}
       filtersActive={filtersActive}
+      sourceLabels={sourceLabels}
     />
   );
 }

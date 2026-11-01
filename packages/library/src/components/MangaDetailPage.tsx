@@ -17,6 +17,8 @@ import {
   compareLibraryCategories,
   getMangaCoverUrl,
   libraryStatusLabel,
+  mangaStatusLabel,
+  providerDisplayName,
   toReadableDescription,
   type CategoryId,
   type Chapter,
@@ -378,8 +380,11 @@ function TrackingLinks({ links }: { links: readonly TrackingLink[] }) {
 }
 
 function MangaSummaryHeader({ manga, inLibrary }: { manga: MangaIdentity; inLibrary: boolean }) {
+  // `unknown` is the absence of a provider status, so it gets no badge.
+  const statusLabel = mangaStatusLabel(manga.status);
+
   return (
-    <div className="space-y-2">
+    <div className="min-w-0 space-y-2">
       <h1 className="text-3xl font-bold tracking-tight">{manga.canonicalTitle}</h1>
 
       {manga.alternativeTitles.length > 0 ? (
@@ -389,7 +394,7 @@ function MangaSummaryHeader({ manga, inLibrary }: { manga: MangaIdentity; inLibr
       ) : null}
 
       <div className="flex flex-wrap gap-2">
-        <Badge variant="secondary">{manga.status}</Badge>
+        {statusLabel !== undefined ? <Badge variant="secondary">{statusLabel}</Badge> : null}
         {manga.contentRating !== 'safe' && manga.contentRating !== 'unknown' ? (
           <Badge variant="destructive">{manga.contentRating}</Badge>
         ) : null}
@@ -410,6 +415,10 @@ function MangaFacts({
 }) {
   const authors = formatPeople(manga.authors);
   const artists = formatPeople(manga.artists);
+  const sourceName =
+    activeMapping === undefined
+      ? undefined
+      : providerDisplayName(activeMapping.providerId, providerLabels);
   const description =
     manga.description === undefined ? '' : toReadableDescription(manga.description);
 
@@ -428,10 +437,10 @@ function MangaFacts({
             <dd>{artists}</dd>
           </div>
         ) : null}
-        {activeMapping !== undefined ? (
+        {sourceName !== undefined ? (
           <div>
             <dt className="font-medium text-muted-foreground">Source</dt>
-            <dd>{providerLabels?.[activeMapping.providerId] ?? activeMapping.providerId}</dd>
+            <dd>{sourceName}</dd>
           </div>
         ) : null}
         {manga.trackingLinks !== undefined && manga.trackingLinks.length > 0 ? (
@@ -728,16 +737,22 @@ function MangaDetailHeader({
   const { data, activeMapping, continueChapter, lastReadChapter, customCoverUrl, coverUrl } = view;
 
   return (
-    <div className="flex flex-wrap items-start gap-6">
+    // On a phone Back is its own row, so the summary below it owns the full
+    // content width instead of losing a column to the button. On `md` the two
+    // sit side by side again, and `items-start` keeps the cover from stretching
+    // to the summary's height (that stretch painted an empty box under it).
+    <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-6">
       {onBack !== undefined ? (
-        <Button type="button" variant="ghost" onClick={onBack}>
-          Back
-        </Button>
+        <div className="md:pt-1">
+          <Button type="button" variant="ghost" onClick={onBack}>
+            Back
+          </Button>
+        </div>
       ) : null}
 
-      <div className="flex flex-1 flex-col gap-6 md:flex-row">
+      <div className="flex min-w-0 flex-1 flex-col gap-6 md:flex-row md:items-start">
         {coverUrl !== undefined ? (
-          <div className="mx-auto w-40 shrink-0 overflow-hidden rounded-box border border-border bg-muted md:mx-0 md:w-48">
+          <div className="mx-auto w-40 shrink-0 self-start overflow-hidden rounded-box border border-border bg-muted md:mx-0 md:w-48">
             <CachedCoverImage
               providerId={getDefaultProviderId(data.manga)}
               mangaId={data.manga.id}
