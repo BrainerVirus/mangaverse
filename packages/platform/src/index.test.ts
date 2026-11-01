@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  PACKAGE_NAME,
   createWebPlatformAdapter,
   createUnsupportedPlatformAdapter,
   detectElectronCapabilities,
@@ -12,8 +11,7 @@ import {
 import { platformUnsupported } from './errors.js';
 
 describe('@app/platform public exports', () => {
-  it('exports platform adapter factories and package name', () => {
-    expect(PACKAGE_NAME).toBe('@app/platform');
+  it('exports platform adapter factories', () => {
     expect(typeof createWebPlatformAdapter).toBe('function');
     expect(typeof createUnsupportedPlatformAdapter).toBe('function');
     expect(typeof detectWebCapabilities).toBe('function');

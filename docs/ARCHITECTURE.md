@@ -28,7 +28,6 @@ packages/
   theme/
   platform/
   shared/
-  test-utils/
 docs/
   SPEC.md
   overhaul/
@@ -244,10 +243,6 @@ Rules:
 - Feature UI receives data through props or feature-level hooks.
 - Feature packages must not import other feature packages directly unless a stable cross-feature domain package exists.
 - Business logic belongs in feature services, domain packages, or `@app/db`, not in visual components.
-
-### `@app/test-utils`
-
-Owns shared test utilities, fixtures, fake providers, database test harnesses, and accessibility helpers.
 
 ## Dependency Rules
 

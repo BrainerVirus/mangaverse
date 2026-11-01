@@ -6,18 +6,12 @@ import { parseMigrationSearch } from '../../lib/migration-search.js';
 // CPU contention, and Vitest would charge that to the test's 5s timeout when it is
 // awaited inside the test body. Collection has no per-test timeout.
 import { Route } from '../../routes/migration.js';
-import { Route as LazyRoute } from '../../routes/migration.lazy.js';
 
 function ids(count: number): string[] {
   return Array.from({ length: count }, (_, index) => `id-${index}`);
 }
 
 describe('/migration route', () => {
-  it('exports a TanStack route definition', () => {
-    expect(LazyRoute).toBeDefined();
-    expect(typeof LazyRoute.options.component).toBe('function');
-  });
-
   it('validates the library bulk hand-off search params', () => {
     const validateSearch = Route.options.validateSearch;
 

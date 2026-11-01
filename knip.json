@@ -17,11 +17,6 @@
     },
     "apps/desktop": {
       "entry": ["src/preload/index.ts", "src/renderer/src/main.tsx"]
-    },
-    "packages/theme": {
-      // `jsx: react-jsx` makes tsc emit `react/jsx-runtime` imports for
-      // ThemeCustomizationPage.tsx; no explicit `react` import exists for knip to see.
-      "ignoreDependencies": ["react"]
     }
   }
 }

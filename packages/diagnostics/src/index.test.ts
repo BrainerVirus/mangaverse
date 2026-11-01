@@ -4,7 +4,6 @@ import { createWebPlatformAdapter } from '@app/platform';
 
 import {
   DiagnosticsPage,
-  PACKAGE_NAME,
   createAppPlatformAdapter,
   fetchDiagnosticsReport,
   formatDiagnosticsReport,
@@ -13,7 +12,6 @@ import {
 
 describe('@app/diagnostics exports', () => {
   it('exports the diagnostics feature surface', () => {
-    expect(PACKAGE_NAME).toBe('@app/diagnostics');
     expect(typeof DiagnosticsPage).toBe('function');
     expect(typeof fetchDiagnosticsReport).toBe('function');
     expect(typeof formatDiagnosticsReport).toBe('function');

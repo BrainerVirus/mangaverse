@@ -13,7 +13,6 @@ import {
   type MangaId,
 } from '@app/shared';
 import {
-  PACKAGE_NAME,
   addLibraryEntry,
   addProviderMapping,
   appendReadingHistory,
@@ -70,10 +69,6 @@ import {
 } from './schema.js';
 
 describe('@app/db', () => {
-  it('exports PACKAGE_NAME', () => {
-    expect(PACKAGE_NAME).toBe('@app/db');
-  });
-
   it('applies migrations idempotently on sql.js', async () => {
     const { raw, db } = await createSqlJsHarness();
     expect(db).toBeDefined();

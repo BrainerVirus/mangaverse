@@ -46,5 +46,3 @@ export type {
   MigrationSelectionDraft,
   MigrationTargetSearchState,
 } from './types.js';
-
-export const PACKAGE_NAME = '@app/migration' as const;

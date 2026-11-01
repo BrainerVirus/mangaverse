@@ -1,5 +1,3 @@
-export const PACKAGE_NAME = '@app/motion' as const;
-
 export { registerGsapPlugins } from './plugins.js';
 
 export { useGsapContext } from './hooks/use-gsap-context.js';

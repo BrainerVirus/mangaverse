@@ -14,5 +14,3 @@ export {
   summarizeRestorePreview,
   type RestorePreviewSummary,
 } from './summarize-restore-preview.js';
-
-export const PACKAGE_NAME = '@app/backup' as const;

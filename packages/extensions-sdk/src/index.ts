@@ -1,5 +1,3 @@
-export const PACKAGE_NAME = '@app/extensions-sdk' as const;
-
 export type {
   ProviderAuthState,
   ProviderChapter,

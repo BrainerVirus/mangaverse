@@ -11,7 +11,6 @@ import {
   findMissingMigrationMangaIds,
   MigrationPage,
   migrationConfidenceBand,
-  PACKAGE_NAME,
   previewMigration,
   rankMigrationSearchResults,
   scoreMigrationMatch,
@@ -26,7 +25,6 @@ import type { MigrationCandidate, MigrationSearchResult } from './types.js';
 
 describe('@app/migration exports', () => {
   it('exports the migration feature surface', () => {
-    expect(PACKAGE_NAME).toBe('@app/migration');
     expect(typeof MigrationPage).toBe('function');
     expect(typeof fetchMigrationProviders).toBe('function');
     expect(typeof fetchMigrationCandidates).toBe('function');

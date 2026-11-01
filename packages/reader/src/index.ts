@@ -1,5 +1,4 @@
 // @app/reader
-export const PACKAGE_NAME = '@app/reader' as const;
 export { READER_ERROR_CODES } from './types.js';
 
 // Types

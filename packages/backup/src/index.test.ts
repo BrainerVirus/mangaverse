@@ -14,7 +14,6 @@ import {
   BackupPage,
   buildBackupFilename,
   createBackupExport,
-  PACKAGE_NAME,
   parseBackupFileContent,
   previewBackupImport,
   serializeBackupDocument,
@@ -23,7 +22,6 @@ import {
 
 describe('@app/backup exports', () => {
   it('exports the backup feature surface', () => {
-    expect(PACKAGE_NAME).toBe('@app/backup');
     expect(typeof BackupPage).toBe('function');
     expect(typeof createBackupExport).toBe('function');
     expect(typeof parseBackupFileContent).toBe('function');

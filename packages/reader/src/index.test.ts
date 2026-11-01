@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  PACKAGE_NAME,
   READER_ERROR_CODES,
   // Layout/spread
   createReaderState,
@@ -37,10 +36,6 @@ import {
 } from './index';
 
 describe('public API', () => {
-  it('should export PACKAGE_NAME', () => {
-    expect(PACKAGE_NAME).toBe('@app/reader');
-  });
-
   it('should export READER_ERROR_CODES as runtime constant', () => {
     expect(READER_ERROR_CODES).toBeDefined();
     expect(typeof READER_ERROR_CODES).toBe('object');
