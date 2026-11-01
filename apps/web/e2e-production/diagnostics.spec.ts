@@ -7,6 +7,7 @@ import { test } from './helpers.js';
 test.describe.configure({ timeout: 90_000 });
 
 const EVENT_LOG_KEY = 'mangaverse.diagnostics.event-log.v1';
+const EVENT_LOG_LOCK = 'mangaverse-event-log.v1';
 
 /** Seeded events deliberately carry a bearer token, a URL query and password. */
 const SEEDED_EVENTS = [
@@ -34,7 +35,21 @@ const SEEDED_EVENTS = [
     message: 'Chapter page used https://x.test/pages/1?api_key=zzz',
     durationMs: 180,
   },
+  {
+    id: 'seed-password',
+    at: '2026-05-23T09:59:59.000Z',
+    kind: 'error',
+    message: '{"password":"SECRET FIRST SECOND"}',
+  },
+  {
+    id: 'seed-cookie',
+    at: '2026-05-23T09:59:58.000Z',
+    kind: 'error',
+    message: '{"Set-Cookie":{"nested":{"session":"SECRETNEST"},"other":"SECRETTAIL"}}',
+  },
 ] as const;
+
+const SEEDED_FRAGMENTS = ['FIRST SECOND', 'SECRETNEST', 'SECRETTAIL'];
 
 test('Given seeded token-bearing events, When Diagnostics loads, filters, clears and exports, Then it makes no network request and the export carries no credential', async ({
   page,
@@ -51,13 +66,18 @@ test('Given seeded token-bearing events, When Diagnostics loads, filters, clears
   const section = page.getByRole('region', { name: 'Event log' });
   await expect(section).toBeVisible({ timeout: 20_000 });
   const panel = (name: string) => section.getByRole('tabpanel', { name });
-  await expect(panel('All').getByText('error', { exact: true })).toBeVisible();
+  await expect(panel('All').getByText('error', { exact: true })).toHaveCount(3);
+  await expect(panel('All').getByText('{"password":"[redacted]"}')).toBeVisible();
+  await expect(panel('All').getByText('{"Set-Cookie":"[redacted]"}')).toBeVisible();
   await expect(panel('All').getByText('2026-05-23T10:00:02.000Z')).toBeVisible();
   await expect(
     panel('All').getByText('GET https://api.mangadex.org/manga failed: Bearer [redacted]'),
   ).toBeVisible();
 
-  // Everything below is local work: nothing may leave the device.
+  // Covers only the Diagnostics operations below (filter, export, clear), so it
+  // starts after the page load, which legitimately fetches app assets. No app
+  // code records events yet; the unit test in packages/diagnostics/src/event-log.test.ts
+  // spies fetch, XHR and sendBeacon during `record`.
   const outbound: string[] = [];
   page.on('request', (request) => {
     const url = request.url();
@@ -66,7 +86,7 @@ test('Given seeded token-bearing events, When Diagnostics loads, filters, clears
   });
 
   await section.getByRole('tab', { name: 'Errors' }).click();
-  await expect(panel('Errors').getByText('error', { exact: true })).toBeVisible();
+  await expect(panel('Errors').getByText('error', { exact: true })).toHaveCount(3);
   await expect(
     panel('Errors').getByText(/Search https:\/\/api\.mangadex\.org\/manga took too long/),
   ).toHaveCount(0);
@@ -84,17 +104,35 @@ test('Given seeded token-bearing events, When Diagnostics loads, filters, clears
 
   expect(exported).toContain('https://api.mangadex.org/manga');
   expect(exported).toContain('https://x.test/pages/1');
-  for (const secret of ['s3cret', 'abc.def', 'hunter2', 'api_key=zzz', 'limit=10']) {
+  for (const secret of [
+    's3cret',
+    'abc.def',
+    'hunter2',
+    'api_key=zzz',
+    'limit=10',
+    ...SEEDED_FRAGMENTS,
+  ]) {
     expect(exported).not.toContain(secret);
   }
 
   // The seeded values never reached the DOM either, only their redacted forms.
   const html = await page.content();
-  for (const secret of ['s3cret', 'abc.def', 'hunter2', 'api_key=zzz']) {
+  for (const secret of ['s3cret', 'abc.def', 'hunter2', 'api_key=zzz', ...SEEDED_FRAGMENTS]) {
     expect(html).not.toContain(secret);
   }
 
-  await section.getByRole('button', { name: 'Clear log' }).click();
+  // Clear waits for the real cross-tab lock: another tab is holding it here.
+  await section.getByRole('button', { name: 'Clear log' }).evaluate(
+    async (button: HTMLElement, { key, lockName }) => {
+      const stillStored = await navigator.locks.request(lockName, async () => {
+        button.click();
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        return localStorage.getItem(key) !== null;
+      });
+      if (!stillStored) throw new Error('Clear did not wait for the event log lock');
+    },
+    { key: EVENT_LOG_KEY, lockName: EVENT_LOG_LOCK },
+  );
   await expect(panel('Reader timing').getByText('No events recorded.')).toBeVisible();
   await expect
     .poll(() => page.evaluate((key) => localStorage.getItem(key), EVENT_LOG_KEY))

@@ -17,34 +17,112 @@ function truncate(value: string, max: number): string {
   return value.length <= max ? value : `${value.slice(0, max - 1)}…`;
 }
 
+/** A key and its separator: token=, "token":, \"token\": or X-Api-Key: */
+const KEY_VALUE_PAIR = /(?<![\w-])([\w-]+)(\\*["'])?\s*[:=]\s*/g;
+const SENSITIVE_KEY =
+  /token|secret|passw(?:or)?d|pwd|credential|cookie|session|authorization|(?:api|access|private)[_-]?key|(?:^|[_-])(?:key|auth)$/i;
+/** Header values may contain a scheme, spaces or several pairs. */
+const WHOLE_LINE_KEY = /authorization|cookie/i;
+const QUOTE_AT = /(\\*)(["'])/y;
+const BARE_VALUE_AT = /[^\s"'&,;}\]]*/y;
+const LINE_REMAINDER_AT = /[^\n\r]*/y;
+const FIELD_REMAINDER_AT = /[^,}\]\n\r]*/y;
+
+function endOfMatch(pattern: RegExp, text: string, at: number): number {
+  pattern.lastIndex = at;
+  return pattern.exec(text) === null ? at : pattern.lastIndex;
+}
+
+/**
+ * Index just past the string whose opening quote is at `quoteAt`. A string
+ * nested in encoded JSON opens with `escapes` backslashes, and only closes on a
+ * quote carrying that same encoding. An unclosed string runs to the end.
+ */
+function endOfQuoted(text: string, quoteAt: number, escapes: number): number {
+  let backslashes = 0;
+  for (let index = quoteAt + 1; index < text.length; index += 1) {
+    if (text[index] === '\\') {
+      backslashes += 1;
+      continue;
+    }
+    if (text[index] === text[quoteAt] && backslashes % (2 * (escapes + 1)) === escapes) {
+      return index + 1;
+    }
+    backslashes = 0;
+  }
+  return text.length;
+}
+
+/** Index just past the balanced object or array at `start`; malformed input runs to the end. */
+function endOfBalanced(text: string, start: number): number {
+  const closers: string[] = [];
+  let backslashes = 0;
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === '\\') {
+      backslashes += 1;
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      index = endOfQuoted(text, index, backslashes) - 1;
+    } else if (char === '{') {
+      closers.push('}');
+    } else if (char === '[') {
+      closers.push(']');
+    } else if (char === '}' || char === ']') {
+      if (closers.pop() !== char) return text.length;
+      if (closers.length === 0) return index + 1;
+    }
+    backslashes = 0;
+  }
+  return text.length;
+}
+
+/** Redacts the complete value after every sensitive key, failing closed on malformed values. */
+function redactCredentials(text: string): string {
+  let redacted = '';
+  let copiedTo = 0;
+  for (const match of text.matchAll(KEY_VALUE_PAIR)) {
+    const [pair, key = '', keyQuote = ''] = match;
+    if (match.index < copiedTo || !SENSITIVE_KEY.test(key)) continue;
+
+    const valueAt = match.index + pair.length;
+    const wholeLine = keyQuote === '' && WHOLE_LINE_KEY.test(key);
+    const quoteEnd = endOfMatch(QUOTE_AT, text, valueAt);
+    const isQuoted = quoteEnd > valueAt;
+    const isBalanced = text[valueAt] === '{' || text[valueAt] === '[';
+
+    let valueEnd: number;
+    if (isQuoted) {
+      valueEnd = endOfQuoted(text, quoteEnd - 1, quoteEnd - 1 - valueAt);
+    } else if (isBalanced) {
+      valueEnd = endOfBalanced(text, valueAt);
+    } else if (keyQuote !== '' && WHOLE_LINE_KEY.test(key)) {
+      valueEnd = endOfMatch(FIELD_REMAINDER_AT, text, valueAt);
+    } else {
+      valueEnd = endOfMatch(wholeLine ? LINE_REMAINDER_AT : BARE_VALUE_AT, text, valueAt);
+    }
+    if (valueEnd === valueAt) continue;
+    // Text glued to a closed value is still part of it.
+    valueEnd = endOfMatch(wholeLine ? LINE_REMAINDER_AT : BARE_VALUE_AT, text, valueEnd);
+
+    const valueQuote = isQuoted ? text.slice(valueAt, quoteEnd) : keyQuote;
+    const separator = keyQuote === '' ? pair.slice(key.length) : `${keyQuote}:`;
+    redacted += `${text.slice(copiedTo, match.index)}${key}${separator}${valueQuote}[redacted]${valueQuote}`;
+    copiedTo = valueEnd;
+  }
+  return redacted + text.slice(copiedTo);
+}
+
 /** Removes credentials, cookies, query strings and authorization values from anything persisted. */
 export function sanitizeLogMessage(message: string): string {
   return truncate(
-    message
-      // Quoted JSON credential fields: "authorization":"Basic …", "cookie":"session=…".
-      .replace(
-        /(["'])((?:proxy-)?authorization|cookie|set-cookie)\1\s*:\s*(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\[[^\]\n\r]*\]|\{[^}\n\r]*\}|[^,}\n\r]+)/gi,
-        '"$2":"[redacted]"',
-      )
-      // Authorization and cookie header values may contain a scheme, spaces or
-      // several pairs; redact the line remainder once the header name is known.
-      .replace(
-        /\b((?:proxy-)?authorization|set-cookie|cookie)\s*:\s*(?:"[^"]*"|'[^']*'|[^\n\r]+)/gi,
-        '$1: [redacted]',
-      )
-      // Bare, quoted-JSON and header-style credential pairs: token=…, "token":"…", X-Api-Key: …
-      .replace(
-        /\b(key|(?:access|refresh)[_-]?token|apikey|api[_-]?key|token|secret|password|cookie|set-cookie|x-api-key|x-auth-token)(\s*["']?\s*[:=]\s*["']?)[^\s"'&,;}]+/gi,
-        '$1$2[redacted]',
-      )
+    redactCredentials(message)
       .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/gi, 'Bearer [redacted]')
       .replace(/https?:\/\/[^\s]+/gi, (raw) => {
-        try {
-          const url = new URL(raw);
-          return `${url.origin}${url.pathname}`;
-        } catch {
-          return '[url]';
-        }
+        if (!URL.canParse(raw)) return '[url]';
+        const url = new URL(raw);
+        return `${url.origin}${url.pathname}`;
       }),
     300,
   );

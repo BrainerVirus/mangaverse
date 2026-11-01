@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createEventLog,
   EVENT_LOG_CAP,
+  EVENT_LOG_LOCK_NAME,
   EVENT_LOG_STORAGE_KEY,
   type EventLogStorage,
 } from './event-log.js';
@@ -156,6 +157,116 @@ describe('event log', () => {
     const log = createEventLog({ redact, storage });
     await log.record({ kind: 'error', message: 'after' });
     expect((await log.list()).map((event) => event.message)).toEqual(['after']);
+  });
+
+  describe('across instances', () => {
+    /** Stands in for `navigator.locks`, which jsdom lacks. */
+    function createMutex() {
+      let tail: Promise<unknown> = Promise.resolve();
+      return <T>(work: () => Promise<T>): Promise<T> => {
+        const run = tail.then(work);
+        tail = run.catch(() => undefined);
+        return run;
+      };
+    }
+
+    it('keeps every event when two instances record concurrently under one lock', async () => {
+      const { storage, items } = memoryStorage();
+      const lock = createMutex();
+      const tabA = createEventLog({ redact, storage, lock });
+      const tabB = createEventLog({ redact, storage, lock });
+
+      await Promise.all(
+        Array.from({ length: 10 }, (_, index) =>
+          (index % 2 === 0 ? tabA : tabB).record({ kind: 'error', message: `event ${index}` }),
+        ),
+      );
+
+      expect(JSON.parse(items.get(EVENT_LOG_STORAGE_KEY) ?? '[]')).toHaveLength(10);
+      expect(await tabB.list()).toHaveLength(10);
+    });
+
+    it('does not lose a clear to a concurrent record', async () => {
+      const { storage } = memoryStorage();
+      const lock = createMutex();
+      const tabA = createEventLog({ redact, storage, lock });
+      const tabB = createEventLog({ redact, storage, lock });
+      await tabA.record({ kind: 'error', message: 'before' });
+
+      await Promise.all([tabA.clear(), tabB.record({ kind: 'error', message: 'after' })]);
+
+      expect((await tabA.list()).map((event) => event.message)).toEqual(['after']);
+    });
+
+    it('requests the exclusive platform lock', async () => {
+      const request = vi.fn<
+        (name: string, options: { mode: string }, work: () => Promise<unknown>) => Promise<unknown>
+      >((_name, _options, work) => work());
+      vi.stubGlobal('navigator', { locks: { request } });
+
+      const log = createEventLog({ redact, storage: memoryStorage().storage });
+      await log.record({ kind: 'error', message: 'kept' });
+
+      expect(request).toHaveBeenCalledWith(
+        EVENT_LOG_LOCK_NAME,
+        expect.objectContaining({ mode: 'exclusive' }),
+        expect.any(Function),
+      );
+      expect(await log.list()).toHaveLength(1);
+    });
+
+    it('works unlocked when the platform has no lock manager', async () => {
+      vi.stubGlobal('navigator', {});
+      const log = createEventLog({ redact, storage: memoryStorage().storage });
+      await log.record({ kind: 'error', message: 'kept' });
+      expect(await log.list()).toHaveLength(1);
+    });
+
+    it('works unlocked when the lock cannot be acquired', async () => {
+      const rejected = createEventLog({
+        redact,
+        storage: memoryStorage().storage,
+        lock: () => Promise.reject(new Error('SecurityError')),
+      });
+      await expect(rejected.record({ kind: 'error', message: 'kept' })).resolves.toBeUndefined();
+      expect(await rejected.list()).toHaveLength(1);
+
+      const thrown = createEventLog({ redact, storage: memoryStorage().storage, lock: throwing });
+      await expect(thrown.record({ kind: 'error', message: 'kept' })).resolves.toBeUndefined();
+      expect(await thrown.list()).toHaveLength(1);
+    });
+
+    it('runs the work once when it fails inside the lock', async () => {
+      const removeItem = vi.fn<() => void>(throwing);
+      const { storage } = memoryStorage();
+      const log = createEventLog({
+        redact,
+        storage: { ...storage, removeItem },
+        lock: (work) => work(),
+      });
+      await log.clear();
+      expect(removeItem).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not block the caller while the lock is held', async () => {
+      let release = (): void => undefined;
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const { storage, items } = memoryStorage();
+      const log = createEventLog({
+        redact,
+        storage,
+        lock: (work) => held.then(work),
+      });
+
+      const recording = log.record({ kind: 'error', message: 'waits' });
+      expect(items.size).toBe(0);
+
+      release();
+      await recording;
+      expect(items.size).toBe(1);
+    });
   });
 
   it('makes no outbound request', async () => {
