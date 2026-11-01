@@ -4,9 +4,11 @@ import {
   createAppPlatformAdapter,
   DiagnosticsPage,
   diagnosticsQueryKeys,
+  EventLogSection,
   fetchDiagnosticsReport,
 } from '@app/diagnostics';
 
+import { eventLog } from '../lib/event-log.js';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 import { usePlatform } from '../providers/platform-provider.js';
 
@@ -32,26 +34,41 @@ function DiagnosticsRoute() {
     enabled: dbStatus !== 'loading',
   });
 
+  const events = useQuery({
+    queryKey: diagnosticsQueryKeys.events(),
+    queryFn: () => eventLog.list(),
+  });
+
   const isLoading = dbStatus === 'loading';
   const hasDbError = dbStatus === 'error';
 
   return (
-    <DiagnosticsPage
-      isLoading={isLoading}
-      isError={hasDbError || isError}
-      isRefreshing={isFetching}
-      report={data ?? null}
-      capabilities={capabilities}
-      onRefresh={() => {
-        void refetch();
-        void queryClient.invalidateQueries({ queryKey: diagnosticsQueryKeys.all });
-      }}
-      onCopyReport={async (text) => {
-        const writeResult = await adapter.clipboard.writeText(text);
-        if (!writeResult.ok) {
-          throw writeResult.error;
-        }
-      }}
-    />
+    <>
+      <DiagnosticsPage
+        isLoading={isLoading}
+        isError={hasDbError || isError}
+        isRefreshing={isFetching}
+        report={data ?? null}
+        capabilities={capabilities}
+        onRefresh={() => {
+          void refetch();
+          void queryClient.invalidateQueries({ queryKey: diagnosticsQueryKeys.all });
+        }}
+        onCopyReport={async (text) => {
+          const writeResult = await adapter.clipboard.writeText(text);
+          if (!writeResult.ok) {
+            throw writeResult.error;
+          }
+        }}
+      />
+      <EventLogSection
+        events={events.data ?? []}
+        onClear={async () => {
+          await eventLog.clear();
+          await queryClient.invalidateQueries({ queryKey: diagnosticsQueryKeys.events() });
+        }}
+        onExport={() => eventLog.export()}
+      />
+    </>
   );
 }
