@@ -7,12 +7,12 @@ import { useScrollParent } from './use-scroll-parent.js';
  * chapters reads better unvirtualized, and jsdom renders no layout to window
  * against; large libraries (the 138-chapter case) window at this boundary.
  */
-export const CHAPTER_VIRTUALIZE_MIN_ROWS = 40;
+const CHAPTER_VIRTUALIZE_MIN_ROWS = 40;
 
 /** First-paint estimate for one row; `measureElement` corrects each mounted row. */
 const CHAPTER_ROW_ESTIMATE_PX = 64;
 
-export function shouldVirtualizeChapters(rowCount: number): boolean {
+function shouldVirtualizeChapters(rowCount: number): boolean {
   return rowCount >= CHAPTER_VIRTUALIZE_MIN_ROWS;
 }
 
@@ -80,13 +80,15 @@ export interface ChapterVirtualizer {
   readonly totalSize: number;
   readonly rows: readonly VirtualItem[];
   readonly measureRow: (node: Element | null) => void;
+  /** Scroll a row into the window so the caller can move focus to it. */
+  readonly scrollToRow: (index: number) => void;
 }
 
 /**
  * Window a uniform-height chapter list inside the page's single scroll parent.
  * Presentational only: the caller still owns the sorted rows and the data layer
- * is untouched. Keyboard and scroll reach every row because only the mounted
- * window exists in the DOM and the window follows the scroll position.
+ * is untouched. The window follows the scroll position; the caller moves focus
+ * through unmounted rows with `scrollToRow`.
  */
 export function useChapterVirtualizer(rowCount: number): ChapterVirtualizer {
   const containerRef = useRef<HTMLOListElement>(null);
@@ -111,5 +113,13 @@ export function useChapterVirtualizer(rowCount: number): ChapterVirtualizer {
     totalSize: virtualizer.getTotalSize(),
     rows: isVirtualized ? virtualizer.getVirtualItems() : [],
     measureRow: virtualizer.measureElement,
+    scrollToRow: (index) => {
+      // `scrollToIndex` measures in list-local coordinates here, so a row
+      // outside the window lands one list-offset short. Scroll the absolute
+      // position instead; chapter rows are uniform, so the average is exact.
+      const size = virtualizer.getTotalSize();
+      const rowHeight = rowCount > 0 ? size / rowCount : CHAPTER_ROW_ESTIMATE_PX;
+      virtualizer.scrollToOffset(scrollMargin + index * rowHeight);
+    },
   };
 }

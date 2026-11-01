@@ -1,4 +1,12 @@
-import { useState, type CSSProperties, type Key, type RefObject } from 'react';
+import {
+  useCallback,
+  useRef,
+  useState,
+  type CSSProperties,
+  type Key,
+  type KeyboardEvent,
+  type RefObject,
+} from 'react';
 import type { VirtualItem } from '@tanstack/react-virtual';
 import {
   Badge,
@@ -235,10 +243,52 @@ interface ChapterRowsProps {
   readonly isVirtualized: boolean;
   readonly totalSize: number;
   readonly isPending: boolean;
+  readonly onFocusRow: (index: number, edge: 'first' | 'last') => void;
   onOpenChapter: (chapterId: ChapterId) => void;
   onSetChapterRead: ((chapterId: ChapterId, read: boolean) => Promise<void> | void) | undefined;
   onMarkPreviousRead: ((chapterId: ChapterId) => Promise<void> | void) | undefined;
   run: (action: () => Promise<void> | void) => void;
+}
+
+/** The focusable controls inside one chapter row, in DOM order. */
+function rowFocusables(row: HTMLElement): readonly HTMLElement[] {
+  return Array.from(
+    row.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+    ),
+  ).filter((element) => element.tabIndex >= 0);
+}
+
+/**
+ * Roving focus across a windowed list: Tab continues into the next row even
+ * when that row is not mounted yet, and the arrow keys move between rows.
+ */
+function chapterRowKeyDown(
+  event: KeyboardEvent<HTMLLIElement>,
+  position: number,
+  totalCount: number,
+  onFocusRow: (index: number, edge: 'first' | 'last') => void,
+): void {
+  const { key } = event;
+  if (key === 'ArrowDown' || key === 'ArrowUp' || key === 'Home' || key === 'End') {
+    event.preventDefault();
+    if (key === 'ArrowDown') onFocusRow(position + 1, 'first');
+    else if (key === 'ArrowUp') onFocusRow(position - 1, 'last');
+    else if (key === 'Home') onFocusRow(0, 'first');
+    else onFocusRow(totalCount - 1, 'first');
+    return;
+  }
+  if (key !== 'Tab') return;
+  const focusables = rowFocusables(event.currentTarget);
+  const active = document.activeElement;
+  if (!event.shiftKey && active === focusables[focusables.length - 1]) {
+    if (position >= totalCount - 1) return;
+    event.preventDefault();
+    onFocusRow(position + 1, 'first');
+  } else if (event.shiftKey && active === focusables[0] && position > 0) {
+    event.preventDefault();
+    onFocusRow(position - 1, 'last');
+  }
 }
 
 /** The list box: plain flow rows, or absolutely positioned rows in a window. */
@@ -252,6 +302,7 @@ function ChapterRows({
   isVirtualized,
   totalSize,
   isPending,
+  onFocusRow,
   onOpenChapter,
   onSetChapterRead,
   onMarkPreviousRead,
@@ -271,13 +322,16 @@ function ChapterRows({
       {...(isVirtualized ? { style: { height: totalSize } } : {})}
     >
       {rows.map(({ key, chapter, position, dataIndex, measure, style }) => (
+        // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- roving focus crosses windowed rows; the handler only forwards Tab and arrow keys to the row controls (ruling recorded)
         <li
           key={key}
           data-index={dataIndex}
+          data-position={position}
           ref={measure}
           style={style}
           aria-setsize={totalCount}
           aria-posinset={position + 1}
+          onKeyDown={(event) => chapterRowKeyDown(event, position, totalCount, onFocusRow)}
           className={cn(
             'flex items-center gap-2 px-2 sm:px-4',
             isVirtualized && 'border-t border-border',
@@ -363,7 +417,49 @@ export function MangaChapterList({
     totalSize,
     rows: virtualRows,
     measureRow,
+    scrollToRow,
   } = useChapterVirtualizer(visibleChapters.length);
+
+  const pendingFocus = useRef<{ index: number; edge: 'first' | 'last' } | null>(null);
+
+  const applyPendingFocus = useCallback((): void => {
+    const pending = pendingFocus.current;
+    if (pending === null) return;
+    const row = containerRef.current?.querySelector<HTMLElement>(
+      `li[data-position="${pending.index}"]`,
+    );
+    if (row === null || row === undefined) return;
+    const focusables = rowFocusables(row);
+    const target = pending.edge === 'last' ? focusables[focusables.length - 1] : focusables[0];
+    if (target === undefined) return;
+    pendingFocus.current = null;
+    target.focus();
+  }, [containerRef]);
+
+  const focusAfterScroll = useCallback((): void => {
+    let tries = 0;
+    const step = (): void => {
+      if (pendingFocus.current === null) return;
+      applyPendingFocus();
+      tries += 1;
+      if (pendingFocus.current !== null && tries < 12) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [applyPendingFocus]);
+
+  function focusRow(index: number, edge: 'first' | 'last'): void {
+    const last = Math.max(0, visibleChapters.length - 1);
+    const target = Math.max(0, Math.min(index, last));
+    pendingFocus.current = { index: target, edge };
+    const mounted = containerRef.current?.querySelector(`li[data-position="${target}"]`) ?? null;
+    if (isVirtualized && mounted === null) {
+      // The row is outside the window: mount it, then focus when it appears.
+      scrollToRow(target);
+      focusAfterScroll();
+      return;
+    }
+    applyPendingFocus();
+  }
 
   const listRows = buildChapterRows(visibleChapters, {
     rows: virtualRows,
@@ -444,6 +540,7 @@ export function MangaChapterList({
         isVirtualized={isVirtualized}
         totalSize={totalSize}
         isPending={isPending}
+        onFocusRow={focusRow}
         onOpenChapter={onOpenChapter}
         onSetChapterRead={onSetChapterRead}
         onMarkPreviousRead={onMarkPreviousRead}

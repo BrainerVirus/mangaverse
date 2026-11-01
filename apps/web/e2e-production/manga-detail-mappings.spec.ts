@@ -135,10 +135,32 @@ test('Given two MangaDex mappings, When switching, setting default and choosing 
   expect(await mountedRows.count()).toBeGreaterThan(0);
   expect(await mountedRows.count()).toBeLessThan(40);
 
-  await page.locator('main').evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
+  // Keyboard-only reach: Tab continues from the last mounted row into the next
+  // unmounted one, and End jumps to the final chapter without pointer scrolling.
+  const tabFrom = await page.evaluate(() => {
+    const rows = [...document.querySelectorAll('ol[data-virtualized] li')];
+    const last = rows[rows.length - 1] as HTMLElement | undefined;
+    const buttons = [...(last?.querySelectorAll('button:not([disabled])') ?? [])];
+    buttons[buttons.length - 1]?.focus();
+    return Number(last?.dataset['position']);
+  });
+  expect(Number.isInteger(tabFrom)).toBe(true);
+  await page.keyboard.press('Tab');
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const focused = document.activeElement as HTMLElement | null;
+          return Number(focused?.closest('li')?.dataset['position']);
+        }),
+      { timeout: 5_000 },
+    )
+    .toBe(tabFrom + 1);
+
+  await page.keyboard.press('End');
   const lastChapter = page.getByRole('button', { name: /^Open Ch\. 138 / });
   await expect(lastChapter).toBeVisible({ timeout: 10_000 });
-  await lastChapter.focus();
+  await expect(lastChapter).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/reader\//, { timeout: 20_000 });
 

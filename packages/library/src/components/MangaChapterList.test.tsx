@@ -17,6 +17,10 @@ import { MangaChapterList } from './MangaChapterList.js';
 // Deterministic window: the real virtualizer needs a laid-out scroll parent,
 // which jsdom does not have. These fake rows prove the component renders only
 // the window and keeps the remaining total addressable through aria.
+const { scrollToOffsetSpy } = vi.hoisted(() => ({
+  scrollToOffsetSpy: vi.fn<(offset: number, options?: unknown) => void>(),
+}));
+
 vi.mock('@tanstack/react-virtual', () => {
   const measureElement = vi.fn<(...args: unknown[]) => unknown>();
   return {
@@ -32,6 +36,7 @@ vi.mock('@tanstack/react-virtual', () => {
               size: 64,
             })),
       measureElement,
+      scrollToOffset: scrollToOffsetSpy,
     }),
   };
 });
@@ -220,5 +225,47 @@ describe('MangaChapterList', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not update reading state.');
     expect(screen.getByText('Chapter 1')).toBeInTheDocument();
+  });
+
+  it('Given a focused chapter row, When Tab leaves its last control, Then focus moves to the next row', () => {
+    render(
+      <MangaChapterList chapters={chapters} mappingId={MAPPING_ID} onOpenChapter={() => {}} />,
+    );
+    const rows = screen.getAllByRole('listitem');
+    const controls = within(rows[0]!).getAllByRole('button');
+    controls[controls.length - 1]!.focus();
+
+    fireEvent.keyDown(rows[0]!, { key: 'Tab' });
+
+    expect(within(rows[1]!).getAllByRole('button')[0]).toHaveFocus();
+  });
+
+  it('Given a focused chapter row, When ArrowDown is pressed, Then focus moves to the next row', () => {
+    render(
+      <MangaChapterList chapters={chapters} mappingId={MAPPING_ID} onOpenChapter={() => {}} />,
+    );
+    const rows = screen.getAllByRole('listitem');
+    within(rows[0]!).getAllByRole('button')[0]!.focus();
+
+    fireEvent.keyDown(rows[0]!, { key: 'ArrowDown' });
+
+    expect(within(rows[1]!).getAllByRole('button')[0]).toHaveFocus();
+  });
+
+  it('Given a windowed list, When End is pressed, Then the virtualizer scrolls to the last chapter before focusing it', () => {
+    const many = Array.from({ length: 138 }, (_, index) => chapter(`c-${index}`, index + 1));
+    render(
+      <div style={{ width: 800, height: 600, overflow: 'auto' }}>
+        <MangaChapterList chapters={many} mappingId={MAPPING_ID} onOpenChapter={() => {}} />
+      </div>,
+    );
+    const rows = screen.getAllByRole('listitem');
+    within(rows[0]!).getAllByRole('button')[0]!.focus();
+    scrollToOffsetSpy.mockClear();
+
+    fireEvent.keyDown(rows[0]!, { key: 'End' });
+
+    // jsdom has no layout, so the list offset is 0 and the uniform row is 64.
+    expect(scrollToOffsetSpy).toHaveBeenCalledWith(137 * 64);
   });
 });
