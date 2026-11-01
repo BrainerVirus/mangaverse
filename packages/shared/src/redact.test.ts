@@ -78,9 +78,7 @@ describe('sanitizeLogMessage', () => {
 
   it('fails closed on an apostrophe inside a single-quoted value', () => {
     expect(sanitizeLogMessage("password='it's a secret'")).toBe("password='[redacted]'");
-    expect(sanitizeLogMessage("password='it's a secret'\nnext line")).toBe(
-      "password='[redacted]'\nnext line",
-    );
+    expect(sanitizeLogMessage("password='it's a secret'\nnext line")).toBe("password='[redacted]'");
   });
 
   it('heals a stored quoted value whose tail leaked past its apostrophe', () => {
@@ -99,6 +97,8 @@ describe('sanitizeLogMessage', () => {
     expect(sanitizeLogMessage("password='it',\"page\":SECRET_TAIL'")).toBe("password='[redacted]'");
     expect(sanitizeLogMessage("password='it'},SECRET_TAIL'")).toBe("password='[redacted]'");
     expect(sanitizeLogMessage("password='it', page: 2}")).toBe("password='[redacted]'");
+    expect(sanitizeLogMessage("password='it's\nSECRET_TAIL'")).toBe("password='[redacted]'");
+    expect(sanitizeLogMessage("password='it's\r\nSECRET_TAIL'")).toBe("password='[redacted]'");
   });
 
   it('fails closed on a single-quoted JSON object rather than trust its shape', () => {

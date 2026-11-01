@@ -100,11 +100,10 @@ function redactCredentials(text: string): string {
     if (isQuoted) {
       valueEnd = endOfQuoted(text, quoteEnd - 1, quoteEnd - 1 - valueAt);
       // A single-quoted value cannot be distinguished from an early apostrophe
-      // once text follows the closing quote, even when that text looks like JSON.
-      // Any non-whitespace after it may be the secret's tail: fail closed.
+      // once any text follows the closing quote — and a real secret can continue
+      // past a newline. Fail closed to the end of the text, not just the line.
       if (text[valueAt] === "'") {
-        const tailEnd = endOfMatch(LINE_REMAINDER_AT, text, valueEnd);
-        if (/\S/.test(text.slice(valueEnd, tailEnd))) valueEnd = tailEnd;
+        if (/\S/.test(text.slice(valueEnd))) valueEnd = text.length;
       } else if (endOfMatch(BARE_VALUE_AT, text, valueEnd) > valueEnd) {
         valueEnd = endOfMatch(LINE_REMAINDER_AT, text, valueAt);
       }
