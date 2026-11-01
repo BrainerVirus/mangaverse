@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  createAppError,
-  getDefaultReaderSettings,
-  ok,
-  validateProviderManifest,
-} from './index';
+import { createAppError, getDefaultReaderSettings, ok, validateProviderManifest } from './index';
 
 describe('@app/shared public exports', () => {
   it('exports core domain helpers', () => {
