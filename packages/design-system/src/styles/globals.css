@@ -292,6 +292,20 @@
       padding-block-end: env(safe-area-inset-bottom);
     }
   }
+
+  /* L2: a coarse pointer (touch) gets DESIGN.md's 44x44 hit target on every
+     control; a fine pointer keeps the dense desktop sizes untouched. The rule is
+     one base layer statement, not per-variant classes, so native buttons and
+     comboboxes the design system does not wrap get the same floor. */
+  @media (pointer: coarse) {
+    button,
+    [role="button"],
+    [role="combobox"],
+    select {
+      min-block-size: 2.75rem;
+      min-inline-size: 2.75rem;
+    }
+  }
 }
 
 @layer utilities {

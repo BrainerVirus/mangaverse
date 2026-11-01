@@ -42,7 +42,9 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
     >
       <AmbientBackdrop />
       <DesktopSidebar />
-      <main data-app-nav-offset className="flex-1 overflow-auto bg-background">
+      {/* `min-w-0` keeps a wide child from widening the shell's flex row; the
+          content column then scrolls instead of pushing the page sideways. */}
+      <main data-app-nav-offset className="min-w-0 flex-1 overflow-auto bg-background">
         <PersistenceErrorBanner />
         <AnimatedRouteOutlet>{children}</AnimatedRouteOutlet>
       </main>

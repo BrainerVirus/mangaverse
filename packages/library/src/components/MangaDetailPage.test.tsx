@@ -94,6 +94,60 @@ const MAP_A = 'map-a';
 const MAP_B = 'map-b';
 
 describe('MangaDetailPage', () => {
+  it('Given a provider id and no status, Then the source name shows and no raw token does', () => {
+    const base = makeDetail();
+    const data = makeDetail({
+      manga: {
+        ...base.manga,
+        status: 'unknown',
+        contentRating: 'unknown',
+        providerMappings: [mapping('map-1', 'mangadex', 'remote-1')],
+      },
+      chapters: [chapter('c-1', 1, 'map-1')],
+    });
+
+    render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={data}
+        isLoading={false}
+        isError={false}
+        providerLabels={{ mangadex: 'MangaDex' }}
+        onOpenChapter={() => {}}
+      />,
+    );
+
+    const facts = screen.getByText('Source').closest('dl');
+    expect(facts).not.toBeNull();
+    expect(within(facts as HTMLElement).getByText('MangaDex')).toBeInTheDocument();
+    expect(screen.queryByText('unknown')).toBeNull();
+    expect(screen.queryByText('mangadex')).toBeNull();
+  });
+
+  it('Given no registered provider name, Then the source row is omitted instead of a raw id', () => {
+    const base = makeDetail();
+    const data = makeDetail({
+      manga: {
+        ...base.manga,
+        providerMappings: [mapping('map-1', 'mangadex', 'remote-1')],
+      },
+      chapters: [chapter('c-1', 1, 'map-1')],
+    });
+
+    render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={data}
+        isLoading={false}
+        isError={false}
+        onOpenChapter={() => {}}
+      />,
+    );
+
+    expect(screen.queryByText('Source')).toBeNull();
+    expect(screen.queryByText('mangadex')).toBeNull();
+  });
+
   it('Given an unknown id, Then it names the missing title instead of showing a search empty state', () => {
     const onBack = vi.fn<() => void>();
 

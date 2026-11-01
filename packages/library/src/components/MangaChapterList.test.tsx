@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   toChapterId,
@@ -13,6 +13,28 @@ import {
   type ChapterReadState,
 } from '@app/shared';
 import { MangaChapterList } from './MangaChapterList.js';
+
+// Deterministic window: the real virtualizer needs a laid-out scroll parent,
+// which jsdom does not have. These fake rows prove the component renders only
+// the window and keeps the remaining total addressable through aria.
+vi.mock('@tanstack/react-virtual', () => {
+  const measureElement = vi.fn<(...args: unknown[]) => unknown>();
+  return {
+    useVirtualizer: (options: { count: number; enabled?: boolean }) => ({
+      getTotalSize: () => options.count * 64,
+      getVirtualItems: () =>
+        options.enabled === false
+          ? []
+          : Array.from({ length: Math.min(options.count, 3) }, (_, index) => ({
+              key: index,
+              index,
+              start: index * 64,
+              size: 64,
+            })),
+      measureElement,
+    }),
+  };
+});
 
 const MANGA_ID = toMangaId('manga-1');
 const MAPPING_ID = toProviderMappingId('map-1');
@@ -151,6 +173,35 @@ describe('MangaChapterList', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Mark previous chapters read: chapter 3' }));
     expect(onMarkPreviousRead).toHaveBeenCalledWith(toChapterId('c-3'));
+  });
+
+  it('keeps a small chapter list unvirtualized and lists every row', () => {
+    render(
+      <MangaChapterList chapters={chapters} mappingId={MAPPING_ID} onOpenChapter={() => {}} />,
+    );
+
+    const list = screen.getByRole('list', { name: 'Chapters' });
+    expect(list).not.toHaveAttribute('data-virtualized');
+    expect(within(list).getAllByRole('listitem')).toHaveLength(3);
+  });
+
+  it('mounts only a window of a 138-chapter list and keeps the full set addressable', () => {
+    const many = Array.from({ length: 138 }, (_, index) => chapter(`c-${index + 1}`, index + 1));
+
+    render(
+      <div style={{ width: 800, height: 600, overflow: 'auto' }}>
+        <MangaChapterList chapters={many} mappingId={MAPPING_ID} onOpenChapter={() => {}} />
+      </div>,
+    );
+
+    const list = screen.getByRole('list', { name: 'Chapters' });
+    const rows = within(list).getAllByRole('listitem');
+
+    expect(list).toHaveAttribute('data-virtualized');
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.length).toBeLessThan(40);
+    expect(rows[0]).toHaveAttribute('aria-setsize', '138');
+    expect(rows[0]).toHaveAttribute('aria-posinset', '1');
   });
 
   it('keeps the list and shows the error when a read write fails', async () => {

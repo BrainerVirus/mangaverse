@@ -83,6 +83,16 @@ describe('MobileBottomNav', () => {
     expect(html).toContain('min-h-14');
   });
 
+  it('Given a narrow viewport, Then the tabs share the row instead of overflowing it', async () => {
+    const { MobileBottomNav } = await import('../shell/MobileBottomNav.js');
+    const html = renderWithProviders(<MobileBottomNav />);
+
+    // Five equal-width tracks: a long label truncates inside its own track.
+    expect(html.match(/flex-1 basis-0/g)).toHaveLength(5);
+    expect(html.match(/max-w-full truncate/g)).toHaveLength(5);
+    expect(html).not.toContain('px-3 py-1.5');
+  });
+
   it('renders the bottom navigation as thick glass', async () => {
     const { MobileBottomNav } = await import('../shell/MobileBottomNav.js');
     const html = renderWithProviders(<MobileBottomNav />);

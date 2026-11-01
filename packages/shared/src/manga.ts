@@ -112,6 +112,37 @@ export function getDefaultProviderMapping(
   return identity.providerMappings.find((m) => m.id === identity.defaultProviderMappingId);
 }
 
+/**
+ * The mapping a card attributes the title to: the default source, else the first
+ * attached one. Kept next to the cover helper so every surface picks the same row.
+ */
+export function getPrimaryProviderMapping(
+  identity: MangaIdentity,
+): MangaProviderMapping | undefined {
+  return getDefaultProviderMapping(identity) ?? identity.providerMappings[0];
+}
+
+/**
+ * The registered display name for a provider id. Surfaces print this instead of
+ * the raw id; `undefined` means no name is known yet, so nothing is shown rather
+ * than `mangadex`.
+ */
+export function providerDisplayName(
+  providerId: string,
+  providerLabels: Readonly<Record<string, string>> | undefined,
+): string | undefined {
+  const label = providerLabels?.[providerId]?.trim();
+  return label !== undefined && label.length > 0 ? label : undefined;
+}
+
+/**
+ * A status the provider actually supplied. `unknown` is the absence of one, so
+ * it gets no badge instead of a raw `unknown` label.
+ */
+export function mangaStatusLabel(status: MangaStatus): string | undefined {
+  return status === 'unknown' ? undefined : status;
+}
+
 /** The cover every surface should show: the user's override wins over provider art. */
 export function getMangaCoverUrl(identity: MangaIdentity): string | undefined {
   return identity.userOverrides?.coverImageUrl ?? identity.coverImageUrl;

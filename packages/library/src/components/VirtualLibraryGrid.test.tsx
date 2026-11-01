@@ -43,16 +43,19 @@ vi.mock('@app/design-system', () => ({
     manga,
     onClick,
     unreadCount,
+    sourceLabel,
   }: {
     manga: { canonicalTitle: string };
     onClick?: () => void;
     unreadCount?: number;
+    sourceLabel?: string;
   }) => {
     cardRenderSpy();
 
     return (
       <button type="button" onClick={onClick}>
         {manga.canonicalTitle}
+        {sourceLabel !== undefined ? <span>{sourceLabel}</span> : null}
         {unreadCount !== undefined && unreadCount > 0 ? <span>{unreadCount} unread</span> : null}
       </button>
     );
@@ -226,6 +229,32 @@ describe('VirtualLibraryGrid', () => {
     );
 
     expect(screen.getAllByRole('button')).toHaveLength(120);
+  });
+
+  it('Given registered provider names, Then cards show the display name and never the raw id', () => {
+    render(
+      <VirtualLibraryGrid
+        items={[createItem('1', 'Title 1')]}
+        layout="grid"
+        onOpenManga={vi.fn<(mangaId: string) => void>()}
+        sourceLabels={{ 'test-provider': 'Test Provider' }}
+      />,
+    );
+
+    expect(screen.getByText('Test Provider')).toBeInTheDocument();
+    expect(screen.queryByText('test-provider')).toBeNull();
+  });
+
+  it('Given no registered provider names, Then cards print no source line at all', () => {
+    render(
+      <VirtualLibraryGrid
+        items={[createItem('1', 'Title 1')]}
+        layout="grid"
+        onOpenManga={vi.fn<(mangaId: string) => void>()}
+      />,
+    );
+
+    expect(screen.queryByText('test-provider')).toBeNull();
   });
 
   it('calls onOpenManga when a visible card is clicked', () => {

@@ -13,7 +13,10 @@ const SOURCE_REMOTE_ID = MANGADEX_APP_MANGA_ID.replace('dev-md-', '');
 const SECOND_MAPPING_ID = 'mapping-second-source';
 const SECOND_REMOTE_ID = 'ffffffff-1111-2222-3333-444444444444';
 
-/** Serves distinct chapter feeds per mapping: two for the original, three for the added one. */
+/**
+ * Serves distinct chapter feeds per mapping: a full 138-chapter title for the
+ * original (the audit's long list) and three chapters for the added one.
+ */
 async function mockMappingFeeds(page: Page): Promise<void> {
   const feedFor = (chapterCount: number, prefix: string): string => {
     const feed = JSON.parse(readFileSync(`${fixturesDir}/feed.json`, 'utf8')) as {
@@ -23,7 +26,11 @@ async function mockMappingFeeds(page: Page): Promise<void> {
     feed.data = Array.from({ length: chapterCount }, (_, index) => ({
       ...template,
       id: `${prefix}-chapter-${index + 1}`,
-      attributes: { ...template.attributes, chapter: String(index + 1) },
+      attributes: {
+        ...template.attributes,
+        chapter: String(index + 1),
+        title: `Chapter ${index + 1}`,
+      },
     }));
     return JSON.stringify(feed);
   };
@@ -118,8 +125,25 @@ test('Given two MangaDex mappings, When switching, setting default and choosing 
   await expect(sourceRow.getByRole('button', { name: 'View chapters' })).toBeVisible();
   await sourceRow.getByRole('button', { name: 'View chapters' }).click();
   await expect(sourceRow.getByText('Viewing', { exact: true })).toBeVisible();
-  await expect(page.getByTestId('chapter-summary')).toHaveText('2 unread');
-  await expect(page.getByRole('region', { name: 'Chapters' }).locator('ol > li')).toHaveCount(2);
+  await expect(page.getByTestId('chapter-summary')).toHaveText('138 unread');
+
+  // The long list mounts a window, not 138 rows; the last chapter still comes
+  // into reach by scrolling and opens from the keyboard.
+  const chapterList = page.getByRole('list', { name: 'Chapters' });
+  const mountedRows = chapterList.locator('li');
+  await expect(chapterList).toHaveAttribute('data-virtualized', '');
+  expect(await mountedRows.count()).toBeGreaterThan(0);
+  expect(await mountedRows.count()).toBeLessThan(40);
+
+  await page.locator('main').evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
+  const lastChapter = page.getByRole('button', { name: 'Open Chapter 138' });
+  await expect(lastChapter).toBeVisible({ timeout: 10_000 });
+  await lastChapter.focus();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/reader\//, { timeout: 20_000 });
+
+  await page.goto(MANGA_PATH);
+  await expect(page.getByRole('heading', { name: TITLE })).toBeVisible({ timeout: 30_000 });
 
   await secondRow.getByRole('button', { name: 'Set default' }).click();
   await expect(secondRow.getByText('Default', { exact: true })).toBeVisible();

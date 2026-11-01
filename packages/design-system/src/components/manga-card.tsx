@@ -13,6 +13,12 @@ export interface MangaCardProps {
   coverSlot?: React.ReactNode;
   /** Unread chapter count shown as a badge; omitted or zero renders nothing. */
   unreadCount?: number;
+  /**
+   * Provider display name for the card's source line. Resolved by the caller:
+   * the design system cannot reach the extension registry, so a raw provider id
+   * is never printed here.
+   */
+  sourceLabel?: string;
 }
 
 interface CoverProps {
@@ -59,9 +65,10 @@ function CardCover({ manga, variant, coverSlot }: CoverProps) {
 interface MetaProps {
   manga: MangaIdentity;
   variant: 'grid' | 'list' | 'compact';
+  sourceLabel?: string | undefined;
 }
 
-function CardMeta({ manga, variant }: MetaProps) {
+function CardMeta({ manga, variant, sourceLabel }: MetaProps) {
   const isGrid = variant === 'grid';
   const isCompact = variant === 'compact';
 
@@ -89,11 +96,9 @@ function CardMeta({ manga, variant }: MetaProps) {
           {manga.canonicalTitle}
         </h3>
 
-        {manga.providerMappings.length > 0 && !isCompact && (
-          <p className="type-code mt-1 text-muted-foreground">
-            {manga.providerMappings[0]!.providerId}
-          </p>
-        )}
+        {sourceLabel !== undefined && !isCompact ? (
+          <p className="type-code mt-1 text-muted-foreground">{sourceLabel}</p>
+        ) : null}
       </div>
 
       {manga.tags.length > 0 && !isCompact && (
@@ -156,6 +161,7 @@ export function MangaCard({
   variant = 'grid',
   coverSlot,
   unreadCount,
+  sourceLabel,
 }: MangaCardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -214,7 +220,7 @@ export function MangaCard({
       >
         <CardCover manga={manga} variant={variant} coverSlot={coverSlot} />
 
-        <CardMeta manga={manga} variant={variant} />
+        <CardMeta manga={manga} variant={variant} sourceLabel={sourceLabel} />
 
         <ContentRatingBadge manga={manga} variant={variant} />
 

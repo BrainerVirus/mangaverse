@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type CSSProperties, type Key } from 'react';
 import {
   Badge,
   Button,
@@ -10,6 +10,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  cn,
 } from '@app/design-system';
 import type { Chapter, ChapterId, ChapterReadState, ProviderMappingId } from '@app/shared';
 import {
@@ -20,6 +21,7 @@ import {
   type ChapterFilter,
   type ChapterSort,
 } from '../chapter-list.js';
+import { useChapterVirtualizer } from '../hooks/use-chapter-virtualizer.js';
 
 export interface MangaChapterListProps {
   readonly chapters: readonly Chapter[];
@@ -47,6 +49,99 @@ const FILTER_OPTIONS: readonly { value: ChapterFilter; label: string }[] = [
   { value: 'unread', label: 'Unread' },
   { value: 'read', label: 'Read' },
 ];
+
+interface ChapterListRow {
+  readonly key: Key;
+  readonly chapter: Chapter;
+  readonly position: number;
+  readonly dataIndex: number | undefined;
+  readonly measure: ((node: Element | null) => void) | undefined;
+  readonly style: CSSProperties | undefined;
+}
+
+interface ChapterRowContentProps {
+  readonly chapter: Chapter;
+  readonly isFirst: boolean;
+  readonly isRead: boolean;
+  readonly isDownloaded: boolean;
+  readonly isPending: boolean;
+  onOpenChapter: (chapterId: ChapterId) => void;
+  onSetChapterRead: ((chapterId: ChapterId, read: boolean) => Promise<void> | void) | undefined;
+  onMarkPreviousRead: ((chapterId: ChapterId) => Promise<void> | void) | undefined;
+  run: (action: () => Promise<void> | void) => void;
+}
+
+/** One row's controls; the `<li>` and its positioning stay with the list. */
+function ChapterRowContent({
+  chapter,
+  isFirst,
+  isRead,
+  isDownloaded,
+  isPending,
+  onOpenChapter,
+  onSetChapterRead,
+  onMarkPreviousRead,
+  run,
+}: ChapterRowContentProps) {
+  return (
+    <>
+      <button
+        type="button"
+        aria-label={`Open ${chapter.title}`}
+        className="flex min-w-0 flex-1 items-center gap-3 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        onClick={() => onOpenChapter(chapter.id)}
+      >
+        <span className="min-w-0">
+          <span id={`chapter-title-${chapter.id}`} className="block truncate font-medium">
+            {chapter.title}
+          </span>
+          <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            {chapter.volume !== undefined ? <span>{chapter.volume}</span> : null}
+            <Badge variant={isRead ? 'secondary' : 'outline'}>{isRead ? 'Read' : 'Unread'}</Badge>
+            {chapter.pages.length > 0 ? (
+              <Badge variant="outline" title="Page URLs are cached on this device">
+                Pages cached
+              </Badge>
+            ) : null}
+            {isDownloaded ? (
+              <Badge variant="secondary" title="Page images are downloaded on this device">
+                Offline
+              </Badge>
+            ) : null}
+          </span>
+        </span>
+      </button>
+
+      {onSetChapterRead !== undefined ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={isPending}
+          aria-label={`${isRead ? 'Mark unread' : 'Mark read'}: chapter ${chapter.index}`}
+          aria-describedby={`chapter-title-${chapter.id}`}
+          onClick={() => run(() => onSetChapterRead(chapter.id, !isRead))}
+        >
+          {isRead ? 'Unread' : 'Read'}
+        </Button>
+      ) : null}
+
+      {onMarkPreviousRead !== undefined && !isFirst ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={isPending}
+          aria-label={`Mark previous chapters read: chapter ${chapter.index}`}
+          aria-describedby={`chapter-title-${chapter.id}`}
+          onClick={() => run(() => onMarkPreviousRead(chapter.id))}
+        >
+          Previous
+        </Button>
+      ) : null}
+    </>
+  );
+}
 
 function ChapterListEmpty({
   isLoading,
@@ -94,6 +189,44 @@ export function MangaChapterList({
   const visibleChapters = selectChapters(chapters, { mappingId, sort, filter, readIds });
   const lastReadChapter = chapters.find((chapter) => chapter.id === lastReadChapterId);
   const downloaded = new Set(downloadedChapterIds);
+  const {
+    containerRef,
+    isVirtualized,
+    scrollMargin,
+    totalSize,
+    rows: virtualRows,
+    measureRow,
+  } = useChapterVirtualizer(visibleChapters.length);
+
+  const listRows: readonly ChapterListRow[] = isVirtualized
+    ? virtualRows.flatMap((row) => {
+        const chapter = visibleChapters[row.index];
+        if (chapter === undefined) return [];
+        return [
+          {
+            key: row.key,
+            chapter,
+            position: row.index,
+            dataIndex: row.index,
+            measure: measureRow,
+            style: {
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              transform: `translateY(${row.start - scrollMargin}px)`,
+            },
+          } satisfies ChapterListRow,
+        ];
+      })
+    : visibleChapters.map((chapter, position) => ({
+        key: chapter.id,
+        chapter,
+        position,
+        dataIndex: undefined,
+        measure: undefined,
+        style: undefined,
+      }));
 
   function run(action: () => Promise<void> | void): void {
     setError(undefined);
@@ -165,73 +298,47 @@ export function MangaChapterList({
           {filter === 'unread' ? 'No unread chapters.' : 'No read chapters yet.'}
         </p>
       ) : (
-        <ol className="divide-y divide-border rounded-box border border-border">
-          {visibleChapters.map((chapter) => {
+        <ol
+          ref={containerRef}
+          aria-label="Chapters"
+          data-virtualized={isVirtualized ? '' : undefined}
+          className={cn(
+            'rounded-box border border-border',
+            // Windowed rows are absolutely positioned inside the list; the list
+            // keeps the full scroll height from the virtualizer's total size.
+            isVirtualized ? 'relative' : 'divide-y divide-border',
+          )}
+          {...(isVirtualized ? { style: { height: totalSize } } : {})}
+        >
+          {listRows.map(({ key, chapter, position, dataIndex, measure, style }) => {
             const isRead = readIds.has(chapter.id);
             const isFirst = !mappingChapters.some(
               (item) => item.index < chapter.index && item.id !== chapter.id,
             );
             return (
-              <li key={chapter.id} className="flex items-center gap-2 px-2 sm:px-4">
-                <button
-                  type="button"
-                  aria-label={`Open ${chapter.title}`}
-                  className="flex min-w-0 flex-1 items-center gap-3 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  onClick={() => onOpenChapter(chapter.id)}
-                >
-                  <span className="min-w-0">
-                    <span id={`chapter-title-${chapter.id}`} className="block truncate font-medium">
-                      {chapter.title}
-                    </span>
-                    <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      {chapter.volume !== undefined ? <span>{chapter.volume}</span> : null}
-                      <Badge variant={isRead ? 'secondary' : 'outline'}>
-                        {isRead ? 'Read' : 'Unread'}
-                      </Badge>
-                      {chapter.pages.length > 0 ? (
-                        <Badge variant="outline" title="Page URLs are cached on this device">
-                          Pages cached
-                        </Badge>
-                      ) : null}
-                      {downloaded.has(chapter.id) ? (
-                        <Badge
-                          variant="secondary"
-                          title="Page images are downloaded on this device"
-                        >
-                          Offline
-                        </Badge>
-                      ) : null}
-                    </span>
-                  </span>
-                </button>
-
-                {onSetChapterRead !== undefined ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    disabled={isPending}
-                    aria-label={`${isRead ? 'Mark unread' : 'Mark read'}: chapter ${chapter.index}`}
-                    aria-describedby={`chapter-title-${chapter.id}`}
-                    onClick={() => run(() => onSetChapterRead(chapter.id, !isRead))}
-                  >
-                    {isRead ? 'Unread' : 'Read'}
-                  </Button>
-                ) : null}
-
-                {onMarkPreviousRead !== undefined && !isFirst ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    disabled={isPending}
-                    aria-label={`Mark previous chapters read: chapter ${chapter.index}`}
-                    aria-describedby={`chapter-title-${chapter.id}`}
-                    onClick={() => run(() => onMarkPreviousRead(chapter.id))}
-                  >
-                    Previous
-                  </Button>
-                ) : null}
+              <li
+                key={key}
+                data-index={dataIndex}
+                ref={measure}
+                style={style}
+                aria-setsize={visibleChapters.length}
+                aria-posinset={position + 1}
+                className={cn(
+                  'flex items-center gap-2 px-2 sm:px-4',
+                  isVirtualized && 'border-t border-border',
+                )}
+              >
+                <ChapterRowContent
+                  chapter={chapter}
+                  isFirst={isFirst}
+                  isRead={isRead}
+                  isDownloaded={downloaded.has(chapter.id)}
+                  isPending={isPending}
+                  onOpenChapter={onOpenChapter}
+                  onSetChapterRead={onSetChapterRead}
+                  onMarkPreviousRead={onMarkPreviousRead}
+                  run={run}
+                />
               </li>
             );
           })}
