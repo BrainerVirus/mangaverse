@@ -18,6 +18,7 @@ import {
 } from '@app/design-system';
 import type { MergePreview, UnmergeMappingPreview } from '@app/db';
 import {
+  errorMessage,
   libraryStatusLabel,
   providerDisplayName,
   toMangaId,
@@ -63,10 +64,6 @@ function providerNames(
     .map((providerId) => providerDisplayName(providerId, providerLabels))
     .filter((label): label is string => label !== undefined)
     .join(', ');
-}
-
-function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
 }
 
 function issueTone(severity: 'info' | 'warning' | 'error'): string {

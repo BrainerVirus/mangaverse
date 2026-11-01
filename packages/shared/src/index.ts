@@ -1,6 +1,7 @@
 // @app/shared
 export * from './result.js';
 export * from './errors.js';
+export * from './object.js';
 export * from './manga.js';
 export * from './title-match.js';
 export * from './description.js';

@@ -1,4 +1,5 @@
 import type { AppDrizzleDb } from '@app/db';
+import { errorMessage } from '@app/shared';
 import type { LibraryEntryId, MangaId, ProviderId, ProviderMappingId } from '@app/shared';
 
 /** The last completed update check lives in one app-settings row, not a table. */
@@ -82,12 +83,6 @@ const ITEM_STATUSES = new Set<LibraryUpdateItemStatus>([
   'skipped',
   'cancelled',
 ]);
-
-function errorMessage(caught: unknown): string {
-  return caught instanceof Error && caught.message.length > 0
-    ? caught.message
-    : 'Provider request failed.';
-}
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve) => {
@@ -292,7 +287,11 @@ export async function runLibraryUpdateQueue(
     try {
       resolved = await resolution;
     } catch (caught) {
-      setItem(entry.id, { status: 'skipped', providerId, reason: errorMessage(caught) });
+      setItem(entry.id, {
+        status: 'skipped',
+        providerId,
+        reason: errorMessage(caught, 'Provider request failed.'),
+      });
       continue;
     }
     if (resolved.status === 'unavailable') {
@@ -373,7 +372,10 @@ export async function runLibraryUpdateQueue(
         setItem(job.entryId, { status: 'cancelled' });
         return;
       }
-      setItem(job.entryId, { status: 'failed', reason: errorMessage(caught) });
+      setItem(job.entryId, {
+        status: 'failed',
+        reason: errorMessage(caught, 'Provider request failed.'),
+      });
     }
   };
 

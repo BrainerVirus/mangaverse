@@ -8,7 +8,7 @@ import {
   type ExtensionLogEntry,
   type ExtensionLogLevel,
 } from '@app/db';
-import { sanitizeLogDetails, sanitizeLogMessage } from '@app/shared';
+import { errorMessage, sanitizeLogDetails, sanitizeLogMessage } from '@app/shared';
 
 // Kept as a re-export so the provider log and the Diagnostics event log share
 // exactly one redactor, and the provider-log assertions keep guarding it.
@@ -74,15 +74,6 @@ function errorCode(error: unknown): string {
   return 'extensions.logs.failure';
 }
 
-function errorMessage(error: unknown): string {
-  if (typeof error === 'object' && error !== null && 'message' in error) {
-    const message = (error as { message?: unknown }).message;
-    if (typeof message === 'string' && message.trim().length > 0) return message;
-  }
-  if (error instanceof Error && error.message.trim().length > 0) return error.message;
-  return 'Provider operation failed.';
-}
-
 /**
  * Captures a normalized provider failure for Diagnostics. Page failures are
  * throttled: reading a broken chapter must not turn into a write per page.
@@ -113,7 +104,9 @@ export async function recordProviderFailure(
     providerId: input.providerId,
     level: 'error',
     code,
-    message: errorMessage(input.error),
+    message: errorMessage(input.error, 'Provider operation failed.', {
+      acceptSerializedMessage: true,
+    }),
     details: { operation: input.operation },
   });
 }

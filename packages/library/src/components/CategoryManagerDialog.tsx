@@ -12,7 +12,7 @@ import {
 } from '@app/design-system';
 import { ArrowDown, ArrowUp, Pencil, Pin, PinOff, Plus, Trash2 } from 'lucide-react';
 import type { CategoryId, LibraryCategory } from '@app/shared';
-import { compareLibraryCategories } from '@app/shared';
+import { compareLibraryCategories, errorMessage } from '@app/shared';
 import type { LibraryOrganizationAction } from '../types.js';
 
 export interface CategoryManagerDialogProps {
@@ -20,10 +20,6 @@ export interface CategoryManagerDialogProps {
   readonly categories: readonly LibraryCategory[];
   onOpenChange: (open: boolean) => void;
   onOrganize: (action: LibraryOrganizationAction) => Promise<void>;
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Could not save the category.';
 }
 
 interface DeleteCategoryPromptProps {
@@ -86,7 +82,7 @@ export function CategoryManagerDialog({
     return onOrganize(action).then(
       () => true,
       (error: unknown) => {
-        setFormError(errorMessage(error));
+        setFormError(errorMessage(error, 'Could not save the category.'));
         return false;
       },
     );
@@ -107,7 +103,7 @@ export function CategoryManagerDialog({
       setColor('');
       setFormError(undefined);
     } catch (error) {
-      setFormError(errorMessage(error));
+      setFormError(errorMessage(error, 'Could not save the category.'));
     }
   }
 
@@ -126,7 +122,7 @@ export function CategoryManagerDialog({
       setEditingId(undefined);
       setFormError(undefined);
     } catch (error) {
-      setFormError(errorMessage(error));
+      setFormError(errorMessage(error, 'Could not save the category.'));
     }
   }
 

@@ -1,3 +1,4 @@
+import { isPlainObject } from './object.js';
 import type { AppResult } from './result.js';
 import { createAppError, err, ok } from './result.js';
 
@@ -100,10 +101,6 @@ export interface ThemeDefinitionIssue {
 export type ThemeDefinitionValidation = AppResult<ThemeDefinition> & {
   readonly issues: readonly ThemeDefinitionIssue[];
 };
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;

@@ -4,6 +4,7 @@ import type { ChapterId, ChapterReadState } from './chapter.js';
 import type { ExtensionInstallMetadata } from './extension-install.js';
 import type { CategoryId, LibraryCategory, LibraryEntry, LibraryEntryId } from './library.js';
 import type { MangaId, MangaIdentity, ProviderId, ProviderMappingId } from './manga.js';
+import { isPlainObject } from './object.js';
 import type { ReaderSettings } from './reader-settings.js';
 import { createAppError, type AppResult } from './result.js';
 import type { ThemeDefinition } from './theme-definition.js';
@@ -113,10 +114,6 @@ export interface BackupValidationIssue {
 export type BackupValidationResult = AppResult<BackupDocumentV1> & {
   readonly issues: readonly BackupValidationIssue[];
 };
-
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
 
 /**
  * Validates a whole backup document, nested entities included, through
