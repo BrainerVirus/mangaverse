@@ -9,16 +9,16 @@ keeps every row in the DOM.
 
 ## Decisions
 
-| #   | Decision                                                                                | Why                                                        |
-| --- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| R1  | One deep reader interface: source, settings and progress in; everything else behind it. | Reader fixes stop spreading across packages.               |
-| R2  | Loading order: current page, neighbors, then ahead; stale loads cancelled on each turn. | Follows Mihon's loader, and speeds the page being read.    |
-| R3  | Decode ahead in a small bounded pool and release what leaves the window.                | Page turns stop waiting on decode; memory stays bounded.   |
-| R4  | Virtualize long strips; tile very tall pages when tests show browser limits are hit.    | Keeps long chapters stable on phones.                      |
-| R5  | Gestures and zoom run outside React state.                                              | Stays smooth regardless of app rerenders.                  |
-| R6  | Auto mode resolves: title override, provider metadata, page shape, then global default. | Tags are unreliable; page shape catches mislabeled titles. |
-| R7  | Quick-panel changes apply to this title by default, with a visible "All titles" choice. | Follows Paperback, and replaces a hidden toggle.           |
-| R8  | Controls hidden on open. A tap shows them.                                              | Reading gets the whole screen.                             |
+| #   | Decision                                                                                                        | Why                                                        |
+| --- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| R1  | One deep reader interface: source, settings and progress in; everything else behind it.                         | Reader fixes stop spreading across packages.               |
+| R2  | Loading order: current page, neighbors, then ahead; stale loads cancelled on each turn.                         | Follows Mihon's loader, and speeds the page being read.    |
+| R3  | Decode ahead in a small bounded pool and release what leaves the window.                                        | Page turns stop waiting on decode; memory stays bounded.   |
+| R4  | Virtualize long strips; tile very tall pages when tests show browser limits are hit.                            | Keeps long chapters stable on phones.                      |
+| R5  | Gestures and zoom run outside React state.                                                                      | Stays smooth regardless of app rerenders.                  |
+| R6  | Auto mode resolves: title override, page shape when clearly long-strip, provider metadata, then global default. | Tags are unreliable; page shape catches mislabeled titles. |
+| R7  | Quick-panel changes apply to this title by default, with a visible "All titles" choice.                         | Follows Paperback, and replaces a hidden toggle.           |
+| R8  | Controls hidden on open. A tap shows them.                                                                      | Reading gets the whole screen.                             |
 
 ### Budgets
 
