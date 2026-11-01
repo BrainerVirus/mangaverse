@@ -107,7 +107,7 @@ export function MangaCustomCoverDialog({
               run(() => onSave(value.trim()));
             }}
           >
-            {isSaving ? 'Saving…' : 'Save cover'}
+            Save cover
           </Button>
         </DialogFooter>
       </DialogContent>
