@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { THEME_OVERRIDE_TOKENS, type ThemeDefinition } from '@app/shared';
 

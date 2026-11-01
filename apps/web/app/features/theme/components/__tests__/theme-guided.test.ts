@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import type { ThemeDefinition, ThemeSeeds } from '@app/shared';
 import { THEME_DEFINITION_SCHEMA_VERSION, THEME_SEED_TOKEN_NAMES } from '@app/shared';
