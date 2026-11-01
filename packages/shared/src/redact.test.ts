@@ -3,11 +3,52 @@ import { describe, expect, it } from 'vitest';
 import { sanitizeLogDetails, sanitizeLogMessage } from './redact.js';
 
 describe('sanitizeLogMessage', () => {
-  it('removes bearer tokens, URL queries and credentials', () => {
-    const text = sanitizeLogMessage(
-      'GET https://x.test/a?token=s3cret&page=2 with Bearer abc.def password=hunter2',
+  it('redacts an unquoted value to the end of its line, so a multiword credential cannot leak', () => {
+    expect(
+      sanitizeLogMessage(
+        'GET https://x.test/a?token=s3cret&page=2 with Bearer abc.def password=hunter2',
+      ),
+    ).toBe('GET https://x.test/a');
+  });
+
+  it.each([
+    ['a bearer token', 'Bearer abc.def failed', 'Bearer [redacted] failed'],
+    ['a bare password', 'password=hunter2', 'password=[redacted]'],
+    ['a URL query', 'GET https://x.test/a?token=s3cret&page=2', 'GET https://x.test/a'],
+  ])('redacts %s', (_name, input, expected) => {
+    expect(sanitizeLogMessage(input)).toBe(expected);
+  });
+
+  it.each([
+    ['a multiword password', 'password=SECRET FIRST', 'password=[redacted]'],
+    ['a multiword token', 'token=abc.def extra', 'token=[redacted]'],
+    ['a punctuation-heavy password', 'password=abc,def tail', 'password=[redacted]'],
+    ['a form body', 'user=x&password=SECRET FIRST&c=d', 'user=x&password=[redacted]'],
+    ['a line boundary', 'password=SECRET\nnext line', 'password=[redacted]\nnext line'],
+    ['an empty value', 'password=', 'password='],
+    ['an empty value before a newline', 'password=\nnext line', 'password=\nnext line'],
+  ])('redacts a bare value to the end of its line for %s', (_name, input, expected) => {
+    expect(sanitizeLogMessage(input)).toBe(expected);
+  });
+
+  it.each([
+    ['password', 'password=[redacted] FIRST', 'password=[redacted]'],
+    ['token', 'token=[redacted] extra', 'token=[redacted]'],
+  ])('heals a stored %s placeholder on re-redaction', (_name, input, expected) => {
+    expect(sanitizeLogMessage(input)).toBe(expected);
+  });
+
+  it('fails closed on prose after a sensitive bare key', () => {
+    expect(sanitizeLogMessage('invalid token: expired, please sign in')).toBe(
+      'invalid token: [redacted]',
     );
-    expect(text).toBe('GET https://x.test/a with Bearer [redacted] password=[redacted]');
+    expect(sanitizeLogMessage('session: restored from backup')).toBe('session: [redacted]');
+  });
+
+  it('redacts an unquoted JSON field value up to its comma', () => {
+    expect(sanitizeLogMessage('{"token":abc def,"page":2}')).toBe(
+      '{"token":"[redacted]","page":2}',
+    );
   });
 
   it('replaces an unparseable URL', () => {
@@ -81,6 +122,8 @@ describe('sanitizeLogMessage', () => {
     '{"Set-Cookie":{"a":"SECRET"}}',
     '{\\"token\\":\\"SECRET FIRST\\"}',
     'password="SECRET FIRST"',
+    'password=SECRET FIRST',
+    'password=[redacted] FIRST',
     'Cookie: a=1; b=2',
     '{"token":123}',
   ])('is stable when applied twice to %s', (input) => {

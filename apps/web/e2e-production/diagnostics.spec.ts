@@ -16,7 +16,7 @@ const SEEDED_EVENTS = [
     at: '2026-05-23T10:00:02.000Z',
     kind: 'error',
     message:
-      'GET https://api.mangadex.org/manga?token=s3cret&page=2 failed: Bearer abc.def password=hunter2',
+      'Bearer abc.def GET https://api.mangadex.org/manga?token=s3cret&page=2 failed: password=hunter2',
     code: 'Bearer abc.def',
     providerId: 'mangadex',
   },
@@ -32,14 +32,14 @@ const SEEDED_EVENTS = [
     id: 'seed-reader',
     at: '2026-05-23T10:00:00.000Z',
     kind: 'reader-timing',
-    message: 'Chapter page used https://x.test/pages/1?api_key=zzz',
+    message: 'Chapter page used https://x.test/pages/1?api_key=zzz password=[redacted] REMAINDER',
     durationMs: 180,
   },
   {
     id: 'seed-password',
     at: '2026-05-23T09:59:59.000Z',
     kind: 'error',
-    message: '{"password":"SECRET FIRST SECOND"}',
+    message: '{"password":"SECRET FIRST SECOND"} password=SECRET TAIL',
   },
   {
     id: 'seed-cookie',
@@ -49,7 +49,7 @@ const SEEDED_EVENTS = [
   },
 ] as const;
 
-const SEEDED_FRAGMENTS = ['FIRST SECOND', 'SECRETNEST', 'SECRETTAIL'];
+const SEEDED_FRAGMENTS = ['FIRST SECOND', 'SECRET TAIL', 'SECRETNEST', 'SECRETTAIL', 'REMAINDER'];
 
 test('Given seeded token-bearing events, When Diagnostics loads, filters, clears and exports, Then it makes no network request and the export carries no credential', async ({
   page,
@@ -67,11 +67,13 @@ test('Given seeded token-bearing events, When Diagnostics loads, filters, clears
   await expect(section).toBeVisible({ timeout: 20_000 });
   const panel = (name: string) => section.getByRole('tabpanel', { name });
   await expect(panel('All').getByText('error', { exact: true })).toHaveCount(3);
-  await expect(panel('All').getByText('{"password":"[redacted]"}')).toBeVisible();
+  await expect(
+    panel('All').getByText('{"password":"[redacted]"} password=[redacted]'),
+  ).toBeVisible();
   await expect(panel('All').getByText('{"Set-Cookie":"[redacted]"}')).toBeVisible();
   await expect(panel('All').getByText('2026-05-23T10:00:02.000Z')).toBeVisible();
   await expect(
-    panel('All').getByText('GET https://api.mangadex.org/manga failed: Bearer [redacted]'),
+    panel('All').getByText('Bearer [redacted] GET https://api.mangadex.org/manga'),
   ).toBeVisible();
 
   // Covers only the Diagnostics operations below (filter, export, clear), so it

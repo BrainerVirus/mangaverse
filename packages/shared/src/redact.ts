@@ -18,7 +18,9 @@ function truncate(value: string, max: number): string {
 }
 
 /** A key and its separator: token=, "token":, \"token\": or X-Api-Key: */
-const KEY_VALUE_PAIR = /(?<![\w-])([\w-]+)(\\*["'])?\s*[:=]\s*/g;
+const KEY_VALUE_PAIR = /(?<![\w-])([\w-]+)(\\*["'])?[^\S\n\r]*[:=][^\S\n\r]*/g;
+/** The marker left by an earlier pass; it must heal on re-redaction, not end the value. */
+const REDACTED_PLACEHOLDER = '[redacted]';
 const SENSITIVE_KEY =
   /token|secret|passw(?:or)?d|pwd|credential|cookie|session|authorization|(?:api|access|private)[_-]?key|(?:^|[_-])(?:key|auth)$/i;
 /** Header values may contain a scheme, spaces or several pairs. */
@@ -90,17 +92,23 @@ function redactCredentials(text: string): string {
     const wholeLine = keyQuote === '' && WHOLE_LINE_KEY.test(key);
     const quoteEnd = endOfMatch(QUOTE_AT, text, valueAt);
     const isQuoted = quoteEnd > valueAt;
-    const isBalanced = text[valueAt] === '{' || text[valueAt] === '[';
+    const isPlaceholder = text.startsWith(REDACTED_PLACEHOLDER, valueAt);
+    // Only a JSON key can hold an object or array value; a bare key fails closed to the line.
+    const isBalanced = keyQuote !== '' && (text[valueAt] === '{' || text[valueAt] === '[');
 
     let valueEnd: number;
     if (isQuoted) {
       valueEnd = endOfQuoted(text, quoteEnd - 1, quoteEnd - 1 - valueAt);
+    } else if (isPlaceholder) {
+      // An older row may still carry text after the marker; heal it instead of ending the value at `]`.
+      valueEnd = endOfMatch(LINE_REMAINDER_AT, text, valueAt);
     } else if (isBalanced) {
       valueEnd = endOfBalanced(text, valueAt);
-    } else if (keyQuote !== '' && WHOLE_LINE_KEY.test(key)) {
+    } else if (keyQuote !== '') {
       valueEnd = endOfMatch(FIELD_REMAINDER_AT, text, valueAt);
     } else {
-      valueEnd = endOfMatch(wholeLine ? LINE_REMAINDER_AT : BARE_VALUE_AT, text, valueAt);
+      // An unquoted value has no reliable terminator: fail closed to the end of its line.
+      valueEnd = endOfMatch(LINE_REMAINDER_AT, text, valueAt);
     }
     if (valueEnd === valueAt) continue;
     // Text glued to a closed value is still part of it.

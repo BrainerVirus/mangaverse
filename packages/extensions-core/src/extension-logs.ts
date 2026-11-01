@@ -124,11 +124,18 @@ export async function listProviderActivity(
   level?: ExtensionLogLevel,
   limit = 100,
 ): Promise<ExtensionLogEntry[]> {
-  return listExtensionLogs(db, {
+  const entries = await listExtensionLogs(db, {
     providerId,
     ...(level !== undefined ? { level } : {}),
     limit,
   });
+  // Rows written before the shared redactor existed still carry their raw text; sanitize on read.
+  return entries.map((entry) => ({
+    ...entry,
+    code: sanitizeLogMessage(entry.code),
+    message: sanitizeLogMessage(entry.message),
+    details: sanitizeLogDetails(entry.details ?? undefined) ?? null,
+  }));
 }
 
 export interface ProviderActivitySummary {

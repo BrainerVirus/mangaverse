@@ -104,6 +104,18 @@ describe('provider activity log', () => {
     });
   });
 
+  it('sanitizes activity rows written before the shared redactor', async () => {
+    const { raw, db } = await createSqlJsHarness();
+    raw.run(
+      `INSERT INTO extension_logs (id, provider_id, level, code, message, details_json, created_at)
+       VALUES ('raw', 'p', 'error', 'extensions.ops.tick', 'login password=SECRET FIRST', '{"token":"SECRET"}', '2020-01-01T00:00:00.000Z')`,
+    );
+
+    const [entry] = await listProviderActivity(db, 'p');
+    expect(entry?.message).toBe('login password=[redacted]');
+    expect(entry?.details).toBeNull();
+  });
+
   it('filters activity by level and clears one provider', async () => {
     const { db } = await createSqlJsHarness();
     await recordExtensionLog(db, {
@@ -142,6 +154,8 @@ describe('provider activity log', () => {
     expect(sanitizeLogMessage('GET https://x.test/a?api_key=s3cr3t&page=2')).toBe(
       'GET https://x.test/a',
     );
+    expect(sanitizeLogMessage('password=SECRET FIRST')).toBe('password=[redacted]');
+    expect(sanitizeLogMessage('token=[redacted] extra')).toBe('token=[redacted]');
   });
 
   it('redacts cookie headers, quoted JSON credential fields and non-Bearer schemes', () => {
