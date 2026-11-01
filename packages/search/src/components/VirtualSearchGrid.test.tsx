@@ -33,10 +33,21 @@ vi.mock('@tanstack/react-virtual', () => ({
 
 vi.mock('@app/design-system', () => ({
   cn: (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' '),
-  MangaCard: ({ manga, onClick }: { manga: { canonicalTitle: string }; onClick?: () => void }) => (
-    <button type="button" onClick={onClick}>
-      {manga.canonicalTitle}
-    </button>
+  MangaCard: ({
+    manga,
+    onClick,
+    sourceLabel,
+  }: {
+    manga: { canonicalTitle: string };
+    onClick?: () => void;
+    sourceLabel?: string;
+  }) => (
+    <>
+      <button type="button" onClick={onClick}>
+        {manga.canonicalTitle}
+      </button>
+      {sourceLabel !== undefined ? <p>{sourceLabel}</p> : null}
+    </>
   ),
 }));
 
@@ -78,6 +89,20 @@ describe('VirtualSearchGrid', () => {
     expect(screen.getByRole('region', { name: 'Search results' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Title 1' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Title 2' })).toBeInTheDocument();
+  });
+
+  it('Given registered provider names, Then cards show the display name and never the raw id', () => {
+    render(
+      <VirtualSearchGrid
+        results={[createManga('1', 'Title 1')]}
+        onOpenManga={vi.fn<(mangaId: string) => void>()}
+        sourceLabels={{ 'test-provider': 'Exact Display Name' }}
+      />,
+    );
+
+    expect(screen.getByText('Exact Display Name')).toBeInTheDocument();
+    expect(screen.queryByText('Test Provider')).toBeNull();
+    expect(screen.queryByText('test-provider')).toBeNull();
   });
 
   it('renders static grid inside a scroll container for typical result sizes', () => {
