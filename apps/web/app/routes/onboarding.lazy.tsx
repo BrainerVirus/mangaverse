@@ -43,6 +43,11 @@ function OnboardingRoute() {
       return resolveOnboardingEntryState(state);
     },
     enabled: dbStatus === 'ready' && db !== null,
+    // Replay must start from the persisted state, not the cache left by the run
+    // that just finished; a client-side visit within the 30s stale window used to
+    // reopen at the last step.
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const appSettingsQuery = useQuery({
