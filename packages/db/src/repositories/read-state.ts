@@ -181,6 +181,15 @@ export async function setChapterCompleted(
       .get()?.count ?? 0;
   const existing = await getChapterReadState(db, chapterId);
   const now = new Date().toISOString();
+  // The upsert guard only accepts an equal-timestamp write when completion or
+  // progress moves forward, so marking a chapter unread in the same millisecond
+  // as marking it read would be dropped. An explicit action must always win.
+  const existingStamp = existing?.progress.updatedAt;
+  const existingMs = existingStamp === undefined ? Number.NaN : Date.parse(existingStamp);
+  const updatedAt =
+    Number.isFinite(existingMs) && existingMs >= Date.parse(now)
+      ? new Date(existingMs + 1).toISOString()
+      : now;
   const lastPageIndex = completed ? Math.max(0, pageCount - 1) : 0;
 
   await upsertChapterReadState(db, {
@@ -192,7 +201,7 @@ export async function setChapterCompleted(
       lastPageIndex,
       readPercent: completed ? 100 : 0,
       startedAt: existing?.progress.startedAt ?? now,
-      updatedAt: now,
+      updatedAt,
     },
   });
 

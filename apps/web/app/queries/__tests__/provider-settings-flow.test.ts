@@ -3,6 +3,11 @@ import type { AppDrizzleDb } from '@app/db/browser';
 import type { ProviderContext, ProviderContract } from '@app/extensions-sdk';
 import type { ExtensionInstallMetadata, MangaIdentity, ProviderSettingsValues } from '@app/shared';
 import type { ProviderAppBinding } from '../../lib/provider-registry.js';
+// Static imports: evaluating these module graphs (db, extensions, provider queries)
+// costs seconds under CPU contention, and Vitest charges that to the test's 5s
+// timeout when it is awaited inside the test body. Collection has no per-test timeout.
+import { fetchProviderSearchIdentities } from '../provider-query-options.js';
+import { fetchProviderDiscoverData, fetchProviderSectionPage } from '../provider-discover.js';
 
 const mocks = vi.hoisted(() => ({
   loadProviderSettings:
@@ -71,7 +76,6 @@ describe('provider calls receive saved settings', () => {
   it('Given saved settings, When searching, Then the provider context carries them gated by app explicit content', async () => {
     const { provider, contexts } = providerWithSettingsCapture();
     mocks.resolveInstalledProvider.mockResolvedValue(provider);
-    const { fetchProviderSearchIdentities } = await import('../provider-query-options.js');
 
     await fetchProviderSearchIdentities(db, 'fake', 'query', undefined, false);
 
@@ -86,7 +90,6 @@ describe('provider calls receive saved settings', () => {
   it('Given app explicit content, When searching, Then provider settings pass through', async () => {
     const { provider, contexts } = providerWithSettingsCapture();
     mocks.resolveInstalledProvider.mockResolvedValue(provider);
-    const { fetchProviderSearchIdentities } = await import('../provider-query-options.js');
 
     await fetchProviderSearchIdentities(db, 'fake', 'query', undefined, true);
 
@@ -101,8 +104,6 @@ describe('provider calls receive saved settings', () => {
     const { provider, contexts } = providerWithSettingsCapture();
     mocks.resolveInstalledProviderFrom.mockReturnValue(provider);
     mocks.resolveInstalledProvider.mockResolvedValue(provider);
-    const { fetchProviderDiscoverData, fetchProviderSectionPage } =
-      await import('../provider-discover.js');
 
     await fetchProviderDiscoverData(db);
     await fetchProviderSectionPage(db, binding, 'latest', 0, 6);

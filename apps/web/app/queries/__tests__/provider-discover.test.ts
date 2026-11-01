@@ -3,6 +3,10 @@ import type { AppDrizzleDb } from '@app/db/browser';
 import type { ProviderContract } from '@app/extensions-sdk';
 import type { ExtensionInstallMetadata, MangaIdentity } from '@app/shared';
 import type { ProviderAppBinding } from '../../lib/provider-registry.js';
+// Static import: evaluating the provider query graph costs seconds under CPU
+// contention, and Vitest charges that to the test's 5s timeout when it is awaited
+// inside the test body. Collection has no per-test timeout.
+import { fetchProviderDiscoverData } from '../provider-discover.js';
 
 const mocks = vi.hoisted(() => {
   const binding = {
@@ -61,7 +65,6 @@ describe('fetchProviderDiscoverData', () => {
 
   it('reads the install table once and resolves every binding once', async () => {
     mocks.bindings = [{ ...mocks.binding, providerId: 'broken' }, mocks.binding];
-    const { fetchProviderDiscoverData } = await import('../provider-discover.js');
 
     const data = await fetchProviderDiscoverData(db);
 
@@ -76,7 +79,6 @@ describe('fetchProviderDiscoverData', () => {
 
   it('drops the provider when it is not installed', async () => {
     mocks.resolveInstalledProviderFrom.mockReturnValue(null);
-    const { fetchProviderDiscoverData } = await import('../provider-discover.js');
 
     await expect(fetchProviderDiscoverData(db)).resolves.toEqual({ providers: [] });
   });
@@ -87,7 +89,6 @@ describe('fetchProviderDiscoverData', () => {
       if (providerId === 'broken') throw new Error('createProvider failed');
       return installedProvider();
     });
-    const { fetchProviderDiscoverData } = await import('../provider-discover.js');
 
     const data = await fetchProviderDiscoverData(db);
 
@@ -113,7 +114,6 @@ describe('fetchProviderDiscoverData', () => {
     mocks.resolveInstalledProviderFrom.mockImplementation((_installed, providerId) =>
       providerId === 'broken' ? malformed : installedProvider(),
     );
-    const { fetchProviderDiscoverData } = await import('../provider-discover.js');
 
     const data = await fetchProviderDiscoverData(db);
 
@@ -123,7 +123,6 @@ describe('fetchProviderDiscoverData', () => {
 
   it('surfaces an install read failure instead of an empty feed', async () => {
     mocks.readInstalledExtensions.mockRejectedValue(new Error('db offline'));
-    const { fetchProviderDiscoverData } = await import('../provider-discover.js');
 
     await expect(fetchProviderDiscoverData(db)).rejects.toThrow('db offline');
     expect(mocks.resolveInstalledProviderFrom).not.toHaveBeenCalled();

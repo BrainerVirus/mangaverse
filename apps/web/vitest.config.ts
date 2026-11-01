@@ -18,5 +18,13 @@ export default defineConfig({
       'app/providers/**/*.test.tsx',
     ],
     globals: true,
+    // Every one of the ~72 jsdom files boots its own worker and jsdom environment.
+    // At the default worker count (one per CPU here = 10) three concurrent suite
+    // copies spawn ~30 processes, and ordinary async tests then miss the 5s test
+    // timeout because the machine — not the test — is the bottleneck. Cap the
+    // per-process worker count instead of raising test timeouts, so a genuine hang
+    // still fails fast. (`pool: 'threads'` is not an option here: jsdom in threads
+    // took this suite from ~15s to ~39s.)
+    maxWorkers: 4,
   },
 });
