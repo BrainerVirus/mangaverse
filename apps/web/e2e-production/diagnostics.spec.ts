@@ -51,7 +51,7 @@ const SEEDED_EVENTS = [
     id: 'seed-apostrophe',
     at: '2026-05-23T09:59:57.000Z',
     kind: 'error',
-    message: "password='it's a secret tail'",
+    message: "password='it's A_SECRET_ONE' password='it',s A_SECRET_TWO'",
   },
 ] as const;
 
@@ -59,6 +59,8 @@ const SEEDED_FRAGMENTS = [
   'FIRST SECOND',
   'SECRET TAIL',
   'SECRETNEST',
+  'A_SECRET_ONE',
+  'A_SECRET_TWO',
   'SECRETTAIL',
   'REMAINDER',
   'a secret tail',

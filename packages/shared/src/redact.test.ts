@@ -93,6 +93,17 @@ describe('sanitizeLogMessage', () => {
     expect(sanitizeLogMessage("secret='abc' next")).toBe("secret='[redacted]' next");
   });
 
+  it('fails closed when the single-quoted tail starts at a separator or a space', () => {
+    expect(sanitizeLogMessage("password='it',s a secret tail'")).toBe("password='[redacted]'");
+    expect(sanitizeLogMessage("password='james' secret tail'")).toBe("password='[redacted]'");
+  });
+
+  it('keeps the structure of a well-formed single-quoted JSON object', () => {
+    expect(sanitizeLogMessage("{'secret':'abc','page':2}")).toBe(
+      "{'secret':'[redacted]','page':2}",
+    );
+  });
+
   it('redacts a double-quoted value containing an apostrophe without failing closed', () => {
     expect(sanitizeLogMessage('password="it\'s a secret" next')).toBe('password="[redacted]" next');
   });
