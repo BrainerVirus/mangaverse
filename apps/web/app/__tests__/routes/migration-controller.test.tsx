@@ -5,8 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type * as MigrationModule from '@app/migration';
-import type { MigrationCandidate, MigrationProviderOption } from '@app/migration';
+import type * as MigrationModule from '@/features/migration/index.js';
+import type { MigrationCandidate, MigrationProviderOption } from '@/features/migration/index.js';
 
 const mocks = vi.hoisted(() => ({
   fetchProviders: vi.fn<() => Promise<MigrationProviderOption[]>>(),
@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
   getMangaIdentities: vi.fn<(db: unknown, mangaIds: readonly string[]) => Promise<unknown[]>>(),
 }));
 
-vi.mock('@app/migration', async (importOriginal) => {
+vi.mock('@/features/migration/index.js', async (importOriginal) => {
   const actual = await importOriginal<typeof MigrationModule>();
   return {
     ...actual,

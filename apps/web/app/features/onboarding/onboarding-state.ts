@@ -143,7 +143,7 @@ export function startOnboarding(
   };
 }
 
-export function replayOnboarding(now = new Date().toISOString()): OnboardingState {
+function replayOnboarding(now = new Date().toISOString()): OnboardingState {
   return {
     status: 'in_progress',
     currentStep: 'welcome',

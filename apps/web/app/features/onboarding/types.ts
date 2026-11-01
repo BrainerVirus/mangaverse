@@ -12,7 +12,3 @@ export interface OnboardingState {
   readonly completedAt?: string;
   readonly skippedAt?: string;
 }
-
-export interface OnboardingPageData {
-  readonly state: OnboardingState;
-}

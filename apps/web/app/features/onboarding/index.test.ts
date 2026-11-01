@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -8,7 +9,7 @@ import {
   saveOnboardingState,
 } from './index.js';
 
-describe('@app/onboarding exports', () => {
+describe('onboarding exports', () => {
   it('exports the onboarding feature surface', () => {
     expect(typeof OnboardingPage).toBe('function');
     expect(typeof fetchOnboardingState).toBe('function');

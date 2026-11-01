@@ -10,7 +10,7 @@ import {
   retreatOnboardingStep,
   saveOnboardingState,
   skipOnboarding,
-} from '@app/onboarding';
+} from '@/features/onboarding/index.js';
 import {
   fetchAppSettings,
   fetchReaderSettings,

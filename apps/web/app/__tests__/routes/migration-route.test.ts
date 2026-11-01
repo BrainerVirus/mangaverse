@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MIGRATION_BATCH_LIMIT } from '@app/migration';
+import { MIGRATION_BATCH_LIMIT } from '@/features/migration/index.js';
 
 import { parseMigrationSearch } from '../../lib/migration-search.js';
 // Static imports: the first evaluation of a route module graph costs seconds under

@@ -12,7 +12,7 @@ import {
   type LibraryMigrationSelection,
   type LibraryUpdateReport,
 } from '@app/library';
-import { MIGRATION_BATCH_LIMIT } from '@app/migration';
+import { MIGRATION_BATCH_LIMIT } from '@/features/migration/index.js';
 import type { ChapterId, LibraryEntryId, LibraryViewState, MangaId } from '@app/shared';
 import {
   libraryOverviewQueryOptions,

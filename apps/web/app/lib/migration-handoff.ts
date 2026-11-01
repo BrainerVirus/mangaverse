@@ -2,8 +2,11 @@ import type {
   MigrationCandidate,
   MigrationHandoffError,
   MigrationProviderOption,
-} from '@app/migration';
-import { filterMigrationCandidatesByIds, findMissingMigrationMangaIds } from '@app/migration';
+} from '@/features/migration/index.js';
+import {
+  filterMigrationCandidatesByIds,
+  findMissingMigrationMangaIds,
+} from '@/features/migration/index.js';
 
 import type { MigrationSearch } from './migration-search.js';
 

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { MigrationPage } from '@app/migration';
+import { MigrationPage } from '@/features/migration/index.js';
 
 import { migrationSearchSchema, type MigrationSearch } from '../lib/migration-search.js';
 import { useMigrationController } from '../queries/use-migration-controller.js';
