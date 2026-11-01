@@ -1,16 +1,20 @@
 // Freezes existing useState and try/catch uses per file (docs/overhaul/01-engineering-rules.md E1).
 // oxlint has no baseline feature, so this runs the two rules from .oxlintrc.baseline.json and
 // compares the per-file counts with lint/baseline.json: more fails, fewer fails until it is lowered.
+// The baseline itself may only shrink against the one committed on the merge base with the trunk.
 //
 //   node lint/state-baseline.mjs            check
 //   node lint/state-baseline.mjs --shrink   lower the baseline to the tree; it never raises a count
+//
+// WORKIT_BASELINE_BASE names the commit to compare the baseline with, instead of the merge base.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const BASELINE_PATH = join(ROOT, 'lint/baseline.json');
+const BASELINE_FILE = 'lint/baseline.json';
+const BASELINE_PATH = join(ROOT, BASELINE_FILE);
 const OXLINT_BIN = join(ROOT, 'node_modules/oxlint/bin/oxlint');
 const TARGETS = ['apps', 'packages', 'vitest.config.ts'];
 const RULES = ['no-use-state', 'no-try-catch'];
@@ -83,14 +87,45 @@ export function findSuppressions(file, source) {
   return lines;
 }
 
+function git(args, cwd) {
+  const { status, stdout, stderr, error } = spawnSync('git', args, {
+    cwd,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  if (error) throw error;
+  if (status !== 0) throw new Error(`git ${args[0]} exited ${status}:\n${stderr}`);
+  return stdout;
+}
+
+// A base that cannot be resolved throws: skipping would let a raised baseline through a shallow clone.
+export function baselineBaseRef(env, cwd) {
+  if (env.WORKIT_BASELINE_BASE) return env.WORKIT_BASELINE_BASE;
+  return git(['merge-base', 'HEAD', `origin/${env.GITHUB_BASE_REF || 'main'}`], cwd).trim();
+}
+
+export function readBaseBaseline(ref, cwd) {
+  if (git(['ls-tree', ref, '--', BASELINE_FILE], cwd) === '') return null;
+  return JSON.parse(git(['show', `${ref}:${BASELINE_FILE}`], cwd));
+}
+
+export function findRaised(base, working) {
+  const raised = [];
+  for (const [file, rules] of Object.entries(working)) {
+    const entries = Object.entries(rules);
+    if (entries.length === 0 && base[file] === undefined) raised.push({ file, rule: '(empty)', count: 0 });
+    for (const [rule, count] of entries) {
+      const frozen = base[file]?.[rule];
+      if (frozen === undefined || !Number.isInteger(count) || count > frozen) {
+        raised.push({ file, rule, count, frozen });
+      }
+    }
+  }
+  return raised;
+}
+
 function scanSuppressions() {
-  const { status, stdout, stderr } = spawnSync(
-    'git',
-    ['ls-files', '-co', '--exclude-standard', '--', ...TARGETS],
-    { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
-  );
-  if (status !== 0) throw new Error(`git ls-files exited ${status}:\n${stderr}`);
-  return stdout
+  return git(['ls-files', '-co', '--exclude-standard', '--', ...TARGETS], ROOT)
     .split('\n')
     .filter((file) => SOURCE_FILE.test(file) && !EXEMPT_FILE.test(file))
     .filter((file) => existsSync(join(ROOT, file)))
@@ -104,11 +139,17 @@ function main() {
   const baseline = JSON.parse(readFileSync(BASELINE_PATH, 'utf8'));
   const { exceeded, dropped } = compareCounts(baseline, current);
   const suppressions = scanSuppressions();
+  const shrink = process.argv.includes('--shrink');
+  const next = shrink ? shrinkBaseline(baseline, current) : baseline;
+  const baseRef = baselineBaseRef(process.env, ROOT);
+  const base = readBaseBaseline(baseRef, ROOT);
+  const raised = base === null ? [] : findRaised(base, next);
 
-  if (process.argv.includes('--shrink')) {
-    writeFileSync(BASELINE_PATH, `${JSON.stringify(shrinkBaseline(baseline, current), null, 2)}\n`);
+  if (shrink) {
+    writeFileSync(BASELINE_PATH, `${JSON.stringify(next, null, 2)}\n`);
     dropped.length = 0;
   }
+  if (base === null) console.log(`state-baseline: shrink-only check skipped, ${baseRef} has no ${BASELINE_FILE}.`);
 
   for (const { file, rule, message, line } of unexpected) {
     console.error(`${file}:${line} ${rule}: ${message}`);
@@ -125,8 +166,12 @@ function main() {
   for (const site of suppressions) {
     console.error(`${site} disable comment hides ${RULES.join(' or ')} from the baseline. Remove it.`);
   }
+  for (const { file, rule, count, frozen } of raised) {
+    const was = frozen === undefined ? 'has no such entry' : `has ${frozen}`;
+    console.error(`${BASELINE_FILE}: ${file} ${rule} is ${count}, ${baseRef} ${was}. The baseline only shrinks.`);
+  }
 
-  if (unexpected.length + exceeded.length + dropped.length + suppressions.length > 0) {
+  if (unexpected.length + exceeded.length + dropped.length + suppressions.length + raised.length > 0) {
     process.exitCode = 1;
     return;
   }

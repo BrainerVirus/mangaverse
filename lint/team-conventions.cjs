@@ -10,6 +10,15 @@
  * freezes the existing uses per file in `lint/baseline.json`
  * (docs/overhaul/01-engineering-rules.md E1).
  */
+function isUseStateString(node) {
+  if (node.type === "Literal") return node.value === "useState";
+  return (
+    node.type === "TemplateLiteral" &&
+    node.expressions.length === 0 &&
+    node.quasis[0].value.cooked === "useState"
+  );
+}
+
 module.exports = {
   meta: { name: "team-conventions" },
   rules: {
@@ -51,9 +60,9 @@ module.exports = {
             const isIdentifier = callee.type === "Identifier" && localNames.has(callee.name);
             const isMember =
               callee.type === "MemberExpression" &&
-              !callee.computed &&
-              callee.property.type === "Identifier" &&
-              callee.property.name === "useState";
+              (callee.computed
+                ? isUseStateString(callee.property)
+                : callee.property.type === "Identifier" && callee.property.name === "useState");
             if (!isIdentifier && !isMember) return;
             context.report({
               node,
