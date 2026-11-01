@@ -16,7 +16,8 @@ import type { AppResult, ThemeDefinition, ThemeSettings } from '@app/shared';
 
 import { getRouter } from '../../router.js';
 import { Route as ThemeRoute } from '../../routes/theme.lazy.js';
-import { Route as ThemeEditorRoute } from '../../routes/theme.editor.lazy.js';
+import { Route as ThemeEditorRoute } from '../../routes/advanced.theme.js';
+import { Route as ThemeEditorAlias } from '../../routes/theme.editor.js';
 
 const mocks = vi.hoisted(() => ({
   theme: {
@@ -77,12 +78,20 @@ const themeRoute = createRoute({
   path: '/theme',
   component: galleryComponent,
 });
-const editorRoute = createRoute({
+const editorAliasRoute = createRoute({
   getParentRoute: () => themeRoute,
   path: '/editor',
+  beforeLoad: ThemeEditorAlias.options.beforeLoad as never,
+});
+const editorRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/advanced/theme',
   component: editorComponent,
 });
-const testRouteTree = rootRoute.addChildren([themeRoute.addChildren([editorRoute])]);
+const testRouteTree = rootRoute.addChildren([
+  themeRoute.addChildren([editorAliasRoute]),
+  editorRoute,
+]);
 
 function buttonByText(scope: ParentNode, label: string): HTMLButtonElement {
   const button = [...scope.querySelectorAll('button')].find(

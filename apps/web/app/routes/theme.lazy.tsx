@@ -1,4 +1,4 @@
-import { createLazyFileRoute, Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
+import { createLazyFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   createCustomThemeId,
@@ -20,7 +20,6 @@ export const Route = createLazyFileRoute('/theme')({
 });
 
 function ThemeRoute() {
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const dbStatus = useLocalDbStatus();
   const db = useLocalDb();
   const queryClient = useQueryClient();
@@ -83,12 +82,6 @@ function ThemeRoute() {
   const actionError =
     failedAction === null ? null : failureMessage(failedAction, 'Could not update this theme.');
 
-  // `/theme/editor` is generated as a child of this route; the gallery is not a
-  // layout, so the child owns the whole page whenever it is the active match.
-  if (pathname === '/theme/editor') {
-    return <Outlet />;
-  }
-
   return (
     <ThemeCustomizationPage
       settings={settings}
@@ -107,7 +100,7 @@ function ThemeRoute() {
         if (settings.themeId !== themeId) {
           setThemeSettings({ ...settings, themeId });
         }
-        void navigate({ to: '/theme/editor' });
+        void navigate({ to: '/advanced/theme' });
       }}
       onDeleteCustomTheme={(themeId) => deleteMutation.mutate(themeId)}
       onRetryCustomThemes={() => {

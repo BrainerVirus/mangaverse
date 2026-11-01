@@ -23,6 +23,13 @@ Milestone 1 is landing in the order the roadmap gives:
   toast. A user's save uses `saveFeedback(...)`. Failures with no `meta` only reach the log.
 - Toasts go through `notify` and `Toaster` in `@app/design-system`. Nothing else imports Sonner.
 
+## Advanced section (#208 E7)
+
+- Theme editor, Diagnostics and Migration live at `/advanced/theme`, `/advanced/diagnostics` and
+  `/advanced/migration`, under the `/advanced` hub. `/theme/editor`, `/diagnostics` and `/migration`
+  stay as redirect aliases; `/migration` forwards raw search params so the target reports a bad link.
+- Identity merge and "Migrate selected" sit behind a closed `SettingsSection`.
+
 ## Known gaps
 
 - The Saving toast is live for every mutation with `saveFeedback`, but the theme editor and provider

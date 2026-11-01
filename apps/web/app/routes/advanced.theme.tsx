@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { createLazyFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   createCustomThemeId,
@@ -21,7 +21,7 @@ import { saveFeedback } from '../lib/feedback.js';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 import { useTheme } from '../providers/theme-provider.js';
 
-export const Route = createLazyFileRoute('/theme/editor')({
+export const Route = createFileRoute('/advanced/theme')({
   component: ThemeEditorRoute,
 });
 

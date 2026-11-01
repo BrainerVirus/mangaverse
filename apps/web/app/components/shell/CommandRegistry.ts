@@ -8,7 +8,14 @@ export interface Command {
 }
 
 /** Palette group order; sections outside this list follow in first-seen order. */
-const COMMAND_SECTIONS = ['Navigation', 'Recent', 'Settings', 'Extensions', 'App'] as const;
+const COMMAND_SECTIONS = [
+  'Navigation',
+  'Recent',
+  'Settings',
+  'Advanced',
+  'Extensions',
+  'App',
+] as const;
 
 export function commandMatchesQuery(command: Command, query: string): boolean {
   const lower = query.toLowerCase().trim();

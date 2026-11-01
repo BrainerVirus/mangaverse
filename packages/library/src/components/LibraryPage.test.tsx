@@ -303,6 +303,7 @@ describe('LibraryPage', () => {
     await user.click(screen.getByRole('button', { name: 'Select titles' }));
     await user.click(screen.getByLabelText('Select Title 1'));
     await user.click(screen.getByLabelText('Select Title 2'));
+    await user.click(screen.getByRole('button', { name: 'Advanced' }));
     await user.click(screen.getByRole('button', { name: 'Migrate selected' }));
 
     expect(screen.getByRole('alert')).toHaveTextContent(

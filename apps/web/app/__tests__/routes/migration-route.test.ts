@@ -5,13 +5,13 @@ import { parseMigrationSearch } from '../../lib/migration-search.js';
 // Static imports: the first evaluation of a route module graph costs seconds under
 // CPU contention, and Vitest would charge that to the test's 5s timeout when it is
 // awaited inside the test body. Collection has no per-test timeout.
-import { Route } from '../../routes/migration.js';
+import { Route } from '../../routes/advanced.migration.js';
 
 function ids(count: number): string[] {
   return Array.from({ length: count }, (_, index) => `id-${index}`);
 }
 
-describe('/migration route', () => {
+describe('/advanced/migration route', () => {
   it('validates the library bulk hand-off search params', () => {
     const validateSearch = Route.options.validateSearch;
 

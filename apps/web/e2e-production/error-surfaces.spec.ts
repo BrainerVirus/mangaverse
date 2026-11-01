@@ -68,7 +68,7 @@ test('Given a route throws internal text, When it renders, Then a status page re
   quickOnboarding,
 }) => {
   await expect(page.getByRole('link', { name: 'Library' }).first()).toBeVisible();
-  await page.route(/\/assets\/diagnostics\.lazy[^/]*\.js/, (route) =>
+  await page.route(/\/assets\/advanced\.diagnostics[^/]*\.js/, (route) =>
     route.fulfill({
       contentType: 'text/javascript',
       body: `throw new Error(${JSON.stringify(INTERNAL_TEXT)});`,

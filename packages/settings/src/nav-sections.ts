@@ -38,11 +38,6 @@ export const SETTINGS_NAV_SECTIONS: readonly {
         to: '/backup',
       },
       {
-        label: 'Migration',
-        description: 'Move titles between providers.',
-        to: '/migration',
-      },
-      {
         label: 'Storage',
         description: 'Review usage and clear safe local cache data.',
         to: '/storage',
@@ -53,14 +48,34 @@ export const SETTINGS_NAV_SECTIONS: readonly {
     title: 'Support',
     items: [
       {
-        label: 'Diagnostics',
-        description: 'Storage usage, cache health, and troubleshooting.',
-        to: '/diagnostics',
-      },
-      {
         label: 'Onboarding',
         description: 'Replay the first-run setup flow.',
         to: '/onboarding',
+      },
+    ],
+  },
+  {
+    title: 'Advanced',
+    items: [
+      {
+        label: 'Advanced',
+        description: 'All advanced tools in one place.',
+        to: '/advanced',
+      },
+      {
+        label: 'Theme editor',
+        description: 'Build and edit custom themes.',
+        to: '/advanced/theme',
+      },
+      {
+        label: 'Diagnostics',
+        description: 'Storage usage, cache health, and troubleshooting.',
+        to: '/advanced/diagnostics',
+      },
+      {
+        label: 'Migration',
+        description: 'Move titles between providers.',
+        to: '/advanced/migration',
       },
     ],
   },

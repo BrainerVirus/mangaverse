@@ -12,29 +12,38 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdvancedRouteImport } from './routes/advanced'
 import { Route as DesignSystemRouteImport } from './routes/design-system'
+import { Route as DiagnosticsRouteImport } from './routes/diagnostics'
 import { Route as DiscoverRouteImport } from './routes/discover'
 import { Route as ExtensionsRouteImport } from './routes/extensions'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as MigrationRouteImport } from './routes/migration'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as AdvancedDiagnosticsRouteImport } from './routes/advanced.diagnostics'
+import { Route as AdvancedMigrationRouteImport } from './routes/advanced.migration'
+import { Route as AdvancedThemeRouteImport } from './routes/advanced.theme'
 import { Route as ExtensionsProviderIdRouteImport } from './routes/extensions.$providerId'
 import { Route as MangaIdRouteImport } from './routes/manga.$id'
 import { Route as ReaderChapterIdRouteImport } from './routes/reader.$chapterId'
 import { Route as SettingsAppRouteImport } from './routes/settings.app'
 import { Route as SettingsReaderRouteImport } from './routes/settings.reader'
+import { Route as ThemeEditorRouteImport } from './routes/theme.editor'
 
 const BackupLazyRouteImport = createFileRoute('/backup')()
-const DiagnosticsLazyRouteImport = createFileRoute('/diagnostics')()
 const OnboardingLazyRouteImport = createFileRoute('/onboarding')()
 const StorageLazyRouteImport = createFileRoute('/storage')()
 const ThemeLazyRouteImport = createFileRoute('/theme')()
-const ThemeEditorLazyRouteImport = createFileRoute('/theme/editor')()
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdvancedRoute = AdvancedRouteImport.update({
+  id: '/advanced',
+  path: '/advanced',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BackupLazyRoute = BackupLazyRouteImport.update({
@@ -47,11 +56,11 @@ const DesignSystemRoute = DesignSystemRouteImport.update({
   path: '/design-system',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DiagnosticsLazyRoute = DiagnosticsLazyRouteImport.update({
+const DiagnosticsRoute = DiagnosticsRouteImport.update({
   id: '/diagnostics',
   path: '/diagnostics',
   getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/diagnostics.lazy').then((d) => d.Route))
+} as any)
 const DiscoverRoute = DiscoverRouteImport.update({
   id: '/discover',
   path: '/discover',
@@ -71,7 +80,7 @@ const MigrationRoute = MigrationRouteImport.update({
   id: '/migration',
   path: '/migration',
   getParentRoute: () => rootRouteImport,
-} as any).lazy(() => import('./routes/migration.lazy').then((d) => d.Route))
+} as any)
 const OnboardingLazyRoute = OnboardingLazyRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
@@ -97,6 +106,21 @@ const ThemeLazyRoute = ThemeLazyRouteImport.update({
   path: '/theme',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/theme.lazy').then((d) => d.Route))
+const AdvancedDiagnosticsRoute = AdvancedDiagnosticsRouteImport.update({
+  id: '/diagnostics',
+  path: '/diagnostics',
+  getParentRoute: () => AdvancedRoute,
+} as any)
+const AdvancedMigrationRoute = AdvancedMigrationRouteImport.update({
+  id: '/migration',
+  path: '/migration',
+  getParentRoute: () => AdvancedRoute,
+} as any)
+const AdvancedThemeRoute = AdvancedThemeRouteImport.update({
+  id: '/theme',
+  path: '/theme',
+  getParentRoute: () => AdvancedRoute,
+} as any)
 const ExtensionsProviderIdRoute = ExtensionsProviderIdRouteImport.update({
   id: '/$providerId',
   path: '/$providerId',
@@ -122,15 +146,17 @@ const SettingsReaderRoute = SettingsReaderRouteImport.update({
   path: '/reader',
   getParentRoute: () => SettingsRoute,
 } as any)
-const ThemeEditorLazyRoute = ThemeEditorLazyRouteImport.update({
+const ThemeEditorRoute = ThemeEditorRouteImport.update({
   id: '/editor',
   path: '/editor',
   getParentRoute: () => ThemeLazyRoute,
-} as any).lazy(() => import('./routes/theme.editor.lazy').then((d) => d.Route))
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/advanced': typeof AdvancedRouteWithChildren
   '/design-system': typeof DesignSystemRoute
+  '/diagnostics': typeof DiagnosticsRoute
   '/discover': typeof DiscoverRoute
   '/extensions': typeof ExtensionsRouteWithChildren
   '/library': typeof LibraryRoute
@@ -138,20 +164,24 @@ export interface FileRoutesByFullPath {
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRouteWithChildren
   '/backup': typeof BackupLazyRoute
-  '/diagnostics': typeof DiagnosticsLazyRoute
   '/onboarding': typeof OnboardingLazyRoute
   '/storage': typeof StorageLazyRoute
   '/theme': typeof ThemeLazyRouteWithChildren
+  '/advanced/diagnostics': typeof AdvancedDiagnosticsRoute
+  '/advanced/migration': typeof AdvancedMigrationRoute
+  '/advanced/theme': typeof AdvancedThemeRoute
   '/extensions/$providerId': typeof ExtensionsProviderIdRoute
   '/manga/$id': typeof MangaIdRoute
   '/reader/$chapterId': typeof ReaderChapterIdRoute
   '/settings/app': typeof SettingsAppRoute
   '/settings/reader': typeof SettingsReaderRoute
-  '/theme/editor': typeof ThemeEditorLazyRoute
+  '/theme/editor': typeof ThemeEditorRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/advanced': typeof AdvancedRouteWithChildren
   '/design-system': typeof DesignSystemRoute
+  '/diagnostics': typeof DiagnosticsRoute
   '/discover': typeof DiscoverRoute
   '/extensions': typeof ExtensionsRouteWithChildren
   '/library': typeof LibraryRoute
@@ -159,21 +189,25 @@ export interface FileRoutesByTo {
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRouteWithChildren
   '/backup': typeof BackupLazyRoute
-  '/diagnostics': typeof DiagnosticsLazyRoute
   '/onboarding': typeof OnboardingLazyRoute
   '/storage': typeof StorageLazyRoute
   '/theme': typeof ThemeLazyRouteWithChildren
+  '/advanced/diagnostics': typeof AdvancedDiagnosticsRoute
+  '/advanced/migration': typeof AdvancedMigrationRoute
+  '/advanced/theme': typeof AdvancedThemeRoute
   '/extensions/$providerId': typeof ExtensionsProviderIdRoute
   '/manga/$id': typeof MangaIdRoute
   '/reader/$chapterId': typeof ReaderChapterIdRoute
   '/settings/app': typeof SettingsAppRoute
   '/settings/reader': typeof SettingsReaderRoute
-  '/theme/editor': typeof ThemeEditorLazyRoute
+  '/theme/editor': typeof ThemeEditorRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/advanced': typeof AdvancedRouteWithChildren
   '/design-system': typeof DesignSystemRoute
+  '/diagnostics': typeof DiagnosticsRoute
   '/discover': typeof DiscoverRoute
   '/extensions': typeof ExtensionsRouteWithChildren
   '/library': typeof LibraryRoute
@@ -181,22 +215,26 @@ export interface FileRoutesById {
   '/search': typeof SearchRoute
   '/settings': typeof SettingsRouteWithChildren
   '/backup': typeof BackupLazyRoute
-  '/diagnostics': typeof DiagnosticsLazyRoute
   '/onboarding': typeof OnboardingLazyRoute
   '/storage': typeof StorageLazyRoute
   '/theme': typeof ThemeLazyRouteWithChildren
+  '/advanced/diagnostics': typeof AdvancedDiagnosticsRoute
+  '/advanced/migration': typeof AdvancedMigrationRoute
+  '/advanced/theme': typeof AdvancedThemeRoute
   '/extensions/$providerId': typeof ExtensionsProviderIdRoute
   '/manga/$id': typeof MangaIdRoute
   '/reader/$chapterId': typeof ReaderChapterIdRoute
   '/settings/app': typeof SettingsAppRoute
   '/settings/reader': typeof SettingsReaderRoute
-  '/theme/editor': typeof ThemeEditorLazyRoute
+  '/theme/editor': typeof ThemeEditorRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/advanced'
     | '/design-system'
+    | '/diagnostics'
     | '/discover'
     | '/extensions'
     | '/library'
@@ -204,10 +242,12 @@ export interface FileRouteTypes {
     | '/search'
     | '/settings'
     | '/backup'
-    | '/diagnostics'
     | '/onboarding'
     | '/storage'
     | '/theme'
+    | '/advanced/diagnostics'
+    | '/advanced/migration'
+    | '/advanced/theme'
     | '/extensions/$providerId'
     | '/manga/$id'
     | '/reader/$chapterId'
@@ -217,7 +257,9 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/advanced'
     | '/design-system'
+    | '/diagnostics'
     | '/discover'
     | '/extensions'
     | '/library'
@@ -225,10 +267,12 @@ export interface FileRouteTypes {
     | '/search'
     | '/settings'
     | '/backup'
-    | '/diagnostics'
     | '/onboarding'
     | '/storage'
     | '/theme'
+    | '/advanced/diagnostics'
+    | '/advanced/migration'
+    | '/advanced/theme'
     | '/extensions/$providerId'
     | '/manga/$id'
     | '/reader/$chapterId'
@@ -238,7 +282,9 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/advanced'
     | '/design-system'
+    | '/diagnostics'
     | '/discover'
     | '/extensions'
     | '/library'
@@ -246,10 +292,12 @@ export interface FileRouteTypes {
     | '/search'
     | '/settings'
     | '/backup'
-    | '/diagnostics'
     | '/onboarding'
     | '/storage'
     | '/theme'
+    | '/advanced/diagnostics'
+    | '/advanced/migration'
+    | '/advanced/theme'
     | '/extensions/$providerId'
     | '/manga/$id'
     | '/reader/$chapterId'
@@ -260,7 +308,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdvancedRoute: typeof AdvancedRouteWithChildren
   DesignSystemRoute: typeof DesignSystemRoute
+  DiagnosticsRoute: typeof DiagnosticsRoute
   DiscoverRoute: typeof DiscoverRoute
   ExtensionsRoute: typeof ExtensionsRouteWithChildren
   LibraryRoute: typeof LibraryRoute
@@ -268,7 +318,6 @@ export interface RootRouteChildren {
   SearchRoute: typeof SearchRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   BackupLazyRoute: typeof BackupLazyRoute
-  DiagnosticsLazyRoute: typeof DiagnosticsLazyRoute
   OnboardingLazyRoute: typeof OnboardingLazyRoute
   StorageLazyRoute: typeof StorageLazyRoute
   ThemeLazyRoute: typeof ThemeLazyRouteWithChildren
@@ -283,6 +332,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/advanced': {
+      id: '/advanced'
+      path: '/advanced'
+      fullPath: '/advanced'
+      preLoaderRoute: typeof AdvancedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/backup': {
@@ -303,7 +359,7 @@ declare module '@tanstack/react-router' {
       id: '/diagnostics'
       path: '/diagnostics'
       fullPath: '/diagnostics'
-      preLoaderRoute: typeof DiagnosticsLazyRouteImport
+      preLoaderRoute: typeof DiagnosticsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/discover': {
@@ -369,6 +425,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ThemeLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/advanced/diagnostics': {
+      id: '/advanced/diagnostics'
+      path: '/diagnostics'
+      fullPath: '/advanced/diagnostics'
+      preLoaderRoute: typeof AdvancedDiagnosticsRouteImport
+      parentRoute: typeof AdvancedRoute
+    }
+    '/advanced/migration': {
+      id: '/advanced/migration'
+      path: '/migration'
+      fullPath: '/advanced/migration'
+      preLoaderRoute: typeof AdvancedMigrationRouteImport
+      parentRoute: typeof AdvancedRoute
+    }
+    '/advanced/theme': {
+      id: '/advanced/theme'
+      path: '/theme'
+      fullPath: '/advanced/theme'
+      preLoaderRoute: typeof AdvancedThemeRouteImport
+      parentRoute: typeof AdvancedRoute
+    }
     '/extensions/$providerId': {
       id: '/extensions/$providerId'
       path: '/$providerId'
@@ -408,11 +485,27 @@ declare module '@tanstack/react-router' {
       id: '/theme/editor'
       path: '/editor'
       fullPath: '/theme/editor'
-      preLoaderRoute: typeof ThemeEditorLazyRouteImport
+      preLoaderRoute: typeof ThemeEditorRouteImport
       parentRoute: typeof ThemeLazyRoute
     }
   }
 }
+
+interface AdvancedRouteChildren {
+  AdvancedDiagnosticsRoute: typeof AdvancedDiagnosticsRoute
+  AdvancedMigrationRoute: typeof AdvancedMigrationRoute
+  AdvancedThemeRoute: typeof AdvancedThemeRoute
+}
+
+const AdvancedRouteChildren: AdvancedRouteChildren = {
+  AdvancedDiagnosticsRoute: AdvancedDiagnosticsRoute,
+  AdvancedMigrationRoute: AdvancedMigrationRoute,
+  AdvancedThemeRoute: AdvancedThemeRoute,
+}
+
+const AdvancedRouteWithChildren = AdvancedRoute._addFileChildren(
+  AdvancedRouteChildren,
+)
 
 interface ExtensionsRouteChildren {
   ExtensionsProviderIdRoute: typeof ExtensionsProviderIdRoute
@@ -441,11 +534,11 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 )
 
 interface ThemeLazyRouteChildren {
-  ThemeEditorLazyRoute: typeof ThemeEditorLazyRoute
+  ThemeEditorRoute: typeof ThemeEditorRoute
 }
 
 const ThemeLazyRouteChildren: ThemeLazyRouteChildren = {
-  ThemeEditorLazyRoute: ThemeEditorLazyRoute,
+  ThemeEditorRoute: ThemeEditorRoute,
 }
 
 const ThemeLazyRouteWithChildren = ThemeLazyRoute._addFileChildren(
@@ -454,7 +547,9 @@ const ThemeLazyRouteWithChildren = ThemeLazyRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdvancedRoute: AdvancedRouteWithChildren,
   DesignSystemRoute: DesignSystemRoute,
+  DiagnosticsRoute: DiagnosticsRoute,
   DiscoverRoute: DiscoverRoute,
   ExtensionsRoute: ExtensionsRouteWithChildren,
   LibraryRoute: LibraryRoute,
@@ -462,7 +557,6 @@ const rootRouteChildren: RootRouteChildren = {
   SearchRoute: SearchRoute,
   SettingsRoute: SettingsRouteWithChildren,
   BackupLazyRoute: BackupLazyRoute,
-  DiagnosticsLazyRoute: DiagnosticsLazyRoute,
   OnboardingLazyRoute: OnboardingLazyRoute,
   StorageLazyRoute: StorageLazyRoute,
   ThemeLazyRoute: ThemeLazyRouteWithChildren,
