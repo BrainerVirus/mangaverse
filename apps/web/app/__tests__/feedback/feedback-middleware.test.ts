@@ -27,7 +27,7 @@ function harness(pathname = '/library') {
 describe('failure surfaces', () => {
   it('Given a toast failure, When it fails, Then it logs the raw text and toasts safe copy', () => {
     const { feedback, notify, record } = harness();
-    feedback.onFailure(new Error('internal stack text'), {
+    feedback.onFailure(new Error('Internal Stack Text'), {
       source: 'mutation',
       feedback: { surface: 'toast', message: 'Could not save.' },
     });
@@ -38,7 +38,7 @@ describe('failure surfaces', () => {
       expect.objectContaining({
         kind: 'error',
         code: 'unexpected',
-        message: 'mutation: internal stack text',
+        message: 'mutation: Internal Stack Text',
       }),
     );
   });

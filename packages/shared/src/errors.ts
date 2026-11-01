@@ -61,7 +61,10 @@ const classified = new WeakSet<object>();
 interface FailureSignals {
   readonly names: readonly string[];
   readonly codes: readonly string[];
+  /** Lowercased for matching. */
   readonly text: string;
+  /** As thrown, for the log. */
+  readonly rawText: string;
   readonly status: number | undefined;
   readonly providerId: string | undefined;
 }
@@ -110,7 +113,8 @@ function readSignals(error: unknown): FailureSignals {
     current = field(current, 'cause');
   }
 
-  return { names, codes, text: text.join(' ').toLowerCase(), status, providerId };
+  const rawText = text.join(' ');
+  return { names, codes, text: rawText.toLowerCase(), rawText, status, providerId };
 }
 
 function kindOf(signals: FailureSignals, online: boolean | undefined): AppErrorKind {
@@ -166,6 +170,6 @@ export function isCancellationError(error: unknown): boolean {
 
 /** The internal text for the local log, which redacts it before keeping it. */
 export function failureLogText(error: ClassifiedAppError): string {
-  const { text } = readSignals(error.cause);
-  return text.length > 0 ? text : error.message;
+  const { rawText } = readSignals(error.cause);
+  return rawText.length > 0 ? rawText : error.message;
 }
