@@ -26,7 +26,21 @@ test('Given the theme editor, When a custom theme is saved, duplicated and delet
   await expect(page.getByTestId('theme-advanced-editor')).toBeVisible({ timeout: 30_000 });
   await page.getByRole('tab', { name: 'Guided' }).click();
 
+  await page.evaluate(() => {
+    const target = window as unknown as { __savingFlashed?: boolean };
+    target.__savingFlashed = false;
+    const observer = new MutationObserver(() => {
+      if (document.body.innerText.includes('Saving…')) target.__savingFlashed = true;
+    });
+    observer.observe(document.body, { subtree: true, childList: true, characterData: true });
+    window.setTimeout(() => observer.disconnect(), 1_500);
+  });
   await page.getByRole('button', { name: 'Save theme' }).click();
+  await page.waitForTimeout(250);
+  const flashed = await page.evaluate(
+    () => (window as unknown as { __savingFlashed?: boolean }).__savingFlashed === true,
+  );
+  expect(flashed).toBe(false);
   await expect(page.getByRole('button', { name: 'Delete E2E Custom' })).toBeVisible({
     timeout: 20_000,
   });

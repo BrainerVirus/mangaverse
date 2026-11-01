@@ -15,6 +15,7 @@ import { useState } from 'react';
 import { searchQueryKeys } from '@app/search';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 import { actionFailureMessage } from '../lib/app-feedback.js';
+import { saveFeedback } from '../lib/feedback.js';
 import { flushLocalDb } from '../lib/local-db.js';
 import { getProviderBinding } from '../lib/provider-registry.js';
 import {
@@ -78,6 +79,7 @@ function ProviderDetailRoute() {
   });
 
   const saveSettingsMutation = useMutation({
+    meta: saveFeedback('Could not save provider settings.', 'Settings saved'),
     mutationFn: async (settings: ProviderSettingsValues) => {
       if (db === null) {
         throw new Error('Database is not ready.');

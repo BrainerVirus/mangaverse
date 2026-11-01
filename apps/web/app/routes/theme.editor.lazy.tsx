@@ -17,6 +17,7 @@ import type { ThemeDefinition, ThemeDefinitionIssue, ThemeSettings } from '@app/
 import { createThemeEditorDraft } from '../components/theme/theme-editor-draft.js';
 import { themeSettingsAfterDelete } from '../components/theme/theme-selection.js';
 import { failureMessage } from '../lib/app-feedback.js';
+import { saveFeedback } from '../lib/feedback.js';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 import { useTheme } from '../providers/theme-provider.js';
 
@@ -71,6 +72,7 @@ function ThemeEditorForm({
   const isSaved = customThemes.some((definition) => definition.id === draft.id);
 
   const saveMutation = useMutation({
+    meta: saveFeedback('Could not save this theme.', 'Theme saved'),
     mutationFn: async (definition: ThemeDefinition): Promise<ThemeDefinition> => {
       const result = await saveThemeDefinition(db, definition);
       if (!result.ok) {
