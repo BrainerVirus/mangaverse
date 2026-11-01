@@ -87,7 +87,8 @@ describe('local database error banners', () => {
     const alerts = container.querySelectorAll('[role="alert"]');
     expect(alerts).toHaveLength(1);
     expect(alerts[0]?.textContent).toContain('Could not open the local library');
-    expect(alerts[0]?.textContent).toContain('SecurityError: IndexedDB access is blocked');
+    expect(alerts[0]?.textContent).toContain('could not be opened');
+    expect(alerts[0]?.textContent).not.toContain('SecurityError');
     expect(container.querySelector('[data-db-status]')?.textContent).toBe('error');
 
     const button = buttonByText('Reopen database');

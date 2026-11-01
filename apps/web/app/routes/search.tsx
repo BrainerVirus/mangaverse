@@ -14,6 +14,7 @@ import {
 import { removeSavedSearch, upsertSavedSearch } from '@app/db/browser';
 import type { SavedSearchEntry } from '@app/db';
 import { fetchAppSettings, settingsQueryKeys } from '@app/settings';
+import { failureMessage } from '../lib/app-feedback.js';
 import { getLocalDb } from '../lib/local-db.js';
 import {
   savedSearchesQueryOptions,
@@ -132,7 +133,7 @@ function SearchRoute() {
       label: provider.label,
       pending: query?.isFetching ?? false,
       ...(query?.isError === true
-        ? { error: error instanceof Error ? error.message : 'Provider search failed.' }
+        ? { error: failureMessage(error, 'Provider search failed.') }
         : {}),
     };
   });

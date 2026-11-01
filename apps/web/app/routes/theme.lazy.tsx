@@ -10,6 +10,7 @@ import {
 } from '@app/theme';
 import type { ThemeDefinition } from '@app/shared';
 
+import { failureMessage } from '../lib/app-feedback.js';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 import { useTheme } from '../providers/theme-provider.js';
 import { themeSettingsAfterDelete } from '../components/theme/theme-selection.js';
@@ -78,7 +79,9 @@ function ThemeRoute() {
     },
   });
 
-  const actionError = duplicateMutation.error?.message ?? deleteMutation.error?.message ?? null;
+  const failedAction = duplicateMutation.error ?? deleteMutation.error;
+  const actionError =
+    failedAction === null ? null : failureMessage(failedAction, 'Could not update this theme.');
 
   // `/theme/editor` is generated as a child of this route; the gallery is not a
   // layout, so the child owns the whole page whenever it is the active match.

@@ -237,7 +237,9 @@ test('Given a durable write fails, When the reader persists progress, Then it su
 
   const saveBanner = page.getByRole('alert').filter({ hasText: 'Saving locally failed' });
   await expect(saveBanner).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByText('IndexedDB blocked for test')).toBeVisible();
+  // The banner explains the failure in our words; the thrown text stays in the log.
+  await expect(saveBanner).toContainText('Recent changes are not stored');
+  await expect(page.getByText('IndexedDB blocked for test')).toHaveCount(0);
 
   await page.evaluate(() => {
     (window as unknown as { __blockLocalDb?: boolean }).__blockLocalDb = false;

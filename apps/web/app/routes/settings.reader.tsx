@@ -9,6 +9,7 @@ import {
 } from '@app/settings';
 import { getTitleReaderSettings, resetTitleReaderSettings } from '@app/db';
 import type { ReaderSettings } from '@app/shared';
+import { saveFeedback } from '../lib/feedback.js';
 import { QUERY_GC_TIMES, QUERY_STALE_TIMES } from '../queries/query-timing.js';
 import { useCoalescedSettingsWrite } from '../lib/use-coalesced-settings-write.js';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
@@ -44,6 +45,7 @@ function SettingsReaderRoute() {
   });
 
   const saveMutation = useMutation({
+    meta: saveFeedback('Could not save settings.'),
     // One write at a time: a burst of coalesced edits can otherwise resolve out
     // of order and the last snapshot to land would not be the last value painted.
     scope: { id: isTitleScoped ? `reader-settings:${title}` : 'reader-settings' },
@@ -75,6 +77,7 @@ function SettingsReaderRoute() {
   });
 
   const resetMutation = useMutation({
+    meta: saveFeedback('Could not reset settings.'),
     mutationFn: async () => {
       if (db === null || title === undefined) throw new Error('Local database is not ready.');
       await resetTitleReaderSettings(db, title);
@@ -101,7 +104,6 @@ function SettingsReaderRoute() {
       settings={data?.settings}
       isLoading={dbStatus === 'loading' || isLoading}
       isError={dbStatus === 'error' || isError}
-      isSaving={saveMutation.isPending || resetMutation.isPending}
       onChange={handleChange}
       onInteractionEnd={() => settingsWriter.flush()}
       {...(isTitleScoped

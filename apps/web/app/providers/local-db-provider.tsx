@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { AppDrizzleDb } from '@app/db';
+import { failureMessage } from '../lib/app-feedback.js';
 import { installFirstPartyProviders } from '../lib/first-party-providers.js';
 import {
   flushLocalDb,
@@ -43,10 +44,7 @@ const LocalDbContext = createContext<LocalDbContextValue>({
 });
 
 function formatDbError(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return String(error);
+  return failureMessage(error, 'The local library could not be opened.');
 }
 
 function logDbInitFailure(error: unknown): void {

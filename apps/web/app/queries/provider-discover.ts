@@ -113,7 +113,8 @@ export async function fetchProviderSectionPage(
 
 /**
  * Provider previews for the discover grid. A failed install read rejects so the
- * route shows its error state; one broken provider or section is dropped and
+ * route shows its error state, as does a feed where every section that could
+ * have shown something failed; one broken provider or section is dropped and
  * never blanks the rest of the page.
  */
 export async function fetchProviderDiscoverData(
@@ -122,6 +123,7 @@ export async function fetchProviderDiscoverData(
   explicitContent = false,
 ): Promise<DiscoverPageData> {
   const entries: DiscoverPageData['providers'][number][] = [];
+  const failures: unknown[] = [];
   const installed = await readInstalledExtensions(db);
 
   for (const binding of listProviderBindings()) {
@@ -175,6 +177,10 @@ export async function fetchProviderDiscoverData(
       }),
     );
 
+    for (const result of settled) {
+      if (result.status === 'rejected') failures.push(result.reason);
+    }
+
     const sections = settled
       .filter(
         (result): result is PromiseFulfilledResult<DiscoverSection> =>
@@ -188,6 +194,12 @@ export async function fetchProviderDiscoverData(
       providerName,
       sections,
     });
+  }
+
+  // Nothing loaded because the sources failed: that is a failure with a retry,
+  // not an empty catalog with a blank page.
+  if (failures.length > 0 && entries.every((entry) => entry.sections.length === 0)) {
+    throw failures[0];
   }
 
   return { providers: entries };

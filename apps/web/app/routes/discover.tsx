@@ -120,6 +120,7 @@ function useExpandedSection(
     initialPageParam: 0,
     getNextPageParam: (lastPage) =>
       lastPage.hasMore ? lastPage.offset + PROVIDER_SECTION_PAGE_SIZE : undefined,
+    meta: { feedback: { surface: 'inline' } },
     enabled:
       dbStatus === 'ready' &&
       db !== null &&
@@ -149,7 +150,13 @@ function useExpandedSection(
           hasNextPage: sectionQuery.hasNextPage ?? false,
         };
 
-  return { expandedSection, expandedSectionState, isError: sectionQuery.isError, loadMoreSection };
+  return {
+    expandedSection,
+    expandedSectionState,
+    isError: sectionQuery.isError,
+    retry: sectionQuery.refetch,
+    loadMoreSection,
+  };
 }
 
 /** Only a ready, settled, error-free feed with nothing to show offers "Browse providers". */
@@ -180,9 +187,10 @@ function DiscoverRoute() {
 
   const explicitContent = appSettingsQuery.data?.settings.explicitContent ?? false;
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: discoverQueryKeys.providers(explicitContent),
     queryFn: ({ signal }) => fetchProviderDiscoverData(db!, signal, explicitContent),
+    meta: { feedback: { surface: 'inline' } },
     enabled: dbStatus === 'ready' && db !== null && appSettingsQuery.isSuccess,
   });
 
@@ -193,6 +201,7 @@ function DiscoverRoute() {
     expandedSection,
     expandedSectionState,
     isError: isSectionError,
+    retry: retrySection,
     loadMoreSection,
   } = useExpandedSection(db, dbStatus, providers, search, explicitContent);
 
@@ -222,7 +231,14 @@ function DiscoverRoute() {
       }}
       onLoadMoreSection={loadMoreSection}
       onBrowseProviders={() => void navigate({ to: '/extensions' })}
-      {...(dbStatus === 'error' ? { onRetry: retryDb } : {})}
+      onRetry={() => {
+        if (dbStatus === 'error') {
+          retryDb();
+          return;
+        }
+        if (isError) void refetch();
+        if (isSectionError) void retrySection();
+      }}
     />
   );
 }

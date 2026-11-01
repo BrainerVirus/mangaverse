@@ -11,6 +11,8 @@ import {
   type StorageClearTarget,
 } from '@app/storage';
 
+import { failureMessage } from '../lib/app-feedback.js';
+import { saveFeedback } from '../lib/feedback.js';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 import { usePlatform } from '../providers/platform-provider.js';
 
@@ -60,11 +62,12 @@ function StorageRoute() {
     },
     onError: (error) => {
       setLastActionMessage(null);
-      setLastActionError(error instanceof Error ? error.message : 'Could not clear storage data.');
+      setLastActionError(failureMessage(error, 'Could not clear storage data.'));
     },
   });
 
   const persistMutation = useMutation({
+    meta: saveFeedback('Could not request persistent storage.'),
     mutationFn: async () => {
       const result = await requestPersistentStorage(adapter, capabilities);
       if (!result.ok) {
@@ -79,11 +82,8 @@ function StorageRoute() {
       );
       void queryClient.invalidateQueries({ queryKey: storageQueryKeys.summary() });
     },
-    onError: (error) => {
+    onError: () => {
       setLastActionMessage(null);
-      setLastActionError(
-        error instanceof Error ? error.message : 'Could not request persistent storage.',
-      );
     },
   });
 

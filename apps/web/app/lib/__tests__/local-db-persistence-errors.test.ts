@@ -54,7 +54,7 @@ describe('local-db persistence error reporting', () => {
 
     await flushLocalDb();
 
-    expect(handler).toHaveBeenCalledWith(expect.stringContaining('QuotaExceededError'));
+    expect(handler).toHaveBeenCalledWith(expect.stringContaining('out of storage'));
   });
 
   it('Given a successful flush, When flushLocalDb runs, Then the handler is cleared', async () => {

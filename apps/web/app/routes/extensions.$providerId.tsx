@@ -14,6 +14,7 @@ import { hasProviderCapability } from '@app/shared';
 import { useState } from 'react';
 import { searchQueryKeys } from '@app/search';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
+import { actionFailureMessage } from '../lib/app-feedback.js';
 import { flushLocalDb } from '../lib/local-db.js';
 import { getProviderBinding } from '../lib/provider-registry.js';
 import {
@@ -21,15 +22,6 @@ import {
   useProviderHealth,
   useProviderUpdate,
 } from '../lib/provider-operations.js';
-
-function errorMessageOf(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === 'object' && error !== null && 'message' in error) {
-    const message = (error as { message?: unknown }).message;
-    if (typeof message === 'string') return message;
-  }
-  return 'Could not save provider settings.';
-}
 
 function canProbeNetwork(data: ProviderDetailData | null | undefined): boolean {
   if (data === null || data === undefined) return false;
@@ -106,7 +98,7 @@ function ProviderDetailRoute() {
       void queryClient.invalidateQueries();
     },
     onError: (error) => {
-      setSettingsError(errorMessageOf(error));
+      setSettingsError(actionFailureMessage(error, 'Could not save provider settings.'));
     },
   });
 

@@ -16,6 +16,7 @@ import type { ThemeDefinition, ThemeDefinitionIssue, ThemeSettings } from '@app/
 
 import { createThemeEditorDraft } from '../components/theme/theme-editor-draft.js';
 import { themeSettingsAfterDelete } from '../components/theme/theme-selection.js';
+import { failureMessage } from '../lib/app-feedback.js';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 import { useTheme } from '../providers/theme-provider.js';
 
@@ -90,7 +91,7 @@ function ThemeEditorForm({
       await queryClient.invalidateQueries({ queryKey: themeQueryKeys.definitions() });
     },
     onError: (error) => {
-      setError({ action: 'save', message: error.message });
+      setError({ action: 'save', message: failureMessage(error, 'Could not save this theme.') });
     },
   });
 
@@ -109,7 +110,10 @@ function ThemeEditorForm({
       void navigate({ to: '/theme' });
     },
     onError: (error) => {
-      setError({ action: 'delete', message: error.message });
+      setError({
+        action: 'delete',
+        message: failureMessage(error, 'Could not delete this theme.'),
+      });
     },
   });
 

@@ -47,7 +47,8 @@ export function libraryOverviewQueryOptions(db: AppDrizzleDb, filter: LibraryFil
 export function libraryUpdateReportQueryOptions(db: AppDrizzleDb) {
   return queryOptions({
     queryKey: libraryQueryKeys.updateReport(),
-    queryFn: () => readLibraryUpdateReport(db),
+    // A query must resolve a value: no report yet is `null`, never undefined.
+    queryFn: async () => (await readLibraryUpdateReport(db)) ?? null,
     staleTime: 0,
     gcTime: QUERY_GC_TIMES.library,
   });

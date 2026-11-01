@@ -266,7 +266,7 @@ describe('theme routes', () => {
         'Could not save the theme',
       );
     });
-    expect(container.textContent).toContain('disk is full');
+    expect(container.textContent).toContain('out of storage');
     expect(container.textContent).not.toContain('Could not delete the theme');
 
     await act(async () => {
@@ -305,7 +305,7 @@ describe('theme routes', () => {
         'Could not delete the theme',
       );
     });
-    expect(container.textContent).toContain('database is locked');
+    expect(container.textContent).toContain("couldn't be read or saved");
     expect(container.textContent).not.toContain('Could not save the theme');
     expect(container.textContent).toContain('Theme editor');
     expect(mocks.theme.setThemeSettings).not.toHaveBeenCalled();

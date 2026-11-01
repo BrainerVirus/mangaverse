@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
+import { Toaster } from '@app/design-system';
 import type { PlatformCapabilities } from '@app/platform';
 import { QueryProvider } from '../providers/query-provider.js';
 import { LocalDbProvider } from '../providers/local-db-provider.js';
@@ -71,6 +72,7 @@ export function ShellProviders({ children, detectFn }: ShellProvidersProps) {
               <KeyboardShortcuts />
               <CommandPalette />
               <LocalDbErrorBanner />
+              <Toaster />
               <OnboardingGate>
                 <AppShellOrReaderLayout>{children}</AppShellOrReaderLayout>
               </OnboardingGate>

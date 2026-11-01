@@ -1,15 +1,41 @@
 # App overhaul - handoff
 
-Written 2026-10-31. No product code from this work has landed. Delete this file once milestone 1 starts
-and its contents stop being current.
+Current state, rewritten when #206 landed. Delete this file when its contents stop being current.
+
+## Where things are
+
+Milestone 1 is landing in the order the roadmap gives:
+
+| Issue | State                                                                                  |
+| ----- | -------------------------------------------------------------------------------------- |
+| #204  | Landed: `useState` and `try/catch` frozen by a shrinking baseline; `useStateReducer`.  |
+| #205  | Landed: local, capped, redacted event log and Diagnostics view.                        |
+| #207  | Landed: responsive layout repairs and the virtualized chapter list.                    |
+| #206  | This change: typed failures, status pages, inline retry, toasts, the Saving indicator. |
+| #208  | Next, and it runs alone after the others.                                              |
+
+## How failures work now (spec 2)
+
+- `classifyAppError` in `@app/shared` is the only thing that turns a failure into UI text. Routes
+  use `failureMessage` or `actionFailureMessage` from `apps/web/app/lib/app-feedback.ts`, never
+  `error.message`.
+- Queries and mutations declare `meta.feedback`; the caches in `query-provider.tsx` classify, log and
+  toast. A user's save uses `saveFeedback(...)`. Failures with no `meta` only reach the log.
+- Toasts go through `notify` and `Toaster` in `@app/design-system`. Nothing else imports Sonner.
+
+## Known gaps
+
+- The Saving toast is live for every mutation with `saveFeedback`, but the theme editor and provider
+  settings forms still change their button label while pending, so it can flash on a fast save. The
+  fix belongs in `@app/theme` and `@app/extensions`.
+- `packages/theme/src/components/ThemeAdvancedEditor.tsx` renders a caught export error's `.message`
+  itself, outside the route layer. Fix it when that package is next changed.
 
 ## Start here
 
 1. Read [spec.md](spec.md), [roadmap.md](roadmap.md), then the spec for your issue.
-2. Start with milestone 1. Issues #204, #205 and #207 can run in parallel. #206 follows #205, and #208 runs
-   alone after all of them.
-3. Run implementers, verifiers and reviewers on the models in `workit models show`, and set them explicitly
-   when launching. Text in a brief does not select a model.
+2. Run implementers, verifiers and reviewers on the models in `workit models show`, and set them
+   explicitly when launching. Text in a brief does not select a model.
 
 ## What was settled
 
@@ -48,8 +74,6 @@ Recorded in the Workit ledger with `workit ledger list --type decision`, and in 
 ## Cleaned up
 
 - The stopped wave 1 worktrees and the `overhaul-wave-1` fanout are retired. Don't resume them.
-- Unverified telemetry work from that wave is on the local, unpushed branch `wip/telemetry-log-reference`.
-  Treat it as a reference for #205, not as a base.
 - The old plan and recovery ledger moved to `docs/archive/`. `docs/SPEC.md`, `docs/ARCHITECTURE.md`,
   `DESIGN.md` and `docs/Design.md` point here and lose on any conflict.
 - Another session may use the main checkout. Leave it alone.

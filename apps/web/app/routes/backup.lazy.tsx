@@ -2,7 +2,7 @@ import { createLazyFileRoute } from '@tanstack/react-router';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { RestorePreviewReport } from '@app/db';
-import type { BackupDocumentV1 } from '@app/shared';
+import { UserFacingError, type BackupDocumentV1 } from '@app/shared';
 import {
   applyBackupImport,
   BackupPage,
@@ -19,6 +19,7 @@ import { discoverQueryKeys, searchQueryKeys } from '@app/search';
 import { settingsQueryKeys } from '@app/settings';
 import { themeQueryKeys } from '@app/theme';
 
+import { failureMessage } from '../lib/app-feedback.js';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 
 export const Route = createLazyFileRoute('/backup')({
@@ -52,7 +53,8 @@ function BackupRoute() {
     mutationFn: async (content: string) => {
       const parsed = parseBackupFileContent(content);
       if (!parsed.ok) {
-        throw new Error(parsed.error.message);
+        // Says what is wrong with the file, in words written for the user.
+        throw new UserFacingError(parsed.error.message);
       }
       const report = await previewBackupImport(db!, parsed.value);
       return { document: parsed.value, report };
@@ -66,7 +68,7 @@ function BackupRoute() {
     onError: (error) => {
       setPendingDocument(null);
       setPreview(null);
-      setRestoreError(error instanceof Error ? error.message : 'Could not read backup file.');
+      setRestoreError(failureMessage(error, 'Could not read backup file.'));
     },
   });
 
@@ -105,7 +107,7 @@ function BackupRoute() {
     },
     onError: (error) => {
       setRestoreSuccess(false);
-      setRestoreError(error instanceof Error ? error.message : 'Restore failed.');
+      setRestoreError(failureMessage(error, 'Restore failed.'));
     },
   });
 

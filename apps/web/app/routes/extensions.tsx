@@ -30,6 +30,7 @@ import {
 import type { AppDrizzleDb } from '@app/db';
 import { searchQueryKeys } from '@app/search';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
+import { actionFailureMessage } from '../lib/app-feedback.js';
 import { flushLocalDb } from '../lib/local-db.js';
 
 const extensionsSearchSchema = z.object({
@@ -42,15 +43,6 @@ const extensionsSearchSchema = z.object({
 type ExtensionsSearch = {
   install?: boolean;
 };
-
-function errorMessageOf(error: unknown, fallback: string): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === 'object' && error !== null && 'message' in error) {
-    const message = (error as { message?: unknown }).message;
-    if (typeof message === 'string') return message;
-  }
-  return fallback;
-}
 
 function useRegistryImport(db: AppDrizzleDb | null, queryClient: QueryClient) {
   const [open, setOpen] = useState(false);
@@ -100,7 +92,7 @@ function useRegistryImport(db: AppDrizzleDb | null, queryClient: QueryClient) {
     },
     onError: (cause) => {
       setPreparation(null);
-      setError(errorMessageOf(cause, 'Could not review the exported providers.'));
+      setError(actionFailureMessage(cause, 'Could not review the exported providers.'));
     },
   });
 
@@ -133,7 +125,7 @@ function useRegistryImport(db: AppDrizzleDb | null, queryClient: QueryClient) {
       setPreview(null);
       setPreparation(null);
       document.current = undefined;
-      setError(errorMessageOf(cause, 'Could not load the document.'));
+      setError(actionFailureMessage(cause, 'Could not load the document.'));
     },
   });
 
@@ -156,7 +148,7 @@ function useRegistryImport(db: AppDrizzleDb | null, queryClient: QueryClient) {
       void queryClient.invalidateQueries({ queryKey: searchQueryKeys.providers() });
     },
     onError: (cause) => {
-      setError(errorMessageOf(cause, 'Could not import the registry.'));
+      setError(actionFailureMessage(cause, 'Could not import the registry.'));
     },
   });
 
@@ -180,7 +172,7 @@ function useRegistryImport(db: AppDrizzleDb | null, queryClient: QueryClient) {
       void queryClient.invalidateQueries({ queryKey: searchQueryKeys.providers() });
     },
     onError: (cause) => {
-      setError(errorMessageOf(cause, 'Could not import the extensions.'));
+      setError(actionFailureMessage(cause, 'Could not import the extensions.'));
     },
   });
 
@@ -286,7 +278,7 @@ function useExtensionExport(db: AppDrizzleDb | null) {
     },
     onError: (cause) => {
       setWarnings([]);
-      setError(errorMessageOf(cause, 'Could not export installed extensions.'));
+      setError(actionFailureMessage(cause, 'Could not export installed extensions.'));
     },
   });
 
@@ -362,7 +354,7 @@ function ExtensionsRoute() {
       }
     },
     onError: (error: Error) => {
-      setInstallError(error.message);
+      setInstallError(actionFailureMessage(error, 'Could not install this provider.'));
     },
   });
 
@@ -388,7 +380,7 @@ function ExtensionsRoute() {
       void navigate({ search: {} });
     },
     onError: (error: Error) => {
-      setInstallError(error.message);
+      setInstallError(actionFailureMessage(error, 'Could not install this provider.'));
     },
   });
 
