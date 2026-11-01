@@ -16,7 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # Full history: lint compares lint/baseline.json with its merge base on origin/main.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Install pnpm
         uses: pnpm/action-setup@v6

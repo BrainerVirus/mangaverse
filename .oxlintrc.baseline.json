@@ -1,0 +1,25 @@
+{
+  "$schema": "https://oxc.rs/schema.json",
+  "plugins": [],
+  "categories": {
+    "correctness": "off",
+    "suspicious": "off",
+    "pedantic": "off",
+    "perf": "off",
+    "style": "off",
+    "restriction": "off",
+    "nursery": "off"
+  },
+  "jsPlugins": ["./lint/team-conventions.cjs"],
+  "rules": {
+    "team-conventions/no-use-state": "error",
+    "team-conventions/no-try-catch": "error"
+  },
+  "ignorePatterns": [
+    "**/*.test.*",
+    "**/*.spec.*",
+    "**/__tests__/**",
+    "**/e2e-production/**",
+    "apps/web/app/routeTree.gen.ts"
+  ]
+}
