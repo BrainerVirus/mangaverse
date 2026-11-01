@@ -64,7 +64,7 @@ describe('sanitizeLogMessage', () => {
     ['spaces', '{"password":"SECRET FIRST SECOND"}', '{"password":"[redacted]"}'],
     ['escaped quotes', '{"password":"SECRET \\"FIRST\\" SECOND"}', '{"password":"[redacted]"}'],
     ['a trailing backslash', '{"token":"SECRET\\\\","page":2}', '{"token":"[redacted]","page":2}'],
-    ['single quotes', "{'secret':'SECRET FIRST'}", "{'secret':'[redacted]'}"],
+    ['single quotes', "{'secret':'SECRET FIRST'}", "{'secret':'[redacted]'"],
     ['an unquoted key', 'password="SECRET FIRST" retried', 'password="[redacted]" retried'],
     ['a prefixed key', '{"client_secret":"SECRET FIRST"}', '{"client_secret":"[redacted]"}'],
     [
@@ -89,19 +89,23 @@ describe('sanitizeLogMessage', () => {
     expect(healed).not.toContain('a secret');
   });
 
-  it('keeps following text after a well-formed single-quoted value', () => {
-    expect(sanitizeLogMessage("secret='abc' next")).toBe("secret='[redacted]' next");
+  it('fails closed after a single-quoted value with any trailing text', () => {
+    expect(sanitizeLogMessage("secret='abc' next")).toBe("secret='[redacted]'");
   });
 
   it('fails closed when the single-quoted tail starts at a separator or a space', () => {
     expect(sanitizeLogMessage("password='it',s a secret tail'")).toBe("password='[redacted]'");
     expect(sanitizeLogMessage("password='james' secret tail'")).toBe("password='[redacted]'");
+    expect(sanitizeLogMessage("password='it',\"page\":SECRET_TAIL'")).toBe("password='[redacted]'");
+    expect(sanitizeLogMessage("password='it'},SECRET_TAIL'")).toBe("password='[redacted]'");
+    expect(sanitizeLogMessage("password='it', page: 2}")).toBe("password='[redacted]'");
   });
 
-  it('keeps the structure of a well-formed single-quoted JSON object', () => {
-    expect(sanitizeLogMessage("{'secret':'abc','page':2}")).toBe(
-      "{'secret':'[redacted]','page':2}",
-    );
+  it('fails closed on a single-quoted JSON object rather than trust its shape', () => {
+    const redacted = sanitizeLogMessage("{'secret':'abc','page':2}");
+    expect(redacted).toBe("{'secret':'[redacted]'");
+    expect(redacted).not.toContain('abc');
+    expect(redacted).not.toContain('page');
   });
 
   it('redacts a double-quoted value containing an apostrophe without failing closed', () => {

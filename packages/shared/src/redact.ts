@@ -99,19 +99,12 @@ function redactCredentials(text: string): string {
     let valueEnd: number;
     if (isQuoted) {
       valueEnd = endOfQuoted(text, quoteEnd - 1, quoteEnd - 1 - valueAt);
-      // An apostrophe inside a single-quoted value (password='it's a secret')
-      // closes the string early. If the rest of the line is not a clean JSON
-      // field separator, it is the value's tail: fail closed to the line end.
+      // A single-quoted value cannot be distinguished from an early apostrophe
+      // once text follows the closing quote, even when that text looks like JSON.
+      // Any non-whitespace after it may be the secret's tail: fail closed.
       if (text[valueAt] === "'") {
         const tailEnd = endOfMatch(LINE_REMAINDER_AT, text, valueEnd);
-        const tail = text.slice(valueEnd, tailEnd);
-        const closesStructure =
-          /^[,\s]*['"][\w-]+['"]\s*[:=]/.test(tail) || /^[,\s]*[}\]]/.test(tail);
-        if (tail.includes("'") && !closesStructure) {
-          valueEnd = tailEnd;
-        } else if (endOfMatch(BARE_VALUE_AT, text, valueEnd) > valueEnd) {
-          valueEnd = tailEnd;
-        }
+        if (/\S/.test(text.slice(valueEnd, tailEnd))) valueEnd = tailEnd;
       } else if (endOfMatch(BARE_VALUE_AT, text, valueEnd) > valueEnd) {
         valueEnd = endOfMatch(LINE_REMAINDER_AT, text, valueAt);
       }
