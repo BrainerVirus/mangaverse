@@ -217,11 +217,17 @@ test('Given the detail page at 1440px, Then no empty box sits under the cover', 
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(DETAIL_PATH);
   await expect(page.getByRole('heading', { name: TITLE })).toBeVisible({ timeout: 30_000 });
+  // The cover is a cached image; measuring before it renders reads a null box.
+  await expect(page.locator(`img[alt="${TITLE}"]`)).toBeVisible({ timeout: 30_000 });
 
   const cover = await page.evaluate((heading) => {
-    const image = document.querySelector(`img[alt="${heading}"]`) as HTMLImageElement;
-    const box = image.parentElement as HTMLElement;
-    const title = document.querySelector('h1') as HTMLElement;
+    const image = document.querySelector(`img[alt="${heading}"]`);
+    const title = document.querySelector('h1');
+    if (!(image instanceof HTMLImageElement) || title === null) {
+      throw new Error('cover image or title was not rendered');
+    }
+    const box = image.parentElement;
+    if (box === null) throw new Error('cover image has no box');
     return {
       boxHeight: box.getBoundingClientRect().height,
       imageHeight: image.getBoundingClientRect().height,
