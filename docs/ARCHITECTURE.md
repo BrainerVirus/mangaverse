@@ -1,5 +1,7 @@
 # MangaVerse Rewrite Architecture
 
+> Describes the code as it stands. Target architecture is in [the app overhaul spec](overhaul/spec.md), which wins on any conflict: no SSR, a data process with native SQLite on Electron, and TanStack DB over Drizzle.
+
 ## Architecture Summary
 
 MangaVerse will use a monorepo with app shells and reusable packages. The web app is built with TanStack Start. The desktop app is built with Electron and reuses the same web UI and core packages, adding desktop-only capabilities through `@app/platform` and an optional local Express service.
@@ -29,7 +31,7 @@ packages/
   test-utils/
 docs/
   SPEC.md
-  PLAN.md
+  overhaul/
   ARCHITECTURE.md
   Design.md
 ```

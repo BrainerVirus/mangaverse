@@ -20,8 +20,8 @@ Recorded in the Workit ledger with `workit ledger list --type decision`, and in 
 - Sync metadata and shareable settings only. Page images never sync or get hosted.
 - No native mobile, phone bridge, browser extension route, paired helper, Vercel or Redis.
 - No rotating hosts or anti-bot circumvention.
-- TanStack DB is the UI data layer on Drizzle and SQLite, not a replacement. npm `latest` was `1.0.0-rc.1.1`
-  when decided, so pin it and check for a stable 1.0.
+- TanStack DB is the UI data layer on Drizzle and SQLite, not a replacement. Pin `@tanstack/db` and
+  `@tanstack/react-db` to exactly `1.0.0-rc.1.1`. It is added when #209 first needs it, because `knip` fails on an unused dependency.
 
 ## Waiting on the owner
 
@@ -45,12 +45,11 @@ Recorded in the Workit ledger with `workit ledger list --type decision`, and in 
 - Research was partly done on a low-effort model, and some sources are secondary or vendor blogs. Verify
   anything a decision rests on.
 
-## Loose ends
+## Cleaned up
 
-- **Stopped wave 1 workers:** `mangaverse-wt/telemetry-log`, `provider-proxy` and `responsive-fix` hold
-  uncommitted, unverified work on branches with no commits. The old `overhaul-wave-1` fanout plan and its stop
-  order are obsolete, so don't resume it. `telemetry-log` may be a useful reference for #205; the others predate
-  this design. The owner has not yet decided whether to discard them.
-- **Audit worktree:** `app-audit` holds nothing beyond the merged docs and can be removed.
-- **Main checkout:** another session uses it, and it was still on a merged branch at last check. Don't touch it.
-- **Docs:** `docs/recovery`, `docs/PLAN.md` and `DESIGN.md` still describe the old direction until #208 and #229.
+- The stopped wave 1 worktrees and the `overhaul-wave-1` fanout are retired. Don't resume them.
+- Unverified telemetry work from that wave is on the local, unpushed branch `wip/telemetry-log-reference`.
+  Treat it as a reference for #205, not as a base.
+- The old plan and recovery ledger moved to `docs/archive/`. `docs/SPEC.md`, `docs/ARCHITECTURE.md`,
+  `DESIGN.md` and `docs/Design.md` point here and lose on any conflict.
+- Another session may use the main checkout. Leave it alone.

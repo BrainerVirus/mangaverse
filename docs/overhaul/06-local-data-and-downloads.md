@@ -42,7 +42,8 @@ scan of a key query. Timing budgets from spec 4 are measured on the reference ma
 
 ### TanStack DB
 
-Screens read local data through TanStack DB live queries, adopted gradually starting with the library. Small
+Screens read local data through TanStack DB live queries, adopted gradually starting with the library.
+Pin `@tanstack/db` and `@tanstack/react-db` to exactly `1.0.0-rc.1.1` with no range, and upgrade only on purpose. Small
 sets load eagerly, while large tables such as chapters load on demand from SQLite. The adapter never treats
 TanStack DB persistence as the store, because it has no migration path for local-only rows. Provider calls stay
 in TanStack Query.

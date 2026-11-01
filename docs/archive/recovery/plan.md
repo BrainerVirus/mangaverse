@@ -1,5 +1,7 @@
 # Web-first recovery implementation plan
 
+> **Archived.** Historical only: superseded by [the app overhaul spec](../../overhaul/spec.md). Do not plan from it.
+
 > For the implementing model: use `executing-plans` for one slice at a time and
 > `workit-bdd` for behavior changes. Do not execute this whole plan as one change.
 

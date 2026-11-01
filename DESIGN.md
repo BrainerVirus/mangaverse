@@ -53,6 +53,8 @@ components:
 
 # Design System: MangaVerse
 
+> **Being replaced by [spec 9](docs/overhaul/09-design.md).** Its "calm, deep" direction is retired in favor of playful, welcoming liquid glass. Until #229 lands, use the existing tokens here for functional repairs, and do not start new visual work from this file.
+
 **Status: target design language.** This file specifies what MangaVerse must look like once the
 liquid-glass rebuild lands — not a description of today's components. §11 states honestly what exists
 today versus what is new; §13 is the ordered plan that closes the gap. When this file and the code

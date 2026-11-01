@@ -6,30 +6,29 @@ This file is the operational guide for agentic coding tools working in this repo
 
 Agents must read the relevant rewrite docs before implementation:
 
-- Read `docs/recovery/spec.md` and `docs/recovery/plan.md` before recovery work;
-  they supersede the historical phase sequence.
+- Read `docs/overhaul/spec.md`, `docs/overhaul/roadmap.md` and the spec for your issue first. They win over
+  every other doc.
 - Read `docs/SPEC.md` before implementing or changing product behavior.
-- Read `docs/PLAN.md` before selecting or sequencing implementation tasks.
 - Read `docs/ARCHITECTURE.md` before changing package boundaries, data flow, database access, provider runtime, reader internals, platform adapters, app shell structure, or motion architecture.
 - Read `DESIGN.md` at the repo root (the design source of truth: tokens, typography, component styling, layout principles) and `docs/Design.md` (the binding UI rules) before creating or modifying UI, styling, layouts, themes, interactions, reader chrome, empty states, loading states, error states, or motion.
 
 ## Project Direction
 
-MangaVerse is a web-native, local-first manga, comic and webtoon reader that also ships as an Electron desktop app for Windows, macOS and Linux. The legacy Expo tree was removed (Phase 10.5); `apps/` and `packages/` are canonical. Port behavior only after package contracts and tests exist.
+MangaVerse is a local-first manga, comic and webtoon reader. The Electron desktop app for Windows, macOS and Linux is built first as the complete product, with no account or external service required. An invite-only website follows. There will never be a native mobile app. The legacy Expo tree was removed (Phase 10.5); `apps/` and `packages/` are canonical. Port behavior only after package contracts and tests exist.
 
 ## Target Stack
 
-React + TanStack Start (web) and Router; TanStack Query for remote state and
-provider calls; Zustand for client state; TypeScript everywhere. Electron for
-desktop, with Express.js where a local HTTP boundary helps. SQLite + Drizzle
-(browser SQLite/WASM on web). shadcn/ui through `@app/design-system`; GSAP
-through `@app/motion`. Monorepo of reusable packages. Cloud sync only after
-local-first behavior is stable.
+React + TanStack Router, as a client-rendered shell; TanStack DB (pinned) for local
+data and TanStack Query for provider calls; Zustand for shared client state;
+TypeScript, Zod, and Effect 4 for I/O modules. Electron first, with native SQLite +
+Drizzle in a data process (browser SQLite/WASM in a Worker on web, later). shadcn/ui through `@app/design-system`; GSAP
+through `@app/motion`. Monorepo of reusable packages. Optional metadata sync
+via Supabase comes after local-first behavior is stable. See `docs/overhaul/`.
 
 ## Layout
 
-`apps/web`, `apps/desktop`, and `packages/*`; `docs/` holds `SPEC.md`, `PLAN.md`,
-`ARCHITECTURE.md`, `Design.md` and `recovery/`.
+`apps/web`, `apps/desktop`, and `packages/*`; `docs/` holds `SPEC.md`,
+`ARCHITECTURE.md`, `Design.md`, `overhaul/` and `archive/`.
 
 ## Package Boundary Rules
 
@@ -110,9 +109,9 @@ Critical flows: add/search provider, add manga, open details, start/continue
 reading, reader mode, tap zones, switch/migrate provider, backup, restore,
 theme, reduced motion.
 
-## Recovery State (current)
+## Current State
 
-Web-first recovery is the active workstream; `docs/recovery/plan.md` is the single ledger (S0–S6 done, S7 covers publication). Electron is retained but deferred until the web flow is proven.
+The app overhaul is the active workstream: `docs/overhaul/roadmap.md` holds the order and issues, and `docs/overhaul/handoff.md` the current state. No overhaul product code has landed yet, so the sections here describing the target may be ahead of the code.
 
 ## Effect Rules
 
@@ -141,4 +140,4 @@ CI runs both after the build; run both before reporting a change.
 - Checks: `pnpm lint` / `lint:fix`, `pnpm format` / `format:check` (oxfmt), `pnpm typecheck`, `pnpm test`, `pnpm run doctor`, `pnpm knip`
 - Builds: `pnpm build`, `pnpm --filter @app/web build`, `pnpm --filter @app/desktop build`; clean with `pnpm clean`
 
-Update this file and `docs/PLAN.md` when the canonical commands change.
+Update this file when the canonical commands change.

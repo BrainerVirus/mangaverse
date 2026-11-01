@@ -5,7 +5,7 @@
 `useState` and `try/catch` each appear well over 100 times, and 31 catch blocks plus 12 no-op `.catch`
 calls may swallow errors. Duplicate helpers exist (`errorMessage` four times, `isPlainObject` three
 times). 12 of 21 packages have one consumer. `test-utils` is unused, and `backup` mostly wraps `db`.
-Docs overlap across `DESIGN.md`, `docs/Design.md`, `SPEC`, `PLAN` and the recovery ledger.
+Docs overlap across `DESIGN.md`, `docs/Design.md`, and `SPEC`. The old plan and recovery ledger are archived.
 
 ## Decisions
 
