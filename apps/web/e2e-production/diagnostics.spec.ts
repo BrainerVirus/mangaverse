@@ -47,9 +47,30 @@ const SEEDED_EVENTS = [
     kind: 'error',
     message: '{"Set-Cookie":{"nested":{"session":"SECRETNEST"},"other":"SECRETTAIL"}}',
   },
+  {
+    id: 'seed-apostrophe',
+    at: '2026-05-23T09:59:57.000Z',
+    kind: 'error',
+    message: "password='it's A_SECRET_ONE'",
+  },
+  {
+    id: 'seed-apostrophe-tail',
+    at: '2026-05-23T09:59:56.000Z',
+    kind: 'error',
+    message: "password='it',s A_SECRET_TWO'",
+  },
 ] as const;
 
-const SEEDED_FRAGMENTS = ['FIRST SECOND', 'SECRET TAIL', 'SECRETNEST', 'SECRETTAIL', 'REMAINDER'];
+const SEEDED_FRAGMENTS = [
+  'FIRST SECOND',
+  'SECRET TAIL',
+  'SECRETNEST',
+  'A_SECRET_ONE',
+  'A_SECRET_TWO',
+  'SECRETTAIL',
+  'REMAINDER',
+  'a secret tail',
+];
 
 test('Given seeded token-bearing events, When Diagnostics loads, filters, clears and exports, Then it makes no network request and the export carries no credential', async ({
   page,
@@ -66,11 +87,12 @@ test('Given seeded token-bearing events, When Diagnostics loads, filters, clears
   const section = page.getByRole('region', { name: 'Event log' });
   await expect(section).toBeVisible({ timeout: 20_000 });
   const panel = (name: string) => section.getByRole('tabpanel', { name });
-  await expect(panel('All').getByText('error', { exact: true })).toHaveCount(3);
+  await expect(panel('All').getByText('error', { exact: true })).toHaveCount(5);
   await expect(
     panel('All').getByText('{"password":"[redacted]"} password=[redacted]'),
   ).toBeVisible();
   await expect(panel('All').getByText('{"Set-Cookie":"[redacted]"}')).toBeVisible();
+  await expect(panel('All').getByText("password='[redacted]'", { exact: true })).toHaveCount(2);
   await expect(panel('All').getByText('2026-05-23T10:00:02.000Z')).toBeVisible();
   await expect(
     panel('All').getByText('Bearer [redacted] GET https://api.mangadex.org/manga'),
@@ -88,7 +110,7 @@ test('Given seeded token-bearing events, When Diagnostics loads, filters, clears
   });
 
   await section.getByRole('tab', { name: 'Errors' }).click();
-  await expect(panel('Errors').getByText('error', { exact: true })).toHaveCount(3);
+  await expect(panel('Errors').getByText('error', { exact: true })).toHaveCount(5);
   await expect(
     panel('Errors').getByText(/Search https:\/\/api\.mangadex\.org\/manga took too long/),
   ).toHaveCount(0);

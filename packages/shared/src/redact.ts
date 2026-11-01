@@ -99,6 +99,14 @@ function redactCredentials(text: string): string {
     let valueEnd: number;
     if (isQuoted) {
       valueEnd = endOfQuoted(text, quoteEnd - 1, quoteEnd - 1 - valueAt);
+      // A single-quoted value cannot be distinguished from an early apostrophe
+      // once any text follows the closing quote — and a real secret can continue
+      // past a newline. Fail closed to the end of the text, not just the line.
+      if (text[valueAt] === "'") {
+        if (/\S/.test(text.slice(valueEnd))) valueEnd = text.length;
+      } else if (endOfMatch(BARE_VALUE_AT, text, valueEnd) > valueEnd) {
+        valueEnd = endOfMatch(LINE_REMAINDER_AT, text, valueAt);
+      }
     } else if (isPlaceholder) {
       // An older row may still carry text after the marker; heal it instead of ending the value at `]`.
       valueEnd = endOfMatch(LINE_REMAINDER_AT, text, valueAt);

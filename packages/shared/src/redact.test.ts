@@ -64,7 +64,7 @@ describe('sanitizeLogMessage', () => {
     ['spaces', '{"password":"SECRET FIRST SECOND"}', '{"password":"[redacted]"}'],
     ['escaped quotes', '{"password":"SECRET \\"FIRST\\" SECOND"}', '{"password":"[redacted]"}'],
     ['a trailing backslash', '{"token":"SECRET\\\\","page":2}', '{"token":"[redacted]","page":2}'],
-    ['single quotes', "{'secret':'SECRET FIRST'}", "{'secret':'[redacted]'}"],
+    ['single quotes', "{'secret':'SECRET FIRST'}", "{'secret':'[redacted]'"],
     ['an unquoted key', 'password="SECRET FIRST" retried', 'password="[redacted]" retried'],
     ['a prefixed key', '{"client_secret":"SECRET FIRST"}', '{"client_secret":"[redacted]"}'],
     [
@@ -74,6 +74,42 @@ describe('sanitizeLogMessage', () => {
     ],
   ])('redacts a whole quoted value with %s', (_name, input, expected) => {
     expect(sanitizeLogMessage(input)).toBe(expected);
+  });
+
+  it('fails closed on an apostrophe inside a single-quoted value', () => {
+    expect(sanitizeLogMessage("password='it's a secret'")).toBe("password='[redacted]'");
+    expect(sanitizeLogMessage("password='it's a secret'\nnext line")).toBe("password='[redacted]'");
+  });
+
+  it('heals a stored quoted value whose tail leaked past its apostrophe', () => {
+    const healed = sanitizeLogMessage("password='[redacted]'s a secret'");
+    expect(healed).toBe("password='[redacted]'");
+    expect(healed).not.toContain('a secret');
+  });
+
+  it('fails closed after a single-quoted value with any trailing text', () => {
+    expect(sanitizeLogMessage("secret='abc' next")).toBe("secret='[redacted]'");
+  });
+
+  it('fails closed when the single-quoted tail starts at a separator or a space', () => {
+    expect(sanitizeLogMessage("password='it',s a secret tail'")).toBe("password='[redacted]'");
+    expect(sanitizeLogMessage("password='james' secret tail'")).toBe("password='[redacted]'");
+    expect(sanitizeLogMessage("password='it',\"page\":SECRET_TAIL'")).toBe("password='[redacted]'");
+    expect(sanitizeLogMessage("password='it'},SECRET_TAIL'")).toBe("password='[redacted]'");
+    expect(sanitizeLogMessage("password='it', page: 2}")).toBe("password='[redacted]'");
+    expect(sanitizeLogMessage("password='it's\nSECRET_TAIL'")).toBe("password='[redacted]'");
+    expect(sanitizeLogMessage("password='it's\r\nSECRET_TAIL'")).toBe("password='[redacted]'");
+  });
+
+  it('fails closed on a single-quoted JSON object rather than trust its shape', () => {
+    const redacted = sanitizeLogMessage("{'secret':'abc','page':2}");
+    expect(redacted).toBe("{'secret':'[redacted]'");
+    expect(redacted).not.toContain('abc');
+    expect(redacted).not.toContain('page');
+  });
+
+  it('redacts a double-quoted value containing an apostrophe without failing closed', () => {
+    expect(sanitizeLogMessage('password="it\'s a secret" next')).toBe('password="[redacted]" next');
   });
 
   it.each([
