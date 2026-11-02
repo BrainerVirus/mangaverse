@@ -37,6 +37,10 @@ describe('Alert', () => {
     const alert = document.querySelector('[data-alert]');
     expect(alert?.className).toContain('text-foreground');
     expect(alert?.className).toContain('text-destructive-glass');
+    // The description must inherit the root foreground; a muted override here
+    // dropped the destructive body copy below 4.5:1 on its tinted fill.
+    const description = document.querySelector('[data-alert-description]');
+    expect(description?.className).not.toContain('text-muted-foreground');
     // Every block after the icon is padded past it; the icon is not a layer.
     expect(alert?.className).toContain('[&>svg~*]:pl-7');
     expect(alert?.className).toContain('[&>svg]:absolute');

@@ -54,7 +54,7 @@ const AlertDescription = React.forwardRef<HTMLDivElement, React.HTMLAttributes<H
     <div
       ref={ref}
       data-alert-description=""
-      className={cn('type-body text-muted-foreground [&>p]:m-0 [&>ul]:m-0', className)}
+      className={cn('type-body [&>p]:m-0 [&>ul]:m-0', className)}
       {...props}
     >
       {children}
