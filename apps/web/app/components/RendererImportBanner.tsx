@@ -68,7 +68,7 @@ export function RendererImportBanner() {
   };
 
   return (
-    <div className="fixed inset-x-0 top-0 z-50 p-3">
+    <div className="px-3 pt-3">
       <Alert variant="destructive" role="alert" className="mx-auto max-w-3xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>

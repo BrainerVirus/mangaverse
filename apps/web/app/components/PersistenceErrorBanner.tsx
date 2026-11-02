@@ -21,8 +21,8 @@ export function PersistenceErrorBanner() {
   }
 
   return (
-    <div className="p-3">
-      <Alert variant="destructive" role="alert">
+    <div className="px-3 pt-3">
+      <Alert variant="destructive" role="alert" className="mx-auto max-w-3xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <AlertTitle>Saving locally failed</AlertTitle>
@@ -40,9 +40,9 @@ export function PersistenceErrorBanner() {
 }
 
 /**
- * Surfaces a failure to open the local database. Mounted once in
- * `ShellProviders` so the app shell and the reader share one banner; the
- * reader layout is `fixed`, hence the overlay positioning.
+ * Surfaces a failure to open the local database. Mounted once per layout in
+ * `AppNotices`, above the outlet, so it takes layout space instead of covering
+ * the page header.
  */
 export function LocalDbErrorBanner() {
   const status = useLocalDbStatus();
@@ -54,7 +54,7 @@ export function LocalDbErrorBanner() {
   }
 
   return (
-    <div className="fixed inset-x-0 top-0 z-50 p-3">
+    <div className="px-3 pt-3">
       <Alert variant="destructive" role="alert" className="mx-auto max-w-3xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
