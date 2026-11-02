@@ -9,12 +9,15 @@ import {
   type PlatformProviderResponse,
 } from '@app/platform';
 import {
+  fetchMainProcessBytes,
   fetchNetworkResponse,
   NetworkFetchError,
   REQUEST_TIMEOUT_MS,
   withRefusalLog,
   type NetworkTransportDeps,
 } from './main-process-fetch.js';
+import type { PageStore } from './page-store.js';
+import { pageMimeType } from './page-store.js';
 import type { ProviderAllowlist } from './provider-allowlist.js';
 import { networkErrorToAppError, toIpcAppResult } from './platform-ipc.js';
 
@@ -22,6 +25,7 @@ export const PROVIDER_NETWORK_CHANNELS = [
   PLATFORM_IPC.PROVIDER_NETWORK_REGISTER,
   PLATFORM_IPC.PROVIDER_NETWORK_UNREGISTER,
   PLATFORM_IPC.PROVIDER_NETWORK_REQUEST,
+  PLATFORM_IPC.PROVIDER_NETWORK_STORE,
 ] as const;
 
 /** Response headers a provider client may see; everything else stays in main. */
@@ -58,6 +62,7 @@ export interface ProviderNetworkIpcDeps {
   readonly allowlist: ProviderAllowlist;
   readonly isTrustedFrame: (frame: WebFrameMain | null) => frame is WebFrameMain;
   readonly networkTransport: NetworkTransportDeps;
+  readonly pageStore: PageStore;
 }
 
 /**
@@ -128,6 +133,31 @@ export function registerProviderNetworkIpc(deps: ProviderNetworkIpcDeps): void {
         headers: filterProviderResponseHeaders(response.headers),
         bodyText: new TextDecoder().decode(response.body),
         finalUrl: response.finalUrl,
+      };
+      return ok(value);
+    } catch (e) {
+      return err(networkErrorToAppError(e));
+    }
+  });
+
+  handle(PLATFORM_IPC.PROVIDER_NETWORK_STORE, async ([request]) => {
+    const deadline = Date.now() + REQUEST_TIMEOUT_MS;
+    try {
+      const fetched = await withRefusalLog(deps.networkTransport, () =>
+        fetchMainProcessBytes(
+          request.url,
+          async (url) => deps.allowlist.allowsUrl(request.providerId, url),
+          deps.networkTransport,
+          deadline,
+        ),
+      );
+      const bytes = new Uint8Array(fetched.data);
+      // Main writes the page; the renderer only learns the URL and size.
+      const url = await deps.pageStore.put(request.key, bytes, fetched.mimeType);
+      const value = {
+        url,
+        mimeType: pageMimeType(fetched.mimeType, bytes) ?? fetched.mimeType,
+        byteSize: bytes.byteLength,
       };
       return ok(value);
     } catch (e) {

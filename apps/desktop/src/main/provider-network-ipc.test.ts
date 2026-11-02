@@ -5,6 +5,9 @@ import { createProviderAllowlist } from './provider-allowlist.js';
 import { registerProviderNetworkIpc } from './provider-network-ipc.js';
 
 function register(opts: { trusted?: boolean; requestHop?: RequestHop } = {}) {
+  const put = vi.fn<(...args: unknown[]) => Promise<string>>(
+    async () => 'page://store/abc',
+  );
   const handlers = new Map<string, (...args: unknown[]) => Promise<unknown>>();
   const ipcMain = {
     handle: (channel: string, fn: (...args: unknown[]) => Promise<unknown>) => {
@@ -32,10 +35,17 @@ function register(opts: { trusted?: boolean; requestHop?: RequestHop } = {}) {
       requestHop,
       log,
     },
+    pageStore: {
+      put,
+      urlFor: async () => undefined,
+      delete: async () => undefined,
+      listKeys: async () => [],
+      resolve: async () => ({ kind: 'refused' as const, status: 404 as const }),
+    },
   });
   const call = (channel: string, ...args: unknown[]) =>
     handlers.get(channel)!({ senderFrame: {} as never }, ...args);
-  return { allowlist, call, requestHop, log };
+  return { allowlist, call, requestHop, log, put };
 }
 
 describe('registerProviderNetworkIpc', () => {
@@ -176,6 +186,54 @@ describe('registerProviderNetworkIpc', () => {
 
     expect(result.ok).toBe(true);
     expect(result.value?.status).toBe(404);
+  });
+
+  it('fetches and stores a page in main, returning only its URL and size', async () => {
+    const requestHop = vi.fn<RequestHop>(async () => ({
+      kind: 'response',
+      status: 200,
+      headers: { 'content-type': 'image/jpeg' },
+      body: Buffer.from([1, 2, 3]),
+      finalUrl: 'https://api.mangadex.org/page.png',
+    }));
+    const { call, put } = register({ requestHop });
+    await call(PLATFORM_IPC.PROVIDER_NETWORK_REGISTER, {
+      providerId: 'mangadex',
+      domains: ['api.mangadex.org'],
+    });
+
+    const result = (await call(PLATFORM_IPC.PROVIDER_NETWORK_STORE, {
+      providerId: 'mangadex',
+      url: 'https://api.mangadex.org/page.png',
+      key: 'page:mangadex:m:c:0',
+    })) as {
+      ok: boolean;
+      value?: { url: string; mimeType: string; byteSize: number };
+    };
+
+    expect(result.ok).toBe(true);
+    expect(result.value).toEqual({ url: 'page://store/abc', mimeType: 'image/jpeg', byteSize: 3 });
+    expect(result.value).not.toHaveProperty('data');
+    expect(requestHop).toHaveBeenCalledOnce();
+    expect(put).toHaveBeenCalledWith('page:mangadex:m:c:0', expect.any(Uint8Array), 'image/jpeg');
+  });
+
+  it('refuses to store from a host the provider did not declare', async () => {
+    const { call, put, requestHop } = register();
+    await call(PLATFORM_IPC.PROVIDER_NETWORK_REGISTER, {
+      providerId: 'mangadex',
+      domains: ['api.mangadex.org'],
+    });
+
+    const result = (await call(PLATFORM_IPC.PROVIDER_NETWORK_STORE, {
+      providerId: 'mangadex',
+      url: 'https://evil.example/page.png',
+      key: 'page:mangadex:m:c:0',
+    })) as { ok: boolean };
+
+    expect(result.ok).toBe(false);
+    expect(put).not.toHaveBeenCalled();
+    expect(requestHop).not.toHaveBeenCalled();
   });
 
   it('refuses a registration from a frame that is not the app frame', async () => {

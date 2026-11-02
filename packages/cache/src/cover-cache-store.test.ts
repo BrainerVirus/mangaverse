@@ -77,6 +77,12 @@ function createMockAdapter(
         return ok(undefined);
       },
     },
+    providerNetwork: {
+      registerProvider: async () => ok(undefined),
+      unregisterProvider: async () => ok(undefined),
+      request: async () =>
+        ok({ status: 200, headers: {}, bodyText: '', finalUrl: 'https://example.com' }),
+    },
     network: {
       fetchBytes: async (url) => {
         if (url.includes('fail')) {
@@ -299,5 +305,50 @@ describe('cache constants', () => {
     expect(formatCacheBytes(512)).toBe('512 B');
     expect(formatCacheBytes(2048)).toBe('2.0 KB');
     expect(formatCacheBytes(524288000)).toBe('500.0 MB');
+  });
+});
+
+describe('cover cache store with a main-side fetch-and-store', () => {
+  it('Given a cover, When resolving it, Then main stores it and only page:// comes back', async () => {
+    const { db } = await createSqlJsHarness();
+    const blobStore = new Map<string, { data: ArrayBuffer; mimeType: string }>();
+    const adapter = createMockAdapter(blobStore);
+    let fetchBytes = 0;
+    let storeCalls = 0;
+    adapter.network.fetchBytes = async () => {
+      fetchBytes += 1;
+      return ok(undefined);
+    };
+    adapter.blobStorage.resolveUrl = async (key: string) =>
+      ok(key.startsWith('page:cover:') ? 'page://store/cover' : undefined);
+    Object.assign(adapter.providerNetwork, {
+      fetchAndStore: async () => {
+        storeCalls += 1;
+        return ok({ url: 'page://store/cover', mimeType: 'image/jpeg', byteSize: 3 });
+      },
+    });
+
+    const resolved = await resolveCoverObjectUrl({
+      db,
+      adapter,
+      providerId: 'mangadex',
+      mangaId: 'dev-md-main',
+      remoteUrl: 'https://uploads.mangadex.org/covers/main.jpg',
+    });
+
+    expect(resolved).toMatchObject({ fromCache: false, objectUrl: 'page://store/cover' });
+    expect(storeCalls).toBe(1);
+    expect(fetchBytes).toBe(0);
+    expect(blobStore.has(buildCoverBlobKey('mangadex', 'dev-md-main'))).toBe(false);
+
+    const cached = await resolveCoverObjectUrl({
+      db,
+      adapter,
+      providerId: 'mangadex',
+      mangaId: 'dev-md-main',
+      remoteUrl: 'https://uploads.mangadex.org/covers/main.jpg',
+    });
+    expect(cached).toMatchObject({ fromCache: true, objectUrl: 'page://store/cover' });
+    expect(storeCalls).toBe(1);
   });
 });

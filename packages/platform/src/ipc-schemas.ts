@@ -94,6 +94,17 @@ const providerRequestHeaderValue = z
   .max(1024)
   .refine((value) => !/[\r\n]/.test(value), { error: 'invalid header value' });
 
+const providerNetworkStore = z
+  .object({
+    providerId: providerNetworkProviderId,
+    url: z
+      .string()
+      .max(4096)
+      .refine(isSafeNetworkFetchUrl, { error: 'must be a public http or https URL' }),
+    key: pageStoreKey,
+  })
+  .strict();
+
 const providerNetworkRequest = z
   .object({
     providerId: providerNetworkProviderId,
@@ -154,6 +165,7 @@ export const platformIpcRequestSchema = z.discriminatedUnion('channel', [
   request(PLATFORM_IPC.PROVIDER_NETWORK_REGISTER, z.tuple([providerNetworkRegistration])),
   request(PLATFORM_IPC.PROVIDER_NETWORK_UNREGISTER, z.tuple([providerNetworkProviderId])),
   request(PLATFORM_IPC.PROVIDER_NETWORK_REQUEST, z.tuple([providerNetworkRequest])),
+  request(PLATFORM_IPC.PROVIDER_NETWORK_STORE, z.tuple([providerNetworkStore])),
 ]);
 
 export type PlatformIpcRequest = z.output<typeof platformIpcRequestSchema>;

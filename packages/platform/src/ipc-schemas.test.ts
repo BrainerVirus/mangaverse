@@ -44,6 +44,16 @@ const valid: PlatformIpcRequest[] = [
       },
     ],
   },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_STORE,
+    args: [
+      {
+        providerId: 'mangadex',
+        url: 'https://uploads.mangadex.org/page.png',
+        key: 'page:mangadex:m:c:0',
+      },
+    ],
+  },
 ];
 
 const invalid: { channel: PlatformIpcChannel; args: unknown[] }[] = [
@@ -95,6 +105,12 @@ const invalid: { channel: PlatformIpcChannel; args: unknown[] }[] = [
         url: 'https://api.mangadex.org/manga',
         headers: { accept: 'x\r\nHost: evil.example' },
       },
+    ],
+  },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_STORE,
+    args: [
+      { providerId: 'mangadex', url: 'https://uploads.mangadex.org/page.png', key: 'cover:x:y' },
     ],
   },
 ];

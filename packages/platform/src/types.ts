@@ -35,6 +35,20 @@ export interface PlatformProviderRequest {
   readonly timeoutMs?: number;
 }
 
+/** Ask main to fetch an image under the provider's allowlist and store it itself. */
+export interface PlatformProviderStoreRequest {
+  readonly providerId: string;
+  readonly url: string;
+  /** A page-store key; main writes the bytes and returns a `page://` URL. */
+  readonly key: string;
+}
+
+export interface PlatformProviderStoreResult {
+  readonly url: string;
+  readonly mimeType: string;
+  readonly byteSize: number;
+}
+
 export interface PlatformProviderResponse {
   readonly status: number;
   /** Filtered to the headers a provider client may see; never cookies or auth echoes. */
@@ -179,6 +193,13 @@ export interface PlatformAdapter {
     registerProvider(providerId: string, domains: readonly string[]): Promise<AppResult<void>>;
     unregisterProvider(providerId: string): Promise<AppResult<void>>;
     request(input: PlatformProviderRequest): Promise<AppResult<PlatformProviderResponse>>;
+    /**
+     * Desktop only: fetch and store in one main-process call, returning metadata and a
+     * `page://` URL but never the bytes. Absent where the page store has no URL form.
+     */
+    fetchAndStore?: (
+      input: PlatformProviderStoreRequest,
+    ) => Promise<AppResult<PlatformProviderStoreResult | undefined>>;
   };
 }
 
@@ -209,6 +230,9 @@ export interface DesktopPlatformBridge {
   providerNetworkRequest: (
     input: PlatformProviderRequest,
   ) => Promise<AppResult<PlatformProviderResponse>>;
+  providerNetworkStore: (
+    input: PlatformProviderStoreRequest,
+  ) => Promise<AppResult<PlatformProviderStoreResult | undefined>>;
   /** Main's page store (spec 04 X13): bytes become a file, served back as `page://` URLs. */
   pageStorePut: (key: string, data: ArrayBuffer, mimeType: string) => Promise<AppResult<string>>;
   pageStoreUrl: (key: string) => Promise<AppResult<string | undefined>>;

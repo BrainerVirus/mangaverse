@@ -16,6 +16,11 @@ export function buildCoverCacheEntryId(providerId: string, mangaId: string): str
   return buildCoverBlobKey(providerId, mangaId);
 }
 
+/** On desktop a cover is a page-store file too: main writes it and returns `page://`. */
+export function buildCoverPageKey(providerId: string, mangaId: string): string {
+  return `page:cover:${providerId}:${mangaId}`;
+}
+
 export function buildPageBlobKey(
   providerId: string,
   mangaId: string,

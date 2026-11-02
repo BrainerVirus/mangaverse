@@ -105,7 +105,9 @@ const ownedMainFrames = () => [...ownedWindows].map((window) => window.webConten
  * Cached pages live as files under the profile (spec 04 X5, X13). The renderer writes and
  * deletes them over authorized IPC and reads them only through page://, by opaque id.
  */
-function registerPageStore(isTrustedFrame: ReturnType<typeof createTrustedFrameCheck>) {
+function registerPageStore(
+  isTrustedFrame: ReturnType<typeof createTrustedFrameCheck>,
+): ReturnType<typeof createPageStore> {
   const store = createPageStore(join(app.getPath('userData'), 'pages'));
   session.defaultSession.protocol.handle(
     PAGE_SCHEME,
@@ -116,6 +118,7 @@ function registerPageStore(isTrustedFrame: ReturnType<typeof createTrustedFrameC
     }),
   );
   registerPageStoreIpc({ ipcMain, store, isTrustedFrame });
+  return store;
 }
 
 function buildCapabilities(): PlatformCapabilities {
@@ -288,9 +291,15 @@ void app.whenReady().then(async () => {
       networkTransport,
     });
 
+    const pageStore = registerPageStore(isTrustedFrame);
     const allowlist = createProviderAllowlist();
-    registerProviderNetworkIpc({ ipcMain, allowlist, isTrustedFrame, networkTransport });
-    registerPageStore(isTrustedFrame);
+    registerProviderNetworkIpc({
+      ipcMain,
+      allowlist,
+      isTrustedFrame,
+      networkTransport,
+      pageStore,
+    });
     startDataHost(isTrustedFrame);
     bootstrap();
   } catch (err) {

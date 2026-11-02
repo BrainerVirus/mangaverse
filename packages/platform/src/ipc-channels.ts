@@ -19,6 +19,7 @@ export const PLATFORM_IPC = {
   PROVIDER_NETWORK_REGISTER: 'platform:provider-network:register',
   PROVIDER_NETWORK_UNREGISTER: 'platform:provider-network:unregister',
   PROVIDER_NETWORK_REQUEST: 'platform:provider-network:request',
+  PROVIDER_NETWORK_STORE: 'platform:provider-network:store',
   PAGE_STORE_PUT: 'platform:page-store:put',
   PAGE_STORE_URL: 'platform:page-store:url',
   PAGE_STORE_DELETE: 'platform:page-store:delete',
