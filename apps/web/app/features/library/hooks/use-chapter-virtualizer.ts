@@ -96,9 +96,8 @@ export function useChapterVirtualizer(rowCount: number): ChapterVirtualizer {
   const scrollMargin = useListScrollMargin(containerRef, scrollParent);
   const isVirtualized = scrollParent !== null && shouldVirtualizeChapters(rowCount);
 
-  // oxlint-disable-next-line react/incompatible-library -- TanStack Virtual returns imperative measure/getVirtualItems closures; skipping compiler memoization of this list is the intended, documented behaviour (ruling recorded)
+  // oxlint-disable-next-line react/incompatible-library, react-hooks-js/incompatible-library -- TanStack Virtual returns imperative measure/getVirtualItems closures; skipping compiler memoization of this list is the intended, documented behaviour (ruling recorded)
   const virtualizer = useVirtualizer({
-    // react-doctor-disable-line react-hooks-js/incompatible-library -- ruling: web-compiler-skip-virtualizer: see the oxlint ignore above.
     count: rowCount,
     getScrollElement: () => scrollParent,
     estimateSize: () => CHAPTER_ROW_ESTIMATE_PX,

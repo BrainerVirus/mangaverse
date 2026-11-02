@@ -119,9 +119,8 @@ export function VirtualLibraryGrid({
     [layout, containerWidth, columnCount, rowGap],
   );
 
-  // oxlint-disable-next-line react/incompatible-library -- TanStack Virtual returns imperative measure/getVirtualItems closures; skipping compiler memoization of this grid is the intended, documented behaviour (ruling recorded)
+  // oxlint-disable-next-line react/incompatible-library, react-hooks-js/incompatible-library -- TanStack Virtual returns imperative measure/getVirtualItems closures; skipping compiler memoization of this grid is the intended, documented behaviour (ruling recorded)
   const virtualizer = useVirtualizer({
-    // react-doctor-disable-line react-hooks-js/incompatible-library -- ruling: web-compiler-skip-virtualizer: see the oxlint ignore above.
     count: rowCount,
     getScrollElement: () => scrollParent,
     estimateSize: () => estimateRowSize,
