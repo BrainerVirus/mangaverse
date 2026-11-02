@@ -14,6 +14,8 @@ import { createIndexedDbPersistedBytesStore } from './persisted-bytes-idb.js';
 // verifies the database; this coordinator moves the renderer's IndexedDB page and cover bytes
 // into main's page store, has main hash the file it wrote, and only then lets the snapshot
 // import rewrite cache pointers. Old bytes stay until the marker records a verified move.
+// A cover already stored under `page:cover:` is rewritten from the store's own listing, so a
+// re-import of a stale snapshot cannot lose a cover whose IndexedDB copy was reclaimed.
 
 const PAGE_PREFIX = 'page:';
 const COVER_PREFIX = 'cover:';
@@ -54,6 +56,33 @@ class RendererDataImportError extends Error {
 /** The page-store key that replaces an old IndexedDB key. Covers gain the page prefix. */
 export function pageStoreKeyForKey(key: string): string {
   return key.startsWith(COVER_PREFIX) ? `${PAGE_PREFIX}${key}` : key;
+}
+
+const STORED_COVER_PREFIX = `${PAGE_PREFIX}${COVER_PREFIX}`;
+
+/**
+ * Rewrites for custom covers the page store already holds. A marker can outlive its native
+ * database: the snapshot is then imported again, but the IndexedDB cover bytes were reclaimed
+ * once the first import finished. The stored `page:cover:<provider>:<manga>` file is still the
+ * custom cover, so the stale row pointer is rewritten to it instead of losing the cover.
+ */
+export function storedCoverRewrites(storedKeys: readonly string[]): BlobPointerRewrite[] {
+  const rewrites = new Map<string, BlobPointerRewrite>();
+  for (const key of storedKeys) {
+    if (!key.startsWith(STORED_COVER_PREFIX)) continue;
+    const id = key.slice(PAGE_PREFIX.length);
+    rewrites.set(id, { id, blobKey: key });
+  }
+  return [...rewrites.values()];
+}
+
+/** One rewrite per row id: a moved IndexedDB cover and its stored file name the same target. */
+export function mergeBlobRewrites(
+  ...sources: readonly (readonly BlobPointerRewrite[])[]
+): BlobPointerRewrite[] {
+  const byId = new Map<string, BlobPointerRewrite>();
+  for (const source of sources) for (const rewrite of source) byId.set(rewrite.id, rewrite);
+  return [...byId.values()];
 }
 
 function isLegacyBlobKey(key: string): boolean {
@@ -157,6 +186,8 @@ export interface RendererImportDeps {
   readonly markerState: () => Promise<AppResult<RendererImportMarkerState>>;
   readonly recordComplete: (report: RendererImportReport) => Promise<AppResult<void>>;
   readonly blobs: BlobMoveDeps;
+  /** Every key main's page store holds now, so a kept cover is never orphaned by a re-import. */
+  readonly listStoredKeys: () => Promise<AppResult<readonly string[]>>;
   readonly snapshot: Uint8Array | null;
   readonly openHost: (
     snapshot: Uint8Array | null,
@@ -259,7 +290,20 @@ export async function runRendererDataImport(
   }
   const moved = movedResult.value;
 
-  const openResult = await deps.openHost(deps.snapshot, moved.rewrites);
+  // Listed after the move so a cover written by this pass is seen too; merging by row id
+  // makes the newly moved covers a single rewrite each.
+  const listed = await deps.listStoredKeys();
+  if (!listed.ok) {
+    const failure = new RendererDataImportError(
+      'blob',
+      actionFailureMessage(listed.error, 'The stored covers could not be read.'),
+    );
+    setUiState({ phase: 'failed', errorMessage: failure.message, report: null });
+    return { status: 'failed', failure, hostOpened: false, openResult: null };
+  }
+  const rewrites = mergeBlobRewrites(moved.rewrites, storedCoverRewrites(listed.value));
+
+  const openResult = await deps.openHost(deps.snapshot, rewrites);
   if (!openResult.ok) {
     const failure = new RendererDataImportError(
       'database',
@@ -272,8 +316,8 @@ export async function runRendererDataImport(
   // A #210 profile already had its snapshot imported, so the pointer rewrites run on the
   // open database instead of during the copy.
   const rewrote =
-    openResult.value.imported === null && moved.rewrites.length > 0
-      ? await deps.rewritePointers(moved.rewrites).then(
+    openResult.value.imported === null && rewrites.length > 0
+      ? await deps.rewritePointers(rewrites).then(
           () => ({ ok: true as const }),
           (error: unknown) => ({ ok: false as const, error }),
         )
@@ -296,7 +340,7 @@ export async function runRendererDataImport(
       totalBytes: moved.totalBytes,
       checksums: Object.fromEntries(moved.inventory.map((entry) => [entry.key, entry.sha256])),
     },
-    pointerRewrites: moved.rewrites.length,
+    pointerRewrites: rewrites.length,
   };
 
   const recorded = await deps.recordComplete(report);
@@ -337,6 +381,7 @@ export function createRendererImportDeps(
     snapshot,
     openHost,
     rewritePointers,
+    listStoredKeys: () => bridge.pageStoreListKeys(),
     blobs: {
       listKeys: () => listIndexedDbBlobKeys(),
       readBlob: (key) => getIndexedDbBlob(key),

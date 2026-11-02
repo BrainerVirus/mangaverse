@@ -4,10 +4,12 @@ import type { RendererImportReport } from '@app/platform';
 import {
   buildOldDataExport,
   getRendererImportState,
+  mergeBlobRewrites,
   moveRendererBlobs,
   pageStoreKeyForKey,
   resetRendererImportState,
   runRendererDataImport,
+  storedCoverRewrites,
   type BlobMoveDeps,
   type RendererImportDeps,
 } from '../renderer-data-import.js';
@@ -85,6 +87,8 @@ interface Harness {
   }[];
   readonly rewritten: { id: string; blobKey: string }[][];
   readonly deps: RendererImportDeps;
+  storedKeys: readonly string[];
+  listStoredFails: boolean;
   completed: boolean;
   openImported: boolean;
 }
@@ -94,6 +98,8 @@ function harness(idb: FakeIdb): Harness {
     reports: [],
     opens: [],
     rewritten: [],
+    storedKeys: [],
+    listStoredFails: false,
     completed: false,
     openImported: true,
     deps: undefined as unknown as RendererImportDeps,
@@ -109,6 +115,10 @@ function harness(idb: FakeIdb): Harness {
       return ok(undefined);
     },
     blobs: idb.deps,
+    listStoredKeys: async () =>
+      state.listStoredFails
+        ? err(createAppError({ code: 'platform.io-failed', message: 'store is unreadable' }))
+        : ok(state.storedKeys),
     snapshot: null,
     openHost: async (snapshot, rewrites) => {
       state.opens.push({ snapshot, rewrites });
@@ -281,6 +291,89 @@ describe('runRendererDataImport', () => {
     expect((await runRendererDataImport(state.deps)).status).toBe('complete');
     expect(state.reports).toHaveLength(1);
     expect(getRendererImportState().phase).toBe('complete');
+  });
+});
+
+describe('storedCoverRewrites', () => {
+  it('turns stored covers into row rewrites and ignores pages', () => {
+    expect(
+      storedCoverRewrites([
+        'page:cover:mangadex:m2',
+        'page:mangadex:m1:c1:0',
+        'cover:mangadex:m9',
+        'page:cover:mangadex:m2',
+      ]),
+    ).toEqual([{ id: 'cover:mangadex:m2', blobKey: 'page:cover:mangadex:m2' }]);
+  });
+
+  it('merges by row id so a moved cover and its stored file are one rewrite', () => {
+    expect(
+      mergeBlobRewrites(
+        [{ id: COVER_KEY, blobKey: `page:${COVER_KEY}` }],
+        storedCoverRewrites([`page:${COVER_KEY}`, `page:${CUSTOM_COVER_KEY}`]),
+      ),
+    ).toEqual([
+      { id: COVER_KEY, blobKey: `page:${COVER_KEY}` },
+      { id: CUSTOM_COVER_KEY, blobKey: `page:${CUSTOM_COVER_KEY}` },
+    ]);
+  });
+});
+
+describe('runRendererDataImport on a stale snapshot with a kept cover', () => {
+  /** The reported state: the marker exists, the native database and the IndexedDB cover are gone. */
+  function staleProfile(): { idb: FakeIdb; state: Harness } {
+    const idb = seededIdb();
+    idb.records.delete(COVER_KEY);
+    idb.records.delete(CUSTOM_COVER_KEY);
+    const state = harness(idb);
+    state.completed = true;
+    state.storedKeys = [`page:${COVER_KEY}`, `page:${CUSTOM_COVER_KEY}`, PAGE_KEY];
+    return { idb, state };
+  }
+
+  it('rewrites a kept cover pointer during the forced snapshot import', async () => {
+    resetRendererImportState();
+    const { state } = staleProfile();
+    const deps: RendererImportDeps = { ...state.deps, force: true };
+
+    const outcome = await runRendererDataImport(deps);
+
+    expect(outcome.status).toBe('complete');
+    expect(state.opens[0]?.rewrites).toEqual([
+      { id: COVER_KEY, blobKey: `page:${COVER_KEY}` },
+      { id: CUSTOM_COVER_KEY, blobKey: `page:${CUSTOM_COVER_KEY}` },
+    ]);
+    expect(state.rewritten).toEqual([]);
+    expect(state.reports[0]).toMatchObject({ pointerRewrites: 2 });
+    expect(state.reports[0]?.blobs.covers).toBe(0);
+  });
+
+  it('applies the kept-cover rewrites to a reopened native database too', async () => {
+    resetRendererImportState();
+    const { state } = staleProfile();
+    state.openImported = false;
+
+    expect((await runRendererDataImport({ ...state.deps, force: true })).status).toBe('complete');
+    expect(state.rewritten).toEqual([
+      [
+        { id: COVER_KEY, blobKey: `page:${COVER_KEY}` },
+        { id: CUSTOM_COVER_KEY, blobKey: `page:${CUSTOM_COVER_KEY}` },
+      ],
+    ]);
+  });
+
+  it('fails before opening a database when the store cannot be listed', async () => {
+    resetRendererImportState();
+    const { state } = staleProfile();
+    state.listStoredFails = true;
+
+    const outcome = await runRendererDataImport({ ...state.deps, force: true });
+
+    expect(outcome.status).toBe('failed');
+    expect(outcome.status === 'failed' && outcome.hostOpened).toBe(false);
+    expect(state.opens).toEqual([]);
+    expect(state.reports).toEqual([]);
+    expect(getRendererImportState().errorMessage).toContain('store is unreadable');
   });
 });
 

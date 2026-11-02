@@ -248,6 +248,33 @@ function idbKeys(page: Page, prefix: string): Promise<string[]> {
   );
 }
 
+/** Deletes the named blobs from the profile's IndexedDB, as cache maintenance would. */
+function deleteBlobs(page: Page, keys: readonly string[]): Promise<void> {
+  return page.evaluate(
+    (names) =>
+      new Promise<void>((resolve, reject) => {
+        const open = indexedDB.open('mangaverse-blobs', 1);
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const database = open.result;
+          if (!database.objectStoreNames.contains('blobs')) {
+            database.close();
+            resolve();
+            return;
+          }
+          const tx = database.transaction('blobs', 'readwrite');
+          for (const name of names) tx.objectStore('blobs').delete(name);
+          tx.oncomplete = () => {
+            database.close();
+            resolve();
+          };
+          tx.onerror = () => reject(tx.error);
+        };
+      }),
+    keys,
+  );
+}
+
 /** Seeds a pre-data-host profile and removes the native file a first start may have made. */
 async function seedOldProfile(): Promise<{ userDataDir: string; profile: OldProfile }> {
   const userDataDir = profile();
@@ -331,6 +358,60 @@ test('an old profile moves its snapshot, pages and custom cover once, then skips
   await expect(page.getByTestId('reader-surface')).toBeVisible({ timeout: 30_000 });
   expect(readFileSync(join(userDataDir, MARKER), 'utf8')).toBe(markerText);
   expect(storedFiles(userDataDir)).toEqual(files);
+});
+
+test('a marker whose native database is gone keeps the custom cover already in the store', async () => {
+  const { userDataDir, profile: old } = await seedOldProfile();
+  const first = await launch(userDataDir);
+  await first.page.goto('app://app/library');
+  await expect(first.page.getByText('Old Profile Title').first()).toBeVisible({ timeout: 30_000 });
+  const firstCover = coverImage(first.page);
+  await expect
+    .poll(async () => firstCover.getAttribute('src'), { timeout: 20_000 })
+    .toMatch(/^page:\/\/store\/[0-9a-f]{64}$/);
+  const keptCoverSrc = await firstCover.getAttribute('src');
+  const filesAfterImport = storedFiles(userDataDir).sort();
+  expect(filesAfterImport.filter((name) => /^[0-9a-f]{64}\.json$/.test(name))).toHaveLength(2);
+  expect(existsSync(join(userDataDir, MARKER))).toBe(true);
+
+  // The verified state is lost: the native database is pruned while the marker stays, and the
+  // IndexedDB cover copy is reclaimed now that the row points at the page-store file.
+  await deleteBlobs(first.page, [old.coverBlobKey]);
+  expect(await idbKeys(first.page, 'cover:')).toEqual([]);
+  await first.app.close();
+  for (const suffix of ['', '-wal', '-shm']) {
+    rmSync(join(userDataDir, `${DATABASE}${suffix}`), { force: true });
+  }
+  expect(existsSync(join(userDataDir, DATABASE))).toBe(false);
+
+  // The stale snapshot is imported again; its cover row still names the old IndexedDB key, but
+  // the stored file is the custom cover, so the pointer must follow it rather than orphan it.
+  const second = await launch(userDataDir);
+  await second.page.goto('app://app/library');
+  await expect(second.page.getByText('Old Profile Title').first()).toBeVisible({ timeout: 30_000 });
+
+  const cover = coverImage(second.page);
+  await expect
+    .poll(async () => cover.getAttribute('src'), { timeout: 20_000 })
+    .toMatch(/^page:\/\/store\/[0-9a-f]{64}$/);
+  expect(await cover.getAttribute('src')).toBe(keptCoverSrc);
+  expect(
+    query<{ blob_key: string }>(
+      userDataDir,
+      `SELECT blob_key FROM cache_entries WHERE id = '${old.coverBlobKey}'`,
+    ),
+  ).toEqual([{ blob_key: old.coverPageKey }]);
+
+  // Nothing was reclaimed: the cover file the rewrite names is the one that was already stored.
+  await expect
+    .poll(async () => storedFiles(userDataDir).sort(), { timeout: 20_000 })
+    .toEqual(filesAfterImport);
+  const marker = JSON.parse(readFileSync(join(userDataDir, MARKER), 'utf8')) as {
+    blobs: { pages: number; covers: number };
+    pointerRewrites: number;
+  };
+  expect(marker).toMatchObject({ pointerRewrites: 1 });
+  expect(marker.blobs).toMatchObject({ pages: 1, covers: 0 });
 });
 
 test('a page-store write failure shows retry and export, keeps the old data, then retries', async () => {
