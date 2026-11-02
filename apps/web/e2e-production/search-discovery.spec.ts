@@ -131,6 +131,97 @@ for (const viewport of VIEWPORTS) {
   });
 }
 
+test('Given 120 search results, When they mount and scroll, Then cards stay bounded and the last result is reachable', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
+  const fixture = JSON.parse(SEARCH_FIXTURE) as {
+    data: Array<{ attributes: Record<string, unknown> }>;
+  };
+  const [template] = fixture.data;
+  const data = Array.from({ length: 120 }, (_, index) => ({
+    ...template,
+    id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+    attributes: {
+      ...template?.attributes,
+      title: { en: `Bulk Title ${index + 1}` },
+      altTitles: [],
+    },
+  }));
+  await page.route('**/api.mangadex.org/manga?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ ...fixture, data, limit: 120, total: 120 }),
+    });
+  });
+
+  // A MutationObserver only fires after React's synchronous measured re-render,
+  // so record the count at each DOM insertion to catch the first commit too.
+  await page.addInitScript(() => {
+    const selector = '[data-testid="search-results-grid"]';
+    const w = window as unknown as { __maxSearchCards?: number };
+    w.__maxSearchCards = 0;
+    const record = (parent: Node, inserted: Node) => {
+      const grid =
+        (inserted instanceof Element && inserted.closest(selector)) ||
+        (parent instanceof Element && parent.closest(selector));
+      if (grid) {
+        const cards = grid.querySelectorAll('button').length;
+        w.__maxSearchCards = Math.max(w.__maxSearchCards ?? 0, cards);
+      }
+    };
+    // oxlint-disable-next-line typescript/unbound-method -- the originals are only invoked through .call below
+    const { appendChild, insertBefore } = Node.prototype;
+    Node.prototype.appendChild = function <T extends Node>(this: Node, node: T): T {
+      const result = appendChild.call(this, node) as T;
+      record(this, node);
+      return result;
+    };
+    Node.prototype.insertBefore = function <T extends Node>(
+      this: Node,
+      node: T,
+      child: Node | null,
+    ): T {
+      const result = insertBefore.call(this, node, child) as T;
+      record(this, node);
+      return result;
+    };
+  });
+
+  await page.goto('/search');
+  const searchbox = page.getByRole('searchbox', { name: 'Search manga' });
+  await expect(searchbox).toBeVisible({ timeout: 30_000 });
+  const firstCard = page.getByRole('button', { name: /Bulk Title 1\b/ });
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    await searchbox.fill('bulk');
+    try {
+      await expect(firstCard).toBeVisible({ timeout: 6_000 });
+      break;
+    } catch {
+      await searchbox.fill('');
+    }
+  }
+  await expect(firstCard).toBeVisible();
+
+  const grid = page.getByTestId('search-results-grid');
+  const maxCards = () =>
+    page.evaluate(() => (window as unknown as { __maxSearchCards: number }).__maxSearchCards);
+  expect(await maxCards()).toBeLessThanOrEqual(48);
+  expect(await grid.getByRole('button').count()).toBeLessThanOrEqual(48);
+
+  const lastCard = page.getByRole('button', { name: /Bulk Title 120\b/ });
+  await expect(lastCard).toHaveCount(0);
+  await expect(async () => {
+    await page.locator('main').evaluate((main) => {
+      main.scrollTop = main.scrollHeight;
+    });
+    await expect(lastCard).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
+  expect(await grid.getByRole('button').count()).toBeLessThanOrEqual(48);
+});
+
 test('Given a selected provider and a tag draft, When both are edited, Then the selection clears and the commas survive', async ({
   page,
   quickOnboarding,
