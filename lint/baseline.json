@@ -169,9 +169,6 @@
     "no-try-catch": 1,
     "no-use-state": 3
   },
-  "apps/web/app/routes/manga.$id.tsx": {
-    "no-try-catch": 1
-  },
   "apps/web/app/routes/search.tsx": {
     "no-use-state": 1
   },
