@@ -341,6 +341,20 @@ describe('registerProviderNetworkIpc', () => {
     expect(allowlist.allowsUrl('mangadex', 'https://api.mangadex.org/manga')).toBe(false);
   });
 
+  it('refuses a snapshot at the same revision as an earlier revoke', async () => {
+    const { allowlist, replace, call } = register();
+    await replace([{ providerId: 'mangadex', domains: ['api.mangadex.org'] }], 10);
+
+    // The revoke carries an older revision but still fences the newest one seen.
+    await call(PLATFORM_IPC.PROVIDER_NETWORK_REVOKE, { providerId: 'mangadex', revision: 3 });
+    await replace([{ providerId: 'mangadex', domains: ['api.mangadex.org'] }], 10);
+    expect(allowlist.allowsUrl('mangadex', 'https://api.mangadex.org/manga')).toBe(false);
+
+    // A strictly newer snapshot is a legitimate re-enable and restores access.
+    await replace([{ providerId: 'mangadex', domains: ['api.mangadex.org'] }], 11);
+    expect(allowlist.allowsUrl('mangadex', 'https://api.mangadex.org/manga')).toBe(true);
+  });
+
   it('refuses a revoke from a frame that is not the app frame', async () => {
     const { call } = register({ trusted: false });
 

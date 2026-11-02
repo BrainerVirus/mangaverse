@@ -98,12 +98,15 @@ export function registerProviderNetworkIpc(deps: ProviderNetworkIpcDeps): void {
   // Main is authoritative: the renderer sends its complete enabled-provider table
   // and main makes that the whole map, dropping ids the snapshot omits. A revision
   // orders overlapping syncs so an older, slower snapshot can never re-register a
-  // provider that a newer one disabled; a strictly older revision is a no-op.
+  // provider that a newer one disabled. A revoke raises a fence that every later
+  // snapshot must exceed, so a replace taken at the same revision as (or before)
+  // a revoke cannot restore access.
   let lastRevision = -1;
+  let revokedThrough = -1;
   handle(PLATFORM_IPC.PROVIDER_NETWORK_REPLACE, ([snapshot]) => {
-    // Equal is accepted: after a renderer reload the revision clock restarts and
-    // may land on the same millisecond. Only a strictly older snapshot is stale.
-    if (snapshot.revision < lastRevision) {
+    // Equal is accepted only above the revoke fence: after a renderer reload the
+    // revision clock may land on the same millisecond, but never above a revoke.
+    if (snapshot.revision <= revokedThrough || snapshot.revision < lastRevision) {
       return ok(undefined);
     }
     deps.allowlist.replaceAll(snapshot.providers);
@@ -112,11 +115,14 @@ export function registerProviderNetworkIpc(deps: ProviderNetworkIpcDeps): void {
   });
 
   // A revoke is never stale: removing access is always safe, so it applies even
-  // when its revision is older. It also advances the fence, so a snapshot taken
-  // before the disable (an older revision still in flight) cannot restore access.
+  // when its revision is older. It also raises the fence to the newest revision
+  // seen, so a snapshot taken at the same or an older revision — including one
+  // still in flight when the revoke arrives — cannot restore access. Re-enabling
+  // must use a strictly newer revision.
   handle(PLATFORM_IPC.PROVIDER_NETWORK_REVOKE, ([request]) => {
     deps.allowlist.revoke(request.providerId);
-    lastRevision = Math.max(lastRevision, request.revision);
+    revokedThrough = Math.max(revokedThrough, lastRevision, request.revision);
+    lastRevision = Math.max(lastRevision, revokedThrough);
     return ok(undefined);
   });
 
