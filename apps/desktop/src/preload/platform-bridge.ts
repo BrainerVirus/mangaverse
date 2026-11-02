@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { PLATFORM_IPC } from '@app/platform';
-import type { DesktopPlatformBridge } from '@app/platform';
+import { PLATFORM_IPC, UPDATE_AVAILABLE_IPC } from '@app/platform';
+import type { DesktopPlatformBridge, PlatformUpdateInfo } from '@app/platform';
 
 const bridge: DesktopPlatformBridge = {
   getCapabilities: () => ipcRenderer.invoke(PLATFORM_IPC.CAPABILITIES_GET),
@@ -37,6 +37,17 @@ const bridge: DesktopPlatformBridge = {
   rendererImportState: () => ipcRenderer.invoke(PLATFORM_IPC.RENDERER_IMPORT_STATE),
   rendererImportComplete: (report) =>
     ipcRenderer.invoke(PLATFORM_IPC.RENDERER_IMPORT_COMPLETE, report),
+  updateSetReaderActive: (active: boolean) =>
+    ipcRenderer.invoke(PLATFORM_IPC.UPDATE_SET_READER_ACTIVE, active),
+  updateInstall: () => ipcRenderer.invoke(PLATFORM_IPC.UPDATE_INSTALL),
+  updateDismiss: () => ipcRenderer.invoke(PLATFORM_IPC.UPDATE_DISMISS),
+  onUpdateAvailable: (listener: (info: PlatformUpdateInfo) => void) => {
+    const wrapped = (_event: unknown, info: PlatformUpdateInfo) => listener(info);
+    ipcRenderer.on(UPDATE_AVAILABLE_IPC, wrapped);
+    return () => {
+      ipcRenderer.removeListener(UPDATE_AVAILABLE_IPC, wrapped);
+    };
+  },
 };
 
 contextBridge.exposeInMainWorld('mangaversePlatform', bridge);

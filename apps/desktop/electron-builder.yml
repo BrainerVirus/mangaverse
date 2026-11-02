@@ -1,0 +1,59 @@
+# Packaging for the three desktop platforms (#215, spec 04 X8).
+#
+# Unsigned by default: with no CSC_LINK / Apple credentials, electron-builder skips code
+# signing and notarization and the OS shows its normal install warning. Signing turns on by
+# itself when the owner's certificates are in the environment (CSC_LINK/CSC_KEY_PASSWORD on
+# macOS and Windows, APPLE_ID/APPLE_APP_SPECIFIC_PASSWORD/APPLE_TEAM_ID for notarization).
+appId: app.mangaverse.desktop
+productName: MangaVerse
+copyright: Copyright © 2026 MangaVerse
+# The app runs from the asar: main, the data-host utility process and the preload are
+# esbuild bundles, so no workspace symlinks or node_modules need to travel with it.
+asar: true
+# No native modules: node:sqlite ships inside Electron, so there is nothing to rebuild.
+npmRebuild: false
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**/*
+  - package.json
+  - "!**/*.map"
+  - "!dist/e2e-results/**"
+  - "!node_modules/**"
+extraMetadata:
+  main: dist/main/index.js
+mac:
+  category: public.app-category.entertainment
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  # dmg for people, zip for the auto-updater. Build both arches with `--arm64` / `--x64`.
+  target:
+    - dmg
+    - zip
+  artifactName: ${productName}-${version}-${arch}.${ext}
+win:
+  target:
+    - nsis
+  artifactName: ${productName}-${version}-${arch}.${ext}
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+  deleteAppDataOnUninstall: false
+linux:
+  target:
+    - AppImage
+    - deb
+  category: AudioVideo;Graphics
+  maintainer: MangaVerse
+  artifactName: ${productName}-${version}-${arch}.${ext}
+# Auto-update feed: electron-updater reads the generated app-update.yml and asks this
+# repository's releases. `--publish never` keeps local and CI builds from uploading.
+publish:
+  provider: github
+  owner: BrainerVirus
+  repo: mangaverse
+  releaseType: release

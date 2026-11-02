@@ -45,6 +45,7 @@ import {
 import { registerPageStoreIpc } from './page-store-ipc.js';
 import { createRendererImportStore, registerRendererImportIpc } from './renderer-import.js';
 import { createSecureStorageModel } from './secure-storage.js';
+import { registerAutoUpdate } from './updater.js';
 import {
   buildContentSecurityPolicy,
   PAGE_CONTENT_SECURITY_POLICY,
@@ -180,7 +181,12 @@ function startDataHost(isTrustedFrame: ReturnType<typeof createTrustedFrameCheck
         [],
         {
           serviceName: 'MangaVerse data host',
-          env: { ...process.env, MANGAVERSE_DATA_HOST_DB: databasePath },
+          env: {
+            ...process.env,
+            MANGAVERSE_DATA_HOST_DB: databasePath,
+            // The bundle ships packages/db/migrations beside it (scripts/bundle-main.mjs).
+            MANGAVERSE_MIGRATIONS_FOLDER: join(__dirname, 'migrations'),
+          },
         },
       );
       return {
@@ -315,6 +321,13 @@ void app.whenReady().then(async () => {
     });
     startDataHost(isTrustedFrame);
     bootstrap();
+
+    // After the window and the data host exist: checks are delayed and quiet (#215).
+    const updater = registerAutoUpdate({
+      getPromptWindow: () => mainWindow,
+      isTrustedFrame,
+    });
+    app.once('before-quit', () => updater.stop());
   } catch (err) {
     // oxlint-disable-next-line no-console -- ruling: desktop-console-bootstrap: this catch quits the app on the next line, so no UI can surface the failure; the console is the only record and `.oxlintrc.json` already allows console under apps/desktop/src/main/**.
     // react-doctor-disable-next-line eslint/no-console -- ruling: desktop-console-bootstrap: this catch quits the app on the next line, so no UI can surface the failure; the console is the only record and `.oxlintrc.json` already allows console under apps/desktop/src/main/**.

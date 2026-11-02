@@ -12,6 +12,7 @@ import { ThemeSettingsBridge } from '../providers/theme-settings-bridge.js';
 import { ShellAppearanceBridge } from '../providers/shell-appearance-bridge.js';
 import { LocalDataPrefetch } from './LocalDataPrefetch.js';
 import { OnboardingGate } from './OnboardingGate.js';
+import { UpdatePrompt } from './UpdatePrompt.js';
 import { LocalDbErrorBanner } from './PersistenceErrorBanner.js';
 import { RendererImportBanner } from './RendererImportBanner.js';
 import { AppShellLayout } from '../layouts/AppShellLayout.js';
@@ -75,6 +76,7 @@ export function ShellProviders({ children, detectFn }: ShellProvidersProps) {
               <LocalDbErrorBanner />
               <RendererImportBanner />
               <Toaster />
+              <UpdatePrompt />
               <OnboardingGate>
                 <AppShellOrReaderLayout>{children}</AppShellOrReaderLayout>
               </OnboardingGate>

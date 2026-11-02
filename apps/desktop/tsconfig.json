@@ -8,7 +8,7 @@
     "lib": ["ES2022"],
     "target": "ES2022",
     "jsx": "preserve",
-    "noEmit": false
+    "noEmit": true
   },
   "include": ["src/main/", "scripts/"],
   "exclude": ["dist", "node_modules", "src/**/*.test.ts", "src/**/*.spec.ts"]

@@ -29,8 +29,8 @@ execFileSync("pnpm", ["--filter", "@app/web", "run", "build:static-shell"], {
   env: { ...process.env, MANGAVERSE_STATIC_SHELL: "1" },
 });
 
-console.log("Building Electron main process...");
-execFileSync("pnpm", ["exec", "tsc", "-p", "tsconfig.json"], {
+console.log("Bundling Electron main and data host...");
+execFileSync("node", ["scripts/bundle-main.mjs"], {
   cwd: root,
   stdio: "inherit",
 });

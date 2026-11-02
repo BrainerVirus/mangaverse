@@ -30,6 +30,9 @@ const valid: PlatformIpcRequest[] = [
   { channel: PLATFORM_IPC.PAGE_STORE_DELETE, args: ['page:p:m:c:0'] },
   { channel: PLATFORM_IPC.PAGE_STORE_LIST_KEYS, args: [] },
   { channel: PLATFORM_IPC.RENDERER_IMPORT_STATE, args: [] },
+  { channel: PLATFORM_IPC.UPDATE_SET_READER_ACTIVE, args: [true] },
+  { channel: PLATFORM_IPC.UPDATE_INSTALL, args: [] },
+  { channel: PLATFORM_IPC.UPDATE_DISMISS, args: [] },
   {
     channel: PLATFORM_IPC.RENDERER_IMPORT_COMPLETE,
     args: [
@@ -104,6 +107,9 @@ const invalid: { channel: PlatformIpcChannel; args: unknown[] }[] = [
   { channel: PLATFORM_IPC.PAGE_STORE_DELETE, args: ['cover:p:m'] },
   { channel: PLATFORM_IPC.PAGE_STORE_LIST_KEYS, args: ['extra'] },
   { channel: PLATFORM_IPC.RENDERER_IMPORT_STATE, args: ['extra'] },
+  { channel: PLATFORM_IPC.UPDATE_SET_READER_ACTIVE, args: ['yes'] },
+  { channel: PLATFORM_IPC.UPDATE_INSTALL, args: ['extra'] },
+  { channel: PLATFORM_IPC.UPDATE_DISMISS, args: [42] },
   {
     channel: PLATFORM_IPC.RENDERER_IMPORT_COMPLETE,
     args: [{ database: null, blobs: { pages: -1, covers: 0, totalBytes: 0, checksums: {} } }],

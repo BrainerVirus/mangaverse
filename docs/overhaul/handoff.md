@@ -14,20 +14,21 @@ Milestone 1 (Foundation) has landed:
 | #206  | Landed: typed failures, status pages, inline retry, toasts, the Saving indicator.     |
 | #208  | Landed: package consolidation, below.                                                 |
 
-Milestone 2 (Electron runtime) is in progress:
+Milestone 2 (Electron runtime) is complete pending #215's merge:
 
-| Issue | State                                                                                                                                                                                                                                                                                                                                                 |
-| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| #209  | Landed: [ADR 0001](adr/0001-data-host.md) decides `node:sqlite` through a small adapter, sync-in-host, a generated client with the repositories' names, and TanStack DB change events; `better-sqlite3` 13 is the tested exit.                                                                                                                        |
-| #214  | Landed: the production app loads a static client shell from `app://` with a strict CSP; the Nitro fork, loopback port and local Express service are gone. Offline deep routes are proven; dev still uses Vite.                                                                                                                                        |
-| #210  | Landed: repositories run in a `node:sqlite` utility process behind typed procedures; the renderer uses the same names; an existing snapshot imports once with counts and content verified; change capture broadcasts to every window, the library tracer runs on TanStack DB, chapters load on demand, and a crashed host restarts with no data lost. |
-| #212  | Landed: reader pages are files under a main-owned store, served by `page://` with opaque ids and app-frame-only access; SQLite holds only metadata; eviction removes files and rows together; web keeps IndexedDB and object URLs.                                                                                                                    |
-| #211  | Landed: provider HTTP runs in main behind the manifest-domain allowlist and a pinned-address transport; the renderer has no provider network path, and page/cover bytes are fetched and stored by main. See below.                                                                                                                                    |
-| #213  | Landed: the one-way renderer-data import moves IndexedDB pages and covers into the page store, rewrites cache pointers inside the verified snapshot import, and surfaces retry/export. See below.                                                                                                                                                     |
+| Issue | State                                                                                                                                                                                                                                                                                                                                                             |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #209  | Landed: [ADR 0001](adr/0001-data-host.md) decides `node:sqlite` through a small adapter, sync-in-host, a generated client with the repositories' names, and TanStack DB change events; `better-sqlite3` 13 is the tested exit.                                                                                                                                    |
+| #214  | Landed: the production app loads a static client shell from `app://` with a strict CSP; the Nitro fork, loopback port and local Express service are gone. Offline deep routes are proven; dev still uses Vite.                                                                                                                                                    |
+| #210  | Landed: repositories run in a `node:sqlite` utility process behind typed procedures; the renderer uses the same names; an existing snapshot imports once with counts and content verified; change capture broadcasts to every window, the library tracer runs on TanStack DB, chapters load on demand, and a crashed host restarts with no data lost.             |
+| #212  | Landed: reader pages are files under a main-owned store, served by `page://` with opaque ids and app-frame-only access; SQLite holds only metadata; eviction removes files and rows together; web keeps IndexedDB and object URLs.                                                                                                                                |
+| #211  | Landed: provider HTTP runs in main behind the manifest-domain allowlist and a pinned-address transport; the renderer has no provider network path, and page/cover bytes are fetched and stored by main. See below.                                                                                                                                                |
+| #213  | Landed: the one-way renderer-data import moves IndexedDB pages and covers into the page store, rewrites cache pointers inside the verified snapshot import, and surfaces retry/export. See below.                                                                                                                                                                 |
+| #215  | Landed: the packaged macOS app runs from a self-contained asar (main, data host, migrations and preload bundled by esbuild), an unsigned dmg/zip builds, and electron-updater asks in the renderer and defers while a chapter is open. Windows/Linux package in CI only; install proof there, signed builds and the reference laptop stay owner-gated. See below. |
 
-Next is #215 last. Budgets stay provisional until
-#215 pins the reference machine; Windows, Linux and packaged builds remain unproven. Check `node:sqlite` on
-Windows and Linux first thing in #215. If it fails, take the ADR's `better-sqlite3` exit.
+Packaging closes milestone 2. Budgets stay provisional: #215 did not pin the reference machine, and
+Windows/Linux installs remain unproven. Check `node:sqlite` on Windows and Linux before claiming those;
+if it fails, take ADR 0001's `better-sqlite3` exit.
 
 ## Data host events (#210 part 2)
 
@@ -182,6 +183,40 @@ Recorded in the Workit ledger with `workit ledger list --type decision`, and in 
 - No rotating hosts or anti-bot circumvention.
 - TanStack DB is the UI data layer on Drizzle and SQLite, not a replacement. Pin `@tanstack/db` and
   `@tanstack/react-db` to exactly `1.0.0-rc.1.1`. The #209 spike installed it in a throwaway directory, so product code adds it on first use, because `knip` fails on an unused dependency.
+
+## Packaging (#215)
+
+- **Self-contained asar.** `apps/desktop/scripts/bundle-main.mjs` esbuild-bundles `src/main/index.ts`
+  and `src/main/data-host-process.ts` as ESM, keeping only `electron` external; the preload bundle is
+  unchanged. `packages/db/migrations` is copied to `dist/main/migrations` and main points the data host
+  at it through `MANGAVERSE_MIGRATIONS_FOLDER`, because bundling moves `import.meta.url` out of the
+  package. The asar list is 114 entries: `dist/main`, `dist/preload`, `dist/renderer`, the migration
+  SQL and `package.json`; no `node_modules` or workspace symlinks. `electron-updater` is inlined into
+  `dist/main/index.js`, so the asar needs no runtime dependency tree.
+- **Installers.** `apps/desktop/electron-builder.yml` sets appId `app.mangaverse.desktop`, `asar: true`,
+  mac dmg/zip, Windows NSIS, Linux AppImage/deb, artifact names and a GitHub publish feed for
+  `BrainerVirus/mangaverse`. Builds are unsigned by default: with no `CSC_LINK`/Apple credentials
+  electron-builder skips signing and notarization, and macOS still runs the local build. The packaged
+  `MangaVerse-0.0.1-arm64.dmg`/`.zip` were produced locally (unsigned) with `app-update.yml` and
+  `latest-mac.yml`. `electron-builder` is a devDependency, `electron-updater` a runtime dependency.
+- **Update flow.** A check runs 30 s after ready and every 6 h, never on the startup path, and only in a
+  packaged build that ships `app-update.yml`. Main sends `platform:update:available` to the renderer;
+  the renderer's dialog decides "Restart and install" or "Later". `ReaderLayout` sends the reader-active
+  signal, so main holds the prompt while any window is reading. A declined version is not offered again
+  this session, and a failed/offline check only logs. `update-policy.test.ts` covers ask/idle, defer
+  while reading then ask, declined no-loop, a newer release after a decline, and a quiet failure.
+- **CI.** `.github/workflows/package.yml` runs on manual dispatch and `v*` tags for macos/windows/ubuntu:
+  install, build, `package:<platform> --publish never`, upload artifacts. Secrets are injected only when
+  present; absent secrets build unsigned and do not fail the job. Windows and Linux are **build proof
+  only** — not installed or launched.
+- **Packed macOS proof** (`apps/desktop/e2e/packed-app.spec.ts`, `pnpm --filter @app/desktop test:e2e:packaged`):
+  the zip was extracted to `release/packed-proof` and `MangaVerse.app` launched from there, offline.
+  Observed: `app://app/library` deep route renders the imported title; the one-way renderer import
+  records its marker and the data host serves the library; `page://` serves a stored page into an
+  `<img>`; a provider request goes renderer → main → the recorded fixture; the app log says
+  `[updater] enabled`; a plain launch sampled for 8 s opens no listening TCP port.
+- **Still owner-gated:** certificates and notarization secrets (signed builds), the reference laptop and
+  final budgets, and Windows/Linux install and `node:sqlite` proof. None of those are claimed here.
 
 ## Waiting on the owner
 
