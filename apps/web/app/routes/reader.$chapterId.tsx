@@ -31,7 +31,6 @@ import { useOnlineStatus } from '../lib/use-online-status.js';
 import { useCoalescedSettingsWrite } from '../lib/use-coalesced-settings-write.js';
 import { getBindingForChapterId } from '../lib/provider-registry.js';
 import { useLayoutStore } from '../stores/useLayoutStore.js';
-import { PersistenceErrorBanner } from '../components/PersistenceErrorBanner.js';
 import { ensureProviderChapterPages } from '../queries/provider-query-options.js';
 
 export const Route = createFileRoute('/reader/$chapterId')({
@@ -236,13 +235,6 @@ function ReaderRouteSession({ chapterIdParam }: { chapterIdParam: string }) {
 
   return (
     <>
-      {/*
-        Reader mode replaces the shell layout, so the shell's persistence
-        banner is not mounted here; the same alert overlays the reader.
-      */}
-      <div className="fixed inset-x-0 top-0 z-60">
-        <PersistenceErrorBanner />
-      </div>
       <ReaderScreen
         key={chapterId}
         data={data ?? undefined}

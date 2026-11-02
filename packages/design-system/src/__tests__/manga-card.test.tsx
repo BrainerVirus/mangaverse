@@ -198,7 +198,7 @@ describe('MangaCard', () => {
 
     render(<MangaCard manga={manga} />);
 
-    expect(screen.getByText('suggestive')).toBeInTheDocument();
+    expect(screen.getByText('Suggestive')).toBeInTheDocument();
   });
 
   it('shows content rating badge for explicit content', () => {
@@ -206,7 +206,7 @@ describe('MangaCard', () => {
 
     render(<MangaCard manga={manga} />);
 
-    expect(screen.getByText('explicit')).toBeInTheDocument();
+    expect(screen.getByText('Explicit')).toBeInTheDocument();
   });
 
   it('does not show content rating badge for safe content', () => {
@@ -217,11 +217,16 @@ describe('MangaCard', () => {
     expect(screen.queryByText('safe')).not.toBeInTheDocument();
   });
 
-  it('is keyboard accessible with tabIndex', () => {
+  it('is a native button, so Tab, Enter and Space work without extra wiring', () => {
+    const onClick = vi.fn<() => void>();
     const manga = createMockManga();
-    const { container } = render(<MangaCard manga={manga} />);
+    const { container } = render(<MangaCard manga={manga} onClick={onClick} />);
 
     const element = container.querySelector('button');
-    expect(element?.getAttribute('tabIndex')).toBe('0');
+    expect(element?.tagName).toBe('BUTTON');
+    expect(element?.getAttribute('type')).toBe('button');
+    // The button is tabbable by default; a manual tabIndex and key handlers
+    // would only duplicate what the platform already does.
+    expect(element?.getAttribute('tabIndex')).toBeNull();
   });
 });

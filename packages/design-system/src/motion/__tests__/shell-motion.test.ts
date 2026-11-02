@@ -26,6 +26,7 @@ describe('shell motion helpers', () => {
   it('commandPaletteEnter animates backdrop and panel when motion is enabled', () => {
     commandPaletteEnter('.backdrop', '.panel', { reducedMotion: false });
     expect(gsap.set).toHaveBeenCalled();
+    expect(gsap.set).toHaveBeenCalledWith('.panel', { opacity: 0, y: -8, scale: 0.98 });
     expect(gsap.timeline).toHaveBeenCalled();
   });
 

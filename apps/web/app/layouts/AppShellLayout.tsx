@@ -3,7 +3,7 @@ import { useLayoutStore, detectDeviceLayout } from '../stores/useLayoutStore.js'
 import { DesktopSidebar } from '../components/shell/DesktopSidebar.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.js';
 import { AnimatedRouteOutlet } from '../components/shell/AnimatedRouteOutlet.js';
-import { PersistenceErrorBanner } from '../components/PersistenceErrorBanner.js';
+import { AppNotices } from '../components/AppNotices.js';
 import { AmbientBackdrop } from '@app/design-system';
 
 export function AppShellLayout({ children }: { children: React.ReactNode }) {
@@ -41,11 +41,25 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
       className="flex overflow-hidden bg-background max-md:flex-col max-md:overflow-visible"
     >
       <AmbientBackdrop />
+      {/* Keyboard users land on the shell first; the skip link is the only
+          focusable element before the sidebar, so one Tab + Enter reaches the
+          page content without walking the whole navigation. */}
+      <a
+        href="#main-content"
+        className="sr-only rounded-control bg-primary px-3 py-2 text-primary-foreground focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-60"
+      >
+        Skip to content
+      </a>
       <DesktopSidebar />
       {/* `min-w-0` keeps a wide child from widening the shell's flex row; the
           content column then scrolls instead of pushing the page sideways. */}
-      <main data-app-nav-offset className="min-w-0 flex-1 overflow-auto bg-background">
-        <PersistenceErrorBanner />
+      <main
+        id="main-content"
+        tabIndex={-1}
+        data-app-nav-offset
+        className="min-w-0 flex-1 overflow-auto bg-background outline-none"
+      >
+        <AppNotices />
         <AnimatedRouteOutlet>{children}</AnimatedRouteOutlet>
       </main>
       <MobileBottomNav />

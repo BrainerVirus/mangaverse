@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useLayoutStore } from '../stores/useLayoutStore.js';
 import { AnimatedRouteOutlet } from '../components/shell/AnimatedRouteOutlet.js';
+import { AppNotices } from '../components/AppNotices.js';
 import { createAppPlatformAdapter } from '../features/diagnostics/create-app-platform-adapter.js';
 
 export function ReaderLayout({ children }: { children: React.ReactNode }) {
@@ -20,11 +21,18 @@ export function ReaderLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <main className="fixed inset-0 overflow-hidden">
-      {/* h-full, not the default min-h-full: the reader surface sizes with
-          percentage heights, and an indefinite parent collapses it. */}
-      <AnimatedRouteOutlet variant="reader" className="h-full">
-        {children}
-      </AnimatedRouteOutlet>
+      {/* A column, not a bare outlet: a notice takes its own row instead of
+          painting over the reader chrome, and the outlet keeps the rest. */}
+      <div className="flex h-full flex-col">
+        {/* Above the reader chrome (z-50): a storage failure outranks the
+            controls that would otherwise paint over it. */}
+        <AppNotices className="z-60" />
+        {/* h-full, not the default min-h-full: the reader surface sizes with
+            percentage heights, and an indefinite parent collapses it. */}
+        <AnimatedRouteOutlet variant="reader" className="min-h-0 flex-1">
+          {children}
+        </AnimatedRouteOutlet>
+      </div>
     </main>
   );
 }

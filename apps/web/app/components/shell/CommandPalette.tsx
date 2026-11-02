@@ -13,6 +13,7 @@ import {
   CommandEmpty,
   CommandGroup,
   CommandItem,
+  useFocusTrap,
 } from '@app/design-system';
 import {
   commandPaletteEnter,
@@ -196,14 +197,11 @@ export function CommandPalette() {
     return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
   }, [isOpen, close]);
 
-  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-focus-after-open: focusing the input needs the panel committed and the GSAP enter started; autoFocus would fight the enter animation's transform and scroll the panel.
-  useEffect(() => {
-    if (!isOpen || !rendered) return;
-    const frame = requestAnimationFrame(() => {
-      inputRef.current?.focus();
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [isOpen, rendered]);
+  // Focus must land in the field the user is about to type into, from the
+  // shortcut and from the sidebar button alike, and Tab must not walk into the
+  // page behind the palette. The trap focuses the first tabbable child (the
+  // input) in the same commit and restores the opener's focus on close.
+  useFocusTrap(panelRef, isOpen && rendered);
 
   useGSAP(
     () => {
@@ -279,7 +277,7 @@ export function CommandPalette() {
             onClick={close}
             aria-hidden="true"
           />
-          <Command ref={panelRef} className="relative z-10 w-full max-w-xl">
+          <Command ref={panelRef} className="relative z-10 w-full max-w-xl" tabIndex={-1}>
             <div className="flex items-center border-b border-border px-3">
               <CommandInput
                 ref={inputRef}

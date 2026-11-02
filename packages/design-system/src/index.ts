@@ -1,6 +1,8 @@
 // @app/design-system
 export { cn } from './lib/cn.js';
 export { useStateReducer } from './hooks/use-state-reducer.js';
+export { useFocusTrap } from './hooks/use-focus-trap.js';
+export type { FocusTrapOptions } from './hooks/use-focus-trap.js';
 
 export { Button } from './components/ui/button.js';
 export { buttonVariants, buttonSizes } from './components/ui/button-variants.js';

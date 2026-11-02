@@ -26,7 +26,7 @@ export function ConfirmRemoveFromLibraryDialog({
 }: ConfirmRemoveFromLibraryDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent role="alertdialog">
         <DialogHeader>
           <DialogTitle>Remove “{mangaTitle}” from your library?</DialogTitle>
           <DialogDescription>

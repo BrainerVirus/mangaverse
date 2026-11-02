@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { EmptyState, ErrorState, LoadingState } from '@app/design-system';
 import type {
   ChapterId,
@@ -97,10 +97,10 @@ function useLibrarySelection(items: readonly LibraryItem[]) {
   const selectAllVisible = () =>
     setSelectedIds(allVisibleSelected ? new Set() : new Set(items.map((item) => item.entry.id)));
 
-  const toggleSelectionMode = () => {
+  const toggleSelectionMode = useCallback(() => {
     setSelectionMode((current) => !current);
     setSelectedIds(new Set());
-  };
+  }, []);
 
   return {
     selectionMode,
@@ -208,6 +208,8 @@ export function LibraryPage({
     setMigrationError(null);
     selection.toggleSelectionMode();
   };
+  const selectionMode = selection.selectionMode;
+  const exitSelectionMode = selection.toggleSelectionMode;
   const migrateSelected = () =>
     handOffMigrationSelection({
       items,
@@ -226,6 +228,28 @@ export function LibraryPage({
     },
     [clearSelection, onViewStateChange, viewState],
   );
+
+  // Escape leaves selection mode from anywhere: the "Select titles" trigger is
+  // replaced by the bulk bar, so focus falls back to <body> and a section-level
+  // handler would never see the key. A dialog opened from the bar owns its own
+  // Escape, so an event inside one is skipped.
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-window-keydown: Escape is a window-level dismissal; the page subtree is not the focus owner once the trigger unmounts.
+  useEffect(() => {
+    if (!selectionMode) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      if (
+        event.target instanceof Element &&
+        event.target.closest('[role="dialog"],[role="alertdialog"]') !== null
+      ) {
+        return;
+      }
+      setMigrationError(null);
+      exitSelectionMode();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectionMode, exitSelectionMode]);
 
   return (
     <section

@@ -133,7 +133,7 @@ export function DesktopSidebar() {
         visuallyExpanded ? 'w-55' : 'w-13',
       )}
     >
-      <div className="flex flex-1 flex-col gap-1 px-2 py-3">
+      <nav aria-label="Main" className="flex flex-1 flex-col gap-1 px-2 py-3">
         {primaryNavItems.map((item) => (
           <SidebarNavLink
             key={item.to}
@@ -164,7 +164,7 @@ export function DesktopSidebar() {
             expanded={visuallyExpanded}
           />
         ))}
-      </div>
+      </nav>
 
       <div className="flex flex-col gap-1 border-t border-sidebar-border px-2 py-3">
         {withTooltip(

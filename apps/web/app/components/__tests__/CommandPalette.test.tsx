@@ -38,6 +38,7 @@ vi.mock('../shell/useLocalCommands.js', () => ({
 }));
 
 vi.mock('@app/design-system', () => ({
+  useFocusTrap: () => {},
   Command: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   CommandInput: (props: React.InputHTMLAttributes<HTMLInputElement>) => <input {...props} />,
   CommandList: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,

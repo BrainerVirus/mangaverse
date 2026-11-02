@@ -1,6 +1,37 @@
 import { describe, expect, it } from 'vitest';
 import { createSqlJsHarness } from '../testing/sqljs-harness.js';
-import { listSavedSearches, removeSavedSearch, upsertSavedSearch } from './search-history.js';
+import {
+  appendSearchHistory,
+  listSavedSearches,
+  listSearchHistory,
+  removeSavedSearch,
+  upsertSavedSearch,
+} from './search-history.js';
+
+describe('search history', () => {
+  it('Given a query searched twice, Then it lists once, newest first', async () => {
+    const { db } = await createSqlJsHarness();
+    await appendSearchHistory(db, { query: 'berserk' });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await appendSearchHistory(db, { query: 'vagabond' });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await appendSearchHistory(db, { query: 'Berserk' });
+
+    const history = await listSearchHistory(db, 10);
+
+    expect(history.map((entry) => entry.query)).toEqual(['Berserk', 'vagabond']);
+  });
+
+  it('Given more distinct queries than the limit, Then the cap still applies', async () => {
+    const { db } = await createSqlJsHarness();
+    for (const query of ['a', 'b', 'c']) {
+      await appendSearchHistory(db, { query });
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+
+    expect((await listSearchHistory(db, 2)).map((entry) => entry.query)).toEqual(['c', 'b']);
+  });
+});
 
 describe('saved searches', () => {
   it('persists query and filters, then lists them', async () => {

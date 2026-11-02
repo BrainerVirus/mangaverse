@@ -116,7 +116,7 @@ export function MobileBottomNav() {
       </Sheet>
 
       <GlassSurface level="thick" className="fixed bottom-0 left-0 right-0 z-50 min-h-14 md:hidden">
-        <nav className="h-full safe-area-bottom">
+        <nav aria-label="Primary" className="h-full safe-area-bottom">
           {/* Equal-width tabs: five `flex-1 basis-0` items share the bar, so the
               longest label truncates instead of pushing the row past 320px. */}
           <div className="safe-area-x flex h-14 items-stretch">
