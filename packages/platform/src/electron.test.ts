@@ -12,6 +12,16 @@ import type {
   PlatformNetworkFetchResult,
 } from './types.js';
 
+const updateStubs = {
+  updateSetReaderActive: async () => ok(undefined),
+  updateInstall: async () => ok(undefined),
+  updateDismiss: async () => ok(undefined),
+  onUpdateAvailable: () => () => {},
+} satisfies Pick<
+  DesktopPlatformBridge,
+  'updateSetReaderActive' | 'updateInstall' | 'updateDismiss' | 'onUpdateAvailable'
+>;
+
 const pageStoreStubs = {
   pageStorePut: async () => ok('page://store/id'),
   pageStoreUrl: async () => ok(undefined),
@@ -29,6 +39,7 @@ const pageStoreStubs = {
     ok({ url: 'page://store/id', mimeType: 'image/jpeg', byteSize: 3 }),
   providerNetworkStoreUserInitiated: async () =>
     ok({ url: 'page://store/id', mimeType: 'image/jpeg', byteSize: 3 }),
+  ...updateStubs,
 } satisfies Pick<
   DesktopPlatformBridge,
   | 'pageStorePut'
@@ -44,6 +55,10 @@ const pageStoreStubs = {
   | 'providerNetworkRequest'
   | 'providerNetworkStore'
   | 'providerNetworkStoreUserInitiated'
+  | 'updateSetReaderActive'
+  | 'updateInstall'
+  | 'updateDismiss'
+  | 'onUpdateAvailable'
 >;
 
 describe('createElectronPlatformAdapter', () => {
@@ -333,6 +348,7 @@ describe('createElectronPlatformAdapter', () => {
           ok({ url: 'page://store/id', mimeType: 'image/jpeg', byteSize: 3 }),
         providerNetworkStoreUserInitiated: async () =>
           ok({ url: 'page://store/id', mimeType: 'image/jpeg', byteSize: 3 }),
+        ...updateStubs,
       });
       const key = 'page:p:m:c:0';
       const bytes = new Uint8Array([0xff, 0xd8, 0xff]).buffer;

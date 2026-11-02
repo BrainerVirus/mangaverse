@@ -73,6 +73,10 @@ describe('registerPlatformIpc', () => {
       ...PAGE_STORE_CHANNELS,
       ...PROVIDER_NETWORK_CHANNELS,
       ...RENDERER_IMPORT_CHANNELS,
+      // Registered by registerAutoUpdate (#215), not by the platform IPC table.
+      PLATFORM_IPC.UPDATE_SET_READER_ACTIVE,
+      PLATFORM_IPC.UPDATE_INSTALL,
+      PLATFORM_IPC.UPDATE_DISMISS,
     ]);
     const expected = new Set(
       Object.values(PLATFORM_IPC).filter((channel) => !elsewhere.has(channel)),
