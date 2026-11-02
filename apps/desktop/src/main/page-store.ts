@@ -63,12 +63,10 @@ export function pageMimeType(declared: string, bytes: Uint8Array): string | unde
   return PAGE_MIME_TYPES.has(normalized) ? normalized : sniffImageType(bytes);
 }
 
-const pageSidecarSchema = z
-  .object({
-    key: z.string().refine(isPageStoreKey),
-    mimeType: z.string().refine((value) => PAGE_MIME_TYPES.has(value)),
-  })
-  .strict();
+const pageSidecarSchema = z.strictObject({
+  key: z.string().refine(isPageStoreKey),
+  mimeType: z.string().refine((value) => PAGE_MIME_TYPES.has(value)),
+});
 
 type PageSidecar = z.output<typeof pageSidecarSchema>;
 
@@ -94,7 +92,7 @@ async function mapBounded<T, R>(items: readonly T[], run: (item: T) => Promise<R
 // O_NOFOLLOW refuses a final-component symlink at open; Windows has no such flag.
 const NO_FOLLOW: number = (constants as { O_NOFOLLOW?: number }).O_NOFOLLOW ?? 0;
 
-export type PageStoreResolution =
+type PageStoreResolution =
   | { readonly kind: 'file'; readonly path: string; readonly mimeType: string }
   | { readonly kind: 'refused'; readonly status: 400 | 403 | 404 | 405 };
 
