@@ -135,6 +135,12 @@ export interface PlatformAdapter {
     listKeys(): Promise<AppResult<readonly string[]>>;
     createObjectUrl(data: ArrayBuffer, mimeType: string): Promise<AppResult<string>>;
     revokeObjectUrl(url: string): Promise<AppResult<void>>;
+    /**
+     * A URL that serves a stored blob without its bytes reaching this process, where the
+     * store has one: `ok(url)` when stored, `ok(undefined)` when not. An error, or no
+     * method at all, means this key is read with `get` and shown with `createObjectUrl`.
+     */
+    resolveUrl?(key: string): Promise<AppResult<string | undefined>>;
   };
   readonly network: {
     fetchBytes(url: string): Promise<AppResult<PlatformNetworkFetchResult | undefined>>;
@@ -160,6 +166,11 @@ export interface DesktopPlatformBridge {
   diagnosticsGetSnapshot: () => Promise<AppResult<PlatformDiagnosticsSnapshot>>;
   localServiceGetInfo: () => Promise<AppResult<LocalServiceInfo>>;
   networkFetchBytes: (url: string) => Promise<AppResult<PlatformNetworkFetchResult | undefined>>;
+  /** Main's page store (spec 04 X13): bytes become a file, served back as `page://` URLs. */
+  pageStorePut: (key: string, data: ArrayBuffer, mimeType: string) => Promise<AppResult<string>>;
+  pageStoreUrl: (key: string) => Promise<AppResult<string | undefined>>;
+  pageStoreDelete: (key: string) => Promise<AppResult<void>>;
+  pageStoreListKeys: () => Promise<AppResult<readonly string[]>>;
 }
 
 export interface WebCapabilityEnvironment {

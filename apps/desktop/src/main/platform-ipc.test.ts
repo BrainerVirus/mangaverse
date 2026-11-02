@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ok } from '@app/shared';
 import { PLATFORM_IPC, detectElectronCapabilities } from '@app/platform';
 import { registerPlatformIpc, toIpcAppResult, type PlatformIpcDeps } from './platform-ipc.js';
+import { PAGE_STORE_CHANNELS } from './page-store-ipc.js';
 
 function fakeRequest(handler: (req: EventEmitter) => void) {
   return vi.fn<(options: { url?: string }) => EventEmitter>(() => {
@@ -84,7 +85,10 @@ describe('registerPlatformIpc', () => {
       resolveHostAddresses: async () => ['93.184.216.34'],
     });
 
-    const expected = new Set(Object.values(PLATFORM_IPC));
+    const pageStoreChannels: ReadonlySet<string> = new Set(PAGE_STORE_CHANNELS);
+    const expected = new Set(
+      Object.values(PLATFORM_IPC).filter((channel) => !pageStoreChannels.has(channel)),
+    );
     expect(handlers.size).toBe(expected.size);
     for (const ch of expected) {
       expect(handlers.has(ch)).toBe(true);

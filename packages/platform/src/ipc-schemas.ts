@@ -43,6 +43,29 @@ const fileSaveOptions = z
   })
   .strict();
 
+/** Main's page store keeps only page blobs; the key names the page, never a path. */
+export const PAGE_STORE_KEY_PREFIX = 'page:';
+const MAX_PAGE_STORE_KEY_LENGTH = 1024;
+/** One page; matches the main store's own bound. */
+export const MAX_PAGE_STORE_BYTES = 64 * 1024 * 1024;
+
+export function isPageStoreKey(key: string): boolean {
+  return (
+    key.startsWith(PAGE_STORE_KEY_PREFIX) &&
+    key.length <= MAX_PAGE_STORE_KEY_LENGTH &&
+    !key.includes('\0')
+  );
+}
+
+const pageStoreKey = z.string().refine(isPageStoreKey, { error: 'invalid page store key' });
+
+// Structured clone hands main an ArrayBuffer or a typed array, depending on what was sent.
+const pageBytes = z
+  .union([z.instanceof(ArrayBuffer), z.instanceof(Uint8Array)])
+  .refine((value) => value.byteLength > 0 && value.byteLength <= MAX_PAGE_STORE_BYTES, {
+    error: 'page size is out of bounds',
+  });
+
 function request<C extends PlatformIpcChannel, A extends z.ZodType>(channel: C, args: A) {
   return z.object({ channel: z.literal(channel), args });
 }
@@ -72,6 +95,10 @@ export const platformIpcRequestSchema = z.discriminatedUnion('channel', [
       z.string().refine(isSafeNetworkFetchUrl, { error: 'must be a public http or https URL' }),
     ]),
   ),
+  request(PLATFORM_IPC.PAGE_STORE_PUT, z.tuple([pageStoreKey, pageBytes, z.string().max(255)])),
+  request(PLATFORM_IPC.PAGE_STORE_URL, z.tuple([pageStoreKey])),
+  request(PLATFORM_IPC.PAGE_STORE_DELETE, z.tuple([pageStoreKey])),
+  request(PLATFORM_IPC.PAGE_STORE_LIST_KEYS, z.tuple([])),
 ]);
 
 export type PlatformIpcRequest = z.output<typeof platformIpcRequestSchema>;

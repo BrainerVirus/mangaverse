@@ -135,6 +135,44 @@ describe('cache maintenance', () => {
     expect((await getCoverCacheUsage(db)).totalBytes).toBe(160);
   });
 
+  it('Given a store that serves pages by URL, When a chapter is evicted, Then its files and rows go together', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter, blobs } = createAdapter();
+    const served = {
+      ...adapter,
+      blobStorage: {
+        ...adapter.blobStorage,
+        resolveUrl: async (key: string) =>
+          ok(blobs.has(key) ? `page://store/${key.length}` : undefined),
+      },
+    } as PlatformAdapter;
+
+    vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
+    await seedChapter(db, served, CHAPTER_1);
+    vi.setSystemTime(new Date('2026-01-02T00:00:00.000Z'));
+    await seedChapter(db, served, CHAPTER_2);
+
+    const outcome = await runCacheMaintenance(db, served, 6 * PAGE_BYTES);
+
+    expect(outcome).toMatchObject({
+      evictedCount: 6,
+      totalBytes: 6 * PAGE_BYTES,
+      reclaimedBlobs: 0,
+    });
+    expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toEqual([]);
+    expect([...blobs.keys()].filter((key) => key.includes(':chapter-1:'))).toEqual([]);
+    expect(blobs.size).toBe(6);
+    expect(
+      await getCachedPageObjectUrl({
+        db,
+        adapter: served,
+        ...CHAPTER_2,
+        pageIndex: 0,
+        remoteUrl: 'x',
+      }),
+    ).toMatchObject({ objectUrl: expect.stringMatching(/^page:/), fromCache: true });
+  });
+
   it('Given the protected chapter is the only candidate, When sweeping, Then it stays cached and may overshoot', async () => {
     const { db } = await createSqlJsHarness();
     const { adapter, blobs } = createAdapter();
