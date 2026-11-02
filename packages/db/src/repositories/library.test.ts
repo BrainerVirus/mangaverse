@@ -37,7 +37,9 @@ describe('addLibraryEntry', () => {
     expect(all[0]?.id).toBe('m-0');
     expect(all[500]?.categoryIds).toEqual(['category']);
     expect(all.at(-1)?.categoryIds).toEqual(['category']);
-    const categoryIds = Array.from({ length: 32767 }, (_, index) =>
+    // A filter list longer than the 500-id read chunk, and than one page: the SQL filter
+    // must still dedupe and keep the full match set.
+    const categoryIds = Array.from({ length: 1_500 }, (_, index) =>
       toCategoryId(`missing-${index}`),
     );
     categoryIds[500] = toCategoryId('category');

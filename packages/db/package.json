@@ -35,7 +35,8 @@
     "./migrations/0004_migration_history_undo.sql": "./migrations/0004_migration_history_undo.sql",
     "./migrations/0005_library_category_pinned.sql": "./migrations/0005_library_category_pinned.sql",
     "./migrations/0006_installed_extension_manifest_url.sql": "./migrations/0006_installed_extension_manifest_url.sql",
-    "./migrations/0007_extension_logs.sql": "./migrations/0007_extension_logs.sql"
+    "./migrations/0007_extension_logs.sql": "./migrations/0007_extension_logs.sql",
+    "./migrations/0008_library_page_indexes.sql": "./migrations/0008_library_page_indexes.sql"
   },
   "scripts": {
     "clean": "rm -rf dist",

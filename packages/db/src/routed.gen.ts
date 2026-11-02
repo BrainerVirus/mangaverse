@@ -149,6 +149,7 @@ export const listLibraryCategories = route(
   procedures.listLibraryCategories,
 );
 export const listLibraryEntries = route('listLibraryEntries', procedures.listLibraryEntries);
+export const listLibraryEntryPage = route('listLibraryEntryPage', procedures.listLibraryEntryPage);
 export const listLibraryProviderIds = route(
   'listLibraryProviderIds',
   procedures.listLibraryProviderIds,
@@ -395,6 +396,7 @@ export const ROUTED_PROCEDURE_NAMES = [
   'listInstalledExtensions',
   'listLibraryCategories',
   'listLibraryEntries',
+  'listLibraryEntryPage',
   'listLibraryProviderIds',
   'listMangaIdentities',
   'listMigratableLibraryEntries',

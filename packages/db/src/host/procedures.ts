@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LIBRARY_PAGE_MAX } from '@app/shared';
 import type { AppDrizzleDb } from '../adapter.js';
 import type { ProcedureName } from '../procedure-names.js';
 import * as sources from '../procedure-sources.js';
@@ -327,6 +328,16 @@ export const PROCEDURE_INPUTS: { readonly [K in ProcedureName]: z.ZodType<readon
   toLibraryEntry: z.tuple([z.object({ id, mangaId: id }).loose()]),
   listLibraryCategories: z.tuple([]),
   listLibraryEntries: z.tuple([libraryQuery.optional()]),
+  // A page is required and bounded: the host refuses an unbounded library load from a window.
+  listLibraryEntryPage: z.tuple([
+    z.object({
+      filter: libraryQuery.shape.filter,
+      sort: libraryQuery.shape.sort,
+      // Zero asks for the total alone; the maximum keeps one call from loading the library.
+      limit: z.number().int().min(0).max(LIBRARY_PAGE_MAX),
+      offset: z.number().int().min(0).optional(),
+    }),
+  ]),
   listRecentlyReadLibraryEntries: z.tuple([count]),
   listLibraryProviderIds: z.tuple([]),
   addLibraryEntry: z.tuple([z.object({ mangaId: id, status: libraryStatus, id: id.optional() })]),

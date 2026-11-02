@@ -72,6 +72,12 @@ export type LibrarySortKey =
 
 export type LibrarySortDirection = 'asc' | 'desc';
 
+/**
+ * The most rows one host call may ask for. A view loads a page at a time; the cap keeps
+ * a single call bounded while still covering a very large local library.
+ */
+export const LIBRARY_PAGE_MAX = 5_000;
+
 export interface LibrarySort {
   readonly key: LibrarySortKey;
   readonly direction: LibrarySortDirection;
