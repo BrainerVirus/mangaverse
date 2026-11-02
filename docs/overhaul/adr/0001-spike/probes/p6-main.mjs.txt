@@ -1,0 +1,54 @@
+// Electron is only the test bench here: a sandboxed page hosting a real Web Worker.
+import { BrowserWindow, app, ipcMain, net, protocol } from "electron";
+import { pathToFileURL } from "node:url";
+
+const out = `${process.env.SPIKE_DIR}/out`;
+protocol.registerSchemesAsPrivileged([
+  { scheme: "app", privileges: { standard: true, secure: true, supportFetchAPI: true } },
+]);
+let failed = 0;
+const finish = () => {
+  console.log(`result: ${failed === 0 ? "ALL PASS" : `${failed} FAILED`}`);
+  app.exit(failed === 0 ? 0 : 1);
+};
+setTimeout(() => {
+  failed += 1;
+  console.log("FAIL timed out");
+  finish();
+}, 180000);
+app.whenReady().then(async () => {
+  protocol.handle("app", (request) => {
+    const { pathname } = new URL(request.url);
+    const response = net.fetch(
+      pathToFileURL(`${out}${pathname === "/index.html" ? "/p6.html" : pathname}`).href,
+    );
+    return response;
+  });
+  ipcMain.on("report", (event, message) => {
+    if (message.type === "check") {
+      if (!message.pass) failed += 1;
+      console.log(
+        `${message.pass ? "PASS" : "FAIL"} ${message.name}${message.detail ? ` (${message.detail})` : ""}`,
+      );
+    } else if (message.type === "note") console.log(`note ${message.text}`);
+    else if (message.type === "done") finish();
+    else if (message.type === "failed") {
+      failed += 1;
+      console.log(`FAIL ${message.message}`);
+      finish();
+    }
+  });
+  const win = new BrowserWindow({
+    show: false,
+    webPreferences: {
+      preload: `${out}/p5-preload.cjs`,
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+  win.webContents.on("console-message", (details) => {
+    if (details.level === "error") console.log(`console error ${details.message}`);
+  });
+  await win.loadURL("app://spike/index.html");
+});

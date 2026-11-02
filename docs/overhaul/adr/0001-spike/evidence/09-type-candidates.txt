@@ -1,0 +1,19 @@
+== baseline: SQLJsDatabase (assignability.ts expected to fail on the native handle)
+errors: 2
+   1 error TS2322: Type 'BetterSQLite3Database<{ readerPreferences: SQLiteTableWithColumns<{ name: "reader_preferen
+   1 error TS2322: Type 'BaseSQLiteDatabase<"sync", unknown, { readerPreferences: SQLiteTableWithColumns<{ name: "r
+files with errors: 2
+== a-base-unknown.ts
+errors: 0
+files with errors: 0
+== b-union.ts
+errors: 132
+ 108 error TS2554: Expected 0 arguments, but got 1.
+   3 error TS2339: Property 'index' does not exist on type '{ id: string; mangaId: string; providerMappingId: strin
+   3 error TS2339: Property 'entry' does not exist on type '{ chapter_read_state: { chapterId: string; mangaId: str
+   3 error TS2339: Property 'completed' does not exist on type '{ chapter_read_state: { chapterId: string; mangaId:
+   2 error TS2741: Property 'index' is missing in type '{ id: string; mangaId: string; providerMappingId: string; p
+files with errors: 17
+== c-minimal.ts
+errors: 0
+files with errors: 0

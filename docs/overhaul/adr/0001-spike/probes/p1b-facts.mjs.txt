@@ -1,0 +1,247 @@
+// Facts the driver decision rests on: compile options, native load cost in fresh processes,
+// a kill mid-write, and importing a real sql.js snapshot. Usage: DRIVER=... MODE=... out/p1b-facts.mjs
+import { spawnSync, spawn } from "node:child_process";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
+import { sql } from "drizzle-orm";
+import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import { createDrizzleFromSqlJs } from "@spike/db/client.js";
+import { migrateDatabaseFromBundled } from "@spike/db/bundled-migrations.js";
+import { chapters, libraryEntries } from "@spike/db/schema.js";
+import { withTransaction } from "@spike/db/transactions.js";
+import { listLibraryEntries } from "@spike/db/repositories/library.js";
+import { drizzleOver, openClient } from "@spike/lib/open-db.mjs";
+import { seed } from "@spike/lib/seed.mjs";
+import { trackChanges } from "@spike/lib/host-procedures.mjs";
+
+const driver = process.env.DRIVER;
+const root = process.env.SPIKE_DIR;
+const migrationsFolder = `${root}/work/migrations`;
+const mode = process.env.MODE;
+const count = (db, table) =>
+  db
+    .select({ n: sql`count(*)` })
+    .from(table)
+    .get().n;
+const dir = () => mkdtempSync(path.join(tmpdir(), "adr0001-facts-"));
+const self = process.argv[1];
+const run = (extra) =>
+  spawnSync(process.execPath, [self], { env: { ...process.env, ...extra }, encoding: "utf8" });
+
+if (mode === "cold") {
+  const start = performance.now();
+  const client = openClient(driver, ":memory:");
+  const loadMs = performance.now() - start;
+  client.close();
+  console.log(loadMs.toFixed(2));
+  process.exit(0);
+}
+
+if (mode === "writer") {
+  const client = openClient(driver, process.env.DB);
+  client.exec("PRAGMA journal_mode = WAL;");
+  const db = drizzleOver(client);
+  console.log("writing");
+  for (let batch = 0; ; batch += 1) {
+    withTransaction(db, (tx) => {
+      for (let i = 0; i < 2000; i += 1) {
+        tx.run(
+          sql`insert into chapters (id, manga_id, provider_mapping_id, title, chapter_index) values (${`k${batch}-${i}`}, 'm0', 'map0', 'kill test', ${batch * 2000 + i + 1000})`,
+        );
+      }
+    });
+    console.log(`committed ${(batch + 1) * 2000}`);
+  }
+}
+
+// compile options that matter
+const probe = openClient(driver, ":memory:");
+const pdb = drizzleOver(probe);
+const options = pdb.all(sql`pragma compile_options`).map((row) => row.compile_options);
+const interesting = options.filter((o) =>
+  /^(ENABLE_(FTS|JSON|RTREE|STAT|SESSION|COLUMN|MATH|DBSTAT|GEOPOLY|PREUPDATE)|THREADSAFE|DEFAULT_(WAL|FOREIGN|MEMSTATUS|SYNCH)|DQS|OMIT_)/.test(
+    o,
+  ),
+);
+console.log(`compile_options(${options.length}): ${interesting.join(" ")}`);
+for (const statement of [
+  "create virtual table f using fts5(a)",
+  "select json_extract('{\"a\":1}', '$.a')",
+]) {
+  try {
+    pdb.run(sql.raw(statement));
+    console.log(`works: ${statement}`);
+  } catch (error) {
+    console.log(`FAILS: ${statement}: ${error.message}`);
+  }
+}
+for (const statement of ['select "not-a-column"', "pragma writable_schema = 1"]) {
+  try {
+    pdb.run(sql.raw(statement));
+    console.log(
+      `accepted: ${statement}; writable_schema now ${pdb.get(sql`pragma writable_schema`).writable_schema}`,
+    );
+  } catch (error) {
+    console.log(`refused: ${statement}: ${error.message}`);
+  }
+}
+probe.close();
+
+// native load in fresh processes
+const samples = [];
+for (let i = 0; i < 7; i += 1) samples.push(Number(run({ MODE: "cold" }).stdout.trim()));
+console.log(`cold_open_ms_fresh_process x7: ${samples.join(" ")}`);
+
+// kill -9 mid-write, five times, on a file database
+const killFile = path.join(dir(), "kill.db");
+{
+  const client = openClient(driver, killFile);
+  client.exec("PRAGMA journal_mode = WAL;");
+  const db = drizzleOver(client);
+  migrate(db, { migrationsFolder });
+  seed(db);
+  client.close();
+}
+let lastCommitted = 0;
+const killOnce = () =>
+  new Promise((resolve) => {
+    const child = spawn(process.execPath, [self], {
+      env: { ...process.env, MODE: "writer", DB: killFile },
+      stdio: ["ignore", "pipe", "inherit"],
+    });
+    let output = "";
+    child.stdout.on("data", (chunk) => {
+      output += chunk;
+      if (output.includes("committed 4000")) child.kill("SIGKILL");
+    });
+    child.on("exit", () => {
+      lastCommitted = output.match(/committed (\d+)/g)?.length ?? 0;
+      resolve();
+    });
+  });
+const client0 = openClient(driver, killFile);
+const before = count(drizzleOver(client0), chapters);
+client0.close();
+await killOnce();
+{
+  const client = openClient(driver, killFile);
+  const db = drizzleOver(client);
+  const integrity = db.get(sql`pragma integrity_check`).integrity_check;
+  const fkErrors = db.all(sql`pragma foreign_key_check`).length;
+  const added = count(db, chapters) - before;
+  console.log(
+    `${integrity === "ok" && fkErrors === 0 && added % 2000 === 0 && added >= lastCommitted * 2000 ? "PASS" : "FAIL"} kill -9 mid-write: integrity=${integrity} fk_errors=${fkErrors} rows_added=${added} acknowledged_commits=${lastCommitted} (whole batches only)`,
+  );
+  client.close();
+}
+
+// Change capture by temp triggers: cascades are seen, rollbacks leave nothing, and what it costs.
+{
+  const client = openClient(driver, path.join(dir(), "changes.db"));
+  client.exec("PRAGMA journal_mode = WAL;");
+  const db = drizzleOver(client);
+  migrate(db, { migrationsFolder });
+  seed(db);
+  const insertBatch = (prefix) => {
+    const start = performance.now();
+    withTransaction(db, (tx) => {
+      for (let i = 0; i < 20000; i += 1) {
+        tx.run(
+          sql`insert into chapters (id, manga_id, provider_mapping_id, title, chapter_index) values (${`${prefix}${i}`}, 'm1', 'map1', 't', ${100000 + i + (prefix === "b" ? 100000 : 0)})`,
+        );
+      }
+    });
+    return performance.now() - start;
+  };
+  const plain = insertBatch("a");
+  const drain = trackChanges(
+    (text) => client.exec(text),
+    (text) => db.all(sql.raw(text)),
+    { library_entries: "id", chapters: "id" },
+  );
+  const tracked = insertBatch("b");
+  drain();
+  console.log(`20000_inserts_ms without triggers ${plain.toFixed(0)}, with ${tracked.toFixed(0)}`);
+  try {
+    withTransaction(db, (tx) => {
+      tx.update(libraryEntries)
+        .set({ favorite: true })
+        .where(sql`id = 'e2'`)
+        .run();
+      throw new Error("forced");
+    });
+  } catch {
+    // Expected.
+  }
+  const afterRollback = drain();
+  console.log(
+    `${afterRollback.length === 0 ? "PASS" : "FAIL"} a rolled-back transaction emits no change events`,
+  );
+  db.run(sql`delete from manga_identities where id = 'm3'`);
+  const cascade = drain();
+  const byTable = Object.groupBy(cascade, (change) => change.table);
+  const seen = {
+    library_entries: byTable.library_entries?.length,
+    chapters: byTable.chapters?.length,
+  };
+  console.log(
+    `${seen.library_entries === 1 && seen.chapters === 200 ? "PASS" : "FAIL"} FK cascade delete is captured: ${JSON.stringify(seen)}`,
+  );
+  client.close();
+}
+
+// A real sql.js snapshot, made the way the renderer makes it, opened natively.
+const require = createRequire(`${root}/package.json`);
+const initSqlJs = require("sql.js");
+const SQL = await initSqlJs();
+const journal = JSON.parse(readFileSync(`${migrationsFolder}/meta/_journal.json`, "utf8"));
+const files = journal.entries.map(({ tag }) => {
+  const text = readFileSync(`${migrationsFolder}/${tag}.sql`, "utf8");
+  return { tag, sql: text, hash: createHash("sha256").update(text).digest("hex") };
+});
+const raw = new SQL.Database();
+migrateDatabaseFromBundled(raw, journal, files);
+const sqlJsDb = createDrizzleFromSqlJs(raw);
+seed(sqlJsDb);
+const times = [];
+for (let i = 0; i < 7; i += 1) {
+  const start = performance.now();
+  await listLibraryEntries(sqlJsDb);
+  times.push(performance.now() - start);
+}
+times.sort((a, b) => a - b);
+console.log(
+  `sql.js baseline listLibraryEntries (999 rows + locked) median ms: ${times[3].toFixed(1)}`,
+);
+const expected = { entries: count(sqlJsDb, libraryEntries), chapters: count(sqlJsDb, chapters) };
+const bytes = raw.export();
+raw.close();
+const importFile = path.join(dir(), "imported.db");
+writeFileSync(importFile, bytes);
+console.log(`snapshot_mb: ${(bytes.length / 1048576).toFixed(1)}`);
+const imported = openClient(driver, importFile);
+imported.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
+const idb = drizzleOver(imported);
+const appliedBefore = idb.all(sql`select count(*) as n from __drizzle_migrations`)[0].n;
+const start = performance.now();
+migrate(idb, { migrationsFolder });
+const migrateMs = performance.now() - start;
+const appliedAfter = idb.all(sql`select count(*) as n from __drizzle_migrations`)[0].n;
+const counts = { entries: count(idb, libraryEntries), chapters: count(idb, chapters) };
+const integrity = idb.get(sql`pragma integrity_check`).integrity_check;
+const same = counts.entries === expected.entries && counts.chapters === expected.chapters;
+console.log(
+  `${same && integrity === "ok" && appliedBefore === appliedAfter ? "PASS" : "FAIL"} sql.js snapshot opens natively: counts ${JSON.stringify(counts)} integrity=${integrity} migrations ${appliedBefore}->${appliedAfter} in ${migrateMs.toFixed(1)}ms`,
+);
+withTransaction(idb, (tx) => {
+  tx.update(libraryEntries)
+    .set({ favorite: true })
+    .where(sql`id = 'e1'`)
+    .run();
+});
+console.log("PASS imported snapshot accepts a transaction");
+imported.close();
+process.exit(0);

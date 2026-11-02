@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["../../work/packages/db-src", "./host-opener.ts"]
+}

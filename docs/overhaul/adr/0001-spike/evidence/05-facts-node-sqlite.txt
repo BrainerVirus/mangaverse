@@ -1,0 +1,14 @@
+compile_options(49): DEFAULT_SYNCHRONOUS=2 DEFAULT_WAL_AUTOCHECKPOINT=1000 DEFAULT_WAL_SYNCHRONOUS=2 ENABLE_COLUMN_METADATA ENABLE_DBSTAT_VTAB ENABLE_FTS3 ENABLE_FTS3_PARENTHESIS ENABLE_FTS5 ENABLE_GEOPOLY ENABLE_MATH_FUNCTIONS ENABLE_PREUPDATE_HOOK ENABLE_RTREE ENABLE_SESSION THREADSAFE=1
+works: create virtual table f using fts5(a)
+works: select json_extract('{"a":1}', '$.a')
+refused: select "not-a-column": Failed to run the query 'select "not-a-column"'
+accepted: pragma writable_schema = 1; writable_schema now 0
+cold_open_ms_fresh_process x7: 0.14 0.15 0.13 0.13 0.15 0.15 0.13
+PASS kill -9 mid-write: integrity=ok fk_errors=0 rows_added=4000 acknowledged_commits=2 (whole batches only)
+20000_inserts_ms without triggers 130, with 205
+PASS a rolled-back transaction emits no change events
+PASS FK cascade delete is captured: {"library_entries":1,"chapters":200}
+sql.js baseline listLibraryEntries (999 rows + locked) median ms: 485.8
+snapshot_mb: 29.1
+PASS sql.js snapshot opens natively: counts {"entries":999,"chapters":200000} integrity=ok migrations 8->8 in 0.3ms
+PASS imported snapshot accepts a transaction

@@ -1,0 +1,4 @@
+run OK {"changes":0,"lastInsertRowid":0}
+values (select with fields, uses stmt.raw()) FAILS TypeError: this.stmt.raw is not a function
+get OK {"a":1}
+transaction FAILS TypeError: this.client.transaction is not a function

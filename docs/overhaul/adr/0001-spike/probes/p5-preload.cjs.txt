@@ -1,0 +1,8 @@
+const { contextBridge, ipcRenderer } = require("electron");
+
+contextBridge.exposeInMainWorld("spike", {
+  report: (message) => ipcRenderer.send("report", message),
+});
+ipcRenderer.on("host-port", (event) => {
+  window.postMessage("host-port", "*", event.ports);
+});

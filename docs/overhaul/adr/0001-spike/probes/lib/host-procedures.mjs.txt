@@ -1,0 +1,127 @@
+// The data host: opens SQLite, migrates, and exposes real repository functions with `db` bound.
+import { and, asc, eq, sql } from "drizzle-orm";
+import { z } from "zod";
+import { chapters, libraryEntries } from "@spike/db/schema.js";
+import {
+  addLibraryEntry,
+  getLibraryEntry,
+  listLibraryCategories,
+  listLibraryEntries,
+  reorderLibraryCategories,
+  setLibraryEntryFavorite,
+} from "@spike/db/repositories/library.js";
+import {
+  appendExtensionLog,
+  countExtensionLogs,
+  listExtensionLogs,
+} from "@spike/db/repositories/extension-logs.js";
+
+/** Temp triggers record committed row changes, including FK cascades, and roll back with the transaction. */
+export function trackChanges(exec, all, tables) {
+  exec("CREATE TEMP TABLE IF NOT EXISTS host_changes (tbl TEXT, pk TEXT, op TEXT)");
+  for (const [table, pk] of Object.entries(tables)) {
+    for (const [op, row] of [
+      ["insert", "NEW"],
+      ["update", "NEW"],
+      ["delete", "OLD"],
+    ]) {
+      exec(`CREATE TEMP TRIGGER IF NOT EXISTS host_${table}_${op} AFTER ${op.toUpperCase()} ON ${table}
+        BEGIN INSERT INTO host_changes VALUES ('${table}', ${row}.${pk}, '${op}'); END`);
+    }
+  }
+  return () => {
+    const rows = all("SELECT tbl, pk, op FROM host_changes");
+    if (rows.length > 0) exec("DELETE FROM host_changes");
+    return rows.map((row) => ({ table: row.tbl, key: row.pk, op: row.op }));
+  };
+}
+
+const schemas = {
+  listLibraryEntries: z.tuple([]),
+  getLibraryEntries: z.tuple([z.array(z.string()).max(1000)]),
+  addLibraryEntry: z.tuple([z.object({ id: z.string(), mangaId: z.string(), status: z.string() })]),
+  setLibraryEntryFavorite: z.tuple([z.string(), z.boolean()]),
+  reorderLibraryCategories: z.tuple([z.array(z.string())]),
+  listLibraryCategories: z.tuple([]),
+  listChapterWindow: z.tuple([
+    z.object({
+      mangaId: z.string(),
+      exactIndex: z.number().int().optional(),
+      limit: z.number().int().min(1).max(500),
+    }),
+  ]),
+  getChapters: z.tuple([z.array(z.string()).max(1000)]),
+  appendExtensionLog: z.tuple([
+    z.object({
+      providerId: z.string(),
+      level: z.enum(["info", "warn", "error"]),
+      code: z.string(),
+      message: z.string(),
+    }),
+  ]),
+  countExtensionLogs: z.tuple([]),
+  listExtensionLogs: z.tuple([z.object({ providerId: z.string().optional() })]),
+  countRows: z.tuple([z.enum(["chapters", "library_entries"])]),
+  busyFor: z.tuple([z.number().int().max(5000)]),
+};
+
+export const validate = (method, args) => schemas[method]?.safeParse(args).success === true;
+
+export function createProcedures(db) {
+  return {
+    listLibraryEntries: () => listLibraryEntries(db),
+    getLibraryEntries: async (ids) =>
+      (await Promise.all(ids.map((id) => getLibraryEntry(db, id)))).filter(Boolean),
+    addLibraryEntry: (input) => addLibraryEntry(db, input),
+    setLibraryEntryFavorite: (id, favorite) => setLibraryEntryFavorite(db, id, favorite),
+    reorderLibraryCategories: (ids) => reorderLibraryCategories(db, ids),
+    listLibraryCategories: () => listLibraryCategories(db),
+    // New: no repository pages chapters today, and listChaptersForManga loads pages per chapter.
+    listChapterWindow: ({ mangaId, exactIndex, limit }) =>
+      db
+        .select({
+          id: chapters.id,
+          mangaId: chapters.mangaId,
+          index: chapters.chapterIndex,
+          title: chapters.title,
+        })
+        .from(chapters)
+        .where(
+          exactIndex === undefined
+            ? eq(chapters.mangaId, mangaId)
+            : and(eq(chapters.mangaId, mangaId), eq(chapters.chapterIndex, exactIndex)),
+        )
+        .orderBy(asc(chapters.chapterIndex))
+        .limit(limit)
+        .all(),
+    getChapters: (ids) =>
+      ids
+        .map((id) =>
+          db
+            .select({
+              id: chapters.id,
+              mangaId: chapters.mangaId,
+              index: chapters.chapterIndex,
+              title: chapters.title,
+            })
+            .from(chapters)
+            .where(eq(chapters.id, id))
+            .get(),
+        )
+        .filter(Boolean),
+    appendExtensionLog: (input) => appendExtensionLog(db, input),
+    countExtensionLogs: () => countExtensionLogs(db),
+    listExtensionLogs: (filter) => listExtensionLogs(db, filter),
+    countRows: (table) =>
+      db
+        .select({ n: sql`count(*)` })
+        .from(table === "chapters" ? chapters : libraryEntries)
+        .get().n,
+    // Stands in for a slow query: holds the host's only thread.
+    busyFor: (milliseconds) => {
+      const end = Date.now() + milliseconds;
+      while (Date.now() < end);
+      return milliseconds;
+    },
+  };
+}

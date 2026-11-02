@@ -1,0 +1,2 @@
+machine (not the reference machine): Mac16,1 10 cores 32 GB, macOS 27.2
+{"electron":"44.7.0","node":"24.21.0","abi":"149","napi":"10","sqlite":"3.53.4","arch":"arm64"}

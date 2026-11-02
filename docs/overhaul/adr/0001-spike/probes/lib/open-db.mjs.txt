@@ -1,0 +1,27 @@
+// Builds a Drizzle sync database on either driver without the stock driver module,
+// whose top-level `import Client from 'better-sqlite3'` would force that package.
+import { createRequire } from "node:module";
+import { createTableRelationsHelpers, extractTablesRelationalConfig } from "drizzle-orm/relations";
+import { BetterSQLiteSession } from "drizzle-orm/better-sqlite3/session";
+import { BaseSQLiteDatabase, SQLiteSyncDialect } from "drizzle-orm/sqlite-core";
+import { schema as appSchema } from "@spike/db/schema.js";
+import { NodeSqliteClient } from "./node-sqlite-client.mjs";
+
+export function openClient(driver, path) {
+  if (driver === "node:sqlite") return new NodeSqliteClient(path);
+  const require = createRequire(`${process.env.SPIKE_DIR}/package.json`);
+  const Database = require("better-sqlite3");
+  return new Database(path);
+}
+
+export function drizzleOver(client) {
+  const dialect = new SQLiteSyncDialect();
+  const tables = extractTablesRelationalConfig(appSchema, createTableRelationsHelpers);
+  const schema = {
+    fullSchema: appSchema,
+    schema: tables.tables,
+    tableNamesMap: tables.tableNamesMap,
+  };
+  const session = new BetterSQLiteSession(client, dialect, schema, {});
+  return new BaseSQLiteDatabase("sync", dialect, session, schema);
+}

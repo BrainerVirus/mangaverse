@@ -1,0 +1,79 @@
+// Spec 4's budget dataset, written through Drizzle in one transaction.
+import {
+  categories,
+  chapters,
+  libraryEntries,
+  mangaIdentities,
+  mangaProviderMappings,
+} from "@spike/db/schema.js";
+import { withTransaction } from "@spike/db/transactions.js";
+
+export function seed(db) {
+  const now = new Date().toISOString();
+  withTransaction(db, (tx) => {
+    for (let t = 0; t < 1000; t += 1) {
+      const id = `m${t}`;
+      tx.insert(mangaIdentities)
+        .values({
+          id,
+          canonicalTitle: `Series ${t}`,
+          status: "ongoing",
+          contentRating: "safe",
+          merged: false,
+          defaultProviderMappingId: `map${t}`,
+        })
+        .run();
+      tx.insert(mangaProviderMappings)
+        .values({ id: `map${t}`, mangaId: id, providerId: "seed", providerMangaId: id })
+        .run();
+      // m0 and m999 stay free for the locked entry and the optimistic insert.
+      if (t > 0 && t < 999)
+        tx.insert(libraryEntries)
+          .values({
+            id: `e${t}`,
+            mangaId: id,
+            favorite: t % 7 === 0,
+            status: "reading",
+            unreadCount: 0,
+            addedAt: now,
+          })
+          .run();
+      for (let c = 0; c < 200; c += 1) {
+        tx.insert(chapters)
+          .values({
+            id: `m${t}-c${c}`,
+            mangaId: id,
+            providerMappingId: `map${t}`,
+            title: `Chapter ${c}`,
+            chapterIndex: c,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .run();
+      }
+    }
+    tx.insert(libraryEntries)
+      .values({
+        id: "e-locked",
+        mangaId: "m0",
+        favorite: false,
+        status: "reading",
+        unreadCount: 0,
+        addedAt: now,
+      })
+      .run();
+    tx.insert(categories)
+      .values([
+        { id: "cat-a", name: "A", sortIndex: 5 },
+        { id: "cat-locked", name: "Locked", sortIndex: 6 },
+      ])
+      .run();
+  });
+}
+
+export const LOCK_TRIGGERS = `
+  CREATE TRIGGER lock_entry BEFORE UPDATE ON library_entries WHEN OLD.id = 'e-locked'
+    BEGIN SELECT RAISE(ABORT, 'entry is locked by the probe'); END;
+  CREATE TRIGGER lock_category BEFORE UPDATE ON categories WHEN OLD.id = 'cat-locked'
+    BEGIN SELECT RAISE(ABORT, 'category is locked by the probe'); END;
+`;

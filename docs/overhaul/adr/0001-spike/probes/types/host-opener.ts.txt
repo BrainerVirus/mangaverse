@@ -1,0 +1,25 @@
+// The product-shaped opener: compiles against the session export with no better-sqlite3 types.
+import { createTableRelationsHelpers, extractTablesRelationalConfig } from 'drizzle-orm/relations';
+import { BetterSQLiteSession } from 'drizzle-orm/better-sqlite3/session';
+import { BaseSQLiteDatabase, SQLiteSyncDialect } from 'drizzle-orm/sqlite-core';
+import type { AppDrizzleDb } from '../../work/packages/db-src/adapter.js';
+import { schema as appSchema, type AppSchema } from '../../work/packages/db-src/schema.js';
+
+type SessionClient = ConstructorParameters<typeof BetterSQLiteSession>[0];
+
+export function openHostDrizzle(client: SessionClient): AppDrizzleDb {
+  const dialect = new SQLiteSyncDialect();
+  const tables = extractTablesRelationalConfig(appSchema, createTableRelationsHelpers);
+  const schema = {
+    fullSchema: appSchema,
+    schema: tables.tables,
+    tableNamesMap: tables.tableNamesMap,
+  };
+  const session = new BetterSQLiteSession(client, dialect, schema as never, {});
+  return new BaseSQLiteDatabase<'sync', unknown, AppSchema>(
+    'sync',
+    dialect,
+    session as never,
+    schema as never,
+  );
+}

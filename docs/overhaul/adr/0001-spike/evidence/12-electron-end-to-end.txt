@@ -1,0 +1,70 @@
+== node:sqlite
+main: electron 44.7.0 node 24.21.0 abi 149 darwin-arm64
+host ready after 3728ms: {"driver":"node:sqlite","processType":"utility","node":"24.21.0","electron":"44.7.0","sqlite":"3.53.4","openAndMigrateMs":5.2,"seededMs":3660}
+PASS [a] renderer has no Node access (process: undefined, require: undefined)
+PASS [b] renderer has no Node access (process: undefined, require: undefined)
+note [a] list preload ms: 356.2, rows: 999
+PASS [a] list collection fed by the host contract
+PASS [a] optimistic update visible synchronously
+PASS [a] accepted update raised no error
+PASS [a] optimistic update survives acceptance
+PASS [a] no flicker back to the old value (observed [true,true])
+note [b] window b saw insert on e1
+PASS [a] host really stored it
+PASS [a] rejected update first applies optimistically
+PASS [a] rejected update reports a typed error (entry is locked by the probe)
+PASS [a] rejected update rolled back in the UI
+PASS [a] rejected update left SQLite unchanged
+PASS [a] optimistic insert visible synchronously
+note [b] window b saw insert on client-made
+PASS [a] optimistic insert accepted
+PASS [a] accepted insert survives
+PASS [a] rejected insert rolled back (db.library.manga_missing)
+PASS [a] malformed call rejected by validation
+PASS [a] repository transaction failure reaches the UI (category is locked by the probe)
+PASS [a] its earlier statement rolled back in SQLite (cat-a sortIndex 5)
+note [a] first chapter window ms: 7.4
+PASS [a] on-demand window returns 50 ordered rows (rows 50)
+PASS [a] on-demand loads a fraction of the table (in memory 50 of 200000)
+PASS [a] next window loads on demand (first index 50, in memory 100)
+note [a] loadSubset requests: [{"mangaId":"m500","limit":50},{"mangaId":"m500","exactIndex":49},{"mangaId":"m500","limit":100},{"mangaId":"m500","exactIndex":99}]
+PASS [a] renderer not blocked during a 1.5s host stall (longest timer gap 12.2ms over 1499ms)
+note [a] rpc round trip ms: mean 0.046 over 1000 calls
+note [a] full library over rpc ms: 344.1, rows 1000
+PASS change in window a reached window b without a reload (favorite=true)
+result: ALL PASS
+== better-sqlite3
+main: electron 44.7.0 node 24.21.0 abi 149 darwin-arm64
+host ready after 4051ms: {"driver":"better-sqlite3","processType":"utility","node":"24.21.0","electron":"44.7.0","sqlite":"3.53.4","openAndMigrateMs":8.3,"seededMs":3983}
+PASS [a] renderer has no Node access (process: undefined, require: undefined)
+PASS [b] renderer has no Node access (process: undefined, require: undefined)
+note [a] list preload ms: 316.2, rows: 999
+PASS [a] list collection fed by the host contract
+PASS [a] optimistic update visible synchronously
+PASS [a] accepted update raised no error
+PASS [a] optimistic update survives acceptance
+PASS [a] no flicker back to the old value (observed [true,true])
+PASS [a] host really stored it
+note [b] window b saw insert on e1
+PASS [a] rejected update first applies optimistically
+PASS [a] rejected update reports a typed error (entry is locked by the probe)
+PASS [a] rejected update rolled back in the UI
+PASS [a] rejected update left SQLite unchanged
+PASS [a] optimistic insert visible synchronously
+PASS [a] optimistic insert accepted
+note [b] window b saw insert on client-made
+PASS [a] accepted insert survives
+PASS [a] rejected insert rolled back (db.library.manga_missing)
+PASS [a] malformed call rejected by validation
+PASS [a] repository transaction failure reaches the UI (category is locked by the probe)
+PASS [a] its earlier statement rolled back in SQLite (cat-a sortIndex 5)
+note [a] first chapter window ms: 7.5
+PASS [a] on-demand window returns 50 ordered rows (rows 50)
+PASS [a] on-demand loads a fraction of the table (in memory 50 of 200000)
+PASS [a] next window loads on demand (first index 50, in memory 100)
+note [a] loadSubset requests: [{"mangaId":"m500","limit":50},{"mangaId":"m500","exactIndex":49},{"mangaId":"m500","limit":100},{"mangaId":"m500","exactIndex":99}]
+PASS [a] renderer not blocked during a 1.5s host stall (longest timer gap 12.3ms over 1500ms)
+note [a] rpc round trip ms: mean 0.050 over 1000 calls
+note [a] full library over rpc ms: 309.4, rows 1000
+PASS change in window a reached window b without a reload (favorite=true)
+result: ALL PASS

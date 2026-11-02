@@ -1,0 +1,32 @@
+// The same host contract and scenario in a real Web Worker, on the browser driver (sql.js WASM).
+// spec 10 will choose its own engine and storage; this proves the contract's shape only.
+import initSqlJs from "sql.js/dist/sql-wasm.js";
+import { sql } from "drizzle-orm";
+import { createDrizzleFromSqlJs } from "@spike/db/client.js";
+import { migrateDatabaseFromBundled } from "@spike/db/bundled-migrations.js";
+import { createProcedures, trackChanges, validate } from "@spike/lib/host-procedures.mjs";
+import { serveHost } from "@spike/lib/rpc.mjs";
+import { LOCK_TRIGGERS, seed } from "@spike/lib/seed.mjs";
+
+const started = performance.now();
+const SQL = await initSqlJs({ locateFile: () => "app://spike/sql-wasm.wasm" });
+const journal = await (await fetch("app://spike/migrations/meta/_journal.json")).json();
+const files = await Promise.all(
+  journal.entries.map(async ({ tag }) => ({
+    tag,
+    hash: tag,
+    sql: await (await fetch(`app://spike/migrations/${tag}.sql`)).text(),
+  })),
+);
+const raw = new SQL.Database();
+migrateDatabaseFromBundled(raw, journal, files);
+const db = createDrizzleFromSqlJs(raw);
+seed(db);
+raw.run(LOCK_TRIGGERS);
+const drainChanges = trackChanges(
+  (text) => raw.run(text),
+  (text) => db.all(sql.raw(text)),
+  { library_entries: "id", chapters: "id", categories: "id" },
+);
+serveHost({ procedures: createProcedures(db), validate, drainChanges }).attach(self);
+self.postMessage({ workerReady: true, seededMs: Math.round(performance.now() - started) });

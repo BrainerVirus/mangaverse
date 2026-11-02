@@ -1,0 +1,10 @@
+import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
+import type { AppSchema } from './schema.js';
+
+type Full = BaseSQLiteDatabase<'sync', unknown, AppSchema>;
+
+/** A host-internal minimal interface: only the verbs the repositories use. */
+export type AppDrizzleDb = Pick<
+  Full,
+  'select' | 'selectDistinct' | 'insert' | 'update' | 'delete' | 'transaction'
+>;

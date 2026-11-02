@@ -1,0 +1,22 @@
+version: 13.0.3 gypfile: false install script: none
+ 26M	node_modules/better-sqlite3
+9.8M	node_modules/better-sqlite3/deps
+ 16M	node_modules/better-sqlite3/prebuilds
+1980736 darwin-arm64.node
+1982880 darwin-x64.node
+2066328 linux-arm64.node
+2226168 linux-x64.node
+2312112 linuxmusl-arm64.node
+2435680 linuxmusl-x64.node
+1903104 win32-arm64.node
+1989632 win32-x64.node
+darwin-arm64.node: Mach-O 64-bit bundle arm64
+CodeDirectory v=20400 size=15468 flags=0x20002(adhoc,linker-signed) 
+Signature=adhoc
+== @electron/rebuild for Electron 44.7.0
+Building modules: better-sqlite3
+✔ Rebuild Complete
+elapsed: 1s; .node files it built: 0
+== source build against Electron 44.7.0 headers (documented alternative)
+gyp info ok 
+elapsed: 12s; size: 1964304 bytes

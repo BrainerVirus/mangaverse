@@ -1,0 +1,35 @@
+// Bundles probes with esbuild. Usage: node probes/build.mjs <entry.mjs> [...]; run from SPIKE_DIR.
+import { createRequire } from "node:module";
+import path from "node:path";
+
+const root = process.env.SPIKE_DIR;
+const require = createRequire(`${root}/package.json`);
+const esbuild = require("esbuild");
+const work = `${root}/work/packages`;
+
+for (const entry of process.argv.slice(2)) {
+  const browser = /renderer|worker/.test(entry);
+  await esbuild.build({
+    absWorkingDir: root,
+    entryPoints: [`probes/${entry}`],
+    outfile: `out/${path.basename(entry)}`,
+    bundle: true,
+    format: browser && !entry.includes("worker") ? "iife" : "esm",
+    platform: browser ? "browser" : "node",
+    target: "es2023",
+    // sql.js names the two node: modules behind a runtime check it never takes in a Worker.
+    external: ["better-sqlite3", "electron", "node:fs", "node:crypto"],
+    alias: {
+      "@app/shared": `${work}/shared-src/index.ts`,
+      "@spike/db": `${work}/db-src`,
+      "@spike/lib": `${root}/probes/lib`,
+    },
+    banner: browser
+      ? {}
+      : {
+          js: "import{createRequire as __cr}from'node:module';const require=__cr(import.meta.url);",
+        },
+    loader: { ".sql": "text" },
+    logLevel: "warning",
+  });
+}

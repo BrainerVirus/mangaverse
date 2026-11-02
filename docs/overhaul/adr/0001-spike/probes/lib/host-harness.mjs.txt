@@ -1,0 +1,17 @@
+// A test harness whose `db` is a host handle: every repository call crosses a real MessageChannel.
+import { createHostClient, serveHost } from "./rpc.mjs";
+import { createSqlJsHarness as createNativeHarness } from "./native-harness.mjs";
+import * as repositories from "@spike/db/index.ts";
+
+export async function createSqlJsHarness() {
+  const { raw, db } = await createNativeHarness();
+  const procedures = {};
+  for (const [name, value] of Object.entries(repositories)) {
+    if (typeof value === "function") procedures[name] = (...args) => value(db, ...args);
+  }
+  const { port1, port2 } = new MessageChannel();
+  serveHost({ procedures, validate: () => true, drainChanges: () => [] }).attach(port1);
+  const client = createHostClient(port2);
+  const handle = { call: (method, args) => client[method](...args) };
+  return { raw, db: handle, sqlModule: undefined };
+}

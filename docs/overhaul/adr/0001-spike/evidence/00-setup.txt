@@ -1,0 +1,9 @@
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: 'vitest@5.0.4',
+npm warn EBADENGINE   required: { node: '^22.12.0 || ^24.0.0 || >=26.0.0' },
+npm warn EBADENGINE   current: { node: 'v25.9.0', npm: '11.12.1' }
+npm warn EBADENGINE }
+
+added 96 packages in 2s
+spike ready: $SPIKE_DIR
+setup seconds: 3

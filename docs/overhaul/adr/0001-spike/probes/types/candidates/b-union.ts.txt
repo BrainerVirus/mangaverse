@@ -1,0 +1,5 @@
+import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import type { SQLJsDatabase } from 'drizzle-orm/sql-js';
+import type { AppSchema } from './schema.js';
+
+export type AppDrizzleDb = SQLJsDatabase<AppSchema> | BetterSQLite3Database<AppSchema>;

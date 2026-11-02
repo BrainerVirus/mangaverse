@@ -1,0 +1,4 @@
+ FAIL  work/packages/db-src/integration.test.ts > @app/db > applies migrations idempotently on sql.js
+Caused by: TypeError: stmt.free is not a function
+ Test Files  1 failed | 29 passed (30)
+      Tests  1 failed | 238 passed (239)

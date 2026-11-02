@@ -1,0 +1,97 @@
+// The host contract: one shape over any MessagePort-like channel (Electron MessagePort,
+// Web Worker). A call is { id, method, args }; a reply is { id, ok, value | error };
+// committed row changes arrive as { changes: [...], seq } BEFORE the reply that caused them.
+
+/** Host side. Calls run strictly one at a time, so async repositories cannot interleave. */
+export function serveHost({ procedures, validate, drainChanges }) {
+  let tail = Promise.resolve();
+  let seq = 0;
+  const ports = new Set();
+  const handle = async (port, { id, method, args }) => {
+    const procedure = procedures[method];
+    if (procedure === undefined || !validate(method, args)) {
+      port.postMessage({
+        id,
+        ok: false,
+        error: { code: "host.bad_request", message: `Rejected call to ${method}` },
+      });
+      return;
+    }
+    try {
+      const value = await procedure(...args);
+      const changes = drainChanges();
+      if (changes.length > 0) {
+        seq += 1;
+        for (const other of ports) other.postMessage({ seq, changes });
+      }
+      port.postMessage({ id, ok: true, value });
+    } catch (error) {
+      drainChanges();
+      port.postMessage({
+        id,
+        ok: false,
+        error: { code: error.code ?? "host.failed", message: error.message },
+      });
+    }
+  };
+  return {
+    attach(port) {
+      ports.add(port);
+      port.onmessage = (event) => {
+        tail = tail.then(() => handle(port, event.data));
+      };
+      port.start?.();
+    },
+  };
+}
+
+export class HostRejected extends Error {
+  constructor(error) {
+    super(error.message);
+    this.name = "HostRejected";
+    this.code = error.code;
+  }
+}
+
+/** UI side: every property is a procedure with the `db` argument already bound by the host. */
+export function createHostClient(port) {
+  let nextId = 1;
+  const pending = new Map();
+  const listeners = new Set();
+  port.onmessage = ({ data }) => {
+    if (data.changes !== undefined) {
+      for (const listener of listeners) listener(data);
+      return;
+    }
+    const call = pending.get(data.id);
+    pending.delete(data.id);
+    if (data.ok) call.resolve(data.value);
+    else call.reject(new HostRejected(data.error));
+  };
+  port.start?.();
+  const onChange = (listener) => {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+  };
+  return new Proxy(
+    { onChange },
+    {
+      get: (target, method) =>
+        target[method] ??
+        ((...args) =>
+          new Promise((resolve, reject) => {
+            const id = nextId++;
+            pending.set(id, { resolve, reject });
+            port.postMessage({ id, method, args });
+          })),
+    },
+  );
+}
+
+/** Repositories report rejection as AppResult; a mutation handler must throw to roll back. */
+export function unwrap(result) {
+  if (result !== null && typeof result === "object" && result.ok === false) {
+    throw new HostRejected(result.error);
+  }
+  return result?.value;
+}

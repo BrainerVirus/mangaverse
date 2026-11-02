@@ -1,0 +1,19 @@
+import { createHostClient } from "@spike/lib/rpc.mjs";
+import { runScenario } from "@spike/lib/scenario.mjs";
+
+const report = (message) => window.spike.report({ role: "worker-fit", ...message });
+const worker = new Worker("app://spike/p6-worker-host.mjs", { type: "module" });
+worker.onerror = (event) => report({ type: "failed", message: event.message });
+worker.onmessage = async ({ data }) => {
+  if (data.workerReady !== true) return;
+  report({ type: "note", text: `worker host ready, seeded in ${data.seededMs}ms` });
+  worker.onmessage = null;
+  try {
+    const check = (name, pass, detail = "") => report({ type: "check", name, pass, detail });
+    const note = (text) => report({ type: "note", text });
+    await runScenario(createHostClient(worker), { check, note, seedManga: "m999" });
+    report({ type: "done" });
+  } catch (error) {
+    report({ type: "failed", message: `${error.name}: ${error.message}\n${error.stack}` });
+  }
+};
