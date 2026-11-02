@@ -27,8 +27,13 @@ afterAll(async () => {
 });
 
 describe('resolveAppRequest', () => {
-  it('serves the shell for the root and for deep extensionless routes', async () => {
-    for (const url of ['app://app/', 'app://app/library', 'app://app/manga/abc/chapter/1?x=1#y']) {
+  it('serves the shell for the root, deep routes and dotted route segments', async () => {
+    for (const url of [
+      'app://app/',
+      'app://app/library',
+      'app://app/manga/abc/chapter/1?x=1#y',
+      'app://app/manga/one.piece',
+    ]) {
       expect(await resolveAppRequest(root, url)).toEqual({
         kind: 'file',
         path: join(root, 'index.html'),
@@ -53,11 +58,17 @@ describe('resolveAppRequest', () => {
     }
   });
 
-  it('answers 404 for a missing file with an extension instead of the shell', async () => {
-    expect(await resolveAppRequest(root, 'app://app/assets/missing.js')).toEqual({
-      kind: 'refused',
-      status: 404,
-    });
+  it('answers 404 for missing assets instead of the shell', async () => {
+    for (const url of [
+      'app://app/assets/missing.js',
+      'app://app/assets/missing',
+      'app://app/missing.js',
+    ]) {
+      expect(await resolveAppRequest(root, url)).toEqual({
+        kind: 'refused',
+        status: 404,
+      });
+    }
   });
 
   it('refuses traversal, encoded separators and other hosts', async () => {

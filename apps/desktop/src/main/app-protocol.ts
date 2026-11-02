@@ -92,7 +92,12 @@ export async function resolveAppRequest(
   const stats = segments.length === 0 ? null : await statOrNull(candidate);
   let target = candidate;
   if (stats === null || stats.isDirectory()) {
-    if (segments.length > 0 && stats === null && extname(segments.at(-1) ?? '') !== '') {
+    // Only real asset requests 404 when missing. Every other path is a client route,
+    // even when its last segment contains a dot: provider and manga ids are free-form.
+    const isAssetRequest =
+      segments[0] === 'assets' ||
+      MIME_TYPES[extname(segments.at(-1) ?? '').toLowerCase()] !== undefined;
+    if (segments.length > 0 && stats === null && isAssetRequest) {
       return { kind: 'refused', status: 404 };
     }
     target = indexPath;
