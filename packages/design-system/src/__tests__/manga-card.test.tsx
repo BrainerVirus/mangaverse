@@ -10,8 +10,8 @@ import type {
   MangaIdentity,
 } from '@app/shared';
 
-vi.mock('@app/motion', async () => {
-  const actual = await vi.importActual('@app/motion');
+vi.mock('../motion/index.js', async () => {
+  const actual = await vi.importActual('../motion/index.js');
   return {
     ...actual,
     useReducedMotion: () => false,

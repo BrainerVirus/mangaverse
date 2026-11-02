@@ -11,7 +11,7 @@ export async function fetchProviderDetail(
     buildPermissionDisplay,
     getProviderSettings,
     listInstalledProviders,
-  } = await import('@app/extensions-core');
+  } = await import('./core/index.js');
 
   const list = await listInstalledProviders(db);
   if (!list.ok) {

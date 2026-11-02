@@ -1,5 +1,5 @@
 import { memo, useMemo, useRef } from 'react';
-import { useGridStaggerReveal } from '@app/motion';
+import { useGridStaggerReveal } from '@app/design-system/motion';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { CachedMangaCard } from '@app/cache';
 import type {

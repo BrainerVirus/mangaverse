@@ -13,7 +13,7 @@ import { GlassPanel } from '../components/glass-panel.js';
 import { RefractionLayer } from '../components/refraction-layer.js';
 import { AmbientBackdrop } from '../components/ambient-backdrop.js';
 import { resolveGlassProfile } from '../lib/glass-profile.js';
-import { setInAppReducedMotionPreference } from '@app/motion';
+import { setInAppReducedMotionPreference } from '../motion/index.js';
 
 const TIERS = ['thin', 'regular', 'thick', 'stage'] as const;
 const ELEVATIONS = [0, 1, 2, 3, 4] as const;

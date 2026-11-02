@@ -1,6 +1,6 @@
 import type { AppDrizzleDb } from '@app/db/browser';
 import { listInstalledExtensions, upsertInstalledExtension } from '@app/db/browser';
-import { MANGADEX_MANIFEST } from '@app/extensions-mangadex';
+import { MANGADEX_MANIFEST } from '@app/extensions/mangadex';
 import {
   toExtensionInstallId,
   type ExtensionInstallMetadata,

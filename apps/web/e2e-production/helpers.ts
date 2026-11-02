@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, test as base, type Locator, type Page } from '@playwright/test';
 
 export const fixturesDir = fileURLToPath(
-  new URL('../../../packages/extensions-mangadex/src/fixtures/', import.meta.url),
+  new URL('../../../packages/extensions/src/mangadex/fixtures/', import.meta.url),
 );
 
 const MANGADEX_MANGA_ID = 'dc332d04-d3b0-413c-a767-70f5e451b031';

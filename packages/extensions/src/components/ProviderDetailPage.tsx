@@ -27,7 +27,7 @@ import type {
   ExtensionLogLevel,
   ProviderHealthCheckReport,
   ProviderUpdateCheck,
-} from '@app/extensions-core';
+} from '../core/index.js';
 import type { ProviderSettingsValues } from '@app/shared';
 import { ExternalLink } from 'lucide-react';
 import { useState } from 'react';

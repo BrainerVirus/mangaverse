@@ -10,7 +10,7 @@ export async function loadProviderSettings(
   db: AppDrizzleDb,
   providerId: string,
 ): Promise<ProviderSettingsValues> {
-  const { getProviderSettings } = await import('@app/extensions-core');
+  const { getProviderSettings } = await import('./core/index.js');
   try {
     const result = await getProviderSettings(providerId, { db });
     return result.ok ? result.value : {};
@@ -26,7 +26,7 @@ export async function updateProviderSettings(
   settings: ProviderSettingsValues,
 ): Promise<AppResult<ProviderSettingsValues>> {
   const { listInstalledProviders, saveProviderSettings, validateProviderSettings } =
-    await import('@app/extensions-core');
+    await import('./core/index.js');
   const list = await listInstalledProviders(db);
   if (!list.ok) return list;
 

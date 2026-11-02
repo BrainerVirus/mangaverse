@@ -18,9 +18,9 @@ import {
   type LibraryStatus,
   type MangaProviderMapping,
 } from '@app/shared';
-import type * as MotionModule from '@app/motion';
+import type * as MotionModule from '@app/design-system/motion';
 
-vi.mock('@app/motion', async (importOriginal) => {
+vi.mock('@app/design-system/motion', async (importOriginal) => {
   const actual = await importOriginal<typeof MotionModule>();
   return { ...actual, fadeIn: vi.fn<(...args: unknown[]) => unknown>() };
 });

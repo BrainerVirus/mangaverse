@@ -14,7 +14,7 @@ import {
   Switch,
   ThemePreview,
 } from '@app/design-system';
-import { fadeIn, useReducedMotion } from '@app/motion';
+import { fadeIn, useReducedMotion } from '@app/design-system/motion';
 import type { AppSettings, ReaderSettings, ThemeSettings } from '@app/shared';
 import { useGSAP } from '@gsap/react';
 import { useRef, type ReactNode } from 'react';

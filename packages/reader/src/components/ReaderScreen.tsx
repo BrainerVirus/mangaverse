@@ -7,7 +7,7 @@ import {
   type SetStateAction,
 } from 'react';
 import { EmptyState, Button, ErrorState, GlassSurface, LoadingState } from '@app/design-system';
-import { useReducedMotion } from '@app/motion';
+import { useReducedMotion } from '@app/design-system/motion';
 import type { ReaderSettings } from '@app/shared';
 import { useCoverCacheContext, CachedPageImage } from '@app/cache';
 import type { PageFitInput } from '../page-fit.js';

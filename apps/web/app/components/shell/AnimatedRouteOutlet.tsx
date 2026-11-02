@@ -2,7 +2,11 @@ import { useRef } from 'react';
 import { useLocation } from '@tanstack/react-router';
 import { useGSAP } from '@gsap/react';
 import type { ReactNode } from 'react';
-import { routeEnter, useReducedMotion, type RouteTransitionVariant } from '@app/motion';
+import {
+  routeEnter,
+  useReducedMotion,
+  type RouteTransitionVariant,
+} from '@app/design-system/motion';
 
 interface AnimatedRouteOutletProps {
   children: ReactNode;

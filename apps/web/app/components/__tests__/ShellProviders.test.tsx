@@ -39,7 +39,7 @@ vi.mock('../../providers/local-db-provider.js', () => ({
   useRetryPersistence: () => vi.fn<() => void>(),
 }));
 
-vi.mock('@app/motion', () => ({
+vi.mock('@app/design-system/motion', () => ({
   useReducedMotion: () => false,
   getReducedMotionPreference: () => false,
   setInAppReducedMotionPreference: vi.fn<(reduced: boolean) => void>(),

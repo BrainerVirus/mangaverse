@@ -1,5 +1,5 @@
 import { useRef, type RefObject } from 'react';
-import { readerPageEnter, useGsapContext } from '@app/motion';
+import { readerPageEnter, useGsapContext } from '@app/design-system/motion';
 import type { PageTransitionMode } from '@app/shared';
 
 /**

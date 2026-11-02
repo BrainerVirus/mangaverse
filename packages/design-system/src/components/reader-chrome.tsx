@@ -9,8 +9,8 @@ import {
   SkipForward,
 } from 'lucide-react';
 import { cn } from '../lib/cn.js';
-import { chromeShow, chromeHide, readerModePill } from '@app/motion';
-import { useReducedMotion } from '@app/motion';
+import { chromeShow, chromeHide, readerModePill } from '../motion/index.js';
+import { useReducedMotion } from '../motion/index.js';
 import { Button } from './ui/button.js';
 import { ReaderProgressRail } from './reader-progress-rail.js';
 import { Badge } from './ui/badge.js';

@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { useGSAP } from '@gsap/react';
 import { gsap } from 'gsap';
 import { getMangaCoverUrl, type MangaIdentity } from '@app/shared';
-import { useReducedMotion } from '@app/motion';
+import { useReducedMotion } from '../motion/index.js';
 import { cn } from '../lib/cn.js';
 import { Badge } from './ui/badge.js';
 

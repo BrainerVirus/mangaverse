@@ -61,7 +61,7 @@ vi.mock('../../providers/platform-provider.js', () => ({
   usePlatform: () => ({ capabilities: {}, runtime: 'web' as const }),
 }));
 
-vi.mock('@app/motion', () => ({
+vi.mock('@app/design-system/motion', () => ({
   useReducedMotion: () => false,
   commandPaletteEnter: vi.fn<(...args: unknown[]) => unknown>(),
   commandPaletteExit: vi.fn<(...args: unknown[]) => unknown>(),

@@ -1,6 +1,10 @@
 import { useRef, type RefObject } from 'react';
 import { Button, Sheet, SheetContent, SheetHeader, SheetTitle } from '@app/design-system';
-import { settingsDrawerTransition, useGsapContext, useReducedMotion } from '@app/motion';
+import {
+  settingsDrawerTransition,
+  useGsapContext,
+  useReducedMotion,
+} from '@app/design-system/motion';
 import type { ReaderSettings } from '@app/shared';
 import type { ReaderMetricsSnapshot } from '../reader-metrics.js';
 

@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { ProviderContentFlags, ProviderManifest } from '@app/shared';
-import type { ExtensionInstallPreview, ExtensionInstallSession } from '@app/extensions-core';
+import type { ExtensionInstallPreview, ExtensionInstallSession } from '../../core/index.js';
 
 import { InstallProviderDialog } from '../InstallProviderDialog.js';
 

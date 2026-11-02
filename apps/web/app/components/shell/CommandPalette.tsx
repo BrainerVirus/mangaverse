@@ -14,7 +14,11 @@ import {
   CommandGroup,
   CommandItem,
 } from '@app/design-system';
-import { commandPaletteEnter, commandPaletteExit, useReducedMotion } from '@app/motion';
+import {
+  commandPaletteEnter,
+  commandPaletteExit,
+  useReducedMotion,
+} from '@app/design-system/motion';
 import { useCommandPaletteStore } from '@/stores/useCommandPaletteStore';
 import { useLayoutStore } from '@/stores/useLayoutStore';
 import {

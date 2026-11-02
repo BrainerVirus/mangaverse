@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { DURATION, CSS_EASING } from '@app/motion';
+import { DURATION, CSS_EASING } from '../motion/index.js';
 import { cn } from '../lib/cn.js';
 import { GlassSurface } from './glass-surface.js';
 

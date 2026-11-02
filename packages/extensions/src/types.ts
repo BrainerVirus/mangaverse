@@ -2,7 +2,7 @@ import type {
   CapabilityDisplayRow,
   PermissionDisplayRow,
   ProviderSettingsValues,
-} from '@app/extensions-core';
+} from './core/index.js';
 import type { ExtensionInstallMetadata, ExtensionRegistryEntry } from '@app/shared';
 
 export interface InstalledProviderSummary {

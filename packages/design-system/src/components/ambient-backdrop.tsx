@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useGSAP } from '@gsap/react';
-import { routeEnter, useReducedMotion } from '@app/motion';
+import { routeEnter, useReducedMotion } from '../motion/index.js';
 import { cn } from '../lib/cn.js';
 import { useGlassProfileFallback } from '../hooks/use-glass-profile-fallback.js';
 

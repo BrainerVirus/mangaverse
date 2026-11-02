@@ -5,7 +5,7 @@ import {
   getReducedMotionPreference,
   setInAppReducedMotionPreference,
   useReducedMotion,
-} from '@app/motion';
+} from '@app/design-system/motion';
 import { appSettingsQueryOptions } from '../queries/settings-query-options.js';
 import { useLocalDb, useLocalDbStatus } from './local-db-provider.js';
 

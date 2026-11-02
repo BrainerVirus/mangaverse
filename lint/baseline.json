@@ -223,24 +223,6 @@
   "packages/design-system/src/components/settings-section.tsx": {
     "no-use-state": 1
   },
-  "packages/extensions-core/src/extension-logs.ts": {
-    "no-try-catch": 1
-  },
-  "packages/extensions-core/src/health-check.ts": {
-    "no-try-catch": 2
-  },
-  "packages/extensions-core/src/manifest-fetch.ts": {
-    "no-try-catch": 3
-  },
-  "packages/extensions-core/src/providers-ops.ts": {
-    "no-try-catch": 1
-  },
-  "packages/extensions-core/src/registry-import.ts": {
-    "no-try-catch": 2
-  },
-  "packages/extensions-mangadex/src/provider.ts": {
-    "no-try-catch": 1
-  },
   "packages/extensions-sdk/src/contract-tests.ts": {
     "no-try-catch": 1
   },
@@ -264,6 +246,24 @@
   },
   "packages/extensions/src/components/RegistryImportDialog.tsx": {
     "no-use-state": 1
+  },
+  "packages/extensions/src/core/extension-logs.ts": {
+    "no-try-catch": 1
+  },
+  "packages/extensions/src/core/health-check.ts": {
+    "no-try-catch": 2
+  },
+  "packages/extensions/src/core/manifest-fetch.ts": {
+    "no-try-catch": 3
+  },
+  "packages/extensions/src/core/providers-ops.ts": {
+    "no-try-catch": 1
+  },
+  "packages/extensions/src/core/registry-import.ts": {
+    "no-try-catch": 2
+  },
+  "packages/extensions/src/mangadex/provider.ts": {
+    "no-try-catch": 1
   },
   "packages/extensions/src/provider-settings.ts": {
     "no-try-catch": 1
@@ -523,6 +523,48 @@
       "to": "apps/web/app/features/search/hooks/use-scroll-parent.ts",
       "rules": {
         "no-use-state": 1
+      }
+    },
+    {
+      "from": "packages/extensions-core/src/extension-logs.ts",
+      "to": "packages/extensions/src/core/extension-logs.ts",
+      "rules": {
+        "no-try-catch": 1
+      }
+    },
+    {
+      "from": "packages/extensions-core/src/health-check.ts",
+      "to": "packages/extensions/src/core/health-check.ts",
+      "rules": {
+        "no-try-catch": 2
+      }
+    },
+    {
+      "from": "packages/extensions-core/src/manifest-fetch.ts",
+      "to": "packages/extensions/src/core/manifest-fetch.ts",
+      "rules": {
+        "no-try-catch": 3
+      }
+    },
+    {
+      "from": "packages/extensions-core/src/providers-ops.ts",
+      "to": "packages/extensions/src/core/providers-ops.ts",
+      "rules": {
+        "no-try-catch": 1
+      }
+    },
+    {
+      "from": "packages/extensions-core/src/registry-import.ts",
+      "to": "packages/extensions/src/core/registry-import.ts",
+      "rules": {
+        "no-try-catch": 2
+      }
+    },
+    {
+      "from": "packages/extensions-mangadex/src/provider.ts",
+      "to": "packages/extensions/src/mangadex/provider.ts",
+      "rules": {
+        "no-try-catch": 1
       }
     }
   ]

@@ -13,8 +13,8 @@ import { getDefaultOnboardingState } from '../onboarding-state.js';
 
 const motionPreference = vi.hoisted(() => ({ reduced: true }));
 
-vi.mock('@app/motion', async () => {
-  const actual = await vi.importActual('@app/motion');
+vi.mock('@app/design-system/motion', async () => {
+  const actual = await vi.importActual('@app/design-system/motion');
   return {
     ...actual,
     useReducedMotion: () => motionPreference.reduced,

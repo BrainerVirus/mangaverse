@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { MANGADEX_MANIFEST } from '@app/extensions-mangadex';
+import { MANGADEX_MANIFEST } from '@app/extensions/mangadex';
 import type { ExtensionInstallMetadata } from '@app/shared';
 import { toExtensionInstallId } from '@app/shared';
 

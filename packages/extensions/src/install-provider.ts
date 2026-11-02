@@ -4,12 +4,12 @@ import {
   createExtensionInstallSession as createSession,
   prepareManualExtensionInstall,
   transitionExtensionInstall as transitionSession,
-} from '@app/extensions-core';
+} from './core/index.js';
 import type {
   ExtensionFetchEnvironment,
   ExtensionInstallAction,
   ExtensionInstallSession,
-} from '@app/extensions-core';
+} from './core/index.js';
 import type { AppResult } from '@app/shared';
 
 export type { ExtensionInstallSession };

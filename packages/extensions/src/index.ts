@@ -45,7 +45,7 @@ export {
   type ExtensionLogLevel,
   type ProviderActivitySummary,
 } from './provider-activity.js';
-export { recordProviderFailure } from '@app/extensions-core';
+export { recordProviderFailure } from './core/index.js';
 export {
   applyProviderUpdate,
   checkProviderUpdate,
@@ -56,7 +56,7 @@ export {
   type ProviderHealthStatus,
   type ProviderUpdateCheck,
   type ProviderUpdateStatus,
-} from '@app/extensions-core';
+} from './core/index.js';
 export {
   confirmProviderInstall,
   createExtensionInstallSession,
@@ -76,7 +76,7 @@ export {
   parseExtensionImportDocument,
   parseExtensionRegistryDocument,
   prepareExtensionImport,
-} from '@app/extensions-core';
+} from './core/index.js';
 export type {
   ExtensionImportPreview,
   ExtensionListImportPreparation,
@@ -84,4 +84,4 @@ export type {
   ExtensionListProviderEntry,
   ExtensionRegistryExport,
   ExtensionRegistryImportResult,
-} from '@app/extensions-core';
+} from './core/index.js';

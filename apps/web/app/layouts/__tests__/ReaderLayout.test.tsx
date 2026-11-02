@@ -7,7 +7,7 @@ vi.mock('@tanstack/react-router', async (importOriginal) => ({
   useLocation: () => ({ pathname: '/reader/chapter-1' }),
 }));
 
-vi.mock('@app/motion', () => ({
+vi.mock('@app/design-system/motion', () => ({
   useReducedMotion: () => true,
   routeEnter: vi.fn<(...args: unknown[]) => unknown>(),
 }));
