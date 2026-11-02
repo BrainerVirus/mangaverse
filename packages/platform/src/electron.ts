@@ -205,6 +205,7 @@ export function createElectronPlatformAdapter(bridge: DesktopPlatformBridge): Pl
         asResult(() => bridge.providerNetworkRegister(providerId, domains)),
       unregisterProvider: (providerId: string) =>
         asResult(() => bridge.providerNetworkUnregister(providerId)),
+      request: (input) => asResult(() => bridge.providerNetworkRequest(input)),
     },
   };
 }

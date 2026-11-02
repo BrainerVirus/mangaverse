@@ -19,6 +19,8 @@ const pageStoreStubs = {
   pageStoreListKeys: async () => ok([]),
   providerNetworkRegister: async () => ok(undefined),
   providerNetworkUnregister: async () => ok(undefined),
+  providerNetworkRequest: async () =>
+    ok({ status: 200, headers: {}, bodyText: '', finalUrl: 'https://example.com' }),
 } satisfies Pick<
   DesktopPlatformBridge,
   | 'pageStorePut'
@@ -27,6 +29,7 @@ const pageStoreStubs = {
   | 'pageStoreListKeys'
   | 'providerNetworkRegister'
   | 'providerNetworkUnregister'
+  | 'providerNetworkRequest'
 >;
 
 describe('createElectronPlatformAdapter', () => {
@@ -302,6 +305,8 @@ describe('createElectronPlatformAdapter', () => {
         pageStoreListKeys,
         providerNetworkRegister: async () => ok(undefined),
         providerNetworkUnregister: async () => ok(undefined),
+        providerNetworkRequest: async () =>
+          ok({ status: 200, headers: {}, bodyText: '', finalUrl: 'https://example.com' }),
       });
       const key = 'page:p:m:c:0';
       const bytes = new Uint8Array([0xff, 0xd8, 0xff]).buffer;

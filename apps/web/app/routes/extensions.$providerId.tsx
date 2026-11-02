@@ -17,6 +17,7 @@ import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js'
 import { actionFailureMessage } from '../lib/app-feedback.js';
 import { saveFeedback } from '../lib/feedback.js';
 import { flushLocalDb } from '../lib/local-db.js';
+import { syncProviderNetworkAllowlist } from '../lib/provider-allowlist-sync.js';
 import { getProviderBinding } from '../lib/provider-registry.js';
 import {
   useProviderActivity,
@@ -73,6 +74,7 @@ function ProviderDetailRoute() {
       await flushLocalDb();
     },
     onSuccess: () => {
+      if (db !== null) void syncProviderNetworkAllowlist(db);
       void queryClient.invalidateQueries({ queryKey: extensionsQueryKeys.all });
       void queryClient.invalidateQueries({ queryKey: searchQueryKeys.providers() });
     },
@@ -116,6 +118,7 @@ function ProviderDetailRoute() {
       await flushLocalDb();
     },
     onSuccess: () => {
+      if (db !== null) void syncProviderNetworkAllowlist(db);
       void queryClient.invalidateQueries({ queryKey: extensionsQueryKeys.all });
       void queryClient.invalidateQueries({ queryKey: searchQueryKeys.providers() });
       void navigate({ to: '/extensions' });

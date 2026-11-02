@@ -33,6 +33,17 @@ export async function unregisterProviderNetwork(providerId: string): Promise<App
  * the adapter is a no-op; the browser keeps its own fetch.
  */
 export async function syncProviderNetworkAllowlist(db: AppDrizzleDb): Promise<void> {
+  try {
+    await syncInstalledProviders(db);
+  } catch (error) {
+    // Best effort: a failed sync leaves main fail-closed for that provider, and the
+    // next install, toggle or startup retries. It must never break the UI action.
+    // oxlint-disable-next-line no-console -- ruling: provider-allowlist-sync-best-effort: the user-visible action succeeded; only the allowlist mirror failed, and this warn is the sole record before the next retry.
+    console.warn('[provider-allowlist] sync failed:', error);
+  }
+}
+
+async function syncInstalledProviders(db: AppDrizzleDb): Promise<void> {
   const installed = await listInstalledExtensions(db);
   const wanted = new Map<string, readonly string[]>();
   for (const entry of installed) {

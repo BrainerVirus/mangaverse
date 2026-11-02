@@ -257,6 +257,21 @@ void app.whenReady().then(async () => {
       allowedOrigins: appOrigins(),
     });
 
+    const networkTransport = {
+      resolveHostAddresses: async (hostname: string) =>
+        (await lookup(hostname, { all: true, verbatim: true })).map((entry) => entry.address),
+      // Log the refusal without the path or query: a provider URL can carry a token.
+      log: (event: { code: string; url?: string }) => {
+        let host = '';
+        try {
+          host = event.url === undefined ? '' : new URL(event.url).hostname;
+        } catch {
+          host = '';
+        }
+        console.warn(`[provider-network] refused ${event.code}${host ? ` host=${host}` : ''}`);
+      },
+    };
+
     registerPlatformIpc({
       ipcMain,
       getTargetWindow: () => mainWindow,
@@ -270,24 +285,11 @@ void app.whenReady().then(async () => {
       secureStorage: secureModel,
       getLocalServiceInfo: () => LOCAL_SERVICE_INFO,
       buildDiagnosticsSnapshot,
-      networkTransport: {
-        resolveHostAddresses: async (hostname) =>
-          (await lookup(hostname, { all: true, verbatim: true })).map((entry) => entry.address),
-        // Log the refusal without the path or query: a provider URL can carry a token.
-        log: (event) => {
-          let host = '';
-          try {
-            host = event.url === undefined ? '' : new URL(event.url).hostname;
-          } catch {
-            host = '';
-          }
-          console.warn(`[provider-network] refused ${event.code}${host ? ` host=${host}` : ''}`);
-        },
-      },
+      networkTransport,
     });
 
     const allowlist = createProviderAllowlist();
-    registerProviderNetworkIpc({ ipcMain, allowlist, isTrustedFrame });
+    registerProviderNetworkIpc({ ipcMain, allowlist, isTrustedFrame, networkTransport });
     registerPageStore(isTrustedFrame);
     startDataHost(isTrustedFrame);
     bootstrap();

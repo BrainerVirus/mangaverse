@@ -30,8 +30,8 @@ function body(status = 200): HopReply {
   };
 }
 
-function redirect(location: string): HopReply {
-  return { kind: 'redirect', location };
+function redirect(location: string, status = 302): HopReply {
+  return { kind: 'redirect', location, status };
 }
 
 const publicDns = async (): Promise<readonly string[]> => ['93.184.216.34'];
@@ -389,7 +389,7 @@ describe('nodeRequestHop', () => {
       deadline: Date.now() + 5_000,
     });
 
-    expect(reply).toEqual({ kind: 'redirect', location: 'https://cdn.example/page.png' });
+    expect(reply).toEqual({ kind: 'redirect', location: 'https://cdn.example/page.png', status: 302 });
   });
 
   it('refuses a declared body over the cap before reading it', async () => {

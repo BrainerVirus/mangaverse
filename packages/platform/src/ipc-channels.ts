@@ -18,6 +18,7 @@ export const PLATFORM_IPC = {
   NETWORK_FETCH_BYTES: 'platform:network:fetch-bytes',
   PROVIDER_NETWORK_REGISTER: 'platform:provider-network:register',
   PROVIDER_NETWORK_UNREGISTER: 'platform:provider-network:unregister',
+  PROVIDER_NETWORK_REQUEST: 'platform:provider-network:request',
   PAGE_STORE_PUT: 'platform:page-store:put',
   PAGE_STORE_URL: 'platform:page-store:url',
   PAGE_STORE_DELETE: 'platform:page-store:delete',

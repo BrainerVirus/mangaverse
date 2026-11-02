@@ -80,6 +80,7 @@ export function createUnsupportedPlatformAdapter(reason: string): PlatformAdapte
     providerNetwork: {
       registerProvider: async () => deny<void>(),
       unregisterProvider: async () => deny<void>(),
+      request: async () => deny<never>(),
     },
   };
 }

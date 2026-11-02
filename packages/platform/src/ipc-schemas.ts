@@ -80,6 +80,37 @@ const providerNetworkRegistration = z
   })
   .strict();
 
+const MAX_PROVIDER_REQUEST_BODY = 1_024_000;
+/** A provider request may name a timeout, but never one longer than main's own deadline. */
+const MAX_PROVIDER_REQUEST_TIMEOUT_MS = 60_000;
+
+const providerRequestHeaderName = z
+  .string()
+  .min(1)
+  .max(64)
+  .refine((value) => !/[\r\n:]/.test(value), { error: 'invalid header name' });
+const providerRequestHeaderValue = z
+  .string()
+  .max(1024)
+  .refine((value) => !/[\r\n]/.test(value), { error: 'invalid header value' });
+
+const providerNetworkRequest = z
+  .object({
+    providerId: providerNetworkProviderId,
+    url: z
+      .string()
+      .max(4096)
+      .refine(isSafeNetworkFetchUrl, { error: 'must be a public http or https URL' }),
+    method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD']).optional(),
+    headers: z
+      .record(providerRequestHeaderName, providerRequestHeaderValue)
+      .refine((value) => Object.keys(value).length <= 32, { error: 'too many request headers' })
+      .optional(),
+    body: z.string().max(MAX_PROVIDER_REQUEST_BODY).optional(),
+    timeoutMs: z.number().int().min(1).max(MAX_PROVIDER_REQUEST_TIMEOUT_MS).optional(),
+  })
+  .strict();
+
 // Structured clone hands main an ArrayBuffer or a typed array, depending on what was sent.
 const pageBytes = z
   .union([z.instanceof(ArrayBuffer), z.instanceof(Uint8Array)])
@@ -122,6 +153,7 @@ export const platformIpcRequestSchema = z.discriminatedUnion('channel', [
   request(PLATFORM_IPC.PAGE_STORE_LIST_KEYS, z.tuple([])),
   request(PLATFORM_IPC.PROVIDER_NETWORK_REGISTER, z.tuple([providerNetworkRegistration])),
   request(PLATFORM_IPC.PROVIDER_NETWORK_UNREGISTER, z.tuple([providerNetworkProviderId])),
+  request(PLATFORM_IPC.PROVIDER_NETWORK_REQUEST, z.tuple([providerNetworkRequest])),
 ]);
 
 export type PlatformIpcRequest = z.output<typeof platformIpcRequestSchema>;

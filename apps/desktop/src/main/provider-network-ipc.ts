@@ -6,14 +6,48 @@ import {
   platformUnexpected,
   platformIpcRequestSchema,
   type PlatformIpcRequest,
+  type PlatformProviderResponse,
 } from '@app/platform';
+import {
+  fetchNetworkResponse,
+  NetworkFetchError,
+  REQUEST_TIMEOUT_MS,
+  withRefusalLog,
+  type NetworkTransportDeps,
+} from './main-process-fetch.js';
 import type { ProviderAllowlist } from './provider-allowlist.js';
-import { toIpcAppResult } from './platform-ipc.js';
+import { networkErrorToAppError, toIpcAppResult } from './platform-ipc.js';
 
 export const PROVIDER_NETWORK_CHANNELS = [
   PLATFORM_IPC.PROVIDER_NETWORK_REGISTER,
   PLATFORM_IPC.PROVIDER_NETWORK_UNREGISTER,
+  PLATFORM_IPC.PROVIDER_NETWORK_REQUEST,
 ] as const;
+
+/** Response headers a provider client may see; everything else stays in main. */
+const PROVIDER_RESPONSE_HEADERS = new Set([
+  'content-type',
+  'content-length',
+  'etag',
+  'last-modified',
+  'cache-control',
+  'retry-after',
+  'x-ratelimit-limit',
+  'x-ratelimit-remaining',
+  'x-ratelimit-reset',
+  'x-ratelimit-retry-after',
+]);
+
+export function filterProviderResponseHeaders(
+  headers: Readonly<Record<string, string | string[]>>,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [name, value] of Object.entries(headers)) {
+    if (!PROVIDER_RESPONSE_HEADERS.has(name)) continue;
+    out[name] = Array.isArray(value) ? (value[0] ?? '') : value;
+  }
+  return out;
+}
 
 type ProviderNetworkChannel = (typeof PROVIDER_NETWORK_CHANNELS)[number];
 
@@ -23,6 +57,7 @@ export interface ProviderNetworkIpcDeps {
   readonly ipcMain: Pick<IpcMain, 'handle'>;
   readonly allowlist: ProviderAllowlist;
   readonly isTrustedFrame: (frame: WebFrameMain | null) => frame is WebFrameMain;
+  readonly networkTransport: NetworkTransportDeps;
 }
 
 /**
@@ -34,7 +69,7 @@ export interface ProviderNetworkIpcDeps {
 export function registerProviderNetworkIpc(deps: ProviderNetworkIpcDeps): void {
   function handle<C extends ProviderNetworkChannel>(
     channel: C,
-    handler: (args: ArgsOf<C>) => AppResult<unknown>,
+    handler: (args: ArgsOf<C>) => AppResult<unknown> | Promise<AppResult<unknown>>,
   ): void {
     deps.ipcMain.handle(channel, async (event: IpcMainInvokeEvent, ...rawArgs: unknown[]) => {
       if (!deps.isTrustedFrame(event.senderFrame)) {
@@ -47,7 +82,7 @@ export function registerProviderNetworkIpc(deps: ProviderNetworkIpcDeps): void {
         return toIpcAppResult(err(platformInvalidUrl('IPC request payload is invalid.')));
       }
       try {
-        return toIpcAppResult(handler(parsed.data.args as ArgsOf<C>));
+        return toIpcAppResult(await handler(parsed.data.args as ArgsOf<C>));
       } catch (e) {
         return toIpcAppResult(err(platformUnexpected('Provider network call failed.', e)));
       }
@@ -62,5 +97,41 @@ export function registerProviderNetworkIpc(deps: ProviderNetworkIpcDeps): void {
   handle(PLATFORM_IPC.PROVIDER_NETWORK_UNREGISTER, ([providerId]) => {
     deps.allowlist.unregister(providerId);
     return ok(undefined);
+  });
+
+  handle(PLATFORM_IPC.PROVIDER_NETWORK_REQUEST, async ([request]) => {
+    const timeoutMs = Math.min(request.timeoutMs ?? REQUEST_TIMEOUT_MS, REQUEST_TIMEOUT_MS);
+    const deadline = Date.now() + timeoutMs;
+    try {
+      const response = await withRefusalLog(deps.networkTransport, async () => {
+        // The provider id selects the allowlist, and the same check runs before
+        // every redirect hop inside the transport.
+        if (!deps.allowlist.allowsUrl(request.providerId, request.url)) {
+          throw new NetworkFetchError('network.blocked-url', 'Provider may not reach this host.', {
+            url: request.url,
+          });
+        }
+        return fetchNetworkResponse(
+          request.url,
+          async (url) => deps.allowlist.allowsUrl(request.providerId, url),
+          deps.networkTransport,
+          deadline,
+          {
+            ...(request.method !== undefined ? { method: request.method } : {}),
+            ...(request.headers !== undefined ? { headers: request.headers } : {}),
+            ...(request.body !== undefined ? { body: request.body } : {}),
+          },
+        );
+      });
+      const value: PlatformProviderResponse = {
+        status: response.status,
+        headers: filterProviderResponseHeaders(response.headers),
+        bodyText: new TextDecoder().decode(response.body),
+        finalUrl: response.finalUrl,
+      };
+      return ok(value);
+    } catch (e) {
+      return err(networkErrorToAppError(e));
+    }
   });
 }

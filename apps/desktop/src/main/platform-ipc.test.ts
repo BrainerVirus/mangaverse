@@ -431,6 +431,7 @@ describe('registerPlatformIpc', () => {
     const requestHop = vi.fn<RequestHop>(async () => ({
       kind: 'redirect',
       location: 'http://127.0.0.1/secret',
+      status: 302,
     }));
     const handlers = register({
       networkTransport: {

@@ -54,8 +54,15 @@ export interface NetworkRefusalEvent {
   readonly address?: string;
 }
 
+/** Caller-controlled request shape; the hop still owns Host, framing and the address. */
+export interface NetworkRequestInit {
+  readonly method?: string;
+  readonly headers?: Readonly<Record<string, string>>;
+  readonly body?: string;
+}
+
 /** One pinned connection attempt: the address was validated immediately before use. */
-export interface HopRequest {
+export interface HopRequest extends NetworkRequestInit {
   readonly url: URL;
   readonly address: string;
   readonly family: 4 | 6;
@@ -71,7 +78,7 @@ export type HopReply =
       readonly body: Buffer;
       readonly finalUrl: string;
     }
-  | { readonly kind: 'redirect'; readonly location: string };
+  | { readonly kind: 'redirect'; readonly location: string; readonly status: number };
 
 export type RequestHop = (request: HopRequest) => Promise<HopReply>;
 
@@ -263,11 +270,16 @@ export const nodeRequestHop: RequestHop = (hop) =>
     const req = requestFn(
       hop.url,
       {
-        method: 'GET',
+        method: hop.method ?? 'GET',
         headers: {
           accept: '*/*',
           'accept-encoding': 'identity',
+          ...hop.headers,
+          // The hop owns these: the URL's host, and framing it computes itself.
           host: hop.url.host,
+          ...(hop.body !== undefined
+            ? { 'content-length': String(Buffer.byteLength(hop.body)) }
+            : {}),
         },
         lookup: lookup as never,
         family: hop.family,
@@ -290,7 +302,7 @@ export const nodeRequestHop: RequestHop = (hop) =>
             });
             return;
           }
-          finish({ kind: 'redirect', location });
+          finish({ kind: 'redirect', location, status });
           return;
         }
 
@@ -363,7 +375,7 @@ export const nodeRequestHop: RequestHop = (hop) =>
         }),
       );
     });
-    req.end();
+    req.end(hop.body);
   });
 
 function redirectTarget(location: string, base: URL): URL | undefined {
@@ -385,7 +397,10 @@ export async function fetchNetworkResponse(
   isAllowedUrl: (url: string) => Promise<boolean>,
   deps: NetworkTransportDeps,
   deadline = Date.now() + REQUEST_TIMEOUT_MS,
+  init: NetworkRequestInit = {},
 ): Promise<NetworkResponse> {
+  let method = init.method ?? 'GET';
+  let body = init.body;
   let target = parseHttpUrl(url);
   if (target === undefined) {
     throw new NetworkFetchError('network.invalid-url', 'Network target is not an http(s) URL.', {
@@ -415,6 +430,9 @@ export async function fetchNetworkResponse(
         address: pinned.address,
         family: pinned.family,
         deadline: Math.min(deadline, Date.now() + Math.min(HOP_TIMEOUT_MS, remaining)),
+        ...(init.headers !== undefined ? { headers: init.headers } : {}),
+        method,
+        ...(body !== undefined ? { body } : {}),
       }),
       deadline,
     );
@@ -448,6 +466,11 @@ export async function fetchNetworkResponse(
       throw new NetworkFetchError('network.invalid-url', 'Redirect target is not an http(s) URL.', {
         url: target.toString(),
       });
+    }
+    // 303 always, and 301/302 in practice, turn the request into a bodyless GET.
+    if (reply.status === 303 || (reply.status !== 307 && reply.status !== 308)) {
+      method = 'GET';
+      body = undefined;
     }
     target = next;
   }

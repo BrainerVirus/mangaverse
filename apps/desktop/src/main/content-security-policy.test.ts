@@ -10,8 +10,26 @@ describe('buildContentSecurityPolicy', () => {
     expect(csp).toContain('http://localhost:5173');
     expect(csp).toContain("style-src 'self' 'unsafe-inline' http://localhost:5173");
     expect(csp).toContain('ws://localhost:5173');
-    expect(csp).toContain('https://api.mangadex.org');
-    expect(csp).toContain('https://uploads.mangadex.org');
+  });
+
+  it('names no provider origin in either policy', () => {
+    process.env.VITE_DEV_SERVER_URL = 'http://localhost:5173';
+    for (const csp of [buildContentSecurityPolicy(true), buildContentSecurityPolicy(false)]) {
+      expect(csp).not.toContain('mangadex');
+      expect(csp).not.toContain('uploads.');
+    }
+  });
+
+  it('limits connect-src to the app and the dev server', () => {
+    process.env.VITE_DEV_SERVER_URL = 'http://localhost:5173';
+    const dev = buildContentSecurityPolicy(true).split('; ');
+    expect(dev).toContain("connect-src 'self' http://localhost:5173 ws://localhost:5173");
+
+    const production = buildContentSecurityPolicy(false).split('; ');
+    expect(production).toContain("connect-src 'self'");
+    expect(production.find((directive) => directive.startsWith('connect-src'))).toBe(
+      "connect-src 'self'",
+    );
   });
 
   it('uses a strict policy in production', () => {
@@ -22,13 +40,14 @@ describe('buildContentSecurityPolicy', () => {
     expect(csp).not.toContain("'unsafe-inline' 'unsafe-eval'");
     expect(csp).not.toMatch(/127\.0\.0\.1|localhost/);
     expect(csp).toContain("object-src 'none'");
-    expect(csp).toContain('https://api.mangadex.org');
-    expect(csp).toContain('https://uploads.mangadex.org');
+    expect(csp).not.toContain('mangadex');
   });
 
   it('lets images, and only images, load from the page store', () => {
     const directives = buildContentSecurityPolicy(false).split('; ');
-    expect(directives).toContain("img-src 'self' data: blob: https: page:");
+    expect(directives).toContain("img-src 'self' data: blob: page:");
     expect(directives.filter((directive) => directive.includes('page:'))).toHaveLength(1);
+    // Every remote image byte is fetched by main and shown from blob: or page://.
+    expect(directives).not.toContain('img-src \'self\' data: blob: https: page:');
   });
 });

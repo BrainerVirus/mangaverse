@@ -18,6 +18,31 @@ export interface PlatformNetworkFetchResult {
   readonly mimeType: string;
 }
 
+export type PlatformProviderRequestMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD';
+
+/**
+ * One provider HTTP request the renderer asks main to make. The provider id selects
+ * main's allowlist; the URL is checked against it before every hop. Bodies are text
+ * because every current provider speaks JSON.
+ */
+export interface PlatformProviderRequest {
+  readonly providerId: string;
+  readonly url: string;
+  readonly method?: PlatformProviderRequestMethod;
+  readonly headers?: Readonly<Record<string, string>>;
+  readonly body?: string;
+  /** Bounded by main to 60 s; the caller's own abort only stops waiting. */
+  readonly timeoutMs?: number;
+}
+
+export interface PlatformProviderResponse {
+  readonly status: number;
+  /** Filtered to the headers a provider client may see; never cookies or auth echoes. */
+  readonly headers: Readonly<Record<string, string>>;
+  readonly bodyText: string;
+  readonly finalUrl: string;
+}
+
 export interface PlatformBlobStorageEnvironment {
   readonly indexedDB?: IDBFactory;
   readonly createObjectUrl?: (blob: Blob) => string;
@@ -153,6 +178,7 @@ export interface PlatformAdapter {
   readonly providerNetwork: {
     registerProvider(providerId: string, domains: readonly string[]): Promise<AppResult<void>>;
     unregisterProvider(providerId: string): Promise<AppResult<void>>;
+    request(input: PlatformProviderRequest): Promise<AppResult<PlatformProviderResponse>>;
   };
 }
 
@@ -180,6 +206,9 @@ export interface DesktopPlatformBridge {
     domains: readonly string[],
   ) => Promise<AppResult<void>>;
   providerNetworkUnregister: (providerId: string) => Promise<AppResult<void>>;
+  providerNetworkRequest: (
+    input: PlatformProviderRequest,
+  ) => Promise<AppResult<PlatformProviderResponse>>;
   /** Main's page store (spec 04 X13): bytes become a file, served back as `page://` URLs. */
   pageStorePut: (key: string, data: ArrayBuffer, mimeType: string) => Promise<AppResult<string>>;
   pageStoreUrl: (key: string) => Promise<AppResult<string | undefined>>;

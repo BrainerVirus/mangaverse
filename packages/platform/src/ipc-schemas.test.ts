@@ -33,6 +33,17 @@ const valid: PlatformIpcRequest[] = [
     args: [{ providerId: 'mangadex', domains: ['api.mangadex.org', '*.mangadex.network'] }],
   },
   { channel: PLATFORM_IPC.PROVIDER_NETWORK_UNREGISTER, args: ['mangadex'] },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_REQUEST,
+    args: [
+      {
+        providerId: 'mangadex',
+        url: 'https://api.mangadex.org/manga',
+        method: 'GET',
+        headers: { accept: 'application/json' },
+      },
+    ],
+  },
 ];
 
 const invalid: { channel: PlatformIpcChannel; args: unknown[] }[] = [
@@ -68,6 +79,24 @@ const invalid: { channel: PlatformIpcChannel; args: unknown[] }[] = [
     args: [{ providerId: 'mangadex', domains: ['api.mangadex.org'], extra: true }],
   },
   { channel: PLATFORM_IPC.PROVIDER_NETWORK_UNREGISTER, args: ['bad id'] },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_REQUEST,
+    args: [{ providerId: 'mangadex', url: 'http://127.0.0.1/manga' }],
+  },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_REQUEST,
+    args: [{ providerId: 'mangadex', url: 'https://api.mangadex.org/manga', method: 'TRACE' }],
+  },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_REQUEST,
+    args: [
+      {
+        providerId: 'mangadex',
+        url: 'https://api.mangadex.org/manga',
+        headers: { accept: 'x\r\nHost: evil.example' },
+      },
+    ],
+  },
 ];
 
 describe('platformIpcRequestSchema', () => {

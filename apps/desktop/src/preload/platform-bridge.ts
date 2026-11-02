@@ -25,6 +25,8 @@ const bridge: DesktopPlatformBridge = {
     ipcRenderer.invoke(PLATFORM_IPC.PROVIDER_NETWORK_REGISTER, { providerId, domains }),
   providerNetworkUnregister: (providerId: string) =>
     ipcRenderer.invoke(PLATFORM_IPC.PROVIDER_NETWORK_UNREGISTER, providerId),
+  providerNetworkRequest: (input) =>
+    ipcRenderer.invoke(PLATFORM_IPC.PROVIDER_NETWORK_REQUEST, input),
   pageStorePut: (key: string, data: ArrayBuffer, mimeType: string) =>
     ipcRenderer.invoke(PLATFORM_IPC.PAGE_STORE_PUT, key, data, mimeType),
   pageStoreUrl: (key: string) => ipcRenderer.invoke(PLATFORM_IPC.PAGE_STORE_URL, key),

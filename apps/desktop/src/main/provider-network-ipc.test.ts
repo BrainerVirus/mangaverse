@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { PLATFORM_IPC } from '@app/platform';
+import type { RequestHop } from './main-process-fetch.js';
 import { createProviderAllowlist } from './provider-allowlist.js';
 import { registerProviderNetworkIpc } from './provider-network-ipc.js';
 
-function register(opts: { trusted?: boolean } = {}) {
+function register(opts: { trusted?: boolean; requestHop?: RequestHop } = {}) {
   const handlers = new Map<string, (...args: unknown[]) => Promise<unknown>>();
   const ipcMain = {
     handle: (channel: string, fn: (...args: unknown[]) => Promise<unknown>) => {
@@ -11,14 +12,30 @@ function register(opts: { trusted?: boolean } = {}) {
     },
   };
   const allowlist = createProviderAllowlist();
+  const requestHop =
+    opts.requestHop ??
+    vi.fn<RequestHop>(async () => ({
+      kind: 'response',
+      status: 200,
+      headers: { 'content-type': 'application/json', 'set-cookie': 'secret=1' },
+      body: Buffer.from('{"ok":true}'),
+      finalUrl: 'https://api.mangadex.org/manga',
+    }));
+  const log = vi.fn<(event: { code: string; url?: string }) => void>();
   registerProviderNetworkIpc({
     ipcMain: ipcMain as never,
     allowlist,
     isTrustedFrame: (() => opts.trusted !== false) as never,
+    networkTransport: {
+      resolveHostAddresses: async (hostname) =>
+        hostname === 'api.mangadex.org' ? ['93.184.216.34'] : ['127.0.0.1'],
+      requestHop,
+      log,
+    },
   });
   const call = (channel: string, ...args: unknown[]) =>
     handlers.get(channel)!({ senderFrame: {} as never }, ...args);
-  return { allowlist, call };
+  return { allowlist, call, requestHop, log };
 }
 
 describe('registerProviderNetworkIpc', () => {
@@ -64,6 +81,101 @@ describe('registerProviderNetworkIpc', () => {
 
     expect(badDomain.ok).toBe(false);
     expect(badId.ok).toBe(false);
+  });
+
+  it('runs a registered provider request in main and filters the response headers', async () => {
+    const { call, requestHop } = register();
+    await call(PLATFORM_IPC.PROVIDER_NETWORK_REGISTER, {
+      providerId: 'mangadex',
+      domains: ['api.mangadex.org'],
+    });
+
+    const result = (await call(PLATFORM_IPC.PROVIDER_NETWORK_REQUEST, {
+      providerId: 'mangadex',
+      url: 'https://api.mangadex.org/manga',
+      headers: { accept: 'application/json' },
+    })) as {
+      ok: boolean;
+      value?: { status: number; headers: Record<string, string>; bodyText: string };
+    };
+
+    expect(result.ok).toBe(true);
+    expect(result.value).toMatchObject({ status: 200, bodyText: '{"ok":true}' });
+    expect(result.value?.headers).toEqual({ 'content-type': 'application/json' });
+    expect(result.value?.headers).not.toHaveProperty('set-cookie');
+    expect(requestHop).toHaveBeenCalledOnce();
+    expect(requestHop.mock.calls[0]?.[0]).toMatchObject({
+      address: '93.184.216.34',
+      method: 'GET',
+      headers: { accept: 'application/json' },
+    });
+  });
+
+  it('refuses a request for an unknown provider or an undeclared host', async () => {
+    const { call, requestHop } = register();
+    await call(PLATFORM_IPC.PROVIDER_NETWORK_REGISTER, {
+      providerId: 'mangadex',
+      domains: ['api.mangadex.org'],
+    });
+
+    const unknownProvider = (await call(PLATFORM_IPC.PROVIDER_NETWORK_REQUEST, {
+      providerId: 'other',
+      url: 'https://api.mangadex.org/manga',
+    })) as { ok: boolean; error?: { code?: string } };
+    const undeclaredHost = (await call(PLATFORM_IPC.PROVIDER_NETWORK_REQUEST, {
+      providerId: 'mangadex',
+      url: 'https://evil.example/manga',
+    })) as { ok: boolean };
+
+    expect(unknownProvider.ok).toBe(false);
+    expect(unknownProvider.error?.code).toBe('platform.invalid-url');
+    expect(undeclaredHost.ok).toBe(false);
+    expect(requestHop).not.toHaveBeenCalled();
+  });
+
+  it('refuses a redirect to a host the provider did not declare, before that hop', async () => {
+    const requestHop = vi.fn<RequestHop>(async () => ({
+      kind: 'redirect',
+      location: 'https://evil.example/steal',
+      status: 302,
+    }));
+    const { call } = register({ requestHop });
+    await call(PLATFORM_IPC.PROVIDER_NETWORK_REGISTER, {
+      providerId: 'mangadex',
+      domains: ['api.mangadex.org'],
+    });
+
+    const result = (await call(PLATFORM_IPC.PROVIDER_NETWORK_REQUEST, {
+      providerId: 'mangadex',
+      url: 'https://api.mangadex.org/manga',
+    })) as { ok: boolean; error?: { code?: string } };
+
+    expect(result.ok).toBe(false);
+    expect(result.error?.code).toBe('platform.invalid-url');
+    expect(requestHop).toHaveBeenCalledOnce();
+  });
+
+  it('returns a non-2xx provider response as a status, not an IPC error', async () => {
+    const requestHop = vi.fn<RequestHop>(async () => ({
+      kind: 'response',
+      status: 404,
+      headers: { 'content-type': 'application/json' },
+      body: Buffer.from('{"error":"not_found"}'),
+      finalUrl: 'https://api.mangadex.org/manga',
+    }));
+    const { call } = register({ requestHop });
+    await call(PLATFORM_IPC.PROVIDER_NETWORK_REGISTER, {
+      providerId: 'mangadex',
+      domains: ['api.mangadex.org'],
+    });
+
+    const result = (await call(PLATFORM_IPC.PROVIDER_NETWORK_REQUEST, {
+      providerId: 'mangadex',
+      url: 'https://api.mangadex.org/manga',
+    })) as { ok: boolean; value?: { status: number } };
+
+    expect(result.ok).toBe(true);
+    expect(result.value?.status).toBe(404);
   });
 
   it('refuses a registration from a frame that is not the app frame', async () => {
