@@ -281,9 +281,11 @@ void app.whenReady().then(async () => {
       },
     };
 
-    // Test-only: the Electron E2E answers the recorded MangaDex hosts from a local
-    // fixture server. All allowlist, address, redirect and limit checks still run.
-    const fixtureOrigin = process.env.MANGAVERSE_E2E_PROVIDER_FIXTURE;
+    // Test-only: the unpackaged Electron E2E answers the recorded MangaDex hosts from a
+    // local fixture server. A packaged production build must ignore the variable outright,
+    // so the switch is compiled out for it rather than trusted to the environment. All
+    // allowlist, address, redirect and limit checks still run.
+    const fixtureOrigin = app.isPackaged ? undefined : process.env.MANGAVERSE_E2E_PROVIDER_FIXTURE;
     const networkTransport =
       fixtureOrigin === undefined
         ? productionTransport

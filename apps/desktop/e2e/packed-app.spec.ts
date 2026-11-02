@@ -1,7 +1,7 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { createServer, type Server } from 'node:http';
+import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -11,13 +11,13 @@ import { chromium, expect, test, type Browser, type Page } from '@playwright/tes
 
 // #215 live proof on the packaged macOS app: launch MangaVerse.app from release/ (not the
 // dev build), then observe app:// deep routes, the data host and one-way renderer import,
-// page:// pages, provider traffic through main, and no listening TCP port.
+// page:// pages, and no listening TCP port. Provider traffic is covered by the unpackaged
+// E2E, which can seed a fixture; the packaged app must never honor that test seam.
 
 test.describe.configure({ timeout: 240_000 });
 
 const desktopRoot = fileURLToPath(new URL('..', import.meta.url));
 const dbPackageRoot = join(desktopRoot, '../../packages/db');
-const fixturesDir = join(desktopRoot, '../../packages/extensions/src/mangadex/fixtures');
 const DATABASE = 'mangaverse.sqlite';
 const MARKER = `${DATABASE}.import-renderer.json`;
 const TITLE = 'Packed Profile Title';
@@ -81,13 +81,15 @@ async function freePort(): Promise<number> {
  * packaged main, not `electron .`), so drive the real app over its own DevTools endpoint.
  * Attaching to the renderer is enough: the preload bridge is the app's whole backend surface.
  */
-async function launchPackaged(userDataDir: string, fixtureOrigin?: string): Promise<PackedApp> {
+async function launchPackaged(userDataDir: string): Promise<PackedApp> {
   const bundle = packagedApp();
   if (bundle === null) throw new Error('No packaged app');
   const env = { ...process.env } as Record<string, string>;
   delete env.VITE_DEV_SERVER_URL;
   delete env.MANGAVERSE_RENDERER_URL;
-  if (fixtureOrigin !== undefined) env.MANGAVERSE_E2E_PROVIDER_FIXTURE = fixtureOrigin;
+  // The packaged app must ignore the unpackaged E2E's provider fixture seam even if a
+  // shell inherited it from a test run.
+  delete env.MANGAVERSE_E2E_PROVIDER_FIXTURE;
   const port = await freePort();
   const logs: string[] = [];
   let closed = false;
@@ -145,14 +147,6 @@ async function launchPackaged(userDataDir: string, fixtureOrigin?: string): Prom
 }
 
 interface PackedBridge {
-  providerNetworkReplace(
-    providers: readonly { providerId: string; domains: readonly string[] }[],
-    revision: number,
-  ): Promise<{ ok: boolean }>;
-  providerNetworkRequest(input: {
-    providerId: string;
-    url: string;
-  }): Promise<{ ok: boolean; value?: { status: number; bodyText: string } }>;
   pageStorePut(
     key: string,
     data: ArrayBuffer,
@@ -162,46 +156,6 @@ interface PackedBridge {
     ok: boolean;
     value?: { completed: boolean; database?: unknown };
   }>;
-}
-
-function fixture(name: string): string {
-  return readFileSync(join(fixturesDir, name), 'utf8');
-}
-
-interface FixtureServer {
-  readonly origin: string;
-  requests(): string[];
-  close(): Promise<void>;
-}
-
-async function startFixtureServer(): Promise<FixtureServer> {
-  const atHome = JSON.parse(fixture('at-home.json')) as { baseUrl: string };
-  const seen: string[] = [];
-  const server: Server = createServer((request, response) => {
-    const url = new URL(request.url ?? '/', 'http://fixture.local');
-    seen.push(url.pathname);
-    const body = url.pathname.includes('/at-home/server/')
-      ? JSON.stringify(atHome)
-      : /\/manga\/[^/]+\/feed/.test(url.pathname)
-        ? fixture('feed.json')
-        : /\/manga\/[^/]+$/.test(url.pathname)
-          ? fixture('detail.json')
-          : fixture('search.json');
-    response.writeHead(200, { 'content-type': 'application/json' }).end(body);
-  });
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const address = server.address();
-  if (address === null || typeof address === 'string') throw new Error('no fixture port');
-  return {
-    origin: `http://127.0.0.1:${address.port}`,
-    requests: () => seen,
-    close: async () => {
-      await new Promise<void>((resolve) => {
-        server.closeAllConnections();
-        server.close(() => resolve());
-      });
-    },
-  };
 }
 
 /** The sql.js snapshot a pre-data-host profile left in IndexedDB. */
@@ -280,11 +234,9 @@ async function seedLegacyProfile(): Promise<string> {
   return userDataDir;
 }
 
-test('the packaged app loads app://, imports legacy data, serves page:// and calls providers through main', async () => {
+test('the packaged app loads app://, imports legacy data and serves page://', async () => {
   const userDataDir = await seedLegacyProfile();
-  const fixtureServer = await startFixtureServer();
-  cleanups.unshift(() => void fixtureServer.close());
-  const { page, logs } = await launchPackaged(userDataDir, fixtureServer.origin);
+  const { page, logs } = await launchPackaged(userDataDir);
 
   // The one-way import runs while the window boots; wait for its verified marker before
   // navigating, so the router never sees the half-imported profile.
@@ -334,25 +286,6 @@ test('the packaged app loads app://, imports legacy data, serves page:// and cal
     return loaded;
   }, stored.value);
   expect(rendered).toBeGreaterThan(0);
-
-  // Provider traffic still goes from the renderer through main's allowlist and transport;
-  // the recorded fixture answers on 127.0.0.1 while Chromium itself is offline.
-  const provider = await page.evaluate(async () => {
-    const api = (window as unknown as { mangaversePlatform: PackedBridge }).mangaversePlatform;
-    const replaced = await api.providerNetworkReplace(
-      [{ providerId: 'mangadex', domains: ['api.mangadex.org'] }],
-      1,
-    );
-    const response = await api.providerNetworkRequest({
-      providerId: 'mangadex',
-      url: 'https://api.mangadex.org/manga',
-    });
-    return { replaced: replaced.ok, response };
-  });
-  expect(provider.replaced, 'provider allowlist replaced').toBe(true);
-  expect(provider.response.ok, 'provider request').toBe(true);
-  expect(provider.response.value?.status).toBe(200);
-  expect(fixtureServer.requests().length).toBeGreaterThan(0);
 });
 
 test('a plain packaged launch opens no listening TCP port', async () => {

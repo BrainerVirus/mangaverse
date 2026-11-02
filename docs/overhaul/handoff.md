@@ -200,21 +200,31 @@ Recorded in the Workit ledger with `workit ledger list --type decision`, and in 
   `MangaVerse-0.0.1-arm64.dmg`/`.zip` were produced locally (unsigned) with `app-update.yml` and
   `latest-mac.yml`. `electron-builder` is a devDependency, `electron-updater` a runtime dependency.
 - **Update flow.** A check runs 30 s after ready and every 6 h, never on the startup path, and only in a
-  packaged build that ships `app-update.yml`. Main sends `platform:update:available` to the renderer;
-  the renderer's dialog decides "Restart and install" or "Later". `ReaderLayout` sends the reader-active
-  signal, so main holds the prompt while any window is reading. A declined version is not offered again
-  this session, and a failed/offline check only logs. `update-policy.test.ts` covers ask/idle, defer
-  while reading then ask, declined no-loop, a newer release after a decline, and a quiet failure.
-- **CI.** `.github/workflows/package.yml` runs on manual dispatch and `v*` tags for macos/windows/ubuntu:
-  install, build, `package:<platform> --publish never`, upload artifacts. Secrets are injected only when
-  present; absent secrets build unsigned and do not fail the job. Windows and Linux are **build proof
-  only** — not installed or launched.
+  packaged build that ships `app-update.yml`. `autoDownload` is on, so a found release downloads in the
+  background and main asks the renderer only once it is on disk: `platform:update:available` carries a
+  release the dialog can install immediately. `autoInstallOnAppQuit` is off, so nothing installs without
+  "Restart and install"; `ReaderLayout` sends the reader-active signal, and main holds both the prompt
+  and an accepted install while any window is reading. A reload, a crash or a closed window clears that
+  window's reading state, so a reload mid-chapter cannot pin the update. A declined version is not
+  offered again this session, and a failed check or download only logs once (electron-updater emits
+  `error` before rejecting, and the rejection plus any `downloadPromise` rejection is swallowed).
+  `update-policy.test.ts` covers ask/idle, defer while reading then ask, declined no-loop, a newer
+  release after a decline, and quiet failures; `updater.test.ts` covers the IPC wiring and lifecycle.
+- **CI.** `.github/workflows/package.yml` runs on manual dispatch, `v*` tags and pull requests that touch
+  `apps/desktop/**`, `apps/web/**`, `packages/**`, the workflow itself or the workspace manifests, with a
+  macos/windows/ubuntu matrix: install, build, `package:<platform> <arch flags> --publish never`, upload
+  artifacts. The arch flags are passed without a `--` separator because pnpm forwards that literally and
+  electron-builder then ignores the whole list, silently building the runner's own arch. Secrets are
+  injected only when present; absent secrets build unsigned and do not fail the job. Windows and Linux
+  are **build proof only** — not installed or launched.
 - **Packed macOS proof** (`apps/desktop/e2e/packed-app.spec.ts`, `pnpm --filter @app/desktop test:e2e:packaged`):
   the zip was extracted to `release/packed-proof` and `MangaVerse.app` launched from there, offline.
   Observed: `app://app/library` deep route renders the imported title; the one-way renderer import
   records its marker and the data host serves the library; `page://` serves a stored page into an
-  `<img>`; a provider request goes renderer → main → the recorded fixture; the app log says
-  `[updater] enabled`; a plain launch sampled for 8 s opens no listening TCP port.
+  `<img>`; the app log says `[updater] enabled`; a plain launch sampled for 8 s opens no listening TCP
+  port. Provider traffic is proven by the unpackaged E2E (`provider-network.spec.ts`), which seeds a
+  fixture; the packaged app ignores `MANGAVERSE_E2E_PROVIDER_FIXTURE` because main reads it only when
+  `app.isPackaged` is false.
 - **Still owner-gated:** certificates and notarization secrets (signed builds), the reference laptop and
   final budgets, and Windows/Linux install and `node:sqlite` proof. None of those are claimed here.
 

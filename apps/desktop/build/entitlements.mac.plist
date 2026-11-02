@@ -2,13 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
   <!-- Electron needs the JIT and unsigned-memory entitlements under the hardened runtime.
-       They matter only for a signed (owner-certificate) build; unsigned builds ignore them. -->
+       They matter only for a signed (owner-certificate) build; unsigned builds ignore them.
+       Nothing injects dyld environment variables, so that entitlement is not granted. -->
   <dict>
     <key>com.apple.security.cs.allow-jit</key>
     <true/>
     <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
-    <true/>
-    <key>com.apple.security.cs.allow-dyld-environment-variables</key>
     <true/>
   </dict>
 </plist>
