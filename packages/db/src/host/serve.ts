@@ -3,24 +3,29 @@ import { createAppError, err, ok, type AppError, type AppResult } from '@app/sha
 import { z } from 'zod';
 import {
   DATA_HOST_ERROR,
+  type DataHostMessage,
   type DataHostOpenResult,
-  type DataHostReply,
   type DataHostRequest,
   type DataHostStatus,
 } from '../data-host-protocol.js';
+import { installChangeCapture, type ChangeCapture } from './change-capture.js';
 import { importSnapshot } from './import-snapshot.js';
 import { openNativeDatabase, type NativeDatabase } from './open-native.js';
 import { PROCEDURES } from './procedures.js';
 
 /** One window's end of its MessagePort, whatever the runtime calls it. */
 export interface DataHostPort {
-  postMessage(reply: DataHostReply): void;
+  postMessage(message: DataHostMessage): void;
   onMessage(listener: (data: unknown) => void): void;
+  /** Called once the window's end is gone; the host stops broadcasting to it. */
+  onClose?(listener: () => void): void;
 }
 
 export interface DataHost {
   /** Serves a port main handed over. Main gives one only to a frame it created (X6). */
   attach(port: DataHostPort): void;
+  /** Ports currently attached, so committed changes reach every window. */
+  ports(): number;
   /** Resolves once every request received so far has been answered. */
   idle(): Promise<void>;
   close(): void;
@@ -64,7 +69,22 @@ function failure(code: string, error: unknown, fallback: string): AppError {
 export function createDataHost(options: { readonly databasePath: string }): DataHost {
   const { databasePath } = options;
   let database: NativeDatabase | null = null;
+  let capture: ChangeCapture | null = null;
   let tail: Promise<void> = Promise.resolve();
+  let changeSeq = 0;
+  const attached = new Set<DataHostPort>();
+
+  /**
+   * Sends what the last request committed to every window, after the caller's reply. A failed
+   * call broadcasts too: a repository without a transaction may have committed part of its work.
+   */
+  const broadcast = () => {
+    const changes = capture?.drain() ?? [];
+    if (changes.length === 0) return;
+    changeSeq += 1;
+    const message: DataHostMessage = { kind: 'changes', seq: changeSeq, changes };
+    for (const port of attached) port.postMessage(message);
+  };
 
   const open = (snapshot: Uint8Array | null): AppResult<DataHostOpenResult> => {
     if (database !== null) return ok({ imported: null });
@@ -72,7 +92,9 @@ export function createDataHost(options: { readonly databasePath: string }): Data
       snapshot !== null && !existsSync(databasePath)
         ? importSnapshot(snapshot, databasePath)
         : null;
-    database = openNativeDatabase(databasePath);
+    const opened = openNativeDatabase(databasePath);
+    capture = installChangeCapture(opened.client);
+    database = opened;
     return ok({ imported });
   };
 
@@ -157,19 +179,24 @@ export function createDataHost(options: { readonly databasePath: string }): Data
           ),
         }),
       )
+      .then(() => broadcast())
       .then(undefined, () => undefined);
   };
 
   return {
     attach(port) {
+      attached.add(port);
+      port.onClose?.(() => attached.delete(port));
       port.onMessage((data) => {
         tail = tail.then(() => handle(port, data));
       });
     },
+    ports: () => attached.size,
     idle: () => tail,
     close() {
       database?.close();
       database = null;
+      capture = null;
     },
   };
 }

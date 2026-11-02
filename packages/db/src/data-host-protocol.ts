@@ -21,6 +21,46 @@ export interface DataHostReply {
   readonly result: AppResult<unknown>;
 }
 
+/**
+ * Tables whose committed row changes the host broadcasts, each with the column that keys a
+ * change. A membership row is keyed by its entry: that is the row a window holds.
+ */
+export const SYNCED_TABLES = {
+  library_entries: 'id',
+  library_category_memberships: 'library_entry_id',
+  categories: 'id',
+  manga_identities: 'id',
+  manga_provider_mappings: 'id',
+  chapters: 'id',
+  chapter_read_state: 'chapter_id',
+} as const;
+
+export type SyncedTable = keyof typeof SYNCED_TABLES;
+
+export interface RowChange {
+  readonly table: SyncedTable;
+  readonly key: string;
+  readonly op: 'insert' | 'update' | 'delete';
+}
+
+/**
+ * Committed changes, sent to every attached window after the reply to the call that made
+ * them. `seq` counts batches per host process; a restarted host starts again at 1.
+ */
+export interface DataHostChanges {
+  readonly kind: 'changes';
+  readonly seq: number;
+  readonly changes: readonly RowChange[];
+}
+
+/** What a window hears about committed data: a batch, or "refetch everything" after a reconnect. */
+export type DataHostChangeEvent =
+  | { readonly kind: 'changes'; readonly changes: readonly RowChange[] }
+  | { readonly kind: 'resync' };
+
+/** Everything the host posts on a port. */
+export type DataHostMessage = DataHostReply | DataHostChanges;
+
 export interface DataHostStatus {
   readonly open: boolean;
   readonly nativeExists: boolean;
@@ -47,6 +87,8 @@ export const DATA_HOST_ERROR = {
   unserializableReply: 'data-host.unserializable_reply',
   unauthorizedFrame: 'data-host.unauthorized_frame',
   unavailable: 'data-host.unavailable',
+  timeout: 'data-host.timeout',
+  unboundedLoad: 'data-host.unbounded_load',
 } as const;
 
 /** A host refusal or failure, thrown by the client so callers see an ordinary rejection. */

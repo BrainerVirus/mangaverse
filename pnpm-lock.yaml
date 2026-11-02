@@ -135,6 +135,12 @@ importers:
       '@gsap/react':
         specifier: ^2.1.2
         version: 2.1.2(gsap@3.15.0)(react@19.3.0)
+      '@tanstack/db':
+        specifier: 1.0.0-rc.1.1
+        version: 1.0.0-rc.1.1(typescript@7.0.2)
+      '@tanstack/react-db':
+        specifier: 1.0.0-rc.1.1
+        version: 1.0.0-rc.1.1(react@19.3.0)(typescript@7.0.2)
       '@tanstack/react-query':
         specifier: ^5.104.2
         version: 5.104.2(react@19.3.0)
@@ -2446,6 +2452,9 @@ packages:
     resolution: {integrity: sha512-tlqY9xq5ukxTUZBmoOp+m61cqwQD5pHJtFY3Mn8CA8ps6yghLH/Hw8UPdqg4OLmFW3IFlcXnQNmo/dh8HzXYIQ==}
     engines: {node: '>=18'}
 
+  '@standard-schema/spec@1.1.0':
+    resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
+
   '@tailwindcss/node@4.3.3':
     resolution: {integrity: sha512-/T8IKEsf9VTU6tLjgC7+sv2mOPtQxzE2jMw7u4Tt40Tx+QSZxpzh95/H6cMKoja9XuW7iMdLJYBB0o9G1CaAgg==}
 
@@ -2540,12 +2549,31 @@ packages:
     peerDependencies:
       vite: ^5.2.0 || ^6 || ^7 || ^8
 
+  '@tanstack/db-ivm@1.0.0-rc.1.1':
+    resolution: {integrity: sha512-yakU6OPyT9oZA5M+RQs86wRn2Un9ZKj/GOvCb0dcEf1zyXOeTl13fq+do21o20l2ZGVcZYudD30EARuXLRc3hg==}
+    peerDependencies:
+      typescript: '>=4.7'
+
+  '@tanstack/db@1.0.0-rc.1.1':
+    resolution: {integrity: sha512-fi0Hh7QSEb04CznSmHuBVYFMlwMeRrv1rZe20B3q/8Grp7eY9PLmwvjmS1RfPhcVsW7rcaIN6OrxDMeXmXhXcQ==}
+    peerDependencies:
+      typescript: '>=4.7'
+
   '@tanstack/history@1.162.5':
     resolution: {integrity: sha512-w1+YvwmTkwt5n8yUqEH3IWZ9DsmorCZW/EQ3KYHnqEgIkOZpH54NvW6/Epq3Dzb8H0ifIeYX8PExvrNLIH5FIA==}
     engines: {node: '>=20.19'}
 
+  '@tanstack/pacer-lite@0.2.2':
+    resolution: {integrity: sha512-eQ1MyLKCHyXiH7NbdmB80W77OhiMgGBUb+qDx/8WMGbwg5Lf/NlfD0TfNYAqY77i8V3AxoDoYdICrQE5ADw4Yw==}
+    engines: {node: '>=18'}
+
   '@tanstack/query-core@5.104.2':
     resolution: {integrity: sha512-/qbsxJK5c3Ve1aFIULWYNcT2jeRUAiD4HME6Eu2ZdpofHoVgAjpkQhLg5xHuOoBkTPQUJLfP7zOxy0qsBcqROA==}
+
+  '@tanstack/react-db@1.0.0-rc.1.1':
+    resolution: {integrity: sha512-3ytKl0TjFhHSF6MmgVQFDmhl7w44MTcKNK9y79D859jdbkQwd/O9oVVkHW+Tw05pE6pJLvXtE980N4gPcc6SNA==}
+    peerDependencies:
+      react: '>=18.0.0'
 
   '@tanstack/react-query@5.104.2':
     resolution: {integrity: sha512-xKmzWGhadbE5wGS/ZmXShRITnI9oItox5GO14KvFZco3+vhTAyXS1erYzJWdiY280zapAGJXFUL9nHgwP6SV/g==}
@@ -3777,6 +3805,10 @@ packages:
   forwarded@0.2.0:
     resolution: {integrity: sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==}
     engines: {node: '>= 0.6'}
+
+  fractional-indexing@3.4.0:
+    resolution: {integrity: sha512-8J3glhz2rrpKG6KmI7wmJo3zH1VjeOpN+vTJSw1fOyO+Viqq3zX6/5NGh6oaZB2qIAYdOYuu5Dz9xp4faOO0Pg==}
+    engines: {node: ^14.13.1 || >=16.0.0}
 
   fresh@2.0.0:
     resolution: {integrity: sha512-Rx/WycZ60HOaqLKAi6cHRKKI7zxWbJ31MhntmtwMoaTeF7XFH9hhBp8vITaMidfljRQ6eYWCKkaTK+ykVJHP2A==}
@@ -6766,6 +6798,8 @@ snapshots:
 
   '@sindresorhus/merge-streams@4.0.0': {}
 
+  '@standard-schema/spec@1.1.0': {}
+
   '@tailwindcss/node@4.3.3':
     dependencies:
       '@jridgewell/remapping': 2.3.5
@@ -6834,9 +6868,30 @@ snapshots:
       tailwindcss: 4.3.3
       vite: 8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1)
 
+  '@tanstack/db-ivm@1.0.0-rc.1.1(typescript@7.0.2)':
+    dependencies:
+      fractional-indexing: 3.4.0
+      typescript: 7.0.2
+
+  '@tanstack/db@1.0.0-rc.1.1(typescript@7.0.2)':
+    dependencies:
+      '@standard-schema/spec': 1.1.0
+      '@tanstack/db-ivm': 1.0.0-rc.1.1(typescript@7.0.2)
+      '@tanstack/pacer-lite': 0.2.2
+      typescript: 7.0.2
+
   '@tanstack/history@1.162.5': {}
 
+  '@tanstack/pacer-lite@0.2.2': {}
+
   '@tanstack/query-core@5.104.2': {}
+
+  '@tanstack/react-db@1.0.0-rc.1.1(react@19.3.0)(typescript@7.0.2)':
+    dependencies:
+      '@tanstack/db': 1.0.0-rc.1.1(typescript@7.0.2)
+      react: 19.3.0
+    transitivePeerDependencies:
+      - typescript
 
   '@tanstack/react-query@5.104.2(react@19.3.0)':
     dependencies:
@@ -8094,6 +8149,8 @@ snapshots:
       package-manager-detector: 1.9.0
 
   forwarded@0.2.0: {}
+
+  fractional-indexing@3.4.0: {}
 
   fresh@2.0.0: {}
 

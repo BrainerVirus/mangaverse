@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, type SQL } from 'drizzle-orm';
 import type { AppResult } from '@app/shared';
 import {
   createAppError,
@@ -16,6 +16,7 @@ import {
   type ProviderMappingId,
 } from '@app/shared';
 import type { AppDrizzleDb } from '../adapter.js';
+import { readIdChunks } from '../read-id-chunks.js';
 import { chapterPages, chapters, mangaProviderMappings } from '../schema.js';
 
 function newId(): string {
@@ -255,4 +256,86 @@ export async function getChapterProviderMappingId(
     .where(eq(chapters.id, chapterId))
     .get();
   return row === undefined ? undefined : toProviderMappingId(row.providerMappingId);
+}
+
+/** A chapter's list fields, without pages: what a window holds while scrolling a chapter list. */
+export interface ChapterRow {
+  readonly id: ChapterId;
+  readonly mangaId: MangaId;
+  readonly index: number;
+  readonly title: string;
+  readonly volume?: string;
+  readonly publishedAt?: string;
+}
+
+/** The most chapters one window request may load. */
+export const CHAPTER_WINDOW_MAX = 500;
+
+export interface ChapterWindowRequest {
+  readonly mangaId: MangaId;
+  /** Required: a whole-table or whole-title scan is refused. */
+  readonly limit: number;
+  /** Only chapters after this index, for the next window. */
+  readonly afterIndex?: number;
+  /** Only chapters at this index, for ties at a window's edge. */
+  readonly exactIndex?: number;
+}
+
+const chapterRowColumns = {
+  id: chapters.id,
+  mangaId: chapters.mangaId,
+  index: chapters.chapterIndex,
+  title: chapters.title,
+  volume: chapters.volume,
+  publishedAt: chapters.publishedAt,
+};
+
+function toChapterRow(row: {
+  id: string;
+  mangaId: string;
+  index: number;
+  title: string;
+  volume: string | null;
+  publishedAt: string | null;
+}): ChapterRow {
+  return {
+    id: toChapterId(row.id),
+    mangaId: toMangaId(row.mangaId),
+    index: row.index,
+    title: row.title,
+    ...(row.volume !== null && row.volume !== '' ? { volume: row.volume } : {}),
+    ...(row.publishedAt !== null && row.publishedAt !== '' ? { publishedAt: row.publishedAt } : {}),
+  };
+}
+
+/** One bounded window of a title's chapters in index order (ADR 0001, on-demand sync). */
+export async function listChapterWindow(
+  db: AppDrizzleDb,
+  request: ChapterWindowRequest,
+): Promise<ChapterRow[]> {
+  const { mangaId, limit, afterIndex, exactIndex } = request;
+  if (!Number.isInteger(limit) || limit < 1 || limit > CHAPTER_WINDOW_MAX) {
+    throw new RangeError(`A chapter window needs a limit from 1 to ${CHAPTER_WINDOW_MAX}.`);
+  }
+  const conditions: SQL[] = [eq(chapters.mangaId, mangaId)];
+  if (afterIndex !== undefined) conditions.push(gt(chapters.chapterIndex, afterIndex));
+  if (exactIndex !== undefined) conditions.push(eq(chapters.chapterIndex, exactIndex));
+  return db
+    .select(chapterRowColumns)
+    .from(chapters)
+    .where(and(...conditions))
+    .orderBy(asc(chapters.chapterIndex), asc(chapters.id))
+    .limit(limit)
+    .all()
+    .map(toChapterRow);
+}
+
+/** The rows for chapters a window already holds, to apply a change broadcast. */
+export async function getChapterRows(
+  db: AppDrizzleDb,
+  chapterIds: readonly ChapterId[],
+): Promise<ChapterRow[]> {
+  return readIdChunks(chapterIds, (chunk) =>
+    db.select(chapterRowColumns).from(chapters).where(inArray(chapters.id, chunk)).all(),
+  ).map(toChapterRow);
 }
