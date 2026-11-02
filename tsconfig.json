@@ -11,8 +11,6 @@
     { "path": "./packages/db" },
     { "path": "./packages/design-system" },
     { "path": "./packages/motion" },
-    { "path": "./packages/library" },
-    { "path": "./packages/search" },
     { "path": "./packages/platform" }
   ]
 }

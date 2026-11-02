@@ -12,7 +12,7 @@ import {
   upsertChapterWithPages,
 } from '@app/db';
 import { createSqlJsHarness } from '@app/db/testing';
-import { fetchMangaDetail } from '@app/library';
+import { fetchMangaDetail } from '@/features/library';
 import type { ProviderContract } from '@app/extensions-sdk';
 import {
   toChapterId,

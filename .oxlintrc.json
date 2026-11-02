@@ -151,7 +151,7 @@
     // Package boundaries (AGENTS.md "Package Boundary Rules"): `no-restricted-imports`
     // scoped per package, measured 2026-10-18 with each rule forced on over
     // `npx oxlint apps packages` — 0 findings each; a planted `import ... from
-    // '@app/library'` in packages/shared/src/index.ts fails the shared check.
+    // '@app/reader'` in packages/shared/src/index.ts fails the shared check.
     // The `**/` prefix matches absolute paths, so these globs keep working if the
     // config ever moves; the pre-existing bare globs (e.g. "apps/**/scripts/**")
     // anchor to this file's directory and are live at the repo root. Raw SQL
@@ -225,9 +225,9 @@
       // properties are allow-listed per file group; colors, custom properties and
       // <style> elements stay checked, and every other file keeps the rule at error.
       "files": [
-        "**/packages/library/src/components/VirtualLibraryGrid.tsx",
-        "**/packages/library/src/components/MangaChapterList.tsx",
-        "**/packages/search/src/components/VirtualSearchGrid.tsx"
+        "**/apps/web/app/features/library/components/VirtualLibraryGrid.tsx",
+        "**/apps/web/app/features/library/components/MangaChapterList.tsx",
+        "**/apps/web/app/features/search/components/VirtualSearchGrid.tsx"
       ],
       "rules": {
         "shadcn/no-inline-styles": [
@@ -250,9 +250,9 @@
     },
     {
       "files": [
-        "**/packages/library/src/components/MangaChapterList.test.tsx",
-        "**/packages/library/src/components/VirtualLibraryGrid.test.tsx",
-        "**/packages/search/src/components/VirtualSearchGrid.test.tsx"
+        "**/apps/web/app/features/library/components/MangaChapterList.test.tsx",
+        "**/apps/web/app/features/library/components/VirtualLibraryGrid.test.tsx",
+        "**/apps/web/app/features/search/components/VirtualSearchGrid.test.tsx"
       ],
       "rules": {
         "shadcn/no-inline-styles": ["error", { "allow": ["width", "height", "overflow"] }]

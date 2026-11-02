@@ -19,7 +19,7 @@ import type {
   ProviderPage,
 } from '@app/extensions-sdk';
 import { normalizeProviderError } from '@app/extensions-sdk';
-import type { MangaDetailData } from '@app/library';
+import type { MangaDetailData } from '@/features/library';
 import type {
   ChapterId,
   MangaId,
@@ -181,7 +181,7 @@ export async function fetchProviderMangaDetail(
   const remote = binding.toMangaDetailData(providerMangaId, details, chapters);
   await persistMangaDetailToDb(db, remote);
 
-  const { fetchMangaDetail } = await import('@app/library');
+  const { fetchMangaDetail } = await import('@/features/library');
   const refreshed = await fetchMangaDetail(db, mangaId);
   return mergeMangaDetailWithLibrary(refreshed ?? remote, local);
 }

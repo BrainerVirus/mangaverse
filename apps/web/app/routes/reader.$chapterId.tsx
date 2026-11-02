@@ -9,7 +9,7 @@ import {
   resetTitleReaderSettings,
 } from '@app/db';
 import type { AppDrizzleDb } from '@app/db';
-import { libraryQueryKeys } from '@app/library';
+import { libraryQueryKeys } from '@/features/library';
 import type { ReaderSettings } from '@app/shared';
 import {
   fetchReaderPage,

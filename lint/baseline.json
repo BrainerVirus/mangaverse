@@ -35,11 +35,67 @@
   "apps/web/app/features/diagnostics/components/DiagnosticsPage.tsx": {
     "no-use-state": 1
   },
+  "apps/web/app/features/library/components/BulkEditBar.tsx": {
+    "no-use-state": 4
+  },
+  "apps/web/app/features/library/components/CategoryManagerDialog.tsx": {
+    "no-try-catch": 2,
+    "no-use-state": 7
+  },
+  "apps/web/app/features/library/components/LibraryPage.tsx": {
+    "no-use-state": 3
+  },
+  "apps/web/app/features/library/components/LibraryToolbar.tsx": {
+    "no-use-state": 1
+  },
+  "apps/web/app/features/library/components/MangaChapterList.tsx": {
+    "no-use-state": 3
+  },
+  "apps/web/app/features/library/components/MangaCustomCoverDialog.tsx": {
+    "no-try-catch": 1,
+    "no-use-state": 2
+  },
+  "apps/web/app/features/library/components/MangaDetailPage.tsx": {
+    "no-try-catch": 2,
+    "no-use-state": 5
+  },
+  "apps/web/app/features/library/components/MangaIdentityMerge.tsx": {
+    "no-try-catch": 3,
+    "no-use-state": 8
+  },
+  "apps/web/app/features/library/components/MangaProviderSwitcher.tsx": {
+    "no-use-state": 1
+  },
+  "apps/web/app/features/library/components/use-unmerge-request.ts": {
+    "no-try-catch": 1,
+    "no-use-state": 4
+  },
+  "apps/web/app/features/library/hooks/use-container-width.ts": {
+    "no-use-state": 1
+  },
+  "apps/web/app/features/library/hooks/use-scroll-parent.ts": {
+    "no-use-state": 1
+  },
+  "apps/web/app/features/library/update-queue.ts": {
+    "no-try-catch": 3
+  },
   "apps/web/app/features/migration/components/MigrationPage.tsx": {
     "no-use-state": 2
   },
   "apps/web/app/features/migration/search-migration-targets.ts": {
     "no-try-catch": 1
+  },
+  "apps/web/app/features/search/components/SearchPage.tsx": {
+    "no-use-state": 2
+  },
+  "apps/web/app/features/search/hooks/use-container-width.ts": {
+    "no-use-state": 1
+  },
+  "apps/web/app/features/search/hooks/use-scroll-margin.ts": {
+    "no-use-state": 1
+  },
+  "apps/web/app/features/search/hooks/use-scroll-parent.ts": {
+    "no-use-state": 1
   },
   "apps/web/app/features/settings/components/ReaderSettingsPage.tsx": {
     "no-use-state": 2
@@ -212,50 +268,6 @@
   "packages/extensions/src/provider-settings.ts": {
     "no-try-catch": 1
   },
-  "packages/library/src/components/BulkEditBar.tsx": {
-    "no-use-state": 4
-  },
-  "packages/library/src/components/CategoryManagerDialog.tsx": {
-    "no-try-catch": 2,
-    "no-use-state": 7
-  },
-  "packages/library/src/components/LibraryPage.tsx": {
-    "no-use-state": 3
-  },
-  "packages/library/src/components/LibraryToolbar.tsx": {
-    "no-use-state": 1
-  },
-  "packages/library/src/components/MangaChapterList.tsx": {
-    "no-use-state": 3
-  },
-  "packages/library/src/components/MangaCustomCoverDialog.tsx": {
-    "no-try-catch": 1,
-    "no-use-state": 2
-  },
-  "packages/library/src/components/MangaDetailPage.tsx": {
-    "no-try-catch": 2,
-    "no-use-state": 5
-  },
-  "packages/library/src/components/MangaIdentityMerge.tsx": {
-    "no-try-catch": 3,
-    "no-use-state": 8
-  },
-  "packages/library/src/components/MangaProviderSwitcher.tsx": {
-    "no-use-state": 1
-  },
-  "packages/library/src/components/use-unmerge-request.ts": {
-    "no-try-catch": 1,
-    "no-use-state": 4
-  },
-  "packages/library/src/hooks/use-container-width.ts": {
-    "no-use-state": 1
-  },
-  "packages/library/src/hooks/use-scroll-parent.ts": {
-    "no-use-state": 1
-  },
-  "packages/library/src/update-queue.ts": {
-    "no-try-catch": 3
-  },
   "packages/platform/src/electron.ts": {
     "no-try-catch": 7
   },
@@ -295,18 +307,6 @@
   },
   "packages/reader/src/components/use-reader-viewport.ts": {
     "no-use-state": 2
-  },
-  "packages/search/src/components/SearchPage.tsx": {
-    "no-use-state": 2
-  },
-  "packages/search/src/hooks/use-container-width.ts": {
-    "no-use-state": 1
-  },
-  "packages/search/src/hooks/use-scroll-margin.ts": {
-    "no-use-state": 1
-  },
-  "packages/search/src/hooks/use-scroll-parent.ts": {
-    "no-use-state": 1
   },
   "moves": [
     {
@@ -399,6 +399,130 @@
       "to": "apps/web/app/features/theme/components/theme-advanced.ts",
       "rules": {
         "no-try-catch": 2
+      }
+    },
+    {
+      "from": "packages/library/src/components/BulkEditBar.tsx",
+      "to": "apps/web/app/features/library/components/BulkEditBar.tsx",
+      "rules": {
+        "no-use-state": 4
+      }
+    },
+    {
+      "from": "packages/library/src/components/CategoryManagerDialog.tsx",
+      "to": "apps/web/app/features/library/components/CategoryManagerDialog.tsx",
+      "rules": {
+        "no-use-state": 7,
+        "no-try-catch": 2
+      }
+    },
+    {
+      "from": "packages/library/src/components/LibraryPage.tsx",
+      "to": "apps/web/app/features/library/components/LibraryPage.tsx",
+      "rules": {
+        "no-use-state": 3
+      }
+    },
+    {
+      "from": "packages/library/src/components/LibraryToolbar.tsx",
+      "to": "apps/web/app/features/library/components/LibraryToolbar.tsx",
+      "rules": {
+        "no-use-state": 1
+      }
+    },
+    {
+      "from": "packages/library/src/components/MangaChapterList.tsx",
+      "to": "apps/web/app/features/library/components/MangaChapterList.tsx",
+      "rules": {
+        "no-use-state": 3
+      }
+    },
+    {
+      "from": "packages/library/src/components/MangaCustomCoverDialog.tsx",
+      "to": "apps/web/app/features/library/components/MangaCustomCoverDialog.tsx",
+      "rules": {
+        "no-use-state": 2,
+        "no-try-catch": 1
+      }
+    },
+    {
+      "from": "packages/library/src/components/MangaDetailPage.tsx",
+      "to": "apps/web/app/features/library/components/MangaDetailPage.tsx",
+      "rules": {
+        "no-use-state": 5,
+        "no-try-catch": 2
+      }
+    },
+    {
+      "from": "packages/library/src/components/MangaIdentityMerge.tsx",
+      "to": "apps/web/app/features/library/components/MangaIdentityMerge.tsx",
+      "rules": {
+        "no-use-state": 8,
+        "no-try-catch": 3
+      }
+    },
+    {
+      "from": "packages/library/src/components/MangaProviderSwitcher.tsx",
+      "to": "apps/web/app/features/library/components/MangaProviderSwitcher.tsx",
+      "rules": {
+        "no-use-state": 1
+      }
+    },
+    {
+      "from": "packages/library/src/components/use-unmerge-request.ts",
+      "to": "apps/web/app/features/library/components/use-unmerge-request.ts",
+      "rules": {
+        "no-use-state": 4,
+        "no-try-catch": 1
+      }
+    },
+    {
+      "from": "packages/library/src/hooks/use-container-width.ts",
+      "to": "apps/web/app/features/library/hooks/use-container-width.ts",
+      "rules": {
+        "no-use-state": 1
+      }
+    },
+    {
+      "from": "packages/library/src/hooks/use-scroll-parent.ts",
+      "to": "apps/web/app/features/library/hooks/use-scroll-parent.ts",
+      "rules": {
+        "no-use-state": 1
+      }
+    },
+    {
+      "from": "packages/library/src/update-queue.ts",
+      "to": "apps/web/app/features/library/update-queue.ts",
+      "rules": {
+        "no-try-catch": 3
+      }
+    },
+    {
+      "from": "packages/search/src/components/SearchPage.tsx",
+      "to": "apps/web/app/features/search/components/SearchPage.tsx",
+      "rules": {
+        "no-use-state": 2
+      }
+    },
+    {
+      "from": "packages/search/src/hooks/use-container-width.ts",
+      "to": "apps/web/app/features/search/hooks/use-container-width.ts",
+      "rules": {
+        "no-use-state": 1
+      }
+    },
+    {
+      "from": "packages/search/src/hooks/use-scroll-margin.ts",
+      "to": "apps/web/app/features/search/hooks/use-scroll-margin.ts",
+      "rules": {
+        "no-use-state": 1
+      }
+    },
+    {
+      "from": "packages/search/src/hooks/use-scroll-parent.ts",
+      "to": "apps/web/app/features/search/hooks/use-scroll-parent.ts",
+      "rules": {
+        "no-use-state": 1
       }
     }
   ]

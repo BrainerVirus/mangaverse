@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryObserver } from '@tanstack/react-query';
-import { DEFAULT_SEARCH_VIEW_STATE, searchQueryKeys } from '@app/search';
+import { DEFAULT_SEARCH_VIEW_STATE, searchQueryKeys } from '@/features/search';
 import { refreshRecentSearches, refreshRecentSearchesAfterWrite } from '../search-recents.js';
 
 describe('refreshRecentSearches', () => {

@@ -1,7 +1,7 @@
 import type { AppDrizzleDb } from '@app/db/browser';
 import { listInstalledExtensions } from '@app/db/browser';
 import { loadProviderSettings, recordProviderFailure } from '@app/extensions';
-import type { LibraryUpdateProvider, LibraryUpdateProviderResolver } from '@app/library';
+import type { LibraryUpdateProvider, LibraryUpdateProviderResolver } from '@/features/library';
 import {
   hasProviderCapability,
   toProviderMangaId,

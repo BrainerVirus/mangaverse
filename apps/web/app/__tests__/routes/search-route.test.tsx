@@ -8,11 +8,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type * as DbBrowserModule from '@app/db/browser';
 import type { SavedSearchEntry } from '@app/db';
 import type * as ProviderOptionsModule from '../../queries/provider-query-options.js';
-import type * as SearchModule from '@app/search';
+import type * as SearchModule from '@/features/search';
 import type * as SettingsModule from '@/features/settings';
 import type { MangaIdentity } from '@app/shared';
-import { searchQueryKeys } from '@app/search';
-import type { SearchPageData, SearchViewState } from '@app/search';
+import { searchQueryKeys } from '@/features/search';
+import type { SearchPageData, SearchViewState } from '@/features/search';
 import type { SearchProviderInfo } from '../../queries/provider-query-options.js';
 import { settingsQueryKeys } from '@/features/settings';
 
@@ -53,7 +53,7 @@ vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => mocks.navigate,
 }));
 
-vi.mock('@app/search', async (importOriginal) => {
+vi.mock('@/features/search', async (importOriginal) => {
   const actual = await importOriginal<typeof SearchModule>();
   return {
     ...actual,

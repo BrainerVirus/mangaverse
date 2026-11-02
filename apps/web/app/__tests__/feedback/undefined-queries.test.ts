@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { AppDrizzleDb } from '@app/db';
-import { libraryQueryKeys } from '@app/library';
-import type * as LibraryModule from '@app/library';
+import { libraryQueryKeys } from '@/features/library';
+import type * as LibraryModule from '@/features/library';
 import { QueryClient } from '@tanstack/react-query';
 
-vi.mock('@app/library', async (importOriginal) => ({
+vi.mock('@/features/library', async (importOriginal) => ({
   ...(await importOriginal<typeof LibraryModule>()),
   readLibraryUpdateReport: vi.fn<() => Promise<undefined>>(async () => undefined),
 }));

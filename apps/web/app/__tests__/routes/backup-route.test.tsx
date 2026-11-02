@@ -11,7 +11,7 @@ import type * as ExtensionsModule from '@app/extensions';
 import type { ExtensionsPageData } from '@app/extensions';
 import type * as SettingsModule from '@/features/settings';
 import { extensionsQueryKeys } from '@app/extensions';
-import { DEFAULT_SEARCH_VIEW_STATE, discoverQueryKeys, searchQueryKeys } from '@app/search';
+import { DEFAULT_SEARCH_VIEW_STATE, discoverQueryKeys, searchQueryKeys } from '@/features/search';
 import { getDefaultAppSettings, type AppSettings } from '@app/shared';
 
 const mocks = vi.hoisted(() => ({

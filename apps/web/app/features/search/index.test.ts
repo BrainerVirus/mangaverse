@@ -1,0 +1,35 @@
+// @vitest-environment node
+import { describe, expect, it } from 'vitest';
+import {
+  DEFAULT_SEARCH_VIEW_STATE,
+  DiscoverPage,
+  discoverQueryKeys,
+  fetchSearchPage,
+  SearchPage,
+  searchQueryKeys,
+  VirtualSearchGrid,
+} from './index.js';
+
+describe('@/features/search', () => {
+  it('exports search page building blocks', () => {
+    expect(typeof SearchPage).toBe('function');
+    expect(typeof DiscoverPage).toBe('function');
+    expect(typeof VirtualSearchGrid).toBe('function');
+    expect(typeof fetchSearchPage).toBe('function');
+    expect(DEFAULT_SEARCH_VIEW_STATE.query).toBe('');
+    expect(searchQueryKeys.page({ query: 'test' })).toEqual([
+      'search',
+      'page',
+      { query: 'test' },
+      false,
+    ]);
+    expect(searchQueryKeys.provider('mangadex', 'test', true)).toEqual([
+      'search',
+      'provider',
+      'mangadex',
+      'test',
+      true,
+    ]);
+    expect(discoverQueryKeys.providers(true)).toEqual(['discover', 'providers', true]);
+  });
+});

@@ -11,7 +11,7 @@ import {
   setMangaFavorite,
   type LibraryOrganizationAction,
   type MangaDetailData,
-} from '@app/library';
+} from '@/features/library';
 import type { LibraryEntryId, MangaId } from '@app/shared';
 import type { QueryClient } from '@tanstack/react-query';
 import { saveFeedback } from '../lib/feedback.js';

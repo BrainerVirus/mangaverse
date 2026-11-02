@@ -5,7 +5,7 @@ import {
   fetchExtensionsPage,
   type InstalledProviderSummary,
 } from '@app/extensions';
-import type { LibraryItem } from '@app/library';
+import type { LibraryItem } from '@/features/library';
 import type { ChapterId, MangaId } from '@app/shared';
 import { recentLibraryQueryOptions } from '../../queries/library-query-options.js';
 import { useLocalDb, useLocalDbStatus } from '../../providers/local-db-provider.js';

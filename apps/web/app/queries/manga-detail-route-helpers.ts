@@ -7,8 +7,8 @@ import {
   type LibraryOrganizationAction,
   type MangaDetailData,
   type MangaDetailRelatedState,
-} from '@app/library';
-import { searchQueryKeys } from '@app/search';
+} from '@/features/library';
+import { searchQueryKeys } from '@/features/search';
 import type { ProviderUiInfo } from '@app/extensions';
 import {
   refreshLibraryUnreadCount,

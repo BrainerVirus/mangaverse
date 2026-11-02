@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { LibraryItem } from '@app/library';
+import type { LibraryItem } from '@/features/library';
 import type { InstalledProviderSummary } from '@app/extensions';
 import { toChapterId, toLibraryEntryId, toMangaId, toProviderMappingId } from '@app/shared';
 import { buildProviderCommands, buildRecentCommands } from '../useLocalCommands';
