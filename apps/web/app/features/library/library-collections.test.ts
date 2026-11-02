@@ -202,3 +202,77 @@ describe('chapter window collection', () => {
     expect(chapters.size).toBe(0);
   });
 });
+
+/** Titles written straight to the file: 450 rows are faster than 900 host calls. */
+function seedTitlesAt(databasePath: string, count: number): void {
+  const side = new DatabaseSync(databasePath);
+  const identity = side.prepare(
+    'INSERT INTO manga_identities (id, canonical_title, status, content_rating, merged, default_provider_mapping_id) VALUES (?,?,?,?,?,?)',
+  );
+  const mapping = side.prepare(
+    'INSERT INTO manga_provider_mappings (id, manga_id, provider_id, provider_manga_id) VALUES (?,?,?,?)',
+  );
+  const entry = side.prepare(
+    'INSERT INTO library_entries (id, manga_id, favorite, status, unread_count, added_at, updated_at) VALUES (?,?,?,?,?,?,?)',
+  );
+  side.exec('BEGIN');
+  for (let index = 0; index < count; index += 1) {
+    const suffix = String(index).padStart(4, '0');
+    const addedAt = `2026-01-01T00:00:${suffix}.000Z`;
+    identity.run(`manga-${suffix}`, `Series ${suffix}`, 'ongoing', 'safe', 0, `mapping-${suffix}`);
+    mapping.run(`mapping-${suffix}`, `manga-${suffix}`, 'prov-a', `remote-${index}`);
+    entry.run(
+      `entry-${suffix}`,
+      `manga-${suffix}`,
+      index % 5 === 0 ? 1 : 0,
+      'reading',
+      0,
+      addedAt,
+      addedAt,
+    );
+  }
+  side.exec('COMMIT');
+  side.close();
+}
+
+describe('library list paging', () => {
+  it('loads one bounded page, extends it on request, and restarts a changed view at page one', async () => {
+    const { windows, databasePath } = await hostWithWindows();
+    const [a] = windows;
+    seedTitlesAt(databasePath, 450);
+    const changes = (listener: Parameters<Parameters<typeof libraryCollections>[2]>[0]) =>
+      a.onChange(listener);
+
+    const view = libraryCollections(a.handle, DEFAULT_LIBRARY_VIEW_STATE, changes);
+    await Promise.all([view.items.preload(), view.total.preload()]);
+    // The first load is bounded: 200 of 450 rows, with the real total beside it.
+    expect(view.items.size).toBe(200);
+    expect(view.total.get('total')?.value.total).toBe(450);
+
+    await view.loadMore();
+    expect(view.items.size).toBe(400);
+    await view.loadMore();
+    expect(view.items.size).toBe(450);
+    expect(view.total.get('total')?.value.total).toBe(450);
+
+    // A filter change is a new view, so it starts again at the first page.
+    const favorites = libraryCollections(
+      a.handle,
+      { ...DEFAULT_LIBRARY_VIEW_STATE, filter: { favoritesOnly: true } },
+      changes,
+    );
+    await Promise.all([favorites.items.preload(), favorites.total.preload()]);
+    expect(favorites.items.size).toBe(90);
+    expect(favorites.total.get('total')?.value.total).toBe(90);
+
+    // So is a sort change.
+    const sorted = libraryCollections(
+      a.handle,
+      { ...DEFAULT_LIBRARY_VIEW_STATE, sort: { key: 'title', direction: 'asc' } },
+      changes,
+    );
+    await Promise.all([sorted.items.preload(), sorted.total.preload()]);
+    expect(sorted.items.size).toBe(200);
+    expect(sorted.total.get('total')?.value.total).toBe(450);
+  });
+});

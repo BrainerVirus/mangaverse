@@ -92,7 +92,7 @@ function LibraryRoute() {
     [navigate],
   );
 
-  const { data, isLoading, isError, items } = useLibraryList(
+  const { data, isLoading, isError, items, hasMore, loadMore } = useLibraryList(
     dbStatus === 'ready' ? db : null,
     viewState,
     subscribeToLocalChanges,
@@ -181,6 +181,7 @@ function LibraryRoute() {
         onRetry: (entryIds) => void runCheck(entryIds),
         onClearReport: () => void clearReport(),
       }}
+      {...(hasMore ? { onLoadMore: loadMore } : {})}
       onOrganize={(action) => organize(action)}
       onMigrate={migrateSelection}
       migrationBatchLimit={MIGRATION_BATCH_LIMIT}

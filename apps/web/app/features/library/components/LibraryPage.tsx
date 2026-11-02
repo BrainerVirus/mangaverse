@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { EmptyState, ErrorState, LoadingState } from '@app/design-system';
-import type {
-  ChapterId,
-  LibraryEntryId,
-  LibraryFilter,
-  LibraryViewState,
-  MangaId,
-  ProviderId,
+import {
+  type ChapterId,
+  type LibraryEntryId,
+  type LibraryFilter,
+  type LibraryViewState,
+  type MangaId,
+  type ProviderId,
 } from '@app/shared';
 import type { LibraryItem, LibraryPageData, LibraryOrganizationAction } from '../types.js';
 import type { LibraryOverviewData } from '../fetch-library-overview.js';
@@ -17,6 +17,7 @@ import {
 } from '../migration-selection.js';
 import { hasLibraryFilters } from '../view-state.js';
 import { BulkEditBar } from './BulkEditBar.js';
+import { LibraryPaginator } from './LibraryPaginator.js';
 import { LibraryToolbar } from './LibraryToolbar.js';
 import {
   ContinueReadingSection,
@@ -59,6 +60,8 @@ export interface LibraryPageProps {
   migrationBatchLimit?: number;
   /** Registered provider names keyed by provider id, so cards show the manifest name. */
   sourceLabels?: Readonly<Record<string, string>>;
+  /** Asks for the next page of the view; the grid keeps the rows already on screen. */
+  onLoadMore?: () => Promise<void>;
   /** Continue reading and recently updated, already filtered like the grid. */
   overview?: LibraryOverviewData;
   onOpenChapter?: (chapterId: ChapterId) => void;
@@ -187,13 +190,15 @@ export function LibraryPage({
   onOrganize,
   onMigrate = NOOP_MIGRATE,
   migrationBatchLimit,
+  onLoadMore,
   sourceLabels,
   overview,
   onOpenChapter,
   updates,
 }: LibraryPageProps) {
   const items = data?.items ?? [];
-  const itemCount = items.length;
+  // Counts describe the filtered view, not the loaded page.
+  const itemCount = data?.total ?? items.length;
   const categories = data?.categories ?? [];
   const providers = data?.providers ?? collectProviders(items);
   const filtersActive = hasLibraryFilters(viewState.filter);
@@ -321,6 +326,7 @@ export function LibraryPage({
             onToggleSelected={selection.toggleSelected}
             {...(sourceLabels === undefined ? {} : { sourceLabels })}
           />
+          <LibraryPaginator loaded={items.length} total={itemCount} onLoadMore={onLoadMore} />
         </>
       ) : null}
     </section>

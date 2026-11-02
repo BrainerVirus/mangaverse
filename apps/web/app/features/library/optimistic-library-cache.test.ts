@@ -45,6 +45,7 @@ const manga: MangaIdentity = {
 
 const pageData: LibraryPageData = {
   items: [],
+  total: 0,
   categories: [],
   viewState: DEFAULT_LIBRARY_VIEW_STATE,
 };

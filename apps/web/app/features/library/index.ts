@@ -1,4 +1,5 @@
 export { LibraryPage, type LibraryPageProps } from './components/LibraryPage.js';
+export { LibraryPaginator, type LibraryPaginatorProps } from './components/LibraryPaginator.js';
 export { LibraryToolbar, type LibraryToolbarProps } from './components/LibraryToolbar.js';
 export {
   CategoryManagerDialog,
@@ -32,7 +33,14 @@ export {
   type ChapterFilter,
   type ChapterSort,
 } from './chapter-list.js';
-export { fetchLibraryPage } from './fetch-library-page.js';
+export {
+  fetchLibraryItems,
+  fetchLibraryPage,
+  fetchLibraryTotal,
+  LIBRARY_PAGE_SIZE,
+  type LibraryItemPage,
+  type LibraryPageRequest,
+} from './fetch-library-page.js';
 export { editEntriesOptimistically } from './library-collections.js';
 export { useLibraryList, type LibraryList } from './hooks/use-library-list.js';
 export {
