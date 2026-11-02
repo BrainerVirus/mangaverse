@@ -114,6 +114,12 @@ function CardMeta({ manga, variant, sourceLabel }: MetaProps) {
   );
 }
 
+function contentRatingLabel(rating: NonNullable<MangaIdentity['contentRating']>): string {
+  // The stored rating is a lowercase enum value; the badge reads as a sentence
+  // label ("Suggestive", "Mature"), not as raw data.
+  return rating.charAt(0).toUpperCase() + rating.slice(1);
+}
+
 function ContentRatingBadge({ manga, variant }: MetaProps) {
   const { contentRating } = manga;
   if (contentRating === 'safe' || contentRating === 'unknown') return null;
@@ -127,7 +133,7 @@ function ContentRatingBadge({ manga, variant }: MetaProps) {
         variant === 'compact' && '!type-rating-compact',
       )}
     >
-      {contentRating}
+      {contentRatingLabel(contentRating)}
     </Badge>
   );
 }
@@ -199,14 +205,7 @@ export function MangaCard({
       <button
         ref={buttonRef}
         type="button"
-        tabIndex={0}
         onClick={onClick}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            onClick?.();
-          }
-        }}
         className={cn(
           'group relative w-full cursor-pointer overflow-hidden rounded-box border border-border bg-card transition-all',
           'hover:border-accent hover:shadow-md',

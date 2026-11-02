@@ -296,9 +296,12 @@
   /* L2: a coarse pointer (touch) gets DESIGN.md's 44x44 hit target on every
      control; a fine pointer keeps the dense desktop sizes untouched. The rule is
      one base layer statement, not per-variant classes, so native buttons and
-     comboboxes the design system does not wrap get the same floor. */
+     comboboxes the design system does not wrap get the same floor.
+     `role="switch"` is exempt: its 44x24 track is the design (a rounded pill),
+     and the floor stretched it into a 44x44 circle. It still clears the 24x24
+     WCAG 2.5.8 floor on its own. */
   @media (pointer: coarse) {
-    button,
+    button:not([role="switch"]),
     [role="button"],
     [role="combobox"],
     select {
@@ -405,7 +408,8 @@
 }
 
 @utility type-rating-compact {
-  font-size: 8px;
+  /* 11px is the micro floor; the old 8px was unreadable on a 64px compact card. */
+  font-size: 11px;
 }
 
 /* Reader image smoothing off: keep scaled page art crisp instead of blurring. */

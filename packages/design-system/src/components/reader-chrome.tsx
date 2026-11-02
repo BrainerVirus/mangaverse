@@ -201,8 +201,10 @@ export function ReaderChrome({
                     }}
                     onClick={() => onModeChange(m.value)}
                     className={cn(
-                      'relative z-10 rounded-full px-3 py-1 type-micro transition-colors',
-                      mode === m.value ? 'text-black' : 'text-white/70 hover:text-white',
+                      // 24px keeps the segment on the WCAG 2.5.8 target floor;
+                      // the old 21px pill was shorter than the minimum.
+                      'relative z-10 flex min-h-6 items-center rounded-full px-3 py-1 type-micro transition-colors',
+                      mode === m.value ? 'text-black' : 'text-white/90 hover:text-white',
                     )}
                   >
                     {m.label}

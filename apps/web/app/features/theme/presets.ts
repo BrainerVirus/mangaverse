@@ -45,11 +45,13 @@ const MINIMAL_LIGHT: ThemeColorTokens = {
   border: '#e4e4e7',
   readerBackground: '#fafafa',
   primary: '#18181b',
-  destructive: '#ef4444',
+  // DESIGN §3.4 status tokens for the light canvas. The old #ef4444/#22c55e/
+  // #f59e0b measured under 4.5:1 on the light surfaces these presets paint.
+  destructive: '#dc2626',
   destructiveGlass: '#b91c1c',
-  success: '#22c55e',
+  success: '#16a34a',
   successGlass: '#15803d',
-  warning: '#f59e0b',
+  warning: '#d97706',
   warningGlass: '#b45309',
 };
 
