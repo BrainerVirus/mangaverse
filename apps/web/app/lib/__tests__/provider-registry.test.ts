@@ -11,7 +11,7 @@ vi.mock('@app/db/browser', () => ({
   listInstalledExtensions,
 }));
 
-import { resolveInstalledProvider } from '../provider-registry.js';
+import { gateFor, resolveInstalledProvider } from '../provider-registry.js';
 
 const db = { id: 'fake-db' } as never;
 
@@ -51,5 +51,14 @@ describe('resolveInstalledProvider', () => {
   it('Given an unknown provider id, When resolving, Then null is returned', async () => {
     listInstalledExtensions.mockResolvedValue([entry(true)]);
     expect(await resolveInstalledProvider(db, 'not-installed')).toBeNull();
+  });
+});
+
+describe('gateFor', () => {
+  it('Given the same provider, When the binding resolves twice, Then both share one gate', () => {
+    const first = gateFor('shared-test-provider', 40);
+    const second = gateFor('shared-test-provider', 40);
+    expect(second).toBe(first);
+    expect(gateFor('another-test-provider', 40)).not.toBe(first);
   });
 });

@@ -12,7 +12,10 @@ const describeLive = live ? describe : describe.skip;
 
 describeLive('MangaDex live smoke', () => {
   it('Given the real API, When searching, Then results, chapters and pages resolve', async () => {
-    const provider = createMangaDexProvider({ timeoutMs: 15_000 });
+    const provider = createMangaDexProvider({
+      fetchImpl: globalThis.fetch.bind(globalThis),
+      timeoutMs: 15_000,
+    });
     const ctx = { manifest: MANGADEX_MANIFEST, providerId: 'mangadex' };
 
     const search = await provider.search!(ctx, { query: 'berserk', limit: 5 });

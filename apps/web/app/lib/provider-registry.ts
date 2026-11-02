@@ -4,6 +4,7 @@ import {
   buildMangaDetailData,
   createMangaDexProvider,
   isMangadexAppMangaId,
+  MANGADEX_MANIFEST,
   MANGADEX_SECTION_DEFINITIONS,
   parseMangadexAppChapterId,
   parseMangadexAppMangaId,
@@ -17,7 +18,9 @@ import type {
   ProviderDetails,
   ProviderPage,
   ProviderSearchResultItem,
+  RequestGate,
 } from '@app/extensions-sdk';
+import { createRequestGate } from '@app/extensions-sdk';
 import type { MangaDetailData } from '@/features/library';
 
 import { createProviderFetch } from './provider-fetch.js';
@@ -66,12 +69,36 @@ export interface ProviderAppBinding {
   ) => readonly ChapterPage[];
 }
 
+/**
+ * The rate gate is per provider per device, not per contract: resolving a provider
+ * builds a fresh contract for every call, so an instance-owned gate would reset the
+ * budget on every request. The manifest's declared `ops.officialApi` pace is the
+ * default; a user's `rateLimitOverrideRpm` is passed per request by the provider.
+ */
+const MANGADEX_DEFAULT_RPM =
+  MANGADEX_MANIFEST.capabilityDetails?.find((detail) => detail.key === 'ops.officialApi')
+    ?.rateLimitRpm ?? 40;
+const providerGates = new Map<string, RequestGate>();
+
+export function gateFor(providerId: string, defaultRequestsPerMinute: number): RequestGate {
+  let gate = providerGates.get(providerId);
+  if (gate === undefined) {
+    gate = createRequestGate({ defaultRequestsPerMinute });
+    providerGates.set(providerId, gate);
+  }
+  return gate;
+}
+
 const PROVIDER_BINDINGS: readonly ProviderAppBinding[] = [
   {
     providerId: 'mangadex',
     // Every provider HTTP call goes through main on desktop; the web adapter's
-    // request method uses the page's own fetch.
-    createProvider: () => createMangaDexProvider({ fetchImpl: createProviderFetch('mangadex') }),
+    // request method uses the page's own fetch. Both share this provider's gate.
+    createProvider: () =>
+      createMangaDexProvider({
+        fetchImpl: createProviderFetch('mangadex'),
+        gate: gateFor('mangadex', MANGADEX_DEFAULT_RPM),
+      }),
     sections: MANGADEX_SECTION_DEFINITIONS,
     isAppMangaId: isMangadexAppMangaId,
     parseAppMangaId: parseMangadexAppMangaId,

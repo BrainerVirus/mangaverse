@@ -40,7 +40,7 @@ function bodyOf(init: RequestInit | undefined): string | undefined {
  * The `fetch` a provider package gets on desktop: every call becomes a typed IPC
  * request that main runs under the provider's allowlist, SSRF checks and limits.
  * The returned `Response` carries main's filtered headers and bounded body, so the
- * SDK's request client, rate limiter and error normalization are unchanged.
+ * SDK's request client, per-provider request gate and error normalization are unchanged.
  */
 export function createProviderFetch(providerId: string): typeof fetch {
   const adapter = createAppPlatformAdapter();

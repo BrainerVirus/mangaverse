@@ -340,6 +340,23 @@
         "no-await-in-loop": "off",
         "no-console": "off"
       }
+    },
+    {
+      // Provider code may not reach the network directly (spec 05 P1): every
+      // request goes through the injected transport, so the host allowlist, the
+      // per-provider rate gate and the main-process SSRF checks cannot be skipped.
+      // Tests and the fixture transport inject their own fetch and stay covered too;
+      // `globalThis.fetch` is a member expression, not the restricted global.
+      "files": ["**/packages/extensions/src/**/*.{ts,tsx}"],
+      "rules": {
+        "no-restricted-globals": [
+          "error",
+          {
+            "name": "fetch",
+            "message": "Provider code must use the injected transport; raw fetch is forbidden (spec 05 P1)."
+          }
+        ]
+      }
     }
   ],
 
