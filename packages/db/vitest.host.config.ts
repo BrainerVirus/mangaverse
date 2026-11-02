@@ -58,6 +58,9 @@ export default defineConfig({
       'src/bundled-migrations.test.ts',
       'src/persistent-database.test.ts',
       'src/host/**',
+      // Query plans are read from the sql.js connection's prepared statements; the host
+      // suite still runs the same page queries and their results.
+      'src/repositories/library-page-plan.test.ts',
     ],
     // sql.js-only tests: one runs the sql.js migrator on `raw`; four patch sql.js's
     // `raw.prepare` to fake a lower variable limit, which cannot reach the host's connection.

@@ -1,50 +1,77 @@
 import type { AppDrizzleDb } from '@app/db';
 import type { LibraryViewState } from '@app/shared';
-import { filterLibraryItemsByQuery } from './filter-items.js';
 import type { LibraryItem, LibraryPageData } from './types.js';
 
-/** The library's titles for a view, filtered and in the view's order. */
+/** The first page a view loads; more pages are asked for as the user scrolls. */
+export const LIBRARY_PAGE_SIZE = 200;
+
+export interface LibraryPageRequest {
+  readonly limit?: number;
+  readonly offset?: number;
+}
+
+export interface LibraryItemPage {
+  readonly items: LibraryItem[];
+  readonly total: number;
+}
+
+/**
+ * One bounded page of a view, filtered, ordered and counted by SQLite. The text query
+ * is part of the filter, so a match on page three is found even though page one is loaded.
+ */
 export async function fetchLibraryItems(
   db: AppDrizzleDb,
   viewState: LibraryViewState,
-): Promise<LibraryItem[]> {
-  const { getMangaIdentities, listLibraryEntries } = await import('@app/db');
-  const { query, ...repoFilter } = viewState.filter;
-  const entries = await listLibraryEntries(db, {
-    filter: repoFilter,
+  request: LibraryPageRequest = {},
+): Promise<LibraryItemPage> {
+  const { getMangaIdentities, listLibraryEntryPage } = await import('@app/db');
+  const page = await listLibraryEntryPage(db, {
+    filter: viewState.filter,
     sort: viewState.sort,
+    limit: request.limit ?? LIBRARY_PAGE_SIZE,
+    ...(request.offset === undefined ? {} : { offset: request.offset }),
   });
 
   const identities = await getMangaIdentities(
     db,
-    entries.map((entry) => entry.mangaId),
+    page.items.map((entry) => entry.mangaId),
   );
   const identityById = new Map(identities.map((identity) => [identity.id, identity]));
-
-  const resolved = entries.map((entry): LibraryItem | undefined => {
+  const items = page.items.flatMap((entry): LibraryItem[] => {
     const manga = identityById.get(entry.mangaId);
-    return manga === undefined ? undefined : { entry, manga };
+    return manga === undefined ? [] : [{ entry, manga }];
   });
+  return { items, total: page.total };
+}
 
-  const items = resolved.filter((item): item is LibraryItem => item !== undefined);
-  return query !== undefined && query.trim().length > 0
-    ? filterLibraryItemsByQuery(items, query)
-    : items;
+/**
+ * The match count for a view on its own, so a page can show "200 of 1,000" without
+ * loading the rest. The page query bounds rows, never the count.
+ */
+export async function fetchLibraryTotal(
+  db: AppDrizzleDb,
+  viewState: LibraryViewState,
+): Promise<number> {
+  const { listLibraryEntryPage } = await import('@app/db');
+  const page = await listLibraryEntryPage(db, { filter: viewState.filter, limit: 0 });
+  return page.total;
 }
 
 export async function fetchLibraryPage(
   db: AppDrizzleDb,
   viewState: LibraryViewState,
+  request: LibraryPageRequest = {},
 ): Promise<LibraryPageData> {
   const { listLibraryCategories, listLibraryProviderIds } = await import('@app/db');
-  const [items, categories, providers] = await Promise.all([
-    fetchLibraryItems(db, viewState),
+  const [page, categories, providers] = await Promise.all([
+    fetchLibraryItems(db, viewState, request),
     listLibraryCategories(db),
     listLibraryProviderIds(db),
   ]);
 
   return {
-    items,
+    items: page.items,
+    total: page.total,
     categories,
     providers,
     viewState,

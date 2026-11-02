@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import type { AppResult } from '@app/shared';
 import {
   compareLibraryCategories,
@@ -27,7 +27,7 @@ import {
 import type { AppDrizzleDb } from '../adapter.js';
 import { readIdChunks } from '../read-id-chunks.js';
 import { withTransaction } from '../transactions.js';
-import { getLibraryChapterStats } from './library-activity.js';
+import { getLibraryUnreadCounts } from '../library-unread.js';
 import {
   categories,
   chapterReadState,
@@ -125,223 +125,160 @@ function categoryIdsByEntry(
   return grouped;
 }
 
-function canonicalTitlesByMangaId(
+/** One page of the library: rows in the asked order, and how many rows match in total. */
+export interface LibraryEntryPage {
+  readonly items: LibraryEntry[];
+  readonly total: number;
+}
+
+export interface LibraryEntryPageQuery {
+  readonly filter?: LibraryFilter;
+  readonly sort?: LibrarySort;
+  /** Rows to return; `UNBOUNDED_PAGE` asks for every match (backup and export only). */
+  readonly limit: number;
+  readonly offset?: number;
+}
+
+/** SQLite treats a negative limit as "no limit". */
+const UNBOUNDED_PAGE = -1;
+
+/** Live chapter counts for the page's rows only; the stored count is the fallback. */
+async function withLiveUnread(
   db: AppDrizzleDb,
-  rows: readonly (typeof libraryEntries.$inferSelect)[],
-): Map<string, string> {
-  const titles = new Map<string, string>();
-  if (rows.length === 0) return titles;
-  const identities = readIdChunks(
-    rows.map((row) => row.mangaId),
-    (chunk) =>
-      db
-        .select({ id: mangaIdentities.id, canonicalTitle: mangaIdentities.canonicalTitle })
-        .from(mangaIdentities)
-        .where(inArray(mangaIdentities.id, chunk))
-        .all(),
-  );
-  for (const identity of identities) titles.set(identity.id, identity.canonicalTitle);
-  return titles;
-}
-
-function compareSortValues(a: string, b: string, direction: LibrarySort['direction']): number {
-  // Empty timestamps sort last in both directions instead of posing as "the oldest".
-  if (a === '' || b === '') {
-    if (a === b) return 0;
-    return a === '' ? 1 : -1;
-  }
-  return (direction === 'asc' ? 1 : -1) * a.localeCompare(b);
-}
-
-function compareSortNumbers(a: number, b: number, direction: LibrarySort['direction']): number {
-  if (a === b) return 0;
-  return (direction === 'asc' ? 1 : -1) * (a - b);
-}
-
-function compareOptionalSortNumbers(
-  a: number | null,
-  b: number | null,
-  direction: LibrarySort['direction'],
-): number {
-  // No progress yet ranks last in both directions, like empty timestamps.
-  if (a === null || b === null) {
-    if (a === b) return 0;
-    return a === null ? 1 : -1;
-  }
-  return compareSortNumbers(a, b, direction);
-}
-
-/**
- * The provider a title is filed under: the active mapping, then the manga's
- * default mapping, then any mapping. Missing providers sort last.
- */
-function providerKeysByEntryId(
-  db: AppDrizzleDb,
-  rows: readonly (typeof libraryEntries.$inferSelect)[],
-): Map<string, string> {
-  const keys = new Map<string, string>();
-  if (rows.length === 0) return keys;
-  const mangaIds = rows.map((row) => row.mangaId);
-
-  const defaultMappingByMangaId = new Map(
-    readIdChunks(mangaIds, (chunk) =>
-      db
-        .select({
-          id: mangaIdentities.id,
-          defaultProviderMappingId: mangaIdentities.defaultProviderMappingId,
-        })
-        .from(mangaIdentities)
-        .where(inArray(mangaIdentities.id, chunk))
-        .all(),
-    ).map((identity) => [identity.id, identity.defaultProviderMappingId]),
-  );
-
-  const providerByMappingId = new Map<string, string>();
-  const firstProviderByMangaId = new Map<string, string>();
-  for (const mapping of readIdChunks(mangaIds, (chunk) =>
-    db
-      .select({
-        id: mangaProviderMappings.id,
-        mangaId: mangaProviderMappings.mangaId,
-        providerId: mangaProviderMappings.providerId,
-      })
-      .from(mangaProviderMappings)
-      .where(inArray(mangaProviderMappings.mangaId, chunk))
-      .all(),
-  )) {
-    providerByMappingId.set(mapping.id, mapping.providerId);
-    if (!firstProviderByMangaId.has(mapping.mangaId)) {
-      firstProviderByMangaId.set(mapping.mangaId, mapping.providerId);
-    }
-  }
-
-  for (const row of rows) {
-    const providerId =
-      (row.activeProviderMappingId === null || row.activeProviderMappingId === undefined
-        ? undefined
-        : providerByMappingId.get(row.activeProviderMappingId)) ??
-      providerByMappingId.get(defaultMappingByMangaId.get(row.mangaId) ?? '') ??
-      firstProviderByMangaId.get(row.mangaId) ??
-      '';
-    keys.set(row.id, providerId);
-  }
-  return keys;
-}
-
-/**
- * Reading time per title comes from the chapter read state, one grouped query
- * for the whole library instead of one per entry. `library_entries.updated_at`
- * is only a fallback: favorites, status and category edits bump it too, so it
- * cannot rank "last read". The fallback still helps entries restored from a
- * backup that carried resume metadata but no read-state rows. Entries that were
- * never opened rank last.
- */
-function lastReadAtByEntryId(
-  db: AppDrizzleDb,
-  rows: readonly (typeof libraryEntries.$inferSelect)[],
-): Map<string, string> {
-  const readAtByMangaId = new Map(
-    readIdChunks(
-      rows.map((row) => row.mangaId),
-      (chunk) =>
-        db
-          .select({
-            mangaId: chapterReadState.mangaId,
-            lastReadAt: sql<string | null>`max(${chapterReadState.updatedAt})`,
-          })
-          .from(chapterReadState)
-          .where(inArray(chapterReadState.mangaId, chunk))
-          .groupBy(chapterReadState.mangaId)
-          .all(),
-    ).map((row) => [row.mangaId, row.lastReadAt ?? '']),
-  );
-
-  return new Map(
-    rows.map((row) => {
-      const readAt = readAtByMangaId.get(row.mangaId) ?? '';
-      const hasResumeMetadata = row.lastReadChapterId !== null && row.lastReadChapterId !== '';
-      const fallback = hasResumeMetadata ? (row.updatedAt ?? '') : '';
-      return [row.id, readAt === '' ? fallback : readAt];
-    }),
-  );
-}
-
-async function sortLibraryRows(
-  db: AppDrizzleDb,
-  rows: (typeof libraryEntries.$inferSelect)[],
-  sort?: LibrarySort,
+  entries: readonly LibraryEntry[],
 ): Promise<LibraryEntry[]> {
-  const key: LibrarySortKey = sort?.key ?? 'date_added';
+  if (entries.length === 0) return [];
+  const live = await getLibraryUnreadCounts(db, entries);
+  return entries.map((entry) => {
+    const stats = live.get(entry.id);
+    return stats === undefined ||
+      stats.chapterCount === 0 ||
+      stats.unreadCount === entry.unreadCount
+      ? entry
+      : { ...entry, unreadCount: stats.unreadCount };
+  });
+}
+
+/** A bound id list as one SQL tuple, so a filter stays a single statement. */
+function idList(ids: readonly string[]): SQL {
+  return sql`(${sql.join(
+    ids.map((id) => sql`${id}`),
+    sql`, `,
+  )})`;
+}
+
+/**
+ * Every filter narrows the same row set and combines with the others. Category and
+ * provider membership are id subqueries, so a title never repeats for two memberships
+ * and the page stays a search on an index.
+ */
+function libraryEntryFilter(filter: LibraryFilter | undefined): SQL | undefined {
+  const conditions: SQL[] = [];
+  if (filter?.favoritesOnly === true) {
+    conditions.push(sql`${libraryEntries.favorite} = 1`);
+  }
+  if (filter?.statuses !== undefined && filter.statuses.length > 0) {
+    conditions.push(sql`${libraryEntries.status} IN ${idList(filter.statuses)}`);
+  }
+  if (filter?.categoryIds !== undefined && filter.categoryIds.length > 0) {
+    // A membership set, not a per-row probe: the page searches entries by their primary key.
+    conditions.push(sql`${libraryEntries.id} IN (
+      SELECT membership.library_entry_id FROM library_category_memberships membership
+      WHERE membership.category_id IN ${idList(filter.categoryIds)}
+    )`);
+  }
+  if (filter?.providerIds !== undefined && filter.providerIds.length > 0) {
+    conditions.push(sql`${libraryEntries.mangaId} IN (
+      SELECT mapping.manga_id FROM manga_provider_mappings mapping
+      WHERE mapping.provider_id IN ${idList(filter.providerIds)}
+    )`);
+  }
+  const query = filter?.query?.trim().toLowerCase() ?? '';
+  if (query.length > 0) {
+    // The text the grid always matched: the canonical title or any stored title.
+    conditions.push(sql`(
+      instr(lower(${mangaIdentities.canonicalTitle}), ${query}) > 0
+      OR EXISTS (
+        SELECT 1 FROM manga_titles title
+        WHERE title.manga_id = ${libraryEntries.mangaId}
+          AND instr(lower(title.value), ${query}) > 0
+      )
+    )`);
+  }
+  return conditions.length === 0 ? undefined : and(...conditions);
+}
+
+/**
+ * The value a sort ranks by, or NULL when the row has none. Missing values rank last
+ * in both directions, so a direction flip never lifts them to the top.
+ */
+function libraryEntrySortValue(key: LibrarySortKey): SQL {
+  switch (key) {
+    case 'title':
+      return sql`nullif(${mangaIdentities.canonicalTitle}, '')`;
+    case 'last_updated':
+      return sql`nullif(${libraryEntries.updatedAt}, '')`;
+    case 'unread':
+      return sql`${libraryEntries.unreadCount}`;
+    case 'progress':
+      return sql`${libraryEntries.progressPercent}`;
+    case 'provider':
+      // The provider a title is filed under: active mapping, manga default, then any.
+      return sql`coalesce(
+        (SELECT mapping.provider_id FROM manga_provider_mappings mapping
+          WHERE mapping.id = ${libraryEntries.activeProviderMappingId}),
+        (SELECT mapping.provider_id FROM manga_provider_mappings mapping
+          WHERE mapping.id = ${mangaIdentities.defaultProviderMappingId}),
+        (SELECT mapping.provider_id FROM manga_provider_mappings mapping
+          WHERE mapping.manga_id = ${libraryEntries.mangaId}
+          ORDER BY mapping.rowid LIMIT 1)
+      )`;
+    case 'last_read':
+      // Reading time, then the resume stamp a restored backup may carry alone.
+      return sql`coalesce(
+        (SELECT nullif(max(read_state.updated_at), '') FROM chapter_read_state read_state
+          WHERE read_state.manga_id = ${libraryEntries.mangaId}),
+        CASE
+          WHEN ${libraryEntries.lastReadChapterId} IS NULL
+            OR ${libraryEntries.lastReadChapterId} = ''
+          THEN NULL
+          ELSE nullif(${libraryEntries.updatedAt}, '')
+        END
+      )`;
+    case 'date_added':
+      return sql`nullif(${libraryEntries.addedAt}, '')`;
+  }
+}
+
+/** Missing values last, then the value in the asked direction, then the id as a stable tie. */
+function libraryEntryOrder(sort: LibrarySort | undefined): SQL[] {
   const direction = sort?.direction ?? 'desc';
-  const titles = key === 'title' ? canonicalTitlesByMangaId(db, rows) : new Map<string, string>();
-  const providerKeys =
-    key === 'provider' ? providerKeysByEntryId(db, rows) : new Map<string, string>();
-  const lastReadAt =
-    key === 'last_read' ? lastReadAtByEntryId(db, rows) : new Map<string, string>();
+  const value = libraryEntrySortValue(sort?.key ?? 'date_added');
+  return [
+    sql`(${value} IS NULL) ASC`,
+    direction === 'asc' ? sql`${value} ASC` : sql`${value} DESC`,
+    sql`${libraryEntries.id} ASC`,
+  ];
+}
 
-  const categoriesByEntry = categoryIdsByEntry(
-    db,
-    rows.map((row) => toLibraryEntryId(row.id)),
-  );
-  const mapped = rows.map((row) => mapLibraryEntry(row, categoriesByEntry.get(row.id) ?? []));
-  // Unread is counted from chapter read state, not the stored column: the queue
-  // persists it for reload, but the page must never show a stale count.
-  const liveUnread = await getLibraryChapterStats(db, mapped);
-  const entryById = new Map(
-    mapped.map((entry) => {
-      const stats = liveUnread.get(entry.id);
-      return [
-        entry.id,
-        stats === undefined || stats.chapterCount === 0 || stats.unreadCount === entry.unreadCount
-          ? entry
-          : { ...entry, unreadCount: stats.unreadCount },
-      ] as const;
-    }),
-  );
+function libraryEntryCountQuery(db: AppDrizzleDb, filter: LibraryFilter | undefined) {
+  return db
+    .select({ total: sql<number>`count(*)` })
+    .from(libraryEntries)
+    .leftJoin(mangaIdentities, eq(mangaIdentities.id, libraryEntries.mangaId))
+    .where(libraryEntryFilter(filter))
+    .get();
+}
 
-  const sorted = [...rows].sort((a, b) => {
-    const byId = a.id.localeCompare(b.id);
-    switch (key) {
-      case 'title':
-        return (
-          compareSortValues(titles.get(a.mangaId) ?? '', titles.get(b.mangaId) ?? '', direction) ||
-          byId
-        );
-      case 'date_added':
-        return compareSortValues(a.addedAt ?? '', b.addedAt ?? '', direction) || byId;
-      case 'last_updated':
-        return compareSortValues(a.updatedAt ?? '', b.updatedAt ?? '', direction) || byId;
-      case 'last_read':
-        return (
-          compareSortValues(lastReadAt.get(a.id) ?? '', lastReadAt.get(b.id) ?? '', direction) ||
-          byId
-        );
-      case 'unread':
-        return (
-          compareSortNumbers(
-            entryById.get(toLibraryEntryId(a.id))?.unreadCount ?? 0,
-            entryById.get(toLibraryEntryId(b.id))?.unreadCount ?? 0,
-            direction,
-          ) || byId
-        );
-      case 'progress':
-        return compareOptionalSortNumbers(a.progressPercent, b.progressPercent, direction) || byId;
-      case 'provider':
-        return (
-          compareSortValues(
-            providerKeys.get(a.id) ?? '',
-            providerKeys.get(b.id) ?? '',
-            direction,
-          ) || byId
-        );
-    }
-    return 0;
-  });
-
-  return sorted.flatMap((row) => {
-    const entry = entryById.get(toLibraryEntryId(row.id));
-    return entry === undefined ? [] : [entry];
-  });
+function libraryEntryPageQuery(db: AppDrizzleDb, query: LibraryEntryPageQuery) {
+  return db
+    .select({ entry: libraryEntries })
+    .from(libraryEntries)
+    .leftJoin(mangaIdentities, eq(mangaIdentities.id, libraryEntries.mangaId))
+    .where(libraryEntryFilter(query.filter))
+    .orderBy(...libraryEntryOrder(query.sort))
+    .limit(Math.trunc(query.limit))
+    .offset(query.offset ?? 0);
 }
 
 export async function listLibraryCategories(db: AppDrizzleDb): Promise<LibraryCategory[]> {
@@ -367,54 +304,39 @@ export async function listLibraryCategories(db: AppDrizzleDb): Promise<LibraryCa
     .sort(compareLibraryCategories);
 }
 
-function entriesInCategories(db: AppDrizzleDb, categoryIds: readonly CategoryId[]): Set<string> {
-  const rows = readIdChunks(categoryIds, (chunk) =>
-    db
-      .select({ libraryEntryId: libraryCategoryMemberships.libraryEntryId })
-      .from(libraryCategoryMemberships)
-      .where(inArray(libraryCategoryMemberships.categoryId, chunk))
-      .all(),
+/** A page of the library, filtered, ordered and bounded by SQLite, with the total match count. */
+export async function listLibraryEntryPage(
+  db: AppDrizzleDb,
+  query: LibraryEntryPageQuery,
+): Promise<LibraryEntryPage> {
+  const total = libraryEntryCountQuery(db, query.filter)?.total ?? 0;
+  if (query.limit === 0) return { items: [], total };
+
+  const rows = libraryEntryPageQuery(db, query).all();
+  const categoriesByEntry = categoryIdsByEntry(
+    db,
+    rows.map((row) => toLibraryEntryId(row.entry.id)),
   );
-  return new Set(rows.map((row) => row.libraryEntryId));
+  const entries = rows.map((row) =>
+    mapLibraryEntry(row.entry, categoriesByEntry.get(row.entry.id) ?? []),
+  );
+  return { items: await withLiveUnread(db, entries), total };
 }
 
-function mangaIdsForProviders(db: AppDrizzleDb, providerIds: readonly ProviderId[]): Set<string> {
-  const rows = readIdChunks(providerIds, (chunk) =>
-    db
-      .select({ mangaId: mangaProviderMappings.mangaId })
-      .from(mangaProviderMappings)
-      .where(inArray(mangaProviderMappings.providerId, chunk))
-      .all(),
-  );
-  return new Set(rows.map((row) => row.mangaId));
-}
-
+/**
+ * The whole library, for backup, export and update checks. A page asks the host for one
+ * bounded window; only callers that need every row use this unbounded form.
+ */
 export async function listLibraryEntries(
   db: AppDrizzleDb,
   options?: { readonly filter?: LibraryFilter; readonly sort?: LibrarySort },
 ): Promise<LibraryEntry[]> {
-  const filter = options?.filter;
-  let rows: (typeof libraryEntries.$inferSelect)[] = db.select().from(libraryEntries).all();
-
-  // Every filter narrows the same row set; they must combine instead of
-  // replacing each other, which the old exclusive branches did.
-  if (filter?.favoritesOnly === true) {
-    rows = rows.filter((row) => row.favorite);
-  }
-  if (filter?.statuses !== undefined && filter.statuses.length > 0) {
-    const statuses = filter.statuses;
-    rows = rows.filter((row) => statuses.includes(row.status as LibraryStatus));
-  }
-  if (filter?.categoryIds !== undefined && filter.categoryIds.length > 0) {
-    const entryIds = entriesInCategories(db, filter.categoryIds);
-    rows = rows.filter((row) => entryIds.has(row.id));
-  }
-  if (filter?.providerIds !== undefined && filter.providerIds.length > 0) {
-    const mangaIds = mangaIdsForProviders(db, filter.providerIds);
-    rows = rows.filter((row) => mangaIds.has(row.mangaId));
-  }
-
-  return await sortLibraryRows(db, rows, options?.sort);
+  const page = await listLibraryEntryPage(db, {
+    ...(options?.filter === undefined ? {} : { filter: options.filter }),
+    ...(options?.sort === undefined ? {} : { sort: options.sort }),
+    limit: UNBOUNDED_PAGE,
+  });
+  return page.items;
 }
 
 /**

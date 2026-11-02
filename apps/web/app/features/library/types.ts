@@ -18,7 +18,10 @@ export interface LibraryItem {
 }
 
 export interface LibraryPageData {
+  /** The loaded page; the rest of the view is fetched on demand. */
   readonly items: readonly LibraryItem[];
+  /** Every title matching the view's filter, loaded or not. */
+  readonly total: number;
   readonly categories: readonly LibraryCategory[];
   /** Providers present in the library, independent of the active filter. */
   readonly providers?: readonly ProviderId[];

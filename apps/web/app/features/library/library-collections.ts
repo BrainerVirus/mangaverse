@@ -1,6 +1,7 @@
 import type { AppDrizzleDb } from '@app/db';
 import {
   createAppError,
+  LIBRARY_PAGE_MAX,
   type LibraryCategory,
   type LibraryEntryId,
   type LibraryStatus,
@@ -13,16 +14,21 @@ import {
   type HostListCollection,
   type ListedRow,
 } from '../../lib/host-collections.js';
-import { fetchLibraryItems } from './fetch-library-page.js';
+import { fetchLibraryItems, fetchLibraryTotal, LIBRARY_PAGE_SIZE } from './fetch-library-page.js';
 import type { LibraryItem } from './types.js';
 
-// The library list's collections (#210 tracer): the titles of a view, the categories and the
-// providers, each a host-ordered list that reloads when a committed change touches it.
+// The library list's collections (#210 tracer): the loaded page of a view, the view's match
+// total, its categories and its providers. Each is a host-ordered list that reloads when a
+// committed change touches it; only the page is bounded, and it grows on request.
 
 export interface LibraryCollections {
   readonly items: HostListCollection<LibraryItem>;
+  /** One row: how many titles the filter matches, independent of the loaded page. */
+  readonly total: HostListCollection<{ readonly total: number }>;
   readonly categories: HostListCollection<LibraryCategory>;
   readonly providers: HostListCollection<{ readonly id: ProviderId }>;
+  /** Asks for one more page and refreshes the loaded rows; resolves once they are in. */
+  loadMore(): Promise<void>;
 }
 
 /** A host rejection a mutation handler throws, so TanStack DB rolls the optimistic rows back. */
@@ -96,6 +102,8 @@ interface DbCollections {
   /** Collection ids must be unique: each `db` gets its own scope. */
   readonly scope: number;
   readonly views: Map<string, LibraryCollections>;
+  /** Pages loaded per view key; a filter or sort change starts at one again. */
+  readonly pages: Map<string, number>;
 }
 
 let scopes = 0;
@@ -114,24 +122,45 @@ export function libraryCollections(
   let entry = cache.get(db);
   if (entry === undefined) {
     scopes += 1;
-    entry = { scope: scopes, views: new Map() };
+    entry = { scope: scopes, views: new Map(), pages: new Map() };
     cache.set(db, entry);
   }
+  const store = entry;
   const key = viewKey(viewState);
-  const existing = entry.views.get(key);
+  const existing = store.views.get(key);
   if (existing !== undefined) return existing;
 
-  const shared = entry.views.values().next().value;
-  const scope = `library:${entry.scope}`;
+  const shared = store.views.values().next().value;
+  const scope = `library:${store.scope}`;
+  // A page counter per view: a change-feed reload keeps the pages already loaded, a new
+  // filter or sort starts from the first page.
+  const loadedPages = () => store.pages.get(key) ?? 1;
+  const windowLimit = (pages: number) => Math.min(LIBRARY_PAGE_SIZE * pages, LIBRARY_PAGE_MAX);
+  const items = createHostListCollection<LibraryItem>({
+    id: `${scope}:items:${key}`,
+    load: () =>
+      fetchLibraryItems(db, viewState, { limit: windowLimit(loadedPages()) }).then(
+        (page) => page.items,
+      ),
+    keyOf: (item) => item.entry.id,
+    tables: ITEM_TABLES,
+    subscribe,
+    persistUpdate: (updates) => persistEntryEdits(db, updates),
+  });
   const collections: LibraryCollections = {
-    items: createHostListCollection<LibraryItem>({
-      id: `${scope}:items:${key}`,
-      load: () => fetchLibraryItems(db, viewState),
-      keyOf: (item) => item.entry.id,
+    items,
+    total: createHostListCollection<{ readonly total: number }>({
+      id: `${scope}:total:${key}`,
+      load: async () => [{ total: await fetchLibraryTotal(db, viewState) }],
+      keyOf: () => 'total',
       tables: ITEM_TABLES,
       subscribe,
-      persistUpdate: (updates) => persistEntryEdits(db, updates),
     }),
+    loadMore: async () => {
+      if (windowLimit(loadedPages()) >= LIBRARY_PAGE_MAX) return;
+      store.pages.set(key, loadedPages() + 1);
+      await items.utils.refetch();
+    },
     categories:
       shared?.categories ??
       createHostListCollection<LibraryCategory>({
@@ -152,7 +181,7 @@ export function libraryCollections(
         subscribe,
       }),
   };
-  entry.views.set(key, collections);
+  store.views.set(key, collections);
   return collections;
 }
 

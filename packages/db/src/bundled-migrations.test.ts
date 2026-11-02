@@ -30,6 +30,10 @@ const installedExtensionManifestUrlSql = readFileSync(
   'utf8',
 );
 const extensionLogsSql = readFileSync(`${migrationsRoot}/0007_extension_logs.sql`, 'utf8');
+const libraryPageIndexesSql = readFileSync(
+  `${migrationsRoot}/0008_library_page_indexes.sql`,
+  'utf8',
+);
 const journal = JSON.parse(readFileSync(`${migrationsRoot}/meta/_journal.json`, 'utf8'));
 
 const migrationFiles = [
@@ -72,6 +76,11 @@ const migrationFiles = [
     tag: '0007_extension_logs',
     sql: extensionLogsSql,
     hash: 'f5f3e68be2c6f46ff21681f230763e499e788ed133b0de3df942b443b5f07d12',
+  },
+  {
+    tag: '0008_library_page_indexes',
+    sql: libraryPageIndexesSql,
+    hash: '3e1d8437b48edaa6b8c2f90af9e0e863b1a2f120604ce533c1d21a2855fb285b',
   },
 ];
 
@@ -120,6 +129,40 @@ describe('bundled migrations', () => {
       .flatMap((result) => result.values.map((row) => row[0]));
 
     expect(bundledTables).toEqual(fsTables);
+  });
+
+  it('adds the library page indexes to a database that predates them', async () => {
+    const SQL = await initSqlJs();
+    const raw = new SQL.Database();
+    // A profile stopped at 0007, with rows already in it.
+    migrateDatabaseFromBundled(
+      raw,
+      { ...journal, entries: journal.entries.slice(0, 8) },
+      migrationFiles.slice(0, 8),
+    );
+    const db = createDrizzleFromSqlJs(raw);
+    const created = await createMangaIdentityWithInitialMapping(db, {
+      canonicalTitle: 'Existing Title',
+      status: 'ongoing',
+      contentRating: 'safe',
+      providerId: toProviderId('prov-old'),
+      providerMangaId: 'old-1',
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    insertLibraryRow(raw, 'existing', created.value.mangaId, '2026-01-01T00:00:00.000Z');
+
+    migrateDatabaseFromBundled(raw, journal, migrationFiles);
+
+    const indexes = (raw.exec("PRAGMA index_list('library_entries')")[0]?.values ?? []).map(
+      (row) => row[1],
+    );
+    expect(indexes).toContain('library_entries_favorite_added_idx');
+    expect(indexes).toContain('library_entries_unread_idx');
+    expect(singleValue(raw, 'SELECT COUNT(*) FROM library_entries')).toBe(1);
+    // A second run applies nothing and keeps the rows.
+    migrateDatabaseFromBundled(raw, journal, migrationFiles);
+    expect(singleValue(raw, 'SELECT COUNT(*) FROM library_entries')).toBe(1);
   });
 
   it('keeps one library entry per manga before adding the unique index', async () => {

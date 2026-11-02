@@ -97,7 +97,7 @@ describe('LibraryPage', () => {
   it('fills the shell main instead of rendering a second main landmark', () => {
     const { container } = render(
       <LibraryPage
-        data={{ items: [], categories: [], viewState: DEFAULT_LIBRARY_VIEW_STATE }}
+        data={{ items: [], total: 0, categories: [], viewState: DEFAULT_LIBRARY_VIEW_STATE }}
         isLoading={false}
         isError={false}
         viewState={DEFAULT_LIBRARY_VIEW_STATE}
@@ -119,6 +119,7 @@ describe('LibraryPage', () => {
         data={{
           items: [createItem('one', 'Title 1'), createItem('two', 'Title 2')],
           categories: [],
+          total: 2,
           viewState: DEFAULT_LIBRARY_VIEW_STATE,
         }}
         isLoading={false}
@@ -151,6 +152,7 @@ describe('LibraryPage', () => {
         data={{
           items: [createItem('one', 'Title 1'), createItem('two', 'Title 2')],
           categories: [],
+          total: 2,
           viewState: DEFAULT_LIBRARY_VIEW_STATE,
         }}
         isLoading={false}
@@ -176,6 +178,7 @@ describe('LibraryPage', () => {
         data={{
           items: [createItem('one', 'Title 1')],
           categories: [],
+          total: 1,
           viewState: DEFAULT_LIBRARY_VIEW_STATE,
         }}
         isLoading={false}
@@ -204,6 +207,7 @@ describe('LibraryPage', () => {
         data={{
           items: [alpha, beta],
           categories: [],
+          total: 2,
           viewState: DEFAULT_LIBRARY_VIEW_STATE,
         }}
         isLoading={false}
@@ -259,7 +263,7 @@ describe('LibraryPage', () => {
 
     const { rerender } = render(
       <LibraryPage
-        data={{ items: [item], categories: [], viewState: DEFAULT_LIBRARY_VIEW_STATE }}
+        data={{ items: [item], total: 1, categories: [], viewState: DEFAULT_LIBRARY_VIEW_STATE }}
         isLoading={false}
         isError={false}
         viewState={DEFAULT_LIBRARY_VIEW_STATE}
@@ -285,7 +289,7 @@ describe('LibraryPage', () => {
 
     rerender(
       <LibraryPage
-        data={{ items: [item], categories: [], viewState: DEFAULT_LIBRARY_VIEW_STATE }}
+        data={{ items: [item], total: 1, categories: [], viewState: DEFAULT_LIBRARY_VIEW_STATE }}
         isLoading={false}
         isError={false}
         viewState={DEFAULT_LIBRARY_VIEW_STATE}
@@ -315,6 +319,7 @@ describe('LibraryPage', () => {
         data={{
           items: [createItem('one', 'Title 1'), createItem('two', 'Title 2')],
           categories: [],
+          total: 2,
           viewState: DEFAULT_LIBRARY_VIEW_STATE,
         }}
         isLoading={false}
@@ -337,5 +342,61 @@ describe('LibraryPage', () => {
       'Select at most 1 title per migration batch; 2 are selected.',
     );
     expect(onMigrate).not.toHaveBeenCalled();
+  });
+
+  it('Given a bounded page, Then the paginator shows the loaded count and asks for more once', async () => {
+    const user = userEvent.setup();
+    let finish: (() => void) | undefined;
+    const onLoadMore = vi.fn<() => Promise<void>>(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+
+    render(
+      <LibraryPage
+        data={{
+          items: [createItem('one', 'Title 1')],
+          total: 450,
+          categories: [],
+          viewState: DEFAULT_LIBRARY_VIEW_STATE,
+        }}
+        isLoading={false}
+        isError={false}
+        viewState={DEFAULT_LIBRARY_VIEW_STATE}
+        onViewStateChange={() => {}}
+        onOpenManga={() => {}}
+        onLoadMore={onLoadMore}
+      />,
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 450 titles');
+    const button = screen.getByRole('button', { name: 'Load more titles' });
+    await user.click(button);
+    expect(onLoadMore).toHaveBeenCalledTimes(1);
+    expect(button).toBeDisabled();
+    finish?.();
+  });
+
+  it('Given every matching title is loaded, Then there is no load-more control', () => {
+    render(
+      <LibraryPage
+        data={{
+          items: [createItem('one', 'Title 1')],
+          total: 1,
+          categories: [],
+          viewState: DEFAULT_LIBRARY_VIEW_STATE,
+        }}
+        isLoading={false}
+        isError={false}
+        viewState={DEFAULT_LIBRARY_VIEW_STATE}
+        onViewStateChange={() => {}}
+        onOpenManga={() => {}}
+        onLoadMore={() => Promise.resolve()}
+      />,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Load more titles' })).toBeNull();
   });
 });

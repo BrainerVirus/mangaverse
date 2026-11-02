@@ -142,3 +142,82 @@ describe('fetchLibraryPage organization', () => {
     expect(page.categories.map((item) => item.name)).toEqual(['Action']);
   });
 });
+
+/** Titles inserted straight into the database: 250 rows do not need 500 host calls. */
+function seedTitles(
+  raw: Awaited<ReturnType<typeof createSqlJsHarness>>['raw'],
+  count: number,
+): void {
+  raw.run('BEGIN');
+  for (let index = 0; index < count; index += 1) {
+    const suffix = String(index).padStart(4, '0');
+    raw.run(
+      'INSERT INTO manga_identities (id, canonical_title, status, content_rating, merged, default_provider_mapping_id) VALUES (?,?,?,?,?,?)',
+      [`manga-${suffix}`, `Series ${suffix}`, 'ongoing', 'safe', 0, `mapping-${suffix}`],
+    );
+    raw.run(
+      'INSERT INTO manga_provider_mappings (id, manga_id, provider_id, provider_manga_id) VALUES (?,?,?,?)',
+      [`mapping-${suffix}`, `manga-${suffix}`, 'prov-a', `remote-${index}`],
+    );
+    raw.run(
+      'INSERT INTO library_entries (id, manga_id, favorite, status, unread_count, added_at, updated_at) VALUES (?,?,?,?,?,?,?)',
+      [
+        `entry-${suffix}`,
+        `manga-${suffix}`,
+        index % 5 === 0 ? 1 : 0,
+        'reading',
+        0,
+        `2026-01-01T00:00:${suffix}.000Z`,
+        `2026-01-01T00:00:${suffix}.000Z`,
+      ],
+    );
+  }
+  raw.run('COMMIT');
+}
+
+describe('fetchLibraryPage paging', () => {
+  it('Given 250 titles, Then the first page is bounded and the total counts the filter', async () => {
+    const { db, raw } = await createSqlJsHarness();
+    seedTitles(raw, 250);
+
+    const first = await fetchLibraryPage(db, DEFAULT_LIBRARY_VIEW_STATE, { limit: 20 });
+    expect(first.items).toHaveLength(20);
+    expect(first.total).toBe(250);
+
+    const second = await fetchLibraryPage(db, DEFAULT_LIBRARY_VIEW_STATE, {
+      limit: 20,
+      offset: 20,
+    });
+    expect(second.total).toBe(250);
+    const firstIds = new Set(first.items.map((item) => item.entry.id));
+    expect(second.items.some((item) => firstIds.has(item.entry.id))).toBe(false);
+
+    const beyond = await fetchLibraryPage(db, DEFAULT_LIBRARY_VIEW_STATE, {
+      limit: 20,
+      offset: 250,
+    });
+    expect(beyond.items).toEqual([]);
+    expect(beyond.total).toBe(250);
+
+    const favorites = await fetchLibraryPage(
+      db,
+      { ...DEFAULT_LIBRARY_VIEW_STATE, filter: { favoritesOnly: true } },
+      { limit: 10 },
+    );
+    expect(favorites.total).toBe(50);
+    expect(favorites.items).toHaveLength(10);
+  });
+
+  it('Given a text query, Then it narrows SQL before the page bound', async () => {
+    const { db, raw } = await createSqlJsHarness();
+    seedTitles(raw, 250);
+
+    const page = await fetchLibraryPage(
+      db,
+      { ...DEFAULT_LIBRARY_VIEW_STATE, filter: { query: 'series 0249' } },
+      { limit: 5 },
+    );
+    expect(page.total).toBe(1);
+    expect(page.items.map((item) => item.manga.canonicalTitle)).toEqual(['Series 0249']);
+  });
+});

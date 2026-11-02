@@ -67,7 +67,10 @@ export const mangaIdentities = sqliteTable(
     createdAt: text('created_at'),
     updatedAt: text('updated_at'),
   },
-  (t) => [index('manga_identities_default_mapping_idx').on(t.defaultProviderMappingId)],
+  (t) => [
+    index('manga_identities_default_mapping_idx').on(t.defaultProviderMappingId),
+    index('manga_identities_canonical_title_idx').on(t.canonicalTitle),
+  ],
 );
 
 export const mangaProviderMappings = sqliteTable(
@@ -86,6 +89,7 @@ export const mangaProviderMappings = sqliteTable(
   (t) => [
     uniqueIndex('manga_provider_mappings_provider_remote_uidx').on(t.providerId, t.providerMangaId),
     index('manga_provider_mappings_manga_idx').on(t.mangaId),
+    index('manga_provider_mappings_provider_manga_idx').on(t.providerId, t.mangaId),
   ],
 );
 
@@ -162,7 +166,16 @@ export const libraryEntries = sqliteTable(
     addedAt: text('added_at'),
     updatedAt: text('updated_at'),
   },
-  (t) => [uniqueIndex('library_entries_manga_unique_idx').on(t.mangaId)],
+  (t) => [
+    uniqueIndex('library_entries_manga_unique_idx').on(t.mangaId),
+    // The library page filters and sorts in SQL; these cover its predicates and orders.
+    index('library_entries_favorite_added_idx').on(t.favorite, t.addedAt),
+    index('library_entries_status_added_idx').on(t.status, t.addedAt),
+    index('library_entries_added_idx').on(t.addedAt),
+    index('library_entries_updated_idx').on(t.updatedAt),
+    index('library_entries_progress_idx').on(t.progressPercent),
+    index('library_entries_unread_idx').on(t.unreadCount),
+  ],
 );
 
 export const libraryCategoryMemberships = sqliteTable(
@@ -203,6 +216,8 @@ export const chapters = sqliteTable(
   (t) => [
     uniqueIndex('chapters_mapping_index_uidx').on(t.providerMappingId, t.chapterIndex),
     index('chapters_manga_idx').on(t.mangaId),
+    // Unread counts group a page's titles per provider mapping.
+    index('chapters_manga_mapping_idx').on(t.mangaId, t.providerMappingId),
   ],
 );
 
@@ -240,7 +255,11 @@ export const chapterReadState = sqliteTable(
     startedAt: text('started_at'),
     updatedAt: text('updated_at'),
   },
-  (t) => [index('chapter_read_state_manga_chapter_idx').on(t.mangaId, t.chapterId)],
+  (t) => [
+    index('chapter_read_state_manga_chapter_idx').on(t.mangaId, t.chapterId),
+    // "Last read" ranks a title by its newest progress event.
+    index('chapter_read_state_manga_updated_idx').on(t.mangaId, t.updatedAt),
+  ],
 );
 
 export const readingHistory = sqliteTable(
