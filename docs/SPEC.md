@@ -447,7 +447,7 @@ Motion constraints:
 - Respect `prefers-reduced-motion`.
 - Every animation must provide orientation, feedback, continuity, hierarchy, or delight.
 - Animation logic must be isolated from business logic.
-- Shared motion patterns live in `@app/motion` or `@app/design-system`.
+- Shared motion patterns live in `@app/design-system`, with motion at `@app/design-system/motion`.
 
 ### Backup And Restore
 

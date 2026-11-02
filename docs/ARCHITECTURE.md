@@ -16,16 +16,11 @@ apps/
   desktop/
 packages/
   reader/
-  extensions-core/
+  extensions/
   extensions-sdk/
   db/
+  cache/
   design-system/
-  motion/
-  library/
-  search/
-  migration/
-  settings/
-  theme/
   platform/
   shared/
 docs/
@@ -50,7 +45,7 @@ docs/
 - Electron shell.
 - Owns main process, preload scripts, app menu, custom protocol registration, native file dialogs, window controls, and desktop packaging.
 - Reuses the web renderer where possible.
-- Exposes desktop-only capabilities through `@app/platform` APIs, not direct Electron imports in feature packages.
+- Exposes desktop-only capabilities through `@app/platform` APIs, not direct Electron imports in features.
 - May run an Express service for local desktop APIs that benefit from an HTTP boundary, such as local file import/export, diagnostics, protocol install handoff, or isolated extension/network helpers.
 
 ## Package Boundaries
@@ -70,7 +65,7 @@ Allowed contents:
 
 Rules:
 
-- Must not import from app shells or feature packages.
+- Must not import from app shells or app features.
 - Must not contain database, provider runtime, UI, or platform implementation details.
 
 ### `@app/db`
@@ -141,9 +136,14 @@ Rules:
 - Must isolate high-frequency interactions from global app state.
 - Must keep gesture, zoom, tap-zone, and scroll systems deterministic and testable.
 
-### `@app/extensions-core`
+### `@app/extensions`
 
-Owns installed provider runtime and capability-aware provider calls.
+Owns provider UI and actions at its root, with two subpaths:
+
+- `@app/extensions/core` (`packages/extensions/src/core`): the generic provider runtime described below.
+- `@app/extensions/mangadex` (`packages/extensions/src/mangadex`): the built-in MangaDex provider. App code reaches it only through the registration seam, as `.oxlintrc.json` enforces.
+
+`@app/extensions/core` owns installed provider runtime and capability-aware provider calls.
 
 Responsibilities:
 
@@ -161,7 +161,7 @@ Responsibilities:
 
 Rules:
 
-- Provider-specific hacks stay here or in extension packages, never in app UI or feature packages.
+- Provider-specific hacks stay here or in a provider's module under `@app/extensions`, never in app UI or app features.
 - Provider calls must return normalized domain data or normalized errors.
 - Capability checks must drive UI availability.
 - Exports contain metadata only (manifest URL, version, enabled, registry); never provider code. Imports preview manifests through the normal fetch/validation path and install only after explicit confirmation, skipping providers whose install-time manifest URL is missing.
@@ -211,9 +211,9 @@ Rules:
 - UI work must consume design-system components where available.
 - Raw one-off styling must be justified by a missing primitive or a feature-specific layout need.
 
-### `@app/motion`
+### `@app/design-system/motion`
 
-Shared motion package built on GSAP.
+Shared motion module built on GSAP, at `packages/design-system/src/motion` inside `@app/design-system`.
 
 Responsibilities:
 
@@ -226,7 +226,7 @@ Responsibilities:
 - ScrollTrigger conventions.
 - Reader-safe animation helpers.
 - Animation cleanup helpers for React.
-- Motion tokens consumed by design-system.
+- Motion tokens consumed by the rest of design-system.
 
 Rules:
 
@@ -234,26 +234,33 @@ Rules:
 - GSAP code in React must use `useGSAP()` or an equivalent cleanup-safe wrapper.
 - ScrollTrigger usage must be scoped and cleaned up on route/component unmount.
 
-### Feature Packages
+### `@app/cache`
 
-`@app/library`, `@app/search`, `@app/migration`, `@app/settings`, and `@app/theme` own feature-specific orchestration and UI built on stable lower-level package APIs.
+Owns the page and cover cache: blob keys, cache entries, retention and blob locks. It stays a package because `@app/reader` imports it.
+
+### App Features
+
+`apps/web/app/features/*` (`backup`, `diagnostics`, `library`, `migration`, `onboarding`, `search`, `settings`, `storage` and `theme`) own feature-specific orchestration and UI built on stable lower-level package APIs. They are app modules imported as `@/features/<name>`, not packages. `theme` lives here rather than in `design-system` because it imports `@app/db`.
 
 Rules:
 
 - Feature UI receives data through props or feature-level hooks.
-- Feature packages must not import other feature packages directly unless a stable cross-feature domain package exists.
+- A feature imports another feature only through its index (`@/features/<name>`), never its internals.
 - Business logic belongs in feature services, domain packages, or `@app/db`, not in visual components.
 
 ## Dependency Rules
 
 - App shells may import all packages.
-- Feature packages may import `shared`, `db`, `platform`, `design-system`, `motion`, and relevant domain packages.
-- `design-system` may import `motion` and `shared`, but not feature packages.
-- `motion` may import GSAP and generic helpers, but not feature, db, provider, or app shell code.
+- App features may import `shared`, `db`, `cache`, `platform`, `design-system`, `design-system/motion`, and relevant domain packages.
+- `design-system` may import its own motion module and `shared`, but not app features.
+- `design-system/motion` may import GSAP and generic helpers, but not feature, db, provider, or app shell code.
 - `db` may import `shared`, Drizzle, SQLite driver abstractions, and validation helpers.
-- `extensions-core` may import `extensions-sdk`, `shared`, `db`, and `platform`.
+- `cache` may import `shared`, `db`, `platform`, and `design-system`.
+- `extensions/core` may import `extensions-sdk`, `shared`, `db`, and `platform`.
+- `extensions/mangadex` may import `extensions-sdk` and `shared`.
+- The `extensions` root may also import `design-system`.
 - `extensions-sdk` should stay independent from app shell, db implementation, and UI.
-- `reader` may import `shared`, `design-system`, and `motion` reader-safe helpers, but not app shell routes or provider internals.
+- `reader` may import `shared`, `db`, `cache`, `design-system`, and `design-system/motion` reader-safe helpers, but not app shell routes or provider internals.
 
 ## Data Flow
 
@@ -420,7 +427,7 @@ Tap zones must be computed against the visible reader interaction layer, not raw
 
 ## Motion Architecture
 
-`@app/motion` registers GSAP plugins once and exports safe helpers. React components use `useGSAP()` with a scope ref. Event callbacks that create animations must be wrapped with `contextSafe()` or package helpers that provide equivalent cleanup.
+`@app/design-system/motion` registers GSAP plugins once and exports safe helpers. React components use `useGSAP()` with a scope ref. Event callbacks that create animations must be wrapped with `contextSafe()` or package helpers that provide equivalent cleanup.
 
 Motion categories:
 

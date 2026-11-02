@@ -1,18 +1,39 @@
 # App overhaul - handoff
 
-Current state, rewritten when #206 landed. Delete this file when its contents stop being current.
+Current state, rewritten when #208 landed. Delete this file when its contents stop being current.
 
 ## Where things are
 
-Milestone 1 is landing in the order the roadmap gives:
+Milestone 1 (Foundation) has landed:
 
 | Issue | State                                                                                  |
 | ----- | -------------------------------------------------------------------------------------- |
 | #204  | Landed: `useState` and `try/catch` frozen by a shrinking baseline; `useStateReducer`.  |
 | #205  | Landed: local, capped, redacted event log and Diagnostics view.                        |
 | #207  | Landed: responsive layout repairs and the virtualized chapter list.                    |
-| #206  | This change: typed failures, status pages, inline retry, toasts, the Saving indicator. |
-| #208  | Next, and it runs alone after the others.                                              |
+| #206  | Landed: typed failures, status pages, inline retry, toasts, the Saving indicator.      |
+| #208  | Landed: package consolidation, below.                                                  |
+
+Next is milestone 2 (Electron runtime): ADR #209 first, then #210-#214, with #215 last. The roadmap holds
+the order inside that range. #209 is waiting on the owner, below.
+
+## Package consolidation (#208)
+
+Slices, in landing order: dead weight (#244), helper dedupe (#246), the advanced hub and URL aliases (#247),
+backup, diagnostics and storage (#248), onboarding and migration (#249), settings and theme (#250), library
+and search (#251), the keep-package merges (#252), and this docs sweep.
+
+`packages/` now holds eight packages (E6):
+
+- `shared`, `db`, `platform`, `reader`, `extensions-sdk`.
+- `cache`, kept because `reader` imports it.
+- `design-system`, which holds motion at `src/motion`, imported as `@app/design-system/motion`.
+- `extensions`, which holds `@app/extensions/core` at `src/core` and `@app/extensions/mangadex` at
+  `src/mangadex`.
+
+Everything else is under `apps/web/app/features/`: backup, diagnostics, library, migration, onboarding,
+search, settings, storage and theme. `theme` moved there because it imports `@app/db`, which the
+`design-system` boundary forbids.
 
 ## How failures work now (spec 2)
 
@@ -34,9 +55,9 @@ Milestone 1 is landing in the order the roadmap gives:
 
 - The Saving toast is live for every mutation with `saveFeedback`, but the theme editor and provider
   settings forms still change their button label while pending, so it can flash on a fast save. The
-  fix belongs in `@app/theme` and `@app/extensions`.
-- `packages/theme/src/components/ThemeAdvancedEditor.tsx` renders a caught export error's `.message`
-  itself, outside the route layer. Fix it when that package is next changed.
+  fix belongs in `apps/web/app/features/theme` and `@app/extensions`.
+- `apps/web/app/features/theme/components/ThemeAdvancedEditor.tsx` renders a caught export error's `.message`
+  itself, outside the route layer. Fix it when that feature is next changed.
 
 ## Start here
 

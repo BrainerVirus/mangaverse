@@ -18,8 +18,8 @@ Work now follows [the overhaul roadmap](docs/overhaul/roadmap.md), starting with
 
 - **App**: React 19 + [TanStack Start](https://tanstack.com/start) (Router, Query) on Vite; Zustand for local UI state
 - **Data**: SQLite (sql.js/WASM) with Drizzle ORM; IndexedDB-backed durable storage with multi-tab convergence
-- **UI**: shadcn/ui through `@app/design-system`; GSAP through `@app/motion`
-- **Providers**: `@app/extensions-sdk` contract + `@app/extensions-mangadex`; community extensions stay separate from the app shell
+- **UI**: shadcn/ui through `@app/design-system`; GSAP through `@app/design-system/motion`
+- **Providers**: `@app/extensions-sdk` contract + `@app/extensions/mangadex`; community extensions stay separate from the app shell
 - **Tooling**: TypeScript, pnpm workspaces, Turborepo, Vitest, Playwright (production E2E), oxlint
 
 ## Getting started
@@ -46,17 +46,16 @@ Canonical commands:
 
 ```txt
 apps/
-  web/                 TanStack Start web app
+  web/                 TanStack Start web app; features live in app/features/
   desktop/             Electron app (first priority)
 packages/
   reader/              reader engine, screen and pure helpers
-  extensions-core/     provider runtime and resolution
+  extensions/          provider UI, plus core/ (runtime and resolution) and mangadex/ (built-in provider)
   extensions-sdk/      provider contract
-  extensions-mangadex/ built-in MangaDex provider
   db/                  SQLite schema, repositories, durable storage
-  design-system/       shadcn/ui wrappers, reader chrome
-  motion/              GSAP helpers
-  library/ search/ migration/ settings/ theme/ platform/ shared/
+  cache/               page and cover cache
+  design-system/       shadcn/ui wrappers, reader chrome, motion/ (GSAP helpers)
+  platform/ shared/
 docs/                  overhaul/, SPEC, ARCHITECTURE, Design
 ```
 

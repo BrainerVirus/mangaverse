@@ -50,7 +50,7 @@ the editor shell and editors follow.
 - `schemaVersion`: bumped when the shape changes; migrations live with the schema.
 
 **Schema home:** `ThemeDefinition` lives in `@app/shared` (zero dependencies) so backup validation
-in `@app/shared` can use it without importing `@app/theme`. `@app/theme` and the DB consume it.
+in `@app/shared` can use it without importing the theme feature. The theme feature (`apps/web/app/features/theme`) and the DB consume it.
 
 ### Built-in presets
 

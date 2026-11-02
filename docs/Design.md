@@ -345,13 +345,13 @@ Banned reader motion:
 
 ### Duration Scale
 
-The duration tokens are defined in `packages/motion/src/tokens/duration.ts` and documented in `DESIGN.md`
-§5.1. Never hard-code a millisecond value in a component: import `DURATION` from `@app/motion`.
+The duration tokens are defined in `packages/design-system/src/motion/src/tokens/duration.ts` and documented in `DESIGN.md`
+§5.1. Never hard-code a millisecond value in a component: import `DURATION` from `@app/design-system/motion`.
 
 ### Easing Presets
 
-The easing presets are defined in `packages/motion/src/tokens/easing.ts` and documented in `DESIGN.md`
-§5.2. Use `EASING` from `@app/motion`; never write an easing string inline.
+The easing presets are defined in `packages/design-system/src/motion/src/tokens/easing.ts` and documented in `DESIGN.md`
+§5.2. Use `EASING` from `@app/design-system/motion`; never write an easing string inline.
 
 `EASING.emphasizedOut` is **`expo.out` — GSAP's exponential ease-out**, unrelated to the Expo framework
 (this repository no longer uses Expo). Write it as `expo.out` in GSAP code and never as "expo" in prose.
@@ -385,7 +385,7 @@ The easing presets are defined in `packages/motion/src/tokens/easing.ts` and doc
 
 ### GSAP Usage Conventions
 
-- Register GSAP plugins once in `@app/motion`.
+- Register GSAP plugins once in `@app/design-system/motion`.
 - React components use `useGSAP()` from `@gsap/react`.
 - Always pass a scope ref to `useGSAP()`.
 - Wrap delayed/event-created animation callbacks with `contextSafe()` or a package helper.

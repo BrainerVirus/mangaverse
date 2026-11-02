@@ -22,7 +22,7 @@ React + TanStack Router, as a client-rendered shell; TanStack DB (pinned) for lo
 data and TanStack Query for provider calls; Zustand for shared client state;
 TypeScript, Zod, and Effect 4 for I/O modules. Electron first, with native SQLite +
 Drizzle in a data process (browser SQLite/WASM in a Worker on web, later). shadcn/ui through `@app/design-system`; GSAP
-through `@app/motion`. Monorepo of reusable packages. Optional metadata sync
+through `@app/design-system/motion`. Monorepo of reusable packages. Optional metadata sync
 via Supabase comes after local-first behavior is stable. See `docs/overhaul/`.
 
 ## Layout
@@ -32,12 +32,12 @@ via Supabase comes after local-first behavior is stable. See `docs/overhaul/`.
 
 ## Package Boundary Rules
 
-Enforced by `.oxlintrc.json` (`no-restricted-imports`; `pnpm lint` fails on a violation): `@app/shared` and `@app/motion` import no app package; `@app/design-system` imports only `@app/shared` and `@app/motion`. The rules below are not machine-checked.
+Enforced by `.oxlintrc.json` (`no-restricted-imports`; `pnpm lint` fails on a violation): `@app/shared` and `@app/design-system/motion` import no app package; the rest of `@app/design-system` imports only `@app/shared` and its own motion module. The rules below are not machine-checked.
 
 - App features consume stable package APIs.
 - No reaching into provider, database, reader, platform or Electron internals from a feature.
 - No raw SQL outside `@app/db`.
-- No provider-specific hacks outside `@app/extensions-core`, `@app/extensions-sdk` or a provider extension package.
+- No provider-specific hacks outside `@app/extensions/core`, `@app/extensions-sdk` or a provider's module under `@app/extensions`.
 - No business logic inside visual components or animation code when it belongs in a feature service, domain package, repository or shared model.
 
 ## Design System Rules
@@ -57,7 +57,7 @@ Enforced by `.oxlintrc.json` (`no-restricted-imports`; `pnpm lint` fails on a vi
 
 ## Motion Rules
 
-- Use GSAP through `@app/motion` helpers or cleanup-safe local patterns.
+- Use GSAP through `@app/design-system/motion` helpers or cleanup-safe local patterns.
 - React GSAP code uses `useGSAP()` from `@gsap/react` (or a `gsap.context()` cleanup), scoped to a ref.
 - Wrap event-created GSAP animations with `contextSafe()` or a package helper.
 - Respect `prefers-reduced-motion`, and do not run GSAP during SSR.
