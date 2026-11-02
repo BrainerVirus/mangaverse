@@ -233,7 +233,7 @@ export function RegistryImportDialog({
 
         <div
           data-testid="registry-import-body"
-          className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto"
+          className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-1.5 scroll-p-2"
         >
           {errorMessage !== null ? (
             <Alert variant="destructive">

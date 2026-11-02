@@ -20,7 +20,9 @@ export function commandPaletteEnter(
   }
 
   gsap.set(backdrop, { autoAlpha: 0 });
-  gsap.set(panel, { autoAlpha: 0, y: -8, scale: 0.98 });
+  // The panel only fades: `autoAlpha` would set `visibility: hidden`, and a
+  // hidden panel cannot hold the input focus the palette takes on open.
+  gsap.set(panel, { opacity: 0, y: -8, scale: 0.98 });
 
   const timeline = gsap.timeline(timelineVars);
   timeline
@@ -32,7 +34,7 @@ export function commandPaletteEnter(
     .to(
       panel,
       {
-        autoAlpha: 1,
+        opacity: 1,
         y: 0,
         scale: 1,
         duration: DURATION.standard / 1000,

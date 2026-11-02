@@ -26,7 +26,7 @@ export function ConfirmDeleteThemeDialog({
 }: ConfirmDeleteThemeDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent role="alertdialog">
         <DialogHeader>
           <DialogTitle>Delete “{themeName}”?</DialogTitle>
           <DialogDescription>
