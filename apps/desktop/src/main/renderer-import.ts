@@ -46,7 +46,7 @@ export interface RendererImportStore {
   complete(report: RendererImportReport): Promise<void>;
 }
 
-export const RENDERER_IMPORT_MARKER_VERSION = 1;
+const RENDERER_IMPORT_MARKER_VERSION = 1;
 
 /**
  * The only marker that counts as a completed import. Anything else — `{}`, `false`, `null`,

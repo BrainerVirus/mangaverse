@@ -471,8 +471,9 @@ describe('buildOldDataExport', () => {
       sha256: hash,
       now: () => new Date('2026-01-02T03:04:05.000Z'),
     });
-    // Only the saved JSON survives: the old profile and its IndexedDB are gone.
-    const saved = JSON.parse(JSON.stringify(exported)) as typeof exported;
+    // Only the saved file survives: the old profile and its IndexedDB are gone.
+    const file = `${JSON.stringify(exported, null, 2)}\n`;
+    const saved = JSON.parse(file) as typeof exported;
     idb.records.clear();
     const restoredStore = fakeIdb();
 
