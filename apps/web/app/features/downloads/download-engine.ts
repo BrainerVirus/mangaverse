@@ -60,7 +60,9 @@ export interface DownloadEngine {
   enqueue(chapterId: ChapterId): Promise<void>;
   cancel(chapterId: ChapterId): Promise<void>;
   retry(chapterId: ChapterId): Promise<void>;
-  remove(chapterId: ChapterId): Promise<{ readonly removedPages: number; readonly removedBytes: number }>;
+  remove(
+    chapterId: ChapterId,
+  ): Promise<{ readonly removedPages: number; readonly removedBytes: number }>;
 }
 
 /** Attempts per page before the rest of the chapter is kept as partial. */
@@ -268,6 +270,14 @@ export function createDownloadEngine(deps: DownloadEngineDeps): DownloadEngine {
       });
       if (outcome.failedPages === 0 || storageFull || controller.signal.aborted) break;
     }
+
+    // A reader prefetch racing this download can write an ordinary page; promote once
+    // more so every page of a downloaded chapter stays protected.
+    await markChapterPagesDownloaded(db, {
+      providerId,
+      mangaId: chapter.mangaId,
+      chapterId: row.chapterId,
+    });
 
     const missing = pages
       .filter((page) => !cached.has(page.pageIndex))

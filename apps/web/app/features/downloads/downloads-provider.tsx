@@ -1,7 +1,6 @@
 import { createContext, use, useMemo, useSyncExternalStore, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { notify } from '@app/design-system';
 import type { ChapterId } from '@app/shared';
 
 import { createAppPlatformAdapter } from '@/features/diagnostics/index.js';
@@ -13,6 +12,7 @@ import {
   type DownloadEngineSnapshot,
 } from './download-engine.js';
 import { loadDownloadChapter, readDownloadChapter } from './load-chapter.js';
+import { notifyDownloadStorageFull } from './notices.js';
 import { downloadsQueryKeys } from './query-keys.js';
 import type { DownloadProgress } from './types.js';
 
@@ -70,14 +70,7 @@ export function DownloadsProvider({ children }: DownloadsProviderProps) {
         void queryClient.invalidateQueries({ queryKey: storageQueryKeys.summary() });
       },
       onStorageFull: (download) => {
-        notify.failure({
-          key: 'download-storage-full',
-          message: `The device is out of storage, so “${download.chapterId}” stopped downloading. Pages already saved were kept.`,
-          action: {
-            label: 'Manage storage',
-            onClick: () => void navigate({ to: '/storage' }),
-          },
-        });
+        notifyDownloadStorageFull(download, () => void navigate({ to: '/storage' }));
       },
     });
   }, [adapter, db, dbStatus, navigate, queryClient]);

@@ -45,7 +45,7 @@ export interface NotifyFailureInput {
 // react-doctor-disable-next-line react-doctor/only-export-components -- ruling: toast-single-module: spec F4 keeps Sonner behind one wrapper file, and no fast-refresh boundary depends on this module.
 export const notify = {
   /** Sonner replaces a toast that keeps its id, which is what deduplicates. */
-  failure({ key, message, onRetry, action }: NotifyFailureInput): void {
+  failure(this: void, { key, message, onRetry, action }: NotifyFailureInput): void {
     const resolvedAction =
       action ?? (onRetry === undefined ? undefined : { label: 'Retry', onClick: onRetry });
     sonner.error(message, {
@@ -53,16 +53,16 @@ export const notify = {
       ...(resolvedAction === undefined ? {} : { action: resolvedAction }),
     });
   },
-  success(message: string): void {
+  success(this: void, message: string): void {
     sonner.success(message, { id: `success:${message}` });
   },
-  saving(): void {
+  saving(this: void): void {
     sonner.loading('Saving…', { id: SAVING_TOAST_ID });
   },
-  saved(): void {
+  saved(this: void): void {
     sonner.success('Saved', { id: SAVING_TOAST_ID });
   },
-  dismissSaving(): void {
+  dismissSaving(this: void): void {
     sonner.dismiss(SAVING_TOAST_ID);
   },
 };
