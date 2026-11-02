@@ -7,8 +7,8 @@ import { isPageStoreKey, MAX_PAGE_STORE_BYTES } from '@app/platform';
 import { z } from 'zod';
 
 // Main owns cached page bytes (spec 04 X5, X13). A page is two files under the store root,
-// both named by the SHA-256 of its blob key: `<id>` holds the bytes and `<id>.json` the key
-// and MIME type. The renderer only ever sees `page://store/<id>`; no path reaches a URL, and
+// both named by the SHA-256 of its blob key: `<id>` holds the bytes and `<id>.json` the key,
+// MIME type and the bytes' own SHA-256. The renderer only ever sees `page://store/<id>`; no path reaches a URL, and
 // the key stays in the sidecar so cache maintenance can enumerate what is stored.
 
 export const PAGE_SCHEME = 'page';
@@ -66,6 +66,11 @@ export function pageMimeType(declared: string, bytes: Uint8Array): string | unde
 const pageSidecarSchema = z.strictObject({
   key: z.string().refine(isPageStoreKey),
   mimeType: z.string().refine((value) => PAGE_MIME_TYPES.has(value)),
+  // Absent in sidecars written before the store recorded it; those are checked by size only.
+  sha256: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/)
+    .optional(),
 });
 
 type PageSidecar = z.output<typeof pageSidecarSchema>;
@@ -101,10 +106,16 @@ export interface PageStore {
   put(key: string, bytes: Uint8Array, declaredMimeType: string): Promise<string>;
   /** The page's URL when both its bytes and sidecar are stored, else undefined. */
   urlFor(key: string): Promise<string | undefined>;
-  /** The digest and size of the stored bytes, so an importer can compare them to its source. */
+  /**
+   * The digest and size of the stored bytes, so an importer can compare them to its source.
+   * Undefined when the bytes are missing or no longer match the digest their sidecar recorded.
+   */
   verify(key: string): Promise<{ readonly sha256: string; readonly byteSize: number } | undefined>;
   delete(key: string): Promise<void>;
-  /** Keys with a committed sidecar. Removes leftovers of interrupted writes on the way. */
+  /**
+   * Keys with a committed sidecar. Removes leftovers of interrupted writes on the way. A
+   * listed key's bytes may since have been lost; `verify` it before trusting the file.
+   */
   listKeys(): Promise<string[]>;
   /** Maps a `page://` request to a stored file, refusing anything else. */
   resolve(requestUrl: string, method?: string): Promise<PageStoreResolution>;
@@ -163,7 +174,11 @@ export function createPageStore(root: string): PageStore {
         await writeAtomic(join(dir, id), bytes);
         await writeAtomic(
           join(dir, `${id}${SIDECAR_SUFFIX}`),
-          JSON.stringify({ key, mimeType } satisfies PageSidecar),
+          JSON.stringify({
+            key,
+            mimeType,
+            sha256: createHash('sha256').update(bytes).digest('hex'),
+          } satisfies PageSidecar),
         );
       } finally {
         const remaining = (writing.get(id) ?? 1) - 1;
@@ -192,10 +207,9 @@ export function createPageStore(root: string): PageStore {
         flag: constants.O_RDONLY | NO_FOLLOW,
       }).catch(() => undefined);
       if (bytes === undefined) return undefined;
-      return {
-        sha256: createHash('sha256').update(bytes).digest('hex'),
-        byteSize: bytes.byteLength,
-      };
+      const sha256 = createHash('sha256').update(bytes).digest('hex');
+      if (sidecar.sha256 !== undefined && sidecar.sha256 !== sha256) return undefined;
+      return { sha256, byteSize: bytes.byteLength };
     },
 
     async delete(key) {

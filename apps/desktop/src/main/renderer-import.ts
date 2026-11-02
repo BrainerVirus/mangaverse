@@ -4,9 +4,11 @@ import {
   PLATFORM_IPC,
   platformInvalidUrl,
   platformIpcRequestSchema,
+  rendererImportReport,
   type RendererImportReport,
 } from '@app/platform';
 import type { IpcMain, IpcMainInvokeEvent, WebFrameMain } from 'electron';
+import { z } from 'zod';
 import { toIpcAppResult } from './platform-ipc.js';
 
 // The one-way move of a pre-data-host profile (#213). The renderer owns IndexedDB, so it
@@ -34,6 +36,8 @@ interface RendererImportState {
     readonly totalRows: number;
     readonly checksum: string;
   } | null;
+  /** Digests the completed import verified, by page-store key; empty when incomplete. */
+  readonly blobChecksums: Readonly<Record<string, string>>;
 }
 
 export interface RendererImportStore {
@@ -42,6 +46,26 @@ export interface RendererImportStore {
   complete(report: RendererImportReport): Promise<void>;
 }
 
+export const RENDERER_IMPORT_MARKER_VERSION = 1;
+
+/**
+ * The only marker that counts as a completed import. Anything else — `{}`, `false`, `null`,
+ * truncated JSON, a missing field or another version — is an incomplete import, so the
+ * verified move runs again instead of trusting a marker main cannot read.
+ */
+const rendererImportMarker = z.strictObject({
+  ...rendererImportReport.shape,
+  version: z.literal(RENDERER_IMPORT_MARKER_VERSION),
+  completedAt: z.iso.datetime(),
+});
+
+/** #210's database marker; it carries more fields, and only these are read. */
+const databaseMarker = z.object({
+  tables: z.record(z.string(), z.number().int().nonnegative()),
+  totalRows: z.number().int().nonnegative(),
+  checksum: z.string().max(128),
+});
+
 /** A marker that is absent, unreadable or not JSON names no import. */
 function readJson(path: string): Promise<unknown> {
   return readFile(path, 'utf8')
@@ -49,48 +73,26 @@ function readJson(path: string): Promise<unknown> {
     .catch(() => undefined);
 }
 
-interface DatabaseMarker {
-  readonly tables?: unknown;
-  readonly totalRows?: unknown;
-  readonly checksum?: unknown;
-}
-
-function asDatabaseReport(value: unknown): RendererImportState['database'] {
-  const marker = value as DatabaseMarker | null;
-  if (
-    typeof marker?.tables !== 'object' ||
-    marker.tables === null ||
-    typeof marker.totalRows !== 'number' ||
-    typeof marker.checksum !== 'string'
-  ) {
-    return null;
-  }
-  return {
-    tables: marker.tables as Readonly<Record<string, number>>,
-    totalRows: marker.totalRows,
-    checksum: marker.checksum,
-  };
-}
-
 export function createRendererImportStore(databasePath: string): RendererImportStore {
   const markerPath = rendererImportMarkerPath(databasePath);
   const databasePathMarker = `${databasePath}.import.json`;
   return {
     async state() {
-      const [databaseMarker, marker] = await Promise.all([
+      const [databaseJson, markerJson] = await Promise.all([
         readJson(databasePathMarker),
         readJson(markerPath),
       ]);
       // A fresh profile without a snapshot import has no marker; that is not a failure.
-      const database = asDatabaseReport(databaseMarker);
-      if (marker === undefined) return { completed: false, database };
-      const completedAt = (marker as { completedAt?: unknown }).completedAt;
+      const database = databaseMarker.safeParse(databaseJson).data ?? null;
+      const marker = rendererImportMarker.safeParse(markerJson).data;
+      if (marker === undefined) return { completed: false, database, blobChecksums: {} };
       return {
         completed: true,
-        ...(typeof completedAt === 'string' ? { completedAt } : {}),
+        completedAt: marker.completedAt,
         // #210's own marker wins; a fresh profile that never imported a snapshot still
         // records what this marker verified.
-        database: database ?? asDatabaseReport((marker as { database?: unknown }).database),
+        database: database ?? marker.database,
+        blobChecksums: marker.blobs.checksums,
       };
     },
     async complete(report) {
@@ -98,7 +100,11 @@ export function createRendererImportStore(databasePath: string): RendererImportS
       await writeFile(
         temporary,
         `${JSON.stringify(
-          { version: 1, completedAt: new Date().toISOString(), ...report },
+          {
+            version: RENDERER_IMPORT_MARKER_VERSION,
+            completedAt: new Date().toISOString(),
+            ...report,
+          },
           null,
           2,
         )}\n`,

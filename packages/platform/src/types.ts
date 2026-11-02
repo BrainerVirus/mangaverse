@@ -291,6 +291,8 @@ export interface DesktopPlatformBridge {
         readonly totalRows: number;
         readonly checksum: string;
       } | null;
+      /** Digests the completed import verified, by page-store key. */
+      readonly blobChecksums: Readonly<Record<string, string>>;
     }>
   >;
   /** Records the verified renderer-data import beside the native database. */

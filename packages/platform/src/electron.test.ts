@@ -18,7 +18,7 @@ const pageStoreStubs = {
   pageStoreVerify: async () => ok(undefined),
   pageStoreDelete: async () => ok(undefined),
   pageStoreListKeys: async () => ok([]),
-  rendererImportState: async () => ok({ completed: false, database: null }),
+  rendererImportState: async () => ok({ completed: false, database: null, blobChecksums: {} }),
   rendererImportComplete: async () => ok(undefined),
   providerNetworkReplace: async () => ok(undefined),
   providerNetworkRevoke: async () => ok(undefined),
@@ -319,7 +319,8 @@ describe('createElectronPlatformAdapter', () => {
         pageStoreVerify,
         pageStoreDelete,
         pageStoreListKeys,
-        rendererImportState: async () => ok({ completed: false, database: null }),
+        rendererImportState: async () =>
+          ok({ completed: false, database: null, blobChecksums: {} }),
         rendererImportComplete: async () => ok(undefined),
         providerNetworkReplace: async () => ok(undefined),
         providerNetworkRevoke: async () => ok(undefined),
