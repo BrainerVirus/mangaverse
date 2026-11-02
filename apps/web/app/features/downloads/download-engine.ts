@@ -112,7 +112,11 @@ export function createDownloadEngine(deps: DownloadEngineDeps): DownloadEngine {
     row: DownloadRecord,
     providerId: string,
     pageCount: number,
-  ): Promise<DownloadRecord> {
+  ): Promise<DownloadRecord | undefined> {
+    // Cancelling between the queue read and this write must win, not be overwritten
+    // by a `downloading` row.
+    const currentRow = await getDownload(db, row.chapterId);
+    if (currentRow === undefined || currentRow.status === 'cancelled') return undefined;
     return upsertDownload(db, {
       chapterId: row.chapterId,
       mangaId: row.mangaId,
@@ -161,6 +165,7 @@ export function createDownloadEngine(deps: DownloadEngineDeps): DownloadEngine {
 
   async function run(row: DownloadRecord, controller: AbortController): Promise<void> {
     const source = await deps.loadChapter(row.chapterId as ChapterId, controller.signal);
+    if (controller.signal.aborted) return;
     if (source === undefined) {
       await finish(row, 'failed', 'chapter-missing', row.completedPages, row.pageCount, []);
       return;
@@ -186,6 +191,7 @@ export function createDownloadEngine(deps: DownloadEngineDeps): DownloadEngine {
     }
 
     const started = await markStart(row, providerId, pageCount);
+    if (started === undefined) return;
     await markChapterPagesDownloaded(db, {
       providerId,
       mangaId: chapter.mangaId,

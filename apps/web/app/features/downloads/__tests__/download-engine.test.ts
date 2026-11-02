@@ -281,6 +281,41 @@ describe('download engine', () => {
     expect(store.fetches()).toBeLessThan(12);
   });
 
+  it('Given a cancel while the provider page list is loading, When it returns, Then the cancel is not overwritten', async () => {
+    const { db } = await createSqlJsHarness();
+    const store = createAdapter();
+    const source = { chapter: chapter(6), providerId: PROVIDER_ID };
+    let started = false;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const engine = createDownloadEngine({
+      db,
+      adapter: store.adapter,
+      readChapter: async () => source,
+      loadChapter: async () => {
+        started = true;
+        await gate;
+        return source;
+      },
+    });
+
+    await engine.enqueue(CHAPTER_ID);
+    await vi.waitFor(() => expect(started).toBe(true));
+    const cancelling = engine.cancel(CHAPTER_ID);
+    release();
+    await cancelling;
+
+    expect((await getDownload(db, CHAPTER_ID))?.status).toBe('cancelled');
+    expect(
+      await listCachedChapterPageIndexes(db, {
+        providerId: 'mangadex',
+        mangaId: 'manga-1',
+        chapterId: 'chapter-1',
+      }),
+    ).toEqual([]);
+    expect(store.fetches()).toBe(0);
+  });
+
   it('Given a full disk, When a page save fails, Then the download is failed with a storage code and every saved page is kept', async () => {
     const { db } = await createSqlJsHarness();
     const store = createAdapter({ failPutAt: 2 });
