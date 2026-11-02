@@ -13,6 +13,7 @@
     "pretest": "node scripts/bundle-preload.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e:electron": "playwright test --config playwright.config.ts",
     "lint": "oxlint src scripts",
     "lint:fix": "oxlint src scripts --fix",
     "clean": "rm -rf dist out"
@@ -23,13 +24,12 @@
     "@app/web": "workspace:*",
     "@tanstack/react-router": "^1.170.42",
     "electron": "^44.7.0",
-    "express": "^5.3.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@types/express": "^5.0.6",
+    "@playwright/test": "^1.64.0",
     "@types/node": "^26.6.5",
     "esbuild": "^0.28.2",
     "oxlint": "^1.87.0",

@@ -25,20 +25,25 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
     ].join('; ');
   }
 
+  // Production serves the static shell from app://app (`'self'`): no loopback origin, no inline
+  // or eval'd script.
   return [
     "default-src 'self'",
     "script-src 'self' 'wasm-unsafe-eval'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
-    `connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:* ${MANGADEX_CONNECT_SRC}`,
+    `connect-src 'self' ${MANGADEX_CONNECT_SRC}`,
     "font-src 'self' data:",
     "worker-src 'self' blob:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "frame-ancestors 'none'",
   ].join('; ');
 }
 
-/** Apply CSP via response headers. Dev policy allows Vite HMR (eval + websocket). */
-export function registerContentSecurityPolicy(isDev: boolean): void {
-  const csp = buildContentSecurityPolicy(isDev);
+/** Dev only: the Vite server sends no CSP, so add the HMR-friendly policy to its responses. */
+export function registerDevContentSecurityPolicy(): void {
+  const csp = buildContentSecurityPolicy(true);
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({

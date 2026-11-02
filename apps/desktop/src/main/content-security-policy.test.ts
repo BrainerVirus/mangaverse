@@ -18,8 +18,10 @@ describe('buildContentSecurityPolicy', () => {
     const csp = buildContentSecurityPolicy(false);
     expect(csp).not.toContain("'unsafe-eval'");
     expect(csp).toContain("'wasm-unsafe-eval'");
-    expect(csp).toContain("script-src 'self'");
-    expect(csp).toContain('http://127.0.0.1:*');
+    expect(csp).toContain("script-src 'self' 'wasm-unsafe-eval';");
+    expect(csp).not.toContain("'unsafe-inline' 'unsafe-eval'");
+    expect(csp).not.toMatch(/127\.0\.0\.1|localhost/);
+    expect(csp).toContain("object-src 'none'");
     expect(csp).toContain('https://api.mangadex.org');
     expect(csp).toContain('https://uploads.mangadex.org');
   });
