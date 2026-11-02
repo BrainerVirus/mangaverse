@@ -26,6 +26,8 @@ const EXTENSION_LOGS_MIGRATION_HASH =
   'f5f3e68be2c6f46ff21681f230763e499e788ed133b0de3df942b443b5f07d12';
 const LIBRARY_PAGE_INDEXES_MIGRATION_HASH =
   '3e1d8437b48edaa6b8c2f90af9e0e863b1a2f120604ce533c1d21a2855fb285b';
+const DOWNLOADS_MIGRATION_HASH =
+  '972b8031ccfb59c9dde30b52d04f6d4ede700bd25f806669fd0e47616188c6bc';
 
 function loadBundledMigrationFixtures() {
   const testDir = dirname(fileURLToPath(import.meta.url));
@@ -55,6 +57,7 @@ function loadBundledMigrationFixtures() {
       join(migrationsRoot, '0008_library_page_indexes.sql'),
       'utf8',
     ),
+    downloadsSql: readFileSync(join(migrationsRoot, '0009_downloads.sql'), 'utf8'),
     journal: JSON.parse(readFileSync(join(migrationsRoot, 'meta/_journal.json'), 'utf8')),
   };
 }
@@ -114,6 +117,7 @@ describe('local-db bundled migration path', () => {
       installedExtensionManifestUrlSql,
       extensionLogsSql,
       libraryPageIndexesSql,
+      downloadsSql,
       journal,
     } = loadBundledMigrationFixtures();
     const SQL = await initSqlJs();
@@ -165,6 +169,11 @@ describe('local-db bundled migration path', () => {
         sql: libraryPageIndexesSql,
         hash: LIBRARY_PAGE_INDEXES_MIGRATION_HASH,
       },
+      {
+        tag: '0009_downloads',
+        sql: downloadsSql,
+        hash: DOWNLOADS_MIGRATION_HASH,
+      },
     ]);
 
     const tables = db
@@ -175,6 +184,7 @@ describe('local-db bundled migration path', () => {
     expect(tables).toContain('extension_logs');
     expect(tables).toContain('library_entries');
     expect(tables).toContain('themes');
+    expect(tables).toContain('downloads');
     expect(tables).toContain('__drizzle_migrations');
   });
 });

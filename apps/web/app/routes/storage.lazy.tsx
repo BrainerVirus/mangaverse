@@ -1,7 +1,9 @@
 import { createLazyFileRoute } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { toChapterId } from '@app/shared';
 import { createAppPlatformAdapter } from '@/features/diagnostics/index.js';
+import { useDownloadEngine } from '@/features/downloads/index.js';
 import {
   StoragePage,
   clearStorageData,
@@ -26,6 +28,7 @@ function StorageRoute() {
   const dbStatus = useLocalDbStatus();
   const { capabilities } = usePlatform();
   const adapter = createAppPlatformAdapter();
+  const downloadEngine = useDownloadEngine();
   const [lastActionMessage, setLastActionMessage] = useState<string | null>(null);
   const [lastActionError, setLastActionError] = useState<string | null>(null);
 
@@ -87,6 +90,45 @@ function StorageRoute() {
     },
   });
 
+  const removeDownloadMutation = useMutation({
+    mutationFn: async (chapterId: string) => {
+      if (downloadEngine === null) throw new Error('Downloads are not ready.');
+      return downloadEngine.remove(toChapterId(chapterId));
+    },
+    onSuccess: (result) => {
+      setLastActionError(null);
+      setLastActionMessage(
+        `Removed the download: ${result.removedPages} page${result.removedPages === 1 ? '' : 's'} freed.`,
+      );
+    },
+    onError: (error) => {
+      setLastActionMessage(null);
+      setLastActionError(failureMessage(error, 'Could not remove the download.'));
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: storageQueryKeys.summary() });
+    },
+  });
+
+  async function retryDownload(chapterId: string): Promise<void> {
+    if (downloadEngine === null) return;
+    await downloadEngine
+      .retry(toChapterId(chapterId))
+      .then(
+        () => {
+          setLastActionError(null);
+          setLastActionMessage('Resuming the download.');
+        },
+        (error: unknown) => {
+          setLastActionMessage(null);
+          setLastActionError(failureMessage(error, 'Could not resume the download.'));
+        },
+      )
+      .finally(() => {
+        void queryClient.invalidateQueries({ queryKey: storageQueryKeys.summary() });
+      });
+  }
+
   return (
     <StoragePage
       isLoading={dbStatus === 'loading' || summaryQuery.isLoading}
@@ -94,6 +136,7 @@ function StorageRoute() {
       isRefreshing={summaryQuery.isFetching && !summaryQuery.isLoading}
       isClearing={clearMutation.isPending}
       isRequestingPersist={persistMutation.isPending}
+      isDownloadActionPending={removeDownloadMutation.isPending}
       summary={summaryQuery.data ?? null}
       capabilities={capabilities}
       lastActionMessage={lastActionMessage}
@@ -103,6 +146,8 @@ function StorageRoute() {
       }}
       onClear={(target) => clearMutation.mutate(target)}
       onRequestPersistentStorage={() => persistMutation.mutate()}
+      onRetryDownload={(chapterId) => void retryDownload(chapterId)}
+      onRemoveDownload={(chapterId) => removeDownloadMutation.mutate(chapterId)}
       onDismissActionStatus={() => {
         setLastActionMessage(null);
         setLastActionError(null);

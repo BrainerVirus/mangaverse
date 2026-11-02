@@ -9,6 +9,13 @@ import {
   type MangaDetailData,
   type MergeDuplicateInput,
 } from '@/features/library';
+import {
+  fetchMangaDownloads,
+  downloadsQueryKeys,
+  useDownloadEngine,
+  useDownloadProgress,
+  type DownloadCommand,
+} from '@/features/downloads';
 import { extensionsQueryKeys, fetchProviderUiInfo } from '@app/extensions';
 import {
   mergeMangaIdentities,
@@ -19,9 +26,11 @@ import {
 import {
   toLibraryEntryId,
   toMangaId,
+  type ChapterId,
   type MangaProviderMapping,
   type ProviderMappingId,
 } from '@app/shared';
+import { notify } from '@app/design-system';
 import {
   createAddToLibraryMutationOptions,
   createLibraryOrganizationMutationOptions,
@@ -61,6 +70,7 @@ import {
   runProviderAction,
 } from '../queries/manga-detail-route-helpers.js';
 import { saveFeedback } from '../lib/feedback.js';
+import { failureMessage } from '../lib/app-feedback.js';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 
 export const Route = createFileRoute('/manga/$id')({
@@ -123,6 +133,36 @@ function MangaDetailRoute() {
     queryFn: () => findDuplicateCandidates(db!, mangaId),
     enabled: ready,
   });
+
+  const downloadsQuery = useQuery({
+    queryKey: downloadsQueryKeys.forManga(mangaId),
+    queryFn: () => fetchMangaDownloads(db!, mangaId),
+    enabled: ready,
+  });
+  const downloadEngine = useDownloadEngine();
+  const downloadProgress = useDownloadProgress();
+
+  function runDownloadCommand(chapterId: ChapterId, command: DownloadCommand): void {
+    if (downloadEngine === null) return;
+    const action = (() => {
+      switch (command) {
+        case 'download':
+          return downloadEngine.enqueue(chapterId);
+        case 'cancel':
+          return downloadEngine.cancel(chapterId);
+        case 'retry':
+          return downloadEngine.retry(chapterId);
+        case 'remove':
+          return downloadEngine.remove(chapterId);
+      }
+    })();
+    void action.catch((error: unknown) => {
+      notify.failure({
+        key: 'download-action',
+        message: failureMessage(error, 'Could not update the download.'),
+      });
+    });
+  }
 
   const providerLabels = useMemo(() => {
     const labels: Record<string, string> = {};
@@ -295,6 +335,10 @@ function MangaDetailRoute() {
       onMarkPreviousChaptersRead={(chapterId) =>
         chapterMutation.mutateAsync({ type: 'previous', chapterId })
       }
+      {...(downloadsQuery.data === undefined ? {} : { downloads: downloadsQuery.data })}
+      downloadProgress={downloadProgress}
+      isDownloadPending={downloadEngine === null}
+      onDownloadCommand={runDownloadCommand}
       isCoverActionPending={coverMutation.isPending}
       onSetCoverImageUrl={(url) => coverMutation.mutateAsync(url)}
       onOpenMigration={() => openMigration((href) => void navigate({ href }), activeMapping)}

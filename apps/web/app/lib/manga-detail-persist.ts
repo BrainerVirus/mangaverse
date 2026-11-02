@@ -97,9 +97,6 @@ export function mergeMangaDetailWithLibrary(
     libraryEntry: local.libraryEntry,
     continueChapterId: local.continueChapterId ?? detail.continueChapterId,
     ...(local.readStates !== undefined ? { readStates: local.readStates } : {}),
-    ...(local.downloadedChapterIds !== undefined
-      ? { downloadedChapterIds: local.downloadedChapterIds }
-      : {}),
   };
 }
 

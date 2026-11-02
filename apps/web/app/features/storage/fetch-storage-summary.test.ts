@@ -5,7 +5,7 @@ import { clearStorageData } from './clear-storage-data.js';
 import { fetchStorageSummary } from './fetch-storage-summary.js';
 import { createSqlJsHarness } from '@app/db/testing';
 import type { PlatformAdapter, PlatformCapabilities } from '@app/platform';
-import { appendSearchHistory, upsertCacheEntry } from '@app/db';
+import { appendSearchHistory, upsertCacheEntry, upsertDownload } from '@app/db';
 
 const adapter = {
   storage: {
@@ -109,5 +109,53 @@ describe('storage services', () => {
 
     expect(summary.cacheEntryCount).toBe(0);
     expect(summary.searchHistoryCount).toBe(0);
+  });
+  it('reports download bytes separately and keeps downloads when clearing provider cache', async () => {
+    const { db } = await createSqlJsHarness();
+
+    await upsertCacheEntry(db, {
+      id: 'page:prov-a:manga-1:chapter-1:0',
+      providerId: 'prov-a',
+      mangaId: 'manga-1',
+      chapterId: 'chapter-1',
+      cacheKind: 'page',
+      byteSize: 7,
+      metadata: { pageIndex: 0, retention: 'download' },
+    });
+    await upsertCacheEntry(db, {
+      id: 'page:prov-a:manga-1:chapter-2:0',
+      providerId: 'prov-a',
+      mangaId: 'manga-1',
+      chapterId: 'chapter-2',
+      cacheKind: 'page',
+      byteSize: 3,
+      metadata: { pageIndex: 0, retention: 'normal' },
+    });
+    await upsertDownload(db, {
+      chapterId: 'chapter-1',
+      mangaId: 'manga-1',
+      providerId: 'prov-a',
+      status: 'complete',
+      pageCount: 1,
+      completedPages: 1,
+    });
+
+    const summary = await fetchStorageSummary({ db, adapter, capabilities: webCapabilities });
+    expect(summary.cacheTotalBytes).toBe(10);
+    expect(summary.cacheEvictableBytes).toBe(3);
+    expect(summary.downloads).toMatchObject({
+      count: 1,
+      pageCount: 1,
+      bytes: 7,
+      items: [{ chapterId: 'chapter-1', status: 'complete', bytes: 7, title: 'chapter-1' }],
+    });
+
+    const cleared = await clearStorageData({ db, adapter, target: 'provider_cache' });
+    expect(cleared.clearedCount).toBe(1);
+
+    const after = await fetchStorageSummary({ db, adapter, capabilities: webCapabilities });
+    expect(after.cacheTotalBytes).toBe(7);
+    expect(after.downloads.count).toBe(1);
+    expect(after.cacheEvictableBytes).toBe(0);
   });
 });

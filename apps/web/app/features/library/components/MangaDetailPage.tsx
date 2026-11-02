@@ -44,6 +44,11 @@ import {
 } from 'lucide-react';
 import { chaptersForMapping } from '../chapter-list.js';
 import type { MangaDetailData } from '../types.js';
+import type {
+  ChapterDownloadState,
+  DownloadCommand,
+  DownloadProgress,
+} from '@/features/downloads/types.js';
 import type { MergePreview, UnmergeMappingPreview } from '@app/db';
 import { ConfirmRemoveFromLibraryDialog } from './ConfirmRemoveFromLibraryDialog.js';
 import { MangaChapterList } from './MangaChapterList.js';
@@ -88,6 +93,10 @@ export interface MangaDetailPageProps {
   isChaptersLoading?: boolean;
   chaptersError?: string;
   onRetryChapters?: () => void;
+  downloads?: readonly ChapterDownloadState[];
+  downloadProgress?: DownloadProgress | null;
+  isDownloadPending?: boolean;
+  onDownloadCommand?: (chapterId: ChapterId, command: DownloadCommand) => void;
   onSetChapterRead?: (chapterId: ChapterId, read: boolean) => Promise<void> | void;
   onMarkPreviousChaptersRead?: (chapterId: ChapterId) => Promise<void> | void;
   isCoverActionPending?: boolean;
@@ -839,6 +848,10 @@ function MangaChaptersSection({
   onRetryLoad,
   onSetChapterRead,
   onMarkPreviousChaptersRead,
+  downloads,
+  downloadProgress,
+  isDownloadPending,
+  onDownloadCommand,
 }: {
   readonly view: MangaDetailView;
   readonly isPending: boolean;
@@ -848,6 +861,10 @@ function MangaChaptersSection({
   onRetryLoad: (() => void) | undefined;
   onSetChapterRead: ((chapterId: ChapterId, read: boolean) => Promise<void> | void) | undefined;
   onMarkPreviousChaptersRead: ((chapterId: ChapterId) => Promise<void> | void) | undefined;
+  downloads: readonly ChapterDownloadState[] | undefined;
+  downloadProgress: DownloadProgress | null | undefined;
+  isDownloadPending: boolean;
+  onDownloadCommand: ((chapterId: ChapterId, command: DownloadCommand) => void) | undefined;
 }) {
   const { data, activeMappingId } = view;
   const lastReadChapterId = data.libraryEntry?.lastReadChapterId;
@@ -856,13 +873,13 @@ function MangaChaptersSection({
     <MangaChapterList
       chapters={data.chapters}
       {...(data.readStates === undefined ? {} : { readStates: data.readStates })}
-      {...(data.downloadedChapterIds === undefined
-        ? {}
-        : { downloadedChapterIds: data.downloadedChapterIds })}
+      {...(downloads === undefined ? {} : { downloads })}
+      {...(downloadProgress === undefined ? {} : { downloadProgress })}
       {...(activeMappingId === undefined ? {} : { mappingId: activeMappingId })}
       {...(lastReadChapterId === undefined ? {} : { lastReadChapterId })}
       isPending={isPending}
       isLoading={isLoading}
+      isDownloadPending={isDownloadPending}
       {...(loadError === undefined ? {} : { loadError })}
       onOpenChapter={onOpenChapter}
       {...(onRetryLoad === undefined ? {} : { onRetryLoad })}
@@ -870,6 +887,7 @@ function MangaChaptersSection({
       {...(onMarkPreviousChaptersRead === undefined
         ? {}
         : { onMarkPreviousRead: onMarkPreviousChaptersRead })}
+      {...(onDownloadCommand === undefined ? {} : { onDownloadCommand })}
     />
   );
 }
@@ -967,6 +985,10 @@ function MangaChaptersHost({ props, view }: DetailHostProps) {
       onRetryLoad={props.onRetryChapters}
       onSetChapterRead={props.onSetChapterRead}
       onMarkPreviousChaptersRead={props.onMarkPreviousChaptersRead}
+      downloads={props.downloads}
+      downloadProgress={props.downloadProgress}
+      isDownloadPending={props.isDownloadPending ?? false}
+      onDownloadCommand={props.onDownloadCommand}
     />
   );
 }
