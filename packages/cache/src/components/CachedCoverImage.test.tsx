@@ -45,6 +45,7 @@ describe('CachedCoverImage', () => {
           mangaId="m"
           remoteUrl="https://example.com/custom.jpg"
           alt="Manga"
+          userProvided
         />,
       ),
     );
@@ -53,7 +54,10 @@ describe('CachedCoverImage', () => {
     expect(image?.getAttribute('src')).toBe('blob:custom');
     expect(image?.getAttribute('data-cover-url')).toBe('https://example.com/custom.jpg');
     expect(mocks.resolve).toHaveBeenLastCalledWith(
-      expect.objectContaining({ remoteUrl: 'https://example.com/custom.jpg' }),
+      expect.objectContaining({
+        remoteUrl: 'https://example.com/custom.jpg',
+        userProvided: true,
+      }),
     );
 
     act(() => root.unmount());

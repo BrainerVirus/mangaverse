@@ -48,6 +48,35 @@ describe('createProviderAllowlist', () => {
     expect(allowlist.size()).toBe(0);
   });
 
+  it('replaces the whole table and drops ids missing from the snapshot', () => {
+    const allowlist = createProviderAllowlist();
+    allowlist.register('mangadex', ['api.mangadex.org']);
+    allowlist.register('other', ['api.other.example']);
+
+    allowlist.replaceAll([
+      { providerId: 'mangadex', domains: ['api.mangadex.org', 'uploads.mangadex.org'] },
+    ]);
+
+    expect(allowlist.size()).toBe(1);
+    expect(allowlist.allowsUrl('mangadex', 'https://uploads.mangadex.org/x.png')).toBe(true);
+    expect(allowlist.allowsUrl('other', 'https://api.other.example/x')).toBe(false);
+  });
+
+  it('validates a snapshot before changing anything', () => {
+    const allowlist = createProviderAllowlist();
+    allowlist.register('mangadex', ['api.mangadex.org']);
+
+    expect(() =>
+      allowlist.replaceAll([
+        { providerId: 'other', domains: ['api.other.example'] },
+        { providerId: 'bad id', domains: ['api.evil.example'] },
+      ]),
+    ).toThrow(/Invalid provider id/);
+
+    expect(allowlist.size()).toBe(1);
+    expect(allowlist.allowsUrl('mangadex', 'https://api.mangadex.org/')).toBe(true);
+  });
+
   it('treats an empty registration as deny-all and normalizes ids and patterns', () => {
     const allowlist = createProviderAllowlist();
     allowlist.register(' MangaDex ', ['API.MangaDex.org']);

@@ -29,10 +29,16 @@ const valid: PlatformIpcRequest[] = [
   { channel: PLATFORM_IPC.PAGE_STORE_DELETE, args: ['page:p:m:c:0'] },
   { channel: PLATFORM_IPC.PAGE_STORE_LIST_KEYS, args: [] },
   {
-    channel: PLATFORM_IPC.PROVIDER_NETWORK_REGISTER,
-    args: [{ providerId: 'mangadex', domains: ['api.mangadex.org', '*.mangadex.network'] }],
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_REPLACE,
+    args: [
+      {
+        revision: 1,
+        providers: [
+          { providerId: 'mangadex', domains: ['api.mangadex.org', '*.mangadex.network'] },
+        ],
+      },
+    ],
   },
-  { channel: PLATFORM_IPC.PROVIDER_NETWORK_UNREGISTER, args: ['mangadex'] },
   {
     channel: PLATFORM_IPC.PROVIDER_NETWORK_REQUEST,
     args: [
@@ -53,6 +59,10 @@ const valid: PlatformIpcRequest[] = [
         key: 'page:mangadex:m:c:0',
       },
     ],
+  },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_STORE_USER_INITIATED,
+    args: [{ url: 'https://example.com/cover.jpg', key: 'page:cover:mangadex:m' }],
   },
 ];
 
@@ -81,14 +91,27 @@ const invalid: { channel: PlatformIpcChannel; args: unknown[] }[] = [
   { channel: PLATFORM_IPC.PAGE_STORE_DELETE, args: ['cover:p:m'] },
   { channel: PLATFORM_IPC.PAGE_STORE_LIST_KEYS, args: ['extra'] },
   {
-    channel: PLATFORM_IPC.PROVIDER_NETWORK_REGISTER,
-    args: [{ providerId: 'mangadex', domains: ['https://api.mangadex.org'] }],
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_REPLACE,
+    args: [
+      {
+        revision: 1,
+        providers: [{ providerId: 'mangadex', domains: ['https://api.mangadex.org'] }],
+      },
+    ],
   },
   {
-    channel: PLATFORM_IPC.PROVIDER_NETWORK_REGISTER,
-    args: [{ providerId: 'mangadex', domains: ['api.mangadex.org'], extra: true }],
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_REPLACE,
+    args: [
+      {
+        revision: 1,
+        providers: [{ providerId: 'mangadex', domains: ['api.mangadex.org'], extra: true }],
+      },
+    ],
   },
-  { channel: PLATFORM_IPC.PROVIDER_NETWORK_UNREGISTER, args: ['bad id'] },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_REPLACE,
+    args: [{ revision: -1, providers: [] }],
+  },
   {
     channel: PLATFORM_IPC.PROVIDER_NETWORK_REQUEST,
     args: [{ providerId: 'mangadex', url: 'http://127.0.0.1/manga' }],
@@ -112,6 +135,14 @@ const invalid: { channel: PlatformIpcChannel; args: unknown[] }[] = [
     args: [
       { providerId: 'mangadex', url: 'https://uploads.mangadex.org/page.png', key: 'cover:x:y' },
     ],
+  },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_STORE_USER_INITIATED,
+    args: [{ url: 'http://127.0.0.1/cover.jpg', key: 'page:cover:mangadex:m' }],
+  },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_STORE_USER_INITIATED,
+    args: [{ url: 'https://example.com/cover.jpg', key: 'cover:x:y' }],
   },
 ];
 

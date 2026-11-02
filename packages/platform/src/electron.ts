@@ -201,12 +201,12 @@ export function createElectronPlatformAdapter(bridge: DesktopPlatformBridge): Pl
     },
 
     providerNetwork: {
-      registerProvider: (providerId: string, domains: readonly string[]) =>
-        asResult(() => bridge.providerNetworkRegister(providerId, domains)),
-      unregisterProvider: (providerId: string) =>
-        asResult(() => bridge.providerNetworkUnregister(providerId)),
+      replaceProviders: (providers, revision) =>
+        asResult(() => bridge.providerNetworkReplace(providers, revision)),
       request: (input) => asResult(() => bridge.providerNetworkRequest(input)),
       fetchAndStore: (input) => asResult(() => bridge.providerNetworkStore(input)),
+      fetchAndStoreUserInitiated: (input) =>
+        asResult(() => bridge.providerNetworkStoreUserInitiated(input)),
     },
   };
 }

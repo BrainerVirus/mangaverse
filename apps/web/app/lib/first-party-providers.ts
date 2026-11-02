@@ -2,12 +2,36 @@ import type { AppDrizzleDb } from '@app/db/browser';
 import { listInstalledExtensions, upsertInstalledExtension } from '@app/db/browser';
 import { MANGADEX_MANIFEST } from '@app/extensions/mangadex';
 import {
+  providerNetworkDomains,
   toExtensionInstallId,
   type ExtensionInstallMetadata,
   type ProviderManifest,
 } from '@app/shared';
 
 const FIRST_PARTY_MANIFESTS: readonly ProviderManifest[] = [MANGADEX_MANIFEST];
+
+function sameDomains(
+  left: readonly string[] | undefined,
+  right: readonly string[] | undefined,
+): boolean {
+  const a = [...(left ?? [])].sort();
+  const b = [...(right ?? [])].sort();
+  return a.length === b.length && a.every((domain, index) => domain === b[index]);
+}
+
+/**
+ * Whether the bundled manifest carries content the stored copy lacks. A version
+ * bump always refreshes, and so does a same-version edit to the network domains
+ * or checksum: an older install may predate the `network` block entirely, and
+ * without this refresh main would keep denying every request for it.
+ */
+function needsRefresh(existing: ExtensionInstallMetadata, bundled: ProviderManifest): boolean {
+  return (
+    existing.installedVersion !== bundled.version ||
+    existing.manifest.checksum !== bundled.checksum ||
+    !sameDomains(providerNetworkDomains(existing.manifest), providerNetworkDomains(bundled))
+  );
+}
 
 /**
  * Registers bundled first-party providers on app start.
@@ -23,7 +47,7 @@ export async function installFirstPartyProviders(db: AppDrizzleDb): Promise<void
   for (const manifest of FIRST_PARTY_MANIFESTS) {
     const existing = installed.find((entry) => String(entry.manifest.id) === String(manifest.id));
 
-    if (existing !== undefined && existing.installedVersion === manifest.version) {
+    if (existing !== undefined && !needsRefresh(existing, manifest)) {
       continue;
     }
 

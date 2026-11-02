@@ -29,7 +29,9 @@ function register(opts: { trusted?: boolean; requestHop?: RequestHop } = {}) {
     isTrustedFrame: (() => opts.trusted !== false) as never,
     networkTransport: {
       resolveHostAddresses: async (hostname) =>
-        hostname === 'api.mangadex.org' ? ['93.184.216.34'] : ['127.0.0.1'],
+        hostname === 'api.mangadex.org' || hostname === 'example.com'
+          ? ['93.184.216.34']
+          : ['127.0.0.1'],
       requestHop,
       log,
     },
@@ -43,48 +45,60 @@ function register(opts: { trusted?: boolean; requestHop?: RequestHop } = {}) {
   });
   const call = (channel: string, ...args: unknown[]) =>
     handlers.get(channel)!({ senderFrame: {} as never }, ...args);
-  return { allowlist, call, requestHop, log, put };
+  const replace = (
+    providers: readonly { providerId: string; domains: readonly string[] }[],
+    revision = 1,
+  ) => call(PLATFORM_IPC.PROVIDER_NETWORK_REPLACE, { providers, revision });
+  return { allowlist, call, replace, requestHop, log, put };
 }
 
 describe('registerProviderNetworkIpc', () => {
-  it('registers manifest domains and lets only those hosts through', async () => {
-    const { allowlist, call } = register();
+  it('replaces the table with manifest domains and lets only those hosts through', async () => {
+    const { allowlist, replace } = register();
 
-    const result = (await call(PLATFORM_IPC.PROVIDER_NETWORK_REGISTER, {
-      providerId: 'mangadex',
-      domains: ['api.mangadex.org', '*.mangadex.network'],
-    })) as { ok: boolean };
+    const result = (await replace([
+      { providerId: 'mangadex', domains: ['api.mangadex.org', '*.mangadex.network'] },
+    ])) as { ok: boolean };
 
     expect(result.ok).toBe(true);
     expect(allowlist.allowsUrl('mangadex', 'https://api.mangadex.org/manga')).toBe(true);
     expect(allowlist.allowsUrl('mangadex', 'https://evil.example/manga')).toBe(false);
   });
 
-  it('unregisters on uninstall', async () => {
-    const { allowlist, call } = register();
-    await call(PLATFORM_IPC.PROVIDER_NETWORK_REGISTER, {
-      providerId: 'mangadex',
-      domains: ['api.mangadex.org'],
-    });
+  it('removes every provider the snapshot omits', async () => {
+    const { allowlist, replace } = register();
+    await replace([
+      { providerId: 'mangadex', domains: ['api.mangadex.org'] },
+      { providerId: 'other', domains: ['api.other.example'] },
+    ]);
+    expect(allowlist.size()).toBe(2);
 
-    const result = (await call(PLATFORM_IPC.PROVIDER_NETWORK_UNREGISTER, 'mangadex')) as {
-      ok: boolean;
-    };
+    await replace([{ providerId: 'mangadex', domains: ['api.mangadex.org'] }], 2);
 
-    expect(result.ok).toBe(true);
-    expect(allowlist.allowsUrl('mangadex', 'https://api.mangadex.org/manga')).toBe(false);
+    expect(allowlist.size()).toBe(1);
+    expect(allowlist.allowsUrl('other', 'https://api.other.example/x')).toBe(false);
+  });
+
+  it('ignores a stale revision so an older snapshot cannot re-register a disabled provider', async () => {
+    const { allowlist, replace } = register();
+    await replace([{ providerId: 'mangadex', domains: ['api.mangadex.org'] }], 2);
+
+    await replace([{ providerId: 'stale', domains: ['api.stale.example'] }], 1);
+
+    expect(allowlist.allowsUrl('mangadex', 'https://api.mangadex.org/manga')).toBe(true);
+    expect(allowlist.allowsUrl('stale', 'https://api.stale.example/x')).toBe(false);
   });
 
   it('refuses a payload that carries a scheme or an invalid provider id', async () => {
     const { call } = register();
 
-    const badDomain = (await call(PLATFORM_IPC.PROVIDER_NETWORK_REGISTER, {
-      providerId: 'mangadex',
-      domains: ['https://api.mangadex.org'],
+    const badDomain = (await call(PLATFORM_IPC.PROVIDER_NETWORK_REPLACE, {
+      revision: 1,
+      providers: [{ providerId: 'mangadex', domains: ['https://api.mangadex.org'] }],
     })) as { ok: boolean };
-    const badId = (await call(PLATFORM_IPC.PROVIDER_NETWORK_REGISTER, {
-      providerId: 'bad id',
-      domains: ['api.mangadex.org'],
+    const badId = (await call(PLATFORM_IPC.PROVIDER_NETWORK_REPLACE, {
+      revision: 1,
+      providers: [{ providerId: 'bad id', domains: ['api.mangadex.org'] }],
     })) as { ok: boolean };
 
     expect(badDomain.ok).toBe(false);
@@ -92,11 +106,8 @@ describe('registerProviderNetworkIpc', () => {
   });
 
   it('runs a registered provider request in main and filters the response headers', async () => {
-    const { call, requestHop } = register();
-    await call(PLATFORM_IPC.PROVIDER_NETWORK_REGISTER, {
-      providerId: 'mangadex',
-      domains: ['api.mangadex.org'],
-    });
+    const { replace, call, requestHop } = register();
+    await replace([{ providerId: 'mangadex', domains: ['api.mangadex.org'] }]);
 
     const result = (await call(PLATFORM_IPC.PROVIDER_NETWORK_REQUEST, {
       providerId: 'mangadex',
@@ -120,11 +131,8 @@ describe('registerProviderNetworkIpc', () => {
   });
 
   it('refuses a request for an unknown provider or an undeclared host', async () => {
-    const { call, requestHop } = register();
-    await call(PLATFORM_IPC.PROVIDER_NETWORK_REGISTER, {
-      providerId: 'mangadex',
-      domains: ['api.mangadex.org'],
-    });
+    const { replace, call, requestHop } = register();
+    await replace([{ providerId: 'mangadex', domains: ['api.mangadex.org'] }]);
 
     const unknownProvider = (await call(PLATFORM_IPC.PROVIDER_NETWORK_REQUEST, {
       providerId: 'other',
@@ -147,11 +155,8 @@ describe('registerProviderNetworkIpc', () => {
       location: 'https://evil.example/steal',
       status: 302,
     }));
-    const { call } = register({ requestHop });
-    await call(PLATFORM_IPC.PROVIDER_NETWORK_REGISTER, {
-      providerId: 'mangadex',
-      domains: ['api.mangadex.org'],
-    });
+    const { replace, call } = register({ requestHop });
+    await replace([{ providerId: 'mangadex', domains: ['api.mangadex.org'] }]);
 
     const result = (await call(PLATFORM_IPC.PROVIDER_NETWORK_REQUEST, {
       providerId: 'mangadex',
@@ -171,11 +176,8 @@ describe('registerProviderNetworkIpc', () => {
       body: Buffer.from('{"error":"not_found"}'),
       finalUrl: 'https://api.mangadex.org/manga',
     }));
-    const { call } = register({ requestHop });
-    await call(PLATFORM_IPC.PROVIDER_NETWORK_REGISTER, {
-      providerId: 'mangadex',
-      domains: ['api.mangadex.org'],
-    });
+    const { replace, call } = register({ requestHop });
+    await replace([{ providerId: 'mangadex', domains: ['api.mangadex.org'] }]);
 
     const result = (await call(PLATFORM_IPC.PROVIDER_NETWORK_REQUEST, {
       providerId: 'mangadex',
@@ -194,11 +196,8 @@ describe('registerProviderNetworkIpc', () => {
       body: Buffer.from([1, 2, 3]),
       finalUrl: 'https://api.mangadex.org/page.png',
     }));
-    const { call, put } = register({ requestHop });
-    await call(PLATFORM_IPC.PROVIDER_NETWORK_REGISTER, {
-      providerId: 'mangadex',
-      domains: ['api.mangadex.org'],
-    });
+    const { replace, call, put } = register({ requestHop });
+    await replace([{ providerId: 'mangadex', domains: ['api.mangadex.org'] }]);
 
     const result = (await call(PLATFORM_IPC.PROVIDER_NETWORK_STORE, {
       providerId: 'mangadex',
@@ -217,11 +216,8 @@ describe('registerProviderNetworkIpc', () => {
   });
 
   it('refuses to store from a host the provider did not declare', async () => {
-    const { call, put, requestHop } = register();
-    await call(PLATFORM_IPC.PROVIDER_NETWORK_REGISTER, {
-      providerId: 'mangadex',
-      domains: ['api.mangadex.org'],
-    });
+    const { replace, call, put, requestHop } = register();
+    await replace([{ providerId: 'mangadex', domains: ['api.mangadex.org'] }]);
 
     const result = (await call(PLATFORM_IPC.PROVIDER_NETWORK_STORE, {
       providerId: 'mangadex',
@@ -234,13 +230,51 @@ describe('registerProviderNetworkIpc', () => {
     expect(requestHop).not.toHaveBeenCalled();
   });
 
-  it('refuses a registration from a frame that is not the app frame', async () => {
-    const { allowlist, call } = register({ trusted: false });
+  it('Given a user-supplied public cover, When no provider is registered, Then main still stores it', async () => {
+    const requestHop = vi.fn<RequestHop>(async () => ({
+      kind: 'response',
+      status: 200,
+      headers: { 'content-type': 'image/jpeg' },
+      body: Buffer.from([1, 2, 3]),
+      finalUrl: 'https://example.com/cover.jpg',
+    }));
+    const { call, put } = register({ requestHop });
 
-    const result = (await call(PLATFORM_IPC.PROVIDER_NETWORK_REGISTER, {
-      providerId: 'mangadex',
-      domains: ['api.mangadex.org'],
-    })) as { ok: boolean };
+    const result = (await call(PLATFORM_IPC.PROVIDER_NETWORK_STORE_USER_INITIATED, {
+      url: 'https://example.com/cover.jpg',
+      key: 'page:cover:mangadex:m',
+    })) as {
+      ok: boolean;
+      value?: { url: string; mimeType: string; byteSize: number };
+    };
+
+    expect(result.ok).toBe(true);
+    expect(result.value).toEqual({ url: 'page://store/abc', mimeType: 'image/jpeg', byteSize: 3 });
+    expect(result.value).not.toHaveProperty('data');
+    expect(requestHop).toHaveBeenCalledOnce();
+    expect(put).toHaveBeenCalledWith('page:cover:mangadex:m', expect.any(Uint8Array), 'image/jpeg');
+  });
+
+  it('Given a user-supplied private cover, When storing it, Then main refuses before any connection', async () => {
+    const { call, put, requestHop } = register();
+
+    const result = (await call(PLATFORM_IPC.PROVIDER_NETWORK_STORE_USER_INITIATED, {
+      url: 'http://private.test/cover.jpg',
+      key: 'page:cover:mangadex:m',
+    })) as { ok: boolean; error?: { code?: string } };
+
+    expect(result.ok).toBe(false);
+    expect(result.error?.code).toBe('platform.invalid-url');
+    expect(put).not.toHaveBeenCalled();
+    expect(requestHop).not.toHaveBeenCalled();
+  });
+
+  it('refuses a registration from a frame that is not the app frame', async () => {
+    const { allowlist, replace } = register({ trusted: false });
+
+    const result = (await replace([{ providerId: 'mangadex', domains: ['api.mangadex.org'] }])) as {
+      ok: boolean;
+    };
 
     expect(result.ok).toBe(false);
     expect(allowlist.size()).toBe(0);

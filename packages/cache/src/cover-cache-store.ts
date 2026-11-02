@@ -22,6 +22,12 @@ export interface CoverCacheLookupInput {
   readonly providerId: ProviderId | string;
   readonly mangaId: MangaId | string;
   readonly remoteUrl: string;
+  /**
+   * The URL came from the user (a custom cover), not the provider manifest. It
+   * bypasses only the provider allowlist; main still enforces its public-URL,
+   * redirect, size and time checks.
+   */
+  readonly userProvided?: boolean;
 }
 
 export interface CoverCacheStoreResult {
@@ -139,20 +145,30 @@ export async function storeCoverInCache(
 }
 
 /**
- * Desktop path: main fetches the cover under the provider's allowlist and writes it
- * to the page store. Returns its `page://` URL, never the bytes.
+ * Desktop path: main fetches the cover and writes it to the page store. A provider
+ * cover runs under the provider's allowlist; a user-supplied custom cover runs
+ * through the user-initiated path, which keeps every SSRF/size/time check but has
+ * no manifest to authorize the host. Returns its `page://` URL, never the bytes.
  */
 async function storeCoverInMain(
   input: CoverCacheLookupInput,
 ): Promise<CoverCacheStoreResult | undefined> {
-  const store = input.adapter.providerNetwork.fetchAndStore;
-  if (store === undefined) return undefined;
-
   const providerId = String(input.providerId);
   const mangaId = String(input.mangaId);
   const blobKey = buildCoverPageKey(providerId, mangaId);
-  const result = await store({ providerId, url: input.remoteUrl, key: blobKey });
-  if (!result.ok || result.value === undefined) return undefined;
+  const userProvided = input.userProvided === true;
+
+  const result = userProvided
+    ? await input.adapter.providerNetwork.fetchAndStoreUserInitiated?.({
+        url: input.remoteUrl,
+        key: blobKey,
+      })
+    : await input.adapter.providerNetwork.fetchAndStore?.({
+        providerId,
+        url: input.remoteUrl,
+        key: blobKey,
+      });
+  if (result === undefined || !result.ok || result.value === undefined) return undefined;
 
   const stored = result.value;
   await withBlobWrite(blobKey, async () => {
@@ -200,7 +216,11 @@ export async function resolveCoverObjectUrl(
   }
 
   const fetchPromise = (async () => {
-    if (input.adapter.providerNetwork.fetchAndStore !== undefined) {
+    const canStoreInMain =
+      input.userProvided === true
+        ? input.adapter.providerNetwork.fetchAndStoreUserInitiated !== undefined
+        : input.adapter.providerNetwork.fetchAndStore !== undefined;
+    if (canStoreInMain) {
       const stored = await storeCoverInMain(input);
       return stored?.objectUrl;
     }

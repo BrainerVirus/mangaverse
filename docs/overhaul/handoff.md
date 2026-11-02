@@ -65,9 +65,11 @@ driver, over the 100 ms budget, and each library reload runs it.
 
 ## Provider network (#211)
 
-- Main keeps `providerId -> manifest domains` in `provider-allowlist.ts`. The app frame registers it
-  over typed IPC at startup and after every install, import, enable, disable and uninstall; a request
-  never carries domains, and an unknown provider or undeclared host is refused.
+- Main keeps `providerId -> manifest domains` in `provider-allowlist.ts`. The app frame sends a
+  complete enabled-provider snapshot over typed `replace` IPC at startup and after every install,
+  import, enable, disable and uninstall; main replaces its whole table with that snapshot (so ids
+  absent from it lose access), ignores a strictly older revision, and refuses an unknown provider or
+  undeclared host. A request never carries domains.
 - `main-process-fetch.ts` resolves every address, rejects private, loopback, link-local, unspecified
   and multicast answers (IPv4 and IPv6, including mapped forms), and connects to the validated
   address through a pinned `lookup`, so a second DNS answer cannot redirect the socket. The allowlist
@@ -76,10 +78,15 @@ driver, over the 100 ms budget, and each library reload runs it.
 - `providerNetworkRequest` returns status, filtered headers and a bounded body; `provider-fetch.ts`
   adapts it to `Response` for `createMangaDexProvider`, so the SDK client, rate limiter and error
   normalization are unchanged. `providerNetworkStore` fetches and writes a page or cover in main and
-  returns a `page://` URL plus metadata, so no cached image bytes cross IPC on desktop.
+  returns a `page://` URL plus metadata, so no cached image bytes cross IPC on desktop. A
+  user-supplied custom cover uses `providerNetworkStoreUserInitiated`: it has no manifest allowlist,
+  but still enforces the public-URL, redirect, size and time checks.
+- The first-party MangaDex manifest is `0.1.1`, and startup also refreshes a same-version stored copy
+  whose network domains or checksum differ, so pre-network installs gain the allowlist instead of
+  staying denied.
 - The production CSP is `connect-src 'self'` and `img-src 'self' data: blob: page:` (no `https:`);
-  dev adds only the Vite origin and its ws origin. User-initiated manifest/registry URLs go through
-  main's SSRF-checked byte fetch rather than the renderer.
+  dev adds only the Vite origin and its ws origin. User-initiated manifest/registry URLs and update
+  checks go through main's SSRF-checked byte fetch rather than the renderer.
 - Proof: unit tests cover the SSRF matrix, allowlist, rebinding, redirects and limits;
   `apps/desktop/e2e/provider-network.spec.ts` covers Discover, covers, chapters and reader pages from
   the dynamic `*.mangadex.network` baseUrl, a private target and a private redirect refused before

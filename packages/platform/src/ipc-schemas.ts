@@ -80,6 +80,14 @@ const providerNetworkRegistration = z
   })
   .strict();
 
+/** The renderer's complete enabled-provider table; main replaces its own with it. */
+const providerNetworkReplace = z
+  .object({
+    revision: z.number().int().nonnegative(),
+    providers: z.array(providerNetworkRegistration).max(64),
+  })
+  .strict();
+
 const MAX_PROVIDER_REQUEST_BODY = 1_024_000;
 /** A provider request may name a timeout, but never one longer than main's own deadline. */
 const MAX_PROVIDER_REQUEST_TIMEOUT_MS = 60_000;
@@ -97,6 +105,17 @@ const providerRequestHeaderValue = z
 const providerNetworkStore = z
   .object({
     providerId: providerNetworkProviderId,
+    url: z
+      .string()
+      .max(4096)
+      .refine(isSafeNetworkFetchUrl, { error: 'must be a public http or https URL' }),
+    key: pageStoreKey,
+  })
+  .strict();
+
+/** A user-supplied cover: no provider allowlist, but still a public http(s) URL. */
+const providerNetworkStoreUserInitiated = z
+  .object({
     url: z
       .string()
       .max(4096)
@@ -162,10 +181,13 @@ export const platformIpcRequestSchema = z.discriminatedUnion('channel', [
   request(PLATFORM_IPC.PAGE_STORE_URL, z.tuple([pageStoreKey])),
   request(PLATFORM_IPC.PAGE_STORE_DELETE, z.tuple([pageStoreKey])),
   request(PLATFORM_IPC.PAGE_STORE_LIST_KEYS, z.tuple([])),
-  request(PLATFORM_IPC.PROVIDER_NETWORK_REGISTER, z.tuple([providerNetworkRegistration])),
-  request(PLATFORM_IPC.PROVIDER_NETWORK_UNREGISTER, z.tuple([providerNetworkProviderId])),
+  request(PLATFORM_IPC.PROVIDER_NETWORK_REPLACE, z.tuple([providerNetworkReplace])),
   request(PLATFORM_IPC.PROVIDER_NETWORK_REQUEST, z.tuple([providerNetworkRequest])),
   request(PLATFORM_IPC.PROVIDER_NETWORK_STORE, z.tuple([providerNetworkStore])),
+  request(
+    PLATFORM_IPC.PROVIDER_NETWORK_STORE_USER_INITIATED,
+    z.tuple([providerNetworkStoreUserInitiated]),
+  ),
 ]);
 
 export type PlatformIpcRequest = z.output<typeof platformIpcRequestSchema>;

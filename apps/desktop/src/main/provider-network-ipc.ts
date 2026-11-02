@@ -22,10 +22,10 @@ import type { ProviderAllowlist } from './provider-allowlist.js';
 import { networkErrorToAppError, toIpcAppResult } from './platform-ipc.js';
 
 export const PROVIDER_NETWORK_CHANNELS = [
-  PLATFORM_IPC.PROVIDER_NETWORK_REGISTER,
-  PLATFORM_IPC.PROVIDER_NETWORK_UNREGISTER,
+  PLATFORM_IPC.PROVIDER_NETWORK_REPLACE,
   PLATFORM_IPC.PROVIDER_NETWORK_REQUEST,
   PLATFORM_IPC.PROVIDER_NETWORK_STORE,
+  PLATFORM_IPC.PROVIDER_NETWORK_STORE_USER_INITIATED,
 ] as const;
 
 /** Response headers a provider client may see; everything else stays in main. */
@@ -94,13 +94,19 @@ export function registerProviderNetworkIpc(deps: ProviderNetworkIpcDeps): void {
     });
   }
 
-  handle(PLATFORM_IPC.PROVIDER_NETWORK_REGISTER, ([registration]) => {
-    deps.allowlist.register(registration.providerId, registration.domains);
-    return ok(undefined);
-  });
-
-  handle(PLATFORM_IPC.PROVIDER_NETWORK_UNREGISTER, ([providerId]) => {
-    deps.allowlist.unregister(providerId);
+  // Main is authoritative: the renderer sends its complete enabled-provider table
+  // and main makes that the whole map, dropping ids the snapshot omits. A revision
+  // orders overlapping syncs so an older, slower snapshot can never re-register a
+  // provider that a newer one disabled; a strictly older revision is a no-op.
+  let lastRevision = -1;
+  handle(PLATFORM_IPC.PROVIDER_NETWORK_REPLACE, ([snapshot]) => {
+    // Equal is accepted: after a renderer reload the revision clock restarts and
+    // may land on the same millisecond. Only a strictly older snapshot is stale.
+    if (snapshot.revision < lastRevision) {
+      return ok(undefined);
+    }
+    deps.allowlist.replaceAll(snapshot.providers);
+    lastRevision = snapshot.revision;
     return ok(undefined);
   });
 
@@ -150,17 +156,35 @@ export function registerProviderNetworkIpc(deps: ProviderNetworkIpcDeps): void {
         deadline,
       ),
     ).then(
-      async (fetched): Promise<AppResult<unknown>> => {
-        const bytes = new Uint8Array(fetched.data);
-        // Main writes the page; the renderer only learns the URL and size.
-        const url = await deps.pageStore.put(request.key, bytes, fetched.mimeType);
-        return ok({
-          url,
-          mimeType: pageMimeType(fetched.mimeType, bytes) ?? fetched.mimeType,
-          byteSize: bytes.byteLength,
-        });
-      },
+      (fetched) => storeFetched(fetched, request.key),
       (e: unknown) => err(networkErrorToAppError(e)),
     );
   });
+
+  // Custom covers are user-supplied: there is no manifest to authorize the host,
+  // so this path skips only the allowlist. The URL itself, every resolved address
+  // and every redirect are still validated, and size/time limits are unchanged.
+  handle(PLATFORM_IPC.PROVIDER_NETWORK_STORE_USER_INITIATED, async ([request]) => {
+    const deadline = Date.now() + REQUEST_TIMEOUT_MS;
+    return withRefusalLog(deps.networkTransport, () =>
+      fetchMainProcessBytes(request.url, async () => true, deps.networkTransport, deadline),
+    ).then(
+      (fetched) => storeFetched(fetched, request.key),
+      (e: unknown) => err(networkErrorToAppError(e)),
+    );
+  });
+
+  async function storeFetched(
+    fetched: { readonly data: ArrayBuffer; readonly mimeType: string },
+    key: string,
+  ): Promise<AppResult<unknown>> {
+    const bytes = new Uint8Array(fetched.data);
+    // Main writes the page; the renderer only learns the URL and size.
+    const url = await deps.pageStore.put(key, bytes, fetched.mimeType);
+    return ok({
+      url,
+      mimeType: pageMimeType(fetched.mimeType, bytes) ?? fetched.mimeType,
+      byteSize: bytes.byteLength,
+    });
+  }
 }

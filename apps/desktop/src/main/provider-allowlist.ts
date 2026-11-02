@@ -1,4 +1,5 @@
 import { isProviderDomainPattern, providerDomainsAllowHost } from '@app/shared';
+import type { ProviderNetworkRegistration } from '@app/platform';
 
 /** A provider id main will key the allowlist by: the manifest id, normalized. */
 function isProviderId(value: string): boolean {
@@ -29,6 +30,12 @@ export interface ProviderAllowlist {
   /** Replaces any previous patterns for `providerId`; an empty list is valid and denies everything. */
   register(providerId: string, domains: readonly string[]): readonly string[];
   unregister(providerId: string): void;
+  /**
+   * Makes this the complete table: every provider in `registrations` is set, and
+   * every id missing from it is removed. Validation runs before anything changes,
+   * so a malformed snapshot leaves the previous table intact.
+   */
+  replaceAll(registrations: readonly ProviderNetworkRegistration[]): void;
   /** Whether provider `providerId` may reach the host in `url`. Unknown providers always refuse. */
   allowsUrl(providerId: string, url: string): boolean;
   patternsFor(providerId: string): readonly string[] | undefined;
@@ -56,6 +63,20 @@ export function createProviderAllowlist(): ProviderAllowlist {
     },
     unregister(providerId) {
       byProvider.delete(normalizeProviderId(providerId));
+    },
+    replaceAll(registrations) {
+      const next = new Map<string, readonly string[]>();
+      for (const registration of registrations) {
+        const id = normalizeProviderId(registration.providerId);
+        if (!isProviderId(id)) {
+          throw new Error('Invalid provider id.');
+        }
+        next.set(id, normalizeProviderDomains(registration.domains));
+      }
+      byProvider.clear();
+      for (const [id, patterns] of next) {
+        byProvider.set(id, patterns);
+      }
     },
     allowsUrl(providerId, url) {
       const patterns = byProvider.get(normalizeProviderId(providerId));
