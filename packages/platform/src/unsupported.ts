@@ -77,5 +77,9 @@ export function createUnsupportedPlatformAdapter(reason: string): PlatformAdapte
     network: {
       fetchBytes: async () => deny<undefined>(),
     },
+    providerNetwork: {
+      replaceProviders: async () => deny<void>(),
+      request: async () => deny<never>(),
+    },
   };
 }

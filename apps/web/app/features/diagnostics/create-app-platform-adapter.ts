@@ -19,6 +19,11 @@ function readDesktopBridge(): DesktopPlatformBridge | undefined {
   return candidate;
 }
 
+/** Whether this page runs inside the desktop shell's preload bridge. */
+export function hasDesktopBridge(): boolean {
+  return readDesktopBridge() !== undefined;
+}
+
 export function createAppPlatformAdapter(): PlatformAdapter {
   const bridge = readDesktopBridge();
   if (bridge !== undefined) {

@@ -4,14 +4,12 @@ import type {
   Clipboard,
   Dialog,
   IpcMain,
-  Net,
   OpenDialogOptions,
   SaveDialogOptions,
   Shell,
 } from 'electron';
 import {
   PLATFORM_IPC,
-  isBlockedIpAddress,
   isSafeNetworkFetchUrl,
   platformInvalidUrl,
   platformIoFailed,
@@ -26,8 +24,10 @@ import {
 } from '@app/platform';
 import {
   fetchMainProcessBytes,
+  NetworkFetchError,
   REQUEST_TIMEOUT_MS,
-  settleByDeadline,
+  withRefusalLog,
+  type NetworkTransportDeps,
 } from './main-process-fetch.js';
 
 export function toIpcAppResult<T>(r: AppResult<T>): AppResult<T> {
@@ -59,7 +59,6 @@ export interface PlatformIpcDeps {
   readonly dialog: Dialog;
   readonly clipboard: Clipboard;
   readonly shell: Shell;
-  readonly net: Net;
   readonly readFileUtf8: (path: string) => Promise<string>;
   readonly writeFileUtf8: (path: string, content: string) => Promise<void>;
   readonly getCapabilities: () => PlatformCapabilities;
@@ -67,7 +66,24 @@ export interface PlatformIpcDeps {
   readonly secureStorage: SecureStorageHandlers;
   readonly getLocalServiceInfo: () => LocalServiceInfo;
   readonly buildDiagnosticsSnapshot: () => PlatformDiagnosticsSnapshot;
-  readonly resolveHostAddresses: (hostname: string) => Promise<readonly string[]>;
+  /** DNS resolution, the pinned hop and refusal logging for every main-process fetch. */
+  readonly networkTransport: NetworkTransportDeps;
+}
+
+/** Maps a transport refusal to the platform error the renderer already handles. */
+export function networkErrorToAppError(error: unknown): AppError {
+  if (error instanceof NetworkFetchError) {
+    if (
+      error.code === 'network.blocked-url' ||
+      error.code === 'network.blocked-address' ||
+      error.code === 'network.invalid-url' ||
+      error.code === 'network.dns-failed'
+    ) {
+      return platformInvalidUrl(error.message);
+    }
+    return platformIoFailed(error.message);
+  }
+  return platformIoFailed('Network request failed.', error);
 }
 
 type RequestArgs<C extends PlatformIpcChannel> = {
@@ -98,19 +114,7 @@ export function registerPlatformIpc(deps: PlatformIpcDeps): void {
   }
 
   async function networkFetchAllowed(url: string): Promise<boolean> {
-    if (!isSafeNetworkFetchUrl(url)) {
-      return false;
-    }
-    try {
-      // shortcut: the resolved address is checked, not pinned, so a fast DNS
-      // rebind can still race the fetch; pin it when Electron exposes a hook.
-      const addresses = await deps.resolveHostAddresses(
-        new URL(url).hostname.replace(/^\[|\]$/g, ''),
-      );
-      return addresses.length > 0 && addresses.every((address) => !isBlockedIpAddress(address));
-    } catch {
-      return false;
-    }
+    return isSafeNetworkFetchUrl(url);
   }
 
   handle(PLATFORM_IPC.CAPABILITIES_GET, async () => ok(deps.getCapabilities()));
@@ -246,26 +250,13 @@ export function registerPlatformIpc(deps: PlatformIpcDeps): void {
   handle(PLATFORM_IPC.NETWORK_FETCH_BYTES, async ([url]) => {
     // The deadline starts before DNS so a hung lookup cannot outlive the request.
     const deadline = Date.now() + REQUEST_TIMEOUT_MS;
-    const allowed = await settleByDeadline(networkFetchAllowed(url), deadline);
-    if (allowed === undefined) {
-      return err(platformIoFailed('Network fetch timed out.'));
-    }
-    if (!allowed) {
-      return err(platformInvalidUrl('Network fetch target is not allowed.'));
-    }
     try {
-      const result = await fetchMainProcessBytes(
-        (options) => deps.net.request(options),
-        url,
-        networkFetchAllowed,
-        deadline,
+      const result = await withRefusalLog(deps.networkTransport, () =>
+        fetchMainProcessBytes(url, networkFetchAllowed, deps.networkTransport, deadline),
       );
-      if (result === undefined && Date.now() >= deadline) {
-        return err(platformIoFailed('Network fetch timed out.'));
-      }
       return ok(result);
     } catch (e) {
-      return err(platformIoFailed('Network fetch failed.', e));
+      return err(networkErrorToAppError(e));
     }
   });
 }

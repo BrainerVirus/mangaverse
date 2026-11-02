@@ -18,6 +18,62 @@ export interface PlatformNetworkFetchResult {
   readonly mimeType: string;
 }
 
+export type PlatformProviderRequestMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD';
+
+/**
+ * One provider HTTP request the renderer asks main to make. The provider id selects
+ * main's allowlist; the URL is checked against it before every hop. Bodies are text
+ * because every current provider speaks JSON.
+ */
+export interface PlatformProviderRequest {
+  readonly providerId: string;
+  readonly url: string;
+  readonly method?: PlatformProviderRequestMethod;
+  readonly headers?: Readonly<Record<string, string>>;
+  readonly body?: string;
+  /** Bounded by main to 60 s; the caller's own abort only stops waiting. */
+  readonly timeoutMs?: number;
+}
+
+/** Ask main to fetch an image under the provider's allowlist and store it itself. */
+export interface PlatformProviderStoreRequest {
+  readonly providerId: string;
+  readonly url: string;
+  /** A page-store key; main writes the bytes and returns a `page://` URL. */
+  readonly key: string;
+}
+
+/**
+ * Ask main to fetch a user-supplied image (a custom cover) and store it itself.
+ * No provider or allowlist is involved, but the same SSRF, redirect, size and
+ * time checks run: only public images can be stored.
+ */
+export interface PlatformProviderUserStoreRequest {
+  readonly url: string;
+  /** A page-store key; main writes the bytes and returns a `page://` URL. */
+  readonly key: string;
+}
+
+/** One provider's declared domains in the full snapshot the renderer sends main. */
+export interface ProviderNetworkRegistration {
+  readonly providerId: string;
+  readonly domains: readonly string[];
+}
+
+export interface PlatformProviderStoreResult {
+  readonly url: string;
+  readonly mimeType: string;
+  readonly byteSize: number;
+}
+
+export interface PlatformProviderResponse {
+  readonly status: number;
+  /** Filtered to the headers a provider client may see; never cookies or auth echoes. */
+  readonly headers: Readonly<Record<string, string>>;
+  readonly bodyText: string;
+  readonly finalUrl: string;
+}
+
 export interface PlatformBlobStorageEnvironment {
   readonly indexedDB?: IDBFactory;
   readonly createObjectUrl?: (blob: Blob) => string;
@@ -145,6 +201,29 @@ export interface PlatformAdapter {
   readonly network: {
     fetchBytes(url: string): Promise<AppResult<PlatformNetworkFetchResult | undefined>>;
   };
+  /**
+   * Desktop only: tell main the complete set of enabled providers and their
+   * declared hosts. Main replaces its table with exactly this snapshot, so an id
+   * missing from it loses access; `revision` orders overlapping syncs.
+   */
+  readonly providerNetwork: {
+    replaceProviders(
+      providers: readonly ProviderNetworkRegistration[],
+      revision: number,
+    ): Promise<AppResult<void>>;
+    request(input: PlatformProviderRequest): Promise<AppResult<PlatformProviderResponse>>;
+    /**
+     * Desktop only: fetch and store in one main-process call, returning metadata and a
+     * `page://` URL but never the bytes. Absent where the page store has no URL form.
+     */
+    fetchAndStore?: (
+      input: PlatformProviderStoreRequest,
+    ) => Promise<AppResult<PlatformProviderStoreResult | undefined>>;
+    /** Desktop only: the same fetch-and-store without a provider allowlist, for user URLs. */
+    fetchAndStoreUserInitiated?: (
+      input: PlatformProviderUserStoreRequest,
+    ) => Promise<AppResult<PlatformProviderStoreResult | undefined>>;
+  };
 }
 
 // Property-style function types, not methods: callers read these off the bridge
@@ -166,6 +245,19 @@ export interface DesktopPlatformBridge {
   diagnosticsGetSnapshot: () => Promise<AppResult<PlatformDiagnosticsSnapshot>>;
   localServiceGetInfo: () => Promise<AppResult<LocalServiceInfo>>;
   networkFetchBytes: (url: string) => Promise<AppResult<PlatformNetworkFetchResult | undefined>>;
+  providerNetworkReplace: (
+    providers: readonly ProviderNetworkRegistration[],
+    revision: number,
+  ) => Promise<AppResult<void>>;
+  providerNetworkRequest: (
+    input: PlatformProviderRequest,
+  ) => Promise<AppResult<PlatformProviderResponse>>;
+  providerNetworkStore: (
+    input: PlatformProviderStoreRequest,
+  ) => Promise<AppResult<PlatformProviderStoreResult | undefined>>;
+  providerNetworkStoreUserInitiated: (
+    input: PlatformProviderUserStoreRequest,
+  ) => Promise<AppResult<PlatformProviderStoreResult | undefined>>;
   /** Main's page store (spec 04 X13): bytes become a file, served back as `page://` URLs. */
   pageStorePut: (key: string, data: ArrayBuffer, mimeType: string) => Promise<AppResult<string>>;
   pageStoreUrl: (key: string) => Promise<AppResult<string | undefined>>;

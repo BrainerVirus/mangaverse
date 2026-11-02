@@ -1,299 +1,285 @@
-import { EventEmitter } from 'node:events';
-import type { ClientRequest, ClientRequestConstructorOptions, IncomingMessage } from 'electron';
-import { describe, expect, it, vi, type MockInstance } from 'vitest';
-import { fetchMainProcessBytes, settleByDeadline } from './main-process-fetch.js';
-
-type FakeRequest = EventEmitter & {
-  end: () => void;
-  abort: () => void;
-  followRedirect?: () => void;
-  destroy?: () => void;
-};
-
-type FakeResponse = EventEmitter & {
-  statusCode: number;
-  headers: Record<string, string | string[]>;
-};
-
-function requestFactory(
-  script: (options: ClientRequestConstructorOptions, req: FakeRequest) => void,
-) {
-  return vi.fn<(options: ClientRequestConstructorOptions) => ClientRequest>((options) => {
-    const req = new EventEmitter() as FakeRequest;
-    req.end = () => {
-      queueMicrotask(() => script(options, req));
-    };
-    req.abort = () => {
-      req.emit('close');
-    };
-    req.followRedirect = vi.fn<() => void>();
-    return req as unknown as ClientRequest;
-  });
-}
-
-/** Electron 44 emits finish then close right after end(), before response/redirect. */
-function sent(req: FakeRequest): void {
-  req.emit('finish');
-  req.emit('close');
-}
-
-function response(
-  req: FakeRequest,
-  status: number,
-  headers: Record<string, string | string[]>,
-): FakeResponse {
-  const res = new EventEmitter() as FakeResponse;
-  res.statusCode = status;
-  res.headers = headers;
-  req.emit('response', res as unknown as IncomingMessage);
-  return res;
-}
-
-function body(req: FakeRequest, mimeType = 'image/png'): void {
-  sent(req);
-  const res = response(req, 200, { 'content-type': mimeType });
-  res.emit('data', Buffer.from([1, 2, 3]));
-  res.emit('end');
-}
-
-function redirect(req: FakeRequest, location: string): void {
-  sent(req);
-  req.emit('redirect', 302, 'GET', location, {});
-  // Electron cancels a manual redirect when followRedirect() is not called.
-  req.emit('error', new Error('Redirect was cancelled'));
-  req.emit('close');
-}
+import { createServer, type Server } from 'node:http';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  fetchMainProcessBytes,
+  MAX_REDIRECTS,
+  MAX_RESPONSE_BYTES,
+  NetworkFetchError,
+  nodeRequestHop,
+  settleByDeadline,
+  type HopReply,
+  type HopRequest,
+  type RequestHop,
+} from './main-process-fetch.js';
 
 const initialUrl = 'https://example.com/page.png';
 
+function hopFrom(script: (request: HopRequest) => HopReply | Promise<HopReply>): RequestHop & {
+  mock: { calls: HopRequest[][] };
+} {
+  return vi.fn<RequestHop>(async (request) => script(request)) as never;
+}
+
+function body(status = 200): HopReply {
+  return {
+    kind: 'response',
+    status,
+    headers: { 'content-type': 'image/png' },
+    body: Buffer.from([1, 2, 3]),
+    finalUrl: initialUrl,
+  };
+}
+
+function redirect(location: string, status = 302): HopReply {
+  return { kind: 'redirect', location, status };
+}
+
+const publicDns = async (): Promise<readonly string[]> => ['93.184.216.34'];
+const allowAll = async (): Promise<boolean> => true;
+
+function transport(
+  requestHop: RequestHop,
+  resolveHostAddresses: (hostname: string) => Promise<readonly string[]> = publicDns,
+) {
+  return { requestHop, resolveHostAddresses };
+}
+
 describe('fetchMainProcessBytes', () => {
-  it('reads a body when finish and close arrive before the response', async () => {
-    const request = requestFactory((_options, req) => body(req));
-    const isAllowed = vi.fn<(url: string) => Promise<boolean>>(async () => true);
+  it('reads a body through the pinned address and returns its mime type', async () => {
+    const requestHop = hopFrom(() => body());
+    const isAllowed = vi.fn<(url: string) => Promise<boolean>>(allowAll);
 
-    const result = await fetchMainProcessBytes(request as never, initialUrl, isAllowed);
+    const result = await fetchMainProcessBytes(initialUrl, isAllowed, transport(requestHop));
 
-    expect(result?.mimeType).toBe('image/png');
-    expect(new Uint8Array(result!.data)).toEqual(new Uint8Array([1, 2, 3]));
+    expect(result.mimeType).toBe('image/png');
+    expect(new Uint8Array(result.data)).toEqual(new Uint8Array([1, 2, 3]));
     expect(isAllowed).toHaveBeenCalledOnce();
-    expect(request).toHaveBeenCalledOnce();
+    expect(requestHop).toHaveBeenCalledOnce();
+    expect(requestHop.mock.calls[0]?.[0]).toMatchObject({
+      address: '93.184.216.34',
+      family: 4,
+    });
+    expect(requestHop.mock.calls[0]?.[0]?.url.toString()).toBe(initialUrl);
   });
 
-  it('follows a redirect that arrives after close, without following it inline', async () => {
-    let followRedirect: (() => void) | undefined;
-    const request = requestFactory((options, req) => {
-      if (options.url === initialUrl) {
-        followRedirect = req.followRedirect;
-        redirect(req, 'https://cdn.example.com/page.png');
-        return;
-      }
-      body(req);
-    });
-    const isAllowed = vi.fn<(url: string) => Promise<boolean>>(
-      async (url) => !url.includes('127.0.0.1'),
+  it('follows a redirect and resolves the next address before the hop', async () => {
+    const requestHop = hopFrom((request) =>
+      request.url.hostname === 'example.com'
+        ? redirect('https://cdn.example.com/page.png')
+        : body(),
+    );
+    const resolveHostAddresses = vi.fn<(hostname: string) => Promise<readonly string[]>>(
+      async (hostname) => (hostname === 'cdn.example.com' ? ['93.184.216.35'] : ['93.184.216.34']),
+    );
+    const isAllowed = vi.fn<(url: string) => Promise<boolean>>(allowAll);
+
+    const result = await fetchMainProcessBytes(
+      initialUrl,
+      isAllowed,
+      transport(requestHop, resolveHostAddresses),
     );
 
-    const result = await fetchMainProcessBytes(request as never, initialUrl, isAllowed);
-
-    expect(result?.mimeType).toBe('image/png');
-    expect(new Uint8Array(result!.data)).toEqual(new Uint8Array([1, 2, 3]));
-    expect(followRedirect).not.toHaveBeenCalled();
+    expect(result.mimeType).toBe('image/png');
     expect(isAllowed.mock.calls.map(([url]) => url)).toEqual([
       initialUrl,
       'https://cdn.example.com/page.png',
     ]);
-    expect(request).toHaveBeenCalledTimes(2);
-    expect(request.mock.calls[1]?.[0]).toMatchObject({
-      url: 'https://cdn.example.com/page.png',
-      method: 'GET',
-      redirect: 'manual',
-      credentials: 'omit',
-      useSessionCookies: false,
-      referrerPolicy: 'no-referrer',
-    });
+    expect(requestHop).toHaveBeenCalledTimes(2);
+    expect(requestHop.mock.calls[1]?.[0]).toMatchObject({ address: '93.184.216.35' });
   });
 
-  it('rejects a redirect to a private host before requesting it', async () => {
-    const request = requestFactory((_options, req) => {
-      redirect(req, 'http://127.0.0.1/secret');
-    });
-    const isAllowed = vi.fn<(url: string) => Promise<boolean>>(
-      async (url) => !url.includes('127.0.0.1'),
+  it.each([
+    '127.0.0.1',
+    '10.0.0.7',
+    '169.254.169.254',
+    '192.168.1.10',
+    '0.0.0.0',
+    '224.0.0.1',
+    '100.64.0.1',
+    '::1',
+    '::',
+    'fc00::1',
+    'fe80::1',
+    'ff02::1',
+    '::ffff:127.0.0.1',
+    '::ffff:7f00:1',
+  ])('refuses a host that resolves to %s', async (address) => {
+    const requestHop = hopFrom(() => body());
+
+    await expect(
+      fetchMainProcessBytes(
+        initialUrl,
+        allowAll,
+        transport(requestHop, async () => [address]),
+      ),
+    ).rejects.toMatchObject({ code: 'network.blocked-address' });
+    expect(requestHop).not.toHaveBeenCalled();
+  });
+
+  it('refuses when any resolved address is private, even if another is public', async () => {
+    const requestHop = hopFrom(() => body());
+
+    await expect(
+      fetchMainProcessBytes(
+        initialUrl,
+        allowAll,
+        transport(requestHop, async () => ['93.184.216.34', '10.0.0.7']),
+      ),
+    ).rejects.toMatchObject({ code: 'network.blocked-address' });
+    expect(requestHop).not.toHaveBeenCalled();
+  });
+
+  it('refuses a loopback hostname before resolving it', async () => {
+    const resolveHostAddresses = vi.fn<(hostname: string) => Promise<readonly string[]>>(publicDns);
+    const requestHop = hopFrom(() => body());
+
+    await expect(
+      fetchMainProcessBytes(
+        'http://localhost/page.png',
+        allowAll,
+        transport(requestHop, resolveHostAddresses),
+      ),
+    ).rejects.toMatchObject({ code: 'network.blocked-url' });
+    expect(resolveHostAddresses).not.toHaveBeenCalled();
+    expect(requestHop).not.toHaveBeenCalled();
+  });
+
+  it('rejects a redirect to a private address before the hop', async () => {
+    const requestHop = hopFrom(() => redirect('http://internal.example/secret'));
+
+    await expect(
+      fetchMainProcessBytes(
+        initialUrl,
+        allowAll,
+        transport(requestHop, async (hostname) =>
+          hostname === 'example.com' ? ['93.184.216.34'] : ['127.0.0.1'],
+        ),
+      ),
+    ).rejects.toMatchObject({ code: 'network.blocked-address' });
+    expect(requestHop).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes a simulated rebind: the second answer is validated and refused', async () => {
+    let lookups = 0;
+    const requestHop = hopFrom(() => redirect('https://example.com/second'));
+    const resolveHostAddresses = vi.fn<(hostname: string) => Promise<readonly string[]>>(
+      async () => {
+        lookups += 1;
+        return lookups === 1 ? ['93.184.216.34'] : ['127.0.0.1'];
+      },
     );
 
-    const result = await fetchMainProcessBytes(request as never, initialUrl, isAllowed);
-
-    expect(result).toBeUndefined();
-    expect(request).toHaveBeenCalledTimes(1);
-    expect(isAllowed.mock.calls.map(([url]) => url)).toEqual([
-      initialUrl,
-      'http://127.0.0.1/secret',
-    ]);
+    await expect(
+      fetchMainProcessBytes(initialUrl, allowAll, transport(requestHop, resolveHostAddresses)),
+    ).rejects.toMatchObject({ code: 'network.blocked-address' });
+    expect(requestHop).toHaveBeenCalledTimes(1);
   });
 
   it('stops after five redirects', async () => {
     let hop = 0;
-    const request = requestFactory((_options, req) => {
+    const requestHop = hopFrom(() => {
       hop += 1;
-      redirect(req, `https://example.com/${hop}`);
+      return redirect(`https://example.com/${hop}`);
     });
 
-    const result = await fetchMainProcessBytes(
-      request as never,
-      'https://example.com/0',
-      async () => true,
-    );
-
-    expect(result).toBeUndefined();
+    await expect(
+      fetchMainProcessBytes('https://example.com/0', allowAll, transport(requestHop)),
+    ).rejects.toMatchObject({ code: 'network.redirect-limit' });
     // Initial request plus five followed redirects; the sixth is rejected.
-    expect(request).toHaveBeenCalledTimes(6);
+    expect(requestHop).toHaveBeenCalledTimes(MAX_REDIRECTS + 1);
   });
 
   it('rejects a redirect without a usable location', async () => {
-    const request = requestFactory((_options, req) => {
-      sent(req);
-      req.emit('redirect', 302, 'GET', 'http://[::1', {});
-      req.emit('error', new Error('Redirect was cancelled'));
-    });
+    const requestHop = hopFrom(() => redirect('http://[::1'));
 
-    const result = await fetchMainProcessBytes(request as never, initialUrl, async () => true);
+    await expect(
+      fetchMainProcessBytes(initialUrl, allowAll, transport(requestHop)),
+    ).rejects.toMatchObject({ code: 'network.invalid-url' });
+    expect(requestHop).toHaveBeenCalledTimes(1);
+  });
 
-    expect(result).toBeUndefined();
-    expect(request).toHaveBeenCalledTimes(1);
+  it('refuses a redirect the allowlist rejects, before resolving it', async () => {
+    const requestHop = hopFrom(() => redirect('https://evil.example/page.png'));
+    const isAllowed = async (url: string) => url === initialUrl;
+    const resolveHostAddresses = vi.fn<(hostname: string) => Promise<readonly string[]>>(publicDns);
+
+    await expect(
+      fetchMainProcessBytes(initialUrl, isAllowed, transport(requestHop, resolveHostAddresses)),
+    ).rejects.toMatchObject({ code: 'network.blocked-url' });
+    expect(resolveHostAddresses).toHaveBeenCalledOnce();
+    expect(requestHop).toHaveBeenCalledOnce();
   });
 
   it('fails on a transport error', async () => {
-    const request = requestFactory((_options, req) => {
-      sent(req);
-      req.emit('error', new Error('net::ERR_CONNECTION_REFUSED'));
+    const requestHop = hopFrom(() => {
+      throw new NetworkFetchError('network.transport-error', 'refused');
     });
 
-    const result = await fetchMainProcessBytes(request as never, initialUrl, async () => true);
-
-    expect(result).toBeUndefined();
-    expect(request).toHaveBeenCalledTimes(1);
+    await expect(
+      fetchMainProcessBytes(initialUrl, allowAll, transport(requestHop)),
+    ).rejects.toMatchObject({ code: 'network.transport-error' });
   });
 
   it('aborts a response larger than the byte cap', async () => {
-    const request = requestFactory((_options, req) => {
-      sent(req);
-      const res = response(req, 200, { 'content-type': 'image/png' });
-      res.emit('data', { byteLength: 64 * 1024 * 1024 + 1 });
-    });
+    const requestHop = hopFrom(() => ({
+      kind: 'response',
+      status: 200,
+      headers: { 'content-type': 'image/png' },
+      body: Buffer.alloc(MAX_RESPONSE_BYTES + 1),
+      finalUrl: initialUrl,
+    }));
 
-    const result = await fetchMainProcessBytes(request as never, initialUrl, async () => true);
-
-    expect(result).toBeUndefined();
+    await expect(
+      fetchMainProcessBytes(initialUrl, allowAll, transport(requestHop)),
+    ).rejects.toMatchObject({ code: 'network.body-too-large' });
   });
 
-  it('still caps the body after a redirect hop', async () => {
-    const request = requestFactory((options, req) => {
-      if (options.url === initialUrl) {
-        redirect(req, 'https://cdn.example.com/page.png');
-        return;
-      }
-      sent(req);
-      const res = response(req, 200, { 'content-type': 'image/png' });
-      res.emit('data', { byteLength: 64 * 1024 * 1024 + 1 });
-    });
+  it('returns a typed error for an empty body and a failed status', async () => {
+    const empty = hopFrom(() => ({
+      kind: 'response',
+      status: 200,
+      headers: {},
+      body: Buffer.alloc(0),
+      finalUrl: initialUrl,
+    }));
+    const failed = hopFrom(() => body(404));
 
-    const result = await fetchMainProcessBytes(request as never, initialUrl, async () => true);
-
-    expect(result).toBeUndefined();
-    expect(request).toHaveBeenCalledTimes(2);
+    await expect(
+      fetchMainProcessBytes(initialUrl, allowAll, transport(empty)),
+    ).rejects.toMatchObject({ code: 'network.empty-body' });
+    await expect(
+      fetchMainProcessBytes(initialUrl, allowAll, transport(failed)),
+    ).rejects.toMatchObject({ code: 'network.http-status' });
   });
 
-  it('returns undefined for an empty or failed response', async () => {
-    const empty = requestFactory((_options, req) => {
-      sent(req);
-      const res = response(req, 200, {});
-      res.emit('end');
-    });
-    const failed = requestFactory((_options, req) => {
-      sent(req);
-      response(req, 404, {});
-    });
+  it('fails a hop that outlives the deadline', async () => {
+    const requestHop = hopFrom(
+      (request) =>
+        new Promise<HopReply>((resolve) => {
+          setTimeout(() => resolve(body()), Math.max(0, request.deadline - Date.now()) + 50);
+        }),
+    );
 
-    expect(
-      await fetchMainProcessBytes(empty as never, initialUrl, async () => true),
-    ).toBeUndefined();
-    expect(
-      await fetchMainProcessBytes(failed as never, initialUrl, async () => true),
-    ).toBeUndefined();
+    await expect(
+      fetchMainProcessBytes(initialUrl, allowAll, transport(requestHop), Date.now() + 10),
+    ).rejects.toMatchObject({ code: expect.stringMatching(/timeout|transport-error/) });
   });
 
-  it('does not settle on an early close; the bounded timeout fails the hop', async () => {
-    vi.useFakeTimers();
-    try {
-      const request = requestFactory((_options, req) => {
-        sent(req);
-      });
-      let resolved = false;
-      const pending = fetchMainProcessBytes(request as never, initialUrl, async () => true).then(
-        (value) => {
-          resolved = true;
-          return value;
-        },
-      );
+  it('shares the deadline between DNS and the hop', async () => {
+    const requestHop = hopFrom(() => body());
 
-      await vi.advanceTimersByTimeAsync(1_000);
-      expect(resolved).toBe(false);
-
-      await vi.advanceTimersByTimeAsync(30_000);
-      await expect(pending).resolves.toBeUndefined();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('aborts the in-flight request when a hop times out', async () => {
-    vi.useFakeTimers();
-    try {
-      let abort: MockInstance<() => void> | undefined;
-      const request = requestFactory((_options, req) => {
-        sent(req);
-        abort = vi.spyOn(req, 'abort');
-      });
-      const pending = fetchMainProcessBytes(request as never, initialUrl, async () => true);
-
-      await vi.advanceTimersByTimeAsync(0);
-      const abortSpy = abort;
-      expect(abortSpy).toBeDefined();
-
-      await vi.advanceTimersByTimeAsync(30_000);
-      await expect(pending).resolves.toBeUndefined();
-      expect(abortSpy).toHaveBeenCalledOnce();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('settles a fetch whose validation never resolves', async () => {
-    vi.useFakeTimers();
-    try {
-      const request = requestFactory((_options, req) => body(req));
-      let settled: unknown = 'pending';
-      const pending = fetchMainProcessBytes(
-        request as never,
+    await expect(
+      fetchMainProcessBytes(
         initialUrl,
-        () => new Promise<boolean>(() => {}),
-      ).then((value) => {
-        settled = value;
-        return value;
-      });
-
-      await vi.advanceTimersByTimeAsync(59_999);
-      expect(settled).toBe('pending');
-
-      await vi.advanceTimersByTimeAsync(1);
-      await expect(pending).resolves.toBeUndefined();
-      expect(request).not.toHaveBeenCalled();
-    } finally {
-      vi.useRealTimers();
-    }
+        allowAll,
+        transport(requestHop, () => new Promise<readonly string[]>(() => undefined)),
+        Date.now() + 10,
+      ),
+    ).rejects.toMatchObject({ code: 'network.timeout' });
+    expect(requestHop).not.toHaveBeenCalled();
   });
 
-  it('stays clear of a validation that rejects after the deadline already passed', async () => {
+  it('settles a validation that rejects after the deadline already passed', async () => {
     let reject: ((error: Error) => void) | undefined;
     const work = new Promise<boolean>((_resolve, onReject) => {
       reject = onReject;
@@ -302,7 +288,7 @@ describe('fetchMainProcessBytes', () => {
     process.on('unhandledRejection', unhandled);
     try {
       await expect(settleByDeadline(work, Date.now() - 1)).resolves.toBeUndefined();
-      reject!(new Error('late lookup failure'));
+      reject?.(new Error('late lookup failure'));
       await new Promise((resolve) => setTimeout(resolve, 0));
       expect(unhandled).not.toHaveBeenCalled();
     } finally {
@@ -311,114 +297,137 @@ describe('fetchMainProcessBytes', () => {
   });
 
   it('treats a rejected validation as disallowed', async () => {
-    const request = requestFactory((_options, req) => body(req));
+    const requestHop = hopFrom(() => body());
 
-    const result = await fetchMainProcessBytes(request as never, initialUrl, async () => {
-      throw new Error('lookup failed');
+    await expect(
+      fetchMainProcessBytes(
+        initialUrl,
+        async () => {
+          throw new Error('lookup failed');
+        },
+        transport(requestHop),
+      ),
+    ).rejects.toMatchObject({ code: 'network.blocked-url' });
+    expect(requestHop).not.toHaveBeenCalled();
+  });
+
+  it('charges DNS time against the deadline', async () => {
+    const requestHop = hopFrom(() => body());
+    const deadline = Date.now() + 20;
+
+    await expect(
+      fetchMainProcessBytes(
+        initialUrl,
+        allowAll,
+        transport(requestHop, async () => {
+          await new Promise<void>((resolve) => setTimeout(resolve, 35));
+          return ['93.184.216.34'];
+        }),
+        deadline,
+      ),
+    ).rejects.toMatchObject({ code: 'network.timeout' });
+    expect(requestHop).not.toHaveBeenCalled();
+  });
+});
+
+describe('nodeRequestHop', () => {
+  const servers: Server[] = [];
+
+  async function serve(
+    handler: Parameters<typeof createServer>[1],
+  ): Promise<{ readonly port: number; readonly host: string }> {
+    const server = createServer(handler);
+    servers.push(server);
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (address === null || typeof address === 'string') throw new Error('no port');
+    return { port: address.port, host: '127.0.0.1' };
+  }
+
+  afterEach(async () => {
+    await Promise.all(
+      servers.splice(0).map(
+        (server) =>
+          new Promise<void>((resolve) => {
+            server.closeAllConnections();
+            server.close(() => resolve());
+          }),
+      ),
+    );
+  });
+
+  it('connects to the pinned address while keeping the URL host', async () => {
+    let seenHost: string | undefined;
+    let seenAgent: string | undefined;
+    const { port } = await serve((request, response) => {
+      seenHost = request.headers.host;
+      seenAgent = request.headers['user-agent'];
+      response.writeHead(200, { 'content-type': 'text/plain' });
+      response.end('pinned');
     });
 
-    expect(result).toBeUndefined();
-    expect(request).not.toHaveBeenCalled();
+    const reply = await nodeRequestHop({
+      url: new URL(`http://example.com:${port}/path`),
+      address: '127.0.0.1',
+      family: 4,
+      deadline: Date.now() + 5_000,
+    });
+
+    expect(reply).toMatchObject({ kind: 'response', status: 200 });
+    expect(seenHost).toBe(`example.com:${port}`);
+    // Some provider APIs reject the default Node client identity.
+    expect(seenAgent).toBe('MangaVerse/0.0.1');
+    expect(reply.kind === 'response' ? reply.body.toString() : null).toBe('pinned');
   });
 
-  it('charges a slow validation against the deadline', async () => {
-    vi.useFakeTimers();
-    try {
-      const request = requestFactory((_options, req) => {
-        sent(req); // The hop stalls.
-      });
-      let settled: unknown = 'pending';
-      const pending = fetchMainProcessBytes(request as never, initialUrl, async () => {
-        await new Promise<void>((resolve) => setTimeout(() => resolve(), 40_000));
-        return true;
-      }).then((value) => {
-        settled = value;
-        return value;
-      });
+  it('returns a redirect without reading the body', async () => {
+    const { port } = await serve((_request, response) => {
+      response.writeHead(302, { location: 'https://cdn.example/page.png' });
+      response.end();
+    });
 
-      await vi.advanceTimersByTimeAsync(40_000);
-      expect(request).toHaveBeenCalledOnce();
+    const reply = await nodeRequestHop({
+      url: new URL(`http://example.com:${port}/`),
+      address: '127.0.0.1',
+      family: 4,
+      deadline: Date.now() + 5_000,
+    });
 
-      // 40s of validation leaves 20s, not a fresh 30s hop timeout.
-      await vi.advanceTimersByTimeAsync(19_999);
-      expect(settled).toBe('pending');
-
-      await vi.advanceTimersByTimeAsync(1);
-      await expect(pending).resolves.toBeUndefined();
-    } finally {
-      vi.useRealTimers();
-    }
+    expect(reply).toEqual({
+      kind: 'redirect',
+      location: 'https://cdn.example/page.png',
+      status: 302,
+    });
   });
 
-  it('ignores data and end that arrive after the hop timeout', async () => {
-    vi.useFakeTimers();
-    const concat = vi.spyOn(Buffer, 'concat');
-    try {
-      let late: FakeResponse | undefined;
-      const request = requestFactory((_options, req) => {
-        sent(req);
-        late = response(req, 200, { 'content-type': 'image/png' });
-        // Buffered before the timeout: a late end would concat it.
-        late.emit('data', Buffer.from([1, 2, 3]));
-      });
-      const pending = fetchMainProcessBytes(request as never, initialUrl, async () => true);
+  it('refuses a declared body over the cap before reading it', async () => {
+    const { port } = await serve((_request, response) => {
+      response.writeHead(200, { 'content-length': String(MAX_RESPONSE_BYTES + 1) });
+      response.end();
+    });
 
-      await vi.advanceTimersByTimeAsync(30_000);
-      await expect(pending).resolves.toBeUndefined();
-      expect(late).toBeDefined();
-
-      let lateReads = 0;
-      late!.emit('data', {
-        get byteLength() {
-          lateReads += 1;
-          return 1;
-        },
-      });
-      late!.emit('end');
-
-      expect(lateReads).toBe(0);
-      expect(concat).not.toHaveBeenCalled();
-    } finally {
-      concat.mockRestore();
-      vi.useRealTimers();
-    }
+    await expect(
+      nodeRequestHop({
+        url: new URL(`http://example.com:${port}/`),
+        address: '127.0.0.1',
+        family: 4,
+        deadline: Date.now() + 5_000,
+      }),
+    ).rejects.toMatchObject({ code: 'network.body-too-large' });
   });
 
-  it('enforces the overall deadline across slow hops', async () => {
-    vi.useFakeTimers();
-    try {
-      const request = requestFactory((options, req) => {
-        sent(req);
-        if (options.url === 'https://example.com/final') {
-          return; // Third hop stalls.
-        }
-        const next =
-          options.url === initialUrl ? 'https://example.com/second' : 'https://example.com/final';
-        setTimeout(() => {
-          req.emit('redirect', 302, 'GET', next, {});
-          req.emit('error', new Error('Redirect was cancelled'));
-        }, 20_000);
-      });
-      let settled: unknown = 'pending';
-      const pending = fetchMainProcessBytes(request as never, initialUrl, async () => true).then(
-        (value) => {
-          settled = value;
-          return value;
-        },
-      );
+  it('aborts a stalled connection at the hop deadline', async () => {
+    const { port } = await serve(() => {
+      // Never responds.
+    });
 
-      await vi.advanceTimersByTimeAsync(40_000);
-      expect(request).toHaveBeenCalledTimes(3);
-
-      // Two 20s hops leave 20s of the 60s deadline, so the third hop must fail at
-      // 60s rather than after its own 30s hop timeout at 70s.
-      await vi.advanceTimersByTimeAsync(21_000);
-      expect(settled).toBeUndefined();
-
-      await vi.runOnlyPendingTimersAsync();
-      await expect(pending).resolves.toBeUndefined();
-    } finally {
-      vi.useRealTimers();
-    }
+    await expect(
+      nodeRequestHop({
+        url: new URL(`http://example.com:${port}/`),
+        address: '127.0.0.1',
+        family: 4,
+        deadline: Date.now() + 60,
+      }),
+    ).rejects.toMatchObject({ code: 'network.timeout' });
   });
 });

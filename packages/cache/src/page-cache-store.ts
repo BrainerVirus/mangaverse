@@ -38,6 +38,12 @@ const inFlightPageFetches = new Map<
   Promise<{ data: ArrayBuffer; mimeType: string } | undefined>
 >();
 
+/** In-flight main-side stores; they return a URL and size, never bytes. */
+const inFlightPageStores = new Map<
+  string,
+  Promise<{ objectUrl: string; byteSize: number } | undefined>
+>();
+
 async function createObjectUrlFromBlob(
   adapter: PlatformAdapter,
   data: ArrayBuffer,
@@ -58,6 +64,60 @@ async function resolveStoredPageUrl(
   if (adapter.blobStorage.resolveUrl === undefined) return null;
   const result = await adapter.blobStorage.resolveUrl(blobKey);
   return result.ok ? result.value : null;
+}
+
+/**
+ * Desktop path: main fetches the image under the provider's allowlist and writes it
+ * to the page store, so no page bytes enter this process. `undefined` means the
+ * adapter has no main store and the caller should fall back to fetching bytes.
+ */
+async function storeRemotePageInMain(
+  input: PageCacheLookupInput & { readonly retention?: typeof CACHE_RETENTION_READ | 'normal' },
+): Promise<{ objectUrl: string; byteSize: number } | undefined> {
+  const store = input.adapter.providerNetwork.fetchAndStore;
+  if (store === undefined) return undefined;
+
+  const providerId = String(input.providerId);
+  const mangaId = String(input.mangaId);
+  const chapterId = String(input.chapterId);
+  const blobKey = buildPageBlobKey(providerId, mangaId, chapterId, input.pageIndex);
+  const existing = inFlightPageStores.get(blobKey);
+  if (existing !== undefined) return existing;
+
+  const entryId = buildPageCacheEntryId(providerId, mangaId, chapterId, input.pageIndex);
+  const promise = (async () => {
+    const result = await store({
+      providerId,
+      url: input.remoteUrl,
+      key: blobKey,
+    });
+    if (!result.ok || result.value === undefined) return undefined;
+    const stored = result.value;
+    await withBlobWrite(blobKey, async () => {
+      await upsertCacheEntry(input.db, {
+        id: entryId,
+        providerId,
+        mangaId,
+        chapterId,
+        cacheKind: PAGE_CACHE_KIND,
+        sourceUrl: input.remoteUrl,
+        mimeType: stored.mimeType,
+        byteSize: stored.byteSize,
+        blobKey,
+        metadata: {
+          pageIndex: input.pageIndex,
+          retention: input.retention ?? 'normal',
+        },
+      });
+    });
+    return { objectUrl: stored.url, byteSize: stored.byteSize };
+  })();
+  inFlightPageStores.set(blobKey, promise);
+  try {
+    return await promise;
+  } finally {
+    inFlightPageStores.delete(blobKey);
+  }
 }
 
 async function fetchRemotePage(
@@ -221,7 +281,7 @@ export async function storePageInCache(
  * the visible page component resolves its own URL when it mounts.
  */
 async function prefetchPageToCache(
-  input: PageCacheLookupInput,
+  input: PageCacheLookupInput & { readonly retention?: typeof CACHE_RETENTION_READ | 'normal' },
   signal?: AbortSignal,
 ): Promise<{ readonly fromCache: boolean; readonly byteSize: number } | undefined> {
   const providerId = String(input.providerId);
@@ -231,6 +291,11 @@ async function prefetchPageToCache(
   const entry = await getCacheEntryById(input.db, entryId);
   if (entry?.blobKey !== undefined) {
     return { fromCache: true, byteSize: entry.byteSize };
+  }
+
+  if (input.adapter.providerNetwork.fetchAndStore !== undefined) {
+    const stored = await storeRemotePageInMain(input);
+    return stored === undefined ? undefined : { fromCache: false, byteSize: stored.byteSize };
   }
 
   const remote = await fetchPageBytes(input);
@@ -251,6 +316,15 @@ export async function resolvePageObjectUrl(
   const cached = input.refresh ? undefined : await getCachedPageObjectUrl(input);
   if (cached !== undefined) {
     return cached;
+  }
+
+  // Desktop: main stores the page and returns only its URL and size. No bytes
+  // reach this process, and a failure is final rather than a byte fallback.
+  if (input.adapter.providerNetwork.fetchAndStore !== undefined) {
+    const stored = await storeRemotePageInMain(input);
+    return stored === undefined
+      ? undefined
+      : { objectUrl: stored.objectUrl, fromCache: false, byteSize: stored.byteSize };
   }
 
   const remote = await fetchPageBytes(input);

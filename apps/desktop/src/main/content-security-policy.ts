@@ -8,8 +8,6 @@ function devServerOrigin(): string {
   return url.replace(/\/$/, '');
 }
 
-const MANGADEX_CONNECT_SRC = 'https://api.mangadex.org https://uploads.mangadex.org';
-
 export function buildContentSecurityPolicy(isDev: boolean): string {
   if (isDev) {
     const origin = devServerOrigin();
@@ -19,20 +17,22 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
       `script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' ${origin}`,
       `style-src 'self' 'unsafe-inline' ${origin}`,
       "img-src 'self' data: blob: https: page:",
-      `connect-src 'self' ${origin} ${wsOrigin} ws: wss: ${MANGADEX_CONNECT_SRC}`,
+      // Only the dev server; provider traffic goes through main, never the renderer.
+      `connect-src 'self' ${origin} ${wsOrigin}`,
       "font-src 'self' data:",
       "worker-src 'self' blob:",
     ].join('; ');
   }
 
   // Production serves the static shell from app://app (`'self'`): no loopback origin, no inline
-  // or eval'd script.
+  // or eval'd script. Provider calls and every remote image byte come from main, so neither
+  // `connect-src` nor `img-src` names a provider origin.
   return [
     "default-src 'self'",
     "script-src 'self' 'wasm-unsafe-eval'",
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https: page:",
-    `connect-src 'self' ${MANGADEX_CONNECT_SRC}`,
+    "img-src 'self' data: blob: page:",
+    "connect-src 'self'",
     "font-src 'self' data:",
     "worker-src 'self' blob:",
     "object-src 'none'",

@@ -28,6 +28,42 @@ const valid: PlatformIpcRequest[] = [
   { channel: PLATFORM_IPC.PAGE_STORE_URL, args: ['page:p:m:c:0'] },
   { channel: PLATFORM_IPC.PAGE_STORE_DELETE, args: ['page:p:m:c:0'] },
   { channel: PLATFORM_IPC.PAGE_STORE_LIST_KEYS, args: [] },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_REPLACE,
+    args: [
+      {
+        revision: 1,
+        providers: [
+          { providerId: 'mangadex', domains: ['api.mangadex.org', '*.mangadex.network'] },
+        ],
+      },
+    ],
+  },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_REQUEST,
+    args: [
+      {
+        providerId: 'mangadex',
+        url: 'https://api.mangadex.org/manga',
+        method: 'GET',
+        headers: { accept: 'application/json' },
+      },
+    ],
+  },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_STORE,
+    args: [
+      {
+        providerId: 'mangadex',
+        url: 'https://uploads.mangadex.org/page.png',
+        key: 'page:mangadex:m:c:0',
+      },
+    ],
+  },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_STORE_USER_INITIATED,
+    args: [{ url: 'https://example.com/cover.jpg', key: 'page:cover:mangadex:m' }],
+  },
 ];
 
 const invalid: { channel: PlatformIpcChannel; args: unknown[] }[] = [
@@ -54,6 +90,60 @@ const invalid: { channel: PlatformIpcChannel; args: unknown[] }[] = [
   { channel: PLATFORM_IPC.PAGE_STORE_URL, args: ['../../etc/passwd'] },
   { channel: PLATFORM_IPC.PAGE_STORE_DELETE, args: ['cover:p:m'] },
   { channel: PLATFORM_IPC.PAGE_STORE_LIST_KEYS, args: ['extra'] },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_REPLACE,
+    args: [
+      {
+        revision: 1,
+        providers: [{ providerId: 'mangadex', domains: ['https://api.mangadex.org'] }],
+      },
+    ],
+  },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_REPLACE,
+    args: [
+      {
+        revision: 1,
+        providers: [{ providerId: 'mangadex', domains: ['api.mangadex.org'], extra: true }],
+      },
+    ],
+  },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_REPLACE,
+    args: [{ revision: -1, providers: [] }],
+  },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_REQUEST,
+    args: [{ providerId: 'mangadex', url: 'http://127.0.0.1/manga' }],
+  },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_REQUEST,
+    args: [{ providerId: 'mangadex', url: 'https://api.mangadex.org/manga', method: 'TRACE' }],
+  },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_REQUEST,
+    args: [
+      {
+        providerId: 'mangadex',
+        url: 'https://api.mangadex.org/manga',
+        headers: { accept: 'x\r\nHost: evil.example' },
+      },
+    ],
+  },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_STORE,
+    args: [
+      { providerId: 'mangadex', url: 'https://uploads.mangadex.org/page.png', key: 'cover:x:y' },
+    ],
+  },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_STORE_USER_INITIATED,
+    args: [{ url: 'http://127.0.0.1/cover.jpg', key: 'page:cover:mangadex:m' }],
+  },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_STORE_USER_INITIATED,
+    args: [{ url: 'https://example.com/cover.jpg', key: 'cover:x:y' }],
+  },
 ];
 
 describe('platformIpcRequestSchema', () => {

@@ -12,6 +12,8 @@ export interface CachedCoverImageProps {
   readonly remoteUrl: string;
   readonly alt: string;
   readonly className?: string;
+  /** The URL is a user custom cover: main stores it without the provider allowlist. */
+  readonly userProvided?: boolean;
 }
 
 export function CachedCoverImage({
@@ -20,6 +22,7 @@ export function CachedCoverImage({
   remoteUrl,
   alt,
   className,
+  userProvided = false,
 }: CachedCoverImageProps) {
   const context = useCoverCacheContext();
   const [src, setSrc] = useState<string | undefined>(undefined);
@@ -55,6 +58,7 @@ export function CachedCoverImage({
         providerId,
         mangaId,
         remoteUrl,
+        ...(userProvided ? { userProvided: true } : {}),
       });
 
       if (cancelled) {
@@ -90,7 +94,7 @@ export function CachedCoverImage({
         objectUrlRef.current = undefined;
       }
     };
-  }, [context, mangaId, providerId, remoteUrl]);
+  }, [context, mangaId, providerId, remoteUrl, userProvided]);
 
   if (context === null || failed || src === undefined) {
     return (
@@ -127,6 +131,9 @@ export function CachedMangaCardCover({ manga, className }: CachedMangaCardCoverP
   if (coverImageUrl === undefined) {
     return <div className={cn('bg-muted', className)} aria-hidden />;
   }
+  const userProvided =
+    manga.userOverrides?.coverImageUrl !== undefined &&
+    manga.userOverrides.coverImageUrl === coverImageUrl;
 
   return (
     <CachedCoverImage
@@ -135,6 +142,7 @@ export function CachedMangaCardCover({ manga, className }: CachedMangaCardCoverP
       remoteUrl={coverImageUrl}
       alt={manga.canonicalTitle}
       {...(className !== undefined ? { className } : {})}
+      {...(userProvided ? { userProvided: true } : {})}
     />
   );
 }

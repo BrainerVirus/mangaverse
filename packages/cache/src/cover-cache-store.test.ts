@@ -77,6 +77,11 @@ function createMockAdapter(
         return ok(undefined);
       },
     },
+    providerNetwork: {
+      replaceProviders: async () => ok(undefined),
+      request: async () =>
+        ok({ status: 200, headers: {}, bodyText: '', finalUrl: 'https://example.com' }),
+    },
     network: {
       fetchBytes: async (url) => {
         if (url.includes('fail')) {
@@ -299,5 +304,109 @@ describe('cache constants', () => {
     expect(formatCacheBytes(512)).toBe('512 B');
     expect(formatCacheBytes(2048)).toBe('2.0 KB');
     expect(formatCacheBytes(524288000)).toBe('500.0 MB');
+  });
+});
+
+describe('cover cache store with a main-side fetch-and-store', () => {
+  it('Given a provider cover, When resolving it, Then main stores it under the provider allowlist and only page:// comes back', async () => {
+    const { db } = await createSqlJsHarness();
+    const blobStore = new Map<string, { data: ArrayBuffer; mimeType: string }>();
+    const adapter = createMockAdapter(blobStore);
+    let fetchBytes = 0;
+    const storeCalls: unknown[] = [];
+    adapter.network.fetchBytes = async () => {
+      fetchBytes += 1;
+      return ok(undefined);
+    };
+    adapter.blobStorage.resolveUrl = async (key: string) =>
+      ok(key.startsWith('page:cover:') ? 'page://store/cover' : undefined);
+    Object.assign(adapter.providerNetwork, {
+      fetchAndStore: async (input: unknown) => {
+        storeCalls.push(input);
+        return ok({ url: 'page://store/cover', mimeType: 'image/jpeg', byteSize: 3 });
+      },
+      fetchAndStoreUserInitiated: async () => {
+        throw new Error('a provider cover must not use the user-initiated path');
+      },
+    });
+
+    const resolved = await resolveCoverObjectUrl({
+      db,
+      adapter,
+      providerId: 'mangadex',
+      mangaId: 'dev-md-main',
+      remoteUrl: 'https://uploads.mangadex.org/covers/main.jpg',
+    });
+
+    expect(resolved).toMatchObject({ fromCache: false, objectUrl: 'page://store/cover' });
+    expect(storeCalls).toEqual([
+      {
+        providerId: 'mangadex',
+        url: 'https://uploads.mangadex.org/covers/main.jpg',
+        key: 'page:cover:mangadex:dev-md-main',
+      },
+    ]);
+    expect(fetchBytes).toBe(0);
+    expect(blobStore.has(buildCoverBlobKey('mangadex', 'dev-md-main'))).toBe(false);
+
+    const cached = await resolveCoverObjectUrl({
+      db,
+      adapter,
+      providerId: 'mangadex',
+      mangaId: 'dev-md-main',
+      remoteUrl: 'https://uploads.mangadex.org/covers/main.jpg',
+    });
+    expect(cached).toMatchObject({ fromCache: true, objectUrl: 'page://store/cover' });
+    expect(storeCalls).toHaveLength(1);
+  });
+
+  it('Given a user-supplied custom cover, When resolving it, Then main stores it without the provider allowlist and only page:// comes back', async () => {
+    const { db } = await createSqlJsHarness();
+    const blobStore = new Map<string, { data: ArrayBuffer; mimeType: string }>();
+    const adapter = createMockAdapter(blobStore);
+    const userCalls: unknown[] = [];
+    let fetchBytes = 0;
+    adapter.network.fetchBytes = async () => {
+      fetchBytes += 1;
+      return ok(undefined);
+    };
+    adapter.blobStorage.resolveUrl = async (key: string) =>
+      ok(key.startsWith('page:cover:') ? 'page://store/custom' : undefined);
+    Object.assign(adapter.providerNetwork, {
+      fetchAndStore: async () => {
+        throw new Error('a custom cover must not use the provider allowlist path');
+      },
+      fetchAndStoreUserInitiated: async (input: unknown) => {
+        userCalls.push(input);
+        return ok({ url: 'page://store/custom', mimeType: 'image/jpeg', byteSize: 3 });
+      },
+    });
+
+    const resolved = await resolveCoverObjectUrl({
+      db,
+      adapter,
+      providerId: 'mangadex',
+      mangaId: 'dev-md-custom',
+      remoteUrl: 'https://example.com/cover.jpg',
+      userProvided: true,
+    });
+
+    expect(resolved).toMatchObject({ fromCache: false, objectUrl: 'page://store/custom' });
+    expect(userCalls).toEqual([
+      { url: 'https://example.com/cover.jpg', key: 'page:cover:mangadex:dev-md-custom' },
+    ]);
+    expect(fetchBytes).toBe(0);
+    expect(blobStore.has(buildCoverBlobKey('mangadex', 'dev-md-custom'))).toBe(false);
+
+    const cached = await getCachedCoverObjectUrl({
+      db,
+      adapter,
+      providerId: 'mangadex',
+      mangaId: 'dev-md-custom',
+      remoteUrl: 'https://example.com/cover.jpg',
+      userProvided: true,
+    });
+    expect(cached).toMatchObject({ fromCache: true, objectUrl: 'page://store/custom' });
+    expect(userCalls).toHaveLength(1);
   });
 });

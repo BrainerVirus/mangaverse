@@ -9,7 +9,6 @@ import {
   dialog,
   ipcMain,
   MessageChannelMain,
-  net,
   protocol,
   safeStorage,
   session,
@@ -34,6 +33,9 @@ import {
 } from './protocol-handoff.js';
 import { createTrustedFrameCheck, registerDataHostIpc, superviseDataHost } from './data-host.js';
 import { registerPlatformIpc } from './platform-ipc.js';
+import { createProviderAllowlist } from './provider-allowlist.js';
+import { registerProviderNetworkIpc } from './provider-network-ipc.js';
+import { createFixtureTransport } from './provider-network-fixture.js';
 import {
   createPageProtocolHandler,
   createPageStore,
@@ -104,7 +106,9 @@ const ownedMainFrames = () => [...ownedWindows].map((window) => window.webConten
  * Cached pages live as files under the profile (spec 04 X5, X13). The renderer writes and
  * deletes them over authorized IPC and reads them only through page://, by opaque id.
  */
-function registerPageStore(isTrustedFrame: ReturnType<typeof createTrustedFrameCheck>) {
+function registerPageStore(
+  isTrustedFrame: ReturnType<typeof createTrustedFrameCheck>,
+): ReturnType<typeof createPageStore> {
   const store = createPageStore(join(app.getPath('userData'), 'pages'));
   session.defaultSession.protocol.handle(
     PAGE_SCHEME,
@@ -115,6 +119,7 @@ function registerPageStore(isTrustedFrame: ReturnType<typeof createTrustedFrameC
     }),
   );
   registerPageStoreIpc({ ipcMain, store, isTrustedFrame });
+  return store;
 }
 
 function buildCapabilities(): PlatformCapabilities {
@@ -251,13 +256,38 @@ void app.whenReady().then(async () => {
       writeFile: (p, data) => writeFile(p, data, 'utf8'),
     });
 
+    const isTrustedFrame = createTrustedFrameCheck({
+      ownedMainFrames,
+      allowedOrigins: appOrigins(),
+    });
+
+    const productionTransport = {
+      resolveHostAddresses: async (hostname: string) =>
+        (await lookup(hostname, { all: true, verbatim: true })).map((entry) => entry.address),
+      // Log the refusal without the path or query: a provider URL can carry a token.
+      log: (event: { code: string; url?: string }) => {
+        const host =
+          event.url !== undefined && URL.canParse(event.url) ? new URL(event.url).hostname : '';
+        // oxlint-disable-next-line no-console -- ruling: provider-network-refusal-log: a refused provider request has no renderer to report to (the caller gets only a typed error), so main's log is the sole record of which host and rule refused it.
+        // react-doctor-disable-next-line eslint/no-console -- ruling: provider-network-refusal-log: a refused provider request has no renderer to report to (the caller gets only a typed error), so main's log is the sole record of which host and rule refused it.
+        console.warn(`[provider-network] refused ${event.code}${host ? ` host=${host}` : ''}`);
+      },
+    };
+
+    // Test-only: the Electron E2E answers the recorded MangaDex hosts from a local
+    // fixture server. All allowlist, address, redirect and limit checks still run.
+    const fixtureOrigin = process.env.MANGAVERSE_E2E_PROVIDER_FIXTURE;
+    const networkTransport =
+      fixtureOrigin === undefined
+        ? productionTransport
+        : createFixtureTransport(fixtureOrigin, productionTransport);
+
     registerPlatformIpc({
       ipcMain,
       getTargetWindow: () => mainWindow,
       dialog,
       clipboard,
       shell,
-      net,
       readFileUtf8: (p) => readFile(p, 'utf8'),
       writeFileUtf8: (p, c) => writeFile(p, c, 'utf8'),
       getCapabilities: () => buildCapabilities(),
@@ -265,15 +295,18 @@ void app.whenReady().then(async () => {
       secureStorage: secureModel,
       getLocalServiceInfo: () => LOCAL_SERVICE_INFO,
       buildDiagnosticsSnapshot,
-      resolveHostAddresses: async (hostname) =>
-        (await lookup(hostname, { all: true, verbatim: true })).map((entry) => entry.address),
+      networkTransport,
     });
 
-    const isTrustedFrame = createTrustedFrameCheck({
-      ownedMainFrames,
-      allowedOrigins: appOrigins(),
+    const pageStore = registerPageStore(isTrustedFrame);
+    const allowlist = createProviderAllowlist();
+    registerProviderNetworkIpc({
+      ipcMain,
+      allowlist,
+      isTrustedFrame,
+      networkTransport,
+      pageStore,
     });
-    registerPageStore(isTrustedFrame);
     startDataHost(isTrustedFrame);
     bootstrap();
   } catch (err) {

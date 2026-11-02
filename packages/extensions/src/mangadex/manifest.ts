@@ -8,7 +8,7 @@ import { toProviderId } from '@app/shared';
 export const MANGADEX_MANIFEST: ProviderManifest = {
   id: toProviderId('mangadex'),
   name: 'MangaDex',
-  version: '0.1.0',
+  version: '0.1.1',
   description: 'Official MangaDex API provider (search, details, chapters, pages).',
   source: {
     url: 'https://mangadex.org',
@@ -17,6 +17,9 @@ export const MANGADEX_MANIFEST: ProviderManifest = {
   },
   compatibility: {
     platforms: ['web', 'desktop', 'mobile'],
+  },
+  network: {
+    domains: ['api.mangadex.org', 'uploads.mangadex.org', '*.mangadex.network'],
   },
   capabilities: {
     'discovery.search': true,

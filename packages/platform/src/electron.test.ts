@@ -17,9 +17,23 @@ const pageStoreStubs = {
   pageStoreUrl: async () => ok(undefined),
   pageStoreDelete: async () => ok(undefined),
   pageStoreListKeys: async () => ok([]),
+  providerNetworkReplace: async () => ok(undefined),
+  providerNetworkRequest: async () =>
+    ok({ status: 200, headers: {}, bodyText: '', finalUrl: 'https://example.com' }),
+  providerNetworkStore: async () =>
+    ok({ url: 'page://store/id', mimeType: 'image/jpeg', byteSize: 3 }),
+  providerNetworkStoreUserInitiated: async () =>
+    ok({ url: 'page://store/id', mimeType: 'image/jpeg', byteSize: 3 }),
 } satisfies Pick<
   DesktopPlatformBridge,
-  'pageStorePut' | 'pageStoreUrl' | 'pageStoreDelete' | 'pageStoreListKeys'
+  | 'pageStorePut'
+  | 'pageStoreUrl'
+  | 'pageStoreDelete'
+  | 'pageStoreListKeys'
+  | 'providerNetworkReplace'
+  | 'providerNetworkRequest'
+  | 'providerNetworkStore'
+  | 'providerNetworkStoreUserInitiated'
 >;
 
 describe('createElectronPlatformAdapter', () => {
@@ -293,6 +307,13 @@ describe('createElectronPlatformAdapter', () => {
         pageStoreUrl,
         pageStoreDelete,
         pageStoreListKeys,
+        providerNetworkReplace: async () => ok(undefined),
+        providerNetworkRequest: async () =>
+          ok({ status: 200, headers: {}, bodyText: '', finalUrl: 'https://example.com' }),
+        providerNetworkStore: async () =>
+          ok({ url: 'page://store/id', mimeType: 'image/jpeg', byteSize: 3 }),
+        providerNetworkStoreUserInitiated: async () =>
+          ok({ url: 'page://store/id', mimeType: 'image/jpeg', byteSize: 3 }),
       });
       const key = 'page:p:m:c:0';
       const bytes = new Uint8Array([0xff, 0xd8, 0xff]).buffer;

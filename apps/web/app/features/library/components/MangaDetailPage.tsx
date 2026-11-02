@@ -735,6 +735,7 @@ function MangaDetailHeader({
   onOpenCover,
 }: MangaDetailHeaderProps) {
   const { data, activeMapping, continueChapter, lastReadChapter, customCoverUrl, coverUrl } = view;
+  const coverIsCustom = customCoverUrl !== undefined && customCoverUrl === coverUrl;
 
   return (
     // On a phone Back is its own row, so the summary below it owns the full
@@ -759,6 +760,7 @@ function MangaDetailHeader({
               remoteUrl={coverUrl}
               alt={data.manga.canonicalTitle}
               className="aspect-3/4 w-full object-cover"
+              {...(coverIsCustom ? { userProvided: true } : {})}
             />
           </div>
         ) : null}

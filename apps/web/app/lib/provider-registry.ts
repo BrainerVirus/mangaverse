@@ -19,6 +19,8 @@ import type {
   ProviderSearchResultItem,
 } from '@app/extensions-sdk';
 import type { MangaDetailData } from '@/features/library';
+
+import { createProviderFetch } from './provider-fetch.js';
 import type {
   Chapter,
   ChapterId,
@@ -67,7 +69,9 @@ export interface ProviderAppBinding {
 const PROVIDER_BINDINGS: readonly ProviderAppBinding[] = [
   {
     providerId: 'mangadex',
-    createProvider: createMangaDexProvider,
+    // Every provider HTTP call goes through main on desktop; the web adapter's
+    // request method uses the page's own fetch.
+    createProvider: () => createMangaDexProvider({ fetchImpl: createProviderFetch('mangadex') }),
     sections: MANGADEX_SECTION_DEFINITIONS,
     isAppMangaId: isMangadexAppMangaId,
     parseAppMangaId: parseMangadexAppMangaId,

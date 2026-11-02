@@ -1,25 +1,10 @@
-import { EventEmitter } from 'node:events';
 import { describe, expect, it, vi } from 'vitest';
 import { ok } from '@app/shared';
 import { PLATFORM_IPC, detectElectronCapabilities } from '@app/platform';
 import { registerPlatformIpc, toIpcAppResult, type PlatformIpcDeps } from './platform-ipc.js';
+import type { RequestHop } from './main-process-fetch.js';
 import { PAGE_STORE_CHANNELS } from './page-store-ipc.js';
-
-function fakeRequest(handler: (req: EventEmitter) => void) {
-  return vi.fn<(options: { url?: string }) => EventEmitter>(() => {
-    const req = new EventEmitter() as EventEmitter & {
-      end: () => void;
-      abort: () => void;
-    };
-    req.end = () => {
-      queueMicrotask(() => handler(req));
-    };
-    req.abort = () => {
-      req.emit('close');
-    };
-    return req;
-  });
-}
+import { PROVIDER_NETWORK_CHANNELS } from './provider-network-ipc.js';
 
 describe('registerPlatformIpc', () => {
   function createMockIpc() {
@@ -40,7 +25,7 @@ describe('registerPlatformIpc', () => {
       dialog: {} as never,
       clipboard: { readText: () => '', writeText: () => {} } as never,
       shell: { openExternal: vi.fn<(url: string) => Promise<void>>() } as never,
-      net: { request: vi.fn<() => void>() } as never,
+      networkTransport: { resolveHostAddresses: async () => ['93.184.216.34'] },
       readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
       writeFileUtf8: vi.fn<(path: string, content: string) => Promise<void>>(),
       getCapabilities: () => detectElectronCapabilities(),
@@ -52,7 +37,6 @@ describe('registerPlatformIpc', () => {
       },
       getLocalServiceInfo: () => ({ running: false, host: null, port: null }),
       buildDiagnosticsSnapshot: () => ({}),
-      resolveHostAddresses: async () => ['93.184.216.34'],
       ...overrides,
     });
     return mock.handlers;
@@ -70,7 +54,7 @@ describe('registerPlatformIpc', () => {
       dialog: {} as never,
       clipboard: { readText: () => '', writeText: () => {} } as never,
       shell: { openExternal: vi.fn<(url: string) => Promise<void>>() } as never,
-      net: { request: vi.fn<() => void>() } as never,
+      networkTransport: { resolveHostAddresses: async () => ['93.184.216.34'] },
       readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
       writeFileUtf8: vi.fn<(path: string, content: string) => Promise<void>>(),
       getCapabilities: () => detectElectronCapabilities({ secureStorage: true }),
@@ -82,12 +66,14 @@ describe('registerPlatformIpc', () => {
       },
       getLocalServiceInfo: () => ({ running: false, host: null, port: null }),
       buildDiagnosticsSnapshot: () => ({}),
-      resolveHostAddresses: async () => ['93.184.216.34'],
     });
 
-    const pageStoreChannels: ReadonlySet<string> = new Set(PAGE_STORE_CHANNELS);
+    const elsewhere: ReadonlySet<string> = new Set([
+      ...PAGE_STORE_CHANNELS,
+      ...PROVIDER_NETWORK_CHANNELS,
+    ]);
     const expected = new Set(
-      Object.values(PLATFORM_IPC).filter((channel) => !pageStoreChannels.has(channel)),
+      Object.values(PLATFORM_IPC).filter((channel) => !elsewhere.has(channel)),
     );
     expect(handlers.size).toBe(expected.size);
     for (const ch of expected) {
@@ -104,7 +90,7 @@ describe('registerPlatformIpc', () => {
       dialog: {} as never,
       clipboard: { readText: () => '', writeText: () => {} } as never,
       shell: shell as never,
-      net: { request: vi.fn<() => void>() } as never,
+      networkTransport: { resolveHostAddresses: async () => ['93.184.216.34'] },
       readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
       writeFileUtf8: vi.fn<(path: string, content: string) => Promise<void>>(),
       getCapabilities: () => detectElectronCapabilities(),
@@ -116,7 +102,6 @@ describe('registerPlatformIpc', () => {
       },
       getLocalServiceInfo: () => ({ running: false, host: null, port: null }),
       buildDiagnosticsSnapshot: () => ({}),
-      resolveHostAddresses: async () => ['93.184.216.34'],
     });
     const fn = handlers.get(PLATFORM_IPC.EXTERNAL_LINK_OPEN)!;
     const r = (await fn(null, 'file:///x')) as ReturnType<typeof toIpcAppResult>;
@@ -133,7 +118,7 @@ describe('registerPlatformIpc', () => {
       dialog: {} as never,
       clipboard: { readText: () => '', writeText: () => {} } as never,
       shell: shell as never,
-      net: { request: vi.fn<() => void>() } as never,
+      networkTransport: { resolveHostAddresses: async () => ['93.184.216.34'] },
       readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
       writeFileUtf8: vi.fn<(path: string, content: string) => Promise<void>>(),
       getCapabilities: () => detectElectronCapabilities(),
@@ -145,7 +130,6 @@ describe('registerPlatformIpc', () => {
       },
       getLocalServiceInfo: () => ({ running: false, host: null, port: null }),
       buildDiagnosticsSnapshot: () => ({}),
-      resolveHostAddresses: async () => ['93.184.216.34'],
     });
     const fn = handlers.get(PLATFORM_IPC.EXTERNAL_LINK_OPEN)!;
     const r = (await fn(null, 'https://example.com')) as { ok: boolean };
@@ -166,7 +150,7 @@ describe('registerPlatformIpc', () => {
       } as never,
       clipboard: { readText: () => '', writeText: () => {} } as never,
       shell: { openExternal: vi.fn<(url: string) => Promise<void>>() } as never,
-      net: { request: vi.fn<() => void>() } as never,
+      networkTransport: { resolveHostAddresses: async () => ['93.184.216.34'] },
       readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
       writeFileUtf8,
       getCapabilities: () => detectElectronCapabilities(),
@@ -178,7 +162,6 @@ describe('registerPlatformIpc', () => {
       },
       getLocalServiceInfo: () => ({ running: false, host: null, port: null }),
       buildDiagnosticsSnapshot: () => ({}),
-      resolveHostAddresses: async () => ['93.184.216.34'],
     });
     const fn = handlers.get(PLATFORM_IPC.FILE_SAVE_TEXT)!;
     const r = (await fn(null, { content: 'hello', suggestedName: 'a.txt' })) as {
@@ -202,7 +185,7 @@ describe('registerPlatformIpc', () => {
       } as never,
       clipboard: { readText: () => '', writeText: () => {} } as never,
       shell: { openExternal: vi.fn<(url: string) => Promise<void>>() } as never,
-      net: { request: vi.fn<() => void>() } as never,
+      networkTransport: { resolveHostAddresses: async () => ['93.184.216.34'] },
       readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
       writeFileUtf8,
       getCapabilities: () => detectElectronCapabilities(),
@@ -214,7 +197,6 @@ describe('registerPlatformIpc', () => {
       },
       getLocalServiceInfo: () => ({ running: false, host: null, port: null }),
       buildDiagnosticsSnapshot: () => ({}),
-      resolveHostAddresses: async () => ['93.184.216.34'],
     });
     const fn = handlers.get(PLATFORM_IPC.FILE_SAVE_TEXT)!;
     const r = (await fn(null, { content: 'x' })) as {
@@ -236,7 +218,7 @@ describe('registerPlatformIpc', () => {
       dialog: {} as never,
       clipboard: { readText: () => '', writeText: () => {} } as never,
       shell: { openExternal: vi.fn<(url: string) => Promise<void>>() } as never,
-      net: { request: vi.fn<() => void>() } as never,
+      networkTransport: { resolveHostAddresses: async () => ['93.184.216.34'] },
       readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
       writeFileUtf8: vi.fn<(path: string, content: string) => Promise<void>>(),
       getCapabilities: () => detectElectronCapabilities(),
@@ -248,7 +230,6 @@ describe('registerPlatformIpc', () => {
       },
       getLocalServiceInfo: () => ({ running: false, host: null, port: null }),
       buildDiagnosticsSnapshot: () => ({}),
-      resolveHostAddresses: async () => ['93.184.216.34'],
     });
     await handlers.get(PLATFORM_IPC.FULLSCREEN_ENTER)!(null);
     await handlers.get(PLATFORM_IPC.FULLSCREEN_EXIT)!(null);
@@ -264,7 +245,7 @@ describe('registerPlatformIpc', () => {
       dialog: {} as never,
       clipboard: { readText: () => '', writeText: () => {} } as never,
       shell: { openExternal: vi.fn<(url: string) => Promise<void>>() } as never,
-      net: { request: vi.fn<() => void>() } as never,
+      networkTransport: { resolveHostAddresses: async () => ['93.184.216.34'] },
       readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
       writeFileUtf8: vi.fn<(path: string, content: string) => Promise<void>>(),
       getCapabilities: () => detectElectronCapabilities(),
@@ -278,7 +259,6 @@ describe('registerPlatformIpc', () => {
       buildDiagnosticsSnapshot: () => ({
         nodeVersion: '22',
       }),
-      resolveHostAddresses: async () => ['93.184.216.34'],
     });
     const wrapped = toIpcAppResult({
       ok: false,
@@ -306,7 +286,7 @@ describe('registerPlatformIpc', () => {
         },
       } as never,
       shell: { openExternal: vi.fn<(url: string) => Promise<void>>() } as never,
-      net: { request: vi.fn<() => void>() } as never,
+      networkTransport: { resolveHostAddresses: async () => ['93.184.216.34'] },
       readFileUtf8: vi.fn<(path: string) => Promise<string>>(),
       writeFileUtf8: vi.fn<(path: string, content: string) => Promise<void>>(),
       getCapabilities: () => detectElectronCapabilities(),
@@ -318,7 +298,6 @@ describe('registerPlatformIpc', () => {
       },
       getLocalServiceInfo: () => ({ running: false, host: null, port: null }),
       buildDiagnosticsSnapshot: () => ({}),
-      resolveHostAddresses: async () => ['93.184.216.34'],
     });
     const fn = handlers.get(PLATFORM_IPC.CLIPBOARD_WRITE_TEXT)!;
     const r = (await fn(null, 'x')) as ReturnType<typeof toIpcAppResult>;
@@ -352,38 +331,45 @@ describe('registerPlatformIpc', () => {
     'http://10.1.2.3/page.png',
     'http://192.168.1.10/page.png',
     'file:///etc/passwd',
-  ])('rejects network target %s before fetching', async (url) => {
-    const request = vi.fn<() => void>();
-    const handlers = register({ net: { request } as never });
+  ])('rejects network target %s before resolving it', async (url) => {
+    const resolveHostAddresses = vi.fn<(hostname: string) => Promise<readonly string[]>>(
+      async () => ['93.184.216.34'],
+    );
+    const requestHop = vi.fn<RequestHop>();
+    const handlers = register({ networkTransport: { resolveHostAddresses, requestHop } });
     const fn = handlers.get(PLATFORM_IPC.NETWORK_FETCH_BYTES)!;
 
     const r = (await fn(null, url)) as ReturnType<typeof toIpcAppResult>;
     expect(r.ok).toBe(false);
-    expect(request).not.toHaveBeenCalled();
+    expect(resolveHostAddresses).not.toHaveBeenCalled();
+    expect(requestHop).not.toHaveBeenCalled();
   });
 
   it('rejects a hostname that resolves to a private address', async () => {
-    const request = vi.fn<() => void>();
+    const requestHop = vi.fn<RequestHop>();
     const handlers = register({
-      net: { request } as never,
-      resolveHostAddresses: async () => ['10.0.0.7'],
+      networkTransport: { resolveHostAddresses: async () => ['10.0.0.7'], requestHop },
     });
     const fn = handlers.get(PLATFORM_IPC.NETWORK_FETCH_BYTES)!;
 
-    const r = (await fn(null, 'https://internal.example/page.png')) as ReturnType<
-      typeof toIpcAppResult
-    >;
+    const r = (await fn(null, 'https://internal.example/page.png')) as {
+      ok: boolean;
+      error?: { code?: string };
+    };
     expect(r.ok).toBe(false);
-    expect(request).not.toHaveBeenCalled();
+    expect(r.error?.code).toBe('platform.invalid-url');
+    expect(requestHop).not.toHaveBeenCalled();
   });
 
   it('settles a network fetch whose lookup never resolves', async () => {
     vi.useFakeTimers();
     try {
-      const request = vi.fn<() => void>();
+      const requestHop = vi.fn<RequestHop>();
       const handlers = register({
-        net: { request } as never,
-        resolveHostAddresses: () => new Promise<readonly string[]>(() => {}),
+        networkTransport: {
+          resolveHostAddresses: () => new Promise<readonly string[]>(() => undefined),
+          requestHop,
+        },
       });
       const fn = handlers.get(PLATFORM_IPC.NETWORK_FETCH_BYTES)!;
       let settled = false;
@@ -399,72 +385,29 @@ describe('registerPlatformIpc', () => {
       const r = (await pending) as { ok: boolean; error?: { code?: string } };
       expect(r.ok).toBe(false);
       expect(r.error?.code).toBe('platform.io-failed');
-      expect(request).not.toHaveBeenCalled();
+      expect(requestHop).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it('shares the 60s deadline between slow validation and a stalled hop', async () => {
-    vi.useFakeTimers();
-    try {
-      let lookups = 0;
-      const request = fakeRequest(() => {
-        // The hop stalls: no response, redirect or error.
-      });
-      const handlers = register({
-        net: { request } as never,
-        resolveHostAddresses: async () => {
-          lookups += 1;
-          // Only the handler's pre-validation is slow; the fetch's own
-          // re-validation is instant, so the request starts at 40s.
-          if (lookups === 1) {
-            await new Promise<void>((resolve) => setTimeout(() => resolve(), 40_000));
-          }
-          return ['93.184.216.34'];
-        },
-      });
-      const fn = handlers.get(PLATFORM_IPC.NETWORK_FETCH_BYTES)!;
-      let settled = false;
-      const pending = fn(null, 'https://example.com/page.png').then((value) => {
-        settled = true;
-        return value;
-      });
-
-      await vi.advanceTimersByTimeAsync(40_000);
-      expect(request).toHaveBeenCalledOnce();
-      expect(settled).toBe(false);
-
-      // 20s of the one 60s budget remain: the hop must not get a fresh 30s.
-      await vi.advanceTimersByTimeAsync(19_999);
-      expect(settled).toBe(false);
-
-      await vi.advanceTimersByTimeAsync(1);
-      expect(settled).toBe(true);
-      const r = (await pending) as { ok: boolean; error?: { code?: string } };
-      expect(r.ok).toBe(false);
-      expect(r.error?.code).toBe('platform.io-failed');
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('fetches a public hostname through net.request', async () => {
-    const request = fakeRequest((req) => {
-      // Electron 44: finish and close arrive before response.
-      req.emit('finish');
-      req.emit('close');
-      const res = new EventEmitter() as EventEmitter & {
-        statusCode: number;
-        headers: Record<string, string>;
-      };
-      res.statusCode = 200;
-      res.headers = { 'content-type': 'image/png' };
-      req.emit('response', res);
-      res.emit('data', Buffer.from([1, 2, 3]));
-      res.emit('end');
+  it('fetches through the pinned hop and logs a refusal', async () => {
+    const requestHop = vi.fn<RequestHop>(async () => ({
+      kind: 'response',
+      status: 200,
+      headers: { 'content-type': 'image/png' },
+      body: Buffer.from([1, 2, 3]),
+      finalUrl: 'https://example.com/page.png',
+    }));
+    const log = vi.fn<(event: { code: string }) => void>();
+    const handlers = register({
+      networkTransport: {
+        resolveHostAddresses: async (hostname) =>
+          hostname === 'example.com' ? ['93.184.216.34'] : ['10.0.0.7'],
+        requestHop,
+        log,
+      },
     });
-    const handlers = register({ net: { request } as never });
     const fn = handlers.get(PLATFORM_IPC.NETWORK_FETCH_BYTES)!;
 
     const r = (await fn(null, 'https://example.com/page.png')) as {
@@ -474,31 +417,38 @@ describe('registerPlatformIpc', () => {
     expect(r.ok).toBe(true);
     expect(r.value?.mimeType).toBe('image/png');
     expect(r.value?.data.byteLength).toBe(3);
-    expect(request.mock.calls[0]?.[0]).toMatchObject({
-      redirect: 'manual',
-      method: 'GET',
-      credentials: 'omit',
+    expect(requestHop.mock.calls[0]?.[0]).toMatchObject({
+      address: '93.184.216.34',
+      family: 4,
     });
+
+    const blocked = (await fn(null, 'https://internal.example/page.png')) as { ok: boolean };
+    expect(blocked.ok).toBe(false);
+    expect(log).toHaveBeenCalledWith(expect.objectContaining({ code: 'network.blocked-address' }));
   });
 
-  it('rejects a redirect to a private host before requesting it', async () => {
-    const request = fakeRequest((req) => {
-      // Electron 44: finish and close arrive before the redirect.
-      req.emit('finish');
-      req.emit('close');
-      req.emit('redirect', 302, 'GET', 'http://127.0.0.1/secret', {});
-      req.emit('error', new Error('Redirect was cancelled'));
+  it('rejects a redirect to a private host before the hop', async () => {
+    const requestHop = vi.fn<RequestHop>(async () => ({
+      kind: 'redirect',
+      location: 'http://127.0.0.1/secret',
+      status: 302,
+    }));
+    const handlers = register({
+      networkTransport: {
+        resolveHostAddresses: async (hostname) =>
+          hostname === 'example.com' ? ['93.184.216.34'] : ['127.0.0.1'],
+        requestHop,
+      },
     });
-    const handlers = register({ net: { request } as never });
     const fn = handlers.get(PLATFORM_IPC.NETWORK_FETCH_BYTES)!;
 
     const r = (await fn(null, 'https://example.com/page.png')) as {
       ok: boolean;
-      value?: unknown;
+      error?: { code?: string };
     };
-    expect(r.ok).toBe(true);
-    expect(r.value).toBeUndefined();
-    expect(request).toHaveBeenCalledTimes(1);
+    expect(r.ok).toBe(false);
+    expect(r.error?.code).toBe('platform.invalid-url');
+    expect(requestHop).toHaveBeenCalledTimes(1);
   });
 
   it('returns typed errors without leaking thrown details', async () => {

@@ -8,7 +8,12 @@ import {
 import type { PlatformAdapter } from '@app/platform';
 import type { MangaId, ProviderId } from '@app/shared';
 
-import { buildCoverBlobKey, buildCoverCacheEntryId, COVER_CACHE_KIND } from './constants.js';
+import {
+  buildCoverBlobKey,
+  buildCoverCacheEntryId,
+  buildCoverPageKey,
+  COVER_CACHE_KIND,
+} from './constants.js';
 import { withBlobWrite } from './blob-writes.js';
 
 export interface CoverCacheLookupInput {
@@ -17,6 +22,12 @@ export interface CoverCacheLookupInput {
   readonly providerId: ProviderId | string;
   readonly mangaId: MangaId | string;
   readonly remoteUrl: string;
+  /**
+   * The URL came from the user (a custom cover), not the provider manifest. It
+   * bypasses only the provider allowlist; main still enforces its public-URL,
+   * redirect, size and time checks.
+   */
+  readonly userProvided?: boolean;
 }
 
 export interface CoverCacheStoreResult {
@@ -30,6 +41,19 @@ export interface CoverCacheUsageSummary {
 }
 
 const inFlightFetches = new Map<string, Promise<string | undefined>>();
+
+/**
+ * The store's own URL for a cover, when it serves covers by URL (desktop: `page://`).
+ * `null` means this store has none, so the caller reads IndexedDB bytes instead.
+ */
+async function resolveStoredCoverUrl(
+  adapter: PlatformAdapter,
+  blobKey: string,
+): Promise<string | undefined | null> {
+  if (adapter.blobStorage.resolveUrl === undefined) return null;
+  const result = await adapter.blobStorage.resolveUrl(blobKey);
+  return result.ok ? result.value : null;
+}
 
 async function createObjectUrlFromBlob(
   adapter: PlatformAdapter,
@@ -55,6 +79,13 @@ export async function getCachedCoverObjectUrl(
   // example a custom cover) must miss instead of painting the previous blob.
   if (entry?.blobKey === undefined || entry.sourceUrl !== input.remoteUrl) {
     return undefined;
+  }
+
+  const storedUrl = await resolveStoredCoverUrl(input.adapter, entry.blobKey);
+  if (storedUrl !== null) {
+    if (storedUrl === undefined) return undefined;
+    await touchCacheEntry(input.db, entry.id);
+    return { objectUrl: storedUrl, fromCache: true };
   }
 
   const blobResult = await input.adapter.blobStorage.get(entry.blobKey);
@@ -113,6 +144,48 @@ export async function storeCoverInCache(
   return { objectUrl, fromCache: false };
 }
 
+/**
+ * Desktop path: main fetches the cover and writes it to the page store. A provider
+ * cover runs under the provider's allowlist; a user-supplied custom cover runs
+ * through the user-initiated path, which keeps every SSRF/size/time check but has
+ * no manifest to authorize the host. Returns its `page://` URL, never the bytes.
+ */
+async function storeCoverInMain(
+  input: CoverCacheLookupInput,
+): Promise<CoverCacheStoreResult | undefined> {
+  const providerId = String(input.providerId);
+  const mangaId = String(input.mangaId);
+  const blobKey = buildCoverPageKey(providerId, mangaId);
+  const userProvided = input.userProvided === true;
+
+  const result = userProvided
+    ? await input.adapter.providerNetwork.fetchAndStoreUserInitiated?.({
+        url: input.remoteUrl,
+        key: blobKey,
+      })
+    : await input.adapter.providerNetwork.fetchAndStore?.({
+        providerId,
+        url: input.remoteUrl,
+        key: blobKey,
+      });
+  if (result === undefined || !result.ok || result.value === undefined) return undefined;
+
+  const stored = result.value;
+  await withBlobWrite(blobKey, async () => {
+    await upsertCacheEntry(input.db, {
+      id: buildCoverCacheEntryId(providerId, mangaId),
+      providerId,
+      mangaId,
+      cacheKind: COVER_CACHE_KIND,
+      sourceUrl: input.remoteUrl,
+      mimeType: stored.mimeType,
+      byteSize: stored.byteSize,
+      blobKey,
+    });
+  });
+  return { objectUrl: stored.url, fromCache: false };
+}
+
 async function fetchRemoteCover(
   adapter: PlatformAdapter,
   remoteUrl: string,
@@ -143,6 +216,14 @@ export async function resolveCoverObjectUrl(
   }
 
   const fetchPromise = (async () => {
+    const canStoreInMain =
+      input.userProvided === true
+        ? input.adapter.providerNetwork.fetchAndStoreUserInitiated !== undefined
+        : input.adapter.providerNetwork.fetchAndStore !== undefined;
+    if (canStoreInMain) {
+      const stored = await storeCoverInMain(input);
+      return stored?.objectUrl;
+    }
     const remote = await fetchRemoteCover(input.adapter, input.remoteUrl);
     if (remote === undefined) {
       return undefined;

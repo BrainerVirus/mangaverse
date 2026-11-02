@@ -57,6 +57,18 @@ describe('installFirstPartyProviders', () => {
     expect(upsertInstalledExtension).not.toHaveBeenCalled();
   });
 
+  it('Given the same version without network domains, When installing, Then the bundled manifest is refreshed', async () => {
+    listInstalledExtensions.mockResolvedValue([
+      entry({ manifest: { ...MANGADEX_MANIFEST, network: undefined } }),
+    ]);
+    await installFirstPartyProviders(db);
+
+    expect(upsertInstalledExtension).toHaveBeenCalledTimes(1);
+    const metadata = upsertInstalledExtension.mock.calls[0]?.[1] as ExtensionInstallMetadata;
+    expect(metadata.manifest.network?.domains).toEqual(MANGADEX_MANIFEST.network?.domains);
+    expect(metadata.enabled).toBe(true);
+  });
+
   it('Given a disabled entry at an older version, When installing, Then the manifest refreshes without re-enabling', async () => {
     listInstalledExtensions.mockResolvedValue([
       entry({ enabled: false, installedVersion: '0.0.9' }),

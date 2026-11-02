@@ -21,6 +21,13 @@ const bridge: DesktopPlatformBridge = {
   diagnosticsGetSnapshot: () => ipcRenderer.invoke(PLATFORM_IPC.DIAGNOSTICS_GET),
   localServiceGetInfo: () => ipcRenderer.invoke(PLATFORM_IPC.LOCAL_SERVICE_GET_INFO),
   networkFetchBytes: (url: string) => ipcRenderer.invoke(PLATFORM_IPC.NETWORK_FETCH_BYTES, url),
+  providerNetworkReplace: (providers, revision) =>
+    ipcRenderer.invoke(PLATFORM_IPC.PROVIDER_NETWORK_REPLACE, { providers, revision }),
+  providerNetworkRequest: (input) =>
+    ipcRenderer.invoke(PLATFORM_IPC.PROVIDER_NETWORK_REQUEST, input),
+  providerNetworkStore: (input) => ipcRenderer.invoke(PLATFORM_IPC.PROVIDER_NETWORK_STORE, input),
+  providerNetworkStoreUserInitiated: (input) =>
+    ipcRenderer.invoke(PLATFORM_IPC.PROVIDER_NETWORK_STORE_USER_INITIATED, input),
   pageStorePut: (key: string, data: ArrayBuffer, mimeType: string) =>
     ipcRenderer.invoke(PLATFORM_IPC.PAGE_STORE_PUT, key, data, mimeType),
   pageStoreUrl: (key: string) => ipcRenderer.invoke(PLATFORM_IPC.PAGE_STORE_URL, key),

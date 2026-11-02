@@ -19,6 +19,8 @@ import type { ProviderManifest } from '@app/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { actionFailureMessage } from './app-feedback.js';
+import { syncProviderNetworkAllowlist } from './provider-allowlist-sync.js';
+import { createUserInitiatedFetch } from './provider-fetch.js';
 import { getProviderBinding } from './provider-registry.js';
 import { flushLocalDb } from './local-db.js';
 
@@ -180,7 +182,10 @@ export function useProviderUpdate(
   const check = useMutation({
     mutationFn: async () => {
       if (db === null) throw new Error('Database is not ready.');
-      return checkProviderUpdate(providerId, { db, fetch: (input, init) => fetch(input, init) });
+      // Manifest checks run before a provider exists, so there is no allowlist;
+      // main still applies its SSRF, redirect, size and time checks. A raw
+      // renderer fetch would be blocked by the production `connect-src 'self'`.
+      return checkProviderUpdate(providerId, { db, fetch: createUserInitiatedFetch() });
     },
     onSuccess: (result) => {
       setCheckResult(result);
@@ -200,6 +205,9 @@ export function useProviderUpdate(
       const result = await applyProviderUpdate(providerId, manifest, { db });
       if (!result.ok) throw result.error;
       await flushLocalDb();
+      // The new manifest may add or remove hosts; main must adopt the new set
+      // before the next provider request (the full snapshot also drops removed ones).
+      await syncProviderNetworkAllowlist(db);
     },
     onSuccess: () => {
       setCheckResult(null);

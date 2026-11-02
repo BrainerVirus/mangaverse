@@ -12,6 +12,16 @@ export type ProviderPermission =
   | 'storage.read'
   | 'storage.write';
 
+/**
+ * Hosts a provider may reach, declared in its manifest. Each entry is a bare
+ * hostname (`api.example.org`) or a leading wildcard (`*.example.org`) that
+ * matches any subdomain but not the apex. No scheme, port or path is allowed.
+ * A manifest without this field gets no network access at all (fail closed).
+ */
+export interface ProviderNetwork {
+  readonly domains: readonly string[];
+}
+
 export interface ProviderCompatibility {
   readonly minAppVersion?: string;
   readonly maxAppVersion?: string;
@@ -96,6 +106,7 @@ export interface ProviderManifest {
   readonly description?: string;
   readonly source: ProviderSourceInfo;
   readonly compatibility: ProviderCompatibility;
+  readonly network?: ProviderNetwork;
   readonly capabilities: ProviderCapabilityMap;
   readonly capabilityDetails?: readonly ProviderCapabilityDetail[];
   readonly settingsSupport?: ProviderSettingsSupport;
@@ -222,6 +233,23 @@ const providerSettingsSupportSchema = z
   )
   .exactOptional();
 
+const DOMAIN_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/;
+
+/** Whether `value` is a bare hostname or a leading wildcard such as `*.example.org`. */
+export function isProviderDomainPattern(value: string): boolean {
+  const host = value.startsWith('*.') ? value.slice(2) : value;
+  return DOMAIN_PATTERN.test(host);
+}
+
+const providerDomainPatternSchema = z
+  .string({ error: 'Manifest network.domains entries must be strings.' })
+  .trim()
+  .toLowerCase()
+  .refine(isProviderDomainPattern, {
+    error:
+      'Manifest network.domains entries must be bare hostnames or a leading wildcard such as *.example.org.',
+  });
+
 const providerManifestSchema = z.object(
   {
     id: nonEmptyString('Manifest id is required.'),
@@ -255,6 +283,19 @@ const providerManifestSchema = z.object(
       },
       { error: 'Manifest compatibility is required.' },
     ),
+    network: z
+      .object(
+        {
+          domains: z
+            .array(providerDomainPatternSchema, {
+              error: 'Manifest network.domains must be an array.',
+            })
+            .min(1, { error: 'Manifest network.domains must be a non-empty array.' })
+            .max(32, { error: 'Manifest network.domains has too many entries.' }),
+        },
+        { error: 'Manifest network must be an object.' },
+      )
+      .exactOptional(),
     capabilities: z
       .partialRecord(
         z.enum(CAPABILITY_KEYS, { error: CAPABILITIES_MESSAGE }),
@@ -342,6 +383,7 @@ export function validateProviderManifest(input: unknown): AppResult<ProviderMani
         : {}),
       platforms: data.compatibility.platforms,
     },
+    ...(data.network !== undefined ? { network: { domains: data.network.domains } } : {}),
     capabilities: data.capabilities,
     ...(data.capabilityDetails !== undefined ? { capabilityDetails: data.capabilityDetails } : {}),
     ...(data.settingsSupport !== undefined ? { settingsSupport: data.settingsSupport } : {}),
@@ -350,5 +392,37 @@ export function validateProviderManifest(input: unknown): AppResult<ProviderMani
     contentFlags: data.contentFlags,
     ...(data.checksum !== undefined ? { checksum: data.checksum } : {}),
     ...(data.signature !== undefined ? { signature: data.signature } : {}),
+  });
+}
+
+/** Domains a provider declares; empty means it may not use the network (fail closed). */
+export function providerNetworkDomains(manifest: ProviderManifest): readonly string[] {
+  return manifest.network?.domains ?? [];
+}
+
+/** Whether `host` is declared by the manifest. Wildcards match subdomains, never the apex. */
+export function providerAllowsHost(manifest: ProviderManifest, host: string): boolean {
+  return providerDomainsAllowHost(providerNetworkDomains(manifest), host);
+}
+
+/**
+ * Whether `host` matches one of `domains`. Main keeps only the declared domains
+ * (never a per-request list), so this is the single check both renderer and main use.
+ */
+export function providerDomainsAllowHost(domains: readonly string[], host: string): boolean {
+  const normalized = host.trim().toLowerCase().replace(/\.$/, '');
+  if (
+    normalized.length === 0 ||
+    normalized.includes('/') ||
+    normalized.includes(':') ||
+    normalized.includes('@') ||
+    /\s/.test(normalized)
+  ) {
+    return false;
+  }
+  return domains.some((pattern) => {
+    if (!pattern.startsWith('*.')) return normalized === pattern;
+    const suffix = pattern.slice(1);
+    return normalized.endsWith(suffix) && normalized !== suffix.slice(1);
   });
 }

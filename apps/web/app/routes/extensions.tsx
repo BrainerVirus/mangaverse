@@ -32,6 +32,8 @@ import { searchQueryKeys } from '@/features/search';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 import { actionFailureMessage } from '../lib/app-feedback.js';
 import { flushLocalDb } from '../lib/local-db.js';
+import { createUserInitiatedFetch } from '../lib/provider-fetch.js';
+import { syncProviderNetworkAllowlist } from '../lib/provider-allowlist-sync.js';
 
 const extensionsSearchSchema = z.object({
   install: z
@@ -78,7 +80,7 @@ function useRegistryImport(db: AppDrizzleDb | null, queryClient: QueryClient) {
   const prepareMutation = useMutation({
     mutationFn: async (nextPreview: ExtensionImportPreview) => {
       const result = await prepareExtensionImport(nextPreview, {
-        fetch: globalThis.fetch.bind(globalThis),
+        fetch: createUserInitiatedFetch(),
         signal: nextPrepareSignal(),
       });
       if (!result.ok) {
@@ -103,7 +105,7 @@ function useRegistryImport(db: AppDrizzleDb | null, queryClient: QueryClient) {
       const next = new AbortController();
       documentController.current = next;
       const result = await fetchExtensionImportDocumentFromUrl(value, {
-        fetch: globalThis.fetch.bind(globalThis),
+        fetch: createUserInitiatedFetch(),
         signal: next.signal,
       });
       documentController.current = null;
@@ -168,6 +170,7 @@ function useRegistryImport(db: AppDrizzleDb | null, queryClient: QueryClient) {
     onSuccess: (result: ExtensionListImportResult) => {
       reset();
       setImportWarnings(result.warnings.map((warning) => warning.message));
+      if (db !== null) void syncProviderNetworkAllowlist(db);
       void queryClient.invalidateQueries({ queryKey: extensionsQueryKeys.all });
       void queryClient.invalidateQueries({ queryKey: searchQueryKeys.providers() });
     },
@@ -337,7 +340,7 @@ function ExtensionsRoute() {
       const next = new AbortController();
       manifestController.current = next;
       const result = await prepareManualProviderInstall(url, {
-        fetch: globalThis.fetch.bind(globalThis),
+        fetch: createUserInitiatedFetch(),
         signal: next.signal,
       });
       if (!result.ok) {
@@ -375,6 +378,7 @@ function ExtensionsRoute() {
     },
     onSuccess: () => {
       resetInstallState();
+      if (db !== null) void syncProviderNetworkAllowlist(db);
       void queryClient.invalidateQueries({ queryKey: extensionsQueryKeys.all });
       void queryClient.invalidateQueries({ queryKey: searchQueryKeys.providers() });
       void navigate({ search: {} });
@@ -401,6 +405,7 @@ function ExtensionsRoute() {
     },
     onSettled: () => {
       setPendingProviderId(undefined);
+      if (db !== null) void syncProviderNetworkAllowlist(db);
       void queryClient.invalidateQueries({ queryKey: extensionsQueryKeys.all });
       void queryClient.invalidateQueries({ queryKey: searchQueryKeys.providers() });
     },

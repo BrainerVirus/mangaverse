@@ -53,6 +53,7 @@ function createPageAdapter(): {
         },
         revokeObjectUrl: async (_url: string) => ok(undefined),
       },
+      providerNetwork: {},
       network: {
         fetchBytes: async () => {
           fetches += 1;
@@ -320,6 +321,7 @@ describe('page cache store', () => {
         createObjectUrl: async () => ok('blob:page'),
         revokeObjectUrl: async () => ok(undefined),
       },
+      providerNetwork: {},
       network: {
         fetchBytes: () =>
           new Promise((resolve) => {
@@ -374,6 +376,7 @@ function createUrlServingAdapter() {
       resolveUrl: async (key: string) =>
         ok(files.has(key) ? `page://store/${encodeURIComponent(key).length}` : undefined),
     },
+    providerNetwork: {},
     network: {
       fetchBytes: async () =>
         ok({ data: new Uint8Array([0xff, 0xd8, 0xff]).buffer, mimeType: 'image/jpeg' }),
@@ -417,5 +420,121 @@ describe('page cache store with a URL-serving store', () => {
     const again = await resolvePageObjectUrl(page(db, store.adapter));
     expect(again).toMatchObject({ fromCache: false });
     expect(store.files.size).toBe(1);
+  });
+});
+
+/** Desktop's newest shape: main fetches and stores, returning only URL and size. */
+function createMainStoreAdapter() {
+  const files = new Map<string, { data: ArrayBuffer; mimeType: string }>();
+  let fetchBytes = 0;
+  let puts = 0;
+  let objectUrls = 0;
+  const adapter = {
+    blobStorage: {
+      put: async () => {
+        puts += 1;
+        return ok(undefined);
+      },
+      get: async () => ok(undefined),
+      delete: async (key: string) => {
+        files.delete(key);
+        return ok(undefined);
+      },
+      listKeys: async () => ok([...files.keys()]),
+      createObjectUrl: async () => {
+        objectUrls += 1;
+        return ok('blob:unexpected');
+      },
+      revokeObjectUrl: async () => ok(undefined),
+      resolveUrl: async (key: string) =>
+        ok(files.has(key) ? `page://store/${key.length}` : undefined),
+    },
+    providerNetwork: {
+      async fetchAndStore(input: { url: string; key: string }) {
+        if (input.url.includes('fail')) return ok(undefined);
+        files.set(input.key, {
+          data: new Uint8Array([0xff, 0xd8, 0xff]).buffer,
+          mimeType: 'image/jpeg',
+        });
+        return ok({ url: `page://store/${input.key.length}`, mimeType: 'image/jpeg', byteSize: 3 });
+      },
+    },
+    network: {
+      fetchBytes: async () => {
+        fetchBytes += 1;
+        return ok({ data: new Uint8Array([1, 2, 3]).buffer, mimeType: 'image/jpeg' });
+      },
+    },
+  } as unknown as PlatformAdapter;
+  return {
+    adapter,
+    files,
+    fetchBytesCalled: () => fetchBytes,
+    puts: () => puts,
+    objectUrls: () => objectUrls,
+  };
+}
+
+describe('page cache store with a main-side fetch-and-store', () => {
+  const page = (
+    db: Awaited<ReturnType<typeof createSqlJsHarness>>['db'],
+    adapter: PlatformAdapter,
+    remoteUrl = 'https://uploads.mangadex.org/page.jpg',
+  ) => ({
+    db,
+    adapter,
+    ...CHAPTER,
+    pageIndex: 0,
+    remoteUrl,
+  });
+
+  it('Given a page, When resolving it, Then only main metadata and a page:// URL reach the renderer', async () => {
+    const { db } = await createSqlJsHarness();
+    const store = createMainStoreAdapter();
+
+    const fresh = await resolvePageObjectUrl(page(db, store.adapter));
+
+    expect(fresh).toMatchObject({ fromCache: false, byteSize: 3 });
+    expect(fresh?.objectUrl).toMatch(/^page:\/\/store\//);
+    expect(store.fetchBytesCalled()).toBe(0);
+    expect(store.puts()).toBe(0);
+    expect(store.objectUrls()).toBe(0);
+    expect([...store.files.keys()]).toEqual(['page:mangadex:dev-md-abc:dev-md-ch-1:0']);
+
+    const cached = await resolvePageObjectUrl(page(db, store.adapter));
+    expect(cached).toEqual({ objectUrl: fresh?.objectUrl, fromCache: true, byteSize: 3 });
+    expect(store.fetchBytesCalled()).toBe(0);
+  });
+
+  it('Given prefetch, When main stores the page, Then no bytes or object URL are produced', async () => {
+    const { db } = await createSqlJsHarness();
+    const store = createMainStoreAdapter();
+
+    const outcome = await prefetchChapterPages({
+      db,
+      adapter: store.adapter,
+      ...CHAPTER,
+      pages: [{ pageIndex: 0, remoteUrl: 'https://uploads.mangadex.org/page.jpg' }],
+    });
+
+    expect(outcome).toMatchObject({ fetchedPages: 1, cachedPages: 0, failedPages: 0 });
+    expect(outcome.downloadedBytes).toBe(3);
+    expect(store.fetchBytesCalled()).toBe(0);
+    expect(store.objectUrls()).toBe(0);
+    expect(store.puts()).toBe(0);
+    expect(await listCachedChapterPageIndexes(db, CHAPTER)).toEqual([0]);
+  });
+
+  it('Given a main-store failure, When resolving, Then it does not fall back to fetching bytes', async () => {
+    const { db } = await createSqlJsHarness();
+    const store = createMainStoreAdapter();
+
+    const result = await resolvePageObjectUrl(
+      page(db, store.adapter, 'https://uploads.mangadex.org/fail.jpg'),
+    );
+
+    expect(result).toBeUndefined();
+    expect(store.fetchBytesCalled()).toBe(0);
+    expect(store.puts()).toBe(0);
   });
 });
