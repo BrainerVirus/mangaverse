@@ -23,6 +23,10 @@ const bridge: DesktopPlatformBridge = {
   networkFetchBytes: (url: string) => ipcRenderer.invoke(PLATFORM_IPC.NETWORK_FETCH_BYTES, url),
   providerNetworkReplace: (providers, revision) =>
     ipcRenderer.invoke(PLATFORM_IPC.PROVIDER_NETWORK_REPLACE, { providers, revision }),
+  providerNetworkRevoke: (providerId, revision) =>
+    ipcRenderer.invoke(PLATFORM_IPC.PROVIDER_NETWORK_REVOKE, { providerId, revision }),
+  providerNetworkNextRevision: () =>
+    ipcRenderer.invoke(PLATFORM_IPC.PROVIDER_NETWORK_NEXT_REVISION),
   providerNetworkRequest: (input) =>
     ipcRenderer.invoke(PLATFORM_IPC.PROVIDER_NETWORK_REQUEST, input),
   providerNetworkStore: (input) => ipcRenderer.invoke(PLATFORM_IPC.PROVIDER_NETWORK_STORE, input),

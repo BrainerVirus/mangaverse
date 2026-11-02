@@ -219,6 +219,17 @@ export interface PlatformAdapter {
       providers: readonly ProviderNetworkRegistration[],
       revision: number,
     ): Promise<AppResult<void>>;
+    /**
+     * Drop one provider from main's table immediately. Disable and uninstall await
+     * this before they commit, so a failure leaves the provider enabled and visible
+     * rather than enabled in main only. Ordered with `replaceProviders` by `revision`.
+     */
+    revokeProvider(providerId: string, revision: number): Promise<AppResult<void>>;
+    /**
+     * Main's monotonic revision for the next snapshot or revoke. Main assigns it so
+     * a renderer reload (or a backward clock) cannot reuse a fenced revision.
+     */
+    nextRevision(): Promise<AppResult<number>>;
     request(input: PlatformProviderRequest): Promise<AppResult<PlatformProviderResponse>>;
     /**
      * Desktop only: fetch and store in one main-process call, returning metadata and a
@@ -257,6 +268,8 @@ export interface DesktopPlatformBridge {
     providers: readonly ProviderNetworkRegistration[],
     revision: number,
   ) => Promise<AppResult<void>>;
+  providerNetworkRevoke: (providerId: string, revision: number) => Promise<AppResult<void>>;
+  providerNetworkNextRevision: () => Promise<AppResult<number>>;
   providerNetworkRequest: (
     input: PlatformProviderRequest,
   ) => Promise<AppResult<PlatformProviderResponse>>;
@@ -284,6 +297,8 @@ export interface DesktopPlatformBridge {
         readonly totalRows: number;
         readonly checksum: string;
       } | null;
+      /** Digests the completed import verified, by page-store key. */
+      readonly blobChecksums: Readonly<Record<string, string>>;
     }>
   >;
   /** Records the verified renderer-data import beside the native database. */

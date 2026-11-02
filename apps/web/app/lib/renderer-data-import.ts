@@ -15,7 +15,8 @@ import { createIndexedDbPersistedBytesStore } from './persisted-bytes-idb.js';
 // into main's page store, has main hash the file it wrote, and only then lets the snapshot
 // import rewrite cache pointers. Old bytes stay until the marker records a verified move.
 // A cover already stored under `page:cover:` is rewritten from the store's own listing, so a
-// re-import of a stale snapshot cannot lose a cover whose IndexedDB copy was reclaimed.
+// re-import of a stale snapshot cannot lose a cover whose IndexedDB copy was reclaimed; each
+// such file is verified first, so a listing whose bytes are gone stops the import instead.
 
 const PAGE_PREFIX = 'page:';
 const COVER_PREFIX = 'cover:';
@@ -131,7 +132,13 @@ export async function moveRendererBlobs(deps: BlobMoveDeps): Promise<BlobMoveRes
     // single source and a large profile is never held in memory whole.
     // oxlint-disable-next-line eslint/no-await-in-loop
     const record = await deps.readBlob(key); // react-doctor-disable-line react-doctor/async-await-in-loop -- sequential move is the bound and the attribution
-    if (record === undefined) continue;
+    if (record === undefined) {
+      // Listed but unreadable: skipping it would record a complete move without these bytes.
+      throw new RendererDataImportError(
+        'blob',
+        `The cached image "${key}" is listed but could not be read.`,
+      );
+    }
     const targetKey = pageStoreKeyForKey(key);
     const sourceBytes = new Uint8Array(record.data);
     const sourceHash = await deps.sha256(sourceBytes);
@@ -180,6 +187,38 @@ interface RendererImportMarkerState {
   readonly completed: boolean;
   readonly completedAt?: string;
   readonly database: SnapshotImportReport | null;
+  /** Digests the last completed import verified, by page-store key. */
+  readonly blobChecksums?: Readonly<Record<string, string>>;
+}
+
+/**
+ * A stored cover is only rewritten to when its file is there and intact: the store must
+ * report its digest (which it checks against the digest written beside it), and that digest
+ * must match what the last completed import verified for the key, when it verified one.
+ * Covers moved by this pass were verified against their source already.
+ */
+async function verifyStoredCovers(
+  rewrites: readonly BlobPointerRewrite[],
+  verifyBlob: BlobMoveDeps['verifyBlob'],
+  expected: Readonly<Record<string, string>>,
+  movedThisPass: ReadonlySet<string>,
+): Promise<void> {
+  for (const { blobKey } of rewrites) {
+    if (movedThisPass.has(blobKey)) continue;
+    // oxlint-disable-next-line eslint/no-await-in-loop
+    const verified = await verifyBlob(blobKey); // react-doctor-disable-line react-doctor/async-await-in-loop -- one file read at a time, attributed to its key
+    const expectedHash = expected[blobKey];
+    if (
+      !verified.ok ||
+      verified.value === undefined ||
+      (expectedHash !== undefined && verified.value.sha256 !== expectedHash)
+    ) {
+      throw new RendererDataImportError(
+        'blob',
+        `The stored cover "${blobKey}" is missing or damaged, so the import stopped before pointing the library at it.`,
+      );
+    }
+  }
 }
 
 export interface RendererImportDeps {
@@ -301,7 +340,29 @@ export async function runRendererDataImport(
     setUiState({ phase: 'failed', errorMessage: failure.message, report: null });
     return { status: 'failed', failure, hostOpened: false, openResult: null };
   }
-  const rewrites = mergeBlobRewrites(moved.rewrites, storedCoverRewrites(listed.value));
+  const storedCovers = storedCoverRewrites(listed.value);
+  const coversChecked = await verifyStoredCovers(
+    storedCovers,
+    deps.blobs.verifyBlob,
+    marker.value.blobChecksums ?? {},
+    new Set(moved.inventory.map((entry) => entry.key)),
+  ).then(
+    () => ({ ok: true as const }),
+    (error: unknown) => ({ ok: false as const, error }),
+  );
+  if (!coversChecked.ok) {
+    const failure =
+      coversChecked.error instanceof RendererDataImportError
+        ? coversChecked.error
+        : new RendererDataImportError(
+            'blob',
+            failureMessage(coversChecked.error, 'The stored covers could not be verified.'),
+            { cause: coversChecked.error },
+          );
+    setUiState({ phase: 'failed', errorMessage: failure.message, report: null });
+    return { status: 'failed', failure, hostOpened: false, openResult: null };
+  }
+  const rewrites = mergeBlobRewrites(moved.rewrites, storedCovers);
 
   const openResult = await deps.openHost(deps.snapshot, rewrites);
   if (!openResult.ok) {
@@ -398,8 +459,13 @@ export function createRendererImportDeps(
   };
 }
 
+/** A cover in the export carries its bytes: a custom cover exists nowhere else. */
+interface ExportedBlob extends BlobInventoryEntry {
+  readonly base64?: string;
+}
+
 export interface ExportedOldData {
-  readonly version: 1;
+  readonly version: 2;
   readonly exportedAt: string;
   readonly snapshot: {
     readonly version: number;
@@ -407,7 +473,10 @@ export interface ExportedOldData {
     readonly sha256: string;
     readonly base64: string;
   } | null;
-  readonly blobs: readonly BlobInventoryEntry[];
+  /** Every page and cover; covers include `base64`, pages are inventory only (refetchable). */
+  readonly blobs: readonly ExportedBlob[];
+  /** Keys that were listed but could not be read, so their absence is not silent. */
+  readonly unreadable: readonly string[];
 }
 
 export interface OldDataExportDeps {
@@ -420,26 +489,37 @@ export interface OldDataExportDeps {
   readonly now: () => Date;
 }
 
-/** The JSON an interrupted import can hand to the user: snapshot bytes and blob inventory. */
+/**
+ * The JSON an interrupted import can hand to the user: snapshot bytes, every cover's bytes
+ * (custom covers have no other copy) and an inventory of cached pages. Each cover can be
+ * restored from this file alone: decode `base64`, check `byteSize` and `sha256`, and store it
+ * under its `key` with `mimeType`. A listed blob that cannot be read is named in `unreadable`.
+ */
 export async function buildOldDataExport(deps: OldDataExportDeps): Promise<ExportedOldData> {
   const snapshot = await deps.readSnapshot();
   const keys = (await deps.listKeys()).filter(isLegacyBlobKey);
-  const blobs: BlobInventoryEntry[] = [];
+  const blobs: ExportedBlob[] = [];
+  const unreadable: string[] = [];
   for (const key of keys) {
     // Hash one blob at a time so an export of a large profile does not hold every byte.
     // oxlint-disable-next-line eslint/no-await-in-loop
     const record = await deps.readBlob(key); // react-doctor-disable-line react-doctor/async-await-in-loop -- sequential hashing is the bound
-    if (record === undefined) continue;
+    if (record === undefined) {
+      // The export is the rescue path, so it still saves what it can, and names the rest.
+      unreadable.push(key);
+      continue;
+    }
     const bytes = new Uint8Array(record.data);
     blobs.push({
       key,
       mimeType: record.mimeType,
       byteSize: bytes.byteLength,
       sha256: await deps.sha256(bytes),
+      ...(key.startsWith(COVER_PREFIX) ? { base64: toBase64(bytes) } : {}),
     });
   }
   return {
-    version: 1,
+    version: 2,
     exportedAt: deps.now().toISOString(),
     snapshot:
       snapshot === undefined
@@ -451,6 +531,7 @@ export async function buildOldDataExport(deps: OldDataExportDeps): Promise<Expor
             base64: toBase64(snapshot.bytes),
           },
     blobs,
+    unreadable,
   };
 }
 

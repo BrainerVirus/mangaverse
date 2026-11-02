@@ -205,6 +205,9 @@ export function createElectronPlatformAdapter(bridge: DesktopPlatformBridge): Pl
     providerNetwork: {
       replaceProviders: (providers, revision) =>
         asResult(() => bridge.providerNetworkReplace(providers, revision)),
+      revokeProvider: (providerId, revision) =>
+        asResult(() => bridge.providerNetworkRevoke(providerId, revision)),
+      nextRevision: () => asResult(() => bridge.providerNetworkNextRevision()),
       request: (input) => asResult(() => bridge.providerNetworkRequest(input)),
       fetchAndStore: (input) => asResult(() => bridge.providerNetworkStore(input)),
       fetchAndStoreUserInitiated: (input) =>

@@ -2,6 +2,7 @@ import { createServer, type Server } from 'node:http';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   fetchMainProcessBytes,
+  fetchNetworkResponse,
   MAX_REDIRECTS,
   MAX_RESPONSE_BYTES,
   NetworkFetchError,
@@ -145,7 +146,7 @@ describe('fetchMainProcessBytes', () => {
   });
 
   it('rejects a redirect to a private address before the hop', async () => {
-    const requestHop = hopFrom(() => redirect('http://internal.example/secret'));
+    const requestHop = hopFrom(() => redirect('https://internal.example/secret'));
 
     await expect(
       fetchMainProcessBytes(
@@ -327,6 +328,82 @@ describe('fetchMainProcessBytes', () => {
       ),
     ).rejects.toMatchObject({ code: 'network.timeout' });
     expect(requestHop).not.toHaveBeenCalled();
+  });
+});
+
+describe('fetchNetworkResponse redirects', () => {
+  const credentials = {
+    accept: 'application/json',
+    Authorization: 'Bearer secret',
+    cookie: 'session=secret',
+  };
+
+  it('strips Authorization and Cookie when a redirect changes origin', async () => {
+    const requestHop = hopFrom((request) =>
+      request.url.hostname === 'example.com'
+        ? redirect('https://cdn.example.com/page.png')
+        : body(),
+    );
+
+    await fetchNetworkResponse(initialUrl, allowAll, transport(requestHop), undefined, {
+      headers: credentials,
+    });
+
+    expect(requestHop.mock.calls[0]?.[0]?.headers).toEqual(credentials);
+    expect(requestHop.mock.calls[1]?.[0]?.headers).toEqual({ accept: 'application/json' });
+  });
+
+  it('treats a port change as a new origin', async () => {
+    const requestHop = hopFrom((request) =>
+      request.url.port === '' ? redirect('https://example.com:8443/page.png') : body(),
+    );
+
+    await fetchNetworkResponse(initialUrl, allowAll, transport(requestHop), undefined, {
+      headers: credentials,
+    });
+
+    expect(requestHop.mock.calls[1]?.[0]?.headers).toEqual({ accept: 'application/json' });
+  });
+
+  it('keeps credentials on a same-origin redirect', async () => {
+    const requestHop = hopFrom((request) =>
+      request.url.pathname === '/page.png' ? redirect('/other.png') : body(),
+    );
+
+    await fetchNetworkResponse(initialUrl, allowAll, transport(requestHop), undefined, {
+      headers: credentials,
+    });
+
+    expect(requestHop).toHaveBeenCalledTimes(2);
+    expect(requestHop.mock.calls[1]?.[0]?.headers).toEqual(credentials);
+  });
+
+  it('refuses an HTTPS to HTTP downgrade before the next hop', async () => {
+    const requestHop = hopFrom(() => redirect('http://example.com/page.png'));
+    const isAllowed = vi.fn<(url: string) => Promise<boolean>>(allowAll);
+
+    await expect(
+      fetchNetworkResponse(initialUrl, isAllowed, transport(requestHop), undefined, {
+        headers: credentials,
+      }),
+    ).rejects.toMatchObject({ code: 'network.blocked-url' });
+    expect(requestHop).toHaveBeenCalledOnce();
+    expect(isAllowed).toHaveBeenCalledOnce();
+  });
+
+  it('still follows an HTTP to HTTPS upgrade', async () => {
+    const requestHop = hopFrom((request) =>
+      request.url.protocol === 'http:' ? redirect('https://example.com/page.png') : body(),
+    );
+
+    const response = await fetchNetworkResponse(
+      'http://example.com/page.png',
+      allowAll,
+      transport(requestHop),
+    );
+
+    expect(response.status).toBe(200);
+    expect(requestHop).toHaveBeenCalledTimes(2);
   });
 });
 

@@ -79,6 +79,9 @@ export function createUnsupportedPlatformAdapter(reason: string): PlatformAdapte
     },
     providerNetwork: {
       replaceProviders: async () => deny<void>(),
+      // There is no main-process table to revoke from, so nothing stays reachable.
+      revokeProvider: async () => ok(undefined),
+      nextRevision: async () => ok(Date.now()),
       request: async () => deny<never>(),
     },
   };

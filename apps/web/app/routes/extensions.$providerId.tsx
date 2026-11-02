@@ -17,7 +17,10 @@ import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js'
 import { actionFailureMessage } from '../lib/app-feedback.js';
 import { saveFeedback } from '../lib/feedback.js';
 import { flushLocalDb } from '../lib/local-db.js';
-import { syncProviderNetworkAllowlist } from '../lib/provider-allowlist-sync.js';
+import {
+  revokeProviderNetworkAccess,
+  syncProviderNetworkAllowlist,
+} from '../lib/provider-allowlist-sync.js';
 import { getProviderBinding } from '../lib/provider-registry.js';
 import {
   useProviderActivity,
@@ -61,20 +64,30 @@ function ProviderDetailRoute() {
   const update = useProviderUpdate(db, providerId, dbStatus === 'ready');
 
   const toggleEnabledMutation = useMutation({
+    meta: { feedback: { surface: 'toast', message: 'Could not update the provider.' } },
     mutationFn: async (enabled: boolean) => {
       if (db === null) {
         throw new Error('Database is not ready.');
       }
-      const result = await setProviderEnabled(db, providerId, enabled);
-      if (!result.ok) {
-        throw result.error;
+      const commit = async () => {
+        const result = await setProviderEnabled(db, providerId, enabled);
+        if (!result.ok) {
+          throw result.error;
+        }
+        // Durability point, mirroring the list route: a lost disable silently
+        // resumes remote provider calls after a quick reload.
+        await flushLocalDb();
+      };
+      if (enabled) {
+        await commit();
+        // Main grants access only from a snapshot; a failed one fails the enable.
+        await syncProviderNetworkAllowlist(db);
+      } else {
+        // Main loses access before the disable commits, or the disable fails.
+        await revokeProviderNetworkAccess(providerId, commit);
       }
-      // Durability point, mirroring the list route: a lost disable silently
-      // resumes remote provider calls after a quick reload.
-      await flushLocalDb();
     },
-    onSuccess: () => {
-      if (db !== null) void syncProviderNetworkAllowlist(db);
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: extensionsQueryKeys.all });
       void queryClient.invalidateQueries({ queryKey: searchQueryKeys.providers() });
     },
@@ -107,18 +120,20 @@ function ProviderDetailRoute() {
   });
 
   const removeMutation = useMutation({
+    meta: { feedback: { surface: 'toast', message: 'Could not remove the provider.' } },
     mutationFn: async () => {
       if (db === null) {
         throw new Error('Database is not ready.');
       }
-      const result = await removeProvider(db, providerId);
-      if (!result.ok) {
-        throw result.error;
-      }
-      await flushLocalDb();
+      await revokeProviderNetworkAccess(providerId, async () => {
+        const result = await removeProvider(db, providerId);
+        if (!result.ok) {
+          throw result.error;
+        }
+        await flushLocalDb();
+      });
     },
     onSuccess: () => {
-      if (db !== null) void syncProviderNetworkAllowlist(db);
       void queryClient.invalidateQueries({ queryKey: extensionsQueryKeys.all });
       void queryClient.invalidateQueries({ queryKey: searchQueryKeys.providers() });
       void navigate({ to: '/extensions' });

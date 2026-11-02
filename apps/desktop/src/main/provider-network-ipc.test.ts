@@ -83,8 +83,11 @@ describe('registerProviderNetworkIpc', () => {
     const { allowlist, replace } = register();
     await replace([{ providerId: 'mangadex', domains: ['api.mangadex.org'] }], 2);
 
-    await replace([{ providerId: 'stale', domains: ['api.stale.example'] }], 1);
+    const stale = (await replace([{ providerId: 'stale', domains: ['api.stale.example'] }], 1)) as {
+      ok: boolean;
+    };
 
+    expect(stale.ok).toBe(false);
     expect(allowlist.allowsUrl('mangadex', 'https://api.mangadex.org/manga')).toBe(true);
     expect(allowlist.allowsUrl('stale', 'https://api.stale.example/x')).toBe(false);
   });
@@ -230,7 +233,7 @@ describe('registerProviderNetworkIpc', () => {
     expect(requestHop).not.toHaveBeenCalled();
   });
 
-  it('Given a user-supplied public cover, When no provider is registered, Then main still stores it', async () => {
+  it('Given a user-supplied public cover on a non-provider host, When storing it, Then main stores it', async () => {
     const requestHop = vi.fn<RequestHop>(async () => ({
       kind: 'response',
       status: 200,
@@ -238,7 +241,8 @@ describe('registerProviderNetworkIpc', () => {
       body: Buffer.from([1, 2, 3]),
       finalUrl: 'https://example.com/cover.jpg',
     }));
-    const { call, put } = register({ requestHop });
+    const { call, put, replace } = register({ requestHop });
+    await replace([{ providerId: 'mangadex', domains: ['api.mangadex.org'] }]);
 
     const result = (await call(PLATFORM_IPC.PROVIDER_NETWORK_STORE_USER_INITIATED, {
       url: 'https://example.com/cover.jpg',
@@ -267,6 +271,126 @@ describe('registerProviderNetworkIpc', () => {
     expect(result.error?.code).toBe('platform.invalid-url');
     expect(put).not.toHaveBeenCalled();
     expect(requestHop).not.toHaveBeenCalled();
+  });
+
+  it('Given a registered provider host, When a custom cover names it, Then main refuses before any request', async () => {
+    const { replace, call, put, requestHop, log } = register();
+    await replace([{ providerId: 'mangadex', domains: ['api.mangadex.org'] }]);
+
+    const result = (await call(PLATFORM_IPC.PROVIDER_NETWORK_STORE_USER_INITIATED, {
+      url: 'https://api.mangadex.org/cover.jpg',
+      key: 'page:cover:mangadex:m',
+    })) as { ok: boolean; error?: { code?: string } };
+
+    expect(result.ok).toBe(false);
+    expect(result.error?.code).toBe('platform.invalid-url');
+    expect(requestHop).not.toHaveBeenCalled();
+    expect(put).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: 'network.blocked-url',
+        url: 'https://api.mangadex.org/cover.jpg',
+      }),
+    );
+  });
+
+  it('Given a public cover that redirects to a provider host, When storing it, Then main refuses the redirect', async () => {
+    const requestHop = vi.fn<RequestHop>(async () => ({
+      kind: 'redirect' as const,
+      location: 'https://api.mangadex.org/at-home/server/x',
+      status: 302,
+    }));
+    const { replace, call, put } = register({ requestHop });
+    await replace([{ providerId: 'mangadex', domains: ['api.mangadex.org'] }]);
+
+    const result = (await call(PLATFORM_IPC.PROVIDER_NETWORK_STORE_USER_INITIATED, {
+      url: 'https://example.com/cover.jpg',
+      key: 'page:cover:mangadex:m',
+    })) as { ok: boolean };
+
+    expect(result.ok).toBe(false);
+    expect(requestHop).toHaveBeenCalledOnce();
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it('Given an allowed provider, When it is revoked, Then its next request is refused', async () => {
+    const { replace, call, requestHop } = register();
+    await replace([{ providerId: 'mangadex', domains: ['api.mangadex.org'] }], 5);
+
+    const revoked = (await call(PLATFORM_IPC.PROVIDER_NETWORK_REVOKE, {
+      providerId: 'mangadex',
+      revision: 6,
+    })) as { ok: boolean };
+    const request = (await call(PLATFORM_IPC.PROVIDER_NETWORK_REQUEST, {
+      providerId: 'mangadex',
+      url: 'https://api.mangadex.org/manga',
+    })) as { ok: boolean };
+
+    expect(revoked.ok).toBe(true);
+    expect(request.ok).toBe(false);
+    expect(requestHop).not.toHaveBeenCalled();
+  });
+
+  it('applies a revoke with an older revision and fences snapshots older than it', async () => {
+    const { allowlist, replace, call } = register();
+    await replace([{ providerId: 'mangadex', domains: ['api.mangadex.org'] }], 10);
+
+    await call(PLATFORM_IPC.PROVIDER_NETWORK_REVOKE, { providerId: 'mangadex', revision: 3 });
+    expect(allowlist.allowsUrl('mangadex', 'https://api.mangadex.org/manga')).toBe(false);
+
+    await call(PLATFORM_IPC.PROVIDER_NETWORK_REVOKE, { providerId: 'other', revision: 20 });
+    // A snapshot taken before the revoke, still carrying the provider, arrives late.
+    await replace([{ providerId: 'mangadex', domains: ['api.mangadex.org'] }], 15);
+    expect(allowlist.allowsUrl('mangadex', 'https://api.mangadex.org/manga')).toBe(false);
+  });
+
+  it('refuses a snapshot at the same revision as an earlier revoke', async () => {
+    const { allowlist, replace, call } = register();
+    await replace([{ providerId: 'mangadex', domains: ['api.mangadex.org'] }], 10);
+
+    // The revoke carries an older revision but still fences the newest one seen.
+    await call(PLATFORM_IPC.PROVIDER_NETWORK_REVOKE, { providerId: 'mangadex', revision: 3 });
+    const fenced = (await replace(
+      [{ providerId: 'mangadex', domains: ['api.mangadex.org'] }],
+      10,
+    )) as { ok: boolean };
+    expect(fenced.ok).toBe(false);
+    expect(allowlist.allowsUrl('mangadex', 'https://api.mangadex.org/manga')).toBe(false);
+
+    // A strictly newer snapshot is a legitimate re-enable and restores access.
+    const reenabled = (await replace(
+      [{ providerId: 'mangadex', domains: ['api.mangadex.org'] }],
+      11,
+    )) as { ok: boolean };
+    expect(reenabled.ok).toBe(true);
+    expect(allowlist.allowsUrl('mangadex', 'https://api.mangadex.org/manga')).toBe(true);
+  });
+
+  it('assigns strictly increasing revisions from main', async () => {
+    const { call } = register();
+    const first = (await call(PLATFORM_IPC.PROVIDER_NETWORK_NEXT_REVISION)) as {
+      ok: boolean;
+      value?: number;
+    };
+    const second = (await call(PLATFORM_IPC.PROVIDER_NETWORK_NEXT_REVISION)) as {
+      ok: boolean;
+      value?: number;
+    };
+
+    expect(first.ok).toBe(true);
+    expect(second.ok).toBe(true);
+    expect(second.value).toBeGreaterThan(first.value ?? 0);
+  });
+
+  it('refuses a revoke from a frame that is not the app frame', async () => {
+    const { call } = register({ trusted: false });
+
+    const result = (await call(PLATFORM_IPC.PROVIDER_NETWORK_REVOKE, {
+      providerId: 'mangadex',
+      revision: 1,
+    })) as { ok: boolean };
+
+    expect(result.ok).toBe(false);
   });
 
   it('refuses a registration from a frame that is not the app frame', async () => {

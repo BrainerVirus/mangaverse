@@ -427,6 +427,8 @@ export function createWebPlatformAdapter(environment?: WebPlatformEnvironment): 
     providerNetwork: {
       // The browser has no main process: the page's own fetch is the transport.
       replaceProviders: async () => ok(undefined),
+      revokeProvider: async () => ok(undefined),
+      nextRevision: async () => ok(Date.now()),
       request: (input) => {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), input.timeoutMs ?? 30_000);

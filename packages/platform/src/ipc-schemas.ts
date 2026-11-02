@@ -88,6 +88,14 @@ const providerNetworkReplace = z
   })
   .strict();
 
+/** One provider to drop from main's table now; the revision fences older snapshots. */
+const providerNetworkRevoke = z
+  .object({
+    revision: z.number().int().nonnegative(),
+    providerId: providerNetworkProviderId,
+  })
+  .strict();
+
 const MAX_PROVIDER_REQUEST_BODY = 1_024_000;
 /** A provider request may name a timeout, but never one longer than main's own deadline. */
 const MAX_PROVIDER_REQUEST_TIMEOUT_MS = 60_000;
@@ -113,7 +121,10 @@ const providerNetworkStore = z
   })
   .strict();
 
-/** A user-supplied cover: no provider allowlist, but still a public http(s) URL. */
+/**
+ * A user-supplied cover: no provider allowlist, but still a public http(s) URL.
+ * Main also refuses any host a registered provider declares.
+ */
 const providerNetworkStoreUserInitiated = z
   .object({
     url: z
@@ -211,6 +222,8 @@ export const platformIpcRequestSchema = z.discriminatedUnion('channel', [
   request(PLATFORM_IPC.RENDERER_IMPORT_STATE, z.tuple([])),
   request(PLATFORM_IPC.RENDERER_IMPORT_COMPLETE, z.tuple([rendererImportReport])),
   request(PLATFORM_IPC.PROVIDER_NETWORK_REPLACE, z.tuple([providerNetworkReplace])),
+  request(PLATFORM_IPC.PROVIDER_NETWORK_REVOKE, z.tuple([providerNetworkRevoke])),
+  request(PLATFORM_IPC.PROVIDER_NETWORK_NEXT_REVISION, z.tuple([])),
   request(PLATFORM_IPC.PROVIDER_NETWORK_REQUEST, z.tuple([providerNetworkRequest])),
   request(PLATFORM_IPC.PROVIDER_NETWORK_STORE, z.tuple([providerNetworkStore])),
   request(

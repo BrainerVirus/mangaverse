@@ -88,6 +88,7 @@ interface Harness {
   readonly rewritten: { id: string; blobKey: string }[][];
   readonly deps: RendererImportDeps;
   storedKeys: readonly string[];
+  blobChecksums: Record<string, string>;
   listStoredFails: boolean;
   completed: boolean;
   openImported: boolean;
@@ -99,6 +100,7 @@ function harness(idb: FakeIdb): Harness {
     opens: [],
     rewritten: [],
     storedKeys: [],
+    blobChecksums: {},
     listStoredFails: false,
     completed: false,
     openImported: true,
@@ -109,6 +111,7 @@ function harness(idb: FakeIdb): Harness {
       ok({
         completed: state.completed,
         database: state.completed ? { tables: {}, totalRows: 0, checksum: 'x' } : null,
+        blobChecksums: state.blobChecksums,
       }),
     recordComplete: async (report) => {
       state.reports.push(report);
@@ -198,6 +201,24 @@ describe('runRendererDataImport', () => {
     expect(state.reports[0]?.database?.totalRows).toBe(2);
     expect(Object.keys(state.reports[0]?.blobs.checksums ?? {})).toHaveLength(3);
     expect(getRendererImportState()).toMatchObject({ phase: 'complete', errorMessage: null });
+  });
+
+  it('Given a listed blob that cannot be read, When importing, Then the import fails with no marker and the old data kept', async () => {
+    resetRendererImportState();
+    const idb = seededIdb();
+    const listed = [...idb.records.keys()];
+    // Listed, then gone before it is read.
+    idb.records.delete(CUSTOM_COVER_KEY);
+    const state = harness({ ...idb, deps: { ...idb.deps, listKeys: async () => listed } });
+
+    const outcome = await runRendererDataImport(state.deps);
+
+    expect(outcome.status).toBe('failed');
+    expect(outcome.status === 'failed' && outcome.hostOpened).toBe(false);
+    expect(state.opens).toEqual([]);
+    expect(state.reports).toEqual([]);
+    expect(idb.records.has(COVER_KEY)).toBe(true);
+    expect(getRendererImportState().errorMessage).toContain(CUSTOM_COVER_KEY);
   });
 
   it('runs only once: a recorded marker skips the move entirely', async () => {
@@ -328,6 +349,9 @@ describe('runRendererDataImport on a stale snapshot with a kept cover', () => {
     const state = harness(idb);
     state.completed = true;
     state.storedKeys = [`page:${COVER_KEY}`, `page:${CUSTOM_COVER_KEY}`, PAGE_KEY];
+    // The first import moved these files; main still holds them.
+    idb.written.set(`page:${COVER_KEY}`, bytes(9));
+    idb.written.set(`page:${CUSTOM_COVER_KEY}`, bytes(5));
     return { idb, state };
   }
 
@@ -362,6 +386,43 @@ describe('runRendererDataImport on a stale snapshot with a kept cover', () => {
     ]);
   });
 
+  it('Given a kept sidecar whose cover file was deleted, When recovery runs, Then it fails visibly without rewriting or completing', async () => {
+    resetRendererImportState();
+    const { idb, state } = staleProfile();
+    // The sidecar is still listed, but the byte file is gone.
+    idb.written.delete(`page:${CUSTOM_COVER_KEY}`);
+
+    const outcome = await runRendererDataImport({ ...state.deps, force: true });
+
+    expect(outcome.status).toBe('failed');
+    expect(outcome.status === 'failed' && outcome.hostOpened).toBe(false);
+    expect(state.opens).toEqual([]);
+    expect(state.rewritten).toEqual([]);
+    expect(state.reports).toEqual([]);
+    expect(getRendererImportState()).toMatchObject({ phase: 'failed' });
+    expect(getRendererImportState().errorMessage).toContain(`page:${CUSTOM_COVER_KEY}`);
+  });
+
+  it('fails recovery when a kept cover no longer matches the digest the import verified', async () => {
+    resetRendererImportState();
+    const { state } = staleProfile();
+    state.blobChecksums = { [`page:${CUSTOM_COVER_KEY}`]: await hash(bytes(6)) };
+
+    const outcome = await runRendererDataImport({ ...state.deps, force: true });
+
+    expect(outcome.status).toBe('failed');
+    expect(state.opens).toEqual([]);
+    expect(state.reports).toEqual([]);
+  });
+
+  it('completes recovery when a kept cover matches the digest the import verified', async () => {
+    resetRendererImportState();
+    const { state } = staleProfile();
+    state.blobChecksums = { [`page:${CUSTOM_COVER_KEY}`]: await hash(bytes(5)) };
+
+    expect((await runRendererDataImport({ ...state.deps, force: true })).status).toBe('complete');
+  });
+
   it('fails before opening a database when the store cannot be listed', async () => {
     resetRendererImportState();
     const { state } = staleProfile();
@@ -388,7 +449,7 @@ describe('buildOldDataExport', () => {
       now: () => new Date('2026-01-02T03:04:05.000Z'),
     });
 
-    expect(exported).toMatchObject({ version: 1, exportedAt: '2026-01-02T03:04:05.000Z' });
+    expect(exported).toMatchObject({ version: 2, exportedAt: '2026-01-02T03:04:05.000Z' });
     expect(exported.snapshot).toMatchObject({
       version: 3,
       byteSize: 4,
@@ -396,6 +457,53 @@ describe('buildOldDataExport', () => {
     });
     expect(atob(exported.snapshot!.base64)).toBe(String.fromCharCode(...bytes(7)));
     expect(exported.blobs.map((blob) => blob.key)).toEqual([PAGE_KEY, COVER_KEY, CUSTOM_COVER_KEY]);
+    // Cached pages are refetchable, so they stay inventory only.
+    expect(exported.blobs.find((blob) => blob.key === PAGE_KEY)).not.toHaveProperty('base64');
+    expect(exported.unreadable).toEqual([]);
+  });
+
+  it('restores a custom cover from the exported file alone', async () => {
+    const idb = seededIdb();
+    const exported = await buildOldDataExport({
+      readSnapshot: async () => undefined,
+      listKeys: async () => [...idb.records.keys()],
+      readBlob: idb.deps.readBlob,
+      sha256: hash,
+      now: () => new Date('2026-01-02T03:04:05.000Z'),
+    });
+    // Only the saved file survives: the old profile and its IndexedDB are gone.
+    const file = `${JSON.stringify(exported, null, 2)}\n`;
+    const saved = JSON.parse(file) as typeof exported;
+    idb.records.clear();
+    const restoredStore = fakeIdb();
+
+    const entry = saved.blobs.find((blob) => blob.key === CUSTOM_COVER_KEY)!;
+    const restored = Uint8Array.from(atob(entry.base64!), (char) => char.charCodeAt(0));
+    expect(restored.byteLength).toBe(entry.byteSize);
+    expect(await hash(restored)).toBe(entry.sha256);
+    const targetKey = pageStoreKeyForKey(entry.key);
+    await restoredStore.deps.putBlob(targetKey, restored.buffer as ArrayBuffer, entry.mimeType);
+
+    expect(entry.mimeType).toBe('image/png');
+    expect(restoredStore.written.get(targetKey)).toEqual(bytes(5));
+    const verified = await restoredStore.deps.verifyBlob(targetKey);
+    expect(verified.ok && verified.value?.sha256).toBe(await hash(bytes(5)));
+  });
+
+  it('names a listed blob it could not read instead of dropping it silently', async () => {
+    const idb = seededIdb();
+    const listed = [...idb.records.keys()];
+    idb.records.delete(CUSTOM_COVER_KEY);
+
+    const exported = await buildOldDataExport({
+      readSnapshot: async () => undefined,
+      listKeys: async () => listed,
+      readBlob: idb.deps.readBlob,
+      sha256: hash,
+      now: () => new Date('2026-01-02T03:04:05.000Z'),
+    });
+
+    expect(exported.unreadable).toEqual([CUSTOM_COVER_KEY]);
   });
 });
 
