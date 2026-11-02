@@ -28,6 +28,8 @@ export interface ProviderRequest {
   readonly body?: BodyInit | null;
   readonly signal?: AbortSignal;
   readonly timeoutMs?: number;
+  /** Per-request rate override, forwarded to the provider's request gate. */
+  readonly requestsPerMinute?: number;
 }
 
 export interface ProviderContext {
