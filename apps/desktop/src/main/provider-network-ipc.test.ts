@@ -83,8 +83,11 @@ describe('registerProviderNetworkIpc', () => {
     const { allowlist, replace } = register();
     await replace([{ providerId: 'mangadex', domains: ['api.mangadex.org'] }], 2);
 
-    await replace([{ providerId: 'stale', domains: ['api.stale.example'] }], 1);
+    const stale = (await replace([{ providerId: 'stale', domains: ['api.stale.example'] }], 1)) as {
+      ok: boolean;
+    };
 
+    expect(stale.ok).toBe(false);
     expect(allowlist.allowsUrl('mangadex', 'https://api.mangadex.org/manga')).toBe(true);
     expect(allowlist.allowsUrl('stale', 'https://api.stale.example/x')).toBe(false);
   });
@@ -347,11 +350,19 @@ describe('registerProviderNetworkIpc', () => {
 
     // The revoke carries an older revision but still fences the newest one seen.
     await call(PLATFORM_IPC.PROVIDER_NETWORK_REVOKE, { providerId: 'mangadex', revision: 3 });
-    await replace([{ providerId: 'mangadex', domains: ['api.mangadex.org'] }], 10);
+    const fenced = (await replace(
+      [{ providerId: 'mangadex', domains: ['api.mangadex.org'] }],
+      10,
+    )) as { ok: boolean };
+    expect(fenced.ok).toBe(false);
     expect(allowlist.allowsUrl('mangadex', 'https://api.mangadex.org/manga')).toBe(false);
 
     // A strictly newer snapshot is a legitimate re-enable and restores access.
-    await replace([{ providerId: 'mangadex', domains: ['api.mangadex.org'] }], 11);
+    const reenabled = (await replace(
+      [{ providerId: 'mangadex', domains: ['api.mangadex.org'] }],
+      11,
+    )) as { ok: boolean };
+    expect(reenabled.ok).toBe(true);
     expect(allowlist.allowsUrl('mangadex', 'https://api.mangadex.org/manga')).toBe(true);
   });
 

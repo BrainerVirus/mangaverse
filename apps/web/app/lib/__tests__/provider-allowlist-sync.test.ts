@@ -172,6 +172,39 @@ describe('provider allowlist sync', () => {
     expect(main.size).toBe(0);
   });
 
+  it('Given a sync queued behind a revoke, When it runs, Then its revision is newer than the revoke', async () => {
+    store = [entry()];
+    const order: string[] = [];
+    revokeProvider.mockImplementation(async (providerId, revision) => {
+      order.push(`revoke:${revision}`);
+      main.delete(providerId);
+      return ok(undefined);
+    });
+    replaceProviders.mockImplementation(async (providers, revision) => {
+      order.push(`replace:${revision}`);
+      applySnapshot(providers);
+      return ok(undefined);
+    });
+
+    const revoke = revokeProviderNetworkAccess('mangadex', async () => {
+      order.push('commit');
+    });
+    const sync = syncProviderNetworkAllowlist(db);
+    await Promise.all([revoke, sync]);
+
+    const revokeRevision = Number(
+      order.find((entry) => entry.startsWith('revoke:'))?.slice('revoke:'.length),
+    );
+    const replaceRevision = Number(
+      order.find((entry) => entry.startsWith('replace:'))?.slice('replace:'.length),
+    );
+    expect(replaceRevision).toBeGreaterThan(revokeRevision);
+    expect(order.indexOf('commit')).toBeLessThan(
+      order.findIndex((entry) => entry.startsWith('replace:')),
+    );
+    expect(main.get('mangadex')).toBeDefined();
+  });
+
   it('Given a bundled manifest at the same version without domains, When the app starts, Then the stored manifest and allowlist gain them', async () => {
     const oldManifest = { ...MANGADEX_MANIFEST, version: '0.1.0', network: undefined };
     store = [entry({ manifest: oldManifest, installedVersion: '0.1.0' })];

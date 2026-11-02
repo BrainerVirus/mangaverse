@@ -107,7 +107,9 @@ export function registerProviderNetworkIpc(deps: ProviderNetworkIpcDeps): void {
     // Equal is accepted only above the revoke fence: after a renderer reload the
     // revision clock may land on the same millisecond, but never above a revoke.
     if (snapshot.revision <= revokedThrough || snapshot.revision < lastRevision) {
-      return ok(undefined);
+      // Never report success for a snapshot main refused: the caller would think
+      // the provider is enabled while main keeps it denied.
+      return err(platformUnexpected('The provider network snapshot is stale; retry the sync.'));
     }
     deps.allowlist.replaceAll(snapshot.providers);
     lastRevision = snapshot.revision;

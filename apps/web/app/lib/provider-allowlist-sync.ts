@@ -28,8 +28,10 @@ function nextRevision(): number {
  * report it, and the next sync (or the user's retry) sends the snapshot again.
  */
 export function syncProviderNetworkAllowlist(db: AppDrizzleDb): Promise<void> {
-  const revision = nextRevision();
-  const run = queue.then(() => syncInstalledProviders(db, revision));
+  // Stamp inside the queue, not at call time: a snapshot queued behind a revoke
+  // must carry a newer revision, or main fences it and the provider stays blocked
+  // while the action reports success.
+  const run = queue.then(() => syncInstalledProviders(db, nextRevision()));
   // A failed sync must not wedge the ones queued after it.
   queue = run.catch(() => undefined);
   return run;
