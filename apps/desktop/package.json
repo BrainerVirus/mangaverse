@@ -2,6 +2,8 @@
   "name": "@app/desktop",
   "version": "0.0.1",
   "private": true,
+  "homepage": "https://github.com/BrainerVirus/mangaverse",
+  "author": "BrainerVirus",
   "type": "module",
   "main": "dist/main/index.js",
   "scripts": {

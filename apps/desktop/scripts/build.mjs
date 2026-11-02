@@ -20,6 +20,8 @@ console.log("Building workspace packages for the renderer...");
 execFileSync(pnpm, ["--filter", "@app/web^...", "build"], {
   cwd: workspaceRoot,
   stdio: "inherit",
+  // Node cannot spawn a .cmd shim without a shell on Windows.
+  shell: process.platform === "win32",
 });
 
 // The web deployment stays SSR on Nitro; this flag builds the same app as a prerendered
@@ -29,6 +31,7 @@ execFileSync(pnpm, ["--filter", "@app/web", "run", "build:static-shell"], {
   cwd: workspaceRoot,
   stdio: "inherit",
   env: { ...process.env, MANGAVERSE_STATIC_SHELL: "1" },
+  shell: process.platform === "win32",
 });
 
 console.log("Bundling Electron main and data host...");
