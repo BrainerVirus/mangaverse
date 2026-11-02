@@ -29,6 +29,8 @@ export type {
 } from './request-client.js';
 export { createRateLimiter } from './rate-limiter.js';
 export type { RateLimiter, RateLimiterOptions } from './rate-limiter.js';
+export { createRequestGate, parseRetryAfterMs } from './request-gate.js';
+export type { RequestGate, RequestGateAcquireOptions, RequestGateOptions } from './request-gate.js';
 export {
   parseHtml,
   parseHtmlAttr,

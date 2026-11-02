@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { createRequestGate } from './request-gate';
 import { createProviderRequestClient } from './request-client';
 
 describe('createProviderRequestClient', () => {
@@ -93,5 +94,64 @@ describe('createProviderRequestClient', () => {
       throw new Error('expected res.ok to be false');
     }
     expect(res.error.code).toBe('extensions.sdk.request.timeout');
+  });
+
+  it('Given a zero rate override, When requesting, Then the gate rejects before fetching', async () => {
+    let nowMs = 0;
+    const fetchImpl = vi.fn<(...args: unknown[]) => Promise<Response>>(
+      async () => new Response('{}', { status: 200 }),
+    );
+    const gate = createRequestGate({
+      defaultRequestsPerMinute: 40,
+      now: () => nowMs,
+      sleep: async (delayMs) => {
+        nowMs += delayMs;
+      },
+    });
+    const client = createProviderRequestClient({ fetchImpl, gate });
+
+    const res = await client.request({ url: 'https://example.com/x', requestsPerMinute: 0 });
+
+    expect(res.ok).toBe(false);
+    if (res.ok) throw new Error('expected res.ok to be false');
+    expect(res.error.code).toBe('extensions.sdk.ratelimit.blocked');
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('Given a 429, Then the gate records Retry-After and the error carries retryAfterMs', async () => {
+    let nowMs = 1_000;
+    const fetchImpl = vi.fn<(...args: unknown[]) => Promise<Response>>(
+      async () => new Response('', { status: 429, headers: { 'retry-after': '2' } }),
+    );
+    const gate = createRequestGate({
+      defaultRequestsPerMinute: 40,
+      now: () => nowMs,
+      sleep: async (delayMs) => {
+        nowMs += delayMs;
+      },
+    });
+    const client = createProviderRequestClient({ fetchImpl, gate });
+
+    const res = await client.request({ url: 'https://example.com/x', requestsPerMinute: 40 });
+
+    expect(res.ok).toBe(false);
+    if (res.ok) throw new Error('expected res.ok to be false');
+    expect(res.error.code).toBe('extensions.sdk.request.http_error');
+    expect(res.error.details).toEqual({ status: 429, retryAfterMs: 2_000 });
+    expect(gate.blockedUntilMs()).toBe(3_000);
+  });
+
+  it('Given a 429 without Retry-After, Then the error carries the fallback minute', async () => {
+    const fetchImpl = vi.fn<(...args: unknown[]) => Promise<Response>>(
+      async () => new Response('', { status: 429 }),
+    );
+    const gate = createRequestGate({ defaultRequestsPerMinute: 40, now: () => 0 });
+    const client = createProviderRequestClient({ fetchImpl, gate });
+
+    const res = await client.request({ url: 'https://example.com/x' });
+
+    expect(res.ok).toBe(false);
+    if (res.ok) throw new Error('expected res.ok to be false');
+    expect(res.error.details).toEqual({ status: 429, retryAfterMs: 60_000 });
   });
 });

@@ -54,6 +54,10 @@ export function searchProviderQueryOptions(
       fetchProviderSearchIdentities(db, providerId, trimmed, signal, explicitContent),
     staleTime: QUERY_STALE_TIMES.search,
     gcTime: QUERY_GC_TIMES.search,
+    // A user-triggered provider search is not retried automatically: a 429 is
+    // surfaced with its Retry control instead of silently spending a second
+    // request, and typing a new query is the natural retry.
+    retry: false,
     enabled: enabled && trimmed.length > 0,
   });
 }

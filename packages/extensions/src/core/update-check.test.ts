@@ -33,6 +33,7 @@ function preview(m: ProviderManifest): ExtensionInstallPreview {
     version: m.version,
     sourceUrl: m.source.url,
     manifestUrl,
+    domains: m.network?.domains ?? [],
     platforms: m.compatibility.platforms,
     capabilities: m.capabilities,
     capabilityLimitations: [],

@@ -28,20 +28,57 @@ const TINY_JPEG_BASE64 =
 
 interface FixtureServer {
   readonly origin: string;
-  readonly requests: { readonly path: string; readonly host: string; readonly origin?: string }[];
+  readonly requests: {
+    readonly path: string;
+    readonly host: string;
+    readonly origin?: string;
+    readonly at: number;
+  }[];
+  /** Status the fixture returned for each `/manga` search request, in order. */
+  readonly searchStatuses: number[];
+  /** Arrival timestamps for each `/manga` search request, in order. */
+  searchTimes(): number[];
   secretHits(): number;
   close(): Promise<void>;
 }
 
+interface FixtureServerOptions {
+  /** Answer the first `/manga` search with 429 + `Retry-After: 2`, then 200. */
+  readonly rateLimitFirstSearch?: boolean;
+}
+
 const fixture = (name: string) => readFileSync(join(fixturesDir, name), 'utf8');
 
-async function startFixtureServer(): Promise<FixtureServer> {
+const PROVIDER_MANIFEST = {
+  id: 'mangadex',
+  name: 'MangaDex (preview fixture)',
+  version: '0.1.1',
+  description: 'Manifest served by the provider-network E2E fixture.',
+  source: { url: 'https://mangadex.org', publisher: 'MangaDex' },
+  compatibility: { platforms: ['web', 'desktop'] },
+  network: {
+    domains: ['api.mangadex.org', 'uploads.mangadex.org', '*.mangadex.network'],
+  },
+  capabilities: { 'discovery.search': true },
+  permissions: ['network.http'],
+  languages: ['en'],
+  contentFlags: { nsfw: true, suggestive: true, violence: true },
+} as const;
+
+async function startFixtureServer(options: FixtureServerOptions = {}): Promise<FixtureServer> {
   const atHome = JSON.parse(fixture('at-home.json')) as { baseUrl: string };
   const jpeg = Buffer.from(TINY_JPEG_BASE64, 'base64');
-  const requests: { path: string; host: string; origin?: string }[] = [];
+  const requests: {
+    path: string;
+    host: string;
+    origin?: string;
+    at: number;
+  }[] = [];
+  const searchStatuses: number[] = [];
   let secretHits = 0;
   let port = 0;
   let redirectTarget = '';
+  let searchAttempts = 0;
 
   const server: Server = createServer((request, response) => {
     const url = new URL(request.url ?? '/', 'http://fixture.local');
@@ -49,6 +86,7 @@ async function startFixtureServer(): Promise<FixtureServer> {
       path: url.pathname,
       host: request.headers.host ?? '',
       ...(request.headers.origin !== undefined ? { origin: request.headers.origin } : {}),
+      at: Date.now(),
     });
     if (url.pathname === '/secret') {
       secretHits += 1;
@@ -59,9 +97,28 @@ async function startFixtureServer(): Promise<FixtureServer> {
       response.writeHead(302, { location: redirectTarget }).end();
       return;
     }
+    if (url.pathname === '/provider-manifest.json') {
+      response
+        .writeHead(200, { 'content-type': 'application/json' })
+        .end(JSON.stringify(PROVIDER_MANIFEST));
+      return;
+    }
     if (url.pathname.startsWith('/covers/') || url.pathname.startsWith('/data')) {
       response.writeHead(200, { 'content-type': 'image/jpeg' }).end(jpeg);
       return;
+    }
+    const isSearch = url.pathname === '/manga';
+    if (isSearch && options.rateLimitFirstSearch === true && searchAttempts === 0) {
+      searchAttempts += 1;
+      searchStatuses.push(429);
+      response
+        .writeHead(429, { 'content-type': 'application/json', 'retry-after': '2' })
+        .end(JSON.stringify({ result: 'error', errors: [{ status: 429, title: 'rate limited' }] }));
+      return;
+    }
+    if (isSearch) {
+      searchAttempts += 1;
+      searchStatuses.push(200);
     }
     const body = url.pathname.includes('/at-home/server/')
       ? JSON.stringify(atHome)
@@ -82,6 +139,9 @@ async function startFixtureServer(): Promise<FixtureServer> {
   return {
     origin: `http://127.0.0.1:${port}`,
     requests,
+    searchStatuses,
+    searchTimes: () =>
+      requests.filter((request) => request.path === '/manga').map((request) => request.at),
     secretHits: () => secretHits,
     close: () =>
       new Promise<void>((resolve) => {
@@ -201,12 +261,24 @@ test('Given provider traffic, When it leaves the renderer, Then main enforces th
       },
     )
     .toBe(true);
-  expect(await image.getAttribute('src')).toMatch(PAGE_URL);
+  const readerSrc = await image.getAttribute('src');
+  expect(readerSrc).toMatch(PAGE_URL);
   // The at-home baseUrl is the dynamic *.mangadex.network host; main reached it
   // only because the manifest declared the wildcard.
   expect(fixtureServer.requests.some((request) => request.path.startsWith('/data'))).toBe(true);
   // The renderer never made a provider request itself; every one came from main.
   expect(fixtureServer.requests.every((request) => request.origin === undefined)).toBe(true);
+
+  // Install preview: the manifest's declared network domains are shown before any
+  // install is confirmed. Main fetches the manifest through the same transport.
+  await page.goto('app://app/extensions');
+  await page.getByRole('button', { name: 'Install provider' }).first().click();
+  await page.getByLabel('Manifest URL').fill('https://api.mangadex.org/provider-manifest.json');
+  await page.getByRole('button', { name: 'Review manifest' }).click();
+  await expect(page.getByText('Network domains')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText('api.mangadex.org', { exact: true })).toBeVisible();
+  await expect(page.getByText('*.mangadex.network', { exact: true })).toBeVisible();
+  process.stdout.write('[provider-network] install preview rendered MangaDex domains\n');
 
   // A private target is refused before any connection.
   const beforeLocalHits = fixtureServer.requests.filter(
@@ -236,8 +308,52 @@ test('Given provider traffic, When it leaves the renderer, Then main enforces th
     }
   });
   expect(direct).toBe('blocked');
+  process.stdout.write(
+    `[provider-network] requests=${fixtureServer.requests.length} readerPageSrc=${String(
+      readerSrc,
+    )} directFetch=${direct}\n`,
+  );
 
   expect(
     errors.filter((text) => !/Refused to connect|Content Security Policy/i.test(text)),
   ).toEqual([]);
+});
+
+test('Given a 429 with Retry-After, When two searches run, Then the second waits for the window and the app stays usable', async () => {
+  const fixtureServer = await startFixtureServer({ rateLimitFirstSearch: true });
+  cleanups.unshift(() => void fixtureServer.close());
+  const { userDataDir } = await seededProfile();
+  const { page } = await launch(userDataDir, fixtureServer.origin);
+
+  await page.goto('app://app/search');
+  const input = page.getByTestId('search-input');
+  await expect(input).toBeVisible({ timeout: 30_000 });
+
+  // First search: the fixture answers 429 with Retry-After: 2, and the search
+  // query does not auto-retry, so the rate-limited failure reaches the UI.
+  await input.fill('berserk');
+  await expect(page.getByText(/provider search failed/i)).toBeVisible({ timeout: 30_000 });
+  expect(fixtureServer.searchStatuses[0]).toBe(429);
+
+  // Second search while the gate is still blocked: acquire waits out the two
+  // seconds, then the request lands and the recorded results render.
+  await input.fill('one piece');
+  await expect(page.getByText('Kuro no Shoukanshi').first()).toBeVisible({ timeout: 30_000 });
+
+  const times = fixtureServer.searchTimes();
+  expect(times.length).toBeGreaterThanOrEqual(2);
+  // The gate waits Retry-After from when the 429's body was read, so the second
+  // /manga request reaches the fixture at least ~2 s after the first. CI slop:
+  // assert 1.9 s rather than exactly 2000 ms.
+  const deltaMs = times[1]! - times[0]!;
+  process.stdout.write(
+    `[provider-network] rate-limited search: first=${times[0]!}ms second=${times[1]!}ms delta=${deltaMs}ms\n`,
+  );
+  expect(deltaMs).toBeGreaterThanOrEqual(1_900);
+  expect(fixtureServer.searchStatuses[1]).toBe(200);
+
+  // The app is still usable: the search field accepts another query.
+  await expect(input).toBeEnabled();
+  await input.fill('kuro');
+  await expect(page.getByText('Kuro no Shoukanshi').first()).toBeVisible({ timeout: 30_000 });
 });

@@ -188,8 +188,20 @@ async function storeCoverInMain(
 
 async function fetchRemoteCover(
   adapter: PlatformAdapter,
+  providerId: string,
   remoteUrl: string,
+  userProvided: boolean,
 ): Promise<{ data: ArrayBuffer; mimeType: string } | undefined> {
+  // Web has no main process; the same manifest-domain table the provider adapter
+  // enforces also gates cover bytes fetched here. A user-supplied custom cover
+  // bypasses the provider allowlist, exactly like the desktop user-initiated path.
+  if (
+    !userProvided &&
+    adapter.providerNetwork.isAllowedHost !== undefined &&
+    !adapter.providerNetwork.isAllowedHost(providerId, remoteUrl)
+  ) {
+    return undefined;
+  }
   const result = await adapter.network.fetchBytes(remoteUrl);
   if (!result.ok || result.value === undefined) {
     return undefined;
@@ -224,7 +236,12 @@ export async function resolveCoverObjectUrl(
       const stored = await storeCoverInMain(input);
       return stored?.objectUrl;
     }
-    const remote = await fetchRemoteCover(input.adapter, input.remoteUrl);
+    const remote = await fetchRemoteCover(
+      input.adapter,
+      String(input.providerId),
+      input.remoteUrl,
+      input.userProvided === true,
+    );
     if (remote === undefined) {
       return undefined;
     }

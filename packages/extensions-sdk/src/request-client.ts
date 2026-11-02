@@ -1,13 +1,16 @@
-import type { AppResult } from '@app/shared';
+import type { AppError, AppResult } from '@app/shared';
 import { createAppError, err, ok } from '@app/shared';
 
 import { normalizeProviderError } from './errors.js';
 import type { ProviderRequest } from './contract-types.js';
+import type { RequestGate } from './request-gate.js';
 
 export interface ProviderRequestClientOptions {
   readonly fetchImpl: typeof fetch;
   readonly defaultTimeoutMs?: number;
   readonly defaultHeaders?: Readonly<Record<string, string>>;
+  /** Per-provider rate gate; when present every request acquires a slot first. */
+  readonly gate?: RequestGate;
 }
 
 export interface ProviderRequestResponse {
@@ -28,10 +31,22 @@ function headersToRecord(headers: Headers): Record<string, string> {
   return out;
 }
 
+/** Keeps a typed SDK error (from the gate) intact; anything else is normalized. */
+function acquireError(error: unknown, url: string): AppError {
+  if (error !== null && typeof error === 'object' && 'code' in error && 'message' in error) {
+    const code = (error as { readonly code?: unknown }).code;
+    const message = (error as { readonly message?: unknown }).message;
+    if (typeof code === 'string' && typeof message === 'string') {
+      return error as AppError;
+    }
+  }
+  return normalizeProviderError(error, { url });
+}
+
 export function createProviderRequestClient(
   options: ProviderRequestClientOptions,
 ): ProviderRequestClient {
-  const { fetchImpl, defaultTimeoutMs = 30_000, defaultHeaders } = options;
+  const { fetchImpl, defaultTimeoutMs = 30_000, defaultHeaders, gate } = options;
 
   async function request(input: ProviderRequest): Promise<AppResult<ProviderRequestResponse>> {
     const timeoutMs = input.timeoutMs ?? defaultTimeoutMs;
@@ -65,6 +80,24 @@ export function createProviderRequestClient(
     }
 
     try {
+      if (gate !== undefined) {
+        const gateFailure = await gate
+          .acquire({
+            ...(input.requestsPerMinute !== undefined
+              ? { requestsPerMinute: input.requestsPerMinute }
+              : {}),
+            signal: controller.signal,
+          })
+          .then(
+            () => undefined,
+            (e: unknown) => acquireError(e, input.url),
+          );
+        if (gateFailure !== undefined) {
+          if (timeoutId !== undefined) clearTimeout(timeoutId);
+          return err(gateFailure);
+        }
+      }
+
       const init: RequestInit = {
         method: input.method ?? 'GET',
         headers: mergedHeaders,
@@ -75,6 +108,11 @@ export function createProviderRequestClient(
       }
       const response = await fetchImpl(input.url, init);
 
+      // Record the response before reading its body: a 429 must park later
+      // callers even when this body read is aborted.
+      const recordedHeaders = headersToRecord(response.headers);
+      const retryAfterMs = gate?.noteResponse(response.status, recordedHeaders);
+
       const bodyText = await response.text();
       if (timeoutId !== undefined) clearTimeout(timeoutId);
 
@@ -83,14 +121,17 @@ export function createProviderRequestClient(
           createAppError({
             code: 'extensions.sdk.request.http_error',
             message: `HTTP ${response.status}.`,
-            details: { status: response.status },
+            details: {
+              status: response.status,
+              ...(response.status === 429 ? { retryAfterMs: retryAfterMs ?? 0 } : {}),
+            },
           }),
         );
       }
 
       return ok({
         status: response.status,
-        headers: headersToRecord(response.headers),
+        headers: recordedHeaders,
         bodyText,
       });
     } catch (e) {

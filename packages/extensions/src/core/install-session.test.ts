@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { toProviderId } from '@app/shared';
 import type { ProviderManifest } from '@app/shared';
 
-import { createExtensionInstallSession, transitionExtensionInstall } from './install-session';
+import {
+  buildInstallPreview,
+  createExtensionInstallSession,
+  transitionExtensionInstall,
+} from './install-session';
 
 const miniManifest = (): ProviderManifest => ({
   id: toProviderId('p'),
@@ -22,6 +26,7 @@ const miniPreview = (url: string) => ({
   version: '1',
   sourceUrl: 'https://src',
   manifestUrl: url,
+  domains: [] as const,
   platforms: ['web'] as const,
   capabilities: { 'discovery.search': true } as ProviderManifest['capabilities'],
   capabilityLimitations: [] as const,
@@ -66,5 +71,27 @@ describe('transitionExtensionInstall', () => {
     });
     s = transitionExtensionInstall(s, { type: 'cancel' });
     expect(s.step).toBe('cancelled');
+  });
+});
+
+describe('buildInstallPreview', () => {
+  it('Given declared domains, Then the preview lists them', () => {
+    const manifest: ProviderManifest = {
+      ...miniManifest(),
+      network: { domains: ['api.mangadex.org', 'uploads.mangadex.org'] },
+    };
+    const preview = buildInstallPreview(manifest, {
+      kind: 'manual',
+      manifestUrl: 'https://x/m.json',
+    });
+    expect(preview.domains).toEqual(['api.mangadex.org', 'uploads.mangadex.org']);
+  });
+
+  it('Given no network block, Then the preview declares no network access', () => {
+    const preview = buildInstallPreview(miniManifest(), {
+      kind: 'manual',
+      manifestUrl: 'https://x/m.json',
+    });
+    expect(preview.domains).toEqual([]);
   });
 });

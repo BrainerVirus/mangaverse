@@ -3,13 +3,12 @@ import type {
   ProviderContract,
   ProviderSearchInput,
   ProviderSearchResult,
+  RequestGate,
 } from '@app/extensions-sdk';
 import {
   createProviderRequestClient,
-  createRateLimiter,
   defineProvider,
   redactUrlForErrorDetails,
-  type RateLimiter,
 } from '@app/extensions-sdk';
 import type { ContentRating, ProviderSettingsValues } from '@app/shared';
 import { createAppError } from '@app/shared';
@@ -27,8 +26,6 @@ export const MANGADEX_API_BASE = 'https://api.mangadex.org';
 const FEED_PAGE_LIMIT = 100;
 /** Safety cap so a pathological feed cannot loop forever. */
 const FEED_MAX_PAGES = 25;
-/** Matches the manifest's declared ops.officialApi rate limit. */
-const DEFAULT_RATE_LIMIT_RPM = 40;
 
 const DEFAULT_LANGUAGES: readonly string[] = ['en'];
 /** MangaDex ratings requested unless the user opts into mature content. */
@@ -71,42 +68,30 @@ function browseOrder(settings: ProviderSettingsValues, fallback: string): string
   return order ?? fallback;
 }
 
-// Module-level: the web app resolves a fresh contract per call, so a limiter
-// owned by the instance would reset the budget on every request.
-const limiters = new Map<number, RateLimiter>();
-
-function consumeRateLimit(ctx: ProviderContext): void {
-  const rpm = ctx.settings?.rateLimitOverrideRpm ?? DEFAULT_RATE_LIMIT_RPM;
-  let limiter = limiters.get(rpm);
-  if (limiter === undefined) {
-    limiter = createRateLimiter({ requestsPerMinute: rpm });
-    limiters.set(rpm, limiter);
-  }
-  const allowed = limiter.tryConsume('mangadex');
-  if (!allowed.ok) throw allowed.error;
-}
-
 export interface CreateMangaDexProviderOptions {
-  readonly fetchImpl?: typeof fetch;
+  /** The injected transport: main-process IPC on desktop, the page's fetch on web. */
+  readonly fetchImpl: typeof globalThis.fetch;
+  /** Per-provider rate gate shared across every contract this app resolves. */
+  readonly gate?: RequestGate;
   readonly timeoutMs?: number;
   readonly apiBaseUrl?: string;
 }
 
-export function createMangaDexProvider(
-  options: CreateMangaDexProviderOptions = {},
-): ProviderContract {
-  const fetchImpl = options.fetchImpl ?? fetch;
+export function createMangaDexProvider(options: CreateMangaDexProviderOptions): ProviderContract {
   const apiBase = options.apiBaseUrl ?? MANGADEX_API_BASE;
   const client = createProviderRequestClient({
-    fetchImpl,
+    fetchImpl: options.fetchImpl,
+    ...(options.gate !== undefined ? { gate: options.gate } : {}),
     defaultTimeoutMs: options.timeoutMs ?? 30_000,
   });
 
   const requestJson = async (ctx: ProviderContext, url: string): Promise<unknown> => {
-    consumeRateLimit(ctx);
     const response = await client.request({
       url,
       ...(ctx.signal !== undefined ? { signal: ctx.signal } : {}),
+      ...(ctx.settings?.rateLimitOverrideRpm !== undefined
+        ? { requestsPerMinute: ctx.settings.rateLimitOverrideRpm }
+        : {}),
     });
     if (!response.ok) {
       throw response.error;

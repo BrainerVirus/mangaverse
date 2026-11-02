@@ -1,4 +1,10 @@
-import { err, ok, type AppResult } from '@app/shared';
+import {
+  err,
+  isProviderDomainPattern,
+  ok,
+  providerDomainsAllowHost,
+  type AppResult,
+} from '@app/shared';
 import { detectWebCapabilities } from './capabilities.js';
 import {
   deleteIndexedDbBlob,
@@ -21,10 +27,66 @@ import type {
   PlatformFileSaveOptions,
   PlatformFileResult,
   PlatformInstallPromptState,
+  PlatformProviderResponse,
   PlatformStorageEstimate,
+  ProviderNetworkRegistration,
   WebPlatformEnvironment,
 } from './types.js';
 import { isSafeExternalUrl } from './url-protocol.js';
+
+/**
+ * The browser's provider allowlist: the same manifest domains main keeps on
+ * desktop, held in this page. `syncProviderNetworkAllowlist` already sends the
+ * installed providers here; web now enforces the snapshot on its own requests.
+ * Module-level so every adapter instance (diagnostics, cache, provider runtime)
+ * sees the last snapshot the app synced.
+ */
+const providerDomainsByProvider = new Map<string, readonly string[]>();
+
+function normalizeProviderId(providerId: string): string {
+  return providerId.trim().toLowerCase();
+}
+
+function normalizeProviderDomains(domains: readonly string[]): readonly string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const domain of domains) {
+    const normalized = domain.trim().toLowerCase();
+    if (!isProviderDomainPattern(normalized) || seen.has(normalized)) continue;
+    seen.add(normalized);
+    out.push(normalized);
+  }
+  return out;
+}
+
+function providerHostOf(url: string): string | undefined {
+  if (!URL.canParse(url)) return undefined;
+  const parsed = new URL(url);
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return undefined;
+  if (parsed.username.length > 0 || parsed.password.length > 0) return undefined;
+  return parsed.hostname.replace(/^\[|\]$/g, '');
+}
+
+function isProviderHostAllowed(providerId: string, url: string): boolean {
+  const domains = providerDomainsByProvider.get(normalizeProviderId(providerId));
+  if (domains === undefined || domains.length === 0) return false;
+  const host = providerHostOf(url);
+  return host !== undefined && providerDomainsAllowHost(domains, host);
+}
+
+function replaceProviderDomains(providers: readonly ProviderNetworkRegistration[]): void {
+  const next = new Map<string, readonly string[]>();
+  for (const registration of providers) {
+    next.set(
+      normalizeProviderId(registration.providerId),
+      normalizeProviderDomains(registration.domains),
+    );
+  }
+  providerDomainsByProvider.clear();
+  for (const [providerId, domains] of next) {
+    providerDomainsByProvider.set(providerId, domains);
+  }
+}
 
 function resolveWebEnvironment(environment?: WebPlatformEnvironment): WebPlatformEnvironment {
   if (environment) {
@@ -425,14 +487,26 @@ export function createWebPlatformAdapter(environment?: WebPlatformEnvironment): 
     },
 
     providerNetwork: {
-      // The browser has no main process: the page's own fetch is the transport.
-      replaceProviders: async () => ok(undefined),
-      revokeProvider: async () => ok(undefined),
+      // The browser has no main process: the page's own fetch is the transport,
+      // but the manifest domain table still gates every provider request.
+      replaceProviders: async (providers: readonly ProviderNetworkRegistration[]) => {
+        replaceProviderDomains(providers);
+        return ok(undefined);
+      },
+      revokeProvider: async (providerId: string) => {
+        providerDomainsByProvider.delete(normalizeProviderId(providerId));
+        return ok(undefined);
+      },
       nextRevision: async () => ok(Date.now()),
+      isAllowedHost: (providerId, url) => isProviderHostAllowed(providerId, url),
       request: (input) => {
+        if (!isProviderHostAllowed(input.providerId, input.url)) {
+          return Promise.resolve(err(platformInvalidUrl('Provider may not reach this host.')));
+        }
+        const fetchImpl = env.fetch ?? globalThis.fetch;
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), input.timeoutMs ?? 30_000);
-        return fetch(input.url, {
+        return fetchImpl(input.url, {
           method: input.method ?? 'GET',
           ...(input.headers !== undefined ? { headers: input.headers } : {}),
           ...(input.body !== undefined ? { body: input.body } : {}),
@@ -440,22 +514,27 @@ export function createWebPlatformAdapter(environment?: WebPlatformEnvironment): 
           credentials: 'omit',
           referrerPolicy: 'no-referrer',
         })
-          .then(async (response) => {
-            const bodyText = await response.text();
-            const headers: Record<string, string> = {};
-            response.headers.forEach((value, name) => {
-              headers[name.toLowerCase()] = value;
-            });
-            return {
-              status: response.status,
-              headers,
-              bodyText,
-              finalUrl: response.url,
-            };
-          })
           .then(
-            (value) => ok(value),
-            (e: unknown) => err(platformIoFailed('Provider request failed.', e)),
+            async (response): Promise<AppResult<PlatformProviderResponse>> => {
+              // The browser follows redirects itself, so the final URL is checked
+              // after the fact and a hop to an undeclared host is refused.
+              if (response.url !== '' && !isProviderHostAllowed(input.providerId, response.url)) {
+                return err(platformInvalidUrl('Provider may not reach this host.'));
+              }
+              const bodyText = await response.text();
+              const headers: Record<string, string> = {};
+              response.headers.forEach((value, name) => {
+                headers[name.toLowerCase()] = value;
+              });
+              return ok({
+                status: response.status,
+                headers,
+                bodyText,
+                finalUrl: response.url,
+              });
+            },
+            (e: unknown): AppResult<PlatformProviderResponse> =>
+              err(platformIoFailed('Provider request failed.', e)),
           )
           .finally(() => clearTimeout(timer));
       },

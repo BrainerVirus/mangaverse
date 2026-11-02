@@ -78,8 +78,10 @@ driver, over the 100 ms budget, and each library reload runs it.
   and address check run before every redirect hop; limits are 5 redirects, 64 MB and 60 s, and a
   refusal is logged with the host only.
 - `providerNetworkRequest` returns status, filtered headers and a bounded body; `provider-fetch.ts`
-  adapts it to `Response` for `createMangaDexProvider`, so the SDK client, rate limiter and error
-  normalization are unchanged. `providerNetworkStore` fetches and writes a page or cover in main and
+  adapts it to `Response` for `createMangaDexProvider`, so the SDK client and error normalization are
+  unchanged. A per-provider request gate (`@app/extensions-sdk` `request-gate.ts`, #216) runs in the
+  renderer before the call, queues past the manifest's declared pace and honours a 429's
+  `Retry-After`. `providerNetworkStore` fetches and writes a page or cover in main and
   returns a `page://` URL plus metadata, so no cached image bytes cross IPC on desktop. A
   user-supplied custom cover uses `providerNetworkStoreUserInitiated`: it has no manifest allowlist,
   but still enforces the public-URL, redirect, size and time checks.
@@ -94,6 +96,8 @@ driver, over the 100 ms budget, and each library reload runs it.
   the dynamic `*.mangadex.network` baseUrl, a private target and a private redirect refused before
   connecting, and the renderer's own provider fetch CSP-blocked. A live run against
   `api.mangadex.org` returned 200 for search, detail, cover and page fetches with no console errors.
+  #216 adds a first-search 429 with `Retry-After: 2` (the next search waits ~2 s before it reaches
+  the fixture) and asserts the install preview lists the manifest's declared domains.
 - The E2E fixture transport (`provider-network-fixture.ts`) is enabled only by main's
   `MANGAVERSE_E2E_PROVIDER_FIXTURE` environment; every allowlist, address, redirect and limit check
   still runs.

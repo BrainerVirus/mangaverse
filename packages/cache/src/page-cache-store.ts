@@ -122,8 +122,17 @@ async function storeRemotePageInMain(
 
 async function fetchRemotePage(
   adapter: PlatformAdapter,
+  providerId: string,
   remoteUrl: string,
 ): Promise<{ data: ArrayBuffer; mimeType: string } | undefined> {
+  // Web has no main process; refuse an undeclared host before the bytes leave
+  // the page. Desktop leaves `isAllowedHost` absent because main enforces it.
+  if (
+    adapter.providerNetwork.isAllowedHost !== undefined &&
+    !adapter.providerNetwork.isAllowedHost(providerId, remoteUrl)
+  ) {
+    return undefined;
+  }
   const result = await adapter.network.fetchBytes(remoteUrl);
   if (!result.ok || result.value === undefined) {
     return undefined;
@@ -150,7 +159,7 @@ async function fetchPageBytes(
     return existingFetch;
   }
 
-  const fetchPromise = fetchRemotePage(input.adapter, input.remoteUrl);
+  const fetchPromise = fetchRemotePage(input.adapter, String(input.providerId), input.remoteUrl);
   inFlightPageFetches.set(fetchKey, fetchPromise);
   try {
     return await fetchPromise;

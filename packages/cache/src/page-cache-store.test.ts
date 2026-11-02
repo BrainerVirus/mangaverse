@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { ok } from '@app/shared';
+import { describe, expect, it, vi } from 'vitest';
+import { ok, type AppResult } from '@app/shared';
 import type { PlatformAdapter } from '@app/platform';
 import { createSqlJsHarness } from '@app/db/testing';
 
@@ -536,5 +536,29 @@ describe('page cache store with a main-side fetch-and-store', () => {
     expect(result).toBeUndefined();
     expect(store.fetchBytesCalled()).toBe(0);
     expect(store.puts()).toBe(0);
+  });
+
+  it('Given a web adapter that refuses the provider host, When resolving a page, Then no bytes are fetched', async () => {
+    const { db } = await createSqlJsHarness();
+    const base = createPageAdapter().adapter;
+    const fetchBytes = vi.fn<
+      (url: string) => Promise<AppResult<{ data: ArrayBuffer; mimeType: string }>>
+    >(async () => ok({ data: new Uint8Array([1]).buffer, mimeType: 'image/jpeg' }));
+    const adapter: PlatformAdapter = {
+      ...base,
+      providerNetwork: { ...base.providerNetwork, isAllowedHost: () => false },
+      network: { fetchBytes },
+    };
+
+    const resolved = await resolvePageObjectUrl({
+      db,
+      adapter,
+      ...CHAPTER,
+      pageIndex: 0,
+      remoteUrl: 'https://evil.example/page.jpg',
+    });
+
+    expect(resolved).toBeUndefined();
+    expect(fetchBytes).not.toHaveBeenCalled();
   });
 });

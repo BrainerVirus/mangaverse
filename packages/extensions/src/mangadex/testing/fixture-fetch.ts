@@ -21,7 +21,7 @@ function fixtures() {
  * else, so contract and mapping tests never hit the network and a provider
  * call to an unexpected endpoint fails loudly.
  */
-export function createFixtureFetch(): typeof fetch {
+export function createFixtureFetch(): typeof globalThis.fetch {
   return async (input: RequestInfo | URL): Promise<Response> => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     let body: string | null = null;
