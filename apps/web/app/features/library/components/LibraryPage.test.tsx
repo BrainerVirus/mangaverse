@@ -143,6 +143,33 @@ describe('LibraryPage', () => {
     expect(screen.getByRole('button', { name: 'Favorite selected' })).toBeDisabled();
   });
 
+  it('Given selection mode, When Escape is pressed in the page, Then selection mode exits', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <LibraryPage
+        data={{
+          items: [createItem('one', 'Title 1'), createItem('two', 'Title 2')],
+          categories: [],
+          viewState: DEFAULT_LIBRARY_VIEW_STATE,
+        }}
+        isLoading={false}
+        isError={false}
+        viewState={DEFAULT_LIBRARY_VIEW_STATE}
+        onViewStateChange={() => {}}
+        onOpenManga={() => {}}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Select titles' }));
+    expect(screen.getByRole('region', { name: 'Bulk edit' })).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+
+    expect(screen.queryByRole('region', { name: 'Bulk edit' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Select titles' })).toBeInTheDocument();
+  });
+
   it('Given no reading progress, Then continue reading shows its empty state', () => {
     render(
       <LibraryPage

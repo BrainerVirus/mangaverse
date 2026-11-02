@@ -175,9 +175,9 @@ function ThemeStep({
   return (
     <>
       <header className="space-y-2">
-        <h2 id="onboarding-step-theme" className="text-xl font-semibold text-foreground">
+        <h1 id="onboarding-step-theme" className="text-xl font-semibold text-foreground">
           Choose your look
-        </h2>
+        </h1>
         <p className="text-sm text-muted-foreground">
           Pick a theme preset and appearance. You can customize further in Theme settings.
         </p>
@@ -213,18 +213,18 @@ function ThemeStep({
               aria-pressed={selected}
               aria-label={`Select ${preset.name} theme`}
               onClick={() => onChange({ ...settings, themeId: presetId })}
-              className="flex flex-col items-start gap-2 rounded-box border border-transparent p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex h-full w-full flex-col items-stretch gap-2 rounded-box border border-transparent p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
             >
               <div
                 className={
                   selected
-                    ? 'rounded-box ring-2 ring-primary ring-offset-2 ring-offset-background'
-                    : 'rounded-box hover:ring-1 hover:ring-border'
+                    ? 'w-full rounded-box ring-2 ring-primary ring-offset-2 ring-offset-background'
+                    : 'w-full rounded-box hover:ring-1 hover:ring-border'
                 }
               >
                 <ThemePreview theme={preview} />
               </div>
-              <div className="px-1">
+              <div className="w-full px-1">
                 <p className="text-sm font-medium text-foreground">{preset.name}</p>
                 <p className="text-sm text-muted-foreground">{preset.description}</p>
               </div>
@@ -284,9 +284,9 @@ function ReadingStep({
   return (
     <>
       <header className="space-y-2">
-        <h2 id="onboarding-step-reading" className="text-xl font-semibold text-foreground">
+        <h1 id="onboarding-step-reading" className="text-xl font-semibold text-foreground">
           Reading defaults
-        </h2>
+        </h1>
         <p className="text-sm text-muted-foreground">
           Set the default direction and page layout. Per-title overrides remain available in the
           reader.
@@ -332,9 +332,9 @@ function PreferencesStep({
   return (
     <>
       <header className="space-y-2">
-        <h2 id="onboarding-step-preferences" className="text-xl font-semibold text-foreground">
+        <h1 id="onboarding-step-preferences" className="text-xl font-semibold text-foreground">
           Language and content
-        </h2>
+        </h1>
         <p className="text-sm text-muted-foreground">
           Tune localization and mature content visibility for search and provider results.
         </p>
@@ -398,9 +398,9 @@ function ProviderStep({ onInstallProvider }: { onInstallProvider: () => void }) 
   return (
     <>
       <header className="space-y-2">
-        <h2 id="onboarding-step-provider" className="text-xl font-semibold text-foreground">
+        <h1 id="onboarding-step-provider" className="text-xl font-semibold text-foreground">
           Add your first provider
-        </h2>
+        </h1>
         <p className="text-sm text-muted-foreground">
           Providers supply catalog search and chapter sources. Install one now or finish setup and
           add providers later from Extensions.

@@ -20,6 +20,7 @@ import {
 } from '@app/design-system';
 
 import { summarizeRestorePreview } from '../summarize-restore-preview.js';
+import { formatBackupTimestamp } from '../format-timestamp.js';
 
 export interface BackupPageProps {
   readonly isLoading: boolean;
@@ -243,9 +244,9 @@ export function BackupPage({
           </Button>
           {lastExport !== null ? (
             <p className="text-sm text-muted-foreground">
-              Last export: {lastExport.metadata.createdAt} · {lastExport.library.length} library
-              entries · {lastExport.categories?.length ?? 0} categories ·{' '}
-              {lastExport.chapterReadStates?.length ?? 0} chapter progress ·{' '}
+              Last export: {formatBackupTimestamp(lastExport.metadata.createdAt)} ·{' '}
+              {lastExport.library.length} library entries · {lastExport.categories?.length ?? 0}{' '}
+              categories · {lastExport.chapterReadStates?.length ?? 0} chapter progress ·{' '}
               {lastExport.installedExtensions.length} providers
             </p>
           ) : null}
