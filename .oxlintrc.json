@@ -181,10 +181,22 @@
       // Discover sections and page resolution live in its module under
       // @app/extensions; app code only reaches it through the registration seam
       // below. @app/extensions/core and @app/extensions-sdk are generic runtime
-      // layers, so they stay allowed; a new provider subpath gets its own entry here.
+      // layers, so they stay allowed. Every provider subpath (and any future
+      // @app/extensions-* package) is covered by the globs, so a new provider needs
+      // no edit here — only its registration-seam file in the block below.
       "files": ["**/apps/**"],
       "rules": {
-        "no-restricted-imports": ["error", { "patterns": ["@app/extensions/mangadex*"] }]
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              "@app/extensions-*",
+              "@app/extensions/*",
+              "!@app/extensions-sdk",
+              "!@app/extensions/core*"
+            ]
+          }
+        ]
       }
     },
     {
