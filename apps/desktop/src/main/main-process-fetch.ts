@@ -272,6 +272,8 @@ export const nodeRequestHop: RequestHop = (hop) =>
       {
         method: hop.method ?? 'GET',
         headers: {
+          // Some provider APIs reject a missing or generic client identity.
+          'user-agent': 'MangaVerse/0.0.1',
           accept: '*/*',
           'accept-encoding': 'identity',
           ...hop.headers,

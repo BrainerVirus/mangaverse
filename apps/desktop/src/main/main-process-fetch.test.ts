@@ -358,8 +358,10 @@ describe('nodeRequestHop', () => {
 
   it('connects to the pinned address while keeping the URL host', async () => {
     let seenHost: string | undefined;
+    let seenAgent: string | undefined;
     const { port } = await serve((request, response) => {
       seenHost = request.headers.host;
+      seenAgent = request.headers['user-agent'];
       response.writeHead(200, { 'content-type': 'text/plain' });
       response.end('pinned');
     });
@@ -373,6 +375,8 @@ describe('nodeRequestHop', () => {
 
     expect(reply).toMatchObject({ kind: 'response', status: 200 });
     expect(seenHost).toBe(`example.com:${port}`);
+    // Some provider APIs reject the default Node client identity.
+    expect(seenAgent).toBe('MangaVerse/0.0.1');
     expect(reply.kind === 'response' ? reply.body.toString() : null).toBe('pinned');
   });
 
