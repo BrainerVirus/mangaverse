@@ -345,12 +345,12 @@ Banned reader motion:
 
 ### Duration Scale
 
-The duration tokens are defined in `packages/design-system/src/motion/src/tokens/duration.ts` and documented in `DESIGN.md`
+The duration tokens are defined in `packages/design-system/src/motion/tokens/duration.ts` and documented in `DESIGN.md`
 §5.1. Never hard-code a millisecond value in a component: import `DURATION` from `@app/design-system/motion`.
 
 ### Easing Presets
 
-The easing presets are defined in `packages/design-system/src/motion/src/tokens/easing.ts` and documented in `DESIGN.md`
+The easing presets are defined in `packages/design-system/src/motion/tokens/easing.ts` and documented in `DESIGN.md`
 §5.2. Use `EASING` from `@app/design-system/motion`; never write an easing string inline.
 
 `EASING.emphasizedOut` is **`expo.out` — GSAP's exponential ease-out**, unrelated to the Expo framework

@@ -314,7 +314,7 @@ Vibrancy is how type, icons and controls behave when they sit on glass. The rule
 ## 3. Color Palette & Roles
 
 Every value below is a token from `globals.css` unless marked **proposed**. Light is `:root, .light`;
-dark is `.dark`. The runtime theme layer (`apps/web/app/features/theme/src/presets.ts` + `apply-theme.ts`) repaints
+dark is `.dark`. The runtime theme layer (`apps/web/app/features/theme/presets.ts` + `apply-theme.ts`) repaints
 27 of these 29 variables across 10 presets — `--surface` and `--surface-raised` are the two it does not
 touch. Not all 27 are the preset's 10 colour tokens: `--muted-foreground`, `--destructive-foreground` and
 the light `--primary-foreground` are hardcoded in `apply-theme.ts`, and `--muted`, `--secondary` and the
@@ -515,7 +515,7 @@ end state when it is true.
 > It has nothing to do with the Expo framework, which this repository no longer uses. Write it as
 > `expo.out` in GSAP code and never "expo" in prose.
 
-### 5.1 Duration scale (existing — `packages/design-system/src/motion/src/tokens/duration.ts`)
+### 5.1 Duration scale (existing — `packages/design-system/src/motion/tokens/duration.ts`)
 
 | Token                 | ms  | Use                                                            |
 | --------------------- | --- | -------------------------------------------------------------- |
@@ -526,7 +526,7 @@ end state when it is true.
 | `DURATION.expressive` | 360 | Sheet open, onboarding, empty states, route continuity         |
 | `DURATION.cinematic`  | 520 | Rare hero moments and the reader's page turn — never in a loop |
 
-### 5.2 Easing presets (existing — `packages/design-system/src/motion/src/tokens/easing.ts`)
+### 5.2 Easing presets (existing — `packages/design-system/src/motion/tokens/easing.ts`)
 
 | Token                  | GSAP value      | Use                                                             |
 | ---------------------- | --------------- | --------------------------------------------------------------- |

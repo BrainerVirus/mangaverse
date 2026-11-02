@@ -6,13 +6,13 @@ Current state, rewritten when #208 landed. Delete this file when its contents st
 
 Milestone 1 (Foundation) has landed:
 
-| Issue | State                                                                                  |
-| ----- | -------------------------------------------------------------------------------------- |
-| #204  | Landed: `useState` and `try/catch` frozen by a shrinking baseline; `useStateReducer`.  |
-| #205  | Landed: local, capped, redacted event log and Diagnostics view.                        |
-| #207  | Landed: responsive layout repairs and the virtualized chapter list.                    |
-| #206  | Landed: typed failures, status pages, inline retry, toasts, the Saving indicator.      |
-| #208  | Landed: package consolidation, below.                                                  |
+| Issue | State                                                                                 |
+| ----- | ------------------------------------------------------------------------------------- |
+| #204  | Landed: `useState` and `try/catch` frozen by a shrinking baseline; `useStateReducer`. |
+| #205  | Landed: local, capped, redacted event log and Diagnostics view.                       |
+| #207  | Landed: responsive layout repairs and the virtualized chapter list.                   |
+| #206  | Landed: typed failures, status pages, inline retry, toasts, the Saving indicator.     |
+| #208  | Landed: package consolidation, below.                                                 |
 
 Next is milestone 2 (Electron runtime): ADR #209 first, then #210-#214, with #215 last. The roadmap holds
 the order inside that range. #209 is waiting on the owner, below.
