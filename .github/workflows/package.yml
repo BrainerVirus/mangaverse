@@ -8,6 +8,17 @@ name: Package
 
 on:
   workflow_dispatch:
+  # Build the whole matrix on packaging changes so a PR proves all three platforms before
+  # landing, instead of finding out only when a tag is cut.
+  pull_request:
+    paths:
+      - "apps/desktop/**"
+      - "apps/web/**"
+      - "packages/**"
+      - ".github/workflows/package.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
   push:
     tags:
       - "v*"
@@ -83,8 +94,10 @@ jobs:
       - name: Build desktop app
         run: pnpm --filter @app/desktop build
 
+      # No `--` before the arch flags: pnpm forwards it literally and electron-builder then
+      # ignores the whole flag list, silently building the runner's own arch.
       - name: Package
-        run: pnpm --filter @app/desktop package:${{ matrix.platform }} -- ${{ matrix.arch_args }}
+        run: pnpm --filter @app/desktop package:${{ matrix.platform }} ${{ matrix.arch_args }}
 
       - name: Upload installers
         uses: actions/upload-artifact@v4
