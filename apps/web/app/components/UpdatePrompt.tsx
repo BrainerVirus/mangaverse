@@ -37,7 +37,7 @@ export function UpdatePrompt() {
         if (!open) dismissUpdatePrompt();
       }}
     >
-      <DialogContent aria-describedby={undefined}>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>MangaVerse {update.version} is ready</DialogTitle>
           <DialogDescription>
