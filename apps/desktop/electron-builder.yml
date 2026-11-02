@@ -6,7 +6,6 @@
 # macOS and Windows, APPLE_ID/APPLE_APP_SPECIFIC_PASSWORD/APPLE_TEAM_ID for notarization).
 appId: app.mangaverse.desktop
 productName: MangaVerse
-executableName: mangaverse
 copyright: Copyright © 2026 MangaVerse
 # The app runs from the asar: main, the data-host utility process and the preload are
 # esbuild bundles, so no workspace symlinks or node_modules need to travel with it.
@@ -45,6 +44,8 @@ nsis:
   perMachine: false
   deleteAppDataOnUninstall: false
 linux:
+  # The package name is scoped (@app/desktop); AppImage rejects that executable name.
+  executableName: mangaverse
   target:
     - AppImage
     - deb

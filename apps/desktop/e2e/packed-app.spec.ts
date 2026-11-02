@@ -1,6 +1,6 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { createRequire } from 'node:module';
@@ -35,24 +35,61 @@ test.afterEach(async () => {
   }
 });
 
-function packagedApp(): string | null {
-  if (process.platform !== 'darwin') return null;
-  // Prefer the app unpacked from the built zip: that is the artifact a user installs,
-  // with app-update.yml, not the `--dir` output.
-  for (const folder of [
-    'release/packed-proof',
-    'release/mac-arm64',
-    'release/mac',
-    'release/mac-x64',
-  ]) {
-    const candidate = join(desktopRoot, folder, 'MangaVerse.app');
-    if (existsSync(join(candidate, 'Contents/MacOS/MangaVerse'))) return candidate;
-  }
-  return null;
+function asarHash(app: string): string {
+  return createHash('sha256')
+    .update(readFileSync(join(app, 'Contents/Resources/app.asar')))
+    .digest('hex');
 }
 
-const packageless = packagedApp() === null;
-test.skip(packageless, 'Package the mac app first: pnpm --filter @app/desktop package:mac');
+/**
+ * The proof must run against the artifact this build produced, never a leftover directory.
+ * Unpacks the current arch's zip into a fresh `release/packed-proof-current`, fails loudly
+ * when there is no zip, and rejects a zip whose asar differs from the freshly built app.
+ */
+function unpackCurrentZip(): string | null {
+  if (process.platform !== 'darwin') return null;
+  const release = join(desktopRoot, 'release');
+  const zipPattern = new RegExp(`^MangaVerse-.*-${process.arch}\\.zip$`);
+  const zips = existsSync(release)
+    ? readdirSync(release)
+        .filter((name) => zipPattern.test(name))
+        .sort()
+    : [];
+  const latest = zips.at(-1);
+  if (latest === undefined) {
+    throw new Error(
+      'No packaged zip in apps/desktop/release. Run: pnpm --filter @app/desktop package:mac',
+    );
+  }
+  const zip = join(release, latest);
+  const directory = join(release, 'packed-proof-current');
+  rmSync(directory, { recursive: true, force: true });
+  mkdirSync(directory, { recursive: true });
+  execFileSync('unzip', ['-q', zip, '-d', directory]);
+  const app = join(directory, 'MangaVerse.app');
+  if (!existsSync(join(app, 'Contents/MacOS/MangaVerse'))) {
+    throw new Error(`The built zip does not contain MangaVerse.app: ${zip}`);
+  }
+  const builtFolders = process.arch === 'arm64' ? ['mac-arm64'] : ['mac', 'mac-x64'];
+  for (const folder of builtFolders) {
+    const built = join(release, folder, 'MangaVerse.app');
+    if (!existsSync(built)) continue;
+    if (asarHash(built) !== asarHash(app)) {
+      throw new Error(
+        `The packaged zip is stale: ${zip} does not match release/${folder}. Repackage before proving.`,
+      );
+    }
+  }
+  return app;
+}
+
+const packedAppPath = unpackCurrentZip();
+test.skip(packedAppPath === null, 'macOS only');
+
+function packagedApp(): string {
+  if (packedAppPath === null) throw new Error('No packaged app to launch.');
+  return packedAppPath;
+}
 
 function profile(): string {
   const directory = mkdtempSync(join(tmpdir(), 'mangaverse-packed-'));
