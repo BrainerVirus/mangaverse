@@ -9,7 +9,7 @@ import {
   ThemeEditorPage,
   validateThemeDefinition,
   type ThemeEditorError,
-} from '@app/theme';
+} from '@/features/theme';
 import { ErrorState, LoadingState } from '@app/design-system';
 import type { AppDrizzleDb } from '@app/db';
 import type { ThemeDefinition, ThemeDefinitionIssue, ThemeSettings } from '@app/shared';

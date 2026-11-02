@@ -1,8 +1,8 @@
 import type { BackupValidationIssue } from '@app/shared';
-import { validateThemeDefinition } from '@app/theme';
+import { validateThemeDefinition } from '@/features/theme';
 
 /**
- * `@app/shared` cannot import `@app/theme` (theme depends on shared), so the
+ * `@app/shared` cannot import `@/features/theme` (theme depends on shared), so the
  * backup schema validates only the theme shape. Color syntax needs culori, and
  * this import/restore boundary is the layer that owns both packages: it rejects
  * `not-a-color` seeds and `url(...)` overrides before a backup is persisted.

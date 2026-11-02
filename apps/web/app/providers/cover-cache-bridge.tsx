@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CoverCacheProvider } from '@app/cache';
 import { createAppPlatformAdapter } from '@app/platform';
-import { fetchAppSettings, settingsQueryKeys } from '@app/settings';
+import { fetchAppSettings, settingsQueryKeys } from '@/features/settings';
 import { DEFAULT_IMAGE_CACHE_LIMIT_BYTES } from '@app/shared';
 
 import { useLocalDb, useLocalDbStatus } from './local-db-provider.js';

@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
-import { saveReaderSettings, settingsQueryKeys } from '@app/settings';
+import { saveReaderSettings, settingsQueryKeys } from '@/features/settings';
 import {
   markPreviousChaptersCompleted,
   setChapterCompleted,

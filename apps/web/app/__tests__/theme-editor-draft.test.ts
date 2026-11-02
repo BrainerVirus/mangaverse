@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getBuiltInThemeDefinition } from '@app/theme';
+import { getBuiltInThemeDefinition } from '@/features/theme';
 import type { ThemeDefinition } from '@app/shared';
 import { createThemeEditorDraft } from '../components/theme/theme-editor-draft.js';
 

@@ -1,7 +1,7 @@
 import { createFileRoute, Link, Outlet, useRouterState } from '@tanstack/react-router';
 import { ChevronRight } from 'lucide-react';
 import { Card, CardDescription, CardHeader, CardTitle } from '@app/design-system';
-import { SETTINGS_NAV_SECTIONS } from '@app/settings';
+import { SETTINGS_NAV_SECTIONS } from '@/features/settings';
 
 export const Route = createFileRoute('/advanced')({
   component: AdvancedRoute,

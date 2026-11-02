@@ -9,7 +9,7 @@ import {
   type DiscoverExpandedSectionState,
   type DiscoverProviderFeed,
 } from '@app/search';
-import { fetchAppSettings, settingsQueryKeys } from '@app/settings';
+import { fetchAppSettings, settingsQueryKeys } from '@/features/settings';
 import { useLocalDb, useLocalDbStatus, useLocalDbRetry } from '../providers/local-db-provider.js';
 import type { LocalDbStatus } from '../providers/local-db-provider.js';
 import {

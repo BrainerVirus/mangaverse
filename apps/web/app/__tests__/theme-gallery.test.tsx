@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { getBuiltInThemeDefinition, ThemeCustomizationPage } from '@app/theme';
+import { getBuiltInThemeDefinition, ThemeCustomizationPage } from '@/features/theme';
 import type { ThemeDefinition, ThemeSettings } from '@app/shared';
 
 const settings: ThemeSettings = { themeId: 'default', dark: false };

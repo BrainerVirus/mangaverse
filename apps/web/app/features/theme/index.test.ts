@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { getThemeSettings, upsertThemeSettings } from '@app/db';
 import { createSqlJsHarness } from '@app/db/testing';
@@ -39,7 +40,7 @@ function customTheme(id = createCustomThemeId('test')) {
   };
 }
 
-describe('@app/theme exports', () => {
+describe('theme exports', () => {
   it('exports the theme feature surface', () => {
     expect(fetchThemeSettings).toBeTypeOf('function');
     expect(saveThemeSettings).toBeTypeOf('function');

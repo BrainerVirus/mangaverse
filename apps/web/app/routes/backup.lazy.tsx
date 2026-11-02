@@ -16,8 +16,8 @@ import { libraryQueryKeys } from '@app/library';
 import { migrationQueryKeys } from '@/features/migration/index.js';
 import { readerQueryKeys } from '@app/reader';
 import { discoverQueryKeys, searchQueryKeys } from '@app/search';
-import { settingsQueryKeys } from '@app/settings';
-import { themeQueryKeys } from '@app/theme';
+import { settingsQueryKeys } from '@/features/settings';
+import { themeQueryKeys } from '@/features/theme';
 
 import { failureMessage } from '../lib/app-feedback.js';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';

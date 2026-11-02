@@ -210,9 +210,9 @@
       "rules": { "no-restricted-imports": "off" }
     },
     {
-      // no-restyle is consumer-scope: these packages author components and themes.
+      // no-restyle is consumer-scope: these paths author components and themes.
       // Unknown classes remain checked via the exact root allowlist.
-      "files": ["**/packages/design-system/**", "**/packages/theme/**"],
+      "files": ["**/packages/design-system/**", "**/apps/web/app/features/theme/**"],
       "rules": {
         "shadcn/no-restyle": "off"
       }

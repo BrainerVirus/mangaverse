@@ -4,7 +4,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { getDefaultReaderSettings } from '@app/shared';
-import type * as SettingsModule from '@app/settings';
+import type * as SettingsModule from '@/features/settings';
 
 const mocks = vi.hoisted(() => ({
   getTitleReaderSettings: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
@@ -24,7 +24,7 @@ vi.mock('@app/db', () => ({
   resetTitleReaderSettings: mocks.resetTitleReaderSettings,
 }));
 
-vi.mock('@app/settings', async (importOriginal) => {
+vi.mock('@/features/settings', async (importOriginal) => {
   const actual = await importOriginal<typeof SettingsModule>();
   return {
     ...actual,

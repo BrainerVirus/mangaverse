@@ -9,12 +9,12 @@ import type * as DbBrowserModule from '@app/db/browser';
 import type { SavedSearchEntry } from '@app/db';
 import type * as ProviderOptionsModule from '../../queries/provider-query-options.js';
 import type * as SearchModule from '@app/search';
-import type * as SettingsModule from '@app/settings';
+import type * as SettingsModule from '@/features/settings';
 import type { MangaIdentity } from '@app/shared';
 import { searchQueryKeys } from '@app/search';
 import type { SearchPageData, SearchViewState } from '@app/search';
 import type { SearchProviderInfo } from '../../queries/provider-query-options.js';
-import { settingsQueryKeys } from '@app/settings';
+import { settingsQueryKeys } from '@/features/settings';
 
 const mocks = vi.hoisted(() => ({
   fetchSearchPage:
@@ -62,7 +62,7 @@ vi.mock('@app/search', async (importOriginal) => {
   };
 });
 
-vi.mock('@app/settings', async (importOriginal) => {
+vi.mock('@/features/settings', async (importOriginal) => {
   const actual = await importOriginal<typeof SettingsModule>();
   return { ...actual, fetchAppSettings: mocks.fetchAppSettings };
 });

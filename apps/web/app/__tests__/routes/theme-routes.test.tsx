@@ -10,8 +10,8 @@ import {
   Outlet,
   RouterProvider,
 } from '@tanstack/react-router';
-import type * as ThemeModule from '@app/theme';
-import { getBuiltInThemeDefinition } from '@app/theme';
+import type * as ThemeModule from '@/features/theme';
+import { getBuiltInThemeDefinition } from '@/features/theme';
 import type { AppResult, ThemeDefinition, ThemeSettings } from '@app/shared';
 
 import { getRouter } from '../../router.js';
@@ -31,7 +31,7 @@ const mocks = vi.hoisted(() => ({
   deleteThemeDefinition: vi.fn<(db: unknown, themeId: string) => Promise<AppResult<void>>>(),
 }));
 
-vi.mock('@app/theme', async (importOriginal) => {
+vi.mock('@/features/theme', async (importOriginal) => {
   const actual = await importOriginal<typeof ThemeModule>();
   return {
     ...actual,

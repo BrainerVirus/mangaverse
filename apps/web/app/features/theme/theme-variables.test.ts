@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { differenceCiede2000, parse, type Color } from 'culori';
 

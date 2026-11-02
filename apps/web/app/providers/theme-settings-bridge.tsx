@@ -5,7 +5,7 @@ import {
   fetchThemeSettings,
   saveThemeSettings,
   themeQueryKeys,
-} from '@app/theme';
+} from '@/features/theme';
 import type { ThemeSettings } from '@app/shared';
 
 import { useLocalDb, useLocalDbStatus } from './local-db-provider.js';

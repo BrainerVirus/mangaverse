@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
 import golden from './__fixtures__/built-in-theme-variables.json';

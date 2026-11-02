@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { getAppSettings, upsertAppSettings } from '@app/db';
 import { createSqlJsHarness } from '@app/db/testing';

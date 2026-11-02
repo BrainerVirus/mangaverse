@@ -14,7 +14,7 @@ import {
   isCustomThemeId,
   resolveThemeAppearance,
   validateThemeSettings,
-} from '@app/theme';
+} from '@/features/theme';
 import type { ThemeDefinition, ThemeSettings } from '@app/shared';
 
 type Theme = 'light' | 'dark';

@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
-import { SETTINGS_NAV_SECTIONS, SettingsIndexPage } from '@app/settings';
+import { SETTINGS_NAV_SECTIONS, SettingsIndexPage } from '@/features/settings';
 
 export const Route = createFileRoute('/settings')({
   component: SettingsRoute,

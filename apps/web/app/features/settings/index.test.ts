@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import {
   AppSettingsPage,
@@ -10,7 +11,7 @@ import {
   SettingsIndexPage,
 } from './index.js';
 
-describe('@app/settings', () => {
+describe('settings exports', () => {
   it('exports the settings feature surface', () => {
     expect(fetchAppSettings).toBeTypeOf('function');
     expect(saveAppSettings).toBeTypeOf('function');

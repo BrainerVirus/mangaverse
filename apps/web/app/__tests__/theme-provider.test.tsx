@@ -2,8 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
-import type * as ThemeModule from '@app/theme';
-import { buildThemeCssVariables, getBuiltInThemeDefinition, themeQueryKeys } from '@app/theme';
+import type * as ThemeModule from '@/features/theme';
+import {
+  buildThemeCssVariables,
+  getBuiltInThemeDefinition,
+  themeQueryKeys,
+} from '@/features/theme';
 import type { ThemeDefinition } from '@app/shared';
 import { ThemeProvider, useTheme } from '../providers/theme-provider.js';
 import { ThemeSettingsBridge } from '../providers/theme-settings-bridge.js';
@@ -17,7 +21,7 @@ const mocks = vi.hoisted(() => ({
   fakeDb: { id: 'fake-db' },
 }));
 
-vi.mock('@app/theme', async (importOriginal) => {
+vi.mock('@/features/theme', async (importOriginal) => {
   const actual = await importOriginal<typeof ThemeModule>();
   return {
     ...actual,

@@ -6,7 +6,7 @@ import {
   saveReaderSettings,
   saveTitleReaderSettings,
   settingsQueryKeys,
-} from '@app/settings';
+} from '@/features/settings';
 import { getTitleReaderSettings, resetTitleReaderSettings } from '@app/db';
 import type { ReaderSettings } from '@app/shared';
 import { saveFeedback } from '../lib/feedback.js';

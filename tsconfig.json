@@ -13,8 +13,6 @@
     { "path": "./packages/motion" },
     { "path": "./packages/library" },
     { "path": "./packages/search" },
-    { "path": "./packages/settings" },
-    { "path": "./packages/theme" },
     { "path": "./packages/platform" }
   ]
 }
