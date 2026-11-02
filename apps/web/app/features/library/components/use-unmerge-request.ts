@@ -23,7 +23,7 @@ export function useUnmergeRequest({ loadPreview, onUnmerge }: UseUnmergeRequestI
       return;
     }
     setIsLoading(true);
-    // react-doctor-disable-next-line react-hooks-js/todo -- ruling: web-compiler-skip-moved-library: moved unchanged; the compiler skips this function for its try/finally (panicThreshold none), the behaviour it had uncompiled in @app/library.
+    // react-doctor-disable-next-line react-hooks-js/todo -- ruling: web-compiler-skip-moved-library: moved unchanged; the compiler skips this function for its try/finally (panicThreshold none), the behaviour it had uncompiled before the move.
     try {
       const loaded = await loadPreview(mappingId);
       if (loaded === undefined) {

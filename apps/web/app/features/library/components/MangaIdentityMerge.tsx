@@ -308,7 +308,7 @@ function useMergePreview(
     setPreview(undefined);
     setError(undefined);
     setIsLoading(true);
-    // react-doctor-disable-next-line react-hooks-js/todo -- ruling: web-compiler-skip-moved-library: moved unchanged; the compiler skips this function for its try/finally (panicThreshold none), the behaviour it had uncompiled in @app/library.
+    // react-doctor-disable-next-line react-hooks-js/todo -- ruling: web-compiler-skip-moved-library: moved unchanged; the compiler skips this function for its try/finally (panicThreshold none), the behaviour it had uncompiled before the move.
     try {
       setPreview(await loadPreview(targetId, sourceId));
     } catch (caught) {
@@ -436,7 +436,7 @@ function MergeDialog({
       selection.targetId === currentMangaId ? selection.candidate.mangaId : currentMangaId;
     setIsApplying(true);
     setApplyError(undefined);
-    // react-doctor-disable-next-line react-hooks-js/todo -- ruling: web-compiler-skip-moved-library: moved unchanged; the compiler skips this function for its try/finally (panicThreshold none), the behaviour it had uncompiled in @app/library.
+    // react-doctor-disable-next-line react-hooks-js/todo -- ruling: web-compiler-skip-moved-library: moved unchanged; the compiler skips this function for its try/finally (panicThreshold none), the behaviour it had uncompiled before the move.
     try {
       await onConfirm({ targetId: selection.targetId, sourceId });
       const mergedTargetId = selection.targetId;
@@ -614,7 +614,7 @@ function useUnmergeSubmit(
     if (preview === undefined || !preview.canUnmerge) return;
     setIsSplitting(true);
     setError(undefined);
-    // react-doctor-disable-next-line react-hooks-js/todo -- ruling: web-compiler-skip-moved-library: moved unchanged; the compiler skips this function for its try/finally (panicThreshold none), the behaviour it had uncompiled in @app/library.
+    // react-doctor-disable-next-line react-hooks-js/todo -- ruling: web-compiler-skip-moved-library: moved unchanged; the compiler skips this function for its try/finally (panicThreshold none), the behaviour it had uncompiled before the move.
     try {
       await onConfirm(preview.mapping.id);
       onDone();
