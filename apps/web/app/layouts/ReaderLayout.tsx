@@ -16,7 +16,9 @@ export function ReaderLayout({ children }: { children: React.ReactNode }) {
       {/* A column, not a bare outlet: a notice takes its own row instead of
           painting over the reader chrome, and the outlet keeps the rest. */}
       <div className="flex h-full flex-col">
-        <AppNotices />
+        {/* Above the reader chrome (z-50): a storage failure outranks the
+            controls that would otherwise paint over it. */}
+        <AppNotices className="z-60" />
         {/* h-full, not the default min-h-full: the reader surface sizes with
             percentage heights, and an indefinite parent collapses it. */}
         <AnimatedRouteOutlet variant="reader" className="min-h-0 flex-1">
