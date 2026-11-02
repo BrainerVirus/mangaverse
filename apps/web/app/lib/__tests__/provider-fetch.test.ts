@@ -7,6 +7,7 @@ const { request, fetchBytes } = vi.hoisted(() => ({
 }));
 
 vi.mock('../../features/diagnostics/create-app-platform-adapter.js', () => ({
+  hasDesktopBridge: () => true,
   createAppPlatformAdapter: () => ({
     providerNetwork: { request },
     network: { fetchBytes },

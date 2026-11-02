@@ -1,4 +1,5 @@
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { createServer, type Server } from 'node:http';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -20,8 +21,6 @@ const MANGADEX_MANGA_ID = 'dc332d04-d3b0-413c-a767-70f5e451b031';
 const CHAPTER_BUTTON = /Ch\. 1 - The Summoner/;
 const PAGE_COUNT = 37;
 const PAGES_READ = 6;
-/** A host that resolves to a public address, so main's SSRF check passes before interception. */
-const CDN_HOST = 'uploads.mangadex.org';
 const PAGE_URL = /^page:\/\/store\/[0-9a-f]{64}$/;
 
 const TINY_JPEG_BASE64 =
@@ -54,12 +53,16 @@ async function seededProfile(): Promise<{ userDataDir: string; mangaId: string }
   return { userDataDir: directory, mangaId: `dev-md-${MANGADEX_MANGA_ID}` };
 }
 
-async function launch(userDataDir: string): Promise<{ app: ElectronApplication; page: Page }> {
+async function launch(
+  userDataDir: string,
+  fixtureOrigin: string,
+): Promise<{ app: ElectronApplication; page: Page }> {
   if (!existsSync(join(desktopRoot, 'dist/renderer/index.html'))) {
     throw new Error('Build the desktop app first: pnpm --filter @app/desktop build');
   }
   const env = { ...process.env } as Record<string, string>;
   delete env.VITE_DEV_SERVER_URL;
+  env.MANGAVERSE_E2E_PROVIDER_FIXTURE = fixtureOrigin;
   const app = await _electron.launch({
     executablePath: electronPath,
     args: [desktopRoot, `--user-data-dir=${userDataDir}`],
@@ -71,57 +74,56 @@ async function launch(userDataDir: string): Promise<{ app: ElectronApplication; 
   return { app, page };
 }
 
-/**
- * The recorded MangaDex API and image CDN, answered in main: the renderer calls the API and
- * main fetches page images, and both pass through the session's https handler. Nothing else
- * is served, and the handler counts the images it sent.
- */
-async function serveMangaDex(app: ElectronApplication): Promise<void> {
-  const atHome = JSON.parse(fixture('at-home.json')) as { baseUrl: string };
-  atHome.baseUrl = `https://${CDN_HOST}`;
-  await app.evaluate(
-    ({ session }, { cdnHost, jpeg, api }) => {
-      const state = { images: 0, online: true };
-      (globalThis as Record<string, unknown>).__mangadex = state;
-      session.defaultSession.protocol.handle('https', (request) => {
-        const url = new URL(request.url);
-        if (!state.online) return Response.error();
-        if (url.host === cdnHost) {
-          state.images += 1;
-          return new Response(Buffer.from(jpeg, 'base64'), {
-            headers: { 'Content-Type': 'image/jpeg', 'Access-Control-Allow-Origin': '*' },
-          });
-        }
-        if (url.host !== 'api.mangadex.org') return Response.error();
-        const body = url.pathname.includes('/at-home/server/')
-          ? api.atHome
-          : /\/manga\/[^/]+\/feed/.test(url.pathname)
-            ? api.feed
-            : /\/manga\/[^/]+$/.test(url.pathname)
-              ? api.detail
-              : api.search;
-        return new Response(body, {
-          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-        });
-      });
-    },
-    {
-      cdnHost: CDN_HOST,
-      jpeg: TINY_JPEG_BASE64,
-      api: {
-        atHome: JSON.stringify(atHome),
-        feed: fixture('feed.json'),
-        detail: fixture('detail.json'),
-        search: fixture('search.json'),
-      },
-    },
-  );
+interface FixtureServer {
+  readonly origin: string;
+  images(): number;
+  close(): Promise<void>;
 }
 
-const cdnServed = (app: ElectronApplication) =>
-  app.evaluate(
-    () => ((globalThis as Record<string, unknown>).__mangadex as { images: number }).images,
-  );
+/**
+ * The recorded MangaDex API and image CDN for main's fixture transport. Main still
+ * runs the allowlist, address and redirect checks; only the socket target is local.
+ */
+async function startFixtureServer(): Promise<FixtureServer> {
+  const atHome = JSON.parse(fixture('at-home.json')) as { baseUrl: string };
+  const jpeg = Buffer.from(TINY_JPEG_BASE64, 'base64');
+  let imageCount = 0;
+  let closed = false;
+
+  const server: Server = createServer((request, response) => {
+    const url = new URL(request.url ?? '/', 'http://fixture.local');
+    if (url.pathname.startsWith('/covers/') || url.pathname.startsWith('/data')) {
+      imageCount += 1;
+      response.writeHead(200, { 'content-type': 'image/jpeg' }).end(jpeg);
+      return;
+    }
+    const body = url.pathname.includes('/at-home/server/')
+      ? JSON.stringify(atHome)
+      : /\/manga\/[^/]+\/feed/.test(url.pathname)
+        ? fixture('feed.json')
+        : /\/manga\/[^/]+$/.test(url.pathname)
+          ? fixture('detail.json')
+          : fixture('search.json');
+    response.writeHead(200, { 'content-type': 'application/json' }).end(body);
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  if (address === null || typeof address === 'string') throw new Error('no fixture port');
+
+  return {
+    origin: `http://127.0.0.1:${address.port}`,
+    images: () => imageCount,
+    close: async () => {
+      if (closed) return;
+      closed = true;
+      await new Promise<void>((resolve) => {
+        server.closeAllConnections();
+        server.close(() => resolve());
+      });
+    },
+  };
+}
 
 /** Every console error and page error the renderer raises from here on. */
 function watchErrors(page: Page): string[] {
@@ -211,9 +213,10 @@ async function readPages(page: Page): Promise<string[]> {
 
 test('Given a chapter read online, When reopened offline, Then its pages render from page:// files', async () => {
   const { userDataDir, mangaId } = await seededProfile();
-  const { app, page } = await launch(userDataDir);
+  const fixtureServer = await startFixtureServer();
+  cleanups.unshift(() => void fixtureServer.close());
+  const { app, page } = await launch(userDataDir, fixtureServer.origin);
   const errors = watchErrors(page);
-  await serveMangaDex(app);
 
   // Online: open the chapter and read the first pages.
   await page.goto(`app://app/manga/${mangaId}`);
@@ -224,14 +227,16 @@ test('Given a chapter read online, When reopened offline, Then its pages render 
   const onlineSources = await readPages(page);
   expect(new Set(onlineSources).size).toBe(PAGES_READ);
   for (const src of onlineSources) expect(src).not.toContain(userDataDir);
-  expect(await cdnServed(app)).toBeGreaterThanOrEqual(PAGES_READ);
+  expect(fixtureServer.images()).toBeGreaterThanOrEqual(PAGES_READ);
 
   // Main holds the bytes; SQLite holds only metadata rows; IndexedDB holds no page.
   await expect.poll(() => storedPages(userDataDir).bytes.length).toBeGreaterThanOrEqual(PAGES_READ);
   const stored = storedPages(userDataDir);
   expect(stored.sidecars.map((name) => name.slice(0, 64))).toEqual(stored.bytes);
   const rows = pageRows(userDataDir);
-  expect(rows.length).toBe(stored.bytes.length);
+  // Prefetch may still be writing the next pages; every committed row has its file.
+  expect(rows.length).toBeGreaterThanOrEqual(PAGES_READ);
+  expect(rows.length).toBeLessThanOrEqual(stored.bytes.length);
   for (const row of rows) {
     expect(row).toMatchObject({
       mime_type: 'image/jpeg',
@@ -255,9 +260,9 @@ test('Given a chapter read online, When reopened offline, Then its pages render 
   ).toBe(403);
 
   // Offline: no API, no CDN, no network at all. Reload the reader.
-  const servedOnline = await cdnServed(app);
+  const servedOnline = fixtureServer.images();
+  await fixtureServer.close();
   await app.evaluate(({ session }) => {
-    ((globalThis as Record<string, unknown>).__mangadex as { online: boolean }).online = false;
     session.defaultSession.enableNetworkEmulation({ offline: true });
   });
   const offlineErrorsFrom = errors.length;
@@ -265,7 +270,7 @@ test('Given a chapter read online, When reopened offline, Then its pages render 
   await expect(page.getByText(`1 / ${PAGE_COUNT}`)).toBeVisible({ timeout: 30_000 });
   const offlineSources = await readPages(page);
   expect(offlineSources).toEqual(onlineSources);
-  expect(await cdnServed(app)).toBe(servedOnline);
+  expect(fixtureServer.images()).toBe(servedOnline);
   // Provider calls that fail offline are expected noise; nothing about pages may error.
   expect(
     errors

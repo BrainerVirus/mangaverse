@@ -35,6 +35,7 @@ import { createTrustedFrameCheck, registerDataHostIpc, superviseDataHost } from 
 import { registerPlatformIpc } from './platform-ipc.js';
 import { createProviderAllowlist } from './provider-allowlist.js';
 import { registerProviderNetworkIpc } from './provider-network-ipc.js';
+import { createFixtureTransport } from './provider-network-fixture.js';
 import {
   createPageProtocolHandler,
   createPageStore,
@@ -260,7 +261,7 @@ void app.whenReady().then(async () => {
       allowedOrigins: appOrigins(),
     });
 
-    const networkTransport = {
+    const productionTransport = {
       resolveHostAddresses: async (hostname: string) =>
         (await lookup(hostname, { all: true, verbatim: true })).map((entry) => entry.address),
       // Log the refusal without the path or query: a provider URL can carry a token.
@@ -274,6 +275,14 @@ void app.whenReady().then(async () => {
         console.warn(`[provider-network] refused ${event.code}${host ? ` host=${host}` : ''}`);
       },
     };
+
+    // Test-only: the Electron E2E answers the recorded MangaDex hosts from a local
+    // fixture server. All allowlist, address, redirect and limit checks still run.
+    const fixtureOrigin = process.env.MANGAVERSE_E2E_PROVIDER_FIXTURE;
+    const networkTransport =
+      fixtureOrigin === undefined
+        ? productionTransport
+        : createFixtureTransport(fixtureOrigin, productionTransport);
 
     registerPlatformIpc({
       ipcMain,
