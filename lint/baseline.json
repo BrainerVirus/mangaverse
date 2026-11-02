@@ -3,7 +3,7 @@
     "no-try-catch": 2
   },
   "apps/desktop/src/main/index.ts": {
-    "no-try-catch": 3
+    "no-try-catch": 2
   },
   "apps/desktop/src/main/main-process-fetch.ts": {
     "no-try-catch": 4
