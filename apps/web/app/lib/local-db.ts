@@ -1,14 +1,22 @@
 import type { AppDrizzleDb } from '@app/db/browser';
 import type { BundledMigrationJournal } from '@app/db/browser';
-import type { PersistentDatabase } from '@app/db/browser';
+import type {
+  DataHostChangeEvent,
+  DataHostClient,
+  DataHostClientPort,
+  PersistentDatabase,
+} from '@app/db/browser';
+import { notify } from '@app/design-system';
 import type { AppResult } from '@app/shared';
 import type { SqlJsStatic } from 'sql.js';
-import { failureMessage } from './app-feedback.js';
+import { failureMessage, feedback } from './app-feedback.js';
 import { createFlushCoordinator } from './local-db-flush.js';
 
 let dbPromise: Promise<PersistentDatabase> | undefined;
 /** The Electron data host's handle; `null` when its import failed and sql.js stays in use. */
 let hostPromise: Promise<AppDrizzleDb | null> | undefined;
+/** The connected data host client; `null` on the web and after a failed import. */
+let hostClient: DataHostClient | null = null;
 let generation = 0;
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -78,6 +86,7 @@ export function resetLocalDb(): void {
   const session = dbPromise;
   dbPromise = undefined;
   hostPromise = undefined;
+  hostClient = null;
   generation += 1;
   if (session !== undefined) {
     // Close the WASM database so retries do not leak memory.
@@ -140,6 +149,7 @@ export function getLocalDbSession(): Promise<PersistentDatabase> {
           onMutation: () => {
             mutationSeq += 1;
             scheduleLocalDbFlush();
+            for (const listener of sessionListeners) listener({ kind: 'resync' });
           },
           migrations: {
             journal: migrationJournal as BundledMigrationJournal,
@@ -214,11 +224,16 @@ function dataHostBridge(): DataHostBridge | undefined {
 /** The window message the preload posts with the data host port. */
 const DATA_HOST_PORT_MESSAGE = 'mangaverse:data-host-port';
 
+function portOf(event: MessageEvent): MessagePort | undefined {
+  const [port] = event.ports;
+  return event.source === window && event.data === DATA_HOST_PORT_MESSAGE ? port : undefined;
+}
+
 function receiveDataHostPort(bridge: DataHostBridge): Promise<MessagePort> {
   return new Promise((resolve, reject) => {
     const onMessage = (event: MessageEvent) => {
-      const [port] = event.ports;
-      if (event.source !== window || event.data !== DATA_HOST_PORT_MESSAGE || !port) return;
+      const port = portOf(event);
+      if (!port) return;
       window.removeEventListener('message', onMessage);
       resolve(port);
     };
@@ -238,6 +253,58 @@ function receiveDataHostPort(bridge: DataHostBridge): Promise<MessagePort> {
   });
 }
 
+function clientPort(port: MessagePort): DataHostClientPort {
+  return {
+    postMessage: (request) => port.postMessage(request),
+    onMessage: (listener) => {
+      port.onmessage = (event) => listener(event.data);
+    },
+  };
+}
+
+/**
+ * Main restarted a host that stopped and handed this window a port to it. The handle every
+ * caller holds stays the same object, so nothing re-renders to pick it up; the user is told,
+ * since a save that was in flight when it stopped ends with a timeout.
+ */
+async function reconnectDataHost(client: DataHostClient, port: MessagePort): Promise<void> {
+  const reopened = await client.reconnect(clientPort(port));
+  if (!reopened.ok) {
+    const { DataHostError } = await import('@app/db/browser');
+    feedback.onFailure(new DataHostError(reopened.error), {
+      source: 'data-host.reconnect',
+      feedback: { surface: 'toast', message: 'The local library could not be reopened.' },
+    });
+    return;
+  }
+  feedback.log(
+    { code: 'data-host.restarted', message: 'The data host restarted.' },
+    'data-host.reconnect',
+  );
+  notify.failure({
+    key: 'data-host.restarted',
+    message:
+      'The local library stopped and was restarted. Saved changes are safe; a change that was saving may need to be made again.',
+  });
+}
+
+/** Listeners on the sql.js session, which has no host to say what changed. */
+const sessionListeners = new Set<(event: DataHostChangeEvent) => void>();
+
+/**
+ * Hears committed changes: the data host's batches (ADR 0001, decision 6), or, on the web and
+ * the sql.js fallback, a `resync` after each local write.
+ */
+export function subscribeToLocalChanges(
+  listener: (event: DataHostChangeEvent) => void,
+): () => void {
+  if (hostClient !== null) return hostClient.onChange(listener);
+  sessionListeners.add(listener);
+  return () => {
+    sessionListeners.delete(listener);
+  };
+}
+
 /**
  * Connects to the Electron data host, where SQLite runs natively (ADR 0001). On the first
  * start without a native database, the sql.js snapshot is handed over once to be imported;
@@ -249,12 +316,7 @@ async function openDataHost(bridge: DataHostBridge): Promise<AppDrizzleDb | null
     import('@app/db/browser'),
     receiveDataHostPort(bridge),
   ]);
-  const client = createDataHostClient({
-    postMessage: (request) => port.postMessage(request),
-    onMessage: (listener) => {
-      port.onmessage = (event) => listener(event.data);
-    },
-  });
+  const client = createDataHostClient(clientPort(port));
   const status = await client.status();
   if (!status.ok) throw new DataHostError(status.error);
   let snapshot: Uint8Array | null = null;
@@ -263,7 +325,15 @@ async function openDataHost(bridge: DataHostBridge): Promise<AppDrizzleDb | null
     snapshot = (await createIndexedDbPersistedBytesStore().read())?.bytes ?? null;
   }
   const opened = await client.open(snapshot);
-  if (opened.ok) return client.handle;
+  if (opened.ok) {
+    hostClient = client;
+    window.addEventListener('message', (event) => {
+      const next = portOf(event);
+      // A retry after a reset connects a new client; this one is done.
+      if (next && hostClient === client) void reconnectDataHost(client, next);
+    });
+    return client.handle;
+  }
   if (opened.error.code !== DATA_HOST_ERROR.importFailed) throw new DataHostError(opened.error);
   // oxlint-disable-next-line no-console -- ruling: data-host-import-fallback: the window falls back to the untouched sql.js snapshot and keeps working, so no UI state changes; the typed error is the record of why the import must be retried.
   // react-doctor-disable-next-line eslint/no-console -- ruling: data-host-import-fallback: the window falls back to the untouched sql.js snapshot and keeps working, so no UI state changes; the typed error is the record of why the import must be retried.

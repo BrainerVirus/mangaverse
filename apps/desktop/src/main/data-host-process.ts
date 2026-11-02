@@ -20,6 +20,7 @@ process.parentPort.on('message', (event) => {
       port.on('message', (message) => listener(message.data));
       port.start();
     },
+    onClose: (listener) => port.once('close', listener),
   });
 });
 
