@@ -5,6 +5,7 @@ import { registerPlatformIpc, toIpcAppResult, type PlatformIpcDeps } from './pla
 import type { RequestHop } from './main-process-fetch.js';
 import { PAGE_STORE_CHANNELS } from './page-store-ipc.js';
 import { PROVIDER_NETWORK_CHANNELS } from './provider-network-ipc.js';
+import { RENDERER_IMPORT_CHANNELS } from './renderer-import.js';
 
 describe('registerPlatformIpc', () => {
   function createMockIpc() {
@@ -71,6 +72,7 @@ describe('registerPlatformIpc', () => {
     const elsewhere: ReadonlySet<string> = new Set([
       ...PAGE_STORE_CHANNELS,
       ...PROVIDER_NETWORK_CHANNELS,
+      ...RENDERER_IMPORT_CHANNELS,
     ]);
     const expected = new Set(
       Object.values(PLATFORM_IPC).filter((channel) => !elsewhere.has(channel)),

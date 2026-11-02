@@ -16,6 +16,7 @@ export const PAGE_STORE_UNAUTHORIZED_FRAME = 'page-store.unauthorized_frame';
 export const PAGE_STORE_CHANNELS = [
   PLATFORM_IPC.PAGE_STORE_PUT,
   PLATFORM_IPC.PAGE_STORE_URL,
+  PLATFORM_IPC.PAGE_STORE_VERIFY,
   PLATFORM_IPC.PAGE_STORE_DELETE,
   PLATFORM_IPC.PAGE_STORE_LIST_KEYS,
 ] as const;
@@ -71,6 +72,7 @@ export function registerPageStoreIpc(deps: PageStoreIpcDeps): void {
     return ok(await deps.store.put(key, bytes, mimeType));
   });
   handle(PLATFORM_IPC.PAGE_STORE_URL, async ([key]) => ok(await deps.store.urlFor(key)));
+  handle(PLATFORM_IPC.PAGE_STORE_VERIFY, async ([key]) => ok(await deps.store.verify(key)));
   handle(PLATFORM_IPC.PAGE_STORE_DELETE, async ([key]) => ok(await deps.store.delete(key)));
   handle(PLATFORM_IPC.PAGE_STORE_LIST_KEYS, async () => ok(await deps.store.listKeys()));
 }

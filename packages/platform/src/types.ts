@@ -1,4 +1,5 @@
 import type { AppResult } from '@app/shared';
+import type { RendererImportReport } from './ipc-schemas.js';
 
 export type PlatformRuntime = 'web' | 'pwa' | 'electron' | 'unknown';
 
@@ -197,6 +198,13 @@ export interface PlatformAdapter {
      * method at all, means this key is read with `get` and shown with `createObjectUrl`.
      */
     resolveUrl?(key: string): Promise<AppResult<string | undefined>>;
+    /**
+     * Desktop only: the digest and size the main store actually wrote, so an import can
+     * compare the stored file to the bytes it read. `ok(undefined)` means not stored.
+     */
+    verify?(
+      key: string,
+    ): Promise<AppResult<{ readonly sha256: string; readonly byteSize: number } | undefined>>;
   };
   readonly network: {
     fetchBytes(url: string): Promise<AppResult<PlatformNetworkFetchResult | undefined>>;
@@ -261,8 +269,25 @@ export interface DesktopPlatformBridge {
   /** Main's page store (spec 04 X13): bytes become a file, served back as `page://` URLs. */
   pageStorePut: (key: string, data: ArrayBuffer, mimeType: string) => Promise<AppResult<string>>;
   pageStoreUrl: (key: string) => Promise<AppResult<string | undefined>>;
+  pageStoreVerify: (
+    key: string,
+  ) => Promise<AppResult<{ readonly sha256: string; readonly byteSize: number } | undefined>>;
   pageStoreDelete: (key: string) => Promise<AppResult<void>>;
   pageStoreListKeys: () => Promise<AppResult<readonly string[]>>;
+  /** Whether the one-way renderer-data import (#213) already finished, and its DB report. */
+  rendererImportState: () => Promise<
+    AppResult<{
+      readonly completed: boolean;
+      readonly completedAt?: string;
+      readonly database: {
+        readonly tables: Readonly<Record<string, number>>;
+        readonly totalRows: number;
+        readonly checksum: string;
+      } | null;
+    }>
+  >;
+  /** Records the verified renderer-data import beside the native database. */
+  rendererImportComplete: (report: RendererImportReport) => Promise<AppResult<void>>;
 }
 
 export interface WebCapabilityEnvironment {

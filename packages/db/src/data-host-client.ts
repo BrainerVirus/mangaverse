@@ -3,6 +3,7 @@ import { DATA_HOST_HANDLE, type DataHostHandle } from './data-host-handle.js';
 import {
   DATA_HOST_ERROR,
   DataHostError,
+  type CacheBlobKeyRewrite,
   type DataHostChangeEvent,
   type DataHostMessage,
   type DataHostOpenResult,
@@ -27,8 +28,15 @@ export interface DataHostClient {
   /** Pass this as `db`: every repository call made with it runs in the host. */
   readonly handle: DataHostHandle;
   status(): Promise<AppResult<DataHostStatus>>;
-  /** Opens the native database, importing `snapshot` only if none exists yet. */
-  open(snapshot: Uint8Array | null): Promise<AppResult<DataHostOpenResult>>;
+  /**
+   * Opens the native database, importing `snapshot` only if none exists yet. `rewrites` move
+   * cache blob pointers as part of that one import, so the verified copy already points at
+   * the page-store files.
+   */
+  open(
+    snapshot: Uint8Array | null,
+    rewrites?: readonly CacheBlobKeyRewrite[],
+  ): Promise<AppResult<DataHostOpenResult>>;
   /** Hears every committed change batch, and `resync` after a reconnect. */
   onChange(listener: (event: DataHostChangeEvent) => void): () => void;
   /**
@@ -100,8 +108,11 @@ export function createDataHostClient(
       port.postMessage(request(id));
     });
 
-  const open = (snapshot: Uint8Array | null) =>
-    send<DataHostOpenResult>((id) => ({ kind: 'open', id, snapshot }), openTimeoutMs);
+  const open = (snapshot: Uint8Array | null, rewrites: readonly CacheBlobKeyRewrite[] = []) =>
+    send<DataHostOpenResult>(
+      (id) => ({ kind: 'open', id, snapshot, ...(rewrites.length > 0 ? { rewrites } : {}) }),
+      openTimeoutMs,
+    );
 
   const handle: DataHostHandle = {
     [DATA_HOST_HANDLE]: true,

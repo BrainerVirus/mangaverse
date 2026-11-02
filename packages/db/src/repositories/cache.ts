@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { AppDrizzleDb } from '../adapter.js';
 import { cacheEntries } from '../schema.js';
 import { readIdChunks } from '../read-id-chunks.js';
+import { withTransaction } from '../transactions.js';
 
 export interface CacheStorageSummary {
   readonly totalCount: number;
@@ -225,6 +226,31 @@ export async function listCacheBlobKeys(db: AppDrizzleDb): Promise<string[]> {
   return rows
     .map((row) => row.blobKey)
     .filter((key): key is string => typeof key === 'string' && key.length > 0);
+}
+
+/**
+ * Moves cache rows to the keys of the page-store files that now hold their bytes, in one
+ * transaction (#213). Returns how many rows changed; a rewrite naming a missing row is not an
+ * error, since an orphaned blob is not a reason to refuse the import.
+ */
+export async function rewriteCacheBlobKeys(
+  db: AppDrizzleDb,
+  rewrites: readonly { readonly id: string; readonly blobKey: string }[],
+): Promise<number> {
+  if (rewrites.length === 0) return 0;
+  return withTransaction(db, (tx) => {
+    let changed = 0;
+    for (const rewrite of rewrites) {
+      const rows = tx
+        .update(cacheEntries)
+        .set({ blobKey: rewrite.blobKey })
+        .where(eq(cacheEntries.id, rewrite.id))
+        .returning({ id: cacheEntries.id })
+        .all();
+      changed += rows.length;
+    }
+    return changed;
+  });
 }
 
 /** Whether a row still references this blob key; re-checked inside a delete's per-key lock. */

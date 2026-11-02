@@ -43,6 +43,7 @@ import {
   PAGE_SCHEME_PRIVILEGES,
 } from './page-store.js';
 import { registerPageStoreIpc } from './page-store-ipc.js';
+import { createRendererImportStore, registerRendererImportIpc } from './renderer-import.js';
 import { createSecureStorageModel } from './secure-storage.js';
 import {
   buildContentSecurityPolicy,
@@ -299,6 +300,11 @@ void app.whenReady().then(async () => {
     });
 
     const pageStore = registerPageStore(isTrustedFrame);
+    registerRendererImportIpc({
+      ipcMain,
+      store: createRendererImportStore(join(app.getPath('userData'), 'mangaverse.sqlite')),
+      isTrustedFrame,
+    });
     const allowlist = createProviderAllowlist();
     registerProviderNetworkIpc({
       ipcMain,

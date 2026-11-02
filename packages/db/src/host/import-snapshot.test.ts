@@ -16,9 +16,12 @@ import {
   createLibraryCategory,
   createMangaIdentityWithInitialMapping,
   getAppSetting,
+  getCacheEntryById,
   listLibraryCategories,
   listLibraryEntries,
+  rewriteCacheBlobKeys,
   upsertAppSetting,
+  upsertCacheEntry,
 } from '../routed.gen.js';
 import { importMarkerPath } from './import-snapshot.js';
 import { createDataHost } from './serve.js';
@@ -29,7 +32,9 @@ afterEach(() => {
 });
 
 /** A snapshot made the way the web renderer makes one: sql.js and the bundled migrator. */
-async function rendererSnapshot(): Promise<Uint8Array> {
+async function rendererSnapshot(
+  adjust?: (db: ReturnType<typeof createDrizzleFromSqlJs>) => Promise<void>,
+): Promise<Uint8Array> {
   const SQL = await initSqlJs();
   const raw = new SQL.Database();
   const folder = getMigrationsFolder();
@@ -58,6 +63,7 @@ async function rendererSnapshot(): Promise<Uint8Array> {
   }
   await local.createLibraryCategory(db, { name: 'Favourites' });
   await local.upsertAppSetting(db, 'onboarding', { completed: true });
+  await adjust?.(db);
   const bytes = raw.export();
   raw.close();
   return bytes;
@@ -140,6 +146,56 @@ describe('snapshot import', () => {
       'Favourites',
       'Written natively',
     ]);
+  });
+
+  it('rewrites cache blob pointers inside the same verified import', async () => {
+    const snapshot = await rendererSnapshot(async (db) => {
+      await local.upsertCacheEntry(db, {
+        id: 'cover:mangadex:manga-1',
+        providerId: 'mangadex',
+        mangaId: 'manga-1',
+        cacheKind: 'cover',
+        sourceUrl: 'https://example.com/custom.jpg',
+        mimeType: 'image/jpeg',
+        byteSize: 4,
+        blobKey: 'cover:mangadex:manga-1',
+      });
+    });
+    const original = Uint8Array.from(snapshot);
+    const directory = scratch();
+    const { client } = host(directory);
+
+    const result = await client.open(snapshot, [
+      { id: 'cover:mangadex:manga-1', blobKey: 'page:cover:mangadex:manga-1' },
+    ]);
+    expect(result.ok && result.value.imported?.tables.cache_entries).toBe(1);
+    expect((await getCacheEntryById(client.handle, 'cover:mangadex:manga-1'))?.blobKey).toBe(
+      'page:cover:mangadex:manga-1',
+    );
+    // The caller's snapshot bytes were not touched.
+    expect(snapshot).toEqual(original);
+  });
+
+  it('rewrites an existing database pointer in one transaction', async () => {
+    const { client } = host(scratch());
+    await client.open(null);
+    await upsertCacheEntry(client.handle, {
+      id: 'page:m:c:0',
+      providerId: 'mangadex',
+      mangaId: 'm',
+      chapterId: 'c',
+      cacheKind: 'page',
+      blobKey: 'cover:mangadex:m',
+    });
+    await expect(
+      rewriteCacheBlobKeys(client.handle, [
+        { id: 'page:m:c:0', blobKey: 'page:cover:mangadex:m' },
+        { id: 'missing', blobKey: 'page:cover:x:y' },
+      ]),
+    ).resolves.toBe(1);
+    expect((await getCacheEntryById(client.handle, 'page:m:c:0'))?.blobKey).toBe(
+      'page:cover:mangadex:m',
+    );
   });
 
   it('refuses an unreadable snapshot with a typed error and leaves no native database', async () => {

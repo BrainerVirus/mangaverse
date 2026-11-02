@@ -15,8 +15,11 @@ import type {
 const pageStoreStubs = {
   pageStorePut: async () => ok('page://store/id'),
   pageStoreUrl: async () => ok(undefined),
+  pageStoreVerify: async () => ok(undefined),
   pageStoreDelete: async () => ok(undefined),
   pageStoreListKeys: async () => ok([]),
+  rendererImportState: async () => ok({ completed: false, database: null }),
+  rendererImportComplete: async () => ok(undefined),
   providerNetworkReplace: async () => ok(undefined),
   providerNetworkRequest: async () =>
     ok({ status: 200, headers: {}, bodyText: '', finalUrl: 'https://example.com' }),
@@ -28,8 +31,11 @@ const pageStoreStubs = {
   DesktopPlatformBridge,
   | 'pageStorePut'
   | 'pageStoreUrl'
+  | 'pageStoreVerify'
   | 'pageStoreDelete'
   | 'pageStoreListKeys'
+  | 'rendererImportState'
+  | 'rendererImportComplete'
   | 'providerNetworkReplace'
   | 'providerNetworkRequest'
   | 'providerNetworkStore'
@@ -283,6 +289,9 @@ describe('createElectronPlatformAdapter', () => {
     const pageStoreListKeys = vi.fn<DesktopPlatformBridge['pageStoreListKeys']>(async () =>
       ok(['page:p:m:c:0']),
     );
+    const pageStoreVerify = vi.fn<DesktopPlatformBridge['pageStoreVerify']>(async () =>
+      ok(undefined),
+    );
     const indexedDB = { open: vi.fn<() => never>() };
     vi.stubGlobal('indexedDB', indexedDB);
     try {
@@ -305,8 +314,11 @@ describe('createElectronPlatformAdapter', () => {
         networkFetchBytes: async () => ok(undefined),
         pageStorePut,
         pageStoreUrl,
+        pageStoreVerify,
         pageStoreDelete,
         pageStoreListKeys,
+        rendererImportState: async () => ok({ completed: false, database: null }),
+        rendererImportComplete: async () => ok(undefined),
         providerNetworkReplace: async () => ok(undefined),
         providerNetworkRequest: async () =>
           ok({ status: 200, headers: {}, bodyText: '', finalUrl: 'https://example.com' }),

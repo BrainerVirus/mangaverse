@@ -148,6 +148,32 @@ const pageBytes = z
     error: 'page size is out of bounds',
   });
 
+const importReport = z
+  .object({
+    tables: z.record(z.string(), z.number().int().nonnegative()),
+    totalRows: z.number().int().nonnegative(),
+    checksum: z.string().max(128),
+  })
+  .strict();
+
+/** What the renderer-data import verified, recorded beside the native database. */
+export const rendererImportReport = z
+  .object({
+    database: importReport.nullable(),
+    blobs: z
+      .object({
+        pages: z.number().int().nonnegative(),
+        covers: z.number().int().nonnegative(),
+        totalBytes: z.number().int().nonnegative(),
+        checksums: z.record(z.string(), z.string().max(128)),
+      })
+      .strict(),
+    pointerRewrites: z.number().int().nonnegative(),
+  })
+  .strict();
+
+export type RendererImportReport = z.output<typeof rendererImportReport>;
+
 function request<C extends PlatformIpcChannel, A extends z.ZodType>(channel: C, args: A) {
   return z.object({ channel: z.literal(channel), args });
 }
@@ -179,8 +205,11 @@ export const platformIpcRequestSchema = z.discriminatedUnion('channel', [
   ),
   request(PLATFORM_IPC.PAGE_STORE_PUT, z.tuple([pageStoreKey, pageBytes, z.string().max(255)])),
   request(PLATFORM_IPC.PAGE_STORE_URL, z.tuple([pageStoreKey])),
+  request(PLATFORM_IPC.PAGE_STORE_VERIFY, z.tuple([pageStoreKey])),
   request(PLATFORM_IPC.PAGE_STORE_DELETE, z.tuple([pageStoreKey])),
   request(PLATFORM_IPC.PAGE_STORE_LIST_KEYS, z.tuple([])),
+  request(PLATFORM_IPC.RENDERER_IMPORT_STATE, z.tuple([])),
+  request(PLATFORM_IPC.RENDERER_IMPORT_COMPLETE, z.tuple([rendererImportReport])),
   request(PLATFORM_IPC.PROVIDER_NETWORK_REPLACE, z.tuple([providerNetworkReplace])),
   request(PLATFORM_IPC.PROVIDER_NETWORK_REQUEST, z.tuple([providerNetworkRequest])),
   request(PLATFORM_IPC.PROVIDER_NETWORK_STORE, z.tuple([providerNetworkStore])),

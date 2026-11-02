@@ -101,6 +101,8 @@ export interface PageStore {
   put(key: string, bytes: Uint8Array, declaredMimeType: string): Promise<string>;
   /** The page's URL when both its bytes and sidecar are stored, else undefined. */
   urlFor(key: string): Promise<string | undefined>;
+  /** The digest and size of the stored bytes, so an importer can compare them to its source. */
+  verify(key: string): Promise<{ readonly sha256: string; readonly byteSize: number } | undefined>;
   delete(key: string): Promise<void>;
   /** Keys with a committed sidecar. Removes leftovers of interrupted writes on the way. */
   listKeys(): Promise<string[]>;
@@ -178,6 +180,22 @@ export function createPageStore(root: string): PageStore {
       const sidecar = await readSidecar(dir, id);
       if (sidecar?.key !== key || !(await isStoredFile(dir, id))) return undefined;
       return pageUrlForId(id);
+    },
+
+    async verify(key) {
+      if (!isPageStoreKey(key)) return undefined;
+      const dir = await realRoot();
+      const id = pageIdForKey(key);
+      const sidecar = await readSidecar(dir, id);
+      if (sidecar?.key !== key || !(await isStoredFile(dir, id))) return undefined;
+      const bytes = await readFile(join(dir, id), {
+        flag: constants.O_RDONLY | NO_FOLLOW,
+      }).catch(() => undefined);
+      if (bytes === undefined) return undefined;
+      return {
+        sha256: createHash('sha256').update(bytes).digest('hex'),
+        byteSize: bytes.byteLength,
+      };
     },
 
     async delete(key) {

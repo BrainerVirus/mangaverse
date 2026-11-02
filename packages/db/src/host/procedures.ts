@@ -210,6 +210,7 @@ export const PROCEDURE_INPUTS: { readonly [K in ProcedureName]: z.ZodType<readon
   ]),
   listCacheEntriesForManga: z.tuple([text, text]),
   listCacheEntriesByKind: z.tuple([text]),
+  rewriteCacheBlobKeys: z.tuple([z.array(z.object({ id: text, blobKey: text })).max(200_000)]),
   deleteCacheEntry: z.tuple([id]),
   deleteCacheEntries: z.tuple([ids]),
   summarizeCacheStorage: z.tuple([]),

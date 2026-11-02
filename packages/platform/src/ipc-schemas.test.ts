@@ -26,8 +26,20 @@ const valid: PlatformIpcRequest[] = [
     args: ['page:p:m:c:0', new Uint8Array([0xff, 0xd8]).buffer, 'image/jpeg'],
   },
   { channel: PLATFORM_IPC.PAGE_STORE_URL, args: ['page:p:m:c:0'] },
+  { channel: PLATFORM_IPC.PAGE_STORE_VERIFY, args: ['page:p:m:c:0'] },
   { channel: PLATFORM_IPC.PAGE_STORE_DELETE, args: ['page:p:m:c:0'] },
   { channel: PLATFORM_IPC.PAGE_STORE_LIST_KEYS, args: [] },
+  { channel: PLATFORM_IPC.RENDERER_IMPORT_STATE, args: [] },
+  {
+    channel: PLATFORM_IPC.RENDERER_IMPORT_COMPLETE,
+    args: [
+      {
+        database: { tables: { library_entries: 1 }, totalRows: 1, checksum: 'a'.repeat(64) },
+        blobs: { pages: 1, covers: 1, totalBytes: 4, checksums: { 'page:m:c:0': 'b'.repeat(64) } },
+        pointerRewrites: 1,
+      },
+    ],
+  },
   {
     channel: PLATFORM_IPC.PROVIDER_NETWORK_REPLACE,
     args: [
@@ -88,8 +100,14 @@ const invalid: { channel: PlatformIpcChannel; args: unknown[] }[] = [
     args: ['page:p:m:c:0', new ArrayBuffer(0), 'image/jpeg'],
   },
   { channel: PLATFORM_IPC.PAGE_STORE_URL, args: ['../../etc/passwd'] },
+  { channel: PLATFORM_IPC.PAGE_STORE_VERIFY, args: ['cover:p:m'] },
   { channel: PLATFORM_IPC.PAGE_STORE_DELETE, args: ['cover:p:m'] },
   { channel: PLATFORM_IPC.PAGE_STORE_LIST_KEYS, args: ['extra'] },
+  { channel: PLATFORM_IPC.RENDERER_IMPORT_STATE, args: ['extra'] },
+  {
+    channel: PLATFORM_IPC.RENDERER_IMPORT_COMPLETE,
+    args: [{ database: null, blobs: { pages: -1, covers: 0, totalBytes: 0, checksums: {} } }],
+  },
   {
     channel: PLATFORM_IPC.PROVIDER_NETWORK_REPLACE,
     args: [

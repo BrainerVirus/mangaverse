@@ -31,8 +31,12 @@ const bridge: DesktopPlatformBridge = {
   pageStorePut: (key: string, data: ArrayBuffer, mimeType: string) =>
     ipcRenderer.invoke(PLATFORM_IPC.PAGE_STORE_PUT, key, data, mimeType),
   pageStoreUrl: (key: string) => ipcRenderer.invoke(PLATFORM_IPC.PAGE_STORE_URL, key),
+  pageStoreVerify: (key: string) => ipcRenderer.invoke(PLATFORM_IPC.PAGE_STORE_VERIFY, key),
   pageStoreDelete: (key: string) => ipcRenderer.invoke(PLATFORM_IPC.PAGE_STORE_DELETE, key),
   pageStoreListKeys: () => ipcRenderer.invoke(PLATFORM_IPC.PAGE_STORE_LIST_KEYS),
+  rendererImportState: () => ipcRenderer.invoke(PLATFORM_IPC.RENDERER_IMPORT_STATE),
+  rendererImportComplete: (report) =>
+    ipcRenderer.invoke(PLATFORM_IPC.RENDERER_IMPORT_COMPLETE, report),
 };
 
 contextBridge.exposeInMainWorld('mangaversePlatform', bridge);

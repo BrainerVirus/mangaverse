@@ -22,8 +22,11 @@ export const PLATFORM_IPC = {
   PROVIDER_NETWORK_STORE_USER_INITIATED: 'platform:provider-network:store-user-initiated',
   PAGE_STORE_PUT: 'platform:page-store:put',
   PAGE_STORE_URL: 'platform:page-store:url',
+  PAGE_STORE_VERIFY: 'platform:page-store:verify',
   PAGE_STORE_DELETE: 'platform:page-store:delete',
   PAGE_STORE_LIST_KEYS: 'platform:page-store:list-keys',
+  RENDERER_IMPORT_STATE: 'platform:renderer-import:state',
+  RENDERER_IMPORT_COMPLETE: 'platform:renderer-import:complete',
 } as const;
 
 export type PlatformIpcChannel = (typeof PLATFORM_IPC)[keyof typeof PLATFORM_IPC];

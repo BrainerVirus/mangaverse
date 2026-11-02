@@ -224,6 +224,7 @@ export const resetTitleReaderSettings = route(
   'resetTitleReaderSettings',
   procedures.resetTitleReaderSettings,
 );
+export const rewriteCacheBlobKeys = route('rewriteCacheBlobKeys', procedures.rewriteCacheBlobKeys);
 export const rollbackProviderMigration = route(
   'rollbackProviderMigration',
   procedures.rollbackProviderMigration,
@@ -421,6 +422,7 @@ export const ROUTED_PROCEDURE_NAMES = [
   'removeSavedSearch',
   'reorderLibraryCategories',
   'resetTitleReaderSettings',
+  'rewriteCacheBlobKeys',
   'rollbackProviderMigration',
   'setChapterCompleted',
   'setDefaultProviderMapping',

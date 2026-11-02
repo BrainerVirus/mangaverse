@@ -61,6 +61,16 @@ describe('page store', () => {
     expect(await store.listKeys()).toEqual([KEY]);
   });
 
+  it('reports the stored digest and size, and nothing once the bytes are gone', async () => {
+    await store.put(KEY, JPEG, 'image/jpeg');
+    const verified = await store.verify(KEY);
+    expect(verified?.byteSize).toBe(JPEG.byteLength);
+    expect(verified?.sha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(await store.verify('page:not-stored')).toBeUndefined();
+    await rm(join(root, pageIdForKey(KEY)));
+    expect(await store.verify(KEY)).toBeUndefined();
+  });
+
   it('removes the file and its sidecar together on delete', async () => {
     await store.put(KEY, JPEG, 'image/jpeg');
     await store.delete(KEY);

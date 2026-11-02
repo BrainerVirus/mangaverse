@@ -305,11 +305,23 @@ export function subscribeToLocalChanges(
   };
 }
 
+/** Keeps the window's handle on a host it may reconnect to after a host restart. */
+function attachHostClient(client: DataHostClient): void {
+  hostClient = client;
+  window.addEventListener('message', (event) => {
+    const next = portOf(event);
+    // A retry after a reset connects a new client; this one is done.
+    if (next && hostClient === client) void reconnectDataHost(client, next);
+  });
+}
+
 /**
  * Connects to the Electron data host, where SQLite runs natively (ADR 0001). On the first
  * start without a native database, the sql.js snapshot is handed over once to be imported;
- * the snapshot itself is only read. A failed import resolves `null` so the window keeps
- * using that snapshot, and the next start tries again.
+ * the snapshot itself is only read. Before that import, the renderer-data coordinator (#213)
+ * moves IndexedDB page and cover bytes into the page store, so the verified copy rewrites
+ * their pointers in the same pass. A failed snapshot import resolves `null` so the window
+ * keeps using that snapshot, and the next start tries again.
  */
 async function openDataHost(bridge: DataHostBridge): Promise<AppDrizzleDb | null> {
   const [{ createDataHostClient, DataHostError, DATA_HOST_ERROR }, port] = await Promise.all([
@@ -319,28 +331,63 @@ async function openDataHost(bridge: DataHostBridge): Promise<AppDrizzleDb | null
   const client = createDataHostClient(clientPort(port));
   const status = await client.status();
   if (!status.ok) throw new DataHostError(status.error);
+
   let snapshot: Uint8Array | null = null;
   if (!status.value.open && !status.value.nativeExists) {
     const { createIndexedDbPersistedBytesStore } = await import('./persisted-bytes-idb.js');
     snapshot = (await createIndexedDbPersistedBytesStore().read())?.bytes ?? null;
   }
+
+  const { createRendererImportDeps, runRendererDataImport } =
+    await import('./renderer-data-import.js');
+  const importDeps = createRendererImportDeps(
+    (bytes, rewrites) => client.open(bytes, rewrites),
+    async (rewrites) => {
+      // A #210 profile already holds its rows; move their cache pointers in one transaction.
+      const applied = await client.handle.call('rewriteCacheBlobKeys', [rewrites]);
+      return typeof applied === 'number' ? applied : 0;
+    },
+    snapshot,
+  );
+  // A marker without its native database is a lost verified state (the profile was pruned or
+  // restored partially), so the move runs again rather than opening a half-made profile.
+  const needsRestore = !status.value.open && !status.value.nativeExists && snapshot !== null;
+  const deps =
+    importDeps === undefined
+      ? undefined
+      : needsRestore
+        ? { ...importDeps, force: true }
+        : importDeps;
+
+  if (deps !== undefined) {
+    const outcome = await runRendererDataImport(deps);
+    if (outcome.status === 'complete') {
+      attachHostClient(client);
+      return client.handle;
+    }
+    if (outcome.status === 'failed') {
+      // The host opened before the failure: the window keeps using it, with a visible retry.
+      if (outcome.hostOpened && outcome.openResult?.ok === true) {
+        attachHostClient(client);
+        return client.handle;
+      }
+      // Never opened: no native file exists, so the untouched sql.js snapshot stays in use.
+      if (outcome.openResult !== null && !outcome.openResult.ok) {
+        if (outcome.openResult.error.code !== DATA_HOST_ERROR.importFailed) {
+          throw new DataHostError(outcome.openResult.error);
+        }
+      }
+      return null;
+    }
+    // Nothing to move; fall through and open the host the ordinary way.
+  }
+
   const opened = await client.open(snapshot);
   if (opened.ok) {
-    hostClient = client;
-    window.addEventListener('message', (event) => {
-      const next = portOf(event);
-      // A retry after a reset connects a new client; this one is done.
-      if (next && hostClient === client) void reconnectDataHost(client, next);
-    });
+    attachHostClient(client);
     return client.handle;
   }
   if (opened.error.code !== DATA_HOST_ERROR.importFailed) throw new DataHostError(opened.error);
-  // oxlint-disable-next-line no-console -- ruling: data-host-import-fallback: the window falls back to the untouched sql.js snapshot and keeps working, so no UI state changes; the typed error is the record of why the import must be retried.
-  // react-doctor-disable-next-line eslint/no-console -- ruling: data-host-import-fallback: the window falls back to the untouched sql.js snapshot and keeps working, so no UI state changes; the typed error is the record of why the import must be retried.
-  console.error(
-    `[local-db] Native database import failed (${opened.error.code}); using the snapshot:`,
-    new DataHostError(opened.error),
-  );
   return null;
 }
 
