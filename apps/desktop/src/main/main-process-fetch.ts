@@ -380,6 +380,16 @@ export const nodeRequestHop: RequestHop = (hop) =>
     req.end(hop.body);
   });
 
+const CREDENTIAL_HEADERS = new Set(['authorization', 'cookie', 'proxy-authorization']);
+
+function withoutCredentialHeaders(
+  headers: Readonly<Record<string, string>>,
+): Readonly<Record<string, string>> {
+  return Object.fromEntries(
+    Object.entries(headers).filter(([name]) => !CREDENTIAL_HEADERS.has(name.toLowerCase())),
+  );
+}
+
 function redirectTarget(location: string, base: URL): URL | undefined {
   try {
     return parseHttpUrl(new URL(location, base).toString());
@@ -403,6 +413,7 @@ export async function fetchNetworkResponse(
 ): Promise<NetworkResponse> {
   let method = init.method ?? 'GET';
   let body = init.body;
+  let headers = init.headers;
   let target = parseHttpUrl(url);
   if (target === undefined) {
     throw new NetworkFetchError('network.invalid-url', 'Network target is not an http(s) URL.', {
@@ -432,7 +443,7 @@ export async function fetchNetworkResponse(
         address: pinned.address,
         family: pinned.family,
         deadline: Math.min(deadline, Date.now() + Math.min(HOP_TIMEOUT_MS, remaining)),
-        ...(init.headers !== undefined ? { headers: init.headers } : {}),
+        ...(headers !== undefined ? { headers } : {}),
         method,
         ...(body !== undefined ? { body } : {}),
       }),
@@ -468,6 +479,17 @@ export async function fetchNetworkResponse(
       throw new NetworkFetchError('network.invalid-url', 'Redirect target is not an http(s) URL.', {
         url: target.toString(),
       });
+    }
+    // A redirect may not drop TLS: whatever the first hop sent over HTTPS would
+    // otherwise travel in clear text, and an allowed host could be spoofed on the wire.
+    if (target.protocol === 'https:' && next.protocol === 'http:') {
+      throw new NetworkFetchError('network.blocked-url', 'Redirect downgrades HTTPS to HTTP.', {
+        url: next.toString(),
+      });
+    }
+    // Credentials belong to the origin they were sent to, never to a redirect target.
+    if (headers !== undefined && next.origin !== target.origin) {
+      headers = withoutCredentialHeaders(headers);
     }
     // 303 always, and 301/302 in practice, turn the request into a bodyless GET.
     if (reply.status === 303 || (reply.status !== 307 && reply.status !== 308)) {
