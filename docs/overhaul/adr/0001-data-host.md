@@ -18,8 +18,8 @@ What the code looks like, measured at `1c23a37`:
 - `AppDrizzleDb` is `SQLJsDatabase<AppSchema>`, and 8 SQL migrations ship in `packages/db/migrations`.
 - `packages/db/src`: 26 non-test files mention the type; 143 `db: AppDrizzleDb` signatures across 22 files; 121
   exported functions take `db` first.
-- Outside `packages/db`: 73 non-test files mention the type, with 241 lines passing `db`, and 60 dynamic
-  `import('@app/db')` calls.
+- Outside `packages/db`: 73 non-test files mention the type, with 51 dynamic repository imports (50 `@app/db`,
+  1 `@app/db/browser`) plus 9 raw migration/journal asset imports.
 - Nothing outside `packages/db` calls `db.select` and friends or `withTransaction`. Every transaction already
   lives inside one repository function, so none has to span an RPC call.
 
@@ -29,8 +29,9 @@ What the code looks like, measured at `1c23a37`:
 over a MessagePort, so a slow query cannot block a window.
 
 **2. The driver is `node:sqlite`, through a small adapter. `better-sqlite3` 13 is the tested exit.** This
-changes X3. Both drivers passed every test here with the same results, so the choice rests on what each one
-costs to ship:
+changes X3. Both drivers passed every test here with the same results, apart from driver-specific error codes
+(a foreign-key failure reports `ERR_SQLITE_ERROR` on `node:sqlite` and `SQLITE_CONSTRAINT_FOREIGNKEY` on
+`better-sqlite3`, and the RPC forwards `error.code`). The choice therefore rests on what each one costs to ship:
 
 | Fact                          | `node:sqlite` in Electron 44.7              | `better-sqlite3` 13.0.3                                   |
 | ----------------------------- | ------------------------------------------- | --------------------------------------------------------- |
@@ -49,7 +50,8 @@ and sign on three platforms while the code-signing decision is still open. `node
 price of a release-candidate API and an adapter we own. That price is small and caught by tests: the adapter uses
 eight `node:sqlite` members, and an Electron bump is already a deliberate event.
 
-Switching later means changing one function (`openClient`) and adding one dependency. Move to `better-sqlite3` if
+Switching later means changing one function (`openClient`) and adding one dependency. That is the code cost; it
+also brings back the native-binary packaging and signing work in the table above. Move to `better-sqlite3` if
 a future Electron breaks that surface, if `node:sqlite` turns out absent or different on Windows or Linux, or if a
 needed SQLite build option is missing. The compile options differ today: `better-sqlite3` adds `ENABLE_STAT4` and
 `ENABLE_FTS4`; `node:sqlite` adds `ENABLE_SESSION` and `ENABLE_PREUPDATE_HOOK`. FTS5 and JSON work on both.
@@ -95,7 +97,8 @@ Large tables use `syncMode: 'on-demand'`, and the host refuses an unbounded chap
 - Change capture costs writes: 20,000 inserts took about 200 ms with triggers and 135 ms without, measured on this
   Mac. Tables that no collection reads get no triggers. Tables without a single-column key need `rowid`.
 - Multi-call features were never atomic and stay that way, but other windows' calls can now land between their
-  calls. 22 files make two or more write calls. Those that must be atomic, such as `persistMangaDetailToDb`, become
+  calls. About 17 files make two or more write calls (a name-based count of calls to create/update/delete-style
+  functions; the exact set is reviewed per file). Those that must be atomic, such as `persistMangaDetailToDb`, become
   one host procedure.
 - `AppError.cause` crosses by structured clone and loses any class. `classifyAppError` must not depend on it.
 - The library is over budget before any of this. See [Budgets](#budgets).
@@ -116,29 +119,30 @@ Run on one Mac (Mac16,1, 10 cores, 32 GB, macOS 27.2, arm64), which is not the r
 44.7.0, Node 24.21.0, ABI 149. Commands are in [the spike README](0001-spike/README.md); `run-all.sh` writes every
 file under `0001-spike/evidence/`.
 
-| Checklist item                                       | State      | Evidence file          | Result                                                                                                  |
-| ---------------------------------------------------- | ---------- | ---------------------- | ------------------------------------------------------------------------------------------------------- |
-| Driver-neutral `AppDrizzleDb`                        | Proven     | `09`, `10` step A      | Alias: 0 errors. The whole workspace typechecks (19 of 19 turbo tasks) with only `adapter.ts` changed.  |
-| Migrations on the driver                             | Proven     | `04`                   | 8 real migrations on both, in 4-8 ms; a rerun applies nothing.                                          |
-| `withTransaction` and rollback                       | Proven     | `04`, `07`             | Commit, forced rollback, FK failure, nested savepoint and async refusal pass on both.                   |
-| Real repository suite on the driver                  | Proven     | `07`                   | 238 of 239 on both. The failure calls the sql.js migrator on a native handle (`stmt.free`).             |
-| Representative read                                  | Proven     | `11`, `12`             | `listLibraryEntries(db)` over a port, source unchanged.                                                 |
-| Representative write with transaction rollback       | Proven     | `11`, `12`             | `reorderLibraryCategories` commits; a failure mid-transaction rejects and restores the earlier row.     |
-| One feature module                                   | Proven     | `11`                   | `@app/extensions` core and fetchers: 124 real tests plus 2 new pass over a port, with no source change. |
-| Values survive the boundary                          | Proven     | `08`                   | 238 of 239 through `structuredClone`. Breaking the boundary fails 59 tests, so it was on the path.      |
-| Remaining-file estimate                              | Proven     | `10` step B            | Below. Measured by compiling the workspace against the client.                                          |
-| List collection from the host                        | Proven     | `12`                   | Real `@tanstack/db` `1.0.0-rc.1.1` in a sandboxed renderer, fed by a utility process.                   |
-| Optimistic write survives acceptance                 | Proven     | `12`                   | Visible at once, `completed`, no flicker, stored in SQLite.                                             |
-| Optimistic write rolls back on rejection             | Proven     | `12`                   | Update and insert both roll back with a typed error; SQLite is unchanged.                               |
-| On-demand large table                                | Proven     | `12`                   | 50, then 100, of 200,000 chapters in memory; first window about 7 ms.                                   |
-| Two windows stay current                             | Proven     | `12`                   | Window B sees window A's committed rows, and none of its rejected ones, without a reload.               |
-| Renderer never blocked                               | Proven     | `12`                   | Longest timer gap 12 ms while the host was held for 1.5 s.                                              |
-| `better-sqlite3` versus `node:sqlite`: rebuild facts | Proven     | `02`, `03`, `05`, `06` | Darwin arm64 only for loading. Prebuilds for 8 targets exist, and were not run on the other 7.          |
-| Same contract in a browser Worker                    | Proven     | `13`                   | The same scenario passes in a real Web Worker on sql.js. Shape only: see below.                         |
-| `node:sqlite` on Windows and Linux                   | Not proven | None                   | No such machine here. Check first in #215; failure triggers the exit in decision 2.                     |
-| Packaging: ASAR, signing, installers                 | Not proven | None                   | #215's scope.                                                                                           |
-| Host crash and reconnect                             | Not proven | None                   | The kill test proves the file survives; window reconnection is not built. Next implementation issue.    |
-| `@tanstack/react-db` bindings                        | Not proven | None                   | Only the core library ran. The first feature conversion must exercise them.                             |
+| Checklist item                                       | State      | Evidence file          | Result                                                                                                                                                                                                          |
+| ---------------------------------------------------- | ---------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Driver-neutral `AppDrizzleDb`                        | Proven     | `09`, `10` step A      | Alias: 0 errors. The whole workspace typechecks (19 of 19 turbo tasks) with only `adapter.ts` changed.                                                                                                          |
+| Migrations on the driver                             | Proven     | `04`                   | 8 real migrations on both, in 4-8 ms; a rerun applies nothing.                                                                                                                                                  |
+| `withTransaction` and rollback                       | Proven     | `04`, `07`             | Commit, forced rollback, FK failure, nested savepoint and async refusal pass on both.                                                                                                                           |
+| Real repository suite on the driver                  | Proven     | `07`                   | 238 of 239 on both. The failure calls the sql.js migrator on a native handle (`stmt.free`). The suite excludes the renderer-session tests and `extensions/index.test.ts`; the spike README lists the selection. |
+| Representative read                                  | Proven     | `11`, `12`             | `listLibraryEntries(db)` over a port, source unchanged.                                                                                                                                                         |
+| Representative write with transaction rollback       | Proven     | `11`, `12`             | `reorderLibraryCategories` commits; a failure mid-transaction rejects and restores the earlier row.                                                                                                             |
+| One feature module                                   | Proven     | `11`                   | `@app/extensions` core and fetchers: 124 real tests plus 2 new pass over a port, with no source change.                                                                                                         |
+| Values survive the boundary                          | Proven     | `08`                   | 238 of 239 through `structuredClone`. Breaking the boundary fails 59 tests, so it was on the path.                                                                                                              |
+| Remaining-file estimate                              | Proven     | `10` step B            | Below. Measured by compiling the workspace against the client.                                                                                                                                                  |
+| List collection from the host                        | Proven     | `12`                   | Real `@tanstack/db` `1.0.0-rc.1.1` in a sandboxed renderer, fed by a utility process.                                                                                                                           |
+| Optimistic write survives acceptance                 | Proven     | `12`                   | Visible at once, `completed`, no flicker, stored in SQLite.                                                                                                                                                     |
+| Optimistic write rolls back on rejection             | Proven     | `12`                   | A rejected update rolls back with a typed error and leaves SQLite unchanged; a rejected insert leaves the UI and reports the error.                                                                             |
+| On-demand large table                                | Proven     | `12`                   | 50, then 100, of 200,000 chapters in memory; first window about 7 ms.                                                                                                                                           |
+| Two windows stay current                             | Proven     | `12`                   | Window B sees window A's committed rows without a reload. Rejected rows never appearing is inferred from the observed notes; no assertion pins it.                                                              |
+| Renderer never blocked                               | Proven     | `12`                   | Longest timer gap 12 ms while the host was held for 1.5 s.                                                                                                                                                      |
+| `better-sqlite3` versus `node:sqlite`: rebuild facts | Proven     | `02`, `03`, `05`, `06` | Darwin arm64 only for loading. Prebuilds for 8 targets exist, and were not run on the other 7.                                                                                                                  |
+| Same contract in a browser Worker                    | Proven     | `13`                   | The same scenario passes in a real Web Worker on sql.js. Shape only: see below.                                                                                                                                 |
+| `node:sqlite` on Windows and Linux                   | Not proven | None                   | No such machine here. Check first in #215; failure triggers the exit in decision 2.                                                                                                                             |
+| Packaging: ASAR, signing, installers                 | Not proven | None                   | #215's scope.                                                                                                                                                                                                   |
+| Host crash and reconnect                             | Not proven | None                   | The kill test proves the file survives; window reconnection is not built. Next implementation issue.                                                                                                            |
+| Unauthorized-frame refusal (X6)                      | Not proven | None                   | Authorization is only implied by main handing out the ports; no probe tests a refusing frame.                                                                                                                   |
+| `@tanstack/react-db` bindings                        | Not proven | None                   | Only the core library ran. The first feature conversion must exercise them.                                                                                                                                     |
 
 Also measured: `kill -9` mid-write leaves `integrity_check` ok with whole batches only, on both drivers (`05`). A
 snapshot built by the renderer's own migrator opens natively with counts matching and migrations 8 to 8, on both
@@ -167,7 +171,7 @@ Measured by making `@app/db` the generated client in a throwaway clone and compi
 | Features calling repositories     | 0 source edits to compile, of 73                    | Only `local-db.ts` fails among production files                   |
 | `local-db.ts` and its provider    | 2 rewritten                                         | The 2 production errors; the session and flush API go away        |
 | Test files                        | 35 fail to compile, 896 errors; fixed mostly by 1   | They pass a real `db` to the client; the harness returns a handle |
-| Features needing atomicity        | Review 22                                           | Files with 2 or more write calls                                  |
+| Features needing atomicity        | Review ~17                                          | Files with 2 or more write calls (name-based count)               |
 | Collections and mutation handlers | Per surface: 53 query and 46 mutation sites         | Counted, not converted; adapter is 135 lines                      |
 | Retired after import (X10)        | `persistent-database`, `merge-uncommitted-progress` | Renderer session only                                             |
 
@@ -186,7 +190,7 @@ packaging (#215). These numbers come from a fast Mac, so they show only the floo
 | Measure                             | Budget | Measured here on the seeded dataset                                                                       |
 | ----------------------------------- | ------ | --------------------------------------------------------------------------------------------------------- |
 | Launch to usable library            | 1.5s   | Not measured: no real app shell. Reopen plus first read is about 1 ms; the list is below.                 |
-| Library: open and filter            | 100ms  | **Over:** full list 340 ms over RPC, 300-340 ms in-process, 480 ms on today's sql.js. Filter is 45-50 ms. |
+| Library: open and filter            | 100ms  | **Over:** full list 340 ms over RPC, 300-340 ms in-process, 480 ms on today's sql.js. Filter is 43-50 ms. |
 | Renderer blocked by a database call | Never  | Longest timer gap 12 ms during a 1.5 s host stall                                                         |
 
 `listLibraryEntries` costs 300 ms or more on every driver, so this cost is in the repository or its data, not the
