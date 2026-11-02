@@ -1,0 +1,53 @@
+# Scheduled MangaDex live check (#219, spec 05).
+#
+# The opt-in smoke test (`MANGADEX_LIVE=1`) makes four real calls — search, details,
+# chapters and pages — against the official API, well inside the manifest's declared
+# 40 requests/minute; the provider transport gate enforces that pace even if a future
+# change adds calls. A broken MangaDex or a changed payload therefore fails this
+# workflow only: it is deliberately not part of CI's push/pull_request triggers, so a
+# source outage can never block a pull request.
+name: Provider live check
+
+on:
+  schedule:
+    # Daily, early UTC, away from the top-of-hour scheduling crowd.
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: provider-live-${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  mangadex:
+    name: MangaDex live smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Tests resolve the workspace packages through their built dist/, the same
+      # way `turbo run test` depends on `^build`. Build only this closure.
+      - name: Build the extensions dependency closure
+        run: pnpm exec turbo run build --filter=@app/extensions...
+
+      # The test skips unless MANGADEX_LIVE=1, so the same file stays harmless in CI.
+      - name: Live smoke (real API)
+        env:
+          MANGADEX_LIVE: "1"
+        run: pnpm --filter @app/extensions exec vitest run --config vitest.config.ts src/mangadex/live-smoke.test.ts
