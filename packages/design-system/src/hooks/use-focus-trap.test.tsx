@@ -21,15 +21,15 @@ function TrapHarness() {
 }
 
 function TrapPanel({ onClose }: { onClose: () => void }) {
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLDialogElement>(null);
   useFocusTrap(ref, true);
 
   return (
-    <div ref={ref} role="dialog" aria-label="Trapped panel" tabIndex={-1}>
+    <dialog ref={ref} open aria-label="Trapped panel" tabIndex={-1}>
       <button>First action</button>
       <button>Last action</button>
       <button onClick={onClose}>Close panel</button>
-    </div>
+    </dialog>
   );
 }
 

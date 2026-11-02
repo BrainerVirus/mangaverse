@@ -34,12 +34,12 @@ describe('Alert', () => {
       </Alert>,
     );
 
-    const alert = document.querySelector('.group\\/alert');
+    const alert = document.querySelector('[data-alert]');
     expect(alert?.className).toContain('text-foreground');
     expect(alert?.className).toContain('text-destructive-glass');
-    expect(alert?.className).toContain('has-[>svg]:grid-cols-[1rem_1fr]');
-    // The icon is a grid child, not an absolutely positioned layer over the copy.
-    expect(alert?.className).not.toContain('absolute');
+    // Every block after the icon is padded past it; the icon is not a layer.
+    expect(alert?.className).toContain('[&>svg~*]:pl-7');
+    expect(alert?.className).toContain('[&>svg]:absolute');
   });
 
   it('Given an alert title, Then it is a level-3 heading that does not skip levels', () => {

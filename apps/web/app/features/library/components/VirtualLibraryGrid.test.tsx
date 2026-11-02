@@ -230,11 +230,11 @@ describe('VirtualLibraryGrid', () => {
 
   it('Given the grid sits below other shelves, Then the virtualizer gets the offset and rows stay on screen', () => {
     const rect = (top: number) => () => ({ top }) as DOMRect;
-    const original = HTMLElement.prototype.getBoundingClientRect;
-    HTMLElement.prototype.getBoundingClientRect = function () {
-      if (this.getAttribute('aria-label') === 'Library titles') return rect(480)();
-      return original.call(this);
-    };
+    const spy = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        return this.getAttribute('aria-label') === 'Library titles' ? rect(480)() : rect(0)();
+      });
     try {
       render(
         scrollContainer(
@@ -246,7 +246,7 @@ describe('VirtualLibraryGrid', () => {
         ),
       );
     } finally {
-      HTMLElement.prototype.getBoundingClientRect = original;
+      spy.mockRestore();
     }
 
     expect(virtualizerOptions.scrollMargin).toBe(480);

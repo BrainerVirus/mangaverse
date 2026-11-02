@@ -36,14 +36,18 @@ export function useFocusTrap(
 ): void {
   // Distinguishes "this trap closed" from "this trap re-activated within a
   // frame": a stale restore must not steal focus from a fresh activation.
-  const generation = useRef(0);
+  const pendingRestore = useRef<{ run: boolean } | null>(null);
 
   useLayoutEffect(() => {
     if (!active) return;
     const container = containerRef.current;
     if (container === null) return;
 
-    const attempt = ++generation.current;
+    const previous = pendingRestore.current;
+    if (previous !== null) previous.run = false;
+    const restoreToken = { run: true };
+    pendingRestore.current = restoreToken;
+
     const previouslyFocused =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
@@ -91,7 +95,7 @@ export function useFocusTrap(
       // frame so the restore lands after that commit, and skip it entirely if
       // the trap was re-activated in the meantime.
       requestAnimationFrame(() => {
-        if (generation.current !== attempt) return;
+        if (!restoreToken.run) return;
         if (previouslyFocused?.isConnected === true) {
           previouslyFocused.focus({ preventScroll: true });
         }
