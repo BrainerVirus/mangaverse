@@ -242,6 +242,13 @@ export interface PlatformAdapter {
     nextRevision(): Promise<AppResult<number>>;
     request(input: PlatformProviderRequest): Promise<AppResult<PlatformProviderResponse>>;
     /**
+     * Whether `providerId` may reach the host in `url` under its declared domains.
+     * Web implements it from the same in-memory table `request` enforces, so cache
+     * fetches can refuse before bytes leave the page. Desktop enforces this in main
+     * and leaves it absent.
+     */
+    isAllowedHost?(providerId: string, url: string): boolean;
+    /**
      * Desktop only: fetch and store in one main-process call, returning metadata and a
      * `page://` URL but never the bytes. Absent where the page store has no URL form.
      */
@@ -384,6 +391,8 @@ export interface WebPlatformEnvironment {
     persisted?: () => Promise<boolean>;
   };
   readonly indexedDB?: IDBFactory;
+  /** Injected for tests; defaults to the page's own `fetch`. */
+  readonly fetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 }
 
 export interface ElectronCapabilityInput extends Partial<PlatformCapabilities> {

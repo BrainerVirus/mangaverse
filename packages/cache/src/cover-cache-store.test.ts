@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { ok } from '@app/shared';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ok, type AppResult } from '@app/shared';
 import type { PlatformAdapter } from '@app/platform';
 import { createSqlJsHarness } from '@app/db/testing';
 
@@ -410,5 +410,29 @@ describe('cover cache store with a main-side fetch-and-store', () => {
     });
     expect(cached).toMatchObject({ fromCache: true, objectUrl: 'page://store/custom' });
     expect(userCalls).toHaveLength(1);
+  });
+
+  it('Given a web adapter that refuses the provider host, When resolving a cover, Then no bytes are fetched', async () => {
+    const { db } = await createSqlJsHarness();
+    const base = createMockAdapter();
+    const fetchBytes = vi.fn<
+      (url: string) => Promise<AppResult<{ data: ArrayBuffer; mimeType: string }>>
+    >(async () => ok({ data: new Uint8Array([1]).buffer, mimeType: 'image/jpeg' }));
+    const adapter: PlatformAdapter = {
+      ...base,
+      providerNetwork: { ...base.providerNetwork, isAllowedHost: () => false },
+      network: { fetchBytes },
+    };
+
+    const resolved = await resolveCoverObjectUrl({
+      db,
+      adapter,
+      providerId: 'mangadex',
+      mangaId: 'dev-md-blocked',
+      remoteUrl: 'https://evil.example/cover.jpg',
+    });
+
+    expect(resolved).toBeUndefined();
+    expect(fetchBytes).not.toHaveBeenCalled();
   });
 });
