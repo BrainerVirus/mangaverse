@@ -124,21 +124,27 @@ function createWindow(url: string) {
 
 /** Starts the data host's utility process; the database lives in the profile directory. */
 function startDataHost() {
-  const hostProcess = utilityProcess.fork(join(__dirname, 'data-host-process.js'), [], {
-    serviceName: 'MangaVerse data host',
-    env: {
-      ...process.env,
-      MANGAVERSE_DATA_HOST_DB: join(app.getPath('userData'), 'mangaverse.sqlite'),
+  const hostProcess = utilityProcess.fork(
+    fileURLToPath(new URL('./data-host-process.js', import.meta.url)),
+    [],
+    {
+      serviceName: 'MangaVerse data host',
+      env: {
+        ...process.env,
+        MANGAVERSE_DATA_HOST_DB: join(app.getPath('userData'), 'mangaverse.sqlite'),
+      },
     },
-  });
+  );
   const devUrl = process.env.VITE_DEV_SERVER_URL;
+  // An unparseable dev URL allows no origin rather than throwing at startup.
+  const devOrigin = devUrl ? URL.parse(devUrl)?.origin : undefined;
   registerDataHostIpc({
     ipcMain,
     createChannel: () => new MessageChannelMain(),
     hostProcess,
     isTrustedFrame: createTrustedFrameCheck({
       ownedMainFrames: () => [...ownedWindows].map((window) => window.webContents.mainFrame),
-      allowedOrigins: devUrl ? [new URL(devUrl).origin] : [APP_ORIGIN],
+      allowedOrigins: devUrl ? [devOrigin].filter((origin) => origin !== undefined) : [APP_ORIGIN],
     }),
   });
 }

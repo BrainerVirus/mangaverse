@@ -39,7 +39,9 @@ export function createTrustedFrameCheck(options: {
     frame.parent === null &&
     options
       .ownedMainFrames()
-      .some((owned) => owned.processId === frame.processId && owned.routingId === frame.routingId) &&
+      .some(
+        (owned) => owned.processId === frame.processId && owned.routingId === frame.routingId,
+      ) &&
     options.allowedOrigins.some((origin) => frame.url.startsWith(`${origin}/`));
 }
 

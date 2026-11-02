@@ -18,13 +18,13 @@ interface QueryResult {
   readonly values: unknown[][];
 }
 
-export interface HostHarnessRaw {
+interface HostHarnessRaw {
   run(sql: string, params?: readonly SQLInputValue[]): void;
   exec(sql: string): QueryResult[];
   close(): void;
 }
 
-export interface HostHarness {
+interface HostHarness {
   readonly raw: HostHarnessRaw;
   readonly db: AppDrizzleDb & DataHostHandle;
   /** Calls that crossed the port, for the suite's reach check. */
@@ -39,6 +39,7 @@ export const hostCallCount = (): number => totalCalls;
 /** Harnesses opened in this test file. */
 export const hostHarnessCount = (): number => harnesses;
 
+/** @public Reached through vitest.host.config.ts, which swaps it in for sqljs-harness. */
 export async function createSqlJsHarness(): Promise<HostHarness> {
   harnesses += 1;
   const directory = mkdtempSync(join(tmpdir(), 'mangaverse-host-harness-'));

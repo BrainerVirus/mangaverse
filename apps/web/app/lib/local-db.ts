@@ -267,7 +267,10 @@ async function openDataHost(bridge: DataHostBridge): Promise<AppDrizzleDb | null
   if (opened.error.code !== DATA_HOST_ERROR.importFailed) throw new DataHostError(opened.error);
   // oxlint-disable-next-line no-console -- ruling: data-host-import-fallback: the window falls back to the untouched sql.js snapshot and keeps working, so no UI state changes; the typed error is the record of why the import must be retried.
   // react-doctor-disable-next-line eslint/no-console -- ruling: data-host-import-fallback: the window falls back to the untouched sql.js snapshot and keeps working, so no UI state changes; the typed error is the record of why the import must be retried.
-  console.error('[local-db] Native database import failed; using the snapshot:', new DataHostError(opened.error));
+  console.error(
+    `[local-db] Native database import failed (${opened.error.code}); using the snapshot:`,
+    new DataHostError(opened.error),
+  );
   return null;
 }
 

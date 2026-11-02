@@ -40,7 +40,7 @@ function drizzleOver(client: NodeSqliteClient): AppDrizzleDb {
 }
 
 /** Applies the bundled migrations; a rerun applies nothing. */
-export function migrateNative(db: AppDrizzleDb): void {
+function migrateNative(db: AppDrizzleDb): void {
   const migrations = readMigrationFiles({ migrationsFolder: getMigrationsFolder() });
   const { dialect, session } = db as unknown as {
     dialect: SQLiteSyncDialect;

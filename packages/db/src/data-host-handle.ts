@@ -15,7 +15,7 @@ export interface DataHostHandle {
 /** The `db` a feature passes to a repository: a local Drizzle database or a host handle. */
 export type AppDb = AppDrizzleDb | DataHostHandle;
 
-export function isDataHostHandle(db: AppDb): db is DataHostHandle {
+function isDataHostHandle(db: AppDb): db is DataHostHandle {
   return (db as Partial<DataHostHandle>)[DATA_HOST_HANDLE] === true;
 }
 
