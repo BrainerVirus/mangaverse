@@ -34,7 +34,7 @@ Decide before building, with a spike that must prove all of this on real code:
 - A driver-neutral `AppDrizzleDb` type. Today it is `SQLJsDatabase`, and migrations use the sql.js driver.
 - Migrations and `withTransaction` running on the chosen driver, including rollback.
 - End-to-end conversion of representative callers: one read, one write with a transaction, and one
-  feature package. Today callers pass a `db` handle to imported functions, so the likely shape is a
+  feature module. Today callers pass a `db` handle to imported functions, so the likely shape is a
   generated typed client with the same names, running each call in the data host.
 - An estimate of the remaining files, from that conversion.
 - The TanStack DB sync adapter: one list view and one optimistic write working end to end, including rollback

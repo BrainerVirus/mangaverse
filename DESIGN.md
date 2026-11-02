@@ -271,7 +271,7 @@ it one step shallow.
 - **Never animate the blur radius or the fill alpha.** Animate the layer's `opacity` and `transform`
   only; the material fades in as a whole. Animating `backdrop-filter` re-rasterizes every frame.
 - **Promotion:** no blanket `will-change`. The reader chrome may set `will-change: opacity, transform`
-  for the duration of a show/hide tween and must remove it after (`@app/motion` helpers own the
+  for the duration of a show/hide tween and must remove it after (`@app/design-system/motion` helpers own the
   cleanup). A permanently promoted glass layer doubles memory for no gain.
 - **Low-end profile (landed in P1):** when `navigator.hardwareConcurrency <= 4` or `navigator.deviceMemory
   <= 4`, or when the user's OS reports `prefers-reduced-motion: reduce`, set `data-glass="cheap"` on the
@@ -314,7 +314,7 @@ Vibrancy is how type, icons and controls behave when they sit on glass. The rule
 ## 3. Color Palette & Roles
 
 Every value below is a token from `globals.css` unless marked **proposed**. Light is `:root, .light`;
-dark is `.dark`. The runtime theme layer (`packages/theme/src/presets.ts` + `apply-theme.ts`) repaints
+dark is `.dark`. The runtime theme layer (`apps/web/app/features/theme/presets.ts` + `apply-theme.ts`) repaints
 27 of these 29 variables across 10 presets — `--surface` and `--surface-raised` are the two it does not
 touch. Not all 27 are the preset's 10 colour tokens: `--muted-foreground`, `--destructive-foreground` and
 the light `--primary-foreground` are hardcoded in `apply-theme.ts`, and `--muted`, `--secondary` and the
@@ -363,7 +363,7 @@ tokens join the theme layer's list once introduced; presets may tint them, never
   also clear 3:1 on `--surface`, `--muted` and `--accent` in both modes (light 4.80 / 3.93 / 3.73,
   dark 7.41 / 7.02 / 6.20). The runtime theme layer still paints `--ring` from the preset's `--primary`
   (every one of the 10 presets clears 3:1 on its canvas — lowest is Sakura light at 3.66:1), which
-  `packages/theme`'s suite now pins.
+  `apps/web/app/features/theme`'s suite now pins.
 
 ### 3.4 Status (reserved — never decorative)
 
@@ -507,7 +507,7 @@ separator at `mt-4`.
 
 ## 5. Motion Language
 
-All motion ships through `@app/motion`. No component imports GSAP directly, no component hand-rolls a
+All motion ships through `@app/design-system/motion`. No component imports GSAP directly, no component hand-rolls a
 CSS keyframe for something the package owns, and every helper takes `reducedMotion` and resolves to the
 end state when it is true.
 
@@ -515,7 +515,7 @@ end state when it is true.
 > It has nothing to do with the Expo framework, which this repository no longer uses. Write it as
 > `expo.out` in GSAP code and never "expo" in prose.
 
-### 5.1 Duration scale (existing — `packages/motion/src/tokens/duration.ts`)
+### 5.1 Duration scale (existing — `packages/design-system/src/motion/tokens/duration.ts`)
 
 | Token                 | ms  | Use                                                            |
 | --------------------- | --- | -------------------------------------------------------------- |
@@ -526,7 +526,7 @@ end state when it is true.
 | `DURATION.expressive` | 360 | Sheet open, onboarding, empty states, route continuity         |
 | `DURATION.cinematic`  | 520 | Rare hero moments and the reader's page turn — never in a loop |
 
-### 5.2 Easing presets (existing — `packages/motion/src/tokens/easing.ts`)
+### 5.2 Easing presets (existing — `packages/design-system/src/motion/tokens/easing.ts`)
 
 | Token                  | GSAP value      | Use                                                             |
 | ---------------------- | --------------- | --------------------------------------------------------------- |
@@ -552,7 +552,7 @@ tw-animate-css and GSAP agree on the curve:
 
 | State                       | Motion                                                                                                  | Notes                                                                                                                   |
 | --------------------------- | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Press                       | `scale: 0.97`, `DURATION.micro`, `power2.out`                                                           | Release returns at `DURATION.standard` / `expo.out` (damped settle). Proposed helper `pressFeedback()` in `@app/motion` |
+| Press                       | `scale: 0.97`, `DURATION.micro`, `power2.out`                                                           | Release returns at `DURATION.standard` / `expo.out` (damped settle). Proposed helper `pressFeedback()` in `@app/design-system/motion` |
 | Hover (pointer only)        | `y: -1px`, one elevation step up (cards 1 → 3, floating controls 2 → 3), `DURATION.quick`, `power2.out` | Only under `@media (hover: hover) and (pointer: fine)`; never the only affordance                                       |
 | Focus                       | **none**                                                                                                | The 2px `--ring` at 2px offset appears instantly. Focus is never animated, never delayed, never faded                   |
 | Selected / active           | fill + specular edge change, `DURATION.quick`                                                           | Colour transitions may use CSS; geometry must not move                                                                  |
@@ -605,7 +605,7 @@ tw-animate-css and GSAP agree on the curve:
 
 ### 5.6 GSAP usage conventions (existing, binding)
 
-- Register plugins once in `@app/motion` (`registerGsapPlugins`), never in a component.
+- Register plugins once in `@app/design-system/motion` (`registerGsapPlugins`), never in a component.
 - React components use `useGSAP()` from `@gsap/react` with a scope ref, or an equivalent
   `gsap.context()` cleanup.
 - Wrap delayed/event-created animation callbacks with `contextSafe()` or a package helper.
@@ -804,7 +804,7 @@ scroll with safe centering (`reader-page-scroll`), the saved stage color uses `-
 
 Structure is unchanged: a fixed top bar (chapter title, mode pill, settings, fullscreen), a fixed bottom
 rail (prev/next, page counter, progress rail with page previews), `CHROME_INSETS { top: 96, bottom: 48 }`,
-and `chromeShow`/`chromeHide` from `@app/motion`. The material is what changes:
+and `chromeShow`/`chromeHide` from `@app/design-system/motion`. The material is what changes:
 
 - The container moves from `bg-gradient-to-b from-black/80 to-transparent` to `GlassSurface
   level="stage"` at alpha **0.78**, keeping the gradient as a _supplement_ (`from-black/85
@@ -900,7 +900,7 @@ where context matters (chrome, floating layers) and nowhere else. Reader chrome 
 - Do put a plate under text that sits over imagery, and verify the pair over both a white and a black
   backdrop.
 - Do keep the page and its art untouched in the reader: chrome floats, content never moves.
-- Do route every animation through `@app/motion`, pass `reducedMotion`, and use `expo.out` (GSAP's
+- Do route every animation through `@app/design-system/motion`, pass `reducedMotion`, and use `expo.out` (GSAP's
   exponential ease-out) for anything that should feel like glass settling.
 - Do keep the reader at one blurred layer while reading (never more than four, and only with a sheet open)
   and the shell at four, at most (§2.5).
@@ -934,8 +934,8 @@ where context matters (chrome, floating layers) and nowhere else. Reader chrome 
 3. Introduce tokens in `packages/design-system/src/styles/globals.css` (`:root, .light` and `.dark`) and
    register them in `@theme inline`; expose behaviour through a primitive or a `cva` variant, never as
    free classes in a feature.
-4. Add the motion side in `packages/motion` (token + helper + `reducedMotion` path + a test).
-5. Prove it in the design-system page (`apps/web/app/design-system`, §13 P7) over a light and a dark
+4. Add the motion side in `packages/design-system/src/motion` (token + helper + `reducedMotion` path + a test).
+5. Prove it in the planned design-system page (`apps/web/app/design-system`, not yet built, §13 P7) over a light and a dark
    backdrop, at 375px and 1280px, with reduced motion and reduced transparency toggled.
 6. Update this file and `docs/Design.md` in the same PR that changes the system — a stale design doc is a
    contradiction waiting to happen.
@@ -963,7 +963,7 @@ Honest accounting. Nothing below is aspirational; §13 is where the gap closes.
   `data-transparency="solid"`, `@supports`, `prefers-reduced-transparency`) live in
   `globals.css`; `GlassSurface`, `RefractionLayer`, `GlassPanel`, `AmbientBackdrop` and
   `resolveGlassProfile()` are exported from `@app/design-system`.
-- **Theme layer:** `packages/theme` repaints 27 of those 29 variables across 10 presets
+- **Theme layer:** `apps/web/app/features/theme` repaints 27 of those 29 variables across 10 presets
   (`default`/Minimal first); `--surface` and `--surface-raised` are not repainted, and not every repainted
   value comes from a preset token (`--muted-foreground` is hardcoded in `apply-theme.ts`).
 - **Components:** 16 `ui/*` primitives (button, card, dialog, sheet, command, badge, skeleton, input,
@@ -1022,8 +1022,8 @@ page (#107).
 - **The reader's top-bar gradient has no protected tail.** The shipped recipe keeps the gradient as a
   non-blurring supplement over stage glass (#102); the plate rule (§3.5) protects text in control rows,
   and the gradient itself is not relied on for contrast.
-- **`docs/design-direction.md` is unused.** The target language and the roadmap live here; a separate
-  direction note would only duplicate it.
+- **No separate design-direction note.** The target language and the roadmap live here; a separate
+  direction file would only duplicate it.
 
 ## 13. Implementation Roadmap
 
@@ -1033,7 +1033,7 @@ step runs the repository gates (`pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnp
 `pnpm knip`).
 
 **P1 — Material tokens, fallbacks and the glass primitive** (`packages/design-system`, plus
-`packages/theme` for the ring fix) — **landed.**
+`apps/web/app/features/theme` for the ring fix) — **landed.**
 Shipped: `--glass-thin/regular/thick/stage`, `--glass-edge`, `--glass-specular`, `--glass-inner`,
 `--glass-sheen`, `--glass-plate`, `--glass-muted-foreground`, `--radius-glass`, `--ambient-1/2`, the
 elevation scale and the `@theme` / `@theme inline` registrations; the `@supports`,
@@ -1041,7 +1041,7 @@ elevation scale and the `@theme` / `@theme inline` registrations; the `@supports
 plus `resolveGlassProfile()`; `GlassSurface`, `GlassPanel`, `RefractionLayer` (`sheen`, plus the opt-in displacement added later) and
 `AmbientBackdrop`; the `--ring` fix. Tests: token-resolution and contrast tests
 (`glass-tokens.test.ts`), primitive/aria-hidden/budget tests (`glass.test.tsx`), the per-preset ring
-invariant in `packages/theme`. No consumer changes in this PR. Not shipped in P1 (later delivered):
+invariant in `apps/web/app/features/theme`. No consumer changes in this PR. Not shipped in P1 (later delivered):
 the displacement refraction variant (#109), the ambient entrance (#109) and the in-app
 Transparency setting (#104). `asChild` remains deferred.
 
@@ -1054,7 +1054,7 @@ control row never leaves the plate), the reduced-transparency resolution, and a 
 chrome and sheet interactions still cannot reach the tap surface.
 **Status:** landed (#102); the settings-sheet scrim moved to the shared `glass-scrim` in P5.
 
-**P3 — Liquid motion** (`packages/motion`, `packages/design-system`)
+**P3 — Liquid motion** (`packages/design-system/src/motion`, `packages/design-system`)
 Add `EASING.liquidSettle` / `glide` (CustomEase) with the matching `--ease-liquid` / `--ease-glide` CSS
 properties, `pressFeedback()`, and route the sheet/backdrop CSS transitions onto the shared curves. Tests:
 easing registration, reduced-motion resolution for the new helper, and a test that no helper animates a
@@ -1083,7 +1083,7 @@ skeleton-to-content layout stability, and reduced-motion checks for the stagger.
 instead; this states/browsing slice remains open.
 
 **P7 — Design-system page and docs** (`apps/web`, `DESIGN.md`, `docs/Design.md`)
-Build `apps/web/app/design-system` as the verification surface: colour roles as contrast-checked pairs
+Build `apps/web/app/design-system` (planned; not yet built) as the verification surface: colour roles as contrast-checked pairs
 over a white and a black backdrop, the type specimen, the radius and elevation ladders, the four glass
 tiers with their state matrices, and the do/don't pairs from §9. Then reconcile this file and
 `docs/Design.md` with what shipped. Tests: the page's own render test, plus the overflow and console
