@@ -1,8 +1,8 @@
 import * as React from 'react';
 import { useRef } from 'react';
 import { useGSAP } from '@gsap/react';
-import { fadeIn } from '@app/motion';
-import { useReducedMotion } from '@app/motion';
+import { fadeIn } from '../motion/index.js';
+import { useReducedMotion } from '../motion/index.js';
 import { BookX, Database, Search, ChevronRight, Archive } from 'lucide-react';
 import { cn } from '../lib/cn.js';
 import { Button } from './ui/button.js';

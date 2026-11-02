@@ -4,7 +4,7 @@ import { routeTree } from './routeTree.gen';
 import { LoadingState } from '@app/design-system';
 import { useRef } from 'react';
 import { useGSAP } from '@gsap/react';
-import { routeEnter, useReducedMotion } from '@app/motion';
+import { routeEnter, useReducedMotion } from '@app/design-system/motion';
 import { NotFoundPage, RouteErrorPage } from './components/StatusPages.js';
 import { feedback } from './lib/app-feedback.js';
 

@@ -10,7 +10,7 @@ import {
   providerChapterToChapter,
   providerItemToMangaIdentity,
   toMangadexChapterPages,
-} from '@app/extensions-mangadex';
+} from '@app/extensions/mangadex';
 import type {
   ProviderChapter,
   ProviderContract,

@@ -6,8 +6,7 @@ export async function setProviderEnabled(
   providerId: string,
   enabled: boolean,
 ): Promise<AppResult<void>> {
-  const { disableInstalledProvider, enableInstalledProvider } =
-    await import('@app/extensions-core');
+  const { disableInstalledProvider, enableInstalledProvider } = await import('./core/index.js');
   if (enabled) {
     return enableInstalledProvider(providerId, { db });
   }
@@ -18,6 +17,6 @@ export async function removeProvider(
   db: AppDrizzleDb,
   providerId: string,
 ): Promise<AppResult<void>> {
-  const { uninstallInstalledProvider } = await import('@app/extensions-core');
+  const { uninstallInstalledProvider } = await import('./core/index.js');
   return uninstallInstalledProvider(providerId, { db });
 }

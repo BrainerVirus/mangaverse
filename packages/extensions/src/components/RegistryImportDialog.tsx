@@ -13,7 +13,7 @@ import {
   Input,
   Label,
 } from '@app/design-system';
-import type { ExtensionImportPreview, ExtensionListImportPreparation } from '@app/extensions-core';
+import type { ExtensionImportPreview, ExtensionListImportPreparation } from '../core/index.js';
 import type { ExtensionInstallWarning } from '@app/shared';
 import { useState } from 'react';
 

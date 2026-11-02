@@ -6,11 +6,9 @@
     { "path": "./apps/desktop" },
     { "path": "./packages/shared" },
     { "path": "./packages/reader" },
-    { "path": "./packages/extensions-core" },
     { "path": "./packages/extensions-sdk" },
     { "path": "./packages/db" },
     { "path": "./packages/design-system" },
-    { "path": "./packages/motion" },
     { "path": "./packages/platform" }
   ]
 }

@@ -13,7 +13,7 @@ import {
   Input,
   Label,
 } from '@app/design-system';
-import type { ExtensionInstallPreview, ExtensionInstallSession } from '@app/extensions-core';
+import type { ExtensionInstallPreview, ExtensionInstallSession } from '../core/index.js';
 
 export interface InstallProviderDialogProps {
   open: boolean;

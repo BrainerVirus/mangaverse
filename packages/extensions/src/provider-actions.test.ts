@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { upsertInstalledExtension } from '@app/db';
 import { createSqlJsHarness } from '@app/db/testing';
-import { listInstalledProviders } from '@app/extensions-core';
+import { listInstalledProviders } from './core/index.js';
 
 import { demoInstallMetadata } from './fetch-extensions-page.js';
 import { removeProvider, setProviderEnabled } from './provider-actions.js';

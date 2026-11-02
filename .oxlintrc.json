@@ -17,7 +17,7 @@
 
   // shadcn's design-system lint (JS plugin). `ui`/`componentImports` teach it that
   // the components live in @app/design-system (no per-component subpaths; the barrel
-  // is the only import surface) and `note` points every finding at docs/Design.md.
+  // is the only component import surface) and `note` points every finding at docs/Design.md.
   //
   // All six rules are `error` as of the lint-backlog slice (re-measured 2026-10-18
   // at c1b8980 before the sweep: no-restyle 94, no-arbitrary-values 157,
@@ -163,41 +163,45 @@
       "rules": { "no-restricted-imports": ["error", { "patterns": ["@app/**"] }] }
     },
     {
-      // @app/motion holds no business logic, so it imports no app package at all.
-      "files": ["**/packages/motion/**"],
-      "rules": { "no-restricted-imports": ["error", { "patterns": ["@app/**"] }] }
-    },
-    {
-      // @app/design-system imports no feature packages: only @app/shared and @app/motion.
+      // @app/design-system imports no feature packages: only @app/shared.
       "files": ["**/packages/design-system/**"],
       "rules": {
-        "no-restricted-imports": [
-          "error",
-          { "patterns": ["@app/**", "!@app/shared**", "!@app/motion**"] }
-        ]
+        "no-restricted-imports": ["error", { "patterns": ["@app/**", "!@app/shared**"] }]
       }
     },
     {
-      // Provider location (AGENTS.md: no provider-specific hacks outside
-      // @app/extensions-core, @app/extensions-sdk or a provider extension package).
-      // A provider's ids, mapping, Discover sections and page resolution live in
-      // its own package; app code only reaches it through the registration seam
-      // below. extensions-core and extensions-sdk are generic runtime layers, so
-      // they stay allowed; a new provider package is covered by the glob with no
-      // edit here.
+      // The motion module of @app/design-system holds no business logic, so it imports
+      // no app package at all. It stays after the block above: later overrides win.
+      "files": ["**/packages/design-system/src/motion/**"],
+      "rules": { "no-restricted-imports": ["error", { "patterns": ["@app/**"] }] }
+    },
+    {
+      // Provider location (AGENTS.md: no provider-specific hacks outside the generic
+      // runtime, the SDK or a provider's own module). A provider's ids, mapping,
+      // Discover sections and page resolution live in its module under
+      // @app/extensions; app code only reaches it through the registration seam
+      // below. @app/extensions/core and @app/extensions-sdk are generic runtime
+      // layers, so they stay allowed. Every provider subpath (and any future
+      // @app/extensions-* package) is covered by the globs, so a new provider needs
+      // no edit here — only its registration-seam file in the block below.
       "files": ["**/apps/**"],
       "rules": {
         "no-restricted-imports": [
           "error",
           {
-            "patterns": ["@app/extensions-*", "!@app/extensions-core", "!@app/extensions-sdk"]
+            "patterns": [
+              "@app/extensions-*",
+              "@app/extensions/*",
+              "!@app/extensions-sdk",
+              "!@app/extensions/core"
+            ]
           }
         ]
       }
     },
     {
       // Registration is the only legitimate app-side reference to a provider
-      // package: the registry wires in its contract and id/mapping surface, and
+      // module: the registry wires in its contract and id/mapping surface, and
       // the installer registers its bundled manifest. Their tests assert that
       // wiring, so they need the real manifest too.
       "files": [

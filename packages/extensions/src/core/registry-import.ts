@@ -494,7 +494,8 @@ export async function prepareExtensionImport(
     if (entry.manifestUrl === undefined) continue;
     const prepared =
       entry.registryUrl !== undefined
-        ? await prepareRegistryExtensionInstall(
+        ? // react-doctor-disable-next-line react-doctor/async-await-in-loop -- prepares providers one at a time so an import does not fan out unbounded manifest fetches
+          await prepareRegistryExtensionInstall(
             entry.registryUrl,
             { name: entry.name, manifestUrl: entry.manifestUrl },
             environment,
@@ -536,12 +537,14 @@ export async function confirmExtensionImport(
 ): Promise<AppResult<ExtensionListImportResult>> {
   try {
     for (const registry of preparation.registries) {
+      // react-doctor-disable-next-line react-doctor/async-await-in-loop -- upserts run in document order against one write lock; order is the existing behavior
       await upsertExtensionRegistry(deps.db, registry);
     }
 
     const warnings = [...preparation.warnings];
     const installed: string[] = [];
     for (const { entry, session } of preparation.sessions) {
+      // react-doctor-disable-next-line react-doctor/async-await-in-loop -- one install at a time: each confirm writes through the normal flow and a failure becomes a warning for that entry
       const confirmed = await confirmExtensionInstall(session, deps);
       if (!confirmed.ok) {
         warnings.push({

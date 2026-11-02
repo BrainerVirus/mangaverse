@@ -26,7 +26,7 @@ export async function fetchExtensionsPage(
   db: AppDrizzleDb,
 ): Promise<{ providers: InstalledProviderSummary[]; registries: ExtensionRegistryEntry[] }> {
   const [{ listInstalledProviders }, { listExtensionRegistries }] = await Promise.all([
-    import('@app/extensions-core'),
+    import('./core/index.js'),
     import('@app/db'),
   ]);
   const [result, registries] = await Promise.all([

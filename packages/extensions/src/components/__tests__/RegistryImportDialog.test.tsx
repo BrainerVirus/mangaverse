@@ -9,7 +9,7 @@ import type {
   ExtensionInstallPreview,
   ExtensionInstallSession,
   ExtensionListImportPreparation,
-} from '@app/extensions-core';
+} from '../../core/index.js';
 import { toProviderId } from '@app/shared';
 
 import { RegistryImportDialog } from '../RegistryImportDialog.js';

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useReducedMotion } from '@app/motion';
+import { useReducedMotion } from '../motion/index.js';
 import { cn } from '../lib/cn.js';
 import { useGlassProfileFallback } from '../hooks/use-glass-profile-fallback.js';
 import {

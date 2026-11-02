@@ -43,7 +43,7 @@ vi.mock('@app/cache', () => {
   };
 });
 
-vi.mock('@app/motion', () => ({
+vi.mock('@app/design-system/motion', () => ({
   useReducedMotion: () => false,
   useGsapContext: () => {},
   readerPageEnter: vi.fn<() => void>(),

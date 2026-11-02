@@ -206,6 +206,7 @@ describe('extension list import', () => {
     const exported = await exportExtensionRegistryData({ db });
     if (!exported.ok) throw new Error('expected export');
 
+    // react-doctor-disable-next-line react-doctor/no-json-parse-stringify-clone -- the JSON round trip is the behavior under test: an export must survive serialization, which structuredClone would not prove
     const parsed = parseExtensionImportDocument(JSON.parse(JSON.stringify(exported.value)));
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) throw new Error('expected preview');

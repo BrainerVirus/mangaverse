@@ -64,7 +64,7 @@ vi.mock('@app/design-system', () => ({
   },
 }));
 
-vi.mock('@app/motion', () => ({
+vi.mock('@app/design-system/motion', () => ({
   useGridStaggerReveal: () => ({ current: null }),
 }));
 
