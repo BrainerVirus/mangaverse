@@ -935,7 +935,7 @@ where context matters (chrome, floating layers) and nowhere else. Reader chrome 
    register them in `@theme inline`; expose behaviour through a primitive or a `cva` variant, never as
    free classes in a feature.
 4. Add the motion side in `packages/design-system/src/motion` (token + helper + `reducedMotion` path + a test).
-5. Prove it in the design-system page (`apps/web/app/design-system`, §13 P7) over a light and a dark
+5. Prove it in the planned design-system page (`apps/web/app/design-system`, not yet built, §13 P7) over a light and a dark
    backdrop, at 375px and 1280px, with reduced motion and reduced transparency toggled.
 6. Update this file and `docs/Design.md` in the same PR that changes the system — a stale design doc is a
    contradiction waiting to happen.
@@ -1083,7 +1083,7 @@ skeleton-to-content layout stability, and reduced-motion checks for the stagger.
 instead; this states/browsing slice remains open.
 
 **P7 — Design-system page and docs** (`apps/web`, `DESIGN.md`, `docs/Design.md`)
-Build `apps/web/app/design-system` as the verification surface: colour roles as contrast-checked pairs
+Build `apps/web/app/design-system` (planned; not yet built) as the verification surface: colour roles as contrast-checked pairs
 over a white and a black backdrop, the type specimen, the radius and elevation ladders, the four glass
 tiers with their state matrices, and the do/don't pairs from §9. Then reconcile this file and
 `docs/Design.md` with what shipped. Tests: the page's own render test, plus the overflow and console
