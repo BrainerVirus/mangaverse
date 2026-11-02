@@ -1,0 +1,129 @@
+// Real Electron main: a utility-process data host, two sandboxed windows, MessagePorts between.
+// Usage: DRIVER=... SPIKE_DIR=... electron out/p5-main.mjs
+import {
+  BrowserWindow,
+  MessageChannelMain,
+  app,
+  ipcMain,
+  net,
+  protocol,
+  utilityProcess,
+} from "electron";
+import { pathToFileURL } from "node:url";
+
+const out = `${process.env.SPIKE_DIR}/out`;
+protocol.registerSchemesAsPrivileged([
+  { scheme: "app", privileges: { standard: true, secure: true, supportFetchAPI: true } },
+]);
+let failed = 0;
+const fail = (text) => {
+  failed += 1;
+  console.log(`FAIL ${text}`);
+};
+const finish = () => {
+  console.log(`result: ${failed === 0 ? "ALL PASS" : `${failed} FAILED`}`);
+  app.exit(failed === 0 ? 0 : 1);
+};
+setTimeout(() => {
+  fail("timed out");
+  finish();
+}, 120000);
+
+app.whenReady().then(async () => {
+  protocol.handle("app", (request) => {
+    const url = new URL(request.url);
+    const file = url.pathname === "/index.html" ? "/p5.html" : url.pathname;
+    return net.fetch(pathToFileURL(`${out}${file}`).href);
+  });
+  console.log(
+    `main: electron ${process.versions.electron} node ${process.versions.node} abi ${process.versions.modules} ${process.platform}-${process.arch}`,
+  );
+  const forkStart = performance.now();
+  const child = utilityProcess.fork(`${out}/p5-host.mjs`, [], {
+    serviceName: "data-host",
+    stdio: "inherit",
+    env: process.env,
+  });
+  child.on("exit", (code) => {
+    if (!done && failed === 0) fail(`utility process exited early: ${code}`);
+  });
+  let done = false;
+  await new Promise((resolve) => {
+    child.on("message", (message) => {
+      if (message.type !== "ready") return;
+      console.log(
+        `host ready after ${(performance.now() - forkStart).toFixed(0)}ms: ${JSON.stringify(message.info)}`,
+      );
+      resolve();
+    });
+  });
+
+  let aWindow;
+  let otherFavorite;
+  let finalFavorite;
+  let aWaiting = false;
+  let bReady = false;
+  const maybeStart = () => {
+    if (aWaiting && bReady) aWindow.webContents.executeJavaScript("window.startScenario()");
+  };
+  const settle = () => {
+    if (finalFavorite === undefined || otherFavorite === undefined) return;
+    if (
+      otherFavorite.favorite === finalFavorite &&
+      otherFavorite.favorite !== otherFavorite.start
+    ) {
+      console.log(
+        `PASS change in window a reached window b without a reload (favorite=${otherFavorite.favorite})`,
+      );
+    } else fail(`window b has ${otherFavorite.favorite}, window a has ${finalFavorite}`);
+    done = true;
+    child.kill();
+    finish();
+  };
+  ipcMain.on("report", (event, message) => {
+    const tag = message.role;
+    if (message.type === "check") {
+      if (message.pass)
+        console.log(`PASS [${tag}] ${message.name}${message.detail ? ` (${message.detail})` : ""}`);
+      else fail(`[${tag}] ${message.name} (${message.detail})`);
+    } else if (message.type === "note") console.log(`note [${tag}] ${message.text}`);
+    else if (message.type === "waiting") {
+      aWaiting = true;
+      maybeStart();
+    } else if (message.type === "b-ready") {
+      bReady = true;
+      maybeStart();
+    } else if (message.type === "other-window") {
+      otherFavorite = message;
+      settle();
+    } else if (message.type === "done") {
+      finalFavorite = message.favorite;
+      settle();
+    } else if (message.type === "failed") {
+      fail(message.message);
+      finish();
+    }
+  });
+
+  const openWindow = async (role) => {
+    const win = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        preload: `${out}/p5-preload.cjs`,
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    });
+    win.webContents.on("console-message", (details) => {
+      if (details.level === "error") console.log(`console error [${role}] ${details.message}`);
+    });
+    await win.loadURL(`app://spike/index.html?role=${role}`);
+    const { port1, port2 } = new MessageChannelMain();
+    child.postMessage({ type: "client" }, [port1]);
+    win.webContents.postMessage("host-port", null, [port2]);
+    return win;
+  };
+  aWindow = await openWindow("a");
+  await openWindow("b");
+});

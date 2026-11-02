@@ -1,0 +1,16 @@
+// Every handle the codebase needs must be assignable to the candidate AppDrizzleDb.
+import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import type { SQLJsDatabase } from 'drizzle-orm/sql-js';
+import type { AppDrizzleDb } from '../../work/packages/db-src/adapter.js';
+import type { AppSchema } from '../../work/packages/db-src/schema.js';
+import { withTransaction } from '../../work/packages/db-src/transactions.js';
+import { categories } from '../../work/packages/db-src/schema.js';
+
+export function accepts(sqlJs: SQLJsDatabase<AppSchema>, native: BetterSQLite3Database<AppSchema>) {
+  const fromSqlJs: AppDrizzleDb = sqlJs;
+  const fromNative: AppDrizzleDb = native;
+  return withTransaction(fromNative, (tx) => {
+    tx.insert(categories).values({ id: 'x', name: 'x' }).run();
+    return [fromSqlJs, tx.select().from(categories).all()] as const;
+  });
+}

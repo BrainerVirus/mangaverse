@@ -1,0 +1,199 @@
+// The end-to-end scenario, driven against a host client. Runs unchanged over an Electron
+// MessagePort to a utility process and over a Web Worker.
+import { createLiveQueryCollection, eq } from "@tanstack/db";
+import { HostRejected } from "./rpc.mjs";
+import { createChapterCollection, createLibraryCollection } from "./host-collections.mjs";
+
+/** Resolves when the host has answered; returns the failure that rolled the write back, if any. */
+async function outcome(transaction) {
+  return transaction.when("settled").then(
+    () => null,
+    (error) => error,
+  );
+}
+
+export async function runScenario(host, { check, note, seedManga }) {
+  const library = createLibraryCollection(host);
+  const startedPreload = performance.now();
+  await library.preload();
+  note(
+    `list preload ms: ${(performance.now() - startedPreload).toFixed(1)}, rows: ${library.size}`,
+  );
+  check(
+    "list collection fed by the host contract",
+    library.size > 0 && library.size === (await host.countRows("library_entries")),
+  );
+
+  // Optimistic update that survives acceptance: it must apply at once and never flicker back.
+  const observed = [];
+  const watch = library.subscribeChanges((changes) => {
+    for (const change of changes) if (change.key === "e1") observed.push(change.value.favorite);
+  });
+  const before = library.get("e1").favorite;
+  const accepted = library.update("e1", (draft) => {
+    draft.favorite = !before;
+  });
+  check("optimistic update visible synchronously", library.get("e1").favorite === !before);
+  check("accepted update raised no error", (await outcome(accepted)) === null);
+  check(
+    "optimistic update survives acceptance",
+    library.get("e1").favorite === !before && accepted.state === "completed",
+  );
+  check(
+    "no flicker back to the old value",
+    observed.every((value) => value === !before),
+    `observed ${JSON.stringify(observed)}`,
+  );
+  check("host really stored it", (await host.getLibraryEntries(["e1"]))[0].favorite === !before);
+  watch.unsubscribe();
+
+  // Optimistic update the host rejects: the real repository's own validation, via a trigger abort.
+  const lockedBefore = library.get("e-locked").favorite;
+  const refused = library.update("e-locked", (draft) => {
+    draft.favorite = !lockedBefore;
+  });
+  check(
+    "rejected update first applies optimistically",
+    library.get("e-locked").favorite === !lockedBefore,
+  );
+  const updateError = await outcome(refused);
+  check(
+    "rejected update reports a typed error",
+    updateError instanceof HostRejected,
+    updateError?.message,
+  );
+  check(
+    "rejected update rolled back in the UI",
+    library.get("e-locked").favorite === lockedBefore && refused.state === "failed",
+  );
+  check(
+    "rejected update left SQLite unchanged",
+    (await host.getLibraryEntries(["e-locked"]))[0].favorite === lockedBefore,
+  );
+
+  // Optimistic insert with a client-made id: accepted, then rejected by real validation.
+  const inserted = library.insert({
+    id: "client-made",
+    mangaId: seedManga,
+    status: "reading",
+    favorite: false,
+    categoryIds: [],
+    unreadCount: 0,
+  });
+  check("optimistic insert visible synchronously", library.has("client-made"));
+  check("optimistic insert accepted", (await outcome(inserted)) === null);
+  check(
+    "accepted insert survives",
+    library.has("client-made") && (await host.getLibraryEntries(["client-made"])).length === 1,
+  );
+  const badInsert = library.insert({
+    id: "no-manga",
+    mangaId: "does-not-exist",
+    status: "reading",
+    favorite: false,
+    categoryIds: [],
+    unreadCount: 0,
+  });
+  const insertError = await outcome(badInsert);
+  check(
+    "rejected insert rolled back",
+    !library.has("no-manga") && insertError?.code === "db.library.manga_missing",
+    insertError?.code,
+  );
+
+  // A malformed call is refused at the boundary with a typed error.
+  const malformed = await host.setLibraryEntryFavorite("e1", "yes").then(
+    () => null,
+    (error) => error,
+  );
+  check("malformed call rejected by validation", malformed?.code === "host.bad_request");
+
+  // A real multi-statement transaction that fails halfway rolls back across the RPC boundary.
+  const failedTx = await host.reorderLibraryCategories(["cat-a", "cat-locked"]).then(
+    () => null,
+    (error) => error,
+  );
+  check(
+    "repository transaction failure reaches the UI",
+    failedTx instanceof HostRejected,
+    failedTx?.message,
+  );
+  const categoryA = (await host.listLibraryCategories()).find(
+    (category) => category.id === "cat-a",
+  );
+  check(
+    "its earlier statement rolled back in SQLite",
+    categoryA.sortIndex === 5,
+    `cat-a sortIndex ${categoryA.sortIndex}`,
+  );
+
+  // On-demand chapters: 200,000 rows in SQLite, only requested windows in memory.
+  const requests = [];
+  const chapters = createChapterCollection(host, requests);
+  const total = await host.countRows("chapters");
+  const started = performance.now();
+  const page = createLiveQueryCollection({
+    startSync: true,
+    query: (q) =>
+      q
+        .from({ c: chapters })
+        .where(({ c }) => eq(c.mangaId, "m500"))
+        .orderBy(({ c }) => c.index, "asc")
+        .limit(50),
+  });
+  await page.preload();
+  note(`first chapter window ms: ${(performance.now() - started).toFixed(1)}`);
+  const firstWindow = page.toArray;
+  check(
+    "on-demand window returns 50 ordered rows",
+    firstWindow.length === 50 && firstWindow[0].index === 0 && firstWindow[49].index === 49,
+    `rows ${firstWindow.length}`,
+  );
+  check(
+    "on-demand loads a fraction of the table",
+    chapters.size < 200 && total === 200000,
+    `in memory ${chapters.size} of ${total}`,
+  );
+  const moved = page.utils.setWindow({ offset: 50, limit: 50 });
+  if (moved !== true) await moved;
+  const secondWindow = page.toArray;
+  check(
+    "next window loads on demand",
+    secondWindow.length === 50 && secondWindow[0].index === 50,
+    `first index ${secondWindow[0]?.index}, in memory ${chapters.size}`,
+  );
+  note(`loadSubset requests: ${JSON.stringify(requests)}`);
+
+  // The UI thread keeps running while the host's only thread is held for 1.5s.
+  let longest = 0;
+  let last = performance.now();
+  const beat = setInterval(() => {
+    const now = performance.now();
+    longest = Math.max(longest, now - last);
+    last = now;
+  }, 10);
+  const startedBusy = performance.now();
+  await host.busyFor(1500);
+  const held = performance.now() - startedBusy;
+  clearInterval(beat);
+  check(
+    "renderer not blocked during a 1.5s host stall",
+    longest < 100 && held > 1400,
+    `longest timer gap ${longest.toFixed(1)}ms over ${held.toFixed(0)}ms`,
+  );
+
+  // Round-trip cost of the boundary itself.
+  const roundTrips = 1000;
+  const startedTrips = performance.now();
+  for (let i = 0; i < roundTrips; i += 1) await host.countExtensionLogs();
+  note(
+    `rpc round trip ms: mean ${((performance.now() - startedTrips) / roundTrips).toFixed(3)} over ${roundTrips} calls`,
+  );
+  const listStart = performance.now();
+  const full = await host.listLibraryEntries();
+  note(
+    `full library over rpc ms: ${(performance.now() - listStart).toFixed(1)}, rows ${full.length}`,
+  );
+
+  return { library, entry: library.get("e1") };
+}

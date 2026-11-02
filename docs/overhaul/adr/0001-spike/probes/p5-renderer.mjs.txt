@@ -1,0 +1,45 @@
+// Runs in a sandboxed, context-isolated renderer. Window "a" drives the scenario; window "b"
+// only watches its own collection, proving a change in one window reaches the other.
+import { createHostClient } from "@spike/lib/rpc.mjs";
+import { createLibraryCollection } from "@spike/lib/host-collections.mjs";
+import { runScenario } from "@spike/lib/scenario.mjs";
+
+const role = new URLSearchParams(location.search).get("role");
+const report = (message) => window.spike.report({ role, ...message });
+const check = (name, pass, detail = "") => report({ type: "check", name, pass, detail });
+const note = (text) => report({ type: "note", text });
+
+check(
+  "renderer has no Node access",
+  typeof globalThis.process === "undefined" && typeof globalThis.require === "undefined",
+  `process: ${typeof globalThis.process}, require: ${typeof globalThis.require}`,
+);
+
+window.addEventListener("message", async (event) => {
+  if (event.data !== "host-port") return;
+  const host = createHostClient(event.ports[0]);
+  try {
+    if (role === "a") {
+      await new Promise((resolve) => {
+        window.startScenario = resolve;
+        report({ type: "waiting" });
+      });
+      const { entry } = await runScenario(host, { check, note, seedManga: "m999" });
+      report({ type: "done", favorite: entry.favorite });
+    } else {
+      const library = createLibraryCollection(host, "library-b");
+      await library.preload();
+      const start = library.get("e1").favorite;
+      library.subscribeChanges((changes) => {
+        for (const change of changes) {
+          report({ type: "note", text: `window b saw ${change.type} on ${change.key}` });
+          if (change.key === "e1")
+            report({ type: "other-window", favorite: change.value.favorite, start });
+        }
+      });
+      report({ type: "b-ready" });
+    }
+  } catch (error) {
+    report({ type: "failed", message: `${error.name}: ${error.message}\n${error.stack}` });
+  }
+});

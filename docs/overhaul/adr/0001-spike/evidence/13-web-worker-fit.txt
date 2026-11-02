@@ -1,0 +1,28 @@
+note worker host ready, seeded in 3384ms
+note list preload ms: 578.4, rows: 999
+PASS list collection fed by the host contract
+PASS optimistic update visible synchronously
+PASS accepted update raised no error
+PASS optimistic update survives acceptance
+PASS no flicker back to the old value (observed [true,true])
+PASS host really stored it
+PASS rejected update first applies optimistically
+PASS rejected update reports a typed error (entry is locked by the probe)
+PASS rejected update rolled back in the UI
+PASS rejected update left SQLite unchanged
+PASS optimistic insert visible synchronously
+PASS optimistic insert accepted
+PASS accepted insert survives
+PASS rejected insert rolled back (db.library.manga_missing)
+PASS malformed call rejected by validation
+PASS repository transaction failure reaches the UI (category is locked by the probe)
+PASS its earlier statement rolled back in SQLite (cat-a sortIndex 5)
+note first chapter window ms: 7.3
+PASS on-demand window returns 50 ordered rows (rows 50)
+PASS on-demand loads a fraction of the table (in memory 50 of 200000)
+PASS next window loads on demand (first index 50, in memory 100)
+note loadSubset requests: [{"mangaId":"m500","limit":50},{"mangaId":"m500","exactIndex":49},{"mangaId":"m500","limit":100},{"mangaId":"m500","exactIndex":99}]
+PASS renderer not blocked during a 1.5s host stall (longest timer gap 12.2ms over 1500ms)
+note rpc round trip ms: mean 0.035 over 1000 calls
+note full library over rpc ms: 525.7, rows 1000
+result: ALL PASS

@@ -1,0 +1,2 @@
+tsc exit without better-sqlite3 or its types: 0
+result: ALL PASS

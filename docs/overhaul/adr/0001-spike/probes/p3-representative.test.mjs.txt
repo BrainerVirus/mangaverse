@@ -1,0 +1,51 @@
+// Representative callers through the generated client: same names and call shape as today.
+import { describe, expect, it } from "vitest";
+import {
+  addLibraryEntry,
+  createMangaIdentityWithInitialMapping,
+  listLibraryCategories,
+  listLibraryEntries,
+  reorderLibraryCategories,
+  createLibraryCategory,
+} from "@app/db";
+import { createSqlJsHarness } from "@app/db/testing";
+
+describe("caller conversion", () => {
+  it("read: listLibraryEntries(db) crosses the port", async () => {
+    const { db } = await createSqlJsHarness();
+    expect(db.call).toBeTypeOf("function");
+    const created = await createMangaIdentityWithInitialMapping(db, {
+      canonicalTitle: "T",
+      status: "ongoing",
+      contentRating: "safe",
+      providerId: "p",
+      providerMangaId: "one",
+    });
+    await addLibraryEntry(db, { mangaId: created.value.mangaId, status: "reading" });
+    expect(await listLibraryEntries(db)).toHaveLength(1);
+  });
+
+  it("write: reorderLibraryCategories(db, ids) commits, and rolls back when a statement fails", async () => {
+    const { db, raw } = await createSqlJsHarness();
+    const a = (await createLibraryCategory(db, { name: "A" })).value;
+    const b = (await createLibraryCategory(db, { name: "B" })).value;
+    expect((await reorderLibraryCategories(db, [b, a])).ok).toBe(true);
+    const order = async () => (await listLibraryCategories(db)).map((c) => [c.name, c.sortIndex]);
+    expect(await order()).toEqual([
+      ["B", 0],
+      ["A", 1],
+    ]);
+    // The second update in the repository's transaction aborts; the first must not survive.
+    raw.run(
+      `CREATE TRIGGER no_b BEFORE UPDATE ON categories WHEN OLD.id = '${b}' BEGIN SELECT RAISE(ABORT, 'refused'); END`,
+    );
+    await expect(reorderLibraryCategories(db, [a, b])).rejects.toMatchObject({
+      name: "HostRejected",
+      message: "refused",
+    });
+    expect(await order()).toEqual([
+      ["B", 0],
+      ["A", 1],
+    ]);
+  });
+});

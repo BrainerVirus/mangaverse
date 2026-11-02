@@ -14,8 +14,8 @@ dependency.
 | #   | Decision                                                                                                                                                        | Why                                                                                        |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | X1  | One data process: an Electron utility process owns native SQLite and runs the repositories.                                                                     | The UI never blocks on the database, and a crash there cannot take the window down.        |
-| X2  | Proposed, pending ADR 0001: repositories stay synchronous inside the data host, and the UI calls them over typed RPC.                                           | Would keep `withTransaction` and most queries, but caller conversion is real work.         |
-| X3  | Proposed, pending ADR 0001: native SQLite through `better-sqlite3`.                                                                                             | Drizzle 0.45 has a sync driver for it. Type compatibility is not yet proven.               |
+| X2  | [ADR 0001](adr/0001-data-host.md): repositories stay synchronous inside the data host, and the UI calls them over typed RPC.                                    | Keeps `withTransaction` and the queries. Measured conversion is in the ADR.                |
+| X3  | [ADR 0001](adr/0001-data-host.md): native SQLite through `node:sqlite` with a small adapter; `better-sqlite3` is the tested exit.                               | Both drivers passed; `node:sqlite` adds no native binary to ship.                          |
 | X4  | The main process makes all provider requests. The renderer has no direct network access to providers.                                                           | Enforces limits in one place, with no CORS and the user's own IP.                          |
 | X5  | Pages are files on disk, served to the UI by a restricted custom protocol.                                                                                      | Streams images with no blob copies over IPC.                                               |
 | X6  | IPC is the app's backend boundary, validated with Zod. Keep the Express service only if a real need appears.                                                    | Deletion test: nothing uses its HTTP today, and IPC needs no open port.                    |
@@ -29,7 +29,8 @@ dependency.
 
 ### ADR 0001: data host
 
-Decide before building, with a spike that must prove all of this on real code:
+Decided in [ADR 0001](adr/0001-data-host.md), which answers each item below with evidence. The spike had to prove
+all of this on real code:
 
 - A driver-neutral `AppDrizzleDb` type. Today it is `SQLJsDatabase`, and migrations use the sql.js driver.
 - Migrations and `withTransaction` running on the chosen driver, including rollback.
@@ -65,7 +66,8 @@ If sync-in-host does not hold, the ADR proposes an alternative before milestone 
 
 ### Budgets
 
-Provisional until measured. Reference machine: the slowest laptop the owner can test on, recorded in the ADR.
+Provisional until measured. Reference machine: the slowest laptop the owner can test on, not yet confirmed and
+pinned at packaging (#215).
 Dataset: seeded 1,000 titles and 200,000 chapters.
 
 | Measure                             | Budget |

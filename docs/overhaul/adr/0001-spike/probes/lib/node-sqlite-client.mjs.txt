@@ -1,0 +1,63 @@
+// The thin synchronous adapter: the part of the better-sqlite3 surface that
+// Drizzle 0.45.4's BetterSQLiteSession calls, implemented on node:sqlite.
+import { DatabaseSync } from "node:sqlite";
+
+class Statement {
+  constructor(stmt) {
+    this.stmt = stmt;
+  }
+  run(...params) {
+    const { changes, lastInsertRowid } = this.stmt.run(...params);
+    return { changes: Number(changes), lastInsertRowid };
+  }
+  all(...params) {
+    return this.stmt.all(...params);
+  }
+  get(...params) {
+    return this.stmt.get(...params);
+  }
+  raw() {
+    this.stmt.setReturnArrays(true);
+    return this;
+  }
+}
+
+export class NodeSqliteClient {
+  constructor(path) {
+    this.db = new DatabaseSync(path);
+    this.savepoints = 0;
+  }
+  prepare(sql) {
+    return new Statement(this.db.prepare(sql));
+  }
+  exec(sql) {
+    this.db.exec(sql);
+    return this;
+  }
+  close() {
+    this.db.close();
+  }
+  transaction(fn) {
+    const run =
+      (behavior) =>
+      (...args) => {
+        const nested = this.db.isTransaction;
+        const savepoint = `adapter_sp_${this.savepoints++}`;
+        this.db.exec(nested ? `SAVEPOINT ${savepoint}` : `BEGIN ${behavior}`);
+        try {
+          const result = fn(...args);
+          if (result !== null && typeof result?.then === "function") {
+            throw new TypeError("Transaction function cannot return a promise");
+          }
+          this.db.exec(nested ? `RELEASE ${savepoint}` : "COMMIT");
+          return result;
+        } catch (error) {
+          if (this.db.isTransaction) {
+            this.db.exec(nested ? `ROLLBACK TO ${savepoint}; RELEASE ${savepoint}` : "ROLLBACK");
+          }
+          throw error;
+        }
+      };
+    return { deferred: run("DEFERRED"), immediate: run("IMMEDIATE"), exclusive: run("EXCLUSIVE") };
+  }
+}

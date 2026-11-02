@@ -14,8 +14,17 @@ Milestone 1 (Foundation) has landed:
 | #206  | Landed: typed failures, status pages, inline retry, toasts, the Saving indicator.     |
 | #208  | Landed: package consolidation, below.                                                 |
 
-Next is milestone 2 (Electron runtime): ADR #209 first, then #210-#214, with #215 last. The roadmap holds
-the order inside that range. #209 is waiting on the owner, below.
+Next is milestone 2 (Electron runtime). [ADR 0001](adr/0001-data-host.md) (#209) settles the data host once it
+merges: `node:sqlite` through a small adapter, a generated client with the repositories' names, and TanStack DB
+over host change events. Then #210-#214, with #215 last; the roadmap holds the order inside that range.
+
+Start from the ADR's conversion plan. Carry these into the first host issue:
+
+- Build crash and reconnect, which the spike did not.
+- Exercise `@tanstack/react-db`, which the spike did not.
+- `listLibraryEntries` takes 300 ms or more on the seeded dataset on every driver, over the 100 ms budget.
+
+Check `node:sqlite` on Windows and Linux first thing in #215. If it fails, take the ADR's `better-sqlite3` exit.
 
 ## Package consolidation (#208)
 
@@ -75,7 +84,7 @@ Recorded in the Workit ledger with `workit ledger list --type decision`, and in 
 - No native mobile, phone bridge, browser extension route, paired helper, Vercel or Redis.
 - No rotating hosts or anti-bot circumvention.
 - TanStack DB is the UI data layer on Drizzle and SQLite, not a replacement. Pin `@tanstack/db` and
-  `@tanstack/react-db` to exactly `1.0.0-rc.1.1`. It is added when #209 first needs it, because `knip` fails on an unused dependency.
+  `@tanstack/react-db` to exactly `1.0.0-rc.1.1`. The #209 spike installed it in a throwaway directory, so product code adds it on first use, because `knip` fails on an unused dependency.
 
 ## Waiting on the owner
 
@@ -87,7 +96,7 @@ Recorded in the Workit ledger with `workit ledger list --type decision`, and in 
 | Code-signing decision                               | #215 (signed builds only) |
 | Cloudflare access and go-ahead for the gateway test | #231                      |
 | Legal advice before any public or gateway use       | #232                      |
-| Confirm reference laptop and provisional budgets    | #209                      |
+| Confirm reference laptop and provisional budgets    | #215 (final numbers only) |
 
 ## Evidence to reuse
 

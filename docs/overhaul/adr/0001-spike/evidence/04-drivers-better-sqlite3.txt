@@ -1,0 +1,33 @@
+driver: better-sqlite3
+runtime: {"electron":"44.7.0","node":"24.21.0","abi":"149","type":"node","arch":"arm64","platform":"darwin"}
+open_ms: 172.25
+sqlite_version: {"v":"3.53.4"}
+migrate_ms: 7.71
+remigrate_ms: 0.46
+PASS 8 real migrations recorded once (rows=8)
+tables: 29
+PASS foreign keys enforced
+PASS repository write: createMangaIdentityWithInitialMapping
+PASS repository write: addLibraryEntry (awaits a thenable builder)
+PASS repository read: listLibraryEntries (boolean column mapped)
+PASS withTransaction commit: reorderLibraryCategories (B,A)
+PASS row visible inside the transaction
+PASS forced rollback rethrows
+PASS forced rollback removed the row
+PASS FK violation throws and rolls back (SQLITE_CONSTRAINT_FOREIGNKEY)
+PASS nested rollback keeps outer and drops inner
+PASS promise-returning callback refused and rolled back (Transaction function cannot return a promise)
+PASS extension logs write and count
+seed_1000_titles_200000_chapters_ms: 3794.32
+listLibraryEntries_all_median_ms: 298.59
+library_rows: 1001
+listLibraryEntries_favorites_median_ms: 42.63
+listChapterHeadersForMapping_200_median_ms: 0.09
+chapter_headers: 200
+page_50_chapters_by_mapping_and_index_median_ms: 0.05
+chapter_rows: 200000
+db_file_mb: 29
+reopen_ms: 0.18
+first_read_after_reopen_ms: 1.14
+PASS committed data survives reopen
+result: ALL PASS

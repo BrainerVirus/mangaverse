@@ -1,0 +1,5 @@
+import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
+import type { AppSchema } from './schema.js';
+
+/** Any synchronous Drizzle SQLite handle bound to the MangaVerse schema, on any driver. */
+export type AppDrizzleDb = BaseSQLiteDatabase<'sync', unknown, AppSchema>;

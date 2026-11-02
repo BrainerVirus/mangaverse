@@ -1,0 +1,105 @@
+// Runs the real test suites of @app/db and @app/extensions core, unchanged, on a chosen driver.
+// DRIVER=sql.js is the baseline; anything else swaps only the harness module.
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+import { defineConfig } from "vitest/config";
+
+const root = process.env.SPIKE_DIR;
+const work = `${root}/work/packages`;
+const native = process.env.DRIVER !== "sql.js";
+// CONVERTED=1: @app/db is the generated client and the harness hands out a host handle.
+const converted = process.env.CONVERTED === "1";
+const nativeHarness = `${root}/probes/lib/${converted ? "host-harness" : "native-harness"}.mjs`;
+const harness = native ? nativeHarness : `${work}/db-src/testing/sqljs-harness.ts`;
+
+// RPC_CLONE=1: every repository call made by a test or a feature module goes through
+// structuredClone, so anything that could not cross the boundary fails the suite.
+const cloning = process.env.RPC_CLONE === "1";
+const dbSrc = `${work}/db-src`;
+
+function boundNames(file) {
+  const text = readFileSync(file, "utf8");
+  const names = [...text.matchAll(/^export (?:async )?function (\w+)(?:<[^(]*>)?\(\s*db\b/gm)].map(
+    (m) => m[1],
+  );
+  for (const match of text.matchAll(/^export \* from '(\.[^']+)\.js'/gm)) {
+    names.push(...boundNames(path.resolve(path.dirname(file), `${match[1]}.ts`)));
+  }
+  return names;
+}
+
+function boundaryTarget(source, importer) {
+  if (!cloning || importer === undefined || importer.startsWith("virtual-rpc:")) return null;
+  if (source === "@app/db") return importer.includes("/db-src/") ? null : `${dbSrc}/index.ts`;
+  if (!source.startsWith(".") || !/\.test\.tsx?$/.test(importer) || !importer.includes("/db-src/"))
+    return null;
+  const file = path.resolve(path.dirname(importer), source.replace(/\.js$/, ".ts"));
+  return /\/db-src\/(repositories|migration|backup)\//.test(file) && existsSync(file) ? file : null;
+}
+
+export default defineConfig({
+  root,
+  plugins: [
+    {
+      name: "spike-harness",
+      enforce: "pre",
+      resolveId(source, importer) {
+        if (source.endsWith("testing/sqljs-harness.js")) return harness;
+        const target = boundaryTarget(source, importer);
+        return target === null ? null : `virtual-rpc:${target}`;
+      },
+      load(id) {
+        if (!id.startsWith("virtual-rpc:")) return null;
+        const file = id.slice("virtual-rpc:".length);
+        const exports = [...new Set(boundNames(file))].map(
+          (name) => `export const ${name} = rpcBoundary(real.${name});`,
+        );
+        return [
+          `import { rpcBoundary } from '${root}/probes/lib/rpc-boundary.mjs';`,
+          `import * as real from '${file}';`,
+          `export * from '${file}';`,
+          ...exports,
+        ].join("\n");
+      },
+    },
+  ],
+  resolve: {
+    alias: [
+      { find: "@app/db/testing", replacement: harness },
+      { find: "@app/db/node", replacement: `${work}/db-src/node.ts` },
+      {
+        find: /^@app\/db$/,
+        replacement: converted ? `${work}/db-src/client.gen.ts` : `${work}/db-src/index.ts`,
+      },
+      { find: "@app/extensions-sdk", replacement: `${work}/extensions-sdk-src/index.ts` },
+      { find: "@app/platform", replacement: `${work}/platform-src/index.ts` },
+      { find: "@spike/db", replacement: `${work}/db-src` },
+      { find: /^@app\/shared$/, replacement: `${work}/shared-src/index.ts` },
+    ],
+  },
+  test: {
+    // The module cache ignores these env switches and would keep the last mode's wiring.
+    experimental: { fsModuleCache: false },
+    environment: "node",
+    testTimeout: 60000,
+    include: converted
+      ? [
+          "probes/p3-representative.test.mjs",
+          "work/packages/extensions-src/core/*.test.ts",
+          "work/packages/extensions-src/*.test.ts",
+        ]
+      : [
+          "work/packages/db-src/**/*.test.ts",
+          "work/packages/extensions-src/core/*.test.ts",
+          "work/packages/extensions-src/*.test.ts",
+        ],
+    // Renderer-session tests: they exercise sql.js byte snapshots, which the host retires.
+    exclude: [
+      "**/persistent-database.test.ts",
+      "**/bundled-migrations.test.ts",
+      "**/browser.test.ts",
+      // Imports React components, which this run has no design system for.
+      "work/packages/extensions-src/index.test.ts",
+    ],
+  },
+});

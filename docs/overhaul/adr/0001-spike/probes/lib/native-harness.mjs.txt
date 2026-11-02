@@ -1,0 +1,42 @@
+// Stands in for packages/db/src/testing/sqljs-harness.ts: same exports, same `raw` shape
+// the tests use (exec, run, prepare, close), on a native driver. The tests stay unchanged.
+import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import { drizzleOver, openClient } from "./open-db.mjs";
+
+class RawShim {
+  constructor(client) {
+    this.client = client;
+  }
+  prepare(sql) {
+    return this.client.prepare(sql);
+  }
+  transaction(fn) {
+    return this.client.transaction(fn);
+  }
+  exec(sql, params = []) {
+    const trimmed = sql.trim();
+    if (!/^(select|with|pragma)\b/i.test(trimmed)) {
+      this.run(sql, params);
+      return [];
+    }
+    const rows = this.client.prepare(trimmed).all(...params);
+    if (rows.length === 0) return [];
+    return [{ columns: Object.keys(rows[0]), values: rows.map((row) => Object.values(row)) }];
+  }
+  run(sql, params) {
+    if (params !== undefined && params.length > 0) this.client.prepare(sql).run(...params);
+    else this.client.exec(sql);
+    return this;
+  }
+  close() {
+    this.client.close();
+  }
+}
+
+export async function createSqlJsHarness() {
+  const raw = new RawShim(openClient(process.env.DRIVER, ":memory:"));
+  raw.run("PRAGMA foreign_keys = ON");
+  const db = drizzleOver(raw);
+  migrate(db, { migrationsFolder: `${process.env.SPIKE_DIR}/work/migrations` });
+  return { raw, db, sqlModule: undefined };
+}

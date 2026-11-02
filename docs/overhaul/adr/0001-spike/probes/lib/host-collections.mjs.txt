@@ -1,0 +1,135 @@
+// The TanStack DB sync adapter. SQLite stays the source of truth: collections read through
+// the host contract, and the host's change events keep every window's collection current.
+import { createCollection, parseLoadSubsetOptions } from "@tanstack/db";
+import { unwrap } from "./rpc.mjs";
+
+function liveSync({ host, table, getKey, loadInitial, loadByKeys, eager }) {
+  const known = new Set();
+  let flushed = Promise.resolve();
+  const apply = async (changes, { begin, write, commit }) => {
+    const relevant = changes.filter((change) => change.table === table);
+    if (relevant.length === 0) return;
+    const deleted = new Set(relevant.filter((c) => c.op === "delete").map((c) => c.key));
+    const candidates = [...new Set(relevant.map((c) => c.key))].filter(
+      (key) => !deleted.has(key) && (eager || known.has(key)),
+    );
+    const rows = candidates.length > 0 ? await loadByKeys(candidates) : [];
+    begin();
+    for (const key of deleted) {
+      if (known.delete(key)) write({ type: "delete", key });
+    }
+    for (const row of rows) {
+      const key = getKey(row);
+      write({ type: known.has(key) ? "update" : "insert", value: row });
+      known.add(key);
+    }
+    commit();
+  };
+  return {
+    flush: () => flushed,
+    sync: {
+      sync: (params) => {
+        const { begin, write, commit, markReady, fail } = params;
+        const buffered = [];
+        let started = !eager;
+        const unsubscribe = host.onChange(({ changes }) => {
+          if (!started) buffered.push(changes);
+          else flushed = flushed.then(() => apply(changes, params));
+        });
+        const loadRows = (rows) => {
+          begin();
+          for (const row of rows) {
+            const key = getKey(row);
+            if (known.has(key)) continue;
+            write({ type: "insert", value: row });
+            known.add(key);
+          }
+          commit();
+        };
+        if (eager) {
+          loadInitial()
+            .then((rows) => {
+              loadRows(rows);
+              started = true;
+              for (const changes of buffered) flushed = flushed.then(() => apply(changes, params));
+              markReady();
+            })
+            .catch(fail);
+          return { cleanup: unsubscribe };
+        }
+        markReady();
+        return {
+          cleanup: unsubscribe,
+          loadSubset: async (options) => {
+            loadRows(await loadInitial(options));
+          },
+        };
+      },
+    },
+  };
+}
+
+export function createLibraryCollection(host, id = "library") {
+  const getKey = (row) => row.id;
+  const live = liveSync({
+    host,
+    table: "library_entries",
+    getKey,
+    eager: true,
+    loadInitial: () => host.listLibraryEntries(),
+    loadByKeys: (keys) => host.getLibraryEntries(keys),
+  });
+  return createCollection({
+    id,
+    getKey,
+    sync: live.sync,
+    onInsert: async ({ transaction }) => {
+      for (const { modified } of transaction.mutations) {
+        unwrap(
+          await host.addLibraryEntry({
+            id: modified.id,
+            mangaId: modified.mangaId,
+            status: modified.status,
+          }),
+        );
+      }
+      await live.flush();
+    },
+    onUpdate: async ({ transaction }) => {
+      for (const { key, changes } of transaction.mutations) {
+        unwrap(await host.setLibraryEntryFavorite(key, changes.favorite));
+      }
+      await live.flush();
+    },
+  });
+}
+
+export function createChapterCollection(host, requests) {
+  const getKey = (row) => row.id;
+  const live = liveSync({
+    host,
+    table: "chapters",
+    getKey,
+    eager: false,
+    loadInitial: async (options) => {
+      const { filters, limit } = parseLoadSubsetOptions(options);
+      const mangaId = filters.find(
+        (f) => f.field.join(".") === "mangaId" && f.operator === "eq",
+      )?.value;
+      if (mangaId === undefined)
+        throw new Error("Chapters load per title; a whole-table scan is refused.");
+      // Core asks for the page, then separately for ties on the last order value.
+      const exactIndex = filters.find(
+        (f) => f.field.join(".") === "index" && f.operator === "eq",
+      )?.value;
+      requests.push(exactIndex === undefined ? { mangaId, limit } : { mangaId, exactIndex });
+      return host.listChapterWindow({
+        mangaId,
+        limit: limit ?? 500,
+        ...(exactIndex !== undefined ? { exactIndex } : {}),
+      });
+    },
+    loadByKeys: (keys) => host.getChapters(keys),
+  });
+  return createCollection({ id: "chapters", getKey, syncMode: "on-demand", sync: live.sync });
+}

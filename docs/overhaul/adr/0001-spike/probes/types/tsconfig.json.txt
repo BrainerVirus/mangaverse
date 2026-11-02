@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "verbatimModuleSyntax": true,
+    "types": ["node"],
+    "paths": {
+      "@app/shared": ["../../work/packages/shared-src/index.ts"],
+      "@app/db": ["../../work/packages/db-src/index.ts"],
+      "@app/db/testing": ["../../work/packages/db-src/testing/sqljs-harness.ts"],
+      "@app/extensions-sdk": ["../../work/packages/extensions-sdk-src/index.ts"],
+      "@app/platform": ["../../work/packages/platform-src/index.ts"]
+    }
+  },
+  "include": [
+    "../../work/packages/db-src",
+    "../../work/packages/extensions-src/core",
+    "./assignability.ts",
+    "./host-opener.ts"
+  ],
+  "exclude": [
+    "../../work/packages/db-src/**/*.test.ts",
+    "../../work/packages/extensions-src/core/*.test.ts"
+  ]
+}

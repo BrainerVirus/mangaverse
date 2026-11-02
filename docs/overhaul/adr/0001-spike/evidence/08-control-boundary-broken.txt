@@ -1,0 +1,62 @@
+ FAIL  work/packages/db-src/integration.test.ts > @app/db > applies migrations idempotently on sql.js
+Caused by: TypeError: stmt.free is not a function
+ FAIL  work/packages/db-src/repositories/cache.test.ts > lists only blob keys a row still references
+ FAIL  work/packages/db-src/repositories/cache.test.ts > deletes across the SQL ceiling, counting duplicates and missing ids only once
+ FAIL  work/packages/db-src/repositories/extension-logs.test.ts > extension log repository > lists newest first and filters by provider and level
+ FAIL  work/packages/db-src/repositories/extension-logs.test.ts > extension log repository > keeps insertion order for entries written in the same millisecond
+ FAIL  work/packages/db-src/repositories/extension-logs.test.ts > extension log repository > retains only the newest per-provider entries
+ FAIL  work/packages/db-src/repositories/extension-logs.test.ts > extension log repository > trims the global retention window on append
+ FAIL  work/packages/db-src/repositories/extension-logs.test.ts > extension log repository > clears one provider without touching the others, and clears all
+ FAIL  work/packages/db-src/repositories/identities.test.ts > getMangaIdentities > Given identities and tags across two chunks, When reading in reverse order, Then every relation stays attached to its identity
+ FAIL  work/packages/db-src/repositories/identities.test.ts > getMangaIdentities > Given more than 32766 ids, When reading identities, Then order, duplicates and relations survive the SQL ceiling
+ FAIL  work/packages/db-src/repositories/identities.test.ts > getMangaIdentities > Given many ids, When reading identities, Then statement count does not grow with the list
+ FAIL  work/packages/db-src/repositories/identity-merge.test.ts > mergeMangaIdentities > Given two identities with library, chapters, read state, tracking and metadata, When merging, Then every child row lands on the target without loss
+ FAIL  work/packages/db-src/repositories/identity-merge.test.ts > mergeMangaIdentities > Given a duplicated provider mapping with colliding chapters, When merging, Then mappings and chapters dedupe while the newest read state and page data survive
+ FAIL  work/packages/db-src/repositories/identity-merge.test.ts > mergeMangaIdentities > Given a collapsed duplicate chapter, When the target has no pages, Then pages and cache rows follow the kept chapter and cache duplicates are dropped
+ FAIL  work/packages/db-src/repositories/identity-merge.test.ts > mergeMangaIdentities > Given the source last read a chapter that collapses, When merging, Then the merged entry resumes the kept chapter
+ FAIL  work/packages/db-src/repositories/identity-merge.test.ts > mergeMangaIdentities > Given both sides read, When the target read event is newer, Then the target progress wins despite a later source edit
+ FAIL  work/packages/db-src/repositories/identity-merge.test.ts > mergeMangaIdentities > Given only one side read, When the other side was only edited more recently, Then the read progress survives in both directions
+ FAIL  work/packages/db-src/repositories/identity-merge.test.ts > mergeMangaIdentities > Given neither side read, When merging, Then the merged entry keeps no resume progress
+ FAIL  work/packages/db-src/repositories/identity-merge.test.ts > mergeMangaIdentities > Given a write fails mid-merge, When the transaction rolls back, Then both identities and their children are untouched
+ FAIL  work/packages/db-src/repositories/identity-merge.test.ts > mergeMangaIdentities > Given one identity already absorbed another, When merging a third, Then mergedFromIds appends without duplicates
+ FAIL  work/packages/db-src/repositories/identity-merge.test.ts > previewMergeMangaIdentities > Given two library titles on the same provider with different progress, When previewing, Then conflicts are warnings and merging stays possible
+ FAIL  work/packages/db-src/repositories/identity-merge.test.ts > previewMergeMangaIdentities > Given both titles read different chapters, When previewing either direction, Then both warn that progress changes
+ FAIL  work/packages/db-src/repositories/identity-merge.test.ts > previewMergeMangaIdentities > Given only one title read, When the other was edited more recently, Then the preview does not warn about progress
+ FAIL  work/packages/db-src/repositories/identity-merge.test.ts > previewMergeMangaIdentities > Given neither title has a last-read chapter, When one stores a percentage, Then the preview warns that progress is dropped
+ FAIL  work/packages/db-src/repositories/identity-merge.test.ts > unmergeProviderMapping > Given a merged title, When splitting one mapping, Then its chapters and read state move to a restored identity and the target keeps the rest
+ FAIL  work/packages/db-src/repositories/identity-merge.test.ts > unmergeProviderMapping > Given the default source is split off, When unmerging, Then the kept title re-points default and active source at the remaining mapping
+ FAIL  work/packages/db-src/repositories/identity-merge.test.ts > unmergeProviderMapping > Given two mappings joined by a merge, When merging and unmerging repeatedly, Then state round-trips without duplicate rows
+ FAIL  work/packages/db-src/repositories/identity-merge.test.ts > unmergeProviderMapping > Given only one provider mapping, When unmerging it, Then both preview and write refuse
+ FAIL  work/packages/db-src/repositories/identity-merge.test.ts > listIdentityMatchProfiles > Given identities with titles, people and mappings, When listing profiles, Then every relation is attached and no provider call is made
+ FAIL  work/packages/db-src/repositories/library-activity.test.ts > library chapter activity > counts unread chapters in the active provider mapping only
+ FAIL  work/packages/db-src/repositories/library-activity.test.ts > library chapter activity > persists the live unread count without touching the resume timestamp
+ FAIL  work/packages/db-src/repositories/library-activity.test.ts > library chapter activity > keeps a restored unread count when there are no local chapters
+ FAIL  work/packages/db-src/repositories/library-organization.test.ts > listLibraryEntries filters > Given category, status, favorites and provider filters, Then they all combine
+ FAIL  work/packages/db-src/repositories/library-organization.test.ts > listLibraryEntries filters > Given titles whose ids and titles sort differently, Then title sort uses the canonical title
+ FAIL  work/packages/db-src/repositories/library-organization.test.ts > listLibraryEntries filters > Given date_added and last_updated, Then both sort in either direction with empty values last
+ FAIL  work/packages/db-src/repositories/library-organization.test.ts > listLibraryEntries filters > sorts by last read, unread count, provider and progress with stable tie-breakers
+ FAIL  work/packages/db-src/repositories/library-organization.test.ts > listLibraryEntries filters > sorts last read by reading time, not by favorites, status or category edits
+ FAIL  work/packages/db-src/repositories/library-organization.test.ts > listLibraryEntries filters > sorts by provider, preferring the active mapping then the manga default
+ FAIL  work/packages/db-src/repositories/library-organization.test.ts > listLibraryEntries filters > lists the providers present in the library for the toolbar
+ FAIL  work/packages/db-src/repositories/library-organization.test.ts > library category CRUD > creates, renames, reorders, pins and deletes categories with duplicate and empty guards
+ FAIL  work/packages/db-src/repositories/library-organization.test.ts > library category CRUD > assigns and removes categories in bulk and updates status and favorites
+ FAIL  work/packages/db-src/repositories/library-organization.test.ts > pinned category persistence > survives a repository reload from the same database
+ FAIL  work/packages/db-src/repositories/library.test.ts > addLibraryEntry > Given 32767 library entries, When listing and filtering, Then memberships survive chunk boundaries without duplicate entries
+ FAIL  work/packages/db-src/repositories/library.test.ts > addLibraryEntry > sets categories across the SQL ceiling and preserves validation and clearing semantics
+ FAIL  work/packages/db-src/repositories/library.test.ts > addLibraryEntry > adds once and rejects a duplicate manga
+ FAIL  work/packages/db-src/repositories/library.test.ts > addLibraryEntry > persists an explicit id instead of generating one
+ FAIL  work/packages/db-src/repositories/library.test.ts > addLibraryEntry > maps a concurrent insert that lands after the pre-check
+ FAIL  work/packages/db-src/repositories/manga-detail-state.test.ts > manga detail state repositories > lists and clears read states for one title
+ FAIL  work/packages/db-src/repositories/manga-detail-state.test.ts > manga detail state repositories > counts unread chapters only from the active provider mapping
+ FAIL  work/packages/db-src/repositories/manga-detail-state.test.ts > manga detail state repositories > sets and clears the preferred chapter source with a mapping guard
+ FAIL  work/packages/db-src/repositories/manga-detail-state.test.ts > manga detail state repositories > sets, replaces and removes a custom cover without dropping other overrides
+ FAIL  work/packages/db-src/repositories/read-state.test.ts > setChapterCompleted > Given a chapter, When marking read then unread, Then progress and the library unread count both follow
+ FAIL  work/packages/db-src/repositories/read-state.test.ts > setChapterCompleted > Given a read state written in the same millisecond, When marking unread, Then the explicit action still wins
+ FAIL  work/packages/db-src/repositories/read-state.test.ts > setChapterCompleted > Given a missing chapter, When marking it read, Then it reports the missing chapter
+ FAIL  work/packages/db-src/repositories/read-state.test.ts > markPreviousChaptersCompleted > Given a middle chapter open, When marking previous read, Then only earlier chapters of that mapping change and unread counts refresh
+ FAIL  work/packages/db-src/repositories/read-state.test.ts > markPreviousChaptersCompleted > Given the first chapter open, When marking previous read, Then nothing is written
+ FAIL  work/packages/db-src/repositories/search-history.test.ts > saved searches > persists query and filters, then lists them
+ FAIL  work/packages/db-src/repositories/search-history.test.ts > saved searches > updates an existing saved search in place instead of duplicating it
+ FAIL  work/packages/db-src/repositories/search-history.test.ts > saved searches > removes a saved search by id and reports whether it existed
+ Test Files  11 failed | 19 passed (30)
+      Tests  59 failed | 180 passed (239)

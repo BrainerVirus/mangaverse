@@ -1,0 +1,52 @@
+// The data host, run as a real Electron utility process.
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import { sql } from "drizzle-orm";
+import { drizzleOver, openClient } from "@spike/lib/open-db.mjs";
+import { createProcedures, trackChanges, validate } from "@spike/lib/host-procedures.mjs";
+import { serveHost } from "@spike/lib/rpc.mjs";
+import { LOCK_TRIGGERS, seed } from "@spike/lib/seed.mjs";
+
+const driver = process.env.DRIVER;
+const started = performance.now();
+const client = openClient(
+  driver,
+  path.join(mkdtempSync(path.join(tmpdir(), "adr0001-host-")), "app.db"),
+);
+client.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
+const db = drizzleOver(client);
+migrate(db, { migrationsFolder: `${process.env.SPIKE_DIR}/work/migrations` });
+const openedMs = performance.now() - started;
+seed(db);
+client.exec(LOCK_TRIGGERS);
+const drainChanges = trackChanges(
+  (text) => client.exec(text),
+  (text) => db.all(sql.raw(text)),
+  { library_entries: "id", chapters: "id", categories: "id" },
+);
+const host = serveHost({ procedures: createProcedures(db), validate, drainChanges });
+process.parentPort.on("message", (event) => {
+  if (event.data?.type !== "client") return;
+  const [port] = event.ports;
+  host.attach({
+    postMessage: (message) => port.postMessage(message),
+    set onmessage(handler) {
+      port.on("message", handler);
+    },
+    start: () => port.start(),
+  });
+});
+process.parentPort.postMessage({
+  type: "ready",
+  info: {
+    driver,
+    processType: process.type,
+    node: process.versions.node,
+    electron: process.versions.electron,
+    sqlite: db.get(sql`select sqlite_version() as v`).v,
+    openAndMigrateMs: Math.round(openedMs * 10) / 10,
+    seededMs: Math.round(performance.now() - started),
+  },
+});

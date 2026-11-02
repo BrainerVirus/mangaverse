@@ -1,0 +1,63 @@
+
+real	0m2.500s
+user	0m1.558s
+sys	0m6.731s
+== baseline
+turbo exit: 0
+ Tasks:    19 successful, 19 total
+== step A: AppDrizzleDb = BaseSQLiteDatabase<sync, unknown, AppSchema>
+ packages/db/src/adapter.ts | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)
+turbo exit: 0
+ Tasks:    19 successful, 19 total
+== step B: @app/db and @app/db/browser become the generated client
+generated 121 procedures into index.ts
+generated 114 procedures into browser.ts
+turbo exit: 1
+ Tasks:    13 successful, 19 total
+Failed:    @app/cache#typecheck, @app/db#typecheck, @app/extensions#typecheck, @app/reader#typecheck, @app/web#build, @app/web#typecheck
+TS errors:      898
+  in test files: 896 across 35 files
+  in production files:
+app/lib/local-db.ts(204,3): error TS2322: Type 'AppDrizzleDb' is not assignable to type 'HostHandle'.
+app/lib/local-db.ts(274,3): error TS2322: Type 'AppDrizzleDb' is not assignable to type 'HostHandle'.
+errors per file:
+ 205 src/integration.test.ts
+  71 src/cache-maintenance.test.ts
+  60 app/features/library/fetch-library-overview.test.ts
+  53 src/migration/provider-migration.test.ts
+  51 src/persist-reader-progress.test.ts
+  48 app/features/library/update-queue.test.ts
+  37 src/core/health-check.test.ts
+  29 src/core/extension-logs.test.ts
+  25 src/core/update-check.test.ts
+  24 src/core/confirm-and-ops.test.ts
+  24 app/features/library/fetch-recent-library.test.ts
+  21 src/fetch-reader-page.test.ts
+  20 src/page-cache-store.test.ts
+  20 app/features/library/chapter-actions.test.ts
+  18 app/features/theme/index.test.ts
+  18 app/features/storage/clear-storage-data.test.ts
+  18 app/features/search/fetch-search-page.test.ts
+  18 app/features/library/fetch-library-page.test.ts
+  16 src/core/registry-import.test.ts
+  16 app/features/library/library-actions.test.ts
+  15 src/cover-cache-store.test.ts
+  13 app/features/backup/index.test.ts
+  11 app/features/storage/fetch-storage-summary.test.ts
+   8 src/provider-actions.test.ts
+   7 src/fetch-extensions-page.test.ts
+   7 app/features/onboarding/fetch-onboarding-state.test.ts
+   6 app/features/settings/save-title-reader-settings.test.ts
+   6 app/features/settings/fetch-reader-settings.test.ts
+   6 app/features/settings/fetch-app-settings.test.ts
+   6 app/features/library/fetch-manga-detail.test.ts
+   5 src/fetch-provider-detail.test.ts
+   5 app/features/migration/index.test.ts
+   4 src/core/settings-persistence.test.ts
+   3 src/offline-pages.test.ts
+   2 app/lib/local-db.ts
+   2 app/features/library/duplicate-candidates.test.ts
+errors per code:
+ 811 error TS2345
+  87 error TS2322

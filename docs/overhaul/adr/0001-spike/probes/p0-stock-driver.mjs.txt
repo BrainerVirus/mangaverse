@@ -1,0 +1,22 @@
+// Does Drizzle's stock better-sqlite3 driver accept node:sqlite as-is? Run unbundled from SPIKE_DIR.
+import { DatabaseSync } from "node:sqlite";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import { sql } from "drizzle-orm";
+
+const db = drizzle(new DatabaseSync(":memory:"));
+const attempt = (name, fn) => {
+  try {
+    console.log(name, "OK", JSON.stringify(fn()));
+  } catch (error) {
+    console.log(name, "FAILS", `${error.name}: ${error.message}`);
+  }
+};
+attempt("run", () => db.run(sql`create table t (a integer)`));
+attempt("values (select with fields, uses stmt.raw())", () =>
+  db
+    .select({ a: sql`1` })
+    .from(sql`t`)
+    .all(),
+);
+attempt("get", () => db.get(sql`select 1 as a`));
+attempt("transaction", () => db.transaction(() => 1));

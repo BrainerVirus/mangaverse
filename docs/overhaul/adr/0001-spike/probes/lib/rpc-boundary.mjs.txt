@@ -1,0 +1,11 @@
+// What crossing the RPC boundary does to a repository call: clone arguments and result.
+export const rpcBoundary =
+  (fn) =>
+  (db, ...args) => {
+    // Control run: RPC_CLONE_BREAK=1 proves the boundary really sits on these calls.
+    if (process.env.RPC_CLONE_BREAK === "1") throw new Error("boundary reached");
+    const result = fn(db, ...structuredClone(args));
+    return typeof result?.then === "function"
+      ? result.then((value) => structuredClone(value))
+      : structuredClone(result);
+  };

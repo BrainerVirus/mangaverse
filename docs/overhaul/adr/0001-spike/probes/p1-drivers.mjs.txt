@@ -1,0 +1,284 @@
+// Real migrations, a real repository read and write, withTransaction commit and rollback.
+// Usage: DRIVER=node:sqlite|better-sqlite3 <electron-as-node> out/p1-drivers.mjs
+import { existsSync, mkdtempSync, rmSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { sql } from "drizzle-orm";
+import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import { toCategoryId, toProviderId } from "@app/shared";
+import { withTransaction } from "@spike/db/transactions.js";
+import {
+  categories,
+  chapters,
+  libraryEntries,
+  mangaIdentities,
+  mangaProviderMappings,
+} from "@spike/db/schema.js";
+import { createMangaIdentityWithInitialMapping } from "@spike/db/repositories/identities.js";
+import {
+  addLibraryEntry,
+  createLibraryCategory,
+  listLibraryCategories,
+  listLibraryEntries,
+  reorderLibraryCategories,
+} from "@spike/db/repositories/library.js";
+import { listChapterHeadersForMapping } from "@spike/db/repositories/chapters.js";
+import { appendExtensionLog, countExtensionLogs } from "@spike/db/repositories/extension-logs.js";
+import { drizzleOver, openClient } from "@spike/lib/open-db.mjs";
+
+const driver = process.env.DRIVER;
+const migrationsFolder = `${process.env.SPIKE_DIR}/work/migrations`;
+const dir = mkdtempSync(path.join(tmpdir(), "adr0001-"));
+const file = path.join(dir, "app.db");
+const ms = (fn) => {
+  const start = performance.now();
+  const value = fn();
+  return [Math.round((performance.now() - start) * 100) / 100, value];
+};
+const report = (name, value) =>
+  console.log(`${name}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
+let failed = 0;
+const check = (name, pass, detail = "") => {
+  if (!pass) failed += 1;
+  console.log(`${pass ? "PASS" : "FAIL"} ${name}${detail ? ` (${detail})` : ""}`);
+};
+
+report("driver", driver);
+report("runtime", {
+  electron: process.versions.electron,
+  node: process.versions.node,
+  abi: process.versions.modules,
+  type: process.type ?? "node",
+  arch: process.arch,
+  platform: process.platform,
+});
+
+const [openMs, client] = ms(() => openClient(driver, file));
+client.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
+const db = drizzleOver(client);
+report("open_ms", openMs);
+report("sqlite_version", db.get(sql`select sqlite_version() as v`));
+
+const [migrateMs] = ms(() => migrate(db, { migrationsFolder }));
+const [remigrateMs] = ms(() => migrate(db, { migrationsFolder }));
+report("migrate_ms", migrateMs);
+report("remigrate_ms", remigrateMs);
+const applied = db.all(sql`select count(*) as n from __drizzle_migrations`)[0].n;
+check("8 real migrations recorded once", applied === 8, `rows=${applied}`);
+const tableCount = db.all(sql`select count(*) as n from sqlite_master where type='table'`)[0].n;
+report("tables", tableCount);
+const fk = db.get(sql`select foreign_keys as v from pragma_foreign_keys`);
+check("foreign keys enforced", fk.v === 1);
+
+// Read and write through the real repositories, unchanged.
+const created = await createMangaIdentityWithInitialMapping(db, {
+  canonicalTitle: "Probe",
+  status: "ongoing",
+  contentRating: "safe",
+  providerId: toProviderId("probe"),
+  providerMangaId: "one",
+});
+check("repository write: createMangaIdentityWithInitialMapping", created.ok);
+const added = await addLibraryEntry(db, { mangaId: created.value.mangaId, status: "reading" });
+check("repository write: addLibraryEntry (awaits a thenable builder)", added.ok);
+const entries = await listLibraryEntries(db);
+check(
+  "repository read: listLibraryEntries",
+  entries.length === 1 && entries[0].favorite === false,
+  "boolean column mapped",
+);
+
+// withTransaction commit through a real repository.
+const a = await createLibraryCategory(db, { name: "A" });
+const b = await createLibraryCategory(db, { name: "B" });
+const reordered = await reorderLibraryCategories(db, [
+  b.value.id ?? b.value,
+  a.value.id ?? a.value,
+]);
+const order = (await listLibraryCategories(db)).map((c) => c.name);
+check(
+  "withTransaction commit: reorderLibraryCategories",
+  reordered.ok && order[0] === "B",
+  order.join(),
+);
+
+// Forced rollback.
+const before = db.select().from(categories).all().length;
+try {
+  withTransaction(db, (tx) => {
+    tx.insert(categories).values({ id: "rolled-back", name: "Rolled back", sortIndex: 9 }).run();
+    check(
+      "row visible inside the transaction",
+      tx.select().from(categories).all().length === before + 1,
+    );
+    throw new Error("forced");
+  });
+  check("forced rollback rethrows", false);
+} catch (error) {
+  check("forced rollback rethrows", error.message === "forced");
+}
+check("forced rollback removed the row", db.select().from(categories).all().length === before);
+
+// A constraint failure inside the transaction undoes the earlier statements.
+try {
+  withTransaction(db, (tx) => {
+    tx.insert(categories).values({ id: "fk-probe", name: "FK probe", sortIndex: 10 }).run();
+    tx.insert(chapters)
+      .values({
+        id: "c",
+        mangaId: "no-such",
+        providerMappingId: "no-such",
+        title: "t",
+        chapterIndex: 1,
+      })
+      .run();
+  });
+  check("FK violation throws", false);
+} catch (error) {
+  check(
+    "FK violation throws and rolls back",
+    db.select().from(categories).all().length === before,
+    `${error.code ?? error.name}`,
+  );
+}
+
+// Nested savepoint rollback keeps the outer write.
+withTransaction(db, (tx) => {
+  tx.insert(categories).values({ id: "outer", name: "Outer", sortIndex: 11 }).run();
+  try {
+    tx.transaction((inner) => {
+      inner.insert(categories).values({ id: "inner", name: "Inner", sortIndex: 12 }).run();
+      throw new Error("inner");
+    });
+  } catch {
+    // The outer transaction carries on.
+  }
+});
+const names = db
+  .select()
+  .from(categories)
+  .all()
+  .map((row) => row.id);
+check(
+  "nested rollback keeps outer and drops inner",
+  names.includes("outer") && !names.includes("inner"),
+);
+
+// An async callback cannot silently commit half a transaction.
+try {
+  withTransaction(db, async (tx) => {
+    tx.insert(categories).values({ id: "async", name: "Async", sortIndex: 13 }).run();
+  });
+  check("promise-returning callback refused", false);
+} catch (error) {
+  const gone = !db
+    .select()
+    .from(categories)
+    .all()
+    .some((row) => row.id === "async");
+  check("promise-returning callback refused and rolled back", gone, error.message);
+}
+
+// Feature repository: extension logs, including JSON columns.
+await appendExtensionLog(db, {
+  providerId: "p",
+  level: "error",
+  code: "x",
+  message: "m",
+  details: { a: 1 },
+});
+const counts = await countExtensionLogs(db);
+check("extension logs write and count", counts.total === 1 && counts.errors === 1);
+
+// Spec 4 budget dataset: 1,000 titles and 200,000 chapters.
+const TITLES = 1000;
+const PER = 200;
+const now = new Date().toISOString();
+const [seedMs] = ms(() => {
+  withTransaction(db, (tx) => {
+    for (let t = 0; t < TITLES; t += 1) {
+      const id = `m${t}`;
+      tx.insert(mangaIdentities)
+        .values({
+          id,
+          canonicalTitle: `Series ${t}`,
+          status: "ongoing",
+          contentRating: "safe",
+          merged: false,
+          defaultProviderMappingId: `map${t}`,
+        })
+        .run();
+      tx.insert(mangaProviderMappings)
+        .values({ id: `map${t}`, mangaId: id, providerId: "seed", providerMangaId: id })
+        .run();
+      tx.insert(libraryEntries)
+        .values({
+          id: `e${t}`,
+          mangaId: id,
+          favorite: t % 7 === 0,
+          status: "reading",
+          unreadCount: 0,
+          addedAt: now,
+        })
+        .run();
+      for (let c = 0; c < PER; c += 1) {
+        tx.insert(chapters)
+          .values({
+            id: `m${t}-c${c}`,
+            mangaId: id,
+            providerMappingId: `map${t}`,
+            title: `Chapter ${c}`,
+            chapterIndex: c,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .run();
+      }
+    }
+  });
+});
+report("seed_1000_titles_200000_chapters_ms", seedMs);
+const timed = async (name, fn, runs = 7) => {
+  const samples = [];
+  let last;
+  for (let i = 0; i < runs; i += 1) {
+    const start = performance.now();
+    last = await fn();
+    samples.push(performance.now() - start);
+  }
+  samples.sort((x, y) => x - y);
+  report(`${name}_median_ms`, Math.round(samples[runs >> 1] * 100) / 100);
+  return last;
+};
+const list = await timed("listLibraryEntries_all", () => listLibraryEntries(db));
+report("library_rows", list.length);
+await timed("listLibraryEntries_favorites", () =>
+  listLibraryEntries(db, { filter: { favoritesOnly: true } }),
+);
+const headers = await timed("listChapterHeadersForMapping_200", () =>
+  listChapterHeadersForMapping(db, "map500"),
+);
+report("chapter_headers", headers.length);
+await timed("page_50_chapters_by_mapping_and_index", () =>
+  db
+    .select({ id: chapters.id, title: chapters.title, index: chapters.chapterIndex })
+    .from(chapters)
+    .where(sql`provider_mapping_id = 'map500' and chapter_index >= 100`)
+    .orderBy(chapters.chapterIndex)
+    .limit(50)
+    .all(),
+);
+report("chapter_rows", db.all(sql`select count(*) as n from chapters`)[0].n);
+
+client.close();
+report("db_file_mb", Math.round(statSync(file).size / 1048576));
+const [reopenMs, reopened] = ms(() => openClient(driver, file));
+report("reopen_ms", reopenMs);
+const rdb = drizzleOver(reopened);
+const [firstReadMs, firstRead] = ms(() => rdb.select().from(libraryEntries).all());
+report("first_read_after_reopen_ms", firstReadMs);
+check("committed data survives reopen", firstRead.length === TITLES + 1);
+reopened.close();
+if (existsSync(dir)) rmSync(dir, { recursive: true, force: true });
+report("result", failed === 0 ? "ALL PASS" : `${failed} FAILED`);
+process.exit(failed === 0 ? 0 : 1);
