@@ -18,6 +18,7 @@ import {
   getRowGap,
 } from '../library-layout-metrics.js';
 import { useContainerWidth } from '../hooks/use-container-width.js';
+import { useScrollMargin } from '../hooks/use-scroll-margin.js';
 import { useScrollParent } from '../hooks/use-scroll-parent.js';
 
 /** Cap the pre-measurement fallback so a large library never mounts every card twice. */
@@ -109,6 +110,8 @@ export function VirtualLibraryGrid({
   const containerRef = useRef<HTMLElement>(null);
   const { scrollParent, isMeasured } = useScrollParent(containerRef);
   const containerWidth = useContainerWidth(containerRef);
+  // The grid sits below the overview shelves, so row offsets are relative to the scroll parent.
+  const scrollMargin = useScrollMargin(containerRef, scrollParent);
   const itemsKey = useMemo(() => items.map((item) => item.entry.id).join(','), [items]);
 
   const columnCount = getColumnCount(layout, containerWidth);
@@ -126,6 +129,7 @@ export function VirtualLibraryGrid({
     estimateSize: () => estimateRowSize,
     gap: rowGap,
     overscan: 3,
+    scrollMargin,
     enabled: rowCount > 0 && scrollParent !== null && containerWidth > 0,
   });
 
@@ -195,7 +199,7 @@ export function VirtualLibraryGrid({
                 top: 0,
                 left: 0,
                 width: '100%',
-                transform: `translateY(${virtualRow.start}px)`,
+                transform: `translateY(${virtualRow.start - scrollMargin}px)`,
                 display: 'grid',
                 gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
                 gap: `${rowGap}px`,

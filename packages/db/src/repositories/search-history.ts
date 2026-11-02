@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 import type { AppDrizzleDb } from '../adapter.js';
 import { savedSearches, searchHistory } from '../schema.js';
 
@@ -25,6 +25,8 @@ export async function appendSearchHistory(
   db: AppDrizzleDb,
   input: { readonly query: string; readonly providerId?: string },
 ): Promise<void> {
+  // A repeated query moves to the top instead of stacking another row.
+  await db.delete(searchHistory).where(sql`lower(${searchHistory.query}) = lower(${input.query})`);
   await db.insert(searchHistory).values({
     id: newId(),
     query: input.query,
@@ -37,12 +39,17 @@ export async function listSearchHistory(
   db: AppDrizzleDb,
   limit: number,
 ): Promise<SearchHistoryEntry[]> {
-  const rows = db
-    .select()
-    .from(searchHistory)
-    .orderBy(desc(searchHistory.searchedAt))
-    .limit(limit)
-    .all();
+  const all = db.select().from(searchHistory).orderBy(desc(searchHistory.searchedAt)).all();
+  // Rows written before append deduped can still repeat; keep the newest of each query.
+  const seen = new Set<string>();
+  const rows = all
+    .filter((r) => {
+      const key = r.query.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, limit);
   return rows.map((r) => ({
     id: r.id,
     query: r.query,

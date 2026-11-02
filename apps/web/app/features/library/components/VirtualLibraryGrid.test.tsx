@@ -16,25 +16,32 @@ import type {
 import { VirtualLibraryGrid } from './VirtualLibraryGrid.js';
 import type { LibraryItem } from '../types.js';
 
-const { cardRenderSpy } = vi.hoisted(() => ({ cardRenderSpy: vi.fn<() => void>() }));
+const { cardRenderSpy, virtualizerOptions } = vi.hoisted(() => ({
+  cardRenderSpy: vi.fn<() => void>(),
+  virtualizerOptions: { scrollMargin: undefined as number | undefined },
+}));
 
 vi.mock('@tanstack/react-virtual', () => ({
-  useVirtualizer: (options: { count: number; enabled?: boolean }) => ({
-    getTotalSize: () => options.count * 200,
-    getVirtualItems: () => {
-      if (options.enabled === false) {
-        return [];
-      }
+  useVirtualizer: (options: { count: number; enabled?: boolean; scrollMargin?: number }) => {
+    virtualizerOptions.scrollMargin = options.scrollMargin;
+    return {
+      getTotalSize: () => options.count * 200,
+      getVirtualItems: () => {
+        if (options.enabled === false) {
+          return [];
+        }
 
-      return Array.from({ length: Math.min(options.count, 3) }, (_, index) => ({
-        key: index,
-        index,
-        start: index * 200,
-        size: 200,
-      }));
-    },
-    measureElement: vi.fn<(...args: unknown[]) => unknown>(),
-  }),
+        return Array.from({ length: Math.min(options.count, 3) }, (_, index) => ({
+          key: index,
+          index,
+          // The real virtualizer reports starts that already include the scroll margin.
+          start: index * 200 + (options.scrollMargin ?? 0),
+          size: 200,
+        }));
+      },
+      measureElement: vi.fn<(...args: unknown[]) => unknown>(),
+    };
+  },
 }));
 
 vi.mock('@app/design-system', () => ({
@@ -219,6 +226,33 @@ describe('VirtualLibraryGrid', () => {
 
     expect(additionalRenders).toBeGreaterThan(0);
     expect(additionalRenders).toBeLessThanOrEqual(15);
+  });
+
+  it('Given the grid sits below other shelves, Then the virtualizer gets the offset and rows stay on screen', () => {
+    const rect = (top: number) => () => ({ top }) as DOMRect;
+    const original = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = function () {
+      if (this.getAttribute('aria-label') === 'Library titles') return rect(480)();
+      return original.call(this);
+    };
+    try {
+      render(
+        scrollContainer(
+          <VirtualLibraryGrid
+            items={createItems(120)}
+            layout="list"
+            onOpenManga={vi.fn<(mangaId: string) => void>()}
+          />,
+        ),
+      );
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = original;
+    }
+
+    expect(virtualizerOptions.scrollMargin).toBe(480);
+    const firstRow = document.querySelector<HTMLElement>('[data-index="0"]');
+    // Without subtracting the margin the first row would sit 480px down inside the grid.
+    expect(firstRow?.style.transform).toBe('translateY(0px)');
   });
 
   it('renders the complete library when there is no scrollable ancestor', () => {
