@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
-import { createRoot } from 'react-dom/client';
+import { render } from '@testing-library/react';
 import {
   buildThemeCssVariables,
   getBuiltInThemeDefinition,
@@ -16,9 +16,6 @@ const draft: ThemeDefinition = {
 };
 
 function renderEditor(overrides: Partial<Parameters<typeof ThemeEditorPage>[0]> = {}) {
-  const container = document.createElement('div');
-  document.body.appendChild(container);
-  const root = createRoot(container);
   const callbacks = {
     onChange: vi.fn<(next: ThemeDefinition) => void>(),
     onSave: vi.fn<() => void>(),
@@ -27,18 +24,11 @@ function renderEditor(overrides: Partial<Parameters<typeof ThemeEditorPage>[0]> 
     onCancel: vi.fn<() => void>(),
   };
 
-  act(() => {
-    root.render(<ThemeEditorPage draft={draft} isSaved {...callbacks} {...overrides} />);
-  });
+  const { container } = render(
+    <ThemeEditorPage draft={draft} isSaved {...callbacks} {...overrides} />,
+  );
 
-  return {
-    container,
-    ...callbacks,
-    cleanup: () => {
-      act(() => root.unmount());
-      container.remove();
-    },
-  };
+  return { container, ...callbacks };
 }
 
 function buttonByText(scope: ParentNode, label: string): HTMLButtonElement {
@@ -51,7 +41,7 @@ function buttonByText(scope: ParentNode, label: string): HTMLButtonElement {
 
 describe('theme editor', () => {
   it('keeps sections flat: no card is nested inside the editor', () => {
-    const { container, cleanup } = renderEditor();
+    const { container } = renderEditor();
 
     // Cards are content, not layout: the shell uses headings + spacing, and the
     // only bordered fill is the sample card inside each preview.
@@ -61,12 +51,9 @@ describe('theme editor', () => {
     for (const pane of panes) {
       expect(pane.querySelectorAll('.border')).toHaveLength(1);
     }
-
-    cleanup();
   });
 
   afterEach(() => {
-    document.body.innerHTML = '';
     document.documentElement.removeAttribute('style');
   });
 
@@ -93,8 +80,6 @@ describe('theme editor', () => {
     // Nothing may reach the document root before Save.
     expect(document.documentElement.getAttribute('style')).toBeNull();
     expect(document.documentElement.style.getPropertyValue('--background')).toBe('');
-
-    editor.cleanup();
   });
 
   it('Given the name field, When it changes, Then the draft is updated through the route', () => {
@@ -115,8 +100,6 @@ describe('theme editor', () => {
     expect(editor.onChange).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'Renamed Theme' }),
     );
-
-    editor.cleanup();
   });
 
   it('Given the shell actions, Then save, duplicate and cancel reach their handlers', () => {
@@ -131,8 +114,6 @@ describe('theme editor', () => {
     expect(editor.onSave).toHaveBeenCalledTimes(1);
     expect(editor.onDuplicate).toHaveBeenCalledTimes(1);
     expect(editor.onCancel).toHaveBeenCalledTimes(1);
-
-    editor.cleanup();
   });
 
   it('Given a saved draft, When Delete is confirmed, Then the route deletes it', () => {
@@ -151,8 +132,6 @@ describe('theme editor', () => {
     });
 
     expect(editor.onDelete).toHaveBeenCalledTimes(1);
-
-    editor.cleanup();
   });
 
   it('Given the editor, Then Guided is the default tab and Advanced renders its own panel', async () => {
@@ -182,8 +161,6 @@ describe('theme editor', () => {
     );
 
     expect(editor.container.querySelector('[data-testid="theme-guided-editor"]')).toBeNull();
-
-    editor.cleanup();
   });
 
   it('Then the duplicate and delete actions name the draft theme', () => {
@@ -193,8 +170,6 @@ describe('theme editor', () => {
       editor.container.querySelector('button[aria-label="Duplicate Warm Draft"]'),
     ).not.toBeNull();
     expect(editor.container.querySelector('button[aria-label="Delete Warm Draft"]')).not.toBeNull();
-
-    editor.cleanup();
   });
 
   it('Given an unsaved draft, Then there is no delete affordance', () => {
@@ -205,8 +180,6 @@ describe('theme editor', () => {
         (candidate) => candidate.textContent?.trim() === 'Delete theme',
       ),
     ).toBe(false);
-
-    editor.cleanup();
   });
 
   it('Given validation issues, Then they are listed with their token paths', () => {
@@ -223,8 +196,6 @@ describe('theme editor', () => {
       'light.overrides.--glass-stage: Unrecognized key: --glass-stage',
     );
     expect(editor.container.textContent).toContain('name: Theme name is required.');
-
-    editor.cleanup();
   });
 
   it('Given a rejected save, Then the alert names saving and keeps the provider message', () => {
@@ -236,8 +207,6 @@ describe('theme editor', () => {
     expect(alert?.textContent).toContain('Could not save the theme');
     expect(alert?.textContent).toContain('Theme.invalid: name is required');
     expect(alert?.textContent).not.toContain('Could not delete the theme');
-
-    editor.cleanup();
   });
 
   it('Given a rejected delete, Then the alert names deleting and keeps the provider message', () => {
@@ -247,7 +216,5 @@ describe('theme editor', () => {
     expect(alert?.textContent).toContain('Could not delete the theme');
     expect(alert?.textContent).toContain('database is locked');
     expect(alert?.textContent).not.toContain('Could not save the theme');
-
-    editor.cleanup();
   });
 });
