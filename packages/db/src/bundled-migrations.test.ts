@@ -34,6 +34,7 @@ const libraryPageIndexesSql = readFileSync(
   `${migrationsRoot}/0008_library_page_indexes.sql`,
   'utf8',
 );
+const downloadsSql = readFileSync(`${migrationsRoot}/0009_downloads.sql`, 'utf8');
 const journal = JSON.parse(readFileSync(`${migrationsRoot}/meta/_journal.json`, 'utf8'));
 
 const migrationFiles = [
@@ -81,6 +82,11 @@ const migrationFiles = [
     tag: '0008_library_page_indexes',
     sql: libraryPageIndexesSql,
     hash: '3e1d8437b48edaa6b8c2f90af9e0e863b1a2f120604ce533c1d21a2855fb285b',
+  },
+  {
+    tag: '0009_downloads',
+    sql: downloadsSql,
+    hash: '972b8031ccfb59c9dde30b52d04f6d4ede700bd25f806669fd0e47616188c6bc',
   },
 ];
 
@@ -163,6 +169,37 @@ describe('bundled migrations', () => {
     // A second run applies nothing and keeps the rows.
     migrateDatabaseFromBundled(raw, journal, migrationFiles);
     expect(singleValue(raw, 'SELECT COUNT(*) FROM library_entries')).toBe(1);
+  });
+
+  it('adds the downloads table to a database that predates it', async () => {
+    const SQL = await initSqlJs();
+    const raw = new SQL.Database();
+    migrateDatabaseFromBundled(
+      raw,
+      { ...journal, entries: journal.entries.slice(0, 9) },
+      migrationFiles.slice(0, 9),
+    );
+    expect(singleValue(raw, "SELECT COUNT(*) FROM sqlite_master WHERE name = 'downloads'")).toBe(0);
+
+    migrateDatabaseFromBundled(raw, journal, migrationFiles);
+
+    expect(singleValue(raw, "SELECT COUNT(*) FROM sqlite_master WHERE name = 'downloads'")).toBe(1);
+    raw.run(
+      `INSERT INTO downloads
+        (chapter_id, manga_id, provider_id, status, page_count, completed_pages,
+         failed_page_indexes_json, attempts, created_at, updated_at)
+       VALUES ('chapter-1', 'manga-1', 'mangadex', 'queued', 3, 1, '[2]', 1,
+               '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`,
+    );
+    expect(
+      singleValue(raw, 'SELECT status FROM downloads WHERE chapter_id = ?', ['chapter-1']),
+    ).toBe('queued');
+    expect(
+      ids(raw, "SELECT name FROM sqlite_master WHERE type = 'index' AND name LIKE 'downloads_%'"),
+    ).toEqual(['downloads_manga_idx', 'downloads_status_idx']);
+    // A second run applies nothing and keeps the rows.
+    migrateDatabaseFromBundled(raw, journal, migrationFiles);
+    expect(singleValue(raw, 'SELECT COUNT(*) FROM downloads')).toBe(1);
   });
 
   it('keeps one library entry per manga before adding the unique index', async () => {

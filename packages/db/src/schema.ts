@@ -398,6 +398,34 @@ export const cacheEntries = sqliteTable(
   ],
 );
 
+/**
+ * One explicit chapter download (#222). A download is separate from the page cache: its
+ * pages are stored with the `download` retention, which eviction never removes. Byte sizes
+ * are not duplicated here; they are summed from the download-retained `cache_entries`.
+ */
+export const downloads = sqliteTable(
+  'downloads',
+  {
+    chapterId: text('chapter_id').primaryKey(),
+    mangaId: text('manga_id').notNull(),
+    providerId: text('provider_id').notNull(),
+    /** queued | downloading | complete | failed | partial | cancelled */
+    status: text('status').notNull(),
+    pageCount: integer('page_count').notNull().default(0),
+    completedPages: integer('completed_pages').notNull().default(0),
+    failedPageIndexesJson: text('failed_page_indexes_json', { mode: 'json' }).$type<
+      number[] | null
+    >(),
+    attempts: integer('attempts').notNull().default(0),
+    lastErrorCode: text('last_error_code'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+    startedAt: text('started_at'),
+    completedAt: text('completed_at'),
+  },
+  (t) => [index('downloads_manga_idx').on(t.mangaId), index('downloads_status_idx').on(t.status)],
+);
+
 export const syncState = sqliteTable('sync_state', {
   key: text('key').primaryKey(),
   valueJson: text('value_json', { mode: 'json' }).notNull().$type<unknown>(),
@@ -449,6 +477,7 @@ export const schema = {
   searchHistory,
   savedSearches,
   cacheEntries,
+  downloads,
   syncState,
   extensionLogs,
 };

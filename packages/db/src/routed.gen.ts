@@ -76,6 +76,7 @@ export const getChapterReadStateOrdering = route(
   procedures.getChapterReadStateOrdering,
 );
 export const getChapterRows = route('getChapterRows', procedures.getChapterRows);
+export const getDownload = route('getDownload', procedures.getDownload);
 export const getLibraryChapterStats = route(
   'getLibraryChapterStats',
   procedures.getLibraryChapterStats,
@@ -107,6 +108,7 @@ export const getTitleReaderSettings = route(
   procedures.getTitleReaderSettings,
 );
 export const hasCacheBlobKey = route('hasCacheBlobKey', procedures.hasCacheBlobKey);
+export const listActiveDownloads = route('listActiveDownloads', procedures.listActiveDownloads);
 export const listAllCacheEntries = route('listAllCacheEntries', procedures.listAllCacheEntries);
 export const listCacheBlobKeys = route('listCacheBlobKeys', procedures.listCacheBlobKeys);
 export const listCacheEntriesByKind = route(
@@ -131,6 +133,12 @@ export const listChapterReadStatesForManga = route(
 );
 export const listChapterWindow = route('listChapterWindow', procedures.listChapterWindow);
 export const listChaptersForManga = route('listChaptersForManga', procedures.listChaptersForManga);
+export const listDownloadDetails = route('listDownloadDetails', procedures.listDownloadDetails);
+export const listDownloads = route('listDownloads', procedures.listDownloads);
+export const listDownloadsForManga = route(
+  'listDownloadsForManga',
+  procedures.listDownloadsForManga,
+);
 export const listExtensionLogs = route('listExtensionLogs', procedures.listExtensionLogs);
 export const listExtensionRegistries = route(
   'listExtensionRegistries',
@@ -211,6 +219,7 @@ export const refreshLibraryUnreadCountForChapter = route(
   'refreshLibraryUnreadCountForChapter',
   procedures.refreshLibraryUnreadCountForChapter,
 );
+export const removeDownload = route('removeDownload', procedures.removeDownload);
 export const removeLibraryEntriesFromCategories = route(
   'removeLibraryEntriesFromCategories',
   procedures.removeLibraryEntriesFromCategories,
@@ -281,6 +290,7 @@ export const unmergeProviderMapping = route(
   'unmergeProviderMapping',
   procedures.unmergeProviderMapping,
 );
+export const updateDownloadState = route('updateDownloadState', procedures.updateDownloadState);
 export const updateInstalledExtensionHealth = route(
   'updateInstalledExtensionHealth',
   procedures.updateInstalledExtensionHealth,
@@ -308,6 +318,7 @@ export const upsertChapterWithPages = route(
   'upsertChapterWithPages',
   procedures.upsertChapterWithPages,
 );
+export const upsertDownload = route('upsertDownload', procedures.upsertDownload);
 export const upsertExtensionRegistry = route(
   'upsertExtensionRegistry',
   procedures.upsertExtensionRegistry,
@@ -368,6 +379,7 @@ export const ROUTED_PROCEDURE_NAMES = [
   'getChapterReadState',
   'getChapterReadStateOrdering',
   'getChapterRows',
+  'getDownload',
   'getLibraryChapterStats',
   'getLibraryEntry',
   'getLibraryEntryForManga',
@@ -381,6 +393,7 @@ export const ROUTED_PROCEDURE_NAMES = [
   'getThemeSettings',
   'getTitleReaderSettings',
   'hasCacheBlobKey',
+  'listActiveDownloads',
   'listAllCacheEntries',
   'listCacheBlobKeys',
   'listCacheEntriesByKind',
@@ -390,6 +403,9 @@ export const ROUTED_PROCEDURE_NAMES = [
   'listChapterReadStatesForManga',
   'listChapterWindow',
   'listChaptersForManga',
+  'listDownloadDetails',
+  'listDownloads',
+  'listDownloadsForManga',
   'listExtensionLogs',
   'listExtensionRegistries',
   'listIdentityMatchProfiles',
@@ -419,6 +435,7 @@ export const ROUTED_PROCEDURE_NAMES = [
   'recordMigrationHistory',
   'refreshLibraryUnreadCount',
   'refreshLibraryUnreadCountForChapter',
+  'removeDownload',
   'removeLibraryEntriesFromCategories',
   'removeLibraryEntry',
   'removeSavedSearch',
@@ -441,6 +458,7 @@ export const ROUTED_PROCEDURE_NAMES = [
   'toLibraryEntry',
   'touchCacheEntry',
   'unmergeProviderMapping',
+  'updateDownloadState',
   'updateInstalledExtensionHealth',
   'updateLibraryCategory',
   'updateLibraryEntryReadingProgress',
@@ -450,6 +468,7 @@ export const ROUTED_PROCEDURE_NAMES = [
   'upsertChapterMetadata',
   'upsertChapterReadState',
   'upsertChapterWithPages',
+  'upsertDownload',
   'upsertExtensionRegistry',
   'upsertInstalledExtension',
   'upsertMangaIdentity',
