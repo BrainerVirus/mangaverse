@@ -41,7 +41,8 @@ const invoke = (channel: string, frame: WebFrameMain | null, ...args: unknown[])
 
 describe('page store IPC', () => {
   it('registers exactly the page store channels', () => {
-    expect([...handlers.keys()].sort()).toEqual([...PAGE_STORE_CHANNELS].sort());
+    const sorted = (values: Iterable<string>) => [...values].sort((a, b) => a.localeCompare(b));
+    expect(sorted(handlers.keys())).toEqual(sorted(PAGE_STORE_CHANNELS));
   });
 
   it('writes, resolves, lists and deletes for the app frame', async () => {

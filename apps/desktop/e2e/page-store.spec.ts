@@ -150,9 +150,10 @@ const pageRows = (userDataDir: string) =>
 function storedPages(userDataDir: string): { bytes: string[]; sidecars: string[] } {
   const directory = join(userDataDir, 'pages');
   const names = existsSync(directory) ? readdirSync(directory) : [];
+  const byName = (a: string, b: string) => a.localeCompare(b);
   return {
-    bytes: names.filter((name) => /^[0-9a-f]{64}$/.test(name)).sort(),
-    sidecars: names.filter((name) => /^[0-9a-f]{64}\.json$/.test(name)).sort(),
+    bytes: names.filter((name) => /^[0-9a-f]{64}$/.test(name)).sort(byName),
+    sidecars: names.filter((name) => /^[0-9a-f]{64}\.json$/.test(name)).sort(byName),
   };
 }
 
