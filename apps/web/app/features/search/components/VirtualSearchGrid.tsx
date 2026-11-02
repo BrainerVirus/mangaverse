@@ -68,9 +68,9 @@ export function VirtualSearchGrid({ results, onOpenManga, sourceLabels }: Virtua
   const shouldVirtualize =
     results.length >= VIRTUALIZE_MIN_ITEMS && scrollParent !== null && containerWidth > 0;
 
-  // react-doctor-disable-next-line react-hooks-js/incompatible-library -- ruling: web-compiler-skip-virtualizer: the matching oxlint ignore below carries the reason.
   // oxlint-disable-next-line react/incompatible-library -- TanStack Virtual returns imperative measure/getVirtualItems closures; skipping compiler memoization of this grid is the intended, documented behaviour (ruling recorded)
   const virtualizer = useVirtualizer({
+    // react-doctor-disable-line react-hooks-js/incompatible-library -- ruling: web-compiler-skip-virtualizer: see the oxlint ignore above.
     count: rowCount,
     getScrollElement: () => scrollParent,
     estimateSize: () => estimateRowSize,
