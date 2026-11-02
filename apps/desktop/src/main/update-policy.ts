@@ -90,16 +90,21 @@ export function createUpdatePromptController(
   };
 }
 
+/** The part of electron-updater's check result this module needs. */
+export interface UpdateCheckResult {
+  /** The background download `autoDownload` started, or null when there is nothing to get. */
+  readonly downloadPromise?: Promise<unknown> | null;
+}
+
 /**
- * Runs one update check. A failure (offline, rate limit, missing feed) is logged quietly and
- * never reaches the user or blocks startup.
+ * Runs one update check and consumes the download it starts, letting neither throw.
+ * electron-updater emits `error` for the same failure (offline, rate limit, missing feed,
+ * failed download) before rejecting, and main logs that event once, so the rejections
+ * themselves are only swallowed — an unhandled one would take the main process down.
  */
 export async function runQuietUpdateCheck(
-  check: () => Promise<unknown>,
-  report: (message: string) => void,
+  check: () => Promise<UpdateCheckResult | null>,
 ): Promise<void> {
-  await check().catch((error: unknown) => {
-    const detail = error instanceof Error ? error.message : 'unknown error';
-    report(`Update check failed: ${detail}`);
-  });
+  const result = await check().catch(() => null);
+  await result?.downloadPromise?.catch(() => undefined);
 }

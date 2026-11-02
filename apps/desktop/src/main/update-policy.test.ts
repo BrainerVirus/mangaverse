@@ -103,19 +103,27 @@ describe('createUpdatePromptController', () => {
 });
 
 describe('runQuietUpdateCheck', () => {
-  it('reports an offline or failed check without throwing', async () => {
-    const report = vi.fn<(message: string) => void>();
+  it('swallows an offline or failed check without throwing', async () => {
     await expect(
       runQuietUpdateCheck(async () => {
         throw new Error('net::ERR_INTERNET_DISCONNECTED');
-      }, report),
+      }),
     ).resolves.toBeUndefined();
-    expect(report).toHaveBeenCalledWith('Update check failed: net::ERR_INTERNET_DISCONNECTED');
   });
 
-  it('does not report a successful check', async () => {
-    const report = vi.fn<(message: string) => void>();
-    await runQuietUpdateCheck(async () => undefined, report);
-    expect(report).not.toHaveBeenCalled();
+  it('consumes the background download the check started', async () => {
+    // A rejected download would otherwise be unhandled and take the main process down.
+    await expect(
+      runQuietUpdateCheck(async () => ({
+        downloadPromise: Promise.reject(new Error('net::ERR_NETWORK_CHANGED')),
+      })),
+    ).resolves.toBeUndefined();
+  });
+
+  it('treats a check with nothing to download as success', async () => {
+    await expect(runQuietUpdateCheck(async () => null)).resolves.toBeUndefined();
+    await expect(
+      runQuietUpdateCheck(async () => ({ downloadPromise: null })),
+    ).resolves.toBeUndefined();
   });
 });

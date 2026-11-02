@@ -1,9 +1,11 @@
 import type { DesktopPlatformBridge, PlatformUpdateInfo } from '@app/platform';
 
 /**
- * The packaged app's update offer (#215). Main sends one event per downloaded release; this
- * small external store lets the prompt component read it with `useSyncExternalStore`, so
- * there is no effect or duplicate subscription in React.
+ * The packaged app's update offer (#215). Main only sends this event for a release it has
+ * already downloaded, so "Restart and install" is actionable the moment it appears; the
+ * install itself still waits for that click, and main withholds the event entirely while a
+ * chapter is open. This small external store lets the prompt component read it with
+ * `useSyncExternalStore`, so there is no effect or duplicate subscription in React.
  */
 export interface UpdatePromptSnapshot {
   readonly version: string;
@@ -62,7 +64,7 @@ export function dismissUpdatePrompt(): void {
   void bridge()?.updateDismiss();
 }
 
-/** Ask main to restart into the downloaded release; main refuses while a chapter is open. */
+/** Ask main to restart into the already-downloaded release; main defers until reading ends. */
 export function installUpdatePrompt(): void {
   snapshot = null;
   notify();

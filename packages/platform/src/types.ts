@@ -134,7 +134,12 @@ export interface PlatformDiagnosticsSnapshot {
   readonly capabilityFlags?: Readonly<Record<keyof Omit<PlatformCapabilities, 'runtime'>, boolean>>;
 }
 
-/** A release electron-updater downloaded and is ready to install. */
+/**
+ * A release electron-updater has already downloaded and verified in the background. The
+ * renderer only ever sees this once the bytes are on disk, so offering "Restart and install"
+ * is honest; nothing installs until the user asks for it, and main defers that install while
+ * any window is mid-chapter.
+ */
 export interface PlatformUpdateInfo {
   readonly version: string;
 }
@@ -239,11 +244,15 @@ export interface PlatformAdapter {
   };
   /**
    * Desktop only (spec 04 X7/X8): the packaged app's update offer. `setReaderActive` is the
-   * renderer's signal that a chapter is open, so main can hold the prompt until reading ends.
+   * renderer's signal that a chapter is open, so main holds both the prompt and an accepted
+   * install until reading ends.
    */
   readonly updates?: {
     setReaderActive(active: boolean): Promise<AppResult<void>>;
-    /** Restart into the downloaded release, without interrupting an open chapter. */
+    /**
+     * Restart into the already-downloaded release. If a chapter is open the request is kept
+     * and the install runs as soon as the last one closes.
+     */
     install(): Promise<AppResult<void>>;
     /** "Later": main will not offer this version again this session. */
     dismiss(): Promise<AppResult<void>>;
