@@ -11,6 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { AppDrizzleDb } from '@app/db';
 import { failureMessage } from '../lib/app-feedback.js';
 import { installFirstPartyProviders } from '../lib/first-party-providers.js';
+import { startMangaRefreshQueue } from '../lib/manga-refresh-queue.js';
 import { syncProviderNetworkAllowlistReported } from '../lib/provider-allowlist-sync.js';
 import {
   flushLocalDb,
@@ -86,6 +87,7 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
   // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-db-open: opening the IndexedDB/WASM session is a true external-system boundary with an async result; only an effect can start it per `attempt` and cancel on unmount.
   useEffect(() => {
     let cancelled = false;
+    let stopRefreshQueue: (() => void) | undefined;
 
     void getLocalDb()
       .then(async (handle) => {
@@ -101,6 +103,9 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
         await syncProviderNetworkAllowlistReported(handle);
 
         if (!cancelled) {
+          // Pending provider refreshes (O5) resume from the persisted queue here
+          // and on every reconnect, without adding a React effect of their own.
+          stopRefreshQueue = startMangaRefreshQueue(handle, queryClient);
           setValue((current) => ({ ...current, status: 'ready', db: handle, errorMessage: null }));
         }
       })
@@ -118,8 +123,9 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
 
     return () => {
       cancelled = true;
+      stopRefreshQueue?.();
     };
-  }, [attempt]);
+  }, [attempt, queryClient]);
 
   // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-sink-registration: `setPersistenceErrorHandler` is a module-level sink in the local-db lib; registering and clearing it is subscription bookkeeping, not derivable state.
   useEffect(() => {

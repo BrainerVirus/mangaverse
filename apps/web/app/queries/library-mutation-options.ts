@@ -14,7 +14,9 @@ import {
 } from '@/features/library';
 import type { LibraryEntryId, MangaId } from '@app/shared';
 import type { QueryClient } from '@tanstack/react-query';
+import { feedback } from '../lib/app-feedback.js';
 import { saveFeedback } from '../lib/feedback.js';
+import { drainMangaRefreshQueue, enqueueMangaRefresh } from '../lib/manga-refresh-queue.js';
 
 function assertDb(db: AppDrizzleDb | null): asserts db is AppDrizzleDb {
   if (db === null) {
@@ -35,11 +37,22 @@ export function createAddToLibraryMutationOptions(
     meta: saveFeedback('Could not add this title to your library.', 'Added to library'),
     mutationFn: async (entryId: LibraryEntryId) => {
       assertDb(db);
+      // Save first: the local entry is the durable outcome even when the
+      // provider is unreachable. Only then queue the provider refresh (O5).
       const result = await addMangaToLibrary(db, mangaId, 'planned', entryId);
       if (!result.ok) {
         throw new Error(result.error.message);
       }
+      await enqueueMangaRefresh(db, mangaId, 'add').catch((error: unknown) => {
+        // The entry is already saved; a queue write failure must not undo it.
+        feedback.log(error, 'manga refresh queue');
+      });
       return result.value;
+    },
+    onSuccess: () => {
+      if (db !== null) {
+        void drainMangaRefreshQueue(db, queryClient, { mangaId }).catch(() => undefined);
+      }
     },
     onMutate: async (entryId: LibraryEntryId) => {
       await queryClient.cancelQueries({ queryKey: libraryQueryKeys.all });

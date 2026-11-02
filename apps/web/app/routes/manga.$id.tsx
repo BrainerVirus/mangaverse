@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  fetchMangaDetail,
   findDuplicateCandidates,
   libraryQueryKeys,
   MangaDetailPage,
@@ -20,7 +19,6 @@ import {
 import {
   toLibraryEntryId,
   toMangaId,
-  type MangaId,
   type MangaProviderMapping,
   type ProviderMappingId,
 } from '@app/shared';
@@ -31,10 +29,14 @@ import {
   createToggleFavoriteMutationOptions,
 } from '../queries/library-mutation-options.js';
 import {
-  fetchProviderMangaDetail,
   fetchProviderRelatedTitles,
   hydrateProviderChaptersForMapping,
 } from '../queries/provider-query-options.js';
+import {
+  canRefreshMangaDetail,
+  localMangaDetailQueryOptions,
+  mangaDetailRefreshQueryOptions,
+} from '../queries/manga-detail-refresh.js';
 import {
   anyActionPending,
   canHydrateChapters,
@@ -58,36 +60,12 @@ import {
   runCoverAction,
   runProviderAction,
 } from '../queries/manga-detail-route-helpers.js';
-import { feedback } from '../lib/app-feedback.js';
 import { saveFeedback } from '../lib/feedback.js';
-import { getBindingForMangaId } from '../lib/provider-registry.js';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 
 export const Route = createFileRoute('/manga/$id')({
   component: MangaDetailRoute,
 });
-
-async function resolveMangaDetail(
-  db: Parameters<typeof fetchMangaDetail>[0],
-  mangaId: MangaId,
-  signal?: AbortSignal,
-) {
-  const local = await fetchMangaDetail(db, mangaId);
-
-  const binding = getBindingForMangaId(mangaId);
-  if (binding === null) {
-    return local;
-  }
-
-  try {
-    const refreshed = await fetchProviderMangaDetail(db, binding, mangaId, local, signal);
-    return refreshed ?? local;
-  } catch (error) {
-    // Provider failure must not blank a locally available detail page.
-    feedback.log(error, 'manga detail refresh');
-    return local;
-  }
-}
 
 function resolveActiveMapping(
   data: MangaDetailData | null | undefined,
@@ -115,11 +93,24 @@ function MangaDetailRoute() {
   const dbStatus = useLocalDbStatus();
   const ready = isDbReady(db, dbStatus);
 
-  const { data, isLoading, isError } = useQuery({
-    queryKey: libraryQueryKeys.detail(mangaId),
-    queryFn: ({ signal }) => resolveMangaDetail(db!, mangaId, signal),
+  const localDetailQuery = useQuery({
+    ...localMangaDetailQueryOptions(db!, mangaId),
+    // Local-first: the surface resolves from SQLite and never waits for a provider.
     enabled: ready,
   });
+
+  const detailRefreshQuery = useQuery({
+    ...mangaDetailRefreshQueryOptions(db!, queryClient, mangaId),
+    // The provider refresh runs beside the surface, never in front of it.
+    enabled: ready && canRefreshMangaDetail(mangaId),
+  });
+
+  const data = localDetailQuery.data;
+  const hasLocalDetail = data !== undefined && data !== null;
+  const awaitingFirstDetail =
+    ready && canRefreshMangaDetail(mangaId) && !hasLocalDetail && detailRefreshQuery.isFetching;
+  const detailFailed =
+    !hasLocalDetail && detailRefreshQuery.isError && !detailRefreshQuery.isFetching;
 
   const providerInfoQuery = useQuery({
     queryKey: extensionsQueryKeys.ui(),
@@ -169,12 +160,13 @@ function MangaDetailRoute() {
       return written;
     },
     meta: { feedback: { surface: 'inline' } },
-    enabled: canHydrateChapters(
-      activeProvider,
-      activeMapping,
-      ready,
-      countChaptersForMapping(data, activeMapping) > 0,
-    ),
+    enabled:
+      canHydrateChapters(
+        activeProvider,
+        activeMapping,
+        ready,
+        countChaptersForMapping(data, activeMapping) > 0,
+      ) && !detailRefreshQuery.isFetching,
     retry: false,
     staleTime: Infinity,
     gcTime: 0,
@@ -258,8 +250,8 @@ function MangaDetailRoute() {
     <MangaDetailPage
       mangaId={mangaId}
       data={detailOrNull(data)}
-      isLoading={isPageLoading(dbStatus, isLoading)}
-      isError={isPageError(dbStatus, isError)}
+      isLoading={isPageLoading(dbStatus, localDetailQuery.isLoading) || awaitingFirstDetail}
+      isError={isPageError(dbStatus, localDetailQuery.isError) || detailFailed}
       onBack={() =>
         goBackOrLibrary({
           canGoBack: () => router.history.canGoBack(),
