@@ -19,6 +19,7 @@
     "clean": "rm -rf dist out"
   },
   "dependencies": {
+    "@app/db": "workspace:*",
     "@app/platform": "workspace:*",
     "@app/shared": "workspace:*",
     "@app/web": "workspace:*",

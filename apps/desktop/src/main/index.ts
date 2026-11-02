@@ -8,11 +8,13 @@ import {
   clipboard,
   dialog,
   ipcMain,
+  MessageChannelMain,
   net,
   protocol,
   safeStorage,
   session,
   shell,
+  utilityProcess,
 } from 'electron';
 import {
   detectElectronCapabilities,
@@ -30,6 +32,7 @@ import {
   ingestArgvForInstallUrls,
   registerInstallProtocolAppEvents,
 } from './protocol-handoff.js';
+import { createTrustedFrameCheck, registerDataHostIpc } from './data-host.js';
 import { registerPlatformIpc } from './platform-ipc.js';
 import { createSecureStorageModel } from './secure-storage.js';
 import {
@@ -44,6 +47,8 @@ const __dirname = dirname(__filename);
 const PRODUCTION_RENDERER_URL = `${APP_ORIGIN}/`;
 
 let mainWindow: BrowserWindow | null = null;
+/** Windows this process created: only their main frames reach the data host. */
+const ownedWindows = new Set<BrowserWindow>();
 
 // Must run before app ready: a standard, secure scheme gets an origin, `'self'` and fetch.
 protocol.registerSchemesAsPrivileged([APP_SCHEME_PRIVILEGES]);
@@ -91,6 +96,9 @@ function createWindow(url: string) {
     titleBarStyle: 'default',
   });
 
+  const owned = mainWindow;
+  ownedWindows.add(owned);
+
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show();
   });
@@ -102,6 +110,7 @@ function createWindow(url: string) {
   }
 
   mainWindow.on('closed', () => {
+    ownedWindows.delete(owned);
     mainWindow = null;
   });
 
@@ -110,6 +119,27 @@ function createWindow(url: string) {
       void shell.openExternal(target);
     }
     return { action: 'deny' };
+  });
+}
+
+/** Starts the data host's utility process; the database lives in the profile directory. */
+function startDataHost() {
+  const hostProcess = utilityProcess.fork(join(__dirname, 'data-host-process.js'), [], {
+    serviceName: 'MangaVerse data host',
+    env: {
+      ...process.env,
+      MANGAVERSE_DATA_HOST_DB: join(app.getPath('userData'), 'mangaverse.sqlite'),
+    },
+  });
+  const devUrl = process.env.VITE_DEV_SERVER_URL;
+  registerDataHostIpc({
+    ipcMain,
+    createChannel: () => new MessageChannelMain(),
+    hostProcess,
+    isTrustedFrame: createTrustedFrameCheck({
+      ownedMainFrames: () => [...ownedWindows].map((window) => window.webContents.mainFrame),
+      allowedOrigins: devUrl ? [new URL(devUrl).origin] : [APP_ORIGIN],
+    }),
   });
 }
 
@@ -178,6 +208,7 @@ void app.whenReady().then(async () => {
         (await lookup(hostname, { all: true, verbatim: true })).map((entry) => entry.address),
     });
 
+    startDataHost();
     bootstrap();
   } catch (err) {
     // oxlint-disable-next-line no-console -- ruling: desktop-console-bootstrap: this catch quits the app on the next line, so no UI can surface the failure; the console is the only record and `.oxlintrc.json` already allows console under apps/desktop/src/main/**.
