@@ -9,7 +9,6 @@ import {
   dialog,
   ipcMain,
   MessageChannelMain,
-  net,
   protocol,
   safeStorage,
   session,
@@ -34,6 +33,8 @@ import {
 } from './protocol-handoff.js';
 import { createTrustedFrameCheck, registerDataHostIpc, superviseDataHost } from './data-host.js';
 import { registerPlatformIpc } from './platform-ipc.js';
+import { createProviderAllowlist } from './provider-allowlist.js';
+import { registerProviderNetworkIpc } from './provider-network-ipc.js';
 import {
   createPageProtocolHandler,
   createPageStore,
@@ -251,13 +252,17 @@ void app.whenReady().then(async () => {
       writeFile: (p, data) => writeFile(p, data, 'utf8'),
     });
 
+    const isTrustedFrame = createTrustedFrameCheck({
+      ownedMainFrames,
+      allowedOrigins: appOrigins(),
+    });
+
     registerPlatformIpc({
       ipcMain,
       getTargetWindow: () => mainWindow,
       dialog,
       clipboard,
       shell,
-      net,
       readFileUtf8: (p) => readFile(p, 'utf8'),
       writeFileUtf8: (p, c) => writeFile(p, c, 'utf8'),
       getCapabilities: () => buildCapabilities(),
@@ -265,14 +270,24 @@ void app.whenReady().then(async () => {
       secureStorage: secureModel,
       getLocalServiceInfo: () => LOCAL_SERVICE_INFO,
       buildDiagnosticsSnapshot,
-      resolveHostAddresses: async (hostname) =>
-        (await lookup(hostname, { all: true, verbatim: true })).map((entry) => entry.address),
+      networkTransport: {
+        resolveHostAddresses: async (hostname) =>
+          (await lookup(hostname, { all: true, verbatim: true })).map((entry) => entry.address),
+        // Log the refusal without the path or query: a provider URL can carry a token.
+        log: (event) => {
+          let host = '';
+          try {
+            host = event.url === undefined ? '' : new URL(event.url).hostname;
+          } catch {
+            host = '';
+          }
+          console.warn(`[provider-network] refused ${event.code}${host ? ` host=${host}` : ''}`);
+        },
+      },
     });
 
-    const isTrustedFrame = createTrustedFrameCheck({
-      ownedMainFrames,
-      allowedOrigins: appOrigins(),
-    });
+    const allowlist = createProviderAllowlist();
+    registerProviderNetworkIpc({ ipcMain, allowlist, isTrustedFrame });
     registerPageStore(isTrustedFrame);
     startDataHost(isTrustedFrame);
     bootstrap();

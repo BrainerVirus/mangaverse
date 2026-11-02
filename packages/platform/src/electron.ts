@@ -199,5 +199,12 @@ export function createElectronPlatformAdapter(bridge: DesktopPlatformBridge): Pl
     network: {
       fetchBytes: (url: string) => asResult(() => bridge.networkFetchBytes(url)),
     },
+
+    providerNetwork: {
+      registerProvider: (providerId: string, domains: readonly string[]) =>
+        asResult(() => bridge.providerNetworkRegister(providerId, domains)),
+      unregisterProvider: (providerId: string) =>
+        asResult(() => bridge.providerNetworkUnregister(providerId)),
+    },
   };
 }

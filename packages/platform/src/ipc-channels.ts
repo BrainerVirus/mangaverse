@@ -16,6 +16,8 @@ export const PLATFORM_IPC = {
   DIAGNOSTICS_GET: 'platform:diagnostics:get',
   LOCAL_SERVICE_GET_INFO: 'platform:local-service:get-info',
   NETWORK_FETCH_BYTES: 'platform:network:fetch-bytes',
+  PROVIDER_NETWORK_REGISTER: 'platform:provider-network:register',
+  PROVIDER_NETWORK_UNREGISTER: 'platform:provider-network:unregister',
   PAGE_STORE_PUT: 'platform:page-store:put',
   PAGE_STORE_URL: 'platform:page-store:url',
   PAGE_STORE_DELETE: 'platform:page-store:delete',

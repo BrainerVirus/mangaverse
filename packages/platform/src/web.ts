@@ -418,5 +418,10 @@ export function createWebPlatformAdapter(environment?: WebPlatformEnvironment): 
     network: {
       fetchBytes: async (url: string) => ok(await fetchNetworkBytes(url)),
     },
+
+    providerNetwork: {
+      registerProvider: async () => ok(undefined),
+      unregisterProvider: async () => ok(undefined),
+    },
   };
 }

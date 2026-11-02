@@ -1,5 +1,6 @@
 import * as z from 'zod';
 
+import { isProviderDomainPattern } from '@app/shared';
 import { PLATFORM_IPC, type PlatformIpcChannel } from './ipc-channels.js';
 import { isSafeNetworkFetchUrl } from './network-url.js';
 import { isValidSecureStorageKey } from './secure-storage-key.js';
@@ -59,6 +60,26 @@ export function isPageStoreKey(key: string): boolean {
 
 const pageStoreKey = z.string().refine(isPageStoreKey, { error: 'invalid page store key' });
 
+/** The renderer registers a provider's manifest-declared domains; a request never carries them. */
+export const providerNetworkProviderId = z
+  .string()
+  .transform((value) => value.trim().toLowerCase())
+  .refine((value) => /^[a-z0-9][a-z0-9._-]{0,63}$/.test(value), {
+    error: 'invalid provider id',
+  });
+
+const providerNetworkDomain = z
+  .string()
+  .transform((value) => value.trim().toLowerCase())
+  .refine(isProviderDomainPattern, { error: 'invalid provider domain pattern' });
+
+const providerNetworkRegistration = z
+  .object({
+    providerId: providerNetworkProviderId,
+    domains: z.array(providerNetworkDomain).max(32),
+  })
+  .strict();
+
 // Structured clone hands main an ArrayBuffer or a typed array, depending on what was sent.
 const pageBytes = z
   .union([z.instanceof(ArrayBuffer), z.instanceof(Uint8Array)])
@@ -99,6 +120,8 @@ export const platformIpcRequestSchema = z.discriminatedUnion('channel', [
   request(PLATFORM_IPC.PAGE_STORE_URL, z.tuple([pageStoreKey])),
   request(PLATFORM_IPC.PAGE_STORE_DELETE, z.tuple([pageStoreKey])),
   request(PLATFORM_IPC.PAGE_STORE_LIST_KEYS, z.tuple([])),
+  request(PLATFORM_IPC.PROVIDER_NETWORK_REGISTER, z.tuple([providerNetworkRegistration])),
+  request(PLATFORM_IPC.PROVIDER_NETWORK_UNREGISTER, z.tuple([providerNetworkProviderId])),
 ]);
 
 export type PlatformIpcRequest = z.output<typeof platformIpcRequestSchema>;

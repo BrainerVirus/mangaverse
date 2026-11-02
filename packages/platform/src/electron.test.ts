@@ -17,9 +17,16 @@ const pageStoreStubs = {
   pageStoreUrl: async () => ok(undefined),
   pageStoreDelete: async () => ok(undefined),
   pageStoreListKeys: async () => ok([]),
+  providerNetworkRegister: async () => ok(undefined),
+  providerNetworkUnregister: async () => ok(undefined),
 } satisfies Pick<
   DesktopPlatformBridge,
-  'pageStorePut' | 'pageStoreUrl' | 'pageStoreDelete' | 'pageStoreListKeys'
+  | 'pageStorePut'
+  | 'pageStoreUrl'
+  | 'pageStoreDelete'
+  | 'pageStoreListKeys'
+  | 'providerNetworkRegister'
+  | 'providerNetworkUnregister'
 >;
 
 describe('createElectronPlatformAdapter', () => {
@@ -293,6 +300,8 @@ describe('createElectronPlatformAdapter', () => {
         pageStoreUrl,
         pageStoreDelete,
         pageStoreListKeys,
+        providerNetworkRegister: async () => ok(undefined),
+        providerNetworkUnregister: async () => ok(undefined),
       });
       const key = 'page:p:m:c:0';
       const bytes = new Uint8Array([0xff, 0xd8, 0xff]).buffer;

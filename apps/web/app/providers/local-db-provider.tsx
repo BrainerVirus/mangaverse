@@ -11,6 +11,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { AppDrizzleDb } from '@app/db';
 import { failureMessage } from '../lib/app-feedback.js';
 import { installFirstPartyProviders } from '../lib/first-party-providers.js';
+import { syncProviderNetworkAllowlist } from '../lib/provider-allowlist-sync.js';
 import {
   flushLocalDb,
   getLocalDb,
@@ -90,6 +91,8 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
       .then(async (handle) => {
         try {
           await installFirstPartyProviders(handle);
+          // Main needs the same domain table before the first provider request.
+          await syncProviderNetworkAllowlist(handle);
         } catch (seedError) {
           // oxlint-disable-next-line no-console -- ruling: web-console-diagnostics: a skipped seed is non-fatal and never reaches `errorMessage` or the UI, so this warn is the only signal that a bundled provider is missing.
           // react-doctor-disable-next-line eslint/no-console -- ruling: web-console-diagnostics: a skipped seed is non-fatal and never reaches `errorMessage` or the UI, so this warn is the only signal that a bundled provider is missing.

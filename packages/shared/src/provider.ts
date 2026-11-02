@@ -235,7 +235,8 @@ const providerSettingsSupportSchema = z
 
 const DOMAIN_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/;
 
-function isProviderDomainPattern(value: string): boolean {
+/** Whether `value` is a bare hostname or a leading wildcard such as `*.example.org`. */
+export function isProviderDomainPattern(value: string): boolean {
   const host = value.startsWith('*.') ? value.slice(2) : value;
   return DOMAIN_PATTERN.test(host);
 }
@@ -401,6 +402,14 @@ export function providerNetworkDomains(manifest: ProviderManifest): readonly str
 
 /** Whether `host` is declared by the manifest. Wildcards match subdomains, never the apex. */
 export function providerAllowsHost(manifest: ProviderManifest, host: string): boolean {
+  return providerDomainsAllowHost(providerNetworkDomains(manifest), host);
+}
+
+/**
+ * Whether `host` matches one of `domains`. Main keeps only the declared domains
+ * (never a per-request list), so this is the single check both renderer and main use.
+ */
+export function providerDomainsAllowHost(domains: readonly string[], host: string): boolean {
   const normalized = host.trim().toLowerCase().replace(/\.$/, '');
   if (
     normalized.length === 0 ||
@@ -411,7 +420,7 @@ export function providerAllowsHost(manifest: ProviderManifest, host: string): bo
   ) {
     return false;
   }
-  return providerNetworkDomains(manifest).some((pattern) => {
+  return domains.some((pattern) => {
     if (!pattern.startsWith('*.')) return normalized === pattern;
     const suffix = pattern.slice(1);
     return normalized.endsWith(suffix) && normalized !== suffix.slice(1);

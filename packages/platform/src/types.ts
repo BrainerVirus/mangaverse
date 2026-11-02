@@ -145,6 +145,15 @@ export interface PlatformAdapter {
   readonly network: {
     fetchBytes(url: string): Promise<AppResult<PlatformNetworkFetchResult | undefined>>;
   };
+  /**
+   * Desktop only: tell main which hosts a provider's manifest declares. Main keeps
+   * that table, refuses unknown providers and unregistered hosts, and never takes a
+   * domain list with a request.
+   */
+  readonly providerNetwork: {
+    registerProvider(providerId: string, domains: readonly string[]): Promise<AppResult<void>>;
+    unregisterProvider(providerId: string): Promise<AppResult<void>>;
+  };
 }
 
 // Property-style function types, not methods: callers read these off the bridge
@@ -166,6 +175,11 @@ export interface DesktopPlatformBridge {
   diagnosticsGetSnapshot: () => Promise<AppResult<PlatformDiagnosticsSnapshot>>;
   localServiceGetInfo: () => Promise<AppResult<LocalServiceInfo>>;
   networkFetchBytes: (url: string) => Promise<AppResult<PlatformNetworkFetchResult | undefined>>;
+  providerNetworkRegister: (
+    providerId: string,
+    domains: readonly string[],
+  ) => Promise<AppResult<void>>;
+  providerNetworkUnregister: (providerId: string) => Promise<AppResult<void>>;
   /** Main's page store (spec 04 X13): bytes become a file, served back as `page://` URLs. */
   pageStorePut: (key: string, data: ArrayBuffer, mimeType: string) => Promise<AppResult<string>>;
   pageStoreUrl: (key: string) => Promise<AppResult<string | undefined>>;

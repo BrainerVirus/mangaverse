@@ -28,6 +28,11 @@ const valid: PlatformIpcRequest[] = [
   { channel: PLATFORM_IPC.PAGE_STORE_URL, args: ['page:p:m:c:0'] },
   { channel: PLATFORM_IPC.PAGE_STORE_DELETE, args: ['page:p:m:c:0'] },
   { channel: PLATFORM_IPC.PAGE_STORE_LIST_KEYS, args: [] },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_REGISTER,
+    args: [{ providerId: 'mangadex', domains: ['api.mangadex.org', '*.mangadex.network'] }],
+  },
+  { channel: PLATFORM_IPC.PROVIDER_NETWORK_UNREGISTER, args: ['mangadex'] },
 ];
 
 const invalid: { channel: PlatformIpcChannel; args: unknown[] }[] = [
@@ -54,6 +59,15 @@ const invalid: { channel: PlatformIpcChannel; args: unknown[] }[] = [
   { channel: PLATFORM_IPC.PAGE_STORE_URL, args: ['../../etc/passwd'] },
   { channel: PLATFORM_IPC.PAGE_STORE_DELETE, args: ['cover:p:m'] },
   { channel: PLATFORM_IPC.PAGE_STORE_LIST_KEYS, args: ['extra'] },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_REGISTER,
+    args: [{ providerId: 'mangadex', domains: ['https://api.mangadex.org'] }],
+  },
+  {
+    channel: PLATFORM_IPC.PROVIDER_NETWORK_REGISTER,
+    args: [{ providerId: 'mangadex', domains: ['api.mangadex.org'], extra: true }],
+  },
+  { channel: PLATFORM_IPC.PROVIDER_NETWORK_UNREGISTER, args: ['bad id'] },
 ];
 
 describe('platformIpcRequestSchema', () => {
