@@ -25,4 +25,10 @@ describe('buildContentSecurityPolicy', () => {
     expect(csp).toContain('https://api.mangadex.org');
     expect(csp).toContain('https://uploads.mangadex.org');
   });
+
+  it('lets images, and only images, load from the page store', () => {
+    const directives = buildContentSecurityPolicy(false).split('; ');
+    expect(directives).toContain("img-src 'self' data: blob: https: page:");
+    expect(directives.filter((directive) => directive.includes('page:'))).toHaveLength(1);
+  });
 });

@@ -16,6 +16,10 @@ export const PLATFORM_IPC = {
   DIAGNOSTICS_GET: 'platform:diagnostics:get',
   LOCAL_SERVICE_GET_INFO: 'platform:local-service:get-info',
   NETWORK_FETCH_BYTES: 'platform:network:fetch-bytes',
+  PAGE_STORE_PUT: 'platform:page-store:put',
+  PAGE_STORE_URL: 'platform:page-store:url',
+  PAGE_STORE_DELETE: 'platform:page-store:delete',
+  PAGE_STORE_LIST_KEYS: 'platform:page-store:list-keys',
 } as const;
 
 export type PlatformIpcChannel = (typeof PLATFORM_IPC)[keyof typeof PLATFORM_IPC];

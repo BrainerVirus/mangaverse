@@ -34,9 +34,17 @@ import {
 } from './protocol-handoff.js';
 import { createTrustedFrameCheck, registerDataHostIpc, superviseDataHost } from './data-host.js';
 import { registerPlatformIpc } from './platform-ipc.js';
+import {
+  createPageProtocolHandler,
+  createPageStore,
+  PAGE_SCHEME,
+  PAGE_SCHEME_PRIVILEGES,
+} from './page-store.js';
+import { registerPageStoreIpc } from './page-store-ipc.js';
 import { createSecureStorageModel } from './secure-storage.js';
 import {
   buildContentSecurityPolicy,
+  PAGE_CONTENT_SECURITY_POLICY,
   registerDevContentSecurityPolicy,
 } from './content-security-policy.js';
 
@@ -59,7 +67,7 @@ app.on('browser-window-created', (_event, window) => {
 });
 
 // Must run before app ready: a standard, secure scheme gets an origin, `'self'` and fetch.
-protocol.registerSchemesAsPrivileged([APP_SCHEME_PRIVILEGES]);
+protocol.registerSchemesAsPrivileged([APP_SCHEME_PRIVILEGES, PAGE_SCHEME_PRIVILEGES]);
 
 const installProtocolStore = createInstallProtocolStore();
 registerInstallProtocolAppEvents({ app, store: installProtocolStore });
@@ -80,6 +88,33 @@ function registerAppProtocol() {
     contentSecurityPolicy: buildContentSecurityPolicy(false),
   });
   session.defaultSession.protocol.handle(APP_SCHEME, handler);
+}
+
+/** The origins whose main frames are the app: the dev server in dev, app://app otherwise. */
+function appOrigins(): readonly string[] {
+  const devUrl = process.env.VITE_DEV_SERVER_URL;
+  // An unparseable dev URL allows no origin rather than throwing at startup.
+  const devOrigin = devUrl ? URL.parse(devUrl)?.origin : undefined;
+  return devUrl ? [devOrigin].filter((origin) => origin !== undefined) : [APP_ORIGIN];
+}
+
+const ownedMainFrames = () => [...ownedWindows].map((window) => window.webContents.mainFrame);
+
+/**
+ * Cached pages live as files under the profile (spec 04 X5, X13). The renderer writes and
+ * deletes them over authorized IPC and reads them only through page://, by opaque id.
+ */
+function registerPageStore(isTrustedFrame: ReturnType<typeof createTrustedFrameCheck>) {
+  const store = createPageStore(join(app.getPath('userData'), 'pages'));
+  session.defaultSession.protocol.handle(
+    PAGE_SCHEME,
+    createPageProtocolHandler({
+      store,
+      allowedOrigins: appOrigins(),
+      contentSecurityPolicy: PAGE_CONTENT_SECURITY_POLICY,
+    }),
+  );
+  registerPageStoreIpc({ ipcMain, store, isTrustedFrame });
 }
 
 function buildCapabilities(): PlatformCapabilities {
@@ -130,9 +165,8 @@ function createWindow(url: string) {
  * Starts the data host's utility process; the database lives in the profile directory. A host
  * that dies is restarted and every window that had connected gets a port to the new one.
  */
-function startDataHost() {
+function startDataHost(isTrustedFrame: ReturnType<typeof createTrustedFrameCheck>) {
   const databasePath = join(app.getPath('userData'), 'mangaverse.sqlite');
-  const ownedMainFrames = () => [...ownedWindows].map((window) => window.webContents.mainFrame);
   const supervisor = superviseDataHost({
     fork: () => {
       const child = utilityProcess.fork(
@@ -161,13 +195,6 @@ function startDataHost() {
     },
   });
   app.once('before-quit', () => supervisor.stop());
-  const devUrl = process.env.VITE_DEV_SERVER_URL;
-  // An unparseable dev URL allows no origin rather than throwing at startup.
-  const devOrigin = devUrl ? URL.parse(devUrl)?.origin : undefined;
-  const isTrustedFrame = createTrustedFrameCheck({
-    ownedMainFrames,
-    allowedOrigins: devUrl ? [devOrigin].filter((origin) => origin !== undefined) : [APP_ORIGIN],
-  });
   const ipc = registerDataHostIpc({
     ipcMain,
     createChannel: () => new MessageChannelMain(),
@@ -242,7 +269,12 @@ void app.whenReady().then(async () => {
         (await lookup(hostname, { all: true, verbatim: true })).map((entry) => entry.address),
     });
 
-    startDataHost();
+    const isTrustedFrame = createTrustedFrameCheck({
+      ownedMainFrames,
+      allowedOrigins: appOrigins(),
+    });
+    registerPageStore(isTrustedFrame);
+    startDataHost(isTrustedFrame);
     bootstrap();
   } catch (err) {
     // oxlint-disable-next-line no-console -- ruling: desktop-console-bootstrap: this catch quits the app on the next line, so no UI can surface the failure; the console is the only record and `.oxlintrc.json` already allows console under apps/desktop/src/main/**.

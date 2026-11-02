@@ -6,6 +6,7 @@ import {
   listIndexedDbBlobKeys,
   putIndexedDbBlob,
 } from './blob-storage-idb.js';
+import { isPageStoreKey } from './ipc-schemas.js';
 import { isValidSecureStorageKey } from './secure-storage-key.js';
 import type {
   DesktopPlatformBridge,
@@ -108,6 +109,10 @@ export function createElectronPlatformAdapter(bridge: DesktopPlatformBridge): Pl
 
     blobStorage: {
       put: async (key: string, data: ArrayBuffer, mimeType: string) => {
+        if (isPageStoreKey(key)) {
+          const stored = await asResult(() => bridge.pageStorePut(key, data, mimeType));
+          return stored.ok ? ok(undefined) : stored;
+        }
         if (typeof globalThis.indexedDB === 'undefined') {
           return err(platformUnsupported('Blob storage is not available on desktop.'));
         }
@@ -119,6 +124,9 @@ export function createElectronPlatformAdapter(bridge: DesktopPlatformBridge): Pl
         }
       },
       get: async (key: string) => {
+        if (isPageStoreKey(key)) {
+          return err(platformUnsupported('Pages are served by the page store, not read back.'));
+        }
         if (typeof globalThis.indexedDB === 'undefined') {
           return err(platformUnsupported('Blob storage is not available on desktop.'));
         }
@@ -130,6 +138,7 @@ export function createElectronPlatformAdapter(bridge: DesktopPlatformBridge): Pl
         }
       },
       delete: async (key: string) => {
+        if (isPageStoreKey(key)) return asResult(() => bridge.pageStoreDelete(key));
         if (typeof globalThis.indexedDB === 'undefined') {
           return err(platformUnsupported('Blob storage is not available on desktop.'));
         }
@@ -141,11 +150,16 @@ export function createElectronPlatformAdapter(bridge: DesktopPlatformBridge): Pl
         }
       },
       listKeys: async () => {
+        const pages = await asResult(() => bridge.pageStoreListKeys());
+        if (!pages.ok) return pages;
         if (typeof globalThis.indexedDB === 'undefined') {
           return err(platformUnsupported('Blob storage is not available on desktop.'));
         }
         try {
-          return ok(await listIndexedDbBlobKeys({ indexedDB: globalThis.indexedDB }));
+          // Page blobs left in IndexedDB by earlier versions are not this store's: the
+          // renderer-data import (#213) owns them, so the sweep never sees them.
+          const blobs = await listIndexedDbBlobKeys({ indexedDB: globalThis.indexedDB });
+          return ok([...blobs.filter((key) => !isPageStoreKey(key)), ...pages.value]);
         } catch {
           return err(platformUnsupported('Could not list blobs on desktop.'));
         }
@@ -162,6 +176,8 @@ export function createElectronPlatformAdapter(bridge: DesktopPlatformBridge): Pl
         }
       },
       revokeObjectUrl: async (url: string) => {
+        // A page:// URL names a stored file, not an object URL: nothing to release.
+        if (!url.startsWith('blob:')) return ok(undefined);
         if (typeof URL === 'undefined') {
           return err(platformUnsupported('Object URLs are not available on desktop.'));
         }
@@ -171,6 +187,12 @@ export function createElectronPlatformAdapter(bridge: DesktopPlatformBridge): Pl
         } catch {
           return err(platformUnsupported('Could not revoke object URL on desktop.'));
         }
+      },
+      resolveUrl: async (key: string) => {
+        if (!isPageStoreKey(key)) {
+          return err(platformUnsupported('Only pages are served by URL on desktop.'));
+        }
+        return asResult(() => bridge.pageStoreUrl(key));
       },
     },
 

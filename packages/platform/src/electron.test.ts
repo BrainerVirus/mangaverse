@@ -12,6 +12,16 @@ import type {
   PlatformNetworkFetchResult,
 } from './types.js';
 
+const pageStoreStubs = {
+  pageStorePut: async () => ok('page://store/id'),
+  pageStoreUrl: async () => ok(undefined),
+  pageStoreDelete: async () => ok(undefined),
+  pageStoreListKeys: async () => ok([]),
+} satisfies Pick<
+  DesktopPlatformBridge,
+  'pageStorePut' | 'pageStoreUrl' | 'pageStoreDelete' | 'pageStoreListKeys'
+>;
+
 describe('createElectronPlatformAdapter', () => {
   const caps: PlatformCapabilities = {
     runtime: 'electron',
@@ -49,6 +59,7 @@ describe('createElectronPlatformAdapter', () => {
       diagnosticsGetSnapshot: async () => ok({}),
       localServiceGetInfo: async () => ok({ running: true, host: '127.0.0.1', port: 9 }),
       networkFetchBytes: async () => ok(undefined),
+      ...pageStoreStubs,
     };
     const adapter = createElectronPlatformAdapter(bridge);
     const r = await adapter.capabilities();
@@ -93,6 +104,7 @@ describe('createElectronPlatformAdapter', () => {
       networkFetchBytes: vi.fn<
         (url: string) => Promise<AppResult<PlatformNetworkFetchResult | undefined>>
       >(async () => ok(undefined)),
+      ...pageStoreStubs,
     };
     const adapter = createElectronPlatformAdapter(bridge);
 
@@ -143,6 +155,7 @@ describe('createElectronPlatformAdapter', () => {
       diagnosticsGetSnapshot: async () => ok({}),
       localServiceGetInfo: async () => ok({ running: false, host: null, port: null }),
       networkFetchBytes: async () => ok(undefined),
+      ...pageStoreStubs,
     };
     const adapter = createElectronPlatformAdapter(bridge);
     const bad = await adapter.externalLinks.open('file:///etc/passwd');
@@ -170,6 +183,7 @@ describe('createElectronPlatformAdapter', () => {
       diagnosticsGetSnapshot: async () => ok({}),
       localServiceGetInfo: async () => ok({ running: false, host: null, port: null }),
       networkFetchBytes: async () => ok(undefined),
+      ...pageStoreStubs,
     };
     const adapter = createElectronPlatformAdapter(bridge);
     const r = await adapter.capabilities();
@@ -204,6 +218,7 @@ describe('createElectronPlatformAdapter', () => {
       diagnosticsGetSnapshot: async () => ok({}),
       localServiceGetInfo: async () => ok({ running: false, host: null, port: null }),
       networkFetchBytes: async () => ok(undefined),
+      ...pageStoreStubs,
     };
     const adapter = createElectronPlatformAdapter(bridge);
     const badKey = await adapter.secureStorage.get('bad key!');
@@ -229,6 +244,7 @@ describe('createElectronPlatformAdapter', () => {
       diagnosticsGetSnapshot: async () => ok({}),
       localServiceGetInfo: async () => ok({ running: false, host: null, port: null }),
       networkFetchBytes: async () => ok(undefined),
+      ...pageStoreStubs,
     };
     const adapter = createElectronPlatformAdapter(bridge);
     const r = await adapter.storage.getItem('reader.preference');
@@ -237,5 +253,65 @@ describe('createElectronPlatformAdapter', () => {
       throw new Error('expected desktop storage to be unsupported');
     }
     expect(r.error.code).toBe('platform.unsupported');
+  });
+
+  it('routes page blobs to the main page store and never to IndexedDB', async () => {
+    const pageId = 'a'.repeat(64);
+    const pageStorePut = vi.fn<DesktopPlatformBridge['pageStorePut']>(async () =>
+      ok(`page://store/${pageId}`),
+    );
+    const pageStoreUrl = vi.fn<DesktopPlatformBridge['pageStoreUrl']>(async () =>
+      ok(`page://store/${pageId}`),
+    );
+    const pageStoreDelete = vi.fn<DesktopPlatformBridge['pageStoreDelete']>(async () =>
+      ok(undefined),
+    );
+    const pageStoreListKeys = vi.fn<DesktopPlatformBridge['pageStoreListKeys']>(async () =>
+      ok(['page:p:m:c:0']),
+    );
+    const indexedDB = { open: vi.fn<() => never>() };
+    vi.stubGlobal('indexedDB', indexedDB);
+    try {
+      const adapter = createElectronPlatformAdapter({
+        getCapabilities: async () => ok(caps),
+        clipboardReadText: async () => ok(''),
+        clipboardWriteText: async () => ok(undefined),
+        fileOpenText: async () => ok({ content: '' }),
+        fileSaveText: async () => ok({ content: '' }),
+        fullscreenEnter: async () => ok(undefined),
+        fullscreenExit: async () => ok(undefined),
+        fullscreenIsActive: async () => ok(false),
+        protocolGetPendingInstallUrl: async () => ok(null),
+        externalLinkOpen: async () => ok(undefined),
+        secureStorageGet: async () => ok(undefined),
+        secureStorageSet: async () => ok(undefined),
+        secureStorageDelete: async () => ok(undefined),
+        diagnosticsGetSnapshot: async () => ok({}),
+        localServiceGetInfo: async () => ok({ running: false, host: null, port: null }),
+        networkFetchBytes: async () => ok(undefined),
+        pageStorePut,
+        pageStoreUrl,
+        pageStoreDelete,
+        pageStoreListKeys,
+      });
+      const key = 'page:p:m:c:0';
+      const bytes = new Uint8Array([0xff, 0xd8, 0xff]).buffer;
+
+      expect(await adapter.blobStorage.put(key, bytes, 'image/jpeg')).toEqual(ok(undefined));
+      expect(pageStorePut).toHaveBeenCalledWith(key, bytes, 'image/jpeg');
+      expect(await adapter.blobStorage.resolveUrl?.(key)).toEqual(ok(`page://store/${pageId}`));
+      expect((await adapter.blobStorage.get(key)).ok).toBe(false);
+      expect(await adapter.blobStorage.delete(key)).toEqual(ok(undefined));
+      expect(pageStoreDelete).toHaveBeenCalledWith(key);
+      // A page URL is not an object URL: revoking it touches nothing.
+      expect(await adapter.blobStorage.revokeObjectUrl(`page://store/${pageId}`)).toEqual(
+        ok(undefined),
+      );
+      expect(indexedDB.open).not.toHaveBeenCalled();
+      // Covers keep IndexedDB and are not served by URL.
+      expect((await adapter.blobStorage.resolveUrl?.('cover:p:m'))?.ok).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

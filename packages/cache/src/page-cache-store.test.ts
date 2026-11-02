@@ -345,3 +345,77 @@ describe('page cache store', () => {
     expect(await listCachedChapterPageIndexes(db, CHAPTER)).toEqual([]);
   });
 });
+
+/** Desktop's shape: the store keeps page bytes itself and serves them by URL. */
+function createUrlServingAdapter() {
+  const files = new Map<string, ArrayBuffer>();
+  let objectUrls = 0;
+  let reads = 0;
+  const adapter = {
+    blobStorage: {
+      put: async (key: string, data: ArrayBuffer) => {
+        files.set(key, data);
+        return ok(undefined);
+      },
+      get: async () => {
+        reads += 1;
+        return ok(undefined);
+      },
+      delete: async (key: string) => {
+        files.delete(key);
+        return ok(undefined);
+      },
+      listKeys: async () => ok([...files.keys()]),
+      createObjectUrl: async () => {
+        objectUrls += 1;
+        return ok('blob:unexpected');
+      },
+      revokeObjectUrl: async () => ok(undefined),
+      resolveUrl: async (key: string) =>
+        ok(files.has(key) ? `page://store/${encodeURIComponent(key).length}` : undefined),
+    },
+    network: {
+      fetchBytes: async () =>
+        ok({ data: new Uint8Array([0xff, 0xd8, 0xff]).buffer, mimeType: 'image/jpeg' }),
+    },
+  } as unknown as PlatformAdapter;
+  return { adapter, files, objectUrls: () => objectUrls, reads: () => reads };
+}
+
+describe('page cache store with a URL-serving store', () => {
+  const page = (
+    db: Awaited<ReturnType<typeof createSqlJsHarness>>['db'],
+    adapter: PlatformAdapter,
+  ) => ({
+    db,
+    adapter,
+    ...CHAPTER,
+    pageIndex: 0,
+    remoteUrl: 'https://uploads.mangadex.org/served.jpg',
+  });
+
+  it('Given a fetched page, When resolving it, Then the store URL is used and no bytes are read back or wrapped', async () => {
+    const { db } = await createSqlJsHarness();
+    const store = createUrlServingAdapter();
+
+    const fresh = await resolvePageObjectUrl(page(db, store.adapter));
+    expect(fresh).toMatchObject({ fromCache: false, byteSize: 3 });
+    expect(fresh?.objectUrl).toMatch(/^page:\/\/store\//);
+
+    const cached = await resolvePageObjectUrl(page(db, store.adapter));
+    expect(cached).toEqual({ objectUrl: fresh?.objectUrl, fromCache: true, byteSize: 3 });
+    expect(store.objectUrls()).toBe(0);
+    expect(store.reads()).toBe(0);
+  });
+
+  it('Given a row whose file is gone, When resolving, Then the page is fetched and stored again', async () => {
+    const { db } = await createSqlJsHarness();
+    const store = createUrlServingAdapter();
+    await resolvePageObjectUrl(page(db, store.adapter));
+    store.files.clear();
+
+    const again = await resolvePageObjectUrl(page(db, store.adapter));
+    expect(again).toMatchObject({ fromCache: false });
+    expect(store.files.size).toBe(1);
+  });
+});

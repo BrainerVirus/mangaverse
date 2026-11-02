@@ -21,6 +21,13 @@ const valid: PlatformIpcRequest[] = [
   { channel: PLATFORM_IPC.DIAGNOSTICS_GET, args: [] },
   { channel: PLATFORM_IPC.LOCAL_SERVICE_GET_INFO, args: [] },
   { channel: PLATFORM_IPC.NETWORK_FETCH_BYTES, args: ['https://example.com/page.png'] },
+  {
+    channel: PLATFORM_IPC.PAGE_STORE_PUT,
+    args: ['page:p:m:c:0', new Uint8Array([0xff, 0xd8]).buffer, 'image/jpeg'],
+  },
+  { channel: PLATFORM_IPC.PAGE_STORE_URL, args: ['page:p:m:c:0'] },
+  { channel: PLATFORM_IPC.PAGE_STORE_DELETE, args: ['page:p:m:c:0'] },
+  { channel: PLATFORM_IPC.PAGE_STORE_LIST_KEYS, args: [] },
 ];
 
 const invalid: { channel: PlatformIpcChannel; args: unknown[] }[] = [
@@ -40,6 +47,13 @@ const invalid: { channel: PlatformIpcChannel; args: unknown[] }[] = [
   { channel: PLATFORM_IPC.DIAGNOSTICS_GET, args: ['extra'] },
   { channel: PLATFORM_IPC.LOCAL_SERVICE_GET_INFO, args: ['extra'] },
   { channel: PLATFORM_IPC.NETWORK_FETCH_BYTES, args: ['http://127.0.0.1/page.png'] },
+  {
+    channel: PLATFORM_IPC.PAGE_STORE_PUT,
+    args: ['page:p:m:c:0', new ArrayBuffer(0), 'image/jpeg'],
+  },
+  { channel: PLATFORM_IPC.PAGE_STORE_URL, args: ['../../etc/passwd'] },
+  { channel: PLATFORM_IPC.PAGE_STORE_DELETE, args: ['cover:p:m'] },
+  { channel: PLATFORM_IPC.PAGE_STORE_LIST_KEYS, args: ['extra'] },
 ];
 
 describe('platformIpcRequestSchema', () => {

@@ -47,6 +47,19 @@ async function createObjectUrlFromBlob(
   return result.ok ? result.value : undefined;
 }
 
+/**
+ * The store's own URL for a page, when it serves pages by URL (desktop: `page://`). `null`
+ * means this store has none, so the caller reads the bytes and makes an object URL.
+ */
+async function resolveStoredPageUrl(
+  adapter: PlatformAdapter,
+  blobKey: string,
+): Promise<string | undefined | null> {
+  if (adapter.blobStorage.resolveUrl === undefined) return null;
+  const result = await adapter.blobStorage.resolveUrl(blobKey);
+  return result.ok ? result.value : null;
+}
+
 async function fetchRemotePage(
   adapter: PlatformAdapter,
   remoteUrl: string,
@@ -97,6 +110,15 @@ export async function getCachedPageObjectUrl(
 
   if (entry?.blobKey === undefined) {
     return undefined;
+  }
+
+  const storedUrl = await resolveStoredPageUrl(input.adapter, entry.blobKey);
+  if (storedUrl === undefined) {
+    return undefined;
+  }
+  if (storedUrl !== null) {
+    await touchCacheEntry(input.db, entry.id);
+    return { objectUrl: storedUrl, fromCache: true, byteSize: entry.byteSize };
   }
 
   const blobResult = await input.adapter.blobStorage.get(entry.blobKey);
@@ -172,6 +194,19 @@ export async function storePageInCache(
     return undefined;
   }
 
+  const blobKey = buildPageBlobKey(
+    String(input.providerId),
+    String(input.mangaId),
+    String(input.chapterId),
+    input.pageIndex,
+  );
+  const storedUrl = await resolveStoredPageUrl(input.adapter, blobKey);
+  if (storedUrl !== null) {
+    return storedUrl === undefined
+      ? undefined
+      : { objectUrl: storedUrl, fromCache: false, byteSize };
+  }
+
   const objectUrl = await createObjectUrlFromBlob(input.adapter, input.data, input.mimeType);
   if (objectUrl === undefined) {
     return undefined;
@@ -227,7 +262,7 @@ export async function resolvePageObjectUrl(
   return stored;
 }
 
-/** Returns a local blob URL for a page, or undefined while loading / on cache miss. Never returns remote URLs. */
+/** Returns a local URL (object URL, or `page://` on desktop) for a page, or undefined while loading / on cache miss. Never returns remote URLs. */
 export async function resolvePageUrl(input: PageCacheLookupInput): Promise<string | undefined> {
   const result = await resolvePageObjectUrl(input);
   return result?.objectUrl;
