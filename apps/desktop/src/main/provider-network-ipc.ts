@@ -42,7 +42,7 @@ const PROVIDER_RESPONSE_HEADERS = new Set([
   'x-ratelimit-retry-after',
 ]);
 
-export function filterProviderResponseHeaders(
+function filterProviderResponseHeaders(
   headers: Readonly<Record<string, string | string[]>>,
 ): Record<string, string> {
   const out: Record<string, string> = {};
@@ -86,11 +86,11 @@ export function registerProviderNetworkIpc(deps: ProviderNetworkIpcDeps): void {
       if (!parsed.success) {
         return toIpcAppResult(err(platformInvalidUrl('IPC request payload is invalid.')));
       }
-      try {
-        return toIpcAppResult(await handler(parsed.data.args as ArgsOf<C>));
-      } catch (e) {
-        return toIpcAppResult(err(platformUnexpected('Provider network call failed.', e)));
-      }
+      return Promise.resolve()
+        .then(() => handler(parsed.data.args as ArgsOf<C>))
+        .then(toIpcAppResult, (e: unknown) =>
+          toIpcAppResult(err(platformUnexpected('Provider network call failed.', e))),
+        );
     });
   }
 
@@ -107,61 +107,60 @@ export function registerProviderNetworkIpc(deps: ProviderNetworkIpcDeps): void {
   handle(PLATFORM_IPC.PROVIDER_NETWORK_REQUEST, async ([request]) => {
     const timeoutMs = Math.min(request.timeoutMs ?? REQUEST_TIMEOUT_MS, REQUEST_TIMEOUT_MS);
     const deadline = Date.now() + timeoutMs;
-    try {
-      const response = await withRefusalLog(deps.networkTransport, async () => {
-        // The provider id selects the allowlist, and the same check runs before
-        // every redirect hop inside the transport.
-        if (!deps.allowlist.allowsUrl(request.providerId, request.url)) {
-          throw new NetworkFetchError('network.blocked-url', 'Provider may not reach this host.', {
-            url: request.url,
-          });
-        }
-        return fetchNetworkResponse(
-          request.url,
-          async (url) => deps.allowlist.allowsUrl(request.providerId, url),
-          deps.networkTransport,
-          deadline,
-          {
-            ...(request.method !== undefined ? { method: request.method } : {}),
-            ...(request.headers !== undefined ? { headers: request.headers } : {}),
-            ...(request.body !== undefined ? { body: request.body } : {}),
-          },
-        );
-      });
-      const value: PlatformProviderResponse = {
-        status: response.status,
-        headers: filterProviderResponseHeaders(response.headers),
-        bodyText: new TextDecoder().decode(response.body),
-        finalUrl: response.finalUrl,
-      };
-      return ok(value);
-    } catch (e) {
-      return err(networkErrorToAppError(e));
-    }
+    return withRefusalLog(deps.networkTransport, async () => {
+      // The provider id selects the allowlist, and the same check runs before
+      // every redirect hop inside the transport.
+      if (!deps.allowlist.allowsUrl(request.providerId, request.url)) {
+        throw new NetworkFetchError('network.blocked-url', 'Provider may not reach this host.', {
+          url: request.url,
+        });
+      }
+      return fetchNetworkResponse(
+        request.url,
+        async (url) => deps.allowlist.allowsUrl(request.providerId, url),
+        deps.networkTransport,
+        deadline,
+        {
+          ...(request.method !== undefined ? { method: request.method } : {}),
+          ...(request.headers !== undefined ? { headers: request.headers } : {}),
+          ...(request.body !== undefined ? { body: request.body } : {}),
+        },
+      );
+    }).then(
+      (response): AppResult<unknown> => {
+        const value: PlatformProviderResponse = {
+          status: response.status,
+          headers: filterProviderResponseHeaders(response.headers),
+          bodyText: new TextDecoder().decode(response.body),
+          finalUrl: response.finalUrl,
+        };
+        return ok(value);
+      },
+      (e: unknown) => err(networkErrorToAppError(e)),
+    );
   });
 
   handle(PLATFORM_IPC.PROVIDER_NETWORK_STORE, async ([request]) => {
     const deadline = Date.now() + REQUEST_TIMEOUT_MS;
-    try {
-      const fetched = await withRefusalLog(deps.networkTransport, () =>
-        fetchMainProcessBytes(
-          request.url,
-          async (url) => deps.allowlist.allowsUrl(request.providerId, url),
-          deps.networkTransport,
-          deadline,
-        ),
-      );
-      const bytes = new Uint8Array(fetched.data);
-      // Main writes the page; the renderer only learns the URL and size.
-      const url = await deps.pageStore.put(request.key, bytes, fetched.mimeType);
-      const value = {
-        url,
-        mimeType: pageMimeType(fetched.mimeType, bytes) ?? fetched.mimeType,
-        byteSize: bytes.byteLength,
-      };
-      return ok(value);
-    } catch (e) {
-      return err(networkErrorToAppError(e));
-    }
+    return withRefusalLog(deps.networkTransport, () =>
+      fetchMainProcessBytes(
+        request.url,
+        async (url) => deps.allowlist.allowsUrl(request.providerId, url),
+        deps.networkTransport,
+        deadline,
+      ),
+    ).then(
+      async (fetched): Promise<AppResult<unknown>> => {
+        const bytes = new Uint8Array(fetched.data);
+        // Main writes the page; the renderer only learns the URL and size.
+        const url = await deps.pageStore.put(request.key, bytes, fetched.mimeType);
+        return ok({
+          url,
+          mimeType: pageMimeType(fetched.mimeType, bytes) ?? fetched.mimeType,
+          byteSize: bytes.byteLength,
+        });
+      },
+      (e: unknown) => err(networkErrorToAppError(e)),
+    );
   });
 }

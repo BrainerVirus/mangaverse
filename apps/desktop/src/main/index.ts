@@ -266,12 +266,10 @@ void app.whenReady().then(async () => {
         (await lookup(hostname, { all: true, verbatim: true })).map((entry) => entry.address),
       // Log the refusal without the path or query: a provider URL can carry a token.
       log: (event: { code: string; url?: string }) => {
-        let host = '';
-        try {
-          host = event.url === undefined ? '' : new URL(event.url).hostname;
-        } catch {
-          host = '';
-        }
+        const host =
+          event.url !== undefined && URL.canParse(event.url) ? new URL(event.url).hostname : '';
+        // oxlint-disable-next-line no-console -- ruling: provider-network-refusal-log: a refused provider request has no renderer to report to (the caller gets only a typed error), so main's log is the sole record of which host and rule refused it.
+        // react-doctor-disable-next-line eslint/no-console -- ruling: provider-network-refusal-log: a refused provider request has no renderer to report to (the caller gets only a typed error), so main's log is the sole record of which host and rule refused it.
         console.warn(`[provider-network] refused ${event.code}${host ? ` host=${host}` : ''}`);
       },
     };

@@ -13,7 +13,7 @@ export const MAX_REDIRECTS = 5;
  */
 export const MAX_RESPONSE_BYTES = 64 * 1024 * 1024;
 /** Bound one hop so a silent socket cannot leave the IPC handler pending forever. */
-export const HOP_TIMEOUT_MS = 30_000;
+const HOP_TIMEOUT_MS = 30_000;
 /** Bound validation plus the redirect chain; six hops alone could run 3 minutes. */
 export const REQUEST_TIMEOUT_MS = 60_000;
 
@@ -48,7 +48,7 @@ export class NetworkFetchError extends Error {
   }
 }
 
-export interface NetworkRefusalEvent {
+interface NetworkRefusalEvent {
   readonly code: NetworkFailureCode;
   readonly url?: string;
   readonly address?: string;
@@ -152,7 +152,7 @@ function hostnameOf(url: URL): string {
 }
 
 /** Parses an http(s) URL with no embedded credentials; anything else is refused. */
-export function parseHttpUrl(value: string): URL | undefined {
+function parseHttpUrl(value: string): URL | undefined {
   try {
     const url = new URL(value);
     if (url.protocol !== 'https:' && url.protocol !== 'http:') return undefined;

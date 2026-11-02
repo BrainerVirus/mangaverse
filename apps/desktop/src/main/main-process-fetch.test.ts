@@ -393,7 +393,11 @@ describe('nodeRequestHop', () => {
       deadline: Date.now() + 5_000,
     });
 
-    expect(reply).toEqual({ kind: 'redirect', location: 'https://cdn.example/page.png', status: 302 });
+    expect(reply).toEqual({
+      kind: 'redirect',
+      location: 'https://cdn.example/page.png',
+      status: 302,
+    });
   });
 
   it('refuses a declared body over the cap before reading it', async () => {

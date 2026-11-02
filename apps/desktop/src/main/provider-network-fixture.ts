@@ -19,6 +19,7 @@ async function fixtureHop(
   request: Parameters<typeof nodeRequestHop>[0],
 ): Promise<HopReply> {
   const target = new URL(`${request.url.pathname}${request.url.search}`, origin);
+  // react-doctor-disable-next-line react-doctor/no-fetch-response-used-without-status-check -- ruling: provider-network-fixture-status: the fixture proxy deliberately returns the status and short body it got; the transport, not this test proxy, decides what a non-2xx means.
   const response = await fetch(target, {
     method: request.method ?? 'GET',
     ...(request.headers !== undefined ? { headers: request.headers } : {}),

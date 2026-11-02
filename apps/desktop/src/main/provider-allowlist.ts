@@ -1,22 +1,26 @@
 import { isProviderDomainPattern, providerDomainsAllowHost } from '@app/shared';
 
 /** A provider id main will key the allowlist by: the manifest id, normalized. */
-export function isProviderId(value: string): boolean {
+function isProviderId(value: string): boolean {
   return /^[a-z0-9][a-z0-9._-]{0,63}$/.test(value);
 }
 
-export function normalizeProviderId(value: string): string {
+function normalizeProviderId(value: string): string {
   return value.trim().toLowerCase();
 }
 
-export function normalizeProviderDomains(domains: readonly string[]): readonly string[] {
+function normalizeProviderDomains(domains: readonly string[]): readonly string[] {
   const out: string[] = [];
+  const seen = new Set<string>();
   for (const domain of domains) {
     const normalized = domain.trim().toLowerCase();
     if (!isProviderDomainPattern(normalized)) {
       throw new Error(`Invalid provider network domain: ${domain}`);
     }
-    if (!out.includes(normalized)) out.push(normalized);
+    if (!seen.has(normalized)) {
+      seen.add(normalized);
+      out.push(normalized);
+    }
   }
   return out;
 }
@@ -56,12 +60,8 @@ export function createProviderAllowlist(): ProviderAllowlist {
     allowsUrl(providerId, url) {
       const patterns = byProvider.get(normalizeProviderId(providerId));
       if (patterns === undefined || patterns.length === 0) return false;
-      let parsed: URL;
-      try {
-        parsed = new URL(url);
-      } catch {
-        return false;
-      }
+      if (!URL.canParse(url)) return false;
+      const parsed = new URL(url);
       if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
       if (parsed.username.length > 0 || parsed.password.length > 0) return false;
       const host = parsed.hostname.replace(/^\[|\]$/g, '');

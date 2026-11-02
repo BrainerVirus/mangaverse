@@ -428,34 +428,35 @@ export function createWebPlatformAdapter(environment?: WebPlatformEnvironment): 
       // The browser has no main process: the page's own fetch is the transport.
       registerProvider: async () => ok(undefined),
       unregisterProvider: async () => ok(undefined),
-      request: async (input) => {
+      request: (input) => {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), input.timeoutMs ?? 30_000);
-        try {
-          const response = await fetch(input.url, {
-            method: input.method ?? 'GET',
-            ...(input.headers !== undefined ? { headers: input.headers } : {}),
-            ...(input.body !== undefined ? { body: input.body } : {}),
-            signal: controller.signal,
-            credentials: 'omit',
-            referrerPolicy: 'no-referrer',
-          });
-          const bodyText = await response.text();
-          const headers: Record<string, string> = {};
-          response.headers.forEach((value, name) => {
-            headers[name.toLowerCase()] = value;
-          });
-          return ok({
-            status: response.status,
-            headers,
-            bodyText,
-            finalUrl: response.url,
-          });
-        } catch (e) {
-          return err(platformIoFailed('Provider request failed.', e));
-        } finally {
-          clearTimeout(timer);
-        }
+        return fetch(input.url, {
+          method: input.method ?? 'GET',
+          ...(input.headers !== undefined ? { headers: input.headers } : {}),
+          ...(input.body !== undefined ? { body: input.body } : {}),
+          signal: controller.signal,
+          credentials: 'omit',
+          referrerPolicy: 'no-referrer',
+        })
+          .then(async (response) => {
+            const bodyText = await response.text();
+            const headers: Record<string, string> = {};
+            response.headers.forEach((value, name) => {
+              headers[name.toLowerCase()] = value;
+            });
+            return {
+              status: response.status,
+              headers,
+              bodyText,
+              finalUrl: response.url,
+            };
+          })
+          .then(
+            (value) => ok(value),
+            (e: unknown) => err(platformIoFailed('Provider request failed.', e)),
+          )
+          .finally(() => clearTimeout(timer));
       },
     },
   };

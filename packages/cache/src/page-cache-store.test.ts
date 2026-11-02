@@ -54,7 +54,7 @@ function createPageAdapter(): {
         revokeObjectUrl: async (_url: string) => ok(undefined),
       },
       providerNetwork: {},
-    network: {
+      network: {
         fetchBytes: async () => {
           fetches += 1;
           inFlight += 1;
@@ -322,7 +322,7 @@ describe('page cache store', () => {
         revokeObjectUrl: async () => ok(undefined),
       },
       providerNetwork: {},
-    network: {
+      network: {
         fetchBytes: () =>
           new Promise((resolve) => {
             resolveFetch = resolve;

@@ -48,6 +48,6 @@ describe('buildContentSecurityPolicy', () => {
     expect(directives).toContain("img-src 'self' data: blob: page:");
     expect(directives.filter((directive) => directive.includes('page:'))).toHaveLength(1);
     // Every remote image byte is fetched by main and shown from blob: or page://.
-    expect(directives).not.toContain('img-src \'self\' data: blob: https: page:');
+    expect(directives).not.toContain("img-src 'self' data: blob: https: page:");
   });
 });

@@ -11,7 +11,7 @@ function adapter() {
   return createAppPlatformAdapter();
 }
 
-export async function registerProviderNetwork(
+async function registerProviderNetwork(
   providerId: string,
   domains: readonly string[],
 ): Promise<AppResult<void>> {
@@ -20,7 +20,7 @@ export async function registerProviderNetwork(
   return result;
 }
 
-export async function unregisterProviderNetwork(providerId: string): Promise<AppResult<void>> {
+async function unregisterProviderNetwork(providerId: string): Promise<AppResult<void>> {
   const result = await adapter().providerNetwork.unregisterProvider(providerId);
   if (result.ok) registered.delete(providerId);
   return result;
@@ -33,14 +33,12 @@ export async function unregisterProviderNetwork(providerId: string): Promise<App
  * the adapter is a no-op; the browser keeps its own fetch.
  */
 export async function syncProviderNetworkAllowlist(db: AppDrizzleDb): Promise<void> {
-  try {
-    await syncInstalledProviders(db);
-  } catch (error) {
-    // Best effort: a failed sync leaves main fail-closed for that provider, and the
-    // next install, toggle or startup retries. It must never break the UI action.
+  // Best effort: a failed sync leaves main fail-closed for that provider, and the
+  // next install, toggle or startup retries. It must never break the UI action.
+  await syncInstalledProviders(db).catch((error: unknown) => {
     // oxlint-disable-next-line no-console -- ruling: provider-allowlist-sync-best-effort: the user-visible action succeeded; only the allowlist mirror failed, and this warn is the sole record before the next retry.
     console.warn('[provider-allowlist] sync failed:', error);
-  }
+  });
 }
 
 async function syncInstalledProviders(db: AppDrizzleDb): Promise<void> {
@@ -54,15 +52,12 @@ async function syncInstalledProviders(db: AppDrizzleDb): Promise<void> {
     }
   }
 
-  for (const providerId of [...registered]) {
-    if (!wanted.has(providerId)) {
-      // A failed unregister keeps the id in `registered`, so the next sync retries it.
-      await unregisterProviderNetwork(providerId);
-    }
-  }
+  const stale = [...registered].filter((providerId) => !wanted.has(providerId));
+  // A failed unregister keeps the id in `registered`, so the next sync retries it.
+  await Promise.all(stale.map((providerId) => unregisterProviderNetwork(providerId)));
 
-  for (const [providerId, domains] of wanted) {
-    // Always replace: an updated manifest may widen or narrow its domains.
-    await registerProviderNetwork(providerId, domains);
-  }
+  // Always replace: an updated manifest may widen or narrow its domains.
+  await Promise.all(
+    [...wanted].map(([providerId, domains]) => registerProviderNetwork(providerId, domains)),
+  );
 }

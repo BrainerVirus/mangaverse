@@ -5,9 +5,7 @@ import { createProviderAllowlist } from './provider-allowlist.js';
 import { registerProviderNetworkIpc } from './provider-network-ipc.js';
 
 function register(opts: { trusted?: boolean; requestHop?: RequestHop } = {}) {
-  const put = vi.fn<(...args: unknown[]) => Promise<string>>(
-    async () => 'page://store/abc',
-  );
+  const put = vi.fn<(...args: unknown[]) => Promise<string>>(async () => 'page://store/abc');
   const handlers = new Map<string, (...args: unknown[]) => Promise<unknown>>();
   const ipcMain = {
     handle: (channel: string, fn: (...args: unknown[]) => Promise<unknown>) => {

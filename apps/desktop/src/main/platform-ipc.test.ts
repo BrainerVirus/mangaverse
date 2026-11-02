@@ -332,9 +332,9 @@ describe('registerPlatformIpc', () => {
     'http://192.168.1.10/page.png',
     'file:///etc/passwd',
   ])('rejects network target %s before resolving it', async (url) => {
-    const resolveHostAddresses = vi.fn<(hostname: string) => Promise<readonly string[]>>(async () => [
-      '93.184.216.34',
-    ]);
+    const resolveHostAddresses = vi.fn<(hostname: string) => Promise<readonly string[]>>(
+      async () => ['93.184.216.34'],
+    );
     const requestHop = vi.fn<RequestHop>();
     const handlers = register({ networkTransport: { resolveHostAddresses, requestHop } });
     const fn = handlers.get(PLATFORM_IPC.NETWORK_FETCH_BYTES)!;

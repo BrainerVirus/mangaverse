@@ -22,8 +22,9 @@ Milestone 2 (Electron runtime) is in progress:
 | #214  | Landed: the production app loads a static client shell from `app://` with a strict CSP; the Nitro fork, loopback port and local Express service are gone. Offline deep routes are proven; dev still uses Vite.                                                                                                                                        |
 | #210  | Landed: repositories run in a `node:sqlite` utility process behind typed procedures; the renderer uses the same names; an existing snapshot imports once with counts and content verified; change capture broadcasts to every window, the library tracer runs on TanStack DB, chapters load on demand, and a crashed host restarts with no data lost. |
 | #212  | Landed: reader pages are files under a main-owned store, served by `page://` with opaque ids and app-frame-only access; SQLite holds only metadata; eviction removes files and rows together; web keeps IndexedDB and object URLs.                                                                                                                    |
+| #211  | Landed: provider HTTP runs in main behind the manifest-domain allowlist and a pinned-address transport; the renderer has no provider network path, and page/cover bytes are fetched and stored by main. See below.                                                                                                                                    |
 
-Next are #211 and #213 (its #210/#212 dependencies are met), then #215 last. Budgets stay provisional until
+Next is #213, then #215 last. Budgets stay provisional until
 #215 pins the reference machine; Windows, Linux and packaged builds remain unproven. Check `node:sqlite` on
 Windows and Linux first thing in #215. If it fails, take the ADR's `better-sqlite3` exit.
 
@@ -61,6 +62,32 @@ After a reconnect, Query caches are not invalidated; they refetch on their own s
 
 Carried from #209 and still open: `listLibraryEntries` takes 300 ms or more on the seeded dataset on every
 driver, over the 100 ms budget, and each library reload runs it.
+
+## Provider network (#211)
+
+- Main keeps `providerId -> manifest domains` in `provider-allowlist.ts`. The app frame registers it
+  over typed IPC at startup and after every install, import, enable, disable and uninstall; a request
+  never carries domains, and an unknown provider or undeclared host is refused.
+- `main-process-fetch.ts` resolves every address, rejects private, loopback, link-local, unspecified
+  and multicast answers (IPv4 and IPv6, including mapped forms), and connects to the validated
+  address through a pinned `lookup`, so a second DNS answer cannot redirect the socket. The allowlist
+  and address check run before every redirect hop; limits are 5 redirects, 64 MB and 60 s, and a
+  refusal is logged with the host only.
+- `providerNetworkRequest` returns status, filtered headers and a bounded body; `provider-fetch.ts`
+  adapts it to `Response` for `createMangaDexProvider`, so the SDK client, rate limiter and error
+  normalization are unchanged. `providerNetworkStore` fetches and writes a page or cover in main and
+  returns a `page://` URL plus metadata, so no cached image bytes cross IPC on desktop.
+- The production CSP is `connect-src 'self'` and `img-src 'self' data: blob: page:` (no `https:`);
+  dev adds only the Vite origin and its ws origin. User-initiated manifest/registry URLs go through
+  main's SSRF-checked byte fetch rather than the renderer.
+- Proof: unit tests cover the SSRF matrix, allowlist, rebinding, redirects and limits;
+  `apps/desktop/e2e/provider-network.spec.ts` covers Discover, covers, chapters and reader pages from
+  the dynamic `*.mangadex.network` baseUrl, a private target and a private redirect refused before
+  connecting, and the renderer's own provider fetch CSP-blocked. A live run against
+  `api.mangadex.org` returned 200 for search, detail, cover and page fetches with no console errors.
+- The E2E fixture transport (`provider-network-fixture.ts`) is enabled only by main's
+  `MANGAVERSE_E2E_PROVIDER_FIXTURE` environment; every allowlist, address, redirect and limit check
+  still runs.
 
 ## Package consolidation (#208)
 

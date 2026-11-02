@@ -6,10 +6,10 @@
     "no-try-catch": 2
   },
   "apps/desktop/src/main/main-process-fetch.ts": {
-    "no-try-catch": 4
+    "no-try-catch": 3
   },
   "apps/desktop/src/main/platform-ipc.ts": {
-    "no-try-catch": 10
+    "no-try-catch": 9
   },
   "apps/desktop/src/main/secure-storage.ts": {
     "no-try-catch": 3
