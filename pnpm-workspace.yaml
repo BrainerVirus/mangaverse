@@ -4,4 +4,8 @@ packages:
 allowBuilds:
   "@parcel/watcher": true
   electron: true
+  # Only Squirrel.Windows uses this; the Windows target is NSIS, so its download step is not
+  # needed. An explicit deny is an expected decision, so no repo-wide strictDepBuilds opt-out
+  # is needed.
+  electron-winstaller: false
   esbuild: true

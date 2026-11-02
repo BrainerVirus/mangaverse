@@ -1,0 +1,108 @@
+# Packages the Electron app for macOS, Windows and Linux (#215, spec 04 X8).
+#
+# Builds are unsigned unless the owner's secrets are present: electron-builder skips signing
+# and notarization when CSC_LINK / APPLE_* are empty, so absent secrets never fail the run and
+# the installers still work with the OS warning. None of these jobs install or launch the
+# Windows/Linux artifacts: CI proves they build, not that they install.
+name: Package
+
+on:
+  workflow_dispatch:
+  # Build the whole matrix on packaging changes so a PR proves all three platforms before
+  # landing, instead of finding out only when a tag is cut.
+  pull_request:
+    paths:
+      - "apps/desktop/**"
+      - "apps/web/**"
+      - "packages/**"
+      - ".github/workflows/package.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: package-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Package (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            platform: mac
+            # One arm runner builds both arches; there are no native modules to rebuild.
+            arch_args: "--x64 --arm64"
+            artifacts: |
+              apps/desktop/release/*.dmg
+              apps/desktop/release/*.zip
+              apps/desktop/release/latest*.yml
+              apps/desktop/release/*.blockmap
+          - os: windows-latest
+            platform: win
+            arch_args: "--x64"
+            artifacts: |
+              apps/desktop/release/*.exe
+              apps/desktop/release/latest*.yml
+              apps/desktop/release/*.blockmap
+          - os: ubuntu-latest
+            platform: linux
+            arch_args: "--x64"
+            artifacts: |
+              apps/desktop/release/*.AppImage
+              apps/desktop/release/*.deb
+              apps/desktop/release/latest*.yml
+              apps/desktop/release/*.blockmap
+    env:
+      # Signing turns on only when the owner's certificates are configured; empty secrets
+      # are ignored by electron-builder. `CSC_IDENTITY_AUTO_DISCOVERY` is false without a
+      # certificate so a runner's stray keychain identity never produces a half-signed app.
+      CSC_LINK: ${{ secrets.CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+      WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+      WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+      CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.CSC_LINK != '' }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build desktop app
+        run: pnpm --filter @app/desktop build
+
+      # No `--` before the arch flags: pnpm forwards it literally and electron-builder then
+      # ignores the whole flag list, silently building the runner's own arch.
+      - name: Package
+        run: pnpm --filter @app/desktop package:${{ matrix.platform }} ${{ matrix.arch_args }}
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: mangaverse-${{ matrix.platform }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: ${{ matrix.artifacts }}

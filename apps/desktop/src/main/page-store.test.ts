@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -45,7 +46,7 @@ const handler = () =>
   createPageProtocolHandler({ store, allowedOrigins: [APP], contentSecurityPolicy: CSP });
 
 describe('page store', () => {
-  it('stores bytes as a file named by an opaque id, with the key and MIME in a sidecar', async () => {
+  it('stores bytes as a file named by an opaque id, with the key, MIME and digest in a sidecar', async () => {
     const url = await store.put(KEY, JPEG, 'image/jpeg');
     const id = pageIdForKey(KEY);
 
@@ -56,6 +57,7 @@ describe('page store', () => {
     expect(JSON.parse(await readFile(join(root, `${id}.json`), 'utf8'))).toEqual({
       key: KEY,
       mimeType: 'image/jpeg',
+      sha256: createHash('sha256').update(JPEG).digest('hex'),
     });
     expect(await store.urlFor(KEY)).toBe(url);
     expect(await store.listKeys()).toEqual([KEY]);
@@ -68,6 +70,31 @@ describe('page store', () => {
     expect(verified?.sha256).toMatch(/^[0-9a-f]{64}$/);
     expect(await store.verify('page:not-stored')).toBeUndefined();
     await rm(join(root, pageIdForKey(KEY)));
+    expect(await store.verify(KEY)).toBeUndefined();
+  });
+
+  it('verifies nothing when the bytes no longer match the digest their sidecar recorded', async () => {
+    await store.put(KEY, JPEG, 'image/jpeg');
+    await writeFile(join(root, pageIdForKey(KEY)), PNG);
+
+    expect(await store.verify(KEY)).toBeUndefined();
+  });
+
+  it('still verifies a sidecar written before the digest was recorded', async () => {
+    await store.put(KEY, JPEG, 'image/jpeg');
+    await writeFile(
+      join(root, `${pageIdForKey(KEY)}.json`),
+      JSON.stringify({ key: KEY, mimeType: 'image/jpeg' }),
+    );
+
+    expect((await store.verify(KEY))?.byteSize).toBe(JPEG.byteLength);
+  });
+
+  it('keeps listing a sidecar whose bytes were lost, so an importer can see and verify it', async () => {
+    await store.put(KEY, JPEG, 'image/jpeg');
+    await rm(join(root, pageIdForKey(KEY)));
+
+    expect(await store.listKeys()).toEqual([KEY]);
     expect(await store.verify(KEY)).toBeUndefined();
   });
 

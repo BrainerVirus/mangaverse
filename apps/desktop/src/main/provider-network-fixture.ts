@@ -2,11 +2,11 @@ import type { HopReply, NetworkTransportDeps } from './main-process-fetch.js';
 import { nodeRequestHop } from './main-process-fetch.js';
 
 /**
- * Test-only transport used by the Electron E2E: it answers the recorded MangaDex
- * hosts from a local fixture server while the real allowlist, redirect, address,
- * size and deadline checks still run. Enabled only by main's own environment
- * (`MANGAVERSE_E2E_PROVIDER_FIXTURE`), never by renderer input, and every other
- * host still uses the production hop.
+ * Test-only transport used by the unpackaged Electron E2E: it answers the recorded
+ * MangaDex hosts from a local fixture server while the real allowlist, redirect, address,
+ * size and deadline checks still run. Main enables it only in an unpackaged run, from its
+ * own environment (`MANGAVERSE_E2E_PROVIDER_FIXTURE`) — never from renderer input and never
+ * in a packaged production build — and every other host still uses the production hop.
  */
 const FIXTURE_HOSTS: ReadonlySet<string> = new Set(['api.mangadex.org', 'uploads.mangadex.org']);
 

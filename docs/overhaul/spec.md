@@ -91,8 +91,8 @@ web gateway only streams them through to the user who asked.
 
 ## Not audited yet
 
-Packaged Electron launch, real iOS and Android devices, dark mode, and real pinch and swipe. Each
-is checked when its spec ships.
+Packaged Electron launch is proven on macOS arm64 (#215). Windows and Linux installs, real iOS and Android
+devices, dark mode, and real pinch and swipe are not. Each is checked when its spec ships.
 
 ## Out of scope
 

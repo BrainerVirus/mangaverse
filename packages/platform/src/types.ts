@@ -134,6 +134,16 @@ export interface PlatformDiagnosticsSnapshot {
   readonly capabilityFlags?: Readonly<Record<keyof Omit<PlatformCapabilities, 'runtime'>, boolean>>;
 }
 
+/**
+ * A release electron-updater has already downloaded and verified in the background. The
+ * renderer only ever sees this once the bytes are on disk, so offering "Restart and install"
+ * is honest; nothing installs until the user asks for it, and main defers that install while
+ * any window is mid-chapter.
+ */
+export interface PlatformUpdateInfo {
+  readonly version: string;
+}
+
 export type PlatformInstallPromptState =
   | { readonly kind: 'unsupported' }
   | { readonly kind: 'available' }
@@ -219,6 +229,17 @@ export interface PlatformAdapter {
       providers: readonly ProviderNetworkRegistration[],
       revision: number,
     ): Promise<AppResult<void>>;
+    /**
+     * Drop one provider from main's table immediately. Disable and uninstall await
+     * this before they commit, so a failure leaves the provider enabled and visible
+     * rather than enabled in main only. Ordered with `replaceProviders` by `revision`.
+     */
+    revokeProvider(providerId: string, revision: number): Promise<AppResult<void>>;
+    /**
+     * Main's monotonic revision for the next snapshot or revoke. Main assigns it so
+     * a renderer reload (or a backward clock) cannot reuse a fenced revision.
+     */
+    nextRevision(): Promise<AppResult<number>>;
     request(input: PlatformProviderRequest): Promise<AppResult<PlatformProviderResponse>>;
     /**
      * Desktop only: fetch and store in one main-process call, returning metadata and a
@@ -231,6 +252,23 @@ export interface PlatformAdapter {
     fetchAndStoreUserInitiated?: (
       input: PlatformProviderUserStoreRequest,
     ) => Promise<AppResult<PlatformProviderStoreResult | undefined>>;
+  };
+  /**
+   * Desktop only (spec 04 X7/X8): the packaged app's update offer. `setReaderActive` is the
+   * renderer's signal that a chapter is open, so main holds both the prompt and an accepted
+   * install until reading ends.
+   */
+  readonly updates?: {
+    setReaderActive(active: boolean): Promise<AppResult<void>>;
+    /**
+     * Restart into the already-downloaded release. If a chapter is open the request is kept
+     * and the install runs as soon as the last one closes.
+     */
+    install(): Promise<AppResult<void>>;
+    /** "Later": main will not offer this version again this session. */
+    dismiss(): Promise<AppResult<void>>;
+    /** Subscribes to main's ready-to-install events; returns the unsubscribe function. */
+    onAvailable(listener: (info: PlatformUpdateInfo) => void): () => void;
   };
 }
 
@@ -257,6 +295,8 @@ export interface DesktopPlatformBridge {
     providers: readonly ProviderNetworkRegistration[],
     revision: number,
   ) => Promise<AppResult<void>>;
+  providerNetworkRevoke: (providerId: string, revision: number) => Promise<AppResult<void>>;
+  providerNetworkNextRevision: () => Promise<AppResult<number>>;
   providerNetworkRequest: (
     input: PlatformProviderRequest,
   ) => Promise<AppResult<PlatformProviderResponse>>;
@@ -284,10 +324,18 @@ export interface DesktopPlatformBridge {
         readonly totalRows: number;
         readonly checksum: string;
       } | null;
+      /** Digests the completed import verified, by page-store key. */
+      readonly blobChecksums: Readonly<Record<string, string>>;
     }>
   >;
   /** Records the verified renderer-data import beside the native database. */
   rendererImportComplete: (report: RendererImportReport) => Promise<AppResult<void>>;
+  /** Desktop only: a chapter is open, so main holds the update prompt until it closes. */
+  updateSetReaderActive: (active: boolean) => Promise<AppResult<void>>;
+  updateInstall: () => Promise<AppResult<void>>;
+  updateDismiss: () => Promise<AppResult<void>>;
+  /** Main→renderer: a release downloaded and is ready to install. */
+  onUpdateAvailable: (listener: (info: PlatformUpdateInfo) => void) => () => void;
 }
 
 export interface WebCapabilityEnvironment {

@@ -9,28 +9,33 @@ const workspaceRoot = join(root, "../..");
 const webRoot = join(root, "../web");
 const shellBuildRoot = join(webRoot, "dist/static-shell");
 const rendererRoot = join(root, "dist/renderer");
+// On Windows pnpm is a .cmd shim; execFileSync needs the extension.
+const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 
 console.log("Cleaning old desktop dist...");
 rmSync(join(root, "dist"), { force: true, recursive: true });
 rmSync(shellBuildRoot, { force: true, recursive: true });
 
 console.log("Building workspace packages for the renderer...");
-execFileSync("pnpm", ["--filter", "@app/web^...", "build"], {
+execFileSync(pnpm, ["--filter", "@app/web^...", "build"], {
   cwd: workspaceRoot,
   stdio: "inherit",
+  // Node cannot spawn a .cmd shim without a shell on Windows.
+  shell: process.platform === "win32",
 });
 
 // The web deployment stays SSR on Nitro; this flag builds the same app as a prerendered
 // client shell for the app:// protocol (apps/web/vite.config.ts).
 console.log("Building static client shell...");
-execFileSync("pnpm", ["--filter", "@app/web", "run", "build:static-shell"], {
+execFileSync(pnpm, ["--filter", "@app/web", "run", "build:static-shell"], {
   cwd: workspaceRoot,
   stdio: "inherit",
   env: { ...process.env, MANGAVERSE_STATIC_SHELL: "1" },
+  shell: process.platform === "win32",
 });
 
-console.log("Building Electron main process...");
-execFileSync("pnpm", ["exec", "tsc", "-p", "tsconfig.json"], {
+console.log("Bundling Electron main and data host...");
+execFileSync("node", ["scripts/bundle-main.mjs"], {
   cwd: root,
   stdio: "inherit",
 });

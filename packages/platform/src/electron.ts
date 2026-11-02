@@ -13,6 +13,7 @@ import type {
   PlatformAdapter,
   PlatformFileOpenOptions,
   PlatformInstallPromptState,
+  PlatformUpdateInfo,
 } from './types.js';
 import { isSafeExternalUrl } from './url-protocol.js';
 
@@ -205,10 +206,21 @@ export function createElectronPlatformAdapter(bridge: DesktopPlatformBridge): Pl
     providerNetwork: {
       replaceProviders: (providers, revision) =>
         asResult(() => bridge.providerNetworkReplace(providers, revision)),
+      revokeProvider: (providerId, revision) =>
+        asResult(() => bridge.providerNetworkRevoke(providerId, revision)),
+      nextRevision: () => asResult(() => bridge.providerNetworkNextRevision()),
       request: (input) => asResult(() => bridge.providerNetworkRequest(input)),
       fetchAndStore: (input) => asResult(() => bridge.providerNetworkStore(input)),
       fetchAndStoreUserInitiated: (input) =>
         asResult(() => bridge.providerNetworkStoreUserInitiated(input)),
+    },
+
+    updates: {
+      setReaderActive: (active: boolean) => asResult(() => bridge.updateSetReaderActive(active)),
+      install: () => asResult(() => bridge.updateInstall()),
+      dismiss: () => asResult(() => bridge.updateDismiss()),
+      onAvailable: (listener: (info: PlatformUpdateInfo) => void) =>
+        bridge.onUpdateAvailable(listener),
     },
   };
 }

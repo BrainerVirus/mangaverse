@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { PLATFORM_IPC } from '@app/platform';
-import type { DesktopPlatformBridge } from '@app/platform';
+import { PLATFORM_IPC, UPDATE_AVAILABLE_IPC } from '@app/platform';
+import type { DesktopPlatformBridge, PlatformUpdateInfo } from '@app/platform';
 
 const bridge: DesktopPlatformBridge = {
   getCapabilities: () => ipcRenderer.invoke(PLATFORM_IPC.CAPABILITIES_GET),
@@ -23,6 +23,10 @@ const bridge: DesktopPlatformBridge = {
   networkFetchBytes: (url: string) => ipcRenderer.invoke(PLATFORM_IPC.NETWORK_FETCH_BYTES, url),
   providerNetworkReplace: (providers, revision) =>
     ipcRenderer.invoke(PLATFORM_IPC.PROVIDER_NETWORK_REPLACE, { providers, revision }),
+  providerNetworkRevoke: (providerId, revision) =>
+    ipcRenderer.invoke(PLATFORM_IPC.PROVIDER_NETWORK_REVOKE, { providerId, revision }),
+  providerNetworkNextRevision: () =>
+    ipcRenderer.invoke(PLATFORM_IPC.PROVIDER_NETWORK_NEXT_REVISION),
   providerNetworkRequest: (input) =>
     ipcRenderer.invoke(PLATFORM_IPC.PROVIDER_NETWORK_REQUEST, input),
   providerNetworkStore: (input) => ipcRenderer.invoke(PLATFORM_IPC.PROVIDER_NETWORK_STORE, input),
@@ -37,6 +41,17 @@ const bridge: DesktopPlatformBridge = {
   rendererImportState: () => ipcRenderer.invoke(PLATFORM_IPC.RENDERER_IMPORT_STATE),
   rendererImportComplete: (report) =>
     ipcRenderer.invoke(PLATFORM_IPC.RENDERER_IMPORT_COMPLETE, report),
+  updateSetReaderActive: (active: boolean) =>
+    ipcRenderer.invoke(PLATFORM_IPC.UPDATE_SET_READER_ACTIVE, active),
+  updateInstall: () => ipcRenderer.invoke(PLATFORM_IPC.UPDATE_INSTALL),
+  updateDismiss: () => ipcRenderer.invoke(PLATFORM_IPC.UPDATE_DISMISS),
+  onUpdateAvailable: (listener: (info: PlatformUpdateInfo) => void) => {
+    const wrapped = (_event: unknown, info: PlatformUpdateInfo) => listener(info);
+    ipcRenderer.on(UPDATE_AVAILABLE_IPC, wrapped);
+    return () => {
+      ipcRenderer.removeListener(UPDATE_AVAILABLE_IPC, wrapped);
+    };
+  },
 };
 
 contextBridge.exposeInMainWorld('mangaversePlatform', bridge);

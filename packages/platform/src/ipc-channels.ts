@@ -17,6 +17,8 @@ export const PLATFORM_IPC = {
   LOCAL_SERVICE_GET_INFO: 'platform:local-service:get-info',
   NETWORK_FETCH_BYTES: 'platform:network:fetch-bytes',
   PROVIDER_NETWORK_REPLACE: 'platform:provider-network:replace',
+  PROVIDER_NETWORK_REVOKE: 'platform:provider-network:revoke',
+  PROVIDER_NETWORK_NEXT_REVISION: 'platform:provider-network:next-revision',
   PROVIDER_NETWORK_REQUEST: 'platform:provider-network:request',
   PROVIDER_NETWORK_STORE: 'platform:provider-network:store',
   PROVIDER_NETWORK_STORE_USER_INITIATED: 'platform:provider-network:store-user-initiated',
@@ -27,6 +29,15 @@ export const PLATFORM_IPC = {
   PAGE_STORE_LIST_KEYS: 'platform:page-store:list-keys',
   RENDERER_IMPORT_STATE: 'platform:renderer-import:state',
   RENDERER_IMPORT_COMPLETE: 'platform:renderer-import:complete',
+  UPDATE_SET_READER_ACTIVE: 'platform:update:set-reader-active',
+  UPDATE_INSTALL: 'platform:update:install',
+  UPDATE_DISMISS: 'platform:update:dismiss',
 } as const;
+
+/**
+ * Main tells the renderer an update is ready to install. This is a main→renderer event, not a
+ * request, so it stays outside `PlatformIpcChannel`.
+ */
+export const UPDATE_AVAILABLE_IPC = 'platform:update:available' as const;
 
 export type PlatformIpcChannel = (typeof PLATFORM_IPC)[keyof typeof PLATFORM_IPC];
