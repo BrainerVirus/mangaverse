@@ -16,14 +16,15 @@ Milestone 1 (Foundation) has landed:
 
 Milestone 2 (Electron runtime) is in progress:
 
-| Issue | State                                                                                                                                                                                                                          |
-| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| #209  | Landed: [ADR 0001](adr/0001-data-host.md) decides `node:sqlite` through a small adapter, sync-in-host, a generated client with the repositories' names, and TanStack DB change events; `better-sqlite3` 13 is the tested exit. |
-| #214  | Landed: the production app loads a static client shell from `app://` with a strict CSP; the Nitro fork, loopback port and local Express service are gone. Offline deep routes are proven; dev still uses Vite.                 |
+| Issue | State                                                                                                                                                                                                                                                                                    |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #209  | Landed: [ADR 0001](adr/0001-data-host.md) decides `node:sqlite` through a small adapter, sync-in-host, a generated client with the repositories' names, and TanStack DB change events; `better-sqlite3` 13 is the tested exit.                                                           |
+| #214  | Landed: the production app loads a static client shell from `app://` with a strict CSP; the Nitro fork, loopback port and local Express service are gone. Offline deep routes are proven; dev still uses Vite.                                                                           |
+| #210  | In progress, part 1: repositories run in a `node:sqlite` utility process behind 121 typed procedures; the renderer uses the same names; an existing snapshot imports once with counts and content verified. Change events, TanStack DB collections and crash reconnect follow in part 2. |
 
-Next is #210 (repositories in a data process over typed RPC), then #211 and #212 as the roadmap allows, #213 after
-#210 and #212, and #215 last. Budgets stay provisional until #215 pins the reference machine; Windows, Linux and
-packaged builds remain unproven.
+Next is the rest of #210 (change events, TanStack DB sync, crash reconnect), then #211 and #212 as the roadmap allows,
+#213 after #210 and #212, and #215 last. Budgets stay provisional until #215 pins the reference machine; Windows,
+Linux and packaged builds remain unproven.
 
 Start from the ADR's conversion plan. Carry these into the first host issue:
 
