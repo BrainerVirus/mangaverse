@@ -9,7 +9,7 @@ import {
   type DuplicateCandidatesState,
   type MangaDetailData,
   type MergeDuplicateInput,
-} from '@app/library';
+} from '@/features/library';
 import { extensionsQueryKeys, fetchProviderUiInfo } from '@app/extensions';
 import {
   mergeMangaIdentities,

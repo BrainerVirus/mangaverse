@@ -18,7 +18,7 @@ import type {
   ProviderPage,
   ProviderSearchResultItem,
 } from '@app/extensions-sdk';
-import type { MangaDetailData } from '@app/library';
+import type { MangaDetailData } from '@/features/library';
 import type {
   Chapter,
   ChapterId,

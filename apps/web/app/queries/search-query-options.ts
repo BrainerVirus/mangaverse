@@ -1,7 +1,7 @@
 import type { AppDrizzleDb } from '@app/db';
 import { listSavedSearches } from '@app/db/browser';
-import { DEFAULT_SEARCH_VIEW_STATE, fetchSearchPage, searchQueryKeys } from '@app/search';
-import type { SearchViewState } from '@app/search';
+import { DEFAULT_SEARCH_VIEW_STATE, fetchSearchPage, searchQueryKeys } from '@/features/search';
+import type { SearchViewState } from '@/features/search';
 import { keepPreviousData, queryOptions } from '@tanstack/react-query';
 import { QUERY_GC_TIMES, QUERY_STALE_TIMES } from './query-timing.js';
 import { fetchProviderSearchIdentities, listSearchProviders } from './provider-query-options.js';

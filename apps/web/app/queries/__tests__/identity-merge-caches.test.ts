@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
-import { libraryQueryKeys } from '@app/library';
-import { searchQueryKeys } from '@app/search';
+import { libraryQueryKeys } from '@/features/library';
+import { searchQueryKeys } from '@/features/search';
 import { invalidateIdentityMergeCaches } from '../manga-detail-route-helpers.js';
 
 describe('invalidateIdentityMergeCaches', () => {

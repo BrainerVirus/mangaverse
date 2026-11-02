@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
-import { DEFAULT_LIBRARY_VIEW_STATE, libraryQueryKeys, type MangaDetailData } from '@app/library';
+import {
+  DEFAULT_LIBRARY_VIEW_STATE,
+  libraryQueryKeys,
+  type MangaDetailData,
+} from '@/features/library';
 import {
   toCategoryId,
   toLibraryEntryId,

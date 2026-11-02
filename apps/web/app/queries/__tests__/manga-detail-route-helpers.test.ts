@@ -11,7 +11,7 @@ import {
 } from '@app/db';
 import { createSqlJsHarness } from '@app/db/testing';
 import type { ProviderUiInfo } from '@app/extensions';
-import type { MangaDetailData } from '@app/library';
+import type { MangaDetailData } from '@/features/library';
 import {
   toChapterId,
   toMangaId,

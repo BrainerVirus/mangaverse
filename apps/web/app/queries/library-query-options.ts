@@ -7,7 +7,7 @@ import {
   libraryQueryKeys,
   readLibraryUpdateReport,
   RECENT_LIBRARY_LIMIT,
-} from '@app/library';
+} from '@/features/library';
 import type { LibraryFilter, LibraryViewState } from '@app/shared';
 import { queryOptions } from '@tanstack/react-query';
 import { QUERY_GC_TIMES, QUERY_STALE_TIMES } from './query-timing.js';

@@ -28,7 +28,7 @@ import {
   setProviderEnabled,
 } from '@app/extensions';
 import type { AppDrizzleDb } from '@app/db';
-import { searchQueryKeys } from '@app/search';
+import { searchQueryKeys } from '@/features/search';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 import { actionFailureMessage } from '../lib/app-feedback.js';
 import { flushLocalDb } from '../lib/local-db.js';

@@ -6,7 +6,7 @@ import {
 } from '@app/extensions';
 import type { ProviderContract } from '@app/extensions-sdk';
 import type { MangaIdentity, ProviderSettingsValues } from '@app/shared';
-import type { DiscoverPageData, DiscoverSection } from '@app/search';
+import type { DiscoverPageData, DiscoverSection } from '@/features/search';
 
 import {
   listProviderBindings,

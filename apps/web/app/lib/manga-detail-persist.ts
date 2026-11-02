@@ -5,7 +5,7 @@ import {
   upsertChapterWithPages,
   upsertMangaIdentity,
 } from '@app/db/browser';
-import type { MangaDetailData } from '@app/library';
+import type { MangaDetailData } from '@/features/library';
 import type { Chapter, ChapterPage } from '@app/shared';
 import { toChapterPageId } from '@app/shared';
 

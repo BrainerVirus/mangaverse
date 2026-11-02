@@ -12,7 +12,7 @@ import type {
   ExtensionsPageData,
 } from '@app/extensions';
 import { extensionsQueryKeys } from '@app/extensions';
-import { searchQueryKeys } from '@app/search';
+import { searchQueryKeys } from '@/features/search';
 import type { AppResult } from '@app/shared';
 
 const mocks = vi.hoisted(() => ({

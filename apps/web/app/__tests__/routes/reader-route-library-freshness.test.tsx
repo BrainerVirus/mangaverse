@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react';
 import { QueryClient, QueryObserver, QueryClientProvider } from '@tanstack/react-query';
-import { DEFAULT_LIBRARY_VIEW_STATE, libraryQueryKeys } from '@app/library';
+import { DEFAULT_LIBRARY_VIEW_STATE, libraryQueryKeys } from '@/features/library';
 import { getDefaultReaderSettings } from '@app/shared';
 
 const { persistReaderProgress, fetchReaderPage } = vi.hoisted(() => ({

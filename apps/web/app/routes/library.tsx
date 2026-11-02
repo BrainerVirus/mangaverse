@@ -11,7 +11,7 @@ import {
   runLibraryUpdateQueue,
   type LibraryMigrationSelection,
   type LibraryUpdateReport,
-} from '@app/library';
+} from '@/features/library';
 import { MIGRATION_BATCH_LIMIT } from '@/features/migration/index.js';
 import type { ChapterId, LibraryEntryId, LibraryViewState, MangaId } from '@app/shared';
 import {

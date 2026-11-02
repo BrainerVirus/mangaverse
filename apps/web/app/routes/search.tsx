@@ -10,7 +10,7 @@ import {
   searchQueryKeys,
   type SearchProviderResult,
   type SearchViewState,
-} from '@app/search';
+} from '@/features/search';
 import { removeSavedSearch, upsertSavedSearch } from '@app/db/browser';
 import type { SavedSearchEntry } from '@app/db';
 import { fetchAppSettings, settingsQueryKeys } from '@/features/settings';

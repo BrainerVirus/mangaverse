@@ -12,7 +12,7 @@ import {
 import type { ProviderSettingsValues } from '@app/shared';
 import { hasProviderCapability } from '@app/shared';
 import { useState } from 'react';
-import { searchQueryKeys } from '@app/search';
+import { searchQueryKeys } from '@/features/search';
 import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
 import { actionFailureMessage } from '../lib/app-feedback.js';
 import { saveFeedback } from '../lib/feedback.js';

@@ -12,10 +12,10 @@ import {
   previewBackupImport,
 } from '@/features/backup/index.js';
 import { extensionsQueryKeys } from '@app/extensions';
-import { libraryQueryKeys } from '@app/library';
+import { libraryQueryKeys } from '@/features/library';
 import { migrationQueryKeys } from '@/features/migration/index.js';
 import { readerQueryKeys } from '@app/reader';
-import { discoverQueryKeys, searchQueryKeys } from '@app/search';
+import { discoverQueryKeys, searchQueryKeys } from '@/features/search';
 import { settingsQueryKeys } from '@/features/settings';
 import { themeQueryKeys } from '@/features/theme';
 
