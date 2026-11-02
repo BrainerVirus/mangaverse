@@ -24,6 +24,7 @@ import { networkErrorToAppError, toIpcAppResult } from './platform-ipc.js';
 export const PROVIDER_NETWORK_CHANNELS = [
   PLATFORM_IPC.PROVIDER_NETWORK_REPLACE,
   PLATFORM_IPC.PROVIDER_NETWORK_REVOKE,
+  PLATFORM_IPC.PROVIDER_NETWORK_NEXT_REVISION,
   PLATFORM_IPC.PROVIDER_NETWORK_REQUEST,
   PLATFORM_IPC.PROVIDER_NETWORK_STORE,
   PLATFORM_IPC.PROVIDER_NETWORK_STORE_USER_INITIATED,
@@ -126,6 +127,14 @@ export function registerProviderNetworkIpc(deps: ProviderNetworkIpcDeps): void {
     revokedThrough = Math.max(revokedThrough, lastRevision, request.revision);
     lastRevision = Math.max(lastRevision, revokedThrough);
     return ok(undefined);
+  });
+
+  // Main assigns the revision so a renderer reload (or a backward clock) cannot
+  // reuse a revision already fenced by a revoke.
+  let revisionClock = Date.now();
+  handle(PLATFORM_IPC.PROVIDER_NETWORK_NEXT_REVISION, () => {
+    revisionClock = Math.max(revisionClock + 1, Date.now());
+    return ok(revisionClock);
   });
 
   handle(PLATFORM_IPC.PROVIDER_NETWORK_REQUEST, async ([request]) => {

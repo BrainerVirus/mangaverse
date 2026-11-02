@@ -55,6 +55,7 @@ const valid: PlatformIpcRequest[] = [
     channel: PLATFORM_IPC.PROVIDER_NETWORK_REVOKE,
     args: [{ revision: 2, providerId: 'mangadex' }],
   },
+  { channel: PLATFORM_IPC.PROVIDER_NETWORK_NEXT_REVISION, args: [] },
   {
     channel: PLATFORM_IPC.PROVIDER_NETWORK_REQUEST,
     args: [
@@ -142,6 +143,7 @@ const invalid: { channel: PlatformIpcChannel; args: unknown[] }[] = [
     channel: PLATFORM_IPC.PROVIDER_NETWORK_REVOKE,
     args: [{ providerId: 'mangadex' }],
   },
+  { channel: PLATFORM_IPC.PROVIDER_NETWORK_NEXT_REVISION, args: [1] },
   {
     channel: PLATFORM_IPC.PROVIDER_NETWORK_REQUEST,
     args: [{ providerId: 'mangadex', url: 'http://127.0.0.1/manga' }],

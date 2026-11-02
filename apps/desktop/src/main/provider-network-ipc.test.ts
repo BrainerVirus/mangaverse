@@ -366,6 +366,22 @@ describe('registerProviderNetworkIpc', () => {
     expect(allowlist.allowsUrl('mangadex', 'https://api.mangadex.org/manga')).toBe(true);
   });
 
+  it('assigns strictly increasing revisions from main', async () => {
+    const { call } = register();
+    const first = (await call(PLATFORM_IPC.PROVIDER_NETWORK_NEXT_REVISION)) as {
+      ok: boolean;
+      value?: number;
+    };
+    const second = (await call(PLATFORM_IPC.PROVIDER_NETWORK_NEXT_REVISION)) as {
+      ok: boolean;
+      value?: number;
+    };
+
+    expect(first.ok).toBe(true);
+    expect(second.ok).toBe(true);
+    expect(second.value).toBeGreaterThan(first.value ?? 0);
+  });
+
   it('refuses a revoke from a frame that is not the app frame', async () => {
     const { call } = register({ trusted: false });
 

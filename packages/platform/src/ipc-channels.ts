@@ -18,6 +18,7 @@ export const PLATFORM_IPC = {
   NETWORK_FETCH_BYTES: 'platform:network:fetch-bytes',
   PROVIDER_NETWORK_REPLACE: 'platform:provider-network:replace',
   PROVIDER_NETWORK_REVOKE: 'platform:provider-network:revoke',
+  PROVIDER_NETWORK_NEXT_REVISION: 'platform:provider-network:next-revision',
   PROVIDER_NETWORK_REQUEST: 'platform:provider-network:request',
   PROVIDER_NETWORK_STORE: 'platform:provider-network:store',
   PROVIDER_NETWORK_STORE_USER_INITIATED: 'platform:provider-network:store-user-initiated',

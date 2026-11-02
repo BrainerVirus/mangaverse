@@ -225,6 +225,11 @@ export interface PlatformAdapter {
      * rather than enabled in main only. Ordered with `replaceProviders` by `revision`.
      */
     revokeProvider(providerId: string, revision: number): Promise<AppResult<void>>;
+    /**
+     * Main's monotonic revision for the next snapshot or revoke. Main assigns it so
+     * a renderer reload (or a backward clock) cannot reuse a fenced revision.
+     */
+    nextRevision(): Promise<AppResult<number>>;
     request(input: PlatformProviderRequest): Promise<AppResult<PlatformProviderResponse>>;
     /**
      * Desktop only: fetch and store in one main-process call, returning metadata and a
@@ -264,6 +269,7 @@ export interface DesktopPlatformBridge {
     revision: number,
   ) => Promise<AppResult<void>>;
   providerNetworkRevoke: (providerId: string, revision: number) => Promise<AppResult<void>>;
+  providerNetworkNextRevision: () => Promise<AppResult<number>>;
   providerNetworkRequest: (
     input: PlatformProviderRequest,
   ) => Promise<AppResult<PlatformProviderResponse>>;

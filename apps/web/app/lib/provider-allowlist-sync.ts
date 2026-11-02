@@ -6,16 +6,17 @@ import { createAppPlatformAdapter } from '../features/diagnostics/create-app-pla
 import { feedback } from './app-feedback.js';
 
 /**
- * Serializes allowlist syncs and stamps each with a strictly increasing revision.
- * Main keeps the newest revision, so even if a call were reordered on the wire an
- * older snapshot could never re-register a provider that a newer one disabled.
+ * Serializes allowlist syncs. Main assigns each revision, so a renderer reload or
+ * a backward wall clock cannot reuse a revision already fenced by a revoke.
  */
 let queue: Promise<void> = Promise.resolve();
-let lastRevision = 0;
 
-function nextRevision(): number {
-  lastRevision = Math.max(Date.now(), lastRevision + 1);
-  return lastRevision;
+async function nextRevision(): Promise<number> {
+  const result = await createAppPlatformAdapter().providerNetwork.nextRevision();
+  if (!result.ok) {
+    throw new Error(result.error.message);
+  }
+  return result.value;
 }
 
 /**
@@ -28,10 +29,10 @@ function nextRevision(): number {
  * report it, and the next sync (or the user's retry) sends the snapshot again.
  */
 export function syncProviderNetworkAllowlist(db: AppDrizzleDb): Promise<void> {
-  // Stamp inside the queue, not at call time: a snapshot queued behind a revoke
-  // must carry a newer revision, or main fences it and the provider stays blocked
-  // while the action reports success.
-  const run = queue.then(() => syncInstalledProviders(db, nextRevision()));
+  // Stamp inside the queue, and ask main: a snapshot queued behind a revoke must
+  // carry a newer revision, or main fences it and the provider stays blocked while
+  // the action reports success.
+  const run = queue.then(async () => syncInstalledProviders(db, await nextRevision()));
   // A failed sync must not wedge the ones queued after it.
   queue = run.catch(() => undefined);
   return run;
@@ -69,9 +70,10 @@ export function revokeProviderNetworkAccess(
   commit: () => Promise<void>,
 ): Promise<void> {
   const run = queue.then(async () => {
+    const revision = await nextRevision();
     const result = await createAppPlatformAdapter().providerNetwork.revokeProvider(
       providerId,
-      nextRevision(),
+      revision,
     );
     if (!result.ok) {
       throw new Error(result.error.message);

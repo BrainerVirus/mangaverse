@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
     vi.fn<
       (providers: readonly ProviderNetworkRegistration[], revision: number) => Promise<unknown>
     >(),
+  nextRevision: vi.fn<() => Promise<unknown>>(),
   flushLocalDb: vi.fn<() => Promise<void>>(),
   createUserInitiatedFetch: vi.fn<() => typeof fetch>(),
   userFetch: vi.fn<typeof fetch>(),
@@ -47,7 +48,7 @@ vi.mock('@app/db/browser', () => ({
 
 vi.mock('../../features/diagnostics/create-app-platform-adapter.js', () => ({
   createAppPlatformAdapter: () => ({
-    providerNetwork: { replaceProviders: mocks.replaceProviders },
+    providerNetwork: { replaceProviders: mocks.replaceProviders, nextRevision: mocks.nextRevision },
   }),
 }));
 
@@ -93,6 +94,8 @@ describe('useProviderUpdate', () => {
     mocks.listInstalledExtensions.mockReset();
     mocks.listInstalledExtensions.mockImplementation(async () => installed);
     mocks.replaceProviders.mockReset();
+    mocks.nextRevision.mockReset();
+    mocks.nextRevision.mockImplementation(async () => ok(1));
     mocks.replaceProviders.mockImplementation(async (providers) => {
       main = new Map(providers.map((provider) => [provider.providerId, provider.domains]));
       return ok(undefined);

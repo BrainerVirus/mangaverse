@@ -15,6 +15,7 @@ const {
   upsertInstalledExtension,
   replaceProviders,
   revokeProvider,
+  nextRevision,
   onFailure,
 } = vi.hoisted(() => ({
   listInstalledExtensions: vi.fn<() => Promise<ExtensionInstallMetadata[]>>(),
@@ -24,6 +25,7 @@ const {
       (providers: readonly ProviderNetworkRegistration[], revision: number) => Promise<unknown>
     >(),
   revokeProvider: vi.fn<(providerId: string, revision: number) => Promise<unknown>>(),
+  nextRevision: vi.fn<() => Promise<unknown>>(),
   onFailure: vi.fn<(error: unknown, input: { onRetry?: () => void }) => void>(),
 }));
 
@@ -33,7 +35,9 @@ vi.mock('@app/db/browser', () => ({
 }));
 
 vi.mock('../../features/diagnostics/create-app-platform-adapter.js', () => ({
-  createAppPlatformAdapter: () => ({ providerNetwork: { replaceProviders, revokeProvider } }),
+  createAppPlatformAdapter: () => ({
+    providerNetwork: { replaceProviders, revokeProvider, nextRevision },
+  }),
 }));
 
 vi.mock('../app-feedback.js', () => ({ feedback: { onFailure } }));
@@ -76,6 +80,9 @@ describe('provider allowlist sync', () => {
     store = [];
     main = new Map();
     calls = [];
+    nextRevision.mockReset();
+    let revision = 0;
+    nextRevision.mockImplementation(async () => ok(++revision));
     listInstalledExtensions.mockReset();
     listInstalledExtensions.mockImplementation(async () => store);
     upsertInstalledExtension.mockReset();
@@ -203,6 +210,15 @@ describe('provider allowlist sync', () => {
       order.findIndex((entry) => entry.startsWith('replace:')),
     );
     expect(main.get('mangadex')).toBeDefined();
+  });
+
+  it('Given a renderer reload, When it syncs, Then main supplies a fresh revision', async () => {
+    store = [entry()];
+    await syncProviderNetworkAllowlist(db);
+    await syncProviderNetworkAllowlist(db);
+
+    expect(nextRevision).toHaveBeenCalledTimes(2);
+    expect(calls[1]?.revision).toBeGreaterThan(calls[0]?.revision ?? 0);
   });
 
   it('Given a bundled manifest at the same version without domains, When the app starts, Then the stored manifest and allowlist gain them', async () => {
