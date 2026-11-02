@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { AppDrizzleDb } from '../adapter.js';
 import type { ProcedureName } from '../procedure-names.js';
 import * as sources from '../procedure-sources.js';
+import { CHAPTER_WINDOW_MAX } from '../repositories/chapters.js';
 
 // The host's trust boundary (ADR 0001, decision 5): every call's arguments are checked against
 // the shape the repository's TypeScript signature promises before it runs. Domain rules stay in
@@ -224,6 +225,16 @@ export const PROCEDURE_INPUTS: { readonly [K in ProcedureName]: z.ZodType<readon
   getChapter: z.tuple([id]),
   listChaptersForManga: z.tuple([id]),
   getChapterProviderMappingId: z.tuple([id]),
+  // A limit is required and bounded: the host refuses an unbounded chapter load.
+  listChapterWindow: z.tuple([
+    z.object({
+      mangaId: id,
+      limit: z.number().int().min(1).max(CHAPTER_WINDOW_MAX),
+      afterIndex: count.optional(),
+      exactIndex: count.optional(),
+    }),
+  ]),
+  getChapterRows: z.tuple([ids.max(CHAPTER_WINDOW_MAX * 4)]),
 
   // diagnostics
   summarizeLocalDatabase: z.tuple([]),

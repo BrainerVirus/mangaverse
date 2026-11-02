@@ -32,7 +32,7 @@ import {
   ingestArgvForInstallUrls,
   registerInstallProtocolAppEvents,
 } from './protocol-handoff.js';
-import { createTrustedFrameCheck, registerDataHostIpc } from './data-host.js';
+import { createTrustedFrameCheck, registerDataHostIpc, superviseDataHost } from './data-host.js';
 import { registerPlatformIpc } from './platform-ipc.js';
 import { createSecureStorageModel } from './secure-storage.js';
 import {
@@ -49,6 +49,14 @@ const PRODUCTION_RENDERER_URL = `${APP_ORIGIN}/`;
 let mainWindow: BrowserWindow | null = null;
 /** Windows this process created: only their main frames reach the data host. */
 const ownedWindows = new Set<BrowserWindow>();
+
+// Every window main constructs is owned; one a page opened has an opener and never is, though
+// the open handler below denies those anyway.
+app.on('browser-window-created', (_event, window) => {
+  if (window.webContents.opener !== null) return;
+  ownedWindows.add(window);
+  window.once('closed', () => ownedWindows.delete(window));
+});
 
 // Must run before app ready: a standard, secure scheme gets an origin, `'self'` and fetch.
 protocol.registerSchemesAsPrivileged([APP_SCHEME_PRIVILEGES]);
@@ -96,9 +104,6 @@ function createWindow(url: string) {
     titleBarStyle: 'default',
   });
 
-  const owned = mainWindow;
-  ownedWindows.add(owned);
-
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show();
   });
@@ -110,7 +115,6 @@ function createWindow(url: string) {
   }
 
   mainWindow.on('closed', () => {
-    ownedWindows.delete(owned);
     mainWindow = null;
   });
 
@@ -122,30 +126,54 @@ function createWindow(url: string) {
   });
 }
 
-/** Starts the data host's utility process; the database lives in the profile directory. */
+/**
+ * Starts the data host's utility process; the database lives in the profile directory. A host
+ * that dies is restarted and every window that had connected gets a port to the new one.
+ */
 function startDataHost() {
-  const hostProcess = utilityProcess.fork(
-    fileURLToPath(new URL('./data-host-process.js', import.meta.url)),
-    [],
-    {
-      serviceName: 'MangaVerse data host',
-      env: {
-        ...process.env,
-        MANGAVERSE_DATA_HOST_DB: join(app.getPath('userData'), 'mangaverse.sqlite'),
-      },
+  const databasePath = join(app.getPath('userData'), 'mangaverse.sqlite');
+  const ownedMainFrames = () => [...ownedWindows].map((window) => window.webContents.mainFrame);
+  const supervisor = superviseDataHost({
+    fork: () => {
+      const child = utilityProcess.fork(
+        fileURLToPath(new URL('./data-host-process.js', import.meta.url)),
+        [],
+        {
+          serviceName: 'MangaVerse data host',
+          env: { ...process.env, MANGAVERSE_DATA_HOST_DB: databasePath },
+        },
+      );
+      return {
+        get pid() {
+          return child.pid;
+        },
+        postMessage: (message, transfer) => child.postMessage(message, transfer),
+        onExit: (listener) => child.once('exit', listener),
+      };
     },
-  );
+    schedule: (run, delayMs) => void setTimeout(run, delayMs),
+    now: () => Date.now(),
+    onRestarted: () => ipc.reconnectWindows(),
+    onGaveUp: (exitCode) => {
+      // oxlint-disable-next-line no-console -- ruling: desktop-console-bootstrap: the host keeps dying, so no window can be told over the host; every call still fails with its typed timeout, and the console is main's only record of why.
+      // react-doctor-disable-next-line eslint/no-console -- ruling: desktop-console-bootstrap: the host keeps dying, so no window can be told over the host; every call still fails with its typed timeout, and the console is main's only record of why.
+      console.error(`[data-host] stopped restarting after repeated exits (last code ${exitCode})`);
+    },
+  });
+  app.once('before-quit', () => supervisor.stop());
   const devUrl = process.env.VITE_DEV_SERVER_URL;
   // An unparseable dev URL allows no origin rather than throwing at startup.
   const devOrigin = devUrl ? URL.parse(devUrl)?.origin : undefined;
-  registerDataHostIpc({
+  const isTrustedFrame = createTrustedFrameCheck({
+    ownedMainFrames,
+    allowedOrigins: devUrl ? [devOrigin].filter((origin) => origin !== undefined) : [APP_ORIGIN],
+  });
+  const ipc = registerDataHostIpc({
     ipcMain,
     createChannel: () => new MessageChannelMain(),
-    hostProcess,
-    isTrustedFrame: createTrustedFrameCheck({
-      ownedMainFrames: () => [...ownedWindows].map((window) => window.webContents.mainFrame),
-      allowedOrigins: devUrl ? [devOrigin].filter((origin) => origin !== undefined) : [APP_ORIGIN],
-    }),
+    hostProcess: supervisor,
+    isTrustedFrame,
+    ownedMainFrames,
   });
 }
 

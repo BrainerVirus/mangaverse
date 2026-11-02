@@ -19,8 +19,10 @@ export {
 export {
   DATA_HOST_ERROR,
   DataHostError,
+  type DataHostChangeEvent,
   type DataHostOpenResult,
   type DataHostStatus,
+  type RowChange,
   type SnapshotImportReport,
 } from './data-host-protocol.js';
 export {

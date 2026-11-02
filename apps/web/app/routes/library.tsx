@@ -6,21 +6,26 @@ import { extensionsQueryKeys, fetchProviderUiInfo } from '@app/extensions';
 import {
   clearLibraryUpdateReport,
   DEFAULT_LIBRARY_VIEW_STATE,
+  editEntriesOptimistically,
   LibraryPage,
   libraryQueryKeys,
   runLibraryUpdateQueue,
+  useLibraryList,
   type LibraryMigrationSelection,
+  type LibraryOrganizationAction,
   type LibraryUpdateReport,
 } from '@/features/library';
 import { MIGRATION_BATCH_LIMIT } from '@/features/migration/index.js';
 import type { ChapterId, LibraryEntryId, LibraryViewState, MangaId } from '@app/shared';
 import {
   libraryOverviewQueryOptions,
-  libraryPageQueryOptions,
   libraryUpdateReportQueryOptions,
 } from '../queries/library-query-options.js';
 import { createLibraryOrganizationMutationOptions } from '../queries/library-mutation-options.js';
+import { feedback } from '../lib/app-feedback.js';
+import { saveFeedback } from '../lib/feedback.js';
 import { createLibraryUpdateProviderResolver } from '../lib/library-update-provider.js';
+import { subscribeToLocalChanges } from '../lib/local-db.js';
 import { useLocalDb, useLocalDbStatus, useLocalDbRetry } from '../providers/local-db-provider.js';
 
 export const Route = createFileRoute('/library')({
@@ -87,10 +92,11 @@ function LibraryRoute() {
     [navigate],
   );
 
-  const { data, isLoading, isError } = useQuery({
-    ...libraryPageQueryOptions(db!, viewState),
-    enabled: dbStatus === 'ready' && db !== null,
-  });
+  const { data, isLoading, isError, items } = useLibraryList(
+    dbStatus === 'ready' ? db : null,
+    viewState,
+    subscribeToLocalChanges,
+  );
   const overview = useQuery({
     ...libraryOverviewQueryOptions(db!, viewState.filter),
     enabled: dbStatus === 'ready' && db !== null,
@@ -123,6 +129,33 @@ function LibraryRoute() {
     [db, queryClient],
   );
 
+  /**
+   * Status and favorite edits apply to the list at once and roll back if the host refuses them;
+   * every other action still runs through its Query mutation.
+   */
+  const organize = (action: LibraryOrganizationAction): Promise<void> => {
+    if (
+      items === null ||
+      (action.type !== 'set_entries_status' && action.type !== 'set_entries_favorite')
+    ) {
+      return organizeMutation.mutateAsync(action);
+    }
+    const edit =
+      action.type === 'set_entries_status'
+        ? ({ field: 'status', value: action.status } as const)
+        : ({ field: 'favorite', value: action.favorite } as const);
+    return editEntriesOptimistically(items, action.entryIds, edit).then(
+      () => void queryClient.invalidateQueries({ queryKey: libraryQueryKeys.all }),
+      (error: unknown) => {
+        feedback.onFailure(error, {
+          source: 'library.organize',
+          feedback: saveFeedback('Could not update your library.').feedback,
+        });
+        throw error;
+      },
+    );
+  };
+
   const clearReport = useCallback(async () => {
     if (db === null) return;
     setProgress(undefined);
@@ -148,7 +181,7 @@ function LibraryRoute() {
         onRetry: (entryIds) => void runCheck(entryIds),
         onClearReport: () => void clearReport(),
       }}
-      onOrganize={(action) => organizeMutation.mutateAsync(action)}
+      onOrganize={(action) => organize(action)}
       onMigrate={migrateSelection}
       migrationBatchLimit={MIGRATION_BATCH_LIMIT}
       sourceLabels={sourceLabels}

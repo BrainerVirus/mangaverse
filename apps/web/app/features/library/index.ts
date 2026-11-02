@@ -33,6 +33,8 @@ export {
   type ChapterSort,
 } from './chapter-list.js';
 export { fetchLibraryPage } from './fetch-library-page.js';
+export { editEntriesOptimistically } from './library-collections.js';
+export { useLibraryList, type LibraryList } from './hooks/use-library-list.js';
 export {
   CONTINUE_READING_LIMIT,
   RECENTLY_UPDATED_LIMIT,

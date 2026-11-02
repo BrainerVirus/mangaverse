@@ -75,6 +75,7 @@ export const getChapterReadStateOrdering = route(
   'getChapterReadStateOrdering',
   procedures.getChapterReadStateOrdering,
 );
+export const getChapterRows = route('getChapterRows', procedures.getChapterRows);
 export const getLibraryChapterStats = route(
   'getLibraryChapterStats',
   procedures.getLibraryChapterStats,
@@ -128,6 +129,7 @@ export const listChapterReadStatesForManga = route(
   'listChapterReadStatesForManga',
   procedures.listChapterReadStatesForManga,
 );
+export const listChapterWindow = route('listChapterWindow', procedures.listChapterWindow);
 export const listChaptersForManga = route('listChaptersForManga', procedures.listChaptersForManga);
 export const listExtensionLogs = route('listExtensionLogs', procedures.listExtensionLogs);
 export const listExtensionRegistries = route(
@@ -363,6 +365,7 @@ export const ROUTED_PROCEDURE_NAMES = [
   'getChapterProviderMappingId',
   'getChapterReadState',
   'getChapterReadStateOrdering',
+  'getChapterRows',
   'getLibraryChapterStats',
   'getLibraryEntry',
   'getLibraryEntryForManga',
@@ -383,6 +386,7 @@ export const ROUTED_PROCEDURE_NAMES = [
   'listChapterHeadersForMapping',
   'listChapterReadStates',
   'listChapterReadStatesForManga',
+  'listChapterWindow',
   'listChaptersForManga',
   'listExtensionLogs',
   'listExtensionRegistries',

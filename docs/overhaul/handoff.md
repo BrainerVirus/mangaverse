@@ -16,23 +16,50 @@ Milestone 1 (Foundation) has landed:
 
 Milestone 2 (Electron runtime) is in progress:
 
-| Issue | State                                                                                                                                                                                                                                                                                    |
-| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| #209  | Landed: [ADR 0001](adr/0001-data-host.md) decides `node:sqlite` through a small adapter, sync-in-host, a generated client with the repositories' names, and TanStack DB change events; `better-sqlite3` 13 is the tested exit.                                                           |
-| #214  | Landed: the production app loads a static client shell from `app://` with a strict CSP; the Nitro fork, loopback port and local Express service are gone. Offline deep routes are proven; dev still uses Vite.                                                                           |
-| #210  | In progress, part 1: repositories run in a `node:sqlite` utility process behind 121 typed procedures; the renderer uses the same names; an existing snapshot imports once with counts and content verified. Change events, TanStack DB collections and crash reconnect follow in part 2. |
+| Issue | State                                                                                                                                                                                                                                                                                                                                           |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #209  | Landed: [ADR 0001](adr/0001-data-host.md) decides `node:sqlite` through a small adapter, sync-in-host, a generated client with the repositories' names, and TanStack DB change events; `better-sqlite3` 13 is the tested exit.                                                                                                                  |
+| #214  | Landed: the production app loads a static client shell from `app://` with a strict CSP; the Nitro fork, loopback port and local Express service are gone. Offline deep routes are proven; dev still uses Vite.                                                                                                                                  |
+| #210  | Part 1 landed, part 2 in review. Part 1: repositories run in a `node:sqlite` utility process behind typed procedures; the renderer uses the same names; an existing snapshot imports once with counts and content verified. Part 2: change capture, broadcast, the library tracer on TanStack DB, on-demand chapters and crash recovery, below. |
 
-Next is the rest of #210 (change events, TanStack DB sync, crash reconnect), then #211 and #212 as the roadmap allows,
-#213 after #210 and #212, and #215 last. Budgets stay provisional until #215 pins the reference machine; Windows,
-Linux and packaged builds remain unproven.
+Next are #211 and #212 as the roadmap allows, #213 after #212, and #215 last. Budgets stay provisional until
+#215 pins the reference machine; Windows, Linux and packaged builds remain unproven. Check `node:sqlite` on
+Windows and Linux first thing in #215. If it fails, take the ADR's `better-sqlite3` exit.
 
-Start from the ADR's conversion plan. Carry these into the first host issue:
+## Data host events (#210 part 2)
 
-- Build crash and reconnect, which the spike did not.
-- Exercise `@tanstack/react-db`, which the spike did not.
-- `listLibraryEntries` takes 300 ms or more on the seeded dataset on every driver, over the 100 ms budget.
+- Temp triggers on seven synced tables (`SYNCED_TABLES` in `packages/db/src/data-host-protocol.ts`) record
+  committed row changes, FK cascades included, into a temp table on the host's connection. A rollback takes
+  them with it. They are installed once at open and drained after every call; nothing reaches the file.
+- After each reply the host sends `{ kind: 'changes', seq, changes }` to every attached port, the caller's
+  too. A failed call still sends what it committed. One change per row.
+- Library tracer: the library page reads its titles, categories and providers through three host-fed
+  collections (`apps/web/app/lib/host-collections.ts`, `features/library/library-collections.ts`). A relevant
+  change reloads a list whole, as one snapshot, because the host owns its filter and order. The bulk bar's
+  status and favorite edits are optimistic: they apply at once, keep their value until the host's rows
+  replace them, and roll back with a typed error and the existing save toast when the host refuses. On the
+  web and the sql.js fallback, every local write sends `resync` instead.
+- Chapters: `listChapterWindow` takes a required limit up to 500 and the host refuses anything else;
+  `createChapterWindowCollection` loads one title's bounded window on demand. No surface reads it yet.
+- Crash recovery: calls time out after 30 s (open: 300 s) with `data-host.timeout`. Main restarts a host
+  that exits (250 ms backoff doubling to 8 s, giving up after 8 quick crashes) and hands each connected
+  window a new port. The window reopens the host before any later call reaches it, its collections
+  resync, and a toast tells the user. A call caught in the crash is not resent.
+- Live proof (`apps/desktop/e2e/live-collections.spec.ts`): two windows edit live; a refused edit rolls
+  back; a hung, then killed host restarts in about 0.4 s and both windows are told; `kill -9` in the middle of
+  a write stream loses no acknowledged write, and `integrity_check` is ok.
 
-Check `node:sqlite` on Windows and Linux first thing in #215. If it fails, take the ADR's `better-sqlite3` exit.
+### Follow-up: the per-surface migration
+
+Only the library list moved. 53 TanStack Query read sites and 46 mutation sites were counted before this
+change; apart from the library page's list read and the bulk status and favorite edits, all of them still
+run on Query and do not update live across windows. Move them surface by surface onto host-fed
+collections, then drop the Query cache patches in `features/library/optimistic-library-cache.ts` and the
+library page prefetch in `queries/prefetch-core-local-data.ts`, which still warms a Query nobody reads.
+After a reconnect, Query caches are not invalidated; they refetch on their own stale time.
+
+Carried from #209 and still open: `listLibraryEntries` takes 300 ms or more on the seeded dataset on every
+driver, over the 100 ms budget, and each library reload runs it.
 
 ## Package consolidation (#208)
 
