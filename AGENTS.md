@@ -111,7 +111,7 @@ theme, reduced motion.
 
 ## Current State
 
-The app overhaul is the active workstream: `docs/overhaul/roadmap.md` holds the order and issues, and `docs/overhaul/handoff.md` the current state. No overhaul product code has landed yet, so the sections here describing the target may be ahead of the code.
+The app overhaul is the active workstream: `docs/overhaul/roadmap.md` holds the order and issues, and `docs/overhaul/handoff.md` the current state. Milestone 1 (foundation and the #208 package consolidation) has landed; milestones 2 and later have not, so the sections here describing the target may still be ahead of the code.
 
 ## Effect Rules
 
