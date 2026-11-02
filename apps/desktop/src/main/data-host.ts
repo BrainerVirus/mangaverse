@@ -101,7 +101,7 @@ export const DATA_HOST_MAX_RESTARTS = 8;
 /** A host that ran this long before exiting starts the backoff over. */
 const DATA_HOST_STABLE_MS = 30_000;
 
-export interface SupervisedProcess extends HostProcessPort {
+interface SupervisedProcess extends HostProcessPort {
   readonly pid: number | undefined;
   onExit(listener: (code: number) => void): void;
 }

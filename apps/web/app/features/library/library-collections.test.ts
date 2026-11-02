@@ -15,7 +15,7 @@ import {
   type DataHostClient,
 } from '@app/db';
 import { createDataHost } from '@app/db/host';
-import { createLiveQueryCollection, eq } from '@tanstack/react-db';
+import { createLiveQueryCollection, eq } from '@tanstack/db';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { LibraryEntryId } from '@app/shared';
 import { createChapterWindowCollection } from './chapter-collection.js';

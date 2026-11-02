@@ -41,7 +41,7 @@ export interface DataHostClient {
 
 type Pending = (result: AppResult<unknown>) => void;
 
-export const DEFAULT_CALL_TIMEOUT_MS = 30_000;
+const DEFAULT_CALL_TIMEOUT_MS = 30_000;
 const DEFAULT_OPEN_TIMEOUT_MS = 300_000;
 
 export function createDataHostClient(

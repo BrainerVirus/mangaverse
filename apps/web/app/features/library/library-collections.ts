@@ -26,7 +26,7 @@ export interface LibraryCollections {
 }
 
 /** A host rejection a mutation handler throws, so TanStack DB rolls the optimistic rows back. */
-export class LibraryWriteRejected extends Error {
+class LibraryWriteRejected extends Error {
   readonly code: string;
   constructor(error: { readonly code: string; readonly message: string }) {
     super(error.message);
@@ -76,11 +76,16 @@ async function persistEntryEdits(
       add({ field: 'favorite', value: after.favorite }, after.id);
     }
   }
-  for (const { edit, ids } of groups.values()) {
-    const result =
+  // A bulk action edits one field to one value: one group. With more, a refusal rolls this
+  // window back and the broadcast of what did commit brings it in again.
+  const results = await Promise.all(
+    [...groups.values()].map(({ edit, ids }) =>
       edit.field === 'status'
-        ? await setLibraryEntriesStatus(db, ids, edit.value)
-        : await setLibraryEntriesFavorite(db, ids, edit.value);
+        ? setLibraryEntriesStatus(db, ids, edit.value)
+        : setLibraryEntriesFavorite(db, ids, edit.value),
+    ),
+  );
+  for (const result of results) {
     if (!result.ok) throw new LibraryWriteRejected(result.error);
   }
 }

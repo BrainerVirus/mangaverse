@@ -3,7 +3,7 @@ import {
   parseLoadSubsetOptions,
   type Collection,
   type LoadSubsetOptions,
-} from '@tanstack/react-db';
+} from '@tanstack/db';
 import type { DataHostChangeEvent, RowChange } from '@app/db/browser';
 
 // TanStack DB collections fed by the data host (ADR 0001, decision 6). SQLite stays the source
@@ -14,8 +14,8 @@ export type ChangeFeed = (listener: (event: DataHostChangeEvent) => void) => () 
 
 type SyncedTable = RowChange['table'];
 
-const touches = (event: DataHostChangeEvent, tables: readonly SyncedTable[]) =>
-  event.kind === 'resync' || event.changes.some((change) => tables.includes(change.table));
+const touches = (event: DataHostChangeEvent, tables: ReadonlySet<SyncedTable>) =>
+  event.kind === 'resync' || event.changes.some((change) => tables.has(change.table));
 
 /** A row of a list the host orders: the value, and where the host put it. */
 export interface ListedRow<T> {
@@ -24,7 +24,7 @@ export interface ListedRow<T> {
   readonly value: T;
 }
 
-export interface HostListUtils extends Record<string, () => Promise<void>> {
+interface HostListUtils extends Record<string, () => Promise<void>> {
   /** Loads the list again; resolves once the rows on screen are the host's. */
   refetch(): Promise<void>;
 }
@@ -56,7 +56,8 @@ export type HostListCollection<T> = Collection<ListedRow<T>, string, HostListUti
 export function createHostListCollection<T extends object>(
   options: HostListOptions<T>,
 ): HostListCollection<T> {
-  const { load, keyOf, tables, subscribe, persistUpdate } = options;
+  const { load, keyOf, subscribe, persistUpdate } = options;
+  const tables = new Set(options.tables);
   let refetch: () => Promise<void> = () => Promise.resolve();
 
   return createCollection<ListedRow<T>, string, HostListUtils>({
@@ -147,7 +148,7 @@ export interface WindowedOptions<T> {
 }
 
 /** Thrown, as a typed refusal, for a load that names no parent or no bound. */
-export class UnboundedLoadError extends Error {
+class UnboundedLoadError extends Error {
   readonly code = 'data-host.unbounded_load';
   constructor(message: string) {
     super(message);

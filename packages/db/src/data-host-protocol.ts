@@ -47,7 +47,7 @@ export interface RowChange {
  * Committed changes, sent to every attached window after the reply to the call that made
  * them. `seq` counts batches per host process; a restarted host starts again at 1.
  */
-export interface DataHostChanges {
+interface DataHostChanges {
   readonly kind: 'changes';
   readonly seq: number;
   readonly changes: readonly RowChange[];
