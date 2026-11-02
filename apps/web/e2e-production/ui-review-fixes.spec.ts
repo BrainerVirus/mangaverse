@@ -161,6 +161,19 @@ for (const viewport of [
       // one displaced by the distance from the page top to the grid.
       expect(Math.abs(scrolled.actualIndex - scrolled.expectedIndex)).toBeLessThanOrEqual(1);
       expect(scrolled.firstCardVisible).toBe(false);
+
+      // Entering selection mode inserts the bulk bar above the grid: the offset
+      // changes without either box resizing, so the next scroll must re-measure.
+      await page.getByRole('button', { name: 'Select titles' }).click();
+      const bulkEdit = page.getByRole('region', { name: 'Bulk edit' });
+      await expect(bulkEdit).toBeVisible();
+      await page.mouse.wheel(0, 60);
+      await page.waitForTimeout(150);
+      const withBulkBar = await measureGrid(page);
+      expect(Math.abs(withBulkBar.actualIndex - withBulkBar.expectedIndex)).toBeLessThanOrEqual(1);
+
+      await page.keyboard.press('Escape');
+      await expect(bulkEdit).toBeHidden();
     }
   });
 }

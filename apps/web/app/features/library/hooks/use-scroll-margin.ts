@@ -13,9 +13,10 @@ function marginReducer(state: number, action: MarginAction): number {
 
 /**
  * The container's offset inside its scroll parent, which a virtualizer needs
- * before it can map a scroll position to a row index. Listening to scroll is
- * pointless here: the offset does not change while scrolling, so the hook
- * re-measures only when the container or the scroll parent resizes.
+ * before it can map a scroll position to a row index. The offset does not change
+ * when scrolling, but the layout above the container can change without either
+ * box resizing (a bulk bar appearing, a shelf filling in), so a passive scroll
+ * listener re-measures on the next scroll. Equal values keep the identity.
  */
 export function useScrollMargin(
   containerRef: RefObject<HTMLElement | null>,
@@ -44,10 +45,12 @@ export function useScrollMargin(
     const observer = new ResizeObserver(updateMargin);
     observer.observe(element);
     observer.observe(scrollParent);
+    scrollParent.addEventListener('scroll', updateMargin, { passive: true });
     window.addEventListener('resize', updateMargin);
 
     return () => {
       observer.disconnect();
+      scrollParent.removeEventListener('scroll', updateMargin);
       window.removeEventListener('resize', updateMargin);
     };
   }, [containerRef, scrollParent]);
