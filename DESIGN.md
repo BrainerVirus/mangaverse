@@ -1022,8 +1022,8 @@ page (#107).
 - **The reader's top-bar gradient has no protected tail.** The shipped recipe keeps the gradient as a
   non-blurring supplement over stage glass (#102); the plate rule (§3.5) protects text in control rows,
   and the gradient itself is not relied on for contrast.
-- **`docs/design-direction.md` is unused.** The target language and the roadmap live here; a separate
-  direction note would only duplicate it.
+- **No separate design-direction note.** The target language and the roadmap live here; a separate
+  direction file would only duplicate it.
 
 ## 13. Implementation Roadmap
 
