@@ -615,7 +615,7 @@ Critical flows to test:
 
 - Documentation exists for product spec, plan, architecture, design, and agent instructions.
 - Agents are instructed to read the right documents before implementation.
-- The next implementation phase targets TanStack Start, Electron, Express where appropriate, Drizzle, SQLite, shadcn/ui, GSAP, and local-first architecture.
+- The next implementation phase targets a client-rendered React and TanStack Router shell, Electron, Drizzle, SQLite, shadcn/ui, GSAP, and local-first architecture.
 - Package boundaries are explicit and prevent UI/features from reaching into provider, database, reader, or platform internals.
 - Extension safety and provider distribution separation are documented.
 - Reader requirements exceed the current implementation and directly address tap zone reliability.

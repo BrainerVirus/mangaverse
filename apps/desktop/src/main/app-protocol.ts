@@ -56,8 +56,9 @@ const decodeOrNull = (path: string) =>
 
 /**
  * Map an `app://app/...` request to a file under `root`. Refuses other hosts, encoded
- * separators, `..` segments, anything outside the root and symlinks; extensionless paths that
- * name no file are SPA routes and resolve to index.html.
+ * separators, `..` segments, anything outside the root and symlinks. A missing path under
+ * `assets/` or with a served extension is a 404; any other missing path is a client route and
+ * resolves to index.html.
  */
 export async function resolveAppRequest(
   root: string,
