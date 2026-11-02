@@ -235,6 +235,8 @@ test('a first start with a sql.js snapshot imports it once, verified, and keeps 
   await seeded.app.close();
   for (const suffix of ['', '-wal', '-shm'])
     rmSync(join(userDataDir, `${DATABASE}${suffix}`), { force: true });
+  // A profile from before #213 has no renderer-data marker either.
+  rmSync(join(userDataDir, `${DATABASE}.import-renderer.json`), { force: true });
 
   const first = await launch(userDataDir);
   await first.page.goto('app://app/library');
@@ -295,17 +297,20 @@ test('a snapshot that fails verification stays in use and the failure is a typed
   await seeded.app.close();
   for (const suffix of ['', '-wal', '-shm'])
     rmSync(join(userDataDir, `${DATABASE}${suffix}`), { force: true });
+  rmSync(join(userDataDir, `${DATABASE}.import-renderer.json`), { force: true });
 
   const { page } = await launch(userDataDir);
-  const failure = page.waitForEvent('console', {
-    predicate: (message) => message.text().includes('data-host.import_failed'),
-    timeout: 20_000,
+  // The failure is visible with a retry and an export, not a console line.
+  await expect(page.getByText('Could not import your existing data')).toBeVisible({
+    timeout: 30_000,
   });
-  await page.reload();
-  expect((await failure).type()).toBe('error');
+  await expect(page.getByRole('button', { name: 'Retry import' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Export old data' })).toBeVisible();
   expect(existsSync(join(userDataDir, DATABASE))).toBe(false);
   // The window keeps working on the old path, with the snapshot's library.
   await page.goto('app://app/library');
   await expect(page).toHaveURL('app://app/library');
   await expect(page.getByText('Imported Alpha').first()).toBeVisible({ timeout: 20_000 });
+  // The failure repeats only because the app restarted; there is no silent retry loop.
+  expect(existsSync(join(userDataDir, `${DATABASE}.import-renderer.json`))).toBe(false);
 });

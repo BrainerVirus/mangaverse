@@ -52,6 +52,10 @@ describe('page store IPC', () => {
       value: expect.stringMatching(/^page:\/\/store\/[0-9a-f]{64}$/),
     });
     expect(await invoke(PLATFORM_IPC.PAGE_STORE_URL, trusted, KEY)).toEqual(put);
+    expect(await invoke(PLATFORM_IPC.PAGE_STORE_VERIFY, trusted, KEY)).toMatchObject({
+      ok: true,
+      value: { byteSize: JPEG.byteLength, sha256: expect.stringMatching(/^[0-9a-f]{64}$/) },
+    });
     expect(await invoke(PLATFORM_IPC.PAGE_STORE_LIST_KEYS, trusted)).toEqual({
       ok: true,
       value: [KEY],
@@ -65,6 +69,7 @@ describe('page store IPC', () => {
       for (const [channel, args] of [
         [PLATFORM_IPC.PAGE_STORE_PUT, [KEY, JPEG.buffer, 'image/jpeg']],
         [PLATFORM_IPC.PAGE_STORE_URL, [KEY]],
+        [PLATFORM_IPC.PAGE_STORE_VERIFY, [KEY]],
         [PLATFORM_IPC.PAGE_STORE_DELETE, [KEY]],
         [PLATFORM_IPC.PAGE_STORE_LIST_KEYS, []],
       ] as const) {

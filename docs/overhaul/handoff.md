@@ -23,8 +23,9 @@ Milestone 2 (Electron runtime) is in progress:
 | #210  | Landed: repositories run in a `node:sqlite` utility process behind typed procedures; the renderer uses the same names; an existing snapshot imports once with counts and content verified; change capture broadcasts to every window, the library tracer runs on TanStack DB, chapters load on demand, and a crashed host restarts with no data lost. |
 | #212  | Landed: reader pages are files under a main-owned store, served by `page://` with opaque ids and app-frame-only access; SQLite holds only metadata; eviction removes files and rows together; web keeps IndexedDB and object URLs.                                                                                                                    |
 | #211  | Landed: provider HTTP runs in main behind the manifest-domain allowlist and a pinned-address transport; the renderer has no provider network path, and page/cover bytes are fetched and stored by main. See below.                                                                                                                                    |
+| #213  | Landed: the one-way renderer-data import moves IndexedDB pages and covers into the page store, rewrites cache pointers inside the verified snapshot import, and surfaces retry/export. See below.                                                                                                                                                     |
 
-Next is #213, then #215 last. Budgets stay provisional until
+Next is #215 last. Budgets stay provisional until
 #215 pins the reference machine; Windows, Linux and packaged builds remain unproven. Check `node:sqlite` on
 Windows and Linux first thing in #215. If it fails, take the ADR's `better-sqlite3` exit.
 
@@ -95,6 +96,32 @@ driver, over the 100 ms budget, and each library reload runs it.
 - The E2E fixture transport (`provider-network-fixture.ts`) is enabled only by main's
   `MANGAVERSE_E2E_PROVIDER_FIXTURE` environment; every allowlist, address, redirect and limit check
   still runs.
+
+## Renderer-data import (#213)
+
+- One coordinator runs before the data host opens on first start (`renderer-data-import.ts`). It
+  lists the old IndexedDB blob keys (`page:`/`cover:`), reads each one, writes it through main's
+  page-store IPC, and asks main to hash the file it wrote; a size or SHA-256 mismatch fails the
+  move. Covers move from `cover:<p>:<m>` to `page:cover:<p>:<m>`.
+- The snapshot import (#210) takes the pointer rewrites in the same `open` request and applies them
+  to both the scratch source and the copied database before the counts and hashes are compared, so
+  the verified file already points at the page-store files. A #210 profile whose native file
+  already exists gets the same rewrites through `rewriteCacheBlobKeys` in one transaction.
+- Nothing is deleted before verification. The old snapshot and blobs stay in IndexedDB; after the
+  marker (`mangaverse.sqlite.import-renderer.json`) normal cache maintenance may reclaim the old
+  cover copy, and the page copy stays as the backup. Custom covers are moved like every other cover;
+  their pointer is the URL in `manga_identities.user_overrides_json.coverImageUrl`, which needs no
+  rewrite, and the cached bytes row is `cache_entries.blob_key`.
+- A failure before the host opens leaves no native file, so the window keeps working on sql.js. A
+  failure after it opens keeps the native database; either way the library/settings banner shows
+  the error, **Retry import** (user-initiated: it resets the local DB and runs the coordinator
+  again) and **Export old data** (the snapshot bytes as base64 plus a blob inventory). There is no
+  console-only path and no automatic retry loop. A marker whose native file is missing is not
+  trusted: the move runs again.
+- Tests: unit coverage for the move, verification, retry, marker and export; host tests for the
+  in-import rewrites; `apps/desktop/e2e/renderer-import.spec.ts` seeds a pre-data-host profile and
+  proves library, custom cover, reader page, the marker, a second-start skip, and a forced
+  read-only page-store failure with retry/export.
 
 ## Package consolidation (#208)
 

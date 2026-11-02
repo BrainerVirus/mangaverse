@@ -3,6 +3,7 @@ import { createAppError, err, ok, type AppError, type AppResult } from '@app/sha
 import { z } from 'zod';
 import {
   DATA_HOST_ERROR,
+  type CacheBlobKeyRewrite,
   type DataHostMessage,
   type DataHostOpenResult,
   type DataHostRequest,
@@ -44,6 +45,10 @@ const requestSchema = z.discriminatedUnion('kind', [
     kind: z.literal('open'),
     id: requestId,
     snapshot: z.instanceof(Uint8Array).nullable(),
+    rewrites: z
+      .array(z.object({ id: z.string(), blobKey: z.string() }))
+      .max(200_000)
+      .optional(),
   }),
 ]) satisfies z.ZodType<DataHostRequest>;
 
@@ -86,11 +91,14 @@ export function createDataHost(options: { readonly databasePath: string }): Data
     for (const port of attached) port.postMessage(message);
   };
 
-  const open = (snapshot: Uint8Array | null): AppResult<DataHostOpenResult> => {
+  const open = (
+    snapshot: Uint8Array | null,
+    rewrites: readonly CacheBlobKeyRewrite[] = [],
+  ): AppResult<DataHostOpenResult> => {
     if (database !== null) return ok({ imported: null });
     const imported =
       snapshot !== null && !existsSync(databasePath)
-        ? importSnapshot(snapshot, databasePath)
+        ? importSnapshot(snapshot, databasePath, rewrites)
         : null;
     const opened = openNativeDatabase(databasePath);
     capture = installChangeCapture(opened.client);
@@ -107,7 +115,7 @@ export function createDataHost(options: { readonly databasePath: string }): Data
         });
       case 'open':
         return Promise.resolve()
-          .then(() => open(request.snapshot))
+          .then(() => open(request.snapshot, request.rewrites ?? []))
           .then(undefined, (error: unknown) =>
             err(
               failure(

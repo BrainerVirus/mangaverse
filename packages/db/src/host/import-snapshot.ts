@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import type { DatabaseSync } from 'node:sqlite';
-import type { SnapshotImportReport } from '../data-host-protocol.js';
+import type { CacheBlobKeyRewrite, SnapshotImportReport } from '../data-host-protocol.js';
 import { openNativeDatabase } from './open-native.js';
 
 interface TableDigest {
@@ -74,6 +74,21 @@ function removeDatabaseFiles(path: string): void {
   }
 }
 
+/**
+ * Rewrites cache blob pointers. Applied to both the scratch source and the imported copy, so
+ * the content hashes are compared after the same change and the rewrite itself is verified.
+ * A rewrite naming a row the snapshot does not have changes nothing; an orphaned blob is not
+ * a reason to refuse the import.
+ */
+function applyPointerRewrites(
+  database: DatabaseSync,
+  rewrites: readonly CacheBlobKeyRewrite[],
+): void {
+  if (rewrites.length === 0) return;
+  const statement = database.prepare('UPDATE main.cache_entries SET blob_key = ? WHERE id = ?');
+  for (const rewrite of rewrites) statement.run(rewrite.blobKey, rewrite.id);
+}
+
 /** Where the import report is kept beside the native database. */
 export const importMarkerPath = (databasePath: string): string => `${databasePath}.import.json`;
 
@@ -81,10 +96,16 @@ export const importMarkerPath = (databasePath: string): string => `${databasePat
  * Imports a sql.js snapshot (an SQLite file image) into a new native database at `targetPath`
  * (spec 04 X10). The bytes are copied to a scratch file and migrated there; the rows are then
  * copied table by table into a freshly migrated database, and every table's row count and
- * content hash must match the source before the result is renamed into place. Any failure
- * throws and leaves no file at `targetPath`. The caller's snapshot is never written to.
+ * content hash must match the source before the result is renamed into place. Cache blob
+ * pointers are rewritten on both sides before that comparison, so a file whose rows changed
+ * only by a move is still verified. Any failure throws and leaves no file at `targetPath`.
+ * The caller's snapshot is never written to.
  */
-export function importSnapshot(bytes: Uint8Array, targetPath: string): SnapshotImportReport {
+export function importSnapshot(
+  bytes: Uint8Array,
+  targetPath: string,
+  rewrites: readonly CacheBlobKeyRewrite[] = [],
+): SnapshotImportReport {
   if (existsSync(targetPath)) {
     throw new Error('A native database already exists; a snapshot is imported only once.');
   }
@@ -101,6 +122,7 @@ export function importSnapshot(bytes: Uint8Array, targetPath: string): SnapshotI
       if (integrity?.integrity_check !== 'ok') {
         throw new Error('The snapshot failed its integrity check.');
       }
+      applyPointerRewrites(source.client.database, rewrites);
       expected = digestDatabase(source.client.database);
     } finally {
       source.close();
@@ -121,6 +143,7 @@ export function importSnapshot(bytes: Uint8Array, targetPath: string): SnapshotI
           `INSERT INTO main.${quoteIdentifier(table)} (${names}) SELECT ${names} FROM snapshot.${quoteIdentifier(table)}`,
         );
       }
+      applyPointerRewrites(database, rewrites);
       database.exec('COMMIT');
       database.exec('DETACH DATABASE snapshot');
       database.exec('PRAGMA foreign_keys = ON');

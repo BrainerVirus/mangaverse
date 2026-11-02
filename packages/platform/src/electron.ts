@@ -149,6 +149,8 @@ export function createElectronPlatformAdapter(bridge: DesktopPlatformBridge): Pl
           return err(platformUnsupported('Could not delete blob on desktop.'));
         }
       },
+      verify: async (key: string) =>
+        isPageStoreKey(key) ? asResult(() => bridge.pageStoreVerify(key)) : ok(undefined),
       listKeys: async () => {
         const pages = await asResult(() => bridge.pageStoreListKeys());
         if (!pages.ok) return pages;

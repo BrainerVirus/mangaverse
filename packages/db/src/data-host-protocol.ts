@@ -13,7 +13,13 @@ export type DataHostRequest =
   /** Whether the native database is open, or exists on disk to be opened. */
   | { readonly kind: 'status'; readonly id: number }
   /** Opens the native database; a snapshot is imported only when no native file exists. */
-  | { readonly kind: 'open'; readonly id: number; readonly snapshot: Uint8Array | null };
+  | {
+      readonly kind: 'open';
+      readonly id: number;
+      readonly snapshot: Uint8Array | null;
+      /** Cache-row pointers to rewrite while the snapshot is copied, so the copy is verified. */
+      readonly rewrites?: readonly CacheBlobKeyRewrite[] | undefined;
+    };
 
 export interface DataHostReply {
   /** `null` only when a malformed request carried no usable id. */
@@ -75,6 +81,15 @@ export interface SnapshotImportReport {
   readonly tables: Readonly<Record<string, number>>;
   readonly totalRows: number;
   readonly checksum: string;
+}
+
+/**
+ * A cache row's blob pointer, moved by the renderer-data import (#213): the old key names a
+ * renderer IndexedDB blob, the new key the page-store file that now holds the same bytes.
+ */
+export interface CacheBlobKeyRewrite {
+  readonly id: string;
+  readonly blobKey: string;
 }
 
 export const DATA_HOST_ERROR = {
