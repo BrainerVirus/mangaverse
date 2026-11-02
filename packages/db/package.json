@@ -19,6 +19,10 @@
       "types": "./dist/node.d.ts",
       "default": "./dist/node.js"
     },
+    "./host": {
+      "types": "./dist/host/index.d.ts",
+      "default": "./dist/host/index.js"
+    },
     "./testing": {
       "types": "./dist/testing/sqljs-harness.d.ts",
       "default": "./dist/testing/sqljs-harness.js"
@@ -38,13 +42,16 @@
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
-    "test": "vitest run --config vitest.config.ts",
+    "test": "vitest run --config vitest.config.ts && vitest run --config vitest.host.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "test:host": "vitest run --config vitest.host.config.ts",
+    "generate:routed": "node scripts/generate-routed.mjs"
   },
   "dependencies": {
     "@app/shared": "workspace:*",
-    "drizzle-orm": "^0.45.4"
+    "drizzle-orm": "^0.45.4",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^26.6.5",

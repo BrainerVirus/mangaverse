@@ -1,11 +1,14 @@
 import type { AppDrizzleDb } from '@app/db/browser';
 import type { BundledMigrationJournal } from '@app/db/browser';
 import type { PersistentDatabase } from '@app/db/browser';
+import type { AppResult } from '@app/shared';
 import type { SqlJsStatic } from 'sql.js';
 import { failureMessage } from './app-feedback.js';
 import { createFlushCoordinator } from './local-db-flush.js';
 
 let dbPromise: Promise<PersistentDatabase> | undefined;
+/** The Electron data host's handle; `null` when its import failed and sql.js stays in use. */
+let hostPromise: Promise<AppDrizzleDb | null> | undefined;
 let generation = 0;
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -74,6 +77,7 @@ export function resolveWasmAssetUrl(wasmModule: { default?: unknown }): string {
 export function resetLocalDb(): void {
   const session = dbPromise;
   dbPromise = undefined;
+  hostPromise = undefined;
   generation += 1;
   if (session !== undefined) {
     // Close the WASM database so retries do not leak memory.
@@ -198,8 +202,96 @@ export function getLocalDbSession(): Promise<PersistentDatabase> {
   return dbPromise;
 }
 
-/** Convenience accessor for callers that only need the Drizzle handle. */
+interface DataHostBridge {
+  connect(): Promise<AppResult<void>>;
+}
+
+/** Present only in the Electron app, where the preload exposes it. */
+function dataHostBridge(): DataHostBridge | undefined {
+  return (window as { mangaverseDataHost?: DataHostBridge }).mangaverseDataHost;
+}
+
+/** The window message the preload posts with the data host port. */
+const DATA_HOST_PORT_MESSAGE = 'mangaverse:data-host-port';
+
+function receiveDataHostPort(bridge: DataHostBridge): Promise<MessagePort> {
+  return new Promise((resolve, reject) => {
+    const onMessage = (event: MessageEvent) => {
+      const [port] = event.ports;
+      if (event.source !== window || event.data !== DATA_HOST_PORT_MESSAGE || !port) return;
+      window.removeEventListener('message', onMessage);
+      resolve(port);
+    };
+    window.addEventListener('message', onMessage);
+    void bridge.connect().then(
+      async (result) => {
+        if (result.ok) return;
+        window.removeEventListener('message', onMessage);
+        const { DataHostError } = await import('@app/db/browser');
+        reject(new DataHostError(result.error));
+      },
+      (error: unknown) => {
+        window.removeEventListener('message', onMessage);
+        reject(error);
+      },
+    );
+  });
+}
+
+/**
+ * Connects to the Electron data host, where SQLite runs natively (ADR 0001). On the first
+ * start without a native database, the sql.js snapshot is handed over once to be imported;
+ * the snapshot itself is only read. A failed import resolves `null` so the window keeps
+ * using that snapshot, and the next start tries again.
+ */
+async function openDataHost(bridge: DataHostBridge): Promise<AppDrizzleDb | null> {
+  const [{ createDataHostClient, DataHostError, DATA_HOST_ERROR }, port] = await Promise.all([
+    import('@app/db/browser'),
+    receiveDataHostPort(bridge),
+  ]);
+  const client = createDataHostClient({
+    postMessage: (request) => port.postMessage(request),
+    onMessage: (listener) => {
+      port.onmessage = (event) => listener(event.data);
+    },
+  });
+  const status = await client.status();
+  if (!status.ok) throw new DataHostError(status.error);
+  let snapshot: Uint8Array | null = null;
+  if (!status.value.open && !status.value.nativeExists) {
+    const { createIndexedDbPersistedBytesStore } = await import('./persisted-bytes-idb.js');
+    snapshot = (await createIndexedDbPersistedBytesStore().read())?.bytes ?? null;
+  }
+  const opened = await client.open(snapshot);
+  if (opened.ok) return client.handle;
+  if (opened.error.code !== DATA_HOST_ERROR.importFailed) throw new DataHostError(opened.error);
+  // oxlint-disable-next-line no-console -- ruling: data-host-import-fallback: the window falls back to the untouched sql.js snapshot and keeps working, so no UI state changes; the typed error is the record of why the import must be retried.
+  // react-doctor-disable-next-line eslint/no-console -- ruling: data-host-import-fallback: the window falls back to the untouched sql.js snapshot and keeps working, so no UI state changes; the typed error is the record of why the import must be retried.
+  console.error(
+    `[local-db] Native database import failed (${opened.error.code}); using the snapshot:`,
+    new DataHostError(opened.error),
+  );
+  return null;
+}
+
+/**
+ * The `db` repositories take: the data host's handle in the Electron app, the sql.js session's
+ * Drizzle handle on the web (and in Electron after a failed import).
+ */
 export async function getLocalDb(): Promise<AppDrizzleDb> {
+  const bridge = typeof window === 'undefined' ? undefined : dataHostBridge();
+  if (bridge !== undefined) {
+    if (hostPromise === undefined) {
+      const attempt = openDataHost(bridge);
+      hostPromise = attempt;
+      // A failed connect is retried on the next call rather than cached.
+      void attempt.then(undefined, () => {
+        if (hostPromise === attempt) hostPromise = undefined;
+      });
+    }
+    const handle = await hostPromise;
+    if (handle !== null) return handle;
+  }
   const session = await getLocalDbSession();
   return session.db;
 }

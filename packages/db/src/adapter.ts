@@ -1,9 +1,11 @@
-import type { SQLJsDatabase } from 'drizzle-orm/sql-js';
+import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
 import type { AppSchema } from './schema.js';
 
 /**
- * Drizzle database bound to the MangaVerse SQLite schema.
+ * Synchronous Drizzle database bound to the MangaVerse SQLite schema, on any driver.
  *
- * Phase 4 should construct this type from platform-selected drivers; Phase 3 uses `sql.js` only.
+ * `sql.js` (the web renderer) and `node:sqlite` (the Electron data host) both satisfy it
+ * (ADR 0001, decision 3). Repositories take this type; callers outside `@app/db` take
+ * `AppDb`, which also admits a data-host handle.
  */
-export type AppDrizzleDb = SQLJsDatabase<AppSchema>;
+export type AppDrizzleDb = BaseSQLiteDatabase<'sync', unknown, AppSchema>;

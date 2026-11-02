@@ -47,6 +47,9 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@app/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@app/platform':
         specifier: workspace:*
         version: link:../../packages/platform
@@ -84,6 +87,9 @@ importers:
       oxlint:
         specifier: ^1.87.0
         version: 1.87.0(oxlint-tsgolint@7.0.2004)
+      sql.js:
+        specifier: ^1.14.2
+        version: 1.14.2
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -281,6 +287,9 @@ importers:
       drizzle-orm:
         specifier: ^0.45.4
         version: 0.45.4(@opentelemetry/api@1.9.1)(@types/sql.js@1.4.11)(sql.js@1.14.2)
+      zod:
+        specifier: ^4.6.7
+        version: 4.6.7
     devDependencies:
       '@types/node':
         specifier: ^26.6.5
