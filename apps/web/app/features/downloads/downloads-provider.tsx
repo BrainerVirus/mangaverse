@@ -69,8 +69,8 @@ export function DownloadsProvider({ children }: DownloadsProviderProps) {
         void queryClient.invalidateQueries({ queryKey: downloadsQueryKeys.all });
         void queryClient.invalidateQueries({ queryKey: storageQueryKeys.summary() });
       },
-      onStorageFull: (download) => {
-        notifyDownloadStorageFull(download, () => void navigate({ to: '/storage' }));
+      onStorageFull: (download, chapterTitle) => {
+        notifyDownloadStorageFull(download, chapterTitle, () => void navigate({ to: '/storage' }));
       },
     });
   }, [adapter, db, dbStatus, navigate, queryClient]);

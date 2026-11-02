@@ -37,7 +37,7 @@ export interface DownloadEngineDeps {
   /** Persisted state changed; caches that list downloads should refetch. */
   onChanged?: () => void;
   /** A page could not be stored because the device is full. */
-  onStorageFull?: (download: DownloadRecord) => void;
+  onStorageFull?: (download: DownloadRecord, chapterTitle?: string) => void;
 }
 
 interface ActiveDownloadProgress {
@@ -138,6 +138,7 @@ export function createDownloadEngine(deps: DownloadEngineDeps): DownloadEngine {
     completedPages: number,
     pageCount: number,
     failedPageIndexes: readonly number[],
+    chapterTitle?: string,
   ): Promise<DownloadRecord | undefined> {
     const currentRow = await getDownload(db, row.chapterId);
     // A cancel or a removal that landed while the last pages were settling wins.
@@ -159,7 +160,7 @@ export function createDownloadEngine(deps: DownloadEngineDeps): DownloadEngine {
       completedAt: status === 'complete' ? new Date().toISOString() : null,
     });
     changed();
-    if (lastErrorCode === 'storage-full') deps.onStorageFull?.(finished);
+    if (lastErrorCode === 'storage-full') deps.onStorageFull?.(finished, chapterTitle);
     return finished;
   }
 
@@ -192,6 +193,9 @@ export function createDownloadEngine(deps: DownloadEngineDeps): DownloadEngine {
 
     const started = await markStart(row, providerId, pageCount);
     if (started === undefined) return;
+    // The row is now `downloading`: tell the downloads query so the initiating screen
+    // can apply the live progress snapshot instead of showing Queued until completion.
+    changed();
     await markChapterPagesDownloaded(db, {
       providerId,
       mangaId: chapter.mangaId,
@@ -295,7 +299,15 @@ export function createDownloadEngine(deps: DownloadEngineDeps): DownloadEngine {
     }
 
     if (storageFull) {
-      await finish(started, 'failed', 'storage-full', completedPages, pageCount, missing);
+      await finish(
+        started,
+        'failed',
+        'storage-full',
+        completedPages,
+        pageCount,
+        missing,
+        chapter.title,
+      );
       return;
     }
     if (missing.length > 0) {

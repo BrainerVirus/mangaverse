@@ -116,10 +116,12 @@ function engineFor(
   db: Parameters<typeof getDownload>[0],
   adapter: PlatformAdapter,
   source: DownloadChapterSource,
-  overrides: { readonly onStorageFull?: (row: { chapterId: string; status: string }) => void } = {},
+  overrides: {
+    readonly onStorageFull?: (row: { chapterId: string; status: string }, title?: string) => void;
+  } = {},
 ) {
   const onChanged = vi.fn<() => void>();
-  const onStorageFull = vi.fn<(row: { chapterId: string; status: string }) => void>(
+  const onStorageFull = vi.fn<(row: { chapterId: string; status: string }, title?: string) => void>(
     overrides.onStorageFull ?? (() => {}),
   );
   const engine = createDownloadEngine({
@@ -169,6 +171,9 @@ describe('download engine', () => {
       }),
     ).toEqual([0, 1, 2, 3, 4, 5]);
     expect(onChanged).toHaveBeenCalled();
+    // The list is told at enqueue (queued), at start (downloading) and at finish
+    // (complete); the start notification is what lets the initiating screen show n/m.
+    expect(onChanged.mock.calls.length).toBeGreaterThanOrEqual(3);
     // A repeated enqueue while nothing is wrong is a no-op.
     await engine.enqueue(CHAPTER_ID);
     expect((await getDownload(db, CHAPTER_ID))?.status).toBe('complete');
@@ -336,6 +341,7 @@ describe('download engine', () => {
         status: 'failed',
         lastErrorCode: 'storage-full',
       }),
+      'Chapter 1',
     );
     expect(
       await listCachedChapterPageIndexes(db, {
