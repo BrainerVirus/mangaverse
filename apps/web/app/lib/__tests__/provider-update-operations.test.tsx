@@ -112,7 +112,9 @@ describe('useProviderUpdate', () => {
     });
     const { result } = renderHook(() => useProviderUpdate(db, 'mangadex', true), { wrapper });
 
-    act(() => result.current.state.onCheck());
+    await act(async () => {
+      result.current.state.onCheck();
+    });
 
     await waitFor(() => expect(mocks.checkProviderUpdate).toHaveBeenCalledTimes(1));
     expect(mocks.createUserInitiatedFetch).toHaveBeenCalledTimes(1);
@@ -142,10 +144,14 @@ describe('useProviderUpdate', () => {
     });
     const { result } = renderHook(() => useProviderUpdate(db, 'mangadex', true), { wrapper });
 
-    act(() => result.current.state.onCheck());
+    await act(async () => {
+      result.current.state.onCheck();
+    });
     await waitFor(() => expect(result.current.state.check?.status).toBe('available'));
 
-    act(() => result.current.state.onApply());
+    await act(async () => {
+      result.current.state.onApply();
+    });
 
     await waitFor(() => expect(mocks.applyProviderUpdate).toHaveBeenCalledTimes(1));
     expect(mocks.applyProviderUpdate).toHaveBeenCalledWith('mangadex', remoteManifest, { db });
