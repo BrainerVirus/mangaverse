@@ -193,7 +193,7 @@
               "@app/extensions-*",
               "@app/extensions/*",
               "!@app/extensions-sdk",
-              "!@app/extensions/core*"
+              "!@app/extensions/core"
             ]
           }
         ]
