@@ -6,13 +6,17 @@ import type { ExtensionInstallPreview, ExtensionInstallSession } from '../../cor
 
 import { InstallProviderDialog } from '../InstallProviderDialog.js';
 
-function preview(contentFlags: ProviderManifest['contentFlags']): ExtensionInstallPreview {
+function preview(
+  contentFlags: ProviderManifest['contentFlags'],
+  domains: readonly string[] = ['api.audit.example', '*.audit.example'],
+): ExtensionInstallPreview {
   return {
     providerName: 'Audit Provider',
     providerId: 'audit-provider',
     version: '1.0.0',
     publisher: 'Audit Studio',
     sourceUrl: 'https://example.com/provider',
+    domains,
     platforms: ['web'],
     capabilities: { 'discovery.search': true },
     capabilityLimitations: [],
@@ -76,5 +80,19 @@ describe('InstallProviderDialog consent metadata', () => {
     renderDialog(preview(allFlagsTrue));
 
     expect(screen.getAllByText('Yes')).toHaveLength(Object.keys(allFlagsTrue).length);
+  });
+
+  it('lists every declared network domain before install', () => {
+    renderDialog(preview({ nsfw: false, suggestive: false, violence: false }));
+
+    expect(screen.getByText('Network domains')).toBeInTheDocument();
+    expect(screen.getByText('api.audit.example')).toBeInTheDocument();
+    expect(screen.getByText('*.audit.example')).toBeInTheDocument();
+  });
+
+  it('says No network access when the manifest declares no domains', () => {
+    renderDialog(preview({ nsfw: false, suggestive: false, violence: false }, []));
+
+    expect(screen.getByText('No network access')).toBeInTheDocument();
   });
 });

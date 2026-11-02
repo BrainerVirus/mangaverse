@@ -47,6 +47,7 @@ const installPreview: ExtensionInstallPreview = {
   publisher: manifest.source.publisher,
   sourceUrl: manifest.source.url,
   manifestUrl: 'https://demo.example/manifest.json',
+  domains: [],
   platforms: manifest.compatibility.platforms,
   capabilities: manifest.capabilities,
   capabilityLimitations: [],

@@ -1,4 +1,5 @@
 import type { ExtensionInstallWarning, ProviderManifest } from '@app/shared';
+import { providerNetworkDomains } from '@app/shared';
 
 import type {
   ExtensionInstallAction,
@@ -137,6 +138,7 @@ export function buildInstallPreview(
     ...(manifest.source.manifestUrl !== undefined
       ? { manifestUrl: manifest.source.manifestUrl }
       : { manifestUrl }),
+    domains: providerNetworkDomains(manifest),
     platforms: manifest.compatibility.platforms,
     capabilities: manifest.capabilities,
     ...(manifest.capabilityDetails !== undefined

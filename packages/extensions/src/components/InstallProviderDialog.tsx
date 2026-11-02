@@ -71,6 +71,20 @@ export function InstallPreviewPanel({ preview }: { preview: ExtensionInstallPrev
           <dt className="text-muted-foreground">Permissions</dt>
           <dd>{preview.permissions.join(', ')}</dd>
         </div>
+        <div>
+          <dt className="text-muted-foreground">Network domains</dt>
+          <dd>
+            {preview.domains.length === 0 ? (
+              'No network access'
+            ) : (
+              <ul className="list-disc pl-5">
+                {preview.domains.map((domain) => (
+                  <li key={domain}>{domain}</li>
+                ))}
+              </ul>
+            )}
+          </dd>
+        </div>
       </dl>
       <div>
         <p className="mb-2 text-sm text-muted-foreground">Content flags</p>

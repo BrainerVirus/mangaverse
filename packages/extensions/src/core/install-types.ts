@@ -27,6 +27,8 @@ export interface ExtensionInstallPreview {
   readonly publisher?: string;
   readonly sourceUrl: string;
   readonly manifestUrl?: string;
+  /** The manifest's declared network domains; empty means no network access. */
+  readonly domains: readonly string[];
   readonly platforms: readonly string[];
   readonly capabilities: ProviderManifest['capabilities'];
   readonly capabilityDetails?: ProviderManifest['capabilityDetails'];
