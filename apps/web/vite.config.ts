@@ -35,6 +35,31 @@ const reactCompiler = reactCompilerPreset({
 });
 reactCompiler.rolldown.applyToEnvironmentHook = () => true;
 
+// The Electron target is a static client shell served from the app:// protocol
+// (dist/static-shell/public). The web deployment stays SSR on Nitro (.output).
+const staticShell = process.env.MANGAVERSE_STATIC_SHELL === '1';
+
+// Start prerenders the shell through Nitro's preview server, whose close never settles, so
+// `vite build` would hang after writing the output. Close without waiting, then exit.
+function staticShellBuildExit(): Plugin {
+  return {
+    name: 'static-shell-build-exit',
+    // Runs after Start's own `enforce: 'post'` prerender step.
+    enforce: 'post',
+    configurePreviewServer(server) {
+      server.close = async () => {
+        server.httpServer.close();
+      };
+    },
+    buildApp: {
+      order: 'post',
+      handler() {
+        process.exit(0);
+      },
+    },
+  };
+}
+
 export default defineConfig({
   server: {
     port: 5173,
@@ -61,10 +86,13 @@ export default defineConfig({
     tailwindcss(),
     tanstackStart({
       srcDirectory: 'app',
+      ...(staticShell ? { spa: { enabled: true, prerender: { outputPath: '/index' } } } : {}),
     }),
     viteReact(),
     babel({ presets: [reactCompiler] }),
     baseUiShimInterop(),
-    nitro(),
+    // Nitro still bundles the server that prerenders the shell, then build.mjs leaves it behind.
+    nitro(staticShell ? { output: { dir: 'dist/static-shell' } } : {}),
+    ...(staticShell ? [staticShellBuildExit()] : []),
   ],
 });

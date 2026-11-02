@@ -1,15 +1,30 @@
-import { fork, type ChildProcess } from 'node:child_process';
 import { lookup } from 'node:dns/promises';
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { app, BrowserWindow, clipboard, dialog, ipcMain, net, safeStorage, shell } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  clipboard,
+  dialog,
+  ipcMain,
+  net,
+  protocol,
+  safeStorage,
+  session,
+  shell,
+} from 'electron';
 import {
   detectElectronCapabilities,
   isSafeExternalUrl,
   type PlatformCapabilities,
 } from '@app/platform';
-import { createDesktopLocalService } from './local-service.js';
+import {
+  APP_ORIGIN,
+  APP_SCHEME,
+  APP_SCHEME_PRIVILEGES,
+  createAppProtocolHandler,
+} from './app-protocol.js';
 import {
   createInstallProtocolStore,
   ingestArgvForInstallUrls,
@@ -17,17 +32,21 @@ import {
 } from './protocol-handoff.js';
 import { registerPlatformIpc } from './platform-ipc.js';
 import { createSecureStorageModel } from './secure-storage.js';
-import { registerContentSecurityPolicy } from './content-security-policy.js';
-import { resolveRendererPort } from './renderer-port.js';
+import {
+  buildContentSecurityPolicy,
+  registerDevContentSecurityPolicy,
+} from './content-security-policy.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const rendererPort = resolveRendererPort(process.env.MANGAVERSE_RENDERER_PORT);
+// Production loads the static client shell from app://app; nothing listens on a port.
+const PRODUCTION_RENDERER_URL = `${APP_ORIGIN}/`;
 
 let mainWindow: BrowserWindow | null = null;
-let nitroProcess: ChildProcess | null = null;
-let productionRendererUrl: string | null = null;
+
+// Must run before app ready: a standard, secure scheme gets an origin, `'self'` and fetch.
+protocol.registerSchemesAsPrivileged([APP_SCHEME_PRIVILEGES]);
 
 const installProtocolStore = createInstallProtocolStore();
 registerInstallProtocolAppEvents({ app, store: installProtocolStore });
@@ -38,46 +57,16 @@ if (!gotSingleInstanceLock) {
   process.exit(0);
 }
 
-let snapshotForHttp: () => Record<string, unknown> = () => ({ status: 'boot' });
+// The Express health/diagnostics server is gone (spec 04 X6): nothing used its HTTP, and the
+// renderer reads diagnostics over IPC. The IPC channel stays and reports it as not running.
+const LOCAL_SERVICE_INFO = { running: false, host: null, port: null } as const;
 
-const desktopLocalService = createDesktopLocalService({
-  getDiagnosticsPayload: () => snapshotForHttp(),
-});
-
-async function waitForHttpOk(url: string) {
-  for (let attempt = 1; attempt <= 60; attempt += 1) {
-    try {
-      const response = await fetch(url);
-      if (response.ok) return;
-    } catch {
-      await new Promise((r) => setTimeout(r, 250));
-    }
-  }
-  throw new Error(`Timed out waiting for renderer at ${url}`);
-}
-
-function startProductionRenderer(): Promise<string> {
-  if (productionRendererUrl) {
-    return Promise.resolve(productionRendererUrl);
-  }
-
-  const rendererRoot = join(__dirname, '../renderer');
-  const serverEntry = join(rendererRoot, 'server/index.mjs');
-
-  nitroProcess = fork(serverEntry, [], {
-    cwd: rendererRoot,
-    env: {
-      ...process.env,
-      PORT: String(rendererPort),
-      NITRO_HOST: '127.0.0.1',
-      HOST: '127.0.0.1',
-    },
-    silent: false,
+function registerAppProtocol() {
+  const handler = createAppProtocolHandler({
+    root: join(__dirname, '../renderer'),
+    contentSecurityPolicy: buildContentSecurityPolicy(false),
   });
-
-  const url = `http://127.0.0.1:${rendererPort}`;
-  productionRendererUrl = url;
-  return waitForHttpOk(url).then(() => url);
+  session.defaultSession.protocol.handle(APP_SCHEME, handler);
 }
 
 function buildCapabilities(): PlatformCapabilities {
@@ -124,14 +113,14 @@ function createWindow(url: string) {
   });
 }
 
-async function bootstrap() {
+function bootstrap() {
   const devUrl = process.env.VITE_DEV_SERVER_URL;
   if (devUrl) {
     createWindow(devUrl);
     return;
   }
-  const url = await startProductionRenderer();
-  createWindow(url);
+  registerAppProtocol();
+  createWindow(PRODUCTION_RENDERER_URL);
 }
 
 void app.whenReady().then(async () => {
@@ -155,16 +144,14 @@ void app.whenReady().then(async () => {
         platform: process.platform,
         arch: process.arch,
         userDataConfigured: true,
-        localService: desktopLocalService.getInfo(),
+        localService: LOCAL_SERVICE_INFO,
         capabilityFlags,
       };
     };
 
-    snapshotForHttp = () => ({ ...buildDiagnosticsSnapshot() });
-
-    await desktopLocalService.start();
-
-    registerContentSecurityPolicy(Boolean(process.env.VITE_DEV_SERVER_URL));
+    if (process.env.VITE_DEV_SERVER_URL) {
+      registerDevContentSecurityPolicy();
+    }
 
     const secureModel = createSecureStorageModel({
       safeStorage,
@@ -185,13 +172,13 @@ void app.whenReady().then(async () => {
       getCapabilities: () => buildCapabilities(),
       protocolTakePendingInstallUrl: () => installProtocolStore.take(),
       secureStorage: secureModel,
-      getLocalServiceInfo: () => desktopLocalService.getInfo(),
+      getLocalServiceInfo: () => LOCAL_SERVICE_INFO,
       buildDiagnosticsSnapshot,
       resolveHostAddresses: async (hostname) =>
         (await lookup(hostname, { all: true, verbatim: true })).map((entry) => entry.address),
     });
 
-    await bootstrap();
+    bootstrap();
   } catch (err) {
     // oxlint-disable-next-line no-console -- ruling: desktop-console-bootstrap: this catch quits the app on the next line, so no UI can surface the failure; the console is the only record and `.oxlintrc.json` already allows console under apps/desktop/src/main/**.
     // react-doctor-disable-next-line eslint/no-console -- ruling: desktop-console-bootstrap: this catch quits the app on the next line, so no UI can surface the failure; the console is the only record and `.oxlintrc.json` already allows console under apps/desktop/src/main/**.
@@ -200,16 +187,7 @@ void app.whenReady().then(async () => {
   }
 });
 
-app.on('before-quit', () => {
-  nitroProcess?.kill();
-  nitroProcess = null;
-  void desktopLocalService.stop();
-});
-
 app.on('window-all-closed', () => {
-  nitroProcess?.kill();
-  nitroProcess = null;
-  void desktopLocalService.stop();
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -217,11 +195,6 @@ app.on('window-all-closed', () => {
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
-    const devUrl = process.env.VITE_DEV_SERVER_URL;
-    if (devUrl) {
-      createWindow(devUrl);
-    } else if (productionRendererUrl) {
-      createWindow(productionRendererUrl);
-    }
+    createWindow(process.env.VITE_DEV_SERVER_URL ?? PRODUCTION_RENDERER_URL);
   }
 });

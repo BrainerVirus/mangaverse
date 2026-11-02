@@ -55,7 +55,7 @@ The legacy Expo code was removed in the recovery (Phase 10.5); `apps/` and `pack
 - SQLite as the local database.
 - Browser SQLite through WASM for web/PWA.
 - Electron desktop SQLite through a native or Node-compatible driver chosen during implementation.
-- Express.js in the Electron app for local desktop-only APIs when an HTTP boundary is useful.
+- Electron desktop capabilities over validated IPC and typed RPC; no loopback HTTP service.
 - shadcn/ui for accessible UI primitives and component composition.
 - GSAP, `@gsap/react`, timelines, and ScrollTrigger for motion.
 - Monorepo package layout.
@@ -500,7 +500,7 @@ Electron desktop must support:
 - External link handling.
 - Local backup files.
 - Diagnostics.
-- Local Express service only for desktop capabilities that should not leak into web code.
+- Desktop-only capabilities over validated IPC and typed RPC, not an HTTP service.
 
 ### Web/PWA
 
@@ -615,7 +615,7 @@ Critical flows to test:
 
 - Documentation exists for product spec, plan, architecture, design, and agent instructions.
 - Agents are instructed to read the right documents before implementation.
-- The next implementation phase targets TanStack Start, Electron, Express where appropriate, Drizzle, SQLite, shadcn/ui, GSAP, and local-first architecture.
+- The next implementation phase targets a client-rendered React and TanStack Router shell, Electron, Drizzle, SQLite, shadcn/ui, GSAP, and local-first architecture.
 - Package boundaries are explicit and prevent UI/features from reaching into provider, database, reader, or platform internals.
 - Extension safety and provider distribution separation are documented.
 - Reader requirements exceed the current implementation and directly address tap zone reliability.

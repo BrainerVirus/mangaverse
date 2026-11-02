@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "vite dev --port 5173",
     "build": "vite build && tsc --noEmit",
+    "build:static-shell": "vite build",
     "start": "node .output/server/index.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",

@@ -14,9 +14,16 @@ Milestone 1 (Foundation) has landed:
 | #206  | Landed: typed failures, status pages, inline retry, toasts, the Saving indicator.     |
 | #208  | Landed: package consolidation, below.                                                 |
 
-Next is milestone 2 (Electron runtime). [ADR 0001](adr/0001-data-host.md) (#209) settles the data host once it
-merges: `node:sqlite` through a small adapter, a generated client with the repositories' names, and TanStack DB
-over host change events. Then #210-#214, with #215 last; the roadmap holds the order inside that range.
+Milestone 2 (Electron runtime) is in progress:
+
+| Issue | State                                                                                                                                                                                                                          |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| #209  | Landed: [ADR 0001](adr/0001-data-host.md) decides `node:sqlite` through a small adapter, sync-in-host, a generated client with the repositories' names, and TanStack DB change events; `better-sqlite3` 13 is the tested exit. |
+| #214  | Landed: the production app loads a static client shell from `app://` with a strict CSP; the Nitro fork, loopback port and local Express service are gone. Offline deep routes are proven; dev still uses Vite.                 |
+
+Next is #210 (repositories in a data process over typed RPC), then #211 and #212 as the roadmap allows, #213 after
+#210 and #212, and #215 last. Budgets stay provisional until #215 pins the reference machine; Windows, Linux and
+packaged builds remain unproven.
 
 Start from the ADR's conversion plan. Carry these into the first host issue:
 

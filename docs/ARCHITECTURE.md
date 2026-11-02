@@ -4,7 +4,7 @@
 
 ## Architecture Summary
 
-MangaVerse will use a monorepo with app shells and reusable packages. The web app is built with TanStack Start. The desktop app is built with Electron and reuses the same web UI and core packages, adding desktop-only capabilities through `@app/platform` and an optional local Express service.
+MangaVerse will use a monorepo with app shells and reusable packages. The web app is built with TanStack Start. The desktop app is built with Electron and reuses the same web UI and core packages, adding desktop-only capabilities through `@app/platform`.
 
 The architecture is local-first: package APIs read and write local SQLite first, then provider calls, cloud sync, and background refresh update local state asynchronously. App features consume stable package APIs and must not reach into provider internals, raw database internals, reader internals, or platform internals.
 
@@ -46,7 +46,7 @@ docs/
 - Owns main process, preload scripts, app menu, custom protocol registration, native file dialogs, window controls, and desktop packaging.
 - Reuses the web renderer where possible.
 - Exposes desktop-only capabilities through `@app/platform` APIs, not direct Electron imports in features.
-- May run an Express service for local desktop APIs that benefit from an HTTP boundary, such as local file import/export, diagnostics, protocol install handoff, or isolated extension/network helpers.
+- Opens no loopback HTTP port; IPC validated at the preload boundary is the desktop backend boundary.
 
 ## Package Boundaries
 
@@ -479,22 +479,11 @@ Use Zustand for client/UI state that is not naturally server/provider state:
 
 Avoid putting provider response data, database rows, or high-frequency reader interaction state directly in global stores.
 
-## Express In Electron
+## Desktop Shell And Backend Boundary
 
-Express may be used in the Electron app for desktop-local APIs when beneficial:
+The production Electron app loads a client-only shell from the privileged `app://` protocol. The protocol handler serves files only under the built client root, refuses traversal and symlinks, falls back to `index.html` for extensionless deep routes, and sends the CSP on every response. No Nitro server is forked and no loopback port is opened; development still uses Vite's server for HMR, production does not.
 
-- Local backup import/export.
-- Diagnostics bundle generation.
-- Local file serving for cached chapters if safer than direct file paths.
-- Protocol install handoff.
-- Extension worker/proxy experiments.
-
-Rules:
-
-- Express must bind only to localhost or an internal channel.
-- Endpoints must validate input.
-- Endpoints must not expose arbitrary file access.
-- Web app code must call these capabilities through `@app/platform`, not hardcoded URLs.
+IPC validated at the preload boundary is the desktop backend boundary. The former local Express service was removed: nothing used its HTTP, and an IPC boundary needs no open port. A data process, when it lands, is reached over typed RPC rather than HTTP.
 
 ## Cloud Sync Architecture
 
