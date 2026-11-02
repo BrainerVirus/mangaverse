@@ -103,9 +103,27 @@ export function mergeMangaDetailWithLibrary(
   };
 }
 
-export function shouldRefreshMangaDetail(local: MangaDetailData | null): boolean {
+/**
+ * How long a persisted provider detail is treated as fresh. Opening a cached title
+ * renders immediately either way; only the background refresh waits for this window,
+ * so a page open cannot become a provider call on every mount (O3: reuse until stale).
+ */
+export const MANGA_DETAIL_STALE_MS = 15 * 60_000;
+
+export function shouldRefreshMangaDetail(
+  local: MangaDetailData | null,
+  nowMs: number = Date.now(),
+): boolean {
   if (local === null) {
     return true;
   }
-  return local.chapters.length === 0;
+  if (local.chapters.length === 0) {
+    return true;
+  }
+  const updatedAt = local.manga.updatedAt;
+  if (updatedAt === undefined) {
+    return true;
+  }
+  const updatedMs = Date.parse(updatedAt);
+  return Number.isNaN(updatedMs) || nowMs - updatedMs >= MANGA_DETAIL_STALE_MS;
 }

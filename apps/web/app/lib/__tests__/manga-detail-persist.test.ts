@@ -19,7 +19,12 @@ import {
   type ChapterPage,
 } from '@app/shared';
 
-import { persistChapterPagesToDb } from '../manga-detail-persist.js';
+import { fetchMangaDetail } from '@/features/library';
+import {
+  MANGA_DETAIL_STALE_MS,
+  persistChapterPagesToDb,
+  shouldRefreshMangaDetail,
+} from '../manga-detail-persist.js';
 
 describe('persistChapterPagesToDb', () => {
   it('writes pages back to the chapter mapping after the default mapping moved', async () => {
@@ -115,5 +120,43 @@ describe('persistChapterPagesToDb', () => {
     const persisted = await getChapter(harness.db, chapterId);
     expect(persisted?.providerMappingId).toBe(mapping.value);
     expect(persisted?.pages.map((page) => page.image.url)).toEqual(['https://example.com/0.jpg']);
+  });
+});
+
+describe('shouldRefreshMangaDetail', () => {
+  it('refreshes a missing or chapter-less detail, reuses a fresh one, and refreshes once stale', async () => {
+    const { db } = await createSqlJsHarness();
+    const created = await createMangaIdentityWithInitialMapping(db, {
+      canonicalTitle: 'Freshness',
+      status: 'ongoing',
+      contentRating: 'safe',
+      providerId: 'fresh-provider',
+      providerMangaId: 'fresh-remote',
+    });
+    if (!created.ok) throw new Error(created.error.message);
+
+    const empty = await fetchMangaDetail(db, created.value.mangaId);
+    expect(shouldRefreshMangaDetail(empty)).toBe(true);
+    expect(shouldRefreshMangaDetail(null)).toBe(true);
+
+    const chapter = await upsertChapterWithPages(db, {
+      mangaId: created.value.mangaId,
+      providerMappingId: created.value.mappingId,
+      providerId: 'fresh-provider',
+      providerChapterId: 'fresh-chapter-1',
+      title: 'Chapter 1',
+      index: 1,
+      pages: [],
+    });
+    if (!chapter.ok) throw new Error(chapter.error.message);
+
+    const withChapters = await fetchMangaDetail(db, created.value.mangaId);
+    if (withChapters === null) throw new Error('detail missing');
+    const updatedAt = withChapters.manga.updatedAt;
+    if (updatedAt === undefined) throw new Error('identity updatedAt missing');
+
+    const freshNow = Date.parse(updatedAt) + 60_000;
+    expect(shouldRefreshMangaDetail(withChapters, freshNow)).toBe(false);
+    expect(shouldRefreshMangaDetail(withChapters, freshNow + MANGA_DETAIL_STALE_MS)).toBe(true);
   });
 });
