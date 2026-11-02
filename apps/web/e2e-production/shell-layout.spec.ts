@@ -117,7 +117,9 @@ test.describe('touch layout', () => {
 
     // The bottom bar's own links are touch targets as well.
     const navHeights = await page.evaluate(() =>
-      Array.from(document.querySelectorAll('nav a')).map(
+      // The primary nav is the visible bottom bar; the desktop sidebar is still in the DOM
+      // but CSS-hidden at this width, so it must not count as a touch target.
+      Array.from(document.querySelectorAll('nav[aria-label="Primary"] a')).map(
         (link) => link.getBoundingClientRect().height,
       ),
     );
