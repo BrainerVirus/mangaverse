@@ -18,6 +18,9 @@ export const MANGADEX_MANIFEST: ProviderManifest = {
   compatibility: {
     platforms: ['web', 'desktop', 'mobile'],
   },
+  network: {
+    domains: ['api.mangadex.org', 'uploads.mangadex.org', '*.mangadex.network'],
+  },
   capabilities: {
     'discovery.search': true,
     'discovery.latest': true,

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { expectTypeOf } from 'vitest';
 import {
   hasProviderCapability,
+  providerAllowsHost,
+  providerNetworkDomains,
   validateProviderManifest,
   type ProviderCapabilityMap,
   type ProviderManifest,
@@ -316,5 +318,59 @@ describe('validateProviderManifest error compatibility', () => {
     expect(res.value.checksum).toBeUndefined();
     expect(res.value.signature).toBeUndefined();
     expect(res.value.source.publisher).toBeUndefined();
+  });
+});
+
+describe('provider network domains', () => {
+  const withNetwork = (network: unknown) => ({ ...validManifestInput, network });
+
+  it('normalizes declared hosts and wildcards', () => {
+    const res = validateProviderManifest(
+      withNetwork({ domains: ['API.Example.ORG', ' *.example.net '] }),
+    );
+    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error('expected res.ok to be true');
+    expect(res.value.network).toEqual({ domains: ['api.example.org', '*.example.net'] });
+  });
+
+  it.each([
+    ['https://example.org', 'a scheme'],
+    ['api.example.org:443', 'a port'],
+    ['api.example.org/path', 'a path'],
+    ['*', 'a bare wildcard'],
+    ['api.*.org', 'a non-leading wildcard'],
+    ['*.com', 'a single-label suffix'],
+    ['', 'an empty value'],
+  ])('rejects %s (%s)', (domain) => {
+    expect(validateProviderManifest(withNetwork({ domains: [domain] })).ok).toBe(false);
+  });
+
+  it('rejects an empty domain list and a non-array', () => {
+    expect(validateProviderManifest(withNetwork({ domains: [] })).ok).toBe(false);
+    expect(validateProviderManifest(withNetwork({ domains: 'api.example.org' })).ok).toBe(false);
+  });
+
+  it('matches exact hosts and wildcard subdomains but never the apex', () => {
+    const res = validateProviderManifest(
+      withNetwork({ domains: ['api.example.org', '*.mangadex.network'] }),
+    );
+    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error('expected res.ok to be true');
+    const manifest = res.value;
+    expect(providerAllowsHost(manifest, 'api.example.org')).toBe(true);
+    expect(providerAllowsHost(manifest, 'API.EXAMPLE.ORG.')).toBe(true);
+    expect(providerAllowsHost(manifest, 'cmdxd98sb0x3yprd.mangadex.network')).toBe(true);
+    expect(providerAllowsHost(manifest, 'a.b.mangadex.network')).toBe(true);
+    expect(providerAllowsHost(manifest, 'mangadex.network')).toBe(false);
+    expect(providerAllowsHost(manifest, 'evilmangadex.network')).toBe(false);
+    expect(providerAllowsHost(manifest, 'api.example.org.evil.com')).toBe(false);
+  });
+
+  it('fails closed when no network is declared', () => {
+    const res = validateProviderManifest(validManifestInput);
+    expect(res.ok).toBe(true);
+    if (!res.ok) throw new Error('expected res.ok to be true');
+    expect(providerNetworkDomains(res.value)).toEqual([]);
+    expect(providerAllowsHost(res.value, 'api.example.org')).toBe(false);
   });
 });
