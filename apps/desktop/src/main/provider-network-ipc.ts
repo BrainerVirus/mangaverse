@@ -23,6 +23,7 @@ import { networkErrorToAppError, toIpcAppResult } from './platform-ipc.js';
 
 export const PROVIDER_NETWORK_CHANNELS = [
   PLATFORM_IPC.PROVIDER_NETWORK_REPLACE,
+  PLATFORM_IPC.PROVIDER_NETWORK_REVOKE,
   PLATFORM_IPC.PROVIDER_NETWORK_REQUEST,
   PLATFORM_IPC.PROVIDER_NETWORK_STORE,
   PLATFORM_IPC.PROVIDER_NETWORK_STORE_USER_INITIATED,
@@ -68,8 +69,8 @@ export interface ProviderNetworkIpcDeps {
 /**
  * The renderer's only way to change main's provider allowlist. Each call is
  * validated against the shared schema and authorized by its sender frame, so a
- * frame that is not the app's own cannot widen a provider's reach. Uninstalling a
- * provider removes its patterns; an empty registration denies every host.
+ * frame that is not the app's own cannot widen a provider's reach. Disable and
+ * uninstall revoke the provider directly; an empty registration denies every host.
  */
 export function registerProviderNetworkIpc(deps: ProviderNetworkIpcDeps): void {
   function handle<C extends ProviderNetworkChannel>(
@@ -107,6 +108,15 @@ export function registerProviderNetworkIpc(deps: ProviderNetworkIpcDeps): void {
     }
     deps.allowlist.replaceAll(snapshot.providers);
     lastRevision = snapshot.revision;
+    return ok(undefined);
+  });
+
+  // A revoke is never stale: removing access is always safe, so it applies even
+  // when its revision is older. It also advances the fence, so a snapshot taken
+  // before the disable (an older revision still in flight) cannot restore access.
+  handle(PLATFORM_IPC.PROVIDER_NETWORK_REVOKE, ([request]) => {
+    deps.allowlist.revoke(request.providerId);
+    lastRevision = Math.max(lastRevision, request.revision);
     return ok(undefined);
   });
 
@@ -161,14 +171,28 @@ export function registerProviderNetworkIpc(deps: ProviderNetworkIpcDeps): void {
     );
   });
 
-  // Custom covers are user-supplied: there is no manifest to authorize the host,
-  // so this path skips only the allowlist. The URL itself, every resolved address
-  // and every redirect are still validated, and size/time limits are unchanged.
+  // Custom covers are user-supplied: there is no manifest to authorize the host.
+  // The inverse rule applies instead: no hop, first or redirected, may land on a
+  // host a registered provider declares, so this channel cannot reach provider
+  // APIs outside that provider's own allowlisted path. The URL, every resolved
+  // address and every redirect are still validated, and size/time limits hold.
   handle(PLATFORM_IPC.PROVIDER_NETWORK_STORE_USER_INITIATED, async ([request]) => {
     const deadline = Date.now() + REQUEST_TIMEOUT_MS;
-    return withRefusalLog(deps.networkTransport, () =>
-      fetchMainProcessBytes(request.url, async () => true, deps.networkTransport, deadline),
-    ).then(
+    return withRefusalLog(deps.networkTransport, async () => {
+      if (deps.allowlist.claimedByAnyProvider(request.url)) {
+        throw new NetworkFetchError(
+          'network.blocked-url',
+          'A custom cover may not come from a provider host.',
+          { url: request.url },
+        );
+      }
+      return fetchMainProcessBytes(
+        request.url,
+        async (url) => !deps.allowlist.claimedByAnyProvider(url),
+        deps.networkTransport,
+        deadline,
+      );
+    }).then(
       (fetched) => storeFetched(fetched, request.key),
       (e: unknown) => err(networkErrorToAppError(e)),
     );

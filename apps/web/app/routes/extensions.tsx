@@ -33,7 +33,11 @@ import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js'
 import { actionFailureMessage } from '../lib/app-feedback.js';
 import { flushLocalDb } from '../lib/local-db.js';
 import { createUserInitiatedFetch } from '../lib/provider-fetch.js';
-import { syncProviderNetworkAllowlist } from '../lib/provider-allowlist-sync.js';
+import {
+  revokeProviderNetworkAccess,
+  syncProviderNetworkAllowlist,
+  syncProviderNetworkAllowlistReported,
+} from '../lib/provider-allowlist-sync.js';
 
 const extensionsSearchSchema = z.object({
   install: z
@@ -170,7 +174,7 @@ function useRegistryImport(db: AppDrizzleDb | null, queryClient: QueryClient) {
     onSuccess: (result: ExtensionListImportResult) => {
       reset();
       setImportWarnings(result.warnings.map((warning) => warning.message));
-      if (db !== null) void syncProviderNetworkAllowlist(db);
+      if (db !== null) void syncProviderNetworkAllowlistReported(db);
       void queryClient.invalidateQueries({ queryKey: extensionsQueryKeys.all });
       void queryClient.invalidateQueries({ queryKey: searchQueryKeys.providers() });
     },
@@ -378,7 +382,7 @@ function ExtensionsRoute() {
     },
     onSuccess: () => {
       resetInstallState();
-      if (db !== null) void syncProviderNetworkAllowlist(db);
+      if (db !== null) void syncProviderNetworkAllowlistReported(db);
       void queryClient.invalidateQueries({ queryKey: extensionsQueryKeys.all });
       void queryClient.invalidateQueries({ queryKey: searchQueryKeys.providers() });
       void navigate({ search: {} });
@@ -389,23 +393,33 @@ function ExtensionsRoute() {
   });
 
   const toggleEnabledMutation = useMutation({
+    meta: { feedback: { surface: 'toast', message: 'Could not update the provider.' } },
     mutationFn: async ({ providerId, enabled }: { providerId: string; enabled: boolean }) => {
       if (db === null) {
         throw new Error('Database is not ready.');
       }
       setPendingProviderId(providerId);
-      const result = await setProviderEnabled(db, providerId, enabled);
-      if (!result.ok) {
-        throw result.error;
+      const commit = async () => {
+        const result = await setProviderEnabled(db, providerId, enabled);
+        if (!result.ok) {
+          throw result.error;
+        }
+        // Durability point: the user must not be able to navigate away and lose
+        // the disable to the coalesced flush window — a lost disable silently
+        // resumes remote provider calls.
+        await flushLocalDb();
+      };
+      if (enabled) {
+        await commit();
+        // Main grants access only from a snapshot; a failed one fails the enable.
+        await syncProviderNetworkAllowlist(db);
+      } else {
+        // Main loses access before the disable commits, or the disable fails.
+        await revokeProviderNetworkAccess(providerId, commit);
       }
-      // Durability point: the user must not be able to navigate away and lose
-      // the disable to the coalesced flush window — a lost disable silently
-      // resumes remote provider calls.
-      await flushLocalDb();
     },
     onSettled: () => {
       setPendingProviderId(undefined);
-      if (db !== null) void syncProviderNetworkAllowlist(db);
       void queryClient.invalidateQueries({ queryKey: extensionsQueryKeys.all });
       void queryClient.invalidateQueries({ queryKey: searchQueryKeys.providers() });
     },

@@ -219,6 +219,12 @@ export interface PlatformAdapter {
       providers: readonly ProviderNetworkRegistration[],
       revision: number,
     ): Promise<AppResult<void>>;
+    /**
+     * Drop one provider from main's table immediately. Disable and uninstall await
+     * this before they commit, so a failure leaves the provider enabled and visible
+     * rather than enabled in main only. Ordered with `replaceProviders` by `revision`.
+     */
+    revokeProvider(providerId: string, revision: number): Promise<AppResult<void>>;
     request(input: PlatformProviderRequest): Promise<AppResult<PlatformProviderResponse>>;
     /**
      * Desktop only: fetch and store in one main-process call, returning metadata and a
@@ -257,6 +263,7 @@ export interface DesktopPlatformBridge {
     providers: readonly ProviderNetworkRegistration[],
     revision: number,
   ) => Promise<AppResult<void>>;
+  providerNetworkRevoke: (providerId: string, revision: number) => Promise<AppResult<void>>;
   providerNetworkRequest: (
     input: PlatformProviderRequest,
   ) => Promise<AppResult<PlatformProviderResponse>>;

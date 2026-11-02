@@ -79,6 +79,7 @@ function createMockAdapter(
     },
     providerNetwork: {
       replaceProviders: async () => ok(undefined),
+      revokeProvider: async () => ok(undefined),
       request: async () =>
         ok({ status: 200, headers: {}, bodyText: '', finalUrl: 'https://example.com' }),
     },

@@ -21,6 +21,7 @@ const pageStoreStubs = {
   rendererImportState: async () => ok({ completed: false, database: null }),
   rendererImportComplete: async () => ok(undefined),
   providerNetworkReplace: async () => ok(undefined),
+  providerNetworkRevoke: async () => ok(undefined),
   providerNetworkRequest: async () =>
     ok({ status: 200, headers: {}, bodyText: '', finalUrl: 'https://example.com' }),
   providerNetworkStore: async () =>
@@ -37,6 +38,7 @@ const pageStoreStubs = {
   | 'rendererImportState'
   | 'rendererImportComplete'
   | 'providerNetworkReplace'
+  | 'providerNetworkRevoke'
   | 'providerNetworkRequest'
   | 'providerNetworkStore'
   | 'providerNetworkStoreUserInitiated'
@@ -320,6 +322,7 @@ describe('createElectronPlatformAdapter', () => {
         rendererImportState: async () => ok({ completed: false, database: null }),
         rendererImportComplete: async () => ok(undefined),
         providerNetworkReplace: async () => ok(undefined),
+        providerNetworkRevoke: async () => ok(undefined),
         providerNetworkRequest: async () =>
           ok({ status: 200, headers: {}, bodyText: '', finalUrl: 'https://example.com' }),
         providerNetworkStore: async () =>

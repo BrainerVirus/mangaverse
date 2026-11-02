@@ -27,43 +27,44 @@ function normalizeProviderDomains(domains: readonly string[]): readonly string[]
 }
 
 export interface ProviderAllowlist {
-  /** Replaces any previous patterns for `providerId`; an empty list is valid and denies everything. */
-  register(providerId: string, domains: readonly string[]): readonly string[];
-  unregister(providerId: string): void;
   /**
    * Makes this the complete table: every provider in `registrations` is set, and
    * every id missing from it is removed. Validation runs before anything changes,
    * so a malformed snapshot leaves the previous table intact.
    */
   replaceAll(registrations: readonly ProviderNetworkRegistration[]): void;
+  /** Removes one provider at once; its next request is refused until a snapshot adds it back. */
+  revoke(providerId: string): void;
   /** Whether provider `providerId` may reach the host in `url`. Unknown providers always refuse. */
   allowsUrl(providerId: string, url: string): boolean;
+  /** Whether `url`'s host falls inside any registered provider's declared domains. */
+  claimedByAnyProvider(url: string): boolean;
   patternsFor(providerId: string): readonly string[] | undefined;
   size(): number;
 }
 
+function hostOf(url: string): string | undefined {
+  if (!URL.canParse(url)) return undefined;
+  const parsed = new URL(url);
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return undefined;
+  if (parsed.username.length > 0 || parsed.password.length > 0) return undefined;
+  return parsed.hostname.replace(/^\[|\]$/g, '');
+}
+
 /**
- * Main's provider allowlist. The renderer registers validated manifest domains at
- * startup and after install/import, and unregisters on uninstall; main never takes
- * a domain list with a request, so a compromised renderer cannot widen its reach
- * mid-flight.
+ * Main's provider allowlist: which hosts each enabled provider may reach, from its
+ * manifest's declared domains. The trust boundary is the renderer: it reads the
+ * installed providers from its database and sends main the whole enabled table
+ * (`replaceAll`) at startup and after every install, import, update and toggle,
+ * and a targeted `revoke` before a disable or uninstall commits. Main never takes
+ * a domain list with a request, so a renderer that only issues requests cannot
+ * widen a provider's reach; it can only use what the last snapshot granted.
+ * Main starts empty, so every provider is refused until the first snapshot lands.
  */
 export function createProviderAllowlist(): ProviderAllowlist {
   const byProvider = new Map<string, readonly string[]>();
 
   return {
-    register(providerId, domains) {
-      const id = normalizeProviderId(providerId);
-      if (!isProviderId(id)) {
-        throw new Error('Invalid provider id.');
-      }
-      const patterns = normalizeProviderDomains(domains);
-      byProvider.set(id, patterns);
-      return patterns;
-    },
-    unregister(providerId) {
-      byProvider.delete(normalizeProviderId(providerId));
-    },
     replaceAll(registrations) {
       const next = new Map<string, readonly string[]>();
       for (const registration of registrations) {
@@ -78,15 +79,22 @@ export function createProviderAllowlist(): ProviderAllowlist {
         byProvider.set(id, patterns);
       }
     },
+    revoke(providerId) {
+      byProvider.delete(normalizeProviderId(providerId));
+    },
     allowsUrl(providerId, url) {
       const patterns = byProvider.get(normalizeProviderId(providerId));
       if (patterns === undefined || patterns.length === 0) return false;
-      if (!URL.canParse(url)) return false;
-      const parsed = new URL(url);
-      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
-      if (parsed.username.length > 0 || parsed.password.length > 0) return false;
-      const host = parsed.hostname.replace(/^\[|\]$/g, '');
-      return providerDomainsAllowHost(patterns, host);
+      const host = hostOf(url);
+      return host !== undefined && providerDomainsAllowHost(patterns, host);
+    },
+    claimedByAnyProvider(url) {
+      const host = hostOf(url);
+      if (host === undefined) return false;
+      for (const patterns of byProvider.values()) {
+        if (providerDomainsAllowHost(patterns, host)) return true;
+      }
+      return false;
     },
     patternsFor(providerId) {
       return byProvider.get(normalizeProviderId(providerId));
