@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type {
   MangaId,
@@ -11,25 +11,6 @@ import type {
   ProviderMangaId,
 } from '@app/shared';
 import { VirtualSearchGrid } from './VirtualSearchGrid.js';
-
-vi.mock('@tanstack/react-virtual', () => ({
-  useVirtualizer: (options: { count: number; enabled?: boolean }) => ({
-    getTotalSize: () => options.count * 200,
-    getVirtualItems: () => {
-      if (options.enabled === false) {
-        return [];
-      }
-
-      return Array.from({ length: Math.min(options.count, 3) }, (_, index) => ({
-        key: index,
-        index,
-        start: index * 200,
-        size: 200,
-      }));
-    },
-    measureElement: vi.fn<(...args: unknown[]) => unknown>(),
-  }),
-}));
 
 vi.mock('@app/design-system', () => ({
   cn: (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' '),
@@ -72,10 +53,118 @@ const createManga = (id: string, title: string): MangaIdentity => ({
   merged: false,
 });
 
+const VIEWPORT_HEIGHT = 240;
+const ROW_HEIGHT = 240;
+/** One visible row, one partly visible row, and the virtualizer's overscan of 3 either side. */
+const MAX_WINDOW_ROWS = 8;
+/** clientWidth 1200 in the fixture resolves to 5 columns. */
+const COLUMNS = 5;
+
+const createResults = (count: number): MangaIdentity[] =>
+  Array.from({ length: count }, (_, index) => createManga(String(index + 1), `Title ${index + 1}`));
+
+const mountedTitles = () =>
+  screen.queryAllByRole('button', { name: /^Title \d+$/ }).map((card) => card.textContent);
+
 describe('VirtualSearchGrid', () => {
+  beforeEach(() => {
+    // jsdom has no layout: give the real virtualizer a viewport and measured rows.
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return this.dataset['index'] === undefined ? VIEWPORT_HEIGHT : ROW_HEIGHT;
+    });
+  });
+
   afterEach(() => {
     cleanup();
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
+  });
+
+  it('Given 120 results and an unmeasured container, Then the first commit mounts at most 48 cards', () => {
+    let firstCommitCards: number | undefined;
+    let firstCommitGrid: HTMLElement | undefined;
+
+    render(
+      <div style={{ width: 1200, height: VIEWPORT_HEIGHT, overflow: 'auto' }}>
+        <VirtualSearchGrid
+          results={createResults(120)}
+          onOpenManga={vi.fn<(mangaId: string) => void>()}
+        />
+        {/* Refs attach in the commit, before the grid's measured state re-renders it. */}
+        <span
+          ref={(node) => {
+            if (node === null) return;
+            firstCommitCards ??= mountedTitles().length;
+            firstCommitGrid ??= screen.getByTestId('search-results-grid');
+          }}
+        />
+      </div>,
+    );
+
+    expect(firstCommitCards).toBe(48);
+    // The measuring hooks stay bound to this node; replacing it would strand them on a
+    // detached element that reports a width of 0, so the grid would never virtualize.
+    expect(screen.getByTestId('search-results-grid')).toBe(firstCommitGrid);
+  });
+
+  it('Given 120 measured results, When scrolled to the end, Then every result is reachable inside a bounded window', () => {
+    render(
+      <div
+        data-testid="scroller"
+        style={{ width: 1200, height: VIEWPORT_HEIGHT, overflow: 'auto' }}
+      >
+        <VirtualSearchGrid
+          results={createResults(120)}
+          onOpenManga={vi.fn<(mangaId: string) => void>()}
+        />
+      </div>,
+    );
+    const scroller = screen.getByTestId('scroller');
+    // The grid moves up as the parent scrolls, which keeps its scroll margin constant.
+    vi.spyOn(screen.getByTestId('search-results-grid'), 'getBoundingClientRect').mockImplementation(
+      () => ({ top: -scroller.scrollTop }) as DOMRect,
+    );
+    const seen = new Set(mountedTitles());
+
+    expect(seen.has('Title 1')).toBe(true);
+    expect(seen.has('Title 120')).toBe(false);
+
+    const rowCount = 120 / COLUMNS;
+    for (let row = 1; row < rowCount; row += 1) {
+      // jsdom's scrollTop setter discards the value.
+      Object.defineProperty(scroller, 'scrollTop', {
+        configurable: true,
+        value: row * (ROW_HEIGHT + 16),
+      });
+      fireEvent.scroll(scroller);
+      const mounted = mountedTitles();
+      expect(mounted.length).toBeLessThanOrEqual(MAX_WINDOW_ROWS * COLUMNS);
+      for (const title of mounted) seen.add(title);
+    }
+
+    expect(seen.size).toBe(120);
+    expect(mountedTitles()).toContain('Title 120');
+  });
+
+  it('Given a grid below the page header, Then its first row starts at the top of the grid', () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return { top: this.dataset['testid'] === 'search-results-grid' ? 300 : 0 } as DOMRect;
+    });
+
+    render(
+      <div style={{ width: 1200, height: VIEWPORT_HEIGHT, overflow: 'auto' }}>
+        <VirtualSearchGrid
+          results={createResults(120)}
+          onOpenManga={vi.fn<(mangaId: string) => void>()}
+        />
+      </div>,
+    );
+
+    const firstRow = screen.getByTestId('search-results-grid').querySelector('[data-index="0"]');
+    expect(firstRow).toHaveStyle({ transform: 'translateY(0px)' });
   });
 
   it('renders a non-virtual fallback grid before layout metrics are ready', () => {

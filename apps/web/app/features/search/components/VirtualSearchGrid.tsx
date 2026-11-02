@@ -1,4 +1,4 @@
-import { useMemo, useRef, type RefObject } from 'react';
+import { useMemo, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { CachedMangaCard } from '@app/cache';
 import { librarySourceLabel } from '@app/shared';
@@ -15,6 +15,8 @@ import {
 
 /** Virtualize only large result sets; smaller grids use plain CSS for reliability. */
 const VIRTUALIZE_MIN_ITEMS = 48;
+/** Cap the pre-measurement fallback so a large result set never mounts every card. */
+const FALLBACK_CARD_LIMIT = 48;
 
 export interface VirtualSearchGridProps {
   results: readonly MangaIdentity[];
@@ -23,37 +25,9 @@ export interface VirtualSearchGridProps {
   sourceLabels?: Readonly<Record<string, string>>;
 }
 
-function StaticSearchGrid({
-  results,
-  onOpenManga,
-  sourceLabels,
-  containerRef,
-}: VirtualSearchGridProps & { containerRef: RefObject<HTMLElement | null> }) {
-  return (
-    <section
-      ref={containerRef}
-      aria-label="Search results"
-      data-testid="search-results-grid"
-      className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
-    >
-      {results.map((manga) => {
-        const sourceLabel = librarySourceLabel(manga, sourceLabels);
-        return (
-          <CachedMangaCard
-            key={manga.id}
-            manga={manga}
-            {...(sourceLabel === undefined ? {} : { sourceLabel })}
-            onClick={() => onOpenManga(manga.id)}
-          />
-        );
-      })}
-    </section>
-  );
-}
-
 export function VirtualSearchGrid({ results, onOpenManga, sourceLabels }: VirtualSearchGridProps) {
   const containerRef = useRef<HTMLElement>(null);
-  const scrollParent = useScrollParent(containerRef);
+  const { scrollParent, isMeasured } = useScrollParent(containerRef);
   const containerWidth = useContainerWidth(containerRef);
   const scrollMargin = useScrollMargin(containerRef, scrollParent);
 
@@ -80,15 +54,32 @@ export function VirtualSearchGrid({ results, onOpenManga, sourceLabels }: Virtua
   });
 
   const isVirtualized = shouldVirtualize;
+  const fallbackResults = isMeasured ? results : results.slice(0, FALLBACK_CARD_LIMIT);
 
+  const renderCard = (manga: MangaIdentity) => {
+    const sourceLabel = librarySourceLabel(manga, sourceLabels);
+    return (
+      <CachedMangaCard
+        key={manga.id}
+        manga={manga}
+        {...(sourceLabel === undefined ? {} : { sourceLabel })}
+        onClick={() => onOpenManga(manga.id)}
+      />
+    );
+  };
+
+  // Both branches keep the same <section> element: the measuring hooks stay bound
+  // to the node they saw first, and a detached node would report a width of 0.
   if (!isVirtualized) {
     return (
-      <StaticSearchGrid
-        results={results}
-        onOpenManga={onOpenManga}
-        {...(sourceLabels === undefined ? {} : { sourceLabels })}
-        containerRef={containerRef}
-      />
+      <section
+        ref={containerRef}
+        aria-label="Search results"
+        data-testid="search-results-grid"
+        className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+      >
+        {fallbackResults.map(renderCard)}
+      </section>
     );
   }
 
@@ -115,23 +106,13 @@ export function VirtualSearchGrid({ results, onOpenManga, sourceLabels }: Virtua
                 top: 0,
                 left: 0,
                 width: '100%',
-                transform: `translateY(${virtualRow.start}px)`,
+                transform: `translateY(${virtualRow.start - scrollMargin}px)`,
                 display: 'grid',
                 gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
                 gap: `${rowGap}px`,
               }}
             >
-              {rowItems.map((manga) => {
-                const sourceLabel = librarySourceLabel(manga, sourceLabels);
-                return (
-                  <CachedMangaCard
-                    key={manga.id}
-                    manga={manga}
-                    {...(sourceLabel === undefined ? {} : { sourceLabel })}
-                    onClick={() => onOpenManga(manga.id)}
-                  />
-                );
-              })}
+              {rowItems.map(renderCard)}
             </div>
           );
         })}

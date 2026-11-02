@@ -166,7 +166,7 @@
       // @app/design-system imports no feature packages: only @app/shared.
       "files": ["**/packages/design-system/**"],
       "rules": {
-        "no-restricted-imports": ["error", { "patterns": ["@app/**", "!@app/shared**"] }]
+        "no-restricted-imports": ["error", { "patterns": ["@app/**", "!@app/shared"] }]
       }
     },
     {
