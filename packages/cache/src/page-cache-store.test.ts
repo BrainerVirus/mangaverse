@@ -1,16 +1,20 @@
 import { describe, expect, it, vi } from 'vitest';
-import { ok, type AppResult } from '@app/shared';
-import type { PlatformAdapter } from '@app/platform';
+import { err, ok, type AppResult } from '@app/shared';
+import { platformStorageFull, type PlatformAdapter } from '@app/platform';
 import { createSqlJsHarness } from '@app/db/testing';
 
 import {
   listCachedChapterPageIndexes,
   markChapterPagesAsRead,
+  markChapterPagesDownloaded,
   prefetchChapterPages,
+  removeChapterPageEntries,
   resolvePageObjectUrl,
   runPrefetchQueue,
+  summarizeDownloadCache,
 } from './page-cache-store.js';
 import { listCacheEntriesForManga } from '@app/db';
+import { CACHE_RETENTION_DOWNLOAD, CACHE_RETENTION_READ } from './constants.js';
 
 /** Only `blobStorage` and `network` are touched by the page cache store. */
 function createPageAdapter(): {
@@ -110,7 +114,7 @@ describe('page cache store', () => {
       budgetBytes: 1,
       resolvePage: async (page) => {
         resolved.push(page.pageIndex);
-        return { fromCache: false, byteSize: 1024 };
+        return { status: 'fetched', byteSize: 1024 };
       },
     });
 
@@ -129,12 +133,12 @@ describe('page cache store', () => {
       budgetBytes: 0,
       resolvePage: async (page) =>
         page.pageIndex === 0
-          ? { fromCache: true, byteSize: 90 }
+          ? { status: 'cached', byteSize: 90 }
           : page.pageIndex === 1
-            ? { fromCache: false, byteSize: 100 }
+            ? { status: 'fetched', byteSize: 100 }
             : page.pageIndex === 2
-              ? undefined
-              : { fromCache: false, byteSize: 50 },
+              ? { status: 'failed', failure: { code: 'network', message: 'nope' } }
+              : { status: 'fetched', byteSize: 50 },
     });
 
     expect(outcome).toMatchObject({
@@ -158,8 +162,8 @@ describe('page cache store', () => {
       resolvePage: async (page) => {
         resolved.push(page.pageIndex);
         return page.pageIndex < 4
-          ? { fromCache: true, byteSize: 100_000 }
-          : { fromCache: false, byteSize: 1000 };
+          ? { status: 'cached', byteSize: 100_000 }
+          : { status: 'fetched', byteSize: 1000 };
       },
     });
 
@@ -198,7 +202,7 @@ describe('page cache store', () => {
       budgetBytes: 0,
       resolvePage: async (page) => {
         resolved.push(page.pageIndex);
-        return { fromCache: false, byteSize: 1024 * 1024 };
+        return { status: 'fetched', byteSize: 1024 * 1024 };
       },
     });
 
@@ -560,5 +564,153 @@ describe('page cache store with a main-side fetch-and-store', () => {
 
     expect(resolved).toBeUndefined();
     expect(fetchBytes).not.toHaveBeenCalled();
+  });
+  it('Given a downloaded chapter, When it is read and touched, Then the download retention stays', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter } = createPageAdapter();
+    const pages = Array.from({ length: 3 }, (_value, pageIndex) => ({
+      pageIndex,
+      remoteUrl: `https://uploads.mangadex.org/download${pageIndex}.jpg`,
+    }));
+
+    await prefetchChapterPages({
+      db,
+      adapter,
+      ...CHAPTER,
+      pages,
+      retention: CACHE_RETENTION_DOWNLOAD,
+    });
+    await markChapterPagesAsRead(db, CHAPTER);
+    await resolvePageObjectUrl({
+      db,
+      adapter,
+      ...CHAPTER,
+      pageIndex: 0,
+      remoteUrl: 'https://uploads.mangadex.org/download0.jpg',
+    });
+
+    const entries = await listCacheEntriesForManga(db, CHAPTER.providerId, CHAPTER.mangaId);
+    expect(entries).toHaveLength(3);
+    for (const entry of entries) {
+      expect(entry.metadata?.retention).toBe(CACHE_RETENTION_DOWNLOAD);
+    }
+    expect(await summarizeDownloadCache(db)).toMatchObject({
+      pages: 3,
+      bytes: 9,
+      byChapter: [{ chapterId: CHAPTER.chapterId, pages: 3, bytes: 9 }],
+    });
+  });
+
+  it('Given pages already read, When a download starts, Then they are adopted instead of fetched again', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter, calls } = createPageAdapter();
+    const pages = [
+      { pageIndex: 0, remoteUrl: 'https://uploads.mangadex.org/a0.jpg' },
+      { pageIndex: 1, remoteUrl: 'https://uploads.mangadex.org/a1.jpg' },
+    ];
+    await prefetchChapterPages({ db, adapter, ...CHAPTER, pages, retention: CACHE_RETENTION_READ });
+    expect(calls.fetch()).toBe(2);
+
+    expect(await markChapterPagesDownloaded(db, CHAPTER)).toBe(2);
+    expect(await markChapterPagesDownloaded(db, CHAPTER)).toBe(0);
+    const outcome = await prefetchChapterPages({
+      db,
+      adapter,
+      ...CHAPTER,
+      pages,
+      retention: CACHE_RETENTION_DOWNLOAD,
+    });
+
+    expect(outcome).toMatchObject({ cachedPages: 2, fetchedPages: 0, failedPages: 0 });
+    expect(calls.fetch()).toBe(2);
+  });
+
+  it('Given a download, When each page settles, Then progress is reported per page', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter } = createPageAdapter();
+    const pages = Array.from({ length: 4 }, (_value, pageIndex) => ({
+      pageIndex,
+      remoteUrl: `https://uploads.mangadex.org/progress${pageIndex}.jpg`,
+    }));
+    const seen: { pageIndex: number; status: string }[] = [];
+
+    await prefetchChapterPages({
+      db,
+      adapter,
+      ...CHAPTER,
+      pages,
+      retention: CACHE_RETENTION_DOWNLOAD,
+      onPage: (page, outcome) => {
+        seen.push({ pageIndex: page.pageIndex, status: outcome.status });
+      },
+    });
+
+    expect(seen).toHaveLength(4);
+    expect(seen.every((entry) => entry.status === 'fetched')).toBe(true);
+  });
+
+  it('Given a full disk while downloading, When a page save fails, Then the typed failure is reported and other pages are kept', async () => {
+    const { db } = await createSqlJsHarness();
+    const base = createPageAdapter();
+    let writes = 0;
+    const adapter: PlatformAdapter = {
+      ...base.adapter,
+      blobStorage: {
+        ...base.adapter.blobStorage,
+        put: async (key, data, mimeType) => {
+          writes += 1;
+          if (writes === 2) {
+            return err(platformStorageFull('This device is out of storage.'));
+          }
+          return base.adapter.blobStorage.put(key, data, mimeType);
+        },
+      },
+    };
+    const pages = Array.from({ length: 4 }, (_value, pageIndex) => ({
+      pageIndex,
+      remoteUrl: `https://uploads.mangadex.org/disk${pageIndex}.jpg`,
+    }));
+
+    const outcome = await prefetchChapterPages({
+      db,
+      adapter,
+      ...CHAPTER,
+      pages,
+      retention: CACHE_RETENTION_DOWNLOAD,
+    });
+
+    expect(outcome.failures).toEqual([{ pageIndex: expect.any(Number), code: 'storage-full' }]);
+    expect(outcome.failedPages).toBe(1);
+    expect(outcome.fetchedPages).toBe(3);
+    expect(await listCachedChapterPageIndexes(db, CHAPTER)).toHaveLength(3);
+  });
+
+  it('Given a removed download, When its pages are removed, Then rows and blobs are gone and the bytes are reported', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter } = createPageAdapter();
+    const pages = Array.from({ length: 3 }, (_value, pageIndex) => ({
+      pageIndex,
+      remoteUrl: `https://uploads.mangadex.org/remove${pageIndex}.jpg`,
+    }));
+    await prefetchChapterPages({
+      db,
+      adapter,
+      ...CHAPTER,
+      pages,
+      retention: CACHE_RETENTION_DOWNLOAD,
+    });
+
+    expect(await removeChapterPageEntries(db, adapter, CHAPTER)).toEqual({
+      removedEntries: 3,
+      removedBytes: 9,
+      failedBlobKeys: [],
+    });
+    expect(await listCacheEntriesForManga(db, CHAPTER.providerId, CHAPTER.mangaId)).toEqual([]);
+    expect(await summarizeDownloadCache(db)).toMatchObject({ pages: 0, bytes: 0 });
+    expect(await removeChapterPageEntries(db, adapter, CHAPTER)).toEqual({
+      removedEntries: 0,
+      removedBytes: 0,
+      failedBlobKeys: [],
+    });
   });
 });

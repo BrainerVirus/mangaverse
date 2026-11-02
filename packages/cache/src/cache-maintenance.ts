@@ -9,7 +9,7 @@ import type { PlatformAdapter } from '@app/platform';
 
 import { deleteBlobKeys } from './blob-deletes.js';
 import { isBlobWriteInFlight } from './blob-writes.js';
-import { COVER_CACHE_KIND, PAGE_CACHE_KIND } from './constants.js';
+import { COVER_CACHE_KIND, CACHE_RETENTION_DOWNLOAD, PAGE_CACHE_KIND } from './constants.js';
 import { reclaimOrphanBlobs } from './orphan-blobs.js';
 import { probeReaderPresence } from './reader-locks.js';
 
@@ -48,6 +48,11 @@ function isProtectedChapter(
   );
 }
 
+/** Download pages are the user's offline copy: no automatic pass removes them. */
+function isDownloadEntry(entry: CacheEntryRecord): boolean {
+  return entry.metadata?.retention === CACHE_RETENTION_DOWNLOAD;
+}
+
 /**
  * One candidate per chapter so eviction never leaves a half-cached chapter.
  * shortcut: grouping happens in JS over the kind index; move to a SQL GROUP BY
@@ -74,7 +79,9 @@ function groupPagesByChapter(entries: readonly CacheEntryRecord[]): EvictionCand
 
 /**
  * Evicts covers and whole chapters oldest-first until the store fits `limitBytes`.
- * The chapter open in this tab, and any chapter a live tab holds a reader lock
+ * Download-retained pages are never candidates, so a partly downloaded chapter loses only
+ * its ordinary cached pages and a store whose downloads alone exceed the limit stays over
+ * it. The chapter open in this tab, and any chapter a live tab holds a reader lock
  * for, is skipped entirely: if it is the only candidate the store stays above
  * the limit until the reader closes it. Candidates are selected first and
  * deleted in one batched row statement, then their blobs; a row never outlives
@@ -114,13 +121,17 @@ export async function evictCacheToLimit(
       listCacheEntriesByKind(db, COVER_CACHE_KIND),
       listCacheEntriesByKind(db, PAGE_CACHE_KIND),
     ]);
+    // Download pages are not candidates at all: eviction may take the cached pages of
+    // a partly downloaded chapter, but never a page the download owns. When downloads
+    // alone exceed the limit nothing else is left, and the store stays above it.
+    const evictablePages = pages.filter((entry) => !isDownloadEntry(entry));
     const protectedChapters = [
       ...(options.protectChapter !== undefined ? [options.protectChapter] : []),
       ...(presence.status === 'readers' ? presence.chapters : []),
     ];
     const candidates = [
       ...covers.map((entry) => ({ lastAccessAt: entry.lastAccessAt, entries: [entry] })),
-      ...groupPagesByChapter(pages),
+      ...groupPagesByChapter(evictablePages),
     ].sort((left, right) => left.lastAccessAt.localeCompare(right.lastAccessAt));
 
     let bytesToFree = summary.totalBytes - options.limitBytes;
@@ -133,6 +144,7 @@ export async function evictCacheToLimit(
         continue;
       }
       for (const entry of candidate.entries) {
+        if (isDownloadEntry(entry)) continue;
         selected.push(entry);
         bytesToFree -= entry.byteSize;
       }

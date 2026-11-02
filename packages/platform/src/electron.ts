@@ -1,5 +1,12 @@
 import { err, ok, type AppResult } from '@app/shared';
-import { platformInvalidUrl, platformUnexpected, platformUnsupported } from './errors.js';
+import {
+  isStorageFullFailure,
+  platformInvalidUrl,
+  platformIoFailed,
+  platformStorageFull,
+  platformUnexpected,
+  platformUnsupported,
+} from './errors.js';
 import {
   deleteIndexedDbBlob,
   getIndexedDbBlob,
@@ -120,8 +127,12 @@ export function createElectronPlatformAdapter(bridge: DesktopPlatformBridge): Pl
         try {
           await putIndexedDbBlob(key, data, mimeType, { indexedDB: globalThis.indexedDB });
           return ok(undefined);
-        } catch {
-          return err(platformUnsupported('Could not store blob on desktop.'));
+        } catch (error) {
+          return err(
+            isStorageFullFailure(error)
+              ? platformStorageFull('This device is out of storage.', error)
+              : platformIoFailed('Could not store blob on desktop.', error),
+          );
         }
       },
       get: async (key: string) => {

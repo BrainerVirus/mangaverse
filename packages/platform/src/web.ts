@@ -14,9 +14,11 @@ import {
 } from './blob-storage-idb.js';
 import { fetchNetworkBytes } from './network-fetch.js';
 import {
+  isStorageFullFailure,
   platformInvalidUrl,
   platformIoFailed,
   platformPermissionDenied,
+  platformStorageFull,
   platformUnsupported,
 } from './errors.js';
 import type {
@@ -422,8 +424,12 @@ export function createWebPlatformAdapter(environment?: WebPlatformEnvironment): 
         try {
           await putIndexedDbBlob(key, data, mimeType, { indexedDB: env.indexedDB });
           return ok(undefined);
-        } catch {
-          return err(platformUnsupported('Could not store blob.'));
+        } catch (error) {
+          return err(
+            isStorageFullFailure(error)
+              ? platformStorageFull('This device is out of storage.', error)
+              : platformIoFailed('Could not store blob.', error),
+          );
         }
       },
       get: async (key: string) => {

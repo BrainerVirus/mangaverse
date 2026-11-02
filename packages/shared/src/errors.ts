@@ -51,7 +51,8 @@ const MESSAGES: Readonly<Record<AppErrorKind, string>> = {
 
 const MAX_CAUSE_DEPTH = 5;
 const NETWORK_FAILURE = /failed to fetch|networkerror|network request failed|load failed/;
-const QUOTA_FAILURE = /quota|sqlite_full|disk is full|disk full/;
+const QUOTA_FAILURE =
+  /quota|sqlite_full|disk is full|disk full|enospc|no space left|insufficient storage/;
 const RATE_LIMIT_FAILURE = /rate.?limit|too many requests/;
 const PROVIDER_FAILURE = /provider|timed out|timeout|\bhttp \d{3}\b/;
 const DATABASE_FAILURE = /sqlite|sql\.js|database|no such table|no such column|constraint failed/;
