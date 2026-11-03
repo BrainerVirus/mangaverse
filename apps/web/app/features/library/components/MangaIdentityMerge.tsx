@@ -19,7 +19,6 @@ import {
 } from '@app/design-system';
 import type { MergePreview, UnmergeMappingPreview } from '@app/db';
 import {
-  errorMessage,
   libraryStatusLabel,
   providerDisplayName,
   toMangaId,
@@ -27,6 +26,7 @@ import {
   type ProviderMappingId,
 } from '@app/shared';
 import { ArrowRightLeft } from 'lucide-react';
+import { actionFailureMessage } from '../../../lib/app-feedback.js';
 import type { DuplicateCandidate } from '../duplicate-candidates.js';
 
 export interface DuplicateCandidatesState {
@@ -312,7 +312,7 @@ function useMergePreview(
     try {
       setPreview(await loadPreview(targetId, sourceId));
     } catch (caught) {
-      setError(errorMessage(caught, 'Could not build the merge preview.'));
+      setError(actionFailureMessage(caught, 'Could not build the merge preview.'));
     } finally {
       setIsLoading(false);
     }
@@ -443,7 +443,7 @@ function MergeDialog({
       onClose();
       onMerged?.(mergedTargetId);
     } catch (caught) {
-      setApplyError(errorMessage(caught, 'Could not merge the titles.'));
+      setApplyError(actionFailureMessage(caught, 'Could not merge the titles.'));
     } finally {
       setIsApplying(false);
     }
@@ -619,7 +619,7 @@ function useUnmergeSubmit(
       await onConfirm(preview.mapping.id);
       onDone();
     } catch (caught) {
-      setError(errorMessage(caught, 'Could not split the provider source.'));
+      setError(actionFailureMessage(caught, 'Could not split the provider source.'));
     } finally {
       setIsSplitting(false);
     }

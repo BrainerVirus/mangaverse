@@ -1086,7 +1086,7 @@ describe('MangaDetailPage identity merge', () => {
         duplicates={{ items: [duplicateCandidate] }}
         onMerge={async () => {}}
         loadMergePreview={async () => {
-          throw new Error('Preview failed');
+          throw new Error('INTERNAL_SECRET preview');
         }}
       />,
     );
@@ -1094,14 +1094,16 @@ describe('MangaDetailPage identity merge', () => {
     openDuplicates();
     fireEvent.click(screen.getByRole('button', { name: 'Merge' }));
     const dialog = await screen.findByRole('dialog');
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Preview failed');
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'Could not build the merge preview.',
+    );
     expect(within(dialog).getByRole('button', { name: 'Merge titles' })).toBeDisabled();
   });
 
   it('Given a failed merge, When the dialog is closed and reopened, Then the stale error is cleared', async () => {
     const onMerge = vi.fn<(input: { targetId: string; sourceId: string }) => Promise<void>>(
       async () => {
-        throw new Error('Merge failed');
+        throw new Error('INTERNAL_SECRET merge');
       },
     );
 
@@ -1129,7 +1131,9 @@ describe('MangaDetailPage identity merge', () => {
 
     const dialog = await openMerge();
     fireEvent.click(within(dialog).getByRole('button', { name: 'Merge titles' }));
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Merge failed');
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'Could not merge the titles.',
+    );
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
@@ -1140,7 +1144,9 @@ describe('MangaDetailPage identity merge', () => {
     // Escape goes through the dialog's onOpenChange path instead of the
     // footer button, so both dismissals have to clear the failed attempt.
     fireEvent.click(within(reopened).getByRole('button', { name: 'Merge titles' }));
-    expect(await within(reopened).findByRole('alert')).toHaveTextContent('Merge failed');
+    expect(await within(reopened).findByRole('alert')).toHaveTextContent(
+      'Could not merge the titles.',
+    );
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 
@@ -1150,7 +1156,7 @@ describe('MangaDetailPage identity merge', () => {
 
   it('Given a failed split, When the dialog is closed and reopened, Then the stale error is cleared', async () => {
     const onUnmerge = vi.fn<(mappingId: string) => Promise<void>>(async () => {
-      throw new Error('Split failed');
+      throw new Error('INTERNAL_SECRET split');
     });
     const detail = makeDetail({
       manga: {
@@ -1188,7 +1194,9 @@ describe('MangaDetailPage identity merge', () => {
     const dialog = await screen.findByRole('dialog');
     await within(dialog).findByText(/Reading progress for the moved chapters/);
     fireEvent.click(within(dialog).getByRole('button', { name: 'Split source' }));
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Split failed');
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'Could not split the provider source.',
+    );
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
@@ -1197,5 +1205,138 @@ describe('MangaDetailPage identity merge', () => {
     const reopened = await screen.findByRole('dialog');
     await within(reopened).findByText(/Reading progress for the moved chapters/);
     expect(within(reopened).queryByRole('alert')).toBeNull();
+  });
+});
+
+describe('MangaDetailPage identity merge failure copy', () => {
+  const userFacing = {
+    code: 'identity.merge.conflict',
+    message: 'Both titles changed. Try again.',
+  };
+
+  function renderMerge(handlers: {
+    onMerge?: () => Promise<void>;
+    loadMergePreview?: () => Promise<MergePreview>;
+  }) {
+    render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={makeDetail({ libraryEntry: inLibrary })}
+        isLoading={false}
+        isError={false}
+        onOpenChapter={() => {}}
+        duplicates={{ items: [duplicateCandidate] }}
+        onMerge={handlers.onMerge ?? (async () => {})}
+        loadMergePreview={handlers.loadMergePreview ?? (async () => mergePreview())}
+      />,
+    );
+    openDuplicates();
+    fireEvent.click(screen.getByRole('button', { name: 'Merge' }));
+  }
+
+  it('Given a merge preview that throws an AppError, Then its user-facing message is shown', async () => {
+    renderMerge({
+      loadMergePreview: async () => {
+        // eslint-disable-next-line @typescript-eslint/only-throw-error -- a serialized AppError crosses the data process as a plain object
+        throw userFacing;
+      },
+    });
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(userFacing.message);
+  });
+
+  it('Given a merge preview that throws an Error, Then the internal text never renders', async () => {
+    renderMerge({
+      loadMergePreview: async () => {
+        throw new Error('INTERNAL_SECRET preview');
+      },
+    });
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'Could not build the merge preview.',
+    );
+    expect(dialog).not.toHaveTextContent('INTERNAL_SECRET');
+  });
+
+  it('Given a merge that throws an AppError, Then its user-facing message is shown', async () => {
+    renderMerge({
+      onMerge: async () => {
+        // eslint-disable-next-line @typescript-eslint/only-throw-error -- a serialized AppError crosses the data process as a plain object
+        throw userFacing;
+      },
+    });
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByRole('region', { name: 'Kept title' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Merge titles' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(userFacing.message);
+  });
+
+  it('Given a merge that throws an Error, Then the internal text never renders', async () => {
+    renderMerge({
+      onMerge: async () => {
+        throw new Error('INTERNAL_SECRET merge');
+      },
+    });
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByRole('region', { name: 'Kept title' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Merge titles' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'Could not merge the titles.',
+    );
+    expect(dialog).not.toHaveTextContent('INTERNAL_SECRET');
+  });
+
+  function renderSplit(onUnmerge: () => Promise<void>) {
+    render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={makeDetail({
+          manga: {
+            ...makeDetail().manga,
+            providerMappings: [
+              mapping(MAP_A, 'prov-a', 'remote-a'),
+              mapping(MAP_B, 'prov-b', 'remote-b'),
+            ],
+            defaultProviderMappingId: toProviderMappingId(MAP_A),
+          },
+        })}
+        isLoading={false}
+        isError={false}
+        onOpenChapter={() => {}}
+        onUnmerge={onUnmerge}
+        loadUnmergePreview={async () => unmergePreview()}
+      />,
+    );
+    const row = within(screen.getByRole('region', { name: 'Providers' }))
+      .getByText(/remote-b/)
+      .closest('li');
+    if (row === null) throw new Error('provider row missing');
+    fireEvent.click(within(row).getByRole('button', { name: 'Split title' }));
+  }
+
+  it('Given a split that throws an AppError, Then its user-facing message is shown', async () => {
+    renderSplit(async () => {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- a serialized AppError crosses the data process as a plain object
+      throw { code: 'identity.unmerge.conflict', message: 'That source was already split.' };
+    });
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByText(/Reading progress for the moved chapters/);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Split source' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'That source was already split.',
+    );
+  });
+
+  it('Given a split that throws an Error, Then the internal text never renders', async () => {
+    renderSplit(async () => {
+      throw new Error('INTERNAL_SECRET split');
+    });
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByText(/Reading progress for the moved chapters/);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Split source' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'Could not split the provider source.',
+    );
+    expect(dialog).not.toHaveTextContent('INTERNAL_SECRET');
   });
 });
