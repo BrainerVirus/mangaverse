@@ -349,7 +349,11 @@ export async function storePageInCache(
  * the visible page component resolves its own URL when it mounts.
  */
 async function prefetchPageToCache(
-  input: PageCacheLookupInput & { readonly retention?: CacheRetention },
+  input: PageCacheLookupInput & {
+    readonly retention?: CacheRetention;
+    /** Downloads set this: an existing row whose blob is gone is fetched again. */
+    readonly verifyCached?: boolean;
+  },
   signal?: AbortSignal,
 ): Promise<PrefetchPageOutcome> {
   const providerId = String(input.providerId);
@@ -358,7 +362,9 @@ async function prefetchPageToCache(
   const entryId = buildPageCacheEntryId(providerId, mangaId, chapterId, input.pageIndex);
   const entry = await getCacheEntryById(input.db, entryId);
   if (entry?.blobKey !== undefined) {
-    return { status: 'cached', byteSize: entry.byteSize };
+    const blobPresent =
+      input.verifyCached !== true || (await cachedBlobExists(input.adapter, entry.blobKey));
+    if (blobPresent) return { status: 'cached', byteSize: entry.byteSize };
   }
 
   if (input.adapter.providerNetwork.fetchAndStore !== undefined) {
@@ -683,6 +689,8 @@ export async function prefetchChapterPages(
     readonly retention?: CacheRetention;
     /** Maximum newly downloaded bytes; 0 or omitted means unlimited. */
     readonly budgetBytes?: number;
+    /** Downloads set this: a row whose blob is gone must be fetched again. */
+    readonly verifyCachedBlobs?: boolean;
     readonly signal?: AbortSignal;
     readonly onPage?: (page: PrefetchPage, outcome: PrefetchPageOutcome) => void | Promise<void>;
   },
@@ -694,6 +702,7 @@ export async function prefetchChapterPages(
       providerId: String(input.providerId),
       mangaId: String(input.mangaId),
       chapterId: String(input.chapterId),
+      ...(input.verifyCachedBlobs === true ? { adapter: input.adapter } : {}),
     }),
   );
 
@@ -715,29 +724,65 @@ export async function prefetchChapterPages(
               pageIndex: page.pageIndex,
               remoteUrl: page.remoteUrl,
               ...(input.retention !== undefined ? { retention: input.retention } : {}),
+              ...(input.verifyCachedBlobs === true ? { verifyCached: true } : {}),
             },
             input.signal,
           ),
   });
 }
 
-/** Page indexes of a chapter that have a cache entry, ascending. */
+/**
+ * Whether a cached row's bytes are still stored. A row can outlive its blob after a
+ * crash or a failed delete; counting it would report a chapter complete with a page
+ * that cannot render offline.
+ */
+async function cachedBlobExists(adapter: PlatformAdapter, blobKey: string): Promise<boolean> {
+  if (adapter.blobStorage.resolveUrl !== undefined) {
+    const resolved = await adapter.blobStorage.resolveUrl(blobKey);
+    return resolved.ok && resolved.value !== undefined;
+  }
+  const stored = await adapter.blobStorage.get(blobKey);
+  return stored.ok && stored.value !== undefined;
+}
+
+/**
+ * Page indexes of a chapter that have a cache entry and, when an adapter is given, bytes
+ * that are still stored. Ascending.
+ */
 export async function listCachedChapterPageIndexes(
   db: AppDrizzleDb,
   input: {
     readonly providerId: string;
     readonly mangaId: string;
     readonly chapterId: string;
+    /** Verifies each row's blob; without it only rows are counted (cache hints). */
+    readonly adapter?: PlatformAdapter;
   },
 ): Promise<number[]> {
   const entries = await listCacheEntriesForManga(db, input.providerId, input.mangaId);
-  const indexes = new Set<number>();
-
-  for (const entry of entries) {
-    if (entry.cacheKind !== PAGE_CACHE_KIND || entry.chapterId !== input.chapterId) continue;
+  const candidates = entries.flatMap((entry) => {
+    if (entry.cacheKind !== PAGE_CACHE_KIND || entry.chapterId !== input.chapterId) return [];
     const pageIndex = entry.metadata?.pageIndex;
-    if (typeof pageIndex === 'number') indexes.add(pageIndex);
-  }
+    if (typeof pageIndex !== 'number') return [];
+    if (entry.blobKey === undefined || entry.blobKey === '') return [];
+    return [{ pageIndex, blobKey: entry.blobKey }];
+  });
+  const adapter = input.adapter;
+  // Bounded: web reads whole blobs, so a 200-page chapter must not open 200 at once.
+  const verified = await (async function verifyFrom(
+    start: number,
+    collected: { readonly pageIndex: number; readonly present: boolean }[],
+  ): Promise<{ readonly pageIndex: number; readonly present: boolean }[]> {
+    if (start >= candidates.length) return collected;
+    const rows = await Promise.all(
+      candidates.slice(start, start + 4).map(async ({ pageIndex, blobKey }) => ({
+        pageIndex,
+        present: adapter === undefined || (await cachedBlobExists(adapter, blobKey)),
+      })),
+    );
+    return verifyFrom(start + 4, [...collected, ...rows]);
+  })(0, []);
+  const indexes = new Set(verified.filter((page) => page.present).map((page) => page.pageIndex));
 
   return [...indexes].sort((left, right) => left - right);
 }
