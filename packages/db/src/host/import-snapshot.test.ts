@@ -100,54 +100,60 @@ function scratch(): string {
 
 describe('snapshot import', () => {
   // Hashing a full snapshot is I/O heavy; CI runners occasionally cross 5s (issue #255).
-  it('imports a renderer snapshot once, verifies counts and content, and serves the library', { timeout: 20_000 }, async () => {
-    const snapshot = await rendererSnapshot();
-    const original = Uint8Array.from(snapshot);
-    const directory = scratch();
-    const { client, close } = host(directory);
+  it(
+    'imports a renderer snapshot once, verifies counts and content, and serves the library',
+    { timeout: 20_000 },
+    async () => {
+      const snapshot = await rendererSnapshot();
+      const original = Uint8Array.from(snapshot);
+      const directory = scratch();
+      const { client, close } = host(directory);
 
-    expect(await client.status()).toEqual({
-      ok: true,
-      value: { open: false, nativeExists: false },
-    });
-    const result = await client.open(snapshot);
-    if (!result.ok) throw new Error(result.error.message);
-    const report = result.value.imported;
-    expect(report?.tables).toMatchObject({
-      manga_identities: 3,
-      library_entries: 3,
-      categories: 1,
-      app_settings: 1,
-    });
-    expect(report?.totalRows).toBeGreaterThanOrEqual(8);
-    expect(report?.checksum).toMatch(/^[0-9a-f]{64}$/);
-    expect(snapshot).toEqual(original);
+      expect(await client.status()).toEqual({
+        ok: true,
+        value: { open: false, nativeExists: false },
+      });
+      const result = await client.open(snapshot);
+      if (!result.ok) throw new Error(result.error.message);
+      const report = result.value.imported;
+      expect(report?.tables).toMatchObject({
+        manga_identities: 3,
+        library_entries: 3,
+        categories: 1,
+        app_settings: 1,
+      });
+      expect(report?.totalRows).toBeGreaterThanOrEqual(8);
+      expect(report?.checksum).toMatch(/^[0-9a-f]{64}$/);
+      expect(snapshot).toEqual(original);
 
-    const entries = await listLibraryEntries(client.handle);
-    expect(entries).toHaveLength(3);
-    expect((await listLibraryCategories(client.handle)).map((c) => c.name)).toEqual(['Favourites']);
-    expect(await getAppSetting(client.handle, 'onboarding')).toEqual({ completed: true });
-    const marker = JSON.parse(
-      readFileSync(importMarkerPath(join(directory, 'library.sqlite')), 'utf8'),
-    );
-    expect(marker).toMatchObject({ version: 1, totalRows: report?.totalRows });
-    expect(readdirSync(directory).filter((name) => name.includes('.import-'))).toEqual([]);
+      const entries = await listLibraryEntries(client.handle);
+      expect(entries).toHaveLength(3);
+      expect((await listLibraryCategories(client.handle)).map((c) => c.name)).toEqual([
+        'Favourites',
+      ]);
+      expect(await getAppSetting(client.handle, 'onboarding')).toEqual({ completed: true });
+      const marker = JSON.parse(
+        readFileSync(importMarkerPath(join(directory, 'library.sqlite')), 'utf8'),
+      );
+      expect(marker).toMatchObject({ version: 1, totalRows: report?.totalRows });
+      expect(readdirSync(directory).filter((name) => name.includes('.import-'))).toEqual([]);
 
-    // A later start offers another snapshot: the native database wins and nothing is imported.
-    await createLibraryCategory(client.handle, { name: 'Written natively' });
-    close();
-    const again = host(directory);
-    expect(await again.client.status()).toEqual({
-      ok: true,
-      value: { open: false, nativeExists: true },
-    });
-    const reopened = await again.client.open(await rendererSnapshot());
-    expect(reopened).toEqual({ ok: true, value: { imported: null } });
-    expect((await listLibraryCategories(again.client.handle)).map((c) => c.name)).toEqual([
-      'Favourites',
-      'Written natively',
-    ]);
-  });
+      // A later start offers another snapshot: the native database wins and nothing is imported.
+      await createLibraryCategory(client.handle, { name: 'Written natively' });
+      close();
+      const again = host(directory);
+      expect(await again.client.status()).toEqual({
+        ok: true,
+        value: { open: false, nativeExists: true },
+      });
+      const reopened = await again.client.open(await rendererSnapshot());
+      expect(reopened).toEqual({ ok: true, value: { imported: null } });
+      expect((await listLibraryCategories(again.client.handle)).map((c) => c.name)).toEqual([
+        'Favourites',
+        'Written natively',
+      ]);
+    },
+  );
 
   it('rewrites cache blob pointers inside the same verified import', async () => {
     const snapshot = await rendererSnapshot(async (db) => {
