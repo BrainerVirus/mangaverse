@@ -768,13 +768,20 @@ export async function listCachedChapterPageIndexes(
     return [{ pageIndex, blobKey: entry.blobKey }];
   });
   const adapter = input.adapter;
-  // One concurrent check per page keeps a chapter bounded without an await inside a loop.
-  const verified = await Promise.all(
-    candidates.map(async ({ pageIndex, blobKey }) => ({
-      pageIndex,
-      present: adapter === undefined || (await cachedBlobExists(adapter, blobKey)),
-    })),
-  );
+  // Bounded: web reads whole blobs, so a 200-page chapter must not open 200 at once.
+  const verified = await (async function verifyFrom(
+    start: number,
+    collected: { readonly pageIndex: number; readonly present: boolean }[],
+  ): Promise<{ readonly pageIndex: number; readonly present: boolean }[]> {
+    if (start >= candidates.length) return collected;
+    const rows = await Promise.all(
+      candidates.slice(start, start + 4).map(async ({ pageIndex, blobKey }) => ({
+        pageIndex,
+        present: adapter === undefined || (await cachedBlobExists(adapter, blobKey)),
+      })),
+    );
+    return verifyFrom(start + 4, [...collected, ...rows]);
+  })(0, []);
   const indexes = new Set(verified.filter((page) => page.present).map((page) => page.pageIndex));
 
   return [...indexes].sort((left, right) => left - right);
