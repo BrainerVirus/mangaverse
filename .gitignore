@@ -49,3 +49,6 @@ apps/web/blob-report/
 
 # Lock files (npm legacy)
 package-lock.json
+
+# Vitest JSON reports written by cross-platform.yml
+.reports/

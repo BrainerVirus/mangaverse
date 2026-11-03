@@ -1,0 +1,82 @@
+# Runs the data-host unit tests on Linux and Windows (spec: Electron data host uses node:sqlite).
+#
+# This proves only unit-level node:sqlite behavior: @app/db's repositories over the data host,
+# and @app/desktop's main-process tests, on each runner OS. It does NOT prove that the Windows
+# or Linux installers install, launch, or open a database in a packaged app; package.yml only
+# builds those artifacts. Not a required check: it is informational until the owner promotes it.
+#
+# A green exit code is not enough (a skipped suite also exits 0), so each run writes a Vitest
+# JSON report and scripts/assert-tests-ran.mjs fails the job when the data-host suites did not
+# actually run and pass on that platform.
+name: Cross-platform
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "apps/desktop/**"
+      # The desktop tests import the web router graph.
+      - "apps/web/**"
+      - "packages/**"
+      - "scripts/assert-tests-ran.mjs"
+      - ".github/workflows/cross-platform.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+
+concurrency:
+  group: cross-platform-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  data-host:
+    name: Data host (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        # One shell on every OS; the Windows default is PowerShell.
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpm turbo run build --filter='./packages/*'
+
+      # The same two Vitest runs as `pnpm --filter @app/db test`, split so each writes a report.
+      # Reports go under the package (relative paths keep Windows backslashes out of bash).
+      - name: "@app/db tests (sql.js)"
+        run: pnpm --filter @app/db exec vitest run --config vitest.config.ts --reporter=default --reporter=json --outputFile=.reports/sqljs.json
+
+      # Every repository call crosses a MessageChannel into node:sqlite.
+      - name: "@app/db tests (data host, node:sqlite)"
+        run: pnpm --filter @app/db exec vitest run --config vitest.host.config.ts --reporter=default --reporter=json --outputFile=.reports/host.json
+
+      # `pnpm --filter @app/desktop test` with the JSON reporter added.
+      - name: "@app/desktop tests"
+        run: pnpm --filter @app/desktop test --reporter=default --reporter=json --outputFile=.reports/desktop.json
+
+      - name: Assert the data-host suites ran
+        run: |
+          node scripts/assert-tests-ran.mjs packages/db/.reports/sqljs.json --file src/host/serve.test.ts --file src/host/import-snapshot.test.ts
+          node scripts/assert-tests-ran.mjs packages/db/.reports/host.json
+          node scripts/assert-tests-ran.mjs apps/desktop/.reports/desktop.json --file src/main/data-host.test.ts
