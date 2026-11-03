@@ -35,6 +35,12 @@ export interface RequestGate {
   noteResponse(status: number, headers?: Readonly<Record<string, string>>): number | undefined;
   /** The pending block horizon in epoch milliseconds, or `undefined` when open. */
   blockedUntilMs(): number | undefined;
+  /**
+   * How long a caller would still wait before a parked gate opens, in milliseconds.
+   * `0` when the gate is open. A request client reports this in an aborted or
+   * blocked error so the user sees the real wait instead of a bare zero.
+   */
+  remainingWaitMs(): number;
 }
 
 function blockedError(message: string, retryAfterMs: number, aborted = false): AppError {
@@ -190,6 +196,11 @@ export function createRequestGate(options: RequestGateOptions): RequestGate {
         return undefined;
       }
       return blockedUntil;
+    },
+    remainingWaitMs() {
+      const blockedUntil = state.blockedUntil;
+      if (blockedUntil === undefined) return 0;
+      return Math.max(0, blockedUntil - now());
     },
   };
 }

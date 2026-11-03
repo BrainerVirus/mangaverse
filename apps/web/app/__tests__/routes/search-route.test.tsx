@@ -169,7 +169,7 @@ describe('/search route', () => {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
-    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, retryDelay: 0 } } });
 
     act(() => {
       root.render(
@@ -426,7 +426,10 @@ describe('/search route', () => {
     mocks.fetchSearchPage.mockImplementation((_db, viewState: SearchViewState) =>
       Promise.resolve(emptyPage(viewState)),
     );
+    // The first failure is retried once automatically, so both of those attempts
+    // must fail before the Retry control appears and the manual retry can succeed.
     mocks.fetchProviderSearchIdentities
+      .mockRejectedValueOnce(new Error('provider offline'))
       .mockRejectedValueOnce(new Error('provider offline'))
       .mockResolvedValueOnce([makeIdentity('Provider Series')]);
 
@@ -441,7 +444,7 @@ describe('/search route', () => {
     });
 
     await vi.waitFor(() => expect(buttonByText('Provider Series')).toBeDefined());
-    expect(mocks.fetchProviderSearchIdentities).toHaveBeenCalledTimes(2);
+    expect(mocks.fetchProviderSearchIdentities).toHaveBeenCalledTimes(3);
     expect(mocks.fetchSearchPage).toHaveBeenCalledTimes(localReads);
     expect(mocks.recordSearchQuery).toHaveBeenCalledTimes(recordedQueries);
     expect(container.textContent).not.toContain('Provider search unavailable');
@@ -569,7 +572,7 @@ describe('/search route', () => {
     await act(async () => {
       root.render(
         <QueryClientProvider
-          client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+          client={new QueryClient({ defaultOptions: { queries: { retry: false, retryDelay: 0 } } })}
         >
           <SearchRoute />
         </QueryClientProvider>,
@@ -591,7 +594,9 @@ describe('/search route', () => {
     mocks.fetchProviderSearchIdentities.mockImplementation((_db, providerId) => {
       if (providerId === 'prov-a') {
         firstProviderCalls += 1;
-        return firstProviderCalls === 1
+        // Initial attempt and the automatic retry both fail; the manual Retry
+        // click is the third call and succeeds.
+        return firstProviderCalls < 3
           ? Promise.reject(new Error('provider offline'))
           : Promise.resolve([makeIdentity('Provider Mars')]);
       }
@@ -609,7 +614,7 @@ describe('/search route', () => {
     });
 
     await vi.waitFor(() => expect(buttonByText('Provider Mars')).toBeDefined());
-    expect(firstProviderCalls).toBe(2);
+    expect(firstProviderCalls).toBe(3);
     expect(
       mocks.fetchProviderSearchIdentities.mock.calls.filter((call) => call[1] === 'prov-b'),
     ).toHaveLength(1);

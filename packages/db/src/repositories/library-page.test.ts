@@ -11,7 +11,11 @@ import {
   type LibrarySortKey,
 } from '@app/shared';
 import { createSqlJsHarness, type SqlJsHarness } from '../testing/sqljs-harness.js';
-import { addProviderMapping, createMangaIdentityWithInitialMapping } from './identities.js';
+import {
+  addProviderMapping,
+  createMangaIdentityWithInitialMapping,
+  setDefaultProviderMapping,
+} from './identities.js';
 import {
   addLibraryEntriesToCategories,
   addLibraryEntry,
@@ -484,5 +488,210 @@ describe('listLibraryEntryPage', () => {
     });
     expect(page.items).toHaveLength(2);
     expect(page.total).toBeGreaterThan(2);
+  });
+});
+
+describe('listLibraryEntryPage Unicode titles', () => {
+  /** The case from the #220 review: BINARY collation ranked Zebra before apple. */
+  const TITLES = ['10 ways', 'Banana', "O'Brien", 'Zebra', 'apple', 'Éclair', '進撃の巨人'];
+
+  async function seedUnicodeLibrary() {
+    const harness = await createSqlJsHarness();
+    const ids = new Map<string, LibraryEntryId>();
+    for (const [index, title] of TITLES.entries()) {
+      const created = await createMangaIdentityWithInitialMapping(harness.db, {
+        canonicalTitle: title,
+        status: 'ongoing',
+        contentRating: 'safe',
+        providerId: toProviderId('prov-a'),
+        providerMangaId: `unicode-${index}`,
+      });
+      if (!created.ok) throw new Error(created.error.message);
+      const entryId = toLibraryEntryId(`unicode-entry-${index}`);
+      const added = await addLibraryEntry(harness.db, {
+        mangaId: created.value.mangaId,
+        id: entryId,
+        status: 'reading',
+      });
+      if (!added.ok) throw new Error(added.error.message);
+      ids.set(title, entryId);
+    }
+    // An accented alternative title must be found the same way as a canonical one.
+    harness.raw.run(
+      "INSERT INTO manga_titles (id, manga_id, locale, value) SELECT 'unicode-alt', manga_id, 'fr', 'Éclair Nocturne' FROM library_entries WHERE id = 'unicode-entry-2'",
+    );
+    return { harness, ids };
+  }
+
+  async function titlesFor(
+    harness: SqlJsHarness,
+    query: string,
+    direction: 'asc' | 'desc' = 'asc',
+  ): Promise<string[]> {
+    const page = await listLibraryEntryPage(harness.db, {
+      filter: { query },
+      sort: { key: 'title', direction },
+      limit: 50,
+    });
+    return page.items.map((entry) => entry.id);
+  }
+
+  it('Given accented and mixed-case titles, Then search folds case and accents in one pass', async () => {
+    const { harness, ids } = await seedUnicodeLibrary();
+    for (const query of ['éclair', 'ÉCLAIR', 'é', 'Éclair']) {
+      const found = await listLibraryEntryPage(harness.db, {
+        filter: { query },
+        sort: { key: 'title', direction: 'asc' },
+        limit: 50,
+      });
+      // Both the canonical "Éclair" and O'Brien's accented alternative title match.
+      expect({ query, ids: found.items.map((entry) => entry.id) }).toEqual({
+        query,
+        ids: [ids.get('Éclair'), ids.get("O'Brien")],
+      });
+    }
+    // Lowercase-only matching is the old behavior: an unaccented query is not an accent match.
+    expect(await titlesFor(harness, 'eclair')).toEqual([]);
+
+    // An accented alternative title is matched too.
+    const alternative = await listLibraryEntryPage(harness.db, {
+      filter: { query: 'NOCTURNE' },
+      sort: { key: 'title', direction: 'asc' },
+      limit: 50,
+    });
+    expect(alternative.items.map((entry) => entry.id)).toEqual([ids.get("O'Brien")]);
+  });
+
+  it('Given ASCII, mixed case and a non-Latin title, Then search still matches case-insensitively', async () => {
+    const { harness, ids } = await seedUnicodeLibrary();
+    expect(await titlesFor(harness, 'bAnAnA')).toEqual([ids.get('Banana')]);
+    expect(await titlesFor(harness, 'APPLE')).toEqual([ids.get('apple')]);
+    expect(await titlesFor(harness, '進撃')).toEqual([ids.get('進撃の巨人')]);
+    expect(await titlesFor(harness, '10 WAYS')).toEqual([ids.get('10 ways')]);
+  });
+
+  it('Given every title, Then both directions use the case-folded Unicode order', async () => {
+    const { harness, ids } = await seedUnicodeLibrary();
+    const asc = await listLibraryEntryPage(harness.db, {
+      sort: { key: 'title', direction: 'asc' },
+      limit: 50,
+    });
+    expect(asc.items.map((entry) => entry.id)).toEqual([
+      ids.get('10 ways'),
+      ids.get('apple'),
+      ids.get('Banana'),
+      ids.get('Éclair'),
+      ids.get("O'Brien"),
+      ids.get('Zebra'),
+      ids.get('進撃の巨人'),
+    ]);
+
+    const desc = await listLibraryEntryPage(harness.db, {
+      sort: { key: 'title', direction: 'desc' },
+      limit: 50,
+    });
+    expect(desc.items.map((entry) => entry.id)).toEqual([
+      ids.get('進撃の巨人'),
+      ids.get('Zebra'),
+      ids.get("O'Brien"),
+      ids.get('Éclair'),
+      ids.get('Banana'),
+      ids.get('apple'),
+      ids.get('10 ways'),
+    ]);
+  });
+});
+
+describe('listLibraryEntryPage unread after a mapping switch', () => {
+  async function seedTwoMappings(unreadA: number, unreadB: number) {
+    const harness = await createSqlJsHarness();
+    const created = await createMangaIdentityWithInitialMapping(harness.db, {
+      canonicalTitle: 'Switched Series',
+      status: 'ongoing',
+      contentRating: 'safe',
+      providerId: toProviderId('prov-a'),
+      providerMangaId: 'switched-remote-a',
+    });
+    if (!created.ok) throw new Error(created.error.message);
+    const entryId = toLibraryEntryId('switched-entry');
+    const added = await addLibraryEntry(harness.db, {
+      mangaId: created.value.mangaId,
+      id: entryId,
+      status: 'reading',
+    });
+    if (!added.ok) throw new Error(added.error.message);
+    const second = await addProviderMapping(harness.db, {
+      mangaId: created.value.mangaId,
+      providerId: toProviderId('prov-b'),
+      providerMangaId: 'switched-remote-b',
+    });
+    if (!second.ok) throw new Error(second.error.message);
+
+    const insertChapter = (mappingId: string, suffix: string, count: number) => {
+      for (let index = 0; index < count; index++) {
+        harness.raw.run(
+          'INSERT INTO chapters (id, manga_id, provider_mapping_id, title, chapter_index) VALUES (?,?,?,?,?)',
+          [`${suffix}-${index}`, created.value.mangaId, mappingId, `Ch ${index}`, index],
+        );
+      }
+    };
+    insertChapter(created.value.mappingId, 'chapter-a', unreadA);
+    insertChapter(second.value, 'chapter-b', unreadB);
+    return {
+      harness,
+      entryId,
+      firstMappingId: created.value.mappingId,
+      secondMappingId: second.value,
+    };
+  }
+
+  it('Given an active mapping switch, Then the stored count and the unread sort follow the new mapping', async () => {
+    const { harness, entryId, firstMappingId, secondMappingId } = await seedTwoMappings(3, 1);
+    harness.raw.run('UPDATE library_entries SET unread_count = 3, active_provider_mapping_id = ?', [
+      firstMappingId,
+    ]);
+
+    const switched = await setLibraryEntryActiveProviderMapping(
+      harness.db,
+      entryId,
+      secondMappingId,
+    );
+    expect(switched.ok).toBe(true);
+
+    const stored = harness.raw.exec('SELECT unread_count FROM library_entries')[0]?.values[0]?.[0];
+    expect(stored).toBe(1);
+
+    const page = await listLibraryEntryPage(harness.db, {
+      sort: { key: 'unread', direction: 'desc' },
+      limit: 1,
+    });
+    // The row sorts by the two unread chapters it now shows, not the old count of three.
+    expect(page.items[0]?.unreadCount).toBe(1);
+    expect(page.items[0]?.id).toBe(entryId);
+  });
+
+  it('Given a default mapping switch and no active mapping, Then the count follows the default', async () => {
+    const { harness, entryId, secondMappingId } = await seedTwoMappings(3, 1);
+    harness.raw.run(
+      'UPDATE library_entries SET unread_count = 3, active_provider_mapping_id = NULL',
+    );
+
+    const switched = await setDefaultProviderMapping(
+      harness.db,
+      toMangaId(
+        harness.raw.exec('SELECT manga_id FROM library_entries')[0]!.values[0]![0] as string,
+      ),
+      secondMappingId,
+    );
+    expect(switched.ok).toBe(true);
+
+    const stored = harness.raw.exec('SELECT unread_count FROM library_entries')[0]?.values[0]?.[0];
+    expect(stored).toBe(1);
+    const page = await listLibraryEntryPage(harness.db, {
+      sort: { key: 'unread', direction: 'desc' },
+      limit: 1,
+    });
+    expect(page.items[0]?.id).toBe(entryId);
+    expect(page.items[0]?.unreadCount).toBe(1);
   });
 });

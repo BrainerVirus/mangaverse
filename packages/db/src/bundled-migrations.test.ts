@@ -35,6 +35,10 @@ const libraryPageIndexesSql = readFileSync(
   'utf8',
 );
 const downloadsSql = readFileSync(`${migrationsRoot}/0009_downloads.sql`, 'utf8');
+const dropUnusedLibraryIndexesSql = readFileSync(
+  `${migrationsRoot}/0010_drop_unused_library_indexes.sql`,
+  'utf8',
+);
 const journal = JSON.parse(readFileSync(`${migrationsRoot}/meta/_journal.json`, 'utf8'));
 
 const migrationFiles = [
@@ -88,6 +92,11 @@ const migrationFiles = [
     sql: downloadsSql,
     hash: '972b8031ccfb59c9dde30b52d04f6d4ede700bd25f806669fd0e47616188c6bc',
   },
+  {
+    tag: '0010_drop_unused_library_indexes',
+    sql: dropUnusedLibraryIndexesSql,
+    hash: '478d2a006ce56dff7ce9325f23742ddd78d2834e34acad1b2ce3efd7cef5ebe2',
+  },
 ];
 
 function insertLibraryRow(
@@ -137,7 +146,7 @@ describe('bundled migrations', () => {
     expect(bundledTables).toEqual(fsTables);
   });
 
-  it('adds the library page indexes to a database that predates them', async () => {
+  it('adds the library page indexes and then drops the unused ones', async () => {
     const SQL = await initSqlJs();
     const raw = new SQL.Database();
     // A profile stopped at 0007, with rows already in it.
@@ -164,7 +173,12 @@ describe('bundled migrations', () => {
       (row) => row[1],
     );
     expect(indexes).toContain('library_entries_favorite_added_idx');
-    expect(indexes).toContain('library_entries_unread_idx');
+    expect(indexes).toContain('library_entries_status_added_idx');
+    // 0010 removed the four that never served a plan.
+    expect(indexes).not.toContain('library_entries_added_idx');
+    expect(indexes).not.toContain('library_entries_updated_idx');
+    expect(indexes).not.toContain('library_entries_progress_idx');
+    expect(indexes).not.toContain('library_entries_unread_idx');
     expect(singleValue(raw, 'SELECT COUNT(*) FROM library_entries')).toBe(1);
     // A second run applies nothing and keeps the rows.
     migrateDatabaseFromBundled(raw, journal, migrationFiles);

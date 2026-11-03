@@ -154,4 +154,90 @@ describe('createProviderRequestClient', () => {
     if (res.ok) throw new Error('expected res.ok to be false');
     expect(res.error.details).toEqual({ status: 429, retryAfterMs: 60_000 });
   });
+
+  it('Given a long park and a short response timeout, Then the gate wait is not charged to the response', async () => {
+    vi.useFakeTimers();
+    try {
+      let aborted = false;
+      const fetchImpl = vi.fn<
+        (_url: string | URL | Request, init?: RequestInit) => Promise<Response>
+      >(
+        (_url, init) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => {
+              aborted = true;
+              reject(new Error('timeout'));
+            });
+          }),
+      );
+      const gate = createRequestGate({ defaultRequestsPerMinute: 40 });
+      gate.noteResponse(429, { 'retry-after': '60' });
+      const client = createProviderRequestClient({ fetchImpl, gate, defaultTimeoutMs: 20 });
+
+      const pending = client.request({ url: 'https://example.com/x' });
+      // The 60 s park outlives the 20 ms response timeout; a timeout that started
+      // before the gate would abort the call here and never reach the fetch.
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+      expect(aborted).toBe(false);
+
+      await vi.advanceTimersByTimeAsync(25);
+      const res = await pending;
+
+      expect(res.ok).toBe(false);
+      if (res.ok) throw new Error('expected res.ok to be false');
+      expect(res.error.code).toBe('extensions.sdk.request.timeout');
+      expect(aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('Given an abort while the gate is parked, Then the error carries the remaining wait', async () => {
+    const fetchImpl = vi.fn<(...args: unknown[]) => Promise<Response>>(
+      async () => new Response('{}', { status: 200 }),
+    );
+    const gate = createRequestGate({ defaultRequestsPerMinute: 40 });
+    gate.noteResponse(429, { 'retry-after': '60' });
+    const client = createProviderRequestClient({ fetchImpl, gate });
+    const controller = new AbortController();
+
+    const pending = client.request({ url: 'https://example.com/x', signal: controller.signal });
+    controller.abort();
+    const res = await pending;
+
+    expect(res.ok).toBe(false);
+    if (res.ok) throw new Error('expected res.ok to be false');
+    expect(res.error.code).toBe('extensions.sdk.ratelimit.blocked');
+    expect(res.error.details?.aborted).toBe(true);
+    const remaining = res.error.details?.retryAfterMs;
+    expect(typeof remaining).toBe('number');
+    expect(remaining).toBeGreaterThan(50_000);
+    expect(remaining).toBeLessThanOrEqual(60_000);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('Given an already-aborted signal, Then the request aborts before the fetch settles', async () => {
+    const fetchImpl = vi.fn<
+      (_url: string | URL | Request, init?: RequestInit) => Promise<Response>
+    >((_url, init) => {
+      if (init?.signal?.aborted === true) {
+        return Promise.reject(new DOMException('Aborted', 'AbortError'));
+      }
+      return Promise.resolve(new Response('{}', { status: 200 }));
+    });
+    const client = createProviderRequestClient({ fetchImpl });
+    const controller = new AbortController();
+    controller.abort();
+
+    const res = await client.request({
+      url: 'https://example.com/x',
+      signal: controller.signal,
+    });
+
+    expect(res.ok).toBe(false);
+    if (res.ok) throw new Error('expected res.ok to be false');
+    expect(res.error.code).toBe('extensions.sdk.request.aborted');
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
 });

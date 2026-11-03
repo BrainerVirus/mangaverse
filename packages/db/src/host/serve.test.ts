@@ -90,7 +90,18 @@ describe('data host', () => {
     const migrations = side.client.database
       .prepare('SELECT count(*) AS n FROM __drizzle_migrations')
       .get();
-    expect(migrations?.n).toBe(10);
+    expect(migrations?.n).toBe(11);
+    side.close();
+  });
+
+  it('registers the title fold functions on node:sqlite too', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'mangaverse-host-fold-'));
+    cleanups.push(() => rmSync(directory, { recursive: true, force: true }));
+    const side = openNativeDatabase(join(directory, 'library.sqlite'));
+    const row = side.client.database
+      .prepare("SELECT mv_search_text('ÉCLAIR') AS search, mv_sort_text('Ä') AS sort")
+      .get();
+    expect(row).toEqual({ search: 'éclair', sort: 'a' });
     side.close();
   });
 

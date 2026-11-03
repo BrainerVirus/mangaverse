@@ -17,7 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e:electron": "playwright test --config playwright.config.ts",
-    "test:e2e:packaged": "playwright test --config playwright.config.ts e2e/packed-app.spec.ts",
+    "test:e2e:packaged": "playwright test --config playwright.packaged.config.ts",
     "package:dir": "electron-builder --dir --publish never",
     "package:mac": "electron-builder --mac --publish never",
     "package:win": "electron-builder --win --publish never",

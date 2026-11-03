@@ -57,6 +57,22 @@ describe('persistent database', () => {
     second.close();
   });
 
+  it('Given a flush, When sql.js reopens the handle, Then the title SQL functions are still registered', async () => {
+    const store = createMemoryPersistedBytesStore();
+    const session = await openOn(store);
+
+    const before = session.raw.exec(`SELECT mv_sort_text('Éclair'), mv_search_text('ÉCLAIR')`);
+    expect(before[0]?.values[0]).toEqual(['eclair', 'éclair']);
+
+    await session.flush();
+
+    // sql.js `export()` closes and reopens the handle; without re-registration these
+    // throws "no such function", taking title sort/search and the overview down.
+    const after = session.raw.exec(`SELECT mv_sort_text('Éclair'), mv_search_text('ÉCLAIR')`);
+    expect(after[0]?.values[0]).toEqual(['eclair', 'éclair']);
+    session.close();
+  });
+
   it('Given unreadable stored bytes, When the database opens, Then it quarantines them and starts fresh', async () => {
     const store = createMemoryPersistedBytesStore({
       bytes: new Uint8Array([1, 2, 3, 4]),

@@ -1,10 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
-import {
-  DEFAULT_LIBRARY_VIEW_STATE,
-  libraryQueryKeys,
-  type MangaDetailData,
-} from '@/features/library';
+import { libraryQueryKeys, type MangaDetailData } from '@/features/library';
 import {
   toCategoryId,
   toLibraryEntryId,
@@ -22,6 +18,7 @@ import {
 const mangaId = toMangaId('manga-mutation-1');
 const otherMangaId = toMangaId('manga-mutation-2');
 const newEntryId = toLibraryEntryId('entry-client-generated');
+const existingEntryId = toLibraryEntryId('entry-existing');
 
 const detailData: MangaDetailData = {
   manga: {
@@ -58,61 +55,49 @@ const otherDetailData: MangaDetailData = {
   },
 };
 
-function seedPage(queryClient: QueryClient) {
-  const pageKey = libraryQueryKeys.page(DEFAULT_LIBRARY_VIEW_STATE);
-  queryClient.setQueryData(pageKey, {
-    items: [],
-    categories: [],
-    viewState: DEFAULT_LIBRARY_VIEW_STATE,
-  });
+const detailOf = (queryClient: QueryClient, id = mangaId) =>
+  queryClient.getQueryData<MangaDetailData>(libraryQueryKeys.detail(id));
+
+/** Detail caches only: the library grid now reads host collections, not a page query. */
+function seedDetails(queryClient: QueryClient): void {
   queryClient.setQueryData(libraryQueryKeys.detail(mangaId), detailData);
   queryClient.setQueryData(libraryQueryKeys.detail(otherMangaId), otherDetailData);
-  return pageKey;
 }
 
-function seedExistingEntry(queryClient: QueryClient) {
-  const pageKey = libraryQueryKeys.page(DEFAULT_LIBRARY_VIEW_STATE);
-  const entry = {
-    id: toLibraryEntryId('entry-existing'),
-    mangaId,
-    favorite: false,
-    categoryIds: [],
-    status: 'planned' as const,
-    unreadCount: 0,
-  };
-  queryClient.setQueryData(pageKey, {
-    items: [{ entry, manga: detailData.manga }],
-    categories: [],
-    viewState: DEFAULT_LIBRARY_VIEW_STATE,
-  });
+function seedExistingEntry(queryClient: QueryClient): void {
+  seedDetails(queryClient);
   queryClient.setQueryData(libraryQueryKeys.detail(mangaId), {
     ...detailData,
-    libraryEntry: entry,
+    libraryEntry: {
+      id: existingEntryId,
+      mangaId,
+      favorite: false,
+      categoryIds: [],
+      status: 'planned' as const,
+      unreadCount: 0,
+    },
   });
-  return pageKey;
 }
 
 describe('library mutation options', () => {
   it('uses the client-generated id and rolls back only the failed add', async () => {
     const queryClient = new QueryClient();
-    const pageKey = seedPage(queryClient);
+    seedDetails(queryClient);
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries').mockResolvedValue(undefined);
 
     const options = createAddToLibraryMutationOptions(null, queryClient, mangaId);
     await options.onMutate?.(newEntryId);
 
-    expect(queryClient.getQueryData(pageKey)).toMatchObject({
-      items: [{ entry: { id: newEntryId, mangaId } }],
-    });
+    expect(detailOf(queryClient)?.libraryEntry).toMatchObject({ id: newEntryId, mangaId });
 
     options.onError?.(new Error('db unavailable'));
-    expect(queryClient.getQueryData(pageKey)).toMatchObject({ items: [] });
+    expect(detailOf(queryClient)?.libraryEntry).toBeUndefined();
     expect(invalidate).toHaveBeenCalledWith({ queryKey: libraryQueryKeys.all });
   });
 
   it('does not clobber a concurrent optimistic add when one fails', async () => {
     const queryClient = new QueryClient();
-    const pageKey = seedPage(queryClient);
+    seedDetails(queryClient);
 
     const first = createAddToLibraryMutationOptions(null, queryClient, mangaId);
     const second = createAddToLibraryMutationOptions(null, queryClient, otherMangaId);
@@ -121,66 +106,56 @@ describe('library mutation options', () => {
 
     await first.onMutate?.(firstId);
     await second.onMutate?.(secondId);
-    expect(queryClient.getQueryData(pageKey)).toMatchObject({
-      items: [{ entry: { id: firstId } }, { entry: { id: secondId } }],
-    });
+    expect(detailOf(queryClient)?.libraryEntry?.id).toBe(firstId);
+    expect(detailOf(queryClient, otherMangaId)?.libraryEntry?.id).toBe(secondId);
 
     first.onError?.(new Error('first failed'));
-    expect(queryClient.getQueryData(pageKey)).toMatchObject({
-      items: [{ entry: { id: secondId } }],
-    });
+    expect(detailOf(queryClient)?.libraryEntry).toBeUndefined();
+    expect(detailOf(queryClient, otherMangaId)?.libraryEntry?.id).toBe(secondId);
   });
 
-  it('rolls back the optimistic remove by refetching, not by restoring a page snapshot', async () => {
+  it('clears the optimistic remove and relies on the refetch to restore it', async () => {
     const queryClient = new QueryClient();
-    const pageKey = seedExistingEntry(queryClient);
+    seedExistingEntry(queryClient);
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries').mockResolvedValue(undefined);
 
     const options = createRemoveFromLibraryMutationOptions({} as never, queryClient, mangaId);
     await options.onMutate?.();
-    expect(queryClient.getQueryData(pageKey)).toMatchObject({ items: [] });
+    expect(detailOf(queryClient)?.libraryEntry).toBeUndefined();
 
     options.onError?.(new Error('failed'));
-    expect(queryClient.getQueryData(pageKey)).toMatchObject({ items: [] });
+    expect(detailOf(queryClient)?.libraryEntry).toBeUndefined();
     expect(invalidate).toHaveBeenCalledWith({ queryKey: libraryQueryKeys.all });
   });
 
-  it('rolls back the optimistic favorite by refetching, not by restoring a page snapshot', async () => {
+  it('rolls back the optimistic favorite by refetching, not by restoring a snapshot', async () => {
     const queryClient = new QueryClient();
-    const pageKey = seedExistingEntry(queryClient);
+    seedExistingEntry(queryClient);
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries').mockResolvedValue(undefined);
 
     const options = createToggleFavoriteMutationOptions({} as never, queryClient, mangaId);
     await options.onMutate?.(true);
-    expect(queryClient.getQueryData(pageKey)).toMatchObject({
-      items: [{ entry: { favorite: true } }],
-    });
+    expect(detailOf(queryClient)?.libraryEntry?.favorite).toBe(true);
 
     options.onError?.(new Error('failed'), true);
-    // The rollback is the invalidation refetch, not a page snapshot: the
-    // optimistic flag must still be there for the refetch to correct.
-    expect(queryClient.getQueryData(pageKey)).toMatchObject({
-      items: [{ entry: { favorite: true } }],
-    });
+    // The rollback is the invalidation refetch, not a snapshot: the optimistic flag
+    // must still be there for the refetch to correct.
+    expect(detailOf(queryClient)?.libraryEntry?.favorite).toBe(true);
     expect(invalidate).toHaveBeenCalledWith({ queryKey: libraryQueryKeys.all });
   });
 
   it('applies category pinning optimistically before the refetch', async () => {
     const queryClient = new QueryClient();
-    const pageKey = libraryQueryKeys.page(DEFAULT_LIBRARY_VIEW_STATE);
     const categoryId = toCategoryId('category-pin');
-    queryClient.setQueryData(pageKey, {
-      items: [],
+    queryClient.setQueryData(libraryQueryKeys.detail(mangaId), {
+      ...detailData,
       categories: [{ id: categoryId, name: 'Pinned' }],
-      viewState: DEFAULT_LIBRARY_VIEW_STATE,
     });
 
     const options = createLibraryOrganizationMutationOptions(null, queryClient);
     await options.onMutate?.({ type: 'set_category_pinned', categoryId, pinned: true });
 
-    expect(queryClient.getQueryData(pageKey)).toMatchObject({
-      categories: [{ id: categoryId, pinned: true }],
-    });
+    expect(detailOf(queryClient)?.categories).toMatchObject([{ id: categoryId, pinned: true }]);
   });
 
   it('invalidates library queries after settled mutations', () => {
