@@ -1,6 +1,26 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ProviderNetworkRefusal } from './types.js';
+import { MAX_REDIRECT_HOPS } from './network-fetch.js';
+import type { PlatformAdapter, ProviderNetworkRefusal } from './types.js';
 import { createWebPlatformAdapter } from './web.js';
+
+type FetchFn = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+
+/** What a non-browser fetch returns for `redirect: 'manual'`: the 3xx itself. */
+function redirectTo(location: string, status = 302): Response {
+  return new Response(null, { status, headers: { location } });
+}
+
+/** What a browser returns for `redirect: 'manual'`: an opaque, unreadable redirect. */
+function opaqueRedirect(): Response {
+  const response = new Response(null);
+  Object.defineProperty(response, 'type', { value: 'opaqueredirect' });
+  Object.defineProperty(response, 'status', { value: 0 });
+  return response;
+}
+
+function requestedUrls(fetchImpl: { mock: { calls: readonly (readonly unknown[])[] } }): string[] {
+  return fetchImpl.mock.calls.map(([input]) => String(input));
+}
 
 describe('createWebPlatformAdapter', () => {
   it('clipboard uses injected navigator methods', async () => {
@@ -225,20 +245,8 @@ describe('web providerNetwork domains', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it('allows a declared host and refuses a redirect to an undeclared host', async () => {
-    const fetchImpl = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
-      async (input) => {
-        const url = String(input);
-        const response = new Response('{"ok":true}', { status: 200 });
-        if (url.includes('/redirect')) {
-          // The browser follows redirects itself; the final URL is what surfaces.
-          Object.defineProperty(response, 'url', { value: 'https://evil.example/x' });
-        } else {
-          Object.defineProperty(response, 'url', { value: url });
-        }
-        return response;
-      },
-    );
+  it('allows a declared host', async () => {
+    const fetchImpl = vi.fn<FetchFn>(async () => new Response('{"ok":true}', { status: 200 }));
     const adapter = createWebPlatformAdapter({ fetch: fetchImpl });
     await adapter.providerNetwork.replaceProviders(
       [{ providerId: 'mangadex', domains: ['api.mangadex.org', '*.mangadex.network'] }],
@@ -257,14 +265,166 @@ describe('web providerNetwork domains', () => {
       url: 'https://api.mangadex.org/manga',
     });
     expect(allowed.ok).toBe(true);
+    if (!allowed.ok) throw new Error('expected the request to succeed');
+    expect(allowed.value.finalUrl).toBe('https://api.mangadex.org/manga');
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
 
-    const redirected = await adapter.providerNetwork.request({
-      providerId: 'mangadex',
-      url: 'https://api.mangadex.org/redirect',
+  describe('redirects', () => {
+    const setup = async (
+      fetchImpl: ReturnType<typeof vi.fn<FetchFn>>,
+    ): Promise<{ adapter: PlatformAdapter; refusals: ProviderNetworkRefusal[] }> => {
+      const refusals: ProviderNetworkRefusal[] = [];
+      const adapter = createWebPlatformAdapter({
+        fetch: fetchImpl,
+        onProviderRequestRefused: (refusal) => refusals.push(refusal),
+      });
+      await adapter.providerNetwork.replaceProviders(
+        [{ providerId: 'mangadex', domains: ['api.mangadex.org', '*.mangadex.network'] }],
+        1,
+      );
+      return { adapter, refusals };
+    };
+
+    it('never contacts an undeclared host a declared host redirects to', async () => {
+      const fetchImpl = vi.fn<FetchFn>(async (input) =>
+        String(input) === 'https://api.mangadex.org/redirect'
+          ? redirectTo('https://evil.example/x')
+          : new Response('{"ok":true}', { status: 200 }),
+      );
+      const { adapter, refusals } = await setup(fetchImpl);
+
+      const result = await adapter.providerNetwork.request({
+        providerId: 'mangadex',
+        url: 'https://api.mangadex.org/redirect',
+      });
+
+      expect(result.ok).toBe(false);
+      if (result.ok) throw new Error('expected the redirect to be refused');
+      expect(result.error.code).toBe('platform.invalid-url');
+      expect(requestedUrls(fetchImpl)).toEqual(['https://api.mangadex.org/redirect']);
+      expect(refusals).toEqual([
+        {
+          kind: 'api',
+          providerId: 'mangadex',
+          host: 'evil.example',
+          reason: 'redirected-host',
+        },
+      ]);
     });
-    expect(redirected.ok).toBe(false);
-    if (redirected.ok) throw new Error('expected the redirect to be refused');
-    expect(redirected.error.code).toBe('platform.invalid-url');
+
+    it('never contacts an undeclared host in the middle of a chain', async () => {
+      const fetchImpl = vi.fn<FetchFn>(async (input) => {
+        const url = String(input);
+        if (url === 'https://api.mangadex.org/a') return redirectTo('https://evil.example/hop');
+        if (url === 'https://evil.example/hop') return redirectTo('https://api.mangadex.org/final');
+        return new Response('{"ok":true}', { status: 200 });
+      });
+      const { adapter } = await setup(fetchImpl);
+
+      const result = await adapter.providerNetwork.request({
+        providerId: 'mangadex',
+        url: 'https://api.mangadex.org/a',
+      });
+
+      expect(result.ok).toBe(false);
+      expect(requestedUrls(fetchImpl)).toEqual(['https://api.mangadex.org/a']);
+    });
+
+    it('follows a chain that stays on declared hosts and reports the last URL', async () => {
+      const fetchImpl = vi.fn<FetchFn>(async (input) => {
+        const url = String(input);
+        if (url === 'https://api.mangadex.org/a') return redirectTo('/b');
+        if (url === 'https://api.mangadex.org/b') return redirectTo('https://x.mangadex.network/c');
+        return new Response('{"ok":true}', { status: 200 });
+      });
+      const { adapter, refusals } = await setup(fetchImpl);
+
+      const result = await adapter.providerNetwork.request({
+        providerId: 'mangadex',
+        url: 'https://api.mangadex.org/a',
+      });
+
+      expect(result.ok).toBe(true);
+      if (!result.ok) throw new Error('expected the chain to be followed');
+      expect(result.value.bodyText).toBe('{"ok":true}');
+      expect(result.value.finalUrl).toBe('https://x.mangadex.network/c');
+      expect(requestedUrls(fetchImpl)).toEqual([
+        'https://api.mangadex.org/a',
+        'https://api.mangadex.org/b',
+        'https://x.mangadex.network/c',
+      ]);
+      expect(refusals).toEqual([]);
+      for (const [, init] of fetchImpl.mock.calls) {
+        expect(init?.redirect).toBe('manual');
+        expect(init?.credentials).toBe('omit');
+        expect(init?.referrerPolicy).toBe('no-referrer');
+      }
+    });
+
+    it('refuses a redirect the browser hides instead of proceeding', async () => {
+      const fetchImpl = vi.fn<FetchFn>(async () => opaqueRedirect());
+      const { adapter, refusals } = await setup(fetchImpl);
+
+      const result = await adapter.providerNetwork.request({
+        providerId: 'mangadex',
+        url: 'https://api.mangadex.org/a',
+      });
+
+      expect(result.ok).toBe(false);
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+      expect(refusals).toEqual([
+        {
+          kind: 'api',
+          providerId: 'mangadex',
+          host: '(opaque-redirect)',
+          reason: 'redirected-host',
+        },
+      ]);
+    });
+
+    it('stops a redirect loop at the hop limit', async () => {
+      const fetchImpl = vi.fn<FetchFn>(async () => redirectTo('https://api.mangadex.org/loop'));
+      const { adapter, refusals } = await setup(fetchImpl);
+
+      const result = await adapter.providerNetwork.request({
+        providerId: 'mangadex',
+        url: 'https://api.mangadex.org/loop',
+      });
+
+      expect(result.ok).toBe(false);
+      expect(fetchImpl).toHaveBeenCalledTimes(MAX_REDIRECT_HOPS + 1);
+      expect(refusals).toHaveLength(1);
+      expect(refusals[0]?.reason).toBe('redirected-host');
+    });
+
+    it('turns a 303 into a body-less GET and drops credentials across origins', async () => {
+      const fetchImpl = vi.fn<FetchFn>(async (input) =>
+        String(input) === 'https://api.mangadex.org/login'
+          ? redirectTo('https://x.mangadex.network/done', 303)
+          : new Response('{}', { status: 200 }),
+      );
+      const { adapter } = await setup(fetchImpl);
+
+      const result = await adapter.providerNetwork.request({
+        providerId: 'mangadex',
+        url: 'https://api.mangadex.org/login',
+        method: 'POST',
+        body: '{"a":1}',
+        headers: { authorization: 'Bearer t', accept: 'application/json' },
+      });
+
+      expect(result.ok).toBe(true);
+      const [, first] = fetchImpl.mock.calls[0] ?? [];
+      expect(first?.method).toBe('POST');
+      expect(first?.body).toBe('{"a":1}');
+      const [, second] = fetchImpl.mock.calls[1] ?? [];
+      expect(second?.method).toBe('GET');
+      expect(second?.body).toBeUndefined();
+      const forwarded = new Headers(second?.headers);
+      expect(forwarded.get('authorization')).toBeNull();
+      expect(forwarded.get('accept')).toBe('application/json');
+    });
   });
 
   it('records an API refusal through the injected sink', async () => {
@@ -349,14 +509,11 @@ describe('web providerNetwork byte fetches', () => {
     expect(refusals).toEqual([]);
   });
 
-  it('Given a declared host that redirects to an undeclared one, Then no bytes are delivered', async () => {
-    const fetchImpl = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
-      async (input) =>
-        imageResponse(
-          String(input) === 'https://uploads.mangadex.org/redirect.jpg'
-            ? 'https://evil.example/page.jpg'
-            : String(input),
-        ),
+  it('Given a declared host that redirects to an undeclared one, Then it is never contacted and no bytes are delivered', async () => {
+    const fetchImpl = vi.fn<FetchFn>(async (input) =>
+      String(input) === 'https://uploads.mangadex.org/redirect.jpg'
+        ? redirectTo('https://evil.example/page.jpg')
+        : imageResponse(String(input)),
     );
     const refusals: ProviderNetworkRefusal[] = [];
     const adapter = createWebPlatformAdapter({
@@ -375,11 +532,70 @@ describe('web providerNetwork byte fetches', () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error('expected the redirected fetch to be refused');
     expect(result.error.code).toBe('platform.invalid-url');
+    expect(requestedUrls(fetchImpl)).toEqual(['https://uploads.mangadex.org/redirect.jpg']);
     expect(refusals).toEqual([
       {
         kind: 'image',
         providerId: 'mangadex',
         host: 'evil.example',
+        reason: 'redirected-host',
+      },
+    ]);
+  });
+
+  it('Given a declared host that redirects to another declared host, Then the bytes are returned', async () => {
+    const fetchImpl = vi.fn<FetchFn>(async (input) =>
+      String(input) === 'https://uploads.mangadex.org/redirect.jpg'
+        ? redirectTo('https://cdn.mangadex.network/page.jpg')
+        : imageResponse(String(input)),
+    );
+    const refusals: ProviderNetworkRefusal[] = [];
+    const adapter = createWebPlatformAdapter({
+      fetch: fetchImpl,
+      onProviderRequestRefused: (refusal) => refusals.push(refusal),
+    });
+    await adapter.providerNetwork.replaceProviders(
+      [{ providerId: 'mangadex', domains: ['uploads.mangadex.org', '*.mangadex.network'] }],
+      1,
+    );
+
+    const result = await adapter.network.fetchBytes('https://uploads.mangadex.org/redirect.jpg', {
+      providerId: 'mangadex',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected the bytes to be returned');
+    expect(result.value?.data.byteLength).toBe(3);
+    expect(requestedUrls(fetchImpl)).toEqual([
+      'https://uploads.mangadex.org/redirect.jpg',
+      'https://cdn.mangadex.network/page.jpg',
+    ]);
+    expect(refusals).toEqual([]);
+  });
+
+  it('Given a redirect the browser hides, Then the fetch is refused and logged', async () => {
+    const fetchImpl = vi.fn<FetchFn>(async () => opaqueRedirect());
+    const refusals: ProviderNetworkRefusal[] = [];
+    const adapter = createWebPlatformAdapter({
+      fetch: fetchImpl,
+      onProviderRequestRefused: (refusal) => refusals.push(refusal),
+    });
+    await adapter.providerNetwork.replaceProviders(
+      [{ providerId: 'mangadex', domains: ['uploads.mangadex.org'] }],
+      1,
+    );
+
+    const result = await adapter.network.fetchBytes('https://uploads.mangadex.org/redirect.jpg', {
+      providerId: 'mangadex',
+    });
+
+    expect(result.ok).toBe(false);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(refusals).toEqual([
+      {
+        kind: 'image',
+        providerId: 'mangadex',
+        host: '(opaque-redirect)',
         reason: 'redirected-host',
       },
     ]);
