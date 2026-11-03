@@ -168,13 +168,10 @@ export const libraryEntries = sqliteTable(
   },
   (t) => [
     uniqueIndex('library_entries_manga_unique_idx').on(t.mangaId),
-    // The library page filters and sorts in SQL; these cover its predicates and orders.
+    // The library page filters and sorts in SQL; these cover its searchable predicates.
+    // 0010 drops the single-column indexes that never served a plan.
     index('library_entries_favorite_added_idx').on(t.favorite, t.addedAt),
     index('library_entries_status_added_idx').on(t.status, t.addedAt),
-    index('library_entries_added_idx').on(t.addedAt),
-    index('library_entries_updated_idx').on(t.updatedAt),
-    index('library_entries_progress_idx').on(t.progressPercent),
-    index('library_entries_unread_idx').on(t.unreadCount),
   ],
 );
 

@@ -365,6 +365,13 @@ export const PROCEDURE_INPUTS: { readonly [K in ProcedureName]: z.ZodType<readon
   toLibraryEntry: z.tuple([z.object({ id, mangaId: id }).loose()]),
   listLibraryCategories: z.tuple([]),
   listLibraryEntries: z.tuple([libraryQuery.optional()]),
+  // Both overview shelves are top-N queries; the host never reads the whole library for them.
+  listLibraryContinueReading: z.tuple([
+    z.object({ filter: libraryQuery.shape.filter, limit: z.number().int().min(0) }),
+  ]),
+  listLibraryRecentlyUpdated: z.tuple([
+    z.object({ filter: libraryQuery.shape.filter, limit: z.number().int().min(0) }),
+  ]),
   // A page is required and bounded: the host refuses an unbounded library load from a window.
   listLibraryEntryPage: z.tuple([
     z.object({

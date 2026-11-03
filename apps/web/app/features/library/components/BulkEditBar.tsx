@@ -33,10 +33,12 @@ export interface BulkEditBarProps {
   readonly selectionMode: boolean;
   readonly selectedEntryIds: readonly LibraryEntryId[];
   readonly visibleCount: number;
+  /** Matching titles already on screen; "select all" applies to these, not the whole match. */
+  readonly loadedCount: number;
   readonly allVisibleSelected: boolean;
   readonly categories: readonly LibraryCategory[];
   onToggleSelectionMode: () => void;
-  onSelectAllVisible: () => void;
+  onSelectAllLoaded: () => void;
   onClearSelection: () => void;
   onOrganize: (action: LibraryOrganizationAction) => Promise<void>;
   onMigrateSelected?: () => void;
@@ -46,10 +48,11 @@ export function BulkEditBar({
   selectionMode,
   selectedEntryIds,
   visibleCount,
+  loadedCount,
   allVisibleSelected,
   categories,
   onToggleSelectionMode,
-  onSelectAllVisible,
+  onSelectAllLoaded,
   onClearSelection,
   onOrganize,
   onMigrateSelected,
@@ -116,12 +119,12 @@ export function BulkEditBar({
       <label className="flex items-center gap-2 text-sm font-medium">
         <input
           type="checkbox"
-          aria-label="Select all visible titles"
+          aria-label={`Select all loaded titles (${loadedCount} of ${visibleCount} matching)`}
           className="size-4 accent-foreground"
           checked={allVisibleSelected}
-          onChange={onSelectAllVisible}
+          onChange={onSelectAllLoaded}
         />
-        Select all visible
+        Select all loaded
       </label>
 
       <Badge variant="secondary">{selectedCount} selected</Badge>

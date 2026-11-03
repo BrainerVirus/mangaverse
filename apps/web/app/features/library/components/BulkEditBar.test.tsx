@@ -24,10 +24,11 @@ function renderBulk(overrides: Partial<Parameters<typeof BulkEditBar>[0]> = {}) 
     selectionMode: true,
     selectedEntryIds: selected,
     visibleCount: 2,
+    loadedCount: 2,
     allVisibleSelected: false,
     categories,
     onToggleSelectionMode: vi.fn<() => void>(),
-    onSelectAllVisible: vi.fn<() => void>(),
+    onSelectAllLoaded: vi.fn<() => void>(),
     onClearSelection: vi.fn<() => void>(),
     onOrganize: vi.fn<(action: LibraryOrganizationAction) => Promise<void>>(async () => {}),
     ...overrides,
@@ -131,8 +132,8 @@ describe('BulkEditBar', () => {
     const user = userEvent.setup();
     const props = renderBulk();
 
-    await user.click(screen.getByLabelText('Select all visible titles'));
-    expect(props.onSelectAllVisible).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByLabelText('Select all loaded titles (2 of 2 matching)'));
+    expect(props.onSelectAllLoaded).toHaveBeenCalledTimes(1);
   });
 
   it('hands the selection to migration when the action is available', async () => {

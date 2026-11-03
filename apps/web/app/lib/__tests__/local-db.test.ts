@@ -27,6 +27,8 @@ const EXTENSION_LOGS_MIGRATION_HASH =
 const LIBRARY_PAGE_INDEXES_MIGRATION_HASH =
   '3e1d8437b48edaa6b8c2f90af9e0e863b1a2f120604ce533c1d21a2855fb285b';
 const DOWNLOADS_MIGRATION_HASH = '972b8031ccfb59c9dde30b52d04f6d4ede700bd25f806669fd0e47616188c6bc';
+const DROP_UNUSED_LIBRARY_INDEXES_MIGRATION_HASH =
+  '478d2a006ce56dff7ce9325f23742ddd78d2834e34acad1b2ce3efd7cef5ebe2';
 
 function loadBundledMigrationFixtures() {
   const testDir = dirname(fileURLToPath(import.meta.url));
@@ -57,6 +59,10 @@ function loadBundledMigrationFixtures() {
       'utf8',
     ),
     downloadsSql: readFileSync(join(migrationsRoot, '0009_downloads.sql'), 'utf8'),
+    dropUnusedLibraryIndexesSql: readFileSync(
+      join(migrationsRoot, '0010_drop_unused_library_indexes.sql'),
+      'utf8',
+    ),
     journal: JSON.parse(readFileSync(join(migrationsRoot, 'meta/_journal.json'), 'utf8')),
   };
 }
@@ -117,6 +123,7 @@ describe('local-db bundled migration path', () => {
       extensionLogsSql,
       libraryPageIndexesSql,
       downloadsSql,
+      dropUnusedLibraryIndexesSql,
       journal,
     } = loadBundledMigrationFixtures();
     const SQL = await initSqlJs();
@@ -172,6 +179,11 @@ describe('local-db bundled migration path', () => {
         tag: '0009_downloads',
         sql: downloadsSql,
         hash: DOWNLOADS_MIGRATION_HASH,
+      },
+      {
+        tag: '0010_drop_unused_library_indexes',
+        sql: dropUnusedLibraryIndexesSql,
+        hash: DROP_UNUSED_LIBRARY_INDEXES_MIGRATION_HASH,
       },
     ]);
 

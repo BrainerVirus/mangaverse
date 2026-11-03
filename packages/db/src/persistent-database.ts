@@ -1,5 +1,5 @@
 import type { Database, SqlJsStatic } from 'sql.js';
-import { createDrizzleFromSqlJs } from './client.js';
+import { createDrizzleFromSqlJs, registerSqlJsFunctions } from './client.js';
 import type { AppDrizzleDb } from './adapter.js';
 import {
   migrateDatabaseFromBundled,
@@ -115,6 +115,10 @@ export async function openPersistentDatabase(
     quarantinedBytes,
     flush: async (): Promise<FlushResult> => {
       const bytes = session.raw.export();
+      // sql.js `export()` closes and reopens the handle, dropping every JS-backed
+      // function; the title folds must be registered again or title sort/search and
+      // the overview fail after the first flush.
+      registerSqlJsFunctions(session.raw);
       enforceConnectionInvariants(session.raw);
       const committed = await store.write(bytes, baseVersion);
       if (committed !== null) {

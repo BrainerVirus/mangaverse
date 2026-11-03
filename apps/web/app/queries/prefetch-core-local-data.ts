@@ -1,16 +1,13 @@
 import type { AppDrizzleDb } from '@app/db';
 import type { QueryClient } from '@tanstack/react-query';
-import { libraryPageQueryOptions } from './library-query-options.js';
 import { searchPageQueryOptions } from './search-query-options.js';
 
 /**
- * Warm the two route caches the user is likely to open next. Settings are not
- * prefetched: ShellAppearanceBridge, ThemeSettingsBridge, and the reader route
- * already own those reads, and duplicating them at startup only fans out work.
+ * Warm the one route cache the user is likely to open next. The library page is not
+ * prefetched: it reads host collections directly (#210), so a `libraryPageQueryOptions`
+ * cache would never be read. Settings are not prefetched either: ShellAppearanceBridge,
+ * ThemeSettingsBridge, and the reader route already own those reads.
  */
 export function prefetchCoreLocalData(queryClient: QueryClient, db: AppDrizzleDb) {
-  return Promise.all([
-    queryClient.prefetchQuery(libraryPageQueryOptions(db)),
-    queryClient.prefetchQuery(searchPageQueryOptions(db)),
-  ]);
+  return queryClient.prefetchQuery(searchPageQueryOptions(db));
 }

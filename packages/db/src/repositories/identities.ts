@@ -20,6 +20,8 @@ import {
 } from '@app/shared';
 import type { AppDrizzleDb } from '../adapter.js';
 import { readIdChunks } from '../read-id-chunks.js';
+import { getLibraryEntryForManga } from './library.js';
+import { recomputeLibraryUnreadCounts } from './library-activity.js';
 import {
   mangaIdentities,
   mangaPeople,
@@ -367,6 +369,14 @@ export async function setDefaultProviderMapping(
     .update(mangaIdentities)
     .set({ defaultProviderMappingId: mappingId, updatedAt: new Date().toISOString() })
     .where(eq(mangaIdentities.id, mangaId));
+
+  // A library entry with no active mapping follows the default. Changing the default
+  // therefore changes which chapters its unread count covers, and the stored count must
+  // follow or the unread sort ranks it by the previous provider.
+  const entry = await getLibraryEntryForManga(db, mangaId);
+  if (entry !== undefined && entry.activeProviderMappingId === undefined) {
+    await recomputeLibraryUnreadCounts(db, [entry]);
+  }
 
   return ok(undefined);
 }

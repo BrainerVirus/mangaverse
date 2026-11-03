@@ -156,11 +156,19 @@ export const listLibraryCategories = route(
   'listLibraryCategories',
   procedures.listLibraryCategories,
 );
+export const listLibraryContinueReading = route(
+  'listLibraryContinueReading',
+  procedures.listLibraryContinueReading,
+);
 export const listLibraryEntries = route('listLibraryEntries', procedures.listLibraryEntries);
 export const listLibraryEntryPage = route('listLibraryEntryPage', procedures.listLibraryEntryPage);
 export const listLibraryProviderIds = route(
   'listLibraryProviderIds',
   procedures.listLibraryProviderIds,
+);
+export const listLibraryRecentlyUpdated = route(
+  'listLibraryRecentlyUpdated',
+  procedures.listLibraryRecentlyUpdated,
 );
 export const listMangaIdentities = route('listMangaIdentities', procedures.listMangaIdentities);
 export const listMigratableLibraryEntries = route(
@@ -411,9 +419,11 @@ export const ROUTED_PROCEDURE_NAMES = [
   'listIdentityMatchProfiles',
   'listInstalledExtensions',
   'listLibraryCategories',
+  'listLibraryContinueReading',
   'listLibraryEntries',
   'listLibraryEntryPage',
   'listLibraryProviderIds',
+  'listLibraryRecentlyUpdated',
   'listMangaIdentities',
   'listMigratableLibraryEntries',
   'listMigrationHistory',

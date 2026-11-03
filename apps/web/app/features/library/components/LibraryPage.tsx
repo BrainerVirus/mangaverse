@@ -304,10 +304,11 @@ export function LibraryPage({
             selectionMode={selection.selectionMode}
             selectedEntryIds={selection.selectedEntryIds}
             visibleCount={itemCount}
+            loadedCount={items.length}
             allVisibleSelected={selection.allVisibleSelected}
             categories={categories}
             onToggleSelectionMode={toggleSelectionMode}
-            onSelectAllVisible={selection.selectAllVisible}
+            onSelectAllLoaded={selection.selectAllVisible}
             onClearSelection={clearSelection}
             onOrganize={onOrganize ?? NOOP_ORGANIZE}
             onMigrateSelected={migrateSelected}

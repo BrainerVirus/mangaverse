@@ -3,7 +3,12 @@ import { describe, expect, it } from 'vitest';
 import type { Database, SqlValue } from 'sql.js';
 import { toCategoryId, toProviderId, type LibrarySort } from '@app/shared';
 import { createSqlJsHarness } from '../testing/sqljs-harness.js';
-import { listLibraryEntryPage } from './library.js';
+import { getLibraryChapterStats } from './library-activity.js';
+import {
+  listLibraryContinueReading,
+  listLibraryEntryPage,
+  listLibraryRecentlyUpdated,
+} from './library.js';
 
 // The query budget from docs/overhaul/06-local-data-and-downloads.md, on the seeded
 // dataset: 1,000 library titles and 200,000 chapters. Every key page query is planned
@@ -76,14 +81,16 @@ function seedDataset(raw: Database): void {
     FROM n;
     ${n(TITLES)}
     INSERT INTO library_entries
-      (id, manga_id, favorite, status, unread_count, added_at, updated_at, progress_percent)
+      (id, manga_id, favorite, status, unread_count, added_at, updated_at, progress_percent,
+       last_read_chapter_id)
     SELECT 'entry-' || printf('%04d', x), 'manga-' || printf('%04d', x),
            CASE WHEN x % 5 = 0 THEN 1 ELSE 0 END,
            CASE x % 4 WHEN 0 THEN 'reading' WHEN 1 THEN 'completed' WHEN 2 THEN 'on_hold' ELSE 'planned' END,
            (x * 37) % ${CHAPTERS_PER_TITLE},
            printf('2026-01-%02dT%02d:00:00.000Z', (x % 28) + 1, x % 24),
            printf('2026-02-%02dT%02d:00:00.000Z', (x % 28) + 1, x % 24),
-           CASE WHEN x % 7 = 0 THEN NULL ELSE x % 101 END
+           CASE WHEN x % 7 = 0 THEN NULL ELSE x % 101 END,
+           CASE WHEN x % 20 = 0 THEN 'chapter-' || (x * ${CHAPTERS_PER_TITLE}) ELSE NULL END
     FROM n;
     INSERT INTO categories (id, name) VALUES ('category-a', 'Action');
     ${n(TITLES)}
@@ -242,6 +249,67 @@ describe('library page query plans', () => {
       });
       expect(filtered.items).toHaveLength(7);
       expect(filtered.total).toBe(TITLES / 5);
+    },
+  );
+
+  it(
+    'Given 1000 titles and 200000 chapters, Then the overview reads only the selected rows',
+    { timeout: 120_000 },
+    async () => {
+      const { db, raw } = await createSqlJsHarness();
+      seedDataset(raw);
+
+      const load = async () => {
+        const [continueReading, recentlyUpdated] = await Promise.all([
+          listLibraryContinueReading(db, { limit: 6 }),
+          listLibraryRecentlyUpdated(db, { limit: 8 }),
+        ]);
+        const unique = new Map(
+          [...continueReading, ...recentlyUpdated].map((entry) => [entry.id, entry]),
+        );
+        await getLibraryChapterStats(db, [...unique.values()]);
+        return { continueReading, recentlyUpdated };
+      };
+
+      const captured = await captureStatements(raw, load);
+      const result = await load();
+      expect(result.continueReading.length).toBeGreaterThan(0);
+      expect(result.continueReading.length).toBeLessThanOrEqual(6);
+      expect(result.recentlyUpdated.length).toBeGreaterThan(0);
+      expect(result.recentlyUpdated.length).toBeLessThanOrEqual(8);
+
+      const chapterReads = captured.filter((statement) =>
+        /from\s+"?chapters"?/i.test(statement.sql),
+      );
+      expect(chapterReads.length).toBeGreaterThan(0);
+      for (const statement of chapterReads) {
+        // The whole-library pass passed chunked manga ids (up to 500); a bounded
+        // overview asks for chapter stats on at most both shelves (14 rows).
+        expect({ sql: statement.sql, bounded: statement.params.length <= 32 }).toEqual({
+          sql: statement.sql,
+          bounded: true,
+        });
+        const plan = planText(explain(raw, statement));
+        expect({ plan, scans: /SCAN chapters(?!\s+USING)/.test(plan) }).toEqual({
+          plan,
+          scans: false,
+        });
+      }
+
+      const timings: number[] = [];
+      for (let run = 0; run < 5; run += 1) {
+        const started = performance.now();
+        await load();
+        timings.push(performance.now() - started);
+      }
+      timings.sort((a, b) => a - b);
+      const median = timings[Math.floor(timings.length / 2)] ?? 0;
+      console.log(
+        `overview median ${median.toFixed(1)}ms (${timings.map((t) => t.toFixed(1)).join(', ')})`,
+      );
+      // The old whole-library pass measured ~401 ms at this size. A bounded overview
+      // must stay far below it, even with a cold sql.js WASM build.
+      expect(median).toBeLessThan(150);
     },
   );
 });
