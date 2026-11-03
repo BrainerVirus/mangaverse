@@ -182,10 +182,14 @@ function sortValue(row: ReferenceRow, key: LibrarySortKey): string | number | nu
   }
 }
 
-/** The SQL fold's documented order: case/accent-insensitive, raw text on a tie. */
+/** The SQL contract: folded UTF-8 byte order, then raw UTF-8 byte order on a tie. */
+function compareBytes(left: string, right: string): number {
+  return Buffer.compare(Buffer.from(left, 'utf8'), Buffer.from(right, 'utf8'));
+}
+
 function compareTitles(left: string, right: string): number {
-  const folded = foldForSort(left).localeCompare(foldForSort(right));
-  return folded !== 0 ? folded : left.localeCompare(right);
+  const folded = compareBytes(foldForSort(left), foldForSort(right));
+  return folded !== 0 ? folded : compareBytes(left, right);
 }
 
 function referenceOrder(
@@ -521,6 +525,36 @@ describe('listLibraryEntryPage', () => {
       toLibraryEntryId('unicode-entry-2'),
       toLibraryEntryId('unicode-entry-1'),
       toLibraryEntryId('unicode-entry-0'),
+    ]);
+  });
+
+  it('Given titles that fold alike, When sorting by title, Then the raw title breaks the tie', async () => {
+    const harness = await createSqlJsHarness();
+    // Both fold to "eclair"; raw UTF-8 order puts "Eclair" (E, 0x45) before "Éclair" (É, 0xC3 0x89).
+    for (const [index, title] of ['Éclair', 'Eclair'].entries()) {
+      const created = await createMangaIdentityWithInitialMapping(harness.db, {
+        canonicalTitle: title,
+        status: 'ongoing',
+        contentRating: 'safe',
+        providerId: toProviderId('prov-a'),
+        providerMangaId: `fold-tie-${index}`,
+      });
+      if (!created.ok) throw new Error(created.error.message);
+      const added = await addLibraryEntry(harness.db, {
+        mangaId: created.value.mangaId,
+        id: toLibraryEntryId(`fold-tie-entry-${index}`),
+        status: 'reading',
+      });
+      if (!added.ok) throw new Error(added.error.message);
+    }
+
+    const page = await listLibraryEntryPage(harness.db, {
+      sort: { key: 'title', direction: 'asc' },
+      limit: 10,
+    });
+    expect(page.items.map((entry) => entry.id)).toEqual([
+      toLibraryEntryId('fold-tie-entry-1'),
+      toLibraryEntryId('fold-tie-entry-0'),
     ]);
   });
 
