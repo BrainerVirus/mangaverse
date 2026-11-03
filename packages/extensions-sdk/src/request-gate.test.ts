@@ -127,4 +127,24 @@ describe('createRequestGate', () => {
     expect(gate.noteResponse(200, {})).toBeUndefined();
     expect(gate.blockedUntilMs()).toBeUndefined();
   });
+
+  it('Given a park, Then remainingWaitMs reports how long a caller still waits', () => {
+    const clock = fakeClock(1_000);
+    const gate = createRequestGate({
+      defaultRequestsPerMinute: 40,
+      now: clock.now,
+      sleep: clock.sleep,
+    });
+    expect(gate.remainingWaitMs()).toBe(0);
+
+    gate.noteResponse(429, { 'retry-after': '2' });
+    expect(gate.remainingWaitMs()).toBe(2_000);
+
+    clock.set(2_500);
+    expect(gate.remainingWaitMs()).toBe(500);
+    expect(gate.blockedUntilMs()).toBe(3_000);
+
+    clock.set(3_000);
+    expect(gate.remainingWaitMs()).toBe(0);
+  });
 });

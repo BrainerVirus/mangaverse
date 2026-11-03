@@ -43,6 +43,23 @@ function acquireError(error: unknown, url: string): AppError {
   return normalizeProviderError(error, { url });
 }
 
+/**
+ * A gate refusal crosses the request boundary with the wait that remains, so an
+ * abort or block behind a long `Retry-After` reports the real park instead of the
+ * gate's internal zero.
+ */
+function withRemainingWait(error: AppError, gate: RequestGate): AppError {
+  if (error.code !== 'extensions.sdk.ratelimit.blocked') return error;
+  const remainingMs = gate.remainingWaitMs();
+  if (remainingMs <= 0) return error;
+  const reported = error.details?.retryAfterMs;
+  const retryAfterMs = typeof reported === 'number' ? Math.max(reported, remainingMs) : remainingMs;
+  return {
+    ...error,
+    details: { ...(error.details ?? {}), retryAfterMs },
+  };
+}
+
 export function createProviderRequestClient(
   options: ProviderRequestClientOptions,
 ): ProviderRequestClient {
@@ -51,26 +68,25 @@ export function createProviderRequestClient(
   async function request(input: ProviderRequest): Promise<AppResult<ProviderRequestResponse>> {
     const timeoutMs = input.timeoutMs ?? defaultTimeoutMs;
     const controller = new AbortController();
-    if (input.signal) {
-      if (input.signal.aborted) {
-        controller.abort(input.signal.reason);
+    const caller = input.signal;
+    const abortFromCaller = (): void => {
+      controller.abort(caller?.reason);
+    };
+    if (caller) {
+      if (caller.aborted) {
+        abortFromCaller();
       } else {
-        input.signal.addEventListener(
-          'abort',
-          () => {
-            controller.abort(input.signal?.reason);
-          },
-          { once: true },
-        );
+        caller.addEventListener('abort', abortFromCaller, { once: true });
       }
     }
 
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    if (timeoutMs > 0) {
-      timeoutId = setTimeout(() => {
-        controller.abort(new Error('timeout'));
-      }, timeoutMs);
-    }
+    const clearRequestTimeout = (): void => {
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+        timeoutId = undefined;
+      }
+    };
 
     const mergedHeaders: Record<string, string> = { ...(defaultHeaders ?? {}) };
     if (input.headers) {
@@ -93,9 +109,17 @@ export function createProviderRequestClient(
             (e: unknown) => acquireError(e, input.url),
           );
         if (gateFailure !== undefined) {
-          if (timeoutId !== undefined) clearTimeout(timeoutId);
-          return err(gateFailure);
+          return err(withRemainingWait(gateFailure, gate));
         }
+      }
+
+      // The response timeout starts only once the gate grants a slot. A request
+      // parked behind a long `Retry-After` is waiting for its turn, not stalled
+      // on a socket; the caller's own signal still aborts it immediately.
+      if (timeoutMs > 0) {
+        timeoutId = setTimeout(() => {
+          controller.abort(new Error('timeout'));
+        }, timeoutMs);
       }
 
       const init: RequestInit = {
@@ -114,7 +138,7 @@ export function createProviderRequestClient(
       const retryAfterMs = gate?.noteResponse(response.status, recordedHeaders);
 
       const bodyText = await response.text();
-      if (timeoutId !== undefined) clearTimeout(timeoutId);
+      clearRequestTimeout();
 
       if (!response.ok) {
         return err(
@@ -135,8 +159,10 @@ export function createProviderRequestClient(
         bodyText,
       });
     } catch (e) {
-      if (timeoutId !== undefined) clearTimeout(timeoutId);
       return err(normalizeProviderError(e, { url: input.url }));
+    } finally {
+      clearRequestTimeout();
+      caller?.removeEventListener('abort', abortFromCaller);
     }
   }
 
