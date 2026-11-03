@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { createAppError } from '@app/shared';
 import { describe, expect, it } from 'vitest';
 import { THEME_OVERRIDE_TOKENS, type ThemeDefinition } from '@app/shared';
 
@@ -16,6 +17,7 @@ import {
   setThemeOverride,
   THEME_TOKEN_GROUPS,
   toHexColor,
+  themeExportErrorMessage,
   validateThemeJsonText,
 } from '../theme-advanced.js';
 
@@ -33,6 +35,22 @@ function diagnosticsFor(text: string) {
   expect(result.ok).toBe(false);
   return result.diagnostics;
 }
+
+describe('themeExportErrorMessage', () => {
+  it('Given a thrown internal error, Then the fallback copy shows without its detail', () => {
+    expect(
+      themeExportErrorMessage(new Error('Cannot export an invalid theme: secret detail')),
+    ).toBe('Cannot export an invalid theme');
+  });
+
+  it('Given a user-facing error, Then its own message shows', () => {
+    const error = createAppError({
+      code: 'theme.invalid',
+      message: 'Fix the accent color before exporting.',
+    });
+    expect(themeExportErrorMessage(error)).toBe('Fix the accent color before exporting.');
+  });
+});
 
 describe('advanced token groups', () => {
   it('Given the allow-list, Then every token appears once across the five groups', () => {

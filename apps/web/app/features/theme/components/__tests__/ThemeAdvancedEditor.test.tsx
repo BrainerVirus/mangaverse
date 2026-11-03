@@ -214,6 +214,8 @@ describe('ThemeAdvancedEditor', () => {
 
     expect(editor.container.querySelector('.cm-editor')).not.toBeNull();
     expect(editor.container.textContent).toContain('Cannot export an invalid theme');
+    // The thrown error's detail is internal text and must not render.
+    expect(editor.container.textContent).not.toContain('Cannot export an invalid theme:');
     expect(
       [...editor.container.querySelectorAll('a')].some(
         (link) => link.textContent.trim() === 'Export CSS',

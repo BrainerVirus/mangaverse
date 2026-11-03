@@ -12,7 +12,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@app/design-system';
-import { classifyAppError, type ThemeOverrideToken } from '@app/shared';
+import type { ThemeOverrideToken } from '@app/shared';
 import { linter, type Diagnostic } from '@codemirror/lint';
 import { json } from '@codemirror/lang-json';
 import CodeMirror, { EditorView } from '@uiw/react-codemirror';
@@ -29,6 +29,7 @@ import {
   setThemeOverride,
   THEME_TOKEN_GROUPS,
   toHexColor,
+  themeExportErrorMessage,
   validateThemeJsonText,
   type ThemeJsonDiagnostic,
 } from './theme-advanced.js';
@@ -255,9 +256,7 @@ function JsonEditor({ draft, disabled = false, onChange }: ThemeEditorPanelProps
       // A user-facing failure keeps its written message; a thrown Error is internal text.
       return {
         css: null,
-        error: classifyAppError(cause, {
-          fallbackMessage: 'Cannot export an invalid theme',
-        }).message,
+        error: themeExportErrorMessage(cause),
       };
     }
   }, [draft]);

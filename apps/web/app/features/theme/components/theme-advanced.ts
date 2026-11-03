@@ -1,4 +1,4 @@
-import type { ThemeDefinition, ThemeDefinitionIssue } from '@app/shared';
+import { classifyAppError, type ThemeDefinition, type ThemeDefinitionIssue } from '@app/shared';
 import {
   isCustomThemeId,
   THEME_OVERRIDE_TOKENS,
@@ -543,6 +543,11 @@ export function validateThemeJsonText(text: string): ThemeJsonValidation {
 /** Import entry point: the same validation the editor uses before applying text. */
 export function importThemeJson(text: string): ThemeJsonValidation {
   return validateThemeJsonText(text);
+}
+
+/** The one message a failed CSS export may show: a user-facing error keeps its copy. */
+export function themeExportErrorMessage(cause: unknown): string {
+  return classifyAppError(cause, { fallbackMessage: 'Cannot export an invalid theme' }).message;
 }
 
 export function exportThemeJson(definition: ThemeDefinition): string {
