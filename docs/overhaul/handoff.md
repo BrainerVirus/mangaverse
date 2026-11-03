@@ -1,6 +1,6 @@
 # App overhaul - handoff
 
-Current state, rewritten when #208 landed. Delete this file when its contents stop being current.
+Current state, rewritten after milestone 4 (#222). Delete this file when its contents stop being current.
 
 ## Where things are
 
@@ -14,7 +14,7 @@ Milestone 1 (Foundation) has landed:
 | #206  | Landed: typed failures, status pages, inline retry, toasts, the Saving indicator.     |
 | #208  | Landed: package consolidation, below.                                                 |
 
-Milestone 2 (Electron runtime) is complete pending #215's merge:
+Milestones 2-4 have landed (main `93ffa874`). Milestone 2 (Electron runtime) is complete:
 
 | Issue | State                                                                                                                                                                                                                                                                                                                                                             |
 | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -29,6 +29,16 @@ Milestone 2 (Electron runtime) is complete pending #215's merge:
 Packaging closes milestone 2. Budgets stay provisional: #215 did not pin the reference machine, and
 Windows/Linux installs remain unproven. Check `node:sqlite` on Windows and Linux before claiming those;
 if it fails, take ADR 0001's `better-sqlite3` exit.
+
+Milestones 3 and 4 followed:
+
+| Milestone               | Issues     | State                                                                                                                                                                                                                                  |
+| ----------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 3 Providers             | #216, #219 | Landed: one injected provider transport with declared domains, a per-provider gate that waits and honours 429/`Retry-After`, web domain enforcement for API and page/cover bytes, install-preview domains, and a scheduled live check. |
+| 4 Local data, downloads | #220-#222  | Landed: paged SQL library with indexes and plan tests, local-first detail with a resumable refresh queue, explicit downloads with per-page resume, eviction protection and full-disk handling.                                         |
+| 3 Recipes               | #217, #218 | Owner-gated: two or three real sources must be chosen before the recipe format is frozen.                                                                                                                                              |
+
+Milestone 5 (reader) is next: #223, then #224.
 
 ## Data host events (#210 part 2)
 
@@ -56,14 +66,16 @@ if it fails, take ADR 0001's `better-sqlite3` exit.
 ### Follow-up: the per-surface migration
 
 Only the library list moved. 53 TanStack Query read sites and 46 mutation sites were counted before this
-change; apart from the library page's list read and the bulk status and favorite edits, all of them still
-run on Query and do not update live across windows. Move them surface by surface onto host-fed
-collections, then drop the Query cache patches in `features/library/optimistic-library-cache.ts` and the
-library page prefetch in `queries/prefetch-core-local-data.ts`, which still warms a Query nobody reads.
-After a reconnect, Query caches are not invalidated; they refetch on their own stale time.
+change; #220 gave the library list a bounded SQL page and #221 made the detail local-first, but the other
+surfaces still run on Query and do not update live across windows. Move them surface by surface onto
+host-fed collections. The library page prefetch in `queries/prefetch-core-local-data.ts` still warms a
+Query the route no longer reads, and the Query-cache optimistic helpers do not adjust the new page total;
+both are tracked in #281. After a reconnect, Query caches are not invalidated; they refetch on their own
+stale time.
 
-Carried from #209 and still open: `listLibraryEntries` takes 300 ms or more on the seeded dataset on every
-driver, over the 100 ms budget, and each library reload runs it.
+The #220 page path is 9-12 ms per 200-row page on 1,000 titles / 200,000 chapters (the old whole-library
+path was 401 ms). The unbounded `fetchLibraryOverview` still pays that 401 ms on every library open; #282
+owns bounding it. #280 owns the Unicode search/collation regression and #279 the unread-sort recount.
 
 ## Provider network (#211)
 
@@ -101,6 +113,60 @@ driver, over the 100 ms budget, and each library reload runs it.
 - The E2E fixture transport (`provider-network-fixture.ts`) is enabled only by main's
   `MANGAVERSE_E2E_PROVIDER_FIXTURE` environment; every allowlist, address, redirect and limit check
   still runs.
+
+## Provider transport and live check (#216, #219)
+
+- **One injected transport.** `createMangaDexProvider` requires the app's `fetchImpl`; no provider
+  code reads the global `fetch`, and `.oxlintrc.json` fails a bare `fetch` under
+  `packages/extensions/src/**`. A `globalThis.fetch` bypass is #276.
+- **Gate.** `request-gate.ts` keeps one gate per provider per device: a 60 s sliding window makes
+  over-limit callers wait, a 429's `Retry-After` (delta-seconds or HTTP-date, fallback 60 s, cap
+  15 min) parks every later call, and a zero override rejects with a typed error. The live E2E
+  answers the first search with `429 Retry-After: 2`; the second reaches the fixture about 2 005 ms
+  later, and the app stays usable. The response timeout vs queue wait is #275.
+- **Web domains.** The web adapter keeps the same provider→domain table as main. It refuses an
+  undeclared host before `fetch`, re-checks the final redirect URL, and exposes `isAllowedHost` so
+  cover/page byte fetches obey it; desktop stays main-enforced. Custom covers keep the
+  user-initiated path. Refusal logging and the web image redirect check are #274.
+- **Install preview.** `ExtensionInstallPreview.domains` lists the manifest's declared domains (or
+  "No network access") before manual, registry or protocol install; the E2E sees
+  `api.mangadex.org` and `*.mangadex.network`.
+- **Live check.** `.github/workflows/provider-live.yml` runs the opt-in four-call MangaDex smoke on a
+  daily schedule and `workflow_dispatch`, never on PRs, so a source outage cannot block CI. The first
+  real run passed (5 search hits, 202 chapters, 37 pages).
+- **Recipes.** #217 (format/engine) and #218 (install/review/isolation) wait on the owner's choice of
+  two or three real sources.
+
+## Local data and downloads (#220-#222)
+
+- **Paged library (#220).** `listLibraryEntryPage` filters, sorts, pages and counts in SQLite with a
+  stable id tie-break; `listLibraryEntries` delegates for backup/export/update checks. Migration 0008
+  adds 10 indexes. The plan tests seed 1,000 titles / 200,000 chapters and fail if a page scans
+  `chapters`; structured filters search `library_entries`. The library loads 200 rows + total, keeps
+  loaded pages across change-feed reloads, resets to page 1 on a filter/sort change, and exposes Load
+  more; bulk counts use `total`. Live: page 1 **11.9 ms** vs **412 ms** for the old whole-library path;
+  first card 880 ms vs 891 ms on a 5-title baseline. Accepted gaps: #280 Unicode title
+  search/collation, #279 unread sort after a mapping switch, #282 unbounded overview (401 ms), #281
+  paged-library nits.
+- **Local-first detail (#221).** The route reads SQLite through `localMangaDetailQueryOptions`; a
+  separate refresh query persists provider data and writes the merged detail into the open cache. A
+  cached detail is reused for 15 minutes (`MANGA_DETAIL_STALE_MS`), then refreshed in the background;
+  a failure keeps local data. Provider refresh work lives in `library.manga-refresh-queue` (app
+  settings, versioned, deduped, cap 100, five attempts with 15 s→30 min backoff), resumes at startup
+  and online, and is enqueued after add-to-library so the entry is saved first. The reader was already
+  local-first; reopening a cached chapter makes no provider/CDN request (E2E).
+- **Downloads (#222).** Migration 0009 adds one row per chapter; `downloads.ts` and eight host
+  procedures persist `queued|downloading|complete|failed|partial|cancelled`, page counts, failed
+  indexes, attempts and errors. The engine resumes from cached page indexes, fetches only missing
+  pages through the provider transport, persists progress per page, retries three times, then keeps a
+  `partial`/`failed` chapter with its failed indexes. Pages use `CACHE_RETENTION_DOWNLOAD`; eviction
+  never removes them and evicts ordinary pages LRU; reading/touching never downgrades them. Storage
+  splits protected downloads from reclaimable cache; removing a download deletes rows then blobs; a
+  full disk maps to `platform.storage-full`, keeps acknowledged pages and offers Manage storage. Live:
+  kill at 4/37 → reopen fetches exactly 33 and completes; offline pages render; removal frees 37
+  pages; a 50 MiB limit evicts ordinary pages and keeps all 37 download pages. Gaps: no real ENOSPC
+  induced, per-window engines, backup/restore does not carry download rows, and a failed blob delete
+  leaves an orphan for the maintenance sweep.
 
 ## Renderer-data import (#213)
 
@@ -169,6 +235,21 @@ search, settings, storage and theme. `theme` moved there because it imports `@ap
   fix belongs in `apps/web/app/features/theme` and `@app/extensions`.
 - `apps/web/app/features/theme/components/ThemeAdvancedEditor.tsx` renders a caught export error's `.message`
   itself, outside the route layer. Fix it when that feature is next changed.
+- Downloads: a real `ENOSPC` was not induced in E2E (the typed seam is covered), two windows run
+  independent engines, backup/restore does not carry download rows, and a failed blob delete leaves an
+  orphan for the maintenance sweep. None of these block offline reading.
+- The reader budgets (50 ms cached page turn, 300 ms cached open) are still measured on this machine;
+  the reference laptop is an owner gate. Milestone 5 is the next body of work.
+
+### Open follow-ups
+
+- Transport/providers: #274 (web image redirect + refusal logging), #275 (gate wait vs timeout),
+  #276 (dead rate limiter, `globalThis.fetch` lint hardening, stale comments, retry policy).
+- Library: #279 (unread sort after a mapping switch), #280 (Unicode search/collation), #282 (unbounded
+  overview, 401 ms), #281 (paged-library nits).
+- Runtime/platform: #259 (Electron smoke in CI), #260 (`generate:routed` format/drift), #261 (vitest
+  cache race), #263 (reload storm), #264 (reconnect pending calls/old port), #265 (noopener ownership).
+- Recipes: #217/#218 wait on the owner's source choice.
 
 ## Start here
 
@@ -222,7 +303,9 @@ Recorded in the Workit ledger with `workit ledger list --type decision`, and in 
   injected only when present; absent secrets build unsigned and do not fail the job. Windows and Linux
   are **build proof only** — not installed or launched.
 - **Packed macOS proof** (`apps/desktop/e2e/packed-app.spec.ts`, `pnpm --filter @app/desktop test:e2e:packaged`):
-  the zip was extracted to `release/packed-proof` and `MangaVerse.app` launched from there, offline.
+  the current-arch zip is unpacked into a fresh `release/packed-proof-current`, its `app.asar` hash is
+  compared with the freshly built `release/mac-*` app (a stale zip fails instead of passing), and
+  `MangaVerse.app` is launched from there, offline.
   Observed: `app://app/library` deep route renders the imported title; the one-way renderer import
   records its marker and the data host serves the library; `page://` serves a stored page into an
   `<img>`; the app log says `[updater] enabled`; a plain launch sampled for 8 s opens no listening TCP
@@ -237,7 +320,7 @@ Recorded in the Workit ledger with `workit ledger list --type decision`, and in 
 | Needed                                              | Blocks                    |
 | --------------------------------------------------- | ------------------------- |
 | Two or three visual references                      | #228                      |
-| Two or three real recipe sources to test            | #217                      |
+| Two or three real recipe sources to test            | #217/#218                 |
 | Supabase project                                    | #225                      |
 | Code-signing decision                               | #215 (signed builds only) |
 | Cloudflare access and go-ahead for the gateway test | #231                      |
