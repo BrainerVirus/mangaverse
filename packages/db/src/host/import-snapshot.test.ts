@@ -99,7 +99,8 @@ function scratch(): string {
 }
 
 describe('snapshot import', () => {
-  it('imports a renderer snapshot once, verifies counts and content, and serves the library', async () => {
+  // Hashing a full snapshot is I/O heavy; CI runners occasionally cross 5s (issue #255).
+  it('imports a renderer snapshot once, verifies counts and content, and serves the library', { timeout: 20_000 }, async () => {
     const snapshot = await rendererSnapshot();
     const original = Uint8Array.from(snapshot);
     const directory = scratch();
