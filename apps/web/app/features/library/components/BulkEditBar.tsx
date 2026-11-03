@@ -20,7 +20,6 @@ import { ArrowRightLeft, CheckSquare, Heart, HeartOff, ListChecks, Tags } from '
 import type { CategoryId, LibraryCategory, LibraryEntryId, LibraryStatus } from '@app/shared';
 import { compareLibraryCategories } from '@app/shared';
 import type { LibraryOrganizationAction } from '../types.js';
-import { userFailureMessage } from '../failure-message.js';
 
 const STATUS_OPTIONS: { value: LibraryStatus; label: string }[] = [
   { value: 'reading', label: 'Reading' },
@@ -61,20 +60,19 @@ export function BulkEditBar({
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [categoryIds, setCategoryIds] = useState<readonly CategoryId[]>([]);
-  const [error, setError] = useState<string | undefined>();
 
   const selectedCount = selectedEntryIds.length;
   const orderedCategories = [...categories].sort(compareLibraryCategories);
   const selectedCategoryIds = new Set(categoryIds);
 
+  /**
+   * A bulk edit is a user's save: the library's mutation reports a failure with
+   * its toast, so a rejection only resolves `false` and shows nothing here.
+   */
   function run(action: LibraryOrganizationAction): Promise<boolean> {
-    setError(undefined);
     return onOrganize(action).then(
       () => true,
-      (caught: unknown) => {
-        setError(userFailureMessage(caught, 'Could not update the selection.'));
-        return false;
-      },
+      () => false,
     );
   }
 
@@ -91,7 +89,6 @@ export function BulkEditBar({
     if (!open) {
       setCategoryIds([]);
       setCategoryFilter('');
-      setError(undefined);
     }
   }
 
@@ -231,12 +228,6 @@ export function BulkEditBar({
         </SettingsSection>
       ) : null}
 
-      {error !== undefined ? (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
-
       <Dialog open={categoryDialogOpen} onOpenChange={closeCategoryDialog}>
         <DialogContent>
           <DialogHeader>
@@ -281,12 +272,6 @@ export function BulkEditBar({
               </div>
             </>
           )}
-
-          {error !== undefined ? (
-            <p role="alert" className="mt-2 text-sm text-destructive">
-              {error}
-            </p>
-          ) : null}
 
           <DialogFooter className="mt-6 gap-2">
             <Button type="button" variant="outline" onClick={() => closeCategoryDialog(false)}>

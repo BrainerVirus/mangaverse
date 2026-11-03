@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { toProviderId, toProviderMangaId, toProviderMappingId } from '@app/shared';
 import { MangaProviderSwitcher } from './MangaProviderSwitcher.js';
 
@@ -73,7 +73,7 @@ describe('MangaProviderSwitcher', () => {
     expect(onSetPreferred).toHaveBeenCalledWith(MAP_B);
   });
 
-  it('keeps the selection and shows user-safe copy when a switch fails', async () => {
+  it('keeps the selection and adds no inline error when a switch fails, so its toast is the only surface', async () => {
     const onSelectMapping = vi.fn<() => Promise<void>>(async () => {
       throw new Error('INTERNAL_SECRET at handle.run');
     });
@@ -88,8 +88,12 @@ describe('MangaProviderSwitcher', () => {
     );
 
     fireEvent.click(screen.getAllByRole('button', { name: 'View chapters' })[0]!);
-    expect(await screen.findByRole('alert')).toHaveTextContent('Could not switch providers.');
-    expect(screen.queryByText(/INTERNAL_SECRET/)).toBeNull();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(onSelectMapping).toHaveBeenCalledWith(MAP_B);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText(/INTERNAL_SECRET|Could not/)).toBeNull();
     expect(screen.getByText('Viewing')).toBeInTheDocument();
   });
 
