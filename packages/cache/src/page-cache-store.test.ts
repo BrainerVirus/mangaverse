@@ -108,7 +108,7 @@ describe('page cache store', () => {
 
   it('Given a cached row whose blob is gone, When listing complete pages, Then the page is not counted', async () => {
     const { db } = await createSqlJsHarness();
-    const { adapter } = createPageAdapter();
+    const { adapter, calls } = createPageAdapter();
     const pages = Array.from({ length: 3 }, (_value, pageIndex) => ({
       pageIndex,
       remoteUrl: `https://uploads.mangadex.org/missing${pageIndex}.jpg`,
@@ -123,6 +123,18 @@ describe('page cache store', () => {
     // A row alone is a hint; with the adapter, a missing blob is not a finished page.
     expect(await listCachedChapterPageIndexes(db, CHAPTER)).toEqual([0, 1, 2]);
     expect(await listCachedChapterPageIndexes(db, { ...CHAPTER, adapter })).toEqual([0, 2]);
+
+    // A download prefetch with verification fetches the missing page again.
+    const before = calls.fetch();
+    await prefetchChapterPages({
+      db,
+      adapter,
+      ...CHAPTER,
+      pages,
+      verifyCachedBlobs: true,
+    });
+    expect(calls.fetch()).toBe(before + 1);
+    expect(await listCachedChapterPageIndexes(db, { ...CHAPTER, adapter })).toEqual([0, 1, 2]);
   });
 
   it('Given a byte budget, When prefetching, Then new fetches stop once the budget is spent', async () => {

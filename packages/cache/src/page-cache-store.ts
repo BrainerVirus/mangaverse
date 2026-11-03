@@ -349,7 +349,11 @@ export async function storePageInCache(
  * the visible page component resolves its own URL when it mounts.
  */
 async function prefetchPageToCache(
-  input: PageCacheLookupInput & { readonly retention?: CacheRetention },
+  input: PageCacheLookupInput & {
+    readonly retention?: CacheRetention;
+    /** Downloads set this: an existing row whose blob is gone is fetched again. */
+    readonly verifyCached?: boolean;
+  },
   signal?: AbortSignal,
 ): Promise<PrefetchPageOutcome> {
   const providerId = String(input.providerId);
@@ -358,7 +362,9 @@ async function prefetchPageToCache(
   const entryId = buildPageCacheEntryId(providerId, mangaId, chapterId, input.pageIndex);
   const entry = await getCacheEntryById(input.db, entryId);
   if (entry?.blobKey !== undefined) {
-    return { status: 'cached', byteSize: entry.byteSize };
+    const blobPresent =
+      input.verifyCached !== true || (await cachedBlobExists(input.adapter, entry.blobKey));
+    if (blobPresent) return { status: 'cached', byteSize: entry.byteSize };
   }
 
   if (input.adapter.providerNetwork.fetchAndStore !== undefined) {
@@ -683,6 +689,8 @@ export async function prefetchChapterPages(
     readonly retention?: CacheRetention;
     /** Maximum newly downloaded bytes; 0 or omitted means unlimited. */
     readonly budgetBytes?: number;
+    /** Downloads set this: a row whose blob is gone must be fetched again. */
+    readonly verifyCachedBlobs?: boolean;
     readonly signal?: AbortSignal;
     readonly onPage?: (page: PrefetchPage, outcome: PrefetchPageOutcome) => void | Promise<void>;
   },
@@ -694,6 +702,7 @@ export async function prefetchChapterPages(
       providerId: String(input.providerId),
       mangaId: String(input.mangaId),
       chapterId: String(input.chapterId),
+      ...(input.verifyCachedBlobs === true ? { adapter: input.adapter } : {}),
     }),
   );
 
@@ -715,6 +724,7 @@ export async function prefetchChapterPages(
               pageIndex: page.pageIndex,
               remoteUrl: page.remoteUrl,
               ...(input.retention !== undefined ? { retention: input.retention } : {}),
+              ...(input.verifyCachedBlobs === true ? { verifyCached: true } : {}),
             },
             input.signal,
           ),
