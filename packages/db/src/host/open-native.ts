@@ -5,6 +5,7 @@ import { BaseSQLiteDatabase, SQLiteSyncDialect } from 'drizzle-orm/sqlite-core';
 import type { AppDrizzleDb } from '../adapter.js';
 import { getMigrationsFolder } from '../migrations-folder.js';
 import { schema as appSchema, type AppSchema } from '../schema.js';
+import { createTitleFolds } from '../sqlite-functions.js';
 import { NodeSqliteClient } from './node-sqlite-client.js';
 
 export interface NativeDatabase {
@@ -55,6 +56,9 @@ export function openNativeDatabase(path: string): NativeDatabase {
   client.exec(`PRAGMA journal_mode = ${NATIVE_PRAGMAS.journal_mode}`);
   client.exec(`PRAGMA foreign_keys = ${NATIVE_PRAGMAS.foreign_keys}`);
   client.exec(`PRAGMA synchronous = ${NATIVE_PRAGMAS.synchronous}`);
+  for (const [name, fold] of Object.entries(createTitleFolds())) {
+    client.database.function(name, { deterministic: true }, fold as never);
+  }
   const db = drizzleOver(client);
   migrateNative(db);
   return { db, client, close: () => client.close() };

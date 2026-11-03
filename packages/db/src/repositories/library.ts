@@ -1,4 +1,5 @@
 import { and, eq, inArray, sql, type SQL } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/sqlite-core';
 import type { AppResult } from '@app/shared';
 import {
   compareLibraryCategories,
@@ -28,9 +29,12 @@ import type { AppDrizzleDb } from '../adapter.js';
 import { readIdChunks } from '../read-id-chunks.js';
 import { withTransaction } from '../transactions.js';
 import { getLibraryUnreadCounts } from '../library-unread.js';
+import { recomputeLibraryUnreadCounts } from './library-activity.js';
+import { libraryEntryFilter, libraryIdentityJoin, sortableTitle } from '../library-filter.js';
 import {
   categories,
   chapterReadState,
+  chapters,
   libraryCategoryMemberships,
   libraryEntries,
   mangaIdentities,
@@ -159,55 +163,6 @@ async function withLiveUnread(
   });
 }
 
-/** A bound id list as one SQL tuple, so a filter stays a single statement. */
-function idList(ids: readonly string[]): SQL {
-  return sql`(${sql.join(
-    ids.map((id) => sql`${id}`),
-    sql`, `,
-  )})`;
-}
-
-/**
- * Every filter narrows the same row set and combines with the others. Category and
- * provider membership are id subqueries, so a title never repeats for two memberships
- * and the page stays a search on an index.
- */
-function libraryEntryFilter(filter: LibraryFilter | undefined): SQL | undefined {
-  const conditions: SQL[] = [];
-  if (filter?.favoritesOnly === true) {
-    conditions.push(sql`${libraryEntries.favorite} = 1`);
-  }
-  if (filter?.statuses !== undefined && filter.statuses.length > 0) {
-    conditions.push(sql`${libraryEntries.status} IN ${idList(filter.statuses)}`);
-  }
-  if (filter?.categoryIds !== undefined && filter.categoryIds.length > 0) {
-    // A membership set, not a per-row probe: the page searches entries by their primary key.
-    conditions.push(sql`${libraryEntries.id} IN (
-      SELECT membership.library_entry_id FROM library_category_memberships membership
-      WHERE membership.category_id IN ${idList(filter.categoryIds)}
-    )`);
-  }
-  if (filter?.providerIds !== undefined && filter.providerIds.length > 0) {
-    conditions.push(sql`${libraryEntries.mangaId} IN (
-      SELECT mapping.manga_id FROM manga_provider_mappings mapping
-      WHERE mapping.provider_id IN ${idList(filter.providerIds)}
-    )`);
-  }
-  const query = filter?.query?.trim().toLowerCase() ?? '';
-  if (query.length > 0) {
-    // The text the grid always matched: the canonical title or any stored title.
-    conditions.push(sql`(
-      instr(lower(${mangaIdentities.canonicalTitle}), ${query}) > 0
-      OR EXISTS (
-        SELECT 1 FROM manga_titles title
-        WHERE title.manga_id = ${libraryEntries.mangaId}
-          AND instr(lower(title.value), ${query}) > 0
-      )
-    )`);
-  }
-  return conditions.length === 0 ? undefined : and(...conditions);
-}
-
 /**
  * The value a sort ranks by, or NULL when the row has none. Missing values rank last
  * in both directions, so a direction flip never lifts them to the top.
@@ -215,7 +170,7 @@ function libraryEntryFilter(filter: LibraryFilter | undefined): SQL | undefined 
 function libraryEntrySortValue(key: LibrarySortKey): SQL {
   switch (key) {
     case 'title':
-      return sql`nullif(${mangaIdentities.canonicalTitle}, '')`;
+      return sql`nullif(${sortableTitle(sql`${mangaIdentities.canonicalTitle}`)}, '')`;
     case 'last_updated':
       return sql`nullif(${libraryEntries.updatedAt}, '')`;
     case 'unread':
@@ -369,6 +324,168 @@ export async function listRecentlyReadLibraryEntries(
     rows.map((row) => toLibraryEntryId(row.entry.id)),
   );
   return rows.map((row) => mapLibraryEntry(row.entry, categoriesByEntry.get(row.entry.id) ?? []));
+}
+
+export interface LibraryOverviewQuery {
+  readonly filter?: LibraryFilter;
+  /** Top N only: the overview must never read every title's chapters. */
+  readonly limit: number;
+}
+
+/** The mapping a title reads from: its active mapping, else the manga default. */
+function effectiveMappingId(): SQL {
+  return sql`coalesce(
+    nullif(${libraryEntries.activeProviderMappingId}, ''),
+    nullif(${mangaIdentities.defaultProviderMappingId}, '')
+  )`;
+}
+
+/** The newest chapter on the effective mapping, falling back to any mapping when it has none. */
+function latestChapterIdSql(): SQL {
+  const effective = effectiveMappingId();
+  return sql`coalesce(
+    (SELECT c.id FROM chapters c
+      WHERE c.manga_id = ${libraryEntries.mangaId}
+        AND c.provider_mapping_id = ${effective}
+      ORDER BY c.chapter_index DESC LIMIT 1),
+    (SELECT c.id FROM chapters c
+      WHERE c.manga_id = ${libraryEntries.mangaId}
+      ORDER BY c.chapter_index DESC LIMIT 1)
+  )`;
+}
+
+/**
+ * Whether the effective mapping (or every mapping when it has none) still has a chapter
+ * without a completed read state. `EXISTS` stops at the first unread chapter, so the
+ * overview can keep its live "unread" semantics without counting every title's chapters.
+ */
+function hasUnreadChapterSql(): SQL {
+  const effective = effectiveMappingId();
+  const scopedUnread = sql`EXISTS (
+    SELECT 1 FROM chapters c
+    LEFT JOIN chapter_read_state read ON read.chapter_id = c.id
+    WHERE c.manga_id = ${libraryEntries.mangaId}
+      AND c.provider_mapping_id = ${effective}
+      AND (read.completed IS NULL OR read.completed = 0)
+  )`;
+  const anyUnread = sql`EXISTS (
+    SELECT 1 FROM chapters c
+    LEFT JOIN chapter_read_state read ON read.chapter_id = c.id
+    WHERE c.manga_id = ${libraryEntries.mangaId}
+      AND (read.completed IS NULL OR read.completed = 0)
+  )`;
+  return sql`CASE
+    WHEN EXISTS (
+      SELECT 1 FROM chapters c
+      WHERE c.manga_id = ${libraryEntries.mangaId}
+        AND c.provider_mapping_id = ${effective}
+    ) THEN ${scopedUnread}
+    ELSE ${anyUnread}
+  END`;
+}
+
+async function entriesWithCategories(
+  db: AppDrizzleDb,
+  rows: readonly (typeof libraryEntries.$inferSelect)[],
+): Promise<LibraryEntry[]> {
+  const categoriesByEntry = categoryIdsByEntry(
+    db,
+    rows.map((row) => toLibraryEntryId(row.id)),
+  );
+  return rows.map((row) => mapLibraryEntry(row, categoriesByEntry.get(row.id) ?? []));
+}
+
+/**
+ * Continue reading, bounded in SQL: titles with a resume chapter, newest reading event
+ * first. `last_read` uses the same value as the page sort, so the shelf and the "last read"
+ * sort agree. Missing read times rank last.
+ */
+export async function listLibraryContinueReading(
+  db: AppDrizzleDb,
+  query: LibraryOverviewQuery,
+): Promise<LibraryEntry[]> {
+  const limit = Math.trunc(query.limit);
+  if (limit <= 0) return [];
+
+  const lastReadAt = libraryEntrySortValue('last_read');
+  const rows = db
+    .select({ entry: libraryEntries })
+    .from(libraryEntries)
+    .leftJoin(mangaIdentities, libraryIdentityJoin)
+    .where(
+      and(
+        libraryEntryFilter(query.filter),
+        sql`${libraryEntries.lastReadChapterId} IS NOT NULL
+          AND ${libraryEntries.lastReadChapterId} != ''`,
+      ),
+    )
+    .orderBy(
+      sql`(${lastReadAt} IS NULL) ASC`,
+      sql`${lastReadAt} DESC`,
+      sql`${sortableTitle(sql`${mangaIdentities.canonicalTitle}`)} ASC`,
+      sql`${libraryEntries.id} ASC`,
+    )
+    .limit(limit)
+    .all();
+  return entriesWithCategories(
+    db,
+    rows.map((row) => row.entry),
+  );
+}
+
+/**
+ * Recently updated, bounded in SQL: unread titles whose newest chapter is past the last
+ * read one, newest release first. The latest chapter and the unread test are correlated
+ * index lookups per candidate, not a read of every title's chapters. Same selection as the
+ * old JavaScript pass: an entry with no last-read chapter, or one on another mapping,
+ * counts as updated.
+ */
+export async function listLibraryRecentlyUpdated(
+  db: AppDrizzleDb,
+  query: LibraryOverviewQuery,
+): Promise<LibraryEntry[]> {
+  const limit = Math.trunc(query.limit);
+  if (limit <= 0) return [];
+
+  const latest = alias(chapters, 'latest_chapter');
+  const lastRead = alias(chapters, 'last_read_chapter');
+  const latestId = latestChapterIdSql();
+  const latestUpdatedAt = sql`coalesce(
+    nullif(${latest.publishedAt}, ''),
+    nullif(${latest.createdAt}, '')
+  )`;
+
+  const rows = db
+    .select({ entry: libraryEntries })
+    .from(libraryEntries)
+    .leftJoin(mangaIdentities, libraryIdentityJoin)
+    .leftJoin(latest, sql`${latest.id} = ${latestId}`)
+    .leftJoin(lastRead, eq(lastRead.id, libraryEntries.lastReadChapterId))
+    .where(
+      and(
+        libraryEntryFilter(query.filter),
+        sql`${hasUnreadChapterSql()}`,
+        sql`${latest.id} IS NOT NULL`,
+        sql`NOT (
+          ${lastRead.id} IS NOT NULL
+          AND ${lastRead.providerMappingId} = ${latest.providerMappingId}
+          AND ${latest.chapterIndex} <= ${lastRead.chapterIndex}
+        )`,
+      ),
+    )
+    .orderBy(
+      sql`(${latestUpdatedAt} IS NULL) ASC`,
+      sql`${latestUpdatedAt} DESC`,
+      sql`${latest.chapterIndex} DESC`,
+      sql`${sortableTitle(sql`${mangaIdentities.canonicalTitle}`)} ASC`,
+      sql`${libraryEntries.id} ASC`,
+    )
+    .limit(limit)
+    .all();
+  return entriesWithCategories(
+    db,
+    rows.map((row) => row.entry),
+  );
 }
 
 export async function listLibraryProviderIds(db: AppDrizzleDb): Promise<ProviderId[]> {
@@ -574,6 +691,14 @@ export async function setLibraryEntryActiveProviderMapping(
       updatedAt: new Date().toISOString(),
     })
     .where(eq(libraryEntries.id, entryId));
+
+  // The unread sort reads the stored count. A mapping switch changes which chapters the
+  // count covers, so leaving the old value would rank the title by another provider's
+  // chapters (a row among "9 unread" that shows "2"). Recount before the caller reads it.
+  const refreshed = db.select().from(libraryEntries).where(eq(libraryEntries.id, entryId)).get();
+  if (refreshed !== undefined) {
+    await recomputeLibraryUnreadCounts(db, [mapLibraryEntry(refreshed, [])]);
+  }
 
   return ok(undefined);
 }
