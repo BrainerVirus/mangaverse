@@ -13,6 +13,7 @@ const describeLive = live ? describe : describe.skip;
 describeLive('MangaDex live smoke', () => {
   it('Given the real API, When searching, Then results, chapters and pages resolve', async () => {
     const provider = createMangaDexProvider({
+      // oxlint-disable-next-line no-restricted-properties -- this opt-in live smoke exists to hit the real API; every other provider path injects its transport
       fetchImpl: globalThis.fetch.bind(globalThis),
       timeoutMs: 15_000,
     });
