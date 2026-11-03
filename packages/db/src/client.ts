@@ -5,7 +5,7 @@ import type { AppDrizzleDb } from './adapter.js';
 import { createTitleFolds } from './sqlite-functions.js';
 
 /** Both drivers register the same functions; repositories may then use them in SQL. */
-function registerSqlJsFunctions(client: Database): void {
+export function registerSqlJsFunctions(client: Database): void {
   for (const [name, fold] of Object.entries(createTitleFolds())) {
     client.create_function(name, fold as (value: unknown) => unknown);
   }
