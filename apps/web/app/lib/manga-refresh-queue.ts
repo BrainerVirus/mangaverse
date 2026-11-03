@@ -154,6 +154,34 @@ export async function enqueueMangaRefresh(
   });
 }
 
+/**
+ * A user asking to retry is a fresh chance: the job runs on the next drain
+ * whatever its backoff, and its attempt budget starts over.
+ */
+export async function resetMangaRefreshJob(
+  db: AppDrizzleDb,
+  mangaId: MangaId,
+  reason: MangaRefreshReason,
+  now: () => number = Date.now,
+): Promise<void> {
+  await withQueueLock(db, async () => {
+    const jobs = await readStoredQueue(db);
+    const existing = jobs.find((job) => job.mangaId === mangaId);
+    const fresh: MangaRefreshJob = {
+      mangaId,
+      reason,
+      enqueuedAt: existing?.enqueuedAt ?? new Date(now()).toISOString(),
+      attempts: 0,
+    };
+    await writeQueue(
+      db,
+      existing === undefined
+        ? [...jobs, fresh]
+        : jobs.map((job) => (job.mangaId === mangaId ? fresh : job)),
+    );
+  });
+}
+
 type MangaRefreshFn = (
   db: AppDrizzleDb,
   mangaId: MangaId,
@@ -193,7 +221,7 @@ async function refreshMangaDetailFromProvider(
 }
 
 /** Logs through the app's existing feedback/event log; a log failure never blocks the queue. */
-function logRefreshFailure(error: unknown): void {
+export function logMangaRefreshFailure(error: unknown): void {
   void import('./app-feedback.js')
     .then(({ feedback }) => feedback.log(error, 'manga refresh queue'))
     .catch(() => undefined);
@@ -273,7 +301,7 @@ async function runDrain(
 ): Promise<void> {
   const now = deps.now ?? Date.now;
   const refresh = deps.refresh ?? refreshMangaDetailFromProvider;
-  const log = deps.log ?? logRefreshFailure;
+  const log = deps.log ?? logMangaRefreshFailure;
 
   // The snapshot only chooses work; every write re-reads under the queue lock,
   // so a job enqueued during a provider call is never lost.

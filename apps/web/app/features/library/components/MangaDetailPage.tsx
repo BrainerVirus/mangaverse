@@ -43,6 +43,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { chaptersForMapping } from '../chapter-list.js';
+import { userFailureMessage } from '../failure-message.js';
 import type { MangaDetailData } from '../types.js';
 import type {
   ChapterDownloadState,
@@ -74,7 +75,13 @@ export interface MangaDetailPageProps {
   mangaId: MangaId;
   data: MangaDetailData | null | undefined;
   isLoading: boolean;
+  /** The local read failed. */
   isError: boolean;
+  /** Re-runs the local read after `isError`. */
+  onRetry?: () => void;
+  /** User-safe text when nothing is saved locally and the source load failed. */
+  sourceError?: string;
+  onRetrySource?: () => void;
   onBack?: () => void;
   onOpenChapter: (chapterId: ChapterId) => void;
   onAddToLibrary?: () => void;
@@ -230,7 +237,7 @@ function CategoryEditor({
     setError(undefined);
     // Keep the editor open and the current selection unchanged when the write fails.
     void Promise.resolve(onChange(next)).catch((caught: unknown) => {
-      setError(caught instanceof Error ? caught.message : 'Could not update categories.');
+      setError(userFailureMessage(caught, 'Could not update categories.'));
     });
   }
 
@@ -747,22 +754,27 @@ function MangaDetailHeader({
   const coverIsCustom = customCoverUrl !== undefined && customCoverUrl === coverUrl;
 
   return (
-    // On a phone Back is its own row, so the summary below it owns the full
-    // content width instead of losing a column to the button. On `md` the two
-    // sit side by side again, and `items-start` keeps the cover from stretching
-    // to the summary's height (that stretch painted an empty box under it).
-    <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-6">
+    // Sized by the content column, not the viewport, because the sidebar takes
+    // a different share at each width. Back is its own row until the column
+    // fits a Back column beside the cover and summary; the cover sits beside
+    // the summary only once the summary keeps a readable width. `items-start`
+    // keeps the cover from stretching to the summary's height (that stretch
+    // painted an empty box under it).
+    <div
+      data-detail-header
+      className="flex flex-col gap-4 @5xl:flex-row @5xl:items-start @5xl:gap-6"
+    >
       {onBack !== undefined ? (
-        <div className="md:pt-1">
+        <div className="@5xl:pt-1">
           <Button type="button" variant="ghost" onClick={onBack}>
             Back
           </Button>
         </div>
       ) : null}
 
-      <div className="flex min-w-0 flex-1 flex-col gap-6 md:flex-row md:items-start">
+      <div className="flex min-w-0 flex-1 flex-col gap-6 @2xl:flex-row @2xl:items-start">
         {coverUrl !== undefined ? (
-          <div className="mx-auto w-40 shrink-0 self-start overflow-hidden rounded-box border border-border bg-muted md:mx-0 md:w-48">
+          <div className="mx-auto w-40 shrink-0 self-start overflow-hidden rounded-box border border-border bg-muted @2xl:mx-0 @2xl:w-48">
             <CachedCoverImage
               providerId={getDefaultProviderId(data.manga)}
               mangaId={data.manga.id}
@@ -1088,7 +1100,7 @@ function MangaDetailContent(props: MangaDetailPageProps & { readonly data: Manga
   const canUnmerge = unmerge.isAvailable && view.data.manga.providerMappings.length > 1;
 
   return (
-    <section aria-label="Manga details" className="flex flex-col gap-8 p-6">
+    <section aria-label="Manga details" className="@container flex flex-col gap-8 p-6">
       <MangaHeaderHost
         props={props}
         view={view}
@@ -1120,38 +1132,52 @@ function MangaDetailContent(props: MangaDetailPageProps & { readonly data: Manga
   );
 }
 
-export function MangaDetailPage(props: MangaDetailPageProps) {
-  if (props.isLoading) {
-    return (
-      <section aria-label="Manga details" className="p-6">
-        <LoadingState type="detail" />
-      </section>
-    );
-  }
+/** The page's states before there is a title to show: loading, a failure, or not found. */
+function MangaDetailStatus({ props }: { readonly props: MangaDetailPageProps }) {
+  if (props.isLoading) return <LoadingState type="detail" />;
 
   if (props.isError) {
     return (
-      <section aria-label="Manga details" className="p-6">
-        <ErrorState
-          title="Could not load manga"
-          message="Local data failed to load. Try again in a moment."
-        />
-      </section>
+      <ErrorState
+        title="Could not load manga"
+        message="Local data failed to load. Try again in a moment."
+        {...(props.onRetry === undefined ? {} : { onRetry: props.onRetry })}
+        {...(props.onBack === undefined ? {} : { onBack: props.onBack })}
+      />
     );
   }
 
-  if (props.data === undefined || props.data === null) {
+  // Nothing is saved locally and the source failed: retryable, unlike a missing title.
+  if (props.sourceError !== undefined) {
+    return (
+      <ErrorState
+        title="Could not load this title"
+        message={props.sourceError}
+        {...(props.onRetrySource === undefined ? {} : { onRetry: props.onRetrySource })}
+        {...(props.onBack === undefined ? {} : { onBack: props.onBack })}
+      />
+    );
+  }
+
+  return (
+    <EmptyState
+      type="manga-not-found"
+      {...(props.onBack === undefined
+        ? {}
+        : { action: { label: 'Back to library', onClick: props.onBack } })}
+    />
+  );
+}
+
+export function MangaDetailPage(props: MangaDetailPageProps) {
+  const { data } = props;
+  if (props.isLoading || props.isError || data === undefined || data === null) {
     return (
       <section aria-label="Manga details" className="p-6">
-        <EmptyState
-          type="manga-not-found"
-          {...(props.onBack === undefined
-            ? {}
-            : { action: { label: 'Back to library', onClick: props.onBack } })}
-        />
+        <MangaDetailStatus props={props} />
       </section>
     );
   }
 
-  return <MangaDetailContent {...props} data={props.data} />;
+  return <MangaDetailContent {...props} data={data} />;
 }

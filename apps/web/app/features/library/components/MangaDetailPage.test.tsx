@@ -169,6 +169,56 @@ describe('MangaDetailPage', () => {
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
+  it('Given nothing saved locally and a failed source load, Then a retryable error shows instead of not found', () => {
+    const onRetrySource = vi.fn<() => void>();
+    const onBack = vi.fn<() => void>();
+
+    render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={null}
+        isLoading={false}
+        isError={false}
+        sourceError="The source isn't responding. Try again in a moment."
+        onRetrySource={onRetrySource}
+        onBack={onBack}
+        onOpenChapter={() => {}}
+      />,
+    );
+
+    expect(screen.getByText('Could not load this title')).toBeInTheDocument();
+    expect(screen.getByText("The source isn't responding. Try again in a moment.")).toBeVisible();
+    expect(screen.queryByText('Manga not found')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(onRetrySource).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Go Back' }));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('Given the local read failed, Then the error offers retry and a way back', () => {
+    const onRetry = vi.fn<() => void>();
+    const onBack = vi.fn<() => void>();
+
+    render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={undefined}
+        isLoading={false}
+        isError
+        onRetry={onRetry}
+        onBack={onBack}
+        onOpenChapter={() => {}}
+      />,
+    );
+
+    expect(screen.getByText('Could not load manga')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Go Back' }));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
   it('Given the seeded Markdown description, Then the page shows readable prose only', () => {
     render(
       <MangaDetailPage
@@ -301,10 +351,10 @@ describe('MangaDetailPage', () => {
     expect(onStatusChange).toHaveBeenCalledWith('completed');
   });
 
-  it('Given a failing category write, Then the editor stays open and shows the error', async () => {
+  it('Given a failing category write, Then the editor stays open and shows user-safe copy', async () => {
     const onCategoriesChange = vi.fn<(categoryIds: readonly CategoryId[]) => Promise<void>>(
       async () => {
-        throw new Error('Could not update categories.');
+        throw new Error('INTERNAL_SECRET at handle.run');
       },
     );
 
@@ -325,6 +375,7 @@ describe('MangaDetailPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Fantasy' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not update categories.');
+    expect(screen.queryByText(/INTERNAL_SECRET/)).toBeNull();
     expect(screen.getByRole('button', { name: 'Fantasy' })).toHaveAttribute(
       'aria-pressed',
       'false',
@@ -951,7 +1002,7 @@ describe('MangaDetailPage identity merge', () => {
         onOpenChapter={() => {}}
         onUnmerge={async () => {}}
         loadUnmergePreview={async () => {
-          throw new Error('Preview failed');
+          throw new Error('INTERNAL_SECRET preview handle');
         }}
       />,
     );
@@ -964,7 +1015,10 @@ describe('MangaDetailPage identity merge', () => {
     fireEvent.click(within(row).getByRole('button', { name: 'Split title' }));
 
     const dialog = await screen.findByRole('dialog');
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Preview failed');
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'Could not build the split preview.',
+    );
+    expect(screen.queryByText(/INTERNAL_SECRET/)).toBeNull();
     expect(within(dialog).getByRole('button', { name: 'Split source' })).toBeDisabled();
   });
 

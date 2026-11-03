@@ -65,6 +65,10 @@
   --color-glass-specular: var(--glass-specular);
   --color-glass-plate: var(--glass-plate);
   --color-glass-muted-foreground: var(--glass-muted-foreground);
+  --color-stage-foreground: var(--stage-foreground);
+  --color-stage-muted-foreground: var(--stage-muted-foreground);
+  --color-stage-selected: var(--stage-selected);
+  --color-stage-selected-foreground: var(--stage-selected-foreground);
   --color-ambient-1: var(--ambient-1);
   --color-ambient-2: var(--ambient-2);
   --color-sidebar: var(--sidebar);
@@ -152,9 +156,14 @@
   --elevation-4: 0 24px 64px rgb(0 0 0 / 0.22);
 }
 
-/* §2.1 — the stage tier is theme-independent: the reading stage is always black. */
+/* §2.1 — the stage tier is theme-independent: the reading stage is always black. Its type
+   follows §2.6: white, white at 0.7 for meta labels, and black on the white selected segment. */
 :root {
   --glass-stage: rgb(0 0 0 / 0.78);
+  --stage-foreground: #ffffff;
+  --stage-muted-foreground: rgb(255 255 255 / 0.7);
+  --stage-selected: #ffffff;
+  --stage-selected-foreground: #000000;
 }
 
 .dark {
@@ -299,12 +308,15 @@
      comboboxes the design system does not wrap get the same floor.
      `role="switch"` is exempt: its 44x24 track is the design (a rounded pill),
      and the floor stretched it into a 44x44 circle. It still clears the 24x24
-     WCAG 2.5.8 floor on its own. */
+     WCAG 2.5.8 floor on its own. Text fields are targets too; checkboxes,
+     radios and ranges keep their own drawn size. */
   @media (pointer: coarse) {
     button:not([role="switch"]),
     [role="button"],
     [role="combobox"],
-    select {
+    select,
+    textarea,
+    input:not([type="checkbox"], [type="radio"], [type="range"], [type="hidden"]) {
       min-block-size: 2.75rem;
       min-inline-size: 2.75rem;
     }

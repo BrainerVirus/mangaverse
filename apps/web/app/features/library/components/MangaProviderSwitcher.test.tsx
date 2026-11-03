@@ -73,9 +73,9 @@ describe('MangaProviderSwitcher', () => {
     expect(onSetPreferred).toHaveBeenCalledWith(MAP_B);
   });
 
-  it('keeps the selection and shows the error when a switch fails', async () => {
+  it('keeps the selection and shows user-safe copy when a switch fails', async () => {
     const onSelectMapping = vi.fn<() => Promise<void>>(async () => {
-      throw new Error('Provider switch failed.');
+      throw new Error('INTERNAL_SECRET at handle.run');
     });
 
     render(
@@ -88,7 +88,8 @@ describe('MangaProviderSwitcher', () => {
     );
 
     fireEvent.click(screen.getAllByRole('button', { name: 'View chapters' })[0]!);
-    expect(await screen.findByRole('alert')).toHaveTextContent('Provider switch failed.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not switch providers.');
+    expect(screen.queryByText(/INTERNAL_SECRET/)).toBeNull();
     expect(screen.getByText('Viewing')).toBeInTheDocument();
   });
 

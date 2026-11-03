@@ -20,6 +20,7 @@ import { ArrowRightLeft, CheckSquare, Heart, HeartOff, ListChecks, Tags } from '
 import type { CategoryId, LibraryCategory, LibraryEntryId, LibraryStatus } from '@app/shared';
 import { compareLibraryCategories } from '@app/shared';
 import type { LibraryOrganizationAction } from '../types.js';
+import { userFailureMessage } from '../failure-message.js';
 
 const STATUS_OPTIONS: { value: LibraryStatus; label: string }[] = [
   { value: 'reading', label: 'Reading' },
@@ -71,7 +72,7 @@ export function BulkEditBar({
     return onOrganize(action).then(
       () => true,
       (caught: unknown) => {
-        setError(caught instanceof Error ? caught.message : 'Could not update the selection.');
+        setError(userFailureMessage(caught, 'Could not update the selection.'));
         return false;
       },
     );

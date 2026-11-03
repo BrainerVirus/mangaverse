@@ -5,6 +5,7 @@ import {
   type MangaProviderMapping,
   type ProviderMappingId,
 } from '@app/shared';
+import { userFailureMessage } from '../failure-message.js';
 
 export interface MangaProviderSwitcherProps {
   readonly mappings: readonly MangaProviderMapping[];
@@ -36,7 +37,7 @@ export function MangaProviderSwitcher({
   function run(action: () => Promise<void> | void): void {
     setError(undefined);
     void Promise.resolve(action()).catch((caught: unknown) => {
-      setError(caught instanceof Error ? caught.message : 'Could not switch providers.');
+      setError(userFailureMessage(caught, 'Could not switch providers.'));
     });
   }
 

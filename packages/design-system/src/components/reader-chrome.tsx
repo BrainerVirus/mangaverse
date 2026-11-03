@@ -151,7 +151,7 @@ export function ReaderChrome({
             <Button
               size="icon"
               variant="ghost"
-              className="shrink-0 text-white"
+              className="shrink-0 text-stage-foreground"
               aria-label="Close reader"
               onClick={onClose}
             >
@@ -159,11 +159,13 @@ export function ReaderChrome({
             </Button>
           ) : null}
           {chapterTitle && (
-            <span className="min-w-0 truncate text-sm font-medium text-white">{chapterTitle}</span>
+            <span className="min-w-0 truncate text-sm font-medium text-stage-foreground">
+              {chapterTitle}
+            </span>
           )}
           {sourceName ? (
             <span
-              className="type-meta min-w-0 truncate text-white/60"
+              className="type-meta min-w-0 truncate text-stage-muted-foreground"
               title={sourceName}
               data-testid="reader-source"
             >
@@ -173,7 +175,7 @@ export function ReaderChrome({
           <Badge
             size="meta"
             variant="secondary"
-            className="shrink-0 whitespace-nowrap border border-glass-edge bg-glass-plate text-white"
+            className="shrink-0 whitespace-nowrap border border-glass-edge bg-glass-plate text-stage-foreground"
           >
             {currentPage} / {totalPages}
           </Badge>
@@ -191,7 +193,8 @@ export function ReaderChrome({
                 <div
                   ref={modeHighlightRef}
                   aria-hidden
-                  className="pointer-events-none absolute top-1 bottom-1 left-0 w-0 rounded-full border border-glass-specular bg-white opacity-0"
+                  data-testid="reader-mode-highlight"
+                  className="pointer-events-none absolute top-1 bottom-1 left-0 w-0 rounded-full border border-glass-specular bg-stage-selected opacity-0"
                 />
                 {readerModes.map((m) => (
                   <button
@@ -204,7 +207,7 @@ export function ReaderChrome({
                       // 24px keeps the segment on the WCAG 2.5.8 target floor;
                       // the old 21px pill was shorter than the minimum.
                       'relative z-10 flex min-h-6 items-center rounded-full px-3 py-1 type-micro transition-colors',
-                      mode === m.value ? 'text-black' : 'text-white/90 hover:text-white',
+                      mode === m.value ? 'text-stage-selected-foreground' : 'text-stage-foreground',
                     )}
                   >
                     {m.label}
@@ -217,7 +220,7 @@ export function ReaderChrome({
             <Button
               size="icon"
               variant="ghost"
-              className="text-white hover:bg-primary/20"
+              className="text-stage-foreground hover:bg-primary/20"
               aria-label="Chapter actions"
               onClick={onOpenChapterActions}
             >
@@ -227,7 +230,7 @@ export function ReaderChrome({
           <Button
             size="icon"
             variant="ghost"
-            className="text-white hover:bg-primary/20"
+            className="text-stage-foreground hover:bg-primary/20"
             aria-label="Settings"
             onClick={onOpenSettings}
             ref={settingsButtonRef}
@@ -237,7 +240,7 @@ export function ReaderChrome({
           <Button
             size="icon"
             variant="ghost"
-            className="text-white hover:bg-primary/20"
+            className="text-stage-foreground hover:bg-primary/20"
             aria-label="Maximize"
             onClick={onToggleFullscreen}
           >
@@ -260,14 +263,14 @@ export function ReaderChrome({
           variant="ghost"
           onClick={handlePrevious}
           disabled={currentPage <= 1}
-          className="text-white hover:bg-primary/20 disabled:opacity-30"
+          className="text-stage-foreground hover:bg-primary/20 disabled:opacity-30"
           aria-label="Previous page"
         >
           <SkipBack className="h-5 w-5" />
         </Button>
 
         <div className="flex flex-1 items-center gap-4 px-4">
-          <span className="type-meta text-white/70">{currentPage}</span>
+          <span className="type-meta text-stage-muted-foreground">{currentPage}</span>
           <ReaderProgressRail
             value={currentPage}
             min={1}
@@ -276,7 +279,7 @@ export function ReaderChrome({
             reducedMotion={reducedMotion}
             {...(renderPagePreview !== undefined ? { renderPreview: renderPagePreview } : {})}
           />
-          <span className="type-meta text-white/70">{totalPages}</span>
+          <span className="type-meta text-stage-muted-foreground">{totalPages}</span>
         </div>
 
         <Button
@@ -284,7 +287,7 @@ export function ReaderChrome({
           variant="ghost"
           onClick={handleNext}
           disabled={currentPage >= totalPages && !onChapterEnd}
-          className="text-white hover:bg-primary/20 disabled:opacity-30"
+          className="text-stage-foreground hover:bg-primary/20 disabled:opacity-30"
           aria-label="Next page"
         >
           <SkipForward className="h-5 w-5" />

@@ -46,7 +46,7 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
           page content without walking the whole navigation. */}
       <a
         href="#main-content"
-        className="sr-only rounded-control bg-primary px-3 py-2 text-primary-foreground focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-60"
+        className="sr-only rounded-control bg-primary px-3 py-2 text-primary-foreground focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-60 focus:inline-flex focus:items-center pointer-coarse:focus:min-h-11"
       >
         Skip to content
       </a>
