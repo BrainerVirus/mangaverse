@@ -139,6 +139,6 @@ CI runs both after the build; run both before reporting a change.
 - Dev: `pnpm dev` (web), `pnpm dev:web`, `pnpm dev:desktop`
 - Checks: `pnpm lint` / `lint:fix`, `pnpm format` / `format:check` (oxfmt), `pnpm typecheck`, `pnpm test`, `pnpm run doctor`, `pnpm knip`
 - Builds: `pnpm build`, `pnpm --filter @app/web build`, `pnpm --filter @app/desktop build`; clean with `pnpm clean`
-- Electron production smoke (after a desktop build): `pnpm --filter @app/desktop test:e2e:electron`
+- Electron smoke (after a desktop build): `pnpm --filter @app/desktop test:e2e:electron`. The packaged proof runs `pnpm --filter @app/desktop package:mac` first, then `pnpm --filter @app/desktop test:e2e:packaged`.
 
 Update this file when the canonical commands change.

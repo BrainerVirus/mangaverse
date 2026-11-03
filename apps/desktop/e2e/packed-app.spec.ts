@@ -83,8 +83,13 @@ function unpackCurrentZip(): string | null {
   return app;
 }
 
-const packedAppPath = unpackCurrentZip();
-test.skip(packedAppPath === null, 'macOS only');
+// Resolved on first use, so `--list` and the other specs never unpack an artifact.
+let packedAppPath: string | null | undefined;
+test.skip(() => process.platform !== 'darwin', 'macOS only');
+
+test.beforeAll(() => {
+  packedAppPath = unpackCurrentZip();
+});
 
 function packagedApp(): string {
   if (packedAppPath === null) throw new Error('No packaged app to launch.');

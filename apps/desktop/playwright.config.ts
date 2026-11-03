@@ -3,6 +3,8 @@ import { defineConfig } from '@playwright/test';
 // Drives the built app (`pnpm --filter @app/desktop build` first): dist/main + dist/renderer.
 export default defineConfig({
   testDir: './e2e',
+  // The packaged proof needs an installer from `package:<platform>`; it has its own config.
+  testIgnore: ['e2e/packed-app.spec.ts'],
   // Inside the ignored dist/ so traces never show up as untracked files.
   outputDir: './dist/e2e-results',
   forbidOnly: !!process.env.CI,
