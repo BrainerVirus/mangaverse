@@ -188,7 +188,9 @@ async function fetchRemotePage(
       failure: { code: 'network', message: 'This page host is not allowed by the provider.' },
     };
   }
-  const result = await adapter.network.fetchBytes(remoteUrl);
+  // Web checks the redirect's final URL against the provider allowlist before
+  // returning bytes; desktop leaves that to main.
+  const result = await adapter.network.fetchBytes(remoteUrl, { providerId });
   if (!result.ok) {
     return { kind: 'failed', failure: failureFromError(result.error, 'network') };
   }

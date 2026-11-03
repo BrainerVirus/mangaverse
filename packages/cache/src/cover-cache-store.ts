@@ -202,7 +202,12 @@ async function fetchRemoteCover(
   ) {
     return undefined;
   }
-  const result = await adapter.network.fetchBytes(remoteUrl);
+  // Web also checks the URL a redirect lands on, so the declared host cannot
+  // hand bytes over from an undeclared one; desktop leaves that to main.
+  const result = await adapter.network.fetchBytes(
+    remoteUrl,
+    userProvided ? undefined : { providerId },
+  );
   if (!result.ok || result.value === undefined) {
     return undefined;
   }

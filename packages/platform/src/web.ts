@@ -31,6 +31,7 @@ import type {
   PlatformInstallPromptState,
   PlatformProviderResponse,
   PlatformStorageEstimate,
+  ProviderNetworkRefusal,
   ProviderNetworkRegistration,
   WebPlatformEnvironment,
 } from './types.js';
@@ -185,6 +186,9 @@ function resolveWebEnvironment(environment?: WebPlatformEnvironment): WebPlatfor
 
 export function createWebPlatformAdapter(environment?: WebPlatformEnvironment): PlatformAdapter {
   const env = resolveWebEnvironment(environment);
+  const reportRefusal = (refusal: ProviderNetworkRefusal): void => {
+    env.onProviderRequestRefused?.(refusal);
+  };
 
   const capabilitiesSnapshot = (): PlatformCapabilities => {
     const derivedProbe: WebPlatformEnvironment['capabilityProbe'] = {
@@ -489,7 +493,39 @@ export function createWebPlatformAdapter(environment?: WebPlatformEnvironment): 
     },
 
     network: {
-      fetchBytes: async (url: string) => ok(await fetchNetworkBytes(url)),
+      fetchBytes: async (url: string, options) => {
+        const providerId = options?.providerId;
+        if (providerId !== undefined && !isProviderHostAllowed(providerId, url)) {
+          reportRefusal({
+            kind: 'image',
+            providerId,
+            host: providerHostOf(url) ?? '(invalid)',
+            reason: 'undeclared-host',
+          });
+          return err(platformInvalidUrl('Provider may not reach this host.'));
+        }
+
+        let refusedUrl: string | undefined;
+        const result = await fetchNetworkBytes(url, {
+          ...(env.fetch !== undefined ? { fetchImpl: env.fetch } : {}),
+          ...(providerId === undefined
+            ? {}
+            : { isFinalUrlAllowed: (final: string) => isProviderHostAllowed(providerId, final) }),
+          onRefused: (finalUrl: string) => {
+            refusedUrl = finalUrl;
+          },
+        });
+        if (refusedUrl !== undefined) {
+          reportRefusal({
+            kind: 'image',
+            providerId: providerId ?? '',
+            host: providerHostOf(refusedUrl) ?? '(invalid)',
+            reason: 'redirected-host',
+          });
+          return err(platformInvalidUrl('Provider may not reach this host.'));
+        }
+        return ok(result);
+      },
     },
 
     providerNetwork: {
@@ -507,6 +543,12 @@ export function createWebPlatformAdapter(environment?: WebPlatformEnvironment): 
       isAllowedHost: (providerId, url) => isProviderHostAllowed(providerId, url),
       request: (input) => {
         if (!isProviderHostAllowed(input.providerId, input.url)) {
+          reportRefusal({
+            kind: 'api',
+            providerId: input.providerId,
+            host: providerHostOf(input.url) ?? '(invalid)',
+            reason: 'undeclared-host',
+          });
           return Promise.resolve(err(platformInvalidUrl('Provider may not reach this host.')));
         }
         const fetchImpl = env.fetch ?? globalThis.fetch;
@@ -525,6 +567,12 @@ export function createWebPlatformAdapter(environment?: WebPlatformEnvironment): 
               // The browser follows redirects itself, so the final URL is checked
               // after the fact and a hop to an undeclared host is refused.
               if (response.url !== '' && !isProviderHostAllowed(input.providerId, response.url)) {
+                reportRefusal({
+                  kind: 'api',
+                  providerId: input.providerId,
+                  host: providerHostOf(response.url) ?? '(invalid)',
+                  reason: 'redirected-host',
+                });
                 return err(platformInvalidUrl('Provider may not reach this host.'));
               }
               const bodyText = await response.text();
