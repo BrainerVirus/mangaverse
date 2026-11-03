@@ -76,8 +76,10 @@ export function parseRetryAfterMs(
       if (!Number.isNaN(dateMs)) valueMs = dateMs - nowMs;
     }
   }
-  if (!Number.isFinite(valueMs)) return DEFAULT_RETRY_AFTER_MS;
-  return Math.max(0, Math.round(valueMs));
+  // A digit string can still overflow (`Number('9'.repeat(400)) * 1000`), and a huge
+  // but finite value exceeds the Date range. Keep the horizon, never shorten it.
+  if (!Number.isFinite(valueMs)) return Number.MAX_SAFE_INTEGER;
+  return Math.max(0, Math.round(Math.min(valueMs, Number.MAX_SAFE_INTEGER)));
 }
 
 function defaultSleep(delayMs: number, signal?: AbortSignal): Promise<void> {
@@ -167,8 +169,12 @@ export function createRequestGate(options: RequestGateOptions): RequestGate {
             if (remaining > MAX_AUTO_WAIT_MS) {
               // Too long to sleep without losing the user's intent: refuse, and keep
               // the horizon so every later call fails fast too.
+              const waitText =
+                blockedUntil <= 8.64e15
+                  ? `until ${new Date(blockedUntil).toISOString()}`
+                  : 'for a long time';
               throw blockedError(
-                `The provider asked to wait until ${new Date(blockedUntil).toISOString()}; requests are paused until then.`,
+                `The provider asked to wait ${waitText}; requests are paused.`,
                 remaining,
               );
             }

@@ -115,6 +115,18 @@ describe('createRequestGate', () => {
     expect(sleeper).not.toHaveBeenCalled();
   });
 
+  it('Given a numeric Retry-After that overflows, Then the horizon is kept and the failure is typed', async () => {
+    const nowMs = 0;
+    expect(parseRetryAfterMs({ 'retry-after': '9'.repeat(400) }, nowMs)).toBe(
+      Number.MAX_SAFE_INTEGER,
+    );
+    const gate = createRequestGate({ defaultRequestsPerMinute: 10, now: () => nowMs });
+    gate.noteResponse(429, { 'retry-after': '9'.repeat(400) });
+    await expect(gate.acquire()).rejects.toMatchObject({
+      code: 'extensions.sdk.ratelimit.blocked',
+    });
+  });
+
   it('Given a request aborted while waiting, Then acquire rejects with the typed blocked error', async () => {
     const gate = createRequestGate({ defaultRequestsPerMinute: 1, now: () => 0 });
     await gate.acquire();

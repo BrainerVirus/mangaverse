@@ -10,6 +10,7 @@ import {
   type LibrarySort,
   type LibrarySortKey,
 } from '@app/shared';
+import { foldForSort } from '../sql-fold.js';
 import { createSqlJsHarness, type SqlJsHarness } from '../testing/sqljs-harness.js';
 import { addProviderMapping, createMangaIdentityWithInitialMapping } from './identities.js';
 import {
@@ -181,6 +182,12 @@ function sortValue(row: ReferenceRow, key: LibrarySortKey): string | number | nu
   }
 }
 
+/** The SQL fold's documented order: case/accent-insensitive, raw text on a tie. */
+function compareTitles(left: string, right: string): number {
+  const folded = foldForSort(left).localeCompare(foldForSort(right));
+  return folded !== 0 ? folded : left.localeCompare(right);
+}
+
 function referenceOrder(
   rows: readonly ReferenceRow[],
   sort: LibrarySort,
@@ -202,7 +209,9 @@ function referenceOrder(
       const compared =
         typeof left === 'number' && typeof right === 'number'
           ? direction * (left - right)
-          : direction * String(left).localeCompare(String(right));
+          : sort.key === 'title'
+            ? direction * compareTitles(String(left), String(right))
+            : direction * String(left).localeCompare(String(right));
       return compared || byId;
     })
     .map((row) => row.id);

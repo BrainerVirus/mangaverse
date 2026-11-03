@@ -257,9 +257,19 @@ function libraryEntrySortValue(key: LibrarySortKey): SQL {
 function libraryEntryOrder(sort: LibrarySort | undefined): SQL[] {
   const direction = sort?.direction ?? 'desc';
   const value = libraryEntrySortValue(sort?.key ?? 'date_added');
+  const tieBreak =
+    sort?.key === 'title'
+      ? // A folded tie keeps the raw title order (accents, punctuation), as localeCompare did.
+        [
+          direction === 'asc'
+            ? sql`${mangaIdentities.canonicalTitle} ASC`
+            : sql`${mangaIdentities.canonicalTitle} DESC`,
+        ]
+      : [];
   return [
     sql`(${value} IS NULL) ASC`,
     direction === 'asc' ? sql`${value} ASC` : sql`${value} DESC`,
+    ...tieBreak,
     sql`${libraryEntries.id} ASC`,
   ];
 }

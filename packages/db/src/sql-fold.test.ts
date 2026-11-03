@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { DatabaseSync } from 'node:sqlite';
 import initSqlJs from 'sql.js';
+import { migrateDatabaseToLatest } from './migrations.js';
 import { describe, expect, it } from 'vitest';
 import {
   foldForMatch,
@@ -27,6 +28,14 @@ describe('sql folds', () => {
       .get('Éclair', 'Éclair') as { matched: string; sorted: string };
     expect(row).toEqual({ matched: 'éclair', sorted: 'eclair' });
     database.close();
+  });
+
+  it('Given a migrated sql.js database, Then the migration path registered the folds too', async () => {
+    const SQL = await initSqlJs();
+    const raw = new SQL.Database();
+    migrateDatabaseToLatest(raw);
+    expect(raw.exec(`SELECT ${SQL_FOLD_MATCH}('Éclair')`)[0]?.values).toEqual([['éclair']]);
+    raw.close();
   });
 
   it('Given a sql.js connection, Then both folds are callable from SQL', async () => {
