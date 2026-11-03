@@ -29,6 +29,7 @@ import {
   setThemeOverride,
   THEME_TOKEN_GROUPS,
   toHexColor,
+  themeExportErrorMessage,
   validateThemeJsonText,
   type ThemeJsonDiagnostic,
 } from './theme-advanced.js';
@@ -252,12 +253,10 @@ function JsonEditor({ draft, disabled = false, onChange }: ThemeEditorPanelProps
     try {
       return { css: exportThemeCss(draft), error: null };
     } catch (cause) {
+      // A user-facing failure keeps its written message; a thrown Error is internal text.
       return {
         css: null,
-        error:
-          cause instanceof Error
-            ? cause.message
-            : 'The draft is not a valid theme, so it cannot be exported.',
+        error: themeExportErrorMessage(cause),
       };
     }
   }, [draft]);
