@@ -7,12 +7,7 @@ import type {
   MangaIdentity,
 } from '@app/shared';
 import { compareLibraryCategories } from '@app/shared';
-import type {
-  LibraryItem,
-  LibraryPageData,
-  LibraryOrganizationAction,
-  MangaDetailData,
-} from './types.js';
+import type { LibraryItem, LibraryOrganizationAction, MangaDetailData } from './types.js';
 import { libraryQueryKeys } from './query-keys.js';
 
 export interface QueryCacheReader {
@@ -22,6 +17,11 @@ export interface QueryCacheReader {
   setQueryData<T>(queryKey: readonly unknown[], data: T | undefined): void;
 }
 
+/**
+ * The library grid is fed by host collections (#210), not by a query cache, so these
+ * helpers only patch the manga detail query that mounted the write. They must not pretend
+ * to update a page: a page cache they could not keep `total` in step with is never read.
+ */
 function createOptimisticEntry(
   mangaId: MangaId,
   manga: MangaIdentity,
@@ -43,36 +43,10 @@ function createOptimisticEntry(
   return { entry, manga };
 }
 
-function patchPageData(
-  page: LibraryPageData,
-  updater: (items: readonly LibraryItem[]) => readonly LibraryItem[],
-): LibraryPageData {
-  return {
-    ...page,
-    items: updater(page.items),
-  };
-}
-
-function matchesFavoritesFilter(page: LibraryPageData, favorite: boolean): boolean {
-  return page.viewState.filter.favoritesOnly !== true || favorite;
-}
-
-function isLibraryPageQueryKey(queryKey: readonly unknown[]): boolean {
-  return queryKey[0] === libraryQueryKeys.all[0] && queryKey[1] === 'page';
-}
-
 function isLibraryDetailQueryKey(queryKey: readonly unknown[], mangaId: MangaId): boolean {
   return (
     queryKey[0] === libraryQueryKeys.all[0] && queryKey[1] === 'detail' && queryKey[2] === mangaId
   );
-}
-
-function getLibraryPageQueries(
-  queryClient: QueryCacheReader,
-): Array<[readonly unknown[], LibraryPageData | undefined]> {
-  return queryClient
-    .getQueriesData<LibraryPageData>({ queryKey: libraryQueryKeys.all })
-    .filter(([queryKey]) => isLibraryPageQueryKey(queryKey));
 }
 
 function getLibraryDetailQueries(
@@ -100,17 +74,6 @@ export function optimisticallyAddMangaToLibrary(
   status: LibraryStatus = 'planned',
 ): void {
   const optimisticItem = createOptimisticEntry(mangaId, manga, status, entryId);
-
-  for (const [queryKey, page] of getLibraryPageQueries(queryClient)) {
-    if (page === undefined) continue;
-    if (page.items.some((item) => item.entry.mangaId === mangaId)) continue;
-
-    queryClient.setQueryData(
-      queryKey,
-      patchPageData(page, (items) => [...items, optimisticItem]),
-    );
-  }
-
   for (const [queryKey, detail] of getLibraryDetailQueries(queryClient, mangaId)) {
     if (detail === undefined) continue;
     queryClient.setQueryData(queryKey, {
@@ -124,14 +87,6 @@ export function optimisticallyRemoveMangaFromLibrary(
   queryClient: QueryCacheReader,
   mangaId: MangaId,
 ): void {
-  for (const [queryKey, page] of getLibraryPageQueries(queryClient)) {
-    if (page === undefined) continue;
-    queryClient.setQueryData(
-      queryKey,
-      patchPageData(page, (items) => items.filter((item) => item.entry.mangaId !== mangaId)),
-    );
-  }
-
   for (const [queryKey, detail] of getLibraryDetailQueries(queryClient, mangaId)) {
     if (detail === undefined) continue;
     queryClient.setQueryData(queryKey, {
@@ -146,27 +101,6 @@ export function optimisticallySetMangaFavorite(
   mangaId: MangaId,
   favorite: boolean,
 ): void {
-  for (const [queryKey, page] of getLibraryPageQueries(queryClient)) {
-    if (page === undefined) continue;
-
-    if (!matchesFavoritesFilter(page, favorite)) {
-      queryClient.setQueryData(
-        queryKey,
-        patchPageData(page, (items) => items.filter((item) => item.entry.mangaId !== mangaId)),
-      );
-      continue;
-    }
-
-    queryClient.setQueryData(
-      queryKey,
-      patchPageData(page, (items) =>
-        items.map((item) =>
-          item.entry.mangaId === mangaId ? { ...item, entry: { ...item.entry, favorite } } : item,
-        ),
-      ),
-    );
-  }
-
   for (const [queryKey, detail] of getLibraryDetailQueries(queryClient, mangaId)) {
     if (detail === undefined || detail.libraryEntry === undefined) continue;
     queryClient.setQueryData(queryKey, {
@@ -199,35 +133,6 @@ function mutatedEntry(entry: LibraryEntry, action: LibraryOrganizationAction): L
     default:
       return entry;
   }
-}
-
-function isEntryAction(action: LibraryOrganizationAction): boolean {
-  return (
-    action.type !== 'create_category' &&
-    action.type !== 'reorder_categories' &&
-    action.type !== 'rename_category' &&
-    action.type !== 'delete_category' &&
-    action.type !== 'set_category_pinned'
-  );
-}
-
-function entryMatchesPageFilter(page: LibraryPageData, item: LibraryItem): boolean {
-  const filter = page.viewState.filter;
-  if (filter.favoritesOnly === true && !item.entry.favorite) return false;
-  if (filter.statuses !== undefined && filter.statuses.length > 0) {
-    if (!filter.statuses.includes(item.entry.status)) return false;
-  }
-  if (filter.categoryIds !== undefined && filter.categoryIds.length > 0) {
-    const categoryIds = new Set(filter.categoryIds);
-    if (!item.entry.categoryIds.some((id) => categoryIds.has(id))) return false;
-  }
-  if (filter.providerIds !== undefined && filter.providerIds.length > 0) {
-    const providerIds = new Set(filter.providerIds);
-    if (!item.manga.providerMappings.some((mapping) => providerIds.has(mapping.providerId))) {
-      return false;
-    }
-  }
-  return true;
 }
 
 function applyCategoryAction(
@@ -268,25 +173,6 @@ export function optimisticallyApplyLibraryOrganizationAction(
   action: LibraryOrganizationAction,
 ): void {
   const targetedEntryIds = 'entryIds' in action ? new Set(action.entryIds) : new Set<string>();
-
-  for (const [queryKey, page] of getLibraryPageQueries(queryClient)) {
-    if (page === undefined) continue;
-    const categories = applyCategoryAction(page.categories, action);
-    const items = isEntryAction(action)
-      ? page.items
-          .map((item) =>
-            targetedEntryIds.has(item.entry.id)
-              ? { ...item, entry: mutatedEntry(item.entry, action) }
-              : item,
-          )
-          .filter((item) => entryMatchesPageFilter(page, item))
-      : page.items;
-    queryClient.setQueryData(queryKey, {
-      ...page,
-      categories: categories ?? page.categories,
-      items,
-    });
-  }
 
   for (const [queryKey, detail] of getAllLibraryDetailQueries(queryClient)) {
     if (detail === undefined) continue;

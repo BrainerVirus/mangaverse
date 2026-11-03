@@ -37,7 +37,8 @@
     "./migrations/0006_installed_extension_manifest_url.sql": "./migrations/0006_installed_extension_manifest_url.sql",
     "./migrations/0007_extension_logs.sql": "./migrations/0007_extension_logs.sql",
     "./migrations/0008_library_page_indexes.sql": "./migrations/0008_library_page_indexes.sql",
-    "./migrations/0009_downloads.sql": "./migrations/0009_downloads.sql"
+    "./migrations/0009_downloads.sql": "./migrations/0009_downloads.sql",
+    "./migrations/0010_drop_unused_library_indexes.sql": "./migrations/0010_drop_unused_library_indexes.sql"
   },
   "scripts": {
     "clean": "rm -rf dist",

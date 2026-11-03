@@ -57,87 +57,57 @@ const detailData: MangaDetailData = {
   continueChapterId: undefined,
 };
 
+function detailClient() {
+  const queryClient = new QueryClient();
+  queryClient.setQueryData(libraryQueryKeys.detail(mangaId), detailData);
+  return queryClient;
+}
+
+const detailOf = (queryClient: QueryClient) =>
+  queryClient.getQueryData<MangaDetailData>(libraryQueryKeys.detail(mangaId));
+
 describe('optimistic-library-cache', () => {
-  it('adds manga to cached library pages and detail queries', () => {
-    const queryClient = new QueryClient();
-    const pageKey = libraryQueryKeys.page(DEFAULT_LIBRARY_VIEW_STATE);
-    queryClient.setQueryData(pageKey, pageData);
-    queryClient.setQueryData(libraryQueryKeys.detail(mangaId), detailData);
+  it('adds manga to the detail query', () => {
+    const queryClient = detailClient();
 
     optimisticallyAddMangaToLibrary(queryClient, mangaId, manga, entryIdFor(mangaId), 'planned');
 
-    const updatedPage = queryClient.getQueryData<LibraryPageData>(pageKey);
-    expect(updatedPage?.items).toHaveLength(1);
-    expect(updatedPage?.items[0]?.entry.status).toBe('planned');
-
-    const updatedDetail = queryClient.getQueryData<MangaDetailData>(
-      libraryQueryKeys.detail(mangaId),
-    );
-    expect(updatedDetail?.libraryEntry?.mangaId).toBe(mangaId);
+    expect(detailOf(queryClient)?.libraryEntry?.status).toBe('planned');
+    expect(detailOf(queryClient)?.libraryEntry?.mangaId).toBe(mangaId);
   });
 
-  it('removes manga from cached library pages and detail queries', () => {
-    const queryClient = new QueryClient();
-    const pageKey = libraryQueryKeys.page(DEFAULT_LIBRARY_VIEW_STATE);
-    queryClient.setQueryData(pageKey, pageData);
-    queryClient.setQueryData(libraryQueryKeys.detail(mangaId), detailData);
-
+  it('removes manga from the detail query', () => {
+    const queryClient = detailClient();
     optimisticallyAddMangaToLibrary(queryClient, mangaId, manga, entryIdFor(mangaId));
 
     optimisticallyRemoveMangaFromLibrary(queryClient, mangaId);
 
-    expect(queryClient.getQueryData<LibraryPageData>(pageKey)?.items).toHaveLength(0);
-    expect(
-      queryClient.getQueryData<MangaDetailData>(libraryQueryKeys.detail(mangaId))?.libraryEntry,
-    ).toBeUndefined();
+    expect(detailOf(queryClient)?.libraryEntry).toBeUndefined();
   });
 
-  it('updates favorite state across cached queries', () => {
-    const queryClient = new QueryClient();
+  it('updates favorite state on the detail entry', () => {
+    const queryClient = detailClient();
+    optimisticallyAddMangaToLibrary(queryClient, mangaId, manga, entryIdFor(mangaId));
+
+    optimisticallySetMangaFavorite(queryClient, mangaId, true);
+
+    expect(detailOf(queryClient)?.libraryEntry?.favorite).toBe(true);
+  });
+
+  it('leaves the grid query cache alone: the grid is fed by host collections', () => {
+    const queryClient = detailClient();
     const pageKey = libraryQueryKeys.page(DEFAULT_LIBRARY_VIEW_STATE);
     queryClient.setQueryData(pageKey, pageData);
-    queryClient.setQueryData(libraryQueryKeys.detail(mangaId), detailData);
 
     optimisticallyAddMangaToLibrary(queryClient, mangaId, manga, entryIdFor(mangaId));
-    optimisticallySetMangaFavorite(queryClient, mangaId, true);
-    expect(queryClient.getQueryData<LibraryPageData>(pageKey)?.items[0]?.entry.favorite).toBe(true);
-    expect(
-      queryClient.getQueryData<MangaDetailData>(libraryQueryKeys.detail(mangaId))?.libraryEntry
-        ?.favorite,
-    ).toBe(true);
-  });
-
-  it('removes non-favorites from favorites-only cached pages', () => {
-    const queryClient = new QueryClient();
-    const favoritesView = {
-      ...DEFAULT_LIBRARY_VIEW_STATE,
-      filter: { favoritesOnly: true },
-    };
-    const pageKey = libraryQueryKeys.page(favoritesView);
-    const defaultPageKey = libraryQueryKeys.page(DEFAULT_LIBRARY_VIEW_STATE);
-
-    queryClient.setQueryData(defaultPageKey, pageData);
-    queryClient.setQueryData(libraryQueryKeys.detail(mangaId), detailData);
-    optimisticallyAddMangaToLibrary(queryClient, mangaId, manga, entryIdFor(mangaId));
-
-    queryClient.setQueryData(pageKey, {
-      ...pageData,
-      viewState: favoritesView,
-      items: queryClient.getQueryData<LibraryPageData>(defaultPageKey)!.items,
-    });
-
-    optimisticallySetMangaFavorite(queryClient, mangaId, false);
 
     expect(queryClient.getQueryData<LibraryPageData>(pageKey)?.items).toHaveLength(0);
   });
 });
 
 describe('optimistic library organization', () => {
-  it('applies category assignments and status to cached pages and the detail entry', () => {
-    const queryClient = new QueryClient();
-    const pageKey = libraryQueryKeys.page(DEFAULT_LIBRARY_VIEW_STATE);
-    queryClient.setQueryData(pageKey, pageData);
-    queryClient.setQueryData(libraryQueryKeys.detail(mangaId), detailData);
+  it('applies category assignments and status to the detail entry', () => {
+    const queryClient = detailClient();
     optimisticallyAddMangaToLibrary(queryClient, mangaId, manga, entryIdFor(mangaId));
 
     const categoryId = toCategoryId('category-1');
@@ -147,56 +117,21 @@ describe('optimistic library organization', () => {
       categoryIds: [categoryId],
     });
 
-    expect(queryClient.getQueryData<LibraryPageData>(pageKey)?.items[0]?.entry.categoryIds).toEqual(
-      [categoryId],
-    );
-    expect(
-      queryClient.getQueryData<MangaDetailData>(libraryQueryKeys.detail(mangaId))?.libraryEntry
-        ?.categoryIds,
-    ).toEqual([categoryId]);
+    expect(detailOf(queryClient)?.libraryEntry?.categoryIds).toEqual([categoryId]);
 
     optimisticallyApplyLibraryOrganizationAction(queryClient, {
       type: 'set_entries_status',
       entryIds: [entryIdFor(mangaId)],
       status: 'completed',
     });
-    expect(queryClient.getQueryData<LibraryPageData>(pageKey)?.items[0]?.entry.status).toBe(
-      'completed',
-    );
+    expect(detailOf(queryClient)?.libraryEntry?.status).toBe('completed');
   });
 
-  it('drops an optimistic entry when the active filter no longer matches', () => {
+  it('patches pinned category state on the detail categories', () => {
     const queryClient = new QueryClient();
-    const favoritesView = {
-      ...DEFAULT_LIBRARY_VIEW_STATE,
-      filter: { favoritesOnly: true },
-    };
-    const pageKey = libraryQueryKeys.page(favoritesView);
-    const defaultKey = libraryQueryKeys.page(DEFAULT_LIBRARY_VIEW_STATE);
-    queryClient.setQueryData(defaultKey, pageData);
-    queryClient.setQueryData(libraryQueryKeys.detail(mangaId), detailData);
-    optimisticallyAddMangaToLibrary(queryClient, mangaId, manga, entryIdFor(mangaId));
-    queryClient.setQueryData(pageKey, {
-      ...pageData,
-      viewState: favoritesView,
-      items: queryClient.getQueryData<LibraryPageData>(defaultKey)!.items,
-    });
-
-    optimisticallyApplyLibraryOrganizationAction(queryClient, {
-      type: 'set_entries_favorite',
-      entryIds: [entryIdFor(mangaId)],
-      favorite: false,
-    });
-
-    expect(queryClient.getQueryData<LibraryPageData>(pageKey)?.items).toHaveLength(0);
-  });
-
-  it('patches pinned category state on cached pages', () => {
-    const queryClient = new QueryClient();
-    const pageKey = libraryQueryKeys.page(DEFAULT_LIBRARY_VIEW_STATE);
     const categoryId = toCategoryId('category-1');
-    queryClient.setQueryData(pageKey, {
-      ...pageData,
+    queryClient.setQueryData(libraryQueryKeys.detail(mangaId), {
+      ...detailData,
       categories: [{ id: categoryId, name: 'Action' }],
     });
 
@@ -206,6 +141,6 @@ describe('optimistic library organization', () => {
       pinned: true,
     });
 
-    expect(queryClient.getQueryData<LibraryPageData>(pageKey)?.categories[0]?.pinned).toBe(true);
+    expect(detailOf(queryClient)?.categories?.[0]?.pinned).toBe(true);
   });
 });
