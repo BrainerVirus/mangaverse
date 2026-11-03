@@ -760,18 +760,22 @@ export async function listCachedChapterPageIndexes(
   },
 ): Promise<number[]> {
   const entries = await listCacheEntriesForManga(db, input.providerId, input.mangaId);
-  const indexes = new Set<number>();
-
-  for (const entry of entries) {
-    if (entry.cacheKind !== PAGE_CACHE_KIND || entry.chapterId !== input.chapterId) continue;
+  const candidates = entries.flatMap((entry) => {
+    if (entry.cacheKind !== PAGE_CACHE_KIND || entry.chapterId !== input.chapterId) return [];
     const pageIndex = entry.metadata?.pageIndex;
-    if (typeof pageIndex !== 'number') continue;
-    if (entry.blobKey === undefined || entry.blobKey === '') continue;
-    if (input.adapter !== undefined && !(await cachedBlobExists(input.adapter, entry.blobKey))) {
-      continue;
-    }
-    indexes.add(pageIndex);
-  }
+    if (typeof pageIndex !== 'number') return [];
+    if (entry.blobKey === undefined || entry.blobKey === '') return [];
+    return [{ pageIndex, blobKey: entry.blobKey }];
+  });
+  const adapter = input.adapter;
+  // One concurrent check per page keeps a chapter bounded without an await inside a loop.
+  const verified = await Promise.all(
+    candidates.map(async ({ pageIndex, blobKey }) => ({
+      pageIndex,
+      present: adapter === undefined || (await cachedBlobExists(adapter, blobKey)),
+    })),
+  );
+  const indexes = new Set(verified.filter((page) => page.present).map((page) => page.pageIndex));
 
   return [...indexes].sort((left, right) => left - right);
 }
