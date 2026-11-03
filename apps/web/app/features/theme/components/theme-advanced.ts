@@ -547,6 +547,11 @@ export function importThemeJson(text: string): ThemeJsonValidation {
 
 /** The one message a failed CSS export may show: a user-facing error keeps its copy. */
 export function themeExportErrorMessage(cause: unknown): string {
+  // A serialized AppError (code + user-written message) is user-facing; a thrown Error is not.
+  if (typeof cause === 'object' && cause !== null && !(cause instanceof Error)) {
+    const { code, message } = cause as { code?: unknown; message?: unknown };
+    if (typeof code === 'string' && typeof message === 'string') return message;
+  }
   return classifyAppError(cause, { fallbackMessage: 'Cannot export an invalid theme' }).message;
 }
 
