@@ -207,6 +207,7 @@ export function createDownloadEngine(deps: DownloadEngineDeps): DownloadEngine {
         providerId,
         mangaId: chapter.mangaId,
         chapterId: row.chapterId,
+        adapter,
       }),
     );
     const cachedInChapter = (): number =>

@@ -106,6 +106,25 @@ describe('page cache store', () => {
     expect(await listCachedChapterPageIndexes(db, CHAPTER)).toEqual(pages.map((p) => p.pageIndex));
   });
 
+  it('Given a cached row whose blob is gone, When listing complete pages, Then the page is not counted', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter } = createPageAdapter();
+    const pages = Array.from({ length: 3 }, (_value, pageIndex) => ({
+      pageIndex,
+      remoteUrl: `https://uploads.mangadex.org/missing${pageIndex}.jpg`,
+    }));
+    await prefetchChapterPages({ db, adapter, ...CHAPTER, pages });
+
+    const entries = await listCacheEntriesForManga(db, CHAPTER.providerId, CHAPTER.mangaId);
+    const middle = entries.find((entry) => entry.metadata?.pageIndex === 1);
+    if (middle?.blobKey === undefined) throw new Error('expected a cached blob key for page 1');
+    await adapter.blobStorage.delete(middle.blobKey);
+
+    // A row alone is a hint; with the adapter, a missing blob is not a finished page.
+    expect(await listCachedChapterPageIndexes(db, CHAPTER)).toEqual([0, 1, 2]);
+    expect(await listCachedChapterPageIndexes(db, { ...CHAPTER, adapter })).toEqual([0, 2]);
+  });
+
   it('Given a byte budget, When prefetching, Then new fetches stop once the budget is spent', async () => {
     const pages = Array.from({ length: 10 }, (_value, pageIndex) => ({
       pageIndex,

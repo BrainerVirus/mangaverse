@@ -721,13 +721,32 @@ export async function prefetchChapterPages(
   });
 }
 
-/** Page indexes of a chapter that have a cache entry, ascending. */
+/**
+ * Whether a cached row's bytes are still stored. A row can outlive its blob after a
+ * crash or a failed delete; counting it would report a chapter complete with a page
+ * that cannot render offline.
+ */
+async function cachedBlobExists(adapter: PlatformAdapter, blobKey: string): Promise<boolean> {
+  if (adapter.blobStorage.resolveUrl !== undefined) {
+    const resolved = await adapter.blobStorage.resolveUrl(blobKey);
+    return resolved.ok && resolved.value !== undefined;
+  }
+  const stored = await adapter.blobStorage.get(blobKey);
+  return stored.ok && stored.value !== undefined;
+}
+
+/**
+ * Page indexes of a chapter that have a cache entry and, when an adapter is given, bytes
+ * that are still stored. Ascending.
+ */
 export async function listCachedChapterPageIndexes(
   db: AppDrizzleDb,
   input: {
     readonly providerId: string;
     readonly mangaId: string;
     readonly chapterId: string;
+    /** Verifies each row's blob; without it only rows are counted (cache hints). */
+    readonly adapter?: PlatformAdapter;
   },
 ): Promise<number[]> {
   const entries = await listCacheEntriesForManga(db, input.providerId, input.mangaId);
@@ -736,7 +755,12 @@ export async function listCachedChapterPageIndexes(
   for (const entry of entries) {
     if (entry.cacheKind !== PAGE_CACHE_KIND || entry.chapterId !== input.chapterId) continue;
     const pageIndex = entry.metadata?.pageIndex;
-    if (typeof pageIndex === 'number') indexes.add(pageIndex);
+    if (typeof pageIndex !== 'number') continue;
+    if (entry.blobKey === undefined || entry.blobKey === '') continue;
+    if (input.adapter !== undefined && !(await cachedBlobExists(input.adapter, entry.blobKey))) {
+      continue;
+    }
+    indexes.add(pageIndex);
   }
 
   return [...indexes].sort((left, right) => left - right);
