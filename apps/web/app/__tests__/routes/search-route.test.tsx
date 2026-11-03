@@ -46,10 +46,11 @@ const mocks = vi.hoisted(() => ({
     >(),
   recordSearchQuery: vi.fn<(db: unknown, query: string) => Promise<void>>(),
   navigate: vi.fn<(options: unknown) => void>(),
+  useSearch: vi.fn<() => { q?: string }>(),
 }));
 
 vi.mock('@tanstack/react-router', () => ({
-  createFileRoute: () => (options: unknown) => ({ options }),
+  createFileRoute: () => (options: unknown) => ({ options, useSearch: mocks.useSearch }),
   useNavigate: () => mocks.navigate,
 }));
 
@@ -151,6 +152,7 @@ describe('/search route', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.useSearch.mockReturnValue({});
     mocks.fetchAppSettings.mockResolvedValue({
       settings: { explicitContent: false, showProviderErrors: true },
     });
@@ -243,6 +245,71 @@ describe('/search route', () => {
       });
     });
   }
+
+  /** Mounts the route again, e.g. after changing what the URL or the local read returns. */
+  function remount() {
+    act(() => {
+      root.render(
+        <QueryClientProvider client={new QueryClient()}>
+          <div />
+        </QueryClientProvider>,
+      );
+    });
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    act(() => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <SearchRoute />
+        </QueryClientProvider>,
+      );
+    });
+  }
+
+  it('Given an empty query and no history, Then a neutral prompt shows instead of "No results found"', async () => {
+    mocks.fetchSearchPage.mockImplementation((_db, viewState: SearchViewState) =>
+      Promise.resolve(emptyPage(viewState)),
+    );
+    remount();
+
+    await vi.waitFor(() => expect(container.textContent).toContain('Search your manga'));
+    expect(container.textContent).not.toContain('No results found');
+  });
+
+  it('Given ?q= in the URL, When the page opens, Then the query is filled in and searched', async () => {
+    mocks.useSearch.mockReturnValue({ q: 'berserk' });
+    remount();
+
+    expect(inputByLabel('Search manga').value).toBe('berserk');
+    await vi.waitFor(() => expect(buttonByText('Local berserk')).toBeDefined());
+    expect(
+      mocks.fetchSearchPage.mock.calls.some(([, viewState]) => viewState.query === 'berserk'),
+    ).toBe(true);
+  });
+
+  it('Given results, Then the result count shows once', async () => {
+    await act(async () => setQuery('berserk'));
+
+    await vi.waitFor(() => expect(buttonByText('Local berserk')).toBeDefined());
+    // textContent joins adjacent nodes, so match the phrase without a word boundary.
+    expect(container.textContent?.match(/1 result(?!s)/g)).toHaveLength(1);
+  });
+
+  it('Given a provider failure, Then the notice sits above the filters and the results', async () => {
+    mocks.fetchProviderSearchIdentities.mockRejectedValue(new Error('provider offline'));
+
+    await act(async () => setQuery('berserk'));
+
+    // The local read and the provider settle independently; wait for both.
+    await vi.waitFor(() => expect(buttonByText('Local berserk')).toBeDefined());
+    await vi.waitFor(() =>
+      expect(providerStatus()?.textContent).toContain('Provider search unavailable'),
+    );
+    const notice = providerStatus()!;
+    const filters = container.querySelector('section[aria-label="Search filters"]')!;
+    const result = buttonByText('Local berserk')!;
+    expect(notice.compareDocumentPosition(filters) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(notice.compareDocumentPosition(result) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 
   it('Given local results, When the provider is slow, Then local results render before the provider answers', async () => {
     let resolveProvider!: (identities: readonly MangaIdentity[]) => void;

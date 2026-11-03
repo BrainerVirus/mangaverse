@@ -167,6 +167,7 @@ export function useOfflinePagesNote(
       providerId: data.providerId,
       mangaId: data.mangaId,
       chapterId: data.chapterId,
+      adapter: cacheContext.adapter,
     }).then((cached) => {
       if (cancelled) return;
       setOfflinePages({

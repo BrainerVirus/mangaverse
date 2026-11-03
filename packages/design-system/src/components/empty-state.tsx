@@ -11,6 +11,7 @@ type EmptyStateType =
   | 'no-library'
   | 'no-provider'
   | 'no-results'
+  | 'search-prompt'
   | 'manga-not-found'
   | 'provider-not-found'
   | 'no-chapters'
@@ -42,6 +43,11 @@ const emptyStateConfig: Record<
     icon: <Search className="h-12 w-12 text-muted-foreground" />,
     title: 'No results found',
     description: 'Try adjusting your search or browse for different content.',
+  },
+  'search-prompt': {
+    icon: <Search className="h-12 w-12 text-muted-foreground" />,
+    title: 'Search your manga',
+    description: 'Type a title to search your library and your enabled sources.',
   },
   'manga-not-found': {
     icon: <BookX className="h-12 w-12 text-muted-foreground" />,

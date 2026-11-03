@@ -17,14 +17,15 @@ import {
   setMangaCoverOverride,
   setPreferredChapterSource,
 } from '@app/db';
-import type {
-  CategoryId,
-  ChapterId,
-  MangaId,
-  MangaIdentity,
-  MangaProviderMapping,
-  ProviderCapabilityKey,
-  ProviderMappingId,
+import {
+  classifyAppError,
+  type CategoryId,
+  type ChapterId,
+  type MangaId,
+  type MangaIdentity,
+  type MangaProviderMapping,
+  type ProviderCapabilityKey,
+  type ProviderMappingId,
 } from '@app/shared';
 import { failureMessage } from '../lib/app-feedback.js';
 import type { ProviderRelatedKind } from './provider-query-options.js';
@@ -220,6 +221,20 @@ export function chapterHydrationQueryKey(
 export function queryErrorMessage(error: unknown): string | undefined {
   if (error === null || error === undefined) return undefined;
   return failureMessage(error, 'The provider request failed.');
+}
+
+/**
+ * The user-safe text for a source load that failed with nothing saved locally.
+ * A source that says the title does not exist is the not-found page instead,
+ * since retrying cannot help there.
+ */
+export function sourceLoadError(failed: boolean, error: unknown): string | undefined {
+  if (!failed) return undefined;
+  const failure = classifyAppError(error, {
+    online: globalThis.navigator.onLine,
+    fallbackMessage: 'This title could not be loaded from its source. Try again.',
+  });
+  return failure.code === 'not-found' ? undefined : failure.message;
 }
 
 export function relatedQueryKey(

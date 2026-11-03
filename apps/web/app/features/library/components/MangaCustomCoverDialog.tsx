@@ -10,6 +10,7 @@ import {
   Input,
   Label,
 } from '@app/design-system';
+import { userFailureMessage } from '../failure-message.js';
 
 export interface MangaCustomCoverDialogProps {
   readonly open: boolean;
@@ -52,7 +53,7 @@ export function MangaCustomCoverDialog({
   function run(action: () => Promise<void> | void): void {
     setError(undefined);
     void Promise.resolve(action()).catch((caught: unknown) => {
-      setError(caught instanceof Error ? caught.message : 'Could not save the cover.');
+      setError(userFailureMessage(caught, 'Could not save the cover.'));
     });
   }
 

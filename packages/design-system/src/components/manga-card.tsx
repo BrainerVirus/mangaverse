@@ -97,7 +97,7 @@ function CardMeta({ manga, variant, sourceLabel }: MetaProps) {
         </h3>
 
         {sourceLabel !== undefined && !isCompact ? (
-          <p className="type-code mt-1 text-muted-foreground">{sourceLabel}</p>
+          <p className="type-meta mt-1 text-muted-foreground">{sourceLabel}</p>
         ) : null}
       </div>
 
