@@ -263,14 +263,14 @@ describe('MangaChapterList', () => {
     expect(rows[0]).toHaveAttribute('aria-posinset', '1');
   });
 
-  it('keeps the list and shows the error when a read write fails', async () => {
+  it('keeps the list and shows user-safe copy when a read write fails', async () => {
     render(
       <MangaChapterList
         chapters={chapters}
         mappingId={MAPPING_ID}
         onOpenChapter={() => {}}
         onSetChapterRead={async () => {
-          throw new Error('Could not update reading state.');
+          throw new Error('INTERNAL_SECRET at handle.run');
         }}
       />,
     );
@@ -278,6 +278,7 @@ describe('MangaChapterList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Mark read: chapter 1' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not update reading state.');
+    expect(screen.queryByText(/INTERNAL_SECRET/)).toBeNull();
     expect(screen.getByText('Chapter 1')).toBeInTheDocument();
   });
 

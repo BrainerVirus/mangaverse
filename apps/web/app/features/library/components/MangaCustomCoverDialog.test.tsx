@@ -52,6 +52,22 @@ describe('MangaCustomCoverDialog', () => {
     expect(props.onSave).not.toHaveBeenCalled();
   });
 
+  it('Given a failing save, Then the dialog shows user-safe copy and never the thrown text', async () => {
+    renderDialog({
+      onSave: vi.fn<(url: string) => Promise<void>>(async () => {
+        throw new Error('INTERNAL_SECRET at handle.run');
+      }),
+    });
+
+    fireEvent.change(screen.getByLabelText('Cover image URL'), {
+      target: { value: 'https://example.com/new.jpg' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save cover' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not save the cover.');
+    expect(screen.queryByText(/INTERNAL_SECRET/)).toBeNull();
+  });
+
   it('saves a valid URL and resets an existing override', async () => {
     const props = renderDialog({
       hasCustomCover: true,

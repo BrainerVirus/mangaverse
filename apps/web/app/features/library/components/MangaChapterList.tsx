@@ -36,6 +36,7 @@ import {
   type ChapterSort,
 } from '../chapter-list.js';
 import { useChapterVirtualizer } from '../hooks/use-chapter-virtualizer.js';
+import { userFailureMessage } from '../failure-message.js';
 
 export interface MangaChapterListProps {
   readonly chapters: readonly Chapter[];
@@ -234,7 +235,7 @@ function ChapterRowContent({
       <button
         type="button"
         aria-label={`Open ${chapter.title}`}
-        className="flex min-w-0 flex-1 items-center gap-3 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex min-w-0 flex-1 items-center gap-3 rounded-control py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         onClick={() => onOpenChapter(chapter.id)}
       >
         <span className="min-w-0">
@@ -600,7 +601,7 @@ export function MangaChapterList({
   function run(action: () => Promise<void> | void): void {
     setError(undefined);
     void Promise.resolve(action()).catch((caught: unknown) => {
-      setError(caught instanceof Error ? caught.message : 'Could not update reading state.');
+      setError(userFailureMessage(caught, 'Could not update reading state.'));
     });
   }
 

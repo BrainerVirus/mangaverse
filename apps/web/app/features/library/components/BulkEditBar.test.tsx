@@ -111,10 +111,10 @@ describe('BulkEditBar', () => {
     expect(props.onClearSelection).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps the category dialog open and shows the error when the write fails', async () => {
+  it('keeps the category dialog open and shows user-safe copy when the write fails', async () => {
     const user = userEvent.setup();
     const onOrganize = vi.fn<(action: LibraryOrganizationAction) => Promise<void>>(async () => {
-      throw new Error('Could not save categories.');
+      throw new Error('INTERNAL_SECRET at handle.run');
     });
     renderBulk({ onOrganize });
 
@@ -122,7 +122,8 @@ describe('BulkEditBar', () => {
     await user.click(screen.getByLabelText('Drama'));
     await user.click(screen.getByRole('button', { name: 'Add to selected' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Could not save categories.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not update the selection.');
+    expect(screen.queryByText(/INTERNAL_SECRET/)).toBeNull();
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByLabelText('Drama')).toBeChecked();
   });
