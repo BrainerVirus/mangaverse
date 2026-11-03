@@ -1,4 +1,5 @@
 import { DatabaseSync, type StatementSync } from 'node:sqlite';
+import { registerNodeSqliteFolds } from '../sql-fold.js';
 
 type Params = Parameters<StatementSync['all']>;
 
@@ -57,6 +58,8 @@ export class NodeSqliteClient {
 
   constructor(path: string) {
     this.database = new DatabaseSync(path);
+    // SQLite's lower() is ASCII-only; repositories order and match titles through these.
+    registerNodeSqliteFolds(this.database);
   }
 
   prepare(sql: string): Statement {

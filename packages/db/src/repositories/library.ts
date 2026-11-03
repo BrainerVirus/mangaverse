@@ -1,5 +1,6 @@
 import { and, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import type { AppResult } from '@app/shared';
+import { foldForMatch } from '../sql-fold.js';
 import {
   compareLibraryCategories,
   createAppError,
@@ -193,15 +194,16 @@ function libraryEntryFilter(filter: LibraryFilter | undefined): SQL | undefined 
       WHERE mapping.provider_id IN ${idList(filter.providerIds)}
     )`);
   }
-  const query = filter?.query?.trim().toLowerCase() ?? '';
+  const query = foldForMatch(filter?.query?.trim() ?? '');
   if (query.length > 0) {
     // The text the grid always matched: the canonical title or any stored title.
+    // `mv_fold_match` is Unicode-aware; SQLite's `lower()` is ASCII-only.
     conditions.push(sql`(
-      instr(lower(${mangaIdentities.canonicalTitle}), ${query}) > 0
+      instr(mv_fold_match(${mangaIdentities.canonicalTitle}), ${query}) > 0
       OR EXISTS (
         SELECT 1 FROM manga_titles title
         WHERE title.manga_id = ${libraryEntries.mangaId}
-          AND instr(lower(title.value), ${query}) > 0
+          AND instr(mv_fold_match(title.value), ${query}) > 0
       )
     )`);
   }
@@ -215,7 +217,8 @@ function libraryEntryFilter(filter: LibraryFilter | undefined): SQL | undefined 
 function libraryEntrySortValue(key: LibrarySortKey): SQL {
   switch (key) {
     case 'title':
-      return sql`nullif(${mangaIdentities.canonicalTitle}, '')`;
+      // Case- and accent-insensitive, as the old in-memory sort was via localeCompare.
+      return sql`nullif(mv_fold_sort(${mangaIdentities.canonicalTitle}), '')`;
     case 'last_updated':
       return sql`nullif(${libraryEntries.updatedAt}, '')`;
     case 'unread':

@@ -475,6 +475,46 @@ describe('listLibraryEntryPage', () => {
     expect(all.find((entry) => entry.id === entryIds[12])?.unreadCount).toBe(5);
   });
 
+  it('Given accented titles, When searching case-insensitively or sorting, Then Unicode is honored', async () => {
+    const harness = await createSqlJsHarness();
+    const titles = ['Zebra', 'Éclair', 'apple'];
+    for (const [index, title] of titles.entries()) {
+      const created = await createMangaIdentityWithInitialMapping(harness.db, {
+        canonicalTitle: title,
+        status: 'ongoing',
+        contentRating: 'safe',
+        providerId: toProviderId('prov-a'),
+        providerMangaId: `unicode-${index}`,
+      });
+      if (!created.ok) throw new Error(created.error.message);
+      const added = await addLibraryEntry(harness.db, {
+        mangaId: created.value.mangaId,
+        id: toLibraryEntryId(`unicode-entry-${index}`),
+        status: 'reading',
+      });
+      if (!added.ok) throw new Error(added.error.message);
+    }
+
+    for (const query of ['éclair', 'ÉCLAIR', 'é']) {
+      const page = await listLibraryEntryPage(harness.db, {
+        filter: { query },
+        sort: { key: 'title', direction: 'asc' },
+        limit: 10,
+      });
+      expect(page.items.map((entry) => entry.id)).toContain(toLibraryEntryId('unicode-entry-1'));
+    }
+
+    const sorted = await listLibraryEntryPage(harness.db, {
+      sort: { key: 'title', direction: 'asc' },
+      limit: 10,
+    });
+    expect(sorted.items.map((entry) => entry.id)).toEqual([
+      toLibraryEntryId('unicode-entry-2'),
+      toLibraryEntryId('unicode-entry-1'),
+      toLibraryEntryId('unicode-entry-0'),
+    ]);
+  });
+
   it('Given a query filter, Then the total counts matches beyond the first page', async () => {
     const { harness } = await seedLibrary();
     const page = await listLibraryEntryPage(harness.db, {

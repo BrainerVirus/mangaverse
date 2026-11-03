@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createRequestGate, parseRetryAfterMs } from './request-gate';
 
@@ -90,12 +90,29 @@ describe('createRequestGate', () => {
     expect(gate.blockedUntilMs()).toBe(nowMs + 5_000);
   });
 
-  it('Given a 429 without Retry-After, Then the gate falls back to a minute and caps at fifteen', () => {
+  it('Given a 429 without Retry-After, Then the gate falls back to a minute', () => {
     const nowMs = 0;
     expect(parseRetryAfterMs({}, nowMs)).toBe(60_000);
     expect(parseRetryAfterMs({ 'retry-after': 'garbage' }, nowMs)).toBe(60_000);
-    const farFuture = new Date(nowMs + 60 * 60_000).toUTCString();
-    expect(parseRetryAfterMs({ 'retry-after': farFuture }, nowMs)).toBe(15 * 60_000);
+  });
+
+  it("Given a Retry-After beyond the auto-wait limit, Then the gate keeps the source's full horizon and refuses instead of sleeping", async () => {
+    const nowMs = 1_000_000;
+    const sleeper = vi.fn(async () => undefined);
+    const gate = createRequestGate({
+      defaultRequestsPerMinute: 10,
+      now: () => nowMs,
+      sleep: sleeper,
+    });
+
+    expect(gate.noteResponse(429, { 'retry-after': '3600' })).toBe(3_600_000);
+    expect(gate.blockedUntilMs()).toBe(nowMs + 3_600_000);
+
+    await expect(gate.acquire()).rejects.toMatchObject({
+      code: 'extensions.sdk.ratelimit.blocked',
+      details: { retryAfterMs: 3_600_000 },
+    });
+    expect(sleeper).not.toHaveBeenCalled();
   });
 
   it('Given a request aborted while waiting, Then acquire rejects with the typed blocked error', async () => {
