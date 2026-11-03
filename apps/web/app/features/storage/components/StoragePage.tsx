@@ -15,6 +15,7 @@ import {
   SettingsSection,
 } from '@app/design-system';
 import { formatCacheBytes } from '@app/cache';
+import type { DownloadStatus } from '@app/db';
 import type { PlatformCapabilities } from '@app/platform';
 import { useState } from 'react';
 
@@ -27,6 +28,7 @@ export interface StoragePageProps {
   readonly isRefreshing?: boolean;
   readonly isClearing?: boolean;
   readonly isRequestingPersist?: boolean;
+  readonly isDownloadActionPending?: boolean;
   readonly summary: StorageSummary | null;
   readonly capabilities: PlatformCapabilities;
   readonly lastActionMessage?: string | null;
@@ -34,7 +36,29 @@ export interface StoragePageProps {
   onRefresh: () => void;
   onClear: (target: StorageClearTarget) => void;
   onRequestPersistentStorage: () => void;
+  onRetryDownload: (chapterId: string) => void;
+  onRemoveDownload: (chapterId: string) => void;
   onDismissActionStatus: () => void;
+}
+
+const DOWNLOAD_STATUS_LABEL: Record<DownloadStatus, string> = {
+  queued: 'Queued',
+  downloading: 'Downloading',
+  complete: 'Downloaded',
+  failed: 'Failed',
+  partial: 'Partial',
+  cancelled: 'Paused',
+};
+
+function downloadStatusText(item: StorageSummary['downloads']['items'][number]): string {
+  const label = DOWNLOAD_STATUS_LABEL[item.status];
+  if (item.status === 'downloading' || item.status === 'partial') {
+    return `${label} ${item.completedPages}/${item.pageCount}`;
+  }
+  if (item.status === 'failed' && item.failedPages > 0) {
+    return `${label} · ${item.failedPages} page${item.failedPages === 1 ? '' : 's'} missing`;
+  }
+  return label;
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
@@ -88,7 +112,7 @@ const CLEAR_COPY: Record<StorageClearTarget, { label: string; description: strin
   provider_cache: {
     label: 'Clear provider cache',
     description:
-      'Removes cached chapter metadata and cached image data from local storage. Your library, reading progress, and installed providers are kept.',
+      'Removes cached chapter metadata and cached image data from local storage. Downloads are kept, along with your library, reading progress, and installed providers.',
   },
   search_history: {
     label: 'Clear search history',
@@ -131,12 +155,88 @@ function ClearDialog({
   );
 }
 
+function DownloadsSection({
+  summary,
+  isPending,
+  onRetryDownload,
+  onRemoveDownload,
+}: {
+  readonly summary: StorageSummary;
+  readonly isPending: boolean;
+  onRetryDownload: (chapterId: string) => void;
+  onRemoveDownload: (chapterId: string) => void;
+}) {
+  const { downloads } = summary;
+
+  return (
+    <SettingsSection
+      title="Downloads"
+      description="Chapters saved for offline reading. Downloads are never removed automatically, even when the cache limit is reached."
+    >
+      <dl className="divide-y divide-border">
+        <InfoRow label="Downloaded chapters" value={String(downloads.count)} />
+        <InfoRow label="Download size" value={formatCacheBytes(downloads.bytes)} />
+      </dl>
+
+      {downloads.items.length > 0 ? (
+        <ul className="mt-4 space-y-2" aria-label="Downloaded chapters">
+          {downloads.items.map((item) => (
+            <li
+              key={item.chapterId}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-control bg-muted/40 px-3 py-2 text-sm"
+            >
+              <div className="min-w-0">
+                <p className="truncate font-medium text-foreground">{item.title}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {item.mangaTitle === undefined ? null : `${item.mangaTitle} · `}
+                  {downloadStatusText(item)} · {formatCacheBytes(item.bytes)}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                {item.status === 'failed' ||
+                item.status === 'partial' ||
+                item.status === 'cancelled' ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={isPending}
+                    aria-label={`Retry download: ${item.title}`}
+                    onClick={() => onRetryDownload(item.chapterId)}
+                  >
+                    Retry
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={isPending}
+                  aria-label={`Remove download: ${item.title}`}
+                  onClick={() => onRemoveDownload(item.chapterId)}
+                >
+                  Remove
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-4 text-sm text-muted-foreground">
+          No downloads yet. Download a chapter from its title to read it offline.
+        </p>
+      )}
+    </SettingsSection>
+  );
+}
+
 export function StoragePage({
   isLoading,
   isError,
   isRefreshing = false,
   isClearing = false,
   isRequestingPersist = false,
+  isDownloadActionPending = false,
   summary,
   capabilities,
   lastActionMessage = null,
@@ -144,6 +244,8 @@ export function StoragePage({
   onRefresh,
   onClear,
   onRequestPersistentStorage,
+  onRetryDownload,
+  onRemoveDownload,
   onDismissActionStatus,
 }: StoragePageProps) {
   const [pendingClear, setPendingClear] = useState<StorageClearTarget | null>(null);
@@ -231,11 +333,16 @@ export function StoragePage({
 
       <SettingsSection
         title="Provider cache"
-        description="Local records of cached chapters and images. Clearing this does not remove library entries."
+        description="Local records of cached chapters and images. Clearing this does not remove library entries or downloads."
       >
         <dl className="divide-y divide-border">
           <InfoRow label="Cache entries" value={String(summary.cacheEntryCount)} />
           <InfoRow label="Cached image data" value={formatCacheBytes(summary.cacheTotalBytes)} />
+          <InfoRow
+            label="Reclaimable cache"
+            value={formatCacheBytes(summary.cacheEvictableBytes)}
+          />
+          <InfoRow label="Protected downloads" value={formatCacheBytes(summary.downloads.bytes)} />
         </dl>
 
         {summary.cacheByProvider.length > 0 ? (
@@ -266,6 +373,13 @@ export function StoragePage({
           </Button>
         </div>
       </SettingsSection>
+
+      <DownloadsSection
+        summary={summary}
+        isPending={isDownloadActionPending}
+        onRetryDownload={onRetryDownload}
+        onRemoveDownload={onRemoveDownload}
+      />
 
       <SettingsSection
         title="Search data"

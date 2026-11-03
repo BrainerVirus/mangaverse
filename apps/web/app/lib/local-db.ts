@@ -40,6 +40,7 @@ const EXTENSION_LOGS_MIGRATION_HASH =
   'f5f3e68be2c6f46ff21681f230763e499e788ed133b0de3df942b443b5f07d12';
 const LIBRARY_PAGE_INDEXES_MIGRATION_HASH =
   '3e1d8437b48edaa6b8c2f90af9e0e863b1a2f120604ce533c1d21a2855fb285b';
+const DOWNLOADS_MIGRATION_HASH = '972b8031ccfb59c9dde30b52d04f6d4ede700bd25f806669fd0e47616188c6bc';
 
 type InitSqlJs = (config?: { locateFile?: (file: string) => string }) => Promise<SqlJsStatic>;
 
@@ -119,6 +120,7 @@ export function getLocalDbSession(): Promise<PersistentDatabase> {
           { default: installedExtensionManifestUrlMigrationSql },
           { default: extensionLogsMigrationSql },
           { default: libraryPageIndexesMigrationSql },
+          { default: downloadsMigrationSql },
           { default: migrationJournal },
           { createIndexedDbPersistedBytesStore },
         ] = await Promise.all([
@@ -134,6 +136,7 @@ export function getLocalDbSession(): Promise<PersistentDatabase> {
           import('@app/db/migrations/0006_installed_extension_manifest_url.sql?raw'),
           import('@app/db/migrations/0007_extension_logs.sql?raw'),
           import('@app/db/migrations/0008_library_page_indexes.sql?raw'),
+          import('@app/db/migrations/0009_downloads.sql?raw'),
           import('@app/db/migrations/meta/_journal.json'),
           import('./persisted-bytes-idb.js'),
         ]);
@@ -202,6 +205,11 @@ export function getLocalDbSession(): Promise<PersistentDatabase> {
                 tag: '0008_library_page_indexes',
                 sql: libraryPageIndexesMigrationSql,
                 hash: LIBRARY_PAGE_INDEXES_MIGRATION_HASH,
+              },
+              {
+                tag: '0009_downloads',
+                sql: downloadsMigrationSql,
+                hash: DOWNLOADS_MIGRATION_HASH,
               },
             ],
           },

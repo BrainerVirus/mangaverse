@@ -1,10 +1,12 @@
 import { createAppError, err, ok, type AppResult } from '@app/shared';
 import type { IpcMain, IpcMainInvokeEvent, WebFrameMain } from 'electron';
 import {
+  isStorageFullFailure,
   PLATFORM_IPC,
   platformInvalidUrl,
   platformIoFailed,
   platformIpcRequestSchema,
+  platformStorageFull,
   type PlatformIpcRequest,
 } from '@app/platform';
 import type { PageStore } from './page-store.js';
@@ -62,7 +64,13 @@ export function registerPageStoreIpc(deps: PageStoreIpcDeps): void {
       return Promise.resolve()
         .then(() => handler(args))
         .then(toIpcAppResult, (e: unknown) =>
-          toIpcAppResult(err(platformIoFailed('Page store call failed.', e))),
+          toIpcAppResult(
+            err(
+              isStorageFullFailure(e)
+                ? platformStorageFull('This device is out of storage.', e)
+                : platformIoFailed('Page store call failed.', e),
+            ),
+          ),
         );
     });
   }

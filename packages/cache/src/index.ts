@@ -4,6 +4,7 @@ export {
   PAGE_CACHE_KIND,
   CACHE_RETENTION_READ,
   CACHE_RETENTION_NORMAL,
+  CACHE_RETENTION_DOWNLOAD,
   buildCoverBlobKey,
   buildCoverCacheEntryId,
   buildPageBlobKey,
@@ -11,6 +12,7 @@ export {
   formatCacheBytes,
   megabytesToBytes,
   bytesToMegabytes,
+  type CacheRetention,
 } from './constants.js';
 
 export {
@@ -36,10 +38,19 @@ export {
   resolvePageUrl,
   listCachedChapterPageIndexes,
   markChapterPagesAsRead,
+  markChapterPagesDownloaded,
   prefetchChapterPages,
+  removeChapterPageEntries,
+  summarizeDownloadCache,
   type PageCacheLookupInput,
   type PageCacheStoreResult,
+  type PageCacheFailure,
+  type PageCacheFailureCode,
+  type PrefetchPage,
+  type PrefetchPageOutcome,
   type PrefetchQueueOutcome,
+  type DownloadCacheUsage,
+  type RemoveChapterCacheOutcome,
 } from './page-cache-store.js';
 
 export {

@@ -1,8 +1,10 @@
 import { err, ok, type AppResult } from '@app/shared';
 import type { IpcMain, IpcMainInvokeEvent, WebFrameMain } from 'electron';
 import {
+  isStorageFullFailure,
   PLATFORM_IPC,
   platformInvalidUrl,
+  platformStorageFull,
   platformUnexpected,
   platformIpcRequestSchema,
   type PlatformIpcRequest,
@@ -91,7 +93,13 @@ export function registerProviderNetworkIpc(deps: ProviderNetworkIpcDeps): void {
       return Promise.resolve()
         .then(() => handler(parsed.data.args as ArgsOf<C>))
         .then(toIpcAppResult, (e: unknown) =>
-          toIpcAppResult(err(platformUnexpected('Provider network call failed.', e))),
+          toIpcAppResult(
+            err(
+              isStorageFullFailure(e)
+                ? platformStorageFull('This device is out of storage.', e)
+                : platformUnexpected('Provider network call failed.', e),
+            ),
+          ),
         );
     });
   }

@@ -6,6 +6,7 @@ import type { PlatformCapabilities } from '@app/platform';
 import { QueryProvider } from '../providers/query-provider.js';
 import { LocalDbProvider } from '../providers/local-db-provider.js';
 import { CoverCacheBridge } from '../providers/cover-cache-bridge.js';
+import { DownloadsProvider } from '../features/downloads/index.js';
 import { PlatformProvider } from '../providers/platform-provider.js';
 import { ThemeProvider } from '../providers/theme-provider.js';
 import { ThemeSettingsBridge } from '../providers/theme-settings-bridge.js';
@@ -64,20 +65,22 @@ export function ShellProviders({ children, detectFn }: ShellProvidersProps) {
     <QueryProvider>
       <LocalDbProvider>
         <CoverCacheBridge>
-          <PlatformProvider detectFn={detectFn}>
-            <ThemeProvider>
-              <ShellAppearanceBridge />
-              <ThemeSettingsBridge />
-              <LocalDataPrefetch />
-              <KeyboardShortcuts />
-              <CommandPalette />
-              <Toaster />
-              <UpdatePrompt />
-              <OnboardingGate>
-                <AppShellOrReaderLayout>{children}</AppShellOrReaderLayout>
-              </OnboardingGate>
-            </ThemeProvider>
-          </PlatformProvider>
+          <DownloadsProvider>
+            <PlatformProvider detectFn={detectFn}>
+              <ThemeProvider>
+                <ShellAppearanceBridge />
+                <ThemeSettingsBridge />
+                <LocalDataPrefetch />
+                <KeyboardShortcuts />
+                <CommandPalette />
+                <Toaster />
+                <UpdatePrompt />
+                <OnboardingGate>
+                  <AppShellOrReaderLayout>{children}</AppShellOrReaderLayout>
+                </OnboardingGate>
+              </ThemeProvider>
+            </PlatformProvider>
+          </DownloadsProvider>
         </CoverCacheBridge>
       </LocalDbProvider>
     </QueryProvider>

@@ -36,8 +36,6 @@ export interface MangaDetailData {
   readonly categories?: readonly LibraryCategory[];
   /** One row per chapter the user has started or finished. */
   readonly readStates?: readonly ChapterReadState[];
-  /** Chapters whose page images are stored on this device (real cache rows, not page URLs). */
-  readonly downloadedChapterIds?: readonly ChapterId[];
 }
 
 /** Every write the library page can trigger, applied by `applyLibraryOrganizationAction`. */

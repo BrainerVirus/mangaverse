@@ -239,7 +239,8 @@ export function AppSettingsPage({
               }}
             />
             <p className="text-sm text-muted-foreground">
-              Covers and reader pages are stored locally and reused on later visits. Limit:{' '}
+              Covers and reader pages are stored locally and reused on later visits. Downloads are
+              never removed automatically, even when the limit is reached. Limit:{' '}
               {formatCacheBytes(settings.imageCacheLimitBytes)}
               {cacheUsageBytes !== undefined
                 ? ` · Used: ${formatCacheBytes(cacheUsageBytes)}`

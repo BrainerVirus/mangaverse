@@ -79,7 +79,15 @@ describe('MangaChapterList', () => {
       <MangaChapterList
         chapters={chapters}
         readStates={readStates}
-        downloadedChapterIds={[toChapterId('c-2')]}
+        downloads={[
+          {
+            chapterId: toChapterId('c-2'),
+            status: 'complete',
+            pageCount: 3,
+            completedPages: 3,
+            failedPages: 0,
+          },
+        ]}
         mappingId={MAPPING_ID}
         lastReadChapterId={toChapterId('c-1')}
         onOpenChapter={() => {}}
@@ -94,6 +102,52 @@ describe('MangaChapterList', () => {
     // The filter chips share the labels with the row badges.
     expect(screen.getAllByText('Read')).toHaveLength(2);
     expect(screen.getAllByText('Unread')).toHaveLength(3);
+  });
+
+  it('shows download status and sends the matching per-row command', () => {
+    const onDownloadCommand = vi.fn<(chapterId: string, command: string) => void>();
+    render(
+      <MangaChapterList
+        chapters={chapters}
+        downloads={[
+          {
+            chapterId: toChapterId('c-1'),
+            status: 'partial',
+            pageCount: 3,
+            completedPages: 2,
+            failedPages: 1,
+          },
+          {
+            chapterId: toChapterId('c-2'),
+            status: 'downloading',
+            pageCount: 10,
+            completedPages: 4,
+            failedPages: 0,
+          },
+        ]}
+        downloadProgress={{
+          chapterId: toChapterId('c-2'),
+          completedPages: 7,
+          pageCount: 10,
+        }}
+        mappingId={MAPPING_ID}
+        onOpenChapter={() => {}}
+        onDownloadCommand={onDownloadCommand}
+      />,
+    );
+
+    expect(screen.getByText('Partial 2/3')).toBeInTheDocument();
+    // Live engine progress replaces the persisted count while it downloads.
+    expect(screen.getByText('Downloading 7/10')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retry download: chapter 1' }));
+    expect(onDownloadCommand).toHaveBeenCalledWith(toChapterId('c-1'), 'retry');
+    fireEvent.click(screen.getByRole('button', { name: 'Remove download: chapter 1' }));
+    expect(onDownloadCommand).toHaveBeenCalledWith(toChapterId('c-1'), 'remove');
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel download: chapter 2' }));
+    expect(onDownloadCommand).toHaveBeenCalledWith(toChapterId('c-2'), 'cancel');
+    fireEvent.click(screen.getByRole('button', { name: 'Download chapter 3' }));
+    expect(onDownloadCommand).toHaveBeenCalledWith(toChapterId('c-3'), 'download');
   });
 
   it('filters to unread and read chapters', () => {

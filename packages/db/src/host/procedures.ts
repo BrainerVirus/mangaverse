@@ -4,6 +4,7 @@ import type { AppDrizzleDb } from '../adapter.js';
 import type { ProcedureName } from '../procedure-names.js';
 import * as sources from '../procedure-sources.js';
 import { CHAPTER_WINDOW_MAX } from '../repositories/chapters.js';
+import { DOWNLOAD_STATUSES } from '../repositories/downloads.js';
 
 // The host's trust boundary (ADR 0001, decision 5): every call's arguments are checked against
 // the shape the repository's TypeScript signature promises before it runs. Domain rules stay in
@@ -24,6 +25,32 @@ const logLevel = z.enum(['info', 'warn', 'error']);
 const mangaStatus = z.enum(['ongoing', 'completed', 'hiatus', 'cancelled', 'unknown']);
 const contentRating = z.enum(['unknown', 'safe', 'suggestive', 'mature', 'explicit']);
 const extensionHealth = z.enum(['ok', 'degraded', 'broken', 'unknown']);
+const downloadStatus = z.enum(DOWNLOAD_STATUSES);
+
+const downloadWrite = z.object({
+  chapterId: id,
+  mangaId: id,
+  providerId: text,
+  status: downloadStatus,
+  pageCount: count.optional(),
+  completedPages: count.optional(),
+  failedPageIndexes: z.array(count).optional(),
+  attempts: count.optional(),
+  lastErrorCode: text.nullable().optional(),
+  startedAt: text.nullable().optional(),
+  completedAt: text.nullable().optional(),
+});
+
+const downloadPatch = z.object({
+  status: downloadStatus.optional(),
+  pageCount: count.optional(),
+  completedPages: count.optional(),
+  failedPageIndexes: z.array(count).optional(),
+  attempts: count.optional(),
+  lastErrorCode: text.nullable().optional(),
+  startedAt: text.nullable().optional(),
+  completedAt: text.nullable().optional(),
+});
 
 const libraryEntry = z
   .object({
@@ -219,6 +246,16 @@ export const PROCEDURE_INPUTS: { readonly [K in ProcedureName]: z.ZodType<readon
   hasCacheBlobKey: z.tuple([text]),
   listAllCacheEntries: z.tuple([]),
   clearAllCacheEntries: z.tuple([]),
+
+  // downloads
+  upsertDownload: z.tuple([downloadWrite]),
+  updateDownloadState: z.tuple([id, downloadPatch]),
+  getDownload: z.tuple([id]),
+  listDownloadsForManga: z.tuple([id]),
+  listDownloads: z.tuple([]),
+  listActiveDownloads: z.tuple([]),
+  listDownloadDetails: z.tuple([]),
+  removeDownload: z.tuple([id]),
 
   // chapters
   upsertChapterMetadata: z.tuple([chapterMetadata]),

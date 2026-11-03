@@ -28,32 +28,41 @@ export function Toaster() {
   );
 }
 
+interface NotifyAction {
+  readonly label: string;
+  readonly onClick: () => void;
+}
+
 export interface NotifyFailureInput {
   /** Failures with the same key share one toast, however often they repeat. */
   readonly key: string;
   readonly message: string;
   readonly onRetry?: () => void;
+  /** Replaces the retry action, for a failure whose next step is not a retry. */
+  readonly action?: NotifyAction;
 }
 
 // react-doctor-disable-next-line react-doctor/only-export-components -- ruling: toast-single-module: spec F4 keeps Sonner behind one wrapper file, and no fast-refresh boundary depends on this module.
 export const notify = {
   /** Sonner replaces a toast that keeps its id, which is what deduplicates. */
-  failure({ key, message, onRetry }: NotifyFailureInput): void {
+  failure(this: void, { key, message, onRetry, action }: NotifyFailureInput): void {
+    const resolvedAction =
+      action ?? (onRetry === undefined ? undefined : { label: 'Retry', onClick: onRetry });
     sonner.error(message, {
       id: `failure:${key}:${message}`,
-      ...(onRetry === undefined ? {} : { action: { label: 'Retry', onClick: onRetry } }),
+      ...(resolvedAction === undefined ? {} : { action: resolvedAction }),
     });
   },
-  success(message: string): void {
+  success(this: void, message: string): void {
     sonner.success(message, { id: `success:${message}` });
   },
-  saving(): void {
+  saving(this: void): void {
     sonner.loading('Saving…', { id: SAVING_TOAST_ID });
   },
-  saved(): void {
+  saved(this: void): void {
     sonner.success('Saved', { id: SAVING_TOAST_ID });
   },
-  dismissSaving(): void {
+  dismissSaving(this: void): void {
     sonner.dismiss(SAVING_TOAST_ID);
   },
 };

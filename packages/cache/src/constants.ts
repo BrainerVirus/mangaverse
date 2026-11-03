@@ -3,6 +3,13 @@ export const PAGE_CACHE_KIND = 'page' as const;
 
 export const CACHE_RETENTION_READ = 'read' as const;
 export const CACHE_RETENTION_NORMAL = 'normal' as const;
+/** Explicitly downloaded pages: never evicted, and never downgraded to `read`. */
+export const CACHE_RETENTION_DOWNLOAD = 'download' as const;
+
+export type CacheRetention =
+  | typeof CACHE_RETENTION_NORMAL
+  | typeof CACHE_RETENTION_READ
+  | typeof CACHE_RETENTION_DOWNLOAD;
 
 export function isCacheBlobKey(key: string): boolean {
   return key.startsWith(`${COVER_CACHE_KIND}:`) || key.startsWith(`${PAGE_CACHE_KIND}:`);

@@ -90,7 +90,7 @@ describe('data host', () => {
     const migrations = side.client.database
       .prepare('SELECT count(*) AS n FROM __drizzle_migrations')
       .get();
-    expect(migrations?.n).toBe(9);
+    expect(migrations?.n).toBe(10);
     side.close();
   });
 

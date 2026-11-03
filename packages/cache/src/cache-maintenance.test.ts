@@ -21,6 +21,7 @@ import { blobLockName } from './blob-writes.js';
 import {
   getCachedPageObjectUrl,
   listCachedChapterPageIndexes,
+  markChapterPagesAsRead,
   storePageInCache,
 } from './page-cache-store.js';
 import { READER_PRESENCE_LOCK, readerChapterLockName } from './reader-locks.js';
@@ -630,6 +631,82 @@ describe('cache maintenance', () => {
     expect(outcome.failedBlobKeys).toEqual([]);
     expect(blobs.has(coverKey)).toBe(true);
     expect((await getCoverCacheUsage(db)).totalCount).toBe(1);
+  });
+  it('Given downloads over a tiny limit, When eviction runs, Then downloads survive and ordinary pages leave oldest first', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter, blobs } = createAdapter();
+
+    vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'));
+    await seedChapter(db, adapter, CHAPTER_1, 3);
+    vi.setSystemTime(new Date('2026-01-02T00:00:00.000Z'));
+    await seedChapter(db, adapter, CHAPTER_2, 3);
+    vi.setSystemTime(new Date('2026-01-03T00:00:00.000Z'));
+    for (let pageIndex = 0; pageIndex < 3; pageIndex += 1) {
+      await storePageInCache({
+        db,
+        adapter,
+        providerId: 'mangadex',
+        mangaId: 'dev-md-abc',
+        chapterId: 'chapter-download',
+        pageIndex,
+        remoteUrl: `https://example.com/download/${pageIndex}.jpg`,
+        data: new Uint8Array(PAGE_BYTES).buffer,
+        mimeType: 'image/jpeg',
+        retention: 'download',
+      });
+    }
+
+    const outcome = await evictCacheToLimit(db, adapter, { limitBytes: 60 });
+
+    // Only the older ordinary chapter was a candidate; the download's bytes are
+    // protected, so the store stays above the limit rather than deleting them.
+    expect(outcome.evictedCount).toBe(3);
+    expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toEqual([]);
+    expect(await listCachedChapterPageIndexes(db, CHAPTER_2)).toHaveLength(3);
+    expect(
+      await listCachedChapterPageIndexes(db, {
+        providerId: 'mangadex',
+        mangaId: 'dev-md-abc',
+        chapterId: 'chapter-download',
+      }),
+    ).toEqual([0, 1, 2]);
+    expect([...blobs.keys()].filter((key) => key.includes('chapter-download')).length).toBe(3);
+
+    // A second pass with only downloads and the newer chapter left takes the newer
+    // chapter too, never a download page.
+    await evictCacheToLimit(db, adapter, { limitBytes: 0 });
+    expect(await listCachedChapterPageIndexes(db, CHAPTER_2)).toEqual([]);
+    expect(
+      await listCachedChapterPageIndexes(db, {
+        providerId: 'mangadex',
+        mangaId: 'dev-md-abc',
+        chapterId: 'chapter-download',
+      }),
+    ).toEqual([0, 1, 2]);
+  });
+
+  it('Given a chapter read after being downloaded, When eviction runs, Then its pages stay', async () => {
+    const { db } = await createSqlJsHarness();
+    const { adapter } = createAdapter();
+    for (let pageIndex = 0; pageIndex < 4; pageIndex += 1) {
+      await storePageInCache({
+        db,
+        adapter,
+        ...CHAPTER_1,
+        pageIndex,
+        remoteUrl: `https://example.com/read-download/${pageIndex}.jpg`,
+        data: new Uint8Array(PAGE_BYTES).buffer,
+        mimeType: 'image/jpeg',
+        retention: 'download',
+      });
+    }
+    await markChapterPagesAsRead(db, CHAPTER_1);
+
+    expect(await evictCacheToLimit(db, adapter, { limitBytes: 0 })).toEqual({
+      evictedCount: 0,
+      failedBlobKeys: [],
+    });
+    expect(await listCachedChapterPageIndexes(db, CHAPTER_1)).toEqual([0, 1, 2, 3]);
   });
 });
 

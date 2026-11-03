@@ -1,4 +1,9 @@
-import { deleteBlobKeys, reclaimOrphanBlobs } from '@app/cache';
+import {
+  deleteBlobKeys,
+  reclaimOrphanBlobs,
+  CACHE_RETENTION_DOWNLOAD,
+  PAGE_CACHE_KIND,
+} from '@app/cache';
 import type { AppDrizzleDb } from '@app/db';
 import type { PlatformAdapter, PlatformCapabilities } from '@app/platform';
 import type { AppResult } from '@app/shared';
@@ -15,7 +20,14 @@ export async function clearStorageData(input: {
 
   if (target === 'provider_cache') {
     const { deleteCacheEntries, listAllCacheEntries } = await import('@app/db');
-    const entries = await listAllCacheEntries(db);
+    // A download is the user's offline copy, not cache: clearing provider cache keeps it.
+    const entries = (await listAllCacheEntries(db)).filter(
+      (entry) =>
+        !(
+          entry.cacheKind === PAGE_CACHE_KIND &&
+          entry.metadata?.retention === CACHE_RETENTION_DOWNLOAD
+        ),
+    );
 
     // Blobs first, then rows: a failed blob delete keeps its row so a retry can
     // find this blob again. Deletes are batched (blobs bounded-concurrent, rows in

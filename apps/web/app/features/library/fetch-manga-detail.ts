@@ -1,5 +1,4 @@
 import type { AppDrizzleDb } from '@app/db';
-import { PAGE_CACHE_KIND } from '@app/cache';
 import type { ChapterId, MangaId } from '@app/shared';
 import type { MangaDetailData } from './types.js';
 
@@ -11,7 +10,6 @@ export async function fetchMangaDetail(
     getLibraryEntryForManga,
     getLibraryEntryUnreadCount,
     getMangaIdentity,
-    listCacheEntriesForManga,
     listChapterReadStatesForManga,
     listChaptersForManga,
     listLibraryCategories,
@@ -28,21 +26,6 @@ export async function fetchMangaDetail(
     listLibraryCategories(db),
     listChapterReadStatesForManga(db, mangaId),
   ]);
-
-  // The cache table is keyed by provider, so one read per attached provider is
-  // enough; a chapter id identifies its mapping's chapter, not just the title's.
-  const providerIds = [...new Set(manga.providerMappings.map((mapping) => mapping.providerId))];
-  const cacheEntries = await Promise.all(
-    providerIds.map((providerId) => listCacheEntriesForManga(db, providerId, mangaId)),
-  );
-  const downloadedChapterIds = [
-    ...new Set(
-      cacheEntries
-        .flat()
-        .filter((entry) => entry.cacheKind === PAGE_CACHE_KIND && entry.chapterId !== undefined)
-        .map((entry) => entry.chapterId as ChapterId),
-    ),
-  ];
 
   // Read state changes in the reader; the stored count would otherwise go
   // stale until the next library update check.
@@ -64,6 +47,5 @@ export async function fetchMangaDetail(
     continueChapterId,
     categories,
     readStates,
-    downloadedChapterIds,
   };
 }

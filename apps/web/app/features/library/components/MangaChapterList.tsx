@@ -22,6 +22,11 @@ import {
   cn,
 } from '@app/design-system';
 import type { Chapter, ChapterId, ChapterReadState, ProviderMappingId } from '@app/shared';
+import type {
+  ChapterDownloadState,
+  DownloadCommand,
+  DownloadProgress,
+} from '@/features/downloads/types.js';
 import {
   chaptersForMapping,
   countUnreadChapters,
@@ -35,16 +40,19 @@ import { useChapterVirtualizer } from '../hooks/use-chapter-virtualizer.js';
 export interface MangaChapterListProps {
   readonly chapters: readonly Chapter[];
   readonly readStates?: readonly ChapterReadState[];
-  readonly downloadedChapterIds?: readonly ChapterId[];
+  readonly downloads?: readonly ChapterDownloadState[];
+  readonly downloadProgress?: DownloadProgress | null;
   readonly mappingId?: ProviderMappingId;
   readonly lastReadChapterId?: ChapterId;
   readonly isPending?: boolean;
   readonly isLoading?: boolean;
+  readonly isDownloadPending?: boolean;
   readonly loadError?: string;
   onOpenChapter: (chapterId: ChapterId) => void;
   onRetryLoad?: () => void;
   onSetChapterRead?: (chapterId: ChapterId, read: boolean) => Promise<void> | void;
   onMarkPreviousRead?: (chapterId: ChapterId) => Promise<void> | void;
+  onDownloadCommand?: (chapterId: ChapterId, command: DownloadCommand) => void;
 }
 
 const SORT_OPTIONS: readonly { value: ChapterSort; label: string }[] = [
@@ -120,12 +128,89 @@ interface ChapterRowContentProps {
   readonly chapter: Chapter;
   readonly isFirst: boolean;
   readonly isRead: boolean;
-  readonly isDownloaded: boolean;
+  readonly download: ChapterDownloadState | undefined;
   readonly isPending: boolean;
+  readonly isDownloadPending: boolean;
   onOpenChapter: (chapterId: ChapterId) => void;
   onSetChapterRead: ((chapterId: ChapterId, read: boolean) => Promise<void> | void) | undefined;
   onMarkPreviousRead: ((chapterId: ChapterId) => Promise<void> | void) | undefined;
+  onDownloadCommand: ((chapterId: ChapterId, command: DownloadCommand) => void) | undefined;
   run: (action: () => Promise<void> | void) => void;
+}
+
+interface DownloadPresentation {
+  readonly badge: {
+    readonly label: string;
+    readonly variant: 'secondary' | 'outline' | 'destructive';
+  };
+  readonly title: string;
+  readonly commands: readonly { readonly command: DownloadCommand; readonly label: string }[];
+}
+
+/** One row's download badge and the actions that fit its status. */
+function downloadPresentation(
+  download: ChapterDownloadState | undefined,
+): DownloadPresentation | undefined {
+  if (download === undefined) {
+    return {
+      badge: { label: 'Not downloaded', variant: 'outline' },
+      title: 'Download this chapter for offline reading',
+      commands: [{ command: 'download', label: 'Download' }],
+    };
+  }
+  switch (download.status) {
+    case 'queued':
+      return {
+        badge: { label: 'Queued', variant: 'secondary' },
+        title: 'Waiting to download',
+        commands: [{ command: 'cancel', label: 'Cancel' }],
+      };
+    case 'downloading':
+      return {
+        badge: {
+          label: `Downloading ${download.completedPages}/${download.pageCount}`,
+          variant: 'secondary',
+        },
+        title: 'Downloading this chapter',
+        commands: [{ command: 'cancel', label: 'Cancel' }],
+      };
+    case 'complete':
+      return {
+        badge: { label: 'Offline', variant: 'secondary' },
+        title: 'Downloaded on this device',
+        commands: [{ command: 'remove', label: 'Remove' }],
+      };
+    case 'partial':
+      return {
+        badge: {
+          label: `Partial ${download.completedPages}/${download.pageCount}`,
+          variant: 'outline',
+        },
+        title: `${download.failedPages} page${download.failedPages === 1 ? '' : 's'} could not be downloaded`,
+        commands: [
+          { command: 'retry', label: 'Retry' },
+          { command: 'remove', label: 'Remove' },
+        ],
+      };
+    case 'cancelled':
+      return {
+        badge: { label: 'Download paused', variant: 'outline' },
+        title: 'The download was stopped',
+        commands: [
+          { command: 'retry', label: 'Resume' },
+          { command: 'remove', label: 'Remove' },
+        ],
+      };
+    case 'failed':
+      return {
+        badge: { label: 'Download failed', variant: 'destructive' },
+        title: 'The download failed',
+        commands: [
+          { command: 'retry', label: 'Retry' },
+          { command: 'remove', label: 'Remove' },
+        ],
+      };
+  }
 }
 
 /** One row's controls; the `<li>` and its positioning stay with the list. */
@@ -133,13 +218,17 @@ function ChapterRowContent({
   chapter,
   isFirst,
   isRead,
-  isDownloaded,
+  download,
   isPending,
+  isDownloadPending,
   onOpenChapter,
   onSetChapterRead,
   onMarkPreviousRead,
+  onDownloadCommand,
   run,
 }: ChapterRowContentProps) {
+  const presentation = downloadPresentation(download);
+
   return (
     <>
       <button
@@ -160,14 +249,35 @@ function ChapterRowContent({
                 Pages cached
               </Badge>
             ) : null}
-            {isDownloaded ? (
-              <Badge variant="secondary" title="Page images are downloaded on this device">
-                Offline
+            {presentation !== undefined && download !== undefined ? (
+              <Badge variant={presentation.badge.variant} title={presentation.title}>
+                {presentation.badge.label}
               </Badge>
             ) : null}
           </span>
         </span>
       </button>
+
+      {onDownloadCommand !== undefined && presentation !== undefined
+        ? presentation.commands.map((action) => (
+            <Button
+              key={action.command}
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={isDownloadPending}
+              aria-label={
+                action.command === 'download'
+                  ? `Download chapter ${chapter.index}`
+                  : `${action.label} download: chapter ${chapter.index}`
+              }
+              aria-describedby={`chapter-title-${chapter.id}`}
+              onClick={() => onDownloadCommand(chapter.id, action.command)}
+            >
+              {action.label}
+            </Button>
+          ))
+        : null}
 
       {onSetChapterRead !== undefined ? (
         <Button
@@ -238,15 +348,17 @@ interface ChapterRowsProps {
   readonly totalCount: number;
   readonly mappingChapters: readonly Chapter[];
   readonly readIds: ReadonlySet<ChapterId>;
-  readonly downloaded: ReadonlySet<ChapterId>;
+  readonly downloaded: ReadonlyMap<ChapterId, ChapterDownloadState>;
   readonly containerRef: RefObject<HTMLOListElement | null>;
   readonly isVirtualized: boolean;
   readonly totalSize: number;
   readonly isPending: boolean;
+  readonly isDownloadPending: boolean;
   readonly onFocusRow: (index: number, edge: 'first' | 'last') => void;
   onOpenChapter: (chapterId: ChapterId) => void;
   onSetChapterRead: ((chapterId: ChapterId, read: boolean) => Promise<void> | void) | undefined;
   onMarkPreviousRead: ((chapterId: ChapterId) => Promise<void> | void) | undefined;
+  onDownloadCommand: ((chapterId: ChapterId, command: DownloadCommand) => void) | undefined;
   run: (action: () => Promise<void> | void) => void;
 }
 
@@ -302,10 +414,12 @@ function ChapterRows({
   isVirtualized,
   totalSize,
   isPending,
+  isDownloadPending,
   onFocusRow,
   onOpenChapter,
   onSetChapterRead,
   onMarkPreviousRead,
+  onDownloadCommand,
   run,
 }: ChapterRowsProps) {
   return (
@@ -341,11 +455,13 @@ function ChapterRows({
             chapter={chapter}
             isFirst={isFirstVisibleChapter(mappingChapters, chapter)}
             isRead={readIds.has(chapter.id)}
-            isDownloaded={downloaded.has(chapter.id)}
+            download={downloaded.get(chapter.id)}
             isPending={isPending}
+            isDownloadPending={isDownloadPending}
             onOpenChapter={onOpenChapter}
             onSetChapterRead={onSetChapterRead}
             onMarkPreviousRead={onMarkPreviousRead}
+            onDownloadCommand={onDownloadCommand}
             run={run}
           />
         </li>
@@ -389,16 +505,19 @@ function ChapterBody({
 export function MangaChapterList({
   chapters,
   readStates,
-  downloadedChapterIds = [],
+  downloads = [],
+  downloadProgress = null,
   mappingId,
   lastReadChapterId,
   isPending = false,
   isLoading = false,
+  isDownloadPending = false,
   loadError,
   onOpenChapter,
   onRetryLoad,
   onSetChapterRead,
   onMarkPreviousRead,
+  onDownloadCommand,
 }: MangaChapterListProps) {
   const [sort, setSort] = useState<ChapterSort>('number');
   const [filter, setFilter] = useState<ChapterFilter>('all');
@@ -409,7 +528,17 @@ export function MangaChapterList({
   const unreadCount = countUnreadChapters(mappingChapters, readIds);
   const visibleChapters = selectChapters(chapters, { mappingId, sort, filter, readIds });
   const lastReadChapter = chapters.find((chapter) => chapter.id === lastReadChapterId);
-  const downloaded = new Set(downloadedChapterIds);
+  const downloaded = new Map(downloads.map((state) => [state.chapterId, state]));
+  if (downloadProgress !== null) {
+    const current = downloaded.get(downloadProgress.chapterId);
+    if (current !== undefined && current.status === 'downloading') {
+      downloaded.set(downloadProgress.chapterId, {
+        ...current,
+        completedPages: downloadProgress.completedPages,
+        pageCount: downloadProgress.pageCount,
+      });
+    }
+  }
   const {
     containerRef,
     isVirtualized,
@@ -540,10 +669,12 @@ export function MangaChapterList({
         isVirtualized={isVirtualized}
         totalSize={totalSize}
         isPending={isPending}
+        isDownloadPending={isDownloadPending}
         onFocusRow={focusRow}
         onOpenChapter={onOpenChapter}
         onSetChapterRead={onSetChapterRead}
         onMarkPreviousRead={onMarkPreviousRead}
+        onDownloadCommand={onDownloadCommand}
         run={run}
       />
     </section>
