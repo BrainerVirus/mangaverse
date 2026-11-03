@@ -31,6 +31,7 @@ import type {
   PlatformInstallPromptState,
   PlatformProviderResponse,
   PlatformStorageEstimate,
+  ProviderNetworkRefusal,
   ProviderNetworkRegistration,
   WebPlatformEnvironment,
 } from './types.js';
@@ -90,11 +91,7 @@ function replaceProviderDomains(providers: readonly ProviderNetworkRegistration[
   }
 }
 
-function resolveWebEnvironment(environment?: WebPlatformEnvironment): WebPlatformEnvironment {
-  if (environment) {
-    return environment;
-  }
-
+function deriveWebEnvironment(): WebPlatformEnvironment {
   if (typeof globalThis.window === 'undefined' || typeof globalThis.document === 'undefined') {
     return {};
   }
@@ -183,8 +180,21 @@ function resolveWebEnvironment(environment?: WebPlatformEnvironment): WebPlatfor
   };
 }
 
+/**
+ * Browser defaults, with an injected environment layered on top. Passing a partial
+ * environment (for example only a refusal sink) must not erase storage, IndexedDB,
+ * object URLs or the other derived browser dependencies.
+ */
+function resolveWebEnvironment(environment?: WebPlatformEnvironment): WebPlatformEnvironment {
+  const derived = deriveWebEnvironment();
+  return environment === undefined ? derived : { ...derived, ...environment };
+}
+
 export function createWebPlatformAdapter(environment?: WebPlatformEnvironment): PlatformAdapter {
   const env = resolveWebEnvironment(environment);
+  const reportRefusal = (refusal: ProviderNetworkRefusal): void => {
+    env.onProviderRequestRefused?.(refusal);
+  };
 
   const capabilitiesSnapshot = (): PlatformCapabilities => {
     const derivedProbe: WebPlatformEnvironment['capabilityProbe'] = {
@@ -489,7 +499,39 @@ export function createWebPlatformAdapter(environment?: WebPlatformEnvironment): 
     },
 
     network: {
-      fetchBytes: async (url: string) => ok(await fetchNetworkBytes(url)),
+      fetchBytes: async (url: string, options) => {
+        const providerId = options?.providerId;
+        if (providerId !== undefined && !isProviderHostAllowed(providerId, url)) {
+          reportRefusal({
+            kind: 'image',
+            providerId,
+            host: providerHostOf(url) ?? '(invalid)',
+            reason: 'undeclared-host',
+          });
+          return err(platformInvalidUrl('Provider may not reach this host.'));
+        }
+
+        let refusedUrl: string | undefined;
+        const result = await fetchNetworkBytes(url, {
+          ...(env.fetch !== undefined ? { fetchImpl: env.fetch } : {}),
+          ...(providerId === undefined
+            ? {}
+            : { isFinalUrlAllowed: (final: string) => isProviderHostAllowed(providerId, final) }),
+          onRefused: (finalUrl: string) => {
+            refusedUrl = finalUrl;
+          },
+        });
+        if (refusedUrl !== undefined) {
+          reportRefusal({
+            kind: 'image',
+            providerId: providerId ?? '',
+            host: providerHostOf(refusedUrl) ?? '(invalid)',
+            reason: 'redirected-host',
+          });
+          return err(platformInvalidUrl('Provider may not reach this host.'));
+        }
+        return ok(result);
+      },
     },
 
     providerNetwork: {
@@ -507,6 +549,12 @@ export function createWebPlatformAdapter(environment?: WebPlatformEnvironment): 
       isAllowedHost: (providerId, url) => isProviderHostAllowed(providerId, url),
       request: (input) => {
         if (!isProviderHostAllowed(input.providerId, input.url)) {
+          reportRefusal({
+            kind: 'api',
+            providerId: input.providerId,
+            host: providerHostOf(input.url) ?? '(invalid)',
+            reason: 'undeclared-host',
+          });
           return Promise.resolve(err(platformInvalidUrl('Provider may not reach this host.')));
         }
         const fetchImpl = env.fetch ?? globalThis.fetch;
@@ -525,6 +573,12 @@ export function createWebPlatformAdapter(environment?: WebPlatformEnvironment): 
               // The browser follows redirects itself, so the final URL is checked
               // after the fact and a hop to an undeclared host is refused.
               if (response.url !== '' && !isProviderHostAllowed(input.providerId, response.url)) {
+                reportRefusal({
+                  kind: 'api',
+                  providerId: input.providerId,
+                  host: providerHostOf(response.url) ?? '(invalid)',
+                  reason: 'redirected-host',
+                });
                 return err(platformInvalidUrl('Provider may not reach this host.'));
               }
               const bodyText = await response.text();

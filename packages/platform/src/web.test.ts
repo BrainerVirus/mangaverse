@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { ProviderNetworkRefusal } from './types.js';
 import { createWebPlatformAdapter } from './web.js';
 
 describe('createWebPlatformAdapter', () => {
@@ -266,6 +267,34 @@ describe('web providerNetwork domains', () => {
     expect(redirected.error.code).toBe('platform.invalid-url');
   });
 
+  it('records an API refusal through the injected sink', async () => {
+    const refusals: ProviderNetworkRefusal[] = [];
+    const adapter = createWebPlatformAdapter({
+      fetch: vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
+        async () => new Response('{}', { status: 200 }),
+      ),
+      onProviderRequestRefused: (refusal) => refusals.push(refusal),
+    });
+    await adapter.providerNetwork.replaceProviders(
+      [{ providerId: 'mangadex', domains: ['api.mangadex.org'] }],
+      1,
+    );
+
+    await adapter.providerNetwork.request({
+      providerId: 'mangadex',
+      url: 'https://evil.example/manga',
+    });
+
+    expect(refusals).toEqual([
+      {
+        kind: 'api',
+        providerId: 'mangadex',
+        host: 'evil.example',
+        reason: 'undeclared-host',
+      },
+    ]);
+  });
+
   it('drops a provider on revoke so its next request is refused', async () => {
     const fetchImpl = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
       async () => new Response('{}', { status: 200 }),
@@ -284,5 +313,105 @@ describe('web providerNetwork domains', () => {
 
     expect(result.ok).toBe(false);
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
+
+describe('web providerNetwork byte fetches', () => {
+  function imageResponse(url: string): Response {
+    const response = new Response(new Uint8Array([1, 2, 3]), {
+      headers: { 'content-type': 'image/jpeg' },
+    });
+    Object.defineProperty(response, 'url', { value: url });
+    return response;
+  }
+
+  it('Given a declared image host, When the bytes come back, Then they are returned', async () => {
+    const fetchImpl = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
+      async (input) => imageResponse(String(input)),
+    );
+    const refusals: ProviderNetworkRefusal[] = [];
+    const adapter = createWebPlatformAdapter({
+      fetch: fetchImpl,
+      onProviderRequestRefused: (refusal) => refusals.push(refusal),
+    });
+    await adapter.providerNetwork.replaceProviders(
+      [{ providerId: 'mangadex', domains: ['uploads.mangadex.org'] }],
+      1,
+    );
+
+    const result = await adapter.network.fetchBytes('https://uploads.mangadex.org/page.jpg', {
+      providerId: 'mangadex',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected the bytes to be returned');
+    expect(result.value?.data.byteLength).toBe(3);
+    expect(refusals).toEqual([]);
+  });
+
+  it('Given a declared host that redirects to an undeclared one, Then no bytes are delivered', async () => {
+    const fetchImpl = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
+      async (input) =>
+        imageResponse(
+          String(input) === 'https://uploads.mangadex.org/redirect.jpg'
+            ? 'https://evil.example/page.jpg'
+            : String(input),
+        ),
+    );
+    const refusals: ProviderNetworkRefusal[] = [];
+    const adapter = createWebPlatformAdapter({
+      fetch: fetchImpl,
+      onProviderRequestRefused: (refusal) => refusals.push(refusal),
+    });
+    await adapter.providerNetwork.replaceProviders(
+      [{ providerId: 'mangadex', domains: ['uploads.mangadex.org'] }],
+      1,
+    );
+
+    const result = await adapter.network.fetchBytes('https://uploads.mangadex.org/redirect.jpg', {
+      providerId: 'mangadex',
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected the redirected fetch to be refused');
+    expect(result.error.code).toBe('platform.invalid-url');
+    expect(refusals).toEqual([
+      {
+        kind: 'image',
+        providerId: 'mangadex',
+        host: 'evil.example',
+        reason: 'redirected-host',
+      },
+    ]);
+  });
+
+  it('Given an undeclared image host, Then the fetch is refused before a request', async () => {
+    const fetchImpl = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(
+      async () => imageResponse('https://evil.example/page.jpg'),
+    );
+    const refusals: ProviderNetworkRefusal[] = [];
+    const adapter = createWebPlatformAdapter({
+      fetch: fetchImpl,
+      onProviderRequestRefused: (refusal) => refusals.push(refusal),
+    });
+    await adapter.providerNetwork.replaceProviders(
+      [{ providerId: 'mangadex', domains: ['uploads.mangadex.org'] }],
+      1,
+    );
+
+    const result = await adapter.network.fetchBytes('https://evil.example/page.jpg', {
+      providerId: 'mangadex',
+    });
+
+    expect(result.ok).toBe(false);
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(refusals).toEqual([
+      {
+        kind: 'image',
+        providerId: 'mangadex',
+        host: 'evil.example',
+        reason: 'undeclared-host',
+      },
+    ]);
   });
 });

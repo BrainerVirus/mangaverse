@@ -6,8 +6,9 @@ import { createAppPlatformAdapter } from '../features/diagnostics/create-app-pla
 import { feedback } from './app-feedback.js';
 
 /**
- * Serializes allowlist syncs. Main assigns each revision, so a renderer reload or
- * a backward wall clock cannot reuse a revision already fenced by a revoke.
+ * Serializes allowlist syncs. The transport assigns each revision (main on
+ * desktop, the page clock on web), so a renderer reload or a backward wall clock
+ * cannot reuse a revision already fenced by a revoke.
  */
 let queue: Promise<void> = Promise.resolve();
 
@@ -24,14 +25,15 @@ async function nextRevision(): Promise<number> {
  * snapshot. Main replaces its table with exactly this set, so a provider that was
  * disabled or uninstalled is removed even though this renderer remembers nothing
  * across a reload. Runs at startup and after every install, import, update, enable,
- * disable and uninstall. On the web the adapter is a no-op; the browser keeps its
- * own fetch. A failure rejects: main keeps its previous table, so the caller must
- * report it, and the next sync (or the user's retry) sends the snapshot again.
+ * disable and uninstall. On the web the adapter replaces the page-held table the
+ * browser transport enforces, so the same snapshot gates its requests. A failure
+ * rejects: the transport keeps its previous table, so the caller must report it,
+ * and the next sync (or the user's retry) sends the snapshot again.
  */
 export function syncProviderNetworkAllowlist(db: AppDrizzleDb): Promise<void> {
-  // Stamp inside the queue, and ask main: a snapshot queued behind a revoke must
-  // carry a newer revision, or main fences it and the provider stays blocked while
-  // the action reports success.
+  // Stamp inside the queue, and ask the transport: a snapshot queued behind a
+  // revoke must carry a newer revision, or it fences the snapshot and the provider
+  // stays blocked while the action reports success.
   const run = queue.then(async () => syncInstalledProviders(db, await nextRevision()));
   // A failed sync must not wedge the ones queued after it.
   queue = run.catch(() => undefined);
@@ -41,7 +43,8 @@ export function syncProviderNetworkAllowlist(db: AppDrizzleDb): Promise<void> {
 /**
  * For an action that already succeeded (install, import, startup): run the sync
  * and, if it fails, tell the user with a retry instead of dropping the failure.
- * Main keeps its previous table, so the new provider stays unreachable until then.
+ * The transport keeps its previous table, so the new provider stays unreachable
+ * until then.
  */
 export function syncProviderNetworkAllowlistReported(db: AppDrizzleDb): Promise<void> {
   return syncProviderNetworkAllowlist(db).catch((error: unknown) => {
@@ -58,12 +61,12 @@ export function syncProviderNetworkAllowlistReported(db: AppDrizzleDb): Promise<
 }
 
 /**
- * Remove one provider from main's table, then run `commit` (the disable or
- * uninstall). Both run in the sync queue, so no snapshot read before the commit
- * can land after the revoke and restore the provider, and the revoke's revision
- * fences any older one still on the wire. A failed revoke rejects before
+ * Remove one provider from the transport's table, then run `commit` (the disable
+ * or uninstall). Both run in the sync queue, so no snapshot read before the
+ * commit can land after the revoke and restore the provider, and the revoke's
+ * revision fences any older one still on the wire. A failed revoke rejects before
  * `commit` runs: the provider stays visibly enabled until the user retries,
- * instead of looking disabled while main still allows it.
+ * instead of looking disabled while the transport still allows it.
  */
 export function revokeProviderNetworkAccess(
   providerId: string,

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ok, type AppResult } from '@app/shared';
-import type { PlatformAdapter } from '@app/platform';
+import type { PlatformAdapter, PlatformNetworkFetchOptions } from '@app/platform';
 import { createSqlJsHarness } from '@app/db/testing';
 
 import {
@@ -434,5 +434,30 @@ describe('cover cache store with a main-side fetch-and-store', () => {
 
     expect(resolved).toBeUndefined();
     expect(fetchBytes).not.toHaveBeenCalled();
+  });
+
+  it('Given a provider cover on web, When fetching bytes, Then the provider id reaches the adapter', async () => {
+    const { db } = await createSqlJsHarness();
+    const base = createMockAdapter();
+    const fetchBytes = vi.fn<
+      (
+        url: string,
+        options?: PlatformNetworkFetchOptions,
+      ) => Promise<AppResult<{ data: ArrayBuffer; mimeType: string }>>
+    >(async () => ok({ data: new Uint8Array([1, 2, 3]).buffer, mimeType: 'image/jpeg' }));
+    const adapter: PlatformAdapter = { ...base, network: { fetchBytes } };
+
+    const resolved = await resolveCoverObjectUrl({
+      db,
+      adapter,
+      providerId: 'mangadex',
+      mangaId: 'dev-md-provider',
+      remoteUrl: 'https://uploads.mangadex.org/cover.jpg',
+    });
+
+    expect(resolved?.fromCache).toBe(false);
+    expect(fetchBytes).toHaveBeenCalledWith('https://uploads.mangadex.org/cover.jpg', {
+      providerId: 'mangadex',
+    });
   });
 });

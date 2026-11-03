@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { err, ok, type AppResult } from '@app/shared';
-import { platformStorageFull, type PlatformAdapter } from '@app/platform';
+import {
+  platformStorageFull,
+  type PlatformAdapter,
+  type PlatformNetworkFetchOptions,
+} from '@app/platform';
 import { createSqlJsHarness } from '@app/db/testing';
 
 import {
@@ -711,6 +715,31 @@ describe('page cache store with a main-side fetch-and-store', () => {
       removedEntries: 0,
       removedBytes: 0,
       failedBlobKeys: [],
+    });
+  });
+
+  it('Given a page on web, When fetching bytes, Then the provider id reaches the adapter', async () => {
+    const { db } = await createSqlJsHarness();
+    const base = createPageAdapter().adapter;
+    const fetchBytes = vi.fn<
+      (
+        url: string,
+        options?: PlatformNetworkFetchOptions,
+      ) => Promise<AppResult<{ data: ArrayBuffer; mimeType: string }>>
+    >(async () => ok({ data: new Uint8Array([1, 2, 3]).buffer, mimeType: 'image/jpeg' }));
+    const adapter: PlatformAdapter = { ...base, network: { fetchBytes } };
+
+    const resolved = await resolvePageObjectUrl({
+      db,
+      adapter,
+      ...CHAPTER,
+      pageIndex: 0,
+      remoteUrl: 'https://uploads.mangadex.org/page.jpg',
+    });
+
+    expect(resolved?.fromCache).toBe(false);
+    expect(fetchBytes).toHaveBeenCalledWith('https://uploads.mangadex.org/page.jpg', {
+      providerId: 'mangadex',
     });
   });
 });

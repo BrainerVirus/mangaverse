@@ -345,8 +345,10 @@
       // Provider code may not reach the network directly (spec 05 P1): every
       // request goes through the injected transport, so the host allowlist, the
       // per-provider rate gate and the main-process SSRF checks cannot be skipped.
-      // Tests and the fixture transport inject their own fetch and stay covered too;
-      // `globalThis.fetch` is a member expression, not the restricted global.
+      // Tests and the fixture transport inject their own fetch and stay covered too.
+      // `no-restricted-globals` catches bare `fetch`; `no-restricted-properties`
+      // closes the member-expression loophole (`globalThis.fetch`, `window.fetch`)
+      // that the globals rule cannot see, and a planted production call fails.
       "files": ["**/packages/extensions/src/**/*.{ts,tsx}"],
       "rules": {
         "no-restricted-globals": [
@@ -354,6 +356,19 @@
           {
             "name": "fetch",
             "message": "Provider code must use the injected transport; raw fetch is forbidden (spec 05 P1)."
+          }
+        ],
+        "no-restricted-properties": [
+          "error",
+          {
+            "object": "globalThis",
+            "property": "fetch",
+            "message": "Provider code must use the injected transport; globalThis.fetch is forbidden (spec 05 P1)."
+          },
+          {
+            "object": "window",
+            "property": "fetch",
+            "message": "Provider code must use the injected transport; window.fetch is forbidden (spec 05 P1)."
           }
         ]
       }

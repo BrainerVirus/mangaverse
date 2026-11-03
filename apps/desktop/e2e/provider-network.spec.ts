@@ -330,7 +330,7 @@ test('Given a 429 with Retry-After, When two searches run, Then the second waits
   await expect(input).toBeVisible({ timeout: 30_000 });
 
   // First search: the fixture answers 429 with Retry-After: 2, and the search
-  // query does not auto-retry, so the rate-limited failure reaches the UI.
+  // query does not retry a rate-limit failure, so it reaches the UI.
   await input.fill('berserk');
   await expect(page.getByText(/provider search failed/i)).toBeVisible({ timeout: 30_000 });
   expect(fixtureServer.searchStatuses[0]).toBe(429);

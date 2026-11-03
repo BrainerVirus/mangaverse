@@ -19,6 +19,28 @@ export interface PlatformNetworkFetchResult {
   readonly mimeType: string;
 }
 
+export interface PlatformNetworkFetchOptions {
+  /**
+   * The provider whose declared domains must also cover the URL a redirect lands
+   * on. Web checks the final URL before storing bytes; desktop ignores it because
+   * main enforces the allowlist on every hop.
+   */
+  readonly providerId?: string;
+}
+
+/** What a refused browser request carried: provider API JSON or image bytes. */
+export type ProviderNetworkRequestKind = 'api' | 'image';
+
+export type ProviderNetworkRefusalReason = 'undeclared-host' | 'redirected-host';
+
+/** A provider request the web adapter refused before its bytes could be used. */
+export interface ProviderNetworkRefusal {
+  readonly kind: ProviderNetworkRequestKind;
+  readonly providerId: string;
+  readonly host: string;
+  readonly reason: ProviderNetworkRefusalReason;
+}
+
 export type PlatformProviderRequestMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD';
 
 /**
@@ -217,12 +239,22 @@ export interface PlatformAdapter {
     ): Promise<AppResult<{ readonly sha256: string; readonly byteSize: number } | undefined>>;
   };
   readonly network: {
-    fetchBytes(url: string): Promise<AppResult<PlatformNetworkFetchResult | undefined>>;
+    /**
+     * Fetch image bytes. Web passes the provider id so the URL a redirect lands on
+     * is checked against the same allowlist before any bytes are returned; desktop
+     * leaves that enforcement to main.
+     */
+    fetchBytes(
+      url: string,
+      options?: PlatformNetworkFetchOptions,
+    ): Promise<AppResult<PlatformNetworkFetchResult | undefined>>;
   };
   /**
-   * Desktop only: tell main the complete set of enabled providers and their
-   * declared hosts. Main replaces its table with exactly this snapshot, so an id
-   * missing from it loses access; `revision` orders overlapping syncs.
+   * The provider transport and its declared-host allowlist. On desktop this talks
+   * to main, which owns the table and checks every hop; on web the page keeps the
+   * same table and enforces it itself. `replaceProviders` replaces the whole set,
+   * so an id missing from the snapshot loses access; `revision` orders overlapping
+   * syncs.
    */
   readonly providerNetwork: {
     replaceProviders(
@@ -393,6 +425,12 @@ export interface WebPlatformEnvironment {
   readonly indexedDB?: IDBFactory;
   /** Injected for tests; defaults to the page's own `fetch`. */
   readonly fetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+  /**
+   * Reports a provider API or image request the browser refused (an undeclared
+   * host, or a redirect that landed on one). The app wires this to its event log;
+   * without a sink the refusal still refuses, it is only not recorded.
+   */
+  readonly onProviderRequestRefused?: (refusal: ProviderNetworkRefusal) => void;
 }
 
 export interface ElectronCapabilityInput extends Partial<PlatformCapabilities> {

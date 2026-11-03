@@ -202,6 +202,39 @@ describe('createElectronPlatformAdapter', () => {
     expect(bridge.externalLinkOpen).not.toHaveBeenCalled();
   });
 
+  it('fetchBytes delegates to main and ignores the web provider option', async () => {
+    const networkFetchBytes = vi.fn<
+      (url: string) => Promise<AppResult<PlatformNetworkFetchResult | undefined>>
+    >(async () => ok({ data: new Uint8Array([1, 2, 3]).buffer, mimeType: 'image/jpeg' }));
+    const bridge: DesktopPlatformBridge = {
+      getCapabilities: async () => ok(caps),
+      clipboardReadText: async () => ok(''),
+      clipboardWriteText: async () => ok(undefined),
+      fileOpenText: async () => ok({ content: '' }),
+      fileSaveText: async () => ok({ content: '' }),
+      fullscreenEnter: async () => ok(undefined),
+      fullscreenExit: async () => ok(undefined),
+      fullscreenIsActive: async () => ok(false),
+      protocolGetPendingInstallUrl: async () => ok(null),
+      externalLinkOpen: async () => ok(undefined),
+      secureStorageGet: async () => ok(undefined),
+      secureStorageSet: async () => ok(undefined),
+      secureStorageDelete: async () => ok(undefined),
+      diagnosticsGetSnapshot: async () => ok({}),
+      localServiceGetInfo: async () => ok({ running: false, host: null, port: null }),
+      networkFetchBytes,
+      ...pageStoreStubs,
+    };
+    const adapter = createElectronPlatformAdapter(bridge);
+
+    const result = await adapter.network.fetchBytes('https://uploads.mangadex.org/page.jpg', {
+      providerId: 'mangadex',
+    });
+
+    expect(result.ok).toBe(true);
+    expect(networkFetchBytes).toHaveBeenCalledWith('https://uploads.mangadex.org/page.jpg');
+  });
+
   it('converts thrown bridge errors into AppResult failures', async () => {
     const bridge: DesktopPlatformBridge = {
       getCapabilities: async () => {
