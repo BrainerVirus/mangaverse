@@ -17,6 +17,7 @@ import { linter, type Diagnostic } from '@codemirror/lint';
 import { json } from '@codemirror/lang-json';
 import CodeMirror, { EditorView } from '@uiw/react-codemirror';
 
+import { actionFailureMessage } from '../../../lib/app-feedback.js';
 import { isCssColor } from '../color.js';
 import { buildThemeCssVariablesForDefinition } from '../derive.js';
 import type { ThemeAppearance, ThemeCssVariables } from '../tokens.js';
@@ -252,12 +253,13 @@ function JsonEditor({ draft, disabled = false, onChange }: ThemeEditorPanelProps
     try {
       return { css: exportThemeCss(draft), error: null };
     } catch (cause) {
+      // An AppError's message is written for users; a thrown Error is internal text.
       return {
         css: null,
-        error:
-          cause instanceof Error
-            ? cause.message
-            : 'The draft is not a valid theme, so it cannot be exported.',
+        error: actionFailureMessage(
+          cause,
+          'The draft is not a valid theme, so it cannot be exported.',
+        ),
       };
     }
   }, [draft]);
