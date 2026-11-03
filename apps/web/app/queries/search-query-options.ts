@@ -35,6 +35,37 @@ export function searchProvidersQueryOptions(db: AppDrizzleDb) {
   });
 }
 
+function errorCode(error: unknown): string | undefined {
+  if (typeof error !== 'object' || error === null) return undefined;
+  const code = (error as { readonly code?: unknown }).code;
+  return typeof code === 'string' ? code : undefined;
+}
+
+/**
+ * A rate-limit refusal is not retried: its remaining wait is shown with the
+ * Retry control, and a second request only spends the parked budget. The error
+ * may arrive wrapped by `fetchProviderSearchIdentities`, so the cause chain is
+ * followed too.
+ */
+function isRateLimitFailure(error: unknown): boolean {
+  let current: unknown = error;
+  for (let depth = 0; depth < 4 && typeof current === 'object' && current !== null; depth += 1) {
+    const code = errorCode(current);
+    if (code === 'extensions.sdk.ratelimit.blocked') return true;
+    if (code === 'extensions.sdk.request.http_error') {
+      const details = (current as { readonly details?: { readonly status?: unknown } }).details;
+      if (details?.status === 429) return true;
+    }
+    current = (current as { readonly cause?: unknown }).cause;
+  }
+  return false;
+}
+
+/** One retry for a transient provider failure; never for a rate-limit park. */
+export function shouldRetryProviderSearch(failureCount: number, error: unknown): boolean {
+  return failureCount < 1 && !isRateLimitFailure(error);
+}
+
 /**
  * Provider identities for the typed query, one query per provider so a failure
  * or a retry stays local to that provider. Disabled for blank queries.
@@ -54,10 +85,10 @@ export function searchProviderQueryOptions(
       fetchProviderSearchIdentities(db, providerId, trimmed, signal, explicitContent),
     staleTime: QUERY_STALE_TIMES.search,
     gcTime: QUERY_GC_TIMES.search,
-    // A user-triggered provider search is not retried automatically: a 429 is
-    // surfaced with its Retry control instead of silently spending a second
-    // request, and typing a new query is the natural retry.
-    retry: false,
+    // A rate-limit refusal is surfaced with its Retry control instead of silently
+    // spending a second request. A transient provider failure gets one retry, so a
+    // blip does not blank the remote results.
+    retry: shouldRetryProviderSearch,
     enabled: enabled && trimmed.length > 0,
   });
 }
