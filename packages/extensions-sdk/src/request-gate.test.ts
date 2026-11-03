@@ -98,7 +98,7 @@ describe('createRequestGate', () => {
 
   it("Given a Retry-After beyond the auto-wait limit, Then the gate keeps the source's full horizon and refuses instead of sleeping", async () => {
     const nowMs = 1_000_000;
-    const sleeper = vi.fn(async () => undefined);
+    const sleeper = vi.fn<() => Promise<void>>(async () => undefined);
     const gate = createRequestGate({
       defaultRequestsPerMinute: 10,
       now: () => nowMs,
