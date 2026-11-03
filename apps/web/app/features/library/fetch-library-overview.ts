@@ -1,6 +1,11 @@
 import type { AppDrizzleDb } from '@app/db';
-import type { ChapterId, LibraryFilter, ProviderMappingId } from '@app/shared';
-import { filterLibraryItemsByQuery } from './filter-items.js';
+import type {
+  ChapterId,
+  LibraryEntry,
+  LibraryFilter,
+  MangaIdentity,
+  ProviderMappingId,
+} from '@app/shared';
 import type { LibraryItem } from './types.js';
 
 export const CONTINUE_READING_LIMIT = 6;
@@ -63,6 +68,11 @@ function lastReadFirst(a: LibraryOverviewItem, b: LibraryOverviewItem): number {
  * the library never waits on a provider. Both sections apply the page filter,
  * so a category or status filter narrows the sections with the grid.
  *
+ * Each shelf is selected and bounded in SQL (`listLibraryContinueReading`,
+ * `listLibraryRecentlyUpdated`), so opening the library never loads every title's
+ * chapters. Chapter stats are then read only for the handful of selected rows;
+ * this is what keeps the overview off the 200,000-chapter path.
+ *
  * "Recently updated" means chapters past the last read one, not a provider sync
  * timestamp: chapter `updatedAt` moves on every re-check and would fake a change.
  * Chapter indexes only compare inside one provider mapping; a provider switch can
@@ -72,35 +82,43 @@ export async function fetchLibraryOverview(
   db: AppDrizzleDb,
   options: FetchLibraryOverviewOptions = {},
 ): Promise<LibraryOverviewData> {
-  const { getLibraryChapterStats, getMangaIdentities, listLibraryEntries } =
-    await import('@app/db');
-  const entries = await listLibraryEntries(
-    db,
-    options.filter === undefined ? undefined : { filter: options.filter },
-  );
-  if (entries.length === 0) return { continueReading: [], recentlyUpdated: [] };
+  const {
+    getLibraryChapterStats,
+    getMangaIdentities,
+    listLibraryContinueReading,
+    listLibraryRecentlyUpdated,
+  } = await import('@app/db');
+  const continueLimit = options.continueLimit ?? CONTINUE_READING_LIMIT;
+  const recentlyUpdatedLimit = options.recentlyUpdatedLimit ?? RECENTLY_UPDATED_LIMIT;
+  const filter = options.filter;
+  const query = filter === undefined ? {} : { filter };
 
-  const identities = await getMangaIdentities(
-    db,
-    entries.map((entry) => entry.mangaId),
+  const [continueEntries, updatedEntries] = await Promise.all([
+    listLibraryContinueReading(db, { ...query, limit: continueLimit }),
+    listLibraryRecentlyUpdated(db, { ...query, limit: recentlyUpdatedLimit }),
+  ]);
+  if (continueEntries.length === 0 && updatedEntries.length === 0) {
+    return { continueReading: [], recentlyUpdated: [] };
+  }
+
+  // One stats read for the union of both shelves, never the whole library.
+  const byId = new Map<string, LibraryEntry>();
+  for (const entry of [...continueEntries, ...updatedEntries]) byId.set(entry.id, entry);
+  const selected = [...byId.values()];
+  const [identities, stats] = await Promise.all([
+    getMangaIdentities(
+      db,
+      selected.map((entry) => entry.mangaId),
+    ),
+    getLibraryChapterStats(db, selected),
+  ]);
+  const identityById = new Map<string, MangaIdentity>(
+    identities.map((identity) => [identity.id, identity]),
   );
-  const identityById = new Map(identities.map((identity) => [identity.id, identity]));
-  const visible = entries.flatMap((entry): LibraryItem[] => {
+
+  const itemFor = (entry: LibraryEntry): LibraryOverviewItem | undefined => {
     const manga = identityById.get(entry.mangaId);
-    return manga === undefined ? [] : [{ entry, manga }];
-  });
-  // `listLibraryEntries` handles every structured filter; the free-text query
-  // is applied here with the same matcher the grid uses.
-  const matchedIds = new Set(
-    filterLibraryItemsByQuery(visible, options.filter?.query ?? '').map((item) => item.entry.id),
-  );
-  const selected = visible.filter((item) => matchedIds.has(item.entry.id));
-
-  const stats = await getLibraryChapterStats(
-    db,
-    selected.map((item) => item.entry),
-  );
-  const items = selected.map(({ entry, manga }): LibraryOverviewItem => {
+    if (manga === undefined) return undefined;
     const entryStats = stats.get(entry.id);
     return {
       item: { entry, manga },
@@ -117,14 +135,16 @@ export async function fetchLibraryOverview(
         : { lastReadChapter: entryStats.lastReadChapter }),
       ...(entryStats?.lastReadAt === undefined ? {} : { lastReadAt: entryStats.lastReadAt }),
     };
-  });
+  };
+  const continueItems = continueEntries.flatMap((entry) => itemFor(entry) ?? []);
+  const updatedItems = updatedEntries.flatMap((entry) => itemFor(entry) ?? []);
 
-  const continueReading = items
+  const continueReading = continueItems
     .filter((item) => item.item.entry.lastReadChapterId !== undefined)
     .sort(lastReadFirst)
-    .slice(0, options.continueLimit ?? CONTINUE_READING_LIMIT);
+    .slice(0, continueLimit);
 
-  const recentlyUpdated = items
+  const recentlyUpdated = updatedItems
     .filter((item) => {
       const latest = item.latestChapter;
       if (item.unreadCount === 0 || latest === undefined) return false;
@@ -135,7 +155,7 @@ export async function fetchLibraryOverview(
       return latest.index > lastRead.index;
     })
     .sort(newestFirst)
-    .slice(0, options.recentlyUpdatedLimit ?? RECENTLY_UPDATED_LIMIT);
+    .slice(0, recentlyUpdatedLimit);
 
   return { continueReading, recentlyUpdated };
 }

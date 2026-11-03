@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
+import type { Database, SqlValue } from 'sql.js';
 import {
   addLibraryEntry,
   addProviderMapping,
@@ -274,4 +275,79 @@ describe('fetchLibraryOverview', () => {
     expect(overview.recentlyUpdated).toHaveLength(1);
     expect(overview.recentlyUpdated[0]?.latestChapter?.addedAt).toBeUndefined();
   });
+
+  it('Given a library, Then chapter stats read only the selected rows', async () => {
+    const { db, raw } = await createSqlJsHarness();
+    seedOverviewLibrary(raw, 120, 10);
+
+    // The whole-library path passed every manga id (chunked at 500) to its chapters
+    // query. A bounded overview asks for at most both shelves (14 entries).
+    const statements: { readonly sql: string; readonly params: readonly SqlValue[] }[] = [];
+    const prepare = raw.prepare.bind(raw);
+    raw.prepare = ((sql: string) => {
+      const statement = prepare(sql);
+      const bind = statement.bind.bind(statement);
+      (statement as unknown as { bind: (params?: SqlValue[]) => unknown }).bind = (
+        params?: SqlValue[],
+      ) => {
+        if (/^(select|with)/i.test(sql.trim())) statements.push({ sql, params: params ?? [] });
+        return bind(params);
+      };
+      return statement;
+    }) as typeof raw.prepare;
+
+    const overview = await fetchLibraryOverview(db);
+    raw.prepare = prepare;
+
+    expect(overview.continueReading.length).toBeGreaterThan(0);
+    expect(overview.recentlyUpdated.length).toBeGreaterThan(0);
+    const chapterReads = statements.filter((statement) =>
+      /from\s+"?chapters"?/i.test(statement.sql),
+    );
+    expect(chapterReads.length).toBeGreaterThan(0);
+    for (const statement of chapterReads) {
+      expect({ sql: statement.sql, bounded: statement.params.length <= 32 }).toEqual({
+        sql: statement.sql,
+        bounded: true,
+      });
+    }
+  });
 });
+
+function seedOverviewLibrary(raw: Database, titles: number, chaptersPerTitle: number): void {
+  const n = (count: number) =>
+    `WITH RECURSIVE n(x) AS (SELECT 0 UNION ALL SELECT x+1 FROM n WHERE x < ${count - 1})`;
+  raw.run(`
+    ${n(titles)}
+    INSERT INTO manga_identities
+      (id, canonical_title, status, content_rating, merged, default_provider_mapping_id)
+    SELECT 'manga-' || printf('%04d', x), 'Title ' || printf('%04d', x), 'ongoing', 'safe', 0,
+           'mapping-' || printf('%04d', x)
+    FROM n;
+    ${n(titles)}
+    INSERT INTO manga_provider_mappings (id, manga_id, provider_id, provider_manga_id)
+    SELECT 'mapping-' || printf('%04d', x), 'manga-' || printf('%04d', x), 'prov-a', 'remote-' || x
+    FROM n;
+    ${n(titles)}
+    INSERT INTO library_entries
+      (id, manga_id, favorite, status, unread_count, added_at, updated_at, last_read_chapter_id)
+    SELECT 'entry-' || printf('%04d', x), 'manga-' || printf('%04d', x), 0, 'reading', 0,
+           '2026-01-01T00:00:00.000Z', '2026-02-01T00:00:00.000Z',
+           CASE WHEN x % 10 = 0 THEN 'chapter-' || (x * ${chaptersPerTitle}) ELSE NULL END
+    FROM n;
+    ${n(titles * chaptersPerTitle)}
+    INSERT INTO chapters (id, manga_id, provider_mapping_id, title, chapter_index)
+    SELECT 'chapter-' || x,
+           'manga-' || printf('%04d', x / ${chaptersPerTitle}),
+           'mapping-' || printf('%04d', x / ${chaptersPerTitle}),
+           'Chapter ' || (x % ${chaptersPerTitle}),
+           x % ${chaptersPerTitle}
+    FROM n;
+    ${n(titles)}
+    INSERT INTO chapter_read_state
+      (chapter_id, manga_id, read_percent, last_page_index, completed, updated_at)
+    SELECT 'chapter-' || (x * ${chaptersPerTitle}), 'manga-' || printf('%04d', x), 1, 0, 1,
+           '2026-03-01T00:00:00.000Z'
+    FROM n WHERE x % 10 = 0;
+  `);
+}
