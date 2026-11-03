@@ -91,11 +91,7 @@ function replaceProviderDomains(providers: readonly ProviderNetworkRegistration[
   }
 }
 
-function resolveWebEnvironment(environment?: WebPlatformEnvironment): WebPlatformEnvironment {
-  if (environment) {
-    return environment;
-  }
-
+function deriveWebEnvironment(): WebPlatformEnvironment {
   if (typeof globalThis.window === 'undefined' || typeof globalThis.document === 'undefined') {
     return {};
   }
@@ -182,6 +178,16 @@ function resolveWebEnvironment(environment?: WebPlatformEnvironment): WebPlatfor
       : {}),
     ...(typeof globalThis.indexedDB !== 'undefined' ? { indexedDB: globalThis.indexedDB } : {}),
   };
+}
+
+/**
+ * Browser defaults, with an injected environment layered on top. Passing a partial
+ * environment (for example only a refusal sink) must not erase storage, IndexedDB,
+ * object URLs or the other derived browser dependencies.
+ */
+function resolveWebEnvironment(environment?: WebPlatformEnvironment): WebPlatformEnvironment {
+  const derived = deriveWebEnvironment();
+  return environment === undefined ? derived : { ...derived, ...environment };
 }
 
 export function createWebPlatformAdapter(environment?: WebPlatformEnvironment): PlatformAdapter {
