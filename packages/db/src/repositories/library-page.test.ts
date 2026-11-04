@@ -479,6 +479,40 @@ describe('listLibraryEntryPage', () => {
     expect(all.find((entry) => entry.id === entryIds[12])?.unreadCount).toBe(5);
   });
 
+  it('Given entry ids, Then the page and total narrow to them within the filter and the sort', async () => {
+    const { harness, entryIds } = await seedLibrary();
+    const sort: LibrarySort = { key: 'title', direction: 'asc' };
+    // Alpha, Beta and Epsilon are favorites; Gamma is not.
+    const [alpha, beta, gamma, , epsilon] = entryIds;
+
+    const named = await listLibraryEntryPage(harness.db, {
+      sort,
+      entryIds: [gamma!, alpha!, epsilon!],
+      limit: 200,
+    });
+    expect(named.items.map((entry) => entry.id)).toEqual([alpha, epsilon, gamma]);
+    expect(named.total).toBe(3);
+
+    const favorites = await listLibraryEntryPage(harness.db, {
+      filter: { favoritesOnly: true },
+      sort,
+      entryIds: [gamma!, beta!],
+      limit: 200,
+    });
+    expect(favorites.items.map((entry) => entry.id)).toEqual([beta]);
+    expect(favorites.total).toBe(1);
+
+    const outside = await listLibraryEntryPage(harness.db, {
+      filter: { favoritesOnly: true },
+      entryIds: [gamma!],
+      limit: 1,
+    });
+    expect(outside).toEqual({ items: [], total: 0 });
+
+    const none = await listLibraryEntryPage(harness.db, { entryIds: [], limit: 200 });
+    expect(none).toEqual({ items: [], total: 0 });
+  });
+
   it('Given a query filter, Then the total counts matches beyond the first page', async () => {
     const { harness } = await seedLibrary();
     const page = await listLibraryEntryPage(harness.db, {

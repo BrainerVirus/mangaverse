@@ -1,5 +1,5 @@
 import type { AppDrizzleDb } from '@app/db';
-import type { LibraryViewState } from '@app/shared';
+import type { LibraryEntry, LibraryEntryId, LibraryViewState } from '@app/shared';
 import type { LibraryItem, LibraryPageData } from './types.js';
 
 /** The first page a view loads; more pages are asked for as the user scrolls. */
@@ -24,24 +24,52 @@ export async function fetchLibraryItems(
   viewState: LibraryViewState,
   request: LibraryPageRequest = {},
 ): Promise<LibraryItemPage> {
-  const { getMangaIdentities, listLibraryEntryPage } = await import('@app/db');
+  const { listLibraryEntryPage } = await import('@app/db');
   const page = await listLibraryEntryPage(db, {
     filter: viewState.filter,
     sort: viewState.sort,
     limit: request.limit ?? LIBRARY_PAGE_SIZE,
     ...(request.offset === undefined ? {} : { offset: request.offset }),
   });
+  return { items: await withIdentities(db, page.items), total: page.total };
+}
 
+/**
+ * One title as the view shows it, read on its own: undefined when it does not match the
+ * view's filter, or ranks after `before` in the view's order. A row refresh reads this
+ * instead of the whole page.
+ */
+export async function fetchLibraryItem(
+  db: AppDrizzleDb,
+  viewState: LibraryViewState,
+  entryId: LibraryEntryId,
+  before?: LibraryEntryId,
+): Promise<LibraryItem | undefined> {
+  const { listLibraryEntryPage } = await import('@app/db');
+  const page = await listLibraryEntryPage(db, {
+    filter: viewState.filter,
+    sort: viewState.sort,
+    entryIds: before === undefined ? [entryId] : [entryId, before],
+    limit: 1,
+  });
+  const entries = page.items.filter((entry) => entry.id === entryId);
+  return (await withIdentities(db, entries))[0];
+}
+
+async function withIdentities(
+  db: AppDrizzleDb,
+  entries: readonly LibraryEntry[],
+): Promise<LibraryItem[]> {
+  const { getMangaIdentities } = await import('@app/db');
   const identities = await getMangaIdentities(
     db,
-    page.items.map((entry) => entry.mangaId),
+    entries.map((entry) => entry.mangaId),
   );
   const identityById = new Map(identities.map((identity) => [identity.id, identity]));
-  const items = page.items.flatMap((entry): LibraryItem[] => {
+  return entries.flatMap((entry): LibraryItem[] => {
     const manga = identityById.get(entry.mangaId);
     return manga === undefined ? [] : [{ entry, manga }];
   });
-  return { items, total: page.total };
 }
 
 /**

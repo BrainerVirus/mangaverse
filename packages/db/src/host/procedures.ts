@@ -377,6 +377,7 @@ export const PROCEDURE_INPUTS: { readonly [K in ProcedureName]: z.ZodType<readon
     z.object({
       filter: libraryQuery.shape.filter,
       sort: libraryQuery.shape.sort,
+      entryIds: ids.max(LIBRARY_PAGE_MAX).optional(),
       // Zero asks for the total alone; the maximum keeps one call from loading the library.
       limit: z.number().int().min(0).max(LIBRARY_PAGE_MAX),
       offset: z.number().int().min(0).optional(),
