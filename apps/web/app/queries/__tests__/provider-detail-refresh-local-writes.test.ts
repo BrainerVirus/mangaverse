@@ -32,6 +32,7 @@ vi.mock('@app/extensions', async (importOriginal) => ({
 import { fetchProviderMangaDetail } from '../provider-query-options.js';
 
 const CHAPTER_ID = toChapterId('chapter-298');
+const REFRESHED_TITLE = 'Refreshed Title';
 
 async function seedManga() {
   const { db } = await createSqlJsHarness();
@@ -72,10 +73,12 @@ async function startPendingRefresh() {
         release = resolve;
       }),
   );
+  // The provider result differs from the local detail, so a refresh that ignored it is visible.
+  const remote = { ...before, manga: { ...before.manga, canonicalTitle: REFRESHED_TITLE } };
   const binding = {
     providerId: 'p',
     parseAppMangaId: () => 'id',
-    toMangaDetailData: () => before,
+    toMangaDetailData: () => remote,
   } as unknown as ProviderAppBinding;
   const pending = fetchProviderMangaDetail(db, binding, mangaId, stale);
   await vi.waitFor(() => expect(controls.getDetails).toHaveBeenCalled());
@@ -91,6 +94,7 @@ describe('provider detail refresh keeps local writes (issue #298)', () => {
     release();
     const result = await pending;
 
+    expect(result?.manga.canonicalTitle).toBe(REFRESHED_TITLE);
     expect(result?.libraryEntry).toBeDefined();
   });
 
@@ -111,6 +115,7 @@ describe('provider detail refresh keeps local writes (issue #298)', () => {
     release();
     const result = await pending;
 
+    expect(result?.manga.canonicalTitle).toBe(REFRESHED_TITLE);
     expect(
       result?.readStates?.find((state) => state.chapterId === CHAPTER_ID)?.progress,
     ).toMatchObject({ completed: true, lastPageIndex: 3 });
