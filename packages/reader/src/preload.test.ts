@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { toChapterPageId } from '@app/shared';
-import { createPreloadPlan, createDecodeQueue, recordPageLoadResult } from './preload';
+import { createPreloadPlan, recordPageLoadResult } from './preload';
 import type { PageLoadResult, ReaderPage } from './types';
 
 const mockPages: ReaderPage[] = Array.from({ length: 10 }, (_, i) => ({
@@ -9,90 +9,65 @@ const mockPages: ReaderPage[] = Array.from({ length: 10 }, (_, i) => ({
   image: { url: `http://example.com/${i}.jpg` },
 }));
 
-describe('createPreloadPlan', () => {
-  it('should create preload plan with correct priorities', () => {
-    const pages = mockPages;
-    const plan = createPreloadPlan(pages, 0, 2, false);
+const order = (plan: ReturnType<typeof createPreloadPlan>): number[] =>
+  plan.items.map((item) => item.pageIndex);
 
-    expect(plan.items).toHaveLength(2);
-    expect(plan.items[0]!.pageIndex).toBe(1);
-    expect(plan.items[1]!.pageIndex).toBe(2);
+describe('createPreloadPlan', () => {
+  it('Given the first page, When planned, Then the active page comes first and only ahead pages follow', () => {
+    const plan = createPreloadPlan(mockPages, 0, 2, false);
+
+    expect(order(plan)).toEqual([0, 1, 2]);
     expect(plan.items[0]!.priority).toBeGreaterThan(plan.items[1]!.priority);
   });
 
-  it('should use preload count from settings', () => {
-    const pages = mockPages;
-    const plan = createPreloadPlan(pages, 3, 5, false);
+  it('Given a mid-chapter page, When planned, Then both neighbours precede the far-ahead pages', () => {
+    const plan = createPreloadPlan(mockPages, 5, 3, false);
 
-    expect(plan.items).toHaveLength(5);
-  });
-
-  it('should cap at 1 in low memory mode', () => {
-    const pages = mockPages;
-    const plan = createPreloadPlan(pages, 0, 10, true);
-
-    expect(plan.maxPreload).toBe(1);
-    expect(plan.items).toHaveLength(1);
-  });
-
-  it('should not include pages behind active page', () => {
-    const pages = mockPages;
-    const plan = createPreloadPlan(pages, 5, 3, false);
-
-    for (const item of plan.items) {
-      expect(item.pageIndex).toBeGreaterThan(5);
+    expect(order(plan)).toEqual([5, 4, 6, 7, 8]);
+    const priorities = plan.items.map((item) => item.priority);
+    for (let index = 1; index < priorities.length; index += 1) {
+      expect(priorities[index - 1]!).toBeGreaterThan(priorities[index]!);
     }
   });
 
-  it('should handle being at last page', () => {
-    const pages = mockPages;
-    const plan = createPreloadPlan(pages, 9, 3, false);
+  it('Given a configured behind budget, When planned, Then backward pages are warm too', () => {
+    const plan = createPreloadPlan(mockPages, 5, 2, false, { preloadBehind: 2 });
 
-    expect(plan.items).toHaveLength(0);
+    expect(order(plan)).toEqual([5, 4, 6, 7, 3]);
+  });
+
+  it('Given the prefetch sweep, When the active page is excluded, Then only the warm pages remain', () => {
+    const plan = createPreloadPlan(mockPages, 5, 2, false, { includeActive: false });
+
+    expect(order(plan)).toEqual([4, 6, 7]);
+  });
+
+  it('Given low memory, When planned, Then only the active page and one ahead are planned', () => {
+    const plan = createPreloadPlan(mockPages, 0, 10, true);
+
+    expect(plan.maxPreload).toBe(1);
+    expect(order(plan)).toEqual([0, 1]);
+  });
+
+  it('Given the last page, When planned, Then the previous page is warmed instead of nothing', () => {
+    const plan = createPreloadPlan(mockPages, 9, 3, false);
+
+    expect(order(plan)).toEqual([9, 8]);
+  });
+
+  it('Given a page index outside the chapter, When planned, Then the plan clamps to a real page', () => {
+    expect(order(createPreloadPlan(mockPages, -3, 2, false))).toEqual([0, 1, 2]);
+    expect(order(createPreloadPlan(mockPages, 99, 2, false))).toEqual([9, 8]);
+  });
+
+  it('Given an empty chapter, When planned, Then the plan is empty', () => {
+    expect(createPreloadPlan([], 0, 4, false).items).toEqual([]);
   });
 
   it('should include url in preload items', () => {
-    const pages = mockPages;
-    const plan = createPreloadPlan(pages, 0, 2, false);
+    const plan = createPreloadPlan(mockPages, 0, 2, false);
 
-    expect(plan.items[0]!.url).toBeDefined();
     expect(plan.items[0]!.url).toContain('example.com');
-  });
-});
-
-describe('createDecodeQueue', () => {
-  it('should create priority-ordered decode queue', () => {
-    const pages = mockPages;
-    const queue = createDecodeQueue(pages, 0, 3, false);
-
-    expect(queue.items).toHaveLength(3);
-    expect(queue.totalPages).toBe(10);
-  });
-
-  it('should order by priority (closer pages first)', () => {
-    const pages = mockPages;
-    const queue = createDecodeQueue(pages, 5, 5, false);
-
-    const priorities = queue.items.map((item) => item.priority);
-    for (let i = 1; i < priorities.length; i++) {
-      const previous = priorities[i - 1]!;
-      const current = priorities[i]!;
-      expect(previous).toBeGreaterThanOrEqual(current);
-    }
-  });
-
-  it('should cap queue size in low memory mode', () => {
-    const pages = mockPages;
-    const queue = createDecodeQueue(pages, 0, 10, true);
-
-    expect(queue.items.length).toBeLessThanOrEqual(2);
-  });
-
-  it('should include retry count in queue items', () => {
-    const pages = mockPages;
-    const queue = createDecodeQueue(pages, 0, 3, false);
-
-    expect(queue.items[0]!.retryCount).toBe(0);
   });
 });
 

@@ -6,6 +6,11 @@ import { getDefaultReaderSettings, toChapterPageId } from '@app/shared';
 
 vi.mock('@app/cache', () => ({
   CachedPageImage: () => null,
+  createPageDecodePool: () => ({
+    setPlan: () => {},
+    snapshot: () => ({ decoded: 0, pending: 0, released: 0, failures: 0 }),
+    dispose: () => {},
+  }),
   holdReaderLocks: vi.fn<(chapter: unknown) => () => void>(() => () => {}),
   evictCacheToLimit: vi.fn<() => Promise<{ evictedCount: number; failedBlobKeys: string[] }>>(
     async () => ({ evictedCount: 0, failedBlobKeys: [] }),
@@ -16,18 +21,23 @@ vi.mock('@app/cache', () => ({
   useCoverCacheContext: () => null,
 }));
 
-vi.mock('@app/design-system', () => ({
-  Button: () => null,
-  EmptyState: () => null,
-  ErrorState: () => null,
-  GlassSurface: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  LoadingState: () => null,
-  ReaderChrome: () => null,
-  Sheet: () => null,
-  SheetContent: () => null,
-  SheetHeader: () => null,
-  SheetTitle: () => null,
-}));
+vi.mock('@app/design-system', async () => {
+  const { useReducer } = await import('react');
+  return {
+    Button: () => null,
+    EmptyState: () => null,
+    ErrorState: () => null,
+    GlassSurface: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+    LoadingState: () => null,
+    ReaderChrome: () => null,
+    Sheet: () => null,
+    SheetContent: () => null,
+    SheetHeader: () => null,
+    SheetTitle: () => null,
+    useStateReducer: (reducer: (state: unknown, event: unknown) => unknown, initial: unknown) =>
+      useReducer(reducer as never, initial),
+  };
+});
 
 class ResizeObserverStub {
   observe() {}
@@ -77,12 +87,25 @@ function scrollHeight(): number {
   return PAGE_COUNT * STRIDE;
 }
 
-function buildData(): ReaderPageData {
-  const settings = { ...getDefaultReaderSettings(), readingMode: 'vertical' as const };
+/**
+ * A virtualised strip computes page geometry from page shapes, not from the
+ * DOM: only the rows in the window exist. 800x500 pages keep the fixture's
+ * expected 500px height at the reader's default 800px fallback width.
+ */
+function buildData(pageHeights: Readonly<Record<number, number>> = {}): ReaderPageData {
+  const settings = {
+    ...getDefaultReaderSettings(),
+    readingMode: 'vertical' as const,
+    verticalGapPx: PAGE_GAP,
+  };
   const pages = Array.from({ length: PAGE_COUNT }, (_value, index) => ({
     id: toChapterPageId(`page-${index}`),
     index,
-    image: { url: `https://example.com/${index}.jpg` },
+    image: {
+      url: `https://example.com/${index}.jpg`,
+      width: 800,
+      height: pageHeights[index] ?? PAGE_HEIGHT,
+    },
   }));
   return {
     chapter: {
@@ -120,7 +143,7 @@ function mount(pageHeights: Readonly<Record<number, number>> = {}): Mounted {
   act(() => {
     root.render(
       <ReaderScreen
-        data={buildData()}
+        data={buildData(pageHeights)}
         isLoading={false}
         isError={false}
         chromeVisible={true}
@@ -237,8 +260,13 @@ describe('ReaderScreen vertical keyboard navigation', () => {
 
     press('ArrowRight');
 
+    // A shorter page pulls every later page up by the difference, so page 11
+    // starts at 6220 rather than its uniform 6600.
     const metrics = stripMetrics();
     metrics[10] = { index: 10, top: 10 * STRIDE, height: 120 };
+    for (let index = 11; index < PAGE_COUNT; index += 1) {
+      metrics[index] = { index, top: index * STRIDE - (PAGE_HEIGHT - 120), height: PAGE_HEIGHT };
+    }
     expect(lastTarget(mounted.scrollTo)).toBe(centredOn(11, metrics));
     unmount(mounted);
   });

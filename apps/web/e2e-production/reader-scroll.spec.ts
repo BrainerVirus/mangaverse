@@ -24,17 +24,17 @@ async function expectPageSettled(page: Page, expected: string, timeout = 5_000) 
 
 /**
  * Scrolls the strip to `index` and waits until the chrome reports that page as
- * settled. Rows start at their 2:3 placeholder until their image decodes, and
- * every decode above the target moves its offset, so the jump is re-applied
- * from the live offsets until the strip maps the scroll position to the page.
+ * settled. The strip is virtualised: the target row may not exist yet, so the
+ * jump reads the strip's own page offsets. Rows start at their 2:3 placeholder
+ * until their image decodes, and every decode above the target moves its
+ * offset, so the jump is re-applied from the live offsets until the strip maps
+ * the scroll position to the page.
  */
 async function scrollStripToPage(page: Page, strip: Locator, index: number) {
   await expect(async () => {
     await strip.evaluate((element, target) => {
-      const row = element.querySelector<HTMLElement>(`[data-page-index="${target}"]`);
-      if (row !== null) {
-        element.scrollTop = row.offsetTop;
-      }
+      const offsets = JSON.parse(element.dataset['pageOffsets'] ?? '[]') as number[];
+      element.scrollTop = offsets[target] ?? 0;
     }, index);
     await expect(pageCounter(page)).toHaveText(`${index + 1} / ${PAGE_COUNT}`, { timeout: 1_500 });
   }).toPass({ timeout: 20_000 });
@@ -67,7 +67,9 @@ test('Given an open chapter, When switching to Scroll, Then the strip renders an
 
   const strip = page.getByTestId('reader-scroll-view');
   await expect(strip).toBeVisible({ timeout: 20_000 });
-  await expect(strip.locator('[data-page-index]')).toHaveCount(PAGE_COUNT);
+  // Virtualised: the strip knows all pages, but the DOM only holds a window.
+  await expect(strip).toHaveAttribute('data-page-count', String(PAGE_COUNT));
+  await expect.poll(() => strip.locator('[data-page-index]').count()).toBeLessThanOrEqual(24);
 
   // Scrolling to the top of page 11 puts the viewport center inside it.
   await scrollStripToPage(page, strip, 10);

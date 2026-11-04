@@ -11,6 +11,11 @@ const cacheState = vi.hoisted(() => ({
 
 vi.mock('@app/cache', () => ({
   CachedPageImage: () => null,
+  createPageDecodePool: () => ({
+    setPlan: () => {},
+    snapshot: () => ({ decoded: 0, pending: 0, released: 0, failures: 0 }),
+    dispose: () => {},
+  }),
   holdReaderLocks: vi.fn<(chapter: unknown) => () => void>(() => () => {}),
   evictCacheToLimit: vi.fn<() => Promise<{ evictedCount: number; failedBlobKeys: string[] }>>(
     async () => ({ evictedCount: 0, failedBlobKeys: [] }),
@@ -23,38 +28,43 @@ vi.mock('@app/cache', () => ({
   useCoverCacheContext: () => cacheState.context,
 }));
 
-vi.mock('@app/design-system', () => ({
-  Button: ({ children, ...props }: { children?: ReactNode } & Record<string, unknown>) => (
-    <button {...props}>{children}</button>
-  ),
-  Dialog: ({ children }: { children: ReactNode }) => <dialog open>{children}</dialog>,
-  DialogContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  DialogHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  DialogTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
-  EmptyState: () => null,
-  ErrorState: ({
-    title,
-    message,
-    onRetry,
-  }: {
-    title: string;
-    message: string;
-    onRetry?: () => void;
-  }) => (
-    <div>
-      <span>{title}</span>
-      <span>{message}</span>
-      {onRetry ? <button onClick={onRetry}>Retry</button> : null}
-    </div>
-  ),
-  GlassSurface: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  LoadingState: () => null,
-  ReaderChrome: () => null,
-  Sheet: () => null,
-  SheetContent: () => null,
-  SheetHeader: () => null,
-  SheetTitle: () => null,
-}));
+vi.mock('@app/design-system', async () => {
+  const { useReducer } = await import('react');
+  return {
+    Button: ({ children, ...props }: { children?: ReactNode } & Record<string, unknown>) => (
+      <button {...props}>{children}</button>
+    ),
+    Dialog: ({ children }: { children: ReactNode }) => <dialog open>{children}</dialog>,
+    DialogContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+    DialogHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+    DialogTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
+    EmptyState: () => null,
+    ErrorState: ({
+      title,
+      message,
+      onRetry,
+    }: {
+      title: string;
+      message: string;
+      onRetry?: () => void;
+    }) => (
+      <div>
+        <span>{title}</span>
+        <span>{message}</span>
+        {onRetry ? <button onClick={onRetry}>Retry</button> : null}
+      </div>
+    ),
+    GlassSurface: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+    LoadingState: () => null,
+    ReaderChrome: () => null,
+    Sheet: () => null,
+    SheetContent: () => null,
+    SheetHeader: () => null,
+    SheetTitle: () => null,
+    useStateReducer: (reducer: (state: unknown, event: unknown) => unknown, initial: unknown) =>
+      useReducer(reducer as never, initial),
+  };
+});
 
 class ResizeObserverStub {
   observe() {}

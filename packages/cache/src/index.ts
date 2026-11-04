@@ -71,6 +71,23 @@ export {
 export { CachedMangaCard } from './components/CachedMangaCard.js';
 
 export {
+  createPageDecodePool,
+  type DecodedPage,
+  type PageDecodePlanItem,
+  type PageDecodePool,
+  type PageDecodePoolInput,
+  type PageDecodePoolSnapshot,
+} from './page-decode-pool.js';
+
+export {
+  acquirePageObjectUrl,
+  pageObjectUrlKey,
+  releasePageObjectUrl,
+  type AcquirePageObjectUrlOptions,
+  type PageObjectUrlInput,
+} from './page-object-url-registry.js';
+
+export {
   CachedPageImage,
   type CachedPageImageMetric,
   type CachedPageImageProps,

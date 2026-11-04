@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useLayoutEffect,
   useRef,
   useState,
   type Dispatch,
@@ -16,14 +17,21 @@ import { ReaderOverlays } from './ReaderOverlays.js';
 import { ReaderStage } from './ReaderStage.js';
 import type { ReaderScrollViewHandle } from './ReaderScrollView.js';
 import { useChapterPrefetch, useOfflinePagesNote } from './use-chapter-cache.js';
+import { useDecodeAhead } from './use-decode-ahead.js';
 import { useReaderDiagnostics } from './use-reader-diagnostics.js';
 import { useReaderFullscreen } from './use-reader-fullscreen.js';
 import { useReaderGestures } from './use-reader-gestures.js';
 import { useReaderKeyboard, useReaderWheelZoom } from './use-reader-listeners.js';
 import { useReaderPageTransition } from './use-reader-page-transition.js';
+import {
+  endReaderChapterOpen,
+  endReaderPageTurn,
+  markReaderChapterOpen,
+} from '../reader-timing.js';
 import { useReaderProgress } from './use-reader-progress.js';
 import { useReaderSession } from './use-reader-session.js';
 import { useReaderViewport } from './use-reader-viewport.js';
+import { useReaderZoom } from './use-reader-zoom.js';
 import { useScreenWakeLock } from './use-screen-wake-lock.js';
 import type {
   ReaderNavigationAction,
@@ -328,7 +336,20 @@ function ReaderReadyView({
   const diagnosticsEnabled = data.settings.diagnosticsEnabled;
   const diagnostics = useReaderDiagnostics(diagnosticsEnabled);
   const progress = useReaderProgress(data, readerState, onPersistProgress);
-  useChapterPrefetch(data, cacheContext, readerState.activePageIndex, diagnostics.recordPrefetch);
+  // Decode-ahead warms already-cached pages; a sweep that cached new ones is
+  // the signal to re-run its plan.
+  const decodeAhead = useDecodeAhead({
+    data,
+    cacheContext,
+    activePageIndex: readerState.activePageIndex,
+  });
+  useChapterPrefetch(
+    data,
+    cacheContext,
+    readerState.activePageIndex,
+    diagnostics.recordPrefetch,
+    decodeAhead.warm,
+  );
   useScreenWakeLock(data.settings.keepScreenOn);
   const { toggleFullscreen } = useReaderFullscreen({
     openOnEnter: data.settings.fullscreenOnOpen,
@@ -336,22 +357,49 @@ function ReaderReadyView({
   });
   const offlineNote = useOfflinePagesNote(data, cacheContext, isOffline);
 
-  const {
-    updateZoom,
-    handleZoomPointerDown,
-    handleZoomPointerMove,
-    handleZoomPointerUp,
-    handlePointerUp,
-  } = useReaderGestures({
-    sessionInput,
-    readerState,
-    surface,
-    overlayInsets: CHROME_INSETS,
-    navigate,
-    onToggleChrome,
-    setReaderState,
-  });
-  const { zoomLayerRef } = useReaderWheelZoom({ sessionInput, surface, updateZoom });
+  // Budget clocks: a chapter opens once per chapter, a page turn once per
+  // navigation, and both end on the frame after the page's image loads.
+  const chapterOpenPendingRef = useRef(false);
+  useLayoutEffect(() => {
+    if (data.chapter.pageCount === 0) return;
+    markReaderChapterOpen();
+    chapterOpenPendingRef.current = true;
+  }, [data.chapter.id, data.chapter.pageCount]);
+  const handlePageMetric = useCallback(
+    (metric: {
+      readonly pageIndex: number;
+      readonly status: 'loaded' | 'failed';
+      readonly fromCache: boolean;
+      readonly durationMs: number;
+    }) => {
+      diagnostics.recordPageLoad(metric);
+      if (metric.status !== 'loaded') return;
+      if (!readerState.visiblePageIndexes.includes(metric.pageIndex)) return;
+      requestAnimationFrame(() => {
+        if (chapterOpenPendingRef.current) {
+          chapterOpenPendingRef.current = false;
+          endReaderChapterOpen({ pageIndex: metric.pageIndex, fromCache: metric.fromCache });
+        }
+        endReaderPageTurn({ pageIndex: metric.pageIndex, fromCache: metric.fromCache });
+      });
+    },
+    [diagnostics, readerState.visiblePageIndexes],
+  );
+
+  // Zoom lives in a ref between gestures: pointer frames write the layer style
+  // directly and only the gesture's final value becomes React state.
+  const zoom = useReaderZoom({ readerState, setReaderState });
+  const { handleZoomPointerDown, handleZoomPointerMove, handleZoomPointerUp, handlePointerUp } =
+    useReaderGestures({
+      sessionInput,
+      readerState,
+      surface,
+      overlayInsets: CHROME_INSETS,
+      navigate,
+      onToggleChrome,
+      zoom,
+    });
+  useReaderWheelZoom({ sessionInput, surface, zoom });
   const setPageTransitionLayer = useCallback((node: HTMLDivElement | null) => {
     pageTransitionLayerRef.current = node;
   }, []);
@@ -445,9 +493,9 @@ function ReaderReadyView({
         onZoomPointerDown={handleZoomPointerDown}
         onZoomPointerMove={handleZoomPointerMove}
         onZoomPointerUp={handleZoomPointerUp}
-        setPagedLayer={zoomLayerRef}
+        setPagedLayer={zoom.setZoomLayer}
         setPageTransitionLayer={setPageTransitionLayer}
-        onPageMetric={diagnostics.recordPageLoad}
+        onPageMetric={handlePageMetric}
       />
 
       <OfflineNote note={offlineNote} />

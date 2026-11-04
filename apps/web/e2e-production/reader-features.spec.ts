@@ -195,7 +195,12 @@ test('image smoothing and long-strip optimization change how pages render', asyn
   const strip = page.getByTestId('reader-scroll-view');
   await expect(strip).toBeVisible({ timeout: 30_000 });
   await expect(strip.locator('img').first()).toBeVisible({ timeout: 30_000 });
-  await expect.poll(() => strip.locator('img').count(), { timeout: 20_000 }).toBeLessThanOrEqual(3);
+  // Rows are virtualised and a 9600px-tall rendered page is tiled, so count
+  // the pages holding an image, not the image elements themselves.
+  await expect
+    .poll(() => strip.locator('[data-page-index]:has(img)').count(), { timeout: 20_000 })
+    .toBeLessThanOrEqual(3);
+  await expect(strip.locator('[data-page-tile]').first()).toBeVisible();
   await expect(strip.locator('img').first()).toHaveCSS('image-rendering', 'pixelated');
   await page.screenshot({ path: testInfo.outputPath('reader-long-strip.png') });
 });

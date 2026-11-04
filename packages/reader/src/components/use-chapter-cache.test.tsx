@@ -21,9 +21,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@app/cache', () => mocks);
 
-function buildData(): ReaderPageData {
+function buildData(pageCount = 2): ReaderPageData {
   const settings = getDefaultReaderSettings();
-  const pages = Array.from({ length: 2 }, (_value, index) => ({
+  const pages = Array.from({ length: pageCount }, (_value, index) => ({
     id: toChapterPageId(`page-${index}`),
     index,
     image: { url: `https://example.com/${index}.jpg` },
@@ -48,12 +48,38 @@ function buildData(): ReaderPageData {
 function Probe({
   data,
   context,
+  activePageIndex,
 }: {
   readonly data: ReaderPageData;
   readonly context: CoverCacheContextValue;
+  readonly activePageIndex?: number;
 }) {
-  useChapterPrefetch(data, context);
+  useChapterPrefetch(
+    data,
+    context,
+    activePageIndex === undefined ? data.initialPageIndex : activePageIndex,
+  );
   return null;
+}
+
+interface Deferred {
+  readonly promise: Promise<void>;
+  readonly resolve: () => void;
+  readonly signal: () => AbortSignal | undefined;
+}
+
+/** One controllable prefetch sweep, so a test can settle them out of order. */
+function deferredPrefetch(): Deferred {
+  let resolve!: () => void;
+  let signal: AbortSignal | undefined;
+  const promise = new Promise<void>((settle) => {
+    resolve = settle;
+  });
+  mocks.prefetchChapterPages.mockImplementationOnce((input) => {
+    signal = input.signal;
+    return promise;
+  });
+  return { promise, resolve, signal: () => signal };
 }
 
 describe('useChapterPrefetch cache sweep', () => {
@@ -206,5 +232,98 @@ describe('useChapterPrefetch cache sweep', () => {
     expect(mocks.markChapterPagesAsRead).not.toHaveBeenCalled();
     expect(mocks.evictCacheToLimit).not.toHaveBeenCalled();
     container.remove();
+  });
+});
+
+describe('useChapterPrefetch page-turn plans', () => {
+  const context = {
+    db: {} as CoverCacheContextValue['db'],
+    adapter: {} as CoverCacheContextValue['adapter'],
+    cacheLimitBytes: 1024,
+  };
+
+  function mountProbe(data: ReaderPageData) {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    return {
+      container,
+      root,
+      render: (activePageIndex: number) =>
+        root.render(<Probe data={data} context={context} activePageIndex={activePageIndex} />),
+      unmount: () => {
+        act(() => root.unmount());
+        container.remove();
+      },
+    };
+  }
+
+  it('Given a page turn, When the old sweep resolves late, Then its queued-away plan never writes maintenance', async () => {
+    mocks.prefetchChapterPages.mockReset();
+    mocks.markChapterPagesAsRead.mockClear();
+    mocks.evictCacheToLimit.mockClear();
+    const data = buildData(6);
+    const first = deferredPrefetch();
+    const second = deferredPrefetch();
+    const probe = mountProbe(data);
+
+    await act(async () => probe.render(0));
+    expect(first.signal()?.aborted).toBe(false);
+
+    await act(async () => probe.render(3));
+    // The turn cancelled the previous plan before issuing the new one.
+    expect(first.signal()?.aborted).toBe(true);
+    expect(second.signal()?.aborted).toBe(false);
+    expect(mocks.prefetchChapterPages.mock.calls[1]?.[0]).toMatchObject({
+      pages: [
+        { pageIndex: 2, remoteUrl: 'https://example.com/2.jpg' },
+        { pageIndex: 4, remoteUrl: 'https://example.com/4.jpg' },
+        { pageIndex: 5, remoteUrl: 'https://example.com/5.jpg' },
+      ],
+    });
+
+    // The final page's sweep settles first.
+    await act(async () => second.resolve());
+    await vi.waitFor(() => expect(mocks.evictCacheToLimit).toHaveBeenCalledTimes(1));
+
+    // The stale sweep settling afterwards is ignored, so no older plan can
+    // rewrite read state or evict against the page the reader is on.
+    await act(async () => first.resolve());
+    expect(mocks.markChapterPagesAsRead).toHaveBeenCalledTimes(1);
+    expect(mocks.evictCacheToLimit).toHaveBeenCalledTimes(1);
+
+    probe.unmount();
+  });
+
+  it('Given rapid page turns, When each settles, Then every older sweep is aborted and only the last one writes', async () => {
+    mocks.prefetchChapterPages.mockReset();
+    mocks.markChapterPagesAsRead.mockClear();
+    mocks.evictCacheToLimit.mockClear();
+    const data = buildData(6);
+    const sweeps = [deferredPrefetch(), deferredPrefetch(), deferredPrefetch(), deferredPrefetch()];
+    const probe = mountProbe(data);
+
+    for (const [turn, sweep] of sweeps.entries()) {
+      await act(async () => probe.render(turn));
+      expect(sweep.signal()?.aborted).toBe(false);
+      // Every earlier plan is cancelled by the turn that replaced it.
+      for (const earlier of sweeps.slice(0, turn)) {
+        expect(earlier.signal()?.aborted).toBe(true);
+      }
+    }
+
+    // Settle out of order: newest first, then the stale ones oldest last.
+    await act(async () => sweeps[3]!.resolve());
+    await vi.waitFor(() => expect(mocks.evictCacheToLimit).toHaveBeenCalledTimes(1));
+    for (const stale of [sweeps[0]!, sweeps[1]!, sweeps[2]!]) {
+      await act(async () => stale.resolve());
+    }
+    expect(mocks.markChapterPagesAsRead).toHaveBeenCalledTimes(1);
+    expect(mocks.evictCacheToLimit).toHaveBeenCalledTimes(1);
+    expect(mocks.prefetchChapterPages.mock.calls.at(-1)?.[0]).toMatchObject({
+      pages: [{ pageIndex: 2 }, { pageIndex: 4 }, { pageIndex: 5 }],
+    });
+
+    probe.unmount();
   });
 });
