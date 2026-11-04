@@ -254,6 +254,36 @@ describe('library list after a write', () => {
     },
   );
 
+  it('shows a read state whose resume update was skipped in the unread count of every window', async () => {
+    const { windows } = await hostWithWindows();
+    const [a, b] = windows;
+    const { alpha, chapterIds } = await seedLibrary(a.handle);
+    const items = view(b, DEFAULT_LIBRARY_VIEW_STATE);
+    await items.preload();
+    const at = (seconds: number) => new Date(Date.now() + seconds * 1000).toISOString();
+    const [t0, t1, t2] = [at(10), at(20), at(30)];
+    const save = (chapterId: string, completed: boolean, timestamp: string) =>
+      persistReaderProgress(a.handle, {
+        chapterId,
+        mangaId: alpha.mangaId,
+        pageIndex: completed ? 4 : 0,
+        readPercent: completed ? 100 : 20,
+        completed,
+        timestamp,
+      });
+
+    // Chapter 0 finished, then a newer save on chapter 1 owns "continue reading".
+    await save(chapterIds[0]!, true, t0);
+    await save(chapterIds[1]!, false, t2);
+    await expect.poll(() => items.get(alpha.entryId)?.value.entry.unreadCount).toBe(1);
+
+    // Chapter 0 opened again by an event older than t2: its read state is newer and accepted,
+    // the resume update is not, and an unfinished save does not recount the badge.
+    await save(chapterIds[0]!, false, t1);
+
+    await expect.poll(() => items.get(alpha.entryId)?.value.entry.unreadCount).toBe(2);
+  });
+
   it('shows a chapter written alone in the unread count of every window', async () => {
     const { windows } = await hostWithWindows();
     const [a, b] = windows;

@@ -143,6 +143,42 @@ describe('change capture', () => {
       .all();
     expect(persisted).toEqual([]);
   });
+
+  it('records a read-state change as an update of the entry that owns the chapter', () => {
+    const directory = scratch();
+    const native = openNativeDatabase(join(directory, 'capture.sqlite'));
+    cleanups.unshift(() => native.close());
+    const capture = installChangeCapture(native.client);
+    const exec = (sql: string) => native.client.exec(sql);
+    for (const manga of ['m1', 'm2']) {
+      exec(`INSERT INTO manga_identities (id, canonical_title, status, content_rating, merged, default_provider_mapping_id)
+            VALUES ('${manga}', '${manga}', 'ongoing', 'safe', 0, 'map-${manga}')`);
+      exec(`INSERT INTO manga_provider_mappings (id, manga_id, provider_id, provider_manga_id)
+            VALUES ('map-${manga}', '${manga}', 'prov', '${manga}')`);
+      exec(`INSERT INTO chapters (id, manga_id, provider_mapping_id, title, chapter_index)
+            VALUES ('ch-${manga}', '${manga}', 'map-${manga}', 'One', 0)`);
+    }
+    // Only m1 is in the library.
+    exec(`INSERT INTO library_entries (id, manga_id, status) VALUES ('e1', 'm1', 'reading')`);
+    capture.drain();
+
+    const readState = (op: RowChange['op']) => [
+      { table: 'chapter_read_state', key: 'ch-m1', op },
+      { table: 'library_entries', key: 'e1', op: 'update' },
+    ];
+    exec(`INSERT INTO chapter_read_state (chapter_id, manga_id, read_percent, last_page_index, completed)
+          VALUES ('ch-m1', 'm1', 10, 0, 0)`);
+    expect(capture.drain()).toEqual(readState('insert'));
+    exec(`UPDATE chapter_read_state SET completed = 1 WHERE chapter_id = 'ch-m1'`);
+    expect(capture.drain()).toEqual(readState('update'));
+    exec(`DELETE FROM chapter_read_state WHERE chapter_id = 'ch-m1'`);
+    expect(capture.drain()).toEqual(readState('delete'));
+
+    // A title outside the library has no entry to tell.
+    exec(`INSERT INTO chapter_read_state (chapter_id, manga_id, read_percent, last_page_index, completed)
+          VALUES ('ch-m2', 'm2', 10, 0, 0)`);
+    expect(capture.drain()).toEqual([{ table: 'chapter_read_state', key: 'ch-m2', op: 'insert' }]);
+  });
 });
 
 describe('change broadcast', () => {

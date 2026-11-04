@@ -6,25 +6,40 @@ import type { NodeSqliteClient } from './node-sqlite-client.js';
  * decision 6). Both are temp: they live on the host's connection only and never reach the
  * file. A trigger's insert belongs to the statement's transaction, so a rollback takes the
  * record with it, and a foreign-key cascade fires the child table's trigger too.
+ *
+ * A library entry shows an unread count derived live from `chapters` and `chapter_read_state`,
+ * not from its own row. So a read-state change also records an `update` of the entry that owns
+ * the chapter's title: a window refreshes that one entry whichever writer moved the read state,
+ * even one that leaves the entry's row untouched.
  */
 // Unqualified: a trigger body may not name a schema, and temp tables resolve first.
 const CHANGES_TABLE = 'data_host_changes';
 
+/** The entry changes a read-state row implies, for the chapters named in `chapterIds`. */
+const readStateEntries = (chapterIds: string) =>
+  `INSERT INTO ${CHANGES_TABLE} (tbl, row_key, op)
+     SELECT 'library_entries', le.id, 'update'
+     FROM chapters c JOIN library_entries le ON le.manga_id = c.manga_id
+     WHERE c.id IN (${chapterIds});`;
+
 function triggerSql(table: SyncedTable, key: string): string[] {
   const record = (row: 'NEW' | 'OLD', op: RowChange['op']) =>
     `INSERT INTO ${CHANGES_TABLE} (tbl, row_key, op) VALUES ('${table}', ${row}.${key}, '${op}');`;
+  const derived = (chapterIds: string) =>
+    table === 'chapter_read_state' ? readStateEntries(chapterIds) : '';
   return [
     `CREATE TEMP TRIGGER IF NOT EXISTS data_host_${table}_insert AFTER INSERT ON main.${table}
-       BEGIN ${record('NEW', 'insert')} END`,
+       BEGIN ${record('NEW', 'insert')} ${derived('NEW.chapter_id')} END`,
     // A key that changes is the old row gone and the new one written.
     `CREATE TEMP TRIGGER IF NOT EXISTS data_host_${table}_update AFTER UPDATE ON main.${table}
        BEGIN
          INSERT INTO ${CHANGES_TABLE} (tbl, row_key, op)
            SELECT '${table}', OLD.${key}, 'delete' WHERE OLD.${key} IS NOT NEW.${key};
          ${record('NEW', 'update')}
+         ${derived('OLD.chapter_id, NEW.chapter_id')}
        END`,
     `CREATE TEMP TRIGGER IF NOT EXISTS data_host_${table}_delete AFTER DELETE ON main.${table}
-       BEGIN ${record('OLD', 'delete')} END`,
+       BEGIN ${record('OLD', 'delete')} ${derived('OLD.chapter_id')} END`,
   ];
 }
 
