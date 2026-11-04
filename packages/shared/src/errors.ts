@@ -11,6 +11,8 @@ export const APP_ERROR_KINDS = [
   'not-found',
   'storage-full',
   'database',
+  /** A write that may or may not have landed; redoing it could duplicate it. */
+  'outcome-unknown',
   'unexpected',
 ] as const;
 
@@ -46,8 +48,13 @@ const MESSAGES: Readonly<Record<AppErrorKind, string>> = {
   'not-found': "We couldn't find that.",
   'storage-full': 'This device is out of storage. Free some space and try again.',
   database: "The local library couldn't be read or saved. Try again.",
+  'outcome-unknown':
+    'The local library restarted, so this change may or may not have been saved. Check before doing it again.',
   unexpected: 'Something went wrong. Try again.',
 };
+
+/** The data host's `DATA_HOST_ERROR.crashed`; `@app/shared` cannot import `@app/db`. */
+const DATA_HOST_CRASHED = 'data-host.crashed';
 
 const MAX_CAUSE_DEPTH = 5;
 const NETWORK_FAILURE = /failed to fetch|networkerror|network request failed|load failed/;
@@ -120,6 +127,8 @@ function readSignals(error: unknown): FailureSignals {
 
 function kindOf(signals: FailureSignals, online: boolean | undefined): AppErrorKind {
   const { names, codes, text, status } = signals;
+  // First: its text names the database, and a retry here can duplicate a committed write.
+  if (codes.includes(DATA_HOST_CRASHED)) return 'outcome-unknown';
   if (names.includes('QuotaExceededError') || QUOTA_FAILURE.test(text)) return 'storage-full';
   if (status === 429 || RATE_LIMIT_FAILURE.test(text)) return 'rate-limited';
   if (status === 404 || codes.some((code) => code.endsWith('not_found'))) return 'not-found';
@@ -155,7 +164,7 @@ export function classifyAppError(
     code: kind,
     message: isUserFacing ? error.message : (fallback ?? MESSAGES[kind]),
     cause: error,
-    retryable: kind !== 'not-found',
+    retryable: kind !== 'not-found' && kind !== 'outcome-unknown',
     ...(signals.providerId !== undefined ? { providerId: signals.providerId } : {}),
   };
   classified.add(result);

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DATA_HOST_ERROR, DataHostError } from '@app/db';
 import { classifyAppError, UserFacingError, createAppError } from '@app/shared';
 
 describe('classifyAppError', () => {
@@ -53,6 +54,45 @@ describe('classifyAppError', () => {
     expect(classifyAppError(new UserFacingError('This backup is damaged.')).message).toBe(
       'This backup is damaged.',
     );
+  });
+
+  describe('a data host restart', () => {
+    const crashed = () =>
+      new DataHostError(
+        createAppError({
+          code: DATA_HOST_ERROR.crashed,
+          message:
+            'The local database restarted while this was in progress. It may or may not have been saved.',
+        }),
+      );
+
+    it('Given a call lost to a crash, When classified, Then the outcome is unknown and not retryable', () => {
+      const result = classifyAppError(crashed());
+      expect(result.code).toBe('outcome-unknown');
+      expect(result.retryable).toBe(false);
+      expect(result.message).toMatch(/may or may not have been saved/);
+      expect(result.message).toMatch(/check/i);
+      expect(result.message).not.toMatch(/try again|retry|redo/i);
+    });
+
+    it('Given the crash rewrapped in a plain Error, When classified, Then the cause still decides', () => {
+      const result = classifyAppError(new Error('Could not add', { cause: crashed() }));
+      expect(result.code).toBe('outcome-unknown');
+      expect(result.retryable).toBe(false);
+    });
+
+    it('Given a host that merely timed out, When classified, Then it is classified and retried as before', () => {
+      const result = classifyAppError(
+        new DataHostError(
+          createAppError({
+            code: DATA_HOST_ERROR.timeout,
+            message: 'The local database did not answer in time.',
+          }),
+        ),
+      );
+      expect(result.code).toBe('database');
+      expect(result.retryable).toBe(true);
+    });
   });
 
   it('Given not-found, When classified, Then it is not retryable', () => {
