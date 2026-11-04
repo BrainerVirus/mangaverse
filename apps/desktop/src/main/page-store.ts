@@ -131,7 +131,11 @@ export function createPageStore(root: string): PageStore {
   };
 
   const readSidecar = async (dir: string, id: string) => {
-    const text = await readFile(join(dir, `${id}${SIDECAR_SUFFIX}`), {
+    const path = join(dir, `${id}${SIDECAR_SUFFIX}`);
+    // `O_NOFOLLOW` is a no-op on Windows, so the sidecar is checked with lstat too.
+    const stats = await lstat(path).catch(() => null);
+    if (stats === null || stats.isSymbolicLink() || !stats.isFile()) return undefined;
+    const text = await readFile(path, {
       encoding: 'utf8',
       flag: constants.O_RDONLY | NO_FOLLOW,
     }).catch(() => undefined);

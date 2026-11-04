@@ -91,14 +91,14 @@ export function createDataHost(options: { readonly databasePath: string }): Data
     for (const port of attached) port.postMessage(message);
   };
 
-  const open = (
+  const open = async (
     snapshot: Uint8Array | null,
     rewrites: readonly CacheBlobKeyRewrite[] = [],
-  ): AppResult<DataHostOpenResult> => {
+  ): Promise<AppResult<DataHostOpenResult>> => {
     if (database !== null) return ok({ imported: null });
     const imported =
       snapshot !== null && !existsSync(databasePath)
-        ? importSnapshot(snapshot, databasePath, rewrites)
+        ? await importSnapshot(snapshot, databasePath, rewrites)
         : null;
     const opened = openNativeDatabase(databasePath);
     capture = installChangeCapture(opened.client);

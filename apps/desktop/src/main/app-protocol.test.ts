@@ -7,11 +7,14 @@ import { createAppProtocolHandler, resolveAppRequest } from './app-protocol.js';
 
 let base: string;
 let root: string;
+let canonicalRoot: string;
 
 beforeAll(async () => {
   base = realpathSync(await mkdtemp(join(tmpdir(), 'app-protocol-')));
   root = join(base, 'renderer');
   await mkdir(join(root, 'assets'), { recursive: true });
+  // `.native` expands Windows 8.3 short names (RUNNER~1), which the handler returns long.
+  canonicalRoot = realpathSync.native(root);
   await writeFile(join(root, 'index.html'), '<!doctype html><title>shell</title>');
   await writeFile(join(root, 'assets', 'index-abc.js'), 'export {};');
   await writeFile(join(root, 'assets', 'index-abc.css'), 'body{}');
@@ -36,7 +39,7 @@ describe('resolveAppRequest', () => {
     ]) {
       expect(await resolveAppRequest(root, url)).toEqual({
         kind: 'file',
-        path: join(root, 'index.html'),
+        path: join(canonicalRoot, 'index.html'),
         mimeType: 'text/html; charset=utf-8',
       });
     }
@@ -52,7 +55,7 @@ describe('resolveAppRequest', () => {
     for (const [file, mimeType] of cases) {
       expect(await resolveAppRequest(root, `app://app/${file}`)).toEqual({
         kind: 'file',
-        path: join(root, file),
+        path: join(canonicalRoot, file),
         mimeType,
       });
     }
