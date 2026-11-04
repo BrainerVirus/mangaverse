@@ -1,34 +1,23 @@
 # AGENTS
 
-This file is the operational guide for agentic coding tools working in this repo.
-
 ## Required Reading
 
-Agents must read the relevant rewrite docs before implementation:
-
-- Read `docs/overhaul/spec.md`, `docs/overhaul/roadmap.md` and the spec for your issue first. They win over
-  every other doc.
+- Read `docs/overhaul/spec.md`, `docs/overhaul/roadmap.md` and the spec for your issue first. They win over every other doc.
 - Read `docs/SPEC.md` before implementing or changing product behavior.
 - Read `docs/ARCHITECTURE.md` before changing package boundaries, data flow, database access, provider runtime, reader internals, platform adapters, app shell structure, or motion architecture.
-- Read `DESIGN.md` at the repo root (the design source of truth: tokens, typography, component styling, layout principles) and `docs/Design.md` (the binding UI rules) before creating or modifying UI, styling, layouts, themes, interactions, reader chrome, empty states, loading states, error states, or motion.
+- Read `DESIGN.md` at the repo root (the design source of truth: tokens, typography, component styling, layout principles) and `docs/Design.md` (the binding UI rules) before creating or modifying UI, styling, layouts, themes, interactions, reader chrome, empty, loading and error states, or motion.
 
 ## Project Direction
 
-MangaVerse is a local-first manga, comic and webtoon reader. The Electron desktop app for Windows, macOS and Linux is built first as the complete product, with no account or external service required. An invite-only website follows. There will never be a native mobile app. The legacy Expo tree was removed (Phase 10.5); `apps/` and `packages/` are canonical. Port behavior only after package contracts and tests exist.
+MangaVerse is a local-first manga, comic and webtoon reader. The Electron desktop app for Windows, macOS and Linux is built first as the complete product, with no account or external service. An invite-only website follows; there will never be a native mobile app. Port behavior only after package contracts and tests exist.
 
 ## Target Stack
 
-React + TanStack Router, as a client-rendered shell; TanStack DB (pinned) for local
-data and TanStack Query for provider calls; Zustand for shared client state;
-TypeScript, Zod, and Effect 4 for I/O modules. Electron first, with native SQLite +
-Drizzle in a data process (browser SQLite/WASM in a Worker on web, later). shadcn/ui through `@app/design-system`; GSAP
-through `@app/design-system/motion`. Monorepo of reusable packages. Optional metadata sync
-via Supabase comes after local-first behavior is stable. See `docs/overhaul/`.
+React + TanStack Router, as a client-rendered shell; TanStack DB (pinned) for local data and TanStack Query for provider calls; Zustand for shared client state; TypeScript, Zod, and Effect 4 for I/O modules. Electron first, with native SQLite + Drizzle in a data process (browser SQLite/WASM in a Worker on web, later); shadcn/ui and GSAP come through `@app/design-system`. Optional metadata sync via Supabase comes after local-first behavior is stable.
 
 ## Layout
 
-`apps/web`, `apps/desktop`, and `packages/*`; `docs/` holds `SPEC.md`,
-`ARCHITECTURE.md`, `Design.md`, `overhaul/` and `archive/`.
+`apps/web`, `apps/desktop` and `packages/*` are canonical (the legacy Expo tree is gone); `docs/` holds the docs above plus `archive/`.
 
 ## Package Boundary Rules
 
@@ -42,13 +31,12 @@ Enforced by `.oxlintrc.json` (`no-restricted-imports`; `pnpm lint` fails on a vi
 
 ## Design System Rules
 
-- `DESIGN.md` at the repo root is the design source of truth; `docs/Design.md` holds the binding rules. Read both before UI work.
-- Do not bypass the design system for one-off styling unless a missing primitive is documented.
-- Use shadcn/ui components and composition patterns where available.
+- Read `DESIGN.md` and `docs/Design.md` first (see Required Reading).
+- Do not bypass the design system for one-off styling unless a missing primitive is documented; use shadcn/ui components and composition patterns where available.
 - Use semantic tokens instead of raw colors in UI code.
 - Keep layouts responsive across desktop, tablet, and mobile web.
 - Reader UI must remain calm, stable, and distraction-free.
-- Themes may be visually distinct, but accessibility and component semantics must remain consistent.
+- Themes may differ visually, but accessibility and component semantics must stay consistent.
 
 ## shadcn Tooling
 
@@ -57,9 +45,7 @@ Enforced by `.oxlintrc.json` (`no-restricted-imports`; `pnpm lint` fails on a vi
 
 ## Motion Rules
 
-- Use GSAP through `@app/design-system/motion` helpers or cleanup-safe local patterns.
-- React GSAP code uses `useGSAP()` from `@gsap/react` (or a `gsap.context()` cleanup), scoped to a ref.
-- Wrap event-created GSAP animations with `contextSafe()` or a package helper.
+- Use GSAP through `@app/design-system/motion` helpers or cleanup-safe local patterns. React GSAP code uses `useGSAP()` from `@gsap/react` (or a `gsap.context()` cleanup), scoped to a ref; wrap event-created animations with `contextSafe()` or a package helper.
 - Respect `prefers-reduced-motion`, and do not run GSAP during SSR.
 - Do not use ScrollTrigger in core reader scrolling unless designed and tested as a reader-safe enhancement; remove its markers from production.
 - Do not animate layout-heavy properties when transform or opacity can achieve the effect.
@@ -83,35 +69,23 @@ Enforced by `.oxlintrc.json` (`no-restricted-imports`; `pnpm lint` fails on a vi
 
 ## Local-First Performance Rules
 
-- Local UI should render from SQLite/cache first whenever possible.
-- Provider calls and cloud sync should hydrate local state asynchronously.
-- Use TanStack Query for provider call caching, cancellation, retries, prefetching, and optimistic updates.
-- Use TanStack Router intent preloading where useful.
-- Virtualize long library grids, search results and chapter/reader lists.
-- Track slow and failed provider calls.
-- Support low-memory mode for constrained devices.
+- Local UI should render from SQLite/cache first whenever possible; provider calls and cloud sync should hydrate local state asynchronously.
+- Use TanStack Query for provider call caching, cancellation, retries, prefetching, and optimistic updates; use TanStack Router intent preloading where useful.
+- Virtualize long library grids, search results and chapter/reader lists; track slow and failed provider calls; support low-memory mode for constrained devices.
 
 ## Testing Expectations
 
-- Add or update tests for core behavior.
-- Prefer behavior tests over implementation-detail tests.
-- Add unit tests for pure packages.
-- Add integration tests for DB repositories and migrations.
-- Add contract tests for provider SDK behavior.
+- Add or update tests for core behavior; prefer behavior tests over implementation-detail tests.
+- Add unit tests for pure packages, integration tests for DB repositories and migrations, contract tests for provider SDK behavior, migration safety tests and search aggregation tests.
 - Add reader interaction tests for tap zones, modes, keyboard navigation, progress, and gesture-sensitive logic.
-- Add migration safety tests.
-- Add search aggregation tests.
-- Add accessibility tests for new UI flows.
-- Add reduced-motion checks for motion-heavy components.
+- Add accessibility tests for new UI flows and reduced-motion checks for motion-heavy components.
 - The production E2E serves `packages/*/dist`: rebuild after editing package sources.
 
-Critical flows: add/search provider, add manga, open details, start/continue
-reading, reader mode, tap zones, switch/migrate provider, backup, restore,
-theme, reduced motion.
+Critical flows: add/search provider, add manga, open details, start/continue reading, reader mode, tap zones, switch/migrate provider, backup, restore, theme, reduced motion.
 
 ## Current State
 
-The app overhaul is the active workstream: `docs/overhaul/roadmap.md` holds the order and issues, and `docs/overhaul/handoff.md` the current state. Milestone 1 (foundation and the #208 package consolidation) has landed; milestones 2 and later have not, so the sections here describing the target may still be ahead of the code.
+The overhaul is active: milestones 1, 2 and 4 have landed; 3 awaits owner-approved recipes; 5 (reader) is in progress. Order and issues: `docs/overhaul/roadmap.md`; current state: `docs/overhaul/handoff.md`.
 
 ## Effect Rules
 
