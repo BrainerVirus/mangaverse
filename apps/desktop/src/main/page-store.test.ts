@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
+import type * as FsPromises from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createPageProtocolHandler,
   createPageStore,
@@ -12,6 +13,68 @@ import {
   pageUrlForId,
   type PageStore,
 } from './page-store.js';
+
+interface Gate {
+  /** Resolves once the gated call has been reached. */
+  hit: Promise<void>;
+  reached: () => void;
+  /** The gated call waits on this until `release`. */
+  wait: Promise<void>;
+  release: () => void;
+}
+
+function createGate(): Gate {
+  let reached!: () => void;
+  let release!: () => void;
+  const hit = new Promise<void>((resolve) => (reached = resolve));
+  const wait = new Promise<void>((resolve) => (release = resolve));
+  return { hit, reached, wait, release };
+}
+
+// One-shot gates: a gate parks the next matching call, then clears itself, so every other
+// fs call passes straight through to the real module.
+const gates = vi.hoisted(() => ({
+  readdir: undefined as undefined | Gate,
+  sidecarRename: undefined as undefined | Gate,
+  sidecarLstat: undefined as undefined | Gate,
+}));
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof FsPromises>();
+  return {
+    ...actual,
+    // Parks after the listing is taken, so the snapshot is stale when the call resumes.
+    readdir: async (path: string) => {
+      const result = await actual.readdir(path);
+      const gate = gates.readdir;
+      if (gate !== undefined) {
+        gates.readdir = undefined;
+        gate.reached();
+        await gate.wait;
+      }
+      return result;
+    },
+    // Parks after the lookup has answered, so the caller acts on an answer that may go stale.
+    lstat: (path: string) =>
+      actual.lstat(path).finally(async () => {
+        const gate = gates.sidecarLstat;
+        if (gate !== undefined && path.endsWith('.json')) {
+          gates.sidecarLstat = undefined;
+          gate.reached();
+          await gate.wait;
+        }
+      }),
+    rename: async (from: string, to: string) => {
+      const gate = gates.sidecarRename;
+      if (gate !== undefined && to.endsWith('.json')) {
+        gates.sidecarRename = undefined;
+        gate.reached();
+        await gate.wait;
+      }
+      return actual.rename(from, to);
+    },
+  };
+});
 
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4]);
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -122,6 +185,68 @@ describe('page store', () => {
 
     expect(await store.listKeys()).toEqual([]);
     expect(await readdir(root)).toEqual(['unrelated.txt']);
+  });
+
+  it('keeps the bytes of a put whose sidecar landed after the listing was taken', async () => {
+    await store.put('page:warm:m:c:9', JPEG, 'image/jpeg'); // creates the directory
+    const putGate = createGate();
+    const listGate = createGate();
+
+    gates.sidecarRename = putGate;
+    const put = store.put(KEY, JPEG, 'image/jpeg');
+    await putGate.hit; // bytes are on disk, the sidecar is not
+    gates.readdir = listGate;
+    const sweep = store.listKeys();
+    await listGate.hit; // the snapshot has bytes without a sidecar
+    putGate.release();
+    await put; // the sidecar lands and the put is no longer in flight
+    listGate.release();
+    await sweep;
+
+    expect(await store.urlFor(KEY)).toBe(pageUrlForId(pageIdForKey(KEY)));
+    expect(await store.verify(KEY)).toEqual({
+      sha256: createHash('sha256').update(JPEG).digest('hex'),
+      byteSize: JPEG.byteLength,
+    });
+    expect(await store.listKeys()).toContain(KEY);
+  });
+
+  it('still reaps bytes whose sidecar never lands, even when the listing was stale', async () => {
+    const id = pageIdForKey(KEY);
+    await mkdir(root, { recursive: true });
+    await writeFile(join(root, id), JPEG);
+    const listGate = createGate();
+
+    gates.readdir = listGate;
+    const sweep = store.listKeys();
+    await listGate.hit;
+    listGate.release();
+
+    expect(await sweep).toEqual([]);
+    expect(await readdir(root)).toEqual([]);
+  });
+
+  it('keeps the bytes of a put that runs between the sweep checking the sidecar and deleting', async () => {
+    const id = pageIdForKey(KEY);
+    await mkdir(root, { recursive: true });
+    await writeFile(join(root, id), PNG); // bytes with no sidecar: a leftover
+    const lstatGate = createGate();
+
+    gates.sidecarLstat = lstatGate;
+    const sweep = store.listKeys();
+    await lstatGate.hit; // the sweep saw no sidecar and has not deleted yet
+    const put = store.put(KEY, JPEG, 'image/jpeg');
+    // Unserialized, the put finishes here; serialized, it queues behind the sweep. Either
+    // way the sweep resumes only once the put has had its chance to run.
+    await Promise.race([put, new Promise((resolve) => setTimeout(resolve, 100))]);
+    lstatGate.release();
+    await Promise.all([sweep, put]);
+
+    expect(await store.urlFor(KEY)).toBe(pageUrlForId(id));
+    expect(await store.verify(KEY)).toEqual({
+      sha256: createHash('sha256').update(JPEG).digest('hex'),
+      byteSize: JPEG.byteLength,
+    });
   });
 
   it('refuses keys that are not pages and bodies that are not images', async () => {

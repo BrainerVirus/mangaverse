@@ -124,6 +124,21 @@ export interface PageStore {
 export function createPageStore(root: string): PageStore {
   // Ids between their first write and their sidecar rename: a listing must not reap them.
   const writing = new Map<string, number>();
+  // Per-id queue: a put, a delete and a sweep's delete decision for one id never interleave.
+  const locks = new Map<string, Promise<void>>();
+  const withLock = <T>(id: string, run: () => Promise<T>): Promise<T> => {
+    const result = (locks.get(id) ?? Promise.resolve()).then(run);
+    // The tail never rejects, so one failed task cannot block or poison the next.
+    const tail = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    locks.set(id, tail);
+    void tail.then(() => {
+      if (locks.get(id) === tail) locks.delete(id);
+    });
+    return result;
+  };
   let ready: Promise<string> | undefined;
   const realRoot = () => {
     ready ??= mkdir(root, { recursive: true }).then(() => realpath(root));
@@ -172,23 +187,25 @@ export function createPageStore(root: string): PageStore {
       if (mimeType === undefined) throw new Error('Page is not a supported image type.');
       const dir = await realRoot();
       const id = pageIdForKey(key);
-      writing.set(id, (writing.get(id) ?? 0) + 1);
-      try {
-        // Bytes before sidecar: a sidecar always points at complete bytes.
-        await writeAtomic(join(dir, id), bytes);
-        await writeAtomic(
-          join(dir, `${id}${SIDECAR_SUFFIX}`),
-          JSON.stringify({
-            key,
-            mimeType,
-            sha256: createHash('sha256').update(bytes).digest('hex'),
-          } satisfies PageSidecar),
-        );
-      } finally {
-        const remaining = (writing.get(id) ?? 1) - 1;
-        if (remaining <= 0) writing.delete(id);
-        else writing.set(id, remaining);
-      }
+      await withLock(id, async () => {
+        writing.set(id, (writing.get(id) ?? 0) + 1);
+        try {
+          // Bytes before sidecar: a sidecar always points at complete bytes.
+          await writeAtomic(join(dir, id), bytes);
+          await writeAtomic(
+            join(dir, `${id}${SIDECAR_SUFFIX}`),
+            JSON.stringify({
+              key,
+              mimeType,
+              sha256: createHash('sha256').update(bytes).digest('hex'),
+            } satisfies PageSidecar),
+          );
+        } finally {
+          const remaining = (writing.get(id) ?? 1) - 1;
+          if (remaining <= 0) writing.delete(id);
+          else writing.set(id, remaining);
+        }
+      });
       return pageUrlForId(id);
     },
 
@@ -220,9 +237,11 @@ export function createPageStore(root: string): PageStore {
       if (!isPageStoreKey(key)) throw new Error('Not a page store key.');
       const dir = await realRoot();
       const id = pageIdForKey(key);
-      // Sidecar first: once it is gone the page is no longer listed or served.
-      await rm(join(dir, `${id}${SIDECAR_SUFFIX}`), { force: true });
-      await rm(join(dir, id), { force: true });
+      await withLock(id, async () => {
+        // Sidecar first: once it is gone the page is no longer listed or served.
+        await rm(join(dir, `${id}${SIDECAR_SUFFIX}`), { force: true });
+        await rm(join(dir, id), { force: true });
+      });
     },
 
     async listKeys() {
@@ -245,7 +264,19 @@ export function createPageStore(root: string): PageStore {
           sidecarIds.push(id);
         }
       }
-      await mapBounded(leftovers, (name) => rm(join(dir, name), { force: true }));
+      await mapBounded(leftovers, (name) => {
+        // The readdir snapshot is stale by now: a put may have started or finished since.
+        // Decide on the disk as it is, under the id's lock so no put can land between the
+        // check and the delete.
+        const id = name.split('.')[0]!;
+        return withLock(id, async () => {
+          if (writing.has(id)) return;
+          const sidecar =
+            name === id && (await lstat(join(dir, `${id}${SIDECAR_SUFFIX}`)).catch(() => null));
+          if (sidecar) return;
+          await rm(join(dir, name), { force: true });
+        });
+      });
       const sidecars = await mapBounded(sidecarIds, (id) => readSidecar(dir, id));
       for (const [index, sidecar] of sidecars.entries()) {
         if (sidecar !== undefined && pageIdForKey(sidecar.key) === sidecarIds[index]) {
