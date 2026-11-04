@@ -28,7 +28,9 @@ import { createDataHost } from './serve.js';
 
 const cleanups: (() => void)[] = [];
 afterEach(() => {
-  for (const cleanup of cleanups.splice(0)) cleanup();
+  // Reverse order: a scratch directory is created before the host that opens a file inside
+  // it, so the handle must close before the directory is removed (Windows refuses otherwise).
+  for (const cleanup of cleanups.splice(0).reverse()) cleanup();
 });
 
 /** A snapshot made the way the web renderer makes one: sql.js and the bundled migrator. */
@@ -94,7 +96,9 @@ function host(directory: string) {
 
 function scratch(): string {
   const directory = mkdtempSync(join(tmpdir(), 'mangaverse-import-'));
-  cleanups.push(() => rmSync(directory, { recursive: true, force: true }));
+  cleanups.push(() =>
+    rmSync(directory, { recursive: true, force: true, maxRetries: 20, retryDelay: 25 }),
+  );
   return directory;
 }
 

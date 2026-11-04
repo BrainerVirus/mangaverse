@@ -78,5 +78,5 @@ jobs:
       - name: Assert the data-host suites ran
         run: |
           node scripts/assert-tests-ran.mjs packages/db/.reports/sqljs.json --file src/host/serve.test.ts --file src/host/import-snapshot.test.ts
-          node scripts/assert-tests-ran.mjs packages/db/.reports/host.json
+          node scripts/assert-tests-ran.mjs packages/db/.reports/host.json --file src/repositories/library.test.ts
           node scripts/assert-tests-ran.mjs apps/desktop/.reports/desktop.json --file src/main/data-host.test.ts

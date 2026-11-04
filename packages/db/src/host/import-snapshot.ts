@@ -70,8 +70,17 @@ function sameDigests(
 
 function removeDatabaseFiles(path: string): void {
   for (const suffix of ['', '-wal', '-shm', '-journal']) {
-    rmSync(`${path}${suffix}`, { force: true });
+    // Windows keeps a file undeletable while a handle is open; retry briefly instead of
+    // leaving an import temp file behind (which would also trip the next open).
+    rmSync(`${path}${suffix}`, { force: true, recursive: true, maxRetries: 20, retryDelay: 25 });
   }
+}
+
+/** SQLite refuses a file without this header; checking first avoids opening garbage. */
+function hasSqliteHeader(bytes: Uint8Array): boolean {
+  const header = new TextEncoder().encode('SQLite format 3\0');
+  if (bytes.length < header.length) return false;
+  return header.every((byte, index) => bytes[index] === byte);
 }
 
 /**
@@ -108,6 +117,9 @@ export function importSnapshot(
 ): SnapshotImportReport {
   if (existsSync(targetPath)) {
     throw new Error('A native database already exists; a snapshot is imported only once.');
+  }
+  if (!hasSqliteHeader(bytes)) {
+    throw new Error('The snapshot is not a SQLite database.');
   }
   const sourcePath = `${targetPath}.import-source`;
   const workPath = `${targetPath}.import-work`;
