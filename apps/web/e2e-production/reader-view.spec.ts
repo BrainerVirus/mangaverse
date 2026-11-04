@@ -55,6 +55,15 @@ async function servePortraitPages(page: Page) {
   );
 }
 
+/** Scrolls a virtualised strip by the page offset it publishes. */
+async function scrollStripToPage(page: Page, strip: Locator, index: number) {
+  await strip.evaluate((element, target) => {
+    const offsets = JSON.parse(element.dataset['pageOffsets'] ?? '[]') as number[];
+    element.scrollTop = offsets[target] ?? 0;
+  }, index);
+  await expect(page.getByText(`${index + 1} / 37`)).toBeVisible({ timeout: 10_000 });
+}
+
 /** Parses the inline `translate(Xpx, Ypx) scale(S)` the zoom layer renders. */
 function parseTransform(style: string | null): { scale: number; x: number; y: number } {
   const match = /translate\((-?[\d.]+)px, (-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(style ?? '');
@@ -221,6 +230,8 @@ test('Given the vertical strip, When the current page is shorter than half the v
   await switchToVertical(page);
   const strip = page.getByTestId('reader-scroll-view');
 
+  // Centre page 11 first: the strip only mounts rows near the active page.
+  await scrollStripToPage(page, strip, 10);
   // Shrink pages 11 and 12 to slivers and centre page 11. With a top-edge
   // scroll, ArrowRight lands on page 12's top while the viewport centre stays
   // in page 13, so the strip skips page 12 entirely (#474).
@@ -251,13 +262,7 @@ test('Given the vertical strip, When ArrowRight is pressed five times rapidly, T
   await switchToVertical(page);
   const strip = page.getByTestId('reader-scroll-view');
 
-  await strip.evaluate((element) => {
-    const target = element.querySelector<HTMLElement>('[data-page-index="9"]');
-    if (target !== null) {
-      element.scrollTop = target.offsetTop;
-    }
-  });
-  await expect(page.getByText('10 / 37')).toBeVisible({ timeout: 10_000 });
+  await scrollStripToPage(page, strip, 9);
 
   for (let press = 0; press < 5; press += 1) {
     await page.keyboard.press('ArrowRight');

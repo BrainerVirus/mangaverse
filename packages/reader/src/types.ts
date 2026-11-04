@@ -164,18 +164,6 @@ export interface PreloadPlan {
   readonly maxPreload: number;
 }
 
-export interface DecodeQueueItem {
-  readonly pageIndex: number;
-  readonly url: string;
-  readonly priority: number;
-  readonly retryCount: number;
-}
-
-export interface DecodeQueue {
-  readonly items: readonly DecodeQueueItem[];
-  readonly totalPages: number;
-}
-
 export interface PageLoadResult {
   readonly pageIndex: number;
   readonly success: boolean;

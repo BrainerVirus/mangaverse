@@ -5,6 +5,7 @@ import {
   resolveNavigationAction,
 } from '../navigation.js';
 import type { ReaderPageData } from '../reader-page-data.js';
+import { markReaderPageTurn } from '../reader-timing.js';
 import { createReaderState } from '../state.js';
 import type {
   ReaderNavigationAction,
@@ -83,6 +84,9 @@ export function useReaderSession(
         return;
       }
 
+      // The budget's clock starts where the reader asked for the page, not
+      // where React happened to commit it.
+      markReaderPageTurn();
       setReaderState((current) => {
         if (!current) return current;
         const resolved = resolveNavigationAction(current, action);

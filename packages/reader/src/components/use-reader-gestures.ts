@@ -1,11 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  type Dispatch,
-  type PointerEvent as ReactPointerEvent,
-  type SetStateAction,
-} from 'react';
+import { useCallback, useEffect, useRef, type PointerEvent as ReactPointerEvent } from 'react';
 import { isDoubleTap, pinchScale, pointerDistance, resolveGestureThresholds } from '../gestures.js';
 import { calculateTapZones } from '../tap-zones.js';
 import {
@@ -21,8 +14,8 @@ import type {
   ReaderSessionInput,
   ReaderState,
   TapZoneRegion,
-  ZoomStateSummary,
 } from '../types.js';
+import type { ReaderZoomController } from './use-reader-zoom.js';
 import { measureZoomBox, type ZoomBox } from './zoom-box.js';
 
 function findTapZone(
@@ -79,7 +72,6 @@ function createPointerGesture(): PointerGesture {
 }
 
 export interface ReaderGestures {
-  readonly updateZoom: (transform: (zoom: ZoomStateSummary) => ZoomStateSummary) => void;
   readonly handleZoomPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
   readonly handleZoomPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void;
   readonly handleZoomPointerUp: (event: ReactPointerEvent<HTMLDivElement>) => void;
@@ -94,7 +86,8 @@ interface UseReaderGesturesInput {
   readonly overlayInsets: ReaderOverlayInsets;
   readonly navigate: (action: ReaderNavigationAction) => void;
   readonly onToggleChrome: () => void;
-  readonly setReaderState: Dispatch<SetStateAction<ReaderState | null>>;
+  /** Gesture zoom: applied to the layer per frame and committed on release. */
+  readonly zoom: ReaderZoomController;
 }
 
 /**
@@ -110,21 +103,12 @@ export function useReaderGestures({
   overlayInsets,
   navigate,
   onToggleChrome,
-  setReaderState,
+  zoom,
 }: UseReaderGesturesInput): ReaderGestures {
   const pointerRef = useRef<PointerGesture | null>(null);
   const frameRef = useRef<number | null>(null);
   const pinchSensitivity = sessionInput?.settings.pinchSensitivity ?? 1;
   const gestureSensitivity = sessionInput?.settings.gestureSensitivity ?? 1;
-
-  const updateZoom = useCallback(
-    (transform: (zoom: ZoomStateSummary) => ZoomStateSummary) => {
-      setReaderState((previous) =>
-        previous === null ? previous : { ...previous, zoom: transform(previous.zoom) },
-      );
-    },
-    [setReaderState],
-  );
 
   // A reader resize (window, sidebar or shell collapse) changes the box the
   // gesture clamps against, so an active gesture re-measures it. The layer is
@@ -160,11 +144,11 @@ export function useReaderGestures({
     if (pinch !== null) {
       const [first, second] = [...gesture.pointers.values()];
       if (first === undefined || second === undefined) return;
-      updateZoom((zoom) =>
+      zoom.apply((current) =>
         clampZoomTransform(
           applyPinchZoom(
-            zoom,
-            zoom.scale,
+            current,
+            current.scale,
             pinchScale(pinch, pointerDistance(first, second), pinchSensitivity),
             {
               centerX: (first.x + second.x) / 2 - box.left,
@@ -181,9 +165,9 @@ export function useReaderGestures({
     }
 
     if (pan !== null) {
-      updateZoom((zoom) =>
+      zoom.apply((current) =>
         clampZoomTransform(
-          applyPan(zoom, pan.x, pan.y),
+          applyPan(current, pan.x, pan.y),
           box.width,
           box.height,
           box.width,
@@ -191,7 +175,7 @@ export function useReaderGestures({
         ),
       );
     }
-  }, [updateZoom, pinchSensitivity]);
+  }, [zoom, pinchSensitivity]);
 
   const scheduleZoomFlush = useCallback(() => {
     frameRef.current ??= requestAnimationFrame(flushZoom);
@@ -215,13 +199,13 @@ export function useReaderGestures({
           // belongs to no gesture the user is still making.
           gesture.pendingPan = null;
           gesture.pinch = {
-            scale: readerState.zoom.scale,
+            scale: zoom.read().scale,
             distance: pointerDistance(first, second),
           };
         }
       }
     },
-    [readerState, surface],
+    [readerState, surface, zoom],
   );
 
   const handleZoomPointerMove = useCallback(
@@ -239,7 +223,7 @@ export function useReaderGestures({
         return;
       }
 
-      if (readerState.zoom.scale <= 1) return;
+      if (zoom.read().scale <= 1) return;
 
       const deltaX = event.clientX - pointer.x;
       const deltaY = event.clientY - pointer.y;
@@ -255,7 +239,7 @@ export function useReaderGestures({
         pan === null ? { x: deltaX, y: deltaY } : { x: pan.x + deltaX, y: pan.y + deltaY };
       scheduleZoomFlush();
     },
-    [gestureSensitivity, readerState, scheduleZoomFlush],
+    [gestureSensitivity, readerState, scheduleZoomFlush, zoom],
   );
 
   const handleZoomPointerUp = useCallback(
@@ -268,8 +252,12 @@ export function useReaderGestures({
         gesture.pinch = null;
         gesture.pendingPinch = false;
       }
+      // One React commit per gesture: a pinch ends when the second finger
+      // lifts, a pan when the last one does. Taps, tap zones and the debug
+      // overlay then read a settled zoom, never a 60 Hz stream of frames.
+      if (gesture.pointers.size < 2) zoom.commit();
     },
-    [flushZoom],
+    [flushZoom, zoom],
   );
 
   const handlePointerUp = useCallback(
@@ -288,14 +276,14 @@ export function useReaderGestures({
       gesture.lastTap = gesture.moved ? null : tap;
       gesture.moved = false;
       if (doubleTap) {
-        updateZoom((zoom) =>
+        zoom.apply((current) =>
           clampZoomTransform(
             applyDoubleTapZoom(
-              zoom,
+              current,
               { x, y },
               rect.width,
               rect.height,
-              clampZoomScale(zoom, sessionInput.settings.doubleTapZoom),
+              clampZoomScale(current, sessionInput.settings.doubleTapZoom),
             ),
             rect.width,
             rect.height,
@@ -303,10 +291,11 @@ export function useReaderGestures({
             rect.height,
           ),
         );
+        zoom.commit();
         return;
       }
 
-      const zones = calculateTapZones(sessionInput, overlayInsets, readerState.zoom);
+      const zones = calculateTapZones(sessionInput, overlayInsets, zoom.read());
       const zone = findTapZone(zones, x, y);
       const action = zone?.action ?? { type: 'none' as const };
 
@@ -319,19 +308,10 @@ export function useReaderGestures({
         navigate({ type: action.type });
       }
     },
-    [
-      gestureSensitivity,
-      navigate,
-      onToggleChrome,
-      overlayInsets,
-      readerState,
-      sessionInput,
-      updateZoom,
-    ],
+    [gestureSensitivity, navigate, onToggleChrome, overlayInsets, readerState, sessionInput, zoom],
   );
 
   return {
-    updateZoom,
     handleZoomPointerDown,
     handleZoomPointerMove,
     handleZoomPointerUp,

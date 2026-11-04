@@ -7,6 +7,11 @@ import type { ReaderSettings } from '@app/shared';
 
 vi.mock('@app/cache', () => ({
   CachedPageImage: () => null,
+  createPageDecodePool: () => ({
+    setPlan: () => {},
+    snapshot: () => ({ decoded: 0, pending: 0, released: 0, failures: 0 }),
+    dispose: () => {},
+  }),
   holdReaderLocks: vi.fn<(chapter: unknown) => () => void>(() => () => {}),
   evictCacheToLimit: vi.fn<() => Promise<{ evictedCount: number; failedBlobKeys: string[] }>>(
     async () => ({ evictedCount: 0, failedBlobKeys: [] }),
@@ -17,18 +22,23 @@ vi.mock('@app/cache', () => ({
   useCoverCacheContext: () => null,
 }));
 
-vi.mock('@app/design-system', () => ({
-  Button: () => null,
-  EmptyState: () => null,
-  ErrorState: () => null,
-  GlassSurface: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  LoadingState: () => null,
-  ReaderChrome: () => null,
-  Sheet: () => null,
-  SheetContent: () => null,
-  SheetHeader: () => null,
-  SheetTitle: () => null,
-}));
+vi.mock('@app/design-system', async () => {
+  const { useReducer } = await import('react');
+  return {
+    Button: () => null,
+    EmptyState: () => null,
+    ErrorState: () => null,
+    GlassSurface: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+    LoadingState: () => null,
+    ReaderChrome: () => null,
+    Sheet: () => null,
+    SheetContent: () => null,
+    SheetHeader: () => null,
+    SheetTitle: () => null,
+    useStateReducer: (reducer: (state: unknown, event: unknown) => unknown, initial: unknown) =>
+      useReducer(reducer as never, initial),
+  };
+});
 
 const resizeCallbacks: ResizeObserverCallback[] = [];
 
@@ -208,6 +218,17 @@ async function settleFrame() {
   });
 }
 
+/**
+ * The wheel writes the layer directly per frame and commits to React state
+ * once the wheel rests (150ms idle), so a state-reading assertion waits longer
+ * than one frame on purpose.
+ */
+async function settleWheel() {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  });
+}
+
 function scaleOf(layer: HTMLElement): number {
   const match = /scale\(([\d.]+)\)/.exec(layer.style.transform);
   return Number(match?.[1] ?? '0');
@@ -306,6 +327,7 @@ describe('ReaderScreen zoom and pan', () => {
 
     wheel(mounted.layer, { deltaY: -100, ctrlKey: true });
     await settleFrame();
+    await settleWheel();
 
     expect(scaleOf(mounted.layer)).toBeGreaterThan(1);
     unmount(mounted);
@@ -318,12 +340,14 @@ describe('ReaderScreen zoom and pan', () => {
       wheel(mounted.layer, { deltaY: -100, ctrlKey: true });
     }
     await settleFrame();
+    await settleWheel();
     expect(scaleOf(mounted.layer)).toBe(1.5);
 
     for (let index = 0; index < 20; index += 1) {
       wheel(mounted.layer, { deltaY: 100, ctrlKey: true });
     }
     await settleFrame();
+    await settleWheel();
     expect(scaleOf(mounted.layer)).toBe(1.2);
     unmount(mounted);
   });
@@ -579,6 +603,7 @@ describe('ReaderScreen zoom and pan', () => {
 
     doubleTap(mounted.layer);
     await settleFrame();
+    await settleWheel();
     expect(scaleOf(mounted.layer)).toBe(1.5);
 
     // A GSAP revert restores only its own wrapper's inline transform; the zoom

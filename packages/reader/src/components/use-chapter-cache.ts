@@ -8,6 +8,7 @@ import {
   type CoverCacheContextValue,
 } from '@app/cache';
 import { formatUnavailableOfflinePages } from '../offline-pages.js';
+import { createPreloadPlan } from '../preload.js';
 import type { ReaderPageData } from '../reader-page-data.js';
 import { resolveScrollPreloadAhead } from '../scroll-layout.js';
 
@@ -33,6 +34,8 @@ export function useChapterPrefetch(
     readonly bytes: number;
     readonly durationMs: number;
   }) => void,
+  /** Fires after a sweep settles, so decode-ahead can warm newly cached pages. */
+  onSweepComplete?: () => void,
 ): void {
   // Depend on the chapter's page array, ids, and budget — not on `data`, which
   // is replaced whenever a reader setting changes. A settings toggle must not
@@ -60,6 +63,9 @@ export function useChapterPrefetch(
       onPrefetchMetric?.(metric);
     },
   );
+  const onSweepCompleteRef = useEffectEvent(() => {
+    onSweepComplete?.();
+  });
 
   // The locks live as long as this chapter is open, not as long as one prefetch
   // sweep: a settings change releases and re-runs the sweep below, and a gap
@@ -87,12 +93,18 @@ export function useChapterPrefetch(
 
     const controller = new AbortController();
     const startedAt = performance.now();
-    const prefetchPages = pages
-      .slice(activePageIndex + 1, activePageIndex + 1 + preloadCount)
-      .map((page) => ({
-        pageIndex: page.index,
-        remoteUrl: page.image.url,
-      }));
+    // The active page is already loading through its mounted image, so the
+    // sweep spends its first slots on the two neighbours and only then ahead.
+    // Rebuilding the plan on every turn (the dependency below) is what makes a
+    // turn cancel the previous plan instead of racing it.
+    const prefetchPages = createPreloadPlan(pages, activePageIndex, preloadCount, lowMemoryMode, {
+      includeActive: false,
+      preloadBehind: 1,
+    }).items.map((item) => ({
+      pageIndex: item.pageIndex,
+      remoteUrl: item.url,
+    }));
+    if (prefetchPages.length === 0) return;
 
     void prefetchChapterPages({
       db: cacheContext.db,
@@ -122,6 +134,8 @@ export function useChapterPrefetch(
         // The chapter being read stays cached even when it alone is over budget.
         protectChapter: { providerId, mangaId, chapterId },
       });
+      if (controller.signal.aborted) return;
+      onSweepCompleteRef();
     });
 
     return () => {
@@ -132,6 +146,7 @@ export function useChapterPrefetch(
     budgetBytes,
     cacheContext,
     chapterId,
+    lowMemoryMode,
     mangaId,
     pages,
     preloadCount,

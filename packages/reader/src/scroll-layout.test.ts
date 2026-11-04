@@ -3,7 +3,11 @@ import {
   computeScrollPageMetrics,
   findActiveScrollPage,
   isLongStripPage,
+  planPageTiles,
   resolveScrollPreloadAhead,
+  resolveStripPageSize,
+  stripPageHeight,
+  STRIP_TILE_HEIGHT_PX,
   windowedScrollPages,
 } from './scroll-layout.js';
 import type { ReaderPage } from './types.js';
@@ -154,5 +158,56 @@ describe('long-strip optimization', () => {
         longStripOptimization: true,
       }),
     ).toBe(0);
+  });
+});
+
+describe('strip page geometry', () => {
+  const landscape = {
+    index: 0,
+    image: { url: 'https://example.com/landscape.jpg', width: 1600, height: 900 },
+  } as ReaderPage;
+  const unknown = { index: 1, image: { url: 'https://example.com/x.jpg' } } as ReaderPage;
+
+  it('Given provider dimensions, When sized, Then the strip keeps the page ratio', () => {
+    expect(resolveStripPageSize(landscape)).toMatchObject({ width: 1600, height: 900 });
+    expect(stripPageHeight(landscape, 800)).toBe(450);
+  });
+
+  it('Given no dimensions, When sized, Then the 2:3 placeholder is used until a natural size arrives', () => {
+    expect(stripPageHeight(unknown, 800)).toBe(1200);
+    expect(stripPageHeight(unknown, 800, { width: 800, height: 400 })).toBe(400);
+  });
+
+  it('Given a zero-width strip before layout, When sized, Then the height never collapses to zero', () => {
+    expect(stripPageHeight(landscape, 0)).toBe(1);
+  });
+});
+
+describe('planPageTiles', () => {
+  it('Given an ordinary page, When planned, Then it stays one tile', () => {
+    expect(planPageTiles(1200)).toEqual([{ offset: 0, height: 1200 }]);
+  });
+
+  it('Given a page past the tiling threshold, When planned, Then tiles are contiguous and cover the page', () => {
+    const height = 20_000;
+    const tiles = planPageTiles(height);
+
+    expect(tiles.length).toBe(Math.ceil(height / STRIP_TILE_HEIGHT_PX));
+    expect(tiles[0]).toEqual({ offset: 0, height: STRIP_TILE_HEIGHT_PX });
+    for (let index = 1; index < tiles.length; index += 1) {
+      expect(tiles[index]!.offset).toBe(tiles[index - 1]!.offset + tiles[index - 1]!.height);
+    }
+    const last = tiles.at(-1)!;
+    expect(last.offset + last.height).toBe(height);
+  });
+
+  it('Given a height exactly at the threshold, When planned, Then it is not tiled yet', () => {
+    expect(planPageTiles(8192)).toHaveLength(1);
+    expect(planPageTiles(8193)).toHaveLength(3);
+  });
+
+  it('Given a zero or negative height, When planned, Then one minimal tile is returned', () => {
+    expect(planPageTiles(0)).toEqual([{ offset: 0, height: 1 }]);
+    expect(planPageTiles(-5)).toEqual([{ offset: 0, height: 1 }]);
   });
 });
