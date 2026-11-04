@@ -83,6 +83,18 @@ export async function acquirePageObjectUrl(
   try {
     const result = await promise;
     if (result === undefined) return undefined;
+    // A lookup of the other kind can settle while this one is in flight. The first
+    // result becomes the shared URL; this one must join it instead of overwriting
+    // `held` (which would leak a URL and later revoke the one a mounted page uses).
+    const concurrent = held.get(key);
+    if (concurrent !== undefined) {
+      concurrent.refs += 1;
+      // Desktop `page://` URLs are identical; a web object URL is per call.
+      if (concurrent.url !== result.objectUrl) {
+        await input.adapter.blobStorage.revokeObjectUrl(result.objectUrl);
+      }
+      return toResult(concurrent);
+    }
     held.set(key, {
       url: result.objectUrl,
       refs: 1,

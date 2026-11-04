@@ -129,6 +129,40 @@ describe('acquirePageObjectUrl', () => {
     expect(store.resolvePageObjectUrl).toHaveBeenCalledTimes(1);
   });
 
+  it('Given a cached-only and a full lookup settle together, Then both share the first URL and the duplicate is revoked', async () => {
+    let settleCached!: (value: { objectUrl: string; fromCache: boolean; byteSize: number }) => void;
+    let settleFull!: (value: { objectUrl: string; fromCache: boolean; byteSize: number }) => void;
+    store.getCachedPageObjectUrl.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          settleCached = resolve;
+        }),
+    );
+    store.resolvePageObjectUrl.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          settleFull = resolve;
+        }),
+    );
+
+    const cached = acquirePageObjectUrl(input(77), { cachedOnly: true });
+    const full = acquirePageObjectUrl(input(77));
+    settleCached({ objectUrl: 'blob:cached', fromCache: true, byteSize: 20 });
+    settleFull({ objectUrl: 'blob:full', fromCache: false, byteSize: 20 });
+
+    const [cachedResult, fullResult] = await Promise.all([cached, full]);
+    expect(cachedResult?.objectUrl).toBe('blob:cached');
+    expect(fullResult?.objectUrl).toBe('blob:cached');
+    // The duplicate was revoked, the shared one was not.
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:full');
+    expect(revokeObjectUrl).not.toHaveBeenCalledWith('blob:cached');
+
+    await releasePageObjectUrl(input(77));
+    expect(revokeObjectUrl).not.toHaveBeenCalledWith('blob:cached');
+    await releasePageObjectUrl(input(77));
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:cached');
+  });
+
   it('Given a concurrent first load, When two callers await it, Then both get the settled URL', async () => {
     let settle!: (value: { objectUrl: string; fromCache: boolean; byteSize: number }) => void;
     store.resolvePageObjectUrl.mockImplementation(
