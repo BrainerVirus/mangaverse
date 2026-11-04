@@ -57,6 +57,7 @@ export async function createSqlJsHarness(): Promise<HostHarness> {
     onMessage: (listener) => {
       port2.onmessage = (event) => listener(event.data);
     },
+    close: () => port2.close(),
   });
   const opened = await client.open(null);
   if (!opened.ok) throw new Error(opened.error.message);

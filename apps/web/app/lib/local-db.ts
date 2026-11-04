@@ -285,6 +285,7 @@ function clientPort(port: MessagePort): DataHostClientPort {
     onMessage: (listener) => {
       port.onmessage = (event) => listener(event.data);
     },
+    close: () => port.close(),
   };
 }
 
