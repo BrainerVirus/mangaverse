@@ -5,6 +5,8 @@ export default defineConfig({
     dedupe: ['react', 'react-dom'],
   },
   test: {
+    // Concurrent runs race on node_modules/.vitest-cache cleanup (ENOTEMPTY, #261).
+    fsModuleCache: false,
     environment: 'node',
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     setupFiles: ['./src/__tests__/setup.ts'],
