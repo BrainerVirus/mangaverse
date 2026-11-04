@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, renameSync, writeFileSync } from 'node:fs';
-import { unlink } from 'node:fs/promises';
+import { unlink, writeFile } from 'node:fs/promises';
 import type { DatabaseSync } from 'node:sqlite';
 import type { CacheBlobKeyRewrite, SnapshotImportReport } from '../data-host-protocol.js';
 import { openNativeDatabase } from './open-native.js';
@@ -216,13 +216,17 @@ export async function importSnapshot(
       target.close();
     }
     renameSync(workPath, targetPath);
-    writeFileSync(
+    // The database is in place, so the import has succeeded. The marker is a courtesy: a failed
+    // write must not turn a finished import into `import_failed` beside a native database.
+    await writeFile(
       importMarkerPath(targetPath),
       `${JSON.stringify({ version: 1, importedAt: new Date().toISOString(), ...report }, null, 2)}\n`,
-    );
+    ).then(undefined, () => undefined);
     return report;
   } finally {
-    await removeDatabaseFiles(sourcePath);
-    await removeDatabaseFiles(workPath);
+    // Best-effort: a scratch file that cannot be removed is harmless (the next import removes it
+    // first) and must neither mask the original failure nor fail an import already renamed.
+    await removeDatabaseFiles(sourcePath).then(undefined, () => undefined);
+    await removeDatabaseFiles(workPath).then(undefined, () => undefined);
   }
 }
