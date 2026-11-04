@@ -68,11 +68,33 @@ function sameDigests(
   });
 }
 
+/** Sleeps the caller without a timer: removal runs inside a synchronous import. */
+function sleepSync(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+/**
+ * Deletes one file, retrying briefly on Windows where an open handle keeps it undeletable.
+ * Never recursive: a directory at a predictable scratch path is not ours to remove.
+ */
+function removeFileWithRetries(path: string): void {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    try {
+      rmSync(path, { force: true });
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== 'EBUSY' && code !== 'EPERM' && code !== 'ENOTEMPTY') throw error;
+      sleepSync(25 * (attempt + 1));
+    }
+  }
+  // Last attempt: surface the error rather than leaving a temp file silently.
+  rmSync(path, { force: true });
+}
+
 function removeDatabaseFiles(path: string): void {
   for (const suffix of ['', '-wal', '-shm', '-journal']) {
-    // Windows keeps a file undeletable while a handle is open; retry briefly instead of
-    // leaving an import temp file behind (which would also trip the next open).
-    rmSync(`${path}${suffix}`, { force: true, recursive: true, maxRetries: 20, retryDelay: 25 });
+    removeFileWithRetries(`${path}${suffix}`);
   }
 }
 
