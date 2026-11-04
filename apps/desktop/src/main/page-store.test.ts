@@ -36,6 +36,7 @@ function createGate(): Gate {
 const gates = vi.hoisted(() => ({
   readdir: undefined as undefined | Gate,
   sidecarRename: undefined as undefined | Gate,
+  sidecarLstat: undefined as undefined | Gate,
 }));
 
 vi.mock('node:fs/promises', async (importOriginal) => {
@@ -53,6 +54,16 @@ vi.mock('node:fs/promises', async (importOriginal) => {
       }
       return result;
     },
+    // Parks after the lookup has answered, so the caller acts on an answer that may go stale.
+    lstat: (path: string) =>
+      actual.lstat(path).finally(async () => {
+        const gate = gates.sidecarLstat;
+        if (gate !== undefined && path.endsWith('.json')) {
+          gates.sidecarLstat = undefined;
+          gate.reached();
+          await gate.wait;
+        }
+      }),
     rename: async (from: string, to: string) => {
       const gate = gates.sidecarRename;
       if (gate !== undefined && to.endsWith('.json')) {
@@ -213,6 +224,29 @@ describe('page store', () => {
 
     expect(await sweep).toEqual([]);
     expect(await readdir(root)).toEqual([]);
+  });
+
+  it('keeps the bytes of a put that runs between the sweep checking the sidecar and deleting', async () => {
+    const id = pageIdForKey(KEY);
+    await mkdir(root, { recursive: true });
+    await writeFile(join(root, id), PNG); // bytes with no sidecar: a leftover
+    const lstatGate = createGate();
+
+    gates.sidecarLstat = lstatGate;
+    const sweep = store.listKeys();
+    await lstatGate.hit; // the sweep saw no sidecar and has not deleted yet
+    const put = store.put(KEY, JPEG, 'image/jpeg');
+    // Unserialized, the put finishes here; serialized, it queues behind the sweep. Either
+    // way the sweep resumes only once the put has had its chance to run.
+    await Promise.race([put, new Promise((resolve) => setTimeout(resolve, 100))]);
+    lstatGate.release();
+    await Promise.all([sweep, put]);
+
+    expect(await store.urlFor(KEY)).toBe(pageUrlForId(id));
+    expect(await store.verify(KEY)).toEqual({
+      sha256: createHash('sha256').update(JPEG).digest('hex'),
+      byteSize: JPEG.byteLength,
+    });
   });
 
   it('refuses keys that are not pages and bodies that are not images', async () => {
