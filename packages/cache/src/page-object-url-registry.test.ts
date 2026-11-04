@@ -163,6 +163,119 @@ describe('acquirePageObjectUrl', () => {
     expect(revokeObjectUrl).toHaveBeenCalledWith('blob:cached');
   });
 
+  it('Given a full lookup fails while a cached-only lookup holds the URL, Then the full acquire resolves with it and one release leaves it held', async () => {
+    let settleCached!: (value: { objectUrl: string; fromCache: boolean; byteSize: number }) => void;
+    let settleFull!: (value: undefined) => void;
+    store.getCachedPageObjectUrl.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          settleCached = resolve;
+        }),
+    );
+    store.resolvePageObjectUrl.mockImplementation(
+      () =>
+        new Promise<undefined>((resolve) => {
+          settleFull = resolve;
+        }),
+    );
+
+    const cached = acquirePageObjectUrl(input(60), { cachedOnly: true });
+    const full = acquirePageObjectUrl(input(60));
+    settleCached({ objectUrl: 'blob:cached-wins', fromCache: true, byteSize: 7 });
+    expect((await cached)?.objectUrl).toBe('blob:cached-wins');
+    settleFull(undefined);
+
+    expect(await full).toMatchObject({ objectUrl: 'blob:cached-wins', fromCache: true });
+
+    await releasePageObjectUrl(input(60));
+    expect(revokeObjectUrl).not.toHaveBeenCalled();
+    await releasePageObjectUrl(input(60));
+    expect(revokeObjectUrl).toHaveBeenCalledTimes(1);
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:cached-wins');
+  });
+
+  it('Given two full acquires share a failing lookup beside a cached success, Then each takes exactly one reference', async () => {
+    let settleCached!: (value: { objectUrl: string; fromCache: boolean; byteSize: number }) => void;
+    let settleFull!: (value: undefined) => void;
+    store.getCachedPageObjectUrl.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          settleCached = resolve;
+        }),
+    );
+    store.resolvePageObjectUrl.mockImplementation(
+      () =>
+        new Promise<undefined>((resolve) => {
+          settleFull = resolve;
+        }),
+    );
+
+    const cached = acquirePageObjectUrl(input(61), { cachedOnly: true });
+    const fullOwner = acquirePageObjectUrl(input(61));
+    const fullJoiner = acquirePageObjectUrl(input(61));
+    settleCached({ objectUrl: 'blob:cached-wins', fromCache: true, byteSize: 7 });
+    await cached;
+    settleFull(undefined);
+
+    expect((await fullOwner)?.objectUrl).toBe('blob:cached-wins');
+    expect((await fullJoiner)?.objectUrl).toBe('blob:cached-wins');
+    expect(store.resolvePageObjectUrl).toHaveBeenCalledTimes(1);
+
+    // cached + owner + joiner = three references, one release each.
+    await releasePageObjectUrl(input(61));
+    await releasePageObjectUrl(input(61));
+    expect(revokeObjectUrl).not.toHaveBeenCalled();
+    await releasePageObjectUrl(input(61));
+    expect(revokeObjectUrl).toHaveBeenCalledTimes(1);
+  });
+
+  it('Given a cached-only miss while a full acquire is still in flight, Then it stays a miss and does not wait for or take the full URL', async () => {
+    let settleFull!: (value: { objectUrl: string; fromCache: boolean; byteSize: number }) => void;
+    store.getCachedPageObjectUrl.mockResolvedValue(undefined);
+    store.resolvePageObjectUrl.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          settleFull = resolve;
+        }),
+    );
+
+    const full = acquirePageObjectUrl(input(62));
+    expect(await acquirePageObjectUrl(input(62), { cachedOnly: true })).toBeUndefined();
+    expect(store.resolvePageObjectUrl).toHaveBeenCalledTimes(1);
+
+    settleFull({ objectUrl: 'blob:full-only', fromCache: false, byteSize: 3 });
+    expect((await full)?.objectUrl).toBe('blob:full-only');
+
+    // The miss took no reference: a single release revokes.
+    await releasePageObjectUrl(input(62));
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:full-only');
+  });
+
+  it('Given two cached-only callers miss after a full acquire held the page, Then both stay misses and take no reference', async () => {
+    let settleCached!: (value: undefined) => void;
+    store.getCachedPageObjectUrl.mockImplementation(
+      () =>
+        new Promise<undefined>((resolve) => {
+          settleCached = resolve;
+        }),
+    );
+    store.resolvePageObjectUrl.mockResolvedValue({
+      objectUrl: 'blob:full-only',
+      fromCache: false,
+      byteSize: 3,
+    });
+
+    const cachedOwner = acquirePageObjectUrl(input(63), { cachedOnly: true });
+    const cachedJoiner = acquirePageObjectUrl(input(63), { cachedOnly: true });
+    expect((await acquirePageObjectUrl(input(63)))?.objectUrl).toBe('blob:full-only');
+    settleCached(undefined);
+
+    expect(await cachedOwner).toBeUndefined();
+    expect(await cachedJoiner).toBeUndefined();
+    await releasePageObjectUrl(input(63));
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:full-only');
+  });
+
   it('Given a concurrent first load, When two callers await it, Then both get the settled URL', async () => {
     let settle!: (value: { objectUrl: string; fromCache: boolean; byteSize: number }) => void;
     store.resolvePageObjectUrl.mockImplementation(
