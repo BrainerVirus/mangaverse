@@ -51,6 +51,12 @@ interface Slot {
   /** Bumped when a slot is dropped, so a late decode cannot resurrect it. */
   generation: number;
   image?: DecodedPage | undefined;
+  /**
+   * True only while the slot owns a URL reference of its own: set when its
+   * acquire succeeds, cleared when the reference is given back. A queued slot
+   * owns none, so dropping it must not release a reference another holder owns.
+   */
+  holdsUrl: boolean;
 }
 
 /**
@@ -85,6 +91,12 @@ export function createPageDecodePool(input: PageDecodePoolInput): PageDecodePool
     retention: 'read' as const,
   });
 
+  const giveBackUrl = (slot: Slot): void => {
+    if (!slot.holdsUrl) return;
+    slot.holdsUrl = false;
+    void releasePageObjectUrl(pageInput(slot));
+  };
+
   const releaseSlot = (slot: Slot): void => {
     slot.generation += 1;
     if (slot.image !== undefined) {
@@ -93,7 +105,7 @@ export function createPageDecodePool(input: PageDecodePoolInput): PageDecodePool
       released += 1;
     }
     if (slots.get(slot.pageIndex) === slot) slots.delete(slot.pageIndex);
-    void releasePageObjectUrl(pageInput(slot));
+    giveBackUrl(slot);
   };
 
   const pump = (): void => {
@@ -105,12 +117,6 @@ export function createPageDecodePool(input: PageDecodePoolInput): PageDecodePool
       active += 1;
       const slotGeneration = slot.generation;
       const startedAt = performance.now();
-      let urlHeld = false;
-      const dropUrl = (): void => {
-        if (!urlHeld) return;
-        urlHeld = false;
-        void releasePageObjectUrl(pageInput(slot));
-      };
       const finish = (): void => {
         active -= 1;
         pump();
@@ -122,7 +128,7 @@ export function createPageDecodePool(input: PageDecodePoolInput): PageDecodePool
           slot.image.release();
           slot.image = undefined;
         }
-        dropUrl();
+        giveBackUrl(slot);
         finish();
       };
       void (async () => {
@@ -133,18 +139,18 @@ export function createPageDecodePool(input: PageDecodePoolInput): PageDecodePool
           if (slot.generation === slotGeneration) slot.status = 'queued';
           return;
         }
-        urlHeld = true;
+        slot.holdsUrl = true;
         const decoded = await decode(acquired.objectUrl);
         if (disposed || slot.generation !== slotGeneration) {
           // The plan moved on (or the pool closed) while this decode was in
           // flight; drop the bitmap it produced instead of caching it.
           decoded?.release();
-          dropUrl();
+          giveBackUrl(slot);
           return;
         }
         if (decoded === undefined) {
           failures += 1;
-          dropUrl();
+          giveBackUrl(slot);
           return;
         }
         slot.status = 'decoded';
@@ -184,6 +190,7 @@ export function createPageDecodePool(input: PageDecodePoolInput): PageDecodePool
           remoteUrl: item.remoteUrl,
           status: 'queued',
           generation,
+          holdsUrl: false,
         };
         slots.set(item.pageIndex, slot);
         queue.push(slot);
