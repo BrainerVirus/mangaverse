@@ -291,7 +291,8 @@ function clientPort(port: MessagePort): DataHostClientPort {
 /**
  * Main restarted a host that stopped and handed this window a port to it. The handle every
  * caller holds stays the same object, so nothing re-renders to pick it up; the user is told,
- * since a save that was in flight when it stopped ends with a timeout.
+ * since a save that was in flight when it stopped ends as `crashed`: it may or may not have
+ * been saved, so the message asks them to check rather than to redo it.
  */
 async function reconnectDataHost(client: DataHostClient, port: MessagePort): Promise<void> {
   const reopened = await client.reconnect(clientPort(port));
@@ -310,7 +311,7 @@ async function reconnectDataHost(client: DataHostClient, port: MessagePort): Pro
   notify.failure({
     key: 'data-host.restarted',
     message:
-      'The local library stopped and was restarted. Saved changes are safe; a change that was saving may need to be made again.',
+      'The local library stopped and was restarted. Saved changes are safe. A change that was saving may not have been saved, so check it.',
   });
 }
 

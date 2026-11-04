@@ -103,6 +103,8 @@ export const DATA_HOST_ERROR = {
   unauthorizedFrame: 'data-host.unauthorized_frame',
   unavailable: 'data-host.unavailable',
   timeout: 'data-host.timeout',
+  /** The host stopped and was replaced while the call was in flight: whether it committed is unknown. */
+  crashed: 'data-host.crashed',
   unboundedLoad: 'data-host.unbounded_load',
 } as const;
 

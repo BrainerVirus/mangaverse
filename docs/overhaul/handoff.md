@@ -55,10 +55,12 @@ Milestone 5 (reader) is in progress: #223 (priority loading, decode, virtualized
   web and the sql.js fallback, every local write sends `resync` instead.
 - Chapters: `listChapterWindow` takes a required limit up to 500 and the host refuses anything else;
   `createChapterWindowCollection` loads one title's bounded window on demand. No surface reads it yet.
-- Crash recovery: calls time out after 30 s (open: 300 s) with `data-host.timeout`. Main restarts a host
-  that exits (250 ms backoff doubling to 8 s, giving up after 8 quick crashes) and hands each connected
-  window a new port. The window reopens the host before any later call reaches it, its collections
-  resync, and a toast tells the user. A call caught in the crash is not resent.
+- Crash recovery: a call to an attached but silent host times out after 30 s (open: 300 s) with
+  `data-host.timeout`. Main restarts a host that exits (250 ms backoff doubling to 8 s, giving up after
+  8 quick crashes) and hands each connected window a new port. Calls still pending at that moment settle
+  at once with `data-host.crashed`, since whether they committed is unknown; the window reopens the host
+  before any later call reaches it, its collections resync, and a toast tells the user. A call caught in
+  the crash is not resent.
 - Live proof (`apps/desktop/e2e/live-collections.spec.ts`): two windows edit live; a refused edit rolls
   back; a hung, then killed host restarts in about 0.4 s and both windows are told; `kill -9` in the middle of
   a write stream loses no acknowledged write, and `integrity_check` is ok.

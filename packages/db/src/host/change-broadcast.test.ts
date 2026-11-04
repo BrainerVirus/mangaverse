@@ -297,6 +297,57 @@ describe('a host that stops answering', () => {
     expect(Date.now() - started).toBeGreaterThanOrEqual(45);
   });
 
+  it('ends a call pending across a reconnect at once as crashed, not as a timeout', async () => {
+    const { port1, port2 } = new MessageChannel();
+    cleanups.push(() => {
+      port1.close();
+      port2.close();
+    });
+    // Neither end is served, so only the reconnect can settle the call. The default 30 s call
+    // timeout is left in place: waiting for it would fail the test's own timeout first.
+    const client = createDataHostClient(
+      { postMessage: (request) => port1.postMessage(request), onMessage: () => undefined },
+      { openTimeoutMs: 50 },
+    );
+    const pendingCall = client.handle.call('listLibraryCategories', []).then(
+      () => null,
+      (reason: unknown) => reason,
+    );
+    const reopened = client.reconnect({
+      postMessage: (request) => port2.postMessage(request),
+      onMessage: () => undefined,
+    });
+
+    const error = await pendingCall;
+    expect(error).toBeInstanceOf(DataHostError);
+    expect((error as DataHostError).code).toBe(DATA_HOST_ERROR.crashed);
+    expect((error as DataHostError).message).toMatch(/may or may not/);
+    // The silent new port never opens; that is the open's own timeout, not a crash.
+    expect(await reopened).toMatchObject({ ok: false, error: { code: DATA_HOST_ERROR.timeout } });
+  });
+
+  it('still times out a call to an attached but silent port after a reconnect', async () => {
+    const { port1, port2 } = new MessageChannel();
+    cleanups.push(() => {
+      port1.close();
+      port2.close();
+    });
+    const client = createDataHostClient(
+      { postMessage: () => undefined, onMessage: () => undefined },
+      { callTimeoutMs: 50, openTimeoutMs: 50 },
+    );
+    await client.reconnect({
+      postMessage: (request) => port2.postMessage(request),
+      onMessage: () => undefined,
+    });
+    const error = await client.handle.call('listLibraryCategories', []).then(
+      () => null,
+      (reason: unknown) => reason,
+    );
+    expect(error).toBeInstanceOf(DataHostError);
+    expect((error as DataHostError).code).toBe(DATA_HOST_ERROR.timeout);
+  });
+
   it('reconnects to a restarted host, reopens it first, and asks windows to resync', async () => {
     const directory = scratch();
     const { first } = await openHost(directory);
