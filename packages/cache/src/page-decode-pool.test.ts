@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { createPageDecodePool, type DecodedPage } from './page-decode-pool.js';
+import type * as RegistryModule from './page-object-url-registry.js';
 import {
   acquirePageObjectUrl,
   releasePageObjectUrl,
@@ -7,6 +8,13 @@ import {
 } from './page-object-url-registry.js';
 
 type StoredPage = { objectUrl: string; fromCache: boolean; byteSize: number };
+
+const store = vi.hoisted(() => ({
+  getCachedPageObjectUrl: vi.fn<(input: PageObjectUrlInput) => Promise<StoredPage | undefined>>(),
+  resolvePageObjectUrl: vi.fn<(input: PageObjectUrlInput) => Promise<StoredPage | undefined>>(),
+}));
+
+vi.mock('./page-cache-store.js', () => store);
 
 vi.mock('./page-object-url-registry.js', () => ({
   acquirePageObjectUrl: vi.fn<(input: PageObjectUrlInput) => Promise<StoredPage | undefined>>(),
@@ -174,6 +182,103 @@ describe('createPageDecodePool', () => {
     await vi.waitFor(() => expect(pool.snapshot().failures).toBe(1));
     expect(pool.snapshot().decoded).toBe(0);
     expect(release).toHaveBeenCalledWith(expect.objectContaining({ pageIndex: 3 }));
+    pool.dispose();
+  });
+});
+
+describe('createPageDecodePool URL ownership (real registry)', () => {
+  const revokeObjectUrl = vi.fn<(url: string) => Promise<{ ok: true; value: undefined }>>(
+    async () => ({ ok: true as const, value: undefined }),
+  );
+  const webAdapter = { blobStorage: { revokeObjectUrl } } as never;
+
+  function holderInput(pageIndex: number) {
+    return {
+      db,
+      adapter: webAdapter,
+      providerId: 'mangadex',
+      mangaId: 'manga-1',
+      chapterId: 'chapter-1',
+      pageIndex,
+      remoteUrl: `https://example.com/${pageIndex}.jpg`,
+      retention: 'read' as const,
+    };
+  }
+
+  function createWebPool(decode: (url: string) => Promise<DecodedPage | undefined>) {
+    return createPageDecodePool({
+      db,
+      adapter: webAdapter,
+      providerId: 'mangadex',
+      mangaId: 'manga-1',
+      chapterId: 'chapter-1',
+      concurrency: 1,
+      maxEntries: 6,
+      decode,
+    });
+  }
+
+  beforeEach(async () => {
+    const actual = await vi.importActual<typeof RegistryModule>('./page-object-url-registry.js');
+    acquire.mockImplementation(actual.acquirePageObjectUrl);
+    release.mockImplementation(actual.releasePageObjectUrl);
+    revokeObjectUrl.mockClear();
+    store.getCachedPageObjectUrl.mockReset();
+    store.resolvePageObjectUrl.mockReset();
+    const resolveUrl = async (input: PageObjectUrlInput) => ({
+      objectUrl: `blob:page-${input.pageIndex}`,
+      fromCache: true,
+      byteSize: 1,
+    });
+    store.getCachedPageObjectUrl.mockImplementation(resolveUrl);
+    store.resolvePageObjectUrl.mockImplementation(resolveUrl);
+  });
+
+  it('Given a queued page is mounted by another holder, When a plan shrink drops it, Then the holder keeps its URL', async () => {
+    const { decode, pending } = deferredDecode();
+    const holder = await acquirePageObjectUrl(holderInput(11));
+    expect(holder?.objectUrl).toBe('blob:page-11');
+
+    const pool = createWebPool(decode);
+    // Page 12 occupies the only worker, so page 11 stays queued and owns nothing.
+    pool.setPlan(plan(12, 11));
+    await vi.waitFor(() => expect(decode).toHaveBeenCalledTimes(1));
+
+    pool.setPlan(plan(12));
+    expect(revokeObjectUrl).not.toHaveBeenCalled();
+    const still = await acquirePageObjectUrl(holderInput(11), { cachedOnly: true });
+    expect(still?.objectUrl).toBe('blob:page-11');
+
+    pending[0]!.resolve();
+    await vi.waitFor(() => expect(pool.snapshot().decoded).toBe(1));
+    pool.dispose();
+    await vi.waitFor(() => expect(revokeObjectUrl).toHaveBeenCalledWith('blob:page-12'));
+
+    // Both of this test's references on page 11 are still live: two releases.
+    await releasePageObjectUrl(holderInput(11));
+    expect(revokeObjectUrl).not.toHaveBeenCalledWith('blob:page-11');
+    await releasePageObjectUrl(holderInput(11));
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:page-11');
+  });
+
+  it('Given a decoded page leaves the plan, When it is dropped, Then it releases exactly its own reference', async () => {
+    const holder = await acquirePageObjectUrl(holderInput(21));
+    expect(holder).toBeDefined();
+    const decode = vi.fn<() => Promise<DecodedPage | undefined>>(async () => ({
+      release: vi.fn<() => void>(),
+    }));
+    const pool = createWebPool(decode);
+    pool.setPlan(plan(21));
+    await vi.waitFor(() => expect(pool.snapshot().decoded).toBe(1));
+
+    pool.setPlan([]);
+    // The pool gave its reference back; the holder's still keeps the URL alive.
+    await vi.waitFor(() => expect(pool.snapshot().decoded).toBe(0));
+    expect(revokeObjectUrl).not.toHaveBeenCalled();
+
+    await releasePageObjectUrl(holderInput(21));
+    expect(revokeObjectUrl).toHaveBeenCalledTimes(1);
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:page-21');
     pool.dispose();
   });
 });
