@@ -140,9 +140,33 @@ export function createPageStore(root: string): PageStore {
     return result;
   };
   let ready: Promise<string> | undefined;
+  // A resolved root is reused while it holds; a rejected attempt is forgotten so the next call retries.
   const realRoot = () => {
-    ready ??= mkdir(root, { recursive: true }).then(() => realpath(root));
+    if (ready === undefined) {
+      const pending = mkdir(root, { recursive: true }).then(() => realpath(root));
+      ready = pending;
+      pending.catch(() => {
+        if (ready === pending) ready = undefined;
+      });
+    }
     return ready;
+  };
+
+  /**
+   * Runs `run` against the root. When the directory vanished since it was cached (`ENOENT`),
+   * the cache is dropped, the root recreated and `run` repeated once; a second failure stands.
+   */
+  const withRoot = <T>(run: (dir: string) => Promise<T>): Promise<T> => {
+    const used = realRoot();
+    return used.then(run).then(undefined, (error: unknown) => {
+      if (
+        !(typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT')
+      ) {
+        throw error;
+      }
+      if (ready === used) ready = undefined;
+      return realRoot().then(run);
+    });
   };
 
   const readSidecar = async (dir: string, id: string) => {
@@ -185,27 +209,29 @@ export function createPageStore(root: string): PageStore {
       }
       const mimeType = pageMimeType(declaredMimeType, bytes);
       if (mimeType === undefined) throw new Error('Page is not a supported image type.');
-      const dir = await realRoot();
       const id = pageIdForKey(key);
-      await withLock(id, async () => {
-        writing.set(id, (writing.get(id) ?? 0) + 1);
-        try {
-          // Bytes before sidecar: a sidecar always points at complete bytes.
-          await writeAtomic(join(dir, id), bytes);
-          await writeAtomic(
-            join(dir, `${id}${SIDECAR_SUFFIX}`),
-            JSON.stringify({
-              key,
-              mimeType,
-              sha256: createHash('sha256').update(bytes).digest('hex'),
-            } satisfies PageSidecar),
-          );
-        } finally {
-          const remaining = (writing.get(id) ?? 1) - 1;
-          if (remaining <= 0) writing.delete(id);
-          else writing.set(id, remaining);
-        }
-      });
+      // The root is settled outside the id's lock; a retry after a vanished root locks again.
+      await withRoot((dir) =>
+        withLock(id, async () => {
+          writing.set(id, (writing.get(id) ?? 0) + 1);
+          try {
+            // Bytes before sidecar: a sidecar always points at complete bytes.
+            await writeAtomic(join(dir, id), bytes);
+            await writeAtomic(
+              join(dir, `${id}${SIDECAR_SUFFIX}`),
+              JSON.stringify({
+                key,
+                mimeType,
+                sha256: createHash('sha256').update(bytes).digest('hex'),
+              } satisfies PageSidecar),
+            );
+          } finally {
+            const remaining = (writing.get(id) ?? 1) - 1;
+            if (remaining <= 0) writing.delete(id);
+            else writing.set(id, remaining);
+          }
+        }),
+      );
       return pageUrlForId(id);
     },
 
@@ -245,8 +271,10 @@ export function createPageStore(root: string): PageStore {
     },
 
     async listKeys() {
-      const dir = await realRoot();
-      const names = new Set(await readdir(dir));
+      const { dir, names } = await withRoot(async (found) => ({
+        dir: found,
+        names: new Set(await readdir(found)),
+      }));
       const keys: string[] = [];
       const leftovers: string[] = [];
       const sidecarIds: string[] = [];
