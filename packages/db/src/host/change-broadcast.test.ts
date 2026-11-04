@@ -386,7 +386,7 @@ describe('a host that stops answering', () => {
       };
     }
 
-    const okReply = (id: number) => ({ id, result: { ok: true, value: [] } });
+    const okReply = (id: number, value: unknown) => ({ id, result: { ok: true, value } });
 
     it('closes the old port once and leaves the new one open', async () => {
       const oldEnd = scriptedPort();
@@ -410,28 +410,24 @@ describe('a host that stops answering', () => {
       const openId = newEnd.sent[0]?.id;
       if (openId === undefined) throw new Error('reconnect did not open the new host');
       // A call on the new port, whose id a stale reply from the old port could name.
-      let settled = false;
-      const call = client.handle.call('listLibraryCategories', []).then(() => {
-        settled = true;
-      });
+      const call = client.handle.call('listLibraryCategories', []);
       const callId = newEnd.sent[1]?.id;
       if (callId === undefined) throw new Error('the call did not reach the new port');
 
-      oldEnd.arrive(okReply(callId));
+      // If this were delivered the call would settle with 'stale', and the new port's reply
+      // would find no pending entry.
+      oldEnd.arrive(okReply(callId, 'stale'));
       oldEnd.arrive({
         kind: 'changes',
         seq: 1,
         changes: [{ table: 'categories', key: 'c1', op: 'insert' }],
       });
-      await Promise.resolve();
-
-      expect(settled).toBe(false);
       expect(events).toEqual([]);
 
       // The new port is still the one that answers.
-      newEnd.arrive(okReply(openId));
-      newEnd.arrive(okReply(callId));
-      await call;
+      newEnd.arrive(okReply(openId, null));
+      newEnd.arrive(okReply(callId, 'from the new port'));
+      expect(await call).toBe('from the new port');
       expect((await reopened).ok).toBe(true);
       expect(events).toEqual([{ kind: 'resync' }]);
     });
