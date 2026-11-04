@@ -78,12 +78,12 @@ describe('host list row refresh', () => {
     expect(list.get('c')?.position).toBe(2);
   });
 
-  it('removes a row that no longer belongs', async () => {
+  it('reloads whole for a row that no longer belongs, so a bounded list is refilled', async () => {
     const { list, host, load, emit } = await listOf(rows);
     host.delete('a');
     emit({ table: 'library_entries', key: 'a', op: 'update' });
     await vi.waitFor(() => expect(list.has('a')).toBe(false));
-    expect(load).not.toHaveBeenCalled();
+    expect(load).toHaveBeenCalledTimes(1);
     expect([...list.keys()].sort()).toEqual(['b', 'c']);
   });
 

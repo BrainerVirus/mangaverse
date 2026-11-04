@@ -49,14 +49,18 @@ class LibraryWriteRejected extends Error {
 }
 
 /**
- * What a library title's displayed row depends on. Chapters and read state are not shown: a
- * progress save reaches the list through the entry's unread count and progress.
+ * What a library title's displayed row depends on. The page counts unread from `chapters`
+ * live, and a provider refresh inserts chapters without a recount, so they stay. Read state
+ * is left out: every writer pairs it with a write to a table here. The reader's save and the
+ * explicit marks write `library_entries` (progress, unread recount); a merge, an unmerge and
+ * a restore write `manga_identities` and `library_entries` in the same transaction.
  */
 const ITEM_TABLES = [
   'library_entries',
   'library_category_memberships',
   'manga_identities',
   'manga_provider_mappings',
+  'chapters',
 ] as const;
 
 /**

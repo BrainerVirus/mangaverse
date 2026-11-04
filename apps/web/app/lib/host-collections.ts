@@ -67,8 +67,8 @@ export type HostListCollection<T> = Collection<ListedRow<T>, string, HostListUti
  * runs costs one more, which starts after the write that asked for it.
  *
  * With `refreshRow`, a change to `rowTable` alone reads only the rows it names and updates
- * them in place: their position stays the host's from the last reload. A named row the list
- * did not hold that now belongs needs a position only the host can give, so it reloads whole.
+ * them in place: their position stays the host's from the last reload. A named row that
+ * joins or leaves the list reloads it whole: only the host can place it or refill the end.
  */
 export function createHostListCollection<T extends object>(
   options: HostListOptions<T>,
@@ -137,21 +137,24 @@ export function createHostListCollection<T extends object>(
             keys.map(async (key) => ({ key, value: await read(key) })),
           );
           if (stopped) return;
-          if (rows.some(({ key, value }) => value !== undefined && !collection.has(key))) {
+          // A row that joins or leaves the list moves the rows after it, and a bounded list
+          // has to be refilled from past its end: only the host can lay that out.
+          const reshaped = rows.some(({ key, value }) =>
+            collection.has(key) ? value === undefined : value !== undefined,
+          );
+          if (reshaped) {
             return apply();
           }
           const listed = rows.flatMap(({ key, value }) => {
             const row = collection.get(key);
-            return row === undefined ? [] : [{ key, position: row.position, value }];
+            return row === undefined || value === undefined
+              ? []
+              : [{ key, position: row.position, value }];
           });
           if (listed.length === 0) return;
           begin();
           for (const { key, position, value } of listed) {
-            write(
-              value === undefined
-                ? { type: 'delete', key }
-                : { type: 'update', value: { key, position, value } },
-            );
+            write({ type: 'update', value: { key, position, value } });
           }
           // Accepted now and applied in order; while an optimistic edit persists it shows once
           // that settles, and waiting for it would hold the queue the edit's own refetch is on.

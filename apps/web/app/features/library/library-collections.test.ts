@@ -254,26 +254,50 @@ describe('library list after a write', () => {
     },
   );
 
-  it('drops a title that leaves the filter without reading the list again', async () => {
-    const { windows, calls } = await hostWithWindows();
+  it('shows a chapter written alone in the unread count of every window', async () => {
+    const { windows } = await hostWithWindows();
     const [a, b] = windows;
-    const { beta } = await seedLibrary(a.handle);
+    const { alpha } = await seedLibrary(a.handle);
+    const items = view(b, DEFAULT_LIBRARY_VIEW_STATE);
+    await items.preload();
+    expect(items.get(alpha.entryId)?.value.entry.unreadCount).toBe(2);
+
+    // A provider refresh inserts chapters without recounting the stored badge.
+    const created = await upsertChapterMetadata(a.handle, {
+      mangaId: alpha.mangaId,
+      providerMappingId: alpha.mappingId,
+      title: 'Chapter 2',
+      index: 2,
+    });
+    expect(created.ok).toBe(true);
+
+    await expect.poll(() => items.get(alpha.entryId)?.value.entry.unreadCount).toBe(3);
+  });
+
+  it('refills a filtered window when a loaded title leaves the filter', async () => {
+    const { windows, databasePath } = await hostWithWindows();
+    const [a, b] = windows;
+    seedTitlesAt(databasePath, 450);
     const items = view(b, { ...DEFAULT_LIBRARY_VIEW_STATE, filter: { statuses: ['reading'] } });
     await items.preload();
-    expect(items.size).toBe(3);
-    calls[1].length = 0;
+    // Newest first: 0449 down to 0250 are loaded, 0249 is the next title.
+    expect(items.size).toBe(200);
+    const leaving = toLibraryEntryId('entry-0300');
+    const next = toLibraryEntryId('entry-0249');
+    expect(items.has(next)).toBe(false);
 
-    const result = await setLibraryEntriesStatus(a.handle, [beta.entryId], 'completed');
+    const result = await setLibraryEntriesStatus(a.handle, [leaving], 'completed');
     expect(result.ok).toBe(true);
 
-    await expect.poll(() => items.has(beta.entryId)).toBe(false);
-    expect(items.size).toBe(2);
-    expect(listReads(calls[1])).toEqual([]);
+    await expect.poll(() => items.has(next)).toBe(true);
+    expect(items.has(leaving)).toBe(false);
+    expect(items.size).toBe(200);
 
-    // Back in the filter, it needs the place only the host can give it.
-    await setLibraryEntriesStatus(a.handle, [beta.entryId], 'reading');
-    await expect.poll(() => items.has(beta.entryId)).toBe(true);
-    expect(listReads(calls[1]).length).toBeGreaterThan(0);
+    // Back in the filter, it takes its place again and the window keeps its limit.
+    await setLibraryEntriesStatus(a.handle, [leaving], 'reading');
+    await expect.poll(() => items.has(leaving)).toBe(true);
+    expect(items.has(next)).toBe(false);
+    expect(items.size).toBe(200);
   });
 
   it('leaves a title past the loaded window alone and patches one inside it', async () => {
