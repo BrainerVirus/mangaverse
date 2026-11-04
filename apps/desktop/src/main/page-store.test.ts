@@ -36,6 +36,7 @@ function createGate(): Gate {
 const gates = vi.hoisted(() => ({
   readdir: undefined as undefined | Gate,
   sidecarRename: undefined as undefined | Gate,
+  bytesRename: undefined as undefined | Gate,
   sidecarLstat: undefined as undefined | Gate,
 }));
 
@@ -70,6 +71,12 @@ vi.mock('node:fs/promises', async (importOriginal) => {
         gates.sidecarRename = undefined;
         gate.reached();
         await gate.wait;
+      }
+      const bytesGate = gates.bytesRename;
+      if (bytesGate !== undefined && !to.endsWith('.json')) {
+        gates.bytesRename = undefined;
+        bytesGate.reached();
+        await bytesGate.wait;
       }
       return actual.rename(from, to);
     },
@@ -246,6 +253,73 @@ describe('page store', () => {
     expect(await store.verify(KEY)).toEqual({
       sha256: createHash('sha256').update(JPEG).digest('hex'),
       byteSize: JPEG.byteLength,
+    });
+  });
+
+  it('reaps a torn sidecar with its bytes, and a later put of the same key works', async () => {
+    const id = pageIdForKey(KEY);
+    await mkdir(root, { recursive: true });
+    await writeFile(join(root, id), JPEG);
+    await writeFile(join(root, `${id}.json`), '{"key":"page:mangad');
+
+    expect(await store.listKeys()).toEqual([]);
+    expect(await readdir(root)).toEqual([]);
+
+    const url = await store.put(KEY, PNG, 'image/png');
+    expect(await store.urlFor(KEY)).toBe(url);
+    expect(await store.listKeys()).toEqual([KEY]);
+  });
+
+  it('reaps a sidecar whose key hashes to another id, with its bytes', async () => {
+    const id = pageIdForKey(KEY);
+    await mkdir(root, { recursive: true });
+    await writeFile(join(root, id), JPEG);
+    await writeFile(
+      join(root, `${id}.json`),
+      JSON.stringify({ key: 'page:p:m:c:1', mimeType: 'image/jpeg' }),
+    );
+    await writeFile(join(root, 'unrelated.txt'), 'not ours');
+
+    expect(await store.listKeys()).toEqual([]);
+    expect(await readdir(root)).toEqual(['unrelated.txt']);
+  });
+
+  it('keeps a valid page beside the invalid ones it reaps', async () => {
+    const otherKey = 'page:p:m:c:1';
+    const id = pageIdForKey(KEY);
+    await store.put(otherKey, PNG, 'image/png');
+    await writeFile(join(root, id), JPEG);
+    await writeFile(join(root, `${id}.json`), 'not json');
+
+    expect(await store.listKeys()).toEqual([otherKey]);
+    expect(await store.verify(otherKey)).toBeDefined();
+    expect((await readdir(root)).sort()).toEqual(
+      [pageIdForKey(otherKey), `${pageIdForKey(otherKey)}.json`].sort(),
+    );
+  });
+
+  it('removes the old sidecar before new bytes land on a replace, so no stale sidecar serves them', async () => {
+    const id = pageIdForKey(KEY);
+    await store.put(KEY, JPEG, 'image/jpeg');
+    const bytesGate = createGate();
+
+    gates.bytesRename = bytesGate;
+    const replace = store.put(KEY, PNG, 'image/png');
+    await bytesGate.hit; // the new bytes are written but not renamed; a crash here stops this way
+
+    expect(await readdir(root)).not.toContain(`${id}.json`);
+    expect(await store.urlFor(KEY)).toBeUndefined();
+    expect(await store.resolve(pageUrlForId(id))).toEqual({ kind: 'refused', status: 404 });
+
+    bytesGate.release();
+    await replace;
+    expect(await store.verify(KEY)).toEqual({
+      sha256: createHash('sha256').update(PNG).digest('hex'),
+      byteSize: PNG.byteLength,
+    });
+    expect(await store.resolve(pageUrlForId(id))).toMatchObject({
+      kind: 'file',
+      mimeType: 'image/png',
     });
   });
 

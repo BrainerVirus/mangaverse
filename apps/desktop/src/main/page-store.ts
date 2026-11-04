@@ -215,6 +215,9 @@ export function createPageStore(root: string): PageStore {
         withLock(id, async () => {
           writing.set(id, (writing.get(id) ?? 0) + 1);
           try {
+            // Any earlier sidecar goes first, so a crash before the new one lands leaves bytes
+            // with no sidecar (swept, 404) and never new bytes beside a stale sidecar.
+            await rm(join(dir, `${id}${SIDECAR_SUFFIX}`), { force: true });
             // Bytes before sidecar: a sidecar always points at complete bytes.
             await writeAtomic(join(dir, id), bytes);
             await writeAtomic(
@@ -306,11 +309,30 @@ export function createPageStore(root: string): PageStore {
         });
       });
       const sidecars = await mapBounded(sidecarIds, (id) => readSidecar(dir, id));
+      const invalid: string[] = [];
       for (const [index, sidecar] of sidecars.entries()) {
         if (sidecar !== undefined && pageIdForKey(sidecar.key) === sidecarIds[index]) {
           keys.push(sidecar.key);
+        } else {
+          invalid.push(sidecarIds[index]!);
         }
       }
+      // A sidecar that is torn or names another id can never be served or listed, so it and
+      // its bytes are leftovers too. Re-read under the id's lock: a put may have rewritten it.
+      await mapBounded(invalid, (id) =>
+        withLock(id, async () => {
+          if (writing.has(id)) return;
+          const again = await readSidecar(dir, id);
+          if (again !== undefined && pageIdForKey(again.key) === id) return;
+          // Sidecar first, as in delete. A directory under either name is not ours to remove.
+          for (const name of [`${id}${SIDECAR_SUFFIX}`, id]) {
+            // oxlint-disable-next-line eslint/no-await-in-loop -- two names, in order
+            const stats = await lstat(join(dir, name)).catch(() => null);
+            // react-doctor-disable-next-line react-doctor/async-await-in-loop -- the order is the point
+            if (stats !== null && !stats.isDirectory()) await rm(join(dir, name), { force: true });
+          }
+        }),
+      );
       return keys;
     },
 
