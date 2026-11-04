@@ -106,6 +106,29 @@ describe('acquirePageObjectUrl', () => {
     expect(store.getCachedPageObjectUrl).not.toHaveBeenCalled();
   });
 
+  it('Given a pending cached-only miss, When a full acquire arrives, Then it resolves the page instead of failing', async () => {
+    let settleCached!: (value: undefined) => void;
+    store.getCachedPageObjectUrl.mockImplementation(
+      () =>
+        new Promise<undefined>((resolve) => {
+          settleCached = resolve;
+        }),
+    );
+    store.resolvePageObjectUrl.mockResolvedValue({
+      objectUrl: 'blob:full',
+      fromCache: false,
+      byteSize: 20,
+    });
+
+    const cached = acquirePageObjectUrl(input(98), { cachedOnly: true });
+    const full = acquirePageObjectUrl(input(98));
+    settleCached(undefined);
+
+    expect(await cached).toBeUndefined();
+    expect((await full)?.objectUrl).toBe('blob:full');
+    expect(store.resolvePageObjectUrl).toHaveBeenCalledTimes(1);
+  });
+
   it('Given a concurrent first load, When two callers await it, Then both get the settled URL', async () => {
     let settle!: (value: { objectUrl: string; fromCache: boolean; byteSize: number }) => void;
     store.resolvePageObjectUrl.mockImplementation(

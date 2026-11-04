@@ -22,7 +22,9 @@ interface HeldUrl {
 }
 
 const held = new Map<string, HeldUrl>();
-const pending = new Map<string, Promise<PageCacheStoreResult | undefined>>();
+/** A cache-only miss must never answer a mounted page's full acquire. */
+const pendingCached = new Map<string, Promise<PageCacheStoreResult | undefined>>();
+const pendingFull = new Map<string, Promise<PageCacheStoreResult | undefined>>();
 
 /**
  * One URL per page, shared by every holder (the mounted strip row, the paged
@@ -47,8 +49,10 @@ function toResult(entry: HeldUrl): PageCacheStoreResult {
 
 /**
  * Takes a reference on the page's URL, resolving (and, unless `cachedOnly`,
- * downloading) the page on the first call. Every successful acquire must be
- * paired with exactly one release.
+ * downloading) the page on the first call. An in-flight lookup is joined only by
+ * the same kind: the decode pool's cache-only miss must not answer a mounted
+ * page's full acquire and turn a downloadable page into a false failure. Every
+ * successful acquire must be paired with exactly one release.
  */
 export async function acquirePageObjectUrl(
   input: PageObjectUrlInput,
@@ -62,6 +66,8 @@ export async function acquirePageObjectUrl(
     return toResult(existing);
   }
 
+  const cachedOnly = options.cachedOnly === true;
+  const pending = cachedOnly ? pendingCached : pendingFull;
   const inFlight = pending.get(key);
   if (inFlight !== undefined) {
     const result = await inFlight;
@@ -71,7 +77,7 @@ export async function acquirePageObjectUrl(
     return toResult(shared);
   }
 
-  const lookup = options.cachedOnly === true ? getCachedPageObjectUrl : resolvePageObjectUrl;
+  const lookup = cachedOnly ? getCachedPageObjectUrl : resolvePageObjectUrl;
   const promise = lookup(input);
   pending.set(key, promise);
   try {
