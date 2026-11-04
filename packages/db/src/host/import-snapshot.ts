@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import type { DatabaseSync } from 'node:sqlite';
 import type { CacheBlobKeyRewrite, SnapshotImportReport } from '../data-host-protocol.js';
 import { openNativeDatabase } from './open-native.js';
@@ -68,18 +68,39 @@ function sameDigests(
   });
 }
 
+const REMOVE_ATTEMPTS = 20;
+const REMOVE_RETRY_MS = 25;
+const RETRYABLE_REMOVE_CODES = new Set(['EBUSY', 'EPERM', 'EACCES', 'ENOTEMPTY']);
+
+/** Blocks the thread briefly; the import is synchronous, so there is nothing to yield to. */
+const pause = (ms: number): void => {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+};
+
 /**
  * Deletes one file, retrying on Windows where an open handle keeps it undeletable.
- * `maxRetries` applies only with `recursive`, so it is passed for a known non-directory
- * only: a directory at a predictable scratch path is never removed.
+ * The entry is inspected with `lstat`, so a symlink (dangling or not) is a non-directory
+ * that is unlinked itself, never followed. Deletion is `unlinkSync` only, never recursive
+ * (`rmSync` ignores `maxRetries` without `recursive`), so a directory at a predictable
+ * scratch path, even one swapped in after the check, is never removed.
  */
 function removeOneFile(path: string): void {
-  const stats = statSync(path, { throwIfNoEntry: false });
+  const stats = lstatSync(path, { throwIfNoEntry: false });
   if (stats === undefined) return;
   if (stats.isDirectory()) {
     throw new Error(`Refusing to remove a directory at an import scratch path: ${path}`);
   }
-  rmSync(path, { force: true, recursive: true, maxRetries: 20, retryDelay: 25 });
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      unlinkSync(path);
+      return;
+    } catch (error) {
+      const code = error instanceof Error && 'code' in error ? String(error.code) : '';
+      if (code === 'ENOENT') return;
+      if (attempt >= REMOVE_ATTEMPTS || !RETRYABLE_REMOVE_CODES.has(code)) throw error;
+      pause(REMOVE_RETRY_MS);
+    }
+  }
 }
 
 function removeDatabaseFiles(path: string): void {
@@ -137,7 +158,8 @@ export function importSnapshot(
   const workPath = `${targetPath}.import-work`;
   removeDatabaseFiles(sourcePath);
   removeDatabaseFiles(workPath);
-  writeFileSync(sourcePath, bytes);
+  // `wx` fails on any existing path, a leftover link included, instead of writing through it.
+  writeFileSync(sourcePath, bytes, { flag: 'wx' });
   try {
     const source = openNativeDatabase(sourcePath);
     let expected: Map<string, TableDigest>;

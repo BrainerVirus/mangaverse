@@ -1,4 +1,13 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readMigrationFiles } from 'drizzle-orm/migrator';
@@ -211,6 +220,48 @@ describe('snapshot import', () => {
     expect(failed).toMatchObject({ ok: false, error: { code: DATA_HOST_ERROR.importFailed } });
     // The guard must not delete a directory it did not create.
     expect(readdirSync(directory)).toContain('library.sqlite.import-source');
+  });
+
+  // Creating a symlink needs a privilege on Windows (EPERM/EACCES without developer mode); a
+  // platform that refuses skips these two tests rather than failing the suite.
+  function linkOrSkip(skip: () => never, target: string, path: string): void {
+    try {
+      symlinkSync(target, path);
+    } catch (error) {
+      const code = error instanceof Error && 'code' in error ? error.code : undefined;
+      if (code === 'EPERM' || code === 'EACCES') skip();
+      throw error;
+    }
+  }
+
+  it('unlinks a dangling symlink at an import scratch path instead of writing through it', async (ctx) => {
+    const directory = scratch();
+    const outside = scratch();
+    const linkTarget = join(outside, 'escaped.sqlite');
+    linkOrSkip(() => ctx.skip(), linkTarget, join(directory, 'library.sqlite.import-source'));
+    const { client } = host(directory);
+
+    const result = await client.open(await rendererSnapshot());
+
+    expect(result.ok && result.value.imported?.tables.library_entries).toBe(3);
+    // The link was removed, not followed: nothing was created where it pointed.
+    expect(existsSync(linkTarget)).toBe(false);
+    expect(readdirSync(outside)).toEqual([]);
+    expect(readdirSync(directory).filter((name) => name.includes('.import-'))).toEqual([]);
+  });
+
+  it('leaves a file outside the scratch path untouched when a symlink points at it', async (ctx) => {
+    const directory = scratch();
+    const outside = scratch();
+    const victim = join(outside, 'victim.txt');
+    writeFileSync(victim, 'keep me');
+    linkOrSkip(() => ctx.skip(), victim, join(directory, 'library.sqlite.import-source'));
+    const { client } = host(directory);
+
+    const result = await client.open(await rendererSnapshot());
+
+    expect(result.ok && result.value.imported?.tables.library_entries).toBe(3);
+    expect(readFileSync(victim, 'utf8')).toBe('keep me');
   });
 
   it('refuses an unreadable snapshot with a typed error and leaves no native database', async () => {
