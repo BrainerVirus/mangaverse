@@ -48,6 +48,19 @@ function toResult(entry: HeldUrl): PageCacheStoreResult {
 }
 
 /**
+ * Takes a reference on the URL another lookup of the page settled onto `held`.
+ * A failed full acquire still has to look here: the decode pool's cache-only
+ * lookup can succeed while it is in flight, and answering `undefined` then is a
+ * false miss. The reverse is not true (see `acquirePageObjectUrl`).
+ */
+function acquireHeld(key: string): PageCacheStoreResult | undefined {
+  const shared = held.get(key);
+  if (shared === undefined) return undefined;
+  shared.refs += 1;
+  return toResult(shared);
+}
+
+/**
  * Takes a reference on the page's URL, resolving (and, unless `cachedOnly`,
  * downloading) the page on the first call. An in-flight lookup is joined only by
  * the same kind: the decode pool's cache-only miss must not answer a mounted
@@ -71,10 +84,9 @@ export async function acquirePageObjectUrl(
   const inFlight = pending.get(key);
   if (inFlight !== undefined) {
     const result = await inFlight;
-    const shared = held.get(key);
-    if (result === undefined || shared === undefined) return undefined;
-    shared.refs += 1;
-    return toResult(shared);
+    // A cache-only miss stays a miss even if a full acquire has since held the page.
+    if (result === undefined && cachedOnly) return undefined;
+    return acquireHeld(key);
   }
 
   const lookup = cachedOnly ? getCachedPageObjectUrl : resolvePageObjectUrl;
@@ -82,7 +94,7 @@ export async function acquirePageObjectUrl(
   pending.set(key, promise);
   try {
     const result = await promise;
-    if (result === undefined) return undefined;
+    if (result === undefined) return cachedOnly ? undefined : acquireHeld(key);
     // A lookup of the other kind can settle while this one is in flight. The first
     // result becomes the shared URL; this one must join it instead of overwriting
     // `held` (which would leak a URL and later revoke the one a mounted page uses).
