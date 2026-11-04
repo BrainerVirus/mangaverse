@@ -125,9 +125,13 @@ owns bounding it. #280 owns the Unicode search/collation regression and #279 the
   answers the first search with `429 Retry-After: 2`; the second reaches the fixture about 2 005 ms
   later, and the app stays usable. The response timeout vs queue wait is #275.
 - **Web domains.** The web adapter keeps the same provider→domain table as main. It refuses an
-  undeclared host before `fetch`, re-checks the final redirect URL, and exposes `isAllowedHost` so
-  cover/page byte fetches obey it; desktop stays main-enforced. Custom covers keep the
-  user-initiated path. Refusal logging and the web image redirect check are #274.
+  undeclared host before `fetch`, follows redirects itself (`redirect: 'manual'`, at most 5 hops) and
+  checks each target before requesting it, so an undeclared intermediate host is never contacted, and
+  exposes `isAllowedHost` so cover/page byte fetches obey it; desktop stays main-enforced. Custom
+  covers keep the user-initiated path. Refusal logging and the web image redirect check are #274;
+  the per-hop check is #295. A browser hides a manual redirect (opaque, no readable `Location`), so
+  web logs a `redirected-host` refusal and stops: a provider whose API or images need a cross-origin
+  redirect is unsupported on web (Electron reads every hop and is unaffected).
 - **Install preview.** `ExtensionInstallPreview.domains` lists the manifest's declared domains (or
   "No network access") before manual, registry or protocol install; the E2E sees
   `api.mangadex.org` and `*.mangadex.network`.

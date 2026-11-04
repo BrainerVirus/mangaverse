@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { UnmergeMappingPreview } from '@app/db';
 import type { ProviderMappingId } from '@app/shared';
+import { userFailureMessage } from '../failure-message.js';
 
 export interface UseUnmergeRequestInput {
   loadPreview?: (mappingId: ProviderMappingId) => Promise<UnmergeMappingPreview | undefined>;
@@ -32,7 +33,7 @@ export function useUnmergeRequest({ loadPreview, onUnmerge }: UseUnmergeRequestI
       }
       setPreview(loaded);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not build the split preview.');
+      setError(userFailureMessage(caught, 'Could not build the split preview.'));
     } finally {
       setIsLoading(false);
     }

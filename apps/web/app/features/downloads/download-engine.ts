@@ -207,6 +207,7 @@ export function createDownloadEngine(deps: DownloadEngineDeps): DownloadEngine {
         providerId,
         mangaId: chapter.mangaId,
         chapterId: row.chapterId,
+        adapter,
       }),
     );
     const cachedInChapter = (): number =>
@@ -261,6 +262,7 @@ export function createDownloadEngine(deps: DownloadEngineDeps): DownloadEngine {
         chapterId: row.chapterId,
         pages: remaining,
         retention: CACHE_RETENTION_DOWNLOAD,
+        verifyCachedBlobs: true,
         signal: controller.signal,
         onPage: async (page, result) => {
           if (result.status === 'failed') {

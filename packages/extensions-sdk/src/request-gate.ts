@@ -5,7 +5,12 @@ const DEFAULT_WINDOW_MS = 60_000;
 /** A 429 without a usable `Retry-After` means the source is unhappy for a while. */
 const DEFAULT_RETRY_AFTER_MS = 60_000;
 /** A misbehaving or hostile source cannot park a provider for longer than this. */
-const MAX_RETRY_AFTER_MS = 15 * 60_000;
+/**
+ * A wait longer than this is refused rather than slept: the source's horizon is kept in
+ * full (never shortened), and callers fail fast with a typed error instead of holding a
+ * timer for hours or days.
+ */
+const MAX_AUTO_WAIT_MS = 15 * 60_000;
 
 export interface RequestGateOptions {
   /** The manifest's declared pace, used when a request carries no override. */
@@ -60,9 +65,9 @@ function headerValue(headers: Readonly<Record<string, string>>, name: string): s
 }
 
 /**
- * `Retry-After` is either delta-seconds or an HTTP-date (RFC 9110). Anything else
- * falls back to a full window, and the result is capped so a bogus far-future date
- * cannot park a provider indefinitely.
+ * `Retry-After` is either delta-seconds or an HTTP-date (RFC 9110). Anything else falls
+ * back to a full window. The source's horizon is honored in full: shortening it would
+ * send requests before the source allows them.
  */
 export function parseRetryAfterMs(
   headers: Readonly<Record<string, string>> | undefined,
@@ -78,7 +83,10 @@ export function parseRetryAfterMs(
       if (!Number.isNaN(dateMs)) valueMs = dateMs - nowMs;
     }
   }
-  return Math.min(MAX_RETRY_AFTER_MS, Math.max(0, Math.round(valueMs)));
+  // A digit string can overflow (`Number('9'.repeat(400)) * 1000`), and a huge but finite
+  // value exceeds the Date range. Keep the horizon; never fall back to a short default.
+  if (!Number.isFinite(valueMs)) return Number.MAX_SAFE_INTEGER;
+  return Math.max(0, Math.round(Math.min(valueMs, Number.MAX_SAFE_INTEGER)));
 }
 
 function defaultSleep(delayMs: number, signal?: AbortSignal): Promise<void> {
@@ -164,7 +172,20 @@ export function createRequestGate(options: RequestGateOptions): RequestGate {
         const blockedUntil = state.blockedUntil;
         if (blockedUntil !== undefined) {
           if (blockedUntil > t) {
-            await wait(blockedUntil - t, input.signal);
+            const remaining = blockedUntil - t;
+            if (remaining > MAX_AUTO_WAIT_MS) {
+              // Too long to sleep without losing the user's intent: refuse, and keep the
+              // horizon so every later call fails fast too.
+              const waitText =
+                blockedUntil <= 8.64e15
+                  ? `until ${new Date(blockedUntil).toISOString()}`
+                  : 'for a long time';
+              throw blockedError(
+                `The provider asked to wait ${waitText}; requests are paused.`,
+                remaining,
+              );
+            }
+            await wait(remaining, input.signal);
             continue;
           }
           state.blockedUntil = undefined;

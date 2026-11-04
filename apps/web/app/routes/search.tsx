@@ -29,7 +29,15 @@ import {
 import type { SearchProviderInfo } from '../queries/provider-query-options.js';
 import { useLocalDb, useLocalDbStatus, useLocalDbRetry } from '../providers/local-db-provider.js';
 
+interface SearchRouteSearch {
+  readonly q?: string;
+}
+
 export const Route = createFileRoute('/search')({
+  validateSearch: (search: Record<string, unknown>): SearchRouteSearch => {
+    const q = typeof search.q === 'string' ? search.q.trim() : '';
+    return q.length > 0 ? { q } : {};
+  },
   component: SearchRoute,
 });
 
@@ -57,13 +65,23 @@ function resolveProviderSelection(
   };
 }
 
+/** A new `?q=` starts a fresh search; typing afterwards stays local to the page. */
 function SearchRoute() {
+  const { q } = Route.useSearch();
+  return <SearchRouteContent key={q ?? ''} initialQuery={q ?? ''} />;
+}
+
+function SearchRouteContent({ initialQuery }: { readonly initialQuery: string }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const db = useLocalDb();
   const dbStatus = useLocalDbStatus();
   const retryDb = useLocalDbRetry();
-  const [viewState, setViewState] = useState(DEFAULT_SEARCH_VIEW_STATE);
+  const [viewState, setViewState] = useState<SearchViewState>(() =>
+    initialQuery.length > 0
+      ? { ...DEFAULT_SEARCH_VIEW_STATE, query: initialQuery }
+      : DEFAULT_SEARCH_VIEW_STATE,
+  );
   const lastRecordedQuery = useRef('');
   const pendingSearchWrite = useRef<Promise<void> | null>(null);
 

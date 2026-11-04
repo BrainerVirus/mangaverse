@@ -133,9 +133,7 @@ test('Given the mode switcher, When changing modes, Then the highlight morphs to
 }) => {
   await openReader(page);
 
-  const highlight = page
-    .locator('[class*="rounded-full"][class*="bg-white"][class*="absolute"]')
-    .first();
+  const highlight = page.getByTestId('reader-mode-highlight');
   const single = page.getByRole('button', { name: 'Single' });
   const double = page.getByRole('button', { name: 'Double' });
 

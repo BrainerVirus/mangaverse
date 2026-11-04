@@ -45,6 +45,7 @@ import {
   canRefreshMangaDetail,
   localMangaDetailQueryOptions,
   mangaDetailRefreshQueryOptions,
+  retryMangaDetailRefresh,
 } from '../queries/manga-detail-refresh.js';
 import {
   anyActionPending,
@@ -68,10 +69,11 @@ import {
   runChapterAction,
   runCoverAction,
   runProviderAction,
+  sourceLoadError,
 } from '../queries/manga-detail-route-helpers.js';
 import { saveFeedback } from '../lib/feedback.js';
 import { failureMessage } from '../lib/app-feedback.js';
-import { useLocalDb, useLocalDbStatus } from '../providers/local-db-provider.js';
+import { useLocalDb, useLocalDbRetry, useLocalDbStatus } from '../providers/local-db-provider.js';
 
 export const Route = createFileRoute('/manga/$id')({
   component: MangaDetailRoute,
@@ -93,6 +95,24 @@ function resolveActiveMapping(
   );
 }
 
+/** The chapter list shows a read-state failure inline by the row; a toast too would report it twice. */
+const READ_PROGRESS_FEEDBACK = {
+  feedback: { surface: 'inline', message: 'Could not update read progress.', saving: true },
+} as const;
+
+/** Retry for the local read, and for a source load that failed with nothing saved locally. */
+function detailLoadRetryProps(input: {
+  readonly sourceError: string | undefined;
+  readonly retryLocal: () => void;
+  readonly retrySource: () => void;
+}) {
+  return {
+    onRetry: input.retryLocal,
+    onRetrySource: input.retrySource,
+    ...(input.sourceError === undefined ? {} : { sourceError: input.sourceError }),
+  };
+}
+
 function MangaDetailRoute() {
   const navigate = useNavigate();
   const router = useRouter();
@@ -101,6 +121,7 @@ function MangaDetailRoute() {
   const mangaId = toMangaId(id);
   const db = useLocalDb();
   const dbStatus = useLocalDbStatus();
+  const retryDb = useLocalDbRetry();
   const ready = isDbReady(db, dbStatus);
 
   const localDetailQuery = useQuery({
@@ -121,6 +142,17 @@ function MangaDetailRoute() {
     ready && canRefreshMangaDetail(mangaId) && !hasLocalDetail && detailRefreshQuery.isFetching;
   const detailFailed =
     !hasLocalDetail && detailRefreshQuery.isError && !detailRefreshQuery.isFetching;
+  const loadRetry = detailLoadRetryProps({
+    sourceError: sourceLoadError(detailFailed, detailRefreshQuery.error),
+    retryLocal: () => (dbStatus === 'error' ? retryDb() : void localDetailQuery.refetch()),
+    retrySource: () => {
+      if (db === null) return;
+      // A failed reset still re-reads: the page then shows the source's state again.
+      void retryMangaDetailRefresh(db, queryClient, mangaId).catch(
+        () => void detailRefreshQuery.refetch(),
+      );
+    },
+  });
 
   const providerInfoQuery = useQuery({
     queryKey: extensionsQueryKeys.ui(),
@@ -238,7 +270,7 @@ function MangaDetailRoute() {
   });
 
   const chapterMutation = useMutation({
-    meta: saveFeedback('Could not update read progress.'),
+    meta: READ_PROGRESS_FEEDBACK,
     mutationFn: (action: Parameters<typeof runChapterAction>[2]) =>
       runChapterAction(db, mangaId, action),
     onSettled: () => invalidateMangaCaches(queryClient),
@@ -291,7 +323,8 @@ function MangaDetailRoute() {
       mangaId={mangaId}
       data={detailOrNull(data)}
       isLoading={isPageLoading(dbStatus, localDetailQuery.isLoading) || awaitingFirstDetail}
-      isError={isPageError(dbStatus, localDetailQuery.isError) || detailFailed}
+      isError={isPageError(dbStatus, localDetailQuery.isError)}
+      {...loadRetry}
       onBack={() =>
         goBackOrLibrary({
           canGoBack: () => router.history.canGoBack(),
