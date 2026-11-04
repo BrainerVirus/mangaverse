@@ -41,8 +41,8 @@ export interface DataHostClient {
   onChange(listener: (event: DataHostChangeEvent) => void): () => void;
   /**
    * Moves to a restarted host's port. The new host is opened before any later call reaches it;
-   * calls still waiting on the old port are not resent and end with a timeout, since whether
-   * they committed is unknown. Listeners get `resync` once the host is open again.
+   * calls still waiting on the old port are not resent and end at once with `crashed`, since
+   * whether they committed is unknown. Listeners get `resync` once the host is open again.
    */
   reconnect(port: DataHostClientPort): Promise<AppResult<DataHostOpenResult>>;
 }
@@ -134,6 +134,19 @@ export function createDataHostClient(
       };
     },
     reconnect(next) {
+      // The old host will never answer these; each settle clears its own timer.
+      for (const [id, settle] of [...pending]) {
+        pending.delete(id);
+        settle(
+          err(
+            createAppError({
+              code: DATA_HOST_ERROR.crashed,
+              message:
+                'The local database restarted while this was in progress. It may or may not have been saved.',
+            }),
+          ),
+        );
+      }
       port = next;
       listen(next);
       // Sent before anything else on the new port: the host answers in arrival order.

@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DATA_HOST_ERROR, DataHostError } from '@app/db';
+import { createAppError } from '@app/shared';
 import {
   createFeedback,
   SAVING_INDICATOR_DELAY_MS,
@@ -103,6 +105,24 @@ describe('failure surfaces', () => {
     });
     expect(notify.failure.mock.calls[0]?.[0].onRetry).toBe(onRetry);
     expect(notify.failure.mock.calls[1]?.[0].onRetry).toBeUndefined();
+  });
+
+  it('Given a mutation lost to a data host crash, When toasted, Then it says to check and offers no retry', () => {
+    const { feedback, notify } = harness();
+    feedback.onFailure(
+      new DataHostError(
+        createAppError({ code: DATA_HOST_ERROR.crashed, message: 'The local database restarted.' }),
+      ),
+      {
+        source: 'mutation addToLibrary',
+        feedback: { surface: 'toast', message: 'Could not add to library.' },
+        onRetry: () => undefined,
+      },
+    );
+    const toast = notify.failure.mock.calls[0]?.[0];
+    expect(toast?.onRetry).toBeUndefined();
+    expect(toast?.message).toMatch(/may or may not have been saved/);
+    expect(toast?.message).not.toMatch(/try again|retry|redo/i);
   });
 });
 
