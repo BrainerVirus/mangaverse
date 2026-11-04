@@ -38,7 +38,7 @@ Milestones 3 and 4 followed:
 | 4 Local data, downloads | #220-#222  | Landed: paged SQL library with indexes and plan tests, local-first detail with a resumable refresh queue, explicit downloads with per-page resume, eviction protection and full-disk handling.                                         |
 | 3 Recipes               | #217, #218 | Owner-gated: two or three real sources must be chosen before the recipe format is frozen.                                                                                                                                              |
 
-Milestone 5 (reader) is next: #223, then #224.
+Milestone 5 (reader) is in progress: #223 (priority loading, decode, virtualized strips, refs-based gestures) then #224 (Auto mode, quick panel, settings).
 
 ## Data host events (#210 part 2)
 
@@ -125,9 +125,13 @@ owns bounding it. #280 owns the Unicode search/collation regression and #279 the
   answers the first search with `429 Retry-After: 2`; the second reaches the fixture about 2 005 ms
   later, and the app stays usable. The response timeout vs queue wait is #275.
 - **Web domains.** The web adapter keeps the same provider→domain table as main. It refuses an
-  undeclared host before `fetch`, re-checks the final redirect URL, and exposes `isAllowedHost` so
-  cover/page byte fetches obey it; desktop stays main-enforced. Custom covers keep the
-  user-initiated path. Refusal logging and the web image redirect check are #274.
+  undeclared host before `fetch`, follows redirects itself (`redirect: 'manual'`, at most 5 hops) and
+  checks each target before requesting it, so an undeclared intermediate host is never contacted, and
+  exposes `isAllowedHost` so cover/page byte fetches obey it; desktop stays main-enforced. Custom
+  covers keep the user-initiated path. Refusal logging and the web image redirect check are #274;
+  the per-hop check is #295. A browser hides a manual redirect (opaque, no readable `Location`), so
+  web logs a `redirected-host` refusal and stops: a provider whose API or images need a cross-origin
+  redirect is unsupported on web (Electron reads every hop and is unaffected).
 - **Install preview.** `ExtensionInstallPreview.domains` lists the manifest's declared domains (or
   "No network access") before manual, registry or protocol install; the E2E sees
   `api.mangadex.org` and `*.mangadex.network`.
@@ -239,14 +243,11 @@ search, settings, storage and theme. `theme` moved there because it imports `@ap
   independent engines, backup/restore does not carry download rows, and a failed blob delete leaves an
   orphan for the maintenance sweep. None of these block offline reading.
 - The reader budgets (50 ms cached page turn, 300 ms cached open) are still measured on this machine;
-  the reference laptop is an owner gate. Milestone 5 is the next body of work.
+  the reference laptop is an owner gate. Milestone 5 (#223/#224) is in progress; the budgets stay
+  provisional until that machine is confirmed.
 
 ### Open follow-ups
 
-- Transport/providers: #274 (web image redirect + refusal logging), #275 (gate wait vs timeout),
-  #276 (dead rate limiter, `globalThis.fetch` lint hardening, stale comments, retry policy).
-- Library: #279 (unread sort after a mapping switch), #280 (Unicode search/collation), #282 (unbounded
-  overview, 401 ms), #281 (paged-library nits).
 - Runtime/platform: #259 (Electron smoke in CI), #260 (`generate:routed` format/drift), #261 (vitest
   cache race), #263 (reload storm), #264 (reconnect pending calls/old port), #265 (noopener ownership).
 - Recipes: #217/#218 wait on the owner's source choice.

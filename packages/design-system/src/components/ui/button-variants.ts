@@ -4,8 +4,10 @@
 // Every variant carries the base string, the way shadcn's `cva` puts its base class list
 // first. Composing a variant *without* it (which the sidebar nav links used to do) drops
 // `inline-flex items-center`, so the icon stacks above the label instead of sitting inline.
+// The coarse-pointer floor lives here as well, because a link styled as a button is not
+// matched by the base layer's `button` rule.
 const buttonBase =
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius-btn)] type-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0';
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius-btn)] type-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 pointer-coarse:min-h-11 pointer-coarse:min-w-11 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0';
 
 export const buttonVariants = {
   default: `${buttonBase} bg-primary text-primary-foreground hover:bg-primary/90`,

@@ -12,7 +12,8 @@ import {
 } from '@app/design-system';
 import { ArrowDown, ArrowUp, Pencil, Pin, PinOff, Plus, Trash2 } from 'lucide-react';
 import type { CategoryId, LibraryCategory } from '@app/shared';
-import { compareLibraryCategories, errorMessage } from '@app/shared';
+import { compareLibraryCategories } from '@app/shared';
+import { actionFailureMessage } from '../../../lib/app-feedback.js';
 import type { LibraryOrganizationAction } from '../types.js';
 
 export interface CategoryManagerDialogProps {
@@ -82,7 +83,7 @@ export function CategoryManagerDialog({
     return onOrganize(action).then(
       () => true,
       (error: unknown) => {
-        setFormError(errorMessage(error, 'Could not save the category.'));
+        setFormError(actionFailureMessage(error, 'Could not save the category.'));
         return false;
       },
     );
@@ -103,7 +104,7 @@ export function CategoryManagerDialog({
       setColor('');
       setFormError(undefined);
     } catch (error) {
-      setFormError(errorMessage(error, 'Could not save the category.'));
+      setFormError(actionFailureMessage(error, 'Could not save the category.'));
     }
   }
 
@@ -122,7 +123,7 @@ export function CategoryManagerDialog({
       setEditingId(undefined);
       setFormError(undefined);
     } catch (error) {
-      setFormError(errorMessage(error, 'Could not save the category.'));
+      setFormError(actionFailureMessage(error, 'Could not save the category.'));
     }
   }
 

@@ -443,8 +443,19 @@ function SettledSearch({
     return labels;
   }, [providers]);
 
+  const providerFailed = hasQuery && failedStatuses.length > 0 && pendingStatuses.length === 0;
+  const hasResults = (data?.results.length ?? 0) > 0;
+
   return (
     <>
+      {/* Above the filters, so a phone sees the failure without scrolling past them. */}
+      {providerFailed && hasResults ? (
+        <ProviderErrorNotice failedStatuses={failedStatuses} onRetryProvider={onRetryProvider} />
+      ) : null}
+      {providerFailed && !hasResults ? (
+        <ProviderUnavailable failedStatuses={failedStatuses} onRetryProvider={onRetryProvider} />
+      ) : null}
+
       {providers.length > 0 ? (
         <ProviderFilter
           providers={providers}
@@ -467,7 +478,6 @@ function SettledSearch({
         onViewStateChange={onViewStateChange}
         onOpenManga={onOpenManga}
         onBrowseProviders={onBrowseProviders}
-        onRetryProvider={onRetryProvider}
         onResetFilters={() => setFilters({})}
         sourceLabels={sourceLabels}
       />
@@ -487,9 +497,11 @@ function statusesFor(
   return isPending ? [{ providerId: 'provider', label: 'Provider', pending: true }] : [];
 }
 
-function resultDescription(hasQuery: boolean, count: number): string {
-  if (!hasQuery) return 'Search local manga and recent queries';
-  return count === 1 ? '1 result' : `${count} results`;
+/** The count badge carries the number, so the description never repeats it. */
+function resultDescription(hasQuery: boolean): string {
+  return hasQuery
+    ? 'Matches from your library and enabled sources'
+    : 'Search local manga and recent queries';
 }
 
 export function SearchPage({
@@ -529,7 +541,7 @@ export function SearchPage({
     >
       <PageHeader
         title="Search"
-        description={resultDescription(hasQuery, resultCount)}
+        description={resultDescription(hasQuery)}
         {...(hasQuery
           ? { count: resultCount, countLabel: resultCount === 1 ? 'result' : 'results' }
           : {})}
@@ -696,24 +708,17 @@ function RecentSearches({
 function ResultGrid({
   results,
   pendingStatuses,
-  failedStatuses,
-  onRetryProvider,
   onOpenManga,
   sourceLabels,
 }: {
   results: SearchPageData['results'];
   pendingStatuses: readonly SearchProviderStatus[];
-  failedStatuses: readonly SearchProviderStatus[];
-  onRetryProvider: ((providerId: string) => void) | undefined;
   onOpenManga: (mangaId: MangaId) => void;
   sourceLabels: Readonly<Record<string, string>>;
 }) {
   return (
     <>
       {pendingStatuses.length > 0 ? <ProviderPending /> : null}
-      {failedStatuses.length > 0 && pendingStatuses.length === 0 ? (
-        <ProviderErrorNotice failedStatuses={failedStatuses} onRetryProvider={onRetryProvider} />
-      ) : null}
       <VirtualSearchGrid results={results} onOpenManga={onOpenManga} sourceLabels={sourceLabels} />
     </>
   );
@@ -723,7 +728,6 @@ function QueryResults({
   results,
   pendingStatuses,
   failedStatuses,
-  onRetryProvider,
   onOpenManga,
   onResetFilters,
   filtersActive,
@@ -732,7 +736,6 @@ function QueryResults({
   results: SearchPageData['results'];
   pendingStatuses: readonly SearchProviderStatus[];
   failedStatuses: readonly SearchProviderStatus[];
-  onRetryProvider: ((providerId: string) => void) | undefined;
   onOpenManga: (mangaId: MangaId) => void;
   onResetFilters: () => void;
   filtersActive: boolean;
@@ -743,8 +746,6 @@ function QueryResults({
       <ResultGrid
         results={results}
         pendingStatuses={pendingStatuses}
-        failedStatuses={failedStatuses}
-        onRetryProvider={onRetryProvider}
         onOpenManga={onOpenManga}
         sourceLabels={sourceLabels}
       />
@@ -756,11 +757,8 @@ function QueryResults({
   if (pendingStatuses.length > 0) {
     return <ProviderPending />;
   }
-  if (failedStatuses.length > 0) {
-    return (
-      <ProviderUnavailable failedStatuses={failedStatuses} onRetryProvider={onRetryProvider} />
-    );
-  }
+  // The failure already shows above the filters; an empty state would contradict it.
+  if (failedStatuses.length > 0) return null;
   return (
     <EmptyState
       type="no-results"
@@ -780,7 +778,6 @@ function SearchResults({
   onViewStateChange,
   onOpenManga,
   onBrowseProviders,
-  onRetryProvider,
   onResetFilters,
   sourceLabels,
 }: {
@@ -793,7 +790,6 @@ function SearchResults({
   onViewStateChange: (next: SearchViewState) => void;
   onOpenManga: (mangaId: MangaId) => void;
   onBrowseProviders: (() => void) | undefined;
-  onRetryProvider: ((providerId: string) => void) | undefined;
   onResetFilters: () => void;
   sourceLabels: Readonly<Record<string, string>>;
 }) {
@@ -802,7 +798,7 @@ function SearchResults({
       <RecentSearches recentSearches={recentSearches} onViewStateChange={onViewStateChange} />
     ) : (
       <EmptyState
-        type="no-results"
+        type="search-prompt"
         {...(onBrowseProviders !== undefined
           ? { action: { label: 'Browse providers', onClick: onBrowseProviders } }
           : {})}
@@ -815,7 +811,6 @@ function SearchResults({
       results={results}
       pendingStatuses={pendingStatuses}
       failedStatuses={failedStatuses}
-      onRetryProvider={onRetryProvider}
       onOpenManga={onOpenManga}
       onResetFilters={onResetFilters}
       filtersActive={filtersActive}

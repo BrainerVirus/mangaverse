@@ -36,7 +36,7 @@
     "no-use-state": 1
   },
   "apps/web/app/features/library/components/BulkEditBar.tsx": {
-    "no-use-state": 4
+    "no-use-state": 3
   },
   "apps/web/app/features/library/components/CategoryManagerDialog.tsx": {
     "no-try-catch": 2,
@@ -62,9 +62,6 @@
   "apps/web/app/features/library/components/MangaIdentityMerge.tsx": {
     "no-try-catch": 3,
     "no-use-state": 8
-  },
-  "apps/web/app/features/library/components/MangaProviderSwitcher.tsx": {
-    "no-use-state": 1
   },
   "apps/web/app/features/library/components/use-unmerge-request.ts": {
     "no-try-catch": 1,

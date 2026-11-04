@@ -1,6 +1,6 @@
 import type { AppDrizzleDb } from '@app/db';
 import { queryOptions, type QueryClient } from '@tanstack/react-query';
-import type { MangaId } from '@app/shared';
+import { UserFacingError, type MangaId } from '@app/shared';
 
 import { fetchMangaDetail, libraryQueryKeys } from '@/features/library';
 import { shouldRefreshMangaDetail } from '../lib/manga-detail-persist.js';
@@ -8,6 +8,8 @@ import {
   drainMangaRefreshQueue,
   enqueueMangaRefresh,
   hasMangaRefreshJob,
+  logMangaRefreshFailure,
+  resetMangaRefreshJob,
 } from '../lib/manga-refresh-queue.js';
 import { getBindingForMangaId } from '../lib/provider-registry.js';
 
@@ -53,11 +55,40 @@ export async function refreshMangaDetailForRoute(
   if (!queued && !shouldRefreshMangaDetail(local)) return false;
 
   if (!queued) await enqueueMangaRefresh(db, mangaId, 'detail');
-  await drainMangaRefreshQueue(db, queryClient, {
-    mangaId,
-    ...(signal === undefined ? {} : { signal }),
-  });
+  // Held back from the queue's log: when nothing is saved locally this call is
+  // the page, so its failure is rethrown and the query cache logs it once.
+  const failures: unknown[] = [];
+  await drainMangaRefreshQueue(
+    db,
+    queryClient,
+    { mangaId, ...(signal === undefined ? {} : { signal }) },
+    { log: (error) => failures.push(error) },
+  );
+  if (signal?.aborted === true) return true;
+
+  // Cached data is on screen, so a failed refresh stays a background event.
+  if (local !== null) {
+    for (const error of failures) logMangaRefreshFailure(error);
+    return true;
+  }
+  if (failures.length > 0) throw failures[0];
+  // The job sat out its backoff: still nothing to show, and the user can retry.
+  if (await hasMangaRefreshJob(db, mangaId)) {
+    throw new UserFacingError("The source didn't respond last time. Try again.", {
+      kind: 'provider-unavailable',
+    });
+  }
   return true;
+}
+
+/** The detail page's Retry: the job runs now whatever its backoff, then the page reads again. */
+export async function retryMangaDetailRefresh(
+  db: AppDrizzleDb,
+  queryClient: QueryClient,
+  mangaId: MangaId,
+): Promise<void> {
+  await resetMangaRefreshJob(db, mangaId, 'detail');
+  await queryClient.refetchQueries({ queryKey: mangaDetailRefreshQueryKey(mangaId), exact: true });
 }
 
 export function mangaDetailRefreshQueryOptions(

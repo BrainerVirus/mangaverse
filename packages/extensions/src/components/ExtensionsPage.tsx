@@ -148,7 +148,7 @@ function ProviderCard({
             href={provider.sourceUrl}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center rounded-control px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            className="inline-flex items-center rounded-control px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground pointer-coarse:min-h-11"
           >
             Source
             <ExternalLink aria-hidden className="ml-1 size-3.5" />

@@ -57,6 +57,7 @@ export default defineConfig({
       'src/browser.test.ts',
       'src/bundled-migrations.test.ts',
       'src/persistent-database.test.ts',
+      'src/persistent-database-title-fold.test.ts',
       'src/host/**',
       // Query plans are read from the sql.js connection's prepared statements; the host
       // suite still runs the same page queries and their results.

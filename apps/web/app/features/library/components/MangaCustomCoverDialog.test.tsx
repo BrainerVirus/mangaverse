@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MangaCustomCoverDialog } from './MangaCustomCoverDialog.js';
 
 function renderDialog(overrides: Partial<Parameters<typeof MangaCustomCoverDialog>[0]> = {}) {
@@ -50,6 +50,46 @@ describe('MangaCustomCoverDialog', () => {
       'Cover image URL must start with http:// or https://.',
     );
     expect(props.onSave).not.toHaveBeenCalled();
+  });
+
+  it('Given a failing save, Then the dialog stays open with no inline error, so the toast is the only surface', async () => {
+    const props = renderDialog({
+      onSave: vi.fn<(url: string) => Promise<void>>(async () => {
+        throw new Error('INTERNAL_SECRET at handle.run');
+      }),
+    });
+
+    fireEvent.change(screen.getByLabelText('Cover image URL'), {
+      target: { value: 'https://example.com/new.jpg' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save cover' }));
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(props.onSave).toHaveBeenCalledWith('https://example.com/new.jpg');
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText(/INTERNAL_SECRET|Could not/)).toBeNull();
+    expect(screen.getByLabelText('Cover image URL')).toHaveValue('https://example.com/new.jpg');
+    expect(props.onOpenChange).not.toHaveBeenCalled();
+  });
+
+  it('Given a failing reset, Then no inline error shows either', async () => {
+    const props = renderDialog({
+      hasCustomCover: true,
+      onReset: vi.fn<() => Promise<void>>(async () => {
+        throw new Error('INTERNAL_SECRET at handle.run');
+      }),
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset to provider cover' }));
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(props.onReset).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText(/INTERNAL_SECRET/)).toBeNull();
   });
 
   it('saves a valid URL and resets an existing override', async () => {
