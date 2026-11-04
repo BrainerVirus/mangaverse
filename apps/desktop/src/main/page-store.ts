@@ -245,7 +245,16 @@ export function createPageStore(root: string): PageStore {
           sidecarIds.push(id);
         }
       }
-      await mapBounded(leftovers, (name) => rm(join(dir, name), { force: true }));
+      await mapBounded(leftovers, async (name) => {
+        // The readdir snapshot is stale by now: a put may have started or finished since.
+        // Decide on the disk as it is, immediately before deleting.
+        const id = name.split('.')[0]!;
+        if (writing.has(id)) return;
+        if (name === id && (await lstat(join(dir, `${id}${SIDECAR_SUFFIX}`)).catch(() => null))) {
+          return;
+        }
+        await rm(join(dir, name), { force: true });
+      });
       const sidecars = await mapBounded(sidecarIds, (id) => readSidecar(dir, id));
       for (const [index, sidecar] of sidecars.entries()) {
         if (sidecar !== undefined && pageIdForKey(sidecar.key) === sidecarIds[index]) {
