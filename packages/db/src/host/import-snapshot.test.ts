@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readMigrationFiles } from 'drizzle-orm/migrator';
@@ -200,6 +200,17 @@ describe('snapshot import', () => {
     expect((await getCacheEntryById(client.handle, 'page:m:c:0'))?.blobKey).toBe(
       'page:cover:mangadex:m',
     );
+  });
+
+  it('refuses to remove a directory sitting at an import scratch path', async () => {
+    const directory = scratch();
+    const snapshot = await rendererSnapshot();
+    mkdirSync(join(directory, 'library.sqlite.import-source'));
+    const { client } = host(directory);
+    const failed = await client.open(snapshot);
+    expect(failed).toMatchObject({ ok: false, error: { code: DATA_HOST_ERROR.importFailed } });
+    // The guard must not delete a directory it did not create.
+    expect(readdirSync(directory)).toContain('library.sqlite.import-source');
   });
 
   it('refuses an unreadable snapshot with a typed error and leaves no native database', async () => {

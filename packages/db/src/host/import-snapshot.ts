@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import type { DatabaseSync } from 'node:sqlite';
 import type { CacheBlobKeyRewrite, SnapshotImportReport } from '../data-host-protocol.js';
 import { openNativeDatabase } from './open-native.js';
@@ -68,33 +68,23 @@ function sameDigests(
   });
 }
 
-/** Sleeps the caller without a timer: removal runs inside a synchronous import. */
-function sleepSync(ms: number): void {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
-}
-
 /**
- * Deletes one file, retrying briefly on Windows where an open handle keeps it undeletable.
- * Never recursive: a directory at a predictable scratch path is not ours to remove.
+ * Deletes one file, retrying on Windows where an open handle keeps it undeletable.
+ * `maxRetries` applies only with `recursive`, so it is passed for a known non-directory
+ * only: a directory at a predictable scratch path is never removed.
  */
-function removeFileWithRetries(path: string): void {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    try {
-      rmSync(path, { force: true });
-      return;
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      if (code !== 'EBUSY' && code !== 'EPERM' && code !== 'ENOTEMPTY') throw error;
-      sleepSync(25 * (attempt + 1));
-    }
+function removeOneFile(path: string): void {
+  const stats = statSync(path, { throwIfNoEntry: false });
+  if (stats === undefined) return;
+  if (stats.isDirectory()) {
+    throw new Error(`Refusing to remove a directory at an import scratch path: ${path}`);
   }
-  // Last attempt: surface the error rather than leaving a temp file silently.
-  rmSync(path, { force: true });
+  rmSync(path, { force: true, recursive: true, maxRetries: 20, retryDelay: 25 });
 }
 
 function removeDatabaseFiles(path: string): void {
   for (const suffix of ['', '-wal', '-shm', '-journal']) {
-    removeFileWithRetries(`${path}${suffix}`);
+    removeOneFile(`${path}${suffix}`);
   }
 }
 
