@@ -8,11 +8,13 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
+import type * as NodeFs from 'node:fs';
+import type * as NodeFsPromises from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readMigrationFiles } from 'drizzle-orm/migrator';
 import initSqlJs from 'sql.js';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { toProviderId } from '@app/shared';
 import { migrateDatabaseFromBundled } from '../bundled-migrations.js';
 import { createDrizzleFromSqlJs } from '../client.js';
@@ -35,8 +37,49 @@ import {
 import { importMarkerPath } from './import-snapshot.js';
 import { createDataHost } from './serve.js';
 
+// One-shot faults for the files the import touches after its rename (#311).
+const faults = vi.hoisted(() => ({ marker: false, scratch: false }));
+const fault = (code: string) => Object.assign(new Error(code), { code });
+// The marker is faulted through both the sync and the promise API, so the test holds for
+// whichever the import uses.
+vi.mock('node:fs', async (importOriginal) => {
+  const actual = await importOriginal<typeof NodeFs>();
+  return {
+    ...actual,
+    writeFileSync: (...args: Parameters<typeof actual.writeFileSync>) => {
+      if (faults.marker && String(args[0]).endsWith('.import.json')) {
+        faults.marker = false;
+        throw fault('ENOSPC');
+      }
+      return actual.writeFileSync(...args);
+    },
+  };
+});
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof NodeFsPromises>();
+  return {
+    ...actual,
+    writeFile: (...args: Parameters<typeof actual.writeFile>) => {
+      if (faults.marker && String(args[0]).endsWith('.import.json')) {
+        faults.marker = false;
+        return Promise.reject(fault('ENOSPC'));
+      }
+      return actual.writeFile(...args);
+    },
+    unlink: (...args: Parameters<typeof actual.unlink>) => {
+      if (faults.scratch && String(args[0]).endsWith('.import-source')) {
+        faults.scratch = false;
+        return Promise.reject(fault('EIO'));
+      }
+      return actual.unlink(...args);
+    },
+  };
+});
+
 const cleanups: (() => void)[] = [];
 afterEach(() => {
+  faults.marker = false;
+  faults.scratch = false;
   // Reverse order: a scratch directory is created before the host that opens a file inside
   // it, so the handle must close before the directory is removed (Windows refuses otherwise).
   for (const cleanup of cleanups.splice(0).reverse()) cleanup();
@@ -290,6 +333,39 @@ describe('snapshot import', () => {
     // A later attempt with a good snapshot still imports.
     const retried = await client.open(await rendererSnapshot());
     expect(retried.ok && retried.value.imported?.tables.library_entries).toBe(3);
+  }, 30_000);
+
+  // Once the rename succeeds the native database exists, so a failure writing the marker or
+  // removing scratch files must not be reported as `import_failed` (the renderer would then keep
+  // writing to sql.js while the next start opens the native file without importing again).
+  it('still imports when the marker cannot be written after the rename', async () => {
+    const directory = scratch();
+    const { client } = host(directory);
+    faults.marker = true;
+
+    const result = await client.open(await rendererSnapshot());
+
+    expect(result.ok && result.value.imported?.tables.library_entries).toBe(3);
+    expect(existsSync(join(directory, 'library.sqlite'))).toBe(true);
+    expect(await listLibraryEntries(client.handle)).toHaveLength(3);
+    expect(await client.status()).toEqual({
+      ok: true,
+      value: { open: true, nativeExists: true },
+    });
+  }, 30_000);
+
+  it('still imports when scratch cleanup fails after the rename', async () => {
+    const directory = scratch();
+    const { client } = host(directory);
+    faults.scratch = true;
+
+    const result = await client.open(await rendererSnapshot());
+
+    expect(result.ok && result.value.imported?.tables.library_entries).toBe(3);
+    expect(existsSync(join(directory, 'library.sqlite'))).toBe(true);
+    expect(await listLibraryEntries(client.handle)).toHaveLength(3);
+    // The stuck scratch file is harmless: the next import removes it first.
+    expect(faults.scratch).toBe(false);
   }, 30_000);
 
   it('opens a fresh database when there is no snapshot to import', async () => {
