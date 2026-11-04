@@ -84,22 +84,6 @@ export async function persistChapterPagesToDb(
   }
 }
 
-export function mergeMangaDetailWithLibrary(
-  detail: MangaDetailData,
-  local: MangaDetailData | null,
-): MangaDetailData {
-  if (local === null) {
-    return detail;
-  }
-
-  return {
-    ...detail,
-    libraryEntry: local.libraryEntry,
-    continueChapterId: local.continueChapterId ?? detail.continueChapterId,
-    ...(local.readStates !== undefined ? { readStates: local.readStates } : {}),
-  };
-}
-
 /**
  * How long a persisted provider detail is treated as fresh. Opening a cached title
  * renders immediately either way; only the background refresh waits for this window,
