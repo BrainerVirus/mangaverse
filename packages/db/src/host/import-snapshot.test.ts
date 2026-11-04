@@ -112,6 +112,8 @@ function scratch(): string {
 }
 
 describe('snapshot import', () => {
+  // Each rendererSnapshot() builds a sql.js database with the bundled migrations; a loaded CI runner
+  // pushed that past Vitest's 5 s default on 2026-11-04 (run 41886692481), though it takes ~0.4 s locally.
   it('imports a renderer snapshot once, verifies counts and content, and serves the library', async () => {
     const snapshot = await rendererSnapshot();
     const original = Uint8Array.from(snapshot);
@@ -159,7 +161,7 @@ describe('snapshot import', () => {
       'Favourites',
       'Written natively',
     ]);
-  });
+  }, 30_000);
 
   it('rewrites cache blob pointers inside the same verified import', async () => {
     const snapshot = await rendererSnapshot(async (db) => {
@@ -187,7 +189,7 @@ describe('snapshot import', () => {
     );
     // The caller's snapshot bytes were not touched.
     expect(snapshot).toEqual(original);
-  });
+  }, 30_000);
 
   it('rewrites an existing database pointer in one transaction', async () => {
     const { client } = host(scratch());
@@ -220,7 +222,7 @@ describe('snapshot import', () => {
     expect(failed).toMatchObject({ ok: false, error: { code: DATA_HOST_ERROR.importFailed } });
     // The guard must not delete a directory it did not create.
     expect(readdirSync(directory)).toContain('library.sqlite.import-source');
-  });
+  }, 30_000);
 
   // Creating a symlink needs a privilege on Windows (EPERM/EACCES without developer mode); a
   // platform that refuses skips these two tests rather than failing the suite.
@@ -248,7 +250,7 @@ describe('snapshot import', () => {
     expect(existsSync(linkTarget)).toBe(false);
     expect(readdirSync(outside)).toEqual([]);
     expect(readdirSync(directory).filter((name) => name.includes('.import-'))).toEqual([]);
-  });
+  }, 30_000);
 
   it('leaves a file outside the scratch path untouched when a symlink points at it', async (ctx) => {
     const directory = scratch();
@@ -262,7 +264,7 @@ describe('snapshot import', () => {
 
     expect(result.ok && result.value.imported?.tables.library_entries).toBe(3);
     expect(readFileSync(victim, 'utf8')).toBe('keep me');
-  });
+  }, 30_000);
 
   it('refuses an unreadable snapshot with a typed error and leaves no native database', async () => {
     const directory = scratch();
@@ -288,7 +290,7 @@ describe('snapshot import', () => {
     // A later attempt with a good snapshot still imports.
     const retried = await client.open(await rendererSnapshot());
     expect(retried.ok && retried.value.imported?.tables.library_entries).toBe(3);
-  });
+  }, 30_000);
 
   it('opens a fresh database when there is no snapshot to import', async () => {
     const { client } = host(scratch());
