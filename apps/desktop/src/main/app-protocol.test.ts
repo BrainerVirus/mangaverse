@@ -13,8 +13,8 @@ beforeAll(async () => {
   base = realpathSync(await mkdtemp(join(tmpdir(), 'app-protocol-')));
   root = join(base, 'renderer');
   await mkdir(join(root, 'assets'), { recursive: true });
-  // The handler resolves under realpath(root); Windows temp paths can be 8.3 short names.
-  canonicalRoot = realpathSync(root);
+  // `.native` expands Windows 8.3 short names (RUNNER~1), which the handler returns long.
+  canonicalRoot = realpathSync.native(root);
   await writeFile(join(root, 'index.html'), '<!doctype html><title>shell</title>');
   await writeFile(join(root, 'assets', 'index-abc.js'), 'export {};');
   await writeFile(join(root, 'assets', 'index-abc.css'), 'body{}');
