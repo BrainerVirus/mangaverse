@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { resolveKeyboardAction, resolveWheelAction } from '../navigation.js';
 import { computeScrollTargetTop, resolveVerticalNavigationTarget } from '../scroll-navigation.js';
 import { applyPinchZoom, clampZoomTransform } from '../zoom.js';
+import type { ReaderZoomController } from './use-reader-zoom.js';
 import { measureZoomBox } from './zoom-box.js';
-import type { ReaderNavigationAction, ReaderSessionInput, ZoomStateSummary } from '../types.js';
+import type { ReaderNavigationAction, ReaderSessionInput } from '../types.js';
 import type { ReaderScrollViewHandle } from './ReaderScrollView.js';
 
 /**
@@ -101,15 +102,18 @@ export function useReaderKeyboard({
         if (!handle) return;
         const container = handle.scrollContainer();
         if (container === null) return;
-        container.scrollTo({
-          top: computeScrollTargetTop(
-            handle.measurePages(),
-            target,
-            container.clientHeight,
-            container.scrollHeight,
-          ),
-          behavior: reducedMotion ? 'auto' : 'smooth',
-        });
+        const top = computeScrollTargetTop(
+          handle.measurePages(),
+          target,
+          container.clientHeight,
+          container.scrollHeight,
+        );
+        // A jump across pages is instant: a smooth animation over a virtualised
+        // strip keeps mounting rows whose real height lands mid-animation, and
+        // a moving target can cancel the animation short of the page. One page
+        // still animates, which is the only case where the motion is readable.
+        const far = Math.abs(top - container.scrollTop) > container.clientHeight * 1.5;
+        container.scrollTo({ top, behavior: reducedMotion || far ? 'auto' : 'smooth' });
         return;
       }
       navigate(action);
@@ -133,6 +137,9 @@ export function useReaderKeyboard({
   ]);
 }
 
+/** How long the wheel must rest before the zoom is published to React state. */
+const WHEEL_COMMIT_IDLE_MS = 150;
+
 /**
  * Ctrl+wheel zoom (wheelBehavior 'zoom'). The paged layer owns the listener, so
  * the scroll strip keeps native wheel scrolling, and passive: false lets the
@@ -141,35 +148,38 @@ export function useReaderKeyboard({
 export function useReaderWheelZoom({
   sessionInput,
   surface,
-  updateZoom,
+  zoom,
 }: {
   readonly sessionInput: ReaderSessionInput | null;
   /** The surface the zoom layer fills; its rect is the layer's layout box. */
   readonly surface: HTMLDivElement | null;
-  readonly updateZoom: (transform: (zoom: ZoomStateSummary) => ZoomStateSummary) => void;
-}): { readonly zoomLayerRef: (node: HTMLDivElement | null) => void } {
-  const [zoomLayer, setZoomLayer] = useState<HTMLDivElement | null>(null);
-
-  // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: a non-passive wheel listener on the zoom layer
+  /** Gesture zoom: applied to the layer per frame and committed when idle. */
+  readonly zoom: ReaderZoomController;
+}): void {
+  // The listener lives on the surface and only reacts to wheel events that
+  // start on the paged zoom layer. Binding it to the layer element would need
+  // the node as render state, and the node only exists in paged mode.
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: a non-passive wheel listener on the reader surface
   useEffect(() => {
-    if (zoomLayer === null || surface === null || sessionInput === null) return;
+    if (surface === null || sessionInput === null) return;
 
     // Trackpads send many small deltas per frame; queue them and apply the whole
-    // burst against one measured box in one state commit. Sequential
-    // application keeps the result identical to applying each event alone.
+    // burst against one measured box. The layer is written directly, so a wheel
+    // burst never renders the reader; one commit follows when the wheel rests.
     const initial = measureZoomBox(surface);
     if (initial === null) return;
     let box = initial;
     let steps: { readonly delta: number; readonly x: number; readonly y: number }[] = [];
     let frame: number | null = null;
+    let commitTimer: ReturnType<typeof setTimeout> | null = null;
 
     const flush = () => {
       frame = null;
       const pending = steps;
       steps = [];
       if (pending.length === 0) return;
-      updateZoom((zoom) => {
-        let next = zoom;
+      zoom.apply((current) => {
+        let next = current;
         for (const step of pending) {
           next = clampZoomTransform(
             // One ~100px wheel notch is ~22%; trackpads send many small deltas.
@@ -185,9 +195,20 @@ export function useReaderWheelZoom({
         }
         return next;
       });
+      if (commitTimer !== null) clearTimeout(commitTimer);
+      commitTimer = setTimeout(() => {
+        commitTimer = null;
+        zoom.commit();
+      }, WHEEL_COMMIT_IDLE_MS);
     };
 
     const handleWheel = (event: WheelEvent) => {
+      const target = event.target;
+      if (
+        !(target instanceof Element) ||
+        target.closest('[data-testid="reader-zoom-layer"]') === null
+      )
+        return;
       const action = resolveWheelAction(event, sessionInput.settings);
       if (action.type !== 'zoom') return;
       event.preventDefault();
@@ -203,14 +224,13 @@ export function useReaderWheelZoom({
       box = measureZoomBox(surface) ?? box;
     });
     observer.observe(surface);
-    zoomLayer.addEventListener('wheel', handleWheel, { passive: false });
+    surface.addEventListener('wheel', handleWheel, { passive: false });
     return () => {
       if (frame !== null) window.cancelAnimationFrame(frame);
+      if (commitTimer !== null) clearTimeout(commitTimer);
       observer.disconnect();
-      zoomLayer.removeEventListener('wheel', handleWheel);
+      surface.removeEventListener('wheel', handleWheel);
     };
-    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- updateZoom is read by the deferred frame flush, not in the effect body
-  }, [sessionInput, surface, updateZoom, zoomLayer]);
-
-  return { zoomLayerRef: setZoomLayer };
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- zoom.apply/commit are read by the deferred frame flush, not in the effect body
+  }, [sessionInput, surface, zoom]);
 }

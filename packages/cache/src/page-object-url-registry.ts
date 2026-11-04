@@ -1,0 +1,103 @@
+import type { PageCacheLookupInput, PageCacheStoreResult } from './page-cache-store.js';
+import { getCachedPageObjectUrl, resolvePageObjectUrl } from './page-cache-store.js';
+
+export interface PageObjectUrlInput extends PageCacheLookupInput {
+  readonly retention?: 'read' | 'normal';
+}
+
+export interface AcquirePageObjectUrlOptions {
+  /**
+   * Only hand back a URL for a page that is already in the blob cache. The
+   * decode-ahead pool uses this so warming a page never spends the reader's
+   * prefetch budget on a network request; the prefetch sweep owns downloads.
+   */
+  readonly cachedOnly?: boolean;
+}
+
+interface HeldUrl {
+  url: string;
+  refs: number;
+  fromCache: boolean;
+  byteSize: number;
+}
+
+const held = new Map<string, HeldUrl>();
+const pending = new Map<string, Promise<PageCacheStoreResult | undefined>>();
+
+/**
+ * One URL per page, shared by every holder (the mounted strip row, the paged
+ * layer, the decode pool). A page turn that returns to a warm page then reuses
+ * the same URL, so the browser's decoded-image cache can serve it instead of
+ * decoding the same blob again under a fresh object URL.
+ */
+export function pageObjectUrlKey(input: PageObjectUrlInput): string {
+  return [
+    String(input.providerId),
+    String(input.mangaId),
+    String(input.chapterId),
+    String(input.pageIndex),
+    input.remoteUrl,
+    input.retention ?? 'read',
+  ].join('\u0000');
+}
+
+function toResult(entry: HeldUrl): PageCacheStoreResult {
+  return { objectUrl: entry.url, fromCache: entry.fromCache, byteSize: entry.byteSize };
+}
+
+/**
+ * Takes a reference on the page's URL, resolving (and, unless `cachedOnly`,
+ * downloading) the page on the first call. Every successful acquire must be
+ * paired with exactly one release.
+ */
+export async function acquirePageObjectUrl(
+  input: PageObjectUrlInput,
+  options: AcquirePageObjectUrlOptions = {},
+): Promise<PageCacheStoreResult | undefined> {
+  const key = pageObjectUrlKey(input);
+
+  const existing = held.get(key);
+  if (existing !== undefined) {
+    existing.refs += 1;
+    return toResult(existing);
+  }
+
+  const inFlight = pending.get(key);
+  if (inFlight !== undefined) {
+    const result = await inFlight;
+    const shared = held.get(key);
+    if (result === undefined || shared === undefined) return undefined;
+    shared.refs += 1;
+    return toResult(shared);
+  }
+
+  const lookup = options.cachedOnly === true ? getCachedPageObjectUrl : resolvePageObjectUrl;
+  const promise = lookup(input);
+  pending.set(key, promise);
+  try {
+    const result = await promise;
+    if (result === undefined) return undefined;
+    held.set(key, {
+      url: result.objectUrl,
+      refs: 1,
+      fromCache: result.fromCache,
+      byteSize: result.byteSize,
+    });
+    return result;
+  } finally {
+    pending.delete(key);
+  }
+}
+
+/** Drops one reference; the last holder revokes the URL. */
+export async function releasePageObjectUrl(input: PageObjectUrlInput): Promise<void> {
+  const key = pageObjectUrlKey(input);
+  const entry = held.get(key);
+  if (entry === undefined) return;
+
+  entry.refs -= 1;
+  if (entry.refs > 0) return;
+
+  held.delete(key);
+  await input.adapter.blobStorage.revokeObjectUrl(entry.url);
+}

@@ -287,17 +287,11 @@
     "no-try-catch": 1,
     "no-use-state": 4
   },
-  "packages/reader/src/components/ReaderScrollView.tsx": {
-    "no-use-state": 2
-  },
   "packages/reader/src/components/use-chapter-cache.ts": {
     "no-use-state": 1
   },
   "packages/reader/src/components/use-reader-diagnostics.ts": {
     "no-use-state": 2
-  },
-  "packages/reader/src/components/use-reader-listeners.ts": {
-    "no-use-state": 1
   },
   "packages/reader/src/components/use-reader-session.ts": {
     "no-use-state": 2

@@ -26,7 +26,6 @@ import {
   estimateWebtoonLayout,
   // Preload
   createPreloadPlan,
-  createDecodeQueue,
   recordPageLoadResult,
   // Progress
   createProgressEvent,
@@ -67,7 +66,6 @@ describe('public API', () => {
     expect(typeof calculateWebtoonWindow).toBe('function');
     expect(typeof estimateWebtoonLayout).toBe('function');
     expect(typeof createPreloadPlan).toBe('function');
-    expect(typeof createDecodeQueue).toBe('function');
     expect(typeof recordPageLoadResult).toBe('function');
     expect(typeof createProgressEvent).toBe('function');
     expect(typeof shouldPersistProgress).toBe('function');

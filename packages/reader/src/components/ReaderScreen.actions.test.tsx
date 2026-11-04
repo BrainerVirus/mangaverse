@@ -8,6 +8,11 @@ import type { ReaderSettings } from '@app/shared';
 vi.mock('@app/cache', () => {
   const context = { db: {}, adapter: {} };
   return {
+    createPageDecodePool: () => ({
+      setPlan: () => {},
+      snapshot: () => ({ decoded: 0, pending: 0, released: 0, failures: 0 }),
+      dispose: () => {},
+    }),
     CachedPageImage: (props: {
       imageRendering?: string;
       onMetric?: (metric: {
@@ -49,35 +54,40 @@ vi.mock('@app/design-system/motion', () => ({
   readerPageEnter: vi.fn<() => void>(),
 }));
 
-vi.mock('@app/design-system', () => ({
-  Button: ({ children, ...props }: { children?: ReactNode } & Record<string, unknown>) => (
-    <button {...(props as object)}>{children}</button>
-  ),
-  Dialog: ({ children }: { children: ReactNode }) => <dialog open>{children}</dialog>,
-  DialogContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  DialogHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  DialogTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
-  EmptyState: () => null,
-  ErrorState: () => null,
-  GlassSurface: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
-  LoadingState: () => null,
-  ReaderChrome: (props: {
-    sourceName?: string;
-    onOpenChapterActions?: () => void;
-    onOpenSettings?: () => void;
-  }) => (
-    <div data-testid="chrome">
-      {props.sourceName ? <span data-testid="chrome-source">{props.sourceName}</span> : null}
-      <button onClick={props.onOpenChapterActions}>Chapter actions</button>
-      <button onClick={props.onOpenSettings}>Settings</button>
-    </div>
-  ),
-  Sheet: ({ children, open }: { children: ReactNode; open: boolean }) =>
-    open ? <dialog open>{children}</dialog> : null,
-  SheetContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  SheetHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  SheetTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
-}));
+vi.mock('@app/design-system', async () => {
+  const { useReducer } = await import('react');
+  return {
+    Button: ({ children, ...props }: { children?: ReactNode } & Record<string, unknown>) => (
+      <button {...(props as object)}>{children}</button>
+    ),
+    Dialog: ({ children }: { children: ReactNode }) => <dialog open>{children}</dialog>,
+    DialogContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+    DialogHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+    DialogTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
+    EmptyState: () => null,
+    ErrorState: () => null,
+    GlassSurface: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
+    LoadingState: () => null,
+    ReaderChrome: (props: {
+      sourceName?: string;
+      onOpenChapterActions?: () => void;
+      onOpenSettings?: () => void;
+    }) => (
+      <div data-testid="chrome">
+        {props.sourceName ? <span data-testid="chrome-source">{props.sourceName}</span> : null}
+        <button onClick={props.onOpenChapterActions}>Chapter actions</button>
+        <button onClick={props.onOpenSettings}>Settings</button>
+      </div>
+    ),
+    Sheet: ({ children, open }: { children: ReactNode; open: boolean }) =>
+      open ? <dialog open>{children}</dialog> : null,
+    SheetContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+    SheetHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+    SheetTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
+    useStateReducer: (reducer: (state: unknown, event: unknown) => unknown, initial: unknown) =>
+      useReducer(reducer as never, initial),
+  };
+});
 
 class ResizeObserverStub {
   observe() {}

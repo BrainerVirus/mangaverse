@@ -6,11 +6,18 @@ import { toChapterPageId } from '@app/shared';
 import type { ReaderPage } from '../types.js';
 import { ReaderScrollView, type ReaderScrollViewHandle } from './ReaderScrollView.js';
 
-const cacheRender = vi.hoisted(() => ({ pages: [] as number[] }));
+const cacheRender = vi.hoisted(() => ({
+  pages: [] as number[],
+  props: [] as { pageIndex: number; onLoad?: (size: { width: number; height: number }) => void }[],
+}));
 
 vi.mock('@app/cache', () => ({
-  CachedPageImage: ({ pageIndex }: { pageIndex: number }) => {
-    cacheRender.pages.push(pageIndex);
+  CachedPageImage: (props: {
+    pageIndex: number;
+    onLoad?: (size: { width: number; height: number }) => void;
+  }) => {
+    cacheRender.pages.push(props.pageIndex);
+    cacheRender.props.push(props);
     return null;
   },
 }));
@@ -111,6 +118,7 @@ function mount(
 ): Mounted {
   observers.length = 0;
   cacheRender.pages.length = 0;
+  cacheRender.props.length = 0;
   const container = document.createElement('div');
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -225,6 +233,103 @@ describe('ReaderScrollView metrics', () => {
     const handle = mounted.handleRef.current;
     if (handle === null) throw new Error('scroll view published no handle');
     expect(handle.measurePages().map((metric) => metric.top)).toEqual([0, 100, 200]);
+    unmount(mounted);
+  });
+});
+
+describe('ReaderScrollView virtualization', () => {
+  function buildSizedPages(count: number): readonly ReaderPage[] {
+    return Array.from({ length: count }, (_value, index) => ({
+      id: toChapterPageId(`page-${index}`),
+      index,
+      image: { url: `https://example.com/${index}.jpg`, width: 800, height: 1200 },
+    }));
+  }
+
+  it('Given a 200-page chapter, When it renders, Then only a bounded row and image window mounts', () => {
+    const pages = buildSizedPages(200);
+    const mounted = mount(0, { pages, preloadAhead: 3, cacheReady: true });
+
+    const rows = mounted.container.querySelectorAll('[data-page-index]');
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.length).toBeLessThanOrEqual(16);
+    // The image window stays at the preload radius even though the row window
+    // is a little larger, so the DOM never grows with chapter length.
+    expect(cacheRender.pages.length).toBeLessThanOrEqual(4);
+
+    const offsets = JSON.parse(mounted.strip.dataset['pageOffsets'] ?? '[]') as number[];
+    expect(offsets).toHaveLength(200);
+    // 1200px page + 0 gap; the last page starts after the previous 199.
+    expect(offsets.at(-1)).toBe(199 * 1200);
+    expect(mounted.strip.dataset['pageCount']).toBe('200');
+
+    unmount(mounted);
+  });
+
+  it('Given a 200-page chapter scrolled to the end, When the strip settles, Then the last row mounts within the same bound', async () => {
+    const pages = buildSizedPages(200);
+    const mounted = mount(0, { pages, preloadAhead: 3, cacheReady: true });
+    Object.defineProperty(mounted.strip, 'scrollTo', {
+      configurable: true,
+      value: vi.fn<() => void>(),
+    });
+
+    const offsets = JSON.parse(mounted.strip.dataset['pageOffsets'] ?? '[]') as number[];
+    await scrollTo(mounted.strip, offsets[199] ?? 0);
+
+    expect(mounted.container.querySelector('[data-page-index="199"]')).not.toBeNull();
+    const rows = mounted.container.querySelectorAll('[data-page-index]');
+    expect(rows.length).toBeLessThanOrEqual(16);
+    expect(mounted.activeChanges.at(-1)).toBe(199);
+
+    unmount(mounted);
+  });
+
+  it('Given a page past browser image limits, When it renders, Then its row is split into clipped tiles', () => {
+    const tall: ReaderPage = {
+      id: toChapterPageId('tall'),
+      index: 0,
+      image: { url: 'https://example.com/tall.jpg', width: 800, height: 20_000 },
+    };
+    const mounted = mount(1, { pages: [tall] });
+    const row = mounted.container.querySelector<HTMLElement>('[data-page-index="0"]');
+    expect(row).not.toBeNull();
+
+    const tiles = row!.querySelectorAll('[data-page-tile]');
+    expect(tiles.length).toBe(5);
+    // Tile heights add up to the full rendered page height.
+    const heights = [...tiles].map((tile) => (tile as HTMLElement).style.height);
+    expect(heights).toEqual(['4096px', '4096px', '4096px', '4096px', '3616px']);
+    expect(row!.style.height).toBe('20000px');
+
+    unmount(mounted);
+  });
+});
+
+describe('ReaderScrollView placeholder shape', () => {
+  it('Given no provider dimensions, When the first page decodes, Then the strip adopts its shape instead of reflowing page by page', () => {
+    const pages = Array.from({ length: 10 }, (_value, index) => ({
+      id: toChapterPageId(`page-${index}`),
+      index: 0,
+      image: { url: `https://example.com/${index}.jpg` },
+    })) as unknown as readonly ReaderPage[];
+    const sized = pages.map((page, index) => ({ ...page, index }));
+    const mounted = mount(0, { pages: sized, preloadAhead: 3, cacheReady: true });
+
+    const before = JSON.parse(mounted.strip.dataset['pageOffsets'] ?? '[]') as number[];
+    // 2:3 placeholder: a 800px strip renders 1200px pages.
+    expect(before[1]).toBe(1200);
+
+    const first = cacheRender.props.find((props) => props.pageIndex === 0);
+    if (first?.onLoad === undefined) throw new Error('the first page never mounted an image');
+    act(() => first.onLoad!({ width: 800, height: 800 }));
+
+    const after = JSON.parse(mounted.strip.dataset['pageOffsets'] ?? '[]') as number[];
+    // The decoded square page teaches the strip the chapter's real shape, so an
+    // unloaded page is already its final height.
+    expect(after[1]).toBe(800);
+    expect(after[9]).toBe(9 * 800);
+
     unmount(mounted);
   });
 });
