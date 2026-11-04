@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { existsSync, lstatSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, renameSync, writeFileSync } from 'node:fs';
+import { unlink } from 'node:fs/promises';
 import type { DatabaseSync } from 'node:sqlite';
 import type { CacheBlobKeyRewrite, SnapshotImportReport } from '../data-host-protocol.js';
 import { openNativeDatabase } from './open-native.js';
@@ -72,40 +73,41 @@ const REMOVE_ATTEMPTS = 20;
 const REMOVE_RETRY_MS = 25;
 const RETRYABLE_REMOVE_CODES = new Set(['EBUSY', 'EPERM', 'EACCES', 'ENOTEMPTY']);
 
-/** Blocks the thread briefly; the import is synchronous, so there is nothing to yield to. */
-const pause = (ms: number): void => {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
-};
+const pause = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Unlinks `path`, resolving to the rejection instead of throwing it. */
+const tryUnlink = (path: string): Promise<NodeJS.ErrnoException | null> =>
+  unlink(path).then(
+    () => null,
+    (error: unknown) => error as NodeJS.ErrnoException,
+  );
 
 /**
  * Deletes one file, retrying on Windows where an open handle keeps it undeletable.
  * The entry is inspected with `lstat`, so a symlink (dangling or not) is a non-directory
- * that is unlinked itself, never followed. Deletion is `unlinkSync` only, never recursive
- * (`rmSync` ignores `maxRetries` without `recursive`), so a directory at a predictable
+ * that is unlinked itself, never followed. Deletion is `unlink` only, never recursive
+ * (`rm` ignores `maxRetries` without `recursive`), so a directory at a predictable
  * scratch path, even one swapped in after the check, is never removed.
  */
-function removeOneFile(path: string): void {
+async function removeOneFile(path: string): Promise<void> {
   const stats = lstatSync(path, { throwIfNoEntry: false });
   if (stats === undefined) return;
   if (stats.isDirectory()) {
     throw new Error(`Refusing to remove a directory at an import scratch path: ${path}`);
   }
   for (let attempt = 1; ; attempt += 1) {
-    try {
-      unlinkSync(path);
-      return;
-    } catch (error) {
-      const code = error instanceof Error && 'code' in error ? String(error.code) : '';
-      if (code === 'ENOENT') return;
-      if (attempt >= REMOVE_ATTEMPTS || !RETRYABLE_REMOVE_CODES.has(code)) throw error;
-      pause(REMOVE_RETRY_MS);
-    }
+    const failed = await tryUnlink(path);
+    if (failed === null) return;
+    const code = typeof failed.code === 'string' ? failed.code : '';
+    if (code === 'ENOENT') return;
+    if (attempt >= REMOVE_ATTEMPTS || !RETRYABLE_REMOVE_CODES.has(code)) throw failed;
+    await pause(REMOVE_RETRY_MS);
   }
 }
 
-function removeDatabaseFiles(path: string): void {
+async function removeDatabaseFiles(path: string): Promise<void> {
   for (const suffix of ['', '-wal', '-shm', '-journal']) {
-    removeOneFile(`${path}${suffix}`);
+    await removeOneFile(`${path}${suffix}`);
   }
 }
 
@@ -143,11 +145,11 @@ export const importMarkerPath = (databasePath: string): string => `${databasePat
  * only by a move is still verified. Any failure throws and leaves no file at `targetPath`.
  * The caller's snapshot is never written to.
  */
-export function importSnapshot(
+export async function importSnapshot(
   bytes: Uint8Array,
   targetPath: string,
   rewrites: readonly CacheBlobKeyRewrite[] = [],
-): SnapshotImportReport {
+): Promise<SnapshotImportReport> {
   if (existsSync(targetPath)) {
     throw new Error('A native database already exists; a snapshot is imported only once.');
   }
@@ -156,8 +158,8 @@ export function importSnapshot(
   }
   const sourcePath = `${targetPath}.import-source`;
   const workPath = `${targetPath}.import-work`;
-  removeDatabaseFiles(sourcePath);
-  removeDatabaseFiles(workPath);
+  await removeDatabaseFiles(sourcePath);
+  await removeDatabaseFiles(workPath);
   // `wx` fails on any existing path, a leftover link included, instead of writing through it.
   writeFileSync(sourcePath, bytes, { flag: 'wx' });
   try {
@@ -220,7 +222,7 @@ export function importSnapshot(
     );
     return report;
   } finally {
-    removeDatabaseFiles(sourcePath);
-    removeDatabaseFiles(workPath);
+    await removeDatabaseFiles(sourcePath);
+    await removeDatabaseFiles(workPath);
   }
 }
