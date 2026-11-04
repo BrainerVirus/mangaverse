@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
 import type * as FsPromises from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -261,6 +261,49 @@ describe('page store', () => {
       'Page size is out of bounds.',
     );
     expect(await readdir(root).catch(() => [])).toEqual([]);
+  });
+
+  it('writes after a failed first use once the cause is fixed', async (context) => {
+    await chmod(base, 0o555);
+    try {
+      // Root and some filesystems ignore the mode; there is no failure to recover from then.
+      const denied = await store.put(KEY, JPEG, 'image/jpeg').then(
+        () => false,
+        () => true,
+      );
+      if (!denied) context.skip();
+    } finally {
+      await chmod(base, 0o755);
+    }
+
+    const url = await store.put(KEY, JPEG, 'image/jpeg');
+    expect(await store.urlFor(KEY)).toBe(url);
+  });
+
+  it('recreates a store root that was removed while running', async () => {
+    const otherKey = 'page:p:m:c:1';
+    await store.put(KEY, JPEG, 'image/jpeg');
+    await rm(root, { recursive: true });
+
+    const url = await store.put(otherKey, PNG, 'image/png');
+
+    expect(await store.urlFor(otherKey)).toBe(url);
+    expect(await store.urlFor(KEY)).toBeUndefined();
+    expect(await store.listKeys()).toEqual([otherKey]);
+  });
+
+  it('reads a removed store root as empty and lists it again once recreated', async () => {
+    await store.put(KEY, JPEG, 'image/jpeg');
+    await rm(root, { recursive: true });
+
+    expect(await store.urlFor(KEY)).toBeUndefined();
+    expect(await store.resolve(pageUrlForId(pageIdForKey(KEY)))).toEqual({
+      kind: 'refused',
+      status: 404,
+    });
+    expect(await store.listKeys()).toEqual([]);
+    await store.put(KEY, JPEG, 'image/jpeg');
+    expect(await store.listKeys()).toEqual([KEY]);
   });
 });
 
