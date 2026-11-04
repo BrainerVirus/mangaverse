@@ -23,6 +23,11 @@ function idList(ids: readonly string[]): SQL {
   return sql`(SELECT value FROM json_each(${JSON.stringify(ids)}))`;
 }
 
+/** Only the given titles; an empty list matches none. */
+export function libraryEntryIdFilter(entryIds: readonly string[]): SQL {
+  return entryIds.length === 0 ? sql`0` : sql`${libraryEntries.id} IN ${idList(entryIds)}`;
+}
+
 /** The search comparison text, computed by the lowercase function both drivers register. */
 function foldedTitle(column: SQL): SQL {
   return sql`${sql.raw(TITLE_SEARCH_SQL_FUNCTION)}(${column})`;

@@ -10,14 +10,24 @@ import {
   createDataHostClient,
   createMangaIdentityWithInitialMapping,
   DataHostError,
+  getMangaIdentity,
+  refreshLibraryUnreadCount,
+  setLibraryEntriesStatus,
   upsertChapterMetadata,
+  upsertMangaIdentity,
   type AppDrizzleDb,
   type DataHostClient,
 } from '@app/db';
 import { createDataHost } from '@app/db/host';
+import { buildProgressEvent, persistReaderProgress } from '@app/reader';
 import { createLiveQueryCollection, eq } from '@tanstack/db';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { LibraryEntryId } from '@app/shared';
+import {
+  toLibraryEntryId,
+  type LibraryEntryId,
+  type LibrarySortKey,
+  type LibraryViewState,
+} from '@app/shared';
 import { createChapterWindowCollection } from './chapter-collection.js';
 import { editEntriesOptimistically, libraryCollections } from './library-collections.js';
 import { DEFAULT_LIBRARY_VIEW_STATE } from './view-state.js';
@@ -33,6 +43,8 @@ async function hostWithWindows() {
   const databasePath = join(directory, 'library.sqlite');
   const host = createDataHost({ databasePath });
   const windows: DataHostClient[] = [];
+  /** Every procedure each window asked the host for, in order. */
+  const calls: { method: string; args: unknown[] }[][] = [[], []];
   for (let index = 0; index < 2; index += 1) {
     const { port1, port2 } = new MessageChannel();
     host.attach({
@@ -43,7 +55,10 @@ async function hostWithWindows() {
     });
     windows.push(
       createDataHostClient({
-        postMessage: (request) => port2.postMessage(request),
+        postMessage: (request) => {
+          if (request.kind === 'call') calls[index]!.push(request);
+          port2.postMessage(request);
+        },
         onMessage: (listener) => {
           port2.onmessage = (event) => listener(event.data);
         },
@@ -60,10 +75,14 @@ async function hostWithWindows() {
     rmSync(directory, { recursive: true, force: true });
   });
   expect((await windows[0]!.open(null)).ok).toBe(true);
-  return { databasePath, windows: windows as [DataHostClient, DataHostClient] };
+  return {
+    databasePath,
+    windows: windows as [DataHostClient, DataHostClient],
+    calls: calls as [(typeof calls)[0], (typeof calls)[0]],
+  };
 }
 
-async function seedTitle(db: AppDrizzleDb, title: string) {
+async function seedTitle(db: AppDrizzleDb, title: string, id?: LibraryEntryId) {
   const identity = await createMangaIdentityWithInitialMapping(db, {
     canonicalTitle: title,
     status: 'ongoing',
@@ -72,7 +91,11 @@ async function seedTitle(db: AppDrizzleDb, title: string) {
     providerMangaId: title,
   });
   if (!identity.ok) throw new Error(identity.error.message);
-  const entry = await addLibraryEntry(db, { mangaId: identity.value.mangaId, status: 'reading' });
+  const entry = await addLibraryEntry(db, {
+    mangaId: identity.value.mangaId,
+    status: 'reading',
+    ...(id === undefined ? {} : { id }),
+  });
   if (!entry.ok) throw new Error(entry.error.message);
   return { ...identity.value, entryId: entry.value };
 }
@@ -140,6 +163,210 @@ describe('library list collection', () => {
     };
     expect(stored.status).toBe('reading');
     side.close();
+  });
+});
+
+describe('library list after a write', () => {
+  type Calls = Awaited<ReturnType<typeof hostWithWindows>>['calls'][0];
+
+  /** Page reads of the view itself: not a count alone (limit 0), not a read of named rows. */
+  const listReads = (calls: Calls) =>
+    calls.filter((call) => {
+      if (call.method !== 'listLibraryEntryPage') return false;
+      const query = call.args[0] as { limit: number; entryIds?: unknown };
+      return query.limit > 0 && query.entryIds === undefined;
+    });
+
+  /**
+   * Three titles; the first has two unread chapters, is the oldest, and has the last id, so
+   * it ranks last by update time and by read time (none yet, so the id decides).
+   */
+  async function seedLibrary(db: AppDrizzleDb) {
+    const alpha = await seedTitle(db, 'Alpha', toLibraryEntryId('entry-c'));
+    const chapterIds = [];
+    for (let index = 0; index < 2; index += 1) {
+      const created = await upsertChapterMetadata(db, {
+        mangaId: alpha.mangaId,
+        providerMappingId: alpha.mappingId,
+        title: `Chapter ${index}`,
+        index,
+      });
+      if (!created.ok) throw new Error(created.error.message);
+      chapterIds.push(created.value.chapterId);
+    }
+    await refreshLibraryUnreadCount(db, alpha.mangaId, alpha.mappingId);
+    const beta = await seedTitle(db, 'Beta', toLibraryEntryId('entry-a'));
+    const gamma = await seedTitle(db, 'Gamma', toLibraryEntryId('entry-b'));
+    return { alpha, beta, gamma, chapterIds };
+  }
+
+  const view = (client: DataHostClient, viewState: LibraryViewState) =>
+    libraryCollections(client.handle, viewState, (listener) => client.onChange(listener)).items;
+
+  const sortedBy = (key: LibrarySortKey): LibraryViewState => ({
+    ...DEFAULT_LIBRARY_VIEW_STATE,
+    sort: { key, direction: 'desc' },
+  });
+
+  it('updates the read title in every window without reading the list again', async () => {
+    const { windows, calls } = await hostWithWindows();
+    const [a, b] = windows;
+    const { alpha, chapterIds } = await seedLibrary(a.handle);
+    const first = view(a, DEFAULT_LIBRARY_VIEW_STATE);
+    const second = view(b, DEFAULT_LIBRARY_VIEW_STATE);
+    await Promise.all([first.preload(), second.preload()]);
+    expect(second.get(alpha.entryId)?.value.entry.unreadCount).toBe(2);
+    const position = second.get(alpha.entryId)?.position;
+    calls[0].length = 0;
+    calls[1].length = 0;
+
+    // The reader's own save: read state, the unread badge, then the resume progress.
+    await persistReaderProgress(a.handle, buildProgressEvent(chapterIds[0]!, alpha.mangaId, 4, 5));
+
+    for (const items of [first, second]) {
+      await expect.poll(() => items.get(alpha.entryId)?.value.entry.progressPercent).toBe(100);
+      expect(items.get(alpha.entryId)?.value.entry.unreadCount).toBe(1);
+      expect(items.get(alpha.entryId)?.position).toBe(position);
+      expect(items.size).toBe(3);
+    }
+    expect(listReads(calls[0])).toEqual([]);
+    expect(listReads(calls[1])).toEqual([]);
+  });
+
+  it.each(['last_updated', 'last_read'] as const)(
+    'reads the %s list again, where reading moves the title',
+    async (key) => {
+      const { windows, calls } = await hostWithWindows();
+      const [a, b] = windows;
+      const { alpha, chapterIds } = await seedLibrary(a.handle);
+      const items = view(b, sortedBy(key));
+      await items.preload();
+      expect(items.get(alpha.entryId)?.position).toBe(2);
+      calls[1].length = 0;
+
+      await persistReaderProgress(
+        a.handle,
+        buildProgressEvent(chapterIds[0]!, alpha.mangaId, 0, 5),
+      );
+
+      await expect.poll(() => items.get(alpha.entryId)?.position).toBe(0);
+      expect(listReads(calls[1]).length).toBeGreaterThan(0);
+    },
+  );
+
+  it('shows a read state whose resume update was skipped in the unread count of every window', async () => {
+    const { windows } = await hostWithWindows();
+    const [a, b] = windows;
+    const { alpha, chapterIds } = await seedLibrary(a.handle);
+    const items = view(b, DEFAULT_LIBRARY_VIEW_STATE);
+    await items.preload();
+    const at = (seconds: number) => new Date(Date.now() + seconds * 1000).toISOString();
+    const [t0, t1, t2] = [at(10), at(20), at(30)];
+    const save = (chapterId: string, completed: boolean, timestamp: string) =>
+      persistReaderProgress(a.handle, {
+        chapterId,
+        mangaId: alpha.mangaId,
+        pageIndex: completed ? 4 : 0,
+        readPercent: completed ? 100 : 20,
+        completed,
+        timestamp,
+      });
+
+    // Chapter 0 finished, then a newer save on chapter 1 owns "continue reading".
+    await save(chapterIds[0]!, true, t0);
+    await save(chapterIds[1]!, false, t2);
+    await expect.poll(() => items.get(alpha.entryId)?.value.entry.unreadCount).toBe(1);
+
+    // Chapter 0 opened again by an event older than t2: its read state is newer and accepted,
+    // the resume update is not, and an unfinished save does not recount the badge.
+    await save(chapterIds[0]!, false, t1);
+
+    await expect.poll(() => items.get(alpha.entryId)?.value.entry.unreadCount).toBe(2);
+  });
+
+  it('shows a chapter written alone in the unread count of every window', async () => {
+    const { windows } = await hostWithWindows();
+    const [a, b] = windows;
+    const { alpha } = await seedLibrary(a.handle);
+    const items = view(b, DEFAULT_LIBRARY_VIEW_STATE);
+    await items.preload();
+    expect(items.get(alpha.entryId)?.value.entry.unreadCount).toBe(2);
+
+    // A provider refresh inserts chapters without recounting the stored badge.
+    const created = await upsertChapterMetadata(a.handle, {
+      mangaId: alpha.mangaId,
+      providerMappingId: alpha.mappingId,
+      title: 'Chapter 2',
+      index: 2,
+    });
+    expect(created.ok).toBe(true);
+
+    await expect.poll(() => items.get(alpha.entryId)?.value.entry.unreadCount).toBe(3);
+  });
+
+  it('refills a filtered window when a loaded title leaves the filter', async () => {
+    const { windows, databasePath } = await hostWithWindows();
+    const [a, b] = windows;
+    seedTitlesAt(databasePath, 450);
+    const items = view(b, { ...DEFAULT_LIBRARY_VIEW_STATE, filter: { statuses: ['reading'] } });
+    await items.preload();
+    // Newest first: 0449 down to 0250 are loaded, 0249 is the next title.
+    expect(items.size).toBe(200);
+    const leaving = toLibraryEntryId('entry-0300');
+    const next = toLibraryEntryId('entry-0249');
+    expect(items.has(next)).toBe(false);
+
+    const result = await setLibraryEntriesStatus(a.handle, [leaving], 'completed');
+    expect(result.ok).toBe(true);
+
+    await expect.poll(() => items.has(next)).toBe(true);
+    expect(items.has(leaving)).toBe(false);
+    expect(items.size).toBe(200);
+
+    // Back in the filter, it takes its place again and the window keeps its limit.
+    await setLibraryEntriesStatus(a.handle, [leaving], 'reading');
+    await expect.poll(() => items.has(leaving)).toBe(true);
+    expect(items.has(next)).toBe(false);
+    expect(items.size).toBe(200);
+  });
+
+  it('leaves a title past the loaded window alone and patches one inside it', async () => {
+    const { windows, calls, databasePath } = await hostWithWindows();
+    const [a, b] = windows;
+    seedTitlesAt(databasePath, 450);
+    const items = view(b, DEFAULT_LIBRARY_VIEW_STATE);
+    await items.preload();
+    // Newest first: 0449 down to 0250 are loaded.
+    expect(items.size).toBe(200);
+    const outside = toLibraryEntryId('entry-0010');
+    const inside = toLibraryEntryId('entry-0300');
+    calls[1].length = 0;
+
+    await setLibraryEntriesStatus(a.handle, [outside, inside], 'completed');
+
+    await expect.poll(() => items.get(inside)?.value.entry.status).toBe('completed');
+    expect(items.has(outside)).toBe(false);
+    expect(items.size).toBe(200);
+    expect(listReads(calls[1])).toEqual([]);
+  });
+
+  it('shows a title change in every window', async () => {
+    const { windows } = await hostWithWindows();
+    const [a, b] = windows;
+    const { gamma } = await seedLibrary(a.handle);
+    const first = view(a, DEFAULT_LIBRARY_VIEW_STATE);
+    const second = view(b, DEFAULT_LIBRARY_VIEW_STATE);
+    await Promise.all([first.preload(), second.preload()]);
+
+    const identity = await getMangaIdentity(a.handle, gamma.mangaId);
+    if (identity === undefined) throw new Error('Gamma is missing.');
+    await upsertMangaIdentity(a.handle, { ...identity, canonicalTitle: 'Gamma Renamed' });
+
+    for (const items of [first, second]) {
+      await expect
+        .poll(() => items.get(gamma.entryId)?.value.manga.canonicalTitle)
+        .toBe('Gamma Renamed');
+    }
   });
 });
 

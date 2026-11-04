@@ -34,9 +34,22 @@ export interface HostListOptions<T> {
   /** The whole list, filtered and ordered by the host. */
   readonly load: () => Promise<readonly T[]>;
   readonly keyOf: (value: T) => string;
-  /** A committed change to any of these reloads the list. */
+  /** A committed change to any of these reloads the list, unless it can patch its rows. */
   readonly tables: readonly SyncedTable[];
   readonly subscribe: ChangeFeed;
+  /**
+   * One row as the host now shows it, or undefined when it does not belong to the list (a
+   * bounded list leaves out rows past its end). With `rowTable`, a change to that table reads
+   * only the rows it names.
+   */
+  readonly refreshRow?: (key: string) => Promise<T | undefined>;
+  /** One of `tables`, whose change keys are this list's keys. */
+  readonly rowTable?: SyncedTable;
+  /**
+   * False when a change to a row can move it in the host's order, so the list reloads whole.
+   * Defaults to true when `refreshRow` is set.
+   */
+  readonly patchRows?: boolean;
   /**
    * Writes an optimistic update to the host. Throwing rolls the optimistic rows back; the
    * error reaches the caller through the transaction.
@@ -52,12 +65,19 @@ export type HostListCollection<T> = Collection<ListedRow<T>, string, HostListUti
  * A list whose filter and order belong to the host, so a relevant change reloads it whole and
  * replaces the rows as one snapshot. Reloads run one at a time; a burst of changes while one
  * runs costs one more, which starts after the write that asked for it.
+ *
+ * With `refreshRow`, a change to `rowTable` alone reads only the rows it names and updates
+ * them in place: their position stays the host's from the last reload. A named row that
+ * joins or leaves the list reloads it whole: only the host can place it or refill the end.
  */
 export function createHostListCollection<T extends object>(
   options: HostListOptions<T>,
 ): HostListCollection<T> {
-  const { load, keyOf, subscribe, persistUpdate } = options;
+  const { load, keyOf, subscribe, persistUpdate, rowTable } = options;
   const tables = new Set(options.tables);
+  // The row read, when a change to `rowTable` may patch rows instead of reloading.
+  const readRow =
+    rowTable === undefined || options.patchRows === false ? undefined : options.refreshRow;
   let refetch: () => Promise<void> = () => Promise.resolve();
 
   return createCollection<ListedRow<T>, string, HostListUtils>({
@@ -66,11 +86,13 @@ export function createHostListCollection<T extends object>(
     utils: { refetch: () => refetch() },
     sync: {
       rowUpdateMode: 'full',
-      sync: ({ begin, write, commit, markReady, fail, reportError, reportHealthy }) => {
+      sync: ({ begin, write, commit, markReady, fail, reportError, reportHealthy, collection }) => {
         let stopped = false;
         let ready = false;
         let tail: Promise<void> = Promise.resolve();
         let queued: Promise<void> | null = null;
+        let queuedPatch: Promise<void> | null = null;
+        let patchKeys = new Set<string>();
 
         const apply = async () => {
           const values = await load();
@@ -89,15 +111,17 @@ export function createHostListCollection<T extends object>(
 
         // A failed reload keeps the rows on screen and is reported on the collection; it never
         // rejects, so a write that committed is not rolled back because the reload after it failed.
+        const report = (error: unknown) => {
+          if (stopped) return;
+          if (ready) reportError(error);
+          else fail(error);
+        };
+
         const reload = () => {
           if (queued !== null) return queued;
           const next = tail.then(() => {
             queued = null;
-            return apply().then(undefined, (error: unknown) => {
-              if (stopped) return;
-              if (ready) reportError(error);
-              else fail(error);
-            });
+            return apply().then(undefined, report);
           });
           queued = next;
           tail = next;
@@ -105,8 +129,68 @@ export function createHostListCollection<T extends object>(
         };
         refetch = reload;
 
+        const applyRows = async (
+          read: (key: string) => Promise<T | undefined>,
+          keys: readonly string[],
+        ) => {
+          const rows = await Promise.all(
+            keys.map(async (key) => ({ key, value: await read(key) })),
+          );
+          if (stopped) return;
+          // A row that joins or leaves the list moves the rows after it, and a bounded list
+          // has to be refilled from past its end: only the host can lay that out.
+          const reshaped = rows.some(({ key, value }) =>
+            collection.has(key) ? value === undefined : value !== undefined,
+          );
+          if (reshaped) {
+            return apply();
+          }
+          const listed = rows.flatMap(({ key, value }) => {
+            const row = collection.get(key);
+            return row === undefined || value === undefined
+              ? []
+              : [{ key, position: row.position, value }];
+          });
+          if (listed.length === 0) return;
+          begin();
+          for (const { key, position, value } of listed) {
+            write({ type: 'update', value: { key, position, value } });
+          }
+          // Accepted now and applied in order; while an optimistic edit persists it shows once
+          // that settles, and waiting for it would hold the queue the edit's own refetch is on.
+          void commit();
+        };
+
+        // Patches share the reloads' queue, so a row read never lands under an older snapshot.
+        // A reload that has not started yet reads after the change: it brings the rows in.
+        const patch = (read: (key: string) => Promise<T | undefined>, keys: readonly string[]) => {
+          if (queued !== null) return queued;
+          for (const key of keys) patchKeys.add(key);
+          if (queuedPatch !== null) return queuedPatch;
+          const next = tail.then(() => {
+            queuedPatch = null;
+            const batch = [...patchKeys];
+            patchKeys = new Set();
+            return applyRows(read, batch).then(undefined, report);
+          });
+          queuedPatch = next;
+          tail = next;
+          return next;
+        };
+
         const unsubscribe = subscribe((event) => {
-          if (touches(event, tables)) void reload();
+          if (!touches(event, tables)) return;
+          const changes = event.kind === 'resync' ? [] : event.changes;
+          const rowsOnly =
+            changes.length > 0 &&
+            changes.every((change) => change.table === rowTable || !tables.has(change.table));
+          if (readRow !== undefined && rowsOnly) {
+            const rows = changes.filter((change) => change.table === rowTable);
+            void patch(
+              readRow,
+              rows.map((change) => change.key),
+            );
+          } else void reload();
         });
         void reload();
         return () => {

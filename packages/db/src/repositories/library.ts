@@ -30,7 +30,12 @@ import { readIdChunks } from '../read-id-chunks.js';
 import { withTransaction } from '../transactions.js';
 import { getLibraryUnreadCounts } from '../library-unread.js';
 import { recomputeLibraryUnreadCounts } from './library-activity.js';
-import { libraryEntryFilter, libraryIdentityJoin, sortableTitle } from '../library-filter.js';
+import {
+  libraryEntryFilter,
+  libraryEntryIdFilter,
+  libraryIdentityJoin,
+  sortableTitle,
+} from '../library-filter.js';
 import {
   categories,
   chapterReadState,
@@ -138,6 +143,11 @@ export interface LibraryEntryPage {
 export interface LibraryEntryPageQuery {
   readonly filter?: LibraryFilter;
   readonly sort?: LibrarySort;
+  /**
+   * Narrows the page and its total to these titles, on top of the filter: a window reads the
+   * rows a change named, in the view's order, without reading the view.
+   */
+  readonly entryIds?: readonly string[];
   /** Rows to return; `UNBOUNDED_PAGE` asks for every match (backup and export only). */
   readonly limit: number;
   readonly offset?: number;
@@ -216,12 +226,17 @@ function libraryEntryOrder(sort: LibrarySort | undefined): SQL[] {
   ];
 }
 
-function libraryEntryCountQuery(db: AppDrizzleDb, filter: LibraryFilter | undefined) {
+function libraryEntryPageWhere(query: LibraryEntryPageQuery): SQL | undefined {
+  const filter = libraryEntryFilter(query.filter);
+  return query.entryIds === undefined ? filter : and(filter, libraryEntryIdFilter(query.entryIds));
+}
+
+function libraryEntryCountQuery(db: AppDrizzleDb, query: LibraryEntryPageQuery) {
   return db
     .select({ total: sql<number>`count(*)` })
     .from(libraryEntries)
     .leftJoin(mangaIdentities, eq(mangaIdentities.id, libraryEntries.mangaId))
-    .where(libraryEntryFilter(filter))
+    .where(libraryEntryPageWhere(query))
     .get();
 }
 
@@ -230,7 +245,7 @@ function libraryEntryPageQuery(db: AppDrizzleDb, query: LibraryEntryPageQuery) {
     .select({ entry: libraryEntries })
     .from(libraryEntries)
     .leftJoin(mangaIdentities, eq(mangaIdentities.id, libraryEntries.mangaId))
-    .where(libraryEntryFilter(query.filter))
+    .where(libraryEntryPageWhere(query))
     .orderBy(...libraryEntryOrder(query.sort))
     .limit(Math.trunc(query.limit))
     .offset(query.offset ?? 0);
@@ -264,7 +279,7 @@ export async function listLibraryEntryPage(
   db: AppDrizzleDb,
   query: LibraryEntryPageQuery,
 ): Promise<LibraryEntryPage> {
-  const total = libraryEntryCountQuery(db, query.filter)?.total ?? 0;
+  const total = libraryEntryCountQuery(db, query)?.total ?? 0;
   if (query.limit === 0) return { items: [], total };
 
   const rows = libraryEntryPageQuery(db, query).all();
