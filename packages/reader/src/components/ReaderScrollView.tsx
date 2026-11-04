@@ -1,9 +1,16 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { CachedPageImage } from '@app/cache';
+import { useStateReducer } from '@app/design-system';
 import type { ReaderPage } from '../types.js';
 import {
+  computeScrollPageMetrics,
   findActiveScrollPage,
+  hasPageShape,
+  planPageTiles,
+  PLACEHOLDER_PAGE_RATIO,
   resolveScrollPreloadAhead,
+  resolveStripPageSize,
+  stripPageHeight,
   windowedScrollPages,
   type ScrollPageMetric,
 } from '../scroll-layout.js';
@@ -42,16 +49,86 @@ interface ReaderScrollViewProps {
   readonly onBack?: (() => void) | undefined;
 }
 
-const WINDOW_RADIUS = 3;
+/** Extra rows around the image window, so a scroll reveals rows before it lands. */
+const ROW_OVERSCAN = 2;
+/** Minimum rows either side even when images are limited to one (low memory). */
+const MIN_ROW_RADIUS = 3;
+/**
+ * Strip width used when the container has no measurable box yet (first commit,
+ * a hidden surface, jsdom). Matches the reader viewport's own fallback so the
+ * first computed row heights are in the right ballpark.
+ */
+const DEFAULT_STRIP_WIDTH = 800;
+
+interface NaturalSize {
+  readonly width: number;
+  readonly height: number;
+}
+
+interface StripGeometry {
+  readonly width: number;
+  readonly spacerPx: number;
+  readonly natural: Readonly<Record<number, NaturalSize>>;
+  /**
+   * Shape assumed for pages with no dimensions yet. Provider metadata is the
+   * first source; with none at all, the first decoded page teaches the strip
+   * the chapter's real shape, so the remaining pages never reflow.
+   */
+  readonly fallbackRatio: number;
+}
+
+type GeometryEvent =
+  | { readonly type: 'resize'; readonly width: number; readonly spacerPx: number }
+  | {
+      readonly type: 'measured';
+      readonly index: number;
+      readonly size: NaturalSize;
+      readonly fallbackRatio: number;
+    };
+
+const EMPTY_GEOMETRY: StripGeometry = {
+  width: 0,
+  spacerPx: 0,
+  natural: {},
+  fallbackRatio: PLACEHOLDER_PAGE_RATIO,
+};
+
+function geometryReducer(state: StripGeometry, event: GeometryEvent): StripGeometry {
+  if (event.type === 'resize') {
+    if (state.width === event.width && state.spacerPx === event.spacerPx) return state;
+    return { ...state, width: event.width, spacerPx: event.spacerPx };
+  }
+  const previous = state.natural[event.index];
+  if (
+    previous !== undefined &&
+    previous.width === event.size.width &&
+    previous.height === event.size.height
+  ) {
+    return state;
+  }
+  return {
+    ...state,
+    fallbackRatio: event.fallbackRatio,
+    natural: { ...state.natural, [event.index]: event.size },
+  };
+}
 
 /**
- * One strip row. Placeholder rows carry no data that changes while scrolling,
- * so memoising them keeps a page turn down to the two rows leaving/entering
- * the window instead of the whole chapter's list.
+ * One strip row, absolutely positioned from the computed geometry. Placeholder
+ * rows carry no data that changes while scrolling, so memoising them keeps a
+ * page turn down to the rows entering/leaving the window instead of a
+ * re-render of the chapter's whole list.
+ *
+ * A page taller than the tiling threshold renders as several clipped tiles of
+ * the same image: each box stays inside browser image/texture limits while the
+ * reader scrolls through it as one continuous page.
  */
 const ScrollPageRow = memo(function ScrollPageRow({
   page,
   index,
+  top,
+  height,
+  aspectRatio,
   mounted,
   cacheReady,
   providerId,
@@ -60,10 +137,14 @@ const ScrollPageRow = memo(function ScrollPageRow({
   onSkipPage,
   onBack,
   imageSmoothing,
+  onMeasured,
   onMetric,
 }: {
   readonly page: ReaderPage;
   readonly index: number;
+  readonly top: number;
+  readonly height: number;
+  readonly aspectRatio: string;
   readonly mounted: boolean;
   readonly cacheReady: boolean;
   readonly providerId: string;
@@ -72,6 +153,7 @@ const ScrollPageRow = memo(function ScrollPageRow({
   readonly onSkipPage?: ((index: number) => void) | undefined;
   readonly onBack?: (() => void) | undefined;
   readonly imageSmoothing: boolean;
+  readonly onMeasured: (index: number, size: NaturalSize) => void;
   readonly onMetric?:
     | ((metric: {
         pageIndex: number;
@@ -81,68 +163,76 @@ const ScrollPageRow = memo(function ScrollPageRow({
       }) => void)
     | undefined;
 }) {
-  const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
-  const width = page.image.width ?? natural?.width ?? 2;
-  const height = page.image.height ?? natural?.height ?? 3;
+  const tiles = planPageTiles(height);
   return (
     <div
       data-page-index={index}
-      style={{ aspectRatio: `${width} / ${height}` }}
-      className="w-full shrink-0"
+      style={{ top, height, aspectRatio }}
+      className="absolute left-0 w-full"
     >
-      {cacheReady && mounted ? (
-        <CachedPageImage
-          providerId={providerId}
-          mangaId={mangaId}
-          chapterId={chapterId}
-          pageIndex={page.index}
-          remoteUrl={page.image.url}
-          className="h-auto w-full select-none"
-          retention="read"
-          imageRendering={imageSmoothing ? 'auto' : 'pixelated'}
-          onLoad={setNatural}
-          onSkip={onSkipPage ? () => onSkipPage(index) : undefined}
-          onBack={onBack}
-          onMetric={
-            onMetric === undefined
-              ? undefined
-              : (metric) => onMetric({ pageIndex: index, ...metric })
-          }
-        />
-      ) : (
-        <div className="h-full w-full animate-pulse bg-muted/40" aria-hidden />
-      )}
+      {tiles.map((tile) => (
+        <div
+          key={tile.offset}
+          data-page-tile={tile.offset}
+          className="relative w-full overflow-hidden"
+          style={{ height: tile.height }}
+        >
+          {cacheReady && mounted ? (
+            // The image keeps its full rendered height and is shifted up by the
+            // tile offset; the tile clips it. Every tile shares one blob URL.
+            <div className="absolute left-0 w-full" style={{ top: -tile.offset }}>
+              <CachedPageImage
+                providerId={providerId}
+                mangaId={mangaId}
+                chapterId={chapterId}
+                pageIndex={page.index}
+                remoteUrl={page.image.url}
+                className="h-auto w-full select-none"
+                retention="read"
+                imageRendering={imageSmoothing ? 'auto' : 'pixelated'}
+                onLoad={tile.offset === 0 ? (size) => onMeasured(index, size) : undefined}
+                onSkip={onSkipPage ? () => onSkipPage(index) : undefined}
+                onBack={onBack}
+                onMetric={
+                  onMetric === undefined || tile.offset !== 0
+                    ? undefined
+                    : (metric) => onMetric({ pageIndex: index, ...metric })
+                }
+              />
+            </div>
+          ) : (
+            <div className="h-full w-full animate-pulse bg-muted/40" aria-hidden />
+          )}
+        </div>
+      ))}
     </div>
   );
 });
 
-/**
- * Reads page offsets from the strip. `findActiveScrollPage` binary-searches its
- * input, so the result must be sorted by `top`; the flex column makes document
- * order strip order, and the sort keeps that precondition true even when the
- * DOM order and the measured offsets disagree. Reads happen once per strip
- * geometry (not per scroll frame), so the sort costs nothing on a scroll.
- */
+/** Measured offsets of the rows currently in the DOM, sorted for the search. */
 function readPageMetrics(container: HTMLElement): readonly ScrollPageMetric[] {
   const metrics: ScrollPageMetric[] = [];
   for (const node of container.querySelectorAll<HTMLElement>('[data-page-index]')) {
+    const height = node.offsetHeight;
+    // An unmeasurable row (no layout, or not painted yet) must not overwrite
+    // its computed geometry with zeroes.
+    if (height <= 0) continue;
     metrics.push({
       index: Number(node.dataset['pageIndex']),
       top: node.offsetTop,
-      height: node.offsetHeight,
+      height,
     });
   }
   return metrics.sort((a, b) => a.top - b.top);
 }
 
-function pageNode(container: HTMLElement, index: number): HTMLElement | null {
-  return container.querySelector<HTMLElement>(`[data-page-index="${index}"]`);
-}
-
 /**
- * Continuous vertical strip (webtoon). Pages outside the window render as
- * placeholders so a long chapter never mounts every cached blob at once, and
- * scroll position drives the active page instead of the other way around.
+ * Continuous vertical strip (webtoon). Only the rows around the active page
+ * mount at all — the rest are represented by the strip's computed height — so a
+ * 200-page chapter keeps a fixed row count, image count and DOM size. Scroll
+ * position drives the active page instead of the other way around; offsets
+ * come from page shapes (provider metadata or the loaded natural size), which
+ * is what the absolutely positioned rows render.
  */
 export function ReaderScrollView({
   pages,
@@ -155,7 +245,7 @@ export function ReaderScrollView({
   cacheReady,
   reducedMotion,
   onHandle,
-  preloadAhead = WINDOW_RADIUS,
+  preloadAhead = MIN_ROW_RADIUS,
   lowMemoryMode = false,
   longStripOptimization = false,
   imageSmoothing = true,
@@ -164,36 +254,74 @@ export function ReaderScrollView({
 }: ReaderScrollViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<number | null>(null);
-  // Measured page offsets, invalidated by any container or strip resize (an
-  // image load, a gap change or a rotated device all change one of them).
-  const metricsRef = useRef<readonly ScrollPageMetric[] | null>(null);
-  const containerHeightRef = useRef(0);
-  const [spacerPx, setSpacerPx] = useState(0);
+  // Width, tail spacer and measured natural sizes move together: a resize
+  // changes every row height, and a page's real shape changes every offset
+  // below it. One reducer keeps that single render coherent.
+  const [geometry, dispatchGeometry] = useStateReducer(geometryReducer, EMPTY_GEOMETRY);
+  const geometryRef = useRef<StripGeometry>(geometry);
+
+  const stripWidth = geometry.width;
+  const spacerPx = geometry.spacerPx;
+  const geometryWidth = stripWidth > 0 ? stripWidth : DEFAULT_STRIP_WIDTH;
+  const pagesHaveMetadata = useMemo(() => pages.some(hasPageShape), [pages]);
+  const heights = useMemo(
+    () =>
+      pages.map((page, index) =>
+        stripPageHeight(page, geometryWidth, geometry.natural[index], geometry.fallbackRatio),
+      ),
+    [geometry.fallbackRatio, geometry.natural, geometryWidth, pages],
+  );
+  const metrics = useMemo(
+    () =>
+      computeScrollPageMetrics(
+        pages.map((_page, index) => ({ index, height: heights[index] ?? 0 })),
+        gapPx,
+      ),
+    [gapPx, heights, pages],
+  );
+  const metricsRef = useRef<readonly ScrollPageMetric[]>(metrics);
+  // A jump to an unmounted page lands on its estimate; once the window moves
+  // and the real row mounts, the row's own offset is the truth.
+  const pendingCorrectionRef = useRef<{ readonly index: number; readonly top: number } | null>(
+    null,
+  );
+  const pagesRef = useRef(pages);
+
+  const totalHeight =
+    metrics.length === 0 ? 0 : (metrics[metrics.length - 1]!.top ?? 0) + (heights.at(-1) ?? 0);
+  const contentHeight = totalHeight + spacerPx;
+
+  const offsetOf = useCallback((index: number): number => metricsRef.current[index]?.top ?? 0, []);
 
   const measurePages = useCallback((): readonly ScrollPageMetric[] => {
     const container = containerRef.current;
-    if (container === null) return [];
-    return readPageMetrics(container);
-  }, []);
-
-  // Scroll frames must not read layout: the first frame measures once, later
-  // frames search the cached offsets.
-  const currentMetrics = useCallback((): readonly ScrollPageMetric[] => {
-    const container = containerRef.current;
-    if (container === null) return [];
-    metricsRef.current ??= readPageMetrics(container);
-    return metricsRef.current;
+    if (container === null) return metricsRef.current;
+    const measured = readPageMetrics(container);
+    if (measured.length === 0) return metricsRef.current;
+    // The mounted rows are exact; unmounted pages keep their computed offsets.
+    // A row whose loaded size differs from the estimate recomputes every
+    // offset through `reportMeasured`, so no global drift correction is needed.
+    const byIndex = new Map(metricsRef.current.map((metric) => [metric.index, metric]));
+    for (const metric of measured) byIndex.set(metric.index, metric);
+    return [...byIndex.values()].sort((a, b) => a.top - b.top);
   }, []);
 
   const scrollToPage = useCallback(
     (index: number, behavior: ScrollBehavior = reducedMotion ? 'auto' : 'smooth') => {
       const container = containerRef.current;
-      const node = container === null ? null : pageNode(container, index);
-      if (!container || !node) return;
-      container.scrollTo({ top: node.offsetTop, behavior });
+      if (container === null) return;
+      const node = container.querySelector<HTMLElement>(`[data-page-index="${index}"]`);
+      const top = node === null ? offsetOf(index) : node.offsetTop;
+      pendingCorrectionRef.current = node === null ? { index, top } : null;
+      // A far jump is instant for the same reason keyboard navigation is: the
+      // rows it mounts re-measure mid-animation and a moving target cancels it.
+      const far = Math.abs(top - container.scrollTop) > container.clientHeight * 1.5;
+      container.scrollTo({ top, behavior: far ? 'auto' : behavior });
     },
-    [reducedMotion],
+    [offsetOf, reducedMotion],
   );
+  // A jump to an unmounted page lands on its estimate; once the window moves
+  // and the real row mounts, the row's own offset is the truth.
 
   // react-doctor-disable-next-line team-conventions/no-use-effect -- imperative handle publication: the parent stores the handle in a ref, which has no other lifecycle seam
   useEffect(() => {
@@ -202,36 +330,102 @@ export function ReaderScrollView({
   }, [measurePages, onHandle, scrollToPage]);
 
   // Resume position: jump (never animate) to the active page on mount.
-  // react-doctor-disable-next-line team-conventions/no-use-effect -- mount-only DOM commit: the node offsets are not readable until the strip is in the document
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- mount-only DOM commit: the strip must exist before its offset can be read
   useEffect(() => {
     const container = containerRef.current;
-    const node = container === null ? null : pageNode(container, activePageIndex);
-    if (!container || !node) return;
-    container.scrollTop = node.offsetTop;
+    if (container === null) return;
+    const node = container.querySelector<HTMLElement>(`[data-page-index="${activePageIndex}"]`);
+    container.scrollTop = node === null ? offsetOf(activePageIndex) : node.offsetTop;
     // Mount-only: later active changes come from scrolling, not the other way.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Half a viewport of slack after the last page, so it can be centred too —
-  // without it the final short page could never reach the viewport centre.
-  // The same observer invalidates the metrics cache: the container box and the
-  // strip height are the only inputs page offsets derive from.
-  // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: ResizeObserver on the scroll container and strip
+  // The container box drives the row heights; the observer also refreshes the
+  // metrics cache when the width (and therefore every offset) changes.
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: ResizeObserver on the scroll container
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const strip = container.firstElementChild;
     const update = () => {
-      containerHeightRef.current = container.clientHeight;
-      setSpacerPx(container.clientHeight / 2);
-      metricsRef.current = null;
+      dispatchGeometry({
+        type: 'resize',
+        width: container.clientWidth,
+        spacerPx: container.clientHeight / 2,
+      });
     };
     update();
     const observer = new ResizeObserver(update);
     observer.observe(container);
-    if (strip !== null) observer.observe(strip);
     return () => observer.disconnect();
-  }, []);
+  }, [dispatchGeometry]);
+
+  // React commits are the only place a row can enter/leave the DOM; after each
+  // one, finish a pending jump against the row that just mounted.
+  useLayoutEffect(() => {
+    metricsRef.current = metrics;
+    geometryRef.current = geometry;
+    pagesRef.current = pages;
+    const pending = pendingCorrectionRef.current;
+    const container = containerRef.current;
+    if (pending !== null && container !== null) {
+      const node = container.querySelector<HTMLElement>(`[data-page-index="${pending.index}"]`);
+      if (node !== null) {
+        const delta = node.offsetTop - pending.top;
+        if (Math.abs(delta) > 1) container.scrollTop += delta;
+        pendingCorrectionRef.current = null;
+      }
+    }
+  });
+
+  /**
+   * A page's real shape arrives after its image decodes. Correct the offset of
+   * everything below it, and — when the page is above the viewport — move the
+   * scroll position by the same delta so the reader's visible content stays put
+   * instead of jumping by the placeholder's error.
+   */
+  const reportMeasured = useCallback(
+    (index: number, size: NaturalSize) => {
+      const current = geometryRef.current;
+      const previous = current.natural[index];
+      if (
+        previous !== undefined &&
+        previous.width === size.width &&
+        previous.height === size.height
+      ) {
+        return;
+      }
+      const page = pagesRef.current[index];
+      // With no provider dimensions anywhere in the chapter, the first decoded
+      // page is the best evidence of the chapter's shape. Adopting it for every
+      // unloaded page keeps the strip's geometry stable instead of reflowing
+      // 2:3 → real ratio page by page (which cancels a long jump mid-animation).
+      const adoptFallback =
+        !pagesHaveMetadata &&
+        current.fallbackRatio === PLACEHOLDER_PAGE_RATIO &&
+        size.width > 0 &&
+        size.height > 0;
+      const fallbackRatio = adoptFallback ? size.height / size.width : current.fallbackRatio;
+      if (page !== undefined && size.width > 0 && size.height > 0) {
+        const before = stripPageHeight(page, current.width, previous, current.fallbackRatio);
+        const after = stripPageHeight(page, current.width, size, fallbackRatio);
+        const delta = after - before;
+        const top = metricsRef.current[index]?.top;
+        const container = containerRef.current;
+        if (delta !== 0 && top !== undefined && container !== null && container.scrollTop > top) {
+          container.scrollTop += delta;
+        }
+      }
+      // Keep the ref ahead of the commit so two loads in one commit each measure
+      // from the geometry the other one just produced.
+      geometryRef.current = {
+        ...current,
+        fallbackRatio,
+        natural: { ...current.natural, [index]: size },
+      };
+      dispatchGeometry({ type: 'measured', index, size, fallbackRatio });
+    },
+    [dispatchGeometry, pagesHaveMetadata],
+  );
 
   // The active index is read from this render's closure (not a ref written
   // during render): the listener is rebound on every active-page change, so the
@@ -242,14 +436,18 @@ export function ReaderScrollView({
       frameRef.current = null;
       const container = containerRef.current;
       if (!container) return;
-      const height = containerHeightRef.current || container.clientHeight;
+      const height = container.clientHeight;
       const center = container.scrollTop + height / 2;
-      const next = findActiveScrollPage(currentMetrics(), center);
+      // A measurable container means the computed offsets are trustworthy and
+      // no layout read is needed on a scroll frame; an unmeasurable one (jsdom)
+      // falls back to the mounted rows.
+      const current = geometryRef.current.width > 0 ? metricsRef.current : measurePages();
+      const next = findActiveScrollPage(current, center);
       if (next !== activePageIndex) {
         onActivePageChange(next);
       }
     });
-  }, [activePageIndex, currentMetrics, onActivePageChange]);
+  }, [activePageIndex, measurePages, onActivePageChange]);
 
   // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: the pending rAF belongs to the browser frame loop
   useEffect(() => {
@@ -265,7 +463,7 @@ export function ReaderScrollView({
     (index: number) => scrollToPage(Math.min(index + 1, pages.length - 1)),
     [pages.length, scrollToPage],
   );
-  const mounted = windowedScrollPages(
+  const imageWindow = windowedScrollPages(
     pages,
     activePageIndex,
     resolveScrollPreloadAhead({
@@ -275,6 +473,12 @@ export function ReaderScrollView({
       longStripOptimization,
     }),
   );
+  const rowRadius = Math.max(
+    MIN_ROW_RADIUS + ROW_OVERSCAN,
+    imageWindow.size,
+    preloadAhead + ROW_OVERSCAN,
+  );
+  const rowWindow = windowedScrollPages(pages, activePageIndex, rowRadius);
 
   return (
     <div
@@ -282,25 +486,45 @@ export function ReaderScrollView({
       className="h-full w-full overflow-y-auto overscroll-contain"
       onScroll={handleScroll}
       data-testid="reader-scroll-view"
+      // Test seam: page tops let E2E drive a virtualised strip without needing
+      // the target row to be mounted.
+      data-page-offsets={JSON.stringify(metrics.map((metric) => metric.top))}
+      data-page-count={pages.length}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: `${Math.max(0, gapPx)}px` }}>
-        {pages.map((page, index) => (
-          <ScrollPageRow
-            key={page.id}
-            page={page}
-            index={index}
-            mounted={mounted.has(index)}
-            cacheReady={cacheReady}
-            providerId={providerId}
-            mangaId={mangaId}
-            chapterId={chapterId}
-            onSkipPage={skipPage}
-            onBack={onBack}
-            imageSmoothing={imageSmoothing}
-            onMetric={onPageMetric}
+      <div className="relative w-full" style={{ height: contentHeight }}>
+        {pages.map((page, index) => {
+          if (!rowWindow.has(index)) return null;
+          const metric = metrics[index];
+          const height = heights[index] ?? 0;
+          const size = resolveStripPageSize(page, geometry.natural[index], geometry.fallbackRatio);
+          return (
+            <ScrollPageRow
+              key={page.id}
+              page={page}
+              index={index}
+              top={metric?.top ?? 0}
+              height={height}
+              aspectRatio={`${size.width} / ${size.height}`}
+              mounted={imageWindow.has(index)}
+              cacheReady={cacheReady}
+              providerId={providerId}
+              mangaId={mangaId}
+              chapterId={chapterId}
+              onSkipPage={skipPage}
+              onBack={onBack}
+              imageSmoothing={imageSmoothing}
+              onMeasured={reportMeasured}
+              onMetric={onPageMetric}
+            />
+          );
+        })}
+        {spacerPx > 0 ? (
+          <div
+            aria-hidden
+            className="absolute left-0 w-full"
+            style={{ top: totalHeight, height: spacerPx }}
           />
-        ))}
-        {spacerPx > 0 ? <div aria-hidden style={{ height: `${spacerPx}px` }} /> : null}
+        ) : null}
       </div>
     </div>
   );

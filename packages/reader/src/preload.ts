@@ -2,32 +2,73 @@ import type {
   ReaderPage,
   PreloadItem,
   PreloadPlan,
-  DecodeQueueItem,
-  DecodeQueue,
   PageLoadResult,
   PreloadRetryState,
 } from './types';
 
+export interface PreloadPlanOptions {
+  /**
+   * Pages to keep warm behind the active one. The reader settings only expose
+   * `preloadAhead` today (#224 adds the behind setting), so the caller passes
+   * the spec's provisional default of one.
+   */
+  readonly preloadBehind?: number;
+  /**
+   * Whether the active page itself belongs in the plan. The prefetch sweep
+   * leaves it out because the mounted page image already loads it, while the
+   * decode pool keeps it first: it is the page a turn must never wait on.
+   */
+  readonly includeActive?: boolean;
+}
+
+/**
+ * Every page worth warming, in the order the reader should work on them:
+ * the active page, its neighbours, then the pages ahead of the turn direction.
+ * Pages behind the active one follow, so a backward turn finds them warm
+ * without the plan ever spending the first slots on them.
+ *
+ * `priority` is the ordered rank as a number (higher first) and exists for the
+ * diagnostics snapshot; consumers must keep the array order because two items
+ * can round to the same priority on a long chapter.
+ */
 export function createPreloadPlan(
   pages: readonly ReaderPage[],
   activePageIndex: number,
   preloadAhead: number,
   lowMemoryMode: boolean,
+  options: PreloadPlanOptions = {},
 ): PreloadPlan {
-  const effectiveMaxPreload = lowMemoryMode ? 1 : preloadAhead;
+  const includeActive = options.includeActive !== false;
+  const maxAhead = Math.max(0, lowMemoryMode ? Math.min(1, preloadAhead) : preloadAhead);
+  const maxBehind = Math.max(0, lowMemoryMode ? 0 : (options.preloadBehind ?? 1));
+  const active = Math.max(0, Math.min(activePageIndex, pages.length - 1));
+
+  // Candidate order is the reading order the reader cares about, not page order:
+  // a page turn is the expensive event, so everything within one turn of the
+  // active page outranks a page two turns away.
+  const order: { readonly pageIndex: number; readonly distance: number }[] = [];
+  if (includeActive && pages[active] !== undefined) {
+    order.push({ pageIndex: active, distance: 0 });
+  }
+  if (maxBehind >= 1 && active - 1 >= 0) order.push({ pageIndex: active - 1, distance: 1 });
+  if (maxAhead >= 1 && active + 1 < pages.length)
+    order.push({ pageIndex: active + 1, distance: 1 });
+  for (let distance = 2; distance <= maxAhead; distance += 1) {
+    if (active + distance < pages.length) order.push({ pageIndex: active + distance, distance });
+  }
+  for (let distance = 2; distance <= maxBehind; distance += 1) {
+    if (active - distance >= 0) order.push({ pageIndex: active - distance, distance });
+  }
+
   const items: PreloadItem[] = [];
-
-  for (let i = 1; i <= effectiveMaxPreload; i++) {
-    const pageIndex = activePageIndex + i;
-    if (pageIndex >= pages.length) continue;
-
-    const page = pages[pageIndex]!;
-    const distance = i;
-    const priority = Math.max(0, 100 - distance * 10);
-
+  for (const [rank, candidate] of order.entries()) {
+    const page = pages[candidate.pageIndex];
+    if (page === undefined) continue;
     items.push({
-      pageIndex,
-      priority,
+      pageIndex: candidate.pageIndex,
+      // Rank, not distance: neighbours on both sides share a distance but the
+      // plan must still feed them to the queue one at a time.
+      priority: Math.max(0, 1000 - rank * 10),
       url: page.image.url,
     });
   }
@@ -35,40 +76,7 @@ export function createPreloadPlan(
   return {
     items,
     lowMemoryMode,
-    maxPreload: effectiveMaxPreload,
-  };
-}
-
-export function createDecodeQueue(
-  pages: readonly ReaderPage[],
-  activePageIndex: number,
-  preloadAhead: number,
-  lowMemoryMode: boolean,
-): DecodeQueue {
-  const effectiveMaxPreload = lowMemoryMode ? 1 : preloadAhead;
-  const items: DecodeQueueItem[] = [];
-
-  for (let i = 1; i <= effectiveMaxPreload; i++) {
-    const pageIndex = activePageIndex + i;
-    if (pageIndex >= pages.length) continue;
-
-    const page = pages[pageIndex]!;
-    const distance = i;
-    const priority = Math.max(0, 100 - distance * 10);
-
-    items.push({
-      pageIndex,
-      url: page.image.url,
-      priority,
-      retryCount: 0,
-    });
-  }
-
-  items.sort((a, b) => b.priority - a.priority);
-
-  return {
-    items,
-    totalPages: pages.length,
+    maxPreload: maxAhead,
   };
 }
 

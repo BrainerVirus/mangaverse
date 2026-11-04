@@ -24,8 +24,6 @@ export type {
   PreloadItem,
   PreloadPlan,
   PreloadRetryState,
-  DecodeQueueItem,
-  DecodeQueue,
   PageLoadResult,
   DiagnosticEvent,
 } from './types.js';
@@ -79,7 +77,7 @@ export {
 export { calculateWebtoonWindow, estimateWebtoonLayout } from './webtoon.js';
 
 // Preload functions
-export { createPreloadPlan, createDecodeQueue, recordPageLoadResult } from './preload.js';
+export { createPreloadPlan, recordPageLoadResult, type PreloadPlanOptions } from './preload.js';
 
 // Progress functions
 export {

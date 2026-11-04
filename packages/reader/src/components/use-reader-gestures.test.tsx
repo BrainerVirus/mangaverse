@@ -9,6 +9,7 @@ import { createReaderState } from '../state.js';
 import { toReaderEngineSettings } from '../to-reader-engine-settings.js';
 import type { ReaderSessionInput, ReaderState } from '../types.js';
 import { useReaderGestures } from './use-reader-gestures.js';
+import { useReaderZoom } from './use-reader-zoom.js';
 
 class ResizeObserverStub {
   observe() {}
@@ -38,6 +39,11 @@ function Harness({ settings, zoomScale }: { settings: ReaderEngineSettings; zoom
     const base = createReaderState(sessionInput);
     return { ...base, zoom: { ...base.zoom, scale: zoomScale } };
   });
+  const zoom = useReaderZoom({
+    readerState: state,
+    setReaderState: setState as Dispatch<SetStateAction<ReaderState | null>>,
+  });
+  const { setZoomLayer } = zoom;
   const gestures = useReaderGestures({
     sessionInput,
     readerState: state,
@@ -45,12 +51,13 @@ function Harness({ settings, zoomScale }: { settings: ReaderEngineSettings; zoom
     overlayInsets: { top: 0, right: 0, bottom: 0, left: 0 },
     navigate: () => {},
     onToggleChrome: () => {},
-    setReaderState: setState as Dispatch<SetStateAction<ReaderState | null>>,
+    zoom,
   });
 
   return (
     <div ref={setSurface} data-testid="surface" onPointerUp={gestures.handlePointerUp}>
       <div
+        ref={setZoomLayer}
         data-testid="zoom-layer"
         onPointerDown={gestures.handleZoomPointerDown}
         onPointerMove={gestures.handleZoomPointerMove}

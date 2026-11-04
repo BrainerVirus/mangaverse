@@ -2,6 +2,11 @@ import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import type { ChapterId, MangaId, ProviderId } from '@app/shared';
 
 import { resolvePageObjectUrl } from '../page-cache-store.js';
+import {
+  acquirePageObjectUrl,
+  releasePageObjectUrl,
+  type PageObjectUrlInput as RegistryPageObjectUrlInput,
+} from '../page-object-url-registry.js';
 import type { CoverCacheContextValue } from './CoverCacheProvider.js';
 import type { CachedPageImageMetric } from './CachedPageImage.js';
 
@@ -54,7 +59,6 @@ export function usePageObjectUrl(input: PageObjectUrlInput): {
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const failedRef = useRef(false);
-  const objectUrlRef = useRef<string | undefined>(undefined);
   const loadRef = useRef<PageLoadState>({
     startedAt: 0,
     fromCache: false,
@@ -90,6 +94,12 @@ export function usePageObjectUrl(input: PageObjectUrlInput): {
       reported: false,
     };
 
+    // A retry asks the network for fresh bytes, so it owns a private URL; every
+    // normal mount shares the page's registered URL with the decode pool and
+    // with any other holder, and releases its reference on unmount.
+    const isRetry = attempt > 0 && navigator.onLine;
+    let release: (() => void) | undefined;
+
     const recoverOnline = () => {
       if (cancelled || !failedRef.current) return;
       failedRef.current = false;
@@ -99,7 +109,7 @@ export function usePageObjectUrl(input: PageObjectUrlInput): {
     };
     window.addEventListener('online', recoverOnline);
     void (async () => {
-      const result = await resolvePageObjectUrl({
+      const pageInput: RegistryPageObjectUrlInput = {
         db: context.db,
         adapter: context.adapter,
         providerId: input.providerId,
@@ -108,12 +118,16 @@ export function usePageObjectUrl(input: PageObjectUrlInput): {
         pageIndex: input.pageIndex,
         remoteUrl: input.remoteUrl,
         retention: input.retention,
-        refresh: attempt > 0 && navigator.onLine,
-      });
+      };
+      const result = isRetry
+        ? await resolvePageObjectUrl({ ...pageInput, refresh: true })
+        : await acquirePageObjectUrl(pageInput);
 
       if (cancelled) {
-        if (result !== undefined)
-          void context.adapter.blobStorage.revokeObjectUrl(result.objectUrl);
+        if (result !== undefined) {
+          if (isRetry) void context.adapter.blobStorage.revokeObjectUrl(result.objectUrl);
+          else void releasePageObjectUrl(pageInput);
+        }
         return;
       }
 
@@ -125,13 +139,16 @@ export function usePageObjectUrl(input: PageObjectUrlInput): {
         return;
       }
 
-      if (objectUrlRef.current !== undefined && objectUrlRef.current !== result.objectUrl) {
-        void context.adapter.blobStorage.revokeObjectUrl(objectUrlRef.current);
-      }
+      release = isRetry
+        ? () => {
+            void context.adapter.blobStorage.revokeObjectUrl(result.objectUrl);
+          }
+        : () => {
+            void releasePageObjectUrl(pageInput);
+          };
 
       loadRef.current.fromCache = result.fromCache;
       loadRef.current.byteSize = result.byteSize;
-      objectUrlRef.current = result.objectUrl;
       setSrc(result.objectUrl);
     })().catch(() => {
       if (!cancelled) {
@@ -145,10 +162,8 @@ export function usePageObjectUrl(input: PageObjectUrlInput): {
     return () => {
       cancelled = true;
       window.removeEventListener('online', recoverOnline);
-      if (objectUrlRef.current !== undefined) {
-        void context.adapter.blobStorage.revokeObjectUrl(objectUrlRef.current);
-        objectUrlRef.current = undefined;
-      }
+      release?.();
+      release = undefined;
     };
   }, [
     attempt,
