@@ -30,7 +30,6 @@ import type {
 import { hasProviderCapability, toProviderMangaId } from '@app/shared';
 
 import {
-  mergeMangaDetailWithLibrary,
   persistChapterPagesToDb,
   persistMangaDetailToDb,
   shouldRefreshMangaDetail,
@@ -183,7 +182,9 @@ export async function fetchProviderMangaDetail(
 
   const { fetchMangaDetail } = await import('@/features/library');
   const refreshed = await fetchMangaDetail(db, mangaId);
-  return mergeMangaDetailWithLibrary(refreshed ?? remote, local);
+  // The post-persist read is authoritative for library and read state: the
+  // pre-request snapshot predates anything written while the provider call ran.
+  return refreshed ?? remote;
 }
 
 export type ProviderRelatedKind = 'recommendations' | 'relatedTitles';
