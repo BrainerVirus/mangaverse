@@ -60,6 +60,7 @@
     "@types/node": "^26.6.5",
     "@types/sql.js": "^1.4.11",
     "drizzle-kit": "^0.31.11",
+    "oxfmt": "^0.73.0",
     "oxlint": "^1.87.0",
     "sql.js": "^1.14.2",
     "typescript": "^7.0.2",

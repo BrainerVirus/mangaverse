@@ -45,6 +45,10 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      # packages/db/src/routed.gen.ts must match a fresh, formatted generation (needs no build).
+      - name: Routed client check
+        run: pnpm --filter @app/db generate:routed --check
+
       - name: Format check
         run: pnpm format:check
 

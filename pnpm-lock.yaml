@@ -312,6 +312,9 @@ importers:
       drizzle-kit:
         specifier: ^0.31.11
         version: 0.31.11
+      oxfmt:
+        specifier: ^0.73.0
+        version: 0.73.0
       oxlint:
         specifier: ^1.87.0
         version: 1.87.0(oxlint-tsgolint@7.0.2004)
