@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   toCategoryId,
@@ -112,7 +112,7 @@ describe('BulkEditBar', () => {
     expect(props.onClearSelection).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps the category dialog open and shows user-safe copy when the write fails', async () => {
+  it('keeps the category dialog open with no inline error when the write fails, so its toast is the only surface', async () => {
     const user = userEvent.setup();
     const onOrganize = vi.fn<(action: LibraryOrganizationAction) => Promise<void>>(async () => {
       throw new Error('INTERNAL_SECRET at handle.run');
@@ -123,10 +123,31 @@ describe('BulkEditBar', () => {
     await user.click(screen.getByLabelText('Drama'));
     await user.click(screen.getByRole('button', { name: 'Add to selected' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Could not update the selection.');
-    expect(screen.queryByText(/INTERNAL_SECRET/)).toBeNull();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(onOrganize).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText(/INTERNAL_SECRET|Could not/)).toBeNull();
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByLabelText('Drama')).toBeChecked();
+  });
+
+  it('shows no inline error when a status or favorite edit fails', async () => {
+    const user = userEvent.setup();
+    const onOrganize = vi.fn<(action: LibraryOrganizationAction) => Promise<void>>(async () => {
+      throw new Error('INTERNAL_SECRET at handle.run');
+    });
+    renderBulk({ onOrganize });
+
+    await user.click(screen.getByRole('button', { name: 'Favorite selected' }));
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(onOrganize).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText(/INTERNAL_SECRET|Could not/)).toBeNull();
   });
 
   it('selects all visible through the checkbox', async () => {

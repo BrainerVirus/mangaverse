@@ -10,7 +10,6 @@ import {
   Input,
   Label,
 } from '@app/design-system';
-import { userFailureMessage } from '../failure-message.js';
 
 export interface MangaCustomCoverDialogProps {
   readonly open: boolean;
@@ -50,11 +49,14 @@ export function MangaCustomCoverDialog({
 
   if (!open) return null;
 
+  /**
+   * Saving or resetting the cover is a user's save: the caller's mutation reports
+   * a failure with its toast, so a rejection keeps the dialog open and shows
+   * nothing here. Only a URL that fails validation is explained inline.
+   */
   function run(action: () => Promise<void> | void): void {
     setError(undefined);
-    void Promise.resolve(action()).catch((caught: unknown) => {
-      setError(userFailureMessage(caught, 'Could not save the cover.'));
-    });
+    void Promise.resolve(action()).catch(() => undefined);
   }
 
   return (

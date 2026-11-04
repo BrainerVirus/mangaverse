@@ -1,11 +1,9 @@
-import { useState } from 'react';
 import { Badge, Button } from '@app/design-system';
 import {
   providerDisplayName,
   type MangaProviderMapping,
   type ProviderMappingId,
 } from '@app/shared';
-import { userFailureMessage } from '../failure-message.js';
 
 export interface MangaProviderSwitcherProps {
   readonly mappings: readonly MangaProviderMapping[];
@@ -32,13 +30,12 @@ export function MangaProviderSwitcher({
   onSetPreferred,
   onUnmergeMapping,
 }: MangaProviderSwitcherProps) {
-  const [error, setError] = useState<string | undefined>();
-
+  /**
+   * A switch is a user's save: the caller's mutation reports a failure with its
+   * toast, so a rejection is settled here and not shown a second time.
+   */
   function run(action: () => Promise<void> | void): void {
-    setError(undefined);
-    void Promise.resolve(action()).catch((caught: unknown) => {
-      setError(userFailureMessage(caught, 'Could not switch providers.'));
-    });
+    void Promise.resolve(action()).catch(() => undefined);
   }
 
   return (
@@ -126,12 +123,6 @@ export function MangaProviderSwitcher({
           })}
         </ul>
       )}
-
-      {error !== undefined ? (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
     </section>
   );
 }
