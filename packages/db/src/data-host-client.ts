@@ -15,6 +15,8 @@ import {
 export interface DataHostClientPort {
   postMessage(request: DataHostRequest): void;
   onMessage(listener: (data: unknown) => void): void;
+  /** Releases the port and detaches its listener; nothing it receives afterwards is delivered. */
+  close(): void;
 }
 
 export interface DataHostClientOptions {
@@ -42,7 +44,8 @@ export interface DataHostClient {
   /**
    * Moves to a restarted host's port. The new host is opened before any later call reaches it;
    * calls still waiting on the old port are not resent and end at once with `crashed`, since
-   * whether they committed is unknown. Listeners get `resync` once the host is open again.
+   * whether they committed is unknown. The old port is closed. Listeners get `resync` once
+   * the host is open again.
    */
   reconnect(port: DataHostClientPort): Promise<AppResult<DataHostOpenResult>>;
 }
@@ -72,7 +75,6 @@ export function createDataHostClient(
       const message = data as DataHostMessage | null;
       if (message === null || typeof message !== 'object') return;
       if ('kind' in message) {
-        // A late batch from a replaced host still describes committed rows.
         if (message.kind === 'changes') emit({ kind: 'changes', changes: message.changes });
         return;
       }
@@ -147,6 +149,7 @@ export function createDataHostClient(
           ),
         );
       }
+      port.close();
       port = next;
       listen(next);
       // Sent before anything else on the new port: the host answers in arrival order.

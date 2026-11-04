@@ -49,6 +49,7 @@ function connect(directory = mkdtempSync(join(tmpdir(), 'mangaverse-host-'))): C
         listener(event.data);
       };
     },
+    close: () => port2.close(),
   });
   cleanups.push(() => {
     host.close();
@@ -192,6 +193,7 @@ describe('data host', () => {
       onMessage: (listener) => {
         port2.onmessage = (event) => listener(event.data);
       },
+      close: () => port2.close(),
     });
     cleanups.push(() => {
       port1.close();

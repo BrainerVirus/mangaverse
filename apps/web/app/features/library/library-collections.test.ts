@@ -47,6 +47,7 @@ async function hostWithWindows() {
         onMessage: (listener) => {
           port2.onmessage = (event) => listener(event.data);
         },
+        close: () => port2.close(),
       }),
     );
     cleanups.push(() => {
