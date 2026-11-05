@@ -78,6 +78,10 @@ export type HostListCollection<T> = Collection<ListedRow<T>, string, HostListUti
  *
  * With `reloadDelayMs`, a reload a change asks for starts after that delay, once for every
  * change that arrives meanwhile.
+ *
+ * Once its last subscriber leaves, the list stops reading the host: a change only marks it
+ * stale (the collection's sync outlives its readers until `gcTime`), and the next subscriber
+ * reloads it at once. `refetch()` reads whether or not anyone is watching.
  */
 export function createHostListCollection<T extends object>(
   options: HostListOptions<T>,
@@ -127,10 +131,20 @@ export function createHostListCollection<T extends object>(
           else fail(error);
         };
 
+        // A list nobody reads has no reason to read the host: once its last subscriber leaves, a
+        // change only marks it stale, and the next subscriber's return reloads it. `idle` stays
+        // false until a subscriber has come and gone, so the window where sync has started and
+        // the first reader has not yet attached (a preload, a handoff) is never idle.
+        let idle = false;
+        let stale = false;
+
         const reload = () => {
           if (queued !== null) return queued;
           const next = tail.then(() => {
             queued = null;
+            // Every change that arrived before this point is covered by the read below; one that
+            // arrives while idle after it marks the list stale again.
+            stale = false;
             return apply().then(undefined, report);
           });
           queued = next;
@@ -147,6 +161,10 @@ export function createHostListCollection<T extends object>(
           timer = undefined;
         };
         const scheduleReload = () => {
+          if (idle) {
+            stale = true;
+            return;
+          }
           if (reloadDelayMs <= 0) {
             void reload();
             return;
@@ -200,6 +218,10 @@ export function createHostListCollection<T extends object>(
         // Patches share the reloads' queue, so a row read never lands under an older snapshot.
         // A reload that has not started yet reads after the change: it brings the rows in.
         const patch = (read: (key: string) => Promise<T | undefined>, keys: readonly string[]) => {
+          if (idle) {
+            stale = true;
+            return Promise.resolve();
+          }
           if (queued !== null) return queued;
           for (const key of keys) patchKeys.add(key);
           if (queuedPatch !== null) return queuedPatch;
@@ -228,10 +250,30 @@ export function createHostListCollection<T extends object>(
             );
           } else scheduleReload();
         });
+        const unsubscribeReaders = collection.on(
+          'subscribers:change',
+          ({ subscriberCount, previousSubscriberCount }) => {
+            if (subscriberCount > 0) {
+              if (!idle) return;
+              idle = false;
+              // A returning reader, not a burst: no delay. A reload still queued reads after
+              // the change; one running started before it, so reload() queues another.
+              if (stale) void reload();
+            } else if (previousSubscriberCount > 0 && !idle) {
+              idle = true;
+              // A reload that was waiting out its burst is owed, not dropped.
+              if (timer !== undefined) {
+                cancelScheduled();
+                stale = true;
+              }
+            }
+          },
+        );
         void reload();
         return () => {
           stopped = true;
           cancelScheduled();
+          unsubscribeReaders();
           unsubscribe();
         };
       },
