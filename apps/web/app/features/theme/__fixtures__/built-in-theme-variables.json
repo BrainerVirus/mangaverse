@@ -3,7 +3,7 @@
     "--background": "#f7f5f2",
     "--foreground": "#141210",
     "--muted": "#ece8e3",
-    "--muted-foreground": "#6b6560",
+    "--muted-foreground": "#69635e",
     "--popover": "#ffffff",
     "--popover-foreground": "#141210",
     "--card": "#ffffff",

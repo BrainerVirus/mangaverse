@@ -36,8 +36,12 @@ export function ThemeSettingsBridge() {
 
   // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-cache-to-context-sync: the definitions arrive asynchronously and ThemeProvider owns the resolved definition; pushing the query result into that state is the same cache-to-context sync as the settings query above.
   useEffect(() => {
-    hydrateThemeDefinitions(definitionsQuery.isError ? null : definitionsQuery.data);
-  }, [definitionsQuery.data, definitionsQuery.isError, hydrateThemeDefinitions]);
+    // A database that failed to open never runs the query, so `data` stays undefined
+    // forever; report that as unavailable (null) rather than still loading (undefined).
+    hydrateThemeDefinitions(
+      definitionsQuery.isError || dbStatus === 'error' ? null : definitionsQuery.data,
+    );
+  }, [dbStatus, definitionsQuery.data, definitionsQuery.isError, hydrateThemeDefinitions]);
 
   // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-cache-to-context-sync: the query result arrives asynchronously and must be pushed into ThemeProvider's context, which owns the state. Calling it during render would set a parent component's state from a child render.
   useEffect(() => {

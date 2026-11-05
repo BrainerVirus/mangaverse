@@ -109,7 +109,7 @@ const DEFAULT_DARK: ThemeColorTokens = {
 
 const DEFAULT_LIGHT_OVERRIDES: ThemeOverrides = {
   '--muted': '#ece8e3', // §3.2 Soft Linen
-  '--muted-foreground': '#6b6560', // §3.2 Warm Ash
+  '--muted-foreground': '#69635e', // §3.2 Warm Ash
   '--secondary': '#ece8e3',
   '--secondary-foreground': '#1c1917',
   '--accent-foreground': '#1c1917',

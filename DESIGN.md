@@ -10,7 +10,7 @@ colors:
   surface: { light: "#ffffff", dark: "#141210" } # EXISTING --surface / --card
   surface-raised: { light: "#ffffff", dark: "#1c1917" } # EXISTING --surface-raised / --popover
   ink: { light: "#141210", dark: "#f5f2eb" } # EXISTING --foreground
-  muted-ink: { light: "#6b6560", dark: "#a8a29e" } # EXISTING --muted-foreground
+  muted-ink: { light: "#69635e", dark: "#a8a29e" } # EXISTING --muted-foreground
   muted: { light: "#ece8e3", dark: "#1a1816" } # EXISTING --muted / --secondary
   line: { light: "#e3ddd4", dark: "#2a2724" } # EXISTING --border / --input
   primary: { light: "#1c1917", dark: "#f5f2eb" } # EXISTING --primary
@@ -340,7 +340,7 @@ tokens join the theme layer's list once introduced; presets may tint them, never
 - **Deep Ink** `#141210` → **Warm Bone** `#f5f2eb` — `--foreground`, `--card-foreground`,
   `--popover-foreground`. Never pure black, never pure white: both carry a warm cast so long reading
   does not glare.
-- **Warm Ash** `#6b6560` → **Smoke Gray** `#a8a29e` — `--muted-foreground`. Provider attribution,
+- **Warm Ash** `#69635e` → **Smoke Gray** `#a8a29e` — `--muted-foreground`. Provider attribution,
   descriptions, timestamps, diagnostics. Recessive but never below AA on its own surface.
 - **Glass Muted Ink** `#57534e` → `#d6d1ca` — **EXISTING** `--glass-muted-foreground` (P1). The secondary
   text colour for glass surfaces, one step closer to the ink than `--muted-foreground` so it survives a
@@ -406,7 +406,7 @@ composited colour):
 
 The resulting **hard rules**:
 
-1. `--muted-foreground` (`#6b6560` / `#a8a29e`) is **never** used on glass. Glass secondary text uses
+1. `--muted-foreground` (`#69635e` / `#a8a29e`) is **never** used on glass. Glass secondary text uses
    `--glass-muted-foreground`.
 2. **Thin glass carries no text over imagery.** Over the ambient canvas, thin may carry
    `--glass-muted-foreground` text at 12px+ / weight 500.
