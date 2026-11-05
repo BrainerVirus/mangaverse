@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { _electron, expect, test, type ElectronApplication, type Page } from '@playwright/test';
+import { showReaderControls } from './reader-controls.js';
 
 // #212 on the production build: reader pages become files under the profile's page store, the
 // reader shows them from page://<opaque id>, and they still render, page after page, offline.
@@ -49,6 +50,14 @@ async function seededProfile(): Promise<{ userDataDir: string; mangaId: string }
     startedAt: now,
     completedAt: now,
   });
+  // This proof is about page files, not layout: pin single-page LTR so Auto's
+  // landscape spreads do not put two pages in one shot. Missing fields read as
+  // their defaults (sanitizeReaderSettings fills them per field).
+  native.client.exec(
+    `INSERT INTO reader_preferences (id, settings_json, updated_at)
+       VALUES ('global', '{"readingMode":"ltr","pageLayout":"single"}', '${now}')
+       ON CONFLICT(id) DO UPDATE SET settings_json = excluded.settings_json, updated_at = excluded.updated_at`,
+  );
   native.close();
   return { userDataDir: directory, mangaId: `dev-md-${MANGADEX_MANGA_ID}` };
 }
@@ -202,6 +211,7 @@ async function expectPageRendered(page: Page): Promise<string> {
 }
 
 async function readPages(page: Page): Promise<string[]> {
+  await showReaderControls(page);
   const sources = [await expectPageRendered(page)];
   for (let index = 2; index <= PAGES_READ; index += 1) {
     await page.getByRole('button', { name: 'Next page', exact: true }).click();

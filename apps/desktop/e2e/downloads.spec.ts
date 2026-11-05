@@ -15,6 +15,7 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { _electron, expect, test, type ElectronApplication, type Page } from '@playwright/test';
+import { showReaderControls } from './reader-controls.js';
 
 // #222 on the production build: download a chapter, kill the app mid-download, reopen and
 // resume, read it offline from page:// files, remove it, and prove a real cache eviction keeps
@@ -270,6 +271,7 @@ test('Given a download interrupted by a kill, When the app reopens, Then it resu
   await second.page.getByRole('button', { name: CHAPTER_BUTTON }).first().click({ force: true });
   await expect(second.page.getByText(`1 / ${PAGE_COUNT}`)).toBeVisible({ timeout: 30_000 });
   const firstPage = await expectPageRendered(second.page);
+  await showReaderControls(second.page);
   await second.page.getByRole('button', { name: 'Next page', exact: true }).click();
   await expect(second.page.getByText(`2 / ${PAGE_COUNT}`)).toBeVisible();
   const secondPage = await expectPageRendered(second.page);
