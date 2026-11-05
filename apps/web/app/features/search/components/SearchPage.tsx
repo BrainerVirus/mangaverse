@@ -86,9 +86,13 @@ function toContentRating(value: string): ContentRating | undefined {
   }
 }
 
-/** A stable ref callback, so it runs on mount only and never steals focus on a re-render. */
+/**
+ * A stable ref callback, so it runs on mount only and never steals focus on a re-render.
+ * Touch devices are skipped: focusing there pops the on-screen keyboard over the results.
+ */
 function focusOnMount(input: HTMLInputElement | null): void {
-  input?.focus();
+  if (input === null || typeof window === 'undefined') return;
+  if (window.matchMedia?.('(pointer: fine)').matches === true) input.focus();
 }
 
 const NO_PROVIDERS: readonly SearchProviderOption[] = [];

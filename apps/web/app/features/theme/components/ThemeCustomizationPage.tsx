@@ -284,7 +284,7 @@ export function ThemeCustomizationPage({
   if (isLoading) {
     return (
       <section aria-label="Theme" className="mx-auto w-full max-w-5xl p-6">
-        <LoadingState type="list" />
+        <LoadingState type="list" count={3} />
       </section>
     );
   }

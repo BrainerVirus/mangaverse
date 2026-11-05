@@ -17,6 +17,8 @@ export interface NavItem {
   readonly label: string;
   readonly to: string;
   readonly icon: LucideIcon;
+  /** Extra path prefixes that keep this item current, for pages reached through its hub. */
+  readonly activeFor?: readonly string[];
 }
 
 export interface NavGroup {
@@ -28,7 +30,12 @@ const discover = { label: 'Discover', to: '/discover', icon: Compass } as const;
 const library = { label: 'Library', to: '/library', icon: BookOpen } as const;
 const search = { label: 'Search', to: '/search', icon: Search } as const;
 const extensions = { label: 'Extensions', to: '/extensions', icon: Puzzle } as const;
-const settings = { label: 'Settings', to: '/settings', icon: Settings } as const;
+const settings = {
+  label: 'Settings',
+  to: '/settings',
+  icon: Settings,
+  activeFor: ['/backup', '/storage', '/theme', '/onboarding', '/advanced'],
+} as const;
 
 /**
  * Desktop sidebar. Backup, Onboarding and the Advanced tools are not listed: the Settings hub
@@ -53,7 +60,19 @@ export const mobileMoreItems: readonly NavItem[] = [
   { label: 'Migration', to: '/advanced/migration', icon: ArrowRightLeft },
 ];
 
-/** The Advanced hub is only current on itself: each tool below it has its own entry. */
-export function isNavActive(currentPath: string, to: string): boolean {
-  return currentPath === to || (to !== '/advanced' && currentPath.startsWith(to + '/'));
+function matchesPrefix(currentPath: string, prefix: string): boolean {
+  return currentPath === prefix || currentPath.startsWith(prefix + '/');
+}
+
+/**
+ * The Advanced hub is only current on itself: each tool below it has its own entry. Items with
+ * `activeFor` also stay current on the pages their hub links to.
+ */
+export function isNavActive(currentPath: string, item: Pick<NavItem, 'to' | 'activeFor'>): boolean {
+  const { to, activeFor = [] } = item;
+  return (
+    currentPath === to ||
+    (to !== '/advanced' && currentPath.startsWith(to + '/')) ||
+    activeFor.some((prefix) => matchesPrefix(currentPath, prefix))
+  );
 }

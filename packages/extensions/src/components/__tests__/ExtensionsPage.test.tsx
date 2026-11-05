@@ -41,7 +41,7 @@ function renderPage(overrides: Partial<Parameters<typeof ExtensionsPage>[0]> = {
 }
 
 describe('ExtensionsPage registry actions', () => {
-  it('Given installed providers, Then Install provider and Import lead the header and Export sits with the registries', async () => {
+  it('Given installed providers and no registries, Then Export extensions stands alone without a registries heading', async () => {
     const user = userEvent.setup();
     const { onImportRegistry, onExportExtensions } = renderPage();
 
@@ -52,14 +52,26 @@ describe('ExtensionsPage registry actions', () => {
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Import' }));
-    const registries = screen.getByRole('region', { name: 'Imported registries' });
-    const exportButton = within(registries).getByRole('button', {
-      name: 'Export installed extensions',
-    });
-    expect(exportButton).toHaveTextContent('Export');
-    await user.click(exportButton);
+    expect(screen.queryByRole('heading', { name: 'Imported registries' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Imported registries' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Export extensions' }));
 
     expect(onImportRegistry).toHaveBeenCalledTimes(1);
+    expect(onExportExtensions).toHaveBeenCalledTimes(1);
+  });
+
+  it('Given installed providers and imported registries, Then Export extensions sits beside the registries heading', async () => {
+    const user = userEvent.setup();
+    const { onExportExtensions } = renderPage({
+      data: {
+        providers: [INSTALLED],
+        registries: [{ name: 'Main registry', registryUrl: 'https://reg.example/index.json' }],
+      },
+    });
+
+    const registries = screen.getByRole('region', { name: 'Imported registries' });
+    await user.click(within(registries).getByRole('button', { name: 'Export extensions' }));
+
     expect(onExportExtensions).toHaveBeenCalledTimes(1);
   });
 

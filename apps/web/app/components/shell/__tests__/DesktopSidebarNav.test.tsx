@@ -9,11 +9,13 @@ Object.defineProperty(globalThis, 'localStorage', {
   writable: true,
 });
 
+const route = vi.hoisted(() => ({ pathname: '/library' }));
+
 vi.mock('@tanstack/react-router', () => ({
   useRouterState: (opts?: { select?: (state: { location: { pathname: string } }) => unknown }) =>
     opts?.select
-      ? opts.select({ location: { pathname: '/library' } })
-      : { location: { pathname: '/library' } },
+      ? opts.select({ location: { pathname: route.pathname } })
+      : { location: { pathname: route.pathname } },
   useRouter: () => ({ navigate: vi.fn<(options: unknown) => void>(), subscribe: () => () => {} }),
   useNavigate: () => vi.fn<() => void>(),
   Link: ({ children, to, ...props }: { to: string; children: React.ReactNode }) => (
@@ -60,6 +62,7 @@ async function renderSidebar(expanded: boolean) {
 // `inline-flex items-center` and the icon stacks above the label.
 describe('DesktopSidebar nav link classes', () => {
   beforeEach(() => {
+    route.pathname = '/library';
     useLayoutStore.setState({ sidebarOpen: true, sidebarExpanded: true, deviceLayout: 'desktop' });
   });
 
@@ -102,4 +105,18 @@ describe('DesktopSidebar nav link classes', () => {
     expect(container.querySelector('ul[aria-label="Browse"]')).not.toBeNull();
     cleanup();
   });
+
+  it.each(['/backup', '/storage', '/theme', '/onboarding', '/advanced', '/advanced/diagnostics'])(
+    'keeps Settings current on the hub-linked route %s',
+    async (pathname) => {
+      route.pathname = pathname;
+      const { container, cleanup } = await renderSidebar(true);
+      expect(container.querySelector('a[aria-label="Settings"]')).toHaveAttribute(
+        'aria-current',
+        'page',
+      );
+      expect(container.querySelectorAll('a[aria-current="page"]')).toHaveLength(1);
+      cleanup();
+    },
+  );
 });

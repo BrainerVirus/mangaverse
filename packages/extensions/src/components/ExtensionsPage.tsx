@@ -201,6 +201,20 @@ function RegistryList({
   onExportExtensions: () => void;
 }) {
   if (registries.length === 0 && !hasProviders) return null;
+  const exportButton = hasProviders ? (
+    <Button
+      type="button"
+      variant="secondary"
+      size="sm"
+      onClick={onExportExtensions}
+      disabled={isExporting}
+    >
+      {isExporting ? 'Exporting…' : 'Export extensions'}
+    </Button>
+  ) : null;
+  if (registries.length === 0) {
+    return <div className="flex justify-end">{exportButton}</div>;
+  }
   return (
     <section aria-label="Imported registries" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -211,18 +225,7 @@ function RegistryList({
             provider from its manifest URL to use it.
           </p>
         </div>
-        {hasProviders ? (
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            aria-label={isExporting ? 'Exporting…' : 'Export installed extensions'}
-            onClick={onExportExtensions}
-            disabled={isExporting}
-          >
-            {isExporting ? 'Exporting…' : 'Export'}
-          </Button>
-        ) : null}
+        {exportButton}
       </div>
       <ul className="flex flex-col gap-2">
         {registries.map((registry) => (

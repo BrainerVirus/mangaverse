@@ -176,7 +176,7 @@ function ThemeStep({
       <header className="flex flex-col gap-2">
         <h1
           id="onboarding-step-theme"
-          className="text-2xl font-semibold tracking-tight text-foreground"
+          className="type-title text-foreground"
         >
           Choose your look
         </h1>
@@ -298,7 +298,7 @@ function ReadingStep({
       <header className="flex flex-col gap-2">
         <h1
           id="onboarding-step-reading"
-          className="text-2xl font-semibold tracking-tight text-foreground"
+          className="type-title text-foreground"
         >
           Reading defaults
         </h1>
@@ -349,7 +349,7 @@ function PreferencesStep({
       <header className="flex flex-col gap-2">
         <h1
           id="onboarding-step-preferences"
-          className="text-2xl font-semibold tracking-tight text-foreground"
+          className="type-title text-foreground"
         >
           Language and content
         </h1>
@@ -424,7 +424,7 @@ function ProviderStep({ onInstallProvider }: { onInstallProvider: () => void }) 
       <header className="flex flex-col gap-2">
         <h1
           id="onboarding-step-provider"
-          className="text-2xl font-semibold tracking-tight text-foreground"
+          className="type-title text-foreground"
         >
           Add your first provider
         </h1>
@@ -472,7 +472,7 @@ export function OnboardingPage({
 }: OnboardingPageProps) {
   if (isLoading) {
     return (
-      <section aria-label="Onboarding" className="mx-auto w-full max-w-3xl p-6">
+      <section aria-label="Onboarding" className="mx-auto w-full max-w-2xl p-6">
         <LoadingState type="list" />
       </section>
     );
@@ -486,7 +486,7 @@ export function OnboardingPage({
     readerSettings === undefined
   ) {
     return (
-      <section aria-label="Onboarding" className="mx-auto w-full max-w-3xl p-6">
+      <section aria-label="Onboarding" className="mx-auto w-full max-w-2xl p-6">
         <ErrorState
           title="Could not load onboarding"
           message="Local setup data failed to load. Try again in a moment."

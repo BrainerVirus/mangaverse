@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { MangaIdentity } from '@app/shared';
@@ -322,7 +322,20 @@ describe('SearchPage', () => {
       onSaveSearch: () => {},
     } as const;
 
+    const stubPointer = (fine: boolean) =>
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: fine && query === '(pointer: fine)',
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }));
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
     it('puts a focused, 44px search field under the title', () => {
+      stubPointer(true);
       render(
         <SearchPage
           {...baseProps}
@@ -339,6 +352,20 @@ describe('SearchPage', () => {
       expect(
         screen.getByText('Search your library and your enabled providers.'),
       ).toBeInTheDocument();
+    });
+
+    it('does not autofocus the search field on a touch pointer', () => {
+      stubPointer(false);
+      render(
+        <SearchPage
+          {...baseProps}
+          data={makeData('')}
+          viewState={{ query: '' }}
+          onViewStateChange={() => {}}
+        />,
+      );
+
+      expect(screen.getByRole('searchbox', { name: 'Search manga' })).not.toHaveFocus();
     });
 
     it('offers neither Save search nor a Saved searches label before a query', () => {

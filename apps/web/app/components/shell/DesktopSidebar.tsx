@@ -109,7 +109,7 @@ export function DesktopSidebar() {
                 <li key={item.to}>
                   <SidebarNavLink
                     {...item}
-                    active={isNavActive(currentPath, item.to)}
+                    active={isNavActive(currentPath, item)}
                     expanded={visuallyExpanded}
                   />
                 </li>

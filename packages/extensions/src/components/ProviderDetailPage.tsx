@@ -436,7 +436,7 @@ function ActivitySection({
         </div>
 
         {activity.isLoading ? (
-          <LoadingState type="list" />
+          <LoadingState type="list" count={3} />
         ) : activity.error !== null ? (
           <Alert variant="destructive">
             <AlertTitle>Could not load activity</AlertTitle>

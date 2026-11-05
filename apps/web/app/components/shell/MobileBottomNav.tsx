@@ -23,8 +23,9 @@ function SheetLinks({
 }) {
   return (
     <div className="flex flex-col gap-1 px-2">
-      {items.map(({ label, to, icon: Icon }) => {
-        const isActive = isNavActive(currentPath, to);
+      {items.map((item) => {
+        const { label, to, icon: Icon } = item;
+        const isActive = isNavActive(currentPath, item);
         return (
           <Link
             key={to}
@@ -75,8 +76,9 @@ export function MobileBottomNav() {
           {/* Equal-width tabs: five `flex-1 basis-0` items share the bar, so the
               longest label truncates instead of pushing the row past 320px. */}
           <div className="safe-area-x flex h-14 items-stretch">
-            {mobileTabs.map(({ label, to, icon: Icon }) => {
-              const isActive = isNavActive(currentPath, to);
+            {mobileTabs.map((item) => {
+              const { label, to, icon: Icon } = item;
+              const isActive = isNavActive(currentPath, item);
               return (
                 <Link
                   key={to}
