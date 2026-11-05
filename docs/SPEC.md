@@ -185,7 +185,7 @@ Reader settings must include:
 - Reading mode: Auto (title choice, page shape, provider tags, then the default), RTL manga, LTR comic, vertical/webtoon.
 - Page layout: Auto (spreads in landscape, single in portrait), single page, double page, smart spread.
 - Spread offset: cover alone or offset by one, per title.
-- Max strip width: Auto (full width on phones, about 70% on wide screens) or an explicit 40-100%.
+- Max strip width: Auto (stored as 100: full width on phones, about 70% on wide screens) or an explicit 40-99%.
 - Page number and chapter transition screen visibility.
 - Fit mode: Auto (screen when paged, width in strips), width, height, contain, cover, original.
 - Tap zones and tap zone overlay.
