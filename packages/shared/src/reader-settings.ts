@@ -16,6 +16,12 @@ export const READER_PRELOAD_MAX = 10;
 /** Upper bound of the strip gap, in pixels; older rows saved up to 2000. */
 export const READER_STRIP_GAP_MAX = 64;
 
+/** Narrowest explicit strip width, as a percentage of the reader. */
+export const READER_STRIP_WIDTH_MIN_PERCENT = 40;
+
+/** A strip width of 100% means Auto: full width on phones, bounded on desktop. */
+export const READER_STRIP_WIDTH_AUTO_PERCENT = 100;
+
 /**
  * `auto` lets the reader decide from the title, the page shapes and the
  * provider metadata (spec R6); the other values are explicit choices.
@@ -144,6 +150,12 @@ function preloadCountSchema(field: string) {
 
 const verticalGapMessage = `verticalGapPx must be between 0 and ${READER_STRIP_GAP_MAX}.`;
 
+const stripWidthMessage = `maxStripWidthPercent must be a whole number between ${READER_STRIP_WIDTH_MIN_PERCENT} and ${READER_STRIP_WIDTH_AUTO_PERCENT}.`;
+
+const spreadOffsetSchema = z.union([z.literal(0), z.literal(1)], {
+  error: 'spreadOffset must be 0 or 1.',
+});
+
 const readerSettingsFields = {
   readingMode: readingModeSchema,
   pageLayout: pageLayoutSchema,
@@ -199,6 +211,23 @@ const readerSettingsFields = {
   longStripOptimization: z.boolean({ error: 'longStripOptimization must be boolean.' }),
   lowMemoryMode: z.boolean({ error: 'lowMemoryMode must be boolean.' }),
   diagnosticsEnabled: z.boolean({ error: 'diagnosticsEnabled must be boolean.' }),
+  /**
+   * Spread alignment in double layouts: 0 shows the first page alone as a
+   * cover, 1 pairs from the first page ("offset by one").
+   */
+  spreadOffset: spreadOffsetSchema.default(0),
+  /** Strip width as a percentage of the reader; 100 is Auto. */
+  maxStripWidthPercent: z
+    .number({ error: stripWidthMessage })
+    .int({ error: stripWidthMessage })
+    .min(READER_STRIP_WIDTH_MIN_PERCENT, { error: stripWidthMessage })
+    .max(READER_STRIP_WIDTH_AUTO_PERCENT, { error: stripWidthMessage })
+    .default(READER_STRIP_WIDTH_AUTO_PERCENT),
+  showPageNumber: z.boolean({ error: 'showPageNumber must be boolean.' }).default(true),
+  /** Whether reaching the chapter end opens the transition screen. */
+  showChapterTransition: z
+    .boolean({ error: 'showChapterTransition must be boolean.' })
+    .default(true),
   // Last so a malformed array is reported after the scalar fields, as before.
   keyboardShortcuts: keyboardShortcutListSchema,
 };
@@ -236,6 +265,8 @@ export type NavigationDirection = z.infer<typeof navigationDirectionSchema>;
 export type WheelBehavior = z.infer<typeof wheelBehaviorSchema>;
 
 export type ReaderChromeVisibility = z.infer<typeof chromeVisibilitySchema>;
+
+export type SpreadOffset = z.infer<typeof spreadOffsetSchema>;
 
 export type KeyboardShortcut = z.infer<typeof keyboardShortcutSchema>;
 
@@ -287,6 +318,10 @@ export function getDefaultReaderSettings(): ReaderSettings {
     longStripOptimization: true,
     lowMemoryMode: false,
     diagnosticsEnabled: false,
+    spreadOffset: 0,
+    maxStripWidthPercent: READER_STRIP_WIDTH_AUTO_PERCENT,
+    showPageNumber: true,
+    showChapterTransition: true,
   };
 }
 

@@ -20,9 +20,11 @@ import { useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import {
   KEYBOARD_SHORTCUT_ACTION_LABELS,
   KEYBOARD_SHORTCUT_ACTIONS,
-  PREFETCH_BUDGET_MAX_BYTES,
+  PREFETCH_BUDGET_DEFAULT_BYTES,
   READER_PRELOAD_MAX,
   READER_STRIP_GAP_MAX,
+  READER_STRIP_WIDTH_AUTO_PERCENT,
+  READER_STRIP_WIDTH_MIN_PERCENT,
   defaultKeyboardShortcuts,
   findKeyboardShortcutConflict,
   formatKeyboardShortcut,
@@ -37,6 +39,7 @@ import {
   type ReaderChromeVisibility,
   type ReaderSettings,
   type ReadingMode,
+  type SpreadOffset,
   type TapZoneLayout,
   type WheelBehavior,
 } from '@app/shared';
@@ -107,9 +110,44 @@ const WHEEL_BEHAVIOR_OPTIONS: readonly { value: WheelBehavior; label: string }[]
   { value: 'none', label: 'Disabled' },
 ];
 
-const PREFETCH_BUDGET_MIB = 1024 * 1024;
-/** 2 MiB divides both the 250 MiB default and the 2 GiB cap, so every tick is reachable. */
-const PREFETCH_BUDGET_STEP_MIB = 2;
+const SPREAD_OFFSET_OPTIONS: readonly { value: `${SpreadOffset}`; label: string }[] = [
+  { value: '0', label: 'Cover alone' },
+  { value: '1', label: 'Offset by one' },
+];
+
+const MIB = 1024 * 1024;
+
+const PREFETCH_BUDGET_PRESETS: readonly { value: string; label: string }[] = [
+  { value: '0', label: 'Unlimited' },
+  { value: String(100 * MIB), label: '100 MB' },
+  { value: String(PREFETCH_BUDGET_DEFAULT_BYTES), label: '250 MB (default)' },
+  { value: String(500 * MIB), label: '500 MB' },
+  { value: String(1024 * MIB), label: '1 GB' },
+];
+
+const PREFETCH_BUDGET_CUSTOM = 'custom';
+
+/**
+ * The budget presets, plus "Custom" while the stored value matches none of
+ * them: a value saved by an older build is shown as is, never clamped.
+ */
+function prefetchBudgetChoice(bytes: number): {
+  readonly value: string;
+  readonly options: readonly { value: string; label: string }[];
+} {
+  const value = String(bytes);
+  if (PREFETCH_BUDGET_PRESETS.some((preset) => preset.value === value)) {
+    return { value, options: PREFETCH_BUDGET_PRESETS };
+  }
+  return {
+    value: PREFETCH_BUDGET_CUSTOM,
+    options: [...PREFETCH_BUDGET_PRESETS, { value: PREFETCH_BUDGET_CUSTOM, label: 'Custom' }],
+  };
+}
+
+function formatStripWidth(percent: number): string {
+  return percent >= READER_STRIP_WIDTH_AUTO_PERCENT ? '100% (auto)' : `${percent}%`;
+}
 
 function SettingToggleRow({
   id,
@@ -443,6 +481,93 @@ export function GestureSettingsSection({
   );
 }
 
+export function DisplaySettingsSection({
+  settings,
+  update,
+  commit,
+  onInteractionEnd,
+}: {
+  readonly settings: ReaderSettings;
+  readonly update: (patch: Partial<ReaderSettings>) => void;
+  readonly commit: (patch: Partial<ReaderSettings>) => void;
+  readonly onInteractionEnd: (() => void) | undefined;
+}) {
+  return (
+    <SettingsSection title="Display" description="Reader chrome, transitions, and background.">
+      <div className="grid gap-4">
+        <SettingSelectRow
+          id="chrome-visibility"
+          label="Reader chrome"
+          description="Controls visibility of the top and bottom toolbars."
+          value={settings.chromeVisibility}
+          options={CHROME_VISIBILITY_OPTIONS}
+          onChange={(chromeVisibility) =>
+            commit({ chromeVisibility: chromeVisibility as ReaderChromeVisibility })
+          }
+        />
+        <SettingSelectRow
+          id="page-transition"
+          label="Page transition"
+          value={settings.pageTransition}
+          options={PAGE_TRANSITION_OPTIONS}
+          onChange={(pageTransition) =>
+            commit({ pageTransition: pageTransition as PageTransitionMode })
+          }
+        />
+        <div className="grid gap-2">
+          <Label htmlFor="background-color">Background color</Label>
+          <Input
+            id="background-color"
+            type="color"
+            value={settings.backgroundColor}
+            className="h-10 w-20 cursor-pointer p-1"
+            onBlur={onInteractionEnd}
+            onChange={(event) => update({ backgroundColor: event.target.value })}
+          />
+        </div>
+        <SettingSliderRow
+          id="vertical-gap"
+          label="Vertical gap"
+          description="Space between strips in vertical reading mode (pixels)."
+          value={settings.verticalGapPx}
+          min={0}
+          max={READER_STRIP_GAP_MAX}
+          step={1}
+          formatValue={(value) => `${value}px`}
+          onChange={(verticalGapPx) => update({ verticalGapPx })}
+          onCommit={onInteractionEnd}
+        />
+        <SettingSliderRow
+          id="max-strip-width"
+          label="Max strip width"
+          description="Width of the vertical strip. 100% is Auto: full width on phones, about 70% on screens 1024px and wider."
+          value={settings.maxStripWidthPercent}
+          min={READER_STRIP_WIDTH_MIN_PERCENT}
+          max={READER_STRIP_WIDTH_AUTO_PERCENT}
+          step={5}
+          formatValue={formatStripWidth}
+          onChange={(maxStripWidthPercent) => update({ maxStripWidthPercent })}
+          onCommit={onInteractionEnd}
+        />
+        <SettingToggleRow
+          id="show-page-number"
+          label="Page number"
+          description="Show the current page beside the chapter title."
+          checked={settings.showPageNumber}
+          onCheckedChange={(showPageNumber) => commit({ showPageNumber })}
+        />
+        <SettingToggleRow
+          id="show-chapter-transition"
+          label="Chapter transition screen"
+          description="At the end of a chapter, offer the next one. Off keeps you on the last page."
+          checked={settings.showChapterTransition}
+          onCheckedChange={(showChapterTransition) => commit({ showChapterTransition })}
+        />
+      </div>
+    </SettingsSection>
+  );
+}
+
 export function ReaderSettingsPage({
   settings,
   isLoading,
@@ -530,6 +655,14 @@ export function ReaderSettingsPage({
               onChange={(pageLayout) => commit({ pageLayout: pageLayout as PageLayoutMode })}
             />
             <SettingSelectRow
+              id="spread-offset"
+              label="Spread offset"
+              description="Which pages pair up in double layouts. Offset by one fixes spreads split by a credits page."
+              value={String(settings.spreadOffset)}
+              options={SPREAD_OFFSET_OPTIONS}
+              onChange={(offset) => commit({ spreadOffset: offset === '1' ? 1 : 0 })}
+            />
+            <SettingSelectRow
               id="fit-mode"
               label="Page fit"
               value={settings.fitMode}
@@ -583,52 +716,12 @@ export function ReaderSettingsPage({
 
         <GestureSettingsSection settings={settings} onChange={update} onCommit={onInteractionEnd} />
 
-        <SettingsSection title="Display" description="Reader chrome, transitions, and background.">
-          <div className="grid gap-4">
-            <SettingSelectRow
-              id="chrome-visibility"
-              label="Reader chrome"
-              description="Controls visibility of the top and bottom toolbars."
-              value={settings.chromeVisibility}
-              options={CHROME_VISIBILITY_OPTIONS}
-              onChange={(chromeVisibility) =>
-                commit({ chromeVisibility: chromeVisibility as ReaderChromeVisibility })
-              }
-            />
-            <SettingSelectRow
-              id="page-transition"
-              label="Page transition"
-              value={settings.pageTransition}
-              options={PAGE_TRANSITION_OPTIONS}
-              onChange={(pageTransition) =>
-                commit({ pageTransition: pageTransition as PageTransitionMode })
-              }
-            />
-            <div className="grid gap-2">
-              <Label htmlFor="background-color">Background color</Label>
-              <Input
-                id="background-color"
-                type="color"
-                value={settings.backgroundColor}
-                className="h-10 w-20 cursor-pointer p-1"
-                onBlur={onInteractionEnd}
-                onChange={(event) => update({ backgroundColor: event.target.value })}
-              />
-            </div>
-            <SettingSliderRow
-              id="vertical-gap"
-              label="Vertical gap"
-              description="Space between strips in vertical reading mode (pixels)."
-              value={settings.verticalGapPx}
-              min={0}
-              max={READER_STRIP_GAP_MAX}
-              step={1}
-              formatValue={(value) => `${value}px`}
-              onChange={(verticalGapPx) => update({ verticalGapPx })}
-              onCommit={onInteractionEnd}
-            />
-          </div>
-        </SettingsSection>
+        <DisplaySettingsSection
+          settings={settings}
+          update={update}
+          commit={commit}
+          onInteractionEnd={onInteractionEnd}
+        />
 
         <SettingsSection title="Behavior" description="Screen, fullscreen and image preferences.">
           <div className="grid gap-4">
@@ -680,17 +773,15 @@ export function ReaderSettingsPage({
               onChange={(preloadBehind) => update({ preloadBehind })}
               onCommit={onInteractionEnd}
             />
-            <SettingSliderRow
+            <SettingSelectRow
               id="prefetch-budget"
               label="Prefetch budget"
-              description="Stop prefetching after this much newly downloaded data; cached pages are free. Set to 0 for unlimited."
-              value={Math.round(settings.prefetchBudgetBytes / PREFETCH_BUDGET_MIB)}
-              min={0}
-              max={PREFETCH_BUDGET_MAX_BYTES / PREFETCH_BUDGET_MIB}
-              step={PREFETCH_BUDGET_STEP_MIB}
-              formatValue={(mib) => (mib === 0 ? 'Unlimited' : `${mib} MiB`)}
-              onChange={(mib) => update({ prefetchBudgetBytes: mib * PREFETCH_BUDGET_MIB })}
-              onCommit={onInteractionEnd}
+              description="Stop prefetching after this much newly downloaded data; cached pages are free."
+              {...prefetchBudgetChoice(settings.prefetchBudgetBytes)}
+              onChange={(choice) => {
+                if (choice === PREFETCH_BUDGET_CUSTOM) return;
+                commit({ prefetchBudgetBytes: Number(choice) });
+              }}
             />
           </div>
         </SettingsSection>

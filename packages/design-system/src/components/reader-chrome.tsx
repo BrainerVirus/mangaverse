@@ -25,6 +25,8 @@ export interface ReaderChromeProps {
   sourceName?: string;
   currentPage: number;
   totalPages: number;
+  /** The "3 / 20" page badge beside the title; the rail and its numbers stay. */
+  showPageNumber?: boolean;
   onPageChange?: (page: number) => void;
   mode?: ReaderMode;
   onModeChange?: (mode: ReaderMode) => void;
@@ -51,6 +53,7 @@ export function ReaderChrome({
   sourceName,
   currentPage,
   totalPages,
+  showPageNumber = true,
   onPageChange,
   mode = 'single',
   onModeChange,
@@ -172,13 +175,16 @@ export function ReaderChrome({
               {sourceName}
             </span>
           ) : null}
-          <Badge
-            size="meta"
-            variant="secondary"
-            className="shrink-0 whitespace-nowrap border border-glass-edge bg-glass-plate text-stage-foreground"
-          >
-            {currentPage} / {totalPages}
-          </Badge>
+          {showPageNumber ? (
+            <Badge
+              size="meta"
+              variant="secondary"
+              className="shrink-0 whitespace-nowrap border border-glass-edge bg-glass-plate text-stage-foreground"
+              data-testid="reader-page-number"
+            >
+              {currentPage} / {totalPages}
+            </Badge>
+          ) : null}
         </div>
 
         <div className="flex w-full shrink-0 items-center justify-end gap-2 sm:w-auto">

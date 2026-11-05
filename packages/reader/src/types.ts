@@ -104,6 +104,8 @@ export interface ReaderEngineSettings {
   readonly lowMemoryMode: boolean;
   readonly wheelBehavior: 'none' | 'scroll' | 'zoom';
   readonly verticalGapPx: number;
+  /** The strip width setting; 100 (or absent) is Auto, see `resolveStripMaxWidthPercent`. */
+  readonly maxStripWidthPercent?: number;
   /** Populated by toReaderEngineSettings; optional so hand-built engine settings stay valid. */
   readonly pageTransition?: PageTransitionMode;
   readonly pinchSensitivity?: number;

@@ -68,13 +68,35 @@ vi.mock('@app/design-system', async () => {
     ErrorState: () => null,
     GlassSurface: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
     LoadingState: () => null,
+    // The chrome reduced to what the reader passes it; Next mirrors the real
+    // chrome, which hands the last page's Next to `onChapterEnd` when present.
     ReaderChrome: (props: {
       sourceName?: string;
+      currentPage: number;
+      totalPages: number;
+      showPageNumber?: boolean;
+      onChapterEnd?: () => void;
+      onPageChange?: (page: number) => void;
       onOpenChapterActions?: () => void;
       onOpenSettings?: () => void;
     }) => (
-      <div data-testid="chrome">
+      <div data-testid="chrome" data-current-page={props.currentPage}>
         {props.sourceName ? <span data-testid="chrome-source">{props.sourceName}</span> : null}
+        {props.showPageNumber === false ? null : (
+          <span data-testid="chrome-page-number">
+            {props.currentPage} / {props.totalPages}
+          </span>
+        )}
+        <button
+          disabled={props.currentPage >= props.totalPages && !props.onChapterEnd}
+          onClick={() =>
+            props.currentPage < props.totalPages
+              ? props.onPageChange?.(props.currentPage + 1)
+              : props.onChapterEnd?.()
+          }
+        >
+          Chrome next
+        </button>
         <button onClick={props.onOpenChapterActions}>Chapter actions</button>
         <button onClick={props.onOpenSettings}>Settings</button>
       </div>
@@ -84,6 +106,8 @@ vi.mock('@app/design-system', async () => {
     SheetContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
     SheetHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
     SheetTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
+    Input: (props: Record<string, unknown>) => <input {...(props as object)} />,
+    Slider: (props: Record<string, unknown>) => <input type="range" {...(props as object)} />,
     useStateReducer: (reducer: (state: unknown, event: unknown) => unknown, initial: unknown) =>
       useReducer(reducer as never, initial),
   };
@@ -116,8 +140,12 @@ import { ReaderScreen } from './ReaderScreen.js';
 import { toReaderEngineSettings } from '../to-reader-engine-settings.js';
 import type { ReaderPageData } from '../reader-page-data.js';
 
-function buildData(overrides: Partial<ReaderSettings> = {}): ReaderPageData {
-  const settings = { ...getDefaultReaderSettings(), ...overrides };
+function buildData(
+  overrides: Partial<ReaderSettings> = {},
+  titleOverrides: Partial<ReaderSettings> = {},
+): ReaderPageData {
+  const globalSettings = { ...getDefaultReaderSettings(), ...overrides };
+  const settings = { ...globalSettings, ...titleOverrides };
   const pages = Array.from({ length: 5 }, (_value, index) => ({
     id: toChapterPageId(`page-${index}`),
     index,
@@ -137,7 +165,9 @@ function buildData(overrides: Partial<ReaderSettings> = {}): ReaderPageData {
     sourceName: 'MangaDex',
     initialPageIndex: 0,
     settings,
-    engineSettings: toReaderEngineSettings(settings),
+    globalSettings,
+    titleOverrides,
+    engineSettings: toReaderEngineSettings(settings, { globalSettings, titleOverrides }),
   };
 }
 
@@ -169,6 +199,18 @@ function buttonNamed(container: HTMLElement, name: string): HTMLButtonElement {
   );
   if (!(button instanceof HTMLButtonElement)) throw new Error(`Missing button: ${name}`);
   return button;
+}
+
+function pressKey(key: string, init: KeyboardEventInit = {}) {
+  act(() => {
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init }),
+    );
+  });
+}
+
+function shownPage(container: HTMLElement): string | undefined {
+  return container.querySelector<HTMLElement>('[data-testid="chrome"]')?.dataset.currentPage;
 }
 
 function cleanup(root: Root, container: HTMLElement) {
@@ -271,5 +313,64 @@ describe('ReaderScreen display settings', () => {
       'Reader diagnostics',
     );
     cleanup(root, container);
+  });
+});
+
+describe('ReaderScreen chapter end', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('Given the transition screen on, When Next is pressed on the last page by key or chrome, Then the transition opens', () => {
+    const { root, container } = renderScreen();
+
+    pressKey('End');
+    expect(shownPage(container)).toBe('5');
+    pressKey('ArrowRight');
+    expect(container.querySelector('dialog')?.textContent).toContain('Chapter complete');
+
+    act(() => buttonNamed(container, 'Back to chapter').click());
+    expect(container.querySelector('dialog')).toBeNull();
+    act(() => buttonNamed(container, 'Chrome next').click());
+    expect(container.querySelector('dialog')?.textContent).toContain('Chapter complete');
+    cleanup(root, container);
+  });
+
+  it('Given the transition screen off, When Next is pressed on the last page, Then the reader stays there and chapter shortcuts still work', () => {
+    const onNextChapter = vi.fn<() => void>();
+    const onPreviousChapter = vi.fn<() => void>();
+    const { root, container } = renderScreen({
+      data: buildData({ showChapterTransition: false }),
+      onNextChapter,
+      onPreviousChapter,
+    });
+
+    pressKey('End');
+    pressKey('ArrowRight');
+    expect(container.querySelector('dialog')).toBeNull();
+    expect(shownPage(container)).toBe('5');
+    // The chrome's Next has no chapter end to hand the press to.
+    expect(buttonNamed(container, 'Chrome next').disabled).toBe(true);
+
+    pressKey('ArrowRight', { shiftKey: true });
+    pressKey('ArrowLeft', { shiftKey: true });
+    expect(onNextChapter).toHaveBeenCalledTimes(1);
+    expect(onPreviousChapter).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('dialog')).toBeNull();
+    cleanup(root, container);
+  });
+});
+
+describe('ReaderScreen page number', () => {
+  it('Given this title turns the page number off, When the chrome renders, Then the badge is gone for it alone', () => {
+    const off = renderScreen({ data: buildData({}, { showPageNumber: false }) });
+    expect(off.container.querySelector('[data-testid="chrome-page-number"]')).toBeNull();
+    cleanup(off.root, off.container);
+
+    const on = renderScreen({ data: buildData() });
+    expect(on.container.querySelector('[data-testid="chrome-page-number"]')?.textContent).toBe(
+      '1 / 5',
+    );
+    cleanup(on.root, on.container);
   });
 });

@@ -1,4 +1,23 @@
+import { READER_STRIP_WIDTH_AUTO_PERCENT } from '@app/shared';
 import type { ReaderPage } from './types.js';
+
+/** Reader width from which Auto bounds the strip instead of filling the screen. */
+const STRIP_AUTO_DESKTOP_MIN_WIDTH = 1024;
+/** Auto strip width on desktop; provisional in spec 07 until tested on real screens. */
+const STRIP_AUTO_DESKTOP_PERCENT = 70;
+
+/**
+ * The strip width, as a percentage of the reader, for a width setting. 100 is
+ * Auto: the whole width under 1024px, about 70% from there up, so a desktop
+ * window never stretches strip pages to its full width. Anything lower is the
+ * user's explicit choice and applies at every width.
+ */
+export function resolveStripMaxWidthPercent(setting: number, viewportWidth: number): number {
+  if (setting < READER_STRIP_WIDTH_AUTO_PERCENT) return setting;
+  return viewportWidth >= STRIP_AUTO_DESKTOP_MIN_WIDTH
+    ? STRIP_AUTO_DESKTOP_PERCENT
+    : READER_STRIP_WIDTH_AUTO_PERCENT;
+}
 
 export interface ScrollPageMetric {
   readonly index: number;

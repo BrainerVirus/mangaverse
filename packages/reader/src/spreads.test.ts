@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { toChapterPageId } from '@app/shared';
+import { getDefaultReaderSettings, toChapterPageId, type SpreadOffset } from '@app/shared';
 import { calculatePageSlots, calculateSpreadPlan, resolveInitialPageIndex } from './spreads';
+import { createReaderState } from './state';
+import { toReaderEngineSettings } from './to-reader-engine-settings';
 import type { ReaderChapter, ReaderEngineSettings, ReaderPage, ReaderSessionInput } from './types';
 
 const mockPages: ReaderPage[] = [
@@ -301,6 +303,63 @@ describe('calculatePageSlots', () => {
     expect(slots[0]!.isLeftPage).toBe(true);
     expect(slots[1]!.isRightPage).toBe(true);
   });
+});
+
+describe('spread offset', () => {
+  const portraitChapter: ReaderChapter = {
+    ...mockChapter,
+    pages: mockPages.map((page) => ({
+      ...page,
+      image: { ...page.image, width: 600, height: 1000 },
+    })),
+  };
+
+  /** Every spread the reader shows, in page order, as the on-screen left-to-right indexes. */
+  function spreadsShown(
+    spreadOffset: SpreadOffset,
+    pageLayout: 'double' | 'smartSpread',
+    readingMode: 'ltr' | 'rtl',
+  ): readonly string[] {
+    const settings = toReaderEngineSettings({
+      ...getDefaultReaderSettings(),
+      spreadOffset,
+      pageLayout,
+      readingMode,
+    });
+    const shown = portraitChapter.pages.map((_page, pageIndex) =>
+      createReaderState({
+        chapter: portraitChapter,
+        viewport: mockViewport,
+        settings,
+        initialPageIndex: pageIndex,
+      }).visiblePageIndexes.join(','),
+    );
+    return [...new Set(shown)];
+  }
+
+  it.each([
+    ['double', 'ltr', ['0', '1,2', '3,4', '5']],
+    ['double', 'rtl', ['0', '2,1', '4,3', '5']],
+    ['smartSpread', 'ltr', ['0', '1,2', '3,4', '5']],
+    ['smartSpread', 'rtl', ['0', '2,1', '4,3', '5']],
+  ] as const)(
+    'Given cover alone in %s %s, When the chapter is paged through, Then the first page shows alone',
+    (pageLayout, readingMode, expected) => {
+      expect(spreadsShown(0, pageLayout, readingMode)).toEqual(expected);
+    },
+  );
+
+  it.each([
+    ['double', 'ltr', ['0,1', '2,3', '4,5']],
+    ['double', 'rtl', ['1,0', '3,2', '5,4']],
+    ['smartSpread', 'ltr', ['0,1', '2,3', '4,5']],
+    ['smartSpread', 'rtl', ['1,0', '3,2', '5,4']],
+  ] as const)(
+    'Given offset by one in %s %s, When the chapter is paged through, Then pairs start at the first page',
+    (pageLayout, readingMode, expected) => {
+      expect(spreadsShown(1, pageLayout, readingMode)).toEqual(expected);
+    },
+  );
 });
 
 describe('calculateSpreadPlan', () => {

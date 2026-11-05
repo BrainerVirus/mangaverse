@@ -67,6 +67,7 @@ function Harness({
   preloadAhead,
   lowMemoryMode,
   longStripOptimization,
+  maxWidthPercent,
   cacheReady = false,
 }: {
   readonly pages: readonly ReaderPage[];
@@ -75,6 +76,7 @@ function Harness({
   readonly preloadAhead?: number;
   readonly lowMemoryMode?: boolean;
   readonly longStripOptimization?: boolean;
+  readonly maxWidthPercent?: number;
   readonly cacheReady?: boolean;
 }) {
   const [active, setActive] = useState(0);
@@ -95,6 +97,7 @@ function Harness({
       {...(preloadAhead === undefined ? {} : { preloadAhead })}
       {...(lowMemoryMode === undefined ? {} : { lowMemoryMode })}
       {...(longStripOptimization === undefined ? {} : { longStripOptimization })}
+      {...(maxWidthPercent === undefined ? {} : { maxWidthPercent })}
       onHandle={(handle) => {
         handleRef.current = handle;
       }}
@@ -117,6 +120,7 @@ function mount(
     readonly preloadAhead?: number;
     readonly lowMemoryMode?: boolean;
     readonly longStripOptimization?: boolean;
+    readonly maxWidthPercent?: number;
     readonly cacheReady?: boolean;
   } = {},
 ): Mounted {
@@ -139,6 +143,9 @@ function mount(
         {...(options.longStripOptimization === undefined
           ? {}
           : { longStripOptimization: options.longStripOptimization })}
+        {...(options.maxWidthPercent === undefined
+          ? {}
+          : { maxWidthPercent: options.maxWidthPercent })}
         {...(options.cacheReady === undefined ? {} : { cacheReady: options.cacheReady })}
       />,
     );
@@ -364,4 +371,47 @@ describe('ReaderScrollView placeholder shape', () => {
 
     unmount(mounted);
   });
+});
+
+describe('ReaderScrollView max strip width', () => {
+  // 2:3 pages, so a row is 1.5 times the strip width.
+  const pages = Array.from({ length: 4 }, (_value, index) => ({
+    id: toChapterPageId(`page-${index}`),
+    index,
+    image: { url: `https://example.com/${index}.jpg`, width: 800, height: 1200 },
+  }));
+
+  function stripAt(width: number, maxWidthPercent?: number) {
+    const mounted = mount(0, {
+      pages,
+      ...(maxWidthPercent === undefined ? {} : { maxWidthPercent }),
+    });
+    Object.defineProperty(mounted.strip, 'clientWidth', { configurable: true, value: width });
+    fireResize();
+    const content = mounted.container.querySelector<HTMLElement>(
+      '[data-testid="reader-scroll-content"]',
+    );
+    if (content === null) throw new Error('the strip rendered no content wrapper');
+    const offsets = JSON.parse(mounted.strip.dataset['pageOffsets'] ?? '[]') as number[];
+    return { mounted, content, secondTop: offsets[1] };
+  }
+
+  it.each([
+    ['Auto on a 999px reader', 999, undefined, '100%', 1499],
+    ['Auto on a 1280px reader', 1280, undefined, '70%', 1344],
+    ['an explicit 80% on a 999px reader', 999, 80, '80%', 1199],
+    ['an explicit 80% on a 1280px reader', 1280, 80, '80%', 1536],
+  ])(
+    'Given %s, When the strip lays out, Then the centred content is %s wide and rows follow that width',
+    (_case, width, maxWidthPercent, expectedWidth, expectedSecondTop) => {
+      const { mounted, content, secondTop } = stripAt(width, maxWidthPercent);
+
+      expect(content.style.width).toBe(expectedWidth);
+      expect(content.classList.contains('mx-auto')).toBe(true);
+      // The scroll container keeps the reader's full width.
+      expect(mounted.strip.classList.contains('w-full')).toBe(true);
+      expect(secondTop).toBe(expectedSecondTop);
+      unmount(mounted);
+    },
+  );
 });
