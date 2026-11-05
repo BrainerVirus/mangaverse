@@ -50,17 +50,23 @@ class LibraryWriteRejected extends Error {
 
 /**
  * What a library title's displayed row depends on. The page counts unread from `chapters`
- * live, and a provider refresh inserts chapters without a recount, so they stay. Read state
- * is left out: the host records every read-state change as an update of the owning entry
- * too (`change-capture.ts`), so it reaches the list as that one row.
+ * and read state live, but neither is listed: the host records every chapter and read-state
+ * change as an update of the owning entry too (`change-capture.ts`), so it reaches the list
+ * as that one row.
  */
 const ITEM_TABLES = [
   'library_entries',
   'library_category_memberships',
   'manga_identities',
   'manga_provider_mappings',
-  'chapters',
 ] as const;
+
+/**
+ * How long a change-driven reload waits for the burst it belongs to to end. A provider refresh
+ * writes one chapter per call, each its own change batch; without this each batch reloads the
+ * page, and a save on a sort a write can move costs a page read per batch.
+ */
+const RELOAD_DELAY_MS = 250;
 
 /**
  * Sorts an entry write cannot move a title in. A progress save writes the unread count,
@@ -172,6 +178,7 @@ export function libraryCollections(
     keyOf: (item) => item.entry.id,
     tables: ITEM_TABLES,
     subscribe,
+    reloadDelayMs: RELOAD_DELAY_MS,
     // An entry change reads that title alone where it cannot have moved.
     rowTable: 'library_entries',
     refreshRow: (entryId) => {
@@ -194,6 +201,7 @@ export function libraryCollections(
       keyOf: () => 'total',
       tables: ITEM_TABLES,
       subscribe,
+      reloadDelayMs: RELOAD_DELAY_MS,
     }),
     loadMore: async () => {
       if (windowLimit(loadedPages()) >= LIBRARY_PAGE_MAX) return;
@@ -218,6 +226,8 @@ export function libraryCollections(
         keyOf: (provider) => provider.id,
         tables: ['manga_provider_mappings', 'library_entries'],
         subscribe,
+        // Every chapter write records an entry update, which this list reloads for.
+        reloadDelayMs: RELOAD_DELAY_MS,
       }),
   };
   store.views.set(key, collections);

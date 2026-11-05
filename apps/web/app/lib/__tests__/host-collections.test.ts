@@ -2,7 +2,7 @@
 // A host-ordered list over a scripted change feed: which changes reload the list whole and
 // which read only the rows they name.
 import type { DataHostChangeEvent, RowChange } from '@app/db/browser';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createHostListCollection, type HostListOptions } from '../host-collections.js';
 
 interface Row {
@@ -27,7 +27,9 @@ function feed() {
 
 async function listOf(
   rows: Row[],
-  options: Partial<Pick<HostListOptions<Row>, 'refreshRow' | 'rowTable' | 'patchRows'>> = {},
+  options: Partial<
+    Pick<HostListOptions<Row>, 'refreshRow' | 'rowTable' | 'patchRows' | 'reloadDelayMs'>
+  > = {},
 ) {
   const changes = feed();
   const host = new Map(rows.map((row) => [row.id, row]));
@@ -114,5 +116,95 @@ describe('host list row refresh', () => {
     await vi.waitFor(() => expect(list.get('a')?.value.label).toBe('Alpha 2'));
     expect(load).toHaveBeenCalledTimes(1);
     expect(refreshRow).not.toHaveBeenCalled();
+  });
+});
+
+describe('host list reload delay', () => {
+  const DELAY = 250;
+  const entryChange = (key: string): RowChange => ({
+    table: 'library_entries',
+    key,
+    op: 'update',
+  });
+  const otherTable: RowChange = { table: 'manga_identities', key: 'manga-a', op: 'update' };
+
+  async function delayed(options: Parameters<typeof listOf>[1] = {}) {
+    const result = await listOf(rows, { reloadDelayMs: DELAY, ...options });
+    // After the first load, which the helper awaits on the real clock.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    return result;
+  }
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('answers a burst of change batches with one load after the delay', async () => {
+    const { list, host, load, emit } = await delayed();
+    host.set('a', { id: 'a', label: 'Alpha 2' });
+    for (let burst = 0; burst < 20; burst += 1) emit(otherTable);
+
+    await vi.advanceTimersByTimeAsync(DELAY - 1);
+    expect(load).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(list.get('a')?.value.label).toBe('Alpha 2');
+
+    // The next burst starts its own delay.
+    emit(otherTable);
+    await vi.advanceTimersByTimeAsync(DELAY);
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it('refetches at once and cancels the reload that was waiting', async () => {
+    const { list, host, load, emit } = await delayed();
+    host.set('a', { id: 'a', label: 'Alpha 2' });
+    emit(otherTable);
+
+    await list.utils.refetch();
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(list.get('a')?.value.label).toBe('Alpha 2');
+
+    await vi.advanceTimersByTimeAsync(DELAY * 4);
+    expect(load).toHaveBeenCalledTimes(1);
+  });
+
+  it('patches rows at once, and schedules the reload a reshape needs', async () => {
+    const { list, host, load, refreshRow, emit } = await delayed();
+    host.set('b', { id: 'b', label: 'Beta 2' });
+    emit(entryChange('b'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(list.get('b')?.value.label).toBe('Beta 2');
+    expect(refreshRow).toHaveBeenCalledTimes(1);
+    expect(load).not.toHaveBeenCalled();
+
+    // A row leaves the list: the patch sees it, and the reload waits out the delay.
+    host.delete('a');
+    emit(entryChange('a'));
+    await vi.advanceTimersByTimeAsync(DELAY - 1);
+    expect(list.has('a')).toBe(true);
+    expect(load).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(list.has('a')).toBe(false);
+  });
+
+  it('runs no reload after the collection stops', async () => {
+    const { list, load, emit } = await delayed();
+    emit(otherTable);
+    await list.cleanup();
+
+    await vi.advanceTimersByTimeAsync(DELAY * 4);
+    expect(load).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('reloads at once without a delay', async () => {
+    vi.useRealTimers();
+    const { list, host, load, emit } = await listOf(rows);
+    host.set('a', { id: 'a', label: 'Alpha 2' });
+    emit(otherTable);
+    await vi.waitFor(() => expect(list.get('a')?.value.label).toBe('Alpha 2'));
+    expect(load).toHaveBeenCalledTimes(1);
   });
 });
