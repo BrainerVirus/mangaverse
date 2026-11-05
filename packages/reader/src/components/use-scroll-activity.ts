@@ -48,13 +48,43 @@ export function useScrollActivity({
   readonly activePageIndex: number;
   readonly measurePages: () => readonly ScrollPageMetric[];
   readonly onActivePageChange: (index: number) => void;
-}): { readonly visibleRange: VisibleRange; readonly handleScroll: () => void } {
+}): {
+  readonly visibleRange: VisibleRange;
+  readonly handleScroll: () => void;
+  readonly refreshRange: (container: HTMLElement) => void;
+} {
   const frameRef = useRef<number | null>(null);
   // Data saver mounts the pages the viewport shows, so the range moves with the
   // scroll even when the centred page does not change.
   const [visibleRange, setVisibleRange] = useStateReducer<VisibleRange, VisibleRange>(
     (_current, next) => next,
     { start: activePageIndex, end: activePageIndex },
+  );
+
+  // Recompute the visible range from the current geometry and scroll position.
+  // The layout effect calls it after every commit, so a resize, a measured
+  // shape or a programmatic jump updates the range without a scroll event.
+  const refreshRange = useCallback(
+    (container: HTMLElement) => {
+      const height = container.clientHeight;
+      const current = geometryWidthRef.current.width > 0 ? metricsRef.current : measurePages();
+      const range = intersectingRange(current, heights, container.scrollTop, height);
+      if (
+        range !== null &&
+        (range.start !== visibleRange.start || range.end !== visibleRange.end)
+      ) {
+        setVisibleRange(range);
+      }
+    },
+    [
+      geometryWidthRef,
+      heights,
+      measurePages,
+      metricsRef,
+      setVisibleRange,
+      visibleRange.end,
+      visibleRange.start,
+    ],
   );
 
   // The active index is read from this render's closure (not a ref written
@@ -76,25 +106,16 @@ export function useScrollActivity({
       if (next !== activePageIndex) {
         onActivePageChange(next);
       }
-      const range = intersectingRange(current, heights, container.scrollTop, height);
-      if (
-        range !== null &&
-        (range.start !== visibleRange.start || range.end !== visibleRange.end)
-      ) {
-        setVisibleRange(range);
-      }
+      refreshRange(container);
     });
   }, [
     activePageIndex,
     containerRef,
     geometryWidthRef,
-    heights,
     measurePages,
     metricsRef,
     onActivePageChange,
-    setVisibleRange,
-    visibleRange.end,
-    visibleRange.start,
+    refreshRange,
   ]);
 
   // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: the pending rAF belongs to the browser frame loop
@@ -107,5 +128,5 @@ export function useScrollActivity({
     };
   }, []);
 
-  return { visibleRange, handleScroll };
+  return { visibleRange, handleScroll, refreshRange };
 }

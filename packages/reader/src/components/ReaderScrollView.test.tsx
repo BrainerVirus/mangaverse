@@ -249,6 +249,21 @@ describe('ReaderScrollView strip rows', () => {
     expect(mounted.container.querySelectorAll('[data-page-index]').length).toBeGreaterThan(1);
     unmount(mounted);
   });
+
+  it('Given data saver, When the viewport grows over a page boundary, Then both now-visible pages mount', () => {
+    const mounted = mount(8, { dataSaver: true, cacheReady: true });
+    stubStrip(mounted.container, 100, 100);
+    expect([...mounted.container.querySelectorAll('img')].map((image) => image.alt)).toEqual([
+      'Page 1',
+    ]);
+
+    Object.defineProperty(mounted.strip, 'clientHeight', { configurable: true, value: 200 });
+    fireResize();
+
+    const alts = [...mounted.container.querySelectorAll('img')].map((image) => image.alt);
+    expect(alts).toEqual(expect.arrayContaining(['Page 1', 'Page 2']));
+    unmount(mounted);
+  });
 });
 
 describe('ReaderScrollView metrics', () => {

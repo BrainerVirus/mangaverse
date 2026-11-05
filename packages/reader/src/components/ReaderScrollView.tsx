@@ -513,6 +513,16 @@ export function ReaderScrollView({
     return () => observer.disconnect();
   }, [dispatchGeometry]);
 
+  const { visibleRange, handleScroll, refreshRange } = useScrollActivity({
+    containerRef,
+    geometryWidthRef: geometryRef,
+    metricsRef,
+    heights,
+    activePageIndex,
+    measurePages,
+    onActivePageChange,
+  });
+
   // React commits are the only place a row can enter/leave the DOM; after each
   // one, finish a pending jump against the row that just mounted.
   useLayoutEffect(() => {
@@ -522,6 +532,7 @@ export function ReaderScrollView({
     pagesRef.current = pages;
     const pending = pendingCorrectionRef.current;
     const container = containerRef.current;
+    if (container !== null) refreshRange(container);
     if (pending !== null && container !== null) {
       const node = container.querySelector<HTMLElement>(`[data-page-index="${pending.index}"]`);
       if (node !== null) {
@@ -582,16 +593,6 @@ export function ReaderScrollView({
     },
     [dispatchGeometry, pagesHaveMetadata],
   );
-
-  const { visibleRange, handleScroll } = useScrollActivity({
-    containerRef,
-    geometryWidthRef: geometryRef,
-    metricsRef,
-    heights,
-    activePageIndex,
-    measurePages,
-    onActivePageChange,
-  });
 
   const skipPage = useCallback(
     (index: number) => scrollToPage(Math.min(index + 1, pages.length - 1)),
