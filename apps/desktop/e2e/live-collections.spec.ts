@@ -76,21 +76,30 @@ async function launch(userDataDir: string): Promise<{ app: ElectronApplication; 
   return { app, first };
 }
 
-/** A second window built by main, the way the app builds its own: sandboxed, same preload. */
-async function secondWindow(app: ElectronApplication): Promise<Page> {
+/**
+ * Has main build another window with its own `createWindow`, through the hook an unpackaged
+ * build exposes: only windows main builds are owned, so a window built here would get no port.
+ */
+async function openOwnedWindow(app: ElectronApplication, url: string): Promise<Page> {
   const opened = app.waitForEvent('window');
-  await app.evaluate(
-    ({ BrowserWindow }, preload) => {
-      const window = new BrowserWindow({
-        width: 1280,
-        height: 800,
-        webPreferences: { preload, contextIsolation: true, nodeIntegration: false, sandbox: true },
-      });
-      void window.loadURL('app://app/library');
-    },
-    join(desktopRoot, 'dist/preload/index.js'),
-  );
-  const page = await opened;
+  const hooked = await app.evaluate((_electron, target) => {
+    const open: unknown = Reflect.get(globalThis, '__mangaverseE2EOpenWindow');
+    if (typeof open !== 'function') return false;
+    open(target);
+    return true;
+  }, url);
+  if (!hooked) {
+    void opened.catch(() => undefined);
+    throw new Error(
+      'The app exposes no __mangaverseE2EOpenWindow hook (a packaged build): the E2E cannot open an owned window.',
+    );
+  }
+  return opened;
+}
+
+/** A second window built by main, the way the app builds its own. */
+async function secondWindow(app: ElectronApplication): Promise<Page> {
+  const page = await openOwnedWindow(app, 'app://app/library');
   await expect(page.getByText(TITLES[0]).first()).toBeVisible({ timeout: 20_000 });
   return page;
 }
@@ -229,18 +238,7 @@ test('two windows edit the library live, and a refused edit rolls back in place'
  * static app:// file: no app shell runs there, so the port is the test's alone.
  */
 async function startWriteStream(app: ElectronApplication, count: number): Promise<Page> {
-  const opened = app.waitForEvent('window');
-  await app.evaluate(
-    ({ BrowserWindow }, preload) => {
-      const window = new BrowserWindow({
-        show: false,
-        webPreferences: { preload, contextIsolation: true, nodeIntegration: false, sandbox: true },
-      });
-      void window.loadURL('app://app/favicon.svg');
-    },
-    join(desktopRoot, 'dist/preload/index.js'),
-  );
-  const writer = await opened;
+  const writer = await openOwnedWindow(app, 'app://app/favicon.svg');
   await writer.waitForLoadState('domcontentloaded');
   await writer.evaluate(async (total) => {
     const port = await new Promise<MessagePort>((resolve) => {
