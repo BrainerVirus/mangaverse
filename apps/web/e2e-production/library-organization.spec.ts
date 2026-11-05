@@ -2,7 +2,14 @@ import { readFileSync } from 'node:fs';
 
 import { expect, type Page } from '@playwright/test';
 
-import { fixturesDir, test, waitForPingQuiet } from './helpers.js';
+import {
+  closeLibraryFilters,
+  fixturesDir,
+  openCategoryManager,
+  openLibraryFilters,
+  test,
+  waitForPingQuiet,
+} from './helpers.js';
 
 const MANGA_PATH = '/manga/dev-md-dc332d04-d3b0-413c-a767-70f5e451b031';
 const TITLE = 'Kuro no Shoukanshi';
@@ -90,27 +97,17 @@ async function readFirstChapter(page: Page, path: string): Promise<void> {
   await waitForPingQuiet(page);
 }
 
-async function openFilters(page: Page): Promise<void> {
-  await page.getByRole('button', { name: /^Filters/ }).click();
-  await expect(page.getByRole('dialog', { name: 'Filters' })).toBeVisible();
-}
-
-async function closeFilters(page: Page): Promise<void> {
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog', { name: 'Filters' })).toHaveCount(0);
-}
-
 async function expectSortLabel(page: Page, label: string): Promise<void> {
-  await openFilters(page);
+  await openLibraryFilters(page);
   await expect(page.getByLabel('Sort library')).toContainText(label);
-  await closeFilters(page);
+  await closeLibraryFilters(page);
 }
 
 async function selectSort(page: Page, label: string): Promise<void> {
-  await openFilters(page);
+  await openLibraryFilters(page);
   await page.getByLabel('Sort library').click();
   await page.getByRole('option', { name: label }).click();
-  await closeFilters(page);
+  await closeLibraryFilters(page);
 }
 
 async function expectCardTitles(page: Page, titles: readonly string[]): Promise<void> {
@@ -118,7 +115,7 @@ async function expectCardTitles(page: Page, titles: readonly string[]): Promise<
 }
 
 async function createCategory(page: Page, name: string, pin = true): Promise<void> {
-  await page.getByRole('button', { name: 'Manage categories' }).click();
+  await openCategoryManager(page);
   await page.getByLabel('New category').fill(name);
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   if (pin) {
@@ -166,11 +163,11 @@ test('Given a library title, When a category is created, assigned, filtered, sor
   await expect(page.locator('[data-library-card]')).toHaveCount(1);
 
   // Bulk favorite and status changes on the selected title.
-  await openFilters(page);
+  await openLibraryFilters(page);
   await page.getByRole('button', { name: 'Favorites' }).click();
   await expect(page.locator('[data-library-card]')).toHaveCount(0);
   await page.getByRole('button', { name: 'Favorites' }).click();
-  await closeFilters(page);
+  await closeLibraryFilters(page);
 
   await page.getByLabel(`Select ${TITLE}`).check();
   await page.getByRole('button', { name: 'Favorite selected', exact: true }).click();
@@ -187,11 +184,11 @@ test('Given a library title, When a category is created, assigned, filtered, sor
   await page.getByRole('button', { name: 'Fantasy', exact: true }).click();
   await expect(page.locator('[data-library-card]')).toHaveCount(1);
 
-  await openFilters(page);
+  await openLibraryFilters(page);
   await page.getByLabel('Filter by status').click();
   await page.getByRole('option', { name: 'Completed' }).click();
   await page.getByRole('button', { name: 'Clear filters' }).click();
-  await closeFilters(page);
+  await closeLibraryFilters(page);
   await expect(page.locator('[data-library-card]').first()).toBeVisible();
 
   // The title detail reads back the persisted favorite and category.
@@ -268,7 +265,7 @@ test('Given a phone viewport, When categories are organized, Then the toolbar wr
   await expectNoHorizontalOverflow(page);
 
   // Pin through the manager on the narrow viewport.
-  await page.getByRole('button', { name: 'Manage categories' }).click();
+  await openCategoryManager(page);
   await page.getByRole('button', { name: 'Pin Mobile shelf' }).click();
   await expect(page.getByRole('button', { name: 'Unpin Mobile shelf' })).toBeVisible();
   await page.getByRole('button', { name: 'Done', exact: true }).click();

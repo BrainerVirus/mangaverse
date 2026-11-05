@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import { expect, type Page } from '@playwright/test';
 
-import { MANGADEX_APP_MANGA_ID, test, waitForPingQuiet } from './helpers.js';
+import { MANGADEX_APP_MANGA_ID, openCategoryManager, test, waitForPingQuiet } from './helpers.js';
 
 test.describe.configure({ timeout: 180_000 });
 
@@ -50,7 +50,7 @@ async function addToLibrary(page: Page): Promise<void> {
 }
 
 async function createPinnedCategory(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Manage categories' }).click();
+  await openCategoryManager(page);
   await page.getByLabel('New category').fill(CATEGORY);
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   await page.getByRole('button', { name: `Pin ${CATEGORY}` }).click();
@@ -67,7 +67,7 @@ async function createPinnedCategory(page: Page): Promise<void> {
 }
 
 async function deleteCategory(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Manage categories' }).click();
+  await openCategoryManager(page);
   await page.getByRole('button', { name: `Delete ${CATEGORY}` }).click();
   await page.getByRole('button', { name: `Confirm delete ${CATEGORY}` }).click();
   await expect(page.getByRole('button', { name: `Delete ${CATEGORY}` })).toHaveCount(0);
@@ -226,7 +226,7 @@ test('Given a backup with categories, read state and migration history, When loc
   await page.getByRole('button', { name: CATEGORY, exact: true }).click();
   await expect(page.locator('[data-library-card]')).toHaveCount(1);
   await page.getByRole('button', { name: 'All titles' }).click();
-  await page.getByRole('button', { name: 'Manage categories' }).click();
+  await openCategoryManager(page);
   await expect(page.getByRole('button', { name: `Unpin ${CATEGORY}` })).toBeVisible();
   await page.getByRole('button', { name: 'Done', exact: true }).click();
 

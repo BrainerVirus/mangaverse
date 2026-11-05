@@ -74,7 +74,9 @@ test('Given a route throws internal text, When it renders, Then a status page re
       body: `throw new Error(${JSON.stringify(INTERNAL_TEXT)});`,
     }),
   );
-  await page.getByRole('link', { name: 'Diagnostics' }).first().click();
+  // Diagnostics now lives in the Settings hub, not the sidebar; a direct visit still
+  // loads its route chunk on demand, which the interception above makes throw.
+  await page.goto('/advanced/diagnostics');
 
   await expect(page.getByText('Something went wrong')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible();
