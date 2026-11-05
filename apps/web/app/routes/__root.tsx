@@ -26,6 +26,9 @@ export const Route = createRootRoute({
       },
       { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
     ],
+    // Blocking same-origin classic script (not inline: the desktop CSP refuses inline script)
+    // that paints the saved theme's canvas before the first frame.
+    scripts: [{ src: '/theme-boot.js' }],
   }),
   component: RootDocument,
 });

@@ -113,6 +113,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     undefined,
   );
   const hydratedRef = useRef(false);
+  // The first effect pass still holds the default settings; when stored settings
+  // exist it must not repaint the boot snapshot with default colours.
+  const skipDefaultApplyRef = useRef(false);
   const persistRef = useRef<ThemeSettingsPersistence | null>(null);
   const appliedRef = useRef<{
     settings: ThemeSettings;
@@ -145,6 +148,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     [definitionsUnavailable, selectedDefinition, settings],
   );
 
+  // A selected custom theme cannot be painted until its definition arrives: applying
+  // now would fall back to the default palette and overwrite the saved paint snapshot.
+  const awaitingDefinition = isCustomThemeId(settings.themeId) && definitions === undefined;
+
   const themeNotice = definitionsUnavailable
     ? definitions === null
       ? 'Custom themes could not be loaded. Showing the default theme.'
@@ -155,12 +162,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const stored = readStoredThemeSettings();
     if (stored !== null && !hydratedRef.current) {
+      skipDefaultApplyRef.current = true;
       setSettings(stored);
     }
   }, []);
 
   // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-dom-write: writing the theme to <html> and localStorage is a DOM/storage side effect keyed on the resolved settings; it cannot run in render (double-invoked) and the resolved definition arrives asynchronously from the themes table.
   useEffect(() => {
+    if (skipDefaultApplyRef.current) {
+      skipDefaultApplyRef.current = false;
+      return;
+    }
     // Startup applies the default, then the stored settings, then the same
     // settings again from the themes table (a different object, equal values).
     // Skip the style writes when nothing changed; `system` still re-registers
@@ -171,7 +183,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       previous.definition === appliedTheme.definition &&
       previous.settings.themeId === appliedTheme.settings.themeId &&
       previous.settings.dark === appliedTheme.settings.dark;
-    if (!alreadyApplied) {
+    if (!alreadyApplied && !awaitingDefinition) {
       applyThemeToRoot(document.documentElement, appliedTheme.settings, appliedTheme.definition);
       appliedRef.current = appliedTheme;
     }
@@ -188,7 +200,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     media.addEventListener('change', handleChange);
     return () => media.removeEventListener('change', handleChange);
-  }, [appliedTheme, settings]);
+  }, [appliedTheme, awaitingDefinition, settings]);
 
   const updateSettings = (nextSettings: ThemeSettings) => {
     setSettings(nextSettings);
