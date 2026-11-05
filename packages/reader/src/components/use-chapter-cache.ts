@@ -46,6 +46,7 @@ export function useChapterPrefetch(
   const chapterId = data?.chapterId;
   const budgetBytes = data?.settings.prefetchBudgetBytes ?? 0;
   const preloadAhead = data?.settings.preloadAhead ?? 0;
+  const preloadBehind = data?.engineSettings.preloadBehind ?? 1;
   const lowMemoryMode = data?.settings.lowMemoryMode ?? false;
   const preloadCount = resolveScrollPreloadAhead({
     pages: pages ?? [],
@@ -99,7 +100,7 @@ export function useChapterPrefetch(
     // turn cancel the previous plan instead of racing it.
     const prefetchPages = createPreloadPlan(pages, activePageIndex, preloadCount, lowMemoryMode, {
       includeActive: false,
-      preloadBehind: 1,
+      preloadBehind,
     }).items.map((item) => ({
       pageIndex: item.pageIndex,
       remoteUrl: item.url,
@@ -149,6 +150,7 @@ export function useChapterPrefetch(
     lowMemoryMode,
     mangaId,
     pages,
+    preloadBehind,
     preloadCount,
     providerId,
   ]);

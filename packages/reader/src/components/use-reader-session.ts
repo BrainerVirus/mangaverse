@@ -7,6 +7,7 @@ import {
 import type { ReaderPageData } from '../reader-page-data.js';
 import { markReaderPageTurn } from '../reader-timing.js';
 import { createReaderState } from '../state.js';
+import { toReaderEngineSettings } from '../to-reader-engine-settings.js';
 import type {
   ReaderNavigationAction,
   ReaderSessionInput,
@@ -24,6 +25,8 @@ export interface ReaderSession {
 /**
  * Owns the reader session: the state built from the chapter, viewport and
  * settings, recreated only when the chapter changes (not on resize ticks).
+ * Auto settings resolve here, where the viewport is known: an orientation
+ * change flips Auto layout between single pages and spreads.
  */
 export function useReaderSession(
   data: ReaderPageData | undefined,
@@ -42,7 +45,13 @@ export function useReaderSession(
     return {
       chapter: data.chapter,
       viewport,
-      settings: data.engineSettings,
+      settings: toReaderEngineSettings(data.settings, {
+        globalSettings: data.globalSettings,
+        titleOverrides: data.titleOverrides,
+        tags: data.titleTags,
+        pages: data.chapter.pages,
+        viewport,
+      }),
       initialPageIndex: data.initialPageIndex,
     };
   }, [data, viewport]);

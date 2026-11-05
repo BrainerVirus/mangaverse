@@ -82,10 +82,14 @@ export interface ReaderSessionInput {
   readonly initialPageIndex?: number;
 }
 
+/** Where a reader settings change is written (spec R7). */
+export type ReaderSettingsScope = 'title' | 'global';
+
+/** Resolved settings: `auto` never reaches the engine. */
 export interface ReaderEngineSettings {
   readonly readingMode: 'rtl' | 'ltr' | 'vertical';
   readonly pageLayout: 'single' | 'double' | 'smartSpread';
-  readonly fitMode: FitMode;
+  readonly fitMode: Exclude<FitMode, 'auto'>;
   readonly tapZoneLayout: 'leftRight' | 'lShaped' | 'grid';
   readonly navigationDirection: 'default' | 'inverted';
   readonly tapZoneDebugOverlay: boolean;
@@ -95,6 +99,8 @@ export interface ReaderEngineSettings {
   readonly gestureSensitivity: number;
   readonly treatFirstPageAsCover: boolean;
   readonly preloadAhead: number;
+  /** Pages kept warm behind the active one; one when absent. */
+  readonly preloadBehind?: number;
   readonly lowMemoryMode: boolean;
   readonly wheelBehavior: 'none' | 'scroll' | 'zoom';
   readonly verticalGapPx: number;

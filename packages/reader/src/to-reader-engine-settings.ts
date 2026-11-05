@@ -1,11 +1,26 @@
 import type { ReaderSettings } from '@app/shared';
+import {
+  resolveReaderPresentation,
+  type ReaderPresentationInput,
+} from './resolve-reader-settings.js';
 import type { ReaderEngineSettings } from './types.js';
 
-export function toReaderEngineSettings(settings: ReaderSettings): ReaderEngineSettings {
+/** What Auto resolves against besides the settings themselves. */
+export type ReaderResolutionContext = Omit<ReaderPresentationInput, 'settings'>;
+
+/**
+ * The concrete values the reader layers consume. Saved settings may hold
+ * `auto`; the engine never does.
+ */
+export function toReaderEngineSettings(
+  settings: ReaderSettings,
+  context: ReaderResolutionContext = {},
+): ReaderEngineSettings {
+  const presentation = resolveReaderPresentation({ ...context, settings });
   return {
-    readingMode: settings.readingMode,
-    pageLayout: settings.pageLayout,
-    fitMode: settings.fitMode,
+    readingMode: presentation.readingMode,
+    pageLayout: presentation.pageLayout,
+    fitMode: presentation.fitMode,
     tapZoneLayout: settings.tapZoneLayout,
     navigationDirection: settings.navigationDirection,
     tapZoneDebugOverlay: settings.tapZoneDebugOverlay,
@@ -15,6 +30,7 @@ export function toReaderEngineSettings(settings: ReaderSettings): ReaderEngineSe
     gestureSensitivity: settings.gestureSensitivity,
     treatFirstPageAsCover: true,
     preloadAhead: settings.preloadAhead,
+    preloadBehind: settings.preloadBehind,
     lowMemoryMode: settings.lowMemoryMode,
     wheelBehavior: settings.wheelBehavior,
     verticalGapPx: settings.verticalGapPx,

@@ -6,6 +6,7 @@ import {
   currentPing,
   fixturesDir,
   reloadDurable,
+  showReaderControls,
   test,
   waitForNewPing,
   waitForPingQuiet,
@@ -22,6 +23,7 @@ async function openReader(page: Page) {
   await chapter.click({ force: true });
   await expect(page).toHaveURL(/\/reader\/dev-md-ch-/, { timeout: 30_000 });
   await expect(page.getByText('1 / 37')).toBeVisible({ timeout: 30_000 });
+  await showReaderControls(page);
 }
 
 /** Toggles the installed MangaDex provider from the Extensions page. */

@@ -34,7 +34,6 @@ vi.mock('@app/reader', () => ({
     chapter: (id: string) => ['reader', 'chapter', id],
     chapterHydration: (id: string) => ['reader', 'chapter-hydration', id],
   },
-  toReaderEngineSettings: (settings: unknown) => settings,
   ReaderScreen: (props: Record<string, unknown>) => {
     screenProps = props;
     return null;

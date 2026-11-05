@@ -23,6 +23,27 @@ export interface ApiCalls {
 }
 
 /**
+ * Reader controls start hidden (spec R8). Show them with a tap on the reading
+ * surface before a spec clicks a chrome control; a no-op when already visible,
+ * so a test may call it after every reload or navigation into the reader.
+ */
+export async function showReaderControls(page: Page): Promise<void> {
+  const toolbar = page.getByRole('toolbar', { name: 'Reader controls' });
+  if ((await toolbar.count()) === 0) {
+    // An error alert can sit over the surface centre; tapping there would press
+    // one of its buttons instead of toggling the chrome.
+    if ((await page.getByRole('alert').count()) === 0) {
+      const surface = page.getByTestId('reader-surface');
+      const box = await surface.boundingBox();
+      if (box !== null) await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    }
+    // The reader's own toggle shortcut, and the fallback when a tap was skipped.
+    if ((await toolbar.count()) === 0) await page.keyboard.press('h');
+  }
+  await expect(toolbar).toBeVisible();
+}
+
+/**
  * CI runners report few cores, which resolves the shell's cheap glass profile.
  * Tests that assert full glass must pin capable hardware before the app loads.
  */

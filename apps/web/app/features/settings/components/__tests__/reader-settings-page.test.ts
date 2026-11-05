@@ -103,13 +103,12 @@ describe('ReaderSettingsPage', () => {
         'chrome-visibility',
         'page-transition',
         'background-color',
-        'brightness',
         'vertical-gap',
         'keep-screen-on',
         'fullscreen-on-open',
         'image-smoothing',
-        'remember-per-title',
         'preload-ahead',
+        'preload-behind',
         'prefetch-budget',
         'low-memory-mode',
         'long-strip-optimization',
@@ -117,7 +116,9 @@ describe('ReaderSettingsPage', () => {
         'diagnostics-enabled',
       ].sort(),
     );
-    expect(settingIds(byTitle.get('Performance') ?? null)).toContain('prefetch-budget');
+    expect(settingIds(byTitle.get('Performance') ?? null)).toEqual(
+      expect.arrayContaining(['preload-ahead', 'preload-behind', 'prefetch-budget']),
+    );
     expect(settingIds(byTitle.get('Advanced') ?? null)).toEqual(
       expect.arrayContaining([
         'low-memory-mode',

@@ -78,7 +78,6 @@ describe('keyboard shortcut validation', () => {
       doubleTapZoom: 1.5,
       pinchSensitivity: 1,
       gestureSensitivity: 1,
-      brightness: 1,
       backgroundColor: '#000000',
       imageSmoothing: true,
       keepScreenOn: true,
@@ -87,7 +86,6 @@ describe('keyboard shortcut validation', () => {
       longStripOptimization: true,
       lowMemoryMode: false,
       diagnosticsEnabled: false,
-      rememberPerTitleOverrides: true,
     };
     expect(
       validateReaderSettings({

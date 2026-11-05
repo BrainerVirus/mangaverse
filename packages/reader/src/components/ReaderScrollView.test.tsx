@@ -66,6 +66,7 @@ function Harness({
   handleRef,
   preloadAhead,
   lowMemoryMode,
+  longStripOptimization,
   cacheReady = false,
 }: {
   readonly pages: readonly ReaderPage[];
@@ -73,6 +74,7 @@ function Harness({
   readonly handleRef: { current: ReaderScrollViewHandle | null };
   readonly preloadAhead?: number;
   readonly lowMemoryMode?: boolean;
+  readonly longStripOptimization?: boolean;
   readonly cacheReady?: boolean;
 }) {
   const [active, setActive] = useState(0);
@@ -92,6 +94,7 @@ function Harness({
       reducedMotion
       {...(preloadAhead === undefined ? {} : { preloadAhead })}
       {...(lowMemoryMode === undefined ? {} : { lowMemoryMode })}
+      {...(longStripOptimization === undefined ? {} : { longStripOptimization })}
       onHandle={(handle) => {
         handleRef.current = handle;
       }}
@@ -113,6 +116,7 @@ function mount(
     readonly pages?: readonly ReaderPage[];
     readonly preloadAhead?: number;
     readonly lowMemoryMode?: boolean;
+    readonly longStripOptimization?: boolean;
     readonly cacheReady?: boolean;
   } = {},
 ): Mounted {
@@ -132,6 +136,9 @@ function mount(
         onActivePageChange={(index) => activeChanges.push(index)}
         {...(options.preloadAhead === undefined ? {} : { preloadAhead: options.preloadAhead })}
         {...(options.lowMemoryMode === undefined ? {} : { lowMemoryMode: options.lowMemoryMode })}
+        {...(options.longStripOptimization === undefined
+          ? {}
+          : { longStripOptimization: options.longStripOptimization })}
         {...(options.cacheReady === undefined ? {} : { cacheReady: options.cacheReady })}
       />,
     );
@@ -282,6 +289,31 @@ describe('ReaderScrollView virtualization', () => {
     expect(rows.length).toBeLessThanOrEqual(16);
     expect(mounted.activeChanges.at(-1)).toBe(199);
 
+    unmount(mounted);
+  });
+
+  it('Given a long strip with no stored dimensions, When its first page decodes, Then the image window shrinks to one page ahead', () => {
+    const pages = Array.from({ length: 10 }, (_value, index) => ({
+      id: toChapterPageId(`page-${index}`),
+      index,
+      image: { url: `https://example.com/${index}.jpg` },
+    })) as unknown as readonly ReaderPage[];
+    const mounted = mount(0, {
+      pages,
+      preloadAhead: 4,
+      longStripOptimization: true,
+      cacheReady: true,
+    });
+    // Nothing has been measured yet, so the optimization cannot see a strip.
+    expect(cacheRender.pages.length).toBeGreaterThan(3);
+
+    const first = cacheRender.props.find((props) => props.pageIndex === 0);
+    if (first?.onLoad === undefined) throw new Error('the first page never mounted an image');
+    cacheRender.pages.length = 0;
+    act(() => first.onLoad!({ width: 800, height: 6000 }));
+
+    expect(cacheRender.pages.length).toBeGreaterThan(0);
+    expect(cacheRender.pages.length).toBeLessThanOrEqual(3);
     unmount(mounted);
   });
 

@@ -6,11 +6,14 @@ import {
   APP_SETTINGS_STORAGE_KEY,
   getDefaultAppSettings,
   getDefaultReaderSettings,
+  normalizeTitleReaderOverrides,
   sanitizeReaderSettings,
+  sanitizeReaderSettingsOverride,
   validateAppSettings,
   validateReaderSettings,
   type AppSettings,
   type ReaderSettings,
+  type ReaderSettingsOverride,
   type ThemeSettings,
 } from '@app/shared';
 import type { AppDrizzleDb } from '../adapter.js';
@@ -19,41 +22,60 @@ import { appSettings, providerSettings, readerPreferences, themePreferences } fr
 const GLOBAL_READER_ID = 'global' as const;
 const GLOBAL_THEME_ID = 'global' as const;
 
-export async function getTitleReaderSettings(
+export interface TitleReaderSettingsLayers {
+  readonly global: ReaderSettings;
+  /** The title's own choices: only these beat the global row. */
+  readonly overrides: ReaderSettingsOverride;
+  /** The global row with the title's choices applied. */
+  readonly settings: ReaderSettings;
+}
+
+/** Title rows always apply: the in-reader scope choice decides what they hold. */
+export async function getTitleReaderSettingsLayers(
   db: AppDrizzleDb,
   mangaId: string,
-): Promise<ReaderSettings> {
+): Promise<TitleReaderSettingsLayers> {
   const global = await getReaderSettings(db);
-  if (!global.rememberPerTitleOverrides) return global;
   const row = db
     .select()
     .from(readerPreferences)
     .where(eq(readerPreferences.id, `title:${mangaId}`))
     .get();
-  return sanitizeReaderSettings({ ...global, ...row?.settingsJson });
+  const overrides = sanitizeReaderSettingsOverride(row?.settingsJson);
+  return { global, overrides, settings: sanitizeReaderSettings({ ...global, ...overrides }) };
 }
 
+export async function getTitleReaderSettings(
+  db: AppDrizzleDb,
+  mangaId: string,
+): Promise<ReaderSettings> {
+  return (await getTitleReaderSettingsLayers(db, mangaId)).settings;
+}
+
+/**
+ * Replaces a title's choices. Pass the choices, not a merged settings object:
+ * a concrete mode, layout or fit in `overrides` is kept as an explicit title
+ * choice even when the global row holds the same value.
+ */
 export async function upsertTitleReaderSettings(
   db: AppDrizzleDb,
   mangaId: string,
-  settings: ReaderSettings,
+  overrides: ReaderSettingsOverride,
 ): Promise<AppResult<void>> {
-  const parsed = validateReaderSettings(settings);
-  if (!parsed.ok) return err(parsed.error);
   const global = await getReaderSettings(db);
-  const overrides = Object.fromEntries(
-    Object.entries(parsed.value).filter(
-      ([key, value]) =>
-        JSON.stringify(value) !== JSON.stringify(global[key as keyof ReaderSettings]),
-    ),
-  );
+  const parsed = validateReaderSettings({ ...global, ...overrides });
+  if (!parsed.ok) return err(parsed.error);
+  const stored = normalizeTitleReaderOverrides(
+    global,
+    sanitizeReaderSettingsOverride(overrides),
+  ) as Record<string, unknown>;
   const now = new Date().toISOString();
   await db
     .insert(readerPreferences)
-    .values({ id: `title:${mangaId}`, settingsJson: overrides, updatedAt: now })
+    .values({ id: `title:${mangaId}`, settingsJson: stored, updatedAt: now })
     .onConflictDoUpdate({
       target: readerPreferences.id,
-      set: { settingsJson: overrides, updatedAt: now },
+      set: { settingsJson: stored, updatedAt: now },
     });
   return ok(undefined);
 }

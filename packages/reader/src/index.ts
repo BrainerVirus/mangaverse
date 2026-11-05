@@ -18,6 +18,7 @@ export type {
   TapZoneDebugModel,
   ZoomStateSummary,
   ReaderEngineSettings,
+  ReaderSettingsScope,
   NavigationActionType,
   ReaderState,
   PageLayoutMode,
@@ -103,4 +104,5 @@ export { mapChapterToReaderChapter } from './map-chapter.js';
 export { buildProgressEvent, persistReaderProgress } from './persist-reader-progress.js';
 export { readerQueryKeys } from './query-keys.js';
 export { toReaderEngineSettings } from './to-reader-engine-settings.js';
+export { applyReaderSettingsChange } from './reader-settings-change.js';
 export type { ReaderPageData } from './reader-page-data.js';

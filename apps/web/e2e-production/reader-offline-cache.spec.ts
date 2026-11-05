@@ -1,5 +1,11 @@
 import { expect, type Page } from '@playwright/test';
-import { MANGADEX_APP_MANGA_ID, TINY_JPEG, test, waitForPingQuiet } from './helpers.js';
+import {
+  MANGADEX_APP_MANGA_ID,
+  TINY_JPEG,
+  showReaderControls,
+  test,
+  waitForPingQuiet,
+} from './helpers.js';
 
 test.describe.configure({ timeout: 120_000 });
 
@@ -26,6 +32,7 @@ async function openReader(page: Page) {
   await expect(chapter).toBeVisible({ timeout: 30_000 });
   await chapter.click({ force: true });
   await expect(page.getByText('1 / 37')).toBeVisible({ timeout: 30_000 });
+  await showReaderControls(page);
 }
 
 test('Given a partially cached chapter, When reopened offline, Then the missing pages are named', async ({
@@ -77,12 +84,14 @@ test('Given a partially cached chapter, When reopened offline, Then the missing 
   await expect(note).toHaveText('Offline: pages 3 and 5 are not saved locally.');
   await expect(page.locator('[data-glass-tier="stage"]')).toHaveCount(2);
 
+  await showReaderControls(page);
   const rail = page.getByRole('slider', { name: 'Page slider' });
   const railBox = (await rail.boundingBox())!;
   await page.mouse.move(railBox.x + railBox.width / 2, railBox.y + railBox.height / 2);
   await expect(page.getByTestId('reader-rail-preview')).toBeVisible();
   await expect(page.locator('[data-glass-tier="stage"]')).toHaveCount(3);
 
+  await showReaderControls(page);
   await page.getByRole('button', { name: 'Settings' }).click();
   const dialog = page.getByRole('dialog', { name: 'Reader settings' });
   await expect(dialog).toBeVisible();

@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { toMangaId } from '@app/shared';
 import { createSqlJsHarness } from '../testing/sqljs-harness.js';
-import { createMangaIdentityWithInitialMapping, getMangaIdentities } from './identities.js';
+import {
+  createMangaIdentityWithInitialMapping,
+  getMangaIdentities,
+  listMangaTagLabels,
+} from './identities.js';
 
 describe('getMangaIdentities', () => {
   it('Given identities and tags across two chunks, When reading in reverse order, Then every relation stays attached to its identity', async () => {
@@ -91,5 +95,24 @@ describe('getMangaIdentities', () => {
     expect(all[0]?.providerMappings).toHaveLength(1);
     expect(statements).toBe(forTwo);
     expect(two).toHaveLength(2);
+  });
+});
+
+describe('listMangaTagLabels', () => {
+  it("Given a title with tags, When listing labels, Then only that title's labels return", async () => {
+    const { raw, db } = await createSqlJsHarness();
+    raw.run(`
+      INSERT INTO manga_identities (id, canonical_title, status, content_rating, merged, default_provider_mapping_id)
+      VALUES ('m-1', 'Strip', 'ongoing', 'safe', 0, 'map-1'), ('m-2', 'Paged', 'ongoing', 'safe', 0, 'map-2');
+      INSERT INTO manga_tags (id, label) VALUES ('t-1', 'Long Strip'), ('t-2', 'Action'), ('t-3', 'Drama');
+      INSERT INTO manga_tag_memberships (manga_id, tag_id) VALUES ('m-1', 't-1'), ('m-1', 't-2'), ('m-2', 't-3');
+    `);
+
+    expect([...(await listMangaTagLabels(db, toMangaId('m-1')))].sort()).toEqual([
+      'Action',
+      'Long Strip',
+    ]);
+    expect(await listMangaTagLabels(db, toMangaId('missing'))).toEqual([]);
+    raw.close();
   });
 });

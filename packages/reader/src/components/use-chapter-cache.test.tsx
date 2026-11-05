@@ -21,8 +21,11 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@app/cache', () => mocks);
 
-function buildData(pageCount = 2): ReaderPageData {
-  const settings = getDefaultReaderSettings();
+function buildData(
+  pageCount = 2,
+  overrides: Partial<ReturnType<typeof getDefaultReaderSettings>> = {},
+): ReaderPageData {
+  const settings = { ...getDefaultReaderSettings(), ...overrides };
   const pages = Array.from({ length: pageCount }, (_value, index) => ({
     id: toChapterPageId(`page-${index}`),
     index,
@@ -109,6 +112,30 @@ describe('useChapterPrefetch cache sweep', () => {
     expect(mocks.prefetchChapterPages).not.toHaveBeenCalled();
     act(() => root.unmount());
   });
+
+  it('Given preloadBehind, When the sweep plans mid-chapter, Then it warms that many pages behind', async () => {
+    const context = {
+      db: {} as CoverCacheContextValue['db'],
+      adapter: {} as CoverCacheContextValue['adapter'],
+      cacheLimitBytes: 1024,
+    };
+    const planned = async (preloadBehind: number) => {
+      mocks.prefetchChapterPages.mockClear();
+      const root = createRoot(document.createElement('div'));
+      const data = buildData(8, { preloadAhead: 1, preloadBehind });
+      await act(async () =>
+        root.render(<Probe data={data} context={context} activePageIndex={5} />),
+      );
+      const call = mocks.prefetchChapterPages.mock.calls[0]?.[0] as unknown as {
+        pages: { pageIndex: number }[];
+      };
+      act(() => root.unmount());
+      return call.pages.map((page) => page.pageIndex);
+    };
+
+    expect(await planned(2)).toEqual([4, 6, 3]);
+    expect(await planned(0)).toEqual([6]);
+  });
   it('Given a prefetched chapter, When maintenance runs, Then it protects the open chapter with the reader limit', async () => {
     const db = { id: 'db' } as unknown as CoverCacheContextValue['db'];
     const adapter = {} as unknown as CoverCacheContextValue['adapter'];
@@ -167,7 +194,7 @@ describe('useChapterPrefetch cache sweep', () => {
     await vi.waitFor(() => expect(mocks.evictCacheToLimit).toHaveBeenCalledTimes(1));
 
     // A settings toggle replaces the query data object but keeps the page array.
-    const changed = { ...data, settings: { ...data.settings, brightness: 0.5 } };
+    const changed = { ...data, settings: { ...data.settings, tapZoneLayout: 'grid' as const } };
     await act(async () => root.render(<Probe data={changed} context={context} />));
 
     expect(mocks.prefetchChapterPages).toHaveBeenCalledTimes(1);

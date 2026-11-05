@@ -21,6 +21,8 @@ import {
   KEYBOARD_SHORTCUT_ACTION_LABELS,
   KEYBOARD_SHORTCUT_ACTIONS,
   PREFETCH_BUDGET_MAX_BYTES,
+  READER_PRELOAD_MAX,
+  READER_STRIP_GAP_MAX,
   defaultKeyboardShortcuts,
   findKeyboardShortcutConflict,
   formatKeyboardShortcut,
@@ -54,18 +56,21 @@ export interface ReaderSettingsPageProps {
 }
 
 const READING_MODE_OPTIONS: readonly { value: ReadingMode; label: string }[] = [
+  { value: 'auto', label: 'Auto (detect per title)' },
   { value: 'ltr', label: 'Left to right' },
   { value: 'rtl', label: 'Right to left (manga)' },
   { value: 'vertical', label: 'Vertical (webtoon)' },
 ];
 
 const PAGE_LAYOUT_OPTIONS: readonly { value: PageLayoutMode; label: string }[] = [
+  { value: 'auto', label: 'Auto (spreads in landscape)' },
   { value: 'single', label: 'Single page' },
   { value: 'double', label: 'Double page' },
   { value: 'smartSpread', label: 'Smart spread' },
 ];
 
 const FIT_MODE_OPTIONS: readonly { value: FitMode; label: string }[] = [
+  { value: 'auto', label: 'Auto (screen when paged, width in strips)' },
   { value: 'width', label: 'Fit width' },
   { value: 'height', label: 'Fit height' },
   { value: 'contain', label: 'Fit screen' },
@@ -611,23 +616,12 @@ export function ReaderSettingsPage({
               />
             </div>
             <SettingSliderRow
-              id="brightness"
-              label="Brightness"
-              value={settings.brightness}
-              min={0}
-              max={1}
-              step={0.05}
-              formatValue={(value) => `${Math.round(value * 100)}%`}
-              onChange={(brightness) => update({ brightness })}
-              onCommit={onInteractionEnd}
-            />
-            <SettingSliderRow
               id="vertical-gap"
               label="Vertical gap"
               description="Space between strips in vertical reading mode (pixels)."
               value={settings.verticalGapPx}
               min={0}
-              max={64}
+              max={READER_STRIP_GAP_MAX}
               step={1}
               formatValue={(value) => `${value}px`}
               onChange={(verticalGapPx) => update({ verticalGapPx })}
@@ -636,7 +630,7 @@ export function ReaderSettingsPage({
           </div>
         </SettingsSection>
 
-        <SettingsSection title="Behavior" description="Device and per-title preferences.">
+        <SettingsSection title="Behavior" description="Screen, fullscreen and image preferences.">
           <div className="grid gap-4">
             <SettingToggleRow
               id="keep-screen-on"
@@ -659,13 +653,6 @@ export function ReaderSettingsPage({
               checked={settings.imageSmoothing}
               onCheckedChange={(imageSmoothing) => commit({ imageSmoothing })}
             />
-            <SettingToggleRow
-              id="remember-per-title"
-              label="Remember per-title overrides"
-              description="Save reading mode changes per manga when enabled."
-              checked={settings.rememberPerTitleOverrides}
-              onCheckedChange={(rememberPerTitleOverrides) => commit({ rememberPerTitleOverrides })}
-            />
           </div>
         </SettingsSection>
 
@@ -677,9 +664,20 @@ export function ReaderSettingsPage({
               description="Number of upcoming pages to load in advance."
               value={settings.preloadAhead}
               min={0}
-              max={10}
+              max={READER_PRELOAD_MAX}
               step={1}
               onChange={(preloadAhead) => update({ preloadAhead })}
+              onCommit={onInteractionEnd}
+            />
+            <SettingSliderRow
+              id="preload-behind"
+              label="Preload behind"
+              description="Number of previous pages kept ready for turning back."
+              value={settings.preloadBehind}
+              min={0}
+              max={READER_PRELOAD_MAX}
+              step={1}
+              onChange={(preloadBehind) => update({ preloadBehind })}
               onCommit={onInteractionEnd}
             />
             <SettingSliderRow

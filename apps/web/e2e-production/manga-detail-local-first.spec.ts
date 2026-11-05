@@ -141,7 +141,8 @@ test('Given a chapter whose pages are cached, When it is opened again, Then no p
   const chapter = page.getByRole('button', { name: CHAPTER });
   await expect(chapter).toBeVisible({ timeout: 30_000 });
   await chapter.click({ force: true });
-  await expect(page.getByText('1 / 37')).toBeVisible({ timeout: 30_000 });
+  // Controls start hidden (R8) and reduced motion hides the badge with them.
+  await expect(page.getByTestId('reader-surface')).toBeVisible({ timeout: 30_000 });
   const firstImage = page.getByTestId('reader-surface').locator('img').first();
   await expect
     .poll(async () => firstImage.evaluate((img: HTMLImageElement) => img.naturalWidth > 0), {
@@ -163,7 +164,7 @@ test('Given a chapter whose pages are cached, When it is opened again, Then no p
   pageRequests = 0;
 
   await page.goto(readerUrl);
-  await expect(page.getByText('1 / 37')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('reader-surface')).toBeVisible({ timeout: 30_000 });
   const cachedImage = page.getByTestId('reader-surface').locator('img').first();
   await expect
     .poll(async () => cachedImage.evaluate((img: HTMLImageElement) => img.naturalWidth > 0), {

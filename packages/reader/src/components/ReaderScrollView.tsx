@@ -114,6 +114,23 @@ function geometryReducer(state: StripGeometry, event: GeometryEvent): StripGeome
 }
 
 /**
+ * The pages with each decoded shape written back, so the long-strip window can
+ * see the real shape before anything stores it: provider dimensions are usually
+ * absent, and the first decoded page is the only evidence the strip has.
+ */
+function withMeasuredShapes(
+  pages: readonly ReaderPage[],
+  natural: Readonly<Record<number, NaturalSize>>,
+): readonly ReaderPage[] {
+  return pages.map((page, index) => {
+    const size = natural[index];
+    return size === undefined
+      ? page
+      : { ...page, image: { ...page.image, width: size.width, height: size.height } };
+  });
+}
+
+/**
  * One strip row, absolutely positioned from the computed geometry. Placeholder
  * rows carry no data that changes while scrolling, so memoising them keeps a
  * page turn down to the rows entering/leaving the window instead of a
@@ -467,7 +484,9 @@ export function ReaderScrollView({
     pages,
     activePageIndex,
     resolveScrollPreloadAhead({
-      pages,
+      // A decoded page teaches the strip its shape; until then the stored
+      // shape (usually absent) is all the optimization can see.
+      pages: withMeasuredShapes(pages, geometry.natural),
       preloadAhead,
       lowMemoryMode,
       longStripOptimization,
