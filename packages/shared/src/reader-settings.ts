@@ -156,6 +156,10 @@ const spreadOffsetSchema = z.union([z.literal(0), z.literal(1)], {
   error: 'spreadOffset must be 0 or 1.',
 });
 
+const widePageModeSchema = z.enum(['isolate', 'split'], {
+  error: 'Invalid widePageMode.',
+});
+
 const readerSettingsFields = {
   readingMode: readingModeSchema,
   pageLayout: pageLayoutSchema,
@@ -216,6 +220,11 @@ const readerSettingsFields = {
    * cover, 1 pairs from the first page ("offset by one").
    */
   spreadOffset: spreadOffsetSchema.default(0),
+  /**
+   * A landscape page in double layouts takes a spread of its own: `isolate`
+   * shows it as one page, `split` fills the spread with its two halves.
+   */
+  widePageMode: widePageModeSchema.default('isolate'),
   /** Strip width as a percentage of the reader; 100 is Auto. */
   maxStripWidthPercent: z
     .number({ error: stripWidthMessage })
@@ -268,6 +277,8 @@ export type ReaderChromeVisibility = z.infer<typeof chromeVisibilitySchema>;
 
 export type SpreadOffset = z.infer<typeof spreadOffsetSchema>;
 
+export type WidePageMode = z.infer<typeof widePageModeSchema>;
+
 export type KeyboardShortcut = z.infer<typeof keyboardShortcutSchema>;
 
 export type KeyboardShortcutAction = z.infer<typeof keyboardShortcutActionSchema>;
@@ -319,6 +330,7 @@ export function getDefaultReaderSettings(): ReaderSettings {
     lowMemoryMode: false,
     diagnosticsEnabled: false,
     spreadOffset: 0,
+    widePageMode: 'isolate',
     maxStripWidthPercent: READER_STRIP_WIDTH_AUTO_PERCENT,
     showPageNumber: true,
     showChapterTransition: true,

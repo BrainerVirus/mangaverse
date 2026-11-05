@@ -74,6 +74,11 @@ const SPREAD_OFFSET_CHOICES = [
   ['1', 'Offset by one'],
 ] as const;
 
+const WIDE_PAGE_CHOICES = [
+  ['isolate', 'Isolate'],
+  ['split', 'Split'],
+] as const;
+
 const SCOPE_CHOICES = [
   ['title', 'This title'],
   ['global', 'All titles'],
@@ -295,6 +300,12 @@ function QuickSettings({
         choices={SPREAD_OFFSET_CHOICES}
         value={settings.spreadOffset === 1 ? '1' : '0'}
         onChoose={(offset) => change({ spreadOffset: offset === '1' ? 1 : 0 })}
+      />
+      <ChoiceGroup
+        label="Wide pages"
+        choices={WIDE_PAGE_CHOICES}
+        value={settings.widePageMode}
+        onChoose={(widePageMode) => change({ widePageMode })}
       />
       <div className="flex flex-col gap-2">
         <ChoiceGroup label="Applies to" choices={SCOPE_CHOICES} value={scope} onChoose={setScope} />

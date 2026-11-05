@@ -1,4 +1,10 @@
-import type { ChapterPage, FitMode, KeyboardShortcut, PageTransitionMode } from '@app/shared';
+import type {
+  ChapterPage,
+  FitMode,
+  KeyboardShortcut,
+  PageTransitionMode,
+  WidePageMode,
+} from '@app/shared';
 
 export interface ReaderPage extends ChapterPage {
   readonly width?: number;
@@ -32,6 +38,11 @@ export interface PageSlot {
   readonly isCover: boolean;
   readonly isLeftPage: boolean;
   readonly isRightPage: boolean;
+  /**
+   * Set on the two slots of a wide page split across a spread: each slot shows
+   * that physical half of the image, whatever the reading direction.
+   */
+  readonly split?: 'left' | 'right';
   readonly width?: number;
   readonly height?: number;
 }
@@ -98,6 +109,8 @@ export interface ReaderEngineSettings {
   readonly doubleTapZoom: number;
   readonly gestureSensitivity: number;
   readonly treatFirstPageAsCover: boolean;
+  /** How double layouts show a landscape page; `isolate` when absent. */
+  readonly widePageMode?: WidePageMode;
   readonly preloadAhead: number;
   /** Pages kept warm behind the active one; one when absent. */
   readonly preloadBehind?: number;

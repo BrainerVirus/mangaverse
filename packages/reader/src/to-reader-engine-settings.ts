@@ -29,6 +29,7 @@ export function toReaderEngineSettings(
     doubleTapZoom: settings.doubleTapZoom,
     gestureSensitivity: settings.gestureSensitivity,
     treatFirstPageAsCover: settings.spreadOffset === 0,
+    widePageMode: settings.widePageMode,
     preloadAhead: settings.preloadAhead,
     preloadBehind: settings.preloadBehind,
     lowMemoryMode: settings.lowMemoryMode,

@@ -139,6 +139,7 @@ describe('ReaderSettingsPage', () => {
         'reading-mode',
         'page-layout',
         'spread-offset',
+        'wide-page-mode',
         'fit-mode',
         'tap-zone-layout',
         'navigation-direction',
@@ -166,7 +167,7 @@ describe('ReaderSettingsPage', () => {
       ].sort(),
     );
     expect(settingIds(byTitle.get('Reading mode') ?? null)).toEqual(
-      expect.arrayContaining(['spread-offset']),
+      expect.arrayContaining(['spread-offset', 'wide-page-mode']),
     );
     expect(settingIds(byTitle.get('Display') ?? null)).toEqual(
       expect.arrayContaining(['max-strip-width', 'show-page-number', 'show-chapter-transition']),
@@ -356,5 +357,31 @@ describe('ReaderSettingsPage', () => {
     expect(toggle('show-chapter-transition').checked).toBe(true);
     toggle('show-chapter-transition').onCheckedChange(false);
     expect(onChange).toHaveBeenLastCalledWith({ showChapterTransition: false });
+  });
+
+  it('Given the wide pages row, When split is chosen, Then it saves the mode and names isolate as the default', () => {
+    const onChange = vi.fn<(patch: Partial<ReaderSettings>) => void>();
+    const row = rowWithId(
+      ReaderSettingsPage({
+        settings: getDefaultReaderSettings(),
+        isLoading: false,
+        isError: false,
+        onChange,
+      }),
+      'wide-page-mode',
+    ).props as {
+      label: string;
+      description: string;
+      value: string;
+      options: readonly { value: string; label: string }[];
+      onChange: (value: string) => void;
+    };
+
+    expect(row.label).toBe('Wide pages');
+    expect(row.value).toBe('isolate');
+    expect(row.description).toContain('Isolate, the default');
+    expect(row.options.map((option) => option.value)).toEqual(['isolate', 'split']);
+    row.onChange('split');
+    expect(onChange).toHaveBeenLastCalledWith({ widePageMode: 'split' });
   });
 });

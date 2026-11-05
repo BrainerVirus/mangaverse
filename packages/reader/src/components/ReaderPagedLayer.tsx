@@ -1,8 +1,10 @@
 /* oxlint-disable shadcn/no-inline-styles -- the zoom transform and fitted page box are per-frame numeric values; they cannot be expressed as static classes. */
 import { useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { CachedPageImage, type CoverCacheContextValue } from '@app/cache';
+import { useStateReducer } from '@app/design-system';
 import { resolvePageFit, type PageFitInput } from '../page-fit.js';
 import type { ReaderPageData } from '../reader-page-data.js';
+import { isWidePage } from '../spreads.js';
 import type { ReaderPage, ReaderState } from '../types.js';
 
 const OBJECT_FIT_CLASS = {
@@ -50,6 +52,13 @@ export function ReaderPagedLayer({
   onBack,
   onPageMetric,
 }: ReaderPagedLayerProps) {
+  // A wide page alone in a double layout fills the spread as its two halves.
+  const splitWide =
+    readerState.layout !== 'single' &&
+    readerState.settings.widePageMode === 'split' &&
+    visiblePages.length === 1 &&
+    visiblePages[0] !== undefined &&
+    isWidePage(visiblePages[0]);
   return (
     <div
       ref={setPagedLayer}
@@ -84,6 +93,7 @@ export function ReaderPagedLayer({
             fitInput={fitInput}
             cacheContext={cacheContext}
             imageSmoothing={imageSmoothing}
+            split={splitWide}
             onPageMetric={onPageMetric}
             onSkip={onSkip}
             onBack={onBack}
@@ -105,7 +115,9 @@ function resolveNaturalSize(
 
 /**
  * One fitted page box. Without a cache context there is nothing to read from
- * yet, so the box keeps its size and pulses instead of collapsing.
+ * yet, so the box keeps its size and pulses instead of collapsing. Split, the
+ * page renders as two half boxes; a failed load falls back to one box so its
+ * retry controls stay whole.
  */
 function ReaderPageBox({
   page,
@@ -113,6 +125,7 @@ function ReaderPageBox({
   fitInput,
   cacheContext,
   imageSmoothing,
+  split,
   onPageMetric,
   onSkip,
   onBack,
@@ -122,11 +135,13 @@ function ReaderPageBox({
   readonly fitInput: PageFitInput;
   readonly cacheContext: CoverCacheContextValue | null;
   readonly imageSmoothing: boolean;
+  readonly split: boolean;
   readonly onPageMetric: ReaderPagedLayerProps['onPageMetric'];
   readonly onSkip: () => void;
   readonly onBack: (() => void) | undefined;
 }) {
   const [natural, setNatural] = useState<{ width: number; height: number } | undefined>(undefined);
+  const [failed, setFailed] = useStateReducer<boolean, boolean>((_current, next) => next, false);
   const fit = resolvePageFit({ ...fitInput, naturalSize: resolveNaturalSize(page) ?? natural });
   if (cacheContext === null) {
     return (
@@ -138,6 +153,94 @@ function ReaderPageBox({
         className="animate-pulse bg-muted/80"
         aria-hidden
       />
+    );
+  }
+
+  const image = (owner: boolean) => (
+    <CachedPageImage
+      providerId={data.providerId}
+      mangaId={data.mangaId}
+      chapterId={data.chapterId}
+      pageIndex={page.index}
+      remoteUrl={page.image.url}
+      className={`h-full w-full select-none ${OBJECT_FIT_CLASS[fit.objectFit]}`}
+      retention="read"
+      imageRendering={imageSmoothing ? 'auto' : 'pixelated'}
+      onLoad={owner ? setNatural : undefined}
+      onMetric={(metric) => {
+        // The owning half defines the page's state, so a successful retry
+        // restores the split; a failing half falls back to one whole box.
+        if (owner) {
+          setFailed(metric.status === 'failed');
+          onPageMetric({ pageIndex: page.index, ...metric });
+        } else if (metric.status === 'failed') {
+          setFailed(true);
+        }
+      }}
+      onSkip={onSkip}
+      onBack={onBack}
+    />
+  );
+
+  if (split) {
+    const half = fit.box.width / 2;
+    // On failure the left box widens to the whole page in place: its image and
+    // Retry state stay mounted, and a successful retry narrows it back and
+    // brings the right half back. The right half repeats the image, so only the
+    // left one is announced and measured.
+    return (
+      <>
+        <div
+          key="left"
+          data-testid="reader-page-box"
+          {...(failed ? {} : { 'data-split': 'left' })}
+          data-fit-mode={fitInput.fitMode}
+          data-object-fit={fit.objectFit}
+          style={{
+            width: `${failed ? fit.box.width : half}px`,
+            height: `${fit.box.height}px`,
+            flex: '0 0 auto',
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            data-testid="reader-page-half-image"
+            style={{
+              width: `${fit.box.width}px`,
+              height: `${fit.box.height}px`,
+            }}
+          >
+            {image(true)}
+          </div>
+        </div>
+        {failed ? null : (
+          <div
+            key="right"
+            data-testid="reader-page-box"
+            data-split="right"
+            data-fit-mode={fitInput.fitMode}
+            data-object-fit={fit.objectFit}
+            aria-hidden
+            style={{
+              width: `${half}px`,
+              height: `${fit.box.height}px`,
+              flex: '0 0 auto',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              data-testid="reader-page-half-image"
+              style={{
+                width: `${fit.box.width}px`,
+                height: `${fit.box.height}px`,
+                transform: `translateX(${-half}px)`,
+              }}
+            >
+              {image(false)}
+            </div>
+          </div>
+        )}
+      </>
     );
   }
 
@@ -153,20 +256,7 @@ function ReaderPageBox({
         overflow: 'hidden',
       }}
     >
-      <CachedPageImage
-        providerId={data.providerId}
-        mangaId={data.mangaId}
-        chapterId={data.chapterId}
-        pageIndex={page.index}
-        remoteUrl={page.image.url}
-        className={`h-full w-full select-none ${OBJECT_FIT_CLASS[fit.objectFit]}`}
-        retention="read"
-        imageRendering={imageSmoothing ? 'auto' : 'pixelated'}
-        onLoad={setNatural}
-        onMetric={(metric) => onPageMetric({ pageIndex: page.index, ...metric })}
-        onSkip={onSkip}
-        onBack={onBack}
-      />
+      {image(true)}
     </div>
   );
 }

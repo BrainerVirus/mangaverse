@@ -370,6 +370,21 @@ describe('ReaderScreen settings', () => {
       act(() => root.unmount());
     });
 
+    it('Given the default Isolate, When Split is chosen for wide pages, Then this title splits them, and All titles writes globally', () => {
+      const { root, container, changes } = renderReader(buildData({}));
+
+      click(buttonNamed(container, 'Settings'));
+      const wide = group(container, 'Wide pages');
+      expect(buttonNamed(wide, 'Isolate').getAttribute('aria-pressed')).toBe('true');
+      click(buttonNamed(wide, 'Split'));
+      expect(changes.at(-1)).toEqual({ patch: { widePageMode: 'split' }, scope: 'title' });
+
+      click(buttonNamed(group(container, 'Applies to'), 'All titles'));
+      click(buttonNamed(group(container, 'Wide pages'), 'Isolate'));
+      expect(changes.at(-1)).toEqual({ patch: { widePageMode: 'isolate' }, scope: 'global' });
+      act(() => root.unmount());
+    });
+
     it('Given the quick panel, When rendered, Then smart spread, L-shaped zones and Auto choices are offered with pressed state', () => {
       const { root, container, changes } = renderReader(
         buildData({ pageLayout: 'smartSpread', tapZoneLayout: 'lShaped' }),

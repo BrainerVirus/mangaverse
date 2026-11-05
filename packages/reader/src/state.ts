@@ -7,13 +7,19 @@ import type {
 } from './types.js';
 import { calculatePageSlots } from './spreads.js';
 
-function findActiveSpreadSlots(
+export function findActiveSpreadSlots(
   slots: readonly PageSlot[],
   activePageIndex: number,
   rtl: boolean,
 ): readonly PageSlot[] {
   const targetSlot = slots.find((s) => s.pageIndex === activePageIndex);
   if (!targetSlot) return [];
+
+  // A split wide page is the whole spread: its halves, emitted physically left
+  // then right in either direction.
+  if (targetSlot.split !== undefined) {
+    return slots.filter((s) => s.pageIndex === activePageIndex);
+  }
 
   if (targetSlot.isCover || (!targetSlot.isLeftPage && !targetSlot.isRightPage)) {
     return [targetSlot];
@@ -59,7 +65,8 @@ export function createReaderState(input: ReaderSessionInput): ReaderState {
       settings.readingMode === 'rtl',
     );
     if (visibleSlots.length > 1) {
-      visiblePageIndexes = visibleSlots.map((s) => s.pageIndex);
+      // A split page's two halves are one page.
+      visiblePageIndexes = [...new Set(visibleSlots.map((s) => s.pageIndex))];
     } else {
       visiblePageIndexes = [clampedPageIndex];
     }

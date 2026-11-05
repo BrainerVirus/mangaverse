@@ -42,6 +42,7 @@ import {
   type SpreadOffset,
   type TapZoneLayout,
   type WheelBehavior,
+  type WidePageMode,
 } from '@app/shared';
 
 export interface ReaderSettingsPageProps {
@@ -113,6 +114,11 @@ const WHEEL_BEHAVIOR_OPTIONS: readonly { value: WheelBehavior; label: string }[]
 const SPREAD_OFFSET_OPTIONS: readonly { value: `${SpreadOffset}`; label: string }[] = [
   { value: '0', label: 'Cover alone' },
   { value: '1', label: 'Offset by one' },
+];
+
+const WIDE_PAGE_OPTIONS: readonly { value: WidePageMode; label: string }[] = [
+  { value: 'isolate', label: 'Isolate (one page)' },
+  { value: 'split', label: 'Split across the spread' },
 ];
 
 const MIB = 1024 * 1024;
@@ -661,6 +667,14 @@ export function ReaderSettingsPage({
               value={String(settings.spreadOffset)}
               options={SPREAD_OFFSET_OPTIONS}
               onChange={(offset) => commit({ spreadOffset: offset === '1' ? 1 : 0 })}
+            />
+            <SettingSelectRow
+              id="wide-page-mode"
+              label="Wide pages"
+              description="How double layouts show a landscape page. Isolate, the default, shows it alone; split fills the spread with its two halves."
+              value={settings.widePageMode}
+              options={WIDE_PAGE_OPTIONS}
+              onChange={(widePageMode) => commit({ widePageMode: widePageMode as WidePageMode })}
             />
             <SettingSelectRow
               id="fit-mode"

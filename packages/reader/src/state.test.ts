@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { toChapterPageId } from '@app/shared';
-import { createReaderState } from './state';
+import { calculatePageSlots } from './spreads';
+import { createReaderState, findActiveSpreadSlots } from './state';
 import type { ReaderChapter, ReaderEngineSettings, ReaderPage, ReaderSessionInput } from './types';
 
 const mockPages: readonly ReaderPage[] = [
@@ -241,5 +242,69 @@ describe('createReaderState', () => {
 
     // Cover page 0 stands alone
     expect(state.visiblePageIndexes).toEqual([0]);
+  });
+});
+
+describe('split wide pages', () => {
+  // Portrait pages around a landscape page at index 2.
+  const wideChapter: ReaderChapter = {
+    ...mockChapter,
+    pages: mockPages.map((page) => ({
+      ...page,
+      image: {
+        ...page.image,
+        ...(page.index === 2 ? { width: 1600, height: 1000 } : { width: 600, height: 1000 }),
+      },
+    })),
+  };
+
+  it.each(['ltr', 'rtl'] as const)(
+    'Given a split page in %s, When it is active, Then its two halves show physically left then right as one page',
+    (readingMode) => {
+      const input: ReaderSessionInput = {
+        chapter: wideChapter,
+        viewport: mockViewport,
+        settings: {
+          ...defaultSettings,
+          readingMode,
+          pageLayout: 'double',
+          treatFirstPageAsCover: false,
+          widePageMode: 'split',
+        },
+        initialPageIndex: 2,
+      };
+
+      const halves = findActiveSpreadSlots(calculatePageSlots(input), 2, readingMode === 'rtl');
+      const state = createReaderState(input);
+
+      expect(halves.map((slot) => [slot.pageIndex, slot.split])).toEqual([
+        [2, 'left'],
+        [2, 'right'],
+      ]);
+      expect(state.visiblePageIndexes).toEqual([2]);
+      expect(state.preloadQueue).toEqual([3]);
+    },
+  );
+
+  it('Given a split page, When the pages around it are active, Then they never pair with a half', () => {
+    const settings: ReaderEngineSettings = {
+      ...defaultSettings,
+      readingMode: 'rtl',
+      pageLayout: 'smartSpread',
+      treatFirstPageAsCover: false,
+      widePageMode: 'split',
+    };
+
+    const shown = [0, 1, 3].map(
+      (initialPageIndex) =>
+        createReaderState({
+          chapter: wideChapter,
+          viewport: mockViewport,
+          settings,
+          initialPageIndex,
+        }).visiblePageIndexes,
+    );
+
+    expect(shown).toEqual([[1, 0], [1, 0], [3]]);
   });
 });
