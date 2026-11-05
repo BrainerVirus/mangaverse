@@ -1,10 +1,10 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { applyThemeToRoot, buildThemeCssVariables } from './apply-theme.js';
 import {
-  THEME_PAINT_BOOT_SCRIPT,
   THEME_PAINT_SNAPSHOT_KEY,
-  paintThemeSnapshot,
   serializeThemePaintSnapshot,
   writeThemePaintSnapshot,
 } from './paint-snapshot.js';
@@ -21,9 +21,14 @@ function stored(): string | null {
   return window.localStorage.getItem(THEME_PAINT_SNAPSHOT_KEY);
 }
 
-/** Runs the head script exactly as the browser would: a classic script in global scope. */
+const BOOT_SCRIPT = readFileSync(
+  join(import.meta.dirname, '../../../public/theme-boot.js'),
+  'utf8',
+);
+
+/** Runs the shipped head script exactly as the browser would: a classic script in global scope. */
 async function runBootScript(): Promise<void> {
-  new Function(THEME_PAINT_BOOT_SCRIPT)();
+  new Function(BOOT_SCRIPT)();
   await Promise.resolve();
   await Promise.resolve();
 }
@@ -60,34 +65,61 @@ describe('writeThemePaintSnapshot', () => {
   });
 });
 
-describe('paintThemeSnapshot', () => {
-  let root: HTMLElement;
-  const storage = { getItem: (key: string) => window.localStorage.getItem(key) };
+interface FakeRoot {
+  readonly dark: boolean[];
+  readonly properties: Record<string, string>;
+}
 
-  beforeEach(() => {
-    root = document.createElement('html');
+/**
+ * Runs the shipped script against a fake document and storage (parameters shadow the
+ * globals), so the pinned key and format are the only things it can see.
+ */
+async function runAgainstFakes(stored: string | null): Promise<{
+  root: FakeRoot;
+  keysRead: string[];
+}> {
+  const root: FakeRoot = { dark: [], properties: {} };
+  const keysRead: string[] = [];
+  const fakeDocument = {
+    documentElement: {
+      classList: { toggle: (_name: string, force: boolean) => root.dark.push(force) },
+      style: {
+        setProperty: (name: string, value: string) => {
+          root.properties[name] = value;
+        },
+      },
+    },
+  };
+  const fakeStorage = {
+    getItem: (key: string) => {
+      keysRead.push(key);
+      return key === THEME_PAINT_SNAPSHOT_KEY ? stored : null;
+    },
+  };
+  new Function('document', 'localStorage', BOOT_SCRIPT)(fakeDocument, fakeStorage);
+  await Promise.resolve();
+  await Promise.resolve();
+  return { root, keysRead };
+}
+
+describe('public/theme-boot.js', () => {
+  it('is a plain classic script: no modules, no imports', () => {
+    expect(BOOT_SCRIPT).not.toMatch(/^\s*(import|export)\b/m);
   });
 
-  it('sets the dark class and only the two custom properties', () => {
-    store(serializeThemePaintSnapshot(amoled));
+  it.each([sakura, amoled])(
+    'reads the key and format the serializer writes ($appearance)',
+    async (snapshot) => {
+      const { root, keysRead } = await runAgainstFakes(serializeThemePaintSnapshot(snapshot));
 
-    expect(paintThemeSnapshot(THEME_PAINT_SNAPSHOT_KEY, root, storage)).toBe(true);
-
-    expect(root.classList.contains('dark')).toBe(true);
-    expect(root.style.getPropertyValue('--background')).toBe('#000000');
-    expect(root.style.getPropertyValue('--foreground')).toBe('#f5f5f5');
-    expect(root.style.length).toBe(2);
-  });
-
-  it('removes a stale dark class for a light snapshot', () => {
-    root.classList.add('dark');
-    store(serializeThemePaintSnapshot(sakura));
-
-    paintThemeSnapshot(THEME_PAINT_SNAPSHOT_KEY, root, storage);
-
-    expect(root.classList.contains('dark')).toBe(false);
-    expect(root.style.getPropertyValue('--background')).toBe('#fff5f7');
-  });
+      expect(keysRead).toEqual([THEME_PAINT_SNAPSHOT_KEY]);
+      expect(root.dark).toEqual([snapshot.appearance === 'dark']);
+      expect(root.properties).toEqual({
+        '--background': snapshot.background,
+        '--foreground': snapshot.foreground,
+      });
+    },
+  );
 
   it.each([
     ['nothing stored', null],
@@ -97,20 +129,14 @@ describe('paintThemeSnapshot', () => {
     ['a missing field', 'dark|#000'],
     ['an empty colour', 'dark||#fff'],
     ['an extra field', 'dark|#000|#fff|#123'],
-  ])('leaves the root untouched for %s', (_label, raw) => {
-    if (raw !== null) {
-      store(raw);
-    }
+  ])('touches nothing for %s', async (_label, raw) => {
+    const { root } = await runAgainstFakes(raw);
 
-    expect(paintThemeSnapshot(THEME_PAINT_SNAPSHOT_KEY, root, storage)).toBe(false);
-
-    expect(root.className).toBe('');
-    expect(root.getAttribute('style')).toBeNull();
+    expect(root.dark).toEqual([]);
+    expect(root.properties).toEqual({});
   });
-});
 
-describe('THEME_PAINT_BOOT_SCRIPT', () => {
-  it('paints the saved canvas from a global-scope classic script before any render', async () => {
+  it('paints the real document from storage before any render', async () => {
     store(serializeThemePaintSnapshot(amoled));
 
     await runBootScript();
@@ -119,15 +145,17 @@ describe('THEME_PAINT_BOOT_SCRIPT', () => {
     expect(root.classList.contains('dark')).toBe(true);
     expect(root.style.getPropertyValue('--background')).toBe('#000000');
     expect(root.style.getPropertyValue('--foreground')).toBe('#f5f5f5');
+    expect(root.style.length).toBe(2);
   });
 
-  it('does nothing on first run or a malformed snapshot', async () => {
-    await runBootScript();
-    store('not|a snapshot|at all|really');
+  it('removes a stale dark class for a light snapshot', async () => {
+    document.documentElement.classList.add('dark');
+    store(serializeThemePaintSnapshot(sakura));
+
     await runBootScript();
 
-    expect(document.documentElement.className).toBe('');
-    expect(document.documentElement.getAttribute('style')).toBeNull();
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+    expect(document.documentElement.style.getPropertyValue('--background')).toBe('#fff5f7');
   });
 
   it('does not throw or reject when storage is blocked', async () => {

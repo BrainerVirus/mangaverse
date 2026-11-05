@@ -7,7 +7,6 @@ import type { PlatformCapabilities } from '@app/platform';
 // 'self' covers it under the desktop CSP.
 import interFontUrl from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url';
 import { ShellProviders } from '../components/ShellProviders.js';
-import { THEME_PAINT_BOOT_SCRIPT } from '../features/theme/paint-snapshot.js';
 import '@app/design-system/styles/globals.css';
 
 export const Route = createRootRoute({
@@ -27,8 +26,9 @@ export const Route = createRootRoute({
       },
       { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
     ],
-    // Blocking inline script: paints the saved theme's canvas before the first frame.
-    scripts: [{ children: THEME_PAINT_BOOT_SCRIPT }],
+    // Blocking same-origin classic script (not inline: the desktop CSP refuses inline script)
+    // that paints the saved theme's canvas before the first frame.
+    scripts: [{ src: '/theme-boot.js' }],
   }),
   component: RootDocument,
 });
