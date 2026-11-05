@@ -10,6 +10,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  PageContainer,
 } from '@app/design-system';
 import { CachedCoverImage, getDefaultProviderId } from '@app/cache';
 import {
@@ -1100,7 +1101,7 @@ function MangaDetailContent(props: MangaDetailPageProps & { readonly data: Manga
   const canUnmerge = unmerge.isAvailable && view.data.manga.providerMappings.length > 1;
 
   return (
-    <section aria-label="Manga details" className="@container flex flex-col gap-8 p-6">
+    <section aria-label="Manga details" className="@container flex flex-col gap-8">
       <MangaHeaderHost
         props={props}
         view={view}
@@ -1173,11 +1174,17 @@ export function MangaDetailPage(props: MangaDetailPageProps) {
   const { data } = props;
   if (props.isLoading || props.isError || data === undefined || data === null) {
     return (
-      <section aria-label="Manga details" className="p-6">
-        <MangaDetailStatus props={props} />
-      </section>
+      <PageContainer>
+        <section aria-label="Manga details">
+          <MangaDetailStatus props={props} />
+        </section>
+      </PageContainer>
     );
   }
 
-  return <MangaDetailContent {...props} data={data} />;
+  return (
+    <PageContainer>
+      <MangaDetailContent {...props} data={data} />
+    </PageContainer>
+  );
 }

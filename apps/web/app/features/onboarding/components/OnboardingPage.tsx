@@ -12,6 +12,7 @@ import {
   SelectValue,
   Switch,
   ThemePreview,
+  PageContainer,
 } from '@app/design-system';
 import { fadeIn, useReducedMotion } from '@app/design-system/motion';
 import type { AppSettings, ReaderSettings, ThemeSettings } from '@app/shared';
@@ -460,9 +461,11 @@ export function OnboardingPage({
 }: OnboardingPageProps) {
   if (isLoading) {
     return (
-      <section aria-label="Onboarding" className="mx-auto w-full max-w-2xl p-6">
-        <LoadingState type="list" />
-      </section>
+      <PageContainer variant="read">
+        <section aria-label="Onboarding" className="w-full max-w-2xl">
+          <LoadingState type="list" />
+        </section>
+      </PageContainer>
     );
   }
 
@@ -474,12 +477,14 @@ export function OnboardingPage({
     readerSettings === undefined
   ) {
     return (
-      <section aria-label="Onboarding" className="mx-auto w-full max-w-2xl p-6">
-        <ErrorState
-          title="Could not load onboarding"
-          message="Local setup data failed to load. Try again in a moment."
-        />
-      </section>
+      <PageContainer variant="read">
+        <section aria-label="Onboarding" className="w-full max-w-2xl">
+          <ErrorState
+            title="Could not load onboarding"
+            message="Local setup data failed to load. Try again in a moment."
+          />
+        </section>
+      </PageContainer>
     );
   }
 
@@ -488,103 +493,102 @@ export function OnboardingPage({
   const isLastStep = state.currentStep === 'provider';
 
   return (
-    <section
-      aria-label="Onboarding"
-      className="mx-auto flex w-full max-w-2xl flex-col px-6 py-8 lg:py-12"
-    >
-      <div className="mb-8 flex items-center justify-between gap-3">
-        <nav aria-label="Onboarding steps">
-          <p className="text-xs text-muted-foreground sm:hidden">
-            Step {progress.current} of {progress.total}
-          </p>
-          <ol className="type-body hidden gap-x-3 whitespace-nowrap sm:flex">
-            {ONBOARDING_STEP_IDS.map((step) => (
-              <li
-                key={step}
-                aria-current={step === state.currentStep ? 'step' : undefined}
-                className={
-                  step === state.currentStep
-                    ? 'font-medium text-foreground'
-                    : 'text-muted-foreground'
-                }
-              >
-                {STEP_LABELS[step]}
-              </li>
-            ))}
-          </ol>
-        </nav>
-        {!isOnboardingFinished(state) ? (
-          <Button type="button" variant="ghost" disabled={isSaving} onClick={onSkip}>
-            Skip setup
-          </Button>
-        ) : null}
-      </div>
+    <PageContainer variant="read">
+      <section aria-label="Onboarding" className="flex w-full max-w-2xl flex-col">
+        <div className="mb-8 flex items-center justify-between gap-3">
+          <nav aria-label="Onboarding steps">
+            <p className="text-xs text-muted-foreground sm:hidden">
+              Step {progress.current} of {progress.total}
+            </p>
+            <ol className="type-body hidden gap-x-3 whitespace-nowrap sm:flex">
+              {ONBOARDING_STEP_IDS.map((step) => (
+                <li
+                  key={step}
+                  aria-current={step === state.currentStep ? 'step' : undefined}
+                  className={
+                    step === state.currentStep
+                      ? 'font-medium text-foreground'
+                      : 'text-muted-foreground'
+                  }
+                >
+                  {STEP_LABELS[step]}
+                </li>
+              ))}
+            </ol>
+          </nav>
+          {!isOnboardingFinished(state) ? (
+            <Button type="button" variant="ghost" disabled={isSaving} onClick={onSkip}>
+              Skip setup
+            </Button>
+          ) : null}
+        </div>
 
-      <StepPanel step={state.currentStep}>
-        {state.currentStep === 'welcome' ? <WelcomeStep /> : null}
-        {state.currentStep === 'theme' ? (
-          <ThemeStep settings={themeSettings} disabled={isSaving} onChange={onThemeChange} />
-        ) : null}
-        {state.currentStep === 'reading' ? (
-          <ReadingStep
-            settings={readerSettings}
-            disabled={isSaving}
-            onChange={onReaderSettingsChange}
-          />
-        ) : null}
-        {state.currentStep === 'preferences' ? (
-          <PreferencesStep
-            settings={appSettings}
-            disabled={isSaving}
-            onChange={onAppSettingsChange}
-          />
-        ) : null}
-        {state.currentStep === 'provider' ? (
-          <ProviderStep onInstallProvider={onInstallProvider} />
-        ) : null}
-      </StepPanel>
+        <StepPanel step={state.currentStep}>
+          {state.currentStep === 'welcome' ? <WelcomeStep /> : null}
+          {state.currentStep === 'theme' ? (
+            <ThemeStep settings={themeSettings} disabled={isSaving} onChange={onThemeChange} />
+          ) : null}
+          {state.currentStep === 'reading' ? (
+            <ReadingStep
+              settings={readerSettings}
+              disabled={isSaving}
+              onChange={onReaderSettingsChange}
+            />
+          ) : null}
+          {state.currentStep === 'preferences' ? (
+            <PreferencesStep
+              settings={appSettings}
+              disabled={isSaving}
+              onChange={onAppSettingsChange}
+            />
+          ) : null}
+          {state.currentStep === 'provider' ? (
+            <ProviderStep onInstallProvider={onInstallProvider} />
+          ) : null}
+        </StepPanel>
 
-      <footer className="sticky bottom-0 mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-background pt-4 pb-4">
-        {isFirstStep ? null : (
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-11"
-            disabled={isSaving}
-            onClick={onBack}
-          >
-            Back
-          </Button>
-        )}
-
-        <div className="ml-auto flex flex-wrap justify-end gap-2">
-          {isLastStep ? (
-            <>
-              <Button
-                type="button"
-                variant="secondary"
-                className="min-h-11"
-                disabled={isSaving}
-                onClick={onFinish}
-              >
-                Finish without provider
-              </Button>
-              <Button
-                type="button"
-                className="min-h-11"
-                disabled={isSaving}
-                onClick={onInstallProvider}
-              >
-                Install a provider
-              </Button>
-            </>
-          ) : (
-            <Button type="button" className="min-h-11" disabled={isSaving} onClick={onNext}>
-              Continue
+        <footer className="sticky bottom-0 mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-background pt-4 pb-4">
+          {isFirstStep ? null : (
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11"
+              disabled={isSaving}
+              onClick={onBack}
+            >
+              Back
             </Button>
           )}
-        </div>
-      </footer>
-    </section>
+
+          <div className="ml-auto flex flex-wrap justify-end gap-2">
+            {isLastStep ? (
+              <>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="min-h-11"
+                  disabled={isSaving}
+                  onClick={onFinish}
+                >
+                  Finish without provider
+                </Button>
+                <Button
+                  type="button"
+                  className="min-h-11"
+                  disabled={isSaving}
+                  onClick={onInstallProvider}
+                >
+                  Install a provider
+                </Button>
+              </>
+            ) : (
+              <Button type="button" className="min-h-11" disabled={isSaving} onClick={onNext}>
+                Continue
+              </Button>
+            )}
+          </div>
+        </footer>
+      </section>
+    </PageContainer>
   );
 }

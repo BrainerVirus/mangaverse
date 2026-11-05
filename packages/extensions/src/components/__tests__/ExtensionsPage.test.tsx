@@ -45,7 +45,9 @@ describe('ExtensionsPage registry actions', () => {
     const user = userEvent.setup();
     const { onImportRegistry, onExportExtensions } = renderPage();
 
-    const header = screen.getByRole('heading', { name: 'Extensions' }).parentElement?.parentElement;
+    const header = screen
+      .getByRole('heading', { name: 'Extensions' })
+      .closest<HTMLElement>('[data-page-header]');
     expect(within(header as HTMLElement).getAllByRole('button')).toHaveLength(2);
     expect(
       within(header as HTMLElement).getByRole('button', { name: 'Install provider' }),

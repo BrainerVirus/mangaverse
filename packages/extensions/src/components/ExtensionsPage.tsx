@@ -12,6 +12,8 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
+  PageContainer,
+  PageHeader,
 } from '@app/design-system';
 import type { ExtensionRegistryEntry } from '@app/shared';
 import { ExternalLink, Puzzle } from 'lucide-react';
@@ -267,63 +269,65 @@ export function ExtensionsPage({
   const showEmptyState = !isLoading && !isError && providerCount === 0;
 
   return (
-    <section aria-label="Extensions" className="@container flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Extensions</h1>
-          <p className="text-sm text-muted-foreground">
-            {providerCount === 1 ? '1 installed provider' : `${providerCount} installed providers`}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" onClick={onImportRegistry}>
-            Import
-          </Button>
-          <Button type="button" onClick={onInstallProvider}>
-            Install provider
-          </Button>
-        </div>
-      </div>
-
-      <ExportFeedback
-        exportError={exportError}
-        exportWarnings={exportWarnings}
-        importWarnings={importWarnings}
-      />
-
-      {isLoading ? <LoadingState type="grid" /> : null}
-
-      {isError ? (
-        <ErrorState
-          title="Could not load extensions"
-          message="Installed providers failed to load. Try again in a moment."
+    <PageContainer>
+      <section aria-label="Extensions" className="@container flex flex-col gap-6">
+        <PageHeader
+          title="Extensions"
+          description={
+            providerCount === 1 ? '1 installed provider' : `${providerCount} installed providers`
+          }
+          actions={
+            <>
+              <Button type="button" variant="outline" onClick={onImportRegistry}>
+                Import
+              </Button>
+              <Button type="button" onClick={onInstallProvider}>
+                Install provider
+              </Button>
+            </>
+          }
         />
-      ) : null}
 
-      {showEmptyState ? (
-        <EmptyState
-          type="no-provider"
-          action={{ label: 'Install provider', onClick: onInstallProvider }}
+        <ExportFeedback
+          exportError={exportError}
+          exportWarnings={exportWarnings}
+          importWarnings={importWarnings}
         />
-      ) : null}
 
-      {!isLoading && !isError ? (
-        <ProviderGrid
-          providers={providers}
-          pendingProviderId={pendingProviderId}
-          onOpenProvider={onOpenProvider}
-          onToggleEnabled={onToggleEnabled}
-        />
-      ) : null}
+        {isLoading ? <LoadingState type="grid" /> : null}
 
-      {!isLoading && !isError ? (
-        <RegistryList
-          registries={registries}
-          hasProviders={providerCount > 0}
-          isExporting={isExporting}
-          onExportExtensions={onExportExtensions}
-        />
-      ) : null}
-    </section>
+        {isError ? (
+          <ErrorState
+            title="Could not load extensions"
+            message="Installed providers failed to load. Try again in a moment."
+          />
+        ) : null}
+
+        {showEmptyState ? (
+          <EmptyState
+            type="no-provider"
+            action={{ label: 'Install provider', onClick: onInstallProvider }}
+          />
+        ) : null}
+
+        {!isLoading && !isError ? (
+          <ProviderGrid
+            providers={providers}
+            pendingProviderId={pendingProviderId}
+            onOpenProvider={onOpenProvider}
+            onToggleEnabled={onToggleEnabled}
+          />
+        ) : null}
+
+        {!isLoading && !isError ? (
+          <RegistryList
+            registries={registries}
+            hasProviders={providerCount > 0}
+            isExporting={isExporting}
+            onExportExtensions={onExportExtensions}
+          />
+        ) : null}
+      </section>
+    </PageContainer>
   );
 }

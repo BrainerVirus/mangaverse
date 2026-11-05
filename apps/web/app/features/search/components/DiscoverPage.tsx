@@ -1,5 +1,12 @@
 import { useRef } from 'react';
-import { Button, EmptyState, ErrorState, LoadingState, PageHeader } from '@app/design-system';
+import {
+  Button,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  PageContainer,
+  PageHeader,
+} from '@app/design-system';
 import { CachedMangaCard } from '@app/cache';
 import type { MangaId, MangaIdentity } from '@app/shared';
 import { useInfiniteScrollSentinel } from '../hooks/use-infinite-scroll-sentinel.js';
@@ -166,50 +173,49 @@ export function DiscoverPage({
   );
 
   return (
-    <section
-      aria-label="Discover"
-      className="mx-auto flex w-full max-w-400 flex-col gap-6 p-6 md:p-8"
-    >
-      <PageHeader
-        title="Discover"
-        description="Browse popular and latest manga from your enabled providers."
-        {...(!isExpandedView && totalTitles > 0
-          ? { count: totalTitles, countLabel: 'titles' }
-          : {})}
-      />
-
-      {isLoading && !isExpandedView ? <LoadingState type="grid" /> : null}
-
-      {isError ? (
-        <ErrorState
-          title="Could not load discover feed"
-          message="Provider catalog failed to load. Try again in a moment."
-          {...(onRetry !== undefined ? { onRetry } : {})}
-        />
-      ) : null}
-
-      {showProviderHint ? (
-        <EmptyState
-          type="no-results"
-          {...(onBrowseProviders !== undefined
-            ? { action: { label: 'Browse providers', onClick: onBrowseProviders } }
+    <PageContainer>
+      <section aria-label="Discover" className="flex flex-col gap-6">
+        <PageHeader
+          title="Discover"
+          description="Browse popular and latest manga from your enabled providers."
+          {...(!isExpandedView && totalTitles > 0
+            ? { count: totalTitles, countLabel: 'titles' }
             : {})}
         />
-      ) : null}
 
-      <DiscoverProviderBrowser
-        isError={isError}
-        providers={providers}
-        activeProvider={activeProvider}
-        isExpandedView={isExpandedView}
-        expandedSectionState={expandedSectionState}
-        onSelectProvider={onSelectProvider}
-        onOpenManga={onOpenManga}
-        onSeeAllSection={onSeeAllSection}
-        onBackFromSection={onBackFromSection}
-        onLoadMoreSection={onLoadMoreSection}
-      />
-    </section>
+        {isLoading && !isExpandedView ? <LoadingState type="grid" /> : null}
+
+        {isError ? (
+          <ErrorState
+            title="Could not load discover feed"
+            message="Provider catalog failed to load. Try again in a moment."
+            {...(onRetry !== undefined ? { onRetry } : {})}
+          />
+        ) : null}
+
+        {showProviderHint ? (
+          <EmptyState
+            type="no-results"
+            {...(onBrowseProviders !== undefined
+              ? { action: { label: 'Browse providers', onClick: onBrowseProviders } }
+              : {})}
+          />
+        ) : null}
+
+        <DiscoverProviderBrowser
+          isError={isError}
+          providers={providers}
+          activeProvider={activeProvider}
+          isExpandedView={isExpandedView}
+          expandedSectionState={expandedSectionState}
+          onSelectProvider={onSelectProvider}
+          onOpenManga={onOpenManga}
+          onSeeAllSection={onSeeAllSection}
+          onBackFromSection={onBackFromSection}
+          onLoadMoreSection={onLoadMoreSection}
+        />
+      </section>
+    </PageContainer>
   );
 }
 

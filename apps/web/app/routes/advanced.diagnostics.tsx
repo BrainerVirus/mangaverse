@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { PageContainer } from '@app/design-system';
 import {
   createAppPlatformAdapter,
   DiagnosticsPage,
@@ -43,7 +44,7 @@ function DiagnosticsRoute() {
   const hasDbError = dbStatus === 'error';
 
   return (
-    <>
+    <PageContainer variant="read">
       <DiagnosticsPage
         isLoading={isLoading}
         isError={hasDbError || isError}
@@ -69,6 +70,6 @@ function DiagnosticsRoute() {
         }}
         onExport={() => eventLog.export()}
       />
-    </>
+    </PageContainer>
   );
 }

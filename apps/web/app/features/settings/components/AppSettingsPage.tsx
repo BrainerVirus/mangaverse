@@ -3,6 +3,8 @@ import {
   Input,
   Label,
   LoadingState,
+  PageContainer,
+  PageHeader,
   Select,
   SelectContent,
   SelectGroup,
@@ -133,20 +135,24 @@ export function AppSettingsPage({
 }: AppSettingsPageProps) {
   if (isLoading) {
     return (
-      <section aria-label="App settings" className="mx-auto w-full max-w-3xl p-6">
-        <LoadingState type="list" count={3} />
-      </section>
+      <PageContainer variant="read">
+        <section aria-label="App settings">
+          <LoadingState type="list" count={3} />
+        </section>
+      </PageContainer>
     );
   }
 
   if (isError || settings === undefined) {
     return (
-      <section aria-label="App settings" className="mx-auto w-full max-w-3xl p-6">
-        <ErrorState
-          title="Could not load app settings"
-          message="Local settings failed to load. Try again in a moment."
-        />
-      </section>
+      <PageContainer variant="read">
+        <section aria-label="App settings">
+          <ErrorState
+            title="Could not load app settings"
+            message="Local settings failed to load. Try again in a moment."
+          />
+        </section>
+      </PageContainer>
     );
   }
 
@@ -159,133 +165,138 @@ export function AppSettingsPage({
   };
 
   return (
-    <section aria-label="App settings" className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">App settings</h1>
-        <p className="text-sm text-muted-foreground">
-          Global preferences for content, performance, and localization.
-        </p>
-      </div>
+    <PageContainer variant="read">
+      <section aria-label="App settings" className="flex flex-col gap-6">
+        <PageHeader
+          title="App settings"
+          description="Global preferences for content, performance, and localization."
+        />
 
-      <SettingsSection
-        title="Appearance"
-        description="Adjust motion and transparency across the app."
-      >
-        <div className="space-y-4">
-          <SettingToggleRow
-            id="reduce-motion"
-            label="Motion"
-            description={settings.reduceMotion ? 'Reduced motion' : 'Full motion'}
-            checked={settings.reduceMotion}
-            onCheckedChange={(reduceMotion) => commit({ reduceMotion })}
-          />
-          <SettingToggleRow
-            id="reduce-transparency"
-            label="Transparency"
-            description={settings.reduceTransparency ? 'Reduced transparency' : 'Full transparency'}
-            checked={settings.reduceTransparency}
-            onCheckedChange={(reduceTransparency) => commit({ reduceTransparency })}
-          />
-        </div>
-      </SettingsSection>
-
-      <SettingsSection
-        title="Content"
-        description="Control what the app shows in search, browse, and recommendations."
-      >
-        <div className="space-y-4">
-          <SettingToggleRow
-            id="explicit-content"
-            label="Explicit content"
-            description="Allow mature series in search and browse results."
-            checked={settings.explicitContent}
-            onCheckedChange={(explicitContent) => commit({ explicitContent })}
-          />
-          <SettingToggleRow
-            id="provider-errors"
-            label="Show provider errors in search"
-            description="Surface provider failures in search results instead of hiding them silently."
-            checked={settings.showProviderErrors}
-            onCheckedChange={(showProviderErrors) => commit({ showProviderErrors })}
-          />
-        </div>
-      </SettingsSection>
-
-      <SettingsSection title="Performance" description="Reduce memory use on constrained devices.">
-        <div className="space-y-4">
-          <SettingToggleRow
-            id="low-memory-mode"
-            label="Low-memory mode"
-            description="Reduce preloading, thumbnails, and animation intensity."
-            checked={settings.lowMemoryMode}
-            onCheckedChange={(lowMemoryMode) => commit({ lowMemoryMode })}
-          />
-          <div className="grid gap-2">
-            <Label htmlFor="image-cache-limit">Local cache limit</Label>
-            <Input
-              id="image-cache-limit"
-              type="number"
-              min={50}
-              max={10240}
-              step={50}
-              value={bytesToMegabytes(settings.imageCacheLimitBytes)}
-              onBlur={onInteractionEnd}
-              onChange={(event) => {
-                const megabytes = Number(event.target.value);
-                if (!Number.isFinite(megabytes)) {
-                  return;
-                }
-                update({ imageCacheLimitBytes: megabytesToBytes(megabytes) });
-              }}
+        <SettingsSection
+          title="Appearance"
+          description="Adjust motion and transparency across the app."
+        >
+          <div className="space-y-4">
+            <SettingToggleRow
+              id="reduce-motion"
+              label="Motion"
+              description={settings.reduceMotion ? 'Reduced motion' : 'Full motion'}
+              checked={settings.reduceMotion}
+              onCheckedChange={(reduceMotion) => commit({ reduceMotion })}
             />
-            <p className="text-sm text-muted-foreground">
-              Covers and reader pages are stored locally and reused on later visits. Downloads are
-              never removed automatically, even when the limit is reached. Limit:{' '}
-              {formatCacheBytes(settings.imageCacheLimitBytes)}
-              {cacheUsageBytes !== undefined
-                ? ` · Used: ${formatCacheBytes(cacheUsageBytes)}`
-                : null}
-            </p>
-          </div>
-        </div>
-      </SettingsSection>
-
-      <SettingsSection
-        title="Localization"
-        description="Preferred languages and locale for content discovery."
-      >
-        <div className="grid gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="preferred-languages">Preferred languages</Label>
-            <PreferredLanguagesField
-              languages={settings.preferredLanguages}
-              onChange={(preferredLanguages) => update({ preferredLanguages })}
-              onInteractionEnd={onInteractionEnd}
+            <SettingToggleRow
+              id="reduce-transparency"
+              label="Transparency"
+              description={
+                settings.reduceTransparency ? 'Reduced transparency' : 'Full transparency'
+              }
+              checked={settings.reduceTransparency}
+              onCheckedChange={(reduceTransparency) => commit({ reduceTransparency })}
             />
-            <p className="text-sm text-muted-foreground">
-              Comma-separated ISO language codes used when ranking search and browse results.
-            </p>
           </div>
+        </SettingsSection>
 
-          <div className="grid gap-2">
-            <Label htmlFor="locale">Locale</Label>
-            <Select value={settings.locale} onValueChange={(value) => commit({ locale: value })}>
-              <SelectTrigger id="locale" aria-label="Locale">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {LOCALE_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
+        <SettingsSection
+          title="Content"
+          description="Control what the app shows in search, browse, and recommendations."
+        >
+          <div className="space-y-4">
+            <SettingToggleRow
+              id="explicit-content"
+              label="Explicit content"
+              description="Allow mature series in search and browse results."
+              checked={settings.explicitContent}
+              onCheckedChange={(explicitContent) => commit({ explicitContent })}
+            />
+            <SettingToggleRow
+              id="provider-errors"
+              label="Show provider errors in search"
+              description="Surface provider failures in search results instead of hiding them silently."
+              checked={settings.showProviderErrors}
+              onCheckedChange={(showProviderErrors) => commit({ showProviderErrors })}
+            />
           </div>
-        </div>
-      </SettingsSection>
-    </section>
+        </SettingsSection>
+
+        <SettingsSection
+          title="Performance"
+          description="Reduce memory use on constrained devices."
+        >
+          <div className="space-y-4">
+            <SettingToggleRow
+              id="low-memory-mode"
+              label="Low-memory mode"
+              description="Reduce preloading, thumbnails, and animation intensity."
+              checked={settings.lowMemoryMode}
+              onCheckedChange={(lowMemoryMode) => commit({ lowMemoryMode })}
+            />
+            <div className="grid gap-2">
+              <Label htmlFor="image-cache-limit">Local cache limit</Label>
+              <Input
+                id="image-cache-limit"
+                type="number"
+                min={50}
+                max={10240}
+                step={50}
+                value={bytesToMegabytes(settings.imageCacheLimitBytes)}
+                onBlur={onInteractionEnd}
+                onChange={(event) => {
+                  const megabytes = Number(event.target.value);
+                  if (!Number.isFinite(megabytes)) {
+                    return;
+                  }
+                  update({ imageCacheLimitBytes: megabytesToBytes(megabytes) });
+                }}
+              />
+              <p className="text-sm text-muted-foreground">
+                Covers and reader pages are stored locally and reused on later visits. Downloads are
+                never removed automatically, even when the limit is reached. Limit:{' '}
+                {formatCacheBytes(settings.imageCacheLimitBytes)}
+                {cacheUsageBytes !== undefined
+                  ? ` · Used: ${formatCacheBytes(cacheUsageBytes)}`
+                  : null}
+              </p>
+            </div>
+          </div>
+        </SettingsSection>
+
+        <SettingsSection
+          title="Localization"
+          description="Preferred languages and locale for content discovery."
+        >
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="preferred-languages">Preferred languages</Label>
+              <PreferredLanguagesField
+                languages={settings.preferredLanguages}
+                onChange={(preferredLanguages) => update({ preferredLanguages })}
+                onInteractionEnd={onInteractionEnd}
+              />
+              <p className="text-sm text-muted-foreground">
+                Comma-separated ISO language codes used when ranking search and browse results.
+              </p>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="locale">Locale</Label>
+              <Select value={settings.locale} onValueChange={(value) => commit({ locale: value })}>
+                <SelectTrigger id="locale" aria-label="Locale">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {LOCALE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </SettingsSection>
+      </section>
+    </PageContainer>
   );
 }

@@ -7,6 +7,7 @@ import {
   ErrorState,
   LoadingState,
   SettingsSection,
+  PageHeader,
 } from '@app/design-system';
 import type { PlatformCapabilities } from '@app/platform';
 import { useMemo, useState } from 'react';
@@ -181,7 +182,7 @@ export function DiagnosticsPage({
 
   if (isLoading) {
     return (
-      <section aria-label="Diagnostics" className="mx-auto w-full max-w-3xl p-6">
+      <section aria-label="Diagnostics">
         <LoadingState type="list" count={3} />
       </section>
     );
@@ -189,7 +190,7 @@ export function DiagnosticsPage({
 
   if (isError) {
     return (
-      <section aria-label="Diagnostics" className="mx-auto w-full max-w-3xl p-6">
+      <section aria-label="Diagnostics">
         <ErrorState
           title="Could not load diagnostics"
           message="Local database or platform information is unavailable. Try reloading the page."
@@ -200,7 +201,7 @@ export function DiagnosticsPage({
 
   if (report === null) {
     return (
-      <section aria-label="Diagnostics" className="mx-auto w-full max-w-3xl p-6">
+      <section aria-label="Diagnostics">
         <ErrorState title="Diagnostics unavailable" message="No report was generated." />
       </section>
     );
@@ -209,36 +210,34 @@ export function DiagnosticsPage({
   const formattedReport = formatDiagnosticsReport(report);
 
   return (
-    <section aria-label="Diagnostics" className="mx-auto w-full max-w-3xl space-y-6 p-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Diagnostics</h1>
-        <p className="text-sm text-muted-foreground">
-          About MangaVerse, platform details, storage usage, and local database health for
-          troubleshooting.
-        </p>
-      </header>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={onRefresh} disabled={isRefreshing}>
-          {isRefreshing ? 'Refreshing…' : 'Refresh diagnostics'}
-        </Button>
-        <Button
-          variant="outline"
-          onClick={() => {
-            void Promise.resolve(onCopyReport(formattedReport))
-              .then(() => setCopyState('copied'))
-              .catch(() => setCopyState('failed'));
-          }}
-        >
-          Copy report
-        </Button>
-        {copyState === 'copied' ? (
-          <output className="text-sm text-muted-foreground">Copied to clipboard</output>
-        ) : null}
-        {copyState === 'failed' ? (
-          <output className="text-sm text-destructive">Could not copy report</output>
-        ) : null}
-      </div>
+    <section aria-label="Diagnostics" className="space-y-6">
+      <PageHeader
+        title="Diagnostics"
+        description="About MangaVerse, platform details, storage usage, and local database health for troubleshooting."
+        actions={
+          <>
+            <Button onClick={onRefresh} disabled={isRefreshing}>
+              {isRefreshing ? 'Refreshing…' : 'Refresh diagnostics'}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                void Promise.resolve(onCopyReport(formattedReport))
+                  .then(() => setCopyState('copied'))
+                  .catch(() => setCopyState('failed'));
+              }}
+            >
+              Copy report
+            </Button>
+            {copyState === 'copied' ? (
+              <output className="text-sm text-muted-foreground">Copied to clipboard</output>
+            ) : null}
+            {copyState === 'failed' ? (
+              <output className="text-sm text-destructive">Could not copy report</output>
+            ) : null}
+          </>
+        }
+      />
 
       <SettingsSection title="About" description="Application identity and build information.">
         <dl className="divide-y divide-border">

@@ -3,6 +3,7 @@ import {
   ErrorState,
   Input,
   LoadingState,
+  PageContainer,
   PageHeader,
   Button,
   Badge,
@@ -546,70 +547,69 @@ export function SearchPage({
   const failedStatuses = statuses.filter((status) => !status.pending && status.error !== undefined);
 
   return (
-    <section
-      aria-label="Search"
-      className="mx-auto flex w-full max-w-400 flex-col gap-6 p-6 md:p-8"
-    >
-      <PageHeader
-        title="Search"
-        description="Search your library and your enabled providers."
-        {...(hasQuery
-          ? { count: resultCount, countLabel: resultCount === 1 ? 'result' : 'results' }
-          : {})}
-      />
-
-      <div className="relative">
-        <Search
-          aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+    <PageContainer>
+      <section aria-label="Search" className="flex flex-col gap-6">
+        <PageHeader
+          title="Search"
+          description="Search your library and your enabled providers."
+          {...(hasQuery
+            ? { count: resultCount, countLabel: resultCount === 1 ? 'result' : 'results' }
+            : {})}
         />
-        <Input
-          type="search"
-          ref={focusOnMount}
-          placeholder="Search manga…"
-          aria-label="Search manga"
-          data-testid="search-input"
-          value={viewState.query}
-          onChange={(event) => onViewStateChange({ ...viewState, query: event.target.value })}
-          className="h-11 pl-9"
+
+        <div className="relative">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            type="search"
+            ref={focusOnMount}
+            placeholder="Search manga…"
+            aria-label="Search manga"
+            data-testid="search-input"
+            value={viewState.query}
+            onChange={(event) => onViewStateChange({ ...viewState, query: event.target.value })}
+            className="h-11 pl-9"
+          />
+        </div>
+
+        <SavedSearches
+          savedSearches={savedSearches}
+          canSave={hasQuery}
+          onSave={onSaveSearch}
+          onApply={onApplySavedSearch}
+          onDelete={onDeleteSavedSearch}
         />
-      </div>
 
-      <SavedSearches
-        savedSearches={savedSearches}
-        canSave={hasQuery}
-        onSave={onSaveSearch}
-        onApply={onApplySavedSearch}
-        onDelete={onDeleteSavedSearch}
-      />
+        {isLoading ? <LoadingState type="grid" /> : null}
 
-      {isLoading ? <LoadingState type="grid" /> : null}
+        {isError ? (
+          <ErrorState
+            title="Could not load search"
+            message="Local data failed to load. Try again in a moment."
+            {...(onRetry !== undefined ? { onRetry } : {})}
+          />
+        ) : null}
 
-      {isError ? (
-        <ErrorState
-          title="Could not load search"
-          message="Local data failed to load. Try again in a moment."
-          {...(onRetry !== undefined ? { onRetry } : {})}
-        />
-      ) : null}
-
-      {!isLoading && !isError ? (
-        <SettledSearch
-          providers={providers}
-          filters={filters}
-          explicitContent={explicitContent}
-          hasQuery={hasQuery}
-          pendingStatuses={pendingStatuses}
-          failedStatuses={showProviderErrors ? failedStatuses : NO_STATUSES}
-          onViewStateChange={onViewStateChange}
-          onOpenManga={onOpenManga}
-          onBrowseProviders={onBrowseProviders}
-          onRetryProvider={onRetryProvider}
-          viewState={viewState}
-          data={data}
-        />
-      ) : null}
-    </section>
+        {!isLoading && !isError ? (
+          <SettledSearch
+            providers={providers}
+            filters={filters}
+            explicitContent={explicitContent}
+            hasQuery={hasQuery}
+            pendingStatuses={pendingStatuses}
+            failedStatuses={showProviderErrors ? failedStatuses : NO_STATUSES}
+            onViewStateChange={onViewStateChange}
+            onOpenManga={onOpenManga}
+            onBrowseProviders={onBrowseProviders}
+            onRetryProvider={onRetryProvider}
+            viewState={viewState}
+            data={data}
+          />
+        ) : null}
+      </section>
+    </PageContainer>
   );
 }
 

@@ -72,7 +72,7 @@ function EventRow({ event }: { event: DiagnosticEvent }) {
 
 export function EventLogSection({ events, onClear, onExport }: EventLogSectionProps) {
   return (
-    <section aria-label="Event log" className="mx-auto w-full max-w-3xl px-6 pb-6">
+    <section aria-label="Event log" className="mt-6">
       <SettingsSection
         title="Event log"
         description="Recent errors and timings, with credentials removed. Stored only on this device and never sent anywhere."
