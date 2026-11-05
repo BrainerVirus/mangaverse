@@ -110,6 +110,41 @@ describe('LibraryPage', () => {
     expect(screen.getByRole('region', { name: 'Library' })).toBeInTheDocument();
   });
 
+  it('Given an empty library with no filters, Then only the empty state shows, with no toolbar', () => {
+    render(
+      <LibraryPage
+        data={{ items: [], total: 0, categories: [], viewState: DEFAULT_LIBRARY_VIEW_STATE }}
+        isLoading={false}
+        isError={false}
+        viewState={DEFAULT_LIBRARY_VIEW_STATE}
+        onViewStateChange={() => {}}
+        onOpenManga={() => {}}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Library' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Search library')).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Filters/ })).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Library layout' })).toBeNull();
+  });
+
+  it('Given an empty result with filters active, Then the toolbar stays so they can be cleared', () => {
+    const viewState = { ...DEFAULT_LIBRARY_VIEW_STATE, filter: { favoritesOnly: true } };
+    render(
+      <LibraryPage
+        data={{ items: [], total: 0, categories: [], viewState }}
+        isLoading={false}
+        isError={false}
+        viewState={viewState}
+        onViewStateChange={() => {}}
+        onOpenManga={() => {}}
+      />,
+    );
+
+    expect(screen.getByLabelText('Search library')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Filters/ })).toHaveTextContent('1');
+  });
+
   it('Given selected titles, When a filter changes, Then the selection is cleared', async () => {
     const user = userEvent.setup();
     const onViewStateChange = vi.fn<(next: typeof DEFAULT_LIBRARY_VIEW_STATE) => void>();
@@ -134,12 +169,14 @@ describe('LibraryPage', () => {
     await user.click(screen.getByLabelText('Select Title 1'));
     expect(screen.getByText('1 selected')).toBeInTheDocument();
 
+    await user.click(screen.getByRole('button', { name: /^Filters/ }));
     await user.click(screen.getByRole('button', { name: 'Favorites' }));
 
     expect(onViewStateChange).toHaveBeenCalledWith({
       ...DEFAULT_LIBRARY_VIEW_STATE,
       filter: { favoritesOnly: true },
     });
+    await user.keyboard('{Escape}');
     expect(screen.getByText('0 selected')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Favorite selected' })).toBeDisabled();
   });

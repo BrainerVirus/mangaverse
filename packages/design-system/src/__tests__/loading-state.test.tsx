@@ -17,6 +17,24 @@ describe('LoadingState', () => {
     expect(gridContainer).toBeInTheDocument();
   });
 
+  it('renders a full column rhythm of 10 grid cards when count is omitted', () => {
+    const { container } = render(<LoadingState type="grid" />);
+
+    expect(container.querySelectorAll('.grid > div')).toHaveLength(10);
+  });
+
+  it('renders exactly count grid cards when count is passed', () => {
+    const { container } = render(<LoadingState type="grid" count={3} />);
+
+    expect(container.querySelectorAll('.grid > div')).toHaveLength(3);
+  });
+
+  it('renders 8 list rows when count is omitted', () => {
+    const { container } = render(<LoadingState type="list" />);
+
+    expect(container.querySelectorAll('.border-border')).toHaveLength(8);
+  });
+
   it('renders list skeleton layout when type is list', () => {
     render(<LoadingState type="list" count={3} />);
 

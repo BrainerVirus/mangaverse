@@ -19,22 +19,26 @@ test('Given the sidebar, When Settings is chosen, Then the settings page opens',
   await expect(page).toHaveURL(/\/settings$/, { timeout: 20_000 });
 });
 
-for (const { name, url } of ADVANCED_ENTRIES) {
-  test(`Given the sidebar, When ${name} is chosen, Then its route opens`, async ({
-    page,
-    quickOnboarding,
-  }) => {
-    await page.locator('aside').getByRole('link', { name, exact: true }).click();
-    await expect(page).toHaveURL(url, { timeout: 20_000 });
-  });
-}
+test('Given the sidebar, Then it lists Browse and Manage and none of the Settings hub tools', async ({
+  page,
+  quickOnboarding,
+}) => {
+  const sidebar = page.locator('aside');
+  await expect(sidebar.getByRole('list', { name: 'Browse' })).toBeVisible();
+  await expect(sidebar.getByRole('list', { name: 'Manage' })).toBeVisible();
+  const hubTools = ['Backup', 'Onboarding', ...ADVANCED_ENTRIES.map((entry) => entry.name)];
+  await Promise.all(
+    hubTools.map((name) => expect(sidebar.getByRole('link', { name, exact: true })).toHaveCount(0)),
+  );
+});
 
 test.describe('mobile More menu', () => {
   test.use({ isMobile: true, hasTouch: true, viewport: { width: 390, height: 844 } });
 
   for (const { name, url } of [
-    { name: 'Settings', url: /\/settings$/ },
     { name: 'Extensions', url: /\/extensions(\?|$)/ },
+    { name: 'Backup', url: /\/backup$/ },
+    { name: 'Onboarding', url: /\/onboarding$/ },
     ...ADVANCED_ENTRIES,
   ]) {
     test(`Given the More menu, When ${name} is chosen, Then its route opens and the menu closes`, async ({

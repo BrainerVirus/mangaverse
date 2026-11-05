@@ -21,6 +21,7 @@ import {
 } from '@app/design-system';
 import type { SavedSearchEntry } from '@app/db';
 import type { ContentRating, MangaId } from '@app/shared';
+import { Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { parseTagList } from '../search-filters.js';
 import type { SearchFilters, SearchPageData, SearchSort, SearchViewState } from '../types.js';
@@ -83,6 +84,11 @@ function toContentRating(value: string): ContentRating | undefined {
     default:
       return undefined;
   }
+}
+
+/** A stable ref callback, so it runs on mount only and never steals focus on a re-render. */
+function focusOnMount(input: HTMLInputElement | null): void {
+  input?.focus();
 }
 
 const NO_PROVIDERS: readonly SearchProviderOption[] = [];
@@ -366,14 +372,20 @@ function SavedSearches({
   onApply: ((entry: SavedSearchEntry) => void) | undefined;
   onDelete: ((id: string) => void) | undefined;
 }) {
-  if (savedSearches.length === 0 && onSave === undefined) return null;
+  // Nothing to show before a query unless there are searches to replay.
+  const canOfferSave = onSave !== undefined && canSave;
+  if (savedSearches.length === 0 && !canOfferSave) return null;
 
   return (
     <section aria-label="Saved searches" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-sm font-medium text-muted-foreground">Saved searches</h2>
-        {savedSearches.length > 0 ? <Badge variant="outline">{savedSearches.length}</Badge> : null}
-        <SaveSearchDialog canSave={canSave} onSave={onSave} />
+        {savedSearches.length > 0 ? (
+          <>
+            <h2 className="text-sm font-medium text-muted-foreground">Saved searches</h2>
+            <Badge variant="outline">{savedSearches.length}</Badge>
+          </>
+        ) : null}
+        {canOfferSave ? <SaveSearchDialog canSave={canSave} onSave={onSave} /> : null}
       </div>
       {savedSearches.length > 0 ? (
         <ul className="flex flex-wrap gap-2">
@@ -497,12 +509,7 @@ function statusesFor(
   return isPending ? [{ providerId: 'provider', label: 'Provider', pending: true }] : [];
 }
 
-/** The count badge carries the number, so the description never repeats it. */
-function resultDescription(hasQuery: boolean): string {
-  return hasQuery
-    ? 'Matches from your library and enabled sources'
-    : 'Search local manga and recent queries';
-}
+const MAX_RECENT_SEARCHES = 8;
 
 export function SearchPage({
   data,
@@ -541,22 +548,28 @@ export function SearchPage({
     >
       <PageHeader
         title="Search"
-        description={resultDescription(hasQuery)}
+        description="Search your library and your enabled providers."
         {...(hasQuery
           ? { count: resultCount, countLabel: resultCount === 1 ? 'result' : 'results' }
           : {})}
-        actions={
-          <Input
-            type="search"
-            placeholder="Search manga…"
-            aria-label="Search manga"
-            data-testid="search-input"
-            value={viewState.query}
-            onChange={(event) => onViewStateChange({ ...viewState, query: event.target.value })}
-            className="w-full sm:w-80"
-          />
-        }
       />
+
+      <div className="relative">
+        <Search
+          aria-hidden="true"
+          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+        />
+        <Input
+          type="search"
+          ref={focusOnMount}
+          placeholder="Search manga…"
+          aria-label="Search manga"
+          data-testid="search-input"
+          value={viewState.query}
+          onChange={(event) => onViewStateChange({ ...viewState, query: event.target.value })}
+          className="h-11 pl-9"
+        />
+      </div>
 
       <SavedSearches
         savedSearches={savedSearches}
@@ -684,10 +697,10 @@ function RecentSearches({
     <section aria-label="Recent searches" className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
         <h2 className="text-sm font-medium text-muted-foreground">Recent searches</h2>
-        <Badge variant="outline">{recentSearches.length}</Badge>
+        <Badge variant="outline">{Math.min(recentSearches.length, MAX_RECENT_SEARCHES)}</Badge>
       </div>
       <ul className="flex flex-wrap gap-2">
-        {recentSearches.map((entry) => (
+        {recentSearches.slice(0, MAX_RECENT_SEARCHES).map((entry) => (
           <li key={entry.id}>
             <Button
               type="button"

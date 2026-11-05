@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it, vi, afterEach } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { getDefaultAppSettings, getDefaultReaderSettings } from '@app/shared';
 import type { AppSettings, ReaderSettings, ThemeSettings } from '@app/shared';
@@ -55,30 +55,73 @@ describe('OnboardingPage', () => {
     delete document.documentElement.dataset.transparency;
   });
 
-  it('renders the welcome step with progress metadata', () => {
+  it('renders the welcome step with a single step list marking the current step', () => {
     render(<OnboardingPage {...baseProps} />);
 
     expect(screen.getByRole('heading', { name: 'Welcome to MangaVerse' })).toBeInTheDocument();
-    expect(screen.getByRole('progressbar', { name: 'Onboarding progress' })).toHaveAttribute(
-      'aria-valuenow',
-      '1',
+    expect(screen.queryByRole('progressbar')).toBeNull();
+
+    const steps = within(screen.getByRole('navigation', { name: 'Onboarding steps' })).getAllByRole(
+      'listitem',
     );
-    expect(screen.getByText('Step 1 of 5')).toBeInTheDocument();
+    expect(steps.map((step) => step.textContent)).toEqual([
+      'Welcome',
+      'Theme',
+      'Reading defaults',
+      'Language & content',
+      'Install a provider',
+    ]);
+    expect(steps[0]).toHaveAttribute('aria-current', 'step');
+    expect(steps[1]).not.toHaveAttribute('aria-current');
   });
 
-  it('applies displacement glass to the welcome hero when motion is allowed', () => {
+  it('lists the welcome facts flat, without a glass hero or bordered cards', () => {
     motionPreference.reduced = false;
     document.documentElement.dataset.glass = 'full';
 
     render(<OnboardingPage {...baseProps} />);
 
-    const hero = screen
-      .getByRole('heading', { name: 'Welcome to MangaVerse' })
-      .closest('[data-glass-tier="regular"]');
-    expect(hero).toBeInTheDocument();
-    expect(hero?.querySelector('[data-refraction="displacement"]')).toBeInTheDocument();
-    expect(hero?.querySelector('header > p')).toHaveClass('text-glass-muted-foreground');
-    expect(document.querySelectorAll('[data-refraction="displacement"]')).toHaveLength(1);
+    expect(document.querySelector('[data-glass-tier]')).toBeNull();
+    expect(document.querySelector('[data-refraction]')).toBeNull();
+
+    const facts = within(screen.getByRole('list', { name: 'Onboarding highlights' })).getAllByRole(
+      'listitem',
+    );
+    expect(facts).toHaveLength(4);
+    for (const fact of facts) {
+      expect(fact.className).not.toContain('border');
+    }
+    expect(screen.getByRole('heading', { name: 'Local-first storage' })).toBeInTheDocument();
+  });
+
+  it('constrains the flow to a focused column', () => {
+    render(<OnboardingPage {...baseProps} />);
+
+    expect(screen.getByRole('region', { name: 'Onboarding' })).toHaveClass('max-w-2xl');
+  });
+
+  it('hides Back on the first step and shows it afterwards', async () => {
+    const user = userEvent.setup();
+    const onBack = vi.fn<() => void>();
+    const { rerender } = render(<OnboardingPage {...baseProps} onBack={onBack} />);
+
+    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull();
+
+    rerender(
+      <OnboardingPage
+        {...baseProps}
+        onBack={onBack}
+        state={{
+          ...getDefaultOnboardingState(),
+          status: 'in_progress',
+          currentStep: 'theme',
+          completedSteps: ['welcome'],
+        }}
+      />,
+    );
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+
+    expect(onBack).toHaveBeenCalledOnce();
   });
 
   it('renders the page as a named section so the shell owns the main landmark', () => {

@@ -37,6 +37,14 @@ describe('EmptyState', () => {
     ).toBeInTheDocument();
   });
 
+  it('renders the title as a compact heading, not a display hero', () => {
+    render(<EmptyState type="no-library" />);
+
+    const title = screen.getByText('Your library is empty');
+    expect(title).toHaveClass('type-heading');
+    expect(title).not.toHaveClass('type-display-xl');
+  });
+
   it('renders no-provider type correctly', () => {
     render(<EmptyState type="no-provider" />);
 

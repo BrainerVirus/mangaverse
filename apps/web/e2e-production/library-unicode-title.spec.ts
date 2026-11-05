@@ -84,8 +84,11 @@ test('Given accented titles in the persisted library, When it is reloaded, sorte
     timeout: 20_000,
   });
 
+  await page.getByRole('button', { name: /^Filters/ }).click();
   await page.getByLabel('Sort library').click();
   await page.getByRole('option', { name: 'Title · A–Z' }).click();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Filters' })).toHaveCount(0);
   await expect(page.locator('[data-library-card] h3')).toHaveText(['apple', 'Éclair', 'Zebra']);
 
   const search = page.getByLabel('Search library');

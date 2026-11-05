@@ -14,10 +14,14 @@ const categories: LibraryCategory[] = [
   { id: toCategoryId('pinned'), name: 'Pinned', pinned: true, sortIndex: 2 },
 ];
 
+async function openFilters(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: /^Filters/ }));
+  return screen.getByRole('dialog', { name: 'Filters' });
+}
+
 function renderToolbar(overrides: Partial<Parameters<typeof LibraryToolbar>[0]> = {}) {
   const props = {
     viewState: DEFAULT_LIBRARY_VIEW_STATE,
-    itemCount: 3,
     categories,
     providers: [],
     onViewStateChange: vi.fn<(next: typeof DEFAULT_LIBRARY_VIEW_STATE) => void>(),
@@ -44,22 +48,87 @@ describe('LibraryToolbar', () => {
     });
   });
 
-  it('toggles favorites and clears every filter', () => {
+  it('toggles favorites and clears every filter and the sort from the filters sheet', async () => {
+    const user = userEvent.setup();
+    const props = renderToolbar({
+      viewState: {
+        ...DEFAULT_LIBRARY_VIEW_STATE,
+        sort: { key: 'title', direction: 'asc' },
+        filter: { query: 'kur' },
+      },
+    });
+
+    await openFilters(user);
+    await user.click(screen.getByRole('button', { name: 'Favorites' }));
+    expect(props.onFilterChange).toHaveBeenCalledWith({ query: 'kur', favoritesOnly: true });
+
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+    expect(props.onViewStateChange).toHaveBeenCalledWith({
+      ...DEFAULT_LIBRARY_VIEW_STATE,
+      filter: {},
+    });
+  });
+
+  it('keeps search, Filters and the layout control in the row, outside the sheet', async () => {
+    const user = userEvent.setup();
     const props = renderToolbar({
       viewState: { ...DEFAULT_LIBRARY_VIEW_STATE, filter: { query: 'kur' } },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Favorites' }));
-    expect(props.onFilterChange).toHaveBeenCalledWith({ query: 'kur', favoritesOnly: true });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByLabelText('Search library')).toHaveValue('kur');
+    expect(screen.queryByLabelText('Sort library')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
-    expect(props.onFilterChange).toHaveBeenCalledWith({});
+    await user.click(screen.getByRole('button', { name: 'Compact' }));
+    expect(props.onViewStateChange).toHaveBeenCalledWith({
+      ...DEFAULT_LIBRARY_VIEW_STATE,
+      filter: { query: 'kur' },
+      layout: 'compact',
+    });
+    for (const name of ['Grid', 'List', 'Compact']) {
+      expect(screen.getByRole('button', { name })).toHaveClass('pointer-coarse:min-h-11');
+    }
+  });
+
+  it('counts the filters the sheet owns on the Filters button', () => {
+    renderToolbar({
+      providers: [toProviderId('prov-a')],
+      viewState: {
+        ...DEFAULT_LIBRARY_VIEW_STATE,
+        sort: { key: 'title', direction: 'asc' },
+        filter: {
+          query: 'kur',
+          statuses: ['reading'],
+          favoritesOnly: true,
+          providerIds: [toProviderId('prov-a')],
+        },
+      },
+    });
+
+    // status, provider, favorites and a non-default sort; the query is not counted.
+    expect(screen.getByRole('button', { name: /^Filters/ })).toHaveTextContent('4');
+  });
+
+  it('shows no count when only the defaults are in effect', () => {
+    renderToolbar();
+    expect(screen.getByRole('button', { name: 'Filters' })).toBeInTheDocument();
+  });
+
+  it('offers category management from the sheet when there are no categories', async () => {
+    const user = userEvent.setup();
+    renderToolbar({ categories: [] });
+
+    expect(screen.queryByRole('button', { name: 'All titles' })).toBeNull();
+    await openFilters(user);
+    await user.click(screen.getByRole('button', { name: 'Manage categories' }));
+    expect(screen.getByLabelText('New category')).toBeInTheDocument();
   });
 
   it('changes the sort through the select', async () => {
     const user = userEvent.setup();
     const props = renderToolbar();
 
+    await openFilters(user);
     const trigger = screen.getByLabelText('Sort library');
     trigger.focus();
     await user.keyboard('{ArrowDown}');
@@ -150,6 +219,7 @@ describe('LibraryToolbar', () => {
       },
     });
 
+    await openFilters(user);
     const status = screen.getByLabelText('Filter by status');
     fireEvent.keyDown(status, { key: 'ArrowDown' });
     await user.click(screen.getByRole('option', { name: 'All statuses' }));
@@ -165,6 +235,7 @@ describe('LibraryToolbar', () => {
     const user = userEvent.setup();
     const props = renderToolbar();
 
+    await openFilters(user);
     const trigger = screen.getByLabelText('Sort library');
     fireEvent.keyDown(trigger, { key: 'ArrowDown' });
     await user.click(screen.getByRole('option', { name: 'Unread · most' }));

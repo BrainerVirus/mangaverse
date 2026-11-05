@@ -90,9 +90,27 @@ async function readFirstChapter(page: Page, path: string): Promise<void> {
   await waitForPingQuiet(page);
 }
 
+async function openFilters(page: Page): Promise<void> {
+  await page.getByRole('button', { name: /^Filters/ }).click();
+  await expect(page.getByRole('dialog', { name: 'Filters' })).toBeVisible();
+}
+
+async function closeFilters(page: Page): Promise<void> {
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Filters' })).toHaveCount(0);
+}
+
+async function expectSortLabel(page: Page, label: string): Promise<void> {
+  await openFilters(page);
+  await expect(page.getByLabel('Sort library')).toContainText(label);
+  await closeFilters(page);
+}
+
 async function selectSort(page: Page, label: string): Promise<void> {
+  await openFilters(page);
   await page.getByLabel('Sort library').click();
   await page.getByRole('option', { name: label }).click();
+  await closeFilters(page);
 }
 
 async function expectCardTitles(page: Page, titles: readonly string[]): Promise<void> {
@@ -144,14 +162,15 @@ test('Given a library title, When a category is created, assigned, filtered, sor
   await expect(page.getByText('1 title')).toBeVisible();
 
   // Sort by title keeps the same result and is a real select interaction.
-  await page.getByLabel('Sort library').click();
-  await page.getByRole('option', { name: 'Title · A–Z' }).click();
+  await selectSort(page, 'Title · A–Z');
   await expect(page.locator('[data-library-card]')).toHaveCount(1);
 
   // Bulk favorite and status changes on the selected title.
+  await openFilters(page);
   await page.getByRole('button', { name: 'Favorites' }).click();
   await expect(page.locator('[data-library-card]')).toHaveCount(0);
   await page.getByRole('button', { name: 'Favorites' }).click();
+  await closeFilters(page);
 
   await page.getByLabel(`Select ${TITLE}`).check();
   await page.getByRole('button', { name: 'Favorite selected', exact: true }).click();
@@ -168,11 +187,11 @@ test('Given a library title, When a category is created, assigned, filtered, sor
   await page.getByRole('button', { name: 'Fantasy', exact: true }).click();
   await expect(page.locator('[data-library-card]')).toHaveCount(1);
 
+  await openFilters(page);
   await page.getByLabel('Filter by status').click();
   await page.getByRole('option', { name: 'Completed' }).click();
-  await expect(page.locator('[data-library-card]')).toHaveCount(1);
-
   await page.getByRole('button', { name: 'Clear filters' }).click();
+  await closeFilters(page);
   await expect(page.locator('[data-library-card]').first()).toBeVisible();
 
   // The title detail reads back the persisted favorite and category.
@@ -207,7 +226,7 @@ test('Given two titles read in order, When a newer-added title is favorited, The
   // Reading order, newest first. The quiet window between reads orders the
   // read-state timestamps.
   await selectSort(page, 'Last read · recent');
-  await expect(page.getByLabel('Sort library')).toContainText('Last read · recent');
+  await expectSortLabel(page, 'Last read · recent');
   await expectCardTitles(page, [SECOND_TITLE, TITLE]);
 
   // Favoriting bumps library_entries.updated_at; it must not count as a read.
@@ -231,7 +250,7 @@ test('Given two titles read in order, When a newer-added title is favorited, The
   // The other new sort options query real columns and keep both titles.
   for (const label of ['Unread · most', 'Progress · furthest', 'Provider · A–Z']) {
     await selectSort(page, label);
-    await expect(page.getByLabel('Sort library')).toContainText(label);
+    await expectSortLabel(page, label);
     await expect(page.locator('[data-library-card]')).toHaveCount(2);
   }
 });

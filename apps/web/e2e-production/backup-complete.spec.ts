@@ -225,7 +225,7 @@ test('Given a backup with categories, read state and migration history, When loc
   await expect(page.locator('[data-library-card]')).toHaveCount(1, { timeout: 20_000 });
   await page.getByRole('button', { name: CATEGORY, exact: true }).click();
   await expect(page.locator('[data-library-card]')).toHaveCount(1);
-  await page.getByRole('button', { name: 'Clear filters' }).click();
+  await page.getByRole('button', { name: 'All titles' }).click();
   await page.getByRole('button', { name: 'Manage categories' }).click();
   await expect(page.getByRole('button', { name: `Unpin ${CATEGORY}` })).toBeVisible();
   await page.getByRole('button', { name: 'Done', exact: true }).click();

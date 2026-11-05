@@ -141,8 +141,11 @@ test('Given the full library, When sorting by title, Then the first page starts 
   const directory = await seededProfile();
   const { page } = await launch(directory);
 
+  await page.getByRole('button', { name: /^Filters/ }).click();
   await page.getByLabel('Sort library').click();
   await page.getByRole('option', { name: 'Title · A–Z' }).click();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Filters' })).toHaveCount(0);
   await expect(page.getByText(title(0)).first()).toBeVisible();
   // A new sort is a new view: it starts again at the first page, not the loaded page.
   await expect(page.locator('[data-library-paginator]')).toContainText(

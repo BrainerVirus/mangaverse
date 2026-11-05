@@ -313,4 +313,103 @@ describe('SearchPage', () => {
     ]);
     expect(input).toHaveValue('action, comedy');
   });
+
+  describe('hero input and save affordance', () => {
+    const baseProps = {
+      isLoading: false,
+      isError: false,
+      onOpenManga: () => {},
+      onSaveSearch: () => {},
+    } as const;
+
+    it('puts a focused, 44px search field under the title', () => {
+      render(
+        <SearchPage
+          {...baseProps}
+          data={makeData('')}
+          viewState={{ query: '' }}
+          onViewStateChange={() => {}}
+        />,
+      );
+
+      const input = screen.getByRole('searchbox', { name: 'Search manga' });
+      expect(input).toHaveAttribute('placeholder', 'Search manga…');
+      expect(input).toHaveClass('h-11');
+      expect(input).toHaveFocus();
+      expect(
+        screen.getByText('Search your library and your enabled providers.'),
+      ).toBeInTheDocument();
+    });
+
+    it('offers neither Save search nor a Saved searches label before a query', () => {
+      render(
+        <SearchPage
+          {...baseProps}
+          data={makeData('')}
+          viewState={{ query: '' }}
+          onViewStateChange={() => {}}
+        />,
+      );
+
+      expect(screen.queryByRole('button', { name: 'Save search' })).toBeNull();
+      expect(screen.queryByText('Saved searches')).toBeNull();
+      expect(screen.getByText('Search your manga')).toBeInTheDocument();
+    });
+
+    it('offers Save search once there is a query', () => {
+      render(
+        <SearchPage
+          {...baseProps}
+          data={makeData('berserk')}
+          viewState={{ query: 'berserk' }}
+          onViewStateChange={() => {}}
+        />,
+      );
+
+      expect(screen.getByRole('button', { name: 'Save search' })).toBeEnabled();
+      expect(screen.queryByText('Saved searches')).toBeNull();
+    });
+
+    it('lists saved searches by name before a query', () => {
+      render(
+        <SearchPage
+          {...baseProps}
+          data={makeData('')}
+          savedSearches={[
+            { id: 's1', name: 'Action', query: 'action', createdAt: '2026-10-20T00:00:00Z' },
+          ]}
+          viewState={{ query: '' }}
+          onViewStateChange={() => {}}
+        />,
+      );
+
+      expect(screen.getByText('Saved searches')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Action' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Save search' })).toBeNull();
+    });
+
+    it('caps recent searches at eight chips and runs the clicked one', async () => {
+      const user = userEvent.setup();
+      const onViewStateChange = vi.fn<(next: SearchViewState) => void>();
+      const recentSearches = Array.from({ length: 10 }, (_, index) => ({
+        id: `recent-${index}`,
+        query: `query ${index}`,
+        searchedAt: '2026-10-20T00:00:00Z',
+      }));
+
+      render(
+        <SearchPage
+          {...baseProps}
+          data={{ results: [], recentSearches, viewState: { query: '' } }}
+          viewState={{ query: '' }}
+          onViewStateChange={onViewStateChange}
+        />,
+      );
+
+      const chips = screen.getAllByRole('button', { name: /^query \d$/ });
+      expect(chips).toHaveLength(8);
+      await user.click(chips[2] as HTMLElement);
+      expect(onViewStateChange).toHaveBeenCalledWith({ query: 'query 2' });
+    });
+  });
 });

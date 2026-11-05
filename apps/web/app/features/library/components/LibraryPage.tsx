@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { EmptyState, ErrorState, LoadingState } from '@app/design-system';
+import { EmptyState, ErrorState, LoadingState, PageHeader } from '@app/design-system';
 import {
   type ChapterId,
   type LibraryEntryId,
@@ -74,6 +74,17 @@ function collectProviders(items: readonly LibraryItem[]): ProviderId[] {
     for (const mapping of item.manga.providerMappings) providers.add(mapping.providerId);
   }
   return [...providers].sort((a, b) => a.localeCompare(b));
+}
+
+function libraryViewOf(data: LibraryPageData | undefined) {
+  const items = data?.items ?? [];
+  return {
+    items,
+    // Counts describe the filtered view, not the loaded page.
+    itemCount: data?.total ?? items.length,
+    categories: data?.categories ?? [],
+    providers: data?.providers ?? collectProviders(items),
+  };
 }
 
 function useLibrarySelection(items: readonly LibraryItem[]) {
@@ -178,6 +189,29 @@ function LibraryUpdatesSection({
   return <LibraryUpdatePanel updates={updates} />;
 }
 
+/**
+ * Filter changes start a new result set; carrying ids from the old one would
+ * let a bulk action touch titles the user can no longer see.
+ */
+function useFilterChangeHandlers(
+  viewState: LibraryViewState,
+  onViewStateChange: (next: LibraryViewState) => void,
+  clearSelection: () => void,
+) {
+  const handleViewStateChange = useCallback(
+    (next: LibraryViewState) => {
+      if (next.filter !== viewState.filter) clearSelection();
+      onViewStateChange(next);
+    },
+    [clearSelection, onViewStateChange, viewState.filter],
+  );
+  const handleFilterChange = useCallback(
+    (filter: LibraryFilter) => handleViewStateChange({ ...viewState, filter }),
+    [handleViewStateChange, viewState],
+  );
+  return { handleViewStateChange, handleFilterChange };
+}
+
 export function LibraryPage({
   data,
   isLoading,
@@ -196,11 +230,7 @@ export function LibraryPage({
   onOpenChapter,
   updates,
 }: LibraryPageProps) {
-  const items = data?.items ?? [];
-  // Counts describe the filtered view, not the loaded page.
-  const itemCount = data?.total ?? items.length;
-  const categories = data?.categories ?? [];
-  const providers = data?.providers ?? collectProviders(items);
+  const { items, itemCount, categories, providers } = libraryViewOf(data);
   const filtersActive = hasLibraryFilters(viewState.filter);
   const selection = useLibrarySelection(items);
   const [migrationError, setMigrationError] = useState<string | null>(null);
@@ -224,15 +254,14 @@ export function LibraryPage({
       onMigrate,
     });
 
-  // Filter changes start a new result set; carrying ids from the old one would
-  // let a bulk action touch titles the user can no longer see.
-  const handleFilterChange = useCallback(
-    (filter: LibraryFilter) => {
-      clearSelection();
-      onViewStateChange({ ...viewState, filter });
-    },
-    [clearSelection, onViewStateChange, viewState],
+  const { handleViewStateChange, handleFilterChange } = useFilterChangeHandlers(
+    viewState,
+    onViewStateChange,
+    clearSelection,
   );
+  // An empty, unfiltered library has nothing to filter, so the controls stay out of the way.
+  // Loading keeps it mounted so a sort or filter change never unmounts an open sheet.
+  const showToolbar = isLoading || itemCount > 0 || filtersActive;
 
   // Escape leaves selection mode from anywhere: the "Select titles" trigger is
   // replaced by the bulk bar, so focus falls back to <body> and a section-level
@@ -261,15 +290,23 @@ export function LibraryPage({
       aria-label="Library"
       className="mx-auto flex w-full max-w-400 flex-col gap-6 p-6 md:p-8"
     >
-      <LibraryToolbar
-        viewState={viewState}
-        itemCount={itemCount}
-        categories={categories}
-        providers={providers}
-        onViewStateChange={onViewStateChange}
-        onFilterChange={handleFilterChange}
-        {...(onOrganize === undefined ? {} : { onOrganize })}
+      <PageHeader
+        title="Library"
+        description="Your saved manga, comics, and webtoons"
+        count={itemCount}
+        countLabel={itemCount === 1 ? 'title' : 'titles'}
       />
+
+      {showToolbar ? (
+        <LibraryToolbar
+          viewState={viewState}
+          categories={categories}
+          providers={providers}
+          onViewStateChange={handleViewStateChange}
+          onFilterChange={handleFilterChange}
+          {...(onOrganize === undefined ? {} : { onOrganize })}
+        />
+      ) : null}
 
       <LibraryStatus
         isLoading={isLoading}

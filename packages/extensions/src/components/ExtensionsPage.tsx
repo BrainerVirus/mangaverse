@@ -189,16 +189,40 @@ function ProviderGrid({
   );
 }
 
-function RegistryList({ registries }: { registries: readonly ExtensionRegistryEntry[] }) {
-  if (registries.length === 0) return null;
+function RegistryList({
+  registries,
+  hasProviders,
+  isExporting,
+  onExportExtensions,
+}: {
+  registries: readonly ExtensionRegistryEntry[];
+  hasProviders: boolean;
+  isExporting: boolean;
+  onExportExtensions: () => void;
+}) {
+  if (registries.length === 0 && !hasProviders) return null;
   return (
     <section aria-label="Imported registries" className="flex flex-col gap-3">
-      <div>
-        <h2 className="text-lg font-semibold tracking-tight">Imported registries</h2>
-        <p className="text-sm text-muted-foreground">
-          Registry documents saved on this device. Their entries are not installed; install a
-          provider from its manifest URL to use it.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">Imported registries</h2>
+          <p className="text-sm text-muted-foreground">
+            Registry documents saved on this device. Their entries are not installed; install a
+            provider from its manifest URL to use it.
+          </p>
+        </div>
+        {hasProviders ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            aria-label={isExporting ? 'Exporting…' : 'Export installed extensions'}
+            onClick={onExportExtensions}
+            disabled={isExporting}
+          >
+            {isExporting ? 'Exporting…' : 'Export'}
+          </Button>
+        ) : null}
       </div>
       <ul className="flex flex-col gap-2">
         {registries.map((registry) => (
@@ -252,14 +276,6 @@ export function ExtensionsPage({
           <Button type="button" variant="outline" onClick={onImportRegistry}>
             Import
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onExportExtensions}
-            disabled={isExporting}
-          >
-            {isExporting ? 'Exporting…' : 'Export installed extensions'}
-          </Button>
           <Button type="button" onClick={onInstallProvider}>
             Install provider
           </Button>
@@ -297,7 +313,14 @@ export function ExtensionsPage({
         />
       ) : null}
 
-      {!isLoading && !isError ? <RegistryList registries={registries} /> : null}
+      {!isLoading && !isError ? (
+        <RegistryList
+          registries={registries}
+          hasProviders={providerCount > 0}
+          isExporting={isExporting}
+          onExportExtensions={onExportExtensions}
+        />
+      ) : null}
     </section>
   );
 }

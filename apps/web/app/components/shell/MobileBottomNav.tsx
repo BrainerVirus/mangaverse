@@ -1,21 +1,7 @@
 import { useState } from 'react';
 import { Link, useRouterState } from '@tanstack/react-router';
+import { Menu } from 'lucide-react';
 import {
-  BookOpen,
-  Search,
-  Settings,
-  Menu,
-  Puzzle,
-  Archive,
-  ArrowRightLeft,
-  Zap,
-  Play,
-  Compass,
-  Palette,
-  SlidersHorizontal,
-} from 'lucide-react';
-import {
-  Separator,
   Sheet,
   SheetContent,
   SheetHeader,
@@ -24,42 +10,21 @@ import {
   GlassSurface,
   cn,
 } from '@app/design-system';
-
-const primaryTabs = [
-  { label: 'Discover', to: '/discover', icon: Compass },
-  { label: 'Library', to: '/library', icon: BookOpen },
-  { label: 'Search', to: '/search', icon: Search },
-  { label: 'Settings', to: '/settings', icon: Settings },
-] as const;
-
-const secondaryItems = [
-  { label: 'Extensions', to: '/extensions', icon: Puzzle },
-  { label: 'Backup', to: '/backup', icon: Archive },
-  { label: 'Onboarding', to: '/onboarding', icon: Play },
-] as const;
-
-const advancedItems = [
-  { label: 'Advanced', to: '/advanced', icon: SlidersHorizontal },
-  { label: 'Theme editor', to: '/advanced/theme', icon: Palette },
-  { label: 'Diagnostics', to: '/advanced/diagnostics', icon: Zap },
-  { label: 'Migration', to: '/advanced/migration', icon: ArrowRightLeft },
-] as const;
+import { isNavActive, mobileMoreItems, mobileTabs, type NavItem } from './nav-items.js';
 
 function SheetLinks({
   items,
   currentPath,
   onNavigate,
 }: {
-  items: readonly { label: string; to: string; icon: typeof BookOpen }[];
+  items: readonly NavItem[];
   currentPath: string;
   onNavigate: () => void;
 }) {
   return (
     <div className="flex flex-col gap-1 px-2">
       {items.map(({ label, to, icon: Icon }) => {
-        // The hub is only current on itself: each tool below it has its own entry.
-        const isActive =
-          currentPath === to || (to !== '/advanced' && currentPath.startsWith(to + '/'));
+        const isActive = isNavActive(currentPath, to);
         return (
           <Link
             key={to}
@@ -69,7 +34,9 @@ function SheetLinks({
             onClick={onNavigate}
             className={cn(
               'flex items-center gap-3 px-2 py-3 type-label transition-colors rounded-md',
-              isActive ? 'text-primary bg-primary/10' : 'text-foreground hover:bg-muted',
+              isActive
+                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                : 'text-foreground hover:bg-sidebar-accent/60',
             )}
           >
             <Icon className="h-5 w-5" />
@@ -95,23 +62,11 @@ export function MobileBottomNav() {
           </SheetHeader>
           <div className="mt-4">
             <SheetLinks
-              items={secondaryItems}
+              items={mobileMoreItems}
               currentPath={currentPath}
               onNavigate={() => setSheetOpen(false)}
             />
           </div>
-          <Separator className="my-4" />
-          <SheetLinks
-            items={advancedItems}
-            currentPath={currentPath}
-            onNavigate={() => setSheetOpen(false)}
-          />
-          <Separator className="my-4" />
-          <SheetLinks
-            items={primaryTabs}
-            currentPath={currentPath}
-            onNavigate={() => setSheetOpen(false)}
-          />
         </SheetContent>
       </Sheet>
 
@@ -120,8 +75,8 @@ export function MobileBottomNav() {
           {/* Equal-width tabs: five `flex-1 basis-0` items share the bar, so the
               longest label truncates instead of pushing the row past 320px. */}
           <div className="safe-area-x flex h-14 items-stretch">
-            {primaryTabs.map(({ label, to, icon: Icon }) => {
-              const isActive = currentPath === to || currentPath.startsWith(to + '/');
+            {mobileTabs.map(({ label, to, icon: Icon }) => {
+              const isActive = isNavActive(currentPath, to);
               return (
                 <Link
                   key={to}

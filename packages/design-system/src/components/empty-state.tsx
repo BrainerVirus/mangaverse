@@ -95,7 +95,7 @@ export function EmptyState({ type, action }: EmptyStateProps) {
       )}
     >
       <div className="mb-4 opacity-50">{config.icon}</div>
-      <h3 className="type-display-xl text-foreground">{config.title}</h3>
+      <h3 className="type-heading text-foreground">{config.title}</h3>
       <p className="type-body mt-2 max-w-sm text-muted-foreground">{config.description}</p>
       {action && (
         <Button onClick={action.onClick} className="mt-6" variant="default">

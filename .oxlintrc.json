@@ -86,6 +86,7 @@
           "type-heading",
           "type-label",
           "type-micro",
+          "type-title",
           "width-transition"
         ]
       }

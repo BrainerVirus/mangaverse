@@ -47,6 +47,7 @@ async function renderSidebar(expanded: boolean) {
   const classesOf = (label: string) =>
     container.querySelector(`a[aria-label="${label}"]`)?.className ?? '';
   return {
+    container,
     classesOf,
     cleanup: () => {
       root.unmount();
@@ -70,10 +71,12 @@ describe('DesktopSidebar nav link classes', () => {
     cleanup();
   });
 
-  it('keeps the active variant on the current route and hover on the rest', async () => {
+  it('fills the current route with the sidebar accent and tints the rest on hover', async () => {
     const { classesOf, cleanup } = await renderSidebar(true);
-    expect(classesOf('Library')).toContain('bg-secondary');
-    expect(classesOf('Search')).toContain('hover:bg-accent');
+    expect(classesOf('Library')).toContain('bg-sidebar-accent');
+    expect(classesOf('Library')).not.toContain('bg-secondary');
+    expect(classesOf('Search')).not.toContain('bg-sidebar-accent ');
+    expect(classesOf('Search')).toContain('hover:bg-sidebar-accent/60');
     cleanup();
   });
 
@@ -81,7 +84,22 @@ describe('DesktopSidebar nav link classes', () => {
     const { classesOf, cleanup } = await renderSidebar(false);
     expect(classesOf('Library')).toContain('inline-flex');
     expect(classesOf('Library')).toContain('justify-center');
-    expect(classesOf('Library')).toContain('h-9');
+    expect(classesOf('Library')).toContain('h-10');
+    cleanup();
+  });
+
+  it('shows the group labels when expanded', async () => {
+    const { container, cleanup } = await renderSidebar(true);
+    const labels = [...container.querySelectorAll('nav p')].map((node) => node.textContent);
+    expect(labels).toEqual(['Browse', 'Manage']);
+    cleanup();
+  });
+
+  it('hides the group labels on the collapsed rail but keeps every row', async () => {
+    const { container, cleanup } = await renderSidebar(false);
+    expect(container.querySelectorAll('nav p')).toHaveLength(0);
+    expect(container.querySelectorAll('nav a')).toHaveLength(5);
+    expect(container.querySelector('ul[aria-label="Browse"]')).not.toBeNull();
     cleanup();
   });
 });

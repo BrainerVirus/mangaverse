@@ -45,9 +45,6 @@
   "apps/web/app/features/library/components/LibraryPage.tsx": {
     "no-use-state": 3
   },
-  "apps/web/app/features/library/components/LibraryToolbar.tsx": {
-    "no-use-state": 1
-  },
   "apps/web/app/features/library/components/MangaChapterList.tsx": {
     "no-use-state": 3
   },
