@@ -1,13 +1,12 @@
-import type { ReaderSessionInput, PageSlot, SpreadLayout } from './types.js';
+import type { ReaderPage, ReaderSessionInput, PageSlot, SpreadLayout } from './types.js';
 
-function canPairWithLeft(
-  leftPage: { image: { width?: number; height?: number } },
-  rightPage: { image: { width?: number; height?: number } },
-): boolean {
-  const leftW = leftPage.image.width;
-  const leftH = leftPage.image.height;
-  const rightW = rightPage.image.width;
-  const rightH = rightPage.image.height;
+type SpreadPage = Pick<ReaderPage, 'image' | 'width' | 'height'>;
+
+function canPairWithLeft(leftPage: SpreadPage, rightPage: SpreadPage): boolean {
+  const leftW = leftPage.image.width ?? leftPage.width;
+  const leftH = leftPage.image.height ?? leftPage.height;
+  const rightW = rightPage.image.width ?? rightPage.width;
+  const rightH = rightPage.image.height ?? rightPage.height;
 
   if (leftW === undefined || leftH === undefined || rightW === undefined || rightH === undefined) {
     return false;
@@ -19,9 +18,20 @@ function canPairWithLeft(
   return leftIsPortrait && rightIsPortrait;
 }
 
+/**
+ * A page whose known shape is landscape. A page without reported dimensions is
+ * never wide, so it keeps the layout's ordinary pairing.
+ */
+export function isWidePage(page: SpreadPage): boolean {
+  const width = page.image.width ?? page.width;
+  const height = page.image.height ?? page.height;
+  if (width === undefined || height === undefined || width <= 0 || height <= 0) return false;
+  return width > height;
+}
+
 export function calculatePageSlots(input: ReaderSessionInput): readonly PageSlot[] {
   const { chapter, settings } = input;
-  const { pageLayout, readingMode, treatFirstPageAsCover } = settings;
+  const { pageLayout, readingMode } = settings;
   const pages = chapter.pages;
 
   if (readingMode === 'vertical') {
@@ -46,192 +56,75 @@ export function calculatePageSlots(input: ReaderSessionInput): readonly PageSlot
     }));
   }
 
-  // double or smartSpread
-  if (pageLayout === 'double') {
-    return buildDoubleSlots(pages, treatFirstPageAsCover, readingMode);
-  }
-
-  // smartSpread - dimension-aware pairing
-  return buildSmartSpreadSlots(pages, treatFirstPageAsCover, readingMode);
+  // double pairs mechanically; smartSpread pairs only two known portrait pages.
+  return buildSpreadSlots(pages, {
+    treatFirstPageAsCover: settings.treatFirstPageAsCover,
+    split: settings.widePageMode === 'split',
+    rtl: readingMode === 'rtl',
+    canPair: pageLayout === 'double' ? () => true : canPairWithLeft,
+  });
 }
 
-function buildDoubleSlots(
-  pages: readonly { id: string; index: number; image: { url: string } }[],
-  treatFirstPageAsCover: boolean,
-  readingMode: 'rtl' | 'ltr' | 'vertical',
-): readonly PageSlot[] {
-  const slots: PageSlot[] = [];
-
-  if (treatFirstPageAsCover && pages.length > 0) {
-    slots.push({
-      pageIndex: 0,
-      isCover: true,
-      isLeftPage: false,
-      isRightPage: false,
-    });
-
-    let i = 1;
-    while (i < pages.length) {
-      if (i % 2 === 1) {
-        slots.push({
-          pageIndex: i,
-          isCover: false,
-          isLeftPage: true,
-          isRightPage: false,
-        });
-        if (i + 1 < pages.length) {
-          slots.push({
-            pageIndex: i + 1,
-            isCover: false,
-            isLeftPage: false,
-            isRightPage: true,
-          });
-        }
-        i += 2;
-      } else {
-        slots.push({
-          pageIndex: i,
-          isCover: false,
-          isLeftPage: false,
-          isRightPage: false,
-        });
-        i++;
-      }
-    }
-  } else {
-    // No cover: mechanical pairing - pairs pages by index without dimension checks
-    let i = 0;
-    while (i < pages.length) {
-      const isLeftSlot = slots.length % 2 === 0;
-
-      if (isLeftSlot) {
-        slots.push({
-          pageIndex: i,
-          isCover: false,
-          isLeftPage: true,
-          isRightPage: false,
-        });
-        if (i + 1 < pages.length) {
-          slots.push({
-            pageIndex: i + 1,
-            isCover: false,
-            isLeftPage: false,
-            isRightPage: true,
-          });
-        }
-        i += 2;
-      } else {
-        slots.push({
-          pageIndex: i,
-          isCover: false,
-          isLeftPage: false,
-          isRightPage: false,
-        });
-        i += 1;
-      }
-    }
-  }
-
-  if (readingMode === 'rtl') {
-    return slots.map((slot) => ({
-      ...slot,
-      isLeftPage: slot.isRightPage,
-      isRightPage: slot.isLeftPage,
-    }));
-  }
-
-  return slots;
+function standaloneSlot(pageIndex: number, isCover: boolean): PageSlot {
+  return { pageIndex, isCover, isLeftPage: false, isRightPage: false };
 }
 
-function buildSmartSpreadSlots(
-  pages: readonly {
-    id: string;
-    index: number;
-    image: { url: string; width?: number; height?: number };
-  }[],
-  treatFirstPageAsCover: boolean,
-  readingMode: 'rtl' | 'ltr' | 'vertical',
+/**
+ * A wide page takes a spread of its own. Split, it fills the spread as its two
+ * physical halves, left then right, in either reading direction.
+ */
+function wideSlots(pageIndex: number, isCover: boolean, split: boolean): readonly PageSlot[] {
+  if (!split) return [standaloneSlot(pageIndex, isCover)];
+  return [
+    { pageIndex, isCover, isLeftPage: true, isRightPage: false, split: 'left' },
+    { pageIndex, isCover, isLeftPage: false, isRightPage: true, split: 'right' },
+  ];
+}
+
+/**
+ * Walks the chapter in reading order. A pair's first page is marked left and
+ * its second right, then RTL swaps the sides so the flags are physical. A wide
+ * page (and the page before it, left without a partner) stands alone, so the
+ * page after a wide one always opens a new spread on the reading-order side.
+ */
+function buildSpreadSlots(
+  pages: readonly SpreadPage[],
+  options: {
+    readonly treatFirstPageAsCover: boolean;
+    readonly split: boolean;
+    readonly rtl: boolean;
+    readonly canPair: (first: SpreadPage, second: SpreadPage) => boolean;
+  },
 ): readonly PageSlot[] {
   const slots: PageSlot[] = [];
-
-  if (treatFirstPageAsCover && pages.length > 0) {
-    slots.push({
-      pageIndex: 0,
-      isCover: true,
-      isLeftPage: false,
-      isRightPage: false,
-    });
-
-    let i = 1;
-    while (i < pages.length) {
-      const leftPage = pages[i];
-      const rightPage = pages[i + 1];
-
-      if (rightPage && leftPage && canPairWithLeft(leftPage, rightPage)) {
-        slots.push({
-          pageIndex: i,
-          isCover: false,
-          isLeftPage: true,
-          isRightPage: false,
-        });
-        slots.push({
-          pageIndex: i + 1,
-          isCover: false,
-          isLeftPage: false,
-          isRightPage: true,
-        });
-        i += 2;
-      } else {
-        slots.push({
-          pageIndex: i,
-          isCover: false,
-          isLeftPage: false,
-          isRightPage: false,
-        });
-        i += 1;
-      }
+  let i = 0;
+  while (i < pages.length) {
+    const page = pages[i]!;
+    const isCover = i === 0 && options.treatFirstPageAsCover;
+    if (isWidePage(page)) {
+      slots.push(...wideSlots(i, isCover, options.split));
+      i += 1;
+      continue;
     }
-  } else {
-    let i = 0;
-    while (i < pages.length) {
-      const leftPage = pages[i];
-      const rightPage = pages[i + 1];
-
-      if (rightPage && leftPage && canPairWithLeft(leftPage, rightPage)) {
-        slots.push({
-          pageIndex: i,
-          isCover: false,
-          isLeftPage: true,
-          isRightPage: false,
-        });
-        slots.push({
-          pageIndex: i + 1,
-          isCover: false,
-          isLeftPage: false,
-          isRightPage: true,
-        });
-        i += 2;
-      } else {
-        slots.push({
-          pageIndex: i,
-          isCover: false,
-          isLeftPage: false,
-          isRightPage: false,
-        });
-        i += 1;
-      }
+    const next = pages[i + 1];
+    if (isCover || next === undefined || isWidePage(next) || !options.canPair(page, next)) {
+      slots.push(standaloneSlot(i, isCover));
+      i += 1;
+      continue;
     }
+    slots.push(
+      { pageIndex: i, isCover: false, isLeftPage: true, isRightPage: false },
+      { pageIndex: i + 1, isCover: false, isLeftPage: false, isRightPage: true },
+    );
+    i += 2;
   }
 
-  if (readingMode === 'rtl') {
-    return slots.map((slot) => ({
-      ...slot,
-      isLeftPage: slot.isRightPage,
-      isRightPage: slot.isLeftPage,
-    }));
-  }
-
-  return slots;
+  if (!options.rtl) return slots;
+  return slots.map((slot) =>
+    slot.split === undefined
+      ? { ...slot, isLeftPage: slot.isRightPage, isRightPage: slot.isLeftPage }
+      : slot,
+  );
 }
 
 export function calculateSpreadPlan(input: ReaderSessionInput): SpreadLayout {

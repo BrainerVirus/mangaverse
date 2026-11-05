@@ -235,12 +235,13 @@ describe('reader settings', () => {
     expect(settings.readingMode).toBe('rtl');
   });
 
-  it('Given a row saved before spread offset, strip width, page number and transition existed, When reading, Then each reads its default', () => {
+  it('Given a row saved before spread offset, wide pages, strip width, page number and transition existed, When reading, Then each reads its default', () => {
     const settings = sanitizeReaderSettings(LEGACY_ROW);
     const validated = validateReaderSettings({ ...LEGACY_ROW, verticalGapPx: 0, preloadAhead: 4 });
 
     const added = {
       spreadOffset: 0,
+      widePageMode: 'isolate',
       maxStripWidthPercent: 100,
       showPageNumber: true,
       showChapterTransition: true,
@@ -254,6 +255,7 @@ describe('reader settings', () => {
     const settings = sanitizeReaderSettings({
       ...LEGACY_ROW,
       spreadOffset: 2,
+      widePageMode: 'halve',
       maxStripWidthPercent: 80,
       showPageNumber: false,
       showChapterTransition: 'off',
@@ -261,6 +263,7 @@ describe('reader settings', () => {
 
     expect(settings).toMatchObject({
       spreadOffset: 0,
+      widePageMode: 'isolate',
       maxStripWidthPercent: 80,
       showPageNumber: false,
       showChapterTransition: true,
@@ -282,6 +285,19 @@ describe('reader settings', () => {
     expect(sanitizeReaderSettingsOverride({ spreadOffset: 1, maxStripWidthPercent: 20 })).toEqual({
       spreadOffset: 1,
     });
+  });
+
+  it('Given a wide page mode, When writing, Then isolate and split pass and anything else is rejected', () => {
+    const base = getDefaultReaderSettings();
+
+    expect(base.widePageMode).toBe('isolate');
+    expect(validateReaderSettings({ ...base, widePageMode: 'split' }).ok).toBe(true);
+    const invalid = validateReaderSettings({ ...base, widePageMode: 'halve' });
+    expect(invalid.ok ? undefined : invalid.error.message).toBe('Invalid widePageMode.');
+    expect(sanitizeReaderSettingsOverride({ widePageMode: 'split' })).toEqual({
+      widePageMode: 'split',
+    });
+    expect(sanitizeReaderSettingsOverride({ widePageMode: 'halve' })).toEqual({});
   });
 
   it('Given a legacy backup, When validating it for restore, Then it clamps instead of failing', () => {

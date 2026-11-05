@@ -35,6 +35,15 @@ describe('toReaderEngineSettings', () => {
     });
   });
 
+  it('Given a wide page mode, When mapped, Then the engine carries it with isolate by default', () => {
+    const settings = getDefaultReaderSettings();
+
+    expect(toReaderEngineSettings(settings).widePageMode).toBe('isolate');
+    expect(toReaderEngineSettings({ ...settings, widePageMode: 'split' }).widePageMode).toBe(
+      'split',
+    );
+  });
+
   it('Given the default Auto settings, When mapped without context, Then the engine gets paged LTR, single, fit screen', () => {
     const engine = toReaderEngineSettings(getDefaultReaderSettings());
 

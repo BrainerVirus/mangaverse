@@ -362,6 +362,211 @@ describe('spread offset', () => {
   );
 });
 
+describe('wide pages', () => {
+  const PORTRAIT = { width: 600, height: 1000 };
+  const LANDSCAPE = { width: 1600, height: 1000 };
+
+  /** Seven pages; the fourth (index 3) has the given shape, the rest are portrait. */
+  function chapterWithPage3(shape: { width: number; height: number } | undefined): ReaderChapter {
+    const pages = Array.from({ length: 7 }, (_unused, index) => {
+      const size = index === 3 ? shape : PORTRAIT;
+      return {
+        id: toChapterPageId(`p${index + 1}`),
+        index,
+        image: { url: `http://example.com/${index + 1}.jpg`, ...size },
+      };
+    });
+    return { id: 'ch1', mangaId: 'm1', title: 'Wide', pages, pageCount: pages.length };
+  }
+
+  type Case = {
+    readonly pageLayout: 'double' | 'smartSpread';
+    readonly readingMode: 'ltr' | 'rtl';
+    readonly widePageMode: 'isolate' | 'split';
+    readonly spreadOffset: SpreadOffset;
+  };
+
+  function settingsFor(c: Case): ReaderEngineSettings {
+    return toReaderEngineSettings({ ...getDefaultReaderSettings(), ...c });
+  }
+
+  function spreadsShown(chapter: ReaderChapter, c: Case): readonly string[] {
+    const settings = settingsFor(c);
+    const shown = chapter.pages.map((_page, pageIndex) =>
+      createReaderState({
+        chapter,
+        viewport: mockViewport,
+        settings,
+        initialPageIndex: pageIndex,
+      }).visiblePageIndexes.join(','),
+    );
+    return [...new Set(shown)];
+  }
+
+  const layouts = ['double', 'smartSpread'] as const;
+  const modes = ['isolate', 'split'] as const;
+  const matrix = layouts.flatMap((pageLayout) =>
+    modes.flatMap(
+      (widePageMode) =>
+        [
+          // Cover alone: 0 | 1,2 | wide 3 | 4,5 | 6 — the pair after the wide page
+          // restarts at 4 instead of following the cover's parity (3,4).
+          {
+            pageLayout,
+            widePageMode,
+            spreadOffset: 0,
+            readingMode: 'ltr',
+            expected: ['0', '1,2', '3', '4,5', '6'],
+          },
+          {
+            pageLayout,
+            widePageMode,
+            spreadOffset: 0,
+            readingMode: 'rtl',
+            expected: ['0', '2,1', '3', '5,4', '6'],
+          },
+          // Offset by one: 0,1 | 2 alone (its partner is wide) | wide 3 | 4,5 | 6.
+          {
+            pageLayout,
+            widePageMode,
+            spreadOffset: 1,
+            readingMode: 'ltr',
+            expected: ['0,1', '2', '3', '4,5', '6'],
+          },
+          {
+            pageLayout,
+            widePageMode,
+            spreadOffset: 1,
+            readingMode: 'rtl',
+            expected: ['1,0', '2', '3', '5,4', '6'],
+          },
+        ] as const,
+    ),
+  );
+
+  it.each(matrix)(
+    'Given a wide page in $pageLayout $readingMode ($widePageMode, offset $spreadOffset), When paged through, Then it takes a spread of its own',
+    ({ expected, ...c }) => {
+      expect(spreadsShown(chapterWithPage3(LANDSCAPE), c)).toEqual(expected);
+    },
+  );
+
+  it.each(
+    layouts.flatMap((pageLayout) =>
+      modes.flatMap((widePageMode) =>
+        (['ltr', 'rtl'] as const).map((readingMode) => ({ pageLayout, widePageMode, readingMode })),
+      ),
+    ),
+  )(
+    'Given a wide page in $pageLayout $readingMode ($widePageMode), When the next page is laid out, Then it opens a spread on the reading-order side',
+    ({ readingMode, ...c }) => {
+      const slots = calculatePageSlots({
+        chapter: chapterWithPage3(LANDSCAPE),
+        viewport: mockViewport,
+        settings: settingsFor({ ...c, readingMode, spreadOffset: 1 }),
+      });
+      const after = slots.find((slot) => slot.pageIndex === 4)!;
+
+      expect(after.isLeftPage).toBe(readingMode === 'ltr');
+      expect(after.isRightPage).toBe(readingMode === 'rtl');
+      expect(slots.find((slot) => slot.pageIndex === 5)!.isLeftPage).toBe(readingMode === 'rtl');
+    },
+  );
+
+  it.each(
+    layouts.flatMap((pageLayout) =>
+      (['ltr', 'rtl'] as const).map((readingMode) => ({ pageLayout, readingMode })),
+    ),
+  )(
+    'Given split in $pageLayout $readingMode, When slots are built, Then the wide page has a left and a right half in physical order',
+    ({ pageLayout, readingMode }) => {
+      const slots = calculatePageSlots({
+        chapter: chapterWithPage3(LANDSCAPE),
+        viewport: mockViewport,
+        settings: settingsFor({ pageLayout, readingMode, widePageMode: 'split', spreadOffset: 0 }),
+      });
+
+      expect(slots.filter((slot) => slot.pageIndex === 3)).toEqual([
+        { pageIndex: 3, isCover: false, isLeftPage: true, isRightPage: false, split: 'left' },
+        { pageIndex: 3, isCover: false, isLeftPage: false, isRightPage: true, split: 'right' },
+      ]);
+      expect(slots.filter((slot) => slot.split !== undefined)).toHaveLength(2);
+    },
+  );
+
+  it.each(layouts)(
+    'Given isolate in %s, When slots are built, Then the wide page is one standalone slot',
+    (pageLayout) => {
+      const slots = calculatePageSlots({
+        chapter: chapterWithPage3(LANDSCAPE),
+        viewport: mockViewport,
+        settings: settingsFor({
+          pageLayout,
+          readingMode: 'rtl',
+          widePageMode: 'isolate',
+          spreadOffset: 0,
+        }),
+      });
+
+      expect(slots.filter((slot) => slot.pageIndex === 3)).toEqual([
+        { pageIndex: 3, isCover: false, isLeftPage: false, isRightPage: false },
+      ]);
+    },
+  );
+
+  it.each([
+    // double pairs mechanically; smartSpread will not pair a page it cannot measure.
+    ['double', ['0,1', '2,3', '4,5', '6']],
+    ['smartSpread', ['0,1', '2', '3', '4,5', '6']],
+  ] as const)(
+    'Given a page without dimensions in %s, When paged through with split, Then pairing is unchanged',
+    (pageLayout, expected) => {
+      for (const widePageMode of modes) {
+        expect(
+          spreadsShown(chapterWithPage3(undefined), {
+            pageLayout,
+            readingMode: 'ltr',
+            widePageMode,
+            spreadOffset: 1,
+          }),
+        ).toEqual(expected);
+      }
+    },
+  );
+
+  it('Given a wide first page with cover alone, When split, Then the cover is the split page', () => {
+    const chapter = chapterWithPage3(PORTRAIT);
+    const widePages = chapter.pages.map((page, index) =>
+      index === 0 ? { ...page, image: { ...page.image, ...LANDSCAPE } } : page,
+    );
+    const slots = calculatePageSlots({
+      chapter: { ...chapter, pages: widePages },
+      viewport: mockViewport,
+      settings: settingsFor({
+        pageLayout: 'double',
+        readingMode: 'ltr',
+        widePageMode: 'split',
+        spreadOffset: 0,
+      }),
+    });
+
+    expect(slots.slice(0, 2).map((slot) => [slot.pageIndex, slot.isCover, slot.split])).toEqual([
+      [0, true, 'left'],
+      [0, true, 'right'],
+    ]);
+    expect(slots[2]).toMatchObject({ pageIndex: 1, isLeftPage: true });
+  });
+
+  it('Given split in single layout, When slots are built, Then nothing is split', () => {
+    const slots = calculatePageSlots(
+      makeInput({ pageLayout: 'single', widePageMode: 'split' }, chapterWithPage3(LANDSCAPE)),
+    );
+
+    expect(slots).toHaveLength(7);
+    expect(slots.every((slot) => slot.split === undefined)).toBe(true);
+  });
+});
+
 describe('calculateSpreadPlan', () => {
   it('should create spread plan for double layout', () => {
     const input = makeInput({ pageLayout: 'double' });
