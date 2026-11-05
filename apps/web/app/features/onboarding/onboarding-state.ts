@@ -112,7 +112,7 @@ export function isOnboardingFinished(state: OnboardingState): boolean {
   return state.status === 'completed' || state.status === 'skipped';
 }
 
-export function getOnboardingStepIndex(step: OnboardingStepId): number {
+function getOnboardingStepIndex(step: OnboardingStepId): number {
   return ONBOARDING_STEP_IDS.indexOf(step);
 }
 
