@@ -262,6 +262,7 @@ describe('ThemeProvider stored settings', () => {
   let root: Root;
 
   beforeEach(() => {
+    mocks.dbState.status = 'ready';
     localStorage.clear();
     mocks.fetchThemeDefinitions.mockReset().mockResolvedValue([]);
     // Keep the settings query pending so the stored value is what lands.
@@ -495,6 +496,77 @@ describe('ThemeProvider stored settings', () => {
         );
       });
       expect(mocks.applyThemeToRoot).toHaveBeenCalledTimes(1);
+    });
+
+    it('Given a saved custom theme and a database that failed to open, When it recovers, Then the custom palette applies once and the notice and snapshot follow it', async () => {
+      localStorage.setItem('themeId', customDefinition.id);
+      localStorage.setItem('dark', 'false');
+      localStorage.setItem(THEME_PAINT_SNAPSHOT_KEY, savedSnapshot);
+      mocks.dbState.status = 'error';
+      mocks.applyThemeToRoot.mockClear();
+      const queryClient = createTestQueryClient();
+      const renderTree = () =>
+        root.render(
+          <QueryClientProvider client={queryClient}>
+            <ThemeProvider>
+              <ThemeSettingsBridge />
+            </ThemeProvider>
+          </QueryClientProvider>,
+        );
+
+      await act(async () => {
+        renderTree();
+      });
+
+      // Error state: the default palette applies exactly once, with the load notice.
+      await vi.waitFor(() => {
+        expect(mocks.applyThemeToRoot).toHaveBeenCalledTimes(1);
+      });
+      expect(mocks.applyThemeToRoot).toHaveBeenCalledWith(
+        document.documentElement,
+        { themeId: 'default', dark: false },
+        undefined,
+      );
+      expect(document.querySelector('[data-theme-notice]')?.textContent).toContain(
+        'Custom themes could not be loaded',
+      );
+      const fallback = buildThemeCssVariables({ themeId: 'default', dark: false });
+      await vi.waitFor(() => {
+        expect(localStorage.getItem(THEME_PAINT_SNAPSHOT_KEY)).toBe(
+          serializeThemePaintSnapshot({
+            appearance: 'light',
+            background: fallback['--background'],
+            foreground: fallback['--foreground'],
+          }),
+        );
+      });
+      expect(mocks.fetchThemeDefinitions).not.toHaveBeenCalled();
+      expect(mocks.applyThemeToRoot).toHaveBeenCalledTimes(1);
+
+      // Retry succeeds: the database is ready and the definitions load.
+      mocks.dbState.status = 'ready';
+      mocks.fetchThemeDefinitions.mockResolvedValue([customDefinition]);
+      mocks.fetchThemeSettings.mockResolvedValue({ settings: customSettings() });
+      await act(async () => {
+        renderTree();
+      });
+
+      await vi.waitFor(() => {
+        expect(mocks.applyThemeToRoot).toHaveBeenCalledTimes(2);
+      });
+      expect(mocks.applyThemeToRoot).toHaveBeenLastCalledWith(
+        document.documentElement,
+        { themeId: customDefinition.id, dark: false },
+        customDefinition,
+      );
+      expect(document.documentElement.style.getPropertyValue('--background')).toBe(
+        customDefinition.light.seeds.background,
+      );
+      expect(document.querySelector('[data-theme-notice]')).toBeNull();
+      await settleSnapshotWrites();
+      expect(localStorage.getItem(THEME_PAINT_SNAPSHOT_KEY)).toBe(savedSnapshot);
+      // One fallback apply and one custom apply; the recovery never repaints twice.
+      expect(mocks.applyThemeToRoot).toHaveBeenCalledTimes(2);
     });
 
     it('Given no saved theme, When the definitions are still loading, Then the default applies exactly once', async () => {
