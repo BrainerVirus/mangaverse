@@ -161,6 +161,8 @@ describe('ReaderSettingsPage', () => {
         'preload-behind',
         'prefetch-budget',
         'low-memory-mode',
+        'data-saver',
+        'tiling-threshold',
         'long-strip-optimization',
         'tap-zone-debug-overlay',
         'diagnostics-enabled',
@@ -178,6 +180,8 @@ describe('ReaderSettingsPage', () => {
     expect(settingIds(byTitle.get('Advanced') ?? null)).toEqual(
       expect.arrayContaining([
         'low-memory-mode',
+        'data-saver',
+        'tiling-threshold',
         'long-strip-optimization',
         'tap-zone-debug-overlay',
         'diagnostics-enabled',
@@ -383,5 +387,48 @@ describe('ReaderSettingsPage', () => {
     expect(row.options.map((option) => option.value)).toEqual(['isolate', 'split']);
     row.onChange('split');
     expect(onChange).toHaveBeenLastCalledWith({ widePageMode: 'split' });
+  });
+
+  it('Given the data saver and tiling threshold rows, When changed, Then each saves its field and the defaults read Off and Auto', () => {
+    const onChange = vi.fn<(patch: Partial<ReaderSettings>) => void>();
+    const page = ReaderSettingsPage({
+      settings: getDefaultReaderSettings(),
+      isLoading: false,
+      isError: false,
+      onChange,
+    });
+    const saver = rowWithId(page, 'data-saver').props as {
+      label: string;
+      description: string;
+      checked: boolean;
+      onCheckedChange: (checked: boolean) => void;
+    };
+    expect(saver.label).toBe('Data saver');
+    expect(saver.checked).toBe(false);
+    expect(saver.description).toContain('Manual');
+    expect(saver.description).toContain('Only the page being read loads');
+    saver.onCheckedChange(true);
+    expect(onChange).toHaveBeenLastCalledWith({ dataSaver: true });
+
+    const tiling = rowWithId(page, 'tiling-threshold').props as {
+      label: string;
+      description: string;
+      value: string;
+      options: readonly { value: string; label: string }[];
+      onChange: (value: string) => void;
+    };
+    expect(tiling.label).toBe('Tall-page tiling threshold');
+    expect(tiling.value).toBe('auto');
+    expect(tiling.description).toContain('split into tiles');
+    expect(tiling.options.map((option) => option.label)).toEqual([
+      'Auto',
+      '4096px',
+      '8192px',
+      '16384px',
+    ]);
+    tiling.onChange('16384');
+    expect(onChange).toHaveBeenLastCalledWith({ tilingThreshold: 16_384 });
+    tiling.onChange('auto');
+    expect(onChange).toHaveBeenLastCalledWith({ tilingThreshold: 'auto' });
   });
 });

@@ -15,6 +15,8 @@ export interface PreloadPlanOptions {
    * decode pool keeps it first: it is the page a turn must never wait on.
    */
   readonly includeActive?: boolean;
+  /** Data saver plans nothing: the mounted page image alone loads the page being read. */
+  readonly dataSaver?: boolean;
 }
 
 /**
@@ -34,6 +36,7 @@ export function createPreloadPlan(
   lowMemoryMode: boolean,
   options: PreloadPlanOptions = {},
 ): PreloadPlan {
+  if (options.dataSaver === true) return { items: [], lowMemoryMode, maxPreload: 0 };
   const includeActive = options.includeActive !== false;
   const maxAhead = Math.max(0, lowMemoryMode ? Math.min(1, preloadAhead) : preloadAhead);
   const maxBehind = Math.max(0, lowMemoryMode ? 0 : (options.preloadBehind ?? 1));

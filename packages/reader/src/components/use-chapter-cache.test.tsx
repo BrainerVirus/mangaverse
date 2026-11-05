@@ -113,6 +113,26 @@ describe('useChapterPrefetch cache sweep', () => {
     act(() => root.unmount());
   });
 
+  it('Given data saver, When the chapter opens or a page turns, Then no page is prefetched', async () => {
+    mocks.prefetchChapterPages.mockClear();
+    const context = {
+      db: {} as CoverCacheContextValue['db'],
+      adapter: {} as CoverCacheContextValue['adapter'],
+      cacheLimitBytes: 1024,
+    };
+    const data = buildData(8, { dataSaver: true, preloadAhead: 4, preloadBehind: 2 });
+    const root = createRoot(document.createElement('div'));
+    await act(async () => root.render(<Probe data={data} context={context} activePageIndex={2} />));
+    await act(async () => root.render(<Probe data={data} context={context} activePageIndex={3} />));
+    expect(mocks.prefetchChapterPages).not.toHaveBeenCalled();
+
+    // Turning it off restores the sweep.
+    const off = { ...data, settings: { ...data.settings, dataSaver: false } };
+    await act(async () => root.render(<Probe data={off} context={context} activePageIndex={3} />));
+    expect(mocks.prefetchChapterPages).toHaveBeenCalledTimes(1);
+    act(() => root.unmount());
+  });
+
   it('Given preloadBehind, When the sweep plans mid-chapter, Then it warms that many pages behind', async () => {
     const context = {
       db: {} as CoverCacheContextValue['db'],

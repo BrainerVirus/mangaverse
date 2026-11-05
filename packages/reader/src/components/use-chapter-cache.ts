@@ -48,11 +48,14 @@ export function useChapterPrefetch(
   const preloadAhead = data?.settings.preloadAhead ?? 0;
   const preloadBehind = data?.engineSettings.preloadBehind ?? 1;
   const lowMemoryMode = data?.settings.lowMemoryMode ?? false;
+  const dataSaver = data?.settings.dataSaver ?? false;
+  // Data saver resolves to no look-ahead, which also skips the sweep below.
   const preloadCount = resolveScrollPreloadAhead({
     pages: pages ?? [],
     preloadAhead,
     lowMemoryMode,
     longStripOptimization: data?.settings.longStripOptimization ?? false,
+    dataSaver,
   });
   const onPrefetchMetricRef = useEffectEvent(
     (metric: {

@@ -251,6 +251,40 @@ describe('reader settings', () => {
     expect(getDefaultReaderSettings()).toMatchObject(added);
   });
 
+  it('Given a row saved before data saver and the tiling threshold existed, When reading, Then they read Off and Auto', () => {
+    const added = { dataSaver: false, tilingThreshold: 'auto' };
+
+    expect(sanitizeReaderSettings(LEGACY_ROW)).toMatchObject(added);
+    expect(getDefaultReaderSettings()).toMatchObject(added);
+    const validated = validateReaderSettings({ ...LEGACY_ROW, verticalGapPx: 0, preloadAhead: 4 });
+    expect(validated.ok ? validated.value : undefined).toMatchObject(added);
+  });
+
+  it('Given data saver or a tiling threshold, When writing, Then only the documented values are accepted', () => {
+    const base = getDefaultReaderSettings();
+
+    expect(validateReaderSettings({ ...base, dataSaver: true }).ok).toBe(true);
+    expect(validateReaderSettings({ ...base, dataSaver: 'on' }).ok).toBe(false);
+    for (const tilingThreshold of ['auto', 4096, 8192, 16_384]) {
+      expect(validateReaderSettings({ ...base, tilingThreshold }).ok).toBe(true);
+    }
+    for (const tilingThreshold of [0, 2048, 8191, '8192', 'huge']) {
+      const result = validateReaderSettings({ ...base, tilingThreshold });
+      expect(result.ok ? undefined : result.error.message).toBe(
+        'tilingThreshold must be auto, 4096, 8192 or 16384.',
+      );
+    }
+    expect(
+      sanitizeReaderSettings({ ...base, tilingThreshold: 3000, dataSaver: true }),
+    ).toMatchObject({
+      tilingThreshold: 'auto',
+      dataSaver: true,
+    });
+    expect(sanitizeReaderSettingsOverride({ tilingThreshold: 4096, dataSaver: 'x' })).toEqual({
+      tilingThreshold: 4096,
+    });
+  });
+
   it('Given one of the new fields no longer parses, When reading, Then only that field falls back', () => {
     const settings = sanitizeReaderSettings({
       ...LEGACY_ROW,

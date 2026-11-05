@@ -8,6 +8,8 @@ import {
   hasPageShape,
   planPageTiles,
   PLACEHOLDER_PAGE_RATIO,
+  STRIP_TILE_AUTO_THRESHOLD_PX,
+  STRIP_TILE_HEIGHT_PX,
   resolveScrollPreloadAhead,
   resolveStripMaxWidthPercent,
   resolveStripPageSize,
@@ -40,6 +42,8 @@ interface ReaderScrollViewProps {
   readonly preloadAhead?: number;
   readonly lowMemoryMode?: boolean;
   readonly longStripOptimization?: boolean;
+  /** Pages taller than this many pixels render as tiles; Auto (8192) when absent. */
+  readonly tilingThresholdPx?: number;
   readonly imageSmoothing?: boolean;
   readonly onPageMetric?:
     | ((metric: {
@@ -150,6 +154,7 @@ interface ScrollContentProps {
   readonly mangaId: string;
   readonly chapterId: string;
   readonly imageSmoothing: boolean;
+  readonly tilingThresholdPx: number;
   readonly onSkipPage: (index: number) => void;
   readonly onBack: (() => void) | undefined;
   readonly onMeasured: (index: number, size: NaturalSize) => void;
@@ -180,6 +185,7 @@ function ScrollContent({
   mangaId,
   chapterId,
   imageSmoothing,
+  tilingThresholdPx,
   onSkipPage,
   onBack,
   onMeasured,
@@ -212,6 +218,7 @@ function ScrollContent({
             onSkipPage={onSkipPage}
             onBack={onBack}
             imageSmoothing={imageSmoothing}
+            tilingThresholdPx={tilingThresholdPx}
             onMeasured={onMeasured}
             onMetric={onMetric}
           />
@@ -252,6 +259,7 @@ const ScrollPageRow = memo(function ScrollPageRow({
   onSkipPage,
   onBack,
   imageSmoothing,
+  tilingThresholdPx,
   onMeasured,
   onMetric,
 }: {
@@ -268,6 +276,7 @@ const ScrollPageRow = memo(function ScrollPageRow({
   readonly onSkipPage?: ((index: number) => void) | undefined;
   readonly onBack?: (() => void) | undefined;
   readonly imageSmoothing: boolean;
+  readonly tilingThresholdPx: number;
   readonly onMeasured: (index: number, size: NaturalSize) => void;
   readonly onMetric?:
     | ((metric: {
@@ -278,7 +287,7 @@ const ScrollPageRow = memo(function ScrollPageRow({
       }) => void)
     | undefined;
 }) {
-  const tiles = planPageTiles(height);
+  const tiles = planPageTiles(height, STRIP_TILE_HEIGHT_PX, tilingThresholdPx);
   return (
     <div
       data-page-index={index}
@@ -364,6 +373,7 @@ export function ReaderScrollView({
   preloadAhead = MIN_ROW_RADIUS,
   lowMemoryMode = false,
   longStripOptimization = false,
+  tilingThresholdPx = STRIP_TILE_AUTO_THRESHOLD_PX,
   imageSmoothing = true,
   onPageMetric,
   onBack,
@@ -634,6 +644,7 @@ export function ReaderScrollView({
         mangaId={mangaId}
         chapterId={chapterId}
         imageSmoothing={imageSmoothing}
+        tilingThresholdPx={tilingThresholdPx}
         onSkipPage={skipPage}
         onBack={onBack}
         onMeasured={reportMeasured}

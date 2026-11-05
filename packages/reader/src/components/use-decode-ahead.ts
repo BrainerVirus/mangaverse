@@ -10,7 +10,8 @@ const DECODE_AHEAD_LOW_MEMORY_WINDOW = 2;
 
 /**
  * Keeps the pages around the active one decoded, in the same priority order the
- * prefetch sweep uses. It only ever warms already-cached pages: a page still
+ * prefetch sweep uses. Data saver empties the plan: only the mounted page image
+ * loads the page being read. It only ever warms already-cached pages: a page still
  * downloading is left to the prefetch sweep and its budget, then picked up when
  * `warmVersion` advances after that sweep settles.
  */
@@ -30,11 +31,13 @@ export function useDecodeAhead(input: {
   const chapterId = data?.chapterId;
   const lowMemoryMode = data?.settings.lowMemoryMode ?? false;
   const preloadBehind = data?.engineSettings.preloadBehind ?? 1;
+  const dataSaver = data?.settings.dataSaver ?? false;
   const preloadCount = resolveScrollPreloadAhead({
     pages: pages ?? [],
     preloadAhead: data?.settings.preloadAhead ?? 0,
     lowMemoryMode,
     longStripOptimization: data?.settings.longStripOptimization ?? false,
+    dataSaver,
   });
 
   const pool = useMemo<PageDecodePool | null>(() => {
@@ -58,8 +61,9 @@ export function useDecodeAhead(input: {
         : createPreloadPlan(pages, activePageIndex, preloadCount, lowMemoryMode, {
             includeActive: true,
             preloadBehind,
+            dataSaver,
           }).items.map((item) => ({ pageIndex: item.pageIndex, remoteUrl: item.url })),
-    [activePageIndex, lowMemoryMode, pages, preloadBehind, preloadCount],
+    [activePageIndex, dataSaver, lowMemoryMode, pages, preloadBehind, preloadCount],
   );
 
   const planRef = useRef(plan);
