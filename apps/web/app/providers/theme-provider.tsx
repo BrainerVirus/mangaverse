@@ -148,6 +148,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     [definitionsUnavailable, selectedDefinition, settings],
   );
 
+  // A selected custom theme cannot be painted until its definition arrives: applying
+  // now would fall back to the default palette and overwrite the saved paint snapshot.
+  const awaitingDefinition = isCustomThemeId(settings.themeId) && definitions === undefined;
+
   const themeNotice = definitionsUnavailable
     ? definitions === null
       ? 'Custom themes could not be loaded. Showing the default theme.'
@@ -179,7 +183,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       previous.definition === appliedTheme.definition &&
       previous.settings.themeId === appliedTheme.settings.themeId &&
       previous.settings.dark === appliedTheme.settings.dark;
-    if (!alreadyApplied) {
+    if (!alreadyApplied && !awaitingDefinition) {
       applyThemeToRoot(document.documentElement, appliedTheme.settings, appliedTheme.definition);
       appliedRef.current = appliedTheme;
     }
@@ -196,7 +200,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     media.addEventListener('change', handleChange);
     return () => media.removeEventListener('change', handleChange);
-  }, [appliedTheme, settings]);
+  }, [appliedTheme, awaitingDefinition, settings]);
 
   const updateSettings = (nextSettings: ThemeSettings) => {
     setSettings(nextSettings);

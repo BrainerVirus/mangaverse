@@ -9,6 +9,10 @@ import {
   themeQueryKeys,
 } from '@/features/theme';
 import type { ThemeDefinition } from '@app/shared';
+import {
+  THEME_PAINT_SNAPSHOT_KEY,
+  serializeThemePaintSnapshot,
+} from '../features/theme/paint-snapshot.js';
 import { ThemeProvider, useTheme } from '../providers/theme-provider.js';
 import { ThemeSettingsBridge } from '../providers/theme-settings-bridge.js';
 
@@ -341,5 +345,124 @@ describe('ThemeProvider stored settings', () => {
 
     // Same values from the database: no second set of style writes.
     expect(mocks.applyThemeToRoot).toHaveBeenCalledTimes(1);
+  });
+
+  describe('paint snapshot while custom definitions load', () => {
+    const savedSnapshot = serializeThemePaintSnapshot({
+      appearance: 'light',
+      background: customDefinition.light.seeds.background,
+      foreground: customDefinition.light.seeds.foreground,
+    });
+
+    function renderWithPendingDefinitions() {
+      let resolveDefinitions!: (definitions: readonly ThemeDefinition[]) => void;
+      mocks.fetchThemeDefinitions.mockReturnValue(
+        new Promise((resolve) => {
+          resolveDefinitions = resolve;
+        }),
+      );
+      mocks.applyThemeToRoot.mockClear();
+      renderStoredProvider();
+      return resolveDefinitions;
+    }
+
+    // The snapshot write is a microtask; let it land before reading storage.
+    async function settleSnapshotWrites() {
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+    }
+
+    it('Given a saved custom theme, When the definition has not loaded, Then no default is applied and the snapshot is kept', async () => {
+      localStorage.setItem('themeId', customDefinition.id);
+      localStorage.setItem('dark', 'false');
+      localStorage.setItem(THEME_PAINT_SNAPSHOT_KEY, savedSnapshot);
+      const resolveDefinitions = renderWithPendingDefinitions();
+
+      await vi.waitFor(() => {
+        // Stored settings were read and persisted locally, so the provider has settled.
+        expect(localStorage.getItem('themeId')).toBe(customDefinition.id);
+      });
+      await settleSnapshotWrites();
+
+      expect(mocks.applyThemeToRoot).not.toHaveBeenCalled();
+      expect(document.documentElement.style.getPropertyValue('--background')).toBe('');
+      expect(localStorage.getItem(THEME_PAINT_SNAPSHOT_KEY)).toBe(savedSnapshot);
+
+      await act(async () => {
+        resolveDefinitions([customDefinition]);
+      });
+
+      await vi.waitFor(() => {
+        expect(mocks.applyThemeToRoot).toHaveBeenCalledTimes(1);
+      });
+      expect(mocks.applyThemeToRoot).toHaveBeenCalledWith(
+        document.documentElement,
+        { themeId: customDefinition.id, dark: false },
+        customDefinition,
+      );
+      expect(document.documentElement.style.getPropertyValue('--background')).toBe(
+        customDefinition.light.seeds.background,
+      );
+      await settleSnapshotWrites();
+      expect(localStorage.getItem(THEME_PAINT_SNAPSHOT_KEY)).toBe(savedSnapshot);
+      expect(mocks.applyThemeToRoot).toHaveBeenCalledTimes(1);
+    });
+
+    it('Given a saved custom theme whose definition is gone, When the load resolves, Then the fallback applies once and the snapshot follows it', async () => {
+      localStorage.setItem('themeId', customDefinition.id);
+      localStorage.setItem('dark', 'false');
+      localStorage.setItem(THEME_PAINT_SNAPSHOT_KEY, savedSnapshot);
+      const resolveDefinitions = renderWithPendingDefinitions();
+
+      await vi.waitFor(() => {
+        expect(localStorage.getItem('themeId')).toBe(customDefinition.id);
+      });
+      expect(mocks.applyThemeToRoot).not.toHaveBeenCalled();
+
+      await act(async () => {
+        resolveDefinitions([]);
+      });
+
+      await vi.waitFor(() => {
+        expect(mocks.applyThemeToRoot).toHaveBeenCalledTimes(1);
+      });
+      expect(mocks.applyThemeToRoot).toHaveBeenCalledWith(
+        document.documentElement,
+        { themeId: 'default', dark: false },
+        undefined,
+      );
+      const fallback = buildThemeCssVariables({ themeId: 'default', dark: false });
+      await vi.waitFor(() => {
+        expect(localStorage.getItem(THEME_PAINT_SNAPSHOT_KEY)).toBe(
+          serializeThemePaintSnapshot({
+            appearance: 'light',
+            background: fallback['--background'],
+            foreground: fallback['--foreground'],
+          }),
+        );
+      });
+      expect(mocks.applyThemeToRoot).toHaveBeenCalledTimes(1);
+    });
+
+    it('Given no saved theme, When the definitions are still loading, Then the default applies exactly once', async () => {
+      const resolveDefinitions = renderWithPendingDefinitions();
+
+      await vi.waitFor(() => {
+        expect(mocks.applyThemeToRoot).toHaveBeenCalledTimes(1);
+      });
+      expect(mocks.applyThemeToRoot).toHaveBeenCalledWith(
+        document.documentElement,
+        { themeId: 'default', dark: false },
+        undefined,
+      );
+
+      await act(async () => {
+        resolveDefinitions([]);
+      });
+      await settleSnapshotWrites();
+
+      expect(mocks.applyThemeToRoot).toHaveBeenCalledTimes(1);
+    });
   });
 });
