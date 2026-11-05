@@ -46,6 +46,7 @@ export function useReaderSession(
       chapter: data.chapter,
       viewport,
       settings: toReaderEngineSettings(data.settings, {
+        globalSettings: data.globalSettings,
         titleOverrides: data.titleOverrides,
         tags: data.titleTags,
         pages: data.chapter.pages,

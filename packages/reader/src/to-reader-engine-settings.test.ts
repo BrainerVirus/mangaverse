@@ -27,6 +27,17 @@ describe('toReaderEngineSettings', () => {
     expect(engine).toMatchObject({ readingMode: 'ltr', pageLayout: 'single', fitMode: 'contain' });
   });
 
+  it('Given a title Auto merged over a concrete global mode, When mapped, Then the global mode applies', () => {
+    const global = { ...getDefaultReaderSettings(), readingMode: 'rtl' as const };
+    const merged = { ...global, readingMode: 'auto' as const };
+    const engine = toReaderEngineSettings(merged, {
+      globalSettings: global,
+      titleOverrides: { readingMode: 'auto' },
+    });
+
+    expect(engine.readingMode).toBe('rtl');
+  });
+
   it('Given a landscape viewport, When Auto layout is mapped, Then the engine shows spreads', () => {
     const engine = toReaderEngineSettings(getDefaultReaderSettings(), {
       viewport: { orientation: 'landscape' },

@@ -76,6 +76,35 @@ describe('useReaderSession provider page hydration', () => {
   });
 });
 
+function ModeProbe({ data }: { readonly data: ReaderPageData }) {
+  const { readerState } = useReaderSession(data, VIEWPORT);
+  return <span data-testid="mode">{readerState?.settings.readingMode ?? 'none'}</span>;
+}
+
+describe('useReaderSession auto mode', () => {
+  it('Given a title Auto over a concrete global RTL, When the session builds, Then it reads RTL', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    const base = buildData(3, 0);
+    const globalSettings = { ...getDefaultReaderSettings(), readingMode: 'rtl' as const };
+    const data: ReaderPageData = {
+      ...base,
+      globalSettings,
+      settings: { ...globalSettings, readingMode: 'auto' },
+      titleOverrides: { readingMode: 'auto' },
+    };
+    act(() => {
+      root.render(<ModeProbe data={data} />);
+    });
+    expect(container.querySelector('[data-testid="mode"]')?.textContent).toBe('rtl');
+
+    act(() => root.unmount());
+    container.remove();
+  });
+});
+
 function LayoutProbe({
   data,
   viewport,

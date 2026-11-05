@@ -92,6 +92,19 @@ describe('resolveReaderPresentation (R6 rule order)', () => {
     expect(result).toMatchObject({ readingMode: 'rtl', readingModeSource: 'global' });
   });
 
+  it('Rule 4: Given a title Auto over a concrete global mode, When resolving, Then the global mode still applies', () => {
+    const result = resolveReaderPresentation({
+      // The merged row held Auto because the title saved Auto over RTL.
+      settings: settingsWith({ readingMode: 'auto' }),
+      globalSettings: settingsWith({ readingMode: 'rtl' }),
+      titleOverrides: { readingMode: 'auto' },
+      pages: PAGED_PAGES,
+      tags: ['Action'],
+    });
+
+    expect(result).toMatchObject({ readingMode: 'rtl', readingModeSource: 'global' });
+  });
+
   it('Rule 5: Given Auto everywhere and no signal, When resolving, Then the reader is paged LTR fit to screen', () => {
     const result = resolveReaderPresentation({ settings: auto, pages: PAGED_PAGES });
 

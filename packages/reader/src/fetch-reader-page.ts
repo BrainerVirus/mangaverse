@@ -41,6 +41,7 @@ export async function fetchReaderPage(
 
   const readerChapter = mapChapterToReaderChapter(chapter);
   const engineSettings = toReaderEngineSettings(settings, {
+    globalSettings,
     titleOverrides,
     tags: titleTags,
     pages: readerChapter.pages,

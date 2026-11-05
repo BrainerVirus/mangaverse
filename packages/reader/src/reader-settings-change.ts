@@ -67,6 +67,7 @@ export function applyReaderSettingsChange(
     ...next,
     settings,
     engineSettings: toReaderEngineSettings(settings, {
+      globalSettings: next.globalSettings ?? data.globalSettings,
       titleOverrides: next.titleOverrides,
       tags: data.titleTags,
       pages: data.chapter.pages,

@@ -12,6 +12,8 @@ type ReadingModeSource = 'title' | 'pageShape' | 'metadata' | 'global' | 'fallba
 export interface ReaderPresentationInput {
   /** The global settings with the title's choices applied; may hold `auto`. */
   readonly settings: ReaderSettings;
+  /** The global row alone: a title `auto` must still reach the global choice. */
+  readonly globalSettings?: ReaderSettings | undefined;
   /** The title's own choices: a concrete value here beats every inference. */
   readonly titleOverrides?: ReaderSettingsOverride | undefined;
   /** Stored page shapes, when the provider or a measurement recorded them. */
@@ -86,8 +88,10 @@ function resolveReadingMode(
   if (hasLongStripTag(input.tags ?? [])) {
     return { readingMode: 'vertical', readingModeSource: 'metadata' };
   }
-  const mode = input.settings.readingMode;
-  if (mode !== 'auto') return { readingMode: mode, readingModeSource: 'global' };
+  // R6's global step is the global row, not the merged value: a title that
+  // saved Auto merged over a concrete global setting would otherwise erase it.
+  const globalMode = input.globalSettings?.readingMode ?? input.settings.readingMode;
+  if (globalMode !== 'auto') return { readingMode: globalMode, readingModeSource: 'global' };
   return { readingMode: 'ltr', readingModeSource: 'fallback' };
 }
 

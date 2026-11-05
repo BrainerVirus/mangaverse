@@ -5,7 +5,7 @@ import { createAppPlatformAdapter } from '../features/diagnostics/create-app-pla
 
 export function ReaderLayout({ children }: { children: React.ReactNode }) {
   // Chrome visibility is reset by the reader route's `beforeLoad` (hidden on open, #224).
-  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-route-entry-reset: the reader's mount lifecycle tells the desktop host a chapter is open, an external-system boundary.
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-reader-active-ipc: telling the desktop host a chapter is open is an external-system boundary (workit ledger ruling mw3wt9l0-ff083a4d9cdf).
   useEffect(() => {
     // Desktop only (#215): main holds an update prompt while a chapter is open. The web
     // adapter has no `updates` section, so this is a no-op there.

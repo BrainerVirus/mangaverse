@@ -13,11 +13,11 @@ import {
 
 test.describe.configure({ timeout: 120_000 });
 
-async function openReader(page: Page) {
+async function openReader(page: Page, showControls = true) {
   await page.goto(`/manga/${MANGADEX_APP_MANGA_ID}`);
   await page.getByRole('button', { name: /Ch\. 1 - The Summoner/ }).click();
   await expect(page.getByText('1 / 37')).toBeVisible({ timeout: 30_000 });
-  await showReaderControls(page);
+  if (showControls) await showReaderControls(page);
 }
 
 async function settings(page: Page) {
@@ -59,9 +59,10 @@ test('saved low-memory/preload, background, and always-visible chrome apply to t
     if (request.url().includes('.mangadex.network/')) requests += 1;
   });
 
-  await openReader(page);
+  await openReader(page, false);
   await expect(page.getByTestId('reader-surface').locator('img')).toBeVisible();
   await expect(page.getByTestId('reader-surface')).toHaveCSS('background-color', 'rgb(18, 52, 86)');
+  // No tap: `always` must show the controls on entry despite R8's default.
   await expect(page.locator('[role="toolbar"]')).toHaveAttribute('aria-hidden', 'false');
   const toolbar = page.getByRole('toolbar', { name: 'Reader controls' });
   await expect(toolbar).toBeVisible();

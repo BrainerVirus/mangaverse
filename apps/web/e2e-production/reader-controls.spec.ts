@@ -11,6 +11,23 @@ async function openReader(page: Page) {
   await expect(page.getByText('1 / 37')).toBeVisible({ timeout: 30_000 });
 }
 
+test('Given a chapter opens, When the reader first paints, Then the controls are hidden until a tap', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
+  await openReader(page);
+  const toolbar = page.getByRole('toolbar', { name: 'Reader controls' });
+  await expect(toolbar).toHaveCount(0);
+  await expect(page.locator('[role="toolbar"]')).toHaveAttribute('aria-hidden', 'true');
+
+  const surface = page.getByTestId('reader-surface');
+  const box = (await surface.boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(toolbar).toBeVisible();
+  await expect(page.locator('[role="toolbar"]')).toHaveAttribute('aria-hidden', 'false');
+});
+
 test('Given an open chapter, When tapping the page edges, Then the page advances and returns', async ({
   page,
   quickOnboarding,
