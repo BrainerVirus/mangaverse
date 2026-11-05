@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { MANGADEX_APP_MANGA_ID, stubCapableHardware, test } from './helpers.js';
+import { MANGADEX_APP_MANGA_ID, showReaderControls, stubCapableHardware, test } from './helpers.js';
 
 test.describe.configure({ timeout: 90_000 });
 
@@ -33,6 +33,7 @@ test('Given an open chapter, When changing settings, Then the layout changes and
   mockMangaDex,
 }) => {
   await openReader(page);
+  await showReaderControls(page);
   // Page 1 is the cover (treatFirstPageAsCover), so it renders alone in double
   // layout too; advance to page 2 where a real spread exists.
   await page.getByRole('button', { name: 'Next page' }).click();
@@ -42,8 +43,8 @@ test('Given an open chapter, When changing settings, Then the layout changes and
   const dialog = page.getByRole('dialog', { name: 'Reader settings' });
   await expect(dialog).toBeVisible();
   await expect(dialog.locator('[data-glass-tier="thick"]')).toBeVisible();
-  // Focus moves into the sheet on open.
-  await expect(dialog.getByRole('button', { name: 'Left to right' })).toBeFocused();
+  // Focus moves into the sheet on open: the first choice is Auto, the default.
+  await expect(dialog.getByRole('button', { name: 'Auto' }).first()).toBeFocused();
 
   const images = page.getByTestId('reader-surface').locator('img');
   const doubleButton = dialog.getByRole('button', { name: 'Double page' });
@@ -75,6 +76,7 @@ test('Given an open chapter, When hovering and dragging the rail, Then a page pr
   mockMangaDex,
 }) => {
   await openReader(page);
+  await showReaderControls(page);
   await expect(page.locator('[data-glass-tier="stage"]')).toHaveCount(1);
   const rail = page.getByRole('slider', { name: 'Page slider' });
   const box = (await rail.boundingBox())!;
@@ -132,24 +134,29 @@ test('Given the mode switcher, When changing modes, Then the highlight morphs to
   mockMangaDex,
 }) => {
   await openReader(page);
+  await showReaderControls(page);
 
   const highlight = page.getByTestId('reader-mode-highlight');
   const single = page.getByRole('button', { name: 'Single' });
   const double = page.getByRole('button', { name: 'Double' });
 
+  // Auto layout in this landscape viewport resolves to Double, so the highlight
+  // starts there; choosing Single must move it.
   await expect(highlight).toBeVisible();
-  const singleBox = (await single.boundingBox())!;
-  const before = (await highlight.boundingBox())!;
-  expect(Math.abs(before.x - singleBox.x)).toBeLessThan(4);
+  await expect
+    .poll(async () =>
+      Math.abs((await highlight.boundingBox())!.x - (await double.boundingBox())!.x),
+    )
+    .toBeLessThan(4);
 
-  await double.click();
-  await expect(double).toHaveText('Double');
-  // Wait for the tween to settle, then the highlight sits over Double.
+  await single.click();
+  await expect(single).toHaveText('Single');
+  // Wait for the tween to settle, then the highlight sits over Single.
   await page.waitForTimeout(600);
-  const doubleBox = (await double.boundingBox())!;
+  const singleBox = (await single.boundingBox())!;
   const after = (await highlight.boundingBox())!;
-  expect(Math.abs(after.x - doubleBox.x)).toBeLessThan(4);
-  expect(Math.abs(after.width - doubleBox.width)).toBeLessThan(4);
+  expect(Math.abs(after.x - singleBox.x)).toBeLessThan(4);
+  expect(Math.abs(after.width - singleBox.width)).toBeLessThan(4);
 });
 
 test('Given an open chapter, When clicking Maximize, Then the document goes fullscreen', async ({
@@ -158,6 +165,7 @@ test('Given an open chapter, When clicking Maximize, Then the document goes full
   mockMangaDex,
 }) => {
   await openReader(page);
+  await showReaderControls(page);
 
   await page.getByRole('button', { name: 'Maximize' }).click();
   await expect.poll(() => page.evaluate(() => document.fullscreenElement !== null)).toBe(true);
@@ -172,6 +180,7 @@ test('Given the reader chrome, When each control is clicked, Then the page does 
   mockMangaDex,
 }) => {
   await openReader(page);
+  await showReaderControls(page);
   // Sit on a page that can move in either direction, so a click that leaks into
   // the tap zones is visible either way.
   await page.keyboard.press('ArrowRight');

@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
-import { MANGADEX_APP_MANGA_ID, test } from './helpers.js';
+import { MANGADEX_APP_MANGA_ID, showReaderControls, test } from './helpers.js';
 
 test.describe.configure({ timeout: 90_000 });
 
@@ -25,6 +25,8 @@ async function openReader(page: Page) {
 }
 
 async function openSettings(page: Page) {
+  // A reload hides the controls again (R8): show them before the trigger.
+  await showReaderControls(page);
   await page.getByRole('button', { name: 'Settings' }).click();
   const dialog = page.getByRole('dialog', { name: 'Reader settings' });
   await expect(dialog).toBeVisible();

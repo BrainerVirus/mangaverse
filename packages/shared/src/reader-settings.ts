@@ -10,15 +10,25 @@ export const PREFETCH_BUDGET_DEFAULT_BYTES = 250 * 1024 * 1024;
 /** Upper bound for a finite prefetch budget: 2 GiB. */
 export const PREFETCH_BUDGET_MAX_BYTES = 2 * 1024 * 1024 * 1024;
 
-const readingModeSchema = z.enum(['rtl', 'ltr', 'vertical'], {
+/** Upper bound of the preload windows, in pages; older rows saved up to 20. */
+export const READER_PRELOAD_MAX = 10;
+
+/** Upper bound of the strip gap, in pixels; older rows saved up to 2000. */
+export const READER_STRIP_GAP_MAX = 64;
+
+/**
+ * `auto` lets the reader decide from the title, the page shapes and the
+ * provider metadata (spec R6); the other values are explicit choices.
+ */
+const readingModeSchema = z.enum(['auto', 'rtl', 'ltr', 'vertical'], {
   error: 'Invalid readingMode.',
 });
 
-const pageLayoutSchema = z.enum(['single', 'double', 'smartSpread'], {
+const pageLayoutSchema = z.enum(['auto', 'single', 'double', 'smartSpread'], {
   error: 'Invalid pageLayout.',
 });
 
-const fitModeSchema = z.enum(['width', 'height', 'contain', 'cover', 'original'], {
+const fitModeSchema = z.enum(['auto', 'width', 'height', 'contain', 'cover', 'original'], {
   error: 'Invalid fitMode.',
 });
 
@@ -123,79 +133,84 @@ const prefetchBudgetBytesSchema = z
   .min(0, { error: prefetchBudgetBytesMessage })
   .max(PREFETCH_BUDGET_MAX_BYTES, { error: prefetchBudgetBytesMessage });
 
+const preloadMessage = (field: string) => `${field} must be between 0 and ${READER_PRELOAD_MAX}.`;
+
+function preloadCountSchema(field: string) {
+  return z
+    .number({ error: preloadMessage(field) })
+    .min(0, { error: preloadMessage(field) })
+    .max(READER_PRELOAD_MAX, { error: preloadMessage(field) });
+}
+
+const verticalGapMessage = `verticalGapPx must be between 0 and ${READER_STRIP_GAP_MAX}.`;
+
+const readerSettingsFields = {
+  readingMode: readingModeSchema,
+  pageLayout: pageLayoutSchema,
+  fitMode: fitModeSchema,
+  tapZoneLayout: tapZoneLayoutSchema,
+  tapZoneDebugOverlay: z.boolean({ error: 'tapZoneDebugOverlay must be boolean.' }),
+  navigationDirection: navigationDirectionSchema,
+  pageTransition: pageTransitionSchema,
+  chromeVisibility: chromeVisibilitySchema,
+  /** Number of upcoming pages to speculatively preload. */
+  preloadAhead: preloadCountSchema('preloadAhead'),
+  /** Pages kept warm behind the active one; rows saved before it existed read the default. */
+  preloadBehind: preloadCountSchema('preloadBehind').default(1),
+  /**
+   * Maximum bytes of newly downloaded pages to prefetch per chapter.
+   * 0 means unlimited; otherwise the allowed range is 1 byte–2 GiB.
+   */
+  prefetchBudgetBytes: z.preprocess(
+    (value) => value ?? PREFETCH_BUDGET_DEFAULT_BYTES,
+    prefetchBudgetBytesSchema,
+  ),
+  /** Vertical gap between strips in vertical mode (px). */
+  verticalGapPx: z
+    .number({ error: verticalGapMessage })
+    .min(0, { error: verticalGapMessage })
+    .max(READER_STRIP_GAP_MAX, { error: verticalGapMessage }),
+  minZoom: z.number({ error: 'minZoom is invalid.' }).min(0.25, { error: 'minZoom is invalid.' }),
+  maxZoom: z.number({ error: 'maxZoom is invalid.' }).max(10, { error: 'maxZoom is invalid.' }),
+  /** Default zoom level after a double-tap (e.g. 1.5 = 150%). */
+  doubleTapZoom: z
+    .number({ error: 'doubleTapZoom must be between 1 and 5.' })
+    .min(1, { error: 'doubleTapZoom must be between 1 and 5.' })
+    .max(5, { error: 'doubleTapZoom must be between 1 and 5.' }),
+  /** Pinch zoom sensitivity multiplier. */
+  pinchSensitivity: z
+    .number({ error: 'pinchSensitivity must be between 0 and 5 (exclusive 0).' })
+    .positive({ error: 'pinchSensitivity must be between 0 and 5 (exclusive 0).' })
+    .max(5, { error: 'pinchSensitivity must be between 0 and 5 (exclusive 0).' }),
+  /** General gesture sensitivity multiplier for tap, pan, and navigation thresholds. */
+  gestureSensitivity: z
+    .number({ error: 'gestureSensitivity must be between 0 and 5 (exclusive 0).' })
+    .positive({ error: 'gestureSensitivity must be between 0 and 5 (exclusive 0).' })
+    .max(5, { error: 'gestureSensitivity must be between 0 and 5 (exclusive 0).' }),
+  /** CSS color for reader background. */
+  backgroundColor: z
+    .string({ error: 'backgroundColor is required.' })
+    .min(1, { error: 'backgroundColor is required.' }),
+  /** Whether images use browser smoothing/filtering. */
+  imageSmoothing: z.boolean({ error: 'imageSmoothing must be boolean.' }),
+  keepScreenOn: z.boolean({ error: 'keepScreenOn must be boolean.' }),
+  fullscreenOnOpen: z.boolean({ error: 'fullscreenOnOpen must be boolean.' }),
+  wheelBehavior: wheelBehaviorSchema,
+  longStripOptimization: z.boolean({ error: 'longStripOptimization must be boolean.' }),
+  lowMemoryMode: z.boolean({ error: 'lowMemoryMode must be boolean.' }),
+  diagnosticsEnabled: z.boolean({ error: 'diagnosticsEnabled must be boolean.' }),
+  // Last so a malformed array is reported after the scalar fields, as before.
+  keyboardShortcuts: keyboardShortcutListSchema,
+};
+
+type ReaderSettingsKey = keyof typeof readerSettingsFields;
+
+const READER_SETTINGS_KEYS = Object.keys(readerSettingsFields) as ReaderSettingsKey[];
+
+// Unknown keys are stripped, so rows that still carry `brightness` or
+// `rememberPerTitleOverrides` parse without them.
 const readerSettingsSchema = z
-  .object(
-    {
-      readingMode: readingModeSchema,
-      pageLayout: pageLayoutSchema,
-      fitMode: fitModeSchema,
-      tapZoneLayout: tapZoneLayoutSchema,
-      tapZoneDebugOverlay: z.boolean({ error: 'tapZoneDebugOverlay must be boolean.' }),
-      navigationDirection: navigationDirectionSchema,
-      pageTransition: pageTransitionSchema,
-      chromeVisibility: chromeVisibilitySchema,
-      /** Number of upcoming pages to speculatively preload. */
-      preloadAhead: z
-        .number({ error: 'preloadAhead must be between 0 and 20.' })
-        .min(0, { error: 'preloadAhead must be between 0 and 20.' })
-        .max(20, { error: 'preloadAhead must be between 0 and 20.' }),
-      /**
-       * Maximum bytes of newly downloaded pages to prefetch per chapter.
-       * 0 means unlimited; otherwise the allowed range is 1 byte–2 GiB.
-       */
-      prefetchBudgetBytes: z.preprocess(
-        (value) => value ?? PREFETCH_BUDGET_DEFAULT_BYTES,
-        prefetchBudgetBytesSchema,
-      ),
-      /** Vertical gap between strips in vertical mode (px). */
-      verticalGapPx: z
-        .number({ error: 'verticalGapPx must be between 0 and 2000.' })
-        .min(0, { error: 'verticalGapPx must be between 0 and 2000.' })
-        .max(2000, { error: 'verticalGapPx must be between 0 and 2000.' }),
-      minZoom: z
-        .number({ error: 'minZoom is invalid.' })
-        .min(0.25, { error: 'minZoom is invalid.' }),
-      maxZoom: z.number({ error: 'maxZoom is invalid.' }).max(10, { error: 'maxZoom is invalid.' }),
-      /** Default zoom level after a double-tap (e.g. 1.5 = 150%). */
-      doubleTapZoom: z
-        .number({ error: 'doubleTapZoom must be between 1 and 5.' })
-        .min(1, { error: 'doubleTapZoom must be between 1 and 5.' })
-        .max(5, { error: 'doubleTapZoom must be between 1 and 5.' }),
-      /** Pinch zoom sensitivity multiplier. */
-      pinchSensitivity: z
-        .number({ error: 'pinchSensitivity must be between 0 and 5 (exclusive 0).' })
-        .positive({ error: 'pinchSensitivity must be between 0 and 5 (exclusive 0).' })
-        .max(5, { error: 'pinchSensitivity must be between 0 and 5 (exclusive 0).' }),
-      /** General gesture sensitivity multiplier for tap, pan, and navigation thresholds. */
-      gestureSensitivity: z
-        .number({ error: 'gestureSensitivity must be between 0 and 5 (exclusive 0).' })
-        .positive({ error: 'gestureSensitivity must be between 0 and 5 (exclusive 0).' })
-        .max(5, { error: 'gestureSensitivity must be between 0 and 5 (exclusive 0).' }),
-      /** Relative brightness between 0 (dim) and 1 (full). */
-      brightness: z
-        .number({ error: 'brightness must be between 0 and 1.' })
-        .min(0, { error: 'brightness must be between 0 and 1.' })
-        .max(1, { error: 'brightness must be between 0 and 1.' }),
-      /** CSS color for reader background. */
-      backgroundColor: z
-        .string({ error: 'backgroundColor is required.' })
-        .min(1, { error: 'backgroundColor is required.' }),
-      /** Whether images use browser smoothing/filtering. */
-      imageSmoothing: z.boolean({ error: 'imageSmoothing must be boolean.' }),
-      keepScreenOn: z.boolean({ error: 'keepScreenOn must be boolean.' }),
-      fullscreenOnOpen: z.boolean({ error: 'fullscreenOnOpen must be boolean.' }),
-      wheelBehavior: wheelBehaviorSchema,
-      longStripOptimization: z.boolean({ error: 'longStripOptimization must be boolean.' }),
-      lowMemoryMode: z.boolean({ error: 'lowMemoryMode must be boolean.' }),
-      diagnosticsEnabled: z.boolean({ error: 'diagnosticsEnabled must be boolean.' }),
-      rememberPerTitleOverrides: z.boolean({
-        error: 'rememberPerTitleOverrides must be boolean.',
-      }),
-      // Last so a malformed array is reported after the scalar fields, as before.
-      keyboardShortcuts: keyboardShortcutListSchema,
-    },
-    { error: 'Reader settings must be an object.' },
-  )
+  .object(readerSettingsFields, { error: 'Reader settings must be an object.' })
   .superRefine((settings, ctx) => {
     if (settings.minZoom > settings.maxZoom) {
       ctx.addIssue({
@@ -237,25 +252,32 @@ export type ReaderSettings = Readonly<
 
 export type ReaderSettingsOverride = Partial<ReaderSettings>;
 
+/** The settings whose `auto` value the reader resolves per chapter (spec R6). */
+export const READER_AUTO_SETTING_KEYS = ['readingMode', 'pageLayout', 'fitMode'] as const;
+
+/**
+ * Defaults for a reader that has never saved settings. Saved rows hold every
+ * field, so changing a default never rewrites what a user already has.
+ */
 export function getDefaultReaderSettings(): ReaderSettings {
   return {
-    readingMode: 'ltr',
-    pageLayout: 'single',
-    fitMode: 'width',
+    readingMode: 'auto',
+    pageLayout: 'auto',
+    fitMode: 'auto',
     tapZoneLayout: 'leftRight',
     tapZoneDebugOverlay: false,
     navigationDirection: 'default',
-    pageTransition: 'fade',
+    pageTransition: 'none',
     chromeVisibility: 'auto',
-    preloadAhead: 2,
+    preloadAhead: 4,
+    preloadBehind: 1,
     prefetchBudgetBytes: PREFETCH_BUDGET_DEFAULT_BYTES,
-    verticalGapPx: 8,
+    verticalGapPx: 0,
     minZoom: 1,
     maxZoom: 3,
     doubleTapZoom: 1.5,
     pinchSensitivity: 1,
     gestureSensitivity: 1,
-    brightness: 1,
     backgroundColor: '#000000',
     imageSmoothing: true,
     keepScreenOn: true,
@@ -265,7 +287,6 @@ export function getDefaultReaderSettings(): ReaderSettings {
     longStripOptimization: true,
     lowMemoryMode: false,
     diagnosticsEnabled: false,
-    rememberPerTitleOverrides: true,
   };
 }
 
@@ -277,6 +298,30 @@ export function resolveReaderSettings(
   return { ...globalSettings, ...overrides };
 }
 
+/** The wider ranges older builds saved, mapped onto today's bounds. */
+const LEGACY_UPPER_BOUNDS: Readonly<Partial<Record<ReaderSettingsKey, number>>> = {
+  preloadAhead: READER_PRELOAD_MAX,
+  verticalGapPx: READER_STRIP_GAP_MAX,
+};
+
+/**
+ * Stored values above today's slider range (a 2000px gap, 20 pages of preload)
+ * read as the range's top instead of invalidating the row.
+ */
+function clampLegacyBounds(input: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const clamped: Record<string, unknown> = { ...input };
+  for (const [key, max] of Object.entries(LEGACY_UPPER_BOUNDS)) {
+    const value = clamped[key];
+    if (typeof value === 'number' && Number.isFinite(value) && value > max) clamped[key] = max;
+  }
+  return clamped;
+}
+
+function isRecord(input: unknown): input is Readonly<Record<string, unknown>> {
+  return typeof input === 'object' && input !== null && !Array.isArray(input);
+}
+
+/** Writes stay strict: a value outside the UI's range is rejected, not clamped. */
 export function validateReaderSettings(input: unknown): AppResult<ReaderSettings> {
   const result = readerSettingsSchema.safeParse(input);
   if (result.success) return ok(result.data);
@@ -290,38 +335,77 @@ export function validateReaderSettings(input: unknown): AppResult<ReaderSettings
 }
 
 /**
- * Backup restore stays strict on every scalar field but accepts pre-PR free-form
- * shortcut lists: an invalid or partial list restores as the default bindings
- * instead of rejecting the whole backup.
+ * Backup restore stays strict on every scalar field but reads older backups:
+ * legacy ranges clamp to today's bounds, and an invalid or partial shortcut
+ * list restores as the default bindings instead of rejecting the whole backup.
  */
 export function validateReaderSettingsForBackup(input: unknown): AppResult<ReaderSettings> {
-  const strict = validateReaderSettings(input);
+  if (!isRecord(input)) return validateReaderSettings(input);
+  const clamped = clampLegacyBounds(input);
+  const strict = validateReaderSettings(clamped);
   if (strict.ok) return strict;
-  if (typeof input !== 'object' || input === null) return strict;
 
-  const { keyboardShortcuts: _stored, ...fields } = input as Record<string, unknown>;
+  const { keyboardShortcuts: _stored, ...fields } = clamped;
   const fieldResult = readerSettingsSchema.safeParse({ ...fields, keyboardShortcuts: [] });
   if (!fieldResult.success) return strict;
   return ok({ ...fieldResult.data, keyboardShortcuts: [] });
 }
 
 /**
- * Reads settings that may predate the shortcut schema. Only a shortcut failure
- * is salvaged: old rows keep every unrelated preference and fall back to the
- * default shortcuts instead of losing their reading mode, zoom or layout.
+ * Reads a stored row. Legacy ranges clamp, a missing field reads its default,
+ * and a field that no longer parses falls back alone: one bad value never
+ * resets the reading mode, zoom or layout the row also holds.
  */
 export function sanitizeReaderSettings(input: unknown): ReaderSettings {
-  const parsed = readerSettingsSchema.safeParse(input);
+  if (!isRecord(input)) return getDefaultReaderSettings();
+  const clamped = clampLegacyBounds(input);
+  const parsed = readerSettingsSchema.safeParse(clamped);
   if (parsed.success) return parsed.data;
-  if (typeof input !== 'object' || input === null) return getDefaultReaderSettings();
 
-  const { keyboardShortcuts: storedShortcuts, ...fields } = input as Record<string, unknown>;
-  const fieldResult = readerSettingsSchema.safeParse({ ...fields, keyboardShortcuts: [] });
-  if (!fieldResult.success) return getDefaultReaderSettings();
+  const defaults = getDefaultReaderSettings() as Readonly<Record<ReaderSettingsKey, unknown>>;
+  const salvaged: Record<string, unknown> = {};
+  for (const key of READER_SETTINGS_KEYS) {
+    const field = readerSettingsFields[key].safeParse(clamped[key]);
+    salvaged[key] = field.success ? field.data : defaults[key];
+  }
+  const settings = salvaged as ReaderSettings;
+  if (settings.minZoom > settings.maxZoom) {
+    return { ...settings, minZoom: defaults.minZoom, maxZoom: defaults.maxZoom } as ReaderSettings;
+  }
+  return settings;
+}
 
-  const shortcutResult = keyboardShortcutListSchema.safeParse(storedShortcuts);
-  return {
-    ...fieldResult.data,
-    keyboardShortcuts: shortcutResult.success ? shortcutResult.data : [],
-  };
+/**
+ * Reads a stored per-title diff: only known fields that still parse survive,
+ * with the same legacy clamping as a full row.
+ */
+export function sanitizeReaderSettingsOverride(input: unknown): ReaderSettingsOverride {
+  if (!isRecord(input)) return {};
+  const clamped = clampLegacyBounds(input);
+  const override: Record<string, unknown> = {};
+  for (const key of READER_SETTINGS_KEYS) {
+    if (clamped[key] === undefined) continue;
+    const field = readerSettingsFields[key].safeParse(clamped[key]);
+    if (field.success) override[key] = field.data;
+  }
+  return override as ReaderSettingsOverride;
+}
+
+/**
+ * The per-title row a set of title choices stores. A value equal to the global
+ * one inherits it, except a concrete mode, layout or fit: those beat Auto's
+ * page-shape and metadata inference, so "LTR for this title" must stay
+ * recorded even while the global value is also LTR.
+ */
+export function normalizeTitleReaderOverrides(
+  global: ReaderSettings,
+  overrides: ReaderSettingsOverride,
+): ReaderSettingsOverride {
+  const autoKeys: ReadonlySet<string> = new Set(READER_AUTO_SETTING_KEYS);
+  const stored = Object.entries(overrides).filter(([key, value]) => {
+    if (value === undefined || !(key in readerSettingsFields)) return false;
+    if (autoKeys.has(key) && value !== 'auto') return true;
+    return JSON.stringify(value) !== JSON.stringify(global[key as keyof ReaderSettings]);
+  });
+  return Object.fromEntries(stored) as ReaderSettingsOverride;
 }

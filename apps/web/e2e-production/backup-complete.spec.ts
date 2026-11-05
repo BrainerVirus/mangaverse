@@ -2,7 +2,13 @@ import { readFileSync } from 'node:fs';
 
 import { expect, type Page } from '@playwright/test';
 
-import { MANGADEX_APP_MANGA_ID, openCategoryManager, test, waitForPingQuiet } from './helpers.js';
+import {
+  MANGADEX_APP_MANGA_ID,
+  openCategoryManager,
+  showReaderControls,
+  test,
+  waitForPingQuiet,
+} from './helpers.js';
 
 test.describe.configure({ timeout: 180_000 });
 
@@ -89,6 +95,7 @@ async function openReaderAt(page: Page, currentPage: number): Promise<void> {
   }
   await expect(page.getByTestId('reader-surface')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText(`${currentPage} / 37`)).toBeVisible({ timeout: 30_000 });
+  await showReaderControls(page);
 }
 
 async function readToPage(page: Page, fromPage: number, toPage: number): Promise<void> {

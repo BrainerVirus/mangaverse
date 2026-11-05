@@ -322,6 +322,7 @@ export const PROCEDURE_INPUTS: { readonly [K in ProcedureName]: z.ZodType<readon
   // identities
   getMangaIdentities: z.tuple([ids]),
   getMangaIdentity: z.tuple([id]),
+  listMangaTagLabels: z.tuple([id]),
   createMangaIdentityWithInitialMapping: z.tuple([
     z.object({
       canonicalTitle: text,
@@ -458,6 +459,7 @@ export const PROCEDURE_INPUTS: { readonly [K in ProcedureName]: z.ZodType<readon
 
   // settings
   getTitleReaderSettings: z.tuple([id]),
+  getTitleReaderSettingsLayers: z.tuple([id]),
   upsertTitleReaderSettings: z.tuple([id, object]),
   resetTitleReaderSettings: z.tuple([id]),
   getReaderSettings: z.tuple([]),

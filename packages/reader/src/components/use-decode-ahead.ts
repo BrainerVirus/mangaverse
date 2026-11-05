@@ -29,6 +29,7 @@ export function useDecodeAhead(input: {
   const mangaId = data?.mangaId;
   const chapterId = data?.chapterId;
   const lowMemoryMode = data?.settings.lowMemoryMode ?? false;
+  const preloadBehind = data?.engineSettings.preloadBehind ?? 1;
   const preloadCount = resolveScrollPreloadAhead({
     pages: pages ?? [],
     preloadAhead: data?.settings.preloadAhead ?? 0,
@@ -56,9 +57,9 @@ export function useDecodeAhead(input: {
         ? []
         : createPreloadPlan(pages, activePageIndex, preloadCount, lowMemoryMode, {
             includeActive: true,
-            preloadBehind: 1,
+            preloadBehind,
           }).items.map((item) => ({ pageIndex: item.pageIndex, remoteUrl: item.url })),
-    [activePageIndex, lowMemoryMode, pages, preloadCount],
+    [activePageIndex, lowMemoryMode, pages, preloadBehind, preloadCount],
   );
 
   const planRef = useRef(plan);

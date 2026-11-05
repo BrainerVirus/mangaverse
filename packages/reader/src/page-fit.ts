@@ -1,7 +1,7 @@
-import type { FitMode } from '@app/shared';
+import type { ResolvedFitMode } from './resolve-reader-settings.js';
 
 export interface PageFitInput {
-  readonly fitMode: FitMode;
+  readonly fitMode: ResolvedFitMode;
   /** Area the paged view may use, in CSS pixels (viewport minus chrome insets). */
   readonly availableWidth: number;
   readonly availableHeight: number;

@@ -132,7 +132,7 @@ function ReaderPageBox({
     return (
       <div
         data-testid="reader-page-box"
-        data-fit-mode={data.engineSettings.fitMode}
+        data-fit-mode={fitInput.fitMode}
         data-object-fit={fit.objectFit}
         style={{ width: `${fit.box.width}px`, height: `${fit.box.height}px`, flex: '0 0 auto' }}
         className="animate-pulse bg-muted/80"
@@ -144,7 +144,7 @@ function ReaderPageBox({
   return (
     <div
       data-testid="reader-page-box"
-      data-fit-mode={data.engineSettings.fitMode}
+      data-fit-mode={fitInput.fitMode}
       data-object-fit={fit.objectFit}
       style={{
         width: `${fit.box.width}px`,

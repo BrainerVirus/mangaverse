@@ -75,3 +75,64 @@ describe('useReaderSession provider page hydration', () => {
     container.remove();
   });
 });
+
+function LayoutProbe({
+  data,
+  viewport,
+}: {
+  readonly data: ReaderPageData;
+  readonly viewport: { width: number; height: number; orientation: 'portrait' | 'landscape' };
+}) {
+  const { readerState } = useReaderSession(data, viewport);
+  return (
+    <span data-testid="layout" data-mode={readerState?.mode}>
+      {readerState?.layout}
+    </span>
+  );
+}
+
+describe('useReaderSession Auto resolution', () => {
+  it('Given Auto layout, When the viewport turns landscape, Then the session shows spreads on the same page', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const data = buildData(10, 3);
+
+    act(() => root.render(<LayoutProbe data={data} viewport={VIEWPORT} />));
+    expect(container.querySelector('[data-testid="layout"]')?.textContent).toBe('single');
+
+    act(() =>
+      root.render(
+        <LayoutProbe
+          data={data}
+          viewport={{ width: 1200, height: 800, orientation: 'landscape' }}
+        />,
+      ),
+    );
+    expect(container.querySelector('[data-testid="layout"]')?.textContent).toBe('double');
+
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it('Given Auto mode and long strip tags, When the session builds, Then it is a scroll session', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+
+    act(() =>
+      root.render(
+        <LayoutProbe
+          data={{ ...buildData(10, 0), titleTags: ['Long Strip'] }}
+          viewport={VIEWPORT}
+        />,
+      ),
+    );
+    expect(container.querySelector<HTMLElement>('[data-testid="layout"]')?.dataset.mode).toBe(
+      'scroll',
+    );
+
+    act(() => root.unmount());
+    container.remove();
+  });
+});

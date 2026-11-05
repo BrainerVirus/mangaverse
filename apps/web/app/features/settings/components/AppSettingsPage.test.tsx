@@ -104,3 +104,12 @@ describe('AppSettingsPage provider errors', () => {
     expect(screen.getByText('Show provider errors in search')).toBeInTheDocument();
   });
 });
+
+describe('AppSettingsPage low-memory mode', () => {
+  it('Given app settings, When rendered, Then low-memory mode lives only on the reader settings page', () => {
+    renderPage();
+
+    expect(screen.queryByRole('switch', { name: 'Low-memory mode' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Local cache limit')).toBeInTheDocument();
+  });
+});

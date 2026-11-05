@@ -2,17 +2,56 @@ import { describe, expect, it } from 'vitest';
 import { defaultKeyboardShortcuts } from './keyboard-shortcuts';
 import {
   getDefaultReaderSettings,
+  normalizeTitleReaderOverrides,
   resolveReaderSettings,
   sanitizeReaderSettings,
+  sanitizeReaderSettingsOverride,
   validateReaderSettings,
+  validateReaderSettingsForBackup,
 } from './reader-settings';
+
+/** A global row as builds before #224 wrote it: every field, old ranges and all. */
+const LEGACY_ROW = {
+  readingMode: 'rtl',
+  pageLayout: 'double',
+  fitMode: 'height',
+  tapZoneLayout: 'grid',
+  tapZoneDebugOverlay: false,
+  navigationDirection: 'default',
+  pageTransition: 'fade',
+  chromeVisibility: 'always',
+  preloadAhead: 20,
+  prefetchBudgetBytes: 100,
+  verticalGapPx: 2000,
+  minZoom: 1,
+  maxZoom: 4,
+  doubleTapZoom: 2,
+  pinchSensitivity: 1,
+  gestureSensitivity: 1,
+  brightness: 0.4,
+  backgroundColor: '#112233',
+  imageSmoothing: false,
+  keepScreenOn: false,
+  fullscreenOnOpen: true,
+  wheelBehavior: 'zoom',
+  keyboardShortcuts: [],
+  longStripOptimization: false,
+  lowMemoryMode: true,
+  diagnosticsEnabled: true,
+  rememberPerTitleOverrides: false,
+} as const;
 
 describe('reader settings', () => {
   it('getDefaultReaderSettings returns stable defaults', () => {
     const d = getDefaultReaderSettings();
-    expect(d.readingMode).toBe('ltr');
-    expect(d.preloadAhead).toBe(2);
-    expect(d.verticalGapPx).toBe(8);
+    expect(d.readingMode).toBe('auto');
+    expect(d.pageLayout).toBe('auto');
+    expect(d.fitMode).toBe('auto');
+    expect(d.pageTransition).toBe('none');
+    expect(d.preloadAhead).toBe(4);
+    expect(d.preloadBehind).toBe(1);
+    expect(d.verticalGapPx).toBe(0);
+    expect(d.backgroundColor).toBe('#000000');
     expect(d.minZoom).toBe(1);
     expect(d.maxZoom).toBe(3);
     expect(d.doubleTapZoom).toBe(1.5);
@@ -21,7 +60,8 @@ describe('reader settings', () => {
     expect(d.gestureSensitivity).toBe(1);
     expect(d.longStripOptimization).toBe(true);
     expect(d.lowMemoryMode).toBe(false);
-    expect(d.rememberPerTitleOverrides).toBe(true);
+    expect(d).not.toHaveProperty('brightness');
+    expect(d).not.toHaveProperty('rememberPerTitleOverrides');
     expect(validateReaderSettings(d).ok).toBe(true);
   });
 
@@ -39,6 +79,24 @@ describe('reader settings', () => {
     expect(validateReaderSettings({ ...base, preloadAhead: 25 }).ok).toBe(false);
     expect(validateReaderSettings({ ...base, verticalGapPx: -3 }).ok).toBe(false);
     expect(validateReaderSettings({ ...base, verticalGapPx: 5000 }).ok).toBe(false);
+  });
+
+  it('Given a value just past the UI range, When writing, Then it is rejected rather than clamped', () => {
+    const base = getDefaultReaderSettings();
+    expect(validateReaderSettings({ ...base, verticalGapPx: 64 }).ok).toBe(true);
+    expect(validateReaderSettings({ ...base, verticalGapPx: 65 }).ok).toBe(false);
+    expect(validateReaderSettings({ ...base, preloadAhead: 10 }).ok).toBe(true);
+    expect(validateReaderSettings({ ...base, preloadAhead: 11 }).ok).toBe(false);
+    expect(validateReaderSettings({ ...base, preloadBehind: 10 }).ok).toBe(true);
+    expect(validateReaderSettings({ ...base, preloadBehind: 11 }).ok).toBe(false);
+    expect(validateReaderSettings({ ...base, preloadBehind: -1 }).ok).toBe(false);
+  });
+
+  it('accepts auto for mode, layout and fit', () => {
+    const base = getDefaultReaderSettings();
+    expect(validateReaderSettings({ ...base, readingMode: 'auto' }).ok).toBe(true);
+    expect(validateReaderSettings({ ...base, pageLayout: 'auto' }).ok).toBe(true);
+    expect(validateReaderSettings({ ...base, fitMode: 'auto' }).ok).toBe(true);
   });
 
   it('validateReaderSettings rejects invalid zoom bounds', () => {
@@ -70,7 +128,6 @@ describe('reader settings', () => {
     expect(validateReaderSettings({ ...base, lowMemoryMode: 'yes' }).ok).toBe(false);
     expect(validateReaderSettings({ ...base, keepScreenOn: 1 }).ok).toBe(false);
     expect(validateReaderSettings({ ...base, longStripOptimization: 'yes' }).ok).toBe(false);
-    expect(validateReaderSettings({ ...base, rememberPerTitleOverrides: 1 }).ok).toBe(false);
   });
 
   it('validateReaderSettings validates chrome visibility', () => {
@@ -135,7 +192,88 @@ describe('reader settings', () => {
 
     const settings = sanitizeReaderSettings(legacy);
 
-    expect(settings.readingMode).toBe('ltr');
+    expect(settings.readingMode).toBe('auto');
     expect(settings.keyboardShortcuts).toEqual([]);
+  });
+
+  it('Given a pre-#224 row, When reading it, Then every saved value survives and legacy ranges clamp', () => {
+    const settings = sanitizeReaderSettings(LEGACY_ROW);
+
+    expect(settings).toMatchObject({
+      readingMode: 'rtl',
+      pageLayout: 'double',
+      fitMode: 'height',
+      pageTransition: 'fade',
+      chromeVisibility: 'always',
+      backgroundColor: '#112233',
+      maxZoom: 4,
+      lowMemoryMode: true,
+      prefetchBudgetBytes: 100,
+      verticalGapPx: 64,
+      preloadAhead: 10,
+      // Missing from the row: the field default, not a reset of the row.
+      preloadBehind: 1,
+    });
+    expect(settings).not.toHaveProperty('brightness');
+    expect(settings).not.toHaveProperty('rememberPerTitleOverrides');
+  });
+
+  it('Given one field that no longer parses, When reading, Then only that field falls back', () => {
+    const settings = sanitizeReaderSettings({ ...LEGACY_ROW, readingMode: 'paged', minZoom: 0 });
+
+    expect(settings.readingMode).toBe('auto');
+    expect(settings.minZoom).toBe(1);
+    expect(settings.pageLayout).toBe('double');
+    expect(settings.backgroundColor).toBe('#112233');
+  });
+
+  it('Given salvaged zoom bounds that contradict, When reading, Then the zoom pair resets together', () => {
+    const settings = sanitizeReaderSettings({ ...LEGACY_ROW, minZoom: 5, maxZoom: 'big' });
+
+    expect(settings.minZoom).toBe(1);
+    expect(settings.maxZoom).toBe(3);
+    expect(settings.readingMode).toBe('rtl');
+  });
+
+  it('Given a legacy backup, When validating it for restore, Then it clamps instead of failing', () => {
+    const result = validateReaderSettingsForBackup(LEGACY_ROW);
+
+    expect(result.ok).toBe(true);
+    expect(result.ok ? result.value : undefined).toMatchObject({
+      verticalGapPx: 64,
+      preloadAhead: 10,
+      preloadBehind: 1,
+      readingMode: 'rtl',
+    });
+    expect(validateReaderSettingsForBackup({ ...LEGACY_ROW, verticalGapPx: -1 }).ok).toBe(false);
+  });
+
+  it('Given a stored title diff, When sanitizing, Then known valid fields survive and legacy ranges clamp', () => {
+    expect(
+      sanitizeReaderSettingsOverride({
+        readingMode: 'rtl',
+        verticalGapPx: 500,
+        brightness: 0.2,
+        rememberPerTitleOverrides: true,
+        fitMode: 'sideways',
+      }),
+    ).toEqual({ readingMode: 'rtl', verticalGapPx: 64 });
+    expect(sanitizeReaderSettingsOverride(null)).toEqual({});
+  });
+
+  it('Given title choices, When normalizing the row, Then values equal to global inherit except concrete presentation', () => {
+    const global = { ...getDefaultReaderSettings(), readingMode: 'ltr' as const };
+
+    expect(
+      normalizeTitleReaderOverrides(global, {
+        readingMode: 'ltr',
+        pageLayout: 'auto',
+        verticalGapPx: 0,
+        preloadAhead: 6,
+      }),
+    ).toEqual({ readingMode: 'ltr', preloadAhead: 6 });
+    expect(
+      normalizeTitleReaderOverrides({ ...global, readingMode: 'rtl' }, { readingMode: 'auto' }),
+    ).toEqual({ readingMode: 'auto' });
   });
 });

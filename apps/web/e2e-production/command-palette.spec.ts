@@ -27,7 +27,9 @@ test('Given a recently read title, When the palette opens, Then it appears under
   await expect(chapter).toBeVisible({ timeout: 30_000 });
   await chapter.click({ force: true });
   await expect(page).toHaveURL(/\/reader\/dev-md-ch-/, { timeout: 30_000 });
-  await expect(page.getByText('1 / 37')).toBeVisible({ timeout: 30_000 });
+  // Controls start hidden (R8), and reduced motion hides the page badge with
+  // them; the surface is the visible readiness signal.
+  await expect(page.getByTestId('reader-surface')).toBeVisible({ timeout: 30_000 });
   await waitForPingQuiet(page);
 
   await page.goto('/library');

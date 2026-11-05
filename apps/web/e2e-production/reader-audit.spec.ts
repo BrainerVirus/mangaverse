@@ -4,6 +4,7 @@ import {
   fixturesDir,
   currentPing,
   MANGADEX_APP_MANGA_ID,
+  showReaderControls,
   test,
   TINY_JPEG,
   waitForNewPing,
@@ -16,9 +17,12 @@ async function openReader(page: Page) {
   await page.goto(`/manga/${MANGADEX_APP_MANGA_ID}`);
   await page.getByRole('button', { name: /Ch\. 1 - The Summoner/ }).click();
   await expect(page.getByText('1 / 37')).toBeVisible({ timeout: 30_000 });
+  await showReaderControls(page);
 }
 
 async function settings(page: Page) {
+  // A reload hides the controls again (R8): show them before the trigger.
+  await showReaderControls(page);
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   return page.getByRole('dialog', { name: 'Reader settings' });
 }
@@ -112,9 +116,11 @@ test('RTL maps once, modal keys stay isolated, overrides reset, and hidden chrom
   ).toHaveAttribute('aria-pressed', 'true');
 
   await reopened.getByRole('button', { name: 'Reset title settings' }).click();
-  await expect(
-    reopened.getByRole('button', { name: 'Left to right', exact: true }),
-  ).toHaveAttribute('aria-pressed', 'true');
+  // The override is gone and the untouched global default is Auto (spec's new default).
+  await expect(reopened.getByRole('button', { name: 'Auto' }).first()).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await page.screenshot({ path: testInfo.outputPath('title-settings-reset.png') });
 
   await page.keyboard.press('Escape');
@@ -160,6 +166,7 @@ test('failed mounted pages have Retry/Skip/Back and recover without a remount', 
 
   await page.getByRole('button', { name: /Ch\. 1 - The Summoner/ }).click();
   await expect(page.getByText('1 / 37')).toBeVisible({ timeout: 30_000 });
+  await showReaderControls(page);
   const failedPageOne = page.getByRole('alert').filter({ hasText: 'Could not load page 1' });
   await expect(failedPageOne).toBeVisible();
   await failedPageOne.getByRole('button', { name: 'Skip page' }).click();
@@ -220,6 +227,8 @@ test('mobile chrome fits and chapter end offers a next chapter and a return path
   await transition.getByRole('button', { name: 'Read next chapter' }).click();
   await expect(page.getByText('1 / 37')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText(/Ch\. 2 - The next chapter/)).toBeVisible();
+  // A chapter change is a route navigation: the controls hide again (R8).
+  await showReaderControls(page);
   await waitForPingQuiet(page);
 
   await blurControl(page);
@@ -238,6 +247,7 @@ test('mobile chrome fits and chapter end offers a next chapter and a return path
   await expect(transition.getByRole('heading', { name: 'Chapter complete' })).toBeVisible();
   await transition.getByRole('button', { name: 'Previous chapter' }).click();
   await expect(page.getByText('37 / 37')).toBeVisible({ timeout: 30_000 });
+  await showReaderControls(page);
 
   await page.getByRole('button', { name: 'Close reader', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/manga/${MANGADEX_APP_MANGA_ID}`));
@@ -255,6 +265,13 @@ test('fit width starts at the top, original scrolls, and landscape strips have o
       body: '<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="720"><rect width="1440" height="720" fill="white"/></svg>',
     });
   });
+  // The spec's default gap is 0; configure the gap this test measures.
+  await page.goto('/settings/reader');
+  const gapSlider = page.getByLabel('Vertical gap');
+  await gapSlider.fill('8');
+  await gapSlider.blur();
+  await expect(gapSlider).toHaveValue('8');
+  await waitForPingQuiet(page);
   await openReader(page);
   await expect(page.getByTestId('reader-surface').locator('img')).toBeVisible();
 

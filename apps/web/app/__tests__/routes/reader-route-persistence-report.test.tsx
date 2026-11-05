@@ -8,16 +8,14 @@ import type * as RouterModule from '@tanstack/react-router';
 
 const {
   persistReaderProgress,
-  saveTitleSettings,
-  saveGlobalSettings,
+  saveLayers,
   resetTitleSettings,
   fetchReaderPage,
   setChapterCompleted,
   markPreviousChaptersCompleted,
 } = vi.hoisted(() => ({
   persistReaderProgress: vi.fn<(...args: unknown[]) => Promise<void>>(async () => {}),
-  saveTitleSettings: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({ ok: true })),
-  saveGlobalSettings: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({ ok: true })),
+  saveLayers: vi.fn<(...args: unknown[]) => Promise<void>>(async () => {}),
   resetTitleSettings: vi.fn<(...args: unknown[]) => Promise<void>>(async () => {}),
   setChapterCompleted: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({ ok: true })),
   markPreviousChaptersCompleted: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
@@ -27,7 +25,9 @@ const {
   fetchReaderPage: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
     mangaId: 'dev-md-manga-1',
     chapterId: 'dev-md-ch-1',
-    settings: getDefaultReaderSettings(),
+    settings: { ...getDefaultReaderSettings(), readingMode: 'rtl' },
+    globalSettings: getDefaultReaderSettings(),
+    titleOverrides: { readingMode: 'rtl' },
     chapter: {
       id: 'dev-md-ch-1',
       mangaId: 'dev-md-manga-1',
@@ -64,7 +64,18 @@ vi.mock('@app/reader', () => ({
     chapter: (id: string) => ['reader', 'chapter', id],
     chapterHydration: (id: string) => ['reader', 'chapter-hydration', id],
   },
-  toReaderEngineSettings: (settings: unknown) => settings,
+  // Stands in for the reader's scoped merge; its own rules are tested in @app/reader.
+  applyReaderSettingsChange: (
+    data: Record<string, Record<string, unknown>>,
+    patch: Record<string, unknown>,
+    scope: 'title' | 'global',
+  ) => ({
+    ...data,
+    settings: { ...data.settings, ...patch },
+    ...(scope === 'title'
+      ? { titleOverrides: { ...data.titleOverrides, ...patch } }
+      : { globalSettings: { ...data.globalSettings, ...patch } }),
+  }),
   ReaderScreen: (props: Record<string, unknown>) => {
     screenProps = props;
     return null;
@@ -72,17 +83,24 @@ vi.mock('@app/reader', () => ({
 }));
 
 vi.mock('@/features/settings', () => ({
-  saveReaderSettings: saveGlobalSettings,
+  saveReaderSettingsLayers: saveLayers,
   settingsQueryKeys: { reader: () => ['settings', 'reader'] },
 }));
 vi.mock('@app/db', () => ({
-  upsertTitleReaderSettings: saveTitleSettings,
   resetTitleReaderSettings: resetTitleSettings,
   setChapterCompleted,
   markPreviousChaptersCompleted,
 }));
 
 import { Route } from '@/routes/reader.$chapterId.js';
+import { useLayoutStore } from '@/stores/useLayoutStore.js';
+
+/** The route's `beforeLoad`, called the way the router calls it for an open or a preload. */
+async function enterReader(preload: boolean): Promise<void> {
+  const beforeLoad: unknown = Route.options.beforeLoad;
+  if (typeof beforeLoad !== 'function') throw new Error('The reader route has no beforeLoad.');
+  await (beforeLoad as (context: { preload: boolean }) => unknown)({ preload });
+}
 
 async function renderRoute(): Promise<{ root: Root; container: HTMLElement }> {
   vi.spyOn(Route, 'useParams' as never).mockReturnValue({ chapterId: 'dev-md-ch-1' } as never);
@@ -140,25 +158,61 @@ describe('/reader/$chapterId persistence reporting', () => {
     vi.clearAllMocks();
   });
 
-  it('Given per-title overrides are off, When a setting changes, Then the global reader defaults are written', async () => {
+  it('Given This title scope, When a setting changes, Then the title choices are written with it', async () => {
     const { root, container } = await renderRoute();
 
     await act(async () => {
-      (screenProps.onChangeSettings as (patch: unknown) => void)({
-        readingMode: 'rtl',
-        rememberPerTitleOverrides: false,
-      });
+      (screenProps.onChangeSettings as (patch: unknown, scope: string) => void)(
+        { fitMode: 'width' },
+        'title',
+      );
     });
     await settle();
 
-    expect(saveGlobalSettings).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ readingMode: 'rtl', rememberPerTitleOverrides: false }),
-    );
-    expect(saveTitleSettings).not.toHaveBeenCalled();
+    expect(saveLayers).toHaveBeenCalledTimes(1);
+    expect(saveLayers).toHaveBeenCalledWith(expect.anything(), 'dev-md-manga-1', {
+      globalSettings: getDefaultReaderSettings(),
+      titleOverrides: { readingMode: 'rtl', fitMode: 'width' },
+    });
 
     act(() => root.unmount());
     container.remove();
+  });
+
+  it('Given All titles scope, When a setting changes, Then the global row carries it', async () => {
+    const { root, container } = await renderRoute();
+
+    await act(async () => {
+      (screenProps.onChangeSettings as (patch: unknown, scope: string) => void)(
+        { pageTransition: 'slide' },
+        'global',
+      );
+    });
+    await settle();
+
+    expect(saveLayers).toHaveBeenCalledWith(expect.anything(), 'dev-md-manga-1', {
+      globalSettings: { ...getDefaultReaderSettings(), pageTransition: 'slide' },
+      titleOverrides: { readingMode: 'rtl' },
+    });
+
+    act(() => root.unmount());
+    container.remove();
+  });
+
+  it('Given controls left visible by the last session, When the reader opens, Then they start hidden', async () => {
+    useLayoutStore.getState().setReaderChrome(true);
+
+    await enterReader(false);
+
+    expect(useLayoutStore.getState().readerChromeVisible).toBe(false);
+  });
+
+  it('Given a hover preload of a reader link, When it loads, Then the chrome state is untouched', async () => {
+    useLayoutStore.getState().setReaderChrome(true);
+
+    await enterReader(true);
+
+    expect(useLayoutStore.getState().readerChromeVisible).toBe(true);
   });
 
   it('Given a per-title override, When the title settings are reset, Then the stored override is deleted', async () => {
@@ -191,14 +245,14 @@ describe('/reader/$chapterId persistence reporting', () => {
   });
 
   it('Given a rejected settings save, When a setting changes, Then the failure reaches the report sink', async () => {
-    saveTitleSettings.mockResolvedValueOnce({
-      ok: false,
-      error: { message: 'settings rejected' },
-    });
+    saveLayers.mockRejectedValueOnce(new Error('settings rejected'));
     const { root, container } = await renderRoute();
 
     await act(async () => {
-      (screenProps.onChangeSettings as (patch: unknown) => void)({ readingMode: 'rtl' });
+      (screenProps.onChangeSettings as (patch: unknown, scope: string) => void)(
+        { readingMode: 'ltr' },
+        'title',
+      );
     });
     await settle();
 

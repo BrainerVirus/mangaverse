@@ -98,9 +98,13 @@ describe('fetchReaderPage', () => {
       getReaderSettings,
       upsertReaderSettings,
     } = await import('@app/db');
-    await upsertTitleReaderSettings(db, mangaId, { ...page!.settings, readingMode: 'rtl' });
-    expect((await fetchReaderPage(db, chapterId))?.settings.readingMode).toBe('rtl');
-    expect((await getReaderSettings(db)).readingMode).toBe('ltr');
+    await upsertTitleReaderSettings(db, mangaId, { readingMode: 'rtl' });
+    expect(await fetchReaderPage(db, chapterId)).toMatchObject({
+      settings: { readingMode: 'rtl' },
+      titleOverrides: { readingMode: 'rtl' },
+      globalSettings: { readingMode: 'auto' },
+    });
+    expect((await getReaderSettings(db)).readingMode).toBe('auto');
     await upsertReaderSettings(db, {
       ...(await getReaderSettings(db)),
       backgroundColor: '#ffffff',
@@ -110,7 +114,38 @@ describe('fetchReaderPage', () => {
       backgroundColor: '#ffffff',
     });
     await resetTitleReaderSettings(db, mangaId);
-    expect((await fetchReaderPage(db, chapterId))?.settings.readingMode).toBe('ltr');
+    expect((await fetchReaderPage(db, chapterId))?.settings.readingMode).toBe('auto');
+  });
+
+  it('Given a title tagged long strip, When the chapter opens on Auto, Then the engine reads it as a strip', async () => {
+    const { db, raw } = await createSqlJsHarness();
+    const created = await createMangaIdentityWithInitialMapping(db, {
+      canonicalTitle: 'Tagged strip',
+      status: 'ongoing',
+      contentRating: 'safe',
+      providerId: toProviderId('prov-a'),
+      providerMangaId: 'tagged',
+    });
+    if (!created.ok) throw new Error(created.error.message);
+    const chapterId = toChapterId('chapter-tagged');
+    await upsertChapterWithPages(db, {
+      chapterId,
+      mangaId: created.value.mangaId,
+      providerMappingId: created.value.mappingId,
+      title: 'Chapter 1',
+      index: 1,
+      pages: [{ id: toChapterPageId('tagged-1'), index: 0, image: { url: 'https://x/1.jpg' } }],
+    });
+    raw.run(
+      `INSERT INTO manga_tags (id, label) VALUES ('t-strip', 'Long Strip');
+       INSERT INTO manga_tag_memberships (manga_id, tag_id) VALUES ('${created.value.mangaId}', 't-strip');`,
+    );
+
+    const page = await fetchReaderPage(db, chapterId);
+
+    expect(page?.titleTags).toEqual(['Long Strip']);
+    expect(page?.settings.readingMode).toBe('auto');
+    expect(page?.engineSettings).toMatchObject({ readingMode: 'vertical', fitMode: 'width' });
   });
 
   it('Given an installed provider, When the reader opens a chapter, Then it carries the display name', async () => {

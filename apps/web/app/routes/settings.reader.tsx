@@ -7,8 +7,8 @@ import {
   saveTitleReaderSettings,
   settingsQueryKeys,
 } from '@/features/settings';
-import { getTitleReaderSettings, resetTitleReaderSettings } from '@app/db';
-import type { ReaderSettings } from '@app/shared';
+import { getTitleReaderSettingsLayers, resetTitleReaderSettings } from '@app/db';
+import type { ReaderSettings, ReaderSettingsOverride } from '@app/shared';
 import { saveFeedback } from '../lib/feedback.js';
 import { QUERY_GC_TIMES, QUERY_STALE_TIMES } from '../queries/query-timing.js';
 import { useCoalescedSettingsWrite } from '../lib/use-coalesced-settings-write.js';
@@ -21,6 +21,12 @@ export const Route = createFileRoute('/settings/reader')({
       ? { title: search.title.trim() }
       : {},
 });
+
+/** The page's data: a title page also keeps the title's own choices. */
+interface ReaderSettingsPageState {
+  readonly settings: ReaderSettings;
+  readonly overrides?: ReaderSettingsOverride;
+}
 
 function SettingsReaderRoute() {
   const { title } = Route.useSearch();
@@ -37,7 +43,8 @@ function SettingsReaderRoute() {
     queryFn: async () => {
       if (db === null) throw new Error('Local database is not ready.');
       if (title === undefined) return fetchReaderSettings(db);
-      return { settings: await getTitleReaderSettings(db, title) };
+      const layers = await getTitleReaderSettingsLayers(db, title);
+      return { settings: layers.settings, overrides: layers.overrides };
     },
     enabled: dbStatus === 'ready' && db !== null,
     staleTime: QUERY_STALE_TIMES.settings,
@@ -49,29 +56,29 @@ function SettingsReaderRoute() {
     // One write at a time: a burst of coalesced edits can otherwise resolve out
     // of order and the last snapshot to land would not be the last value painted.
     scope: { id: isTitleScoped ? `reader-settings:${title}` : 'reader-settings' },
-    mutationFn: async (settings: ReaderSettings) => {
+    // `?title=` edits that title's choices; the plain page edits the global row.
+    mutationFn: async (next: ReaderSettingsPageState) => {
       if (db === null) throw new Error('Local database is not ready.');
-      if (title !== undefined && settings.rememberPerTitleOverrides) {
-        await saveTitleReaderSettings(db, title, settings);
+      if (title !== undefined) {
+        await saveTitleReaderSettings(db, title, next.overrides ?? {});
         return;
       }
-      const result = await saveReaderSettings(db, settings);
+      const result = await saveReaderSettings(db, next.settings);
       if (!result.ok) throw new Error(result.error.message);
     },
-    onMutate: async (nextSettings) => {
+    onMutate: async (next) => {
       await queryClient.cancelQueries({ queryKey });
-      queryClient.setQueryData(queryKey, { settings: nextSettings });
+      queryClient.setQueryData(queryKey, next);
     },
     onError: () => {
       // The cache already shows the attempted value; re-read the durable one.
       void queryClient.invalidateQueries({ queryKey: settingsQueryKeys.reader() });
     },
-    onSettled: (_data, _error, nextSettings) => {
-      const current = queryClient.getQueryData<{ settings: ReaderSettings }>(queryKey)?.settings;
+    onSettled: (_data, _error, next) => {
+      const current = queryClient.getQueryData<ReaderSettingsPageState>(queryKey);
       // A newer edit owns the cache; its own write will invalidate.
-      if (current !== nextSettings) return;
-      // `reader()` also matches the title key, and the title helper may have
-      // enabled the global remember flag.
+      if (current !== next) return;
+      // `reader()` also matches the title key.
       void queryClient.invalidateQueries({ queryKey: settingsQueryKeys.reader() });
     },
   });
@@ -91,11 +98,14 @@ function SettingsReaderRoute() {
   const handleChange = (patch: Partial<ReaderSettings>) => {
     // Merge over the cache, not over the last render: a control can change
     // before React has re-rendered with the previous edit's new settings.
-    const current = queryClient.getQueryData<{ settings: ReaderSettings }>(queryKey)?.settings;
+    const current = queryClient.getQueryData<ReaderSettingsPageState>(queryKey);
     if (current === undefined) return;
-    const next = { ...current, ...patch };
+    const next: ReaderSettingsPageState = {
+      settings: { ...current.settings, ...patch },
+      ...(isTitleScoped ? { overrides: { ...current.overrides, ...patch } } : {}),
+    };
     // Every edit paints immediately; a slider gesture writes once at rest.
-    queryClient.setQueryData(queryKey, { settings: next });
+    queryClient.setQueryData(queryKey, next);
     settingsWriter.schedule(next);
   };
 

@@ -182,16 +182,16 @@ It must support:
 
 Reader settings must include:
 
-- Reading mode: RTL manga, LTR comic, vertical/webtoon.
-- Page layout: single page, double page, smart spread.
-- Fit mode: width, height, contain, cover, original.
+- Reading mode: Auto (title choice, page shape, provider tags, then the default), RTL manga, LTR comic, vertical/webtoon.
+- Page layout: Auto (spreads in landscape, single in portrait), single page, double page, smart spread.
+- Fit mode: Auto (screen when paged, width in strips), width, height, contain, cover, original.
 - Tap zones and tap zone overlay.
 - Navigation direction.
 - Page transitions.
 - Background color.
 - Spacing between webtoon pages.
 - Image smoothing.
-- Preload amount.
+- Preload ahead and behind.
 - Keep-awake where supported.
 - Fullscreen behavior.
 - Keyboard shortcuts and shortcut editor.
@@ -203,7 +203,7 @@ Reader settings must include:
 - Webtoon page gap.
 - Long-strip optimization.
 - Low-memory mode.
-- Remember per-title overrides.
+- In-reader changes apply to this title or all titles, chosen in the quick panel.
 - Reset per-title overrides.
 - Reader diagnostics.
 

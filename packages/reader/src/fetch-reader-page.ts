@@ -11,9 +11,10 @@ export async function fetchReaderPage(
   const {
     getChapter,
     getChapterReadState,
-    getTitleReaderSettings,
+    getTitleReaderSettingsLayers,
     listChaptersForManga,
     listInstalledExtensions,
+    listMangaTagLabels,
   } = await import('@app/db');
 
   const chapter = await getChapter(db, chapterId);
@@ -21,12 +22,14 @@ export async function fetchReaderPage(
     return undefined;
   }
 
-  const [readState, settings, chapters, installed] = await Promise.all([
+  const [readState, layers, chapters, installed, titleTags] = await Promise.all([
     getChapterReadState(db, chapterId),
-    getTitleReaderSettings(db, chapter.mangaId),
+    getTitleReaderSettingsLayers(db, chapter.mangaId),
     listChaptersForManga(db, chapter.mangaId),
     listInstalledExtensions(db),
+    listMangaTagLabels(db, chapter.mangaId),
   ]);
+  const { settings, overrides: titleOverrides, global: globalSettings } = layers;
 
   const initialPageIndex =
     readState?.progress.lastPageIndex !== undefined
@@ -36,7 +39,12 @@ export async function fetchReaderPage(
         )
       : 0;
 
-  const engineSettings = toReaderEngineSettings(settings);
+  const readerChapter = mapChapterToReaderChapter(chapter);
+  const engineSettings = toReaderEngineSettings(settings, {
+    titleOverrides,
+    tags: titleTags,
+    pages: readerChapter.pages,
+  });
   const sourceChapters = chapters.filter((item) => item.providerId === chapter.providerId);
   const position = sourceChapters.findIndex((item) => item.id === chapter.id);
   const sourceName = installed.find(
@@ -44,7 +52,7 @@ export async function fetchReaderPage(
   )?.manifest.name;
 
   return {
-    chapter: mapChapterToReaderChapter(chapter),
+    chapter: readerChapter,
     mangaId: chapter.mangaId,
     chapterId: chapter.id,
     providerId: String(chapter.providerId ?? 'unknown'),
@@ -52,6 +60,9 @@ export async function fetchReaderPage(
     initialPageIndex,
     initialCompleted: readState?.progress.completed === true,
     settings,
+    globalSettings,
+    titleOverrides,
+    titleTags,
     engineSettings,
     previousChapterId: sourceChapters[position - 1]?.id,
     nextChapterId: sourceChapters[position + 1]?.id,

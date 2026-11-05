@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
-import { MANGADEX_APP_MANGA_ID, test } from './helpers.js';
+import { MANGADEX_APP_MANGA_ID, showReaderControls, test } from './helpers.js';
 
 test.describe.configure({ timeout: 90_000 });
 
@@ -55,6 +55,7 @@ test('Given an open chapter, When switching to Scroll, Then the strip renders an
   await expect(chapter).toBeVisible({ timeout: 30_000 });
   await chapter.click({ force: true });
   await expect(pageCounter(page)).toHaveText(`1 / ${PAGE_COUNT}`, { timeout: 30_000 });
+  await showReaderControls(page);
 
   // Switch to the continuous strip from the settings sheet.
   await page.getByRole('button', { name: 'Settings' }).click();

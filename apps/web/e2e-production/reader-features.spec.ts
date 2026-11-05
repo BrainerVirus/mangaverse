@@ -1,6 +1,12 @@
 import { expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { fixturesDir, MANGADEX_APP_MANGA_ID, test, waitForPingQuiet } from './helpers.js';
+import {
+  fixturesDir,
+  MANGADEX_APP_MANGA_ID,
+  showReaderControls,
+  test,
+  waitForPingQuiet,
+} from './helpers.js';
 
 test.describe.configure({ timeout: 120_000 });
 
@@ -12,9 +18,12 @@ async function openReader(page: Page, chapter = CHAPTER_BUTTON) {
   await expect(button).toBeVisible({ timeout: 30_000 });
   await button.click({ force: true });
   await expect(page.getByText('1 / 37')).toBeVisible({ timeout: 30_000 });
+  await showReaderControls(page);
 }
 
 async function openReaderSettings(page: Page) {
+  // Controls start hidden on open (R8): show them before the trigger.
+  await showReaderControls(page);
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Reader settings' });
   await expect(dialog).toBeVisible();
@@ -44,6 +53,7 @@ test('marking a chapter read and unread persists into the resume position', asyn
 
   await page.getByRole('button', { name: CHAPTER_BUTTON }).click({ force: true });
   await expect(page.getByText('37 / 37')).toBeVisible({ timeout: 30_000 });
+  await showReaderControls(page);
 
   await page.getByRole('button', { name: 'Chapter actions' }).click();
   await page
@@ -83,6 +93,7 @@ test('marking previous chapters read persists the earlier chapter completion', a
 
   await page.getByRole('button', { name: /Ch\. 2 - The next chapter/ }).click({ force: true });
   await expect(page.getByText('1 / 37')).toBeVisible({ timeout: 30_000 });
+  await showReaderControls(page);
 
   await page.getByRole('button', { name: 'Chapter actions' }).click();
   await page

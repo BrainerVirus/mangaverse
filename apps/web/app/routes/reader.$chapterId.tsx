@@ -1,23 +1,23 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
-import { saveReaderSettings, settingsQueryKeys } from '@/features/settings';
+import { saveReaderSettingsLayers, settingsQueryKeys } from '@/features/settings';
 import {
   markPreviousChaptersCompleted,
   setChapterCompleted,
-  upsertTitleReaderSettings,
   resetTitleReaderSettings,
 } from '@app/db';
 import type { AppDrizzleDb } from '@app/db';
 import { libraryQueryKeys } from '@/features/library';
 import type { ReaderSettings } from '@app/shared';
 import {
+  applyReaderSettingsChange,
   fetchReaderPage,
   persistReaderProgress,
   ReaderScreen,
   readerQueryKeys,
-  toReaderEngineSettings,
   type ReaderPageData,
+  type ReaderSettingsScope,
 } from '@app/reader';
 import { toChapterId, type ChapterId } from '@app/shared';
 import {
@@ -34,6 +34,12 @@ import { useLayoutStore } from '../stores/useLayoutStore.js';
 import { ensureProviderChapterPages } from '../queries/provider-query-options.js';
 
 export const Route = createFileRoute('/reader/$chapterId')({
+  // Controls start hidden on every open (spec R8): set before the first render,
+  // so the reader never paints its chrome and then hides it. A hover preload
+  // is not an open.
+  beforeLoad: ({ preload }) => {
+    if (!preload) useLayoutStore.getState().setReaderChrome(false);
+  },
   component: ReaderRoute,
 });
 
@@ -125,20 +131,19 @@ function ReaderRouteSession({ chapterIdParam }: { chapterIdParam: string }) {
 
   const { mutate: saveSettings } = useMutation({
     scope: { id: `reader-settings:${data?.mangaId ?? chapterId}` },
-    mutationFn: async (next: ReaderSettings | null) => {
+    // A snapshot of the reader data after the change, or null to reset the title.
+    mutationFn: async (next: ReaderPageData | null) => {
       if (!data) return;
       if (next === null) {
         await resetTitleReaderSettings(db!, data.mangaId);
         return;
       }
-      // The reader is the place reading settings are tuned: with per-title
-      // overrides on they belong to this manga, otherwise they are the defaults.
-      const result = next.rememberPerTitleOverrides
-        ? await upsertTitleReaderSettings(db!, data.mangaId, next)
-        : await saveReaderSettings(db!, next);
-      if (!result.ok) {
-        throw new Error(result.error.message);
-      }
+      // The change carries its scope (R7): the snapshot holds the global row and
+      // this title's choices as the quick panel left them.
+      await saveReaderSettingsLayers(db!, data.mangaId, {
+        globalSettings: next.globalSettings,
+        titleOverrides: next.titleOverrides,
+      });
     },
     onMutate: async (next) => {
       await queryClient.cancelQueries({ queryKey: readerQueryKeys.chapter(chapterId) });
@@ -148,7 +153,17 @@ function ReaderRouteSession({ chapterIdParam }: { chapterIdParam: string }) {
         (current) =>
           current == null
             ? current
-            : { ...current, settings: next, engineSettings: toReaderEngineSettings(next) },
+            : {
+                ...current,
+                settings: next.settings,
+                engineSettings: next.engineSettings,
+                ...(next.globalSettings !== undefined
+                  ? { globalSettings: next.globalSettings }
+                  : {}),
+                ...(next.titleOverrides !== undefined
+                  ? { titleOverrides: next.titleOverrides }
+                  : {}),
+              },
       );
     },
     onError: (error) => {
@@ -163,7 +178,7 @@ function ReaderRouteSession({ chapterIdParam }: { chapterIdParam: string }) {
         readerQueryKeys.chapter(chapterId),
       )?.settings;
       // A newer edit owns the cache; its own write will invalidate.
-      if (next !== null && current !== next) return;
+      if (next !== null && current !== next.settings) return;
       void queryClient.invalidateQueries({ queryKey: readerQueryKeys.chapter(chapterId) });
       void queryClient.invalidateQueries({ queryKey: settingsQueryKeys.reader() });
     },
@@ -171,20 +186,19 @@ function ReaderRouteSession({ chapterIdParam }: { chapterIdParam: string }) {
 
   const settingsWriter = useCoalescedSettingsWrite(saveSettings);
   const handleChangeSettings = useCallback(
-    (patch: Partial<ReaderSettings>) => {
-      if (db === null || data?.settings === undefined) return;
-      const next = { ...data.settings, ...patch };
-      // Paint every change; the DB write waits for the gesture to rest.
-      queryClient.setQueryData<ReaderPageData | null>(
+    (patch: Partial<ReaderSettings>, scope: ReaderSettingsScope) => {
+      // Merge over the cache, not over the last render: two changes can land
+      // before React re-renders with the first one.
+      const current = queryClient.getQueryData<ReaderPageData | null>(
         readerQueryKeys.chapter(chapterId),
-        (current) =>
-          current == null
-            ? current
-            : { ...current, settings: next, engineSettings: toReaderEngineSettings(next) },
       );
+      if (db === null || current == null) return;
+      const next = applyReaderSettingsChange(current, patch, scope);
+      // Paint every change; the DB write waits for the gesture to rest.
+      queryClient.setQueryData<ReaderPageData | null>(readerQueryKeys.chapter(chapterId), next);
       settingsWriter.schedule(next);
     },
-    [chapterId, data, db, queryClient, settingsWriter],
+    [chapterId, db, queryClient, settingsWriter],
   );
 
   // The library keeps a five-minute staleTime, so reading must mark it stale or

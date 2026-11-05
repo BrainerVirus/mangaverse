@@ -218,18 +218,8 @@ export function AppSettingsPage({
           </div>
         </SettingsSection>
 
-        <SettingsSection
-          title="Performance"
-          description="Reduce memory use on constrained devices."
-        >
+        <SettingsSection title="Storage" description="How much page data stays on this device.">
           <div className="space-y-4">
-            <SettingToggleRow
-              id="low-memory-mode"
-              label="Low-memory mode"
-              description="Reduce preloading, thumbnails, and animation intensity."
-              checked={settings.lowMemoryMode}
-              onCheckedChange={(lowMemoryMode) => commit({ lowMemoryMode })}
-            />
             <div className="grid gap-2">
               <Label htmlFor="image-cache-limit">Local cache limit</Label>
               <Input

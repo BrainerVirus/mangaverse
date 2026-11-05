@@ -10,7 +10,7 @@ import {
 } from '@app/design-system';
 import type { ReaderSettings } from '@app/shared';
 import type { ReaderMetricsSnapshot } from '../reader-metrics.js';
-import { ReaderSettingsSheet } from './reader-settings-sheet.js';
+import { ReaderSettingsSheet, type ReaderSettingsChangeHandler } from './reader-settings-sheet.js';
 
 export interface ReaderOverlaysProps {
   readonly chapterTitle: string;
@@ -34,7 +34,7 @@ export interface ReaderOverlaysProps {
   readonly onOpenChapterActions: () => void;
   readonly onToggleFullscreen: () => void;
   readonly onCloseSettings: () => void;
-  readonly onChangeSettings: ((patch: Partial<ReaderSettings>) => void) | undefined;
+  readonly onChangeSettings: ReaderSettingsChangeHandler | undefined;
   readonly onResetSettings: (() => void) | undefined;
   readonly onClearDiagnostics: () => void;
   readonly onChapterEndOpenChange: (open: boolean) => void;

@@ -13,7 +13,9 @@ import type { ReaderSettings } from '@app/shared';
 import { useCoverCacheContext, CachedPageImage } from '@app/cache';
 import type { PageFitInput } from '../page-fit.js';
 import type { ReaderPageData } from '../reader-page-data.js';
+import { withPagedDirectionOnLeavingStrip } from '../reader-settings-change.js';
 import { ReaderOverlays } from './ReaderOverlays.js';
+import type { ReaderSettingsChangeHandler } from './reader-settings-sheet.js';
 import { ReaderStage } from './ReaderStage.js';
 import type { ReaderScrollViewHandle } from './ReaderScrollView.js';
 import { useChapterPrefetch, useOfflinePagesNote } from './use-chapter-cache.js';
@@ -53,12 +55,9 @@ function resolveChromeVisible(settings: ReaderSettings | undefined, visible: boo
   );
 }
 
-function resolveChromeMode(
-  settings: ReaderSettings | undefined,
-  isScrollMode: boolean,
-): ChromeMode {
-  if (isScrollMode) return 'scroll';
-  return settings?.pageLayout === 'double' ? 'double' : 'single';
+function resolveChromeMode(readerState: ReaderState): ChromeMode {
+  if (readerState.mode === 'scroll') return 'scroll';
+  return readerState.layout === 'double' ? 'double' : 'single';
 }
 
 type ReaderGate =
@@ -70,21 +69,12 @@ type ReaderGate =
   | 'empty'
   | null;
 
-function applyReadingModeChange(
+/** The chrome's mode switch is a quick control: it changes this title (R7). */
+function readingModeChangePatch(
   mode: 'single' | 'double' | 'scroll' | 'webtoon',
-  settings: ReaderSettings | undefined,
-  onChangeSettings: ((patch: Partial<ReaderSettings>) => void) | undefined,
-): void {
-  if (!onChangeSettings) return;
-  if (mode === 'scroll') {
-    onChangeSettings({ readingMode: 'vertical' });
-    return;
-  }
-  const pageLayout = mode === 'double' ? 'double' : 'single';
-  // Returning from the strip needs a page reading mode again.
-  onChangeSettings(
-    settings?.readingMode === 'vertical' ? { readingMode: 'ltr', pageLayout } : { pageLayout },
-  );
+): Partial<ReaderSettings> {
+  if (mode === 'scroll') return { readingMode: 'vertical' };
+  return { pageLayout: mode === 'double' ? 'double' : 'single' };
 }
 
 /** One chapter action, one status line: persistence failures must never be silent. */
@@ -205,7 +195,8 @@ export interface ReaderScreenProps {
   chromeVisible: boolean;
   onToggleChrome: () => void;
   onPersistProgress?: (event: ReaderProgressEvent) => void;
-  onChangeSettings?: (patch: Partial<ReaderSettings>) => void;
+  /** A settings change and where it is written: this title or every title. */
+  onChangeSettings?: ReaderSettingsChangeHandler;
   onRetry?: () => void;
   /** True when the data fetch is paused because the browser is offline. */
   isOffline?: boolean;
@@ -421,17 +412,36 @@ function ReaderReadyView({
     pageLayer: pageTransitionLayerRef,
     activePageIndex: readerState.activePageIndex,
     mode: data.engineSettings.pageTransition ?? 'none',
-    rtl: data.engineSettings.readingMode === 'rtl',
+    rtl: readerState.settings.readingMode === 'rtl',
     reducedMotion,
   });
 
   const settings = data.settings;
   const isScrollMode = readerState.mode === 'scroll';
-  const chromeMode = resolveChromeMode(settings, isScrollMode);
+  const chromeMode = resolveChromeMode(readerState);
+  // The paged direction shown before the strip, kept only for this session:
+  // leaving the strip through a layout choice returns to it (#224).
+  const lastPagedDirectionRef = useRef<'rtl' | 'ltr' | null>(null);
+  const shownMode = readerState.settings.readingMode;
+  const handleChangeSettings = useCallback<ReaderSettingsChangeHandler>(
+    (patch, scope) => {
+      if (!onChangeSettings) return;
+      if (shownMode !== 'vertical') lastPagedDirectionRef.current = shownMode;
+      onChangeSettings(
+        withPagedDirectionOnLeavingStrip(patch, {
+          shownMode,
+          lastPagedDirection: lastPagedDirectionRef.current,
+          globalSettings: data.globalSettings,
+        }),
+        scope,
+      );
+    },
+    [data.globalSettings, onChangeSettings, shownMode],
+  );
   const handleModeChange = useCallback(
     (mode: 'single' | 'double' | 'scroll' | 'webtoon') =>
-      applyReadingModeChange(mode, settings, onChangeSettings),
-    [onChangeSettings, settings],
+      handleChangeSettings(readingModeChangePatch(mode), 'title'),
+    [handleChangeSettings],
   );
   const handleMarkRead = useCallback(
     (completed: boolean) =>
@@ -458,7 +468,7 @@ function ReaderReadyView({
     .map((index) => data.chapter.pages[index])
     .filter((page) => page !== undefined);
   const fitInput: PageFitInput = {
-    fitMode: data.engineSettings.fitMode,
+    fitMode: readerState.settings.fitMode,
     availableWidth: viewport.width - CHROME_INSETS.left - CHROME_INSETS.right,
     availableHeight: viewport.height - CHROME_INSETS.top - CHROME_INSETS.bottom,
     pageCount: visiblePages.length,
@@ -528,7 +538,7 @@ function ReaderReadyView({
         onOpenChapterActions={() => setChapterActionsOpen(true)}
         onToggleFullscreen={toggleFullscreen}
         onCloseSettings={() => setSettingsOpen(false)}
-        onChangeSettings={onChangeSettings}
+        onChangeSettings={onChangeSettings === undefined ? undefined : handleChangeSettings}
         onResetSettings={onResetSettings}
         onClearDiagnostics={diagnostics.clear}
         onChapterEndOpenChange={onChapterEndOpenChange}

@@ -210,11 +210,12 @@ test('a fresh profile runs onboarding, library, search and settings on the nativ
 
   // A settings write lands in the native file.
   await page.goto('app://app/settings/app');
-  const lowMemory = page.getByRole('switch', { name: 'Low-memory mode' });
-  await expect(lowMemory).toBeVisible({ timeout: 20_000 });
-  await lowMemory.click();
+  // Low-memory mode moved to the reader settings (#224); any app-settings switch proves the write.
+  const explicitContent = page.getByRole('switch', { name: 'Explicit content' });
+  await expect(explicitContent).toBeVisible({ timeout: 20_000 });
+  await explicitContent.click();
   await expect
-    .poll(() => appSetting<{ lowMemoryMode: boolean }>(userDataDir, 'global')?.lowMemoryMode)
+    .poll(() => appSetting<{ explicitContent: boolean }>(userDataDir, 'global')?.explicitContent)
     .toBe(true);
 
   // The renderer never opened sql.js: it never wrote a snapshot.

@@ -233,6 +233,20 @@ export async function getMangaIdentities(
   return identities;
 }
 
+/** A title's tag labels alone: the reader's Auto mode reads them on every open. */
+export async function listMangaTagLabels(
+  db: AppDrizzleDb,
+  mangaId: MangaId,
+): Promise<readonly string[]> {
+  const rows = db
+    .select({ label: mangaTags.label })
+    .from(mangaTagMemberships)
+    .innerJoin(mangaTags, eq(mangaTags.id, mangaTagMemberships.tagId))
+    .where(eq(mangaTagMemberships.mangaId, mangaId))
+    .all();
+  return rows.map((row) => row.label);
+}
+
 export async function getMangaIdentity(
   db: AppDrizzleDb,
   mangaId: MangaId,

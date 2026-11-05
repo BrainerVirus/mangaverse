@@ -56,12 +56,14 @@ const LOCALE_OPTIONS = [
 ] as const;
 
 const READING_MODE_OPTIONS = [
+  { value: 'auto', label: 'Auto (detect per title)' },
   { value: 'ltr', label: 'Left to right' },
   { value: 'rtl', label: 'Right to left (manga)' },
   { value: 'vertical', label: 'Vertical (webtoon)' },
 ] as const;
 
 const PAGE_LAYOUT_OPTIONS = [
+  { value: 'auto', label: 'Auto (spreads in landscape)' },
   { value: 'single', label: 'Single page' },
   { value: 'double', label: 'Double page' },
   { value: 'smartSpread', label: 'Smart spread' },

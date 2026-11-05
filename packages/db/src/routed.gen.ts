@@ -108,6 +108,10 @@ export const getTitleReaderSettings = route(
   'getTitleReaderSettings',
   procedures.getTitleReaderSettings,
 );
+export const getTitleReaderSettingsLayers = route(
+  'getTitleReaderSettingsLayers',
+  procedures.getTitleReaderSettingsLayers,
+);
 export const hasCacheBlobKey = route('hasCacheBlobKey', procedures.hasCacheBlobKey);
 export const listActiveDownloads = route('listActiveDownloads', procedures.listActiveDownloads);
 export const listAllCacheEntries = route('listAllCacheEntries', procedures.listAllCacheEntries);
@@ -172,6 +176,7 @@ export const listLibraryRecentlyUpdated = route(
   procedures.listLibraryRecentlyUpdated,
 );
 export const listMangaIdentities = route('listMangaIdentities', procedures.listMangaIdentities);
+export const listMangaTagLabels = route('listMangaTagLabels', procedures.listMangaTagLabels);
 export const listMigratableLibraryEntries = route(
   'listMigratableLibraryEntries',
   procedures.listMigratableLibraryEntries,
@@ -401,6 +406,7 @@ export const ROUTED_PROCEDURE_NAMES = [
   'getThemeDefinition',
   'getThemeSettings',
   'getTitleReaderSettings',
+  'getTitleReaderSettingsLayers',
   'hasCacheBlobKey',
   'listActiveDownloads',
   'listAllCacheEntries',
@@ -426,6 +432,7 @@ export const ROUTED_PROCEDURE_NAMES = [
   'listLibraryProviderIds',
   'listLibraryRecentlyUpdated',
   'listMangaIdentities',
+  'listMangaTagLabels',
   'listMigratableLibraryEntries',
   'listMigrationHistory',
   'listMigrationHistoryByBatch',

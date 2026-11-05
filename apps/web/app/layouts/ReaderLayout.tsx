@@ -1,15 +1,12 @@
 import { useEffect } from 'react';
-import { useLayoutStore } from '../stores/useLayoutStore.js';
 import { AnimatedRouteOutlet } from '../components/shell/AnimatedRouteOutlet.js';
 import { AppNotices } from '../components/AppNotices.js';
 import { createAppPlatformAdapter } from '../features/diagnostics/create-app-platform-adapter.js';
 
 export function ReaderLayout({ children }: { children: React.ReactNode }) {
-  const setReaderChrome = useLayoutStore((s) => s.setReaderChrome);
-
-  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-route-entry-reset: entering the reader resets chrome state that the last reader session left off, which needs the mount lifecycle.
+  // Chrome visibility is reset by the reader route's `beforeLoad` (hidden on open, #224).
+  // react-doctor-disable-next-line team-conventions/no-use-effect -- ruling: web-effect-route-entry-reset: the reader's mount lifecycle tells the desktop host a chapter is open, an external-system boundary.
   useEffect(() => {
-    setReaderChrome(true);
     // Desktop only (#215): main holds an update prompt while a chapter is open. The web
     // adapter has no `updates` section, so this is a no-op there.
     const updates = createAppPlatformAdapter().updates;
@@ -17,7 +14,7 @@ export function ReaderLayout({ children }: { children: React.ReactNode }) {
     return () => {
       void updates?.setReaderActive(false);
     };
-  }, [setReaderChrome]);
+  }, []);
 
   return (
     <main className="fixed inset-0 overflow-hidden">

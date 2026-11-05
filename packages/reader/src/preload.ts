@@ -7,11 +7,7 @@ import type {
 } from './types';
 
 export interface PreloadPlanOptions {
-  /**
-   * Pages to keep warm behind the active one. The reader settings only expose
-   * `preloadAhead` today (#224 adds the behind setting), so the caller passes
-   * the spec's provisional default of one.
-   */
+  /** Pages to keep warm behind the active one (`preloadBehind`); one when absent. */
   readonly preloadBehind?: number;
   /**
    * Whether the active page itself belongs in the plan. The prefetch sweep
