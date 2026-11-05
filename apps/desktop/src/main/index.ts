@@ -32,6 +32,7 @@ import {
   registerInstallProtocolAppEvents,
 } from './protocol-handoff.js';
 import { createTrustedFrameCheck, registerDataHostIpc, superviseDataHost } from './data-host.js';
+import { createOwnedWindows } from './owned-windows.js';
 import { registerPlatformIpc } from './platform-ipc.js';
 import { createProviderAllowlist } from './provider-allowlist.js';
 import { registerProviderNetworkIpc } from './provider-network-ipc.js';
@@ -59,16 +60,12 @@ const __dirname = dirname(__filename);
 const PRODUCTION_RENDERER_URL = `${APP_ORIGIN}/`;
 
 let mainWindow: BrowserWindow | null = null;
-/** Windows this process created: only their main frames reach the data host. */
-const ownedWindows = new Set<BrowserWindow>();
-
-// Every window main constructs is owned; one a page opened has an opener and never is, though
-// the open handler below denies those anyway.
-app.on('browser-window-created', (_event, window) => {
-  if (window.webContents.opener !== null) return;
-  ownedWindows.add(window);
-  window.once('closed', () => ownedWindows.delete(window));
-});
+/**
+ * Windows this process constructed: only their main frames reach the data host. `createWindow`
+ * registers each one where it builds it; there is no app-wide window event, so a window
+ * Chromium opens (a popup, with or without an opener) is never owned.
+ */
+const ownedWindows = createOwnedWindows();
 
 // Must run before app ready: a standard, secure scheme gets an origin, `'self'` and fetch.
 protocol.registerSchemesAsPrivileged([APP_SCHEME_PRIVILEGES, PAGE_SCHEME_PRIVILEGES]);
@@ -102,7 +99,7 @@ function appOrigins(): readonly string[] {
   return devUrl ? [devOrigin].filter((origin) => origin !== undefined) : [APP_ORIGIN];
 }
 
-const ownedMainFrames = () => [...ownedWindows].map((window) => window.webContents.mainFrame);
+const ownedMainFrames = () => ownedWindows.mainFrames();
 
 /**
  * Cached pages live as files under the profile (spec 04 X5, X13). The renderer writes and
@@ -131,7 +128,7 @@ function buildCapabilities(): PlatformCapabilities {
 }
 
 function createWindow(url: string) {
-  mainWindow = new BrowserWindow({
+  const window = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 800,
@@ -145,27 +142,40 @@ function createWindow(url: string) {
     show: false,
     titleBarStyle: 'default',
   });
+  mainWindow = window;
+  ownedWindows.own(window);
 
-  mainWindow.once('ready-to-show', () => {
-    mainWindow?.show();
+  window.once('ready-to-show', () => {
+    window.show();
   });
 
-  void mainWindow.loadURL(url);
+  void window.loadURL(url);
 
   if (process.env.VITE_DEV_SERVER_URL) {
-    mainWindow.webContents.openDevTools();
+    window.webContents.openDevTools();
   }
 
-  mainWindow.on('closed', () => {
-    mainWindow = null;
+  window.on('closed', () => {
+    if (mainWindow === window) mainWindow = null;
   });
 
-  mainWindow.webContents.setWindowOpenHandler(({ url: target }: { url: string }) => {
+  window.webContents.setWindowOpenHandler(({ url: target }: { url: string }) => {
     if (isSafeExternalUrl(target)) {
       void shell.openExternal(target);
     }
     return { action: 'deny' };
   });
+}
+
+/** The global the Electron E2E calls to have main build an extra owned window. */
+const E2E_OPEN_WINDOW_HOOK = '__mangaverseE2EOpenWindow';
+
+// Test-only: the data host trusts only windows `createWindow` built, so a spec that needs a
+// second window cannot construct one itself. An unpackaged build exposes `createWindow` on
+// `globalThis` for that; a packaged app defines nothing, so there is no way to open an owned
+// window from outside. It is no IPC channel and no popup allowance: popups stay denied.
+if (!app.isPackaged) {
+  Object.defineProperty(globalThis, E2E_OPEN_WINDOW_HOOK, { value: createWindow });
 }
 
 /**
