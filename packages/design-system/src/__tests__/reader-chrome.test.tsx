@@ -84,6 +84,15 @@ describe('ReaderChrome', () => {
     expect(screen.getByText('3 / 20')).toBeInTheDocument();
   });
 
+  it('Given the page number turned off, When the chrome renders, Then the badge is gone and the rail stays', () => {
+    render(<ReaderChrome visible={true} currentPage={3} totalPages={20} showPageNumber={false} />);
+
+    expect(screen.queryByText('3 / 20')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('reader-page-number')).not.toBeInTheDocument();
+    expect(screen.getByRole('slider', { name: 'Page slider' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next page' })).toBeInTheDocument();
+  });
+
   it('calls onPageChange when previous button is clicked', async () => {
     const user = userEvent.setup();
     const onPageChange = vi.fn<(page: number) => void>();

@@ -235,6 +235,55 @@ describe('reader settings', () => {
     expect(settings.readingMode).toBe('rtl');
   });
 
+  it('Given a row saved before spread offset, strip width, page number and transition existed, When reading, Then each reads its default', () => {
+    const settings = sanitizeReaderSettings(LEGACY_ROW);
+    const validated = validateReaderSettings({ ...LEGACY_ROW, verticalGapPx: 0, preloadAhead: 4 });
+
+    const added = {
+      spreadOffset: 0,
+      maxStripWidthPercent: 100,
+      showPageNumber: true,
+      showChapterTransition: true,
+    };
+    expect(settings).toMatchObject(added);
+    expect(validated.ok ? validated.value : undefined).toMatchObject(added);
+    expect(getDefaultReaderSettings()).toMatchObject(added);
+  });
+
+  it('Given one of the new fields no longer parses, When reading, Then only that field falls back', () => {
+    const settings = sanitizeReaderSettings({
+      ...LEGACY_ROW,
+      spreadOffset: 2,
+      maxStripWidthPercent: 80,
+      showPageNumber: false,
+      showChapterTransition: 'off',
+    });
+
+    expect(settings).toMatchObject({
+      spreadOffset: 0,
+      maxStripWidthPercent: 80,
+      showPageNumber: false,
+      showChapterTransition: true,
+      readingMode: 'rtl',
+      backgroundColor: '#112233',
+    });
+  });
+
+  it('Given a spread offset or strip width outside its range, When writing, Then it is rejected', () => {
+    const base = getDefaultReaderSettings();
+
+    expect(validateReaderSettings({ ...base, spreadOffset: 1 }).ok).toBe(true);
+    expect(validateReaderSettings({ ...base, spreadOffset: 2 }).ok).toBe(false);
+    expect(validateReaderSettings({ ...base, maxStripWidthPercent: 40 }).ok).toBe(true);
+    expect(validateReaderSettings({ ...base, maxStripWidthPercent: 39 }).ok).toBe(false);
+    expect(validateReaderSettings({ ...base, maxStripWidthPercent: 101 }).ok).toBe(false);
+    expect(validateReaderSettings({ ...base, maxStripWidthPercent: 80.5 }).ok).toBe(false);
+    expect(validateReaderSettings({ ...base, showPageNumber: 'no' }).ok).toBe(false);
+    expect(sanitizeReaderSettingsOverride({ spreadOffset: 1, maxStripWidthPercent: 20 })).toEqual({
+      spreadOffset: 1,
+    });
+  });
+
   it('Given a legacy backup, When validating it for restore, Then it clamps instead of failing', () => {
     const result = validateReaderSettingsForBackup(LEGACY_ROW);
 

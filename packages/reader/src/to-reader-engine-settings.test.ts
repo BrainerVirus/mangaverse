@@ -21,6 +21,20 @@ describe('toReaderEngineSettings', () => {
     expect(engine.keyboardShortcuts).toEqual(settings.keyboardShortcuts);
   });
 
+  it('Given a spread offset, When mapped, Then cover alone is the cover flag and offset by one clears it', () => {
+    const settings = getDefaultReaderSettings();
+
+    expect(toReaderEngineSettings({ ...settings, spreadOffset: 0 }).treatFirstPageAsCover).toBe(
+      true,
+    );
+    expect(toReaderEngineSettings({ ...settings, spreadOffset: 1 }).treatFirstPageAsCover).toBe(
+      false,
+    );
+    expect(toReaderEngineSettings({ ...settings, maxStripWidthPercent: 80 })).toMatchObject({
+      maxStripWidthPercent: 80,
+    });
+  });
+
   it('Given the default Auto settings, When mapped without context, Then the engine gets paged LTR, single, fit screen', () => {
     const engine = toReaderEngineSettings(getDefaultReaderSettings());
 

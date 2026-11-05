@@ -220,7 +220,12 @@ export function ReaderScreen(props: ReaderScreenProps) {
     onClose,
   } = props;
   const [chapterEndOpen, setChapterEndOpen] = useState(false);
-  const handleChapterEnd = useCallback(() => setChapterEndOpen(true), []);
+  // With the transition screen off, the chapter end is a no-op: the reader
+  // stays on the last page and the chapter buttons and shortcuts still work.
+  const showChapterTransition = data?.settings.showChapterTransition !== false;
+  const handleChapterEnd = useCallback(() => {
+    if (showChapterTransition) setChapterEndOpen(true);
+  }, [showChapterTransition]);
   const reducedMotion = useReducedMotion();
   const { containerRef, surface, viewport } = useReaderViewport();
   const { sessionInput, readerState, setReaderState, navigate } = useReaderSession(

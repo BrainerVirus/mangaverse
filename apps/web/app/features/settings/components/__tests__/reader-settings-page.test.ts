@@ -13,7 +13,11 @@ import {
 } from '@app/shared';
 
 import { ReaderSettingsPage } from '../ReaderSettingsPage.js';
-import { GestureSettingsSection, KeyboardShortcutsSection } from '../ReaderSettingsPage.js';
+import {
+  DisplaySettingsSection,
+  GestureSettingsSection,
+  KeyboardShortcutsSection,
+} from '../ReaderSettingsPage.js';
 
 interface SectionProps {
   readonly title?: string;
@@ -31,7 +35,11 @@ function collectElements(node: ReactNode): ReactElement[] {
   const type = element.type as unknown;
   // Section components are plain functions; expanding them keeps this walk
   // inspecting the same element tree the page actually composes.
-  if (type === KeyboardShortcutsSection || type === GestureSettingsSection) {
+  if (
+    type === KeyboardShortcutsSection ||
+    type === GestureSettingsSection ||
+    type === DisplaySettingsSection
+  ) {
     const render = type as (props: unknown) => ReactElement;
     return [element, ...collectElements(render(element.props))];
   }
@@ -57,6 +65,43 @@ function settingIds(node: ReactNode): string[] {
   return collectElements(node)
     .map((element) => (element.props as { id?: unknown }).id)
     .filter((id): id is string => typeof id === 'string');
+}
+
+const MIB = 1024 * 1024;
+
+function rowWithId(page: ReactNode, id: string): ReactElement {
+  const row = collectElements(page).find(
+    (element) => (element.props as { id?: unknown }).id === id,
+  );
+  if (row === undefined) throw new Error(`${id} row is missing`);
+  return row;
+}
+
+/** The value text the row's slider announces. */
+function renderedSliderValueText(element: ReactElement): unknown {
+  const rendered = (element.type as (props: unknown) => ReactElement)(element.props);
+  const inner = collectElements(rendered).find((child) => child.type === Slider);
+  if (inner === undefined) throw new Error('slider input is missing');
+  return (inner.props as { 'aria-valuetext'?: unknown })['aria-valuetext'];
+}
+
+function budgetRow(
+  settings: ReaderSettings,
+  onChange: (patch: Partial<ReaderSettings>) => void,
+  onInteractionEnd?: () => void,
+) {
+  const page = ReaderSettingsPage({
+    settings,
+    isLoading: false,
+    isError: false,
+    onChange,
+    ...(onInteractionEnd === undefined ? {} : { onInteractionEnd }),
+  });
+  return rowWithId(page, 'prefetch-budget').props as {
+    value: string;
+    options: readonly { value: string; label: string }[];
+    onChange: (value: string) => void;
+  };
 }
 
 describe('ReaderSettingsPage', () => {
@@ -93,6 +138,7 @@ describe('ReaderSettingsPage', () => {
       [
         'reading-mode',
         'page-layout',
+        'spread-offset',
         'fit-mode',
         'tap-zone-layout',
         'navigation-direction',
@@ -104,6 +150,9 @@ describe('ReaderSettingsPage', () => {
         'page-transition',
         'background-color',
         'vertical-gap',
+        'max-strip-width',
+        'show-page-number',
+        'show-chapter-transition',
         'keep-screen-on',
         'fullscreen-on-open',
         'image-smoothing',
@@ -115,6 +164,12 @@ describe('ReaderSettingsPage', () => {
         'tap-zone-debug-overlay',
         'diagnostics-enabled',
       ].sort(),
+    );
+    expect(settingIds(byTitle.get('Reading mode') ?? null)).toEqual(
+      expect.arrayContaining(['spread-offset']),
+    );
+    expect(settingIds(byTitle.get('Display') ?? null)).toEqual(
+      expect.arrayContaining(['max-strip-width', 'show-page-number', 'show-chapter-transition']),
     );
     expect(settingIds(byTitle.get('Performance') ?? null)).toEqual(
       expect.arrayContaining(['preload-ahead', 'preload-behind', 'prefetch-budget']),
@@ -198,16 +253,11 @@ describe('ReaderSettingsPage', () => {
       isError: false,
       onChange,
     });
-    const rowWithId = (id: string) => {
-      const row = collectElements(page).find(
-        (element) => (element.props as { id?: unknown }).id === id,
-      );
-      if (row === undefined) throw new Error(`${id} row is missing`);
-      return row.props as { onChange: (value: never) => void };
-    };
+    const changeRow = (id: string) =>
+      (rowWithId(page, id).props as { onChange: (value: never) => void }).onChange;
 
-    rowWithId('chrome-visibility').onChange('always' as never);
-    rowWithId('vertical-gap').onChange(16 as never);
+    changeRow('chrome-visibility')('always' as never);
+    changeRow('vertical-gap')(16 as never);
 
     // A patch carries only the edited field; merging over the cache is the
     // route's job, so a control rendered before the previous re-render cannot
@@ -216,7 +266,67 @@ describe('ReaderSettingsPage', () => {
     expect(onChange).toHaveBeenNthCalledWith(2, { verticalGapPx: 16 });
   });
 
-  it('Given the budget slider, Then it shows MiB, reaches the cap and saves bytes', () => {
+  it('Given the budget presets, Then the stored bytes pick a preset and a choice saves its bytes', () => {
+    const onChange = vi.fn<(patch: Partial<ReaderSettings>) => void>();
+    const onInteractionEnd = vi.fn<() => void>();
+    const budget = budgetRow(getDefaultReaderSettings(), onChange, onInteractionEnd);
+
+    expect(budget.value).toBe(String(PREFETCH_BUDGET_DEFAULT_BYTES));
+    expect(budget.options.map((option) => option.label)).toEqual([
+      'Unlimited',
+      '100 MB',
+      '250 MB (default)',
+      '500 MB',
+      '1 GB',
+    ]);
+    expect(budget.options.map((option) => Number(option.value))).toEqual([
+      0,
+      100 * MIB,
+      250 * MIB,
+      500 * MIB,
+      1024 * MIB,
+    ]);
+
+    budget.onChange('0');
+    expect(onChange).toHaveBeenLastCalledWith({ prefetchBudgetBytes: 0 });
+    budget.onChange(String(1024 * MIB));
+    expect(onChange).toHaveBeenLastCalledWith({ prefetchBudgetBytes: 1024 * MIB });
+    expect(onInteractionEnd).toHaveBeenCalledTimes(2);
+  });
+
+  it('Given a stored budget that matches no preset, Then it shows as Custom and is kept as stored', () => {
+    const onChange = vi.fn<(patch: Partial<ReaderSettings>) => void>();
+    const stored = { ...getDefaultReaderSettings(), prefetchBudgetBytes: 300 * MIB };
+    const budget = budgetRow(stored, onChange);
+
+    expect(budget.value).toBe('custom');
+    expect(budget.options.at(-1)).toEqual({ value: 'custom', label: 'Custom' });
+    budget.onChange('custom');
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('Given the max strip width, Then it spans 40-100% and labels 100% as auto', () => {
+    const onChange = vi.fn<(patch: Partial<ReaderSettings>) => void>();
+    const row = (maxStripWidthPercent: number) =>
+      rowWithId(
+        ReaderSettingsPage({
+          settings: { ...getDefaultReaderSettings(), maxStripWidthPercent },
+          isLoading: false,
+          isError: false,
+          onChange,
+        }),
+        'max-strip-width',
+      );
+
+    const auto = row(100);
+    expect(auto.props).toMatchObject({ value: 100, min: 40, max: 100 });
+    expect(renderedSliderValueText(auto)).toBe('100% (auto)');
+    expect(renderedSliderValueText(row(80))).toBe('80%');
+    (auto.props as { onChange: (value: number) => void }).onChange(80);
+    expect(onChange).toHaveBeenLastCalledWith({ maxStripWidthPercent: 80 });
+  });
+
+  it('Given the spread offset, the page number and the transition screen, When changed, Then each saves its field', () => {
     const onChange = vi.fn<(patch: Partial<ReaderSettings>) => void>();
     const page = ReaderSettingsPage({
       settings: getDefaultReaderSettings(),
@@ -224,47 +334,27 @@ describe('ReaderSettingsPage', () => {
       isError: false,
       onChange,
     });
-    const slider = collectElements(page).find(
-      (element) => (element.props as { id?: unknown }).id === 'prefetch-budget',
-    );
-    if (slider === undefined) throw new Error('prefetch budget slider is missing');
-    const sliderProps = slider.props as {
-      value?: unknown;
-      min?: unknown;
-      max?: unknown;
-      step?: unknown;
-      onChange?: (value: number) => void;
+    const offset = rowWithId(page, 'spread-offset').props as {
+      value: string;
+      options: readonly { value: string; label: string }[];
+      onChange: (value: string) => void;
     };
+    const toggle = (id: string) =>
+      rowWithId(page, id).props as {
+        checked: boolean;
+        onCheckedChange: (checked: boolean) => void;
+      };
 
-    function renderedSliderValueText(element: ReactElement): unknown {
-      const rendered = (element.type as (props: unknown) => ReactElement)(element.props);
-      const inner = collectElements(rendered).find((child) => child.type === Slider);
-      if (inner === undefined) throw new Error('slider input is missing');
-      return (inner.props as { 'aria-valuetext'?: unknown })['aria-valuetext'];
-    }
+    expect(offset.value).toBe('0');
+    expect(offset.options.map((option) => option.label)).toEqual(['Cover alone', 'Offset by one']);
+    offset.onChange('1');
+    expect(onChange).toHaveBeenLastCalledWith({ spreadOffset: 1 });
 
-    expect(sliderProps.value).toBe(250);
-    expect(sliderProps.max).toBe(2048);
-    // The last step must land exactly on the 2 GiB cap.
-    expect(
-      ((sliderProps.max as number) - (sliderProps.min as number)) % (sliderProps.step as number),
-    ).toBe(0);
-    expect(renderedSliderValueText(slider)).toBe('250 MiB');
-
-    const unlimited = collectElements(
-      ReaderSettingsPage({
-        settings: { ...getDefaultReaderSettings(), prefetchBudgetBytes: 0 },
-        isLoading: false,
-        isError: false,
-        onChange,
-      }),
-    ).find((element) => (element.props as { id?: unknown }).id === 'prefetch-budget');
-    if (unlimited === undefined) throw new Error('prefetch budget slider is missing');
-    expect(renderedSliderValueText(unlimited)).toBe('Unlimited');
-
-    sliderProps.onChange?.(100);
-    expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ prefetchBudgetBytes: 100 * 1024 * 1024 }),
-    );
+    expect(toggle('show-page-number').checked).toBe(true);
+    toggle('show-page-number').onCheckedChange(false);
+    expect(onChange).toHaveBeenLastCalledWith({ showPageNumber: false });
+    expect(toggle('show-chapter-transition').checked).toBe(true);
+    toggle('show-chapter-transition').onCheckedChange(false);
+    expect(onChange).toHaveBeenLastCalledWith({ showChapterTransition: false });
   });
 });

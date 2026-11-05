@@ -77,6 +77,8 @@ vi.mock('@app/design-system', async () => {
     SheetContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
     SheetHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
     SheetTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
+    Input: (props: Record<string, unknown>) => <input {...(props as object)} />,
+    Slider: (props: Record<string, unknown>) => <input type="range" {...(props as object)} />,
     useStateReducer: (reducer: (state: unknown, event: unknown) => unknown, initial: unknown) =>
       useReducer(reducer as never, initial),
   };
@@ -189,6 +191,26 @@ function click(element: HTMLElement) {
   act(() => element.click());
 }
 
+/** The input named by its label, the way a screen reader finds it. */
+function inputLabelled(container: HTMLElement, label: string): HTMLInputElement {
+  const element = [...container.querySelectorAll('label')].find(
+    (candidate) => candidate.textContent === label,
+  );
+  const input = element?.htmlFor ? document.getElementById(element.htmlFor) : null;
+  if (!(input instanceof HTMLInputElement)) throw new Error(`Missing input: ${label}`);
+  return input;
+}
+
+/** Sets a controlled input the way the browser does, so React sees the change. */
+function typeInto(input: HTMLInputElement, value: string) {
+  // oxlint-disable-next-line typescript/unbound-method -- the native setter is invoked with the input as `this` on the next line.
+  const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+  act(() => {
+    setValue?.call(input, value);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
+
 function chromeMode(container: HTMLElement): string | undefined {
   return container.querySelector<HTMLElement>('[data-testid="chrome"]')?.dataset.mode;
 }
@@ -295,6 +317,56 @@ describe('ReaderScreen settings', () => {
       ).toBe('true');
       click(buttonNamed(group(container, 'Page fit'), 'Fit height'));
       expect(changes.at(-1)).toEqual({ patch: { fitMode: 'height' }, scope: 'title' });
+      act(() => root.unmount());
+    });
+
+    it('Given the default scope, When the strip gap and background change, Then both apply to this title', () => {
+      const { root, container, changes } = renderReader(buildData({}));
+
+      click(buttonNamed(container, 'Settings'));
+      const gap = inputLabelled(container, 'Strip gap');
+      expect(gap.getAttribute('max')).toBe('64');
+      expect(gap.getAttribute('aria-valuetext')).toBe('0px');
+      typeInto(gap, '24');
+      typeInto(inputLabelled(container, 'Background'), '#223344');
+
+      expect(changes.slice(-2)).toEqual([
+        { patch: { verticalGapPx: 24 }, scope: 'title' },
+        { patch: { backgroundColor: '#223344' }, scope: 'title' },
+      ]);
+      expect(inputLabelled(container, 'Strip gap').getAttribute('aria-valuetext')).toBe('24px');
+      act(() => root.unmount());
+    });
+
+    it('Given All titles, When the strip gap and background change, Then both are written globally', () => {
+      const { root, container, changes } = renderReader(buildData({}));
+
+      click(buttonNamed(container, 'Settings'));
+      click(buttonNamed(group(container, 'Applies to'), 'All titles'));
+      typeInto(inputLabelled(container, 'Strip gap'), '8');
+      typeInto(inputLabelled(container, 'Background'), '#ffffff');
+
+      expect(changes.slice(-2)).toEqual([
+        { patch: { verticalGapPx: 8 }, scope: 'global' },
+        { patch: { backgroundColor: '#ffffff' }, scope: 'global' },
+      ]);
+      act(() => root.unmount());
+    });
+
+    it('Given a misaligned spread, When Offset by one is chosen, Then this title pairs from the first page', () => {
+      const { root, container, changes } = renderReader(buildData({}));
+
+      click(buttonNamed(container, 'Settings'));
+      const offset = group(container, 'Spread offset');
+      expect(buttonNamed(offset, 'Cover alone').getAttribute('aria-pressed')).toBe('true');
+      click(buttonNamed(offset, 'Offset by one'));
+
+      expect(changes.at(-1)).toEqual({ patch: { spreadOffset: 1 }, scope: 'title' });
+      expect(
+        buttonNamed(group(container, 'Spread offset'), 'Offset by one').getAttribute(
+          'aria-pressed',
+        ),
+      ).toBe('true');
       act(() => root.unmount());
     });
 

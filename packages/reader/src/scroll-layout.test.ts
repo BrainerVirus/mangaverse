@@ -5,12 +5,30 @@ import {
   isLongStripPage,
   planPageTiles,
   resolveScrollPreloadAhead,
+  resolveStripMaxWidthPercent,
   resolveStripPageSize,
   stripPageHeight,
   STRIP_TILE_HEIGHT_PX,
   windowedScrollPages,
 } from './scroll-layout.js';
 import type { ReaderPage } from './types.js';
+
+describe('resolveStripMaxWidthPercent', () => {
+  it.each([
+    [100, 999, 100],
+    [100, 1023, 100],
+    [100, 1024, 70],
+    [100, 1280, 70],
+    [80, 999, 80],
+    [80, 1280, 80],
+    [40, 1920, 40],
+  ])(
+    'Given setting %i at %ipx, When resolved, Then the strip is %i%% wide',
+    (setting, width, expected) => {
+      expect(resolveStripMaxWidthPercent(setting, width)).toBe(expected);
+    },
+  );
+});
 
 describe('computeScrollPageMetrics', () => {
   it('Given three pages of 100px with a 10px gap, When measured, Then offsets include the gaps', () => {

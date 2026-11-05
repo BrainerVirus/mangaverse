@@ -1,10 +1,12 @@
-import { useRef, type RefObject } from 'react';
+import { useId, useRef, type RefObject } from 'react';
 import {
   Button,
+  Input,
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
+  Slider,
   useStateReducer,
 } from '@app/design-system';
 import {
@@ -12,7 +14,7 @@ import {
   useGsapContext,
   useReducedMotion,
 } from '@app/design-system/motion';
-import type { ReaderSettings } from '@app/shared';
+import { READER_STRIP_GAP_MAX, type ReaderSettings } from '@app/shared';
 import type { ReaderMetricsSnapshot } from '../reader-metrics.js';
 import type { ReaderSettingsScope } from '../types.js';
 
@@ -67,6 +69,11 @@ const TAP_ZONE_CHOICES = [
   ['grid', 'Grid'],
 ] as const;
 
+const SPREAD_OFFSET_CHOICES = [
+  ['0', 'Cover alone'],
+  ['1', 'Offset by one'],
+] as const;
+
 const SCOPE_CHOICES = [
   ['title', 'This title'],
   ['global', 'All titles'],
@@ -101,6 +108,73 @@ function ChoiceGroup<T extends string>({
         ))}
       </div>
     </fieldset>
+  );
+}
+
+/** A labelled slider with its current value beside the label. */
+function SliderRow({
+  label,
+  value,
+  min,
+  max,
+  step,
+  format,
+  onChange,
+}: {
+  readonly label: string;
+  readonly value: number;
+  readonly min: number;
+  readonly max: number;
+  readonly step: number;
+  readonly format: (value: number) => string;
+  readonly onChange: (value: number) => void;
+}) {
+  const id = useId();
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-4">
+        <label htmlFor={id} className="text-sm font-medium">
+          {label}
+        </label>
+        <span className="text-sm tabular-nums text-muted-foreground">{format(value)}</span>
+      </div>
+      <Slider
+        id={id}
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        aria-valuetext={format(value)}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+    </div>
+  );
+}
+
+/** The reader background, picked with the platform's colour input. */
+function ColorRow({
+  label,
+  value,
+  onChange,
+}: {
+  readonly label: string;
+  readonly value: string;
+  readonly onChange: (value: string) => void;
+}) {
+  const id = useId();
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <label htmlFor={id} className="text-sm font-medium">
+        {label}
+      </label>
+      <Input
+        id={id}
+        type="color"
+        value={value}
+        className="h-10 w-20 cursor-pointer p-1"
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </div>
   );
 }
 
@@ -196,11 +270,31 @@ function QuickSettings({
         value={settings.fitMode}
         onChoose={(fitMode) => change({ fitMode })}
       />
+      <SliderRow
+        label="Strip gap"
+        value={settings.verticalGapPx}
+        min={0}
+        max={READER_STRIP_GAP_MAX}
+        step={1}
+        format={(value) => `${value}px`}
+        onChange={(verticalGapPx) => change({ verticalGapPx })}
+      />
+      <ColorRow
+        label="Background"
+        value={settings.backgroundColor}
+        onChange={(backgroundColor) => change({ backgroundColor })}
+      />
       <ChoiceGroup
         label="Tap zones"
         choices={TAP_ZONE_CHOICES}
         value={settings.tapZoneLayout}
         onChoose={(tapZoneLayout) => change({ tapZoneLayout })}
+      />
+      <ChoiceGroup
+        label="Spread offset"
+        choices={SPREAD_OFFSET_CHOICES}
+        value={settings.spreadOffset === 1 ? '1' : '0'}
+        onChoose={(offset) => change({ spreadOffset: offset === '1' ? 1 : 0 })}
       />
       <div className="flex flex-col gap-2">
         <ChoiceGroup label="Applies to" choices={SCOPE_CHOICES} value={scope} onChoose={setScope} />

@@ -83,11 +83,15 @@ export function ReaderOverlays({
       <ReaderChrome
         visible={visible}
         onClose={onClose}
-        onChapterEnd={() => onChapterEndOpenChange(true)}
+        // With the transition screen off, the last page's Next has nowhere to go.
+        onChapterEnd={
+          settings.showChapterTransition ? () => onChapterEndOpenChange(true) : undefined
+        }
         chapterTitle={chapterTitle}
         {...(sourceName !== undefined ? { sourceName } : {})}
         currentPage={currentPage}
         totalPages={totalPages}
+        showPageNumber={settings.showPageNumber}
         onPageChange={onPageChange}
         renderPagePreview={renderPagePreview}
         mode={mode}

@@ -9,6 +9,7 @@ import {
   planPageTiles,
   PLACEHOLDER_PAGE_RATIO,
   resolveScrollPreloadAhead,
+  resolveStripMaxWidthPercent,
   resolveStripPageSize,
   stripPageHeight,
   windowedScrollPages,
@@ -26,6 +27,8 @@ export interface ReaderScrollViewHandle {
 interface ReaderScrollViewProps {
   readonly pages: readonly ReaderPage[];
   readonly gapPx: number;
+  /** The strip width setting (`maxStripWidthPercent`); 100 is Auto. */
+  readonly maxWidthPercent?: number;
   readonly activePageIndex: number;
   readonly onActivePageChange: (index: number) => void;
   readonly providerId: string;
@@ -66,6 +69,7 @@ interface NaturalSize {
 }
 
 interface StripGeometry {
+  /** The scroll container's width; the strip itself may be narrower. */
   readonly width: number;
   readonly spacerPx: number;
   readonly natural: Readonly<Record<number, NaturalSize>>;
@@ -128,6 +132,100 @@ function withMeasuredShapes(
       ? page
       : { ...page, image: { ...page.image, width: size.width, height: size.height } };
   });
+}
+
+interface ScrollContentProps {
+  readonly pages: readonly ReaderPage[];
+  readonly rowWindow: ReadonlySet<number>;
+  readonly imageWindow: ReadonlySet<number>;
+  readonly metrics: readonly ScrollPageMetric[];
+  readonly heights: readonly number[];
+  readonly geometry: StripGeometry;
+  readonly widthPercent: number;
+  readonly contentHeight: number;
+  readonly totalHeight: number;
+  readonly spacerPx: number;
+  readonly cacheReady: boolean;
+  readonly providerId: string;
+  readonly mangaId: string;
+  readonly chapterId: string;
+  readonly imageSmoothing: boolean;
+  readonly onSkipPage: (index: number) => void;
+  readonly onBack: (() => void) | undefined;
+  readonly onMeasured: (index: number, size: NaturalSize) => void;
+  readonly onMetric:
+    | ((metric: {
+        pageIndex: number;
+        status: 'loaded' | 'failed';
+        fromCache: boolean;
+        durationMs: number;
+      }) => void)
+    | undefined;
+}
+
+/** The virtualised rows and the tail spacer, inside the centred content column. */
+function ScrollContent({
+  pages,
+  rowWindow,
+  imageWindow,
+  metrics,
+  heights,
+  geometry,
+  widthPercent,
+  contentHeight,
+  totalHeight,
+  spacerPx,
+  cacheReady,
+  providerId,
+  mangaId,
+  chapterId,
+  imageSmoothing,
+  onSkipPage,
+  onBack,
+  onMeasured,
+  onMetric,
+}: ScrollContentProps) {
+  return (
+    <div
+      className="relative mx-auto"
+      style={{ height: contentHeight, width: `${widthPercent}%` }}
+      data-testid="reader-scroll-content"
+    >
+      {pages.map((page, index) => {
+        if (!rowWindow.has(index)) return null;
+        const metric = metrics[index];
+        const height = heights[index] ?? 0;
+        const size = resolveStripPageSize(page, geometry.natural[index], geometry.fallbackRatio);
+        return (
+          <ScrollPageRow
+            key={page.id}
+            page={page}
+            index={index}
+            top={metric?.top ?? 0}
+            height={height}
+            aspectRatio={`${size.width} / ${size.height}`}
+            mounted={imageWindow.has(index)}
+            cacheReady={cacheReady}
+            providerId={providerId}
+            mangaId={mangaId}
+            chapterId={chapterId}
+            onSkipPage={onSkipPage}
+            onBack={onBack}
+            imageSmoothing={imageSmoothing}
+            onMeasured={onMeasured}
+            onMetric={onMetric}
+          />
+        );
+      })}
+      {spacerPx > 0 ? (
+        <div
+          aria-hidden
+          className="absolute left-0 w-full"
+          style={{ top: totalHeight, height: spacerPx }}
+        />
+      ) : null}
+    </div>
+  );
 }
 
 /**
@@ -254,6 +352,7 @@ function readPageMetrics(container: HTMLElement): readonly ScrollPageMetric[] {
 export function ReaderScrollView({
   pages,
   gapPx,
+  maxWidthPercent = 100,
   activePageIndex,
   onActivePageChange,
   providerId,
@@ -277,9 +376,16 @@ export function ReaderScrollView({
   const [geometry, dispatchGeometry] = useStateReducer(geometryReducer, EMPTY_GEOMETRY);
   const geometryRef = useRef<StripGeometry>(geometry);
 
-  const stripWidth = geometry.width;
+  // The container stays full width, so the scrollbar and tap zones keep the
+  // whole reader; only the content wrapper narrows and every row height comes
+  // from the narrowed width.
+  const containerWidth = geometry.width;
+  const measuredWidth = containerWidth > 0 ? containerWidth : DEFAULT_STRIP_WIDTH;
+  const widthPercent = resolveStripMaxWidthPercent(maxWidthPercent, measuredWidth);
+  const stripWidth = (containerWidth * widthPercent) / 100;
   const spacerPx = geometry.spacerPx;
-  const geometryWidth = stripWidth > 0 ? stripWidth : DEFAULT_STRIP_WIDTH;
+  const geometryWidth = (measuredWidth * widthPercent) / 100;
+  const stripWidthRef = useRef(stripWidth);
   const pagesHaveMetadata = useMemo(() => pages.some(hasPageShape), [pages]);
   const heights = useMemo(
     () =>
@@ -381,6 +487,7 @@ export function ReaderScrollView({
   useLayoutEffect(() => {
     metricsRef.current = metrics;
     geometryRef.current = geometry;
+    stripWidthRef.current = stripWidth;
     pagesRef.current = pages;
     const pending = pendingCorrectionRef.current;
     const container = containerRef.current;
@@ -423,8 +530,9 @@ export function ReaderScrollView({
         size.height > 0;
       const fallbackRatio = adoptFallback ? size.height / size.width : current.fallbackRatio;
       if (page !== undefined && size.width > 0 && size.height > 0) {
-        const before = stripPageHeight(page, current.width, previous, current.fallbackRatio);
-        const after = stripPageHeight(page, current.width, size, fallbackRatio);
+        const width = stripWidthRef.current;
+        const before = stripPageHeight(page, width, previous, current.fallbackRatio);
+        const after = stripPageHeight(page, width, size, fallbackRatio);
         const delta = after - before;
         const top = metricsRef.current[index]?.top;
         const container = containerRef.current;
@@ -510,41 +618,27 @@ export function ReaderScrollView({
       data-page-offsets={JSON.stringify(metrics.map((metric) => metric.top))}
       data-page-count={pages.length}
     >
-      <div className="relative w-full" style={{ height: contentHeight }}>
-        {pages.map((page, index) => {
-          if (!rowWindow.has(index)) return null;
-          const metric = metrics[index];
-          const height = heights[index] ?? 0;
-          const size = resolveStripPageSize(page, geometry.natural[index], geometry.fallbackRatio);
-          return (
-            <ScrollPageRow
-              key={page.id}
-              page={page}
-              index={index}
-              top={metric?.top ?? 0}
-              height={height}
-              aspectRatio={`${size.width} / ${size.height}`}
-              mounted={imageWindow.has(index)}
-              cacheReady={cacheReady}
-              providerId={providerId}
-              mangaId={mangaId}
-              chapterId={chapterId}
-              onSkipPage={skipPage}
-              onBack={onBack}
-              imageSmoothing={imageSmoothing}
-              onMeasured={reportMeasured}
-              onMetric={onPageMetric}
-            />
-          );
-        })}
-        {spacerPx > 0 ? (
-          <div
-            aria-hidden
-            className="absolute left-0 w-full"
-            style={{ top: totalHeight, height: spacerPx }}
-          />
-        ) : null}
-      </div>
+      <ScrollContent
+        pages={pages}
+        rowWindow={rowWindow}
+        imageWindow={imageWindow}
+        metrics={metrics}
+        heights={heights}
+        geometry={geometry}
+        widthPercent={widthPercent}
+        contentHeight={contentHeight}
+        totalHeight={totalHeight}
+        spacerPx={spacerPx}
+        cacheReady={cacheReady}
+        providerId={providerId}
+        mangaId={mangaId}
+        chapterId={chapterId}
+        imageSmoothing={imageSmoothing}
+        onSkipPage={skipPage}
+        onBack={onBack}
+        onMeasured={reportMeasured}
+        onMetric={onPageMetric}
+      />
     </div>
   );
 }
