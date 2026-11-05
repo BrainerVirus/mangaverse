@@ -24,6 +24,7 @@ import {
   SelectValue,
   SettingsSection,
   PageContainer,
+  PageHeader,
 } from '@app/design-system';
 
 import { MIGRATION_BATCH_LIMIT, summarizeMigrationBatch } from '../batch-migration.js';
@@ -1149,13 +1150,10 @@ export function MigrationPage({
   return (
     <PageContainer variant="read">
       <section aria-label="Migration" className="space-y-6">
-        <header className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Migration</h1>
-          <p className="text-sm text-muted-foreground">
-            Move library titles from one provider to another. Review matches before applying
-            changes.
-          </p>
-        </header>
+        <PageHeader
+          title="Migration"
+          description="Move library titles from one provider to another. Review matches before applying changes."
+        />
 
         <ApplyReportPanel
           applyReport={applyReport}

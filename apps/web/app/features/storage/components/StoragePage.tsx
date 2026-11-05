@@ -14,6 +14,7 @@ import {
   LoadingState,
   SettingsSection,
   PageContainer,
+  PageHeader,
 } from '@app/design-system';
 import { formatCacheBytes } from '@app/cache';
 import type { DownloadStatus } from '@app/db';
@@ -287,19 +288,15 @@ export function StoragePage({
   return (
     <PageContainer variant="read">
       <section aria-label="Storage" className="space-y-6">
-        <header className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Storage</h1>
-          <p className="text-sm text-muted-foreground">
-            Review local storage usage and clear safe cache data without touching your library or
-            reading progress.
-          </p>
-        </header>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={onRefresh} disabled={isRefreshing}>
-            {isRefreshing ? 'Refreshing…' : 'Refresh storage'}
-          </Button>
-        </div>
+        <PageHeader
+          title="Storage"
+          description="Review local storage usage and clear safe cache data without touching your library or reading progress."
+          actions={
+            <Button onClick={onRefresh} disabled={isRefreshing}>
+              {isRefreshing ? 'Refreshing…' : 'Refresh storage'}
+            </Button>
+          }
+        />
 
         <ActionStatus
           lastActionMessage={lastActionMessage}

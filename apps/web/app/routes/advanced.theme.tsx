@@ -10,7 +10,7 @@ import {
   validateThemeDefinition,
   type ThemeEditorError,
 } from '@/features/theme';
-import { ErrorState, LoadingState } from '@app/design-system';
+import { ErrorState, LoadingState, PageContainer } from '@app/design-system';
 import type { AppDrizzleDb } from '@app/db';
 import type { ThemeDefinition, ThemeDefinitionIssue, ThemeSettings } from '@app/shared';
 
@@ -32,20 +32,24 @@ function ThemeEditorRoute() {
 
   if (dbStatus === 'loading' || isLoadingCustomThemes) {
     return (
-      <section aria-label="Theme editor" className="mx-auto w-full max-w-5xl p-6">
-        <LoadingState type="detail" />
-      </section>
+      <PageContainer variant="read" className="max-w-5xl">
+        <section aria-label="Theme editor">
+          <LoadingState type="detail" />
+        </section>
+      </PageContainer>
     );
   }
 
   if (dbStatus === 'error' || db === null) {
     return (
-      <section aria-label="Theme editor" className="mx-auto w-full max-w-5xl p-6">
-        <ErrorState
-          title="Could not open the theme editor"
-          message="Your local database may be unavailable. Try reloading the page."
-        />
-      </section>
+      <PageContainer variant="read" className="max-w-5xl">
+        <section aria-label="Theme editor">
+          <ErrorState
+            title="Could not open the theme editor"
+            message="Your local database may be unavailable. Try reloading the page."
+          />
+        </section>
+      </PageContainer>
     );
   }
 

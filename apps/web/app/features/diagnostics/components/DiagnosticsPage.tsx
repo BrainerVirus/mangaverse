@@ -7,7 +7,7 @@ import {
   ErrorState,
   LoadingState,
   SettingsSection,
-  PageContainer,
+  PageHeader,
 } from '@app/design-system';
 import type { PlatformCapabilities } from '@app/platform';
 import { useMemo, useState } from 'react';
@@ -182,96 +182,86 @@ export function DiagnosticsPage({
 
   if (isLoading) {
     return (
-      <PageContainer variant="read">
-        <section aria-label="Diagnostics">
-          <LoadingState type="list" count={3} />
-        </section>
-      </PageContainer>
+      <section aria-label="Diagnostics">
+        <LoadingState type="list" count={3} />
+      </section>
     );
   }
 
   if (isError) {
     return (
-      <PageContainer variant="read">
-        <section aria-label="Diagnostics">
-          <ErrorState
-            title="Could not load diagnostics"
-            message="Local database or platform information is unavailable. Try reloading the page."
-          />
-        </section>
-      </PageContainer>
+      <section aria-label="Diagnostics">
+        <ErrorState
+          title="Could not load diagnostics"
+          message="Local database or platform information is unavailable. Try reloading the page."
+        />
+      </section>
     );
   }
 
   if (report === null) {
     return (
-      <PageContainer variant="read">
-        <section aria-label="Diagnostics">
-          <ErrorState title="Diagnostics unavailable" message="No report was generated." />
-        </section>
-      </PageContainer>
+      <section aria-label="Diagnostics">
+        <ErrorState title="Diagnostics unavailable" message="No report was generated." />
+      </section>
     );
   }
 
   const formattedReport = formatDiagnosticsReport(report);
 
   return (
-    <PageContainer variant="read">
-      <section aria-label="Diagnostics" className="space-y-6">
-        <header className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Diagnostics</h1>
-          <p className="text-sm text-muted-foreground">
-            About MangaVerse, platform details, storage usage, and local database health for
-            troubleshooting.
-          </p>
-        </header>
+    <section aria-label="Diagnostics" className="space-y-6">
+      <PageHeader
+        title="Diagnostics"
+        description="About MangaVerse, platform details, storage usage, and local database health for troubleshooting."
+        actions={
+          <>
+            <Button onClick={onRefresh} disabled={isRefreshing}>
+              {isRefreshing ? 'Refreshing…' : 'Refresh diagnostics'}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                void Promise.resolve(onCopyReport(formattedReport))
+                  .then(() => setCopyState('copied'))
+                  .catch(() => setCopyState('failed'));
+              }}
+            >
+              Copy report
+            </Button>
+            {copyState === 'copied' ? (
+              <output className="text-sm text-muted-foreground">Copied to clipboard</output>
+            ) : null}
+            {copyState === 'failed' ? (
+              <output className="text-sm text-destructive">Could not copy report</output>
+            ) : null}
+          </>
+        }
+      />
 
-        <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={onRefresh} disabled={isRefreshing}>
-            {isRefreshing ? 'Refreshing…' : 'Refresh diagnostics'}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              void Promise.resolve(onCopyReport(formattedReport))
-                .then(() => setCopyState('copied'))
-                .catch(() => setCopyState('failed'));
-            }}
-          >
-            Copy report
-          </Button>
-          {copyState === 'copied' ? (
-            <output className="text-sm text-muted-foreground">Copied to clipboard</output>
-          ) : null}
-          {copyState === 'failed' ? (
-            <output className="text-sm text-destructive">Could not copy report</output>
-          ) : null}
-        </div>
+      <SettingsSection title="About" description="Application identity and build information.">
+        <dl className="divide-y divide-border">
+          <InfoRow label="App" value={report.appName} />
+          <InfoRow label="Version" value={report.appVersion} />
+          <InfoRow label="Runtime" value={report.runtime} />
+          <InfoRow label="Generated" value={report.generatedAt} />
+        </dl>
+      </SettingsSection>
 
-        <SettingsSection title="About" description="Application identity and build information.">
-          <dl className="divide-y divide-border">
-            <InfoRow label="App" value={report.appName} />
-            <InfoRow label="Version" value={report.appVersion} />
-            <InfoRow label="Runtime" value={report.runtime} />
-            <InfoRow label="Generated" value={report.generatedAt} />
-          </dl>
-        </SettingsSection>
+      <PlatformSection report={report} />
 
-        <PlatformSection report={report} />
+      <SettingsSection
+        title="Capabilities"
+        description="Features available on this device and runtime."
+      >
+        <CapabilityGrid capabilities={capabilities} />
+      </SettingsSection>
 
-        <SettingsSection
-          title="Capabilities"
-          description="Features available on this device and runtime."
-        >
-          <CapabilityGrid capabilities={capabilities} />
-        </SettingsSection>
+      <StorageSection report={report} />
 
-        <StorageSection report={report} />
+      <LocalDatabaseSection report={report} />
 
-        <LocalDatabaseSection report={report} />
-
-        <LocalServiceSection report={report} />
-      </section>
-    </PageContainer>
+      <LocalServiceSection report={report} />
+    </section>
   );
 }

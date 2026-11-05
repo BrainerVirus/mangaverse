@@ -95,8 +95,9 @@ reading sessions, visual media browsing, and source management.
 - Use clear page titles with short supporting descriptions.
 - Keep primary actions near the page title on desktop.
 - Move primary actions to sticky bottom or top bars on mobile where appropriate.
-- Use content max-widths for text-heavy settings pages.
-- Use full-bleed grids for library and discovery where visual browsing matters.
+- Frame every app route in `PageContainer` and title it with `PageHeader`: `wide` (1600px) for library,
+  discovery and other grids/lists, `read` (768px) for text-heavy settings and forms. Both are
+  left-aligned with `px-6 py-6 lg:px-8 lg:py-8`, so every title shares one left edge. The reader is exempt.
 
 ### Spacing
 

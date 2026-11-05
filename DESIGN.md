@@ -550,15 +550,15 @@ tw-animate-css and GSAP agree on the curve:
 
 ### 5.3 Interaction states
 
-| State                       | Motion                                                                                                  | Notes                                                                                                                   |
-| --------------------------- | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| State                       | Motion                                                                                                  | Notes                                                                                                                                 |
+| --------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | Press                       | `scale: 0.97`, `DURATION.micro`, `power2.out`                                                           | Release returns at `DURATION.standard` / `expo.out` (damped settle). Proposed helper `pressFeedback()` in `@app/design-system/motion` |
-| Hover (pointer only)        | `y: -1px`, one elevation step up (cards 1 → 3, floating controls 2 → 3), `DURATION.quick`, `power2.out` | Only under `@media (hover: hover) and (pointer: fine)`; never the only affordance                                       |
-| Focus                       | **none**                                                                                                | The 2px `--ring` at 2px offset appears instantly. Focus is never animated, never delayed, never faded                   |
-| Selected / active           | fill + specular edge change, `DURATION.quick`                                                           | Colour transitions may use CSS; geometry must not move                                                                  |
-| Disabled                    | no motion, 50% opacity                                                                                  |                                                                                                                         |
-| Glass appear                | `opacity` + `transform` of the whole layer, `DURATION.quick`–`standard`                                 | Never animate `backdrop-filter` or `box-shadow`                                                                         |
-| Glass settle (after a drag) | `expo.out`, `DURATION.standard`                                                                         | The layer arrives and stops; no bounce                                                                                  |
+| Hover (pointer only)        | `y: -1px`, one elevation step up (cards 1 → 3, floating controls 2 → 3), `DURATION.quick`, `power2.out` | Only under `@media (hover: hover) and (pointer: fine)`; never the only affordance                                                     |
+| Focus                       | **none**                                                                                                | The 2px `--ring` at 2px offset appears instantly. Focus is never animated, never delayed, never faded                                 |
+| Selected / active           | fill + specular edge change, `DURATION.quick`                                                           | Colour transitions may use CSS; geometry must not move                                                                                |
+| Disabled                    | no motion, 50% opacity                                                                                  |                                                                                                                                       |
+| Glass appear                | `opacity` + `transform` of the whole layer, `DURATION.quick`–`standard`                                 | Never animate `backdrop-filter` or `box-shadow`                                                                                       |
+| Glass settle (after a drag) | `expo.out`, `DURATION.standard`                                                                         | The layer arrives and stops; no bounce                                                                                                |
 
 ### 5.4 Sheets, pages and the reader
 
@@ -865,10 +865,12 @@ shell, fixed, and never scrolls.
 
 ### Page structure
 
-- Browsing pages (library, discover): `max-w-[1600px]` centred, `p-6` rising to `p-8` on desktop,
-  `gap-6` between header, filters and grid.
-- Text-heavy pages (settings, diagnostics): `max-w-3xl p-6`; theme customisation `max-w-5xl` with
-  `space-y-8`.
+- Every app route sits in `PageContainer` (`@app/design-system`), left-aligned at any window width so all
+  titles share one left edge: `px-6 py-6`, rising to `lg:px-8 lg:py-8`. `wide` (1600px) is for grids
+  and lists (library, discover, search, extensions, a title's detail page) with `gap-6` between
+  header, filters and grid; `read` (768px) is for settings, forms and diagnostics. Theme
+  customisation keeps `max-w-5xl` via `className` with `space-y-8`. The reader is exempt.
+- Every page title is a `PageHeader`; the onboarding steps after Welcome keep `type-title`.
 - Detail pages: a 160px cover (192px from `md`) beside the metadata, description capped at `max-w-3xl`;
   chapter lists stay a single bordered, divider-separated block.
 - Page headers: title, count badge and description left; actions right; the row stacks while the

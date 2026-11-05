@@ -18,6 +18,7 @@ import {
   LoadingState,
   SettingsSection,
   PageContainer,
+  PageHeader,
 } from '@app/design-system';
 
 import { summarizeRestorePreview } from '../summarize-restore-preview.js';
@@ -224,15 +225,10 @@ export function BackupPage({
   return (
     <PageContainer variant="read">
       <section aria-label="Backup and restore" className="space-y-6">
-        <header className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Backup &amp; Restore
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Export your library, categories, reading progress, providers, and settings to a local
-            file. Import a backup to replace current local data.
-          </p>
-        </header>
+        <PageHeader
+          title="Backup & Restore"
+          description="Export your library, categories, reading progress, providers, and settings to a local file. Import a backup to replace current local data."
+        />
 
         <RestoreStatus
           restoreSuccess={restoreSuccess}
