@@ -51,6 +51,12 @@ export interface HostListOptions<T> {
    */
   readonly patchRows?: boolean;
   /**
+   * How long a change that needs a whole reload waits before it reloads, so a burst of change
+   * batches costs one reload. Defaults to 0: reload at once. `refetch()` never waits, and row
+   * patches are not delayed.
+   */
+  readonly reloadDelayMs?: number;
+  /**
    * Writes an optimistic update to the host. Throwing rolls the optimistic rows back; the
    * error reaches the caller through the transaction.
    */
@@ -69,11 +75,15 @@ export type HostListCollection<T> = Collection<ListedRow<T>, string, HostListUti
  * With `refreshRow`, a change to `rowTable` alone reads only the rows it names and updates
  * them in place: their position stays the host's from the last reload. A named row that
  * joins or leaves the list reloads it whole: only the host can place it or refill the end.
+ *
+ * With `reloadDelayMs`, a reload a change asks for starts after that delay, once for every
+ * change that arrives meanwhile.
  */
 export function createHostListCollection<T extends object>(
   options: HostListOptions<T>,
 ): HostListCollection<T> {
   const { load, keyOf, subscribe, persistUpdate, rowTable } = options;
+  const reloadDelayMs = options.reloadDelayMs ?? 0;
   const tables = new Set(options.tables);
   // The row read, when a change to `rowTable` may patch rows instead of reloading.
   const readRow =
@@ -127,7 +137,31 @@ export function createHostListCollection<T extends object>(
           tail = next;
           return next;
         };
-        refetch = reload;
+
+        // A change-driven reload waits out its burst: the first change starts the timer, the
+        // ones after it ride on it, and the reload reads the host once the timer fires.
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const cancelScheduled = () => {
+          if (timer === undefined) return;
+          clearTimeout(timer);
+          timer = undefined;
+        };
+        const scheduleReload = () => {
+          if (reloadDelayMs <= 0) {
+            void reload();
+            return;
+          }
+          if (timer !== undefined) return;
+          timer = setTimeout(() => {
+            timer = undefined;
+            if (!stopped) void reload();
+          }, reloadDelayMs);
+        };
+        // The reload a refetch starts reads the host now, so a scheduled one has nothing to add.
+        refetch = () => {
+          cancelScheduled();
+          return reload();
+        };
 
         const applyRows = async (
           read: (key: string) => Promise<T | undefined>,
@@ -143,7 +177,9 @@ export function createHostListCollection<T extends object>(
             collection.has(key) ? value === undefined : value !== undefined,
           );
           if (reshaped) {
-            return apply();
+            // Not awaited: the reload queues behind this patch.
+            scheduleReload();
+            return;
           }
           const listed = rows.flatMap(({ key, value }) => {
             const row = collection.get(key);
@@ -190,11 +226,12 @@ export function createHostListCollection<T extends object>(
               readRow,
               rows.map((change) => change.key),
             );
-          } else void reload();
+          } else scheduleReload();
         });
         void reload();
         return () => {
           stopped = true;
+          cancelScheduled();
           unsubscribe();
         };
       },

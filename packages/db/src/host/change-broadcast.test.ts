@@ -179,6 +179,60 @@ describe('change capture', () => {
           VALUES ('ch-m2', 'm2', 10, 0, 0)`);
     expect(capture.drain()).toEqual([{ table: 'chapter_read_state', key: 'ch-m2', op: 'insert' }]);
   });
+
+  it('records a chapter change as an update of the entry that owns its title', () => {
+    const directory = scratch();
+    const native = openNativeDatabase(join(directory, 'capture.sqlite'));
+    cleanups.unshift(() => native.close());
+    const capture = installChangeCapture(native.client);
+    const exec = (sql: string) => native.client.exec(sql);
+    for (const manga of ['m1', 'm2', 'm3']) {
+      exec(`INSERT INTO manga_identities (id, canonical_title, status, content_rating, merged, default_provider_mapping_id)
+            VALUES ('${manga}', '${manga}', 'ongoing', 'safe', 0, 'map-${manga}')`);
+      exec(`INSERT INTO manga_provider_mappings (id, manga_id, provider_id, provider_manga_id)
+            VALUES ('map-${manga}', '${manga}', 'prov', '${manga}')`);
+    }
+    // m1 and m2 are in the library; m3 is not.
+    exec(`INSERT INTO library_entries (id, manga_id, status) VALUES ('e1', 'm1', 'reading')`);
+    exec(`INSERT INTO library_entries (id, manga_id, status) VALUES ('e2', 'm2', 'reading')`);
+    capture.drain();
+
+    const chapterIn = (manga: string) =>
+      `INSERT INTO chapters (id, manga_id, provider_mapping_id, title, chapter_index)
+       VALUES ('ch-${manga}', '${manga}', 'map-${manga}', 'One', 0)`;
+    const entry = (id: string) => ({ table: 'library_entries', key: id, op: 'update' });
+
+    exec(chapterIn('m1'));
+    expect(capture.drain()).toEqual([
+      { table: 'chapters', key: 'ch-m1', op: 'insert' },
+      entry('e1'),
+    ]);
+    exec(`UPDATE chapters SET title = 'Uno' WHERE id = 'ch-m1'`);
+    expect(capture.drain()).toEqual([
+      { table: 'chapters', key: 'ch-m1', op: 'update' },
+      entry('e1'),
+    ]);
+
+    // The title that owns the chapter changes: both entries lose or gain it.
+    exec(`UPDATE chapters SET manga_id = 'm2' WHERE id = 'ch-m1'`);
+    expect(capture.drain()).toEqual([
+      { table: 'chapters', key: 'ch-m1', op: 'update' },
+      entry('e1'),
+      entry('e2'),
+    ]);
+
+    exec(`DELETE FROM chapters WHERE id = 'ch-m1'`);
+    expect(capture.drain()).toEqual([
+      { table: 'chapters', key: 'ch-m1', op: 'delete' },
+      entry('e2'),
+    ]);
+
+    // A title outside the library has no entry to tell; the chapter row is still recorded.
+    exec(chapterIn('m3'));
+    exec(`UPDATE chapters SET title = 'Tres' WHERE id = 'ch-m3'`);
+    exec(`DELETE FROM chapters WHERE id = 'ch-m3'`);
+    expect(capture.drain()).toEqual([{ table: 'chapters', key: 'ch-m3', op: 'delete' }]);
+  });
 });
 
 describe('change broadcast', () => {

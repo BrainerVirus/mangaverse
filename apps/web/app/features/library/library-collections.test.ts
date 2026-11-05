@@ -304,6 +304,54 @@ describe('library list after a write', () => {
     await expect.poll(() => items.get(alpha.entryId)?.value.entry.unreadCount).toBe(3);
   });
 
+  it('patches the owning row for a chapter write without reading the list again', async () => {
+    const { windows, calls } = await hostWithWindows();
+    const [a, b] = windows;
+    const { alpha } = await seedLibrary(a.handle);
+    const items = view(b, DEFAULT_LIBRARY_VIEW_STATE);
+    await items.preload();
+    const position = items.get(alpha.entryId)?.position;
+    calls[1].length = 0;
+
+    const created = await upsertChapterMetadata(a.handle, {
+      mangaId: alpha.mangaId,
+      providerMappingId: alpha.mappingId,
+      title: 'Chapter 2',
+      index: 2,
+    });
+    expect(created.ok).toBe(true);
+
+    await expect.poll(() => items.get(alpha.entryId)?.value.entry.unreadCount).toBe(3);
+    expect(items.get(alpha.entryId)?.position).toBe(position);
+    expect(listReads(calls[1])).toEqual([]);
+  });
+
+  it('reads a burst of chapter writes once on a sort they can move, and lands the host order', async () => {
+    const { windows, calls } = await hostWithWindows();
+    const [a, b] = windows;
+    const { alpha } = await seedLibrary(a.handle);
+    const items = view(b, sortedBy('last_updated'));
+    await items.preload();
+    expect(items.get(alpha.entryId)?.position).toBe(2);
+    calls[1].length = 0;
+
+    // A provider refresh writes one chapter per call, each its own change batch.
+    for (let index = 2; index < 12; index += 1) {
+      const created = await upsertChapterMetadata(a.handle, {
+        mangaId: alpha.mangaId,
+        providerMappingId: alpha.mappingId,
+        title: `Chapter ${index}`,
+        index,
+      });
+      expect(created.ok).toBe(true);
+    }
+    await expect.poll(() => items.get(alpha.entryId)?.value.entry.unreadCount).toBe(12);
+    await expect.poll(() => listReads(calls[1]).length).toBeGreaterThan(0);
+    // Ten change batches, one reload (the writes finish well inside the delay).
+    expect(listReads(calls[1]).length).toBeLessThanOrEqual(2);
+    expect([...items.values()].map((row) => row.position).sort((x, y) => x - y)).toEqual([0, 1, 2]);
+  });
+
   it('refills a filtered window when a loaded title leaves the filter', async () => {
     const { windows, databasePath } = await hostWithWindows();
     const [a, b] = windows;
