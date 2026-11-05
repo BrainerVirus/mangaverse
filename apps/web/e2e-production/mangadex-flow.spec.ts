@@ -97,7 +97,8 @@ test('Given a provider-backed chapter id, When the reader opens, Then decoded pa
       timeout: 20_000,
     })
     .toBe(true);
-  await expect(page.getByText('1 / 37')).toBeVisible({ timeout: 20_000 });
+  // The page badge lives in the chrome, which starts hidden (R8).
+  await expect(page.getByTestId('reader-surface')).toBeVisible();
 });
 
 test('Given an enabled provider, When Discover opens, Then capability sections render with covers', async ({
