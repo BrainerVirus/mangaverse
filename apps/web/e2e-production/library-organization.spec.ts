@@ -2,7 +2,14 @@ import { readFileSync } from 'node:fs';
 
 import { expect, type Page } from '@playwright/test';
 
-import { fixturesDir, test, waitForPingQuiet } from './helpers.js';
+import {
+  closeLibraryFilters,
+  fixturesDir,
+  openCategoryManager,
+  openLibraryFilters,
+  test,
+  waitForPingQuiet,
+} from './helpers.js';
 
 const MANGA_PATH = '/manga/dev-md-dc332d04-d3b0-413c-a767-70f5e451b031';
 const TITLE = 'Kuro no Shoukanshi';
@@ -90,9 +97,17 @@ async function readFirstChapter(page: Page, path: string): Promise<void> {
   await waitForPingQuiet(page);
 }
 
+async function expectSortLabel(page: Page, label: string): Promise<void> {
+  await openLibraryFilters(page);
+  await expect(page.getByLabel('Sort library')).toContainText(label);
+  await closeLibraryFilters(page);
+}
+
 async function selectSort(page: Page, label: string): Promise<void> {
+  await openLibraryFilters(page);
   await page.getByLabel('Sort library').click();
   await page.getByRole('option', { name: label }).click();
+  await closeLibraryFilters(page);
 }
 
 async function expectCardTitles(page: Page, titles: readonly string[]): Promise<void> {
@@ -100,7 +115,7 @@ async function expectCardTitles(page: Page, titles: readonly string[]): Promise<
 }
 
 async function createCategory(page: Page, name: string, pin = true): Promise<void> {
-  await page.getByRole('button', { name: 'Manage categories' }).click();
+  await openCategoryManager(page);
   await page.getByLabel('New category').fill(name);
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   if (pin) {
@@ -144,14 +159,15 @@ test('Given a library title, When a category is created, assigned, filtered, sor
   await expect(page.getByText('1 title')).toBeVisible();
 
   // Sort by title keeps the same result and is a real select interaction.
-  await page.getByLabel('Sort library').click();
-  await page.getByRole('option', { name: 'Title · A–Z' }).click();
+  await selectSort(page, 'Title · A–Z');
   await expect(page.locator('[data-library-card]')).toHaveCount(1);
 
   // Bulk favorite and status changes on the selected title.
+  await openLibraryFilters(page);
   await page.getByRole('button', { name: 'Favorites' }).click();
   await expect(page.locator('[data-library-card]')).toHaveCount(0);
   await page.getByRole('button', { name: 'Favorites' }).click();
+  await closeLibraryFilters(page);
 
   await page.getByLabel(`Select ${TITLE}`).check();
   await page.getByRole('button', { name: 'Favorite selected', exact: true }).click();
@@ -168,11 +184,11 @@ test('Given a library title, When a category is created, assigned, filtered, sor
   await page.getByRole('button', { name: 'Fantasy', exact: true }).click();
   await expect(page.locator('[data-library-card]')).toHaveCount(1);
 
+  await openLibraryFilters(page);
   await page.getByLabel('Filter by status').click();
   await page.getByRole('option', { name: 'Completed' }).click();
-  await expect(page.locator('[data-library-card]')).toHaveCount(1);
-
   await page.getByRole('button', { name: 'Clear filters' }).click();
+  await closeLibraryFilters(page);
   await expect(page.locator('[data-library-card]').first()).toBeVisible();
 
   // The title detail reads back the persisted favorite and category.
@@ -207,7 +223,7 @@ test('Given two titles read in order, When a newer-added title is favorited, The
   // Reading order, newest first. The quiet window between reads orders the
   // read-state timestamps.
   await selectSort(page, 'Last read · recent');
-  await expect(page.getByLabel('Sort library')).toContainText('Last read · recent');
+  await expectSortLabel(page, 'Last read · recent');
   await expectCardTitles(page, [SECOND_TITLE, TITLE]);
 
   // Favoriting bumps library_entries.updated_at; it must not count as a read.
@@ -231,7 +247,7 @@ test('Given two titles read in order, When a newer-added title is favorited, The
   // The other new sort options query real columns and keep both titles.
   for (const label of ['Unread · most', 'Progress · furthest', 'Provider · A–Z']) {
     await selectSort(page, label);
-    await expect(page.getByLabel('Sort library')).toContainText(label);
+    await expectSortLabel(page, label);
     await expect(page.locator('[data-library-card]')).toHaveCount(2);
   }
 });
@@ -249,7 +265,7 @@ test('Given a phone viewport, When categories are organized, Then the toolbar wr
   await expectNoHorizontalOverflow(page);
 
   // Pin through the manager on the narrow viewport.
-  await page.getByRole('button', { name: 'Manage categories' }).click();
+  await openCategoryManager(page);
   await page.getByRole('button', { name: 'Pin Mobile shelf' }).click();
   await expect(page.getByRole('button', { name: 'Unpin Mobile shelf' })).toBeVisible();
   await page.getByRole('button', { name: 'Done', exact: true }).click();

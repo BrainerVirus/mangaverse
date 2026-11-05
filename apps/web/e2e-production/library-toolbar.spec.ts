@@ -28,14 +28,13 @@ interface LongTitleGeometry {
 interface ToolbarGeometry {
   viewport: { width: number; height: number };
   containerType: string;
-  rowDirection: string;
   headerWidth: number;
   docOverflow: number;
   mainOverflow: number;
   cards: number;
   compact: { left: number; right: number; top: number; bottom: number };
-  actionsTop: number;
-  titleColumnBottom: number;
+  actionsWidth: number;
+  rowWidth: number;
   scrollTop: number;
   windowScroll: number;
   shellPaddingInline: string;
@@ -44,17 +43,16 @@ interface ToolbarGeometry {
 async function measureToolbar(page: Page): Promise<ToolbarGeometry> {
   return page.evaluate(() => {
     const header = document.querySelector('[data-page-header]') as HTMLElement;
-    const row = header.firstElementChild as HTMLElement;
     const compact = document.querySelector(
       'fieldset[aria-label="Library layout"] button[aria-label="Compact"]',
     ) as HTMLElement;
     const actions = compact.parentElement?.parentElement as HTMLElement;
+    const row = actions.parentElement as HTMLElement;
     const main = document.querySelector('main') as HTMLElement;
     const compactRect = compact.getBoundingClientRect();
     return {
       viewport: { width: window.innerWidth, height: window.innerHeight },
       containerType: getComputedStyle(header).containerType,
-      rowDirection: getComputedStyle(row).flexDirection,
       headerWidth: header.getBoundingClientRect().width,
       docOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
       mainOverflow: main.scrollWidth - main.clientWidth,
@@ -65,8 +63,8 @@ async function measureToolbar(page: Page): Promise<ToolbarGeometry> {
         top: compactRect.top,
         bottom: compactRect.bottom,
       },
-      actionsTop: actions.getBoundingClientRect().top,
-      titleColumnBottom: row.firstElementChild?.getBoundingClientRect().bottom ?? 0,
+      actionsWidth: actions.getBoundingClientRect().width,
+      rowWidth: row.getBoundingClientRect().width,
       scrollTop: main.scrollTop,
       windowScroll: window.scrollY,
       shellPaddingInline: getComputedStyle(
@@ -110,6 +108,8 @@ function expectNoClipping(geometry: ToolbarGeometry): void {
   expect(geometry.docOverflow).toBeLessThanOrEqual(0);
   expect(geometry.mainOverflow).toBeLessThanOrEqual(0);
   expect(geometry.cards).toBeGreaterThan(0);
+  // The actions wrap inside the toolbar row instead of spilling past it.
+  expect(geometry.actionsWidth).toBeLessThanOrEqual(geometry.rowWidth + 0.5);
   expect(geometry.compact.left).toBeGreaterThanOrEqual(0);
   expect(geometry.compact.right).toBeLessThanOrEqual(geometry.viewport.width);
   expect(geometry.compact.top).toBeGreaterThanOrEqual(0);
@@ -118,7 +118,7 @@ function expectNoClipping(geometry: ToolbarGeometry): void {
 
 test.describe.configure({ timeout: 120_000 });
 
-test('Given a populated library, When the content column is narrow, Then the header wraps and Compact stays reachable', async ({
+test('Given a populated library, When the content column is narrow, Then the toolbar wraps and Compact stays reachable', async ({
   page,
   quickOnboarding,
   mockMangaDex,
@@ -139,12 +139,10 @@ test('Given a populated library, When the content column is narrow, Then the hea
   await expect(page.locator('[data-library-card]').first()).toBeVisible({ timeout: 20_000 });
 
   // 844×390 with 44 px side insets and the expanded rail leaves a 472 px column:
-  // the viewport is past `sm:` but the header container must stack the actions.
+  // the search, Filters and layout controls must wrap inside it.
   const narrow = await measureToolbar(page);
   expectNoClipping(narrow);
   expect(narrow.headerWidth).toBeLessThan(576);
-  expect(narrow.rowDirection).toBe('column');
-  expect(narrow.actionsTop).toBeGreaterThanOrEqual(narrow.titleColumnBottom - 1);
 
   // The heading is its own flex item: without `min-w-0`/`break-words` a 58-char
   // unbreakable title keeps its min-content width and widens the document.
@@ -175,7 +173,6 @@ test('Given a populated library, When the content column is narrow, Then the hea
   const collapsed = await measureToolbar(page);
   expectNoClipping(collapsed);
   expect(collapsed.headerWidth).toBeGreaterThanOrEqual(576);
-  expect(collapsed.rowDirection).toBe('row');
 
   await page.setViewportSize({ width: 768, height: 1024 });
   await page.getByRole('button', { name: 'Collapse sidebar' }).click();
@@ -190,7 +187,6 @@ test('Given a populated library, When the content column is narrow, Then the hea
   });
   const rtl = await measureToolbar(page);
   expectNoClipping(rtl);
-  expect(rtl.rowDirection).toBe('column');
   await page.getByRole('button', { name: 'Compact' }).click();
   await expect(page.getByRole('button', { name: 'Compact' })).toHaveAttribute(
     'aria-pressed',
@@ -211,18 +207,11 @@ test('Given a populated library, When the content column is narrow, Then the hea
     expectNoClipping(await measureToolbar(page));
   }
 
-  // A wide viewport with a narrow main column is exactly the case a viewport
-  // breakpoint misses: the container query has to stack the actions.
-  const wide = await measureToolbar(page);
-  expect(wide.rowDirection).toBe('row');
-  expect(wide.actionsTop).toBeLessThan(wide.titleColumnBottom);
-
+  // A wide viewport with a narrow main column: the toolbar row has to wrap with it.
   const clamp = await page.addStyleTag({ content: 'main{max-width:480px}' });
   const clamped = await measureToolbar(page);
   expect(clamped.viewport.width).toBe(1440);
   expect(clamped.headerWidth).toBeLessThan(576);
-  expect(clamped.rowDirection).toBe('column');
-  expect(clamped.actionsTop).toBeGreaterThanOrEqual(clamped.titleColumnBottom - 1);
   expectNoClipping(clamped);
   await clamp.evaluate((node) => node.remove());
 });

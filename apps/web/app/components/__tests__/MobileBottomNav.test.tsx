@@ -67,6 +67,30 @@ describe('MobileBottomNav', () => {
     expect(html).toContain('Settings');
   });
 
+  it('keeps the four primary destinations in the bar and everything else in More', async () => {
+    const { MobileBottomNav } = await import('../shell/MobileBottomNav.js');
+    const bar = renderWithProviders(<MobileBottomNav />);
+    expect([...bar.matchAll(/href="([^"]+)"/g)].map((m) => m[1])).toEqual([
+      '/discover',
+      '/library',
+      '/search',
+      '/settings',
+    ]);
+    expect(bar.match(/flex-1 basis-0/g)).toHaveLength(5);
+
+    const { mobileMoreItems, mobileTabs } = await import('../shell/nav-items.js');
+    expect(mobileTabs.map((i) => i.to)).toEqual(['/discover', '/library', '/search', '/settings']);
+    expect(mobileMoreItems.map((i) => i.to)).toEqual([
+      '/extensions',
+      '/onboarding',
+      '/backup',
+      '/advanced',
+      '/advanced/theme',
+      '/advanced/diagnostics',
+      '/advanced/migration',
+    ]);
+  });
+
   it('renders hamburger button with aria-label', async () => {
     useLayoutStore.setState({ deviceLayout: 'mobile' });
     const { MobileBottomNav } = await import('../shell/MobileBottomNav.js');

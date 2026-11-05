@@ -95,6 +95,32 @@ export async function openCommandPalette(page: Page): Promise<Locator> {
   return palette;
 }
 
+/** Opens the library Filters sheet and waits until it is on screen. */
+export async function openLibraryFilters(page: Page): Promise<void> {
+  await page.getByRole('button', { name: /^Filters/ }).click();
+  await expect(page.getByRole('dialog', { name: 'Filters' })).toBeVisible();
+}
+
+/** Closes the library Filters sheet with Escape and waits until it is gone. */
+export async function closeLibraryFilters(page: Page): Promise<void> {
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Filters' })).toHaveCount(0);
+}
+
+/**
+ * Opens the category manager. With categories the toolbar row carries "Manage
+ * categories"; with none it lives in the Filters sheet, which the manager replaces.
+ */
+export async function openCategoryManager(page: Page): Promise<void> {
+  // Cards render only once the categories are loaded, so the row/sheet choice below is settled.
+  await expect(page.locator('[data-library-card]').first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole('button', { name: /^Filters/ })).toBeVisible();
+  const manage = page.getByRole('button', { name: 'Manage categories' });
+  if ((await manage.count()) === 0) await openLibraryFilters(page);
+  await manage.click();
+  await expect(page.getByRole('dialog', { name: /categories/i })).toBeVisible();
+}
+
 const PING_KEY = 'mangaverse.local-db.version';
 
 export async function currentPing(page: Page): Promise<string | null> {

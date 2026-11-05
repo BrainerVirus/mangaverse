@@ -72,12 +72,36 @@ describe('DesktopSidebar', () => {
     expect(html).toContain('lucide-moon');
   });
 
-  it('renders secondary nav items when expanded', async () => {
-    useLayoutStore.setState({ sidebarOpen: true, sidebarExpanded: true });
+  it('groups the destinations under Browse and Manage', async () => {
     const { DesktopSidebar } = await import('../shell/DesktopSidebar.js');
     const html = renderWithProviders(<DesktopSidebar />);
-    expect(html).toContain('href="/backup"');
-    expect(html).toContain('href="/advanced/migration"');
+    const hrefs = [...html.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
+
+    expect(html).toContain('aria-label="Browse"');
+    expect(html).toContain('aria-label="Manage"');
+    expect(html).toContain('type-micro uppercase text-muted-foreground');
+    expect(hrefs).toEqual(['/discover', '/library', '/search', '/extensions', '/settings']);
+    expect(html.indexOf('aria-label="Browse"')).toBeLessThan(html.indexOf('href="/discover"'));
+    expect(html.indexOf('href="/search"')).toBeLessThan(html.indexOf('aria-label="Manage"'));
+    expect(html.indexOf('aria-label="Manage"')).toBeLessThan(html.indexOf('href="/extensions"'));
+  });
+
+  it('leaves the tools the Settings hub links to out of the sidebar', async () => {
+    const { DesktopSidebar } = await import('../shell/DesktopSidebar.js');
+    const html = renderWithProviders(<DesktopSidebar />);
+
+    for (const label of [
+      'Backup',
+      'Onboarding',
+      'Advanced',
+      'Theme editor',
+      'Diagnostics',
+      'Migration',
+    ]) {
+      expect(html).not.toContain(`aria-label="${label}"`);
+    }
+    expect(html).not.toContain('href="/backup"');
+    expect(html).not.toContain('href="/advanced');
   });
 
   it('renders with expanded width by default on desktop', async () => {
@@ -114,23 +138,15 @@ describe('DesktopSidebar', () => {
     expect(html).toContain('aria-label="Library"');
   });
 
-  it('has aria-labels on secondary nav links', async () => {
-    useLayoutStore.setState({ sidebarOpen: true, sidebarExpanded: true });
+  it('marks the active route as the current page with the sidebar accent fill', async () => {
+    currentPath = '/extensions';
     const { DesktopSidebar } = await import('../shell/DesktopSidebar.js');
     const html = renderWithProviders(<DesktopSidebar />);
-    expect(html).toContain('aria-label="Backup"');
-    expect(html).toContain('aria-label="Migration"');
-    expect(html).toContain('aria-label="Diagnostics"');
-    expect(html).toContain('aria-label="Onboarding"');
-  });
+    const current = html.match(/<a [^>]*aria-current="page"[^>]*>/g) ?? [];
 
-  it('marks active secondary nav link as current page', async () => {
-    currentPath = '/backup';
-    useLayoutStore.setState({ sidebarOpen: true, sidebarExpanded: true });
-    const { DesktopSidebar } = await import('../shell/DesktopSidebar.js');
-    const html = renderWithProviders(<DesktopSidebar />);
-    expect(html).toContain('aria-current="page"');
-    expect(html).toContain('aria-label="Backup"');
+    expect(current).toHaveLength(1);
+    expect(current[0]).toContain('aria-label="Extensions"');
+    expect(current[0]).toContain('bg-sidebar-accent');
   });
 
   it('renders collapse button with aria-label', async () => {

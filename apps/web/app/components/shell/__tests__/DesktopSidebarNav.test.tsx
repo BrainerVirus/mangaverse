@@ -9,11 +9,13 @@ Object.defineProperty(globalThis, 'localStorage', {
   writable: true,
 });
 
+const route = vi.hoisted(() => ({ pathname: '/library' }));
+
 vi.mock('@tanstack/react-router', () => ({
   useRouterState: (opts?: { select?: (state: { location: { pathname: string } }) => unknown }) =>
     opts?.select
-      ? opts.select({ location: { pathname: '/library' } })
-      : { location: { pathname: '/library' } },
+      ? opts.select({ location: { pathname: route.pathname } })
+      : { location: { pathname: route.pathname } },
   useRouter: () => ({ navigate: vi.fn<(options: unknown) => void>(), subscribe: () => () => {} }),
   useNavigate: () => vi.fn<() => void>(),
   Link: ({ children, to, ...props }: { to: string; children: React.ReactNode }) => (
@@ -47,6 +49,7 @@ async function renderSidebar(expanded: boolean) {
   const classesOf = (label: string) =>
     container.querySelector(`a[aria-label="${label}"]`)?.className ?? '';
   return {
+    container,
     classesOf,
     cleanup: () => {
       root.unmount();
@@ -59,6 +62,7 @@ async function renderSidebar(expanded: boolean) {
 // `inline-flex items-center` and the icon stacks above the label.
 describe('DesktopSidebar nav link classes', () => {
   beforeEach(() => {
+    route.pathname = '/library';
     useLayoutStore.setState({ sidebarOpen: true, sidebarExpanded: true, deviceLayout: 'desktop' });
   });
 
@@ -70,10 +74,12 @@ describe('DesktopSidebar nav link classes', () => {
     cleanup();
   });
 
-  it('keeps the active variant on the current route and hover on the rest', async () => {
+  it('fills the current route with the sidebar accent and tints the rest on hover', async () => {
     const { classesOf, cleanup } = await renderSidebar(true);
-    expect(classesOf('Library')).toContain('bg-secondary');
-    expect(classesOf('Search')).toContain('hover:bg-accent');
+    expect(classesOf('Library')).toContain('bg-sidebar-accent');
+    expect(classesOf('Library')).not.toContain('bg-secondary');
+    expect(classesOf('Search')).not.toContain('bg-sidebar-accent ');
+    expect(classesOf('Search')).toContain('hover:bg-sidebar-accent/60');
     cleanup();
   });
 
@@ -81,7 +87,36 @@ describe('DesktopSidebar nav link classes', () => {
     const { classesOf, cleanup } = await renderSidebar(false);
     expect(classesOf('Library')).toContain('inline-flex');
     expect(classesOf('Library')).toContain('justify-center');
-    expect(classesOf('Library')).toContain('h-9');
+    expect(classesOf('Library')).toContain('h-10');
     cleanup();
   });
+
+  it('shows the group labels when expanded', async () => {
+    const { container, cleanup } = await renderSidebar(true);
+    const labels = [...container.querySelectorAll('nav p')].map((node) => node.textContent);
+    expect(labels).toEqual(['Browse', 'Manage']);
+    cleanup();
+  });
+
+  it('hides the group labels on the collapsed rail but keeps every row', async () => {
+    const { container, cleanup } = await renderSidebar(false);
+    expect(container.querySelectorAll('nav p')).toHaveLength(0);
+    expect(container.querySelectorAll('nav a')).toHaveLength(5);
+    expect(container.querySelector('ul[aria-label="Browse"]')).not.toBeNull();
+    cleanup();
+  });
+
+  it.each(['/backup', '/storage', '/theme', '/onboarding', '/advanced', '/advanced/diagnostics'])(
+    'keeps Settings current on the hub-linked route %s',
+    async (pathname) => {
+      route.pathname = pathname;
+      const { container, cleanup } = await renderSidebar(true);
+      expect(container.querySelector('a[aria-label="Settings"]')).toHaveAttribute(
+        'aria-current',
+        'page',
+      );
+      expect(container.querySelectorAll('a[aria-current="page"]')).toHaveLength(1);
+      cleanup();
+    },
+  );
 });

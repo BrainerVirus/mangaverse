@@ -447,7 +447,7 @@ export function ReaderSettingsPage({
   if (isLoading) {
     return (
       <section aria-label="Reader settings" className="mx-auto w-full max-w-3xl p-6">
-        <LoadingState type="list" />
+        <LoadingState type="list" count={3} />
       </section>
     );
   }

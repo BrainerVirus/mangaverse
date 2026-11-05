@@ -28,9 +28,9 @@ function DetailSkeleton() {
   );
 }
 
-export function LoadingState({ type, count = 1 }: LoadingStateProps) {
+export function LoadingState({ type, count }: LoadingStateProps) {
   const itemCount = type === 'grid' ? 10 : type === 'list' ? 8 : 1;
-  const actualCount = count > 0 ? count : itemCount;
+  const actualCount = count !== undefined && count > 0 ? count : itemCount;
   const baseId = useId();
   return (
     <div className="w-full">

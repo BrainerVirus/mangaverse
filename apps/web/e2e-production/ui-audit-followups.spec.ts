@@ -101,7 +101,7 @@ for (const width of [768, 1024]) {
 test.describe('touch targets', () => {
   test.use({ isMobile: true, hasTouch: true, viewport: { width: 390, height: 844 } });
 
-  test('Given a coarse pointer, Then search fields, the 404 link and the skip link are at least 44px', async ({
+  test('Given a coarse pointer, Then the search field, the 404 link and the skip link are at least 44px', async ({
     page,
     quickOnboarding,
     mockMangaDex,
@@ -113,7 +113,8 @@ test.describe('touch targets', () => {
     await expect(page.getByRole('heading', { name: 'Library' }).first()).toBeVisible({
       timeout: 30_000,
     });
-    expect(await height(page, 'input[aria-label="Search library"]')).toBeGreaterThanOrEqual(44);
+    // An empty, unfiltered library renders no toolbar, so there is no library search field here.
+    await expect(page.locator('input[aria-label="Search library"]')).toHaveCount(0);
 
     await page.goto('/search');
     await expect(page.getByRole('heading', { name: 'Search' }).first()).toBeVisible({
@@ -149,7 +150,7 @@ test.describe('touch targets', () => {
   });
 });
 
-test('Given a fine pointer at 1440px, Then the search field keeps its dense 40px height', async ({
+test('Given a fine pointer at 1440px, Then the search field is a 44px hero', async ({
   page,
   quickOnboarding,
 }) => {
@@ -158,7 +159,7 @@ test('Given a fine pointer at 1440px, Then the search field keeps its dense 40px
   await expect(page.getByRole('heading', { name: 'Search' }).first()).toBeVisible({
     timeout: 30_000,
   });
-  expect(await height(page, 'input[aria-label="Search manga"]')).toBe(40);
+  expect(await height(page, 'input[aria-label="Search manga"]')).toBe(44);
 });
 
 test('Given /search, Then an empty query prompts neutrally and ?q= fills the query', async ({
