@@ -35,6 +35,7 @@ export function toReaderEngineSettings(
     preloadAhead: settings.dataSaver ? 0 : settings.preloadAhead,
     preloadBehind: settings.dataSaver ? 0 : settings.preloadBehind,
     tilingThresholdPx: resolveTilingThreshold(settings.tilingThreshold),
+    dataSaver: settings.dataSaver,
     lowMemoryMode: settings.lowMemoryMode,
     wheelBehavior: settings.wheelBehavior,
     verticalGapPx: settings.verticalGapPx,

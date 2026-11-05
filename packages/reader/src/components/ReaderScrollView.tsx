@@ -2,9 +2,9 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from '
 import { CachedPageImage } from '@app/cache';
 import { useStateReducer } from '@app/design-system';
 import type { ReaderPage } from '../types.js';
+import { useScrollActivity, type VisibleRange } from './use-scroll-activity.js';
 import {
   computeScrollPageMetrics,
-  findActiveScrollPage,
   hasPageShape,
   planPageTiles,
   PLACEHOLDER_PAGE_RATIO,
@@ -42,6 +42,8 @@ interface ReaderScrollViewProps {
   readonly preloadAhead?: number;
   readonly lowMemoryMode?: boolean;
   readonly longStripOptimization?: boolean;
+  /** Only the pages intersecting the viewport mount; no speculative look-ahead. */
+  readonly dataSaver?: boolean;
   /** Pages taller than this many pixels render as tiles; Auto (8192) when absent. */
   readonly tilingThresholdPx?: number;
   readonly imageSmoothing?: boolean;
@@ -136,6 +138,25 @@ function withMeasuredShapes(
       ? page
       : { ...page, image: { ...page.image, width: size.width, height: size.height } };
   });
+}
+
+function rangeWindow(range: VisibleRange, pageCount: number): ReadonlySet<number> {
+  const window = new Set<number>();
+  for (
+    let index = Math.max(0, range.start);
+    index <= Math.min(pageCount - 1, range.end);
+    index += 1
+  ) {
+    window.add(index);
+  }
+  return window;
+}
+
+function unionWindows(
+  first: ReadonlySet<number>,
+  second: ReadonlySet<number>,
+): ReadonlySet<number> {
+  return new Set([...first, ...second]);
 }
 
 interface ScrollContentProps {
@@ -373,13 +394,13 @@ export function ReaderScrollView({
   preloadAhead = MIN_ROW_RADIUS,
   lowMemoryMode = false,
   longStripOptimization = false,
+  dataSaver = false,
   tilingThresholdPx = STRIP_TILE_AUTO_THRESHOLD_PX,
   imageSmoothing = true,
   onPageMetric,
   onBack,
 }: ReaderScrollViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const frameRef = useRef<number | null>(null);
   // Width, tail spacer and measured natural sizes move together: a resize
   // changes every row height, and a page's real shape changes every offset
   // below it. One reducer keeps that single render coherent.
@@ -562,60 +583,43 @@ export function ReaderScrollView({
     [dispatchGeometry, pagesHaveMetadata],
   );
 
-  // The active index is read from this render's closure (not a ref written
-  // during render): the listener is rebound on every active-page change, so the
-  // handler always compares against the page the strip is actually on.
-  const handleScroll = useCallback(() => {
-    if (frameRef.current !== null) return;
-    frameRef.current = window.requestAnimationFrame(() => {
-      frameRef.current = null;
-      const container = containerRef.current;
-      if (!container) return;
-      const height = container.clientHeight;
-      const center = container.scrollTop + height / 2;
-      // A measurable container means the computed offsets are trustworthy and
-      // no layout read is needed on a scroll frame; an unmeasurable one (jsdom)
-      // falls back to the mounted rows.
-      const current = geometryRef.current.width > 0 ? metricsRef.current : measurePages();
-      const next = findActiveScrollPage(current, center);
-      if (next !== activePageIndex) {
-        onActivePageChange(next);
-      }
-    });
-  }, [activePageIndex, measurePages, onActivePageChange]);
-
-  // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: the pending rAF belongs to the browser frame loop
-  useEffect(() => {
-    return () => {
-      if (frameRef.current !== null) {
-        window.cancelAnimationFrame(frameRef.current);
-        frameRef.current = null;
-      }
-    };
-  }, []);
+  const { visibleRange, handleScroll } = useScrollActivity({
+    containerRef,
+    geometryWidthRef: geometryRef,
+    metricsRef,
+    heights,
+    activePageIndex,
+    measurePages,
+    onActivePageChange,
+  });
 
   const skipPage = useCallback(
     (index: number) => scrollToPage(Math.min(index + 1, pages.length - 1)),
     [pages.length, scrollToPage],
   );
-  const imageWindow = windowedScrollPages(
-    pages,
-    activePageIndex,
-    resolveScrollPreloadAhead({
-      // A decoded page teaches the strip its shape; until then the stored
-      // shape (usually absent) is all the optimization can see.
-      pages: withMeasuredShapes(pages, geometry.natural),
-      preloadAhead,
-      lowMemoryMode,
-      longStripOptimization,
-    }),
-  );
+  const viewportWindow = rangeWindow(visibleRange, pages.length);
+  const imageWindow = dataSaver
+    ? viewportWindow
+    : windowedScrollPages(
+        pages,
+        activePageIndex,
+        resolveScrollPreloadAhead({
+          // A decoded page teaches the strip its shape; until then the stored
+          // shape (usually absent) is all the optimization can see.
+          pages: withMeasuredShapes(pages, geometry.natural),
+          preloadAhead,
+          lowMemoryMode,
+          longStripOptimization,
+        }),
+      );
   const rowRadius = Math.max(
     MIN_ROW_RADIUS + ROW_OVERSCAN,
     imageWindow.size,
     preloadAhead + ROW_OVERSCAN,
   );
-  const rowWindow = windowedScrollPages(pages, activePageIndex, rowRadius);
+  const rowWindow = dataSaver
+    ? unionWindows(windowedScrollPages(pages, activePageIndex, rowRadius), viewportWindow)
+    : windowedScrollPages(pages, activePageIndex, rowRadius);
 
   return (
     <div

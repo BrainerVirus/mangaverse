@@ -19,7 +19,7 @@ vi.mock('@app/cache', () => ({
   }) => {
     cacheRender.pages.push(props.pageIndex);
     cacheRender.props.push(props);
-    return null;
+    return <img alt={`Page ${props.pageIndex + 1}`} data-page-index={props.pageIndex} />;
   },
 }));
 
@@ -69,6 +69,7 @@ function Harness({
   lowMemoryMode,
   longStripOptimization,
   tilingThresholdPx,
+  dataSaver,
   maxWidthPercent,
   cacheReady = false,
 }: {
@@ -79,6 +80,7 @@ function Harness({
   readonly lowMemoryMode?: boolean;
   readonly longStripOptimization?: boolean;
   readonly tilingThresholdPx?: number;
+  readonly dataSaver?: boolean;
   readonly maxWidthPercent?: number;
   readonly cacheReady?: boolean;
 }) {
@@ -101,6 +103,7 @@ function Harness({
       {...(lowMemoryMode === undefined ? {} : { lowMemoryMode })}
       {...(longStripOptimization === undefined ? {} : { longStripOptimization })}
       {...(tilingThresholdPx === undefined ? {} : { tilingThresholdPx })}
+      {...(dataSaver === undefined ? {} : { dataSaver })}
       {...(maxWidthPercent === undefined ? {} : { maxWidthPercent })}
       onHandle={(handle) => {
         handleRef.current = handle;
@@ -125,6 +128,7 @@ function mount(
     readonly lowMemoryMode?: boolean;
     readonly longStripOptimization?: boolean;
     readonly tilingThresholdPx?: number;
+    readonly dataSaver?: boolean;
     readonly maxWidthPercent?: number;
     readonly cacheReady?: boolean;
   } = {},
@@ -151,6 +155,7 @@ function mount(
         {...(options.tilingThresholdPx === undefined
           ? {}
           : { tilingThresholdPx: options.tilingThresholdPx })}
+        {...(options.dataSaver === undefined ? {} : { dataSaver: options.dataSaver })}
         {...(options.maxWidthPercent === undefined
           ? {}
           : { maxWidthPercent: options.maxWidthPercent })}
@@ -218,7 +223,7 @@ describe('ReaderScrollView strip rows', () => {
     unmount(lowMemory);
   });
 
-  it('Given data saver resolves the preload to 0, When the strip renders, Then only the active page image mounts', () => {
+  it('Given data saver, When the viewport straddles a page boundary, Then both visible pages stay mounted', async () => {
     const engine = toReaderEngineSettings({
       ...getDefaultReaderSettings(),
       dataSaver: true,
@@ -226,8 +231,20 @@ describe('ReaderScrollView strip rows', () => {
     });
     expect(engine.preloadAhead).toBe(0);
 
-    const mounted = mount(8, { preloadAhead: engine.preloadAhead, cacheReady: true });
+    const mounted = mount(8, {
+      preloadAhead: engine.preloadAhead,
+      dataSaver: true,
+      cacheReady: true,
+    });
+    stubStrip(mounted.container, 100, 100);
     expect(cacheRender.pages).toEqual([0]);
+
+    // Viewport [50, 150) overlaps page 0 [0, 100) and page 1 [100, 200).
+    await scrollTo(mounted.strip, 50);
+    const alts = [...mounted.container.querySelectorAll('img')].map((image) => image.alt);
+    expect(alts).toEqual(expect.arrayContaining(['Page 1', 'Page 2']));
+    expect(alts).not.toContain('Page 3');
+
     // Rows still virtualise: placeholders keep the strip's height and offsets.
     expect(mounted.container.querySelectorAll('[data-page-index]').length).toBeGreaterThan(1);
     unmount(mounted);

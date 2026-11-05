@@ -47,6 +47,7 @@ export function ReaderScrollLayer({
       lowMemoryMode={data.engineSettings.lowMemoryMode}
       longStripOptimization={data.engineSettings.longStripOptimization === true}
       tilingThresholdPx={data.engineSettings.tilingThresholdPx ?? STRIP_TILE_AUTO_THRESHOLD_PX}
+      dataSaver={data.engineSettings.dataSaver === true}
       imageSmoothing={data.engineSettings.imageSmoothing !== false}
       onPageMetric={onPageMetric}
       onBack={onBack}
