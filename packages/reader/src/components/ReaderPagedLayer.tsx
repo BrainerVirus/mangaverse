@@ -168,30 +168,59 @@ function ReaderPageBox({
       imageRendering={imageSmoothing ? 'auto' : 'pixelated'}
       onLoad={owner ? setNatural : undefined}
       onMetric={(metric) => {
-        // Either half failing falls back to the whole box, whose retry controls
-        // stay whole; only the owning half reports the page metric.
-        if (metric.status === 'failed') setFailed(true);
-        if (owner) onPageMetric({ pageIndex: page.index, ...metric });
+        // The owning half defines the page's state, so a successful retry
+        // restores the split; a failing half falls back to one whole box.
+        if (owner) {
+          setFailed(metric.status === 'failed');
+          onPageMetric({ pageIndex: page.index, ...metric });
+        } else if (metric.status === 'failed') {
+          setFailed(true);
+        }
       }}
       onSkip={onSkip}
       onBack={onBack}
     />
   );
 
-  if (split && !failed) {
+  if (split) {
     const half = fit.box.width / 2;
-    // The right half repeats the image, so only the left one is announced and
-    // measured.
+    // On failure the left box widens to the whole page in place: its image and
+    // Retry state stay mounted, and a successful retry narrows it back and
+    // brings the right half back. The right half repeats the image, so only the
+    // left one is announced and measured.
     return (
       <>
-        {(['left', 'right'] as const).map((side) => (
+        <div
+          key="left"
+          data-testid="reader-page-box"
+          {...(failed ? {} : { 'data-split': 'left' })}
+          data-fit-mode={fitInput.fitMode}
+          data-object-fit={fit.objectFit}
+          style={{
+            width: `${failed ? fit.box.width : half}px`,
+            height: `${fit.box.height}px`,
+            flex: '0 0 auto',
+            overflow: 'hidden',
+          }}
+        >
           <div
-            key={side}
+            data-testid="reader-page-half-image"
+            style={{
+              width: `${fit.box.width}px`,
+              height: `${fit.box.height}px`,
+            }}
+          >
+            {image(true)}
+          </div>
+        </div>
+        {failed ? null : (
+          <div
+            key="right"
             data-testid="reader-page-box"
-            data-split={side}
+            data-split="right"
             data-fit-mode={fitInput.fitMode}
             data-object-fit={fit.objectFit}
-            aria-hidden={side === 'right' || undefined}
+            aria-hidden
             style={{
               width: `${half}px`,
               height: `${fit.box.height}px`,
@@ -204,13 +233,13 @@ function ReaderPageBox({
               style={{
                 width: `${fit.box.width}px`,
                 height: `${fit.box.height}px`,
-                transform: `translateX(${side === 'left' ? 0 : -half}px)`,
+                transform: `translateX(${-half}px)`,
               }}
             >
-              {image(side === 'left')}
+              {image(false)}
             </div>
           </div>
-        ))}
+        )}
       </>
     );
   }

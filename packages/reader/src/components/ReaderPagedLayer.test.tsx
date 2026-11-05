@@ -127,17 +127,14 @@ describe('ReaderPagedLayer wide pages', () => {
     const images = container.querySelectorAll<HTMLElement>(
       '[data-testid="reader-page-half-image"]',
     );
-    expect([...images].map((image) => image.style.transform)).toEqual([
-      'translateX(0px)',
-      'translateX(-400px)',
-    ]);
+    expect([...images].map((image) => image.style.transform)).toEqual(['', 'translateX(-400px)']);
     for (const image of images) {
       expect(image.style.width).toBe('800px');
       expect(image.style.height).toBe('500px');
     }
   });
 
-  it('Given split, When the halves render, Then the page is announced, measured and reported once', () => {
+  it('Given split, When the halves render, Then the page is announced, measured and reported once', async () => {
     const onPageMetric = vi.fn<Parameters<typeof ReaderPagedLayer>[0]['onPageMetric']>();
     const container = mount({ widePageMode: 'split' }, onPageMetric);
 
@@ -148,9 +145,9 @@ describe('ReaderPagedLayer wide pages', () => {
     // Both halves watch for failure; only the owning half reports the metric.
     expect(reporters).toHaveLength(2);
 
-    act(() =>
-      reporters[0]!.onMetric!({ status: 'loaded', durationMs: 5, fromCache: true, byteSize: 1 }),
-    );
+    await act(async () => {
+      reporters[0]!.onMetric!({ status: 'loaded', durationMs: 5, fromCache: true, byteSize: 1 });
+    });
 
     expect(onPageMetric).toHaveBeenCalledTimes(1);
     expect(onPageMetric).toHaveBeenCalledWith({
@@ -162,22 +159,42 @@ describe('ReaderPagedLayer wide pages', () => {
     });
   });
 
-  it('Given split, When either half fails to load, Then one whole box shows so its retry stays reachable', () => {
+  it('Given split, When either half fails, Then one whole box keeps the same image mounted, and a successful retry restores the split', async () => {
     for (const reporterIndex of [0, 1]) {
       const container = mount({ widePageMode: 'split' });
       const reporters = rendered.filter((props) => props.onMetric !== undefined);
-      act(() =>
+      const owner = rendered.find((props) => props.onLoad !== undefined)!;
+      const imageNode = container.querySelector('img');
+
+      await act(async () => {
         reporters[reporterIndex]!.onMetric!({
           status: 'failed',
           durationMs: 5,
           fromCache: false,
           byteSize: 0,
-        }),
-      );
+        });
+      });
 
       expect(boxes(container)).toHaveLength(1);
       expect(boxes(container)[0]!.style.width).toBe('800px');
-      act(() => mounted!.root.unmount());
+      // The image that failed stays mounted, so its Retry state survives the
+      // layout change instead of being recreated by a fresh lookup.
+      expect(container.querySelector('img')).toBe(imageNode);
+
+      await act(async () => {
+        owner.onMetric!({
+          status: 'loaded',
+          durationMs: 6,
+          fromCache: true,
+          byteSize: 1,
+        });
+      });
+
+      expect(boxes(container)).toHaveLength(2);
+      expect(container.querySelector('img')).toBe(imageNode);
+      await act(async () => {
+        mounted!.root.unmount();
+      });
       mounted!.container.remove();
       mounted = undefined;
     }
