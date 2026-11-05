@@ -1,0 +1,101 @@
+# Runs the Electron production smoke (`pnpm --filter @app/desktop test:e2e:electron`) on Linux.
+#
+# The smoke launches the built desktop app (dist/main + dist/renderer) and proves what unit tests
+# cannot see: the real app:// protocol and CSP, the data host utility process, the main-process
+# port handoff, that no loopback port is opened, and the first-run snapshot import. It does NOT
+# prove a packaged installer (that is playwright.packaged.config.ts, macOS only) and it runs on
+# Linux only. Not a required check: it is informational until the owner promotes it.
+#
+# Triggers: manual runs, pull requests touching the desktop app or what it bundles, and pushes to
+# main with the same paths (so a regression that slips in is seen on main, not only on a PR).
+name: Electron smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "apps/desktop/**"
+      # The desktop build bundles the static web shell.
+      - "apps/web/**"
+      - "packages/**"
+      - ".github/workflows/electron-smoke.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+  push:
+    branches: [main]
+    paths:
+      - "apps/desktop/**"
+      - "apps/web/**"
+      - "packages/**"
+      - ".github/workflows/electron-smoke.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+
+concurrency:
+  group: electron-smoke-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Electron production smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # The electron package's postinstall downloads the Electron binary (pnpm-workspace.yaml
+      # allows its build script), so no separate browser download is needed.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Electron is Chromium and links the same system libraries (NSS, GTK, GBM, ALSA, ...).
+      # Reuses the Playwright dependency installer ci.yml already relies on, so the library list
+      # is maintained upstream instead of hard-coded here. Not a Chromium download.
+      - name: Install Electron system libraries
+        run: pnpm --filter @app/desktop exec playwright install-deps chromium
+
+      # ubuntu-24.04 images restrict unprivileged user namespaces through AppArmor, which makes
+      # Electron's Chromium sandbox abort at launch. Lifting the restriction on the runner keeps
+      # the sandbox ON, so the smoke still exercises the sandboxed windows the app builds. The
+      # suite passes process.env to Electron and adds no --no-sandbox, so no flag is needed.
+      - name: Allow unprivileged user namespaces for the Chromium sandbox
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+      # Builds the workspace packages (@app/web^...), the static client shell, the main process,
+      # the data host and the preload into apps/desktop/dist.
+      - name: Build desktop app
+        run: pnpm --filter @app/desktop build
+
+      # Electron needs a display on Linux; xvfb-run -a picks a free display number.
+      # CI=true (set by Actions) turns on forbidOnly in playwright.config.ts.
+      - name: Electron production smoke
+        run: xvfb-run -a --server-args="-screen 0 1280x960x24" pnpm --filter @app/desktop test:e2e:electron
+
+      # outputDir in playwright.config.ts is dist/e2e-results (traces on failure, screenshots).
+      # test-results/ is listed too in case the config's output directory moves.
+      - name: Upload Playwright output
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-smoke-results
+          path: |
+            apps/desktop/dist/e2e-results/**
+            apps/desktop/test-results/**
+          if-no-files-found: ignore
+          retention-days: 7
