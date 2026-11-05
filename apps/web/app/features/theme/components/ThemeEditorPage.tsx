@@ -10,6 +10,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+  PageContainer,
 } from '@app/design-system';
 import type { ThemeDefinition, ThemeDefinitionIssue } from '@app/shared';
 
@@ -165,122 +166,128 @@ export function ThemeEditorPage({
   const busy = isSaving || isDeleting;
 
   return (
-    <section aria-label="Theme editor" className="mx-auto w-full max-w-5xl space-y-8 p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-2">
-          <h1 className="type-display-lg text-foreground">Theme editor</h1>
-          <p className="type-body max-w-2xl text-muted-foreground">
-            Name the theme and preview both appearances. Nothing reaches the app shell until you
-            save.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={onCancel} disabled={busy}>
-            Cancel
-          </Button>
-          <Button
-            variant="outline"
-            onClick={onDuplicate}
-            disabled={busy}
-            aria-label={`Duplicate ${draft.name}`}
-          >
-            Duplicate
-          </Button>
-          {isSaved ? (
-            <Button
-              variant="destructive"
-              onClick={() => setConfirmingDelete(true)}
-              disabled={busy}
-              aria-label={`Delete ${draft.name}`}
-            >
-              Delete theme
-            </Button>
-          ) : null}
-          <Button onClick={onSave} disabled={busy}>
-            Save theme
-          </Button>
-        </div>
-      </header>
-
-      {issues.length > 0 ? (
-        <Alert variant="destructive">
-          <AlertTitle>Check the theme before saving</AlertTitle>
-          <div className="type-body">
-            <ul className="list-disc space-y-1 pl-4">
-              {issues.map((issue) => (
-                <li key={`${issue.path}:${issue.message}`}>
-                  {issue.path === '' ? issue.message : `${issue.path}: ${issue.message}`}
-                </li>
-              ))}
-            </ul>
+    <PageContainer variant="read" className="max-w-5xl">
+      <section aria-label="Theme editor" className="space-y-8">
+        <header className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-2">
+            <h1 className="type-display-lg text-foreground">Theme editor</h1>
+            <p className="type-body max-w-2xl text-muted-foreground">
+              Name the theme and preview both appearances. Nothing reaches the app shell until you
+              save.
+            </p>
           </div>
-        </Alert>
-      ) : null}
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={onCancel} disabled={busy}>
+              Cancel
+            </Button>
+            <Button
+              variant="outline"
+              onClick={onDuplicate}
+              disabled={busy}
+              aria-label={`Duplicate ${draft.name}`}
+            >
+              Duplicate
+            </Button>
+            {isSaved ? (
+              <Button
+                variant="destructive"
+                onClick={() => setConfirmingDelete(true)}
+                disabled={busy}
+                aria-label={`Delete ${draft.name}`}
+              >
+                Delete theme
+              </Button>
+            ) : null}
+            <Button onClick={onSave} disabled={busy}>
+              Save theme
+            </Button>
+          </div>
+        </header>
 
-      {error === null ? null : (
-        <Alert variant="destructive" role="alert">
-          <AlertTitle>{ERROR_TITLES[error.action]}</AlertTitle>
-          <AlertDescription>{error.message}</AlertDescription>
-        </Alert>
-      )}
+        {issues.length > 0 ? (
+          <Alert variant="destructive">
+            <AlertTitle>Check the theme before saving</AlertTitle>
+            <div className="type-body">
+              <ul className="list-disc space-y-1 pl-4">
+                {issues.map((issue) => (
+                  <li key={`${issue.path}:${issue.message}`}>
+                    {issue.path === '' ? issue.message : `${issue.path}: ${issue.message}`}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Alert>
+        ) : null}
 
-      <EditorSection title="Name" description="Shown in the theme gallery and on theme cards.">
-        <div className="max-w-md space-y-2">
-          <Label htmlFor="theme-name">Theme name</Label>
-          <Input
-            id="theme-name"
-            value={draft.name}
-            disabled={busy}
-            onChange={(event) => onChange({ ...draft, name: event.target.value })}
-          />
-        </div>
-      </EditorSection>
+        {error === null ? null : (
+          <Alert variant="destructive" role="alert">
+            <AlertTitle>{ERROR_TITLES[error.action]}</AlertTitle>
+            <AlertDescription>{error.message}</AlertDescription>
+          </Alert>
+        )}
 
-      <EditorSection
-        title="Preview"
-        description="Light and dark share the same seeds; each preview paints its own scoped variables."
-      >
-        <div className="grid gap-6 lg:grid-cols-2">
-          <ThemePreviewPane definition={draft} dark={false} />
-          <ThemePreviewPane definition={draft} dark />
-        </div>
-      </EditorSection>
+        <EditorSection title="Name" description="Shown in the theme gallery and on theme cards.">
+          <div className="max-w-md space-y-2">
+            <Label htmlFor="theme-name">Theme name</Label>
+            <Input
+              id="theme-name"
+              value={draft.name}
+              disabled={busy}
+              onChange={(event) => onChange({ ...draft, name: event.target.value })}
+            />
+          </div>
+        </EditorSection>
 
-      <Tabs defaultValue="guided" className="space-y-4">
-        <TabsList aria-label="Editing mode">
-          <TabsTrigger value="guided">Guided</TabsTrigger>
-          <TabsTrigger value="advanced">Advanced</TabsTrigger>
-        </TabsList>
-        <TabsContent value="guided">
-          <ThemeGuidedEditor draft={draft} onChange={onChange} disabled={isSaving || isDeleting} />
-        </TabsContent>
-        <TabsContent value="advanced">
-          <Suspense
-            fallback={<p className="type-body text-muted-foreground">Loading advanced editor…</p>}
-          >
-            <ThemeAdvancedEditor
+        <EditorSection
+          title="Preview"
+          description="Light and dark share the same seeds; each preview paints its own scoped variables."
+        >
+          <div className="grid gap-6 lg:grid-cols-2">
+            <ThemePreviewPane definition={draft} dark={false} />
+            <ThemePreviewPane definition={draft} dark />
+          </div>
+        </EditorSection>
+
+        <Tabs defaultValue="guided" className="space-y-4">
+          <TabsList aria-label="Editing mode">
+            <TabsTrigger value="guided">Guided</TabsTrigger>
+            <TabsTrigger value="advanced">Advanced</TabsTrigger>
+          </TabsList>
+          <TabsContent value="guided">
+            <ThemeGuidedEditor
               draft={draft}
               onChange={onChange}
               disabled={isSaving || isDeleting}
             />
-          </Suspense>
-        </TabsContent>
-      </Tabs>
+          </TabsContent>
+          <TabsContent value="advanced">
+            <Suspense
+              fallback={<p className="type-body text-muted-foreground">Loading advanced editor…</p>}
+            >
+              <ThemeAdvancedEditor
+                draft={draft}
+                onChange={onChange}
+                disabled={isSaving || isDeleting}
+              />
+            </Suspense>
+          </TabsContent>
+        </Tabs>
 
-      {draft.basedOn === undefined ? null : (
-        <p className="type-body text-muted-foreground">Based on {draft.basedOn}.</p>
-      )}
+        {draft.basedOn === undefined ? null : (
+          <p className="type-body text-muted-foreground">Based on {draft.basedOn}.</p>
+        )}
 
-      <ConfirmDeleteThemeDialog
-        open={confirmingDelete}
-        themeName={draft.name}
-        isDeleting={isDeleting}
-        onOpenChange={setConfirmingDelete}
-        onConfirm={() => {
-          setConfirmingDelete(false);
-          onDelete();
-        }}
-      />
-    </section>
+        <ConfirmDeleteThemeDialog
+          open={confirmingDelete}
+          themeName={draft.name}
+          isDeleting={isDeleting}
+          onOpenChange={setConfirmingDelete}
+          onConfirm={() => {
+            setConfirmingDelete(false);
+            onDelete();
+          }}
+        />
+      </section>
+    </PageContainer>
   );
 }

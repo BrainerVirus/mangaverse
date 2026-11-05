@@ -17,6 +17,7 @@ import {
   ErrorState,
   LoadingState,
   SettingsSection,
+  PageContainer,
 } from '@app/design-system';
 
 import { summarizeRestorePreview } from '../summarize-restore-preview.js';
@@ -199,126 +200,136 @@ export function BackupPage({
 
   if (isLoading) {
     return (
-      <section aria-label="Backup and restore" className="mx-auto w-full max-w-3xl p-6">
-        <LoadingState type="list" count={3} />
-      </section>
+      <PageContainer variant="read">
+        <section aria-label="Backup and restore">
+          <LoadingState type="list" count={3} />
+        </section>
+      </PageContainer>
     );
   }
 
   if (isError) {
     return (
-      <section aria-label="Backup and restore" className="mx-auto w-full max-w-3xl p-6">
-        <ErrorState
-          title="Could not load backup tools"
-          message="Local database is unavailable. Try reloading the page."
-        />
-      </section>
+      <PageContainer variant="read">
+        <section aria-label="Backup and restore">
+          <ErrorState
+            title="Could not load backup tools"
+            message="Local database is unavailable. Try reloading the page."
+          />
+        </section>
+      </PageContainer>
     );
   }
 
   return (
-    <section aria-label="Backup and restore" className="mx-auto w-full max-w-3xl space-y-6 p-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Backup &amp; Restore
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Export your library, categories, reading progress, providers, and settings to a local
-          file. Import a backup to replace current local data.
-        </p>
-      </header>
+    <PageContainer variant="read">
+      <section aria-label="Backup and restore" className="space-y-6">
+        <header className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            Backup &amp; Restore
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Export your library, categories, reading progress, providers, and settings to a local
+            file. Import a backup to replace current local data.
+          </p>
+        </header>
 
-      <RestoreStatus
-        restoreSuccess={restoreSuccess}
-        restoreError={restoreError}
-        onDismissRestoreStatus={onDismissRestoreStatus}
-      />
+        <RestoreStatus
+          restoreSuccess={restoreSuccess}
+          restoreError={restoreError}
+          onDismissRestoreStatus={onDismissRestoreStatus}
+        />
 
-      <SettingsSection
-        title="Export backup"
-        description="Download a JSON snapshot of library entries, categories, chapter progress, reading history, migration history, manga identities, installed providers, and settings."
-      >
-        <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={onExport} disabled={isExporting}>
-            {isExporting ? 'Creating backup…' : 'Export backup'}
-          </Button>
-          {lastExport !== null ? (
-            <p className="text-sm text-muted-foreground">
-              Last export: {formatBackupTimestamp(lastExport.metadata.createdAt)} ·{' '}
-              {lastExport.library.length} library entries · {lastExport.categories?.length ?? 0}{' '}
-              categories · {lastExport.chapterReadStates?.length ?? 0} chapter progress ·{' '}
-              {lastExport.installedExtensions.length} providers
-            </p>
-          ) : null}
-        </div>
-      </SettingsSection>
-
-      <SettingsSection
-        title="Import backup"
-        description="Select a MangaVerse backup file. The app validates format, shows what the backup carries, and previews conflicts before replacing data."
-      >
-        <div className="space-y-4">
+        <SettingsSection
+          title="Export backup"
+          description="Download a JSON snapshot of library entries, categories, chapter progress, reading history, migration history, manga identities, installed providers, and settings."
+        >
           <div className="flex flex-wrap items-center gap-3">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="application/json,.json"
-              className="sr-only"
-              aria-label="Choose backup file"
-              onChange={(event) => void handleFileChange(event)}
-            />
-            <Button
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isRestoring}
-            >
-              Choose backup file
+            <Button onClick={onExport} disabled={isExporting}>
+              {isExporting ? 'Creating backup…' : 'Export backup'}
             </Button>
-            {preview !== null ? (
-              <Button variant="ghost" onClick={onClearPreview} disabled={isRestoring}>
-                Clear preview
-              </Button>
+            {lastExport !== null ? (
+              <p className="text-sm text-muted-foreground">
+                Last export: {formatBackupTimestamp(lastExport.metadata.createdAt)} ·{' '}
+                {lastExport.library.length} library entries · {lastExport.categories?.length ?? 0}{' '}
+                categories · {lastExport.chapterReadStates?.length ?? 0} chapter progress ·{' '}
+                {lastExport.installedExtensions.length} providers
+              </p>
             ) : null}
           </div>
+        </SettingsSection>
 
-          {preview !== null ? (
-            <RestorePreviewPanel
-              preview={preview}
-              isRestoring={isRestoring}
-              onRequestConfirm={() => setConfirmOpen(true)}
-            />
-          ) : null}
-        </div>
-      </SettingsSection>
+        <SettingsSection
+          title="Import backup"
+          description="Select a MangaVerse backup file. The app validates format, shows what the backup carries, and previews conflicts before replacing data."
+        >
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/json,.json"
+                className="sr-only"
+                aria-label="Choose backup file"
+                onChange={(event) => void handleFileChange(event)}
+              />
+              <Button
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isRestoring}
+              >
+                Choose backup file
+              </Button>
+              {preview !== null ? (
+                <Button variant="ghost" onClick={onClearPreview} disabled={isRestoring}>
+                  Clear preview
+                </Button>
+              ) : null}
+            </div>
 
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Replace local data?</DialogTitle>
-            <DialogDescription>
-              This will replace your current library, categories and category links, chapter
-              progress, reading history, migration history, installed provider records, and
-              backup-covered settings. Older backups that do not carry the newer sections keep their
-              local records. This action cannot be undone automatically.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={isRestoring}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={isRestoring}
-              onClick={() => {
-                setConfirmOpen(false);
-                onRestore();
-              }}
-            >
-              {isRestoring ? 'Restoring…' : 'Confirm restore'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </section>
+            {preview !== null ? (
+              <RestorePreviewPanel
+                preview={preview}
+                isRestoring={isRestoring}
+                onRequestConfirm={() => setConfirmOpen(true)}
+              />
+            ) : null}
+          </div>
+        </SettingsSection>
+
+        <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Replace local data?</DialogTitle>
+              <DialogDescription>
+                This will replace your current library, categories and category links, chapter
+                progress, reading history, migration history, installed provider records, and
+                backup-covered settings. Older backups that do not carry the newer sections keep
+                their local records. This action cannot be undone automatically.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                variant="outline"
+                onClick={() => setConfirmOpen(false)}
+                disabled={isRestoring}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={isRestoring}
+                onClick={() => {
+                  setConfirmOpen(false);
+                  onRestore();
+                }}
+              >
+                {isRestoring ? 'Restoring…' : 'Confirm restore'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </section>
+    </PageContainer>
   );
 }

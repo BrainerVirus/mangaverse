@@ -80,6 +80,7 @@ export { AmbientBackdrop } from './components/ambient-backdrop.js';
 export { resolveGlassProfile } from './lib/glass-profile.js';
 export type { GlassProfileInput } from './lib/glass-profile.js';
 
+export { PageContainer } from './components/page-container.js';
 export { PageHeader } from './components/page-header.js';
 
 export { MangaCard } from './components/manga-card.js';
@@ -91,6 +92,7 @@ export { SettingsSection } from './components/settings-section.js';
 export { ReaderChrome } from './components/reader-chrome.js';
 export { ThemePreview } from './components/theme-preview.js';
 
+export type { PageContainerProps } from './components/page-container.js';
 export type { PageHeaderProps } from './components/page-header.js';
 export type { MangaCardProps } from './components/manga-card.js';
 export type { EmptyStateProps } from './components/empty-state.js';

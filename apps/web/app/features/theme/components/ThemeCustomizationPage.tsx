@@ -10,6 +10,7 @@ import {
   Switch,
   ThemePreview,
   cn,
+  PageContainer,
 } from '@app/design-system';
 import type { ThemeDefinition, ThemeSettings } from '@app/shared';
 
@@ -283,20 +284,24 @@ export function ThemeCustomizationPage({
 
   if (isLoading) {
     return (
-      <section aria-label="Theme" className="mx-auto w-full max-w-5xl p-6">
-        <LoadingState type="list" count={3} />
-      </section>
+      <PageContainer variant="read" className="max-w-5xl">
+        <section aria-label="Theme">
+          <LoadingState type="list" count={3} />
+        </section>
+      </PageContainer>
     );
   }
 
   if (isError || settings === undefined) {
     return (
-      <section aria-label="Theme" className="mx-auto w-full max-w-5xl p-6">
-        <ErrorState
-          title="Could not load theme settings"
-          message="Your local database may be unavailable. Try reloading the page."
-        />
-      </section>
+      <PageContainer variant="read" className="max-w-5xl">
+        <section aria-label="Theme">
+          <ErrorState
+            title="Could not load theme settings"
+            message="Your local database may be unavailable. Try reloading the page."
+          />
+        </section>
+      </PageContainer>
     );
   }
 
@@ -308,110 +313,112 @@ export function ThemeCustomizationPage({
     settings.themeId === 'amoled-black';
 
   return (
-    <section aria-label="Theme" className="mx-auto w-full max-w-5xl space-y-8 p-6">
-      <header className="space-y-2">
-        <h1 className="type-display-lg text-foreground">Theme</h1>
-        <p className="type-body max-w-2xl text-muted-foreground">
-          Choose a visual preset or one of your custom themes. Changes apply across the app and are
-          saved locally.
-        </p>
-      </header>
+    <PageContainer variant="read" className="max-w-5xl">
+      <section aria-label="Theme" className="space-y-8">
+        <header className="space-y-2">
+          <h1 className="type-display-lg text-foreground">Theme</h1>
+          <p className="type-body max-w-2xl text-muted-foreground">
+            Choose a visual preset or one of your custom themes. Changes apply across the app and
+            are saved locally.
+          </p>
+        </header>
 
-      {themeNotice === null ? null : (
-        <Alert variant="destructive">
-          <AlertTitle>Theme unavailable</AlertTitle>
-          <p className="type-body">{themeNotice}</p>
-        </Alert>
-      )}
+        {themeNotice === null ? null : (
+          <Alert variant="destructive">
+            <AlertTitle>Theme unavailable</AlertTitle>
+            <p className="type-body">{themeNotice}</p>
+          </Alert>
+        )}
 
-      {actionError === null ? null : (
-        <Alert variant="destructive">
-          <AlertTitle>Could not update themes</AlertTitle>
-          <p className="type-body">{actionError}</p>
-        </Alert>
-      )}
+        {actionError === null ? null : (
+          <Alert variant="destructive">
+            <AlertTitle>Could not update themes</AlertTitle>
+            <p className="type-body">{actionError}</p>
+          </Alert>
+        )}
 
-      <ThemeSection
-        title="Appearance"
-        description="Switch between light and dark surfaces when your preset supports both modes."
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <Label htmlFor="theme-dark-mode">Dark mode</Label>
-            <p className="type-body text-muted-foreground">
-              {usesSystemAppearance
-                ? 'System preset follows your device preference automatically.'
-                : appearanceLocked
-                  ? 'This preset uses a fixed appearance mode.'
-                  : 'Toggle dark surfaces for the selected preset.'}
-            </p>
-          </div>
-          <Switch
-            id="theme-dark-mode"
-            checked={previewDark}
-            disabled={isSaving || usesSystemAppearance || appearanceLocked}
-            aria-label="Dark mode"
-            onClick={() => onChange({ ...settings, dark: !settings.dark })}
-          />
-        </div>
-      </ThemeSection>
-
-      <ThemeSection
-        title="Built-in themes"
-        description="Each preset keeps shared component semantics while changing color personality. Duplicate one to start a custom theme."
-      >
-        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-          {THEME_PRESETS.map((preset) => (
-            <ThemePresetCard
-              key={preset.id}
-              presetId={preset.id}
-              name={preset.name}
-              description={preset.description}
-              selected={settings.themeId === preset.id}
-              previewDark={
-                preset.id === 'minimal-light'
-                  ? false
-                  : preset.id === 'minimal-dark' || preset.id === 'amoled-black'
-                    ? true
-                    : previewDark
-              }
-              disabled={isSaving}
-              onSelect={() => onChange({ ...settings, themeId: preset.id })}
-              {...(onDuplicatePreset === undefined
-                ? {}
-                : { onDuplicate: () => onDuplicatePreset(preset.id) })}
+        <ThemeSection
+          title="Appearance"
+          description="Switch between light and dark surfaces when your preset supports both modes."
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <Label htmlFor="theme-dark-mode">Dark mode</Label>
+              <p className="type-body text-muted-foreground">
+                {usesSystemAppearance
+                  ? 'System preset follows your device preference automatically.'
+                  : appearanceLocked
+                    ? 'This preset uses a fixed appearance mode.'
+                    : 'Toggle dark surfaces for the selected preset.'}
+              </p>
+            </div>
+            <Switch
+              id="theme-dark-mode"
+              checked={previewDark}
+              disabled={isSaving || usesSystemAppearance || appearanceLocked}
+              aria-label="Dark mode"
+              onClick={() => onChange({ ...settings, dark: !settings.dark })}
             />
-          ))}
-        </div>
-      </ThemeSection>
+          </div>
+        </ThemeSection>
 
-      <CustomThemesSection
-        customThemes={customThemes}
-        areCustomThemesLoading={areCustomThemesLoading}
-        areCustomThemesError={areCustomThemesError}
-        isSaving={isSaving}
-        selectedThemeId={settings.themeId}
-        previewDark={previewDark}
-        onSelect={(themeId) => onChange({ ...settings, themeId })}
-        onEdit={onEditCustomTheme}
-        onDelete={setPendingDelete}
-        onRetry={onRetryCustomThemes}
-      />
+        <ThemeSection
+          title="Built-in themes"
+          description="Each preset keeps shared component semantics while changing color personality. Duplicate one to start a custom theme."
+        >
+          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+            {THEME_PRESETS.map((preset) => (
+              <ThemePresetCard
+                key={preset.id}
+                presetId={preset.id}
+                name={preset.name}
+                description={preset.description}
+                selected={settings.themeId === preset.id}
+                previewDark={
+                  preset.id === 'minimal-light'
+                    ? false
+                    : preset.id === 'minimal-dark' || preset.id === 'amoled-black'
+                      ? true
+                      : previewDark
+                }
+                disabled={isSaving}
+                onSelect={() => onChange({ ...settings, themeId: preset.id })}
+                {...(onDuplicatePreset === undefined
+                  ? {}
+                  : { onDuplicate: () => onDuplicatePreset(preset.id) })}
+              />
+            ))}
+          </div>
+        </ThemeSection>
 
-      <ConfirmDeleteThemeDialog
-        open={pendingDelete !== null}
-        themeName={pendingDelete?.name ?? ''}
-        isDeleting={isDeletingCustomTheme}
-        onOpenChange={(open) => {
-          if (!open) setPendingDelete(null);
-        }}
-        onConfirm={() => {
-          if (pendingDelete === null) return;
-          const themeId = pendingDelete.id;
-          setPendingDelete(null);
-          onDeleteCustomTheme?.(themeId);
-        }}
-      />
-    </section>
+        <CustomThemesSection
+          customThemes={customThemes}
+          areCustomThemesLoading={areCustomThemesLoading}
+          areCustomThemesError={areCustomThemesError}
+          isSaving={isSaving}
+          selectedThemeId={settings.themeId}
+          previewDark={previewDark}
+          onSelect={(themeId) => onChange({ ...settings, themeId })}
+          onEdit={onEditCustomTheme}
+          onDelete={setPendingDelete}
+          onRetry={onRetryCustomThemes}
+        />
+
+        <ConfirmDeleteThemeDialog
+          open={pendingDelete !== null}
+          themeName={pendingDelete?.name ?? ''}
+          isDeleting={isDeletingCustomTheme}
+          onOpenChange={(open) => {
+            if (!open) setPendingDelete(null);
+          }}
+          onConfirm={() => {
+            if (pendingDelete === null) return;
+            const themeId = pendingDelete.id;
+            setPendingDelete(null);
+            onDeleteCustomTheme?.(themeId);
+          }}
+        />
+      </section>
+    </PageContainer>
   );
 }

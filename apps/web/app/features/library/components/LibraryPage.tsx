@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { EmptyState, ErrorState, LoadingState, PageHeader } from '@app/design-system';
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  PageContainer,
+  PageHeader,
+} from '@app/design-system';
 import {
   type ChapterId,
   type LibraryEntryId,
@@ -286,87 +292,89 @@ export function LibraryPage({
   }, [selectionMode, exitSelectionMode]);
 
   return (
-    <section
-      aria-label="Library"
-      className="mx-auto flex w-full max-w-400 flex-col gap-6 p-6 md:p-8"
-    >
-      <PageHeader
-        title="Library"
-        description="Your saved manga, comics, and webtoons"
-        count={itemCount}
-        countLabel={itemCount === 1 ? 'title' : 'titles'}
-      />
-
-      {showToolbar ? (
-        <LibraryToolbar
-          viewState={viewState}
-          categories={categories}
-          providers={providers}
-          onViewStateChange={handleViewStateChange}
-          onFilterChange={handleFilterChange}
-          {...(onOrganize === undefined ? {} : { onOrganize })}
+    <PageContainer>
+      <section aria-label="Library" className="flex flex-col gap-6">
+        <PageHeader
+          title="Library"
+          description="Your saved manga, comics, and webtoons"
+          count={itemCount}
+          countLabel={itemCount === 1 ? 'title' : 'titles'}
         />
-      ) : null}
 
-      <LibraryStatus
-        isLoading={isLoading}
-        isError={isError}
-        itemCount={itemCount}
-        filtersActive={filtersActive}
-        onBrowse={onBrowse}
-        onRetry={onRetry}
-        onClearFilters={() => handleFilterChange({})}
-      />
-
-      <LibraryUpdatesSection
-        updates={updates}
-        isLoading={isLoading}
-        isError={isError}
-        itemCount={itemCount}
-      />
-
-      {itemCount > 0 && !isLoading && !isError ? (
-        <>
-          {overview !== undefined ? (
-            <>
-              <ContinueReadingSection
-                items={overview.continueReading}
-                onResume={(chapterId) => onOpenChapter?.(chapterId)}
-                showEmpty={!filtersActive}
-              />
-              <RecentlyUpdatedSection items={overview.recentlyUpdated} onOpenManga={onOpenManga} />
-            </>
-          ) : null}
-          <BulkEditBar
-            selectionMode={selection.selectionMode}
-            selectedEntryIds={selection.selectedEntryIds}
-            visibleCount={itemCount}
-            loadedCount={items.length}
-            allVisibleSelected={selection.allVisibleSelected}
+        {showToolbar ? (
+          <LibraryToolbar
+            viewState={viewState}
             categories={categories}
-            onToggleSelectionMode={toggleSelectionMode}
-            onSelectAllLoaded={selection.selectAllVisible}
-            onClearSelection={clearSelection}
-            onOrganize={onOrganize ?? NOOP_ORGANIZE}
-            onMigrateSelected={migrateSelected}
+            providers={providers}
+            onViewStateChange={handleViewStateChange}
+            onFilterChange={handleFilterChange}
+            {...(onOrganize === undefined ? {} : { onOrganize })}
           />
-          {migrationError !== null ? (
-            <p role="alert" className="text-sm text-destructive">
-              {migrationError}
-            </p>
-          ) : null}
-          <VirtualLibraryGrid
-            items={items}
-            layout={viewState.layout}
-            onOpenManga={onOpenManga}
-            selectionMode={selection.selectionMode}
-            selectedIds={selection.selectedIds}
-            onToggleSelected={selection.toggleSelected}
-            {...(sourceLabels === undefined ? {} : { sourceLabels })}
-          />
-          <LibraryPaginator loaded={items.length} total={itemCount} onLoadMore={onLoadMore} />
-        </>
-      ) : null}
-    </section>
+        ) : null}
+
+        <LibraryStatus
+          isLoading={isLoading}
+          isError={isError}
+          itemCount={itemCount}
+          filtersActive={filtersActive}
+          onBrowse={onBrowse}
+          onRetry={onRetry}
+          onClearFilters={() => handleFilterChange({})}
+        />
+
+        <LibraryUpdatesSection
+          updates={updates}
+          isLoading={isLoading}
+          isError={isError}
+          itemCount={itemCount}
+        />
+
+        {itemCount > 0 && !isLoading && !isError ? (
+          <>
+            {overview !== undefined ? (
+              <>
+                <ContinueReadingSection
+                  items={overview.continueReading}
+                  onResume={(chapterId) => onOpenChapter?.(chapterId)}
+                  showEmpty={!filtersActive}
+                />
+                <RecentlyUpdatedSection
+                  items={overview.recentlyUpdated}
+                  onOpenManga={onOpenManga}
+                />
+              </>
+            ) : null}
+            <BulkEditBar
+              selectionMode={selection.selectionMode}
+              selectedEntryIds={selection.selectedEntryIds}
+              visibleCount={itemCount}
+              loadedCount={items.length}
+              allVisibleSelected={selection.allVisibleSelected}
+              categories={categories}
+              onToggleSelectionMode={toggleSelectionMode}
+              onSelectAllLoaded={selection.selectAllVisible}
+              onClearSelection={clearSelection}
+              onOrganize={onOrganize ?? NOOP_ORGANIZE}
+              onMigrateSelected={migrateSelected}
+            />
+            {migrationError !== null ? (
+              <p role="alert" className="text-sm text-destructive">
+                {migrationError}
+              </p>
+            ) : null}
+            <VirtualLibraryGrid
+              items={items}
+              layout={viewState.layout}
+              onOpenManga={onOpenManga}
+              selectionMode={selection.selectionMode}
+              selectedIds={selection.selectedIds}
+              onToggleSelected={selection.toggleSelected}
+              {...(sourceLabels === undefined ? {} : { sourceLabels })}
+            />
+            <LibraryPaginator loaded={items.length} total={itemCount} onLoadMore={onLoadMore} />
+          </>
+        ) : null}
+      </section>
+    </PageContainer>
   );
 }

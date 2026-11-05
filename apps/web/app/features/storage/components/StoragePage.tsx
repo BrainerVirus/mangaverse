@@ -13,6 +13,7 @@ import {
   ErrorState,
   LoadingState,
   SettingsSection,
+  PageContainer,
 } from '@app/design-system';
 import { formatCacheBytes } from '@app/cache';
 import type { DownloadStatus } from '@app/db';
@@ -252,165 +253,176 @@ export function StoragePage({
 
   if (isLoading) {
     return (
-      <section aria-label="Storage" className="mx-auto w-full max-w-3xl p-6">
-        <LoadingState type="list" count={3} />
-      </section>
+      <PageContainer variant="read">
+        <section aria-label="Storage">
+          <LoadingState type="list" count={3} />
+        </section>
+      </PageContainer>
     );
   }
 
   if (isError) {
     return (
-      <section aria-label="Storage" className="mx-auto w-full max-w-3xl p-6">
-        <ErrorState
-          title="Could not load storage details"
-          message="Local database or platform storage information is unavailable. Try reloading the page."
-        />
-      </section>
+      <PageContainer variant="read">
+        <section aria-label="Storage">
+          <ErrorState
+            title="Could not load storage details"
+            message="Local database or platform storage information is unavailable. Try reloading the page."
+          />
+        </section>
+      </PageContainer>
     );
   }
 
   if (summary === null) {
     return (
-      <section aria-label="Storage" className="mx-auto w-full max-w-3xl p-6">
-        <ErrorState title="Storage unavailable" message="No storage summary was generated." />
-      </section>
+      <PageContainer variant="read">
+        <section aria-label="Storage">
+          <ErrorState title="Storage unavailable" message="No storage summary was generated." />
+        </section>
+      </PageContainer>
     );
   }
 
   return (
-    <section aria-label="Storage" className="mx-auto w-full max-w-3xl space-y-6 p-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Storage</h1>
-        <p className="text-sm text-muted-foreground">
-          Review local storage usage and clear safe cache data without touching your library or
-          reading progress.
-        </p>
-      </header>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={onRefresh} disabled={isRefreshing}>
-          {isRefreshing ? 'Refreshing…' : 'Refresh storage'}
-        </Button>
-      </div>
-
-      <ActionStatus
-        lastActionMessage={lastActionMessage}
-        lastActionError={lastActionError}
-        onDismissActionStatus={onDismissActionStatus}
-      />
-
-      <SettingsSection
-        title="Browser storage"
-        description="Quota and usage reported by the active platform adapter."
-      >
-        {summary.platformEstimate === null ? (
+    <PageContainer variant="read">
+      <section aria-label="Storage" className="space-y-6">
+        <header className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Storage</h1>
           <p className="text-sm text-muted-foreground">
-            Storage estimates are not available on this runtime.
+            Review local storage usage and clear safe cache data without touching your library or
+            reading progress.
           </p>
-        ) : (
+        </header>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Button onClick={onRefresh} disabled={isRefreshing}>
+            {isRefreshing ? 'Refreshing…' : 'Refresh storage'}
+          </Button>
+        </div>
+
+        <ActionStatus
+          lastActionMessage={lastActionMessage}
+          lastActionError={lastActionError}
+          onDismissActionStatus={onDismissActionStatus}
+        />
+
+        <SettingsSection
+          title="Browser storage"
+          description="Quota and usage reported by the active platform adapter."
+        >
+          {summary.platformEstimate === null ? (
+            <p className="text-sm text-muted-foreground">
+              Storage estimates are not available on this runtime.
+            </p>
+          ) : (
+            <dl className="divide-y divide-border">
+              <InfoRow label="Quota" value={formatStorageBytes(summary.platformEstimate.quota)} />
+              <InfoRow label="Usage" value={formatStorageBytes(summary.platformEstimate.usage)} />
+              <InfoRow
+                label="Persisted"
+                value={summary.platformEstimate.persisted === true ? 'yes' : 'no'}
+              />
+            </dl>
+          )}
+
+          {capabilities.storageEstimate ? (
+            <div className="mt-4">
+              <Button
+                variant="outline"
+                onClick={onRequestPersistentStorage}
+                disabled={isRequestingPersist}
+              >
+                {isRequestingPersist ? 'Requesting…' : 'Request persistent storage'}
+              </Button>
+            </div>
+          ) : null}
+        </SettingsSection>
+
+        <SettingsSection
+          title="Provider cache"
+          description="Local records of cached chapters and images. Clearing this does not remove library entries or downloads."
+        >
           <dl className="divide-y divide-border">
-            <InfoRow label="Quota" value={formatStorageBytes(summary.platformEstimate.quota)} />
-            <InfoRow label="Usage" value={formatStorageBytes(summary.platformEstimate.usage)} />
+            <InfoRow label="Cache entries" value={String(summary.cacheEntryCount)} />
+            <InfoRow label="Cached image data" value={formatCacheBytes(summary.cacheTotalBytes)} />
             <InfoRow
-              label="Persisted"
-              value={summary.platformEstimate.persisted === true ? 'yes' : 'no'}
+              label="Reclaimable cache"
+              value={formatCacheBytes(summary.cacheEvictableBytes)}
+            />
+            <InfoRow
+              label="Protected downloads"
+              value={formatCacheBytes(summary.downloads.bytes)}
             />
           </dl>
-        )}
 
-        {capabilities.storageEstimate ? (
+          {summary.cacheByProvider.length > 0 ? (
+            <ul className="mt-4 space-y-2" aria-label="Cache entries by provider">
+              {summary.cacheByProvider.map((entry) => (
+                <li
+                  key={entry.providerId}
+                  className="flex items-center justify-between rounded-control bg-muted/40 px-3 py-2 text-sm"
+                >
+                  <span className="font-mono text-foreground">{entry.providerId}</span>
+                  <Badge variant="secondary">{entry.count}</Badge>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-4 text-sm text-muted-foreground">
+              No provider cache metadata stored yet.
+            </p>
+          )}
+
           <div className="mt-4">
             <Button
-              variant="outline"
-              onClick={onRequestPersistentStorage}
-              disabled={isRequestingPersist}
+              variant="destructive"
+              onClick={() => setPendingClear('provider_cache')}
+              disabled={summary.cacheEntryCount === 0 || isClearing}
             >
-              {isRequestingPersist ? 'Requesting…' : 'Request persistent storage'}
+              Clear provider cache
             </Button>
           </div>
-        ) : null}
-      </SettingsSection>
+        </SettingsSection>
 
-      <SettingsSection
-        title="Provider cache"
-        description="Local records of cached chapters and images. Clearing this does not remove library entries or downloads."
-      >
-        <dl className="divide-y divide-border">
-          <InfoRow label="Cache entries" value={String(summary.cacheEntryCount)} />
-          <InfoRow label="Cached image data" value={formatCacheBytes(summary.cacheTotalBytes)} />
-          <InfoRow
-            label="Reclaimable cache"
-            value={formatCacheBytes(summary.cacheEvictableBytes)}
-          />
-          <InfoRow label="Protected downloads" value={formatCacheBytes(summary.downloads.bytes)} />
-        </dl>
+        <DownloadsSection
+          summary={summary}
+          isPending={isDownloadActionPending}
+          onRetryDownload={onRetryDownload}
+          onRemoveDownload={onRemoveDownload}
+        />
 
-        {summary.cacheByProvider.length > 0 ? (
-          <ul className="mt-4 space-y-2" aria-label="Cache entries by provider">
-            {summary.cacheByProvider.map((entry) => (
-              <li
-                key={entry.providerId}
-                className="flex items-center justify-between rounded-control bg-muted/40 px-3 py-2 text-sm"
-              >
-                <span className="font-mono text-foreground">{entry.providerId}</span>
-                <Badge variant="secondary">{entry.count}</Badge>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-4 text-sm text-muted-foreground">
-            No provider cache metadata stored yet.
-          </p>
-        )}
+        <SettingsSection
+          title="Search data"
+          description="Recent queries and saved searches stored locally."
+        >
+          <dl className="divide-y divide-border">
+            <InfoRow label="Search history" value={String(summary.searchHistoryCount)} />
+            <InfoRow label="Saved searches" value={String(summary.savedSearchCount)} />
+          </dl>
 
-        <div className="mt-4">
-          <Button
-            variant="destructive"
-            onClick={() => setPendingClear('provider_cache')}
-            disabled={summary.cacheEntryCount === 0 || isClearing}
-          >
-            Clear provider cache
-          </Button>
-        </div>
-      </SettingsSection>
+          <div className="mt-4">
+            <Button
+              variant="destructive"
+              onClick={() => setPendingClear('search_history')}
+              disabled={summary.searchHistoryCount === 0 || isClearing}
+            >
+              Clear search history
+            </Button>
+          </div>
+        </SettingsSection>
 
-      <DownloadsSection
-        summary={summary}
-        isPending={isDownloadActionPending}
-        onRetryDownload={onRetryDownload}
-        onRemoveDownload={onRemoveDownload}
-      />
-
-      <SettingsSection
-        title="Search data"
-        description="Recent queries and saved searches stored locally."
-      >
-        <dl className="divide-y divide-border">
-          <InfoRow label="Search history" value={String(summary.searchHistoryCount)} />
-          <InfoRow label="Saved searches" value={String(summary.savedSearchCount)} />
-        </dl>
-
-        <div className="mt-4">
-          <Button
-            variant="destructive"
-            onClick={() => setPendingClear('search_history')}
-            disabled={summary.searchHistoryCount === 0 || isClearing}
-          >
-            Clear search history
-          </Button>
-        </div>
-      </SettingsSection>
-
-      <ClearDialog
-        target={pendingClear}
-        isClearing={isClearing}
-        onCancel={() => setPendingClear(null)}
-        onConfirm={() => {
-          if (pendingClear === null) return;
-          onClear(pendingClear);
-          setPendingClear(null);
-        }}
-      />
-    </section>
+        <ClearDialog
+          target={pendingClear}
+          isClearing={isClearing}
+          onCancel={() => setPendingClear(null)}
+          onConfirm={() => {
+            if (pendingClear === null) return;
+            onClear(pendingClear);
+            setPendingClear(null);
+          }}
+        />
+      </section>
+    </PageContainer>
   );
 }

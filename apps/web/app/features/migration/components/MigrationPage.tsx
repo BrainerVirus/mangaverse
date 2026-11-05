@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
   SettingsSection,
+  PageContainer,
 } from '@app/design-system';
 
 import { MIGRATION_BATCH_LIMIT, summarizeMigrationBatch } from '../batch-migration.js';
@@ -1124,104 +1125,111 @@ export function MigrationPage({
 
   if (isLoading) {
     return (
-      <section aria-label="Migration" className="mx-auto w-full max-w-3xl p-6">
-        <LoadingState type="list" />
-      </section>
+      <PageContainer variant="read">
+        <section aria-label="Migration">
+          <LoadingState type="list" />
+        </section>
+      </PageContainer>
     );
   }
 
   if (isError) {
     return (
-      <section aria-label="Migration" className="mx-auto w-full max-w-3xl p-6">
-        <ErrorState
-          title="Migration unavailable"
-          message="Local database is not ready. Try again after the app finishes initializing."
-        />
-      </section>
+      <PageContainer variant="read">
+        <section aria-label="Migration">
+          <ErrorState
+            title="Migration unavailable"
+            message="Local database is not ready. Try again after the app finishes initializing."
+          />
+        </section>
+      </PageContainer>
     );
   }
 
   return (
-    <section aria-label="Migration" className="mx-auto w-full max-w-3xl p-6 space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Migration</h1>
-        <p className="text-sm text-muted-foreground">
-          Move library titles from one provider to another. Review matches before applying changes.
-        </p>
-      </header>
+    <PageContainer variant="read">
+      <section aria-label="Migration" className="space-y-6">
+        <header className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Migration</h1>
+          <p className="text-sm text-muted-foreground">
+            Move library titles from one provider to another. Review matches before applying
+            changes.
+          </p>
+        </header>
 
-      <ApplyReportPanel
-        applyReport={applyReport}
-        applyError={applyError}
-        canRollback={canRollback}
-        isRollingBack={isRollingBack}
-        rollbackSummary={rollbackSummary}
-        rollbackError={rollbackError}
-        onRollback={onRollback}
-        onDismissApplyStatus={onDismissApplyStatus}
-      />
+        <ApplyReportPanel
+          applyReport={applyReport}
+          applyError={applyError}
+          canRollback={canRollback}
+          isRollingBack={isRollingBack}
+          rollbackSummary={rollbackSummary}
+          rollbackError={rollbackError}
+          onRollback={onRollback}
+          onDismissApplyStatus={onDismissApplyStatus}
+        />
 
-      <HandoffSection
-        handoffError={handoffError}
-        handoffIdCount={handoffIdCount}
-        onClearHandoff={onClearHandoff}
-        requestedMangaIds={requestedMangaIds}
-        requestedSourceProviderIds={requestedSourceProviderIds}
-        skippedRequestedIds={skippedRequestedIds}
-        requestedTitles={requestedTitles}
-        unavailableRequestedSourceProviderId={unavailableRequestedSourceProviderId}
-        providers={providers}
-        sourceProviderId={sourceProviderId}
-        targetProviderId={targetProviderId}
-        onSourceProviderChange={onSourceProviderChange}
-        onTargetProviderChange={onTargetProviderChange}
-      >
-        {showCandidates ? (
-          <CandidateSection
-            candidates={candidates}
-            selections={selections}
-            searchQueries={searchQueries}
-            committedSearchQueries={committedSearchQueries}
-            targetSearches={targetSearches}
-            preview={preview}
-            targetProviderName={targetProviderName}
-            isPreviewing={isPreviewing}
-            isApplying={isApplying}
-            canPreview={canPreview}
-            hasPreview={preview !== null}
-            onSearchQueryChange={onSearchQueryChange}
-            onRetryTargetSearch={onRetryTargetSearch}
-            onTargetMangaIdChange={onTargetMangaIdChange}
-            onSelectAllMatched={onSelectAllMatched}
-            onDeselectAll={onDeselectAll}
-            onPreview={onPreview}
-            onClearPreview={onClearPreview}
-          />
-        ) : null}
+        <HandoffSection
+          handoffError={handoffError}
+          handoffIdCount={handoffIdCount}
+          onClearHandoff={onClearHandoff}
+          requestedMangaIds={requestedMangaIds}
+          requestedSourceProviderIds={requestedSourceProviderIds}
+          skippedRequestedIds={skippedRequestedIds}
+          requestedTitles={requestedTitles}
+          unavailableRequestedSourceProviderId={unavailableRequestedSourceProviderId}
+          providers={providers}
+          sourceProviderId={sourceProviderId}
+          targetProviderId={targetProviderId}
+          onSourceProviderChange={onSourceProviderChange}
+          onTargetProviderChange={onTargetProviderChange}
+        >
+          {showCandidates ? (
+            <CandidateSection
+              candidates={candidates}
+              selections={selections}
+              searchQueries={searchQueries}
+              committedSearchQueries={committedSearchQueries}
+              targetSearches={targetSearches}
+              preview={preview}
+              targetProviderName={targetProviderName}
+              isPreviewing={isPreviewing}
+              isApplying={isApplying}
+              canPreview={canPreview}
+              hasPreview={preview !== null}
+              onSearchQueryChange={onSearchQueryChange}
+              onRetryTargetSearch={onRetryTargetSearch}
+              onTargetMangaIdChange={onTargetMangaIdChange}
+              onSelectAllMatched={onSelectAllMatched}
+              onDeselectAll={onDeselectAll}
+              onPreview={onPreview}
+              onClearPreview={onClearPreview}
+            />
+          ) : null}
 
-        {preview !== null ? (
-          <ReviewSection
-            preview={preview}
-            isPreviewing={isPreviewing}
-            isApplying={isApplying}
-            onRequestApply={() => setConfirmOpen(true)}
-          />
-        ) : null}
-      </HandoffSection>
+          {preview !== null ? (
+            <ReviewSection
+              preview={preview}
+              isPreviewing={isPreviewing}
+              isApplying={isApplying}
+              onRequestApply={() => setConfirmOpen(true)}
+            />
+          ) : null}
+        </HandoffSection>
 
-      <HistorySection history={history} titleFor={(mangaId) => titlesById[mangaId] ?? mangaId} />
+        <HistorySection history={history} titleFor={(mangaId) => titlesById[mangaId] ?? mangaId} />
 
-      <SummaryDialog
-        open={confirmOpen}
-        onOpenChange={setConfirmOpen}
-        preview={preview}
-        isApplying={isApplying}
-        onOpenBackup={onOpenBackup}
-        onConfirm={() => {
-          setConfirmOpen(false);
-          onApply();
-        }}
-      />
-    </section>
+        <SummaryDialog
+          open={confirmOpen}
+          onOpenChange={setConfirmOpen}
+          preview={preview}
+          isApplying={isApplying}
+          onOpenBackup={onOpenBackup}
+          onConfirm={() => {
+            setConfirmOpen(false);
+            onApply();
+          }}
+        />
+      </section>
+    </PageContainer>
   );
 }
