@@ -9,6 +9,8 @@ export default defineConfig({
   },
   assetsInclude: ['**/*.wasm'],
   test: {
+    // Concurrent runs race on node_modules/.vitest-cache cleanup (ENOTEMPTY, #261).
+    fsModuleCache: false,
     environment: 'jsdom',
     include: [
       'app/**/__tests__/**/*.test.ts',

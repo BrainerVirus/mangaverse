@@ -14,6 +14,8 @@ export default defineConfig({
   // reaches the SSR transform unparsed.
   oxc: { jsx: { runtime: 'automatic' } },
   test: {
+    // Concurrent runs race on node_modules/.vitest-cache cleanup (ENOTEMPTY, #261).
+    fsModuleCache: false,
     environment: 'node',
     include: ['src/**/*.{test,spec}.ts', 'scripts/**/*.{test,spec}.mjs'],
     // App import pulls the web router graph; CI runners can exceed the default 5s.

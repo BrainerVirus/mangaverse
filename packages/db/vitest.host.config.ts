@@ -50,6 +50,8 @@ const routeOverHost: Plugin = {
 export default defineConfig({
   plugins: [routeOverHost],
   test: {
+    // Concurrent runs race on node_modules/.vitest-cache cleanup (ENOTEMPTY, #261).
+    fsModuleCache: false,
     environment: 'node',
     include: ['src/**/*.{test,spec}.ts'],
     // These test the renderer's sql.js session and migrator, which the host replaces.
