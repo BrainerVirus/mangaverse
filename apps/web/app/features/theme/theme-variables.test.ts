@@ -318,3 +318,20 @@ describe('switch off track', () => {
     }
   });
 });
+
+// DESIGN.md §3.5 floors body text at 4.5:1. `--muted-foreground` is body text on every
+// neutral surface of the default theme, including the `--accent` hover and selected fill.
+describe('default theme muted text', () => {
+  const surfaces = ['--background', '--card', '--muted', '--accent'] as const;
+
+  it.each([false, true])('clears 4.5:1 on every neutral surface (dark: %s)', (dark) => {
+    const variables = buildThemeCssVariables({ themeId: 'default', dark });
+
+    for (const surface of surfaces) {
+      expect(
+        contrast(variables['--muted-foreground']!, variables[surface]!),
+        `${variables['--muted-foreground']} on ${surface} ${variables[surface]}`,
+      ).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+});

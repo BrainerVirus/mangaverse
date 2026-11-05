@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   applyThemeToRoot:
     vi.fn<(element: HTMLElement, settings: unknown, definition?: unknown) => void>(),
   fakeDb: { id: 'fake-db' },
+  dbState: { status: 'ready' as 'loading' | 'ready' | 'error' },
 }));
 
 vi.mock('@/features/theme', async (importOriginal) => {
@@ -44,8 +45,8 @@ vi.mock('@/features/theme', async (importOriginal) => {
 });
 
 vi.mock('../providers/local-db-provider.js', () => ({
-  useLocalDb: () => mocks.fakeDb,
-  useLocalDbStatus: () => 'ready',
+  useLocalDb: () => (mocks.dbState.status === 'ready' ? mocks.fakeDb : null),
+  useLocalDbStatus: () => mocks.dbState.status,
 }));
 
 const customDefinition: ThemeDefinition = {
@@ -75,6 +76,7 @@ describe('ThemeProvider custom definitions', () => {
   let root: Root;
 
   beforeEach(() => {
+    mocks.dbState.status = 'ready';
     mocks.fetchThemeDefinitions.mockReset().mockResolvedValue([customDefinition]);
     mocks.fetchThemeSettings.mockReset().mockResolvedValue({ settings: customSettings() });
     mocks.saveThemeSettings.mockReset().mockResolvedValue({ ok: true, value: undefined });
@@ -175,6 +177,56 @@ describe('ThemeProvider custom definitions', () => {
     expect(document.querySelector('[data-theme-notice]')?.textContent).toContain(
       'Custom themes could not be loaded',
     );
+  });
+
+  it('Given a saved custom theme and a database that failed to open, Then the default palette applies with a load notice', async () => {
+    mocks.dbState.status = 'error';
+    localStorage.setItem('themeId', customDefinition.id);
+    localStorage.setItem('dark', 'false');
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={createTestQueryClient()}>
+          <ThemeProvider>
+            <ThemeSettingsBridge />
+          </ThemeProvider>
+        </QueryClientProvider>,
+      );
+    });
+
+    const fallback = getBuiltInThemeDefinition('default');
+    await vi.waitFor(() => {
+      expect(document.documentElement.style.getPropertyValue('--background')).toBe(
+        fallback.light.seeds.background,
+      );
+      expect(document.querySelector('[data-theme-notice]')).not.toBeNull();
+    });
+
+    expect(document.querySelector('[data-theme-notice]')?.textContent).toContain(
+      'Custom themes could not be loaded',
+    );
+    expect(mocks.fetchThemeDefinitions).not.toHaveBeenCalled();
+    localStorage.clear();
+  });
+
+  it('Given a saved custom theme and a database that is still opening, Then no palette is painted yet', async () => {
+    mocks.dbState.status = 'loading';
+    localStorage.setItem('themeId', customDefinition.id);
+    localStorage.setItem('dark', 'false');
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={createTestQueryClient()}>
+          <ThemeProvider>
+            <ThemeSettingsBridge />
+          </ThemeProvider>
+        </QueryClientProvider>,
+      );
+    });
+
+    expect(document.querySelector('[data-theme-notice]')).toBeNull();
+    expect(document.documentElement.style.getPropertyValue('--background')).toBe('');
+    localStorage.clear();
   });
 
   it('applies the definition in dark when the settings ask for dark', async () => {

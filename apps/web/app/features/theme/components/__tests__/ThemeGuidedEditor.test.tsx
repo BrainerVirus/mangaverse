@@ -313,3 +313,58 @@ describe('GuidedAppearancePanel contrast checks', () => {
     }
   });
 });
+
+describe('GuidedAppearancePanel pinned overrides', () => {
+  const pinnedTestId = (appearance: 'light' | 'dark') => `pinned-${appearance}`;
+
+  it('lists the tokens a duplicated preset pins, with their values and an explanation', () => {
+    const preset = presetToThemeDefinition(getThemePreset('default'));
+    const elements = collectElements(
+      GuidedAppearancePanel({ draft: preset, appearance: 'light', onChange: vi.fn<() => void>() }),
+    );
+    const section = elements.find(
+      (element) => propsOf(element)['data-testid'] === pinnedTestId('light'),
+    );
+
+    expect(section).toBeDefined();
+    const text = collectText(section);
+    expect(text).toContain('Pinned by this preset');
+    expect(text).toContain('fixed by the preset, not derived from the seeds');
+    for (const [token, value] of Object.entries(preset.light.overrides ?? {})) {
+      expect(text).toContain(token);
+      expect(text).toContain(value);
+    }
+    expect(text).toContain(`These ${Object.keys(preset.light.overrides ?? {}).length} tokens`);
+  });
+
+  it('lists the dark appearance on its own', () => {
+    const preset = presetToThemeDefinition(getThemePreset('default'));
+    const elements = collectElements(
+      GuidedAppearancePanel({ draft: preset, appearance: 'dark', onChange: vi.fn<() => void>() }),
+    );
+    const section = elements.find(
+      (element) => propsOf(element)['data-testid'] === pinnedTestId('dark'),
+    );
+
+    const text = collectText(section);
+    for (const [token, value] of Object.entries(preset.dark.overrides ?? {})) {
+      expect(text).toContain(token);
+      expect(text).toContain(value);
+    }
+    expect(text).toContain(`These ${Object.keys(preset.dark.overrides ?? {}).length} tokens`);
+  });
+
+  it('renders nothing when the theme pins no token', () => {
+    const elements = collectElements(
+      GuidedAppearancePanel({
+        draft: definition(),
+        appearance: 'light',
+        onChange: vi.fn<() => void>(),
+      }),
+    );
+
+    expect(
+      elements.some((element) => propsOf(element)['data-testid'] === pinnedTestId('light')),
+    ).toBe(false);
+  });
+});

@@ -174,6 +174,44 @@ function formatWarmth(warmth: number): string {
   return warmth > 50 ? `${warmth - 50}% warm` : `${50 - warmth}% cool`;
 }
 
+interface PinnedOverridesProps {
+  readonly draft: ThemeDefinition;
+  readonly appearance: ThemeAppearance;
+}
+
+/** Read-only list of the tokens a preset fixed, so a seed edit that leaves them alone is not a surprise. */
+function pinnedOverrides({ draft, appearance }: PinnedOverridesProps): ReactElement | null {
+  const pinned = Object.entries(draft[appearance].overrides ?? {});
+  if (pinned.length === 0) {
+    return null;
+  }
+  const headingId = `guided-${appearance}-pinned-heading`;
+
+  return (
+    <section
+      aria-labelledby={headingId}
+      data-testid={`pinned-${appearance}`}
+      className="space-y-2 rounded-control border border-border p-3"
+    >
+      <h3 id={headingId} className="text-base font-semibold text-foreground">
+        Pinned by this preset
+      </h3>
+      <p className="text-sm text-muted-foreground">
+        {`These ${pinned.length} tokens are fixed by the preset, not derived from the seeds, so editing the seeds leaves them as they are. Release them in the Advanced editor.`}
+      </p>
+      <ul className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+        {pinned.map(([token, value]) => (
+          <li key={token} className="flex items-center gap-2 text-sm">
+            {swatch(value, 'h-3 w-3 shrink-0 rounded-full border border-border')}
+            <code className="font-mono text-xs text-foreground">{token}</code>
+            <span className="ml-auto font-mono text-xs text-muted-foreground">{value}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 interface ContrastMeterProps {
   readonly pair: GuidedContrastPair;
   readonly draft: ThemeDefinition;
@@ -318,6 +356,8 @@ export function GuidedAppearancePanel({
           })}
         </div>
       </GuidedSection>
+
+      {pinnedOverrides({ draft, appearance })}
 
       <GuidedSection
         title="Contrast"
