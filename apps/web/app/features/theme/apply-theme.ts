@@ -2,6 +2,7 @@ import type { ThemeDefinition, ThemeSettings } from '@app/shared';
 
 import { buildThemeCssVariablesForDefinition } from './derive.js';
 import { getBuiltInThemeDefinition } from './built-in-themes.js';
+import { writeThemePaintSnapshot } from './paint-snapshot.js';
 import { resolveThemeAppearance } from './resolve-theme.js';
 import { THEME_CSS_VARIABLES, type ThemeCssVariables } from './tokens.js';
 
@@ -35,6 +36,12 @@ export function applyThemeToRoot(
   for (const key of THEME_CSS_VARIABLES) {
     root.style.setProperty(key, cssVariables[key]);
   }
+
+  void writeThemePaintSnapshot({
+    appearance,
+    background: cssVariables['--background'],
+    foreground: cssVariables['--foreground'],
+  });
 }
 
 export function clearAppliedTheme(root: HTMLElement): void {

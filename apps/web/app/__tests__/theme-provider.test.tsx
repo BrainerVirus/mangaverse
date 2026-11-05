@@ -317,9 +317,10 @@ describe('ThemeProvider stored settings', () => {
     });
 
     const expected = buildThemeCssVariables({ themeId: 'sakura', dark: true });
-    // Default, then the stored value read after hydration.
+    // Only the stored value read after hydration: the default pass is skipped so it
+    // cannot repaint the boot snapshot with default colours.
     await vi.waitFor(() => {
-      expect(mocks.applyThemeToRoot).toHaveBeenCalledTimes(2);
+      expect(mocks.applyThemeToRoot).toHaveBeenCalledTimes(1);
       expect(document.documentElement.style.getPropertyValue('--background')).toBe(
         expected['--background'],
       );
@@ -338,7 +339,7 @@ describe('ThemeProvider stored settings', () => {
       await new Promise((resolve) => setTimeout(resolve, 20));
     });
 
-    // Same values from the database: no third set of style writes.
-    expect(mocks.applyThemeToRoot).toHaveBeenCalledTimes(2);
+    // Same values from the database: no second set of style writes.
+    expect(mocks.applyThemeToRoot).toHaveBeenCalledTimes(1);
   });
 });
