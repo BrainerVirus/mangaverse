@@ -17,6 +17,8 @@ const DATABASE = 'mangaverse.sqlite';
 const TITLES = ['Live Alpha', 'Live Beta', 'Live Gamma'] as const;
 const HOST_SERVICE = 'MangaVerse data host';
 const RESTARTED = 'The local library stopped and was restarted.';
+const OUTCOME_UNKNOWN =
+  'The local library restarted, so this change may or may not have been saved. Check before doing it again.';
 
 const cleanups: (() => void)[] = [];
 
@@ -206,8 +208,11 @@ test('two windows edit the library live, and a refused edit rolls back in place'
   side.close();
   const refused = await watchStatus(first, TITLES[1]);
   await setStatus(first, TITLES[1], 'Dropped');
-  await expect(first.getByText('entry is locked by the test')).toBeVisible({ timeout: 10_000 });
-  await expect(first.getByText('Could not update your library.')).toBeVisible();
+  // One toast with our own copy (#296): the SQLite text stays in the log, never on screen.
+  const failureToasts = first.locator('[data-sonner-toast][data-type="error"]');
+  await expect(failureToasts).toHaveCount(1, { timeout: 10_000 });
+  await expect(failureToasts).toHaveText('Could not update your library.');
+  await expect(first.getByText('entry is locked by the test')).toHaveCount(0);
   await expect(statusOf(first, TITLES[1])).toHaveText('Reading');
   expect(await refused()).toEqual(['Reading', 'Dropped', 'Reading']);
   await expect(statusOf(second, TITLES[1])).toHaveText('Reading');
@@ -272,7 +277,7 @@ const STREAM_WRITES = 100_000;
 const ackedWrites = (page: Page) =>
   page.evaluate(() => [...((window as unknown as { __acked?: number[] }).__acked ?? [])]);
 
-test('a killed host times calls out, restarts, reconnects every window and keeps committed data', async () => {
+test('a killed host settles a pending write as outcome-unknown, restarts, reconnects every window and keeps committed data', async () => {
   test.setTimeout(180_000);
   const userDataDir = await seededProfile();
   const { app, first } = await launch(userDataDir);
@@ -283,7 +288,9 @@ test('a killed host times calls out, restarts, reconnects every window and keeps
   await expect(statusOf(second, TITLES[0])).toHaveText('Completed', { timeout: 10_000 });
 
   // 1. The host hangs with a write in flight, then is killed: the write times out with a
-  //    typed error and rolls back, while main restarts the host and both windows are told.
+  //    typed `data-host.crashed` error (#318) and rolls back, while main restarts the host and
+  //    both windows are told. The pending write settles when the port is replaced, so the user is
+  //    told the outcome is unknown, not that the database timed out.
   const hungPid = await hostPid(app);
   expect(hungPid).toBeDefined();
   process.kill(hungPid!, 'SIGSTOP');
@@ -297,10 +304,13 @@ test('a killed host times calls out, restarts, reconnects every window and keeps
     await expect(page.getByText(RESTARTED, { exact: false })).toBeVisible({ timeout: 20_000 });
   }
   const toldMs = Date.now() - killedAt;
-  await expect(first.getByText('The local database did not answer in time.')).toBeVisible({
-    timeout: 45_000,
-  });
-  const timedOutMs = Date.now() - killedAt;
+  // Two error toasts, each once: the restart notice, and the pending write's own outcome.
+  const failureToasts = first.locator('[data-sonner-toast][data-type="error"]');
+  await expect(failureToasts).toHaveCount(2, { timeout: 45_000 });
+  await expect(failureToasts.filter({ hasText: RESTARTED })).toHaveCount(1);
+  await expect(failureToasts.filter({ hasText: OUTCOME_UNKNOWN })).toHaveCount(1);
+  await expect(first.getByText('The local database did not answer in time.')).toHaveCount(0);
+  const settledMs = Date.now() - killedAt;
   await expect(statusOf(first, TITLES[1])).toHaveText('Reading');
   expect(storedStatus(userDataDir, TITLES[1])).toBe('reading');
 
@@ -347,7 +357,7 @@ test('a killed host times calls out, restarts, reconnects every window and keeps
     type: 'crash',
     description:
       `SIGSTOP+SIGKILL pid ${hungPid}: restarted as ${restartedPid} after ${restartedMs} ms, ` +
-      `windows told by ${toldMs} ms, pending write timed out at ${timedOutMs} ms. ` +
+      `windows told by ${toldMs} ms, pending write settled as outcome-unknown at ${settledMs} ms. ` +
       `kill -9 pid ${streamPid} mid-stream: ${acked.length} acks (${new Set(acked).size} distinct, ` +
       `duplicates ${JSON.stringify(acked.filter((id, index) => acked.indexOf(id) !== index))}), ${stored.size} stored, ` +
       `0 lost, reopened in ${reopenedMs} ms, integrity_check ${integrity?.integrity_check}`,

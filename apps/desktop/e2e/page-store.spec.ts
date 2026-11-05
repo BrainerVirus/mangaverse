@@ -231,8 +231,23 @@ test('Given a chapter read online, When reopened offline, Then its pages render 
 
   // Main holds the bytes; SQLite holds only metadata rows; IndexedDB holds no page.
   await expect.poll(() => storedPages(userDataDir).bytes.length).toBeGreaterThanOrEqual(PAGES_READ);
+  // Prefetch keeps writing the pages after the ones read, and a put lays its bytes down before
+  // its sidecar (#312), so a listing taken mid-write sees bytes whose sidecar is not there yet.
+  // Wait for the writes to settle: every page file, and only those, ends up beside its sidecar.
+  await expect
+    .poll(
+      () => {
+        const { bytes, sidecars } = storedPages(userDataDir);
+        const named = sidecars.map((name) => name.slice(0, 64));
+        return {
+          withoutSidecar: bytes.filter((name) => !named.includes(name)),
+          withoutBytes: named.filter((name) => !bytes.includes(name)),
+        };
+      },
+      { timeout: 10_000 },
+    )
+    .toEqual({ withoutSidecar: [], withoutBytes: [] });
   const stored = storedPages(userDataDir);
-  expect(stored.sidecars.map((name) => name.slice(0, 64))).toEqual(stored.bytes);
   const rows = pageRows(userDataDir);
   // Prefetch may still be writing the next pages; every committed row has its file.
   expect(rows.length).toBeGreaterThanOrEqual(PAGES_READ);
