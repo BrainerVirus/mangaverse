@@ -174,10 +174,7 @@ function ThemeStep({
   return (
     <>
       <header className="flex flex-col gap-2">
-        <h1
-          id="onboarding-step-theme"
-          className="type-title text-foreground"
-        >
+        <h1 id="onboarding-step-theme" className="type-title text-foreground">
           Choose your look
         </h1>
         <p className="type-body text-muted-foreground">
@@ -296,10 +293,7 @@ function ReadingStep({
   return (
     <>
       <header className="flex flex-col gap-2">
-        <h1
-          id="onboarding-step-reading"
-          className="type-title text-foreground"
-        >
+        <h1 id="onboarding-step-reading" className="type-title text-foreground">
           Reading defaults
         </h1>
         <p className="type-body text-muted-foreground">
@@ -347,10 +341,7 @@ function PreferencesStep({
   return (
     <>
       <header className="flex flex-col gap-2">
-        <h1
-          id="onboarding-step-preferences"
-          className="type-title text-foreground"
-        >
+        <h1 id="onboarding-step-preferences" className="type-title text-foreground">
           Language and content
         </h1>
         <p className="type-body text-muted-foreground">
@@ -422,10 +413,7 @@ function ProviderStep({ onInstallProvider }: { onInstallProvider: () => void }) 
   return (
     <>
       <header className="flex flex-col gap-2">
-        <h1
-          id="onboarding-step-provider"
-          className="type-title text-foreground"
-        >
+        <h1 id="onboarding-step-provider" className="type-title text-foreground">
           Add your first provider
         </h1>
         <p className="type-body text-muted-foreground">
