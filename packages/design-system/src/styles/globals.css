@@ -129,8 +129,8 @@
   --sidebar: #f0ece6;
   --sidebar-foreground: #141210;
   --sidebar-border: #e3ddd4;
-  --sidebar-accent: #e8e2d9;
-  --sidebar-accent-foreground: #1c1917;
+  --sidebar-accent: #b5b0a9;
+  --sidebar-accent-foreground: #141210;
 
   /* DESIGN.md §2.1 — the four glass tiers. */
   --glass-thin: rgb(255 255 255 / 0.55);
@@ -198,7 +198,7 @@
   --sidebar: #0f0e0d;
   --sidebar-foreground: #f5f2eb;
   --sidebar-border: #2a2724;
-  --sidebar-accent: #1c1917;
+  --sidebar-accent: #585551;
   --sidebar-accent-foreground: #f5f2eb;
 
   --glass-thin: rgb(20 18 16 / 0.55);

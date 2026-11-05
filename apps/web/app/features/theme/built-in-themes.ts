@@ -52,11 +52,11 @@ export function presetToThemeDefinition(preset: ThemePresetDefinition): ThemeDef
     name: preset.name,
     light: {
       seeds: seedsFromTokens(preset.light),
-      overrides: legacyOverrides(preset.light, false),
+      overrides: { ...legacyOverrides(preset.light, false), ...preset.overrides?.light },
     },
     dark: {
       seeds: seedsFromTokens(preset.dark),
-      overrides: legacyOverrides(preset.dark, true),
+      overrides: { ...legacyOverrides(preset.dark, true), ...preset.overrides?.dark },
     },
   };
 }

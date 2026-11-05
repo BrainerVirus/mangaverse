@@ -316,7 +316,9 @@ Vibrancy is how type, icons and controls behave when they sit on glass. The rule
 Every value below is a token from `globals.css` unless marked **proposed**. Light is `:root, .light`;
 dark is `.dark`. The runtime theme layer (`apps/web/app/features/theme/presets.ts` + `apply-theme.ts`) repaints
 27 of these 29 variables across 10 presets — `--surface` and `--surface-raised` are the two it does not
-touch. Not all 27 are the preset's 10 colour tokens: `--muted-foreground`, `--destructive-foreground` and
+touch. The default Minimal preset paints the values in §3.1–§3.3 and §3.7, `--ring` and the
+`--sidebar-accent` pair aside (a test pins it to `globals.css` so first paint and the applied theme
+cannot flash). Not all 27 are the preset's 10 colour tokens: `--muted-foreground`, `--destructive-foreground` and
 the light `--primary-foreground` are hardcoded in `apply-theme.ts`, and `--muted`, `--secondary` and the
 `--sidebar` family reuse the preset's accent and surface. The roles below are fixed regardless. The glass
 tokens join the theme layer's list once introduced; presets may tint them, never re-tier them.

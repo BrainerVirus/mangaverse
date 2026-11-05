@@ -1,3 +1,5 @@
+import type { ThemeOverrides } from '@app/shared';
+
 export const THEME_PRESET_IDS = [
   'default',
   'minimal-light',
@@ -35,6 +37,11 @@ export interface ThemePresetDefinition {
   readonly description: string;
   readonly light: ThemeColorTokens;
   readonly dark: ThemeColorTokens;
+  /** Tokens the seeds cannot express, pinned per appearance on top of the legacy overrides. */
+  readonly overrides?: {
+    readonly light?: ThemeOverrides;
+    readonly dark?: ThemeOverrides;
+  };
 }
 
 const MINIMAL_LIGHT: ThemeColorTokens = {
@@ -71,13 +78,61 @@ const MINIMAL_DARK: ThemeColorTokens = {
   warningGlass: '#f59e0b',
 };
 
+/**
+ * The default Minimal theme is the shell's own palette (DESIGN.md §3, `globals.css`
+ * `:root` / `.dark`), so applying it after first paint changes nothing. A test pins
+ * every themed variable but `--ring` to the stylesheet. Tokens the seeds cannot express (`--muted`
+ * sits apart from `--accent`, `--popover` apart from `--surface`, ...) are overridden
+ * in `DEFAULT_LIGHT_OVERRIDES` and `DEFAULT_DARK_OVERRIDES`.
+ */
+const DEFAULT_LIGHT: ThemeColorTokens = {
+  ...MINIMAL_LIGHT,
+  background: '#f7f5f2', // §3.1 Warm Parchment
+  foreground: '#141210', // §3.2 Deep Ink
+  surface: '#ffffff', // §3.1 Pure Paper
+  accent: '#e8e2d9', // §3.3 Toasted Almond
+  border: '#e3ddd4', // §3.3 Sandstone Hairline
+  readerBackground: '#faf8f5',
+  primary: '#1c1917', // §3.3 Near-Black Espresso
+};
+
+const DEFAULT_DARK: ThemeColorTokens = {
+  ...MINIMAL_DARK,
+  background: '#0c0b0a', // §3.1 Midnight Ink
+  foreground: '#f5f2eb', // §3.2 Warm Bone
+  surface: '#141210', // §3.1 Deep Ink
+  accent: '#262320', // §3.3 Ash Almond
+  border: '#2a2724', // §3.3 Charcoal Hairline
+  readerBackground: '#0c0b0a',
+  primary: '#f5f2eb', // §3.3 Warm Bone
+};
+
+const DEFAULT_LIGHT_OVERRIDES: ThemeOverrides = {
+  '--muted': '#ece8e3', // §3.2 Soft Linen
+  '--muted-foreground': '#6b6560', // §3.2 Warm Ash
+  '--secondary': '#ece8e3',
+  '--secondary-foreground': '#1c1917',
+  '--accent-foreground': '#1c1917',
+  '--primary-foreground': '#faf8f5', // §3.3 Cream
+  '--sidebar': '#f0ece6', // §3.7 Warm Stone
+};
+
+const DEFAULT_DARK_OVERRIDES: ThemeOverrides = {
+  '--muted': '#1a1816', // §3.2 Charred Linen
+  '--muted-foreground': '#a8a29e', // §3.2 Smoke Gray
+  '--popover': '#1c1917', // §3.1 Espresso
+  '--secondary': '#1a1816',
+  '--sidebar': '#0f0e0d', // §3.7 Ink Rail
+};
+
 export const THEME_PRESETS: readonly ThemePresetDefinition[] = [
   {
     id: 'default',
     name: 'Minimal',
     description: 'Balanced light and dark surfaces for everyday reading.',
-    light: MINIMAL_LIGHT,
-    dark: MINIMAL_DARK,
+    light: DEFAULT_LIGHT,
+    dark: DEFAULT_DARK,
+    overrides: { light: DEFAULT_LIGHT_OVERRIDES, dark: DEFAULT_DARK_OVERRIDES },
   },
   {
     id: 'minimal-light',

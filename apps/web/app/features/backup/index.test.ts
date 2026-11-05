@@ -98,7 +98,7 @@ describe('backup theme color validation', () => {
     expect(persisted[0]).toMatchObject({ id: 'custom:valid', name: 'Valid theme' });
     expect(persisted[0]?.light.seeds.background).toBe('oklch(0.98 0.01 240)');
     expect(persisted[0]?.light.overrides?.['--ring']).toBe('oklch(0.6 0.12 250)');
-    expect(persisted[0]?.dark.seeds.foreground).toBe('#fafafa');
+    expect(persisted[0]?.dark.seeds.foreground).toBe('#f5f2eb');
   });
 
   it('rejects a non-color seed in the preview report', async () => {
