@@ -38,6 +38,46 @@ function oxlint(config, targets) {
   }));
 }
 
+// One JSX element per line from the fourth line on (inside a fragment), so a test can name a case
+// by its index.
+const elements = (cases) =>
+  `export function A() {\n  return (\n    <>\n${cases.map((c) => `      ${c}`).join("\n")}\n    </>\n  );\n}\n`;
+const lineOf = (cases, wanted) => wanted.map((c) => cases.indexOf(c) + 4);
+
+const BORDER_RED = [
+  `<div className={cn('border', 'ring-1')} />`,
+  `<div className={cn(['border', open && 'ring-1'])} />`,
+  "<div className={`border ${gap} ring-1`} />",
+  `<div className={cn('border', { 'ring-1': active })} />`,
+  `<div className={cn('border', open ? 'ring-1' : 'ring-2')} />`,
+  `<div className={clsx('rounded-box', ['p-4', 'border-b'], 'outline-2')} />`,
+  `<div className={cn(a || 'border', b || 'ring-1')} />`,
+];
+const BORDER_GREEN = [
+  `<div className={open ? 'border' : 'ring-1'} />`,
+  `<div className={cn(open ? 'border' : 'ring-1', 'p-4')} />`,
+  `<div className={cn((open && 'border') || 'ring-1')} />`,
+  `<div className={cn('border', variant === 'outline' && 'p-2')} />`,
+  `<div className={cva('p-4', { variants: { tone: { a: 'border', b: 'ring-1' } } })} />`,
+  `<div className={cn('border', 'focus-visible:ring-2', { 'hover:ring-1': active })} />`,
+];
+const HOVER_RED = [
+  `<button className="hover:bg-accent focus:outline-none" />`,
+  `<a className={cn('hover:bg-accent', className)} />`,
+  `<a className={className ?? 'hover:underline'} />`,
+  `<Link className="hover:text-foreground focus-visible:ring-0" />`,
+  `<button className="hover:bg-accent focus-visible:outline-none focus-visible:ring-offset-2" />`,
+];
+const HOVER_GREEN = [
+  `<button className="hover:bg-accent focus-visible:ring-2" />`,
+  `<a className={cn(buttonVariants({ variant: 'ghost' }), className)} />`,
+  `<a className={cn(buttonVariants.outline, 'hover:bg-accent')} />`,
+  `<a className={cn(cva('hover:bg-accent'), className)} />`,
+  `<button className="hover:bg-accent focus:bg-accent" />`,
+  `<button className="hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring" />`,
+  `<button className="p-2 focus:outline-none" />`,
+];
+
 describe("ui-conventions rules", () => {
   let dir;
   let rel;
@@ -161,6 +201,32 @@ export function A() {
   return <div className="rounded-box border border-border p-4" />;
 }
 `,
+    "apps/web/app/border-composed.tsx": elements(BORDER_RED),
+    "apps/web/app/border-exclusive.tsx": elements(BORDER_GREEN),
+    "apps/web/app/hover-invisible.tsx": elements(HOVER_RED),
+    "apps/web/app/hover-visible.tsx": elements(HOVER_GREEN),
+    "apps/web/app/nested-deep.tsx": `import { Card } from '@app/design-system';
+function Inner() {
+  return <Card>inner</Card>;
+}
+function Middle() {
+  return <Inner />;
+}
+function Ping() {
+  return <Pong />;
+}
+function Pong() {
+  return <Ping />;
+}
+export function A() {
+  return (
+    <Card>
+      <Middle />
+      <Ping />
+    </Card>
+  );
+}
+`,
     "apps/web/app/hover.tsx": `export function A() {
   return (
     <>
@@ -237,6 +303,17 @@ export const sizes = { sm: \`h-9 \${base} border-[var(--border)]\` } as const;
     assert.deepEqual(at("apps/web/app/border-ring.tsx", "no-border-ring-doubling"), [4, 5]);
   });
 
+  it("no-border-ring-doubling fails a border and a ring composed in cn, an array, a template or an object", () => {
+    assert.deepEqual(
+      at("apps/web/app/border-composed.tsx", "no-border-ring-doubling"),
+      lineOf(BORDER_RED, BORDER_RED),
+    );
+  });
+
+  it("no-border-ring-doubling passes ternary and || alternatives, comparisons and cva options", () => {
+    assert.deepEqual(at("apps/web/app/border-exclusive.tsx", "no-border-ring-doubling"), []);
+  });
+
   it("no-border-ring-doubling passes a focus ring, a ring alone and a one-sided border", () => {
     assert.deepEqual(at("apps/web/app/border-focus.tsx", "no-border-ring-doubling"), []);
   });
@@ -266,6 +343,25 @@ export const sizes = { sm: \`h-9 \${base} border-[var(--border)]\` } as const;
     assert.deepEqual(
       at("packages/design-system/src/components/panel-in-primitive.tsx", "no-hand-built-panel"),
       [],
+    );
+  });
+
+  it("no-hover-without-focus fails invisible focus and a className prop that proves nothing", () => {
+    assert.deepEqual(
+      at("apps/web/app/hover-invisible.tsx", "no-hover-without-focus"),
+      lineOf(HOVER_RED, HOVER_RED),
+    );
+  });
+
+  it("no-hover-without-focus passes a styled focus state and variant helpers", () => {
+    assert.deepEqual(at("apps/web/app/hover-visible.tsx", "no-hover-without-focus"), []);
+  });
+
+  it("no-nested-card follows wrappers transitively and ends on a render cycle", () => {
+    assert.deepEqual(at("apps/web/app/nested-deep.tsx", "no-nested-card"), [17]);
+    assert.match(
+      found.get("apps/web/app/nested-deep.tsx")[0].message,
+      /<Middle> renders a Card \(via Middle > Inner\)/,
     );
   });
 
