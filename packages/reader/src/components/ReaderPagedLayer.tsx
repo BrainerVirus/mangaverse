@@ -166,6 +166,7 @@ function ReaderPageBox({
       className={`h-full w-full select-none ${OBJECT_FIT_CLASS[fit.objectFit]}`}
       retention="read"
       imageRendering={imageSmoothing ? 'auto' : 'pixelated'}
+      maxDisplayEdge={data.engineSettings.displayMaxEdgePx}
       onLoad={owner ? setNatural : undefined}
       onMetric={(metric) => {
         // The owning half defines the page's state, so a successful retry

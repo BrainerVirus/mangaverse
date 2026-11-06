@@ -6,12 +6,16 @@ import { getDefaultReaderSettings, toChapterPageId, type ReaderSettings } from '
 import type { CoverCacheContextValue } from '@app/cache';
 
 const plans = vi.hoisted(() => [] as { pageIndex: number }[][]);
+const pools = vi.hoisted(() => [] as { maxDisplayEdge?: number | undefined }[]);
 
 vi.mock('@app/cache', () => ({
-  createPageDecodePool: () => ({
-    setPlan: (plan: { pageIndex: number }[]) => plans.push(plan),
-    dispose: () => {},
-  }),
+  createPageDecodePool: (input: { maxDisplayEdge?: number | undefined }) => {
+    pools.push(input);
+    return {
+      setPlan: (plan: { pageIndex: number }[]) => plans.push(plan),
+      dispose: () => {},
+    };
+  },
 }));
 
 import { useDecodeAhead } from './use-decode-ahead.js';
@@ -59,6 +63,19 @@ describe('useDecodeAhead', () => {
 
     expect(decoded(2)).toEqual([5, 4, 6, 3]);
     expect(decoded(0)).toEqual([5, 6]);
+  });
+
+  it('Given Auto or Off display downscale, When the pool is built, Then it warms the URL the page images mount', () => {
+    const cap = (settings: Partial<ReaderSettings>) => {
+      pools.length = 0;
+      const root = createRoot(document.createElement('div'));
+      act(() => root.render(<Probe data={buildData(settings)} />));
+      act(() => root.unmount());
+      return pools.at(-1)?.maxDisplayEdge;
+    };
+
+    expect(cap({})).toBe(2048);
+    expect(cap({ displayDownscale: 'off' })).toBeUndefined();
   });
 
   it('Given data saver, When the decode plan is built, Then it is empty even with look-ahead configured', () => {

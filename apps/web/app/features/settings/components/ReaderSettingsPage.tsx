@@ -21,6 +21,7 @@ import {
   KEYBOARD_SHORTCUT_ACTION_LABELS,
   KEYBOARD_SHORTCUT_ACTIONS,
   PREFETCH_BUDGET_DEFAULT_BYTES,
+  READER_DISPLAY_DOWNSCALE_AUTO_EDGE_PX,
   READER_PRELOAD_MAX,
   READER_STRIP_GAP_MAX,
   READER_STRIP_WIDTH_AUTO_PERCENT,
@@ -31,6 +32,7 @@ import {
   formatKeyboardShortcut,
   isReservedShortcutKey,
   normalizeKeyboardShortcut,
+  type DisplayDownscale,
   type FitMode,
   type KeyboardShortcut,
   type KeyboardShortcutAction,
@@ -126,6 +128,11 @@ const WIDE_PAGE_OPTIONS: readonly { value: WidePageMode; label: string }[] = [
 const TILING_THRESHOLD_OPTIONS: readonly { value: string; label: string }[] = [
   { value: 'auto', label: 'Auto' },
   ...READER_TILING_THRESHOLDS.map((px) => ({ value: String(px), label: `${px}px` })),
+];
+
+const DISPLAY_DOWNSCALE_OPTIONS: readonly { value: DisplayDownscale; label: string }[] = [
+  { value: 'auto', label: `Auto (${READER_DISPLAY_DOWNSCALE_AUTO_EDGE_PX}px long edge)` },
+  { value: 'off', label: 'Off' },
 ];
 
 const MIB = 1024 * 1024;
@@ -581,6 +588,101 @@ export function DisplaySettingsSection({
   );
 }
 
+export function AdvancedSettingsSection({
+  settings,
+  update,
+  commit,
+  onInteractionEnd,
+}: {
+  readonly settings: ReaderSettings;
+  readonly update: (patch: Partial<ReaderSettings>) => void;
+  readonly commit: (patch: Partial<ReaderSettings>) => void;
+  readonly onInteractionEnd: (() => void) | undefined;
+}) {
+  return (
+    <SettingsSection
+      title="Advanced"
+      description="Less common rendering and diagnostic options."
+      collapsed
+    >
+      <div className="grid gap-4">
+        <SettingToggleRow
+          id="low-memory-mode"
+          label="Low-memory mode"
+          description="Reduce preloading and image quality on constrained devices."
+          checked={settings.lowMemoryMode}
+          onCheckedChange={(lowMemoryMode) => commit({ lowMemoryMode })}
+        />
+        <SettingToggleRow
+          id="data-saver"
+          label="Data saver"
+          description="Manual, not detected from your connection. Only the page being read loads: no preloading, prefetching or decoding ahead, so turning a page waits for it."
+          checked={settings.dataSaver}
+          onCheckedChange={(dataSaver) => commit({ dataSaver })}
+        />
+        <SettingSelectRow
+          id="tiling-threshold"
+          label="Tall-page tiling threshold"
+          description="Pages in a vertical strip taller than this are split into tiles to stay inside browser image limits. Auto uses 8192px."
+          value={String(settings.tilingThreshold)}
+          options={TILING_THRESHOLD_OPTIONS}
+          onChange={(tilingThreshold) =>
+            commit({
+              tilingThreshold:
+                tilingThreshold === 'auto'
+                  ? 'auto'
+                  : (Number(tilingThreshold) as Exclude<TilingThreshold, 'auto'>),
+            })
+          }
+        />
+        <SettingSelectRow
+          id="display-downscale"
+          label="Display downscale"
+          description="Saves memory, not data; the stored page and downloads are unchanged."
+          value={settings.displayDownscale}
+          options={DISPLAY_DOWNSCALE_OPTIONS}
+          onChange={(displayDownscale) =>
+            commit({ displayDownscale: displayDownscale === 'off' ? 'off' : 'auto' })
+          }
+        />
+        <SettingSliderRow
+          id="next-chapter-threshold"
+          label="Next-chapter threshold"
+          description="In a vertical strip, how far you scroll past the last page before the next chapter is offered, as a share of the screen height. 0% offers it as the last page ends. Needs the chapter transition screen on."
+          value={settings.nextChapterThresholdPercent}
+          min={0}
+          max={100}
+          step={5}
+          formatValue={(percent) => `${percent}%`}
+          onChange={(nextChapterThresholdPercent) => update({ nextChapterThresholdPercent })}
+          onCommit={onInteractionEnd}
+        />
+        <SettingToggleRow
+          id="long-strip-optimization"
+          label="Long strip optimization"
+          description="Optimize rendering for very long vertical chapters."
+          checked={settings.longStripOptimization}
+          onCheckedChange={(longStripOptimization) => commit({ longStripOptimization })}
+        />
+        <SettingToggleRow
+          id="tap-zone-debug-overlay"
+          label="Tap zone debug overlay"
+          description="Show the active tap zones on top of the page."
+          checked={settings.tapZoneDebugOverlay}
+          onCheckedChange={(tapZoneDebugOverlay) => commit({ tapZoneDebugOverlay })}
+        />
+        <SettingToggleRow
+          id="diagnostics-enabled"
+          label="Diagnostics"
+          description="Collect reader diagnostics while reading."
+          checked={settings.diagnosticsEnabled}
+          onCheckedChange={(diagnosticsEnabled) => commit({ diagnosticsEnabled })}
+        />
+      </div>
+    </SettingsSection>
+  );
+}
+
 export function ReaderSettingsPage({
   settings,
   isLoading,
@@ -807,76 +909,12 @@ export function ReaderSettingsPage({
           </div>
         </SettingsSection>
 
-        <SettingsSection
-          title="Advanced"
-          description="Less common rendering and diagnostic options."
-          collapsed
-        >
-          <div className="grid gap-4">
-            <SettingToggleRow
-              id="low-memory-mode"
-              label="Low-memory mode"
-              description="Reduce preloading and image quality on constrained devices."
-              checked={settings.lowMemoryMode}
-              onCheckedChange={(lowMemoryMode) => commit({ lowMemoryMode })}
-            />
-            <SettingToggleRow
-              id="data-saver"
-              label="Data saver"
-              description="Manual, not detected from your connection. Only the page being read loads: no preloading, prefetching or decoding ahead, so turning a page waits for it."
-              checked={settings.dataSaver}
-              onCheckedChange={(dataSaver) => commit({ dataSaver })}
-            />
-            <SettingSelectRow
-              id="tiling-threshold"
-              label="Tall-page tiling threshold"
-              description="Pages in a vertical strip taller than this are split into tiles to stay inside browser image limits. Auto uses 8192px."
-              value={String(settings.tilingThreshold)}
-              options={TILING_THRESHOLD_OPTIONS}
-              onChange={(tilingThreshold) =>
-                commit({
-                  tilingThreshold:
-                    tilingThreshold === 'auto'
-                      ? 'auto'
-                      : (Number(tilingThreshold) as Exclude<TilingThreshold, 'auto'>),
-                })
-              }
-            />
-            <SettingSliderRow
-              id="next-chapter-threshold"
-              label="Next-chapter threshold"
-              description="In a vertical strip, how far you scroll past the last page before the next chapter is offered, as a share of the screen height. 0% offers it as the last page ends. Needs the chapter transition screen on."
-              value={settings.nextChapterThresholdPercent}
-              min={0}
-              max={100}
-              step={5}
-              formatValue={(percent) => `${percent}%`}
-              onChange={(nextChapterThresholdPercent) => update({ nextChapterThresholdPercent })}
-              onCommit={onInteractionEnd}
-            />
-            <SettingToggleRow
-              id="long-strip-optimization"
-              label="Long strip optimization"
-              description="Optimize rendering for very long vertical chapters."
-              checked={settings.longStripOptimization}
-              onCheckedChange={(longStripOptimization) => commit({ longStripOptimization })}
-            />
-            <SettingToggleRow
-              id="tap-zone-debug-overlay"
-              label="Tap zone debug overlay"
-              description="Show the active tap zones on top of the page."
-              checked={settings.tapZoneDebugOverlay}
-              onCheckedChange={(tapZoneDebugOverlay) => commit({ tapZoneDebugOverlay })}
-            />
-            <SettingToggleRow
-              id="diagnostics-enabled"
-              label="Diagnostics"
-              description="Collect reader diagnostics while reading."
-              checked={settings.diagnosticsEnabled}
-              onCheckedChange={(diagnosticsEnabled) => commit({ diagnosticsEnabled })}
-            />
-          </div>
-        </SettingsSection>
+        <AdvancedSettingsSection
+          settings={settings}
+          update={update}
+          commit={commit}
+          onInteractionEnd={onInteractionEnd}
+        />
       </section>
     </PageContainer>
   );

@@ -18,6 +18,8 @@ export interface PageObjectUrlInput {
   readonly pageIndex: number;
   readonly remoteUrl: string;
   readonly retention: 'read' | 'normal';
+  /** Display downscale cap in pixels; absent shows the stored page as is. */
+  readonly maxDisplayEdge?: number | undefined;
   readonly onMetric?: ((metric: CachedPageImageMetric) => void) | undefined;
 }
 
@@ -65,7 +67,7 @@ export function usePageObjectUrl(input: PageObjectUrlInput): {
     byteSize: 0,
     reported: false,
   });
-  const requestKey = `${String(input.providerId)}\u0000${String(input.mangaId)}\u0000${String(input.chapterId)}\u0000${String(input.pageIndex)}\u0000${input.remoteUrl}\u0000${input.retention}`;
+  const requestKey = `${String(input.providerId)}\u0000${String(input.mangaId)}\u0000${String(input.chapterId)}\u0000${String(input.pageIndex)}\u0000${input.remoteUrl}\u0000${input.retention}\u0000${String(input.maxDisplayEdge)}`;
   const [resetKey, setResetKey] = useState<{ readonly context: unknown; readonly request: string }>(
     {
       context,
@@ -118,6 +120,7 @@ export function usePageObjectUrl(input: PageObjectUrlInput): {
         pageIndex: input.pageIndex,
         remoteUrl: input.remoteUrl,
         retention: input.retention,
+        maxDisplayEdge: input.maxDisplayEdge,
       };
       const result = isRetry
         ? await resolvePageObjectUrl({ ...pageInput, refresh: true })
@@ -170,6 +173,7 @@ export function usePageObjectUrl(input: PageObjectUrlInput): {
     context,
     input.chapterId,
     input.mangaId,
+    input.maxDisplayEdge,
     input.pageIndex,
     input.providerId,
     input.remoteUrl,

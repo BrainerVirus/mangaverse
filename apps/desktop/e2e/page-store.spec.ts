@@ -2,6 +2,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node
 import { createServer, type Server } from 'node:http';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
+import { crc32, deflateSync } from 'node:zlib';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -22,7 +23,8 @@ const MANGADEX_MANGA_ID = 'dc332d04-d3b0-413c-a767-70f5e451b031';
 const CHAPTER_BUTTON = /Ch\. 1 - The Summoner/;
 const PAGE_COUNT = 37;
 const PAGES_READ = 6;
-const PAGE_URL = /^page:\/\/store\/[0-9a-f]{64}$/;
+// Reader pages ask main for the Auto display copy (display downscale, spec 07).
+const PAGE_URL = /^page:\/\/store\/[0-9a-f]{64}\?display=2048$/;
 
 const TINY_JPEG_BASE64 =
   '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDAREAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k=';
@@ -93,9 +95,13 @@ interface FixtureServer {
  * The recorded MangaDex API and image CDN for main's fixture transport. Main still
  * runs the allowlist, address and redirect checks; only the socket target is local.
  */
-async function startFixtureServer(): Promise<FixtureServer> {
+async function startFixtureServer(
+  image: { readonly type: string; readonly body: Buffer } = {
+    type: 'image/jpeg',
+    body: Buffer.from(TINY_JPEG_BASE64, 'base64'),
+  },
+): Promise<FixtureServer> {
   const atHome = JSON.parse(fixture('at-home.json')) as { baseUrl: string };
-  const jpeg = Buffer.from(TINY_JPEG_BASE64, 'base64');
   let imageCount = 0;
   let closed = false;
 
@@ -103,7 +109,7 @@ async function startFixtureServer(): Promise<FixtureServer> {
     const url = new URL(request.url ?? '/', 'http://fixture.local');
     if (url.pathname.startsWith('/covers/') || url.pathname.startsWith('/data')) {
       imageCount += 1;
-      response.writeHead(200, { 'content-type': 'image/jpeg' }).end(jpeg);
+      response.writeHead(200, { 'content-type': image.type }).end(image.body);
       return;
     }
     const body = url.pathname.includes('/at-home/server/')
@@ -327,4 +333,94 @@ test('Given a chapter read online, When reopened offline, Then its pages render 
     }
   }, onlineSources[0]!);
   expect(fetchBlocked).toBe('blocked');
+});
+
+/** A flat 8-bit grayscale PNG; the recorded page fixture is a 1x1 JPEG. */
+function grayscalePng(width: number, height: number): Buffer {
+  const chunk = (type: string, data: Buffer) => {
+    const length = Buffer.alloc(4);
+    length.writeUInt32BE(data.length);
+    const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(body));
+    return Buffer.concat([length, body, crc]);
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header.writeUInt8(8, 8);
+  // Each row is a filter byte (0) and `width` mid-gray pixels.
+  const row = Buffer.concat([Buffer.from([0]), Buffer.alloc(width, 0x80)]);
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', header),
+    chunk('IDAT', deflateSync(Buffer.concat(Array.from({ length: height }, () => row)))),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
+}
+
+async function openFirstPage(page: Page, mangaId: string) {
+  await page.goto(`app://app/manga/${mangaId}`);
+  const chapter = page.getByRole('button', { name: CHAPTER_BUTTON });
+  await expect(chapter).toBeVisible({ timeout: 30_000 });
+  await chapter.click({ force: true });
+  await expect(page.getByText(`1 / ${PAGE_COUNT}`)).toBeVisible({ timeout: 30_000 });
+  const image = readerImage(page);
+  await expect
+    .poll(() => image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0), {
+      timeout: 20_000,
+    })
+    .toBe(true);
+  return image.evaluate((img: HTMLImageElement) => ({
+    src: img.getAttribute('src'),
+    width: img.naturalWidth,
+    height: img.naturalHeight,
+  }));
+}
+
+test('Given a 2400x3600 page, When display downscale is Auto then Off, Then main serves a 2048 copy and then the untouched stored original', async () => {
+  const { userDataDir, mangaId } = await seededProfile();
+  const large = grayscalePng(2400, 3600);
+  const fixtureServer = await startFixtureServer({ type: 'image/png', body: large });
+  cleanups.unshift(() => void fixtureServer.close());
+  const { page } = await launch(userDataDir, fixtureServer.origin);
+  const errors = watchErrors(page);
+
+  // Auto is the default: the reader asks main for the capped copy of the stored page.
+  const auto = await openFirstPage(page, mangaId);
+  expect(auto).toEqual({
+    src: expect.stringMatching(PAGE_URL),
+    width: Math.round((2400 * 2048) / 3600),
+    height: 2048,
+  });
+
+  // The stored file is the provider's bytes; only the response was resized.
+  const id = auto.src!.slice('page://store/'.length, -'?display=2048'.length);
+  const storedFile = readFileSync(join(userDataDir, 'pages', id));
+  expect(storedFile.equals(large)).toBe(true);
+
+  await page.goto('app://app/settings/reader');
+  await page.getByRole('button', { name: 'Advanced', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Display downscale', exact: true }).click();
+  await page.getByRole('option', { name: 'Off', exact: true }).click();
+  await expect(
+    page.getByRole('combobox', { name: 'Display downscale', exact: true }),
+  ).toContainText('Off');
+  // The next navigation reloads the renderer: wait until the choice is durable.
+  await expect
+    .poll(
+      () =>
+        query<{ settings_json: string }>(
+          userDataDir,
+          "SELECT settings_json FROM reader_preferences WHERE id = 'global'",
+        )[0]?.settings_json ?? '',
+      { timeout: 10_000 },
+    )
+    .toContain('"displayDownscale":"off"');
+
+  // Off asks for the plain URL: the same stored file, at its full size.
+  const off = await openFirstPage(page, mangaId);
+  expect(off).toEqual({ src: `page://store/${id}`, width: 2400, height: 3600 });
+  expect(readFileSync(join(userDataDir, 'pages', id)).equals(large)).toBe(true);
+  expect(errors.filter((text) => /page:|Content Security Policy|Refused/i.test(text))).toEqual([]);
 });

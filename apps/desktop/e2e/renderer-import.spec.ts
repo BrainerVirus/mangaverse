@@ -348,7 +348,10 @@ test('an old profile moves its snapshot, pages and custom cover once, then skips
       { timeout: 20_000 },
     )
     .toBe(true);
-  expect(await readerImage.getAttribute('src')).toMatch(/^page:\/\/store\/[0-9a-f]{64}$/);
+  // Auto display downscale asks main for a capped copy of the same stored page.
+  expect(await readerImage.getAttribute('src')).toMatch(
+    /^page:\/\/store\/[0-9a-f]{64}\?display=2048$/,
+  );
   expect(coverSrc).toMatch(/^page:\/\/store\//);
 
   // A second start does not move anything again: the marker is rewritten only by an import.

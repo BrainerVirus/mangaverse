@@ -116,6 +116,8 @@ export interface ReaderEngineSettings {
   readonly preloadBehind?: number;
   /** The resolved tall-page tiling threshold in pixels; Auto when absent. */
   readonly tilingThresholdPx?: number;
+  /** Display downscale: page images are shown with their long edge capped at this; original when absent. */
+  readonly displayMaxEdgePx?: number | undefined;
   /** Data saver: only the pages the viewport shows mount. */
   readonly dataSaver?: boolean;
   readonly lowMemoryMode: boolean;

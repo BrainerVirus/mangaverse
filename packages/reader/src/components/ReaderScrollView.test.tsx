@@ -9,12 +9,17 @@ import { ReaderScrollView, type ReaderScrollViewHandle } from './ReaderScrollVie
 
 const cacheRender = vi.hoisted(() => ({
   pages: [] as number[],
-  props: [] as { pageIndex: number; onLoad?: (size: { width: number; height: number }) => void }[],
+  props: [] as {
+    pageIndex: number;
+    maxDisplayEdge?: number | undefined;
+    onLoad?: (size: { width: number; height: number }) => void;
+  }[],
 }));
 
 vi.mock('@app/cache', () => ({
   CachedPageImage: (props: {
     pageIndex: number;
+    maxDisplayEdge?: number | undefined;
     onLoad?: (size: { width: number; height: number }) => void;
   }) => {
     cacheRender.pages.push(props.pageIndex);
@@ -69,6 +74,7 @@ function Harness({
   lowMemoryMode,
   longStripOptimization,
   tilingThresholdPx,
+  displayMaxEdgePx,
   dataSaver,
   maxWidthPercent,
   nextChapterThresholdPercent,
@@ -83,6 +89,7 @@ function Harness({
   readonly lowMemoryMode?: boolean;
   readonly longStripOptimization?: boolean;
   readonly tilingThresholdPx?: number;
+  readonly displayMaxEdgePx?: number;
   readonly dataSaver?: boolean;
   readonly maxWidthPercent?: number;
   readonly nextChapterThresholdPercent?: number;
@@ -109,6 +116,7 @@ function Harness({
       {...(lowMemoryMode === undefined ? {} : { lowMemoryMode })}
       {...(longStripOptimization === undefined ? {} : { longStripOptimization })}
       {...(tilingThresholdPx === undefined ? {} : { tilingThresholdPx })}
+      {...(displayMaxEdgePx === undefined ? {} : { displayMaxEdgePx })}
       {...(dataSaver === undefined ? {} : { dataSaver })}
       {...(maxWidthPercent === undefined ? {} : { maxWidthPercent })}
       {...(nextChapterThresholdPercent === undefined ? {} : { nextChapterThresholdPercent })}
@@ -136,6 +144,7 @@ function mount(
     readonly lowMemoryMode?: boolean;
     readonly longStripOptimization?: boolean;
     readonly tilingThresholdPx?: number;
+    readonly displayMaxEdgePx?: number;
     readonly dataSaver?: boolean;
     readonly maxWidthPercent?: number;
     readonly nextChapterThresholdPercent?: number;
@@ -166,6 +175,9 @@ function mount(
         {...(options.tilingThresholdPx === undefined
           ? {}
           : { tilingThresholdPx: options.tilingThresholdPx })}
+        {...(options.displayMaxEdgePx === undefined
+          ? {}
+          : { displayMaxEdgePx: options.displayMaxEdgePx })}
         {...(options.dataSaver === undefined ? {} : { dataSaver: options.dataSaver })}
         {...(options.maxWidthPercent === undefined
           ? {}
@@ -227,6 +239,18 @@ describe('ReaderScrollView strip rows', () => {
     expect(row?.style.aspectRatio).toBe('1600 / 900');
 
     unmount(mounted);
+  });
+
+  it('Given a display cap, When strip pages mount, Then every page image gets it and none does without one', () => {
+    const capped = mount(4, { preloadAhead: 2, cacheReady: true, displayMaxEdgePx: 2048 });
+    expect(cacheRender.props.length).toBeGreaterThan(0);
+    expect(cacheRender.props.every((props) => props.maxDisplayEdge === 2048)).toBe(true);
+    unmount(capped);
+
+    const original = mount(4, { preloadAhead: 2, cacheReady: true });
+    expect(cacheRender.props.length).toBeGreaterThan(0);
+    expect(cacheRender.props.every((props) => props.maxDisplayEdge === undefined)).toBe(true);
+    unmount(original);
   });
 
   it('Given a preload budget, When the strip renders, Then only the budgeted neighbours mount', () => {

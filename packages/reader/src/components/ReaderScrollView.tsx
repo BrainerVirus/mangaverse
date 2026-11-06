@@ -47,6 +47,8 @@ interface ReaderScrollViewProps {
   readonly dataSaver?: boolean;
   /** Pages taller than this many pixels render as tiles; Auto (8192) when absent. */
   readonly tilingThresholdPx?: number;
+  /** Display downscale cap for page images; the original when absent. */
+  readonly displayMaxEdgePx?: number | undefined;
   readonly imageSmoothing?: boolean;
   readonly onPageMetric?:
     | ((metric: {
@@ -166,6 +168,7 @@ interface ScrollContentProps {
   readonly chapterId: string;
   readonly imageSmoothing: boolean;
   readonly tilingThresholdPx: number;
+  readonly displayMaxEdgePx: number | undefined;
   readonly onSkipPage: (index: number) => void;
   readonly onBack: (() => void) | undefined;
   readonly onMeasured: (index: number, size: NaturalSize) => void;
@@ -197,6 +200,7 @@ function ScrollContent({
   chapterId,
   imageSmoothing,
   tilingThresholdPx,
+  displayMaxEdgePx,
   onSkipPage,
   onBack,
   onMeasured,
@@ -230,6 +234,7 @@ function ScrollContent({
             onBack={onBack}
             imageSmoothing={imageSmoothing}
             tilingThresholdPx={tilingThresholdPx}
+            displayMaxEdgePx={displayMaxEdgePx}
             onMeasured={onMeasured}
             onMetric={onMetric}
           />
@@ -271,6 +276,7 @@ const ScrollPageRow = memo(function ScrollPageRow({
   onBack,
   imageSmoothing,
   tilingThresholdPx,
+  displayMaxEdgePx,
   onMeasured,
   onMetric,
 }: {
@@ -288,6 +294,7 @@ const ScrollPageRow = memo(function ScrollPageRow({
   readonly onBack?: (() => void) | undefined;
   readonly imageSmoothing: boolean;
   readonly tilingThresholdPx: number;
+  readonly displayMaxEdgePx: number | undefined;
   readonly onMeasured: (index: number, size: NaturalSize) => void;
   readonly onMetric?:
     | ((metric: {
@@ -325,6 +332,7 @@ const ScrollPageRow = memo(function ScrollPageRow({
                 className="h-auto w-full select-none"
                 retention="read"
                 imageRendering={imageSmoothing ? 'auto' : 'pixelated'}
+                maxDisplayEdge={displayMaxEdgePx}
                 onLoad={tile.offset === 0 ? (size) => onMeasured(index, size) : undefined}
                 onSkip={onSkipPage ? () => onSkipPage(index) : undefined}
                 onBack={onBack}
@@ -386,6 +394,7 @@ export function ReaderScrollView({
   longStripOptimization = false,
   dataSaver = false,
   tilingThresholdPx = STRIP_TILE_AUTO_THRESHOLD_PX,
+  displayMaxEdgePx,
   imageSmoothing = true,
   onPageMetric,
   onBack,
@@ -650,6 +659,7 @@ export function ReaderScrollView({
         chapterId={chapterId}
         imageSmoothing={imageSmoothing}
         tilingThresholdPx={tilingThresholdPx}
+        displayMaxEdgePx={displayMaxEdgePx}
         onSkipPage={skipPage}
         onBack={onBack}
         onMeasured={reportMeasured}

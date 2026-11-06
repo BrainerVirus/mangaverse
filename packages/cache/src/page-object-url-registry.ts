@@ -27,10 +27,12 @@ const pendingCached = new Map<string, Promise<PageCacheStoreResult | undefined>>
 const pendingFull = new Map<string, Promise<PageCacheStoreResult | undefined>>();
 
 /**
- * One URL per page, shared by every holder (the mounted strip row, the paged
- * layer, the decode pool). A page turn that returns to a warm page then reuses
- * the same URL, so the browser's decoded-image cache can serve it instead of
- * decoding the same blob again under a fresh object URL.
+ * One URL per page and display cap, shared by every holder (the mounted strip
+ * row, the paged layer, the decode pool). A page turn that returns to a warm
+ * page then reuses the same URL, so the browser's decoded-image cache can serve
+ * it instead of decoding the same blob again under a fresh object URL. The cap
+ * is part of the key: a downscaled URL never answers a holder that wants the
+ * original, nor the reverse.
  */
 export function pageObjectUrlKey(input: PageObjectUrlInput): string {
   return [
@@ -40,6 +42,7 @@ export function pageObjectUrlKey(input: PageObjectUrlInput): string {
     String(input.pageIndex),
     input.remoteUrl,
     input.retention ?? 'read',
+    input.maxDisplayEdge === undefined ? 'original' : String(input.maxDisplayEdge),
   ].join('\u0000');
 }
 

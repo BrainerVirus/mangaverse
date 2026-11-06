@@ -22,6 +22,11 @@ export interface CachedPageImageProps {
   readonly className?: string;
   readonly retention?: 'read' | 'normal';
   readonly imageRendering?: 'auto' | 'pixelated';
+  /**
+   * Display downscale: a page whose long edge exceeds this many pixels is shown
+   * from a smaller copy, saving memory. The stored page is unchanged.
+   */
+  readonly maxDisplayEdge?: number | undefined;
   readonly onSkip?: (() => void) | undefined;
   readonly onBack?: (() => void) | undefined;
   readonly onLoad?: ((size: { width: number; height: number }) => void) | undefined;
@@ -39,6 +44,7 @@ export function CachedPageImage({
   className,
   retention = 'read',
   imageRendering,
+  maxDisplayEdge,
   onSkip,
   onBack,
   onLoad,
@@ -53,6 +59,7 @@ export function CachedPageImage({
     pageIndex,
     remoteUrl,
     retention,
+    maxDisplayEdge,
     ...(onMetric !== undefined ? { onMetric } : {}),
   });
 

@@ -13,6 +13,7 @@ import {
   pageUrlForId,
   type PageStore,
 } from './page-store.js';
+import type { DisplayCopy } from './page-display.js';
 
 interface Gate {
   /** Resolves once the gated call has been reached. */
@@ -511,6 +512,158 @@ describe('page protocol', () => {
       for (const method of ['POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH']) {
         expect(await refusedStatus(pageUrlForId(id), { method })).toBe(405);
       }
+    });
+  });
+
+  describe('display copies', () => {
+    let id: string;
+    const resize =
+      vi.fn<(bytes: Buffer, mimeType: string, maxEdge: number) => DisplayCopy | undefined>();
+
+    beforeEach(async () => {
+      await store.put(KEY, JPEG, 'image/jpeg');
+      id = pageIdForKey(KEY);
+      await writeFile(join(base, 'secret.txt'), 'outside the store');
+      resize.mockReset();
+      resize.mockImplementation((_bytes, _mimeType, maxEdge) => ({
+        bytes: Buffer.from(`copy at ${maxEdge}`),
+        mimeType: 'image/png',
+      }));
+    });
+
+    const displayHandler = () =>
+      createPageProtocolHandler({
+        store,
+        allowedOrigins: [APP],
+        contentSecurityPolicy: CSP,
+        resizeForDisplay: resize,
+      });
+    const get = (url: string, init: { method?: string; initiatorOrigin?: string } = {}) =>
+      displayHandler()(pageRequest(url, { initiatorOrigin: APP, ...init }));
+
+    it('serves the copy for a capped request and leaves the stored file as it was', async () => {
+      const response = await get(`${pageUrlForId(id)}?display=2048`);
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('Content-Type')).toBe('image/png');
+      expect(response.headers.get('Content-Security-Policy')).toBe(CSP);
+      expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
+      expect(await response.text()).toBe('copy at 2048');
+      expect(resize).toHaveBeenCalledTimes(1);
+      expect(new Uint8Array(resize.mock.calls[0]![0])).toEqual(JPEG);
+      expect(resize.mock.calls[0]!.slice(1)).toEqual(['image/jpeg', 2048]);
+      expect(new Uint8Array(await readFile(join(root, id)))).toEqual(JPEG);
+    });
+
+    it('clamps the cap into 256-4096', async () => {
+      expect(await (await get(`${pageUrlForId(id)}?display=99999`)).text()).toBe('copy at 4096');
+      expect(await (await get(`${pageUrlForId(id)}?display=1`)).text()).toBe('copy at 256');
+      expect(await (await get(`${pageUrlForId(id)}?display=00000`)).text()).toBe('copy at 256');
+    });
+
+    it('answers HEAD with the copy headers and no body', async () => {
+      const response = await get(`${pageUrlForId(id)}?display=2048`, { method: 'HEAD' });
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('Content-Length')).toBe(String('copy at 2048'.length));
+      expect(response.body).toBeNull();
+    });
+
+    it('serves the original when the page needs no copy, the resize throws, or main has no resizer', async () => {
+      const original = async (response: Response) => ({
+        status: response.status,
+        type: response.headers.get('Content-Type'),
+        bytes: new Uint8Array(await response.arrayBuffer()),
+      });
+      const expected = { status: 200, type: 'image/jpeg', bytes: JPEG };
+
+      resize.mockReturnValueOnce(undefined);
+      expect(await original(await get(`${pageUrlForId(id)}?display=1024`))).toEqual(expected);
+
+      resize.mockImplementationOnce(() => {
+        throw new Error('decode failed');
+      });
+      expect(await original(await get(`${pageUrlForId(id)}?display=512`))).toEqual(expected);
+
+      const withoutResizer = createPageProtocolHandler({
+        store,
+        allowedOrigins: [APP],
+        contentSecurityPolicy: CSP,
+      });
+      expect(
+        await original(
+          await withoutResizer(
+            pageRequest(`${pageUrlForId(id)}?display=2048`, { initiatorOrigin: APP }),
+          ),
+        ),
+      ).toEqual(expected);
+    });
+
+    it('makes one copy per page and cap, and none for a plain request', async () => {
+      const serve = displayHandler();
+      const request = (query: string) =>
+        serve(pageRequest(`${pageUrlForId(id)}${query}`, { initiatorOrigin: APP }));
+
+      await request('?display=2048');
+      await request('?display=2048');
+      await request('?display=1024');
+      expect(resize.mock.calls.map((call) => call[2])).toEqual([2048, 1024]);
+
+      const plain = await request('');
+      expect(new Uint8Array(await plain.arrayBuffer())).toEqual(JPEG);
+      expect(resize).toHaveBeenCalledTimes(2);
+    });
+
+    it('refuses a malformed display query without reading anything', async () => {
+      for (const query of [
+        '?display=',
+        '?display=abc',
+        '?display=-1',
+        '?display=1e3',
+        '?display=2048.5',
+        '?display=123456',
+        '?display=%32048',
+        '?Display=2048',
+        '?display=2048&display=1024',
+        '?display=2048&path=/etc/passwd',
+        '?path=/etc/passwd&display=2048',
+        '?display=2048#fragment',
+      ]) {
+        const response = await get(`${pageUrlForId(id)}${query}`);
+        expect({ query, status: response.status }).toEqual({ query, status: 400 });
+      }
+      expect(resize).not.toHaveBeenCalled();
+    });
+
+    it('keeps every path, store and initiator check on a capped request', async () => {
+      for (const url of [
+        'page://store/../secret.txt?display=2048',
+        'page://store/%2e%2e/secret.txt?display=2048',
+        `page://store/${id}.json?display=2048`,
+        `page://store/${id}%00?display=2048`,
+        `page://other/${id}?display=2048`,
+      ]) {
+        const { status } = await get(url);
+        expect({ url, refused: status === 400 || status === 403 }).toEqual({ url, refused: true });
+      }
+      expect((await get(`${pageUrlForId('0'.repeat(64))}?display=2048`)).status).toBe(404);
+      expect(
+        (await get(`${pageUrlForId(id)}?display=2048`, { initiatorOrigin: 'https://evil.example' }))
+          .status,
+      ).toBe(403);
+      expect((await get(`${pageUrlForId(id)}?display=2048`, { method: 'POST' })).status).toBe(405);
+      expect(resize).not.toHaveBeenCalled();
+    });
+
+    it('refuses a symlinked page file on a capped request', async () => {
+      const linkedKey = 'page:p:m:c:9';
+      const linkedId = pageIdForKey(linkedKey);
+      await store.put(linkedKey, JPEG, 'image/jpeg');
+      await rm(join(root, linkedId));
+      await symlink(join(base, 'secret.txt'), join(root, linkedId));
+
+      expect((await get(`${pageUrlForId(linkedId)}?display=2048`)).status).toBe(403);
+      expect(resize).not.toHaveBeenCalled();
     });
   });
 });

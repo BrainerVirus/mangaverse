@@ -51,10 +51,19 @@ transition becomes none, and preload goes from 2 ahead to 4 ahead and 1 behind.
 | Advanced | Next-chapter threshold                                            | 25% read                                           |
 | Advanced | Data saver                                                        | Off; manual, since metered detection is unverified |
 | Advanced | Prefetch budget                                                   | 250 MB, offered as presets                         |
-| Advanced | Display downscale, labeled as saving memory and not data          | Auto                                               |
+| Advanced | Display downscale, labeled as saving memory and not data          | Auto: 2048px long edge (provisional), see below    |
 | Advanced | Tall-page tiling threshold                                        | Auto                                               |
 | Advanced | Low memory, smoothing, gesture, pinch, double-tap and zoom limits | Current values                                     |
 | Advanced | Diagnostics, tap-zone overlay                                     | Off                                                |
+
+Display downscale changes only the copy the reader shows. On Auto, a page image with a long edge over
+2048px (provisional, not measured) is shown as a smaller copy with the same aspect ratio, never
+narrower than 1024px on its short edge, so a webtoon strip stays readable. Stored pages, downloads,
+backup and export keep the original bytes. Covers and detail images are not affected. Web resizes
+in the renderer. Desktop page bytes never reach the renderer, so the reader asks for
+`page://store/<id>?display=<cap>`. Main checks the request like any page request, clamps the cap
+to 256-4096, resizes with `nativeImage` (JPEG stays JPEG, other types become PNG), and keeps up to
+32 copies or 64 MB in memory. Any failure serves the original.
 
 ### Delivery
 
@@ -88,8 +97,8 @@ transition becomes none, and preload goes from 2 ahead to 4 ahead and 1 behind.
 
 ## Not verified
 
-Webtoon's and Manga Plus's settings, Paperback's preload defaults, browser limits for tall pages, and
-metered-connection detection. Test these on real devices before relying on them.
+Webtoon's and Manga Plus's settings, Paperback's preload defaults, browser limits for tall pages, the
+2048px display downscale cap, and metered-connection detection. Test these on real devices before relying on them.
 
 ## Out of scope
 
