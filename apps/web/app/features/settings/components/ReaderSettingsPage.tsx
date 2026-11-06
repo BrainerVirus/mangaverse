@@ -25,6 +25,7 @@ import {
   READER_STRIP_GAP_MAX,
   READER_STRIP_WIDTH_AUTO_PERCENT,
   READER_STRIP_WIDTH_MIN_PERCENT,
+  READER_TILING_THRESHOLDS,
   defaultKeyboardShortcuts,
   findKeyboardShortcutConflict,
   formatKeyboardShortcut,
@@ -41,6 +42,7 @@ import {
   type ReadingMode,
   type SpreadOffset,
   type TapZoneLayout,
+  type TilingThreshold,
   type WheelBehavior,
   type WidePageMode,
 } from '@app/shared';
@@ -119,6 +121,11 @@ const SPREAD_OFFSET_OPTIONS: readonly { value: `${SpreadOffset}`; label: string 
 const WIDE_PAGE_OPTIONS: readonly { value: WidePageMode; label: string }[] = [
   { value: 'isolate', label: 'Isolate (one page)' },
   { value: 'split', label: 'Split across the spread' },
+];
+
+const TILING_THRESHOLD_OPTIONS: readonly { value: string; label: string }[] = [
+  { value: 'auto', label: 'Auto' },
+  ...READER_TILING_THRESHOLDS.map((px) => ({ value: String(px), label: `${px}px` })),
 ];
 
 const MIB = 1024 * 1024;
@@ -812,6 +819,28 @@ export function ReaderSettingsPage({
               description="Reduce preloading and image quality on constrained devices."
               checked={settings.lowMemoryMode}
               onCheckedChange={(lowMemoryMode) => commit({ lowMemoryMode })}
+            />
+            <SettingToggleRow
+              id="data-saver"
+              label="Data saver"
+              description="Manual, not detected from your connection. Only the page being read loads: no preloading, prefetching or decoding ahead, so turning a page waits for it."
+              checked={settings.dataSaver}
+              onCheckedChange={(dataSaver) => commit({ dataSaver })}
+            />
+            <SettingSelectRow
+              id="tiling-threshold"
+              label="Tall-page tiling threshold"
+              description="Pages in a vertical strip taller than this are split into tiles to stay inside browser image limits. Auto uses 8192px."
+              value={String(settings.tilingThreshold)}
+              options={TILING_THRESHOLD_OPTIONS}
+              onChange={(tilingThreshold) =>
+                commit({
+                  tilingThreshold:
+                    tilingThreshold === 'auto'
+                      ? 'auto'
+                      : (Number(tilingThreshold) as Exclude<TilingThreshold, 'auto'>),
+                })
+              }
             />
             <SettingToggleRow
               id="long-strip-optimization"

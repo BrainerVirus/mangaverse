@@ -1,5 +1,6 @@
 import type { CoverCacheContextValue } from '@app/cache';
 import { ReaderScrollView, type ReaderScrollViewHandle } from './ReaderScrollView.js';
+import { STRIP_TILE_AUTO_THRESHOLD_PX } from '../scroll-layout.js';
 import type { ReaderPageData } from '../reader-page-data.js';
 import type { ReaderState } from '../types.js';
 
@@ -45,6 +46,8 @@ export function ReaderScrollLayer({
       preloadAhead={data.engineSettings.preloadAhead}
       lowMemoryMode={data.engineSettings.lowMemoryMode}
       longStripOptimization={data.engineSettings.longStripOptimization === true}
+      tilingThresholdPx={data.engineSettings.tilingThresholdPx ?? STRIP_TILE_AUTO_THRESHOLD_PX}
+      dataSaver={data.engineSettings.dataSaver === true}
       imageSmoothing={data.engineSettings.imageSmoothing !== false}
       onPageMetric={onPageMetric}
       onBack={onBack}

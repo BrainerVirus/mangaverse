@@ -13,6 +13,21 @@ const order = (plan: ReturnType<typeof createPreloadPlan>): number[] =>
   plan.items.map((item) => item.pageIndex);
 
 describe('createPreloadPlan', () => {
+  it('Given data saver, When planned, Then the plan is empty with or without the active page', () => {
+    for (const includeActive of [true, false]) {
+      const plan = createPreloadPlan(mockPages, 5, 4, false, {
+        includeActive,
+        preloadBehind: 2,
+        dataSaver: true,
+      });
+      expect(plan.items).toEqual([]);
+      expect(plan.maxPreload).toBe(0);
+    }
+    expect(order(createPreloadPlan(mockPages, 5, 1, false, { dataSaver: false }))).toEqual([
+      5, 4, 6,
+    ]);
+  });
+
   it('Given the first page, When planned, Then the active page comes first and only ahead pages follow', () => {
     const plan = createPreloadPlan(mockPages, 0, 2, false);
 

@@ -2,8 +2,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createRoot, type Root } from 'react-dom/client';
 import { act, useState } from 'react';
-import { toChapterPageId } from '@app/shared';
+import { getDefaultReaderSettings, toChapterPageId } from '@app/shared';
 import type { ReaderPage } from '../types.js';
+import { toReaderEngineSettings } from '../to-reader-engine-settings.js';
 import { ReaderScrollView, type ReaderScrollViewHandle } from './ReaderScrollView.js';
 
 const cacheRender = vi.hoisted(() => ({
@@ -18,7 +19,7 @@ vi.mock('@app/cache', () => ({
   }) => {
     cacheRender.pages.push(props.pageIndex);
     cacheRender.props.push(props);
-    return null;
+    return <img alt={`Page ${props.pageIndex + 1}`} data-page-index={props.pageIndex} />;
   },
 }));
 
@@ -67,6 +68,8 @@ function Harness({
   preloadAhead,
   lowMemoryMode,
   longStripOptimization,
+  tilingThresholdPx,
+  dataSaver,
   maxWidthPercent,
   cacheReady = false,
 }: {
@@ -76,6 +79,8 @@ function Harness({
   readonly preloadAhead?: number;
   readonly lowMemoryMode?: boolean;
   readonly longStripOptimization?: boolean;
+  readonly tilingThresholdPx?: number;
+  readonly dataSaver?: boolean;
   readonly maxWidthPercent?: number;
   readonly cacheReady?: boolean;
 }) {
@@ -97,6 +102,8 @@ function Harness({
       {...(preloadAhead === undefined ? {} : { preloadAhead })}
       {...(lowMemoryMode === undefined ? {} : { lowMemoryMode })}
       {...(longStripOptimization === undefined ? {} : { longStripOptimization })}
+      {...(tilingThresholdPx === undefined ? {} : { tilingThresholdPx })}
+      {...(dataSaver === undefined ? {} : { dataSaver })}
       {...(maxWidthPercent === undefined ? {} : { maxWidthPercent })}
       onHandle={(handle) => {
         handleRef.current = handle;
@@ -120,6 +127,8 @@ function mount(
     readonly preloadAhead?: number;
     readonly lowMemoryMode?: boolean;
     readonly longStripOptimization?: boolean;
+    readonly tilingThresholdPx?: number;
+    readonly dataSaver?: boolean;
     readonly maxWidthPercent?: number;
     readonly cacheReady?: boolean;
   } = {},
@@ -143,6 +152,10 @@ function mount(
         {...(options.longStripOptimization === undefined
           ? {}
           : { longStripOptimization: options.longStripOptimization })}
+        {...(options.tilingThresholdPx === undefined
+          ? {}
+          : { tilingThresholdPx: options.tilingThresholdPx })}
+        {...(options.dataSaver === undefined ? {} : { dataSaver: options.dataSaver })}
         {...(options.maxWidthPercent === undefined
           ? {}
           : { maxWidthPercent: options.maxWidthPercent })}
@@ -208,6 +221,48 @@ describe('ReaderScrollView strip rows', () => {
     const lowMemory = mount(8, { preloadAhead: 5, lowMemoryMode: true, cacheReady: true });
     expect([...cacheRender.pages].sort((a, b) => a - b)).toEqual([0, 1]);
     unmount(lowMemory);
+  });
+
+  it('Given data saver, When the viewport straddles a page boundary, Then both visible pages stay mounted', async () => {
+    const engine = toReaderEngineSettings({
+      ...getDefaultReaderSettings(),
+      dataSaver: true,
+      preloadAhead: 5,
+    });
+    expect(engine.preloadAhead).toBe(0);
+
+    const mounted = mount(8, {
+      preloadAhead: engine.preloadAhead,
+      dataSaver: true,
+      cacheReady: true,
+    });
+    stubStrip(mounted.container, 100, 100);
+    expect(cacheRender.pages).toEqual([0]);
+
+    // Viewport [50, 150) overlaps page 0 [0, 100) and page 1 [100, 200).
+    await scrollTo(mounted.strip, 50);
+    const alts = [...mounted.container.querySelectorAll('img')].map((image) => image.alt);
+    expect(alts).toEqual(expect.arrayContaining(['Page 1', 'Page 2']));
+    expect(alts).not.toContain('Page 3');
+
+    // Rows still virtualise: placeholders keep the strip's height and offsets.
+    expect(mounted.container.querySelectorAll('[data-page-index]').length).toBeGreaterThan(1);
+    unmount(mounted);
+  });
+
+  it('Given data saver, When the viewport grows over a page boundary, Then both now-visible pages mount', () => {
+    const mounted = mount(8, { dataSaver: true, cacheReady: true });
+    stubStrip(mounted.container, 100, 100);
+    expect([...mounted.container.querySelectorAll('img')].map((image) => image.alt)).toEqual([
+      'Page 1',
+    ]);
+
+    Object.defineProperty(mounted.strip, 'clientHeight', { configurable: true, value: 200 });
+    fireResize();
+
+    const alts = [...mounted.container.querySelectorAll('img')].map((image) => image.alt);
+    expect(alts).toEqual(expect.arrayContaining(['Page 1', 'Page 2']));
+    unmount(mounted);
   });
 });
 
@@ -342,6 +397,59 @@ describe('ReaderScrollView virtualization', () => {
     expect(row!.style.height).toBe('20000px');
 
     unmount(mounted);
+  });
+
+  describe('tiling threshold', () => {
+    const rowTiles = (height: number, tilingThresholdPx?: number) => {
+      const page: ReaderPage = {
+        id: toChapterPageId('page'),
+        index: 0,
+        image: { url: 'https://example.com/page.jpg', width: 800, height },
+      };
+      const mounted = mount(1, {
+        pages: [page],
+        ...(tilingThresholdPx === undefined ? {} : { tilingThresholdPx }),
+      });
+      const tiles = mounted.container.querySelectorAll('[data-page-tile]').length;
+      unmount(mounted);
+      return tiles;
+    };
+
+    it.each([
+      ['4096px', 4096, 5],
+      ['8192px', 8192, 5],
+      ['16384px', 16_384, 5],
+    ])('Given a %s threshold, When a 20,000px page renders, Then it is tiled', (_label, px, n) => {
+      expect(rowTiles(20_000, px)).toBe(n);
+    });
+
+    it('Given a 20,000px page and a threshold above it, When it renders, Then it stays one tile', () => {
+      expect(rowTiles(20_000, 32_768)).toBe(1);
+    });
+
+    it.each([
+      [4096, 4097, 2],
+      [4096, 6000, 2],
+      [8192, 6000, 1],
+      [8192, 8192, 1],
+      [8192, 8193, 3],
+      [16_384, 16_384, 1],
+      [16_384, 16_385, 5],
+    ])(
+      'Given a %ipx threshold, When a %ipx page renders, Then it has %i tiles',
+      (px, height, n) => {
+        expect(rowTiles(height, px)).toBe(n);
+      },
+    );
+
+    it('Given no threshold, When a 9,000px page renders, Then Auto tiles it at 8192px', () => {
+      expect(rowTiles(9000)).toBe(3);
+      expect(rowTiles(9000, 16_384)).toBe(1);
+    });
+
+    it('Given a page below the threshold, When it renders, Then it stays one tile', () => {
+      expect(rowTiles(4000, 4096)).toBe(1);
+    });
   });
 });
 

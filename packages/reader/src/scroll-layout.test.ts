@@ -5,6 +5,8 @@ import {
   isLongStripPage,
   planPageTiles,
   resolveScrollPreloadAhead,
+  resolveTilingThreshold,
+  STRIP_TILE_AUTO_THRESHOLD_PX,
   resolveStripMaxWidthPercent,
   resolveStripPageSize,
   stripPageHeight,
@@ -179,6 +181,18 @@ describe('long-strip optimization', () => {
   });
 });
 
+describe('data saver', () => {
+  const page = {
+    index: 0,
+    image: { url: 'https://example.com/page.jpg', width: 800, height: 1200 },
+  } as ReaderPage;
+
+  it('Given data saver, When resolving preload, Then there is no look-ahead whatever the budget', () => {
+    expect(resolveScrollPreloadAhead({ pages: [page], preloadAhead: 8, dataSaver: true })).toBe(0);
+    expect(resolveScrollPreloadAhead({ pages: [page], preloadAhead: 8, dataSaver: false })).toBe(8);
+  });
+});
+
 describe('strip page geometry', () => {
   const landscape = {
     index: 0,
@@ -224,8 +238,42 @@ describe('planPageTiles', () => {
     expect(planPageTiles(8193)).toHaveLength(3);
   });
 
+  it.each([
+    [4096, [4096, 4097], [1, 2]],
+    [8192, [8192, 8193], [1, 3]],
+    [16_384, [16_384, 16_385], [1, 5]],
+  ])(
+    'Given a %ipx threshold, When planned around it, Then %j tiles as %j',
+    (threshold, heights, counts) => {
+      expect(
+        heights.map((height) => planPageTiles(height, STRIP_TILE_HEIGHT_PX, threshold).length),
+      ).toEqual(counts);
+    },
+  );
+
+  it('Given a 20,000px page, When planned at each threshold, Then it tiles at every one and stays whole above it', () => {
+    for (const threshold of [4096, 8192, 16_384]) {
+      expect(planPageTiles(20_000, STRIP_TILE_HEIGHT_PX, threshold)).toHaveLength(5);
+    }
+    expect(planPageTiles(20_000, STRIP_TILE_HEIGHT_PX, 32_768)).toHaveLength(1);
+  });
+
   it('Given a zero or negative height, When planned, Then one minimal tile is returned', () => {
     expect(planPageTiles(0)).toEqual([{ offset: 0, height: 1 }]);
     expect(planPageTiles(-5)).toEqual([{ offset: 0, height: 1 }]);
+  });
+});
+
+describe('resolveTilingThreshold', () => {
+  it('Given Auto or no setting, When resolved, Then it is the 8192px automatic value', () => {
+    expect(STRIP_TILE_AUTO_THRESHOLD_PX).toBe(8192);
+    expect(resolveTilingThreshold('auto')).toBe(8192);
+    expect(resolveTilingThreshold(undefined)).toBe(8192);
+  });
+
+  it('Given an explicit threshold, When resolved, Then it is used as chosen', () => {
+    expect(resolveTilingThreshold(4096)).toBe(4096);
+    expect(resolveTilingThreshold(8192)).toBe(8192);
+    expect(resolveTilingThreshold(16_384)).toBe(16_384);
   });
 });

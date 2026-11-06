@@ -160,6 +160,14 @@ const widePageModeSchema = z.enum(['isolate', 'split'], {
   error: 'Invalid widePageMode.',
 });
 
+/** The explicit tall-page tiling thresholds, in CSS pixels; `auto` is the reader's own choice. */
+export const READER_TILING_THRESHOLDS = [4096, 8192, 16384] as const;
+
+const tilingThresholdSchema = z.union(
+  [z.literal('auto'), z.literal(4096), z.literal(8192), z.literal(16384)],
+  { error: 'tilingThreshold must be auto, 4096, 8192 or 16384.' },
+);
+
 const readerSettingsFields = {
   readingMode: readingModeSchema,
   pageLayout: pageLayoutSchema,
@@ -214,6 +222,16 @@ const readerSettingsFields = {
   wheelBehavior: wheelBehaviorSchema,
   longStripOptimization: z.boolean({ error: 'longStripOptimization must be boolean.' }),
   lowMemoryMode: z.boolean({ error: 'lowMemoryMode must be boolean.' }),
+  /**
+   * A manual switch (metered-connection detection is unverified): only the page
+   * being read loads, with no preload, prefetch or decode-ahead.
+   */
+  dataSaver: z.boolean({ error: 'dataSaver must be boolean.' }).default(false),
+  /**
+   * A strip page taller than this many pixels is split into tiles. `auto` is
+   * the reader's value (8192px today).
+   */
+  tilingThreshold: tilingThresholdSchema.default('auto'),
   diagnosticsEnabled: z.boolean({ error: 'diagnosticsEnabled must be boolean.' }),
   /**
    * Spread alignment in double layouts: 0 shows the first page alone as a
@@ -279,6 +297,8 @@ export type SpreadOffset = z.infer<typeof spreadOffsetSchema>;
 
 export type WidePageMode = z.infer<typeof widePageModeSchema>;
 
+export type TilingThreshold = z.infer<typeof tilingThresholdSchema>;
+
 export type KeyboardShortcut = z.infer<typeof keyboardShortcutSchema>;
 
 export type KeyboardShortcutAction = z.infer<typeof keyboardShortcutActionSchema>;
@@ -328,6 +348,8 @@ export function getDefaultReaderSettings(): ReaderSettings {
     keyboardShortcuts: [],
     longStripOptimization: true,
     lowMemoryMode: false,
+    dataSaver: false,
+    tilingThreshold: 'auto',
     diagnosticsEnabled: false,
     spreadOffset: 0,
     widePageMode: 'isolate',

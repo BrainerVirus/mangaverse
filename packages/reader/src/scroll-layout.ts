@@ -1,4 +1,4 @@
-import { READER_STRIP_WIDTH_AUTO_PERCENT } from '@app/shared';
+import { READER_STRIP_WIDTH_AUTO_PERCENT, type TilingThreshold } from '@app/shared';
 import type { ReaderPage } from './types.js';
 
 /** Reader width from which Auto bounds the strip instead of filling the screen. */
@@ -107,12 +107,22 @@ const PLACEHOLDER_ASPECT_RATIO = 2 / 3;
 export const PLACEHOLDER_PAGE_RATIO = 1 / PLACEHOLDER_ASPECT_RATIO;
 
 /**
- * A strip row taller than this is split into tiles. 4096 keeps every rendered
- * box under the common GPU texture limit (4096–16384 px depending on the
- * device) while leaving ordinary pages and short strips as one image.
+ * A strip row taller than the threshold is split into tiles. The tile height,
+ * 4096, keeps every rendered box under the common GPU texture limit (4096–16384
+ * px depending on the device) while leaving ordinary pages and short strips as
+ * one image.
+ *
+ * `Auto` is this value, 8192px. Low-memory mode keeps it: no measurement shows a
+ * lower threshold saves memory, since tiles share one image and only the
+ * rendered boxes shrink.
  */
-const STRIP_TILE_THRESHOLD_PX = 8192;
+export const STRIP_TILE_AUTO_THRESHOLD_PX = 8192;
 export const STRIP_TILE_HEIGHT_PX = 4096;
+
+/** The tiling threshold in pixels for the `tilingThreshold` setting. */
+export function resolveTilingThreshold(setting: TilingThreshold | undefined): number {
+  return setting === undefined || setting === 'auto' ? STRIP_TILE_AUTO_THRESHOLD_PX : setting;
+}
 
 /**
  * The box a page occupies at a given strip width. Provider metadata wins; a
@@ -163,7 +173,7 @@ export interface PageTile {
 export function planPageTiles(
   height: number,
   tileHeight = STRIP_TILE_HEIGHT_PX,
-  threshold = STRIP_TILE_THRESHOLD_PX,
+  threshold = STRIP_TILE_AUTO_THRESHOLD_PX,
 ): readonly PageTile[] {
   const total = Math.max(1, Math.round(height));
   const size = Math.max(1, Math.round(tileHeight));
@@ -197,7 +207,10 @@ export function resolveScrollPreloadAhead(input: {
   readonly preloadAhead: number;
   readonly lowMemoryMode?: boolean;
   readonly longStripOptimization?: boolean;
+  /** Data saver loads only the page being read, so there is no look-ahead. */
+  readonly dataSaver?: boolean;
 }): number {
+  if (input.dataSaver === true) return 0;
   const base = input.lowMemoryMode ? Math.min(1, input.preloadAhead) : input.preloadAhead;
   if (input.longStripOptimization !== true) return base;
   return input.pages.some(isLongStripPage) ? Math.min(base, 1) : base;

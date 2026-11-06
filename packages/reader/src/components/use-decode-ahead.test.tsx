@@ -60,4 +60,18 @@ describe('useDecodeAhead', () => {
     expect(decoded(2)).toEqual([5, 4, 6, 3]);
     expect(decoded(0)).toEqual([5, 6]);
   });
+
+  it('Given data saver, When the decode plan is built, Then it is empty even with look-ahead configured', () => {
+    plans.length = 0;
+    const root = createRoot(document.createElement('div'));
+    act(() =>
+      root.render(
+        <Probe data={buildData({ preloadAhead: 6, preloadBehind: 3, dataSaver: true })} />,
+      ),
+    );
+    act(() => root.unmount());
+
+    expect(plans.length).toBeGreaterThan(0);
+    expect(plans.every((plan) => plan.length === 0)).toBe(true);
+  });
 });

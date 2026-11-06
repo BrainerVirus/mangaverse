@@ -44,6 +44,32 @@ describe('toReaderEngineSettings', () => {
     );
   });
 
+  it('Given data saver, When mapped, Then the session and scroll window preload nothing', () => {
+    const settings = { ...getDefaultReaderSettings(), preloadAhead: 6, preloadBehind: 3 };
+
+    expect(toReaderEngineSettings(settings)).toMatchObject({ preloadAhead: 6, preloadBehind: 3 });
+    expect(toReaderEngineSettings({ ...settings, dataSaver: true })).toMatchObject({
+      preloadAhead: 0,
+      preloadBehind: 0,
+    });
+  });
+
+  it('Given a tiling threshold, When mapped, Then the engine carries it in pixels with Auto at 8192', () => {
+    const settings = getDefaultReaderSettings();
+
+    expect(toReaderEngineSettings(settings).tilingThresholdPx).toBe(8192);
+    expect(toReaderEngineSettings({ ...settings, tilingThreshold: 4096 }).tilingThresholdPx).toBe(
+      4096,
+    );
+    expect(
+      toReaderEngineSettings({ ...settings, tilingThreshold: 16_384, lowMemoryMode: true })
+        .tilingThresholdPx,
+    ).toBe(16_384);
+    expect(toReaderEngineSettings({ ...settings, lowMemoryMode: true }).tilingThresholdPx).toBe(
+      8192,
+    );
+  });
+
   it('Given the default Auto settings, When mapped without context, Then the engine gets paged LTR, single, fit screen', () => {
     const engine = toReaderEngineSettings(getDefaultReaderSettings());
 

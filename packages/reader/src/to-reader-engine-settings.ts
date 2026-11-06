@@ -3,6 +3,7 @@ import {
   resolveReaderPresentation,
   type ReaderPresentationInput,
 } from './resolve-reader-settings.js';
+import { resolveTilingThreshold } from './scroll-layout.js';
 import type { ReaderEngineSettings } from './types.js';
 
 /** What Auto resolves against besides the settings themselves. */
@@ -30,8 +31,11 @@ export function toReaderEngineSettings(
     gestureSensitivity: settings.gestureSensitivity,
     treatFirstPageAsCover: settings.spreadOffset === 0,
     widePageMode: settings.widePageMode,
-    preloadAhead: settings.preloadAhead,
-    preloadBehind: settings.preloadBehind,
+    // Data saver loads only the page being read, so the session sees no window.
+    preloadAhead: settings.dataSaver ? 0 : settings.preloadAhead,
+    preloadBehind: settings.dataSaver ? 0 : settings.preloadBehind,
+    tilingThresholdPx: resolveTilingThreshold(settings.tilingThreshold),
+    dataSaver: settings.dataSaver,
     lowMemoryMode: settings.lowMemoryMode,
     wheelBehavior: settings.wheelBehavior,
     verticalGapPx: settings.verticalGapPx,
