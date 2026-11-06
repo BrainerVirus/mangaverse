@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getDefaultReaderSettings, toChapterPageId, type ReaderSettings } from '@app/shared';
-import { resolveAutoStripSwitch } from './measured-page-shape.js';
+import { applyPageShapeDecision, resolveAutoStripSwitch } from './measured-page-shape.js';
 import type { ReaderPageData } from './reader-page-data.js';
 import { toReaderEngineSettings } from './to-reader-engine-settings.js';
 
@@ -37,6 +37,29 @@ function buildData(
 }
 
 const TALL = { pageIndex: 0, width: 800, height: 6000 };
+
+describe('applyPageShapeDecision', () => {
+  const stripDecision = {
+    decision: 'strip' as const,
+    measurements: new Map([[0, { pageIndex: 0, width: 800, height: 6000 }]]),
+  };
+
+  it('Given a strip decision and a concrete global RTL with ordinary stored shapes, When presented, Then the session stays the strip', () => {
+    const data = buildData({ readingMode: 'rtl' }, { storedPagedShapes: true });
+    expect(data.engineSettings.readingMode).toBe('rtl');
+
+    const next = applyPageShapeDecision(data, stripDecision);
+
+    expect(next.engineSettings.readingMode).toBe('vertical');
+    expect(next.engineSettings.fitMode).toBe('width');
+  });
+
+  it('Given a concrete title mode, When a strip decision is presented, Then the title choice wins', () => {
+    const data = buildData({}, { titleOverrides: { readingMode: 'rtl' } });
+
+    expect(applyPageShapeDecision(data, stripDecision)).toBe(data);
+  });
+});
 
 describe('resolveAutoStripSwitch', () => {
   it('Given Auto and no stored shapes, When the first page decodes as a long strip, Then the data carries the shape and resolves to the strip', () => {

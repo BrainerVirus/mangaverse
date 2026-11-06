@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import { useStateReducer } from '@app/design-system';
 import type { AppDrizzleDb } from '@app/db';
@@ -43,6 +43,9 @@ export function useReaderPageShape({
     (_current, next) => next,
     { decision: null, measurements: new Map() },
   );
+  // Two decodes can land in one tick, before a render: the first decision must
+  // be visible to the second synchronously.
+  const decisionRef = useRef<PageShapeDecision>(decision);
   const { write } = usePageDimensionWriter({ chapterId, db });
 
   const onMeasured = useCallback(
@@ -54,19 +57,26 @@ export function useReaderPageShape({
 
       // Only the first decode decides: a tall credits page met later in a
       // paged chapter must not turn it into a strip mid-read. The decision is
-      // state, so a refetch cannot replace it with the old shape.
-      const first = decision.decision === null;
+      // state, so a refetch cannot replace it with the old shape; the ref makes
+      // it visible synchronously to a second decode in the same tick.
+      const current = decisionRef.current;
+      const first = current.decision === null;
       const switched = first ? resolveAutoStripSwitch(data, measurement) : undefined;
+      let next = current;
       if (first) {
-        setDecision({
+        next = {
           decision: switched !== undefined ? 'strip' : 'paged',
           measurements:
             switched !== undefined ? new Map([[measurement.pageIndex, measurement]]) : new Map(),
-        });
-      } else if (decision.decision === 'strip') {
-        const measurements = new Map(decision.measurements);
+        };
+      } else if (current.decision === 'strip') {
+        const measurements = new Map(current.measurements);
         measurements.set(measurement.pageIndex, measurement);
-        setDecision({ decision: 'strip', measurements });
+        next = { decision: 'strip', measurements };
+      }
+      if (next !== current) {
+        decisionRef.current = next;
+        setDecision(next);
       }
       if (switched !== undefined) {
         queryClient.setQueryData(readerQueryKeys.chapter(chapterId), switched);
@@ -87,7 +97,7 @@ export function useReaderPageShape({
         );
       }
     },
-    [chapterId, data, decision, queryClient, setDecision, write],
+    [chapterId, data, queryClient, setDecision, write],
   );
 
   return {

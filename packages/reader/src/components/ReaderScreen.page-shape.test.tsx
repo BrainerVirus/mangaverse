@@ -140,10 +140,12 @@ afterEach(async () => {
   mounted = undefined;
 });
 
-function decode(pageIndex: number, size: { width: number; height: number }) {
+async function decode(pageIndex: number, size: { width: number; height: number }) {
   const image = images.get(pageIndex);
   if (image?.onLoad === undefined) throw new Error(`page ${pageIndex + 1} has no image`);
-  act(() => image.onLoad!(size));
+  await act(async () => {
+    image.onLoad!(size);
+  });
 }
 
 function strip(container: HTMLElement): HTMLElement | null {
@@ -155,41 +157,41 @@ function shownPage(container: HTMLElement): string | null | undefined {
 }
 
 describe('ReaderScreen first-decode page shape (R6)', () => {
-  it('Given Auto and no stored shapes, When the first page decodes as a long strip, Then the reader switches to the strip on the same page', () => {
+  it('Given Auto and no stored shapes, When the first page decodes as a long strip, Then the reader switches to the strip on the same page', async () => {
     const container = mount(buildData());
     expect(strip(container)).toBeNull();
     expect(shownPage(container)).toBe('3');
 
-    decode(2, { width: 800, height: 6000 });
+    await decode(2, { width: 800, height: 6000 });
 
     expect(measured).toEqual([{ pageIndex: 2, width: 800, height: 6000 }]);
     expect(strip(container)).not.toBeNull();
     expect(shownPage(container)).toBe('3');
   });
 
-  it('Given Auto, When the first page decodes as an ordinary page, Then the reader stays paged', () => {
+  it('Given Auto, When the first page decodes as an ordinary page, Then the reader stays paged', async () => {
     const container = mount(buildData());
 
-    decode(2, { width: 800, height: 1200 });
+    await decode(2, { width: 800, height: 1200 });
 
     expect(measured).toEqual([{ pageIndex: 2, width: 800, height: 1200 }]);
     expect(strip(container)).toBeNull();
   });
 
-  it('Given a concrete title mode, When a long-strip page decodes, Then the reader stays paged', () => {
+  it('Given a concrete title mode, When a long-strip page decodes, Then the reader stays paged', async () => {
     const container = mount(buildData({ readingMode: 'rtl' }, { readingMode: 'rtl' }));
 
-    decode(2, { width: 800, height: 6000 });
+    await decode(2, { width: 800, height: 6000 });
 
     expect(strip(container)).toBeNull();
   });
 
-  it('Given the strip, When a page decodes, Then its size is reported once per new size', () => {
+  it('Given the strip, When a page decodes, Then its size is reported once per new size', async () => {
     const container = mount(buildData({ readingMode: 'vertical' }, { readingMode: 'vertical' }));
     expect(strip(container)).not.toBeNull();
 
-    decode(2, { width: 800, height: 6000 });
-    decode(2, { width: 800, height: 6000 });
+    await decode(2, { width: 800, height: 6000 });
+    await decode(2, { width: 800, height: 6000 });
 
     expect(measured).toEqual([{ pageIndex: 2, width: 800, height: 6000 }]);
   });

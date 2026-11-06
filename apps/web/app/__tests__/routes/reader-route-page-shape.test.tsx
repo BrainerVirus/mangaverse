@@ -196,6 +196,25 @@ describe('/reader/$chapterId first-decode page shape', () => {
     unmount(mounted);
   });
 
+  it('Given two decodes in one tick, When the first is ordinary and the second tall, Then the first decision holds', async () => {
+    fetchReaderPage.mockResolvedValue(readerData());
+    const mounted = await renderRoute();
+    const before = shown();
+    const onMeasured = screenProps.onPageMeasured as (value: ReaderPageMeasurement) => void;
+
+    await act(async () => {
+      onMeasured({ pageIndex: 1, width: 800, height: 1200 });
+      onMeasured({ pageIndex: 2, width: 800, height: 6000 });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(shown()).toBe(before);
+    expect(shown().engineSettings.readingMode).toBe('ltr');
+    // Flush the ordinary page's batched size so the timer cannot outlive the test.
+    await settleWrites();
+    unmount(mounted);
+  });
+
   it('Given a size already stored or already written, When the page decodes again, Then nothing is written', async () => {
     const data = readerData();
     const stored = {

@@ -102,7 +102,8 @@ export function applyPageShapeDecision(
   });
   const engineSettings = toReaderEngineSettings(
     // The decision is the page-shape step; force it so a later majority of
-    // stored ordinary pages cannot undo what the first decode saw.
+    // stored ordinary pages or a concrete global mode cannot undo what the
+    // first decode saw.
     { ...data.settings, readingMode: 'vertical' },
     {
       globalSettings: data.globalSettings,
@@ -111,5 +112,11 @@ export function applyPageShapeDecision(
       pages,
     },
   );
-  return { ...data, chapter: { ...data.chapter, pages }, engineSettings };
+  return {
+    ...data,
+    chapter: { ...data.chapter, pages },
+    // The resolver can still prefer the concrete global mode after the pages
+    // vote; the session's decision is the strip, so force the presentation.
+    engineSettings: { ...engineSettings, readingMode: 'vertical', fitMode: 'width' },
+  };
 }
