@@ -1,0 +1,38 @@
+{
+  // The ui-conventions rules that still report existing sites. `lint/state-baseline.mjs --profile ui`
+  // runs this file and compares the per-file counts with lint/ui-baseline.json: more fails, fewer
+  // fails until it is lowered with `pnpm lint:ui-baseline --shrink`. The rules with no sites live in
+  // .oxlintrc.json instead and fail at once.
+  "$schema": "https://oxc.rs/schema.json",
+  "plugins": [],
+  "categories": {
+    "correctness": "off",
+    "suspicious": "off",
+    "pedantic": "off",
+    "perf": "off",
+    "style": "off",
+    "restriction": "off",
+    "nursery": "off"
+  },
+  "jsPlugins": ["./lint/ui-conventions.cjs"],
+  "rules": {
+    "ui-conventions/no-off-scale-radius": "error",
+    "ui-conventions/no-off-scale-shadow": "error",
+    "ui-conventions/no-arbitrary-in-variant-maps": "error",
+    "ui-conventions/prefer-size-utility": "error",
+    "ui-conventions/no-hand-rolled-heading": "error",
+    "ui-conventions/no-direct-gsap-import": "error",
+    "ui-conventions/no-hover-without-focus": "error",
+    // Feature code only (apps/** and packages/extensions/**); the rule scopes itself, because the
+    // design-system primitives (Alert, skeleton rows, theme preview) are where a panel is built.
+    "ui-conventions/no-hand-built-panel": "error"
+  },
+  // Mirrors .oxlintrc.baseline.json; state-baseline.test.mjs keeps both in step with EXEMPT_FILE.
+  "ignorePatterns": [
+    "**/*.test.*",
+    "**/*.spec.*",
+    "**/__tests__/**",
+    "**/e2e-production/**",
+    "apps/web/app/routeTree.gen.ts"
+  ]
+}

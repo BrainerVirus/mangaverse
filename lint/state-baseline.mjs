@@ -1,12 +1,16 @@
 // Freezes existing useState and try/catch uses per file (docs/overhaul/01-engineering-rules.md E1).
 // oxlint has no baseline feature, so this runs the two rules from .oxlintrc.baseline.json and
 // compares the per-file counts with lint/baseline.json: more fails, fewer fails until it is lowered.
+// `--profile ui` runs the same check for the visual-pattern rules of lint/ui-conventions.cjs, from
+// .oxlintrc.ui-baseline.json against lint/ui-baseline.json, so a new rule can be introduced without
+// raising the state baseline.
 // The baseline itself may only shrink against the one committed on the merge base with the trunk,
 // except by a record in its `moves` list, which carries frozen uses from one file to another.
 //
 //   node lint/state-baseline.mjs                    check
 //   node lint/state-baseline.mjs --shrink           lower the baseline to the tree; it never raises a count
 //   node lint/state-baseline.mjs --move <old> <new> carry the uses that left <old> and arrived in <new>
+//   node lint/state-baseline.mjs --profile ui --init write a profile's baseline once, when it has none
 //
 // WORKIT_BASELINE_BASE names the commit to compare the baseline with, instead of the merge base.
 import { spawnSync } from "node:child_process";
@@ -15,14 +19,51 @@ import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const BASELINE_FILE = "lint/baseline.json";
-const BASELINE_PATH = join(ROOT, BASELINE_FILE);
+export const PROFILES = {
+  state: {
+    baseline: "lint/baseline.json",
+    config: ".oxlintrc.baseline.json",
+    script: "lint:baseline",
+  },
+  ui: {
+    baseline: "lint/ui-baseline.json",
+    config: ".oxlintrc.ui-baseline.json",
+    script: "lint:ui-baseline",
+  },
+};
+// The profile in force; main() selects it from --profile before anything reads these.
+let BASELINE_FILE = PROFILES.state.baseline;
+let BASELINE_PATH = join(ROOT, BASELINE_FILE);
+let CONFIG_FILE = PROFILES.state.config;
+let SCRIPT = PROFILES.state.script;
+
+export function selectProfile(name) {
+  const profile = PROFILES[name];
+  if (!profile) return false;
+  BASELINE_FILE = profile.baseline;
+  BASELINE_PATH = join(ROOT, BASELINE_FILE);
+  CONFIG_FILE = profile.config;
+  SCRIPT = profile.script;
+  return true;
+}
 const OXLINT_BIN = join(ROOT, "node_modules/oxlint/bin/oxlint");
 const TARGETS = ["apps", "packages", "vitest.config.ts"];
-const RULES = ["no-use-state", "no-try-catch"];
+// Every profile's rules: a profile's run only reports its own, and the rest count zero against it.
+const RULES = [
+  "no-use-state",
+  "no-try-catch",
+  "no-off-scale-radius",
+  "no-off-scale-shadow",
+  "no-arbitrary-in-variant-maps",
+  "prefer-size-utility",
+  "no-hand-built-panel",
+  "no-hand-rolled-heading",
+  "no-direct-gsap-import",
+  "no-hover-without-focus",
+];
 
 const SOURCE_FILE = /\.[cm]?[jt]sx?$/;
-// Mirrors ignorePatterns in .oxlintrc.baseline.json; state-baseline.test.mjs keeps them in step.
+// Mirrors ignorePatterns in .oxlintrc.baseline.json and .oxlintrc.ui-baseline.json; state-baseline.test.mjs keeps them in step.
 export const EXEMPT_FILE =
   /\.(test|spec)\.|(^|\/)(__tests__|e2e-production)\/|^apps\/web\/app\/routeTree\.gen\.ts$/;
 const DISABLE_DIRECTIVE = /(?:oxlint|eslint)-disable(?:-next-line|-line)?\b([^\n]*)/g;
@@ -30,15 +71,7 @@ const DISABLE_DIRECTIVE = /(?:oxlint|eslint)-disable(?:-next-line|-line)?\b([^\n
 export function runRules(targets = TARGETS) {
   const { status, stdout, stderr, error } = spawnSync(
     process.execPath,
-    [
-      OXLINT_BIN,
-      "-c",
-      ".oxlintrc.baseline.json",
-      "--disable-nested-config",
-      "--format",
-      "json",
-      ...targets,
-    ],
+    [OXLINT_BIN, "-c", CONFIG_FILE, "--disable-nested-config", "--format", "json", ...targets],
     { cwd: ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
   );
   if (error) throw error;
@@ -46,7 +79,8 @@ export function runRules(targets = TARGETS) {
   if (status !== 0 && status !== 1) throw new Error(`oxlint exited ${status}:\n${stderr}${stdout}`);
   return JSON.parse(stdout).diagnostics.map((diagnostic) => ({
     file: diagnostic.filename,
-    rule: diagnostic.code?.match(/team-conventions\(([^)]+)\)/)?.[1] ?? String(diagnostic.code),
+    rule:
+      diagnostic.code?.match(/(?:team|ui)-conventions\(([^)]+)\)/)?.[1] ?? String(diagnostic.code),
     line: diagnostic.labels[0]?.span.line ?? 0,
     message: diagnostic.message,
   }));
@@ -259,9 +293,27 @@ function scanSuppressions() {
 
 function main() {
   const argv = process.argv.slice(2);
+  const named = argv.indexOf("--profile") === -1 ? "state" : argv[argv.indexOf("--profile") + 1];
+  if (!selectProfile(named)) {
+    console.error(`state-baseline: unknown profile ${named}. Use one of ${Object.keys(PROFILES)}.`);
+    process.exitCode = 1;
+    return;
+  }
   const findings = runRules();
   const unexpected = findings.filter(({ rule }) => !RULES.includes(rule));
   const current = countByFile(findings.filter(({ rule }) => RULES.includes(rule)));
+  if (argv.includes("--init")) {
+    if (existsSync(BASELINE_PATH)) {
+      console.error(
+        `state-baseline: ${BASELINE_FILE} exists. --init only writes a missing baseline.`,
+      );
+      process.exitCode = 1;
+      return;
+    }
+    writeFileSync(BASELINE_PATH, serializeBaseline(shrinkBaseline(current, current), []));
+    console.log(`state-baseline: wrote ${BASELINE_FILE} with ${findings.length} frozen uses.`);
+    return;
+  }
   const { counts: baseline, moves } = splitBaseline(
     JSON.parse(readFileSync(BASELINE_PATH, "utf8")),
   );
@@ -317,7 +369,7 @@ function main() {
   }
   for (const { file, rule, frozen, found } of dropped) {
     console.error(
-      `${file}: ${found} ${rule}, baseline still says ${frozen}. Run: pnpm lint:baseline --shrink`,
+      `${file}: ${found} ${rule}, baseline still says ${frozen}. Run: pnpm ${SCRIPT} --shrink`,
     );
   }
   for (const site of suppressions) {
