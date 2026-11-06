@@ -673,4 +673,46 @@ describe('ReaderScrollView next-chapter threshold', () => {
     expect(onChapterEnd).toHaveBeenCalledTimes(1);
     unmount(mounted);
   });
+
+  it('Given a chapter shorter than the viewport and already past at the top, When the reader scrolls, Then the transition is offered', async () => {
+    const short = [
+      {
+        id: toChapterPageId('short'),
+        index: 0,
+        image: { url: 'https://example.com/short.jpg', width: 800, height: 60 },
+      },
+    ];
+    const onChapterEnd = vi.fn<() => void>();
+    const mounted = mount(0, { pages: short, onChapterEnd });
+
+    // The 60px page is already 40px past the viewport bottom at 25%, and the
+    // strip cannot scroll below it; the first real scroll arms and fires.
+    await scrollTo(mounted.strip, 10);
+    expect(onChapterEnd).toHaveBeenCalledTimes(1);
+    unmount(mounted);
+  });
+
+  it('Given a scroll frame queued before a modal opens, When the frame runs, Then the stale callback does not fire', async () => {
+    const onChapterEnd = vi.fn<() => void>();
+    const mounted = mount(0, { pages, onChapterEnd });
+
+    // Queue the frame without letting it run.
+    act(() => {
+      mounted.strip.scrollTop = pastEnd(30);
+      mounted.strip.dispatchEvent(new Event('scroll', { bubbles: true }));
+    });
+
+    // The modal opens: ReaderScreen re-renders with no onChapterEnd.
+    act(() => {
+      mounted.root.render(
+        <Harness pages={pages} handleRef={mounted.handleRef} onActivePageChange={() => {}} />,
+      );
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 32));
+    });
+    expect(onChapterEnd).not.toHaveBeenCalled();
+    unmount(mounted);
+  });
 });

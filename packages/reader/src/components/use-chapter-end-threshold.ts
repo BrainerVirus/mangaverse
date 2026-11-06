@@ -53,11 +53,14 @@ export function useChapterEndThreshold({
   readonly check: (container: HTMLElement) => void;
 } {
   const pastRef = useRef<boolean | null>(null);
+  // The position the strip opened at: a frame that has not moved from it is the
+  // programmatic resume scroll, not a crossing.
+  const seedScrollTopRef = useRef<number | null>(null);
 
   const measure = useCallback(
-    (container: HTMLElement) =>
+    (container: HTMLElement, scrollTop = container.scrollTop) =>
       isPastChapterEnd({
-        scrollTop: container.scrollTop,
+        scrollTop,
         viewportHeight: container.clientHeight,
         lastPageBottom: lastPageBottomRef.current,
         thresholdPercent,
@@ -67,13 +70,22 @@ export function useChapterEndThreshold({
 
   const seed = useCallback(
     (container: HTMLElement) => {
-      pastRef.current = measure(container);
+      // A chapter whose end is already past the threshold at the very top can
+      // never scroll back below it (short chapters); arm it so the first real
+      // scroll offers the transition instead of leaving it unreachable.
+      const pastAtTop = measure(container, 0);
+      seedScrollTopRef.current = container.scrollTop;
+      pastRef.current = pastAtTop ? false : measure(container);
     },
     [measure],
   );
 
   const check = useCallback(
     (container: HTMLElement) => {
+      if (seedScrollTopRef.current !== null && container.scrollTop === seedScrollTopRef.current) {
+        return;
+      }
+      seedScrollTopRef.current = null;
       const past = measure(container);
       const wasPast = pastRef.current === true;
       pastRef.current = past;
