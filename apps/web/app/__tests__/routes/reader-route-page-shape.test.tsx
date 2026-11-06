@@ -54,7 +54,7 @@ vi.mock('@app/db', () => ({
   markPreviousChaptersCompleted: vi.fn<() => Promise<unknown>>(async () => ({ ok: true })),
 }));
 
-import { toReaderEngineSettings } from '@app/reader';
+import { readerQueryKeys, toReaderEngineSettings } from '@app/reader';
 import { Route } from '@/routes/reader.$chapterId.js';
 import { PAGE_DIMENSIONS_WRITE_DELAY_MS } from '@/lib/use-reader-page-shape.js';
 
@@ -80,7 +80,11 @@ function readerData(
   };
 }
 
-async function renderRoute(): Promise<{ root: Root; container: HTMLElement }> {
+async function renderRoute(): Promise<{
+  root: Root;
+  container: HTMLElement;
+  client: QueryClient;
+}> {
   vi.spyOn(Route, 'useParams' as never).mockReturnValue({ chapterId: CHAPTER } as never);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const container = document.createElement('div');
@@ -96,7 +100,7 @@ async function renderRoute(): Promise<{ root: Root; container: HTMLElement }> {
   await act(async () => {
     await vi.waitFor(() => expect(screenProps.data).toBeDefined(), { timeout: 2_000 });
   });
-  return { root, container };
+  return { root, container, client };
 }
 
 function shown(): ReaderPageData {
@@ -148,9 +152,9 @@ describe('/reader/$chapterId first-decode page shape', () => {
       { pageIndex: 1, width: 800, height: 6000 },
     ]);
 
-    const afterSwitch = shown();
     await measure({ pageIndex: 2, width: 800, height: 5800 });
-    expect(shown()).toBe(afterSwitch);
+    expect(shown().engineSettings.readingMode).toBe('vertical');
+    expect(shown().chapter.pages[2]?.image).toMatchObject({ width: 800, height: 5800 });
     await settleWrites();
     expect(updateChapterPageDimensions).toHaveBeenLastCalledWith(expect.anything(), CHAPTER, [
       { pageIndex: 2, width: 800, height: 5800 },
@@ -217,5 +221,36 @@ describe('/reader/$chapterId first-decode page shape', () => {
       { pageIndex: 1, width: 800, height: 1200 },
     ]);
     unmount(mounted);
+  });
+
+  it('Given the first decode switched to the strip, When the chapter refetches before the size write lands, Then the strip stays', async () => {
+    let releaseWrite: (() => void) | undefined;
+    updateChapterPageDimensions.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          releaseWrite = () => resolve({ ok: true, value: 1 });
+        }),
+    );
+    fetchReaderPage.mockResolvedValue(readerData());
+    const { root, container, client } = await renderRoute();
+
+    await measure({ pageIndex: 1, width: 800, height: 6000 });
+    expect(shown().engineSettings.readingMode).toBe('vertical');
+
+    // The write is still pending: a refetch reads the old, size-less chapter.
+    await act(async () => {
+      await client.refetchQueries({ queryKey: readerQueryKeys.chapter(CHAPTER) });
+    });
+    expect(shown().engineSettings.readingMode).toBe('vertical');
+
+    await act(async () => {
+      releaseWrite?.();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await act(async () => {
+      await client.refetchQueries({ queryKey: readerQueryKeys.chapter(CHAPTER) });
+    });
+    expect(shown().engineSettings.readingMode).toBe('vertical');
+    unmount({ root, container });
   });
 });

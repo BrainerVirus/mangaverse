@@ -106,9 +106,11 @@ export { readerQueryKeys } from './query-keys.js';
 export { toReaderEngineSettings } from './to-reader-engine-settings.js';
 export { applyReaderSettingsChange } from './reader-settings-change.js';
 export {
+  applyPageShapeDecision,
   isUsableMeasurement,
   pageHasSize,
   resolveAutoStripSwitch,
+  type PageShapeDecision,
   type ReaderPageMeasurement,
 } from './measured-page-shape.js';
 export type { ReaderPageData } from './reader-page-data.js';

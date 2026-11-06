@@ -131,9 +131,11 @@ function mount(initial: ReaderPageData): HTMLElement {
   return container;
 }
 
-afterEach(() => {
+afterEach(async () => {
   if (mounted === undefined) return;
-  act(() => mounted!.root.unmount());
+  await act(async () => {
+    mounted!.root.unmount();
+  });
   mounted.container.remove();
   mounted = undefined;
 });

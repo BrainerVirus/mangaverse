@@ -3,6 +3,15 @@ import { shouldResolveAutoToStrip } from './resolve-reader-settings.js';
 import { toReaderEngineSettings } from './to-reader-engine-settings.js';
 import type { ReaderPage } from './types.js';
 
+/** The session's first-decode decision, kept across chapter refetches. */
+type AutoStripDecision = 'strip' | 'paged' | null;
+
+export interface PageShapeDecision {
+  decision: AutoStripDecision;
+  /** Sizes seen this session, so a refetch before the write lands keeps them. */
+  readonly measurements: ReadonlyMap<number, ReaderPageMeasurement>;
+}
+
 /** A page's natural size, reported once its image decodes. */
 export interface ReaderPageMeasurement {
   readonly pageIndex: number;
@@ -71,5 +80,36 @@ export function resolveAutoStripSwitch(
   // Stored shapes of other pages still vote: one tall page in a chapter
   // already known to be paged does not switch it.
   if (engineSettings.readingMode !== 'vertical') return undefined;
+  return { ...data, chapter: { ...data.chapter, pages }, engineSettings };
+}
+
+/**
+ * The reader data to present after a refetch: once the first decode chose the
+ * strip, every later read of the same chapter keeps that choice, even if the
+ * dimension write has not landed or stored ordinary pages would outvote it. A
+ * concrete per-title mode ends the override (the user's choice wins).
+ */
+export function applyPageShapeDecision(
+  data: ReaderPageData,
+  decision: PageShapeDecision,
+): ReaderPageData {
+  if (decision.decision !== 'strip') return data;
+  const titleMode = data.titleOverrides?.readingMode;
+  if (titleMode !== undefined && titleMode !== 'auto') return data;
+  const pages = data.chapter.pages.map((page) => {
+    const measurement = decision.measurements.get(page.index);
+    return measurement === undefined ? page : withSize(page, measurement);
+  });
+  const engineSettings = toReaderEngineSettings(
+    // The decision is the page-shape step; force it so a later majority of
+    // stored ordinary pages cannot undo what the first decode saw.
+    { ...data.settings, readingMode: 'vertical' },
+    {
+      globalSettings: data.globalSettings,
+      titleOverrides: data.titleOverrides,
+      tags: data.titleTags,
+      pages,
+    },
+  );
   return { ...data, chapter: { ...data.chapter, pages }, engineSettings };
 }
