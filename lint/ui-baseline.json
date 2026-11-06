@@ -1,0 +1,142 @@
+{
+  "apps/web/app/components/StatusPages.tsx": {
+    "no-hand-rolled-heading": 1
+  },
+  "apps/web/app/components/design-system/DesignSystemPage.tsx": {
+    "no-hand-built-panel": 2
+  },
+  "apps/web/app/components/shell/DesktopSidebar.tsx": {
+    "no-off-scale-radius": 1
+  },
+  "apps/web/app/components/shell/MobileBottomNav.tsx": {
+    "no-hover-without-focus": 1,
+    "no-off-scale-radius": 1,
+    "prefer-size-utility": 3
+  },
+  "apps/web/app/features/backup/components/BackupPage.tsx": {
+    "no-hand-built-panel": 2
+  },
+  "apps/web/app/features/diagnostics/components/DiagnosticsPage.tsx": {
+    "no-hand-built-panel": 1
+  },
+  "apps/web/app/features/library/components/BulkEditBar.tsx": {
+    "no-hand-built-panel": 1
+  },
+  "apps/web/app/features/library/components/CategoryManagerDialog.tsx": {
+    "no-hand-built-panel": 1
+  },
+  "apps/web/app/features/library/components/LibrarySections.tsx": {
+    "no-hand-built-panel": 2,
+    "no-hand-rolled-heading": 3
+  },
+  "apps/web/app/features/library/components/LibraryToolbar.tsx": {
+    "prefer-size-utility": 1
+  },
+  "apps/web/app/features/library/components/MangaChapterList.tsx": {
+    "no-hand-built-panel": 1,
+    "no-hand-rolled-heading": 1
+  },
+  "apps/web/app/features/library/components/MangaDetailPage.tsx": {
+    "no-hand-rolled-heading": 1,
+    "no-hover-without-focus": 1
+  },
+  "apps/web/app/features/library/components/MangaIdentityMerge.tsx": {
+    "no-hand-built-panel": 4,
+    "no-hand-rolled-heading": 2
+  },
+  "apps/web/app/features/library/components/MangaProviderSwitcher.tsx": {
+    "no-hand-built-panel": 2,
+    "no-hand-rolled-heading": 1
+  },
+  "apps/web/app/features/library/components/MangaRelatedTitles.tsx": {
+    "no-hand-built-panel": 1,
+    "no-hand-rolled-heading": 1
+  },
+  "apps/web/app/features/migration/components/MigrationPage.tsx": {
+    "no-hand-built-panel": 6,
+    "no-hand-rolled-heading": 4,
+    "no-hover-without-focus": 1,
+    "no-off-scale-radius": 2
+  },
+  "apps/web/app/features/search/components/DiscoverPage.tsx": {
+    "no-hand-built-panel": 1,
+    "no-hand-rolled-heading": 2,
+    "no-hover-without-focus": 1
+  },
+  "apps/web/app/features/search/components/SearchPage.tsx": {
+    "no-hand-rolled-heading": 2
+  },
+  "apps/web/app/features/storage/components/StoragePage.tsx": {
+    "no-hand-built-panel": 2
+  },
+  "apps/web/app/features/theme/components/ThemeAdvancedEditor.tsx": {
+    "no-hand-built-panel": 3
+  },
+  "apps/web/app/features/theme/components/ThemeEditorPage.tsx": {
+    "no-hand-built-panel": 1
+  },
+  "apps/web/app/features/theme/components/ThemeGuidedEditor.tsx": {
+    "no-hand-built-panel": 3,
+    "no-hand-rolled-heading": 3
+  },
+  "apps/web/app/routes/advanced.tsx": {
+    "prefer-size-utility": 1
+  },
+  "packages/design-system/src/components/empty-state.tsx": {
+    "prefer-size-utility": 8
+  },
+  "packages/design-system/src/components/error-state.tsx": {
+    "prefer-size-utility": 3
+  },
+  "packages/design-system/src/components/loading-state.tsx": {
+    "no-off-scale-radius": 9
+  },
+  "packages/design-system/src/components/manga-card.tsx": {
+    "no-direct-gsap-import": 1,
+    "no-hand-rolled-heading": 1
+  },
+  "packages/design-system/src/components/reader-chrome.tsx": {
+    "prefer-size-utility": 5
+  },
+  "packages/design-system/src/components/reader-progress-rail.tsx": {
+    "no-off-scale-radius": 1,
+    "no-off-scale-shadow": 1,
+    "prefer-size-utility": 1
+  },
+  "packages/design-system/src/components/settings-section.tsx": {
+    "prefer-size-utility": 3
+  },
+  "packages/design-system/src/components/theme-preview.tsx": {
+    "no-off-scale-radius": 3
+  },
+  "packages/design-system/src/components/ui/button-variants.ts": {
+    "no-arbitrary-in-variant-maps": 5,
+    "prefer-size-utility": 1
+  },
+  "packages/design-system/src/components/ui/select.tsx": {
+    "prefer-size-utility": 3
+  },
+  "packages/design-system/src/components/ui/sheet.tsx": {
+    "no-off-scale-radius": 1,
+    "prefer-size-utility": 1
+  },
+  "packages/design-system/src/components/ui/switch.tsx": {
+    "prefer-size-utility": 1
+  },
+  "packages/extensions/src/components/ExtensionsPage.tsx": {
+    "no-hand-built-panel": 1,
+    "no-hand-rolled-heading": 1,
+    "no-hover-without-focus": 1
+  },
+  "packages/extensions/src/components/InstallProviderDialog.tsx": {
+    "no-hand-built-panel": 2
+  },
+  "packages/extensions/src/components/ProviderDetailPage.tsx": {
+    "no-hand-built-panel": 5,
+    "no-hand-rolled-heading": 1,
+    "no-hover-without-focus": 1
+  },
+  "packages/extensions/src/components/RegistryImportDialog.tsx": {
+    "no-hand-built-panel": 2
+  }
+}

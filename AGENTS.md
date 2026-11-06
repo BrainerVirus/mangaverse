@@ -38,6 +38,21 @@ Enforced by `.oxlintrc.json` (`no-restricted-imports`; `pnpm lint` fails on a vi
 - Reader UI must remain calm, stable, and distraction-free.
 - Themes may differ visually, but accessibility and component semantics must stay consistent.
 
+## UI Pattern Rules
+
+`pnpm lint` fails on the visual patterns below. Three layers, all inside `pnpm lint`:
+
+- `@shadcn/lint` (`.oxlintrc.json`, all six rules at `error`): `no-restyle` (className on a design-system component), `no-arbitrary-values` (`p-[13px]`, `bg-[#fff]`, `rounded-[10px]`), `no-raw-colors` (`bg-red-500`), `no-inline-styles` (inline `style`; the per-frame exceptions are the file overrides at the bottom of the config: virtualized grid rows, reader transform layers, the onboarding fade), `no-unknown-classes`, `require-static-classes`.
+- `lint/ui-conventions.cjs`, enforced now, no sites on the tree: `no-nested-card` (a `Card` or `SettingsSection` inside another, directly or through any depth of components defined in the same file), `no-hand-rolled-glass` (`backdrop-*`, `bg-white/N`, `bg-black/N` outside the reader stage; start from `GlassSurface`), `no-border-ring-doubling` (a resting `border` plus a resting `ring-N`/`outline-N` on one element, reported when both are unconditional in one carrier (strings, arrays, templates, additive `cn` arguments) or picked together by `cva`/`tv` axes; operands of `?:`, `&&`, `||`, `clsx` objects and same-axis options are never paired, so `cn('border', open && 'ring-1')` is not caught; focus rings behind `focus-visible:` stay legal).
+- `lint/ui-conventions.cjs`, frozen per file in `lint/ui-baseline.json` (`.oxlintrc.ui-baseline.json`, same ratchet as `useState`): `no-off-scale-radius` (`rounded`, `rounded-md|lg|xl`; use `rounded-box|control|btn|badge|glass`), `no-off-scale-shadow` (bare `shadow`, `shadow-xs|2xl|inner`, `drop-shadow-*`; use `shadow-sm|md|lg|xl`), `no-hand-rolled-heading` (`h1`-`h6` with `text-lg`, `font-semibold`; use `type-display-lg|title|heading`), `no-hand-built-panel` (a `div`/`li`/`p` in `apps/**` or `packages/extensions/**` with radius, fill or border, and padding; use `Card`, `Alert`, `GlassPanel`, or add one shared row primitive), `prefer-size-utility` (`h-4 w-4` is `size-4`), `no-arbitrary-in-variant-maps` (arbitrary values in `*-variants.ts`, which @shadcn/lint cannot read), `no-direct-gsap-import` (import motion from `@app/design-system/motion`, not `gsap`), `no-hover-without-focus` (an `a`, `button` or `Link` with a `hover:` style needs its own `focus`/`focus-visible`/`focus-within` utility that shows: a ring with a width, an outline other than none/hidden/0, or a fill, text, border, shadow, opacity, transform or underline; `group-focus`, a colour-only or offset-only ring, `focus:outline-none` alone and a `className` prop do not count; `buttonVariants` counts, `cva`/`tv` only through the focus utilities in their arguments).
+- `useState` and `try/catch` keep their own baseline (`lint/baseline.json`, `team-conventions/no-use-state`, `no-try-catch`).
+
+Baselines only shrink. A new use of a baselined rule fails; fixing one fails until you run `pnpm lint:ui-baseline --shrink` (UI rules) or `pnpm lint:baseline --shrink` (state) and commit the lowered file. A raised count fails against the merge base, and a `oxlint-disable` naming a baselined rule fails too. Measured 2026-11-06 at `2238f9e3`: 129 UI sites in 39 files (panel 43, size 31, heading 24, radius 18, hover/focus 6, variant-map 5, shadow 1, gsap 1); `useState` 140 in 52 files; `try/catch` 114 in 54 files.
+
+An enforced rule (the first group) takes an inline `oxlint-disable-next-line ui-conventions/<rule> -- <reason>` only for a documented exception, with a `workit ledger ruling`. Cross-file card nesting (a `Card` wrapping a component imported from another file that renders a `Card`) cannot be seen by a linter; check it in review.
+
+Tests: `node --test lint/ui-conventions.test.mjs` (a red and a green fixture per rule, the repo config on a red fixture, the ui baseline through the script). `pnpm test` runs it. Not encoded, because they would report legitimate code: `focus:outline-none` without a ring (4 sites, all intentional: a programmatic focus target, a listbox row that shows focus as a fill, a dialog container, the palette's search field), `text-sm/xs` against `type-*` (DESIGN.md §4 keeps `text-sm` as the components' convention), `bg-muted/NN` alpha steps, and `border` beside `focus-visible:ring-*` (the shadcn focus pattern).
+
 ## shadcn Tooling
 
 - Components live in `packages/design-system` (Base UI `base-nova`; its `components.json` drives the CLI): `pnpm dlx shadcn@latest add <item> -c packages/design-system`. `cn` comes from the `cn` package.
@@ -111,7 +126,7 @@ CI runs both after the build; run both before reporting a change.
 
 - Install: `pnpm install`
 - Dev: `pnpm dev` (web), `pnpm dev:web`, `pnpm dev:desktop`
-- Checks: `pnpm lint` / `lint:fix`, `pnpm format` / `format:check` (oxfmt), `pnpm typecheck`, `pnpm test`, `pnpm run doctor`, `pnpm knip`
+- Checks: `pnpm lint` / `lint:fix` / `lint:baseline` / `lint:ui-baseline`, `pnpm format` / `format:check` (oxfmt), `pnpm typecheck`, `pnpm test`, `pnpm run doctor`, `pnpm knip`
 - Builds: `pnpm build`, `pnpm --filter @app/web build`, `pnpm --filter @app/desktop build`; clean with `pnpm clean`
 - Electron smoke (after a desktop build): `pnpm --filter @app/desktop test:e2e:electron`. The packaged proof runs `pnpm --filter @app/desktop package:mac` first, then `pnpm --filter @app/desktop test:e2e:packaged`.
 

@@ -24,7 +24,12 @@
   // no-inline-styles 87, no-unknown-classes 3; after: 0 each, with the keeps below).
   // `pnpm lint` exits 0 and `pnpm run doctor` (which adopts this file) is green, so
   // doctor.config.ts no longer needs the rule carve-out it carried since ruling #1319.
-  "jsPlugins": ["@shadcn/lint"],
+  //
+  // lint/ui-conventions.cjs adds the visual-pattern rules @shadcn/lint cannot express. The
+  // three enabled below report nothing on the tree (measured 2026-11-06), so any new use fails
+  // here; the ones that still have sites are frozen per file in lint/ui-baseline.json by
+  // .oxlintrc.ui-baseline.json instead (AGENTS.md "UI Pattern Rules").
+  "jsPlugins": ["@shadcn/lint", "./lint/ui-conventions.cjs"],
   "settings": {
     "shadcn": {
       "ui": "@app/design-system",
@@ -92,6 +97,13 @@
       }
     ],
     "shadcn/require-static-classes": "error",
+    // A Card or SettingsSection inside another one (directly, or through a component defined in
+    // the same file). Cross-file nesting needs a rendered tree; see AGENTS.md.
+    "ui-conventions/no-nested-card": "error",
+    // backdrop-* and bg-white/N, bg-black/N outside the reader stage: glass starts at GlassSurface.
+    "ui-conventions/no-hand-rolled-glass": "error",
+    // A resting border plus a resting ring or outline on one element.
+    "ui-conventions/no-border-ring-doubling": "error",
     "typescript/consistent-type-imports": "error",
     "typescript/no-explicit-any": "warn",
     "react-hooks/exhaustive-deps": "warn",

@@ -3,7 +3,7 @@
   "ignore": [".agents/**"],
   "workspaces": {
     ".": {
-      "entry": ["doctor.config.ts", "lint/team-conventions.cjs"],
+      "entry": ["doctor.config.ts", "lint/team-conventions.cjs", "lint/*.test.mjs"],
       // The shadcn CLI is driven by opencode.json (the MCP server command) and the
       // documented `pnpm dlx shadcn@latest ...` invocations, never imported.
       "ignoreDependencies": ["shadcn"]

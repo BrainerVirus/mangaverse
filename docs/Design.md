@@ -226,6 +226,9 @@ Theme rules:
   fill with no border and may contain at most one sample card. One border per visual grouping.
   `SettingsSection` is the sanctioned settings-group card; do not nest another card inside it.
 - Multi-provider titles need a visible source indicator or stacked-source affordance.
+- `pnpm lint` enforces the card and material rules: `ui-conventions/no-nested-card`, `no-hand-rolled-glass`,
+  `no-border-ring-doubling`, and the baselined radius, shadow, heading and panel rules (AGENTS.md "UI Pattern
+  Rules").
 
 ### Dialogs And Sheets
 
