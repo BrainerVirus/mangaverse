@@ -169,6 +169,9 @@ function LocalServiceSection({ report }: { report: DiagnosticsReport }) {
   );
 }
 
+const DIAGNOSTICS_DESCRIPTION =
+  'About MangaVerse, platform details, storage usage, and local database health for troubleshooting.';
+
 export function DiagnosticsPage({
   isLoading,
   isError,
@@ -182,8 +185,20 @@ export function DiagnosticsPage({
 
   if (isLoading) {
     return (
-      <section aria-label="Diagnostics">
-        <LoadingState type="list" count={3} />
+      <section aria-label="Diagnostics" className="space-y-6">
+        <PageHeader
+          title="Diagnostics"
+          description={DIAGNOSTICS_DESCRIPTION}
+          actions={
+            <>
+              <Button disabled>Refresh diagnostics</Button>
+              <Button variant="outline" disabled>
+                Copy report
+              </Button>
+            </>
+          }
+        />
+        <LoadingState type="sections" count={3} />
       </section>
     );
   }
@@ -213,7 +228,7 @@ export function DiagnosticsPage({
     <section aria-label="Diagnostics" className="space-y-6">
       <PageHeader
         title="Diagnostics"
-        description="About MangaVerse, platform details, storage usage, and local database health for troubleshooting."
+        description={DIAGNOSTICS_DESCRIPTION}
         actions={
           <>
             <Button onClick={onRefresh} disabled={isRefreshing}>

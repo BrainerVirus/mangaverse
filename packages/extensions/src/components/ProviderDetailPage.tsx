@@ -13,6 +13,7 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
+  Skeleton,
   Select,
   SelectContent,
   SelectItem,
@@ -503,6 +504,41 @@ function ProviderOperationsSections({
   );
 }
 
+/** The back link is static; the name, badges and actions wait for the provider's record. */
+function ProviderDetailLoading({ onBack }: { readonly onBack: (() => void) | undefined }) {
+  return (
+    <>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-2">
+          {onBack !== undefined ? (
+            <Button type="button" variant="ghost" className="w-fit px-0" onClick={onBack}>
+              Back to extensions
+            </Button>
+          ) : null}
+          <div>
+            <div className="flex h-8 items-center">
+              <Skeleton className="h-6 w-48" />
+            </div>
+            <div className="flex h-5 items-center">
+              <Skeleton className="h-3 w-40" />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Skeleton className="h-6 w-16" />
+            <Skeleton className="h-6 w-16" />
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Skeleton className="h-10 w-36" />
+          <Skeleton className="h-10 w-24" />
+          <Skeleton className="h-10 w-28" />
+        </div>
+      </div>
+      <LoadingState type="sections" count={3} />
+    </>
+  );
+}
+
 export function ProviderDetailPage({
   providerId,
   data,
@@ -526,8 +562,8 @@ export function ProviderDetailPage({
   if (isLoading) {
     return (
       <PageContainer variant="read">
-        <section aria-label="Provider details">
-          <LoadingState type="detail" />
+        <section aria-label="Provider details" className="@container flex flex-col gap-6">
+          <ProviderDetailLoading onBack={onBack} />
         </section>
       </PageContainer>
     );

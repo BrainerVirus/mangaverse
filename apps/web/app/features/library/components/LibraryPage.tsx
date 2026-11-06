@@ -1,15 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  EmptyState,
-  ErrorState,
-  LoadingState,
-  PageContainer,
-  PageHeader,
-} from '@app/design-system';
+import { EmptyState, ErrorState, PageContainer, PageHeader } from '@app/design-system';
 import {
   type ChapterId,
   type LibraryEntryId,
   type LibraryFilter,
+  type LibraryLayoutMode,
   type LibraryViewState,
   type MangaId,
   type ProviderId,
@@ -23,6 +18,7 @@ import {
 } from '../migration-selection.js';
 import { hasLibraryFilters } from '../view-state.js';
 import { BulkEditBar } from './BulkEditBar.js';
+import { LibraryLoadingRegion } from './LibraryLoadingRegion.js';
 import { LibraryPaginator } from './LibraryPaginator.js';
 import { LibraryToolbar } from './LibraryToolbar.js';
 import {
@@ -70,6 +66,11 @@ export interface LibraryPageProps {
   onLoadMore?: () => Promise<void>;
   /** Continue reading and recently updated, already filtered like the grid. */
   overview?: LibraryOverviewData;
+  /**
+   * The shelves' first load is still running. The grid waits for it, so the shelves never
+   * appear above rows that are already on screen and push them down.
+   */
+  isOverviewLoading?: boolean;
   onOpenChapter?: (chapterId: ChapterId) => void;
   updates?: LibraryUpdatesControl;
 }
@@ -80,6 +81,21 @@ function collectProviders(items: readonly LibraryItem[]): ProviderId[] {
     for (const mapping of item.manga.providerMappings) providers.add(mapping.providerId);
   }
   return [...providers].sort((a, b) => a.localeCompare(b));
+}
+
+/** The count badge waits for the count: a placeholder page must not claim "0 titles". */
+function headerCount(isLoading: boolean, itemCount: number) {
+  return isLoading ? {} : { count: itemCount, countLabel: itemCount === 1 ? 'title' : 'titles' };
+}
+
+/** One swap from placeholders to content: the rows wait for the shelves' first load too. */
+function isRegionLoading(input: {
+  readonly isLoading: boolean;
+  readonly isError: boolean;
+  readonly isOverviewLoading: boolean;
+  readonly itemCount: number;
+}): boolean {
+  return input.isLoading || (input.isOverviewLoading && input.itemCount > 0 && !input.isError);
 }
 
 function libraryViewOf(data: LibraryPageData | undefined) {
@@ -135,7 +151,10 @@ function useLibrarySelection(items: readonly LibraryItem[]) {
 }
 
 interface LibraryStatusProps {
+  /** The rows are still on their way: the placeholder region stands in for them. */
   isLoading: boolean;
+  layout: LibraryLayoutMode;
+  updates: LibraryUpdatesControl | undefined;
   isError: boolean;
   itemCount: number;
   filtersActive: boolean;
@@ -146,6 +165,8 @@ interface LibraryStatusProps {
 
 function LibraryStatus({
   isLoading,
+  layout,
+  updates,
   isError,
   itemCount,
   filtersActive,
@@ -153,7 +174,8 @@ function LibraryStatus({
   onRetry,
   onClearFilters,
 }: LibraryStatusProps) {
-  if (isLoading) return <LoadingState type="grid" />;
+  // An empty-library message before the rows have loaded would be premature.
+  if (isLoading) return <LibraryLoadingRegion layout={layout} updates={updates} />;
   if (isError) {
     return (
       <ErrorState
@@ -233,10 +255,12 @@ export function LibraryPage({
   onLoadMore,
   sourceLabels,
   overview,
+  isOverviewLoading = false,
   onOpenChapter,
   updates,
 }: LibraryPageProps) {
   const { items, itemCount, categories, providers } = libraryViewOf(data);
+  const regionLoading = isRegionLoading({ isLoading, isError, isOverviewLoading, itemCount });
   const filtersActive = hasLibraryFilters(viewState.filter);
   const selection = useLibrarySelection(items);
   const [migrationError, setMigrationError] = useState<string | null>(null);
@@ -297,8 +321,7 @@ export function LibraryPage({
         <PageHeader
           title="Library"
           description="Your saved manga, comics, and webtoons"
-          count={itemCount}
-          countLabel={itemCount === 1 ? 'title' : 'titles'}
+          {...headerCount(isLoading, itemCount)}
         />
 
         {showToolbar ? (
@@ -313,7 +336,9 @@ export function LibraryPage({
         ) : null}
 
         <LibraryStatus
-          isLoading={isLoading}
+          isLoading={regionLoading}
+          layout={viewState.layout}
+          updates={updates}
           isError={isError}
           itemCount={itemCount}
           filtersActive={filtersActive}
@@ -324,12 +349,12 @@ export function LibraryPage({
 
         <LibraryUpdatesSection
           updates={updates}
-          isLoading={isLoading}
+          isLoading={regionLoading}
           isError={isError}
           itemCount={itemCount}
         />
 
-        {itemCount > 0 && !isLoading && !isError ? (
+        {itemCount > 0 && !regionLoading && !isError ? (
           <>
             {overview !== undefined ? (
               <>

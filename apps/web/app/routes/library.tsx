@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { useStateReducer } from '@app/design-system';
 import type { AppDrizzleDb } from '@app/db';
 import { extensionsQueryKeys, fetchProviderUiInfo } from '@app/extensions';
 import {
@@ -53,6 +54,16 @@ async function runLibraryUpdates(
   }
 }
 
+/**
+ * True only while the shelves' first load runs. A later filter change refetches them without
+ * swapping the rows for placeholders, so the flag latches off once they have settled.
+ */
+function useOverviewFirstLoad(isPending: boolean): boolean {
+  const [settled, settle] = useStateReducer((_settled: boolean, next: true) => next, false);
+  if (!settled && !isPending) settle(true);
+  return !settled && isPending;
+}
+
 function LibraryRoute() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -101,6 +112,7 @@ function LibraryRoute() {
     ...libraryOverviewQueryOptions(db!, viewState.filter),
     enabled: dbStatus === 'ready' && db !== null,
   });
+  const isOverviewLoading = useOverviewFirstLoad(overview.isPending);
   const savedReport = useQuery({
     ...libraryUpdateReportQueryOptions(db!),
     enabled: dbStatus === 'ready' && db !== null,
@@ -173,6 +185,7 @@ function LibraryRoute() {
       onOpenManga={openManga}
       onOpenChapter={openChapter}
       {...(overview.data === undefined ? {} : { overview: overview.data })}
+      isOverviewLoading={isOverviewLoading}
       updates={{
         status: isChecking ? 'running' : 'idle',
         report: progress ?? savedReport.data ?? undefined,

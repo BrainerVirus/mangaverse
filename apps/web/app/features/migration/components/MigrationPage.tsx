@@ -107,6 +107,12 @@ const NOT_MIGRATED_ITEMS = [
   'Provider-specific URLs and page caches',
 ] as const;
 
+const MIGRATION_HEADER = {
+  title: 'Migration',
+  description:
+    'Move library titles from one provider to another. Review matches before applying changes.',
+} as const;
+
 const EMPTY_REQUESTED_IDS: readonly string[] = [];
 const EMPTY_REQUESTED_TITLES: Readonly<Record<string, string>> = {};
 
@@ -1127,8 +1133,9 @@ export function MigrationPage({
   if (isLoading) {
     return (
       <PageContainer variant="read">
-        <section aria-label="Migration">
-          <LoadingState type="list" />
+        <section aria-label="Migration" className="space-y-6">
+          <PageHeader {...MIGRATION_HEADER} />
+          <LoadingState type="sections" count={2} />
         </section>
       </PageContainer>
     );
@@ -1150,10 +1157,7 @@ export function MigrationPage({
   return (
     <PageContainer variant="read">
       <section aria-label="Migration" className="space-y-6">
-        <PageHeader
-          title="Migration"
-          description="Move library titles from one provider to another. Review matches before applying changes."
-        />
+        <PageHeader {...MIGRATION_HEADER} />
 
         <ApplyReportPanel
           applyReport={applyReport}

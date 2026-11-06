@@ -10,6 +10,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+  LoadingState,
   PageContainer,
 } from '@app/design-system';
 import type { ThemeDefinition, ThemeDefinitionIssue } from '@app/shared';
@@ -149,6 +150,40 @@ function ThemePreviewPane({ definition, dark }: { definition: ThemeDefinition; d
   );
 }
 
+function ThemeEditorHeading() {
+  return (
+    <div className="space-y-2">
+      <h1 className="type-display-lg text-foreground">Theme editor</h1>
+      <p className="type-body max-w-2xl text-muted-foreground">
+        Name the theme and preview both appearances. Nothing reaches the app shell until you save.
+      </p>
+    </div>
+  );
+}
+
+/** The heading and the action row are static; the editor's sections wait for the draft. */
+export function ThemeEditorLoading() {
+  return (
+    <PageContainer variant="read" className="max-w-5xl">
+      <section aria-label="Theme editor" className="space-y-8">
+        <header className="flex flex-wrap items-start justify-between gap-4">
+          <ThemeEditorHeading />
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" disabled>
+              Cancel
+            </Button>
+            <Button variant="outline" disabled>
+              Duplicate
+            </Button>
+            <Button disabled>Save theme</Button>
+          </div>
+        </header>
+        <LoadingState type="sections" count={2} />
+      </section>
+    </PageContainer>
+  );
+}
+
 export function ThemeEditorPage({
   draft,
   isSaved,
@@ -169,13 +204,7 @@ export function ThemeEditorPage({
     <PageContainer variant="read" className="max-w-5xl">
       <section aria-label="Theme editor" className="space-y-8">
         <header className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-2">
-            <h1 className="type-display-lg text-foreground">Theme editor</h1>
-            <p className="type-body max-w-2xl text-muted-foreground">
-              Name the theme and preview both appearances. Nothing reaches the app shell until you
-              save.
-            </p>
-          </div>
+          <ThemeEditorHeading />
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={onCancel} disabled={busy}>
               Cancel

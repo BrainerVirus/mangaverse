@@ -45,7 +45,7 @@ vi.mock('@app/design-system', async () => {
     EmptyState: () => null,
     ErrorState: () => null,
     GlassSurface: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
-    LoadingState: () => null,
+    Skeleton: () => null,
     // The chrome's mode switch, reduced to the calls the reader makes.
     ReaderChrome: (props: {
       mode?: string;

@@ -263,6 +263,18 @@ function ThemeSection({
   );
 }
 
+function ThemeHeading() {
+  return (
+    <header className="space-y-2">
+      <h1 className="type-display-lg text-foreground">Theme</h1>
+      <p className="type-body max-w-2xl text-muted-foreground">
+        Choose a visual preset or one of your custom themes. Changes apply across the app and are
+        saved locally.
+      </p>
+    </header>
+  );
+}
+
 export function ThemeCustomizationPage({
   settings,
   isLoading,
@@ -285,8 +297,9 @@ export function ThemeCustomizationPage({
   if (isLoading) {
     return (
       <PageContainer variant="read" className="max-w-5xl">
-        <section aria-label="Theme">
-          <LoadingState type="list" count={3} />
+        <section aria-label="Theme" className="space-y-8">
+          <ThemeHeading />
+          <LoadingState type="sections" count={2} />
         </section>
       </PageContainer>
     );
@@ -315,13 +328,7 @@ export function ThemeCustomizationPage({
   return (
     <PageContainer variant="read" className="max-w-5xl">
       <section aria-label="Theme" className="space-y-8">
-        <header className="space-y-2">
-          <h1 className="type-display-lg text-foreground">Theme</h1>
-          <p className="type-body max-w-2xl text-muted-foreground">
-            Choose a visual preset or one of your custom themes. Changes apply across the app and
-            are saved locally.
-          </p>
-        </header>
+        <ThemeHeading />
 
         {themeNotice === null ? null : (
           <Alert variant="destructive">

@@ -11,9 +11,9 @@ import {
   CardTitle,
   EmptyState,
   ErrorState,
-  LoadingState,
   PageContainer,
   PageHeader,
+  Skeleton,
 } from '@app/design-system';
 import type { ExtensionRegistryEntry } from '@app/shared';
 import { ExternalLink, Puzzle } from 'lucide-react';
@@ -174,10 +174,7 @@ function ProviderGrid({
 }) {
   if (providers.length === 0) return null;
   return (
-    <section
-      aria-label="Installed providers"
-      className="grid gap-4 @2xl:grid-cols-2 @5xl:grid-cols-3"
-    >
+    <section aria-label="Installed providers" className={PROVIDER_GRID_CLASSES}>
       {providers.map((provider) => (
         <ProviderCard
           key={provider.id}
@@ -187,6 +184,55 @@ function ProviderGrid({
           onToggleEnabled={onToggleEnabled}
         />
       ))}
+    </section>
+  );
+}
+
+const PROVIDER_GRID_CLASSES = 'grid gap-4 @2xl:grid-cols-2 @5xl:grid-cols-3';
+
+/** A provider card's own boxes: icon and two lines, two figures, three actions. */
+function ProviderCardSkeleton() {
+  return (
+    <Card className="flex min-w-0 flex-col">
+      <CardHeader className="gap-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <Skeleton className="size-10 shrink-0" />
+            <div className="min-w-0">
+              <div className="flex h-6 items-center">
+                <Skeleton className="h-4 w-32" />
+              </div>
+              <div className="flex h-6 items-center">
+                <Skeleton className="h-3 w-12" />
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Skeleton className="h-6 w-16" />
+            <Skeleton className="h-6 w-16" />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="mt-auto flex flex-col gap-4">
+        <div className="grid grid-cols-2 gap-2">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Skeleton className="h-10 w-20" />
+          <Skeleton className="h-10 w-20" />
+          <Skeleton className="h-10 w-20" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProviderGridSkeleton() {
+  return (
+    <section aria-label="Installed providers" aria-busy="true" className={PROVIDER_GRID_CLASSES}>
+      <ProviderCardSkeleton />
+      <ProviderCardSkeleton />
     </section>
   );
 }
@@ -274,7 +320,11 @@ export function ExtensionsPage({
         <PageHeader
           title="Extensions"
           description={
-            providerCount === 1 ? '1 installed provider' : `${providerCount} installed providers`
+            isLoading
+              ? 'Installed providers'
+              : providerCount === 1
+                ? '1 installed provider'
+                : `${providerCount} installed providers`
           }
           actions={
             <>
@@ -294,7 +344,7 @@ export function ExtensionsPage({
           importWarnings={importWarnings}
         />
 
-        {isLoading ? <LoadingState type="grid" /> : null}
+        {isLoading ? <ProviderGridSkeleton /> : null}
 
         {isError ? (
           <ErrorState

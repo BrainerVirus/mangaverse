@@ -125,6 +125,11 @@ function PreferredLanguagesField({
   );
 }
 
+const APP_SETTINGS_HEADER = {
+  title: 'App settings',
+  description: 'Global preferences for content, performance, and localization.',
+} as const;
+
 export function AppSettingsPage({
   settings,
   isLoading,
@@ -136,8 +141,9 @@ export function AppSettingsPage({
   if (isLoading) {
     return (
       <PageContainer variant="read">
-        <section aria-label="App settings">
-          <LoadingState type="list" count={3} />
+        <section aria-label="App settings" className="flex flex-col gap-6">
+          <PageHeader {...APP_SETTINGS_HEADER} />
+          <LoadingState type="sections" count={4} />
         </section>
       </PageContainer>
     );
@@ -167,10 +173,7 @@ export function AppSettingsPage({
   return (
     <PageContainer variant="read">
       <section aria-label="App settings" className="flex flex-col gap-6">
-        <PageHeader
-          title="App settings"
-          description="Global preferences for content, performance, and localization."
-        />
+        <PageHeader {...APP_SETTINGS_HEADER} />
 
         <SettingsSection
           title="Appearance"

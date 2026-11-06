@@ -31,6 +31,7 @@ export {
   type ConfirmDeleteThemeDialogProps,
 } from './components/ConfirmDeleteThemeDialog.js';
 export {
+  ThemeEditorLoading,
   ThemeEditorPage,
   type ThemeEditorError,
   type ThemeEditorPageProps,

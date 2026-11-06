@@ -159,6 +159,8 @@ export interface LibraryUpdatesControl {
 
 export interface LibraryUpdatePanelProps {
   readonly updates: LibraryUpdatesControl;
+  /** The panel is static chrome and shows while the library loads; a check needs the database. */
+  readonly disabled?: boolean;
 }
 
 function isProblem(item: LibraryUpdateItem): boolean {
@@ -205,7 +207,7 @@ function summarize(report: LibraryUpdateReport | undefined, running: boolean): s
 }
 
 /** User-triggered library update check: progress, cancel and the failure report. */
-export function LibraryUpdatePanel({ updates }: LibraryUpdatePanelProps) {
+export function LibraryUpdatePanel({ updates, disabled = false }: LibraryUpdatePanelProps) {
   const { report, status, onCheck, onCancel, onRetry, onClearReport } = updates;
   const running = status === 'running';
   const problems = (report?.items ?? []).filter(isProblem);
@@ -244,7 +246,7 @@ export function LibraryUpdatePanel({ updates }: LibraryUpdatePanelProps) {
               Clear report
             </Button>
           ) : null}
-          <Button type="button" size="sm" onClick={onCheck} disabled={running}>
+          <Button type="button" size="sm" onClick={onCheck} disabled={running || disabled}>
             <RefreshCw aria-hidden className="size-4" />
             Check for updates
           </Button>
