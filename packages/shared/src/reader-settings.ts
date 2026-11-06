@@ -16,6 +16,9 @@ export const READER_PRELOAD_MAX = 10;
 /** Upper bound of the strip gap, in pixels; older rows saved up to 2000. */
 export const READER_STRIP_GAP_MAX = 64;
 
+/** Default scroll-past distance that offers the next chapter, as a percentage of the viewport height. */
+export const READER_NEXT_CHAPTER_THRESHOLD_DEFAULT_PERCENT = 25;
+
 /** Narrowest explicit strip width, as a percentage of the reader. */
 export const READER_STRIP_WIDTH_MIN_PERCENT = 40;
 
@@ -152,6 +155,9 @@ const verticalGapMessage = `verticalGapPx must be between 0 and ${READER_STRIP_G
 
 const stripWidthMessage = `maxStripWidthPercent must be a whole number between ${READER_STRIP_WIDTH_MIN_PERCENT} and ${READER_STRIP_WIDTH_AUTO_PERCENT}.`;
 
+const nextChapterThresholdMessage =
+  'nextChapterThresholdPercent must be a whole number between 0 and 100.';
+
 const spreadOffsetSchema = z.union([z.literal(0), z.literal(1)], {
   error: 'spreadOffset must be 0 or 1.',
 });
@@ -255,6 +261,16 @@ const readerSettingsFields = {
   showChapterTransition: z
     .boolean({ error: 'showChapterTransition must be boolean.' })
     .default(true),
+  /**
+   * In the continuous strip, how far past the last page's end the reader scrolls,
+   * as a percentage of the viewport height, before the next chapter is offered.
+   */
+  nextChapterThresholdPercent: z
+    .number({ error: nextChapterThresholdMessage })
+    .int({ error: nextChapterThresholdMessage })
+    .min(0, { error: nextChapterThresholdMessage })
+    .max(100, { error: nextChapterThresholdMessage })
+    .default(READER_NEXT_CHAPTER_THRESHOLD_DEFAULT_PERCENT),
   // Last so a malformed array is reported after the scalar fields, as before.
   keyboardShortcuts: keyboardShortcutListSchema,
 };
@@ -356,6 +372,7 @@ export function getDefaultReaderSettings(): ReaderSettings {
     maxStripWidthPercent: READER_STRIP_WIDTH_AUTO_PERCENT,
     showPageNumber: true,
     showChapterTransition: true,
+    nextChapterThresholdPercent: READER_NEXT_CHAPTER_THRESHOLD_DEFAULT_PERCENT,
   };
 }
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
 import { useStateReducer } from '@app/design-system';
 import { findActiveScrollPage, type ScrollPageMetric } from '../scroll-layout.js';
 
@@ -40,6 +40,7 @@ export function useScrollActivity({
   activePageIndex,
   measurePages,
   onActivePageChange,
+  onFrame,
 }: {
   readonly containerRef: RefObject<HTMLDivElement | null>;
   readonly geometryWidthRef: RefObject<{ readonly width: number }>;
@@ -48,12 +49,20 @@ export function useScrollActivity({
   readonly activePageIndex: number;
   readonly measurePages: () => readonly ScrollPageMetric[];
   readonly onActivePageChange: (index: number) => void;
+  /** Runs at the end of each scroll frame, after the active page and range settle. */
+  readonly onFrame?: (container: HTMLElement) => void;
 }): {
   readonly visibleRange: VisibleRange;
   readonly handleScroll: () => void;
   readonly refreshRange: (container: HTMLElement) => void;
 } {
   const frameRef = useRef<number | null>(null);
+  // A frame can run after a modal opened; read the latest callback, not the one
+  // captured when the frame was scheduled.
+  const onFrameRef = useRef(onFrame);
+  useLayoutEffect(() => {
+    onFrameRef.current = onFrame;
+  });
   // Data saver mounts the pages the viewport shows, so the range moves with the
   // scroll even when the centred page does not change.
   const [visibleRange, setVisibleRange] = useStateReducer<VisibleRange, VisibleRange>(
@@ -107,6 +116,7 @@ export function useScrollActivity({
         onActivePageChange(next);
       }
       refreshRange(container);
+      onFrameRef.current?.(container);
     });
   }, [
     activePageIndex,

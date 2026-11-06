@@ -40,6 +40,7 @@ export function toReaderEngineSettings(
     wheelBehavior: settings.wheelBehavior,
     verticalGapPx: settings.verticalGapPx,
     maxStripWidthPercent: settings.maxStripWidthPercent,
+    nextChapterThresholdPercent: settings.nextChapterThresholdPercent,
     pageTransition: settings.pageTransition,
     pinchSensitivity: settings.pinchSensitivity,
     imageSmoothing: settings.imageSmoothing,

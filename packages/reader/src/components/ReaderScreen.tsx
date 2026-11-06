@@ -274,6 +274,7 @@ export function ReaderScreen(props: ReaderScreenProps) {
       reducedMotion={reducedMotion}
       chapterEndOpen={chapterEndOpen}
       onChapterEndOpenChange={setChapterEndOpen}
+      onChapterEnd={handleChapterEnd}
     />
   );
 }
@@ -290,6 +291,8 @@ type ReaderReadyProps = ReaderScreenProps & {
   readonly reducedMotion: boolean;
   readonly chapterEndOpen: boolean;
   readonly onChapterEndOpenChange: (open: boolean) => void;
+  /** Offers the chapter transition, which honours the transition setting. */
+  readonly onChapterEnd: () => void;
 };
 
 function ReaderReadyView({
@@ -304,6 +307,7 @@ function ReaderReadyView({
   reducedMotion,
   chapterEndOpen,
   onChapterEndOpenChange,
+  onChapterEnd,
   chromeVisible,
   onToggleChrome,
   onPersistProgress,
@@ -319,6 +323,7 @@ function ReaderReadyView({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [chapterActionsOpen, setChapterActionsOpen] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const modalOpen = settingsOpen || chapterEndOpen || chapterActionsOpen;
   const scrollHandleRef = useRef<ReaderScrollViewHandle | null>(null);
   const settingsButtonRef = useRef<HTMLButtonElement | null>(null);
   const pageTransitionLayerRef = useRef<HTMLDivElement | null>(null);
@@ -406,7 +411,7 @@ function ReaderReadyView({
     scrollHandle: scrollHandleRef,
     verticalTarget: verticalTargetRef,
     verticalTargetPending: verticalTargetPendingRef,
-    disabled: settingsOpen || chapterEndOpen || chapterActionsOpen,
+    disabled: modalOpen,
     onClose,
     onToggleChrome,
     onToggleFullscreen: toggleFullscreen,
@@ -504,6 +509,7 @@ function ReaderReadyView({
         navigate={navigate}
         onClose={onClose}
         onToggleChrome={onToggleChrome}
+        onScrollChapterEnd={modalOpen ? undefined : onChapterEnd}
         onPointerUp={handlePointerUp}
         onZoomPointerDown={handleZoomPointerDown}
         onZoomPointerMove={handleZoomPointerMove}

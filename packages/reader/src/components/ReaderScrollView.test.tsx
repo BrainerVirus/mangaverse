@@ -71,6 +71,9 @@ function Harness({
   tilingThresholdPx,
   dataSaver,
   maxWidthPercent,
+  nextChapterThresholdPercent,
+  onChapterEnd,
+  initialActive = 0,
   cacheReady = false,
 }: {
   readonly pages: readonly ReaderPage[];
@@ -82,9 +85,12 @@ function Harness({
   readonly tilingThresholdPx?: number;
   readonly dataSaver?: boolean;
   readonly maxWidthPercent?: number;
+  readonly nextChapterThresholdPercent?: number;
+  readonly onChapterEnd?: () => void;
+  readonly initialActive?: number;
   readonly cacheReady?: boolean;
 }) {
-  const [active, setActive] = useState(0);
+  const [active, setActive] = useState(initialActive);
   return (
     <ReaderScrollView
       pages={pages}
@@ -105,6 +111,8 @@ function Harness({
       {...(tilingThresholdPx === undefined ? {} : { tilingThresholdPx })}
       {...(dataSaver === undefined ? {} : { dataSaver })}
       {...(maxWidthPercent === undefined ? {} : { maxWidthPercent })}
+      {...(nextChapterThresholdPercent === undefined ? {} : { nextChapterThresholdPercent })}
+      {...(onChapterEnd === undefined ? {} : { onChapterEnd })}
       onHandle={(handle) => {
         handleRef.current = handle;
       }}
@@ -130,6 +138,9 @@ function mount(
     readonly tilingThresholdPx?: number;
     readonly dataSaver?: boolean;
     readonly maxWidthPercent?: number;
+    readonly nextChapterThresholdPercent?: number;
+    readonly onChapterEnd?: () => void;
+    readonly initialActive?: number;
     readonly cacheReady?: boolean;
   } = {},
 ): Mounted {
@@ -159,6 +170,11 @@ function mount(
         {...(options.maxWidthPercent === undefined
           ? {}
           : { maxWidthPercent: options.maxWidthPercent })}
+        {...(options.nextChapterThresholdPercent === undefined
+          ? {}
+          : { nextChapterThresholdPercent: options.nextChapterThresholdPercent })}
+        {...(options.onChapterEnd === undefined ? {} : { onChapterEnd: options.onChapterEnd })}
+        {...(options.initialActive === undefined ? {} : { initialActive: options.initialActive })}
         {...(options.cacheReady === undefined ? {} : { cacheReady: options.cacheReady })}
       />,
     );
@@ -522,4 +538,199 @@ describe('ReaderScrollView max strip width', () => {
       unmount(mounted);
     },
   );
+});
+
+describe('ReaderScrollView next-chapter threshold', () => {
+  // Three 800x1200 pages: the last one ends at 3600; the viewport is 100 tall.
+  const LAST_BOTTOM = 3600;
+  const pages = Array.from({ length: 3 }, (_value, index) => ({
+    id: toChapterPageId(`page-${index}`),
+    index,
+    image: { url: `https://example.com/${index}.jpg`, width: 800, height: 1200 },
+  }));
+
+  function stripWith(nextChapterThresholdPercent?: number, onChapterEnd = vi.fn<() => void>()) {
+    const mounted = mount(0, {
+      pages,
+      onChapterEnd,
+      ...(nextChapterThresholdPercent === undefined ? {} : { nextChapterThresholdPercent }),
+    });
+    return { mounted, onChapterEnd };
+  }
+
+  /** Scroll so the last page's bottom sits `overscroll` px past the viewport bottom. */
+  const pastEnd = (overscroll: number) => LAST_BOTTOM - VIEWPORT_HEIGHT + overscroll;
+
+  it('Given the default 25% threshold, When the strip scrolls below, to and past it, Then the chapter end fires once at 25% of the viewport', async () => {
+    const { mounted, onChapterEnd } = stripWith();
+
+    await scrollTo(mounted.strip, pastEnd(0));
+    await scrollTo(mounted.strip, pastEnd(20));
+    expect(onChapterEnd).not.toHaveBeenCalled();
+
+    await scrollTo(mounted.strip, pastEnd(25));
+    expect(onChapterEnd).toHaveBeenCalledTimes(1);
+
+    // Still past the threshold: no repeat, however far it scrolls.
+    await scrollTo(mounted.strip, pastEnd(40));
+    await scrollTo(mounted.strip, pastEnd(50));
+    expect(onChapterEnd).toHaveBeenCalledTimes(1);
+    unmount(mounted);
+  });
+
+  it('Given the transition fired, When the strip scrolls back above the threshold and crosses again, Then it re-arms and fires a second time', async () => {
+    const { mounted, onChapterEnd } = stripWith();
+
+    await scrollTo(mounted.strip, pastEnd(30));
+    expect(onChapterEnd).toHaveBeenCalledTimes(1);
+    await scrollTo(mounted.strip, pastEnd(10));
+    expect(onChapterEnd).toHaveBeenCalledTimes(1);
+    await scrollTo(mounted.strip, pastEnd(30));
+    expect(onChapterEnd).toHaveBeenCalledTimes(2);
+    unmount(mounted);
+  });
+
+  it('Given a 0% threshold, When the last page bottom reaches the viewport bottom, Then it fires', async () => {
+    const { mounted, onChapterEnd } = stripWith(0);
+
+    await scrollTo(mounted.strip, pastEnd(-20));
+    expect(onChapterEnd).not.toHaveBeenCalled();
+    await scrollTo(mounted.strip, pastEnd(0));
+    expect(onChapterEnd).toHaveBeenCalledTimes(1);
+    unmount(mounted);
+  });
+
+  it('Given a 100% threshold, When the last page bottom is short of the viewport top, Then it waits until the bottom reaches the top', async () => {
+    const { mounted, onChapterEnd } = stripWith(100);
+
+    await scrollTo(mounted.strip, pastEnd(50));
+    await scrollTo(mounted.strip, pastEnd(98));
+    expect(onChapterEnd).not.toHaveBeenCalled();
+    // The last page's bottom is exactly at the viewport top.
+    await scrollTo(mounted.strip, LAST_BOTTOM);
+    expect(onChapterEnd).toHaveBeenCalledTimes(1);
+    unmount(mounted);
+  });
+
+  it('Given the threshold, When the strip lays out, Then the tail spacer is at least half a viewport and long enough to reach it', () => {
+    const contentHeight = (percent: number) => {
+      const { mounted } = stripWith(percent);
+      fireResize();
+      const content = mounted.container.querySelector<HTMLElement>(
+        '[data-testid="reader-scroll-content"]',
+      );
+      const height = content?.style.height;
+      unmount(mounted);
+      return height;
+    };
+
+    expect(contentHeight(0)).toBe(`${LAST_BOTTOM + 50}px`);
+    expect(contentHeight(25)).toBe(`${LAST_BOTTOM + 50}px`);
+    expect(contentHeight(100)).toBe(`${LAST_BOTTOM + 100}px`);
+  });
+
+  it('Given a strip remounted for another chapter, When it scrolls past the threshold, Then the new strip fires on its own crossing', async () => {
+    const { mounted, onChapterEnd } = stripWith();
+    await scrollTo(mounted.strip, pastEnd(30));
+    expect(onChapterEnd).toHaveBeenCalledTimes(1);
+    unmount(mounted);
+
+    const next = stripWith(undefined, onChapterEnd);
+    await scrollTo(next.mounted.strip, pastEnd(30));
+    expect(onChapterEnd).toHaveBeenCalledTimes(2);
+    unmount(next.mounted);
+  });
+
+  it('Given a strip that opens already past the threshold, When it scrolls on, Then the resume position is not a crossing', async () => {
+    // The last page is only 40px tall, so resuming on it already sits 60px past the end.
+    const shortLast = [
+      ...pages.slice(0, 2),
+      {
+        id: toChapterPageId('page-2'),
+        index: 2,
+        image: { url: 'https://example.com/2.jpg', width: 800, height: 40 },
+      },
+    ];
+    const clientHeight = vi
+      .spyOn(HTMLElement.prototype, 'clientHeight', 'get')
+      .mockReturnValue(VIEWPORT_HEIGHT);
+    const offsetTop = vi
+      .spyOn(HTMLElement.prototype, 'offsetTop', 'get')
+      .mockImplementation(function (this: HTMLElement) {
+        return Number(this.dataset['pageIndex'] ?? 0) * 1200;
+      });
+    const onChapterEnd = vi.fn<() => void>();
+    const mounted = mount(0, { pages: shortLast, initialActive: 2, onChapterEnd });
+    clientHeight.mockRestore();
+    offsetTop.mockRestore();
+
+    expect(mounted.strip.scrollTop).toBe(2400);
+    await scrollTo(mounted.strip, 2410);
+    expect(onChapterEnd).not.toHaveBeenCalled();
+    // Leaving and coming back is a crossing.
+    await scrollTo(mounted.strip, 1000);
+    await scrollTo(mounted.strip, 2400);
+    expect(onChapterEnd).toHaveBeenCalledTimes(1);
+    unmount(mounted);
+  });
+
+  it('Given a chapter shorter than the viewport and already past at the top, When the reader scrolls, Then the transition is offered', async () => {
+    const short = [
+      {
+        id: toChapterPageId('short'),
+        index: 0,
+        image: { url: 'https://example.com/short.jpg', width: 800, height: 60 },
+      },
+    ];
+    const onChapterEnd = vi.fn<() => void>();
+    const mounted = mount(0, { pages: short, onChapterEnd });
+
+    // The 60px page is already 40px past the viewport bottom at 25%, and the
+    // strip cannot scroll below it; the first real scroll arms and fires.
+    await scrollTo(mounted.strip, 10);
+    expect(onChapterEnd).toHaveBeenCalledTimes(1);
+    unmount(mounted);
+  });
+
+  it('Given a chapter shorter than the viewport, When it renders, Then the tail leaves room to reach the threshold', () => {
+    const short = [
+      {
+        id: toChapterPageId('short'),
+        index: 0,
+        image: { url: 'https://example.com/short.jpg', width: 800, height: 40 },
+      },
+    ];
+    const mounted = mount(0, { pages: short, onChapterEnd: vi.fn<() => void>() });
+    fireResize();
+    const content = mounted.container.querySelector<HTMLElement>(
+      '[data-testid="reader-scroll-content"]',
+    );
+    // Viewport 100 + 25% threshold + 1px, so a scroll gesture has room to fire.
+    expect(Number.parseFloat(content?.style.height ?? '0')).toBeGreaterThanOrEqual(126);
+    unmount(mounted);
+  });
+
+  it('Given a scroll frame queued before a modal opens, When the frame runs, Then the stale callback does not fire', async () => {
+    const onChapterEnd = vi.fn<() => void>();
+    const mounted = mount(0, { pages, onChapterEnd });
+
+    // Queue the frame without letting it run.
+    act(() => {
+      mounted.strip.scrollTop = pastEnd(30);
+      mounted.strip.dispatchEvent(new Event('scroll', { bubbles: true }));
+    });
+
+    // The modal opens: ReaderScreen re-renders with no onChapterEnd.
+    act(() => {
+      mounted.root.render(
+        <Harness pages={pages} handleRef={mounted.handleRef} onActivePageChange={() => {}} />,
+      );
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 32));
+    });
+    expect(onChapterEnd).not.toHaveBeenCalled();
+    unmount(mounted);
+  });
 });

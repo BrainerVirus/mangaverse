@@ -32,6 +32,8 @@ export interface ReaderStageProps {
   readonly navigate: (action: ReaderNavigationAction) => void;
   readonly onClose: (() => void) | undefined;
   readonly onToggleChrome: () => void;
+  /** Called when the strip scrolls past its end threshold; absent while a dialog is open. */
+  readonly onScrollChapterEnd?: (() => void) | undefined;
   readonly onPointerUp: (event: ReactPointerEvent<HTMLDivElement>) => void;
   readonly onZoomPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
   readonly onZoomPointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void;
@@ -63,6 +65,7 @@ export function ReaderStage({
   setReaderState,
   navigate,
   onClose,
+  onScrollChapterEnd,
   onPointerUp,
   onZoomPointerDown,
   onZoomPointerMove,
@@ -102,6 +105,7 @@ export function ReaderStage({
             scrollHandleRef.current = handle;
           }}
           onBack={onClose}
+          onChapterEnd={onScrollChapterEnd}
           onPageMetric={onPageMetric}
         />
       ) : (

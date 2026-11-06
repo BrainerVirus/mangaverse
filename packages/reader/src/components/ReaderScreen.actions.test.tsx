@@ -361,6 +361,71 @@ describe('ReaderScreen chapter end', () => {
   });
 });
 
+describe('ReaderScreen strip next-chapter threshold', () => {
+  const STRIP_VIEWPORT = 100;
+  // Five 800x1200 pages end at 6000; the default 25% threshold is 25px past the end.
+  const PAST_THRESHOLD = 6000 - STRIP_VIEWPORT + 25;
+
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  function renderStrip(overrides: Partial<ReaderSettings> = {}) {
+    const mounted = renderScreen({ data: buildData({ readingMode: 'vertical', ...overrides }) });
+    const strip = mounted.container.querySelector<HTMLElement>(
+      '[data-testid="reader-scroll-view"]',
+    );
+    if (strip === null) throw new Error('the vertical reader rendered no strip');
+    Object.defineProperty(strip, 'clientHeight', { configurable: true, value: STRIP_VIEWPORT });
+    return { ...mounted, strip };
+  }
+
+  async function scrollStripTo(strip: HTMLElement, scrollTop: number) {
+    act(() => {
+      strip.scrollTop = scrollTop;
+      strip.dispatchEvent(new Event('scroll', { bubbles: true }));
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 32));
+    });
+  }
+
+  const chapterCompleteShown = (container: HTMLElement) =>
+    [...container.querySelectorAll('dialog')].some((dialog) =>
+      dialog.textContent?.includes('Chapter complete'),
+    );
+
+  it('Given the transition screen on, When the strip scrolls past the threshold, Then the chapter transition opens', async () => {
+    const { root, container, strip } = renderStrip();
+
+    await scrollStripTo(strip, PAST_THRESHOLD - 10);
+    expect(chapterCompleteShown(container)).toBe(false);
+    await scrollStripTo(strip, PAST_THRESHOLD);
+    expect(chapterCompleteShown(container)).toBe(true);
+    cleanup(root, container);
+  });
+
+  it('Given the transition screen off, When the strip scrolls past the threshold, Then nothing opens', async () => {
+    const { root, container, strip } = renderStrip({ showChapterTransition: false });
+
+    await scrollStripTo(strip, PAST_THRESHOLD);
+    expect(container.querySelector('dialog')).toBeNull();
+    cleanup(root, container);
+  });
+
+  it('Given the settings sheet or the chapter menu is open, When the strip scrolls past the threshold, Then the transition stays closed', async () => {
+    for (const opener of ['Settings', 'Chapter actions']) {
+      const { root, container, strip } = renderStrip();
+
+      act(() => buttonNamed(container, opener).click());
+      expect(container.querySelector('dialog')).not.toBeNull();
+      await scrollStripTo(strip, PAST_THRESHOLD);
+      expect(chapterCompleteShown(container)).toBe(false);
+      cleanup(root, container);
+    }
+  });
+});
+
 describe('ReaderScreen page number', () => {
   it('Given this title turns the page number off, When the chrome renders, Then the badge is gone for it alone', () => {
     const off = renderScreen({ data: buildData({}, { showPageNumber: false }) });

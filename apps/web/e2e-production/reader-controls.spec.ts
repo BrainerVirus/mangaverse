@@ -107,9 +107,15 @@ test('Given an open chapter, When hovering and dragging the rail, Then a page pr
   await expect(preview).toContainText('19');
 
   // Drag the thumb to the end: the page follows the pointer while dragging.
+  // Slow down and settle between events: CI load can coalesce a fast drag into
+  // no change at all, which made this the only flaky test in the suite.
   await page.mouse.move(box.x + box.width * 0.1, box.y + box.height / 2);
   await page.mouse.down();
-  await page.mouse.move(box.x + box.width * 0.9, box.y + box.height / 2, { steps: 5 });
+  await page.waitForTimeout(50);
+  await page.mouse.move(box.x + box.width * 0.5, box.y + box.height / 2, { steps: 10 });
+  await page.waitForTimeout(50);
+  await page.mouse.move(box.x + box.width * 0.9, box.y + box.height / 2, { steps: 20 });
+  await page.waitForTimeout(50);
   await page.mouse.up();
   await expect(page.getByText(/3[0-9] \/ 37/)).toBeVisible({ timeout: 20_000 });
 
