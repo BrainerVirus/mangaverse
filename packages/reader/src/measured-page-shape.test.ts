@@ -52,12 +52,34 @@ describe('applyPageShapeDecision', () => {
 
     expect(next.engineSettings.readingMode).toBe('vertical');
     expect(next.engineSettings.fitMode).toBe('width');
+    // The session resolves again from the raw settings; the field carries the decision.
+    expect(next.autoStripDecision).toBe('strip');
   });
 
-  it('Given a concrete title mode, When a strip decision is presented, Then the title choice wins', () => {
+  it('Given a strip decision and a concrete fit, When presented, Then the saved fit is kept', () => {
+    for (const fitMode of ['contain', 'cover', 'height', 'original'] as const) {
+      const next = applyPageShapeDecision(
+        buildData({ fitMode }, { storedPagedShapes: true }),
+        stripDecision,
+      );
+      expect(next.engineSettings.readingMode).toBe('vertical');
+      expect(next.engineSettings.fitMode).toBe(fitMode);
+    }
+  });
+
+  it('Given a concrete title mode, When a strip decision is presented, Then the title choice wins and no decision is carried', () => {
     const data = buildData({}, { titleOverrides: { readingMode: 'rtl' } });
 
-    expect(applyPageShapeDecision(data, stripDecision)).toBe(data);
+    const next = applyPageShapeDecision(data, stripDecision);
+
+    expect(next).toBe(data);
+    expect(next.autoStripDecision).toBeUndefined();
+  });
+
+  it('Given a paged or no decision, When presented, Then the data is unchanged', () => {
+    const data = buildData();
+    expect(applyPageShapeDecision(data, { decision: 'paged', measurements: new Map() })).toBe(data);
+    expect(applyPageShapeDecision(data, { decision: null, measurements: new Map() })).toBe(data);
   });
 });
 

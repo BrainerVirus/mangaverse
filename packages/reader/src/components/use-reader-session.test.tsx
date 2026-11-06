@@ -165,3 +165,41 @@ describe('useReaderSession Auto resolution', () => {
     container.remove();
   });
 });
+
+function FitProbe({ data }: { readonly data: ReaderPageData }) {
+  const { readerState } = useReaderSession(data, VIEWPORT);
+  return (
+    <span data-testid="fit" data-mode={readerState?.settings.readingMode}>
+      {readerState?.settings.fitMode}
+    </span>
+  );
+}
+
+describe('useReaderSession retained strip decision', () => {
+  it('Given a strip decision over a concrete global RTL, When the session builds, Then it is the strip, fit-width for an Auto fit and the saved fit otherwise', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const globalSettings = { ...getDefaultReaderSettings(), readingMode: 'rtl' as const };
+    const fit = () => container.querySelector<HTMLElement>('[data-testid="fit"]');
+
+    for (const [fitMode, expected] of [
+      ['auto', 'width'],
+      ['contain', 'contain'],
+      ['cover', 'cover'],
+    ] as const) {
+      const data: ReaderPageData = {
+        ...buildData(3, 0),
+        globalSettings,
+        settings: { ...globalSettings, fitMode },
+        autoStripDecision: 'strip',
+      };
+      act(() => root.render(<FitProbe data={data} />));
+      expect(fit()?.dataset.mode).toBe('vertical');
+      expect(fit()?.textContent).toBe(expected);
+    }
+
+    act(() => root.unmount());
+    container.remove();
+  });
+});

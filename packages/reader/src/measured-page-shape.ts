@@ -1,6 +1,6 @@
 import type { ReaderPageData } from './reader-page-data.js';
 import { shouldResolveAutoToStrip } from './resolve-reader-settings.js';
-import { toReaderEngineSettings } from './to-reader-engine-settings.js';
+import { toReaderEngineSettings, withAutoStripDecision } from './to-reader-engine-settings.js';
 import type { ReaderPage } from './types.js';
 
 /** The session's first-decode decision, kept across chapter refetches. */
@@ -100,23 +100,19 @@ export function applyPageShapeDecision(
     const measurement = decision.measurements.get(page.index);
     return measurement === undefined ? page : withSize(page, measurement);
   });
-  const engineSettings = toReaderEngineSettings(
-    // The decision is the page-shape step; force it so a later majority of
-    // stored ordinary pages or a concrete global mode cannot undo what the
-    // first decode saw.
-    { ...data.settings, readingMode: 'vertical' },
-    {
-      globalSettings: data.globalSettings,
-      titleOverrides: data.titleOverrides,
-      tags: data.titleTags,
-      pages,
-    },
-  );
+  const engineSettings = toReaderEngineSettings(data.settings, {
+    globalSettings: data.globalSettings,
+    titleOverrides: data.titleOverrides,
+    tags: data.titleTags,
+    pages,
+  });
+  // A later majority of stored ordinary pages or a concrete global mode would
+  // resolve paged; the field carries the decision to the session, which
+  // resolves again with the viewport.
   return {
     ...data,
     chapter: { ...data.chapter, pages },
-    // The resolver can still prefer the concrete global mode after the pages
-    // vote; the session's decision is the strip, so force the presentation.
-    engineSettings: { ...engineSettings, readingMode: 'vertical', fitMode: 'width' },
+    engineSettings: withAutoStripDecision(engineSettings, data.settings.fitMode),
+    autoStripDecision: 'strip',
   };
 }

@@ -1,4 +1,4 @@
-import type { ReaderSettings } from '@app/shared';
+import type { FitMode, ReaderSettings } from '@app/shared';
 import {
   resolveReaderPresentation,
   type ReaderPresentationInput,
@@ -52,4 +52,15 @@ export function toReaderEngineSettings(
     diagnosticsEnabled: settings.diagnosticsEnabled,
     keyboardShortcuts: settings.keyboardShortcuts,
   };
+}
+
+/**
+ * Engine settings with a retained Auto strip decision applied: the strip, and
+ * fit-width only when the saved fit is Auto. A concrete fit is kept.
+ */
+export function withAutoStripDecision(
+  engine: ReaderEngineSettings,
+  fitMode: FitMode,
+): ReaderEngineSettings {
+  return { ...engine, readingMode: 'vertical', fitMode: fitMode === 'auto' ? 'width' : fitMode };
 }

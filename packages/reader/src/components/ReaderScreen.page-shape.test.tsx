@@ -71,7 +71,11 @@ if (typeof window.matchMedia !== 'function') {
 }
 
 import { ReaderScreen } from './ReaderScreen.js';
-import { resolveAutoStripSwitch, type ReaderPageMeasurement } from '../measured-page-shape.js';
+import {
+  applyPageShapeDecision,
+  resolveAutoStripSwitch,
+  type ReaderPageMeasurement,
+} from '../measured-page-shape.js';
 import { toReaderEngineSettings } from '../to-reader-engine-settings.js';
 import type { ReaderPageData } from '../reader-page-data.js';
 
@@ -194,5 +198,40 @@ describe('ReaderScreen first-decode page shape (R6)', () => {
     await decode(2, { width: 800, height: 6000 });
 
     expect(measured).toEqual([{ pageIndex: 2, width: 800, height: 6000 }]);
+  });
+});
+
+describe('ReaderScreen with a retained strip decision', () => {
+  /** Page 1 decoded tall; the other four are stored ordinary pages and outvote it. */
+  function outvotedStrip(
+    patch: Partial<ReaderSettings> = {},
+    titleOverrides?: ReaderPageData['titleOverrides'],
+  ): ReaderPageData {
+    const raw = buildData(patch, titleOverrides);
+    const pages = raw.chapter.pages.map((page) =>
+      page.index === 0 ? page : { ...page, image: { ...page.image, width: 800, height: 1200 } },
+    );
+    const data = {
+      ...raw,
+      chapter: { ...raw.chapter, pages },
+      engineSettings: toReaderEngineSettings(raw.settings, { titleOverrides, pages }),
+    };
+    return applyPageShapeDecision(data, {
+      decision: 'strip',
+      measurements: new Map([[0, { pageIndex: 0, width: 800, height: 6000 }]]),
+    });
+  }
+
+  it('Given Auto and a strip decision outvoted by stored ordinary pages, When the reader renders, Then it shows the strip on the saved page', () => {
+    const container = mount(outvotedStrip());
+
+    expect(strip(container)).not.toBeNull();
+    expect(shownPage(container)).toBe('3');
+  });
+
+  it('Given a concrete title mode, When a strip decision exists, Then the reader stays paged', () => {
+    const container = mount(outvotedStrip({ readingMode: 'rtl' }, { readingMode: 'rtl' }));
+
+    expect(strip(container)).toBeNull();
   });
 });

@@ -7,7 +7,7 @@ import {
 import type { ReaderPageData } from '../reader-page-data.js';
 import { markReaderPageTurn } from '../reader-timing.js';
 import { createReaderState } from '../state.js';
-import { toReaderEngineSettings } from '../to-reader-engine-settings.js';
+import { toReaderEngineSettings, withAutoStripDecision } from '../to-reader-engine-settings.js';
 import type {
   ReaderNavigationAction,
   ReaderSessionInput,
@@ -42,16 +42,21 @@ export function useReaderSession(
 
   const sessionInput = useMemo<ReaderSessionInput | null>(() => {
     if (!data) return null;
+    const settings = toReaderEngineSettings(data.settings, {
+      globalSettings: data.globalSettings,
+      titleOverrides: data.titleOverrides,
+      tags: data.titleTags,
+      pages: data.chapter.pages,
+      viewport,
+    });
     return {
       chapter: data.chapter,
       viewport,
-      settings: toReaderEngineSettings(data.settings, {
-        globalSettings: data.globalSettings,
-        titleOverrides: data.titleOverrides,
-        tags: data.titleTags,
-        pages: data.chapter.pages,
-        viewport,
-      }),
+      // The first decode's strip decision outlives the page vote (spec R6).
+      settings:
+        data.autoStripDecision === 'strip'
+          ? withAutoStripDecision(settings, data.settings.fitMode)
+          : settings,
       initialPageIndex: data.initialPageIndex,
     };
   }, [data, viewport]);
