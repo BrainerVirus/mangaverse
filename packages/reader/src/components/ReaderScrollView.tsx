@@ -1,7 +1,9 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { CachedPageImage } from '@app/cache';
 import { useStateReducer } from '@app/design-system';
+import { READER_NEXT_CHAPTER_THRESHOLD_DEFAULT_PERCENT } from '@app/shared';
 import type { ReaderPage } from '../types.js';
+import { tailSpacerPx, useChapterEndThreshold } from './use-chapter-end-threshold.js';
 import { useScrollActivity, type VisibleRange } from './use-scroll-activity.js';
 import {
   computeScrollPageMetrics,
@@ -56,6 +58,12 @@ interface ReaderScrollViewProps {
       }) => void)
     | undefined;
   readonly onBack?: (() => void) | undefined;
+  /**
+   * How far past the last page's end, in percent of the viewport height, the
+   * strip scrolls before `onChapterEnd` is called; once per crossing.
+   */
+  readonly nextChapterThresholdPercent?: number;
+  readonly onChapterEnd?: (() => void) | undefined;
 }
 
 /** Extra rows around the image window, so a scroll reveals rows before it lands. */
@@ -399,6 +407,8 @@ export function ReaderScrollView({
   imageSmoothing = true,
   onPageMetric,
   onBack,
+  nextChapterThresholdPercent = READER_NEXT_CHAPTER_THRESHOLD_DEFAULT_PERCENT,
+  onChapterEnd,
 }: ReaderScrollViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   // Width, tail spacer and measured natural sizes move together: a resize
@@ -444,6 +454,12 @@ export function ReaderScrollView({
   const totalHeight =
     metrics.length === 0 ? 0 : (metrics[metrics.length - 1]!.top ?? 0) + (heights.at(-1) ?? 0);
   const contentHeight = totalHeight + spacerPx;
+  const lastPageBottomRef = useRef(totalHeight);
+  const chapterEnd = useChapterEndThreshold({
+    thresholdPercent: nextChapterThresholdPercent,
+    lastPageBottomRef,
+    onChapterEnd,
+  });
 
   const offsetOf = useCallback((index: number): number => metricsRef.current[index]?.top ?? 0, []);
 
@@ -490,6 +506,8 @@ export function ReaderScrollView({
     if (container === null) return;
     const node = container.querySelector<HTMLElement>(`[data-page-index="${activePageIndex}"]`);
     container.scrollTop = node === null ? offsetOf(activePageIndex) : node.offsetTop;
+    // Where the strip opened is the baseline: a resume past the threshold is not a crossing.
+    chapterEnd.seed(container);
     // Mount-only: later active changes come from scrolling, not the other way.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -504,14 +522,15 @@ export function ReaderScrollView({
       dispatchGeometry({
         type: 'resize',
         width: container.clientWidth,
-        spacerPx: container.clientHeight / 2,
+        // Room to scroll past the end, enough to reach the next-chapter threshold.
+        spacerPx: tailSpacerPx(container.clientHeight, nextChapterThresholdPercent),
       });
     };
     update();
     const observer = new ResizeObserver(update);
     observer.observe(container);
     return () => observer.disconnect();
-  }, [dispatchGeometry]);
+  }, [dispatchGeometry, nextChapterThresholdPercent]);
 
   const { visibleRange, handleScroll, refreshRange } = useScrollActivity({
     containerRef,
@@ -521,6 +540,7 @@ export function ReaderScrollView({
     activePageIndex,
     measurePages,
     onActivePageChange,
+    onFrame: chapterEnd.check,
   });
 
   // React commits are the only place a row can enter/leave the DOM; after each
@@ -530,6 +550,7 @@ export function ReaderScrollView({
     geometryRef.current = geometry;
     stripWidthRef.current = stripWidth;
     pagesRef.current = pages;
+    lastPageBottomRef.current = totalHeight;
     const pending = pendingCorrectionRef.current;
     const container = containerRef.current;
     if (container !== null) refreshRange(container);

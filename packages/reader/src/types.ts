@@ -123,6 +123,8 @@ export interface ReaderEngineSettings {
   readonly verticalGapPx: number;
   /** The strip width setting; 100 (or absent) is Auto, see `resolveStripMaxWidthPercent`. */
   readonly maxStripWidthPercent?: number;
+  /** Strip scroll-past distance that offers the next chapter, in percent of the viewport; 25 when absent. */
+  readonly nextChapterThresholdPercent?: number;
   /** Populated by toReaderEngineSettings; optional so hand-built engine settings stay valid. */
   readonly pageTransition?: PageTransitionMode;
   readonly pinchSensitivity?: number;

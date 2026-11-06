@@ -163,6 +163,7 @@ describe('ReaderSettingsPage', () => {
         'low-memory-mode',
         'data-saver',
         'tiling-threshold',
+        'next-chapter-threshold',
         'long-strip-optimization',
         'tap-zone-debug-overlay',
         'diagnostics-enabled',
@@ -329,6 +330,32 @@ describe('ReaderSettingsPage', () => {
     expect(renderedSliderValueText(row(80))).toBe('80%');
     (auto.props as { onChange: (value: number) => void }).onChange(80);
     expect(onChange).toHaveBeenLastCalledWith({ maxStripWidthPercent: 80 });
+  });
+
+  it('Given the next-chapter threshold, Then it is an Advanced 0-100% slider defaulting to 25% that saves its field', () => {
+    const onChange = vi.fn<(patch: Partial<ReaderSettings>) => void>();
+    const page = ReaderSettingsPage({
+      settings: getDefaultReaderSettings(),
+      isLoading: false,
+      isError: false,
+      onChange,
+    });
+    const advanced = sectionsOf(page).find((section) => section.props.title === 'Advanced');
+    const row = rowWithId(page, 'next-chapter-threshold');
+
+    expect(settingIds(advanced ?? null)).toContain('next-chapter-threshold');
+    expect(row.props).toMatchObject({
+      label: 'Next-chapter threshold',
+      value: 25,
+      min: 0,
+      max: 100,
+    });
+    expect((row.props as { description: string }).description).toContain(
+      'scroll past the last page',
+    );
+    expect(renderedSliderValueText(row)).toBe('25%');
+    (row.props as { onChange: (value: number) => void }).onChange(60);
+    expect(onChange).toHaveBeenLastCalledWith({ nextChapterThresholdPercent: 60 });
   });
 
   it('Given the spread offset, the page number and the transition screen, When changed, Then each saves its field', () => {

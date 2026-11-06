@@ -285,6 +285,34 @@ describe('reader settings', () => {
     });
   });
 
+  it('Given a row saved before the next-chapter threshold existed, When reading, Then it reads 25', () => {
+    const validated = validateReaderSettings({ ...LEGACY_ROW, verticalGapPx: 0, preloadAhead: 4 });
+
+    expect(getDefaultReaderSettings().nextChapterThresholdPercent).toBe(25);
+    expect(sanitizeReaderSettings(LEGACY_ROW).nextChapterThresholdPercent).toBe(25);
+    expect(validated.ok ? validated.value.nextChapterThresholdPercent : undefined).toBe(25);
+  });
+
+  it('Given a next-chapter threshold, When writing, Then only whole percentages from 0 to 100 are accepted', () => {
+    const base = getDefaultReaderSettings();
+
+    for (const nextChapterThresholdPercent of [0, 25, 100]) {
+      expect(validateReaderSettings({ ...base, nextChapterThresholdPercent }).ok).toBe(true);
+    }
+    for (const nextChapterThresholdPercent of [-1, 101, 12.5, '25', Number.NaN]) {
+      const result = validateReaderSettings({ ...base, nextChapterThresholdPercent });
+      expect(result.ok ? undefined : result.error.message).toBe(
+        'nextChapterThresholdPercent must be a whole number between 0 and 100.',
+      );
+    }
+    expect(sanitizeReaderSettings({ ...base, nextChapterThresholdPercent: 250 })).toMatchObject({
+      nextChapterThresholdPercent: 25,
+    });
+    expect(
+      sanitizeReaderSettingsOverride({ nextChapterThresholdPercent: 60, tilingThreshold: 'x' }),
+    ).toEqual({ nextChapterThresholdPercent: 60 });
+  });
+
   it('Given one of the new fields no longer parses, When reading, Then only that field falls back', () => {
     const settings = sanitizeReaderSettings({
       ...LEGACY_ROW,

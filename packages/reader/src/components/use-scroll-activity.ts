@@ -40,6 +40,7 @@ export function useScrollActivity({
   activePageIndex,
   measurePages,
   onActivePageChange,
+  onFrame,
 }: {
   readonly containerRef: RefObject<HTMLDivElement | null>;
   readonly geometryWidthRef: RefObject<{ readonly width: number }>;
@@ -48,6 +49,8 @@ export function useScrollActivity({
   readonly activePageIndex: number;
   readonly measurePages: () => readonly ScrollPageMetric[];
   readonly onActivePageChange: (index: number) => void;
+  /** Runs at the end of each scroll frame, after the active page and range settle. */
+  readonly onFrame?: (container: HTMLElement) => void;
 }): {
   readonly visibleRange: VisibleRange;
   readonly handleScroll: () => void;
@@ -107,6 +110,7 @@ export function useScrollActivity({
         onActivePageChange(next);
       }
       refreshRange(container);
+      onFrame?.(container);
     });
   }, [
     activePageIndex,
@@ -115,6 +119,7 @@ export function useScrollActivity({
     measurePages,
     metricsRef,
     onActivePageChange,
+    onFrame,
     refreshRange,
   ]);
 

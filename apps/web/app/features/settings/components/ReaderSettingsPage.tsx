@@ -842,6 +842,18 @@ export function ReaderSettingsPage({
                 })
               }
             />
+            <SettingSliderRow
+              id="next-chapter-threshold"
+              label="Next-chapter threshold"
+              description="In a vertical strip, how far you scroll past the last page before the next chapter is offered, as a share of the screen height. 0% offers it as the last page ends. Needs the chapter transition screen on."
+              value={settings.nextChapterThresholdPercent}
+              min={0}
+              max={100}
+              step={5}
+              formatValue={(percent) => `${percent}%`}
+              onChange={(nextChapterThresholdPercent) => update({ nextChapterThresholdPercent })}
+              onCommit={onInteractionEnd}
+            />
             <SettingToggleRow
               id="long-strip-optimization"
               label="Long strip optimization"

@@ -54,6 +54,16 @@ describe('toReaderEngineSettings', () => {
     });
   });
 
+  it('Given a next-chapter threshold, When mapped, Then the engine carries the percentage', () => {
+    const settings = getDefaultReaderSettings();
+
+    expect(toReaderEngineSettings(settings).nextChapterThresholdPercent).toBe(25);
+    expect(
+      toReaderEngineSettings({ ...settings, nextChapterThresholdPercent: 80 })
+        .nextChapterThresholdPercent,
+    ).toBe(80);
+  });
+
   it('Given a tiling threshold, When mapped, Then the engine carries it in pixels with Auto at 8192', () => {
     const settings = getDefaultReaderSettings();
 
