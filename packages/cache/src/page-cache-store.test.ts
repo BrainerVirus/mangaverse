@@ -450,6 +450,20 @@ describe('page cache store with a URL-serving store', () => {
     expect(store.reads()).toBe(0);
   });
 
+  it('Given a display cap, When a stored page:// URL resolves, Then it gains the display query and stays a store URL', async () => {
+    const { db } = await createSqlJsHarness();
+    const store = createUrlServingAdapter();
+    const capped = { ...page(db, store.adapter), maxDisplayEdge: 2048 };
+
+    const fresh = await resolvePageObjectUrl(capped);
+    const cached = await resolvePageObjectUrl(capped);
+
+    expect(fresh?.objectUrl).toMatch(/^page:\/\/store\/[^?]+\?display=2048$/);
+    expect(cached?.objectUrl).toBe(fresh?.objectUrl);
+    expect(store.objectUrls()).toBe(0);
+    expect(store.reads()).toBe(0);
+  });
+
   it('Given a row whose file is gone, When resolving, Then the page is fetched and stored again', async () => {
     const { db } = await createSqlJsHarness();
     const store = createUrlServingAdapter();
@@ -562,6 +576,33 @@ describe('page cache store with a main-side fetch-and-store', () => {
     expect(store.objectUrls()).toBe(0);
     expect(store.puts()).toBe(0);
     expect(await listCachedChapterPageIndexes(db, CHAPTER)).toEqual([0]);
+  });
+
+  it('Given a display cap, When a page:// page resolves fresh and from the cache, Then the URL asks main for that cap and no bytes reach the renderer', async () => {
+    const { db } = await createSqlJsHarness();
+    const store = createMainStoreAdapter();
+    const capped = { ...page(db, store.adapter), maxDisplayEdge: 2048 };
+
+    const fresh = await resolvePageObjectUrl(capped);
+    const cached = await resolvePageObjectUrl(capped);
+    const original = await resolvePageObjectUrl(page(db, store.adapter));
+
+    expect(fresh?.objectUrl).toMatch(/^page:\/\/store\/\d+\?display=2048$/);
+    expect(cached).toEqual({ objectUrl: fresh?.objectUrl, fromCache: true, byteSize: 3 });
+    expect(original?.objectUrl).toMatch(/^page:\/\/store\/\d+$/);
+    expect(store.fetchBytesCalled()).toBe(0);
+    expect(store.objectUrls()).toBe(0);
+  });
+
+  it('Given a cap out of range or fractional, When the page:// URL is built, Then the query carries the clamped whole cap', async () => {
+    const { db } = await createSqlJsHarness();
+    const store = createMainStoreAdapter();
+
+    const huge = await resolvePageObjectUrl({ ...page(db, store.adapter), maxDisplayEdge: 1e9 });
+    const tiny = await resolvePageObjectUrl({ ...page(db, store.adapter), maxDisplayEdge: 10.4 });
+
+    expect(huge?.objectUrl).toMatch(/\?display=4096$/);
+    expect(tiny?.objectUrl).toMatch(/\?display=256$/);
   });
 
   it('Given a main-store failure, When resolving, Then it does not fall back to fetching bytes', async () => {

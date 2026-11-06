@@ -32,6 +32,7 @@ export function useDecodeAhead(input: {
   const lowMemoryMode = data?.settings.lowMemoryMode ?? false;
   const preloadBehind = data?.engineSettings.preloadBehind ?? 1;
   const dataSaver = data?.settings.dataSaver ?? false;
+  const maxDisplayEdge = data?.engineSettings.displayMaxEdgePx;
   const preloadCount = resolveScrollPreloadAhead({
     pages: pages ?? [],
     preloadAhead: data?.settings.preloadAhead ?? 0,
@@ -49,10 +50,11 @@ export function useDecodeAhead(input: {
       providerId,
       mangaId,
       chapterId,
+      maxDisplayEdge,
       concurrency: lowMemoryMode ? 1 : 2,
       maxEntries: lowMemoryMode ? DECODE_AHEAD_LOW_MEMORY_WINDOW : DECODE_AHEAD_WINDOW,
     });
-  }, [cacheContext, chapterId, lowMemoryMode, mangaId, providerId]);
+  }, [cacheContext, chapterId, lowMemoryMode, mangaId, maxDisplayEdge, providerId]);
 
   const plan = useMemo(
     () =>

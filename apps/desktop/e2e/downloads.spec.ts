@@ -32,7 +32,8 @@ const MANGADEX_MANGA_ID = 'dc332d04-d3b0-413c-a767-70f5e451b031';
 const CHAPTER_TITLE = 'Ch. 1 - The Summoner';
 const CHAPTER_BUTTON = /Ch\. 1 - The Summoner/;
 const PAGE_COUNT = 37;
-const PAGE_URL = /^page:\/\/store\/[0-9a-f]{64}$/;
+// Reader pages ask main for the Auto display copy (display downscale, spec 07).
+const PAGE_URL = /^page:\/\/store\/[0-9a-f]{64}\?display=2048$/;
 const IMAGE_DELAY_MS = 60;
 
 const TINY_JPEG_BASE64 =

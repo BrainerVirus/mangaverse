@@ -603,6 +603,8 @@ function PagePreview({
       remoteUrl={target.image.url}
       className="h-24 w-auto select-none"
       retention="read"
+      // The scrubber preview shares the page's URL, so it uses the reader's cap.
+      maxDisplayEdge={data.engineSettings.displayMaxEdgePx}
     />
   );
 }

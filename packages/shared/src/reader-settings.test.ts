@@ -285,6 +285,33 @@ describe('reader settings', () => {
     });
   });
 
+  it('Given a row saved before display downscale existed, When reading, Then it reads Auto', () => {
+    const validated = validateReaderSettings({ ...LEGACY_ROW, verticalGapPx: 0, preloadAhead: 4 });
+
+    expect(getDefaultReaderSettings().displayDownscale).toBe('auto');
+    expect(sanitizeReaderSettings(LEGACY_ROW).displayDownscale).toBe('auto');
+    expect(validated.ok ? validated.value.displayDownscale : undefined).toBe('auto');
+  });
+
+  it('Given a display downscale value, When writing, Then only Auto and Off are accepted', () => {
+    const base = getDefaultReaderSettings();
+
+    for (const displayDownscale of ['auto', 'off']) {
+      expect(validateReaderSettings({ ...base, displayDownscale }).ok).toBe(true);
+    }
+    for (const displayDownscale of ['on', 2048, true, null]) {
+      const result = validateReaderSettings({ ...base, displayDownscale });
+      expect(result.ok ? undefined : result.error.message).toBe('Invalid displayDownscale.');
+    }
+    expect(
+      sanitizeReaderSettings({ ...base, displayDownscale: 'half', readingMode: 'rtl' }),
+    ).toMatchObject({ displayDownscale: 'auto', readingMode: 'rtl' });
+    expect(sanitizeReaderSettingsOverride({ displayDownscale: 'off' })).toEqual({
+      displayDownscale: 'off',
+    });
+    expect(sanitizeReaderSettingsOverride({ displayDownscale: 4096 })).toEqual({});
+  });
+
   it('Given a row saved before the next-chapter threshold existed, When reading, Then it reads 25', () => {
     const validated = validateReaderSettings({ ...LEGACY_ROW, verticalGapPx: 0, preloadAhead: 4 });
 

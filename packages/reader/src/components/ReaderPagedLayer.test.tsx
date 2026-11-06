@@ -111,6 +111,22 @@ function announcedImages(container: HTMLElement): HTMLImageElement[] {
   );
 }
 
+describe('ReaderPagedLayer display downscale', () => {
+  it('Given Auto or Off, When pages render, Then each page image gets the resolved cap', () => {
+    mount({});
+    expect(rendered.length).toBeGreaterThan(0);
+    expect(rendered.every((props) => props.maxDisplayEdge === 2048)).toBe(true);
+
+    act(() => mounted!.root.unmount());
+    mounted!.container.remove();
+    mounted = undefined;
+
+    mount({ displayDownscale: 'off' });
+    expect(rendered.length).toBeGreaterThan(0);
+    expect(rendered.every((props) => props.maxDisplayEdge === undefined)).toBe(true);
+  });
+});
+
 describe('ReaderPagedLayer wide pages', () => {
   it('Given split, When a wide page is shown alone, Then it renders two clipped halves of the full image', () => {
     const container = mount({ widePageMode: 'split' });

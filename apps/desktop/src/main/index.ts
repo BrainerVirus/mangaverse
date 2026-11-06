@@ -9,6 +9,7 @@ import {
   dialog,
   ipcMain,
   MessageChannelMain,
+  nativeImage,
   protocol,
   safeStorage,
   session,
@@ -43,6 +44,7 @@ import {
   PAGE_SCHEME,
   PAGE_SCHEME_PRIVILEGES,
 } from './page-store.js';
+import { resizePageForDisplay } from './page-display.js';
 import { registerPageStoreIpc } from './page-store-ipc.js';
 import { createRendererImportStore, registerRendererImportIpc } from './renderer-import.js';
 import { createSecureStorageModel } from './secure-storage.js';
@@ -115,6 +117,8 @@ function registerPageStore(
       store,
       allowedOrigins: appOrigins(),
       contentSecurityPolicy: PAGE_CONTENT_SECURITY_POLICY,
+      resizeForDisplay: (bytes, mimeType, maxEdge) =>
+        resizePageForDisplay(nativeImage, bytes, mimeType, maxEdge),
     }),
   );
   registerPageStoreIpc({ ipcMain, store, isTrustedFrame });

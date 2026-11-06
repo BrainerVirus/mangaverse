@@ -8,6 +8,7 @@ export * from './description.js';
 export * from './provider.js';
 export * from './chapter.js';
 export * from './reader-settings.js';
+export * from './display-downscale.js';
 export * from './keyboard-shortcuts.js';
 export * from './theme-definition.js';
 export * from './app-settings.js';

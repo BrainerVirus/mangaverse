@@ -174,6 +174,17 @@ const tilingThresholdSchema = z.union(
   { error: 'tilingThreshold must be auto, 4096, 8192 or 16384.' },
 );
 
+/**
+ * The long edge, in pixels, Auto display downscale caps a reader page at
+ * (provisional, not measured). Only the displayed copy shrinks; the stored page
+ * keeps its bytes.
+ */
+export const READER_DISPLAY_DOWNSCALE_AUTO_EDGE_PX = 2048;
+
+const displayDownscaleSchema = z.enum(['auto', 'off'], {
+  error: 'Invalid displayDownscale.',
+});
+
 const readerSettingsFields = {
   readingMode: readingModeSchema,
   pageLayout: pageLayoutSchema,
@@ -238,6 +249,12 @@ const readerSettingsFields = {
    * the reader's value (8192px today).
    */
   tilingThreshold: tilingThresholdSchema.default('auto'),
+  /**
+   * `auto` shows a page whose decoded long edge exceeds
+   * `READER_DISPLAY_DOWNSCALE_AUTO_EDGE_PX` as a smaller copy, to save memory;
+   * `off` shows the original. Display only: stored pages are never rewritten.
+   */
+  displayDownscale: displayDownscaleSchema.default('auto'),
   diagnosticsEnabled: z.boolean({ error: 'diagnosticsEnabled must be boolean.' }),
   /**
    * Spread alignment in double layouts: 0 shows the first page alone as a
@@ -315,6 +332,8 @@ export type WidePageMode = z.infer<typeof widePageModeSchema>;
 
 export type TilingThreshold = z.infer<typeof tilingThresholdSchema>;
 
+export type DisplayDownscale = z.infer<typeof displayDownscaleSchema>;
+
 export type KeyboardShortcut = z.infer<typeof keyboardShortcutSchema>;
 
 export type KeyboardShortcutAction = z.infer<typeof keyboardShortcutActionSchema>;
@@ -366,6 +385,7 @@ export function getDefaultReaderSettings(): ReaderSettings {
     lowMemoryMode: false,
     dataSaver: false,
     tilingThreshold: 'auto',
+    displayDownscale: 'auto',
     diagnosticsEnabled: false,
     spreadOffset: 0,
     widePageMode: 'isolate',

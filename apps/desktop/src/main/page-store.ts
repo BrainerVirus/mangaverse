@@ -4,7 +4,10 @@ import { lstat, mkdir, open, readdir, readFile, realpath, rename, rm } from 'nod
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { isPageStoreKey, MAX_PAGE_STORE_BYTES } from '@app/platform';
+import { clampDisplayMaxEdge, DISPLAY_DOWNSCALE_QUERY } from '@app/shared';
 import { z } from 'zod';
+
+import { createDisplayCopyCache, type DisplayCopy, type DisplayCopyCache } from './page-display.js';
 
 // Main owns cached page bytes (spec 04 X5, X13). A page is two files under the store root,
 // both named by the SHA-256 of its blob key: `<id>` holds the bytes and `<id>.json` the key,
@@ -30,6 +33,7 @@ const PAGE_MIME_TYPES: ReadonlySet<string> = new Set([
 ]);
 
 const PAGE_ID = /^[0-9a-f]{64}$/;
+const DISPLAY_QUERY = new RegExp(`^\\?${DISPLAY_DOWNSCALE_QUERY}=([0-9]{1,5})$`);
 const SIDECAR_SUFFIX = '.json';
 const TEMP_SUFFIX = '.tmp';
 
@@ -98,7 +102,15 @@ async function mapBounded<T, R>(items: readonly T[], run: (item: T) => Promise<R
 const NO_FOLLOW: number = (constants as { O_NOFOLLOW?: number }).O_NOFOLLOW ?? 0;
 
 type PageStoreResolution =
-  | { readonly kind: 'file'; readonly path: string; readonly mimeType: string }
+  | {
+      readonly kind: 'file';
+      readonly path: string;
+      readonly mimeType: string;
+      /** The page id, also the file name: what a display copy is cached under. */
+      readonly id: string;
+      /** A display copy at this clamped long-edge cap was asked for; the original otherwise. */
+      readonly displayEdge?: number;
+    }
   | { readonly kind: 'refused'; readonly status: 400 | 403 | 404 | 405 };
 
 export interface PageStore {
@@ -343,7 +355,11 @@ export function createPageStore(root: string): PageStore {
       if (url.protocol !== `${PAGE_SCHEME}:` || url.host !== PAGE_HOST) {
         return { kind: 'refused', status: 403 };
       }
-      if (url.search !== '' || url.hash !== '') return { kind: 'refused', status: 400 };
+      if (url.hash !== '') return { kind: 'refused', status: 400 };
+      // The only query is one display cap in plain digits. It never reaches the path: the
+      // file is still named by the id below, under every check that follows.
+      const display = DISPLAY_QUERY.exec(url.search);
+      if (url.search !== '' && display === null) return { kind: 'refused', status: 400 };
       // The id is the whole path: one segment of 64 lowercase hex characters. Anything
       // else, encoded separators, dot segments and NUL included, is not an id.
       const id = url.pathname.slice(1);
@@ -363,7 +379,13 @@ export function createPageStore(root: string): PageStore {
       if ((await realpath(path).catch(() => null)) !== path) {
         return { kind: 'refused', status: 403 };
       }
-      return { kind: 'file', path, mimeType: sidecar.mimeType };
+      return {
+        kind: 'file',
+        path,
+        mimeType: sidecar.mimeType,
+        id,
+        ...(display === null ? {} : { displayEdge: clampDisplayMaxEdge(Number(display[1])) }),
+      };
     },
   };
 }
@@ -377,7 +399,19 @@ export function createPageProtocolHandler(options: {
   readonly store: PageStore;
   readonly allowedOrigins: readonly string[];
   readonly contentSecurityPolicy: string;
+  /**
+   * Makes the display copy a `?display=<cap>` request asks for; absent, such a request gets
+   * the original. Any failure, or `undefined`, also serves the original.
+   */
+  readonly resizeForDisplay?: (
+    bytes: Buffer,
+    mimeType: string,
+    maxEdge: number,
+  ) => DisplayCopy | undefined;
+  readonly displayCopies?: DisplayCopyCache;
 }): (request: Request) => Promise<Response> {
+  const displayCopies = options.displayCopies ?? createDisplayCopyCache();
+  const resizeForDisplay = options.resizeForDisplay;
   const baseHeaders = {
     'Content-Security-Policy': options.contentSecurityPolicy,
     'X-Content-Type-Options': 'nosniff',
@@ -399,6 +433,26 @@ export function createPageProtocolHandler(options: {
     if (stats === null || !stats.isFile()) {
       await handle.close();
       return refuse(404);
+    }
+    if (resolution.displayEdge !== undefined && resizeForDisplay !== undefined) {
+      const edge = resolution.displayEdge;
+      // The size and mtime are part of the key, so a page rewritten in place is resized again.
+      const key = `${resolution.id}:${String(edge)}:${String(stats.size)}:${String(stats.mtimeMs)}`;
+      const copy = await displayCopies.get(key, () =>
+        readFile(resolution.path, { flag: constants.O_RDONLY | NO_FOLLOW }).then((bytes) =>
+          resizeForDisplay(bytes, resolution.mimeType, edge),
+        ),
+      );
+      if (copy !== undefined) {
+        await handle.close();
+        const copyHeaders = {
+          ...baseHeaders,
+          'Content-Type': copy.mimeType,
+          'Content-Length': String(copy.bytes.byteLength),
+        };
+        const body = request.method === 'HEAD' ? null : new Uint8Array(copy.bytes);
+        return new Response(body, { status: 200, headers: copyHeaders });
+      }
     }
     const headers = {
       ...baseHeaders,

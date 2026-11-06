@@ -21,7 +21,8 @@ const DATABASE = 'mangaverse.sqlite';
 const MANGADEX_MANGA_ID = 'dc332d04-d3b0-413c-a767-70f5e451b031';
 const CHAPTER_BUTTON = /Ch\. 1 - The Summoner/;
 const PAGE_COUNT = 37;
-const PAGE_URL = /^page:\/\/store\/[0-9a-f]{64}$/;
+// Reader pages ask main for the Auto display copy (display downscale, spec 07).
+const PAGE_URL = /^page:\/\/store\/[0-9a-f]{64}\?display=2048$/;
 
 const TINY_JPEG_BASE64 =
   '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDAREAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k=';

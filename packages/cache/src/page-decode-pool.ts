@@ -16,6 +16,11 @@ export interface PageDecodePoolInput {
   readonly providerId: ProviderId | string;
   readonly mangaId: MangaId | string;
   readonly chapterId: ChapterId | string;
+  /**
+   * The display downscale cap the reader's page images use. It must match theirs:
+   * the pool warms the URL they will mount, and a different cap is a different URL.
+   */
+  readonly maxDisplayEdge?: number | undefined;
   /** Pages decoded at once. Two keeps a turn warm without decoding a burst. */
   readonly concurrency?: number;
   /** Decoded pages kept alive. Everything beyond it is released on re-plan. */
@@ -89,6 +94,7 @@ export function createPageDecodePool(input: PageDecodePoolInput): PageDecodePool
     pageIndex: slot.pageIndex,
     remoteUrl: slot.remoteUrl,
     retention: 'read' as const,
+    maxDisplayEdge: input.maxDisplayEdge,
   });
 
   const giveBackUrl = (slot: Slot): void => {

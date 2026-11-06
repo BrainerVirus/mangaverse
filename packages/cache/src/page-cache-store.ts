@@ -9,7 +9,14 @@ import {
   type CacheEntryRecord,
 } from '@app/db';
 import type { PlatformAdapter } from '@app/platform';
-import type { AppError, ChapterId, MangaId, ProviderId } from '@app/shared';
+import {
+  clampDisplayMaxEdge,
+  DISPLAY_DOWNSCALE_QUERY,
+  type AppError,
+  type ChapterId,
+  type MangaId,
+  type ProviderId,
+} from '@app/shared';
 
 import {
   buildPageBlobKey,
@@ -21,6 +28,7 @@ import {
 } from './constants.js';
 import { isBlobWriteInFlight, withBlobWrite } from './blob-writes.js';
 import { deleteBlobKeys } from './blob-deletes.js';
+import { downscaleForDisplay } from './display-downscale.js';
 
 /** Why one page could not be stored: a full disk is distinct from a network failure. */
 export type PageCacheFailureCode = 'storage-full' | 'storage' | 'network' | 'unknown';
@@ -65,6 +73,11 @@ export interface PageCacheLookupInput {
   readonly chapterId: ChapterId | string;
   readonly pageIndex: number;
   readonly remoteUrl: string;
+  /**
+   * Display only: a page whose decoded long edge exceeds this many pixels is shown
+   * from a smaller copy. The stored blob is never rewritten; absent shows the original.
+   */
+  readonly maxDisplayEdge?: number | undefined;
 }
 
 export interface PageCacheStoreResult {
@@ -92,9 +105,42 @@ async function createObjectUrlFromBlob(
   adapter: PlatformAdapter,
   data: ArrayBuffer,
   mimeType: string,
+  maxDisplayEdge?: number,
 ): Promise<string | undefined> {
-  const result = await adapter.blobStorage.createObjectUrl(data, mimeType);
+  const display = await displayCopy(data, mimeType, maxDisplayEdge);
+  const result = await adapter.blobStorage.createObjectUrl(
+    display?.data ?? data,
+    display?.mimeType ?? mimeType,
+  );
   return result.ok ? result.value : undefined;
+}
+
+/**
+ * The downscaled bytes the URL serves instead of the stored ones, or `undefined`
+ * to serve the stored bytes (no cap, a page that fits, or a failed resize).
+ */
+async function displayCopy(
+  data: ArrayBuffer,
+  mimeType: string,
+  maxDisplayEdge: number | undefined,
+): Promise<{ readonly data: ArrayBuffer; readonly mimeType: string } | undefined> {
+  if (maxDisplayEdge === undefined) return undefined;
+  const smaller = await downscaleForDisplay(data, mimeType, maxDisplayEdge);
+  if (smaller === undefined) return undefined;
+  const bytes = await smaller.arrayBuffer().catch(() => undefined);
+  return bytes === undefined ? undefined : { data: bytes, mimeType: smaller.type || mimeType };
+}
+
+/**
+ * A store URL (desktop `page://`) that asks the store for a display copy at the cap:
+ * the renderer never holds those bytes, so main resizes them. Main clamps the cap and
+ * serves the original when it cannot resize; without a cap the URL is unchanged.
+ */
+function withDisplayCap(url: string, maxDisplayEdge: number | undefined): string {
+  if (maxDisplayEdge === undefined || !URL.canParse(url)) return url;
+  const capped = new URL(url);
+  capped.search = `?${DISPLAY_DOWNSCALE_QUERY}=${String(clampDisplayMaxEdge(maxDisplayEdge))}`;
+  return capped.toString();
 }
 
 /**
@@ -245,7 +291,11 @@ export async function getCachedPageObjectUrl(
   }
   if (storedUrl !== null) {
     await touchCacheEntry(input.db, entry.id);
-    return { objectUrl: storedUrl, fromCache: true, byteSize: entry.byteSize };
+    return {
+      objectUrl: withDisplayCap(storedUrl, input.maxDisplayEdge),
+      fromCache: true,
+      byteSize: entry.byteSize,
+    };
   }
 
   const blobResult = await input.adapter.blobStorage.get(entry.blobKey);
@@ -257,6 +307,7 @@ export async function getCachedPageObjectUrl(
     input.adapter,
     blobResult.value.data,
     blobResult.value.mimeType,
+    input.maxDisplayEdge,
   );
   if (objectUrl === undefined) {
     return undefined;
@@ -332,10 +383,15 @@ export async function storePageInCache(
   if (storedUrl !== null) {
     return storedUrl === undefined
       ? undefined
-      : { objectUrl: storedUrl, fromCache: false, byteSize };
+      : { objectUrl: withDisplayCap(storedUrl, input.maxDisplayEdge), fromCache: false, byteSize };
   }
 
-  const objectUrl = await createObjectUrlFromBlob(input.adapter, input.data, input.mimeType);
+  const objectUrl = await createObjectUrlFromBlob(
+    input.adapter,
+    input.data,
+    input.mimeType,
+    input.maxDisplayEdge,
+  );
   if (objectUrl === undefined) {
     return undefined;
   }
@@ -413,7 +469,11 @@ export async function resolvePageObjectUrl(
   if (input.adapter.providerNetwork.fetchAndStore !== undefined) {
     const stored = await storeRemotePageInMain(input);
     return stored.kind === 'stored'
-      ? { objectUrl: stored.objectUrl, fromCache: false, byteSize: stored.byteSize }
+      ? {
+          objectUrl: withDisplayCap(stored.objectUrl, input.maxDisplayEdge),
+          fromCache: false,
+          byteSize: stored.byteSize,
+        }
       : undefined;
   }
 

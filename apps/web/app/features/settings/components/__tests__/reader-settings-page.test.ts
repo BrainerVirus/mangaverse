@@ -14,6 +14,7 @@ import {
 
 import { ReaderSettingsPage } from '../ReaderSettingsPage.js';
 import {
+  AdvancedSettingsSection,
   DisplaySettingsSection,
   GestureSettingsSection,
   KeyboardShortcutsSection,
@@ -38,7 +39,8 @@ function collectElements(node: ReactNode): ReactElement[] {
   if (
     type === KeyboardShortcutsSection ||
     type === GestureSettingsSection ||
-    type === DisplaySettingsSection
+    type === DisplaySettingsSection ||
+    type === AdvancedSettingsSection
   ) {
     const render = type as (props: unknown) => ReactElement;
     return [element, ...collectElements(render(element.props))];
@@ -163,6 +165,7 @@ describe('ReaderSettingsPage', () => {
         'low-memory-mode',
         'data-saver',
         'tiling-threshold',
+        'display-downscale',
         'next-chapter-threshold',
         'long-strip-optimization',
         'tap-zone-debug-overlay',
@@ -183,6 +186,7 @@ describe('ReaderSettingsPage', () => {
         'low-memory-mode',
         'data-saver',
         'tiling-threshold',
+        'display-downscale',
         'long-strip-optimization',
         'tap-zone-debug-overlay',
         'diagnostics-enabled',
@@ -457,5 +461,36 @@ describe('ReaderSettingsPage', () => {
     expect(onChange).toHaveBeenLastCalledWith({ tilingThreshold: 16_384 });
     tiling.onChange('auto');
     expect(onChange).toHaveBeenLastCalledWith({ tilingThreshold: 'auto' });
+  });
+
+  it('Given the Advanced section, When display downscale is changed, Then Auto and Off save and the row says it saves memory, not data', () => {
+    const onChange = vi.fn<(patch: Partial<ReaderSettings>) => void>();
+    const page = ReaderSettingsPage({
+      settings: getDefaultReaderSettings(),
+      isLoading: false,
+      isError: false,
+      onChange,
+    });
+    const downscale = rowWithId(page, 'display-downscale').props as {
+      label: string;
+      description: string;
+      value: string;
+      options: readonly { value: string; label: string }[];
+      onChange: (value: string) => void;
+    };
+
+    expect(downscale.label).toBe('Display downscale');
+    expect(downscale.value).toBe('auto');
+    expect(downscale.description).toBe(
+      'Saves memory, not data; the stored page and downloads are unchanged.',
+    );
+    expect(downscale.options).toEqual([
+      { value: 'auto', label: 'Auto (2048px long edge)' },
+      { value: 'off', label: 'Off' },
+    ]);
+    downscale.onChange('off');
+    expect(onChange).toHaveBeenLastCalledWith({ displayDownscale: 'off' });
+    downscale.onChange('auto');
+    expect(onChange).toHaveBeenLastCalledWith({ displayDownscale: 'auto' });
   });
 });

@@ -3,6 +3,7 @@ import {
   resolveReaderPresentation,
   type ReaderPresentationInput,
 } from './resolve-reader-settings.js';
+import { resolveDisplayMaxEdge } from './display-downscale.js';
 import { resolveTilingThreshold } from './scroll-layout.js';
 import type { ReaderEngineSettings } from './types.js';
 
@@ -35,6 +36,7 @@ export function toReaderEngineSettings(
     preloadAhead: settings.dataSaver ? 0 : settings.preloadAhead,
     preloadBehind: settings.dataSaver ? 0 : settings.preloadBehind,
     tilingThresholdPx: resolveTilingThreshold(settings.tilingThreshold),
+    displayMaxEdgePx: resolveDisplayMaxEdge(settings.displayDownscale),
     dataSaver: settings.dataSaver,
     lowMemoryMode: settings.lowMemoryMode,
     wheelBehavior: settings.wheelBehavior,

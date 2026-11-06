@@ -307,4 +307,39 @@ describe('acquirePageObjectUrl', () => {
       pageObjectUrlKey({ ...input(1), retention: 'normal' }),
     );
   });
+
+  it('Given the same page under different display caps, When keyed, Then each cap has its own key and the same cap shares one', () => {
+    const original = pageObjectUrlKey(input(1));
+    const capped = pageObjectUrlKey(input(1, { maxDisplayEdge: 2048 }));
+
+    expect(capped).not.toBe(original);
+    expect(capped).not.toBe(pageObjectUrlKey(input(1, { maxDisplayEdge: 1024 })));
+    expect(pageObjectUrlKey(input(1, { maxDisplayEdge: 2048 }))).toBe(capped);
+    expect(pageObjectUrlKey(input(1, { maxDisplayEdge: undefined }))).toBe(original);
+  });
+
+  it('Given a capped and an uncapped holder of one page, When both acquire, Then each gets its own URL, resolved with its own cap', async () => {
+    store.resolvePageObjectUrl.mockImplementation(async (lookup) => ({
+      objectUrl: lookup.maxDisplayEdge === undefined ? 'blob:original' : 'blob:display',
+      fromCache: true,
+      byteSize: 10,
+    }));
+
+    const original = await acquirePageObjectUrl(input(20));
+    const capped = await acquirePageObjectUrl(input(20, { maxDisplayEdge: 2048 }));
+    const cappedAgain = await acquirePageObjectUrl(input(20, { maxDisplayEdge: 2048 }));
+
+    expect(original?.objectUrl).toBe('blob:original');
+    expect(capped?.objectUrl).toBe('blob:display');
+    expect(cappedAgain?.objectUrl).toBe('blob:display');
+    expect(store.resolvePageObjectUrl).toHaveBeenCalledTimes(2);
+    expect(store.resolvePageObjectUrl.mock.calls[1]?.[0]).toMatchObject({ maxDisplayEdge: 2048 });
+
+    await releasePageObjectUrl(input(20));
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:original');
+    expect(revokeObjectUrl).not.toHaveBeenCalledWith('blob:display');
+    await releasePageObjectUrl(input(20, { maxDisplayEdge: 2048 }));
+    await releasePageObjectUrl(input(20, { maxDisplayEdge: 2048 }));
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:display');
+  });
 });
