@@ -162,14 +162,14 @@ function ThemeEditorHeading() {
 }
 
 /** The heading and the action row are static; the editor's sections wait for the draft. */
-export function ThemeEditorLoading() {
+export function ThemeEditorLoading({ onCancel }: { readonly onCancel: () => void }) {
   return (
     <PageContainer variant="read" className="max-w-5xl">
       <section aria-label="Theme editor" className="space-y-8">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <ThemeEditorHeading />
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" disabled>
+            <Button variant="outline" onClick={onCancel}>
               Cancel
             </Button>
             <Button variant="outline" disabled>

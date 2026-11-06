@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { getDefaultAppSettings, getDefaultReaderSettings } from '@app/shared';
 import { AppSettingsPage } from '@/features/settings/components/AppSettingsPage';
 import { ReaderSettingsPage } from '@/features/settings/components/ReaderSettingsPage';
@@ -150,12 +150,17 @@ describe('settings-style pages while their data loads', () => {
     expect(screen.getByText(/Choose a visual preset/)).toBeInTheDocument();
   });
 
-  it('Theme editor keeps its heading and the action row, disabled until the draft exists', () => {
-    render(<ThemeEditorLoading />);
+  it('Theme editor keeps its heading and Cancel live (it only navigates); Duplicate and Save wait for the draft', () => {
+    const onCancel = vi.fn<() => void>();
+    render(<ThemeEditorLoading onCancel={onCancel} />);
 
     expect(screen.getByRole('heading', { level: 1, name: 'Theme editor' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Duplicate' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Save theme' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
   it('Onboarding keeps its step list, skip control and footer around the loading step', () => {

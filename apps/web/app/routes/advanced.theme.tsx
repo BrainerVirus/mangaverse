@@ -27,12 +27,13 @@ export const Route = createFileRoute('/advanced/theme')({
 });
 
 function ThemeEditorRoute() {
+  const navigate = useNavigate();
   const dbStatus = useLocalDbStatus();
   const db = useLocalDb();
   const { settings, customThemes, isLoadingCustomThemes } = useTheme();
 
   if (dbStatus === 'loading' || isLoadingCustomThemes) {
-    return <ThemeEditorLoading />;
+    return <ThemeEditorLoading onCancel={() => void navigate({ to: '/theme' })} />;
   }
 
   if (dbStatus === 'error' || db === null) {

@@ -1164,7 +1164,7 @@ function MangaDetailLoading({ onBack }: { readonly onBack: (() => void) | undefi
             <Skeleton className="h-10 w-36" />
             <div className="flex flex-wrap gap-2">
               <Skeleton className="h-10 w-32" />
-              <Skeleton className="h-10 w-10" />
+              <Skeleton className="size-10" />
             </div>
           </div>
         </div>

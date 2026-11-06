@@ -30,6 +30,11 @@ function CoverThumb({ item }: CoverThumbProps) {
   );
 }
 
+/** A shelf's heading; the loading placeholder shows the same one, so its line box is shared. */
+export function ShelfHeading({ children }: { readonly children: string }) {
+  return <h2 className="text-lg font-semibold">{children}</h2>;
+}
+
 export interface ContinueReadingSectionProps {
   readonly items: readonly LibraryOverviewItem[];
   readonly onResume: (chapterId: ChapterId) => void;
@@ -47,7 +52,7 @@ export function ContinueReadingSection({
 
   return (
     <section aria-label="Continue reading" className="flex flex-col gap-3">
-      <h2 className="text-lg font-semibold">Continue reading</h2>
+      <ShelfHeading>Continue reading</ShelfHeading>
       {items.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           Nothing in progress yet. Open a chapter from your library to start.
@@ -105,7 +110,7 @@ export function RecentlyUpdatedSection({ items, onOpenManga }: RecentlyUpdatedSe
 
   return (
     <section aria-label="Recently updated" className="flex flex-col gap-3">
-      <h2 className="text-lg font-semibold">Recently updated</h2>
+      <ShelfHeading>Recently updated</ShelfHeading>
       <ul className="divide-y divide-border rounded-box border border-border bg-card">
         {items.map((item) => {
           const latest = item.latestChapter;

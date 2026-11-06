@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import { LoadingState, Skeleton } from '@app/design-system';
+import { Card, CardContent, LoadingState, Skeleton } from '@app/design-system';
 import type { LibraryLayoutMode } from '@app/shared';
 import { SelectTitlesButton } from './BulkEditBar.js';
-import { LibraryUpdatePanel, type LibraryUpdatesControl } from './LibrarySections.js';
+import { LibraryUpdatePanel, ShelfHeading, type LibraryUpdatesControl } from './LibrarySections.js';
 
 /** A line of text as a bar: the box is the line's own height, the bar sits inside it. */
 function TextLine({
@@ -19,24 +19,26 @@ function TextLine({
   );
 }
 
-/** One "Continue reading" card: the cover thumbnail beside three lines, same box as the card. */
+/** One "Continue reading" card: the cover thumbnail beside three lines, in the card's own box. */
 function ContinueReadingCardSkeleton({ className }: { readonly className?: string }) {
   return (
-    <li
-      className={`flex items-center gap-3 rounded-box border border-border bg-card p-3 ${className ?? ''}`}
-    >
-      <Skeleton className="h-20 w-14 shrink-0" />
-      <span className="flex min-w-0 flex-col gap-1">
-        <TextLine height="h-6">
-          <Skeleton className="h-3 w-40" />
-        </TextLine>
-        <TextLine height="h-5">
-          <Skeleton className="h-3 w-28" />
-        </TextLine>
-        <TextLine height="h-5">
-          <Skeleton className="h-3 w-20" />
-        </TextLine>
-      </span>
+    <li className={className}>
+      <Card>
+        <CardContent className="flex items-center gap-3 p-3">
+          <Skeleton className="h-20 w-14 shrink-0" />
+          <span className="flex min-w-0 flex-col gap-1">
+            <TextLine height="h-6">
+              <Skeleton className="h-3 w-40" />
+            </TextLine>
+            <TextLine height="h-5">
+              <Skeleton className="h-3 w-28" />
+            </TextLine>
+            <TextLine height="h-5">
+              <Skeleton className="h-3 w-20" />
+            </TextLine>
+          </span>
+        </CardContent>
+      </Card>
     </li>
   );
 }
@@ -46,23 +48,25 @@ function OverviewSkeleton() {
   return (
     <>
       <section aria-label="Continue reading" className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Continue reading</h2>
+        <ShelfHeading>Continue reading</ShelfHeading>
         <ul className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           <ContinueReadingCardSkeleton />
-          <ContinueReadingCardSkeleton className="hidden md:flex" />
-          <ContinueReadingCardSkeleton className="hidden xl:flex" />
+          <ContinueReadingCardSkeleton className="hidden md:block" />
+          <ContinueReadingCardSkeleton className="hidden xl:block" />
         </ul>
       </section>
       <section aria-label="Recently updated" className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Recently updated</h2>
-        <div className="rounded-box border border-border bg-card px-4 py-3">
-          <TextLine height="h-6">
-            <Skeleton className="h-3 w-48" />
-          </TextLine>
-          <TextLine height="h-5">
-            <Skeleton className="h-3 w-32" />
-          </TextLine>
-        </div>
+        <ShelfHeading>Recently updated</ShelfHeading>
+        <Card>
+          <CardContent className="px-4 py-3">
+            <TextLine height="h-6">
+              <Skeleton className="h-3 w-48" />
+            </TextLine>
+            <TextLine height="h-5">
+              <Skeleton className="h-3 w-32" />
+            </TextLine>
+          </CardContent>
+        </Card>
       </section>
     </>
   );
@@ -73,19 +77,19 @@ function RowSkeleton({ layout }: { readonly layout: 'list' | 'compact' }) {
   const compact = layout === 'compact';
   return (
     <div>
-      <div
-        className={`flex rounded-box border border-border bg-card ${compact ? 'gap-3 p-2' : 'gap-4 p-3'}`}
-      >
-        {compact ? (
-          <Skeleton className="h-16 w-12 shrink-0" />
-        ) : (
-          <Skeleton className="h-20 w-14 shrink-0" />
-        )}
-        <div className="flex flex-1 flex-col justify-center gap-2 py-1">
-          <Skeleton className="h-4 w-48 max-w-full" />
-          {compact ? null : <Skeleton className="h-3 w-24" />}
-        </div>
-      </div>
+      <Card>
+        <CardContent className={compact ? 'flex gap-3 p-2' : 'flex gap-4 p-3'}>
+          {compact ? (
+            <Skeleton className="h-16 w-12 shrink-0" />
+          ) : (
+            <Skeleton className="h-20 w-14 shrink-0" />
+          )}
+          <div className="flex flex-1 flex-col justify-center gap-2 py-1">
+            <Skeleton className="h-4 w-48 max-w-full" />
+            {compact ? null : <Skeleton className="h-3 w-24" />}
+          </div>
+        </CardContent>
+      </Card>
       <div className="mt-1 px-1">
         <Skeleton className="h-4 w-16" />
       </div>
