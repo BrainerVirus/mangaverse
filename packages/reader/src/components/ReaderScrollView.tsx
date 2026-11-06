@@ -4,7 +4,8 @@ import { useStateReducer } from '@app/design-system';
 import { READER_NEXT_CHAPTER_THRESHOLD_DEFAULT_PERCENT } from '@app/shared';
 import type { ReaderPage } from '../types.js';
 import { tailSpacerPx, useChapterEndThreshold } from './use-chapter-end-threshold.js';
-import { useScrollActivity, type VisibleRange } from './use-scroll-activity.js';
+import { useScrollActivity } from './use-scroll-activity.js';
+import { resolveStripWindows } from './strip-windows.js';
 import {
   computeScrollPageMetrics,
   hasPageShape,
@@ -12,11 +13,9 @@ import {
   PLACEHOLDER_PAGE_RATIO,
   STRIP_TILE_AUTO_THRESHOLD_PX,
   STRIP_TILE_HEIGHT_PX,
-  resolveScrollPreloadAhead,
   resolveStripMaxWidthPercent,
   resolveStripPageSize,
   stripPageHeight,
-  windowedScrollPages,
   type ScrollPageMetric,
 } from '../scroll-layout.js';
 
@@ -85,6 +84,8 @@ interface NaturalSize {
 interface StripGeometry {
   /** The scroll container's width; the strip itself may be narrower. */
   readonly width: number;
+  /** The scroll container's height, for the reachable tail room. */
+  readonly viewportHeight: number;
   readonly spacerPx: number;
   readonly natural: Readonly<Record<number, NaturalSize>>;
   /**
@@ -96,7 +97,12 @@ interface StripGeometry {
 }
 
 type GeometryEvent =
-  | { readonly type: 'resize'; readonly width: number; readonly spacerPx: number }
+  | {
+      readonly type: 'resize';
+      readonly width: number;
+      readonly viewportHeight: number;
+      readonly spacerPx: number;
+    }
   | {
       readonly type: 'measured';
       readonly index: number;
@@ -106,6 +112,7 @@ type GeometryEvent =
 
 const EMPTY_GEOMETRY: StripGeometry = {
   width: 0,
+  viewportHeight: 0,
   spacerPx: 0,
   natural: {},
   fallbackRatio: PLACEHOLDER_PAGE_RATIO,
@@ -113,8 +120,19 @@ const EMPTY_GEOMETRY: StripGeometry = {
 
 function geometryReducer(state: StripGeometry, event: GeometryEvent): StripGeometry {
   if (event.type === 'resize') {
-    if (state.width === event.width && state.spacerPx === event.spacerPx) return state;
-    return { ...state, width: event.width, spacerPx: event.spacerPx };
+    if (
+      state.width === event.width &&
+      state.viewportHeight === event.viewportHeight &&
+      state.spacerPx === event.spacerPx
+    ) {
+      return state;
+    }
+    return {
+      ...state,
+      width: event.width,
+      viewportHeight: event.viewportHeight,
+      spacerPx: event.spacerPx,
+    };
   }
   const previous = state.natural[event.index];
   if (
@@ -129,42 +147,6 @@ function geometryReducer(state: StripGeometry, event: GeometryEvent): StripGeome
     fallbackRatio: event.fallbackRatio,
     natural: { ...state.natural, [event.index]: event.size },
   };
-}
-
-/**
- * The pages with each decoded shape written back, so the long-strip window can
- * see the real shape before anything stores it: provider dimensions are usually
- * absent, and the first decoded page is the only evidence the strip has.
- */
-function withMeasuredShapes(
-  pages: readonly ReaderPage[],
-  natural: Readonly<Record<number, NaturalSize>>,
-): readonly ReaderPage[] {
-  return pages.map((page, index) => {
-    const size = natural[index];
-    return size === undefined
-      ? page
-      : { ...page, image: { ...page.image, width: size.width, height: size.height } };
-  });
-}
-
-function rangeWindow(range: VisibleRange, pageCount: number): ReadonlySet<number> {
-  const window = new Set<number>();
-  for (
-    let index = Math.max(0, range.start);
-    index <= Math.min(pageCount - 1, range.end);
-    index += 1
-  ) {
-    window.add(index);
-  }
-  return window;
-}
-
-function unionWindows(
-  first: ReadonlySet<number>,
-  second: ReadonlySet<number>,
-): ReadonlySet<number> {
-  return new Set([...first, ...second]);
 }
 
 interface ScrollContentProps {
@@ -453,7 +435,14 @@ export function ReaderScrollView({
 
   const totalHeight =
     metrics.length === 0 ? 0 : (metrics[metrics.length - 1]!.top ?? 0) + (heights.at(-1) ?? 0);
-  const contentHeight = totalHeight + spacerPx;
+  // A chapter shorter than the viewport must still have room to scroll to the
+  // next-chapter threshold; otherwise the gesture can never fire it.
+  const thresholdPx = (geometry.viewportHeight * nextChapterThresholdPercent) / 100;
+  const effectiveSpacerPx = Math.max(
+    spacerPx,
+    geometry.viewportHeight > 0 ? geometry.viewportHeight + thresholdPx + 1 - totalHeight : 0,
+  );
+  const contentHeight = totalHeight + effectiveSpacerPx;
   const lastPageBottomRef = useRef(totalHeight);
   const chapterEnd = useChapterEndThreshold({
     thresholdPercent: nextChapterThresholdPercent,
@@ -522,6 +511,7 @@ export function ReaderScrollView({
       dispatchGeometry({
         type: 'resize',
         width: container.clientWidth,
+        viewportHeight: container.clientHeight,
         // Room to scroll past the end, enough to reach the next-chapter threshold.
         spacerPx: tailSpacerPx(container.clientHeight, nextChapterThresholdPercent),
       });
@@ -619,29 +609,18 @@ export function ReaderScrollView({
     (index: number) => scrollToPage(Math.min(index + 1, pages.length - 1)),
     [pages.length, scrollToPage],
   );
-  const viewportWindow = rangeWindow(visibleRange, pages.length);
-  const imageWindow = dataSaver
-    ? viewportWindow
-    : windowedScrollPages(
-        pages,
-        activePageIndex,
-        resolveScrollPreloadAhead({
-          // A decoded page teaches the strip its shape; until then the stored
-          // shape (usually absent) is all the optimization can see.
-          pages: withMeasuredShapes(pages, geometry.natural),
-          preloadAhead,
-          lowMemoryMode,
-          longStripOptimization,
-        }),
-      );
-  const rowRadius = Math.max(
-    MIN_ROW_RADIUS + ROW_OVERSCAN,
-    imageWindow.size,
-    preloadAhead + ROW_OVERSCAN,
-  );
-  const rowWindow = dataSaver
-    ? unionWindows(windowedScrollPages(pages, activePageIndex, rowRadius), viewportWindow)
-    : windowedScrollPages(pages, activePageIndex, rowRadius);
+  const { imageWindow, rowWindow } = resolveStripWindows({
+    pages,
+    activePageIndex,
+    natural: geometry.natural,
+    preloadAhead,
+    lowMemoryMode,
+    longStripOptimization,
+    dataSaver,
+    visibleRange,
+    minRowRadius: MIN_ROW_RADIUS,
+    rowOverscan: ROW_OVERSCAN,
+  });
 
   return (
     <div
@@ -664,7 +643,7 @@ export function ReaderScrollView({
         widthPercent={widthPercent}
         contentHeight={contentHeight}
         totalHeight={totalHeight}
-        spacerPx={spacerPx}
+        spacerPx={effectiveSpacerPx}
         cacheReady={cacheReady}
         providerId={providerId}
         mangaId={mangaId}

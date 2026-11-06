@@ -692,6 +692,24 @@ describe('ReaderScrollView next-chapter threshold', () => {
     unmount(mounted);
   });
 
+  it('Given a chapter shorter than the viewport, When it renders, Then the tail leaves room to reach the threshold', () => {
+    const short = [
+      {
+        id: toChapterPageId('short'),
+        index: 0,
+        image: { url: 'https://example.com/short.jpg', width: 800, height: 40 },
+      },
+    ];
+    const mounted = mount(0, { pages: short, onChapterEnd: vi.fn<() => void>() });
+    fireResize();
+    const content = mounted.container.querySelector<HTMLElement>(
+      '[data-testid="reader-scroll-content"]',
+    );
+    // Viewport 100 + 25% threshold + 1px, so a scroll gesture has room to fire.
+    expect(Number.parseFloat(content?.style.height ?? '0')).toBeGreaterThanOrEqual(126);
+    unmount(mounted);
+  });
+
   it('Given a scroll frame queued before a modal opens, When the frame runs, Then the stale callback does not fire', async () => {
     const onChapterEnd = vi.fn<() => void>();
     const mounted = mount(0, { pages, onChapterEnd });
