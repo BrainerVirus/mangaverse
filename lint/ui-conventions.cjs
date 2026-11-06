@@ -147,85 +147,161 @@ function product(left, right) {
 }
 
 const productAll = (lists) => lists.reduce(product, [[]]);
-const union = (lists) => {
-  const out = lists.flat();
-  return out.length > 0 ? out : [[]];
-};
-
 /**
- * The class strings of one carrier as groups: each group is a set of strings that can all apply to
- * the same element at once. `cn`/`cva`/`clsx`/`twMerge`/`tv` arguments, array elements, template
- * parts, `&&` operands and object keys are additive; the branches of `?:`, the operands of `||`/`??`
- * and the values of an object (cva variant options) exclude each other, so they are separate groups.
- * Anything else contributes the groups of its children, apart from each other.
+ * The class strings of one carrier, as sets of strings that are known to apply to one element
+ * together ("groups"). Only unconditional composition combines:
+ *
+ * - `cn`/`clsx`/`twMerge` arguments, array elements and template parts are additive;
+ * - a `cva`/`tv` call is its base plus one option from each variant axis. Options within one axis
+ *   are alternatives, independent axes combine (bounded by MAX_GROUPS);
+ * - anything conditional (`?:`, `&&`, `||`, `??`, a `clsx` object key, a compound variant) cannot be
+ *   proven to coexist with its siblings, so each operand is a group on its own. `cn(open && 'border',
+ *   !open && 'ring-1')` therefore pairs nothing, and neither does `cn('border', open && 'ring-1')`.
+ *
+ * Returns `{ groups, solo }`: `groups` combine with the surrounding additive context, `solo` groups
+ * stand alone.
  */
-function classGroups(input) {
+function collectGroups(input) {
   const node = unwrap(input);
-  if (!node || typeof node.type !== "string") return [[]];
+  const nothing = { groups: [[]], solo: [] };
+  if (!node || typeof node.type !== "string") return nothing;
+
+  // A conditional operand: its strings count by themselves, never beside a sibling.
+  const alone = (...parts) => {
+    const solo = [];
+    for (const part of parts) {
+      for (const group of part.groups) if (group.length > 0) solo.push(group);
+      solo.push(...part.solo);
+    }
+    return { groups: [[]], solo };
+  };
+  const additive = additiveOf;
+  const of = (child) => collectGroups(child.type === "SpreadElement" ? child.argument : child);
+
   switch (node.type) {
     case "Literal":
       return typeof node.value === "string" && isClassString(node.value)
-        ? [[{ node, text: node.value }]]
-        : [[]];
+        ? { groups: [[{ node, text: node.value }]], solo: [] }
+        : nothing;
     case "TemplateLiteral": {
       const parts = [];
       node.quasis.forEach((quasi, index) => {
         const text = quasi.value.cooked ?? "";
-        if (isClassString(text)) parts.push([[{ node: quasi, text }]]);
+        if (isClassString(text)) parts.push({ groups: [[{ node: quasi, text }]], solo: [] });
         const expression = node.expressions[index];
-        if (expression) parts.push(classGroups(expression));
+        if (expression) parts.push(collectGroups(expression));
       });
-      return productAll(parts);
+      return additive(parts);
     }
-    case "ConditionalExpression":
-      return union([classGroups(node.consequent), classGroups(node.alternate)]);
-    case "LogicalExpression":
-      return node.operator === "&&"
-        ? product(classGroups(node.left), classGroups(node.right))
-        : union([classGroups(node.left), classGroups(node.right)]);
     case "ArrayExpression":
-      return productAll(
-        node.elements
-          .filter(Boolean)
-          .map((e) => classGroups(e.type === "SpreadElement" ? e.argument : e)),
-      );
+      return additive(node.elements.filter(Boolean).map(of));
+    case "ConditionalExpression":
+      return alone(collectGroups(node.consequent), collectGroups(node.alternate));
+    case "LogicalExpression":
+      return alone(collectGroups(node.left), collectGroups(node.right));
     case "CallExpression": {
       const name = calleeName(node.callee);
-      const args = node.arguments.map((arg) =>
-        classGroups(arg.type === "SpreadElement" ? arg.argument : arg),
-      );
-      return name && CLASS_HELPERS.has(name) ? productAll(args) : union(args);
-    }
-    case "ObjectExpression": {
-      const keys = [];
-      const values = [];
-      for (const property of node.properties) {
-        if (property.type !== "Property") continue;
-        const valueGroups = classGroups(property.value);
-        if (valueGroups.some((group) => group.length > 0)) values.push(...valueGroups);
-        else if (
-          !property.computed &&
-          property.key.type === "Literal" &&
-          typeof property.key.value === "string"
-        )
-          keys.push({ node: property.key, text: property.key.value });
+      if (name === "cva") {
+        const [base, config] = node.arguments;
+        return additive([base ? of(base) : nothing, config ? variantConfig(config) : nothing]);
       }
-      return values.length > 0 ? values.map((group) => keys.concat(group)) : [keys];
+      if (name === "tv") return node.arguments[0] ? variantConfig(node.arguments[0]) : nothing;
+      const args = node.arguments.map(of);
+      return name && CLASS_HELPERS.has(name) ? additive(args) : alone(...args);
     }
+    case "ObjectExpression":
+      // A clsx object (keys are the classes) or a plain map of options: either way conditional.
+      return alone(...objectParts(node));
     default: {
       // Only containers are searched (a variant-map file is read from its Program). A comparison
       // such as `variant === 'outline'` holds a string that is a value, not a class.
-      if (!STRUCTURAL.has(node.type)) return [[]];
-      const children = [];
+      if (!STRUCTURAL.has(node.type)) return nothing;
+      const parts = [];
       for (const key of Object.keys(node)) {
         if (key === "parent" || key === "loc" || key === "range") continue;
         const child = node[key];
         for (const item of Array.isArray(child) ? child : [child])
-          if (item && typeof item.type === "string") children.push(classGroups(item));
+          if (item && typeof item.type === "string") parts.push(collectGroups(item));
       }
-      return union(children);
+      return alone(...parts);
     }
   }
+}
+
+function additiveOf(parts) {
+  return {
+    groups: productAll(parts.map((part) => part.groups)),
+    solo: parts.flatMap((part) => part.solo),
+  };
+}
+
+/** The parts of an object literal: class-bearing values, else the string keys (clsx style). */
+function objectParts(node) {
+  const parts = [];
+  for (const property of node.properties) {
+    if (property.type !== "Property") continue;
+    const value = collectGroups(property.value);
+    const carriesClasses = value.groups.some((group) => group.length > 0) || value.solo.length > 0;
+    if (carriesClasses) parts.push(value);
+    else if (
+      !property.computed &&
+      property.key.type === "Literal" &&
+      typeof property.key.value === "string" &&
+      isClassString(property.key.value)
+    )
+      parts.push({ groups: [[{ node: property.key, text: property.key.value }]], solo: [] });
+  }
+  return parts;
+}
+
+const keyName = (property) =>
+  property.computed
+    ? null
+    : property.key.type === "Identifier"
+      ? property.key.name
+      : typeof property.key.value === "string"
+        ? property.key.value
+        : null;
+
+/** A cva/tv config: `base` plus one option per axis of `variants`; compound variants stand alone. */
+function variantConfig(input) {
+  const config = unwrap(input);
+  if (!config || config.type !== "ObjectExpression") return collectGroups(config);
+  const parts = [];
+  const solo = [];
+  for (const property of config.properties) {
+    if (property.type !== "Property") continue;
+    const name = keyName(property);
+    const value = unwrap(property.value);
+    if (name === "base") parts.push(collectGroups(value));
+    else if (name === "variants" && value?.type === "ObjectExpression") {
+      for (const axis of value.properties) {
+        const options = unwrap(axis.value);
+        if (axis.type !== "Property" || options?.type !== "ObjectExpression") continue;
+        // Options within an axis exclude each other; each option may itself hold alternatives.
+        const alternatives = [];
+        for (const option of options.properties) {
+          if (option.type !== "Property") continue;
+          const collected = collectGroups(option.value);
+          alternatives.push(...collected.groups);
+          solo.push(...collected.solo);
+        }
+        parts.push({ groups: alternatives.length > 0 ? alternatives : [[]], solo: [] });
+      }
+    } else if (name === "compoundVariants") {
+      const collected = collectGroups(value);
+      for (const group of collected.groups) if (group.length > 0) solo.push(group);
+      solo.push(...collected.solo);
+    }
+  }
+  const combined = additiveOf(parts);
+  return { groups: combined.groups, solo: solo.concat(combined.solo) };
+}
+
+/** Every group of a carrier, flat: the combinable groups and the standalone ones. */
+function classGroups(input) {
+  const { groups, solo } = collectGroups(input);
+  return groups.filter((group) => group.length > 0).concat(solo);
 }
 
 /**
@@ -433,8 +509,14 @@ const rules = {
   /**
    * One border per visual grouping (docs/Design.md "Cards"): a resting `border` plus a resting
    * `ring-1|2|4|8` (or `outline-1|2`) draws two outlines on one element. Focus rings carry a
-   * `focus*:` variant and stay legal. The pair is looked for across the whole carrier
-   * (`cn('border', 'ring-1')`, an array, a template), but not across the branches of a ternary.
+   * `focus*:` variant and stay legal.
+   *
+   * Conservative on purpose: a pair is reported only when both utilities are unconditional in one
+   * carrier (plain strings, array elements, template parts, additive `cn` arguments) or are chosen
+   * together by a cva/tv call (its base plus one option from each variant axis). Operands of `?:`,
+   * `&&`, `||`, `??`, clsx object keys and compound variants are never paired with a sibling, because
+   * a linter cannot prove `open && 'border'` and `!open && 'ring-1'` can both apply. So
+   * `cn('border', open && 'ring-1')` is not reported, though it can double.
    */
   "no-border-ring-doubling": classRule({
     check({ groups, report }) {
@@ -463,33 +545,48 @@ const rules = {
 
   /**
    * DESIGN.md §6.2: every hover state has a focus equivalent, and focus is a 2px ring on
-   * `:focus-visible`. A link, button or router Link that styles `hover:` needs a focus treatment
-   * that shows: a `focus`, `focus-visible` or `focus-within` utility that styles something (ring,
-   * outline other than none, fill, text, border, shadow, opacity, transform, underline), or a
-   * variant helper (`buttonVariants`, `cva`, `tv`), whose maps carry the ring. `focus:outline-none`
-   * alone hides the indicator, and a `className` prop or any other identifier proves nothing, so
-   * neither exempts the element.
+   * `:focus-visible`. A link, button or router Link that styles `hover:` needs the element's own
+   * visible focus treatment: a `focus`, `focus-visible` or `focus-within` utility (not
+   * `group-focus`/`peer-focus`, which style an element the keyboard is not on) that shows:
+   *
+   * - a ring with a width (`ring`, `ring-2`, `ring-[3px]`; a colour or an offset alone draws nothing),
+   * - an outline with a width or style (not `none`, `hidden` or `0`),
+   * - or a fill, text colour, border colour, shadow, opacity, transform, underline or decoration.
+   *
+   * `buttonVariants(...)` and `buttonVariants.<member>` count as focus-bearing: they are the design
+   * system's own maps, which carry the ring. No other helper is trusted by name; `cva(...)`/`tv(...)`
+   * count through the focus utilities written in their arguments. `focus:outline-none` alone or a
+   * `className` prop does not exempt the element.
    */
   "no-hover-without-focus": {
     create(context) {
       const CONTROLS = new Set(["a", "button", "Link"]);
-      const VARIANT_HELPERS = new Set(["buttonVariants", "cva", "tv"]);
-      const VISIBLE_FOCUS =
-        /^(ring(-[1-9][0-9]*|-(?!offset|0$|transparent$|inset$).+)?|outline(-(?!none$|hidden$|0$|transparent$|offset).+)?|bg-(?!transparent$).+|text-(?!inherit$|transparent$).+|border(-(?!transparent$).+)?|shadow(-(?!none$).+)?|opacity-.+|translate-.+|scale-.+|underline|decoration-.+)$/;
-      const isFocusVariant = (variants) =>
-        variants.split(":").some((v) => /^(group-|peer-)?focus(-visible|-within)?(\/.+)?$/.test(v));
-      const bearsVariants = (root) => {
+      const own = (variants) =>
+        variants
+          .split(":")
+          .some((v) => v === "focus" || v === "focus-visible" || v === "focus-within");
+      const width = "(?:[1-9][0-9]*|\\[[0-9.]*[1-9][0-9.]*px\\])";
+      const VISIBLE_FOCUS = [
+        new RegExp(`^ring(?:-${width})?$`),
+        new RegExp(`^outline(?:-${width}|-solid|-dashed|-dotted|-double)?$`),
+        /^bg-(?!transparent$|none$|clip-|origin-|size-|position-|repeat|fixed$|local$|scroll$).+$/,
+        /^text-(?!inherit$|transparent$|xs$|sm$|base$|lg$|[0-9]?xl$|left$|center$|right$|justify$|start$|end$|wrap$|nowrap$|balance$|pretty$|ellipsis$|clip$).+$/,
+        /^border(?:-(?!transparent$|solid$|dashed$|dotted$|double$|none$|hidden$|collapse$|separate$|spacing).+)?$/,
+        /^shadow(?:-(?!none$).+)?$/,
+        /^(?:opacity|translate|scale|decoration)-.+$/,
+        /^underline$/,
+      ];
+      const KNOWN_VARIANTS = "buttonVariants";
+      const bearsKnownVariants = (root) => {
         let found = false;
         (function walk(node) {
           if (found || !node || typeof node.type !== "string") return;
-          if (node.type === "CallExpression") {
-            const name = calleeName(node.callee);
-            if (name && VARIANT_HELPERS.has(name)) found = true;
-          }
+          if (node.type === "CallExpression" && calleeName(node.callee) === KNOWN_VARIANTS)
+            found = true;
           if (
             node.type === "MemberExpression" &&
             node.object.type === "Identifier" &&
-            VARIANT_HELPERS.has(node.object.name)
+            node.object.name === KNOWN_VARIANTS
           )
             found = true;
           for (const key of Object.keys(node)) {
@@ -514,15 +611,20 @@ const rules = {
               /^(bg|text|border|ring|shadow|underline)/.test(utility),
           );
           if (!hover) return;
-          if (bearsVariants(attr.value)) return;
-          const focused = tokens.filter(({ variants }) => isFocusVariant(variants));
-          if (focused.some(({ utility }) => VISIBLE_FOCUS.test(utility))) return;
+          if (bearsKnownVariants(attr.value)) return;
+          const focused = tokens.filter(({ variants }) => own(variants));
+          if (focused.some(({ utility }) => VISIBLE_FOCUS.some((pattern) => pattern.test(utility))))
+            return;
           const hidden = focused.find(({ utility }) => /^outline-(none|hidden)$/.test(utility));
+          const ignored = tokens.find(
+            ({ variants, utility }) =>
+              /focus/.test(variants) && !own(variants) && /^(ring|outline)/.test(utility),
+          );
           context.report({
             node,
             message: hidden
               ? `"${hidden.raw}" hides the focus indicator on this <${node.name.name}> and nothing visible replaces it. Add focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2, or use buttonVariants (DESIGN.md §6.2).`
-              : `"${hover.raw}" has no matching focus state on this <${node.name.name}>, so keyboard focus shows the browser outline instead of the 2px ring. Add focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2, or use buttonVariants (DESIGN.md §6.2).`,
+              : `"${hover.raw}" has no visible focus state of its own on this <${node.name.name}>${ignored ? ` ("${ignored.raw}" styles another element, and a ring needs a width)` : ""}, so keyboard focus shows the browser outline instead of the 2px ring. Add focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2, or use buttonVariants (DESIGN.md §6.2).`,
           });
         },
       };

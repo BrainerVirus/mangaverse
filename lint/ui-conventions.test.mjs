@@ -46,16 +46,24 @@ const lineOf = (cases, wanted) => wanted.map((c) => cases.indexOf(c) + 4);
 
 const BORDER_RED = [
   `<div className={cn('border', 'ring-1')} />`,
-  `<div className={cn(['border', open && 'ring-1'])} />`,
+  `<div className={cn(['border', 'ring-1'])} />`,
   "<div className={`border ${gap} ring-1`} />",
-  `<div className={cn('border', { 'ring-1': active })} />`,
-  `<div className={cn('border', open ? 'ring-1' : 'ring-2')} />`,
+  `<div className={cn('border', cn('ring-1'))} />`,
   `<div className={clsx('rounded-box', ['p-4', 'border-b'], 'outline-2')} />`,
-  `<div className={cn(a || 'border', b || 'ring-1')} />`,
+  `<div className={cva('p-4', { variants: { size: { sm: 'border', lg: 'p-2' }, tone: { x: 'ring-1', y: 'p-4' } } })} />`,
+  `<div className={cva('border', { variants: { tone: { x: 'ring-1' } } })} />`,
+  `<div className={tv({ base: 'p-4', variants: { size: { sm: 'border' }, tone: { x: 'outline-2' } } })} />`,
 ];
 const BORDER_GREEN = [
   `<div className={open ? 'border' : 'ring-1'} />`,
   `<div className={cn(open ? 'border' : 'ring-1', 'p-4')} />`,
+  `<div className={cn(open && 'border', !open && 'ring-1')} />`,
+  `<div className={cn('border', open && 'ring-1')} />`,
+  `<div className={cn('border', open ? 'ring-1' : 'ring-2')} />`,
+  `<div className={cn('border', { 'ring-1': active })} />`,
+  `<div className={cn(['border', open && 'ring-1'])} />`,
+  "<div className={`border ${open ? 'ring-1' : ''}`} />",
+  `<div className={cn(a || 'border', b || 'ring-1')} />`,
   `<div className={cn((open && 'border') || 'ring-1')} />`,
   `<div className={cn('border', variant === 'outline' && 'p-2')} />`,
   `<div className={cva('p-4', { variants: { tone: { a: 'border', b: 'ring-1' } } })} />`,
@@ -67,14 +75,23 @@ const HOVER_RED = [
   `<a className={className ?? 'hover:underline'} />`,
   `<Link className="hover:text-foreground focus-visible:ring-0" />`,
   `<button className="hover:bg-accent focus-visible:outline-none focus-visible:ring-offset-2" />`,
+  `<a className={cn(cva('hover:bg-accent'), className)} />`,
+  `<button className="hover:bg-accent focus:ring-red-500" />`,
+  `<button className="hover:bg-accent group-focus:ring-2" />`,
+  `<button className="hover:bg-accent peer-focus-visible:ring-2" />`,
+  `<button className="hover:bg-accent focus-visible:outline-0 focus:ring-offset-2" />`,
+  `<a className={cn(tv({ base: 'hover:bg-accent' }), className)} />`,
+  `<a className={cn(variants({ size }), 'hover:bg-accent')} />`,
 ];
 const HOVER_GREEN = [
   `<button className="hover:bg-accent focus-visible:ring-2" />`,
   `<a className={cn(buttonVariants({ variant: 'ghost' }), className)} />`,
   `<a className={cn(buttonVariants.outline, 'hover:bg-accent')} />`,
-  `<a className={cn(cva('hover:bg-accent'), className)} />`,
+  `<a className={cn(cva('focus-visible:ring-2 hover:bg-accent'), className)} />`,
+  `<a className={cn(tv({ base: 'hover:bg-accent focus-visible:ring-2' }), className)} />`,
   `<button className="hover:bg-accent focus:bg-accent" />`,
   `<button className="hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring" />`,
+  `<button className="hover:bg-accent focus-within:ring focus-visible:ring-[3px]" />`,
   `<button className="p-2 focus:outline-none" />`,
 ];
 
@@ -303,14 +320,14 @@ export const sizes = { sm: \`h-9 \${base} border-[var(--border)]\` } as const;
     assert.deepEqual(at("apps/web/app/border-ring.tsx", "no-border-ring-doubling"), [4, 5]);
   });
 
-  it("no-border-ring-doubling fails a border and a ring composed in cn, an array, a template or an object", () => {
+  it("no-border-ring-doubling fails a border and a ring that are unconditional in one carrier, or chosen together by cva/tv axes", () => {
     assert.deepEqual(
       at("apps/web/app/border-composed.tsx", "no-border-ring-doubling"),
       lineOf(BORDER_RED, BORDER_RED),
     );
   });
 
-  it("no-border-ring-doubling passes ternary and || alternatives, comparisons and cva options", () => {
+  it("no-border-ring-doubling passes anything conditional: complementary && operands, ternaries, ||, object keys, same-axis options", () => {
     assert.deepEqual(at("apps/web/app/border-exclusive.tsx", "no-border-ring-doubling"), []);
   });
 
