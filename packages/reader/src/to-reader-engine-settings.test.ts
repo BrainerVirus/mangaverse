@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getDefaultReaderSettings } from '@app/shared';
-import { toReaderEngineSettings } from './to-reader-engine-settings.js';
+import { toReaderEngineSettings, withAutoStripDecision } from './to-reader-engine-settings.js';
 
 describe('toReaderEngineSettings', () => {
   it('maps shared reader settings into engine settings', () => {
@@ -103,5 +103,22 @@ describe('toReaderEngineSettings', () => {
     });
 
     expect(engine.pageLayout).toBe('double');
+  });
+});
+
+describe('withAutoStripDecision', () => {
+  it('Given a paged engine, When the strip decision applies, Then Auto fit becomes fit-width and a concrete fit is kept', () => {
+    const engine = toReaderEngineSettings({ ...getDefaultReaderSettings(), readingMode: 'rtl' });
+    expect(engine).toMatchObject({ readingMode: 'rtl', fitMode: 'contain' });
+
+    expect(withAutoStripDecision(engine, 'auto')).toMatchObject({
+      readingMode: 'vertical',
+      fitMode: 'width',
+    });
+    expect(withAutoStripDecision(engine, 'contain')).toMatchObject({
+      readingMode: 'vertical',
+      fitMode: 'contain',
+    });
+    expect(withAutoStripDecision(engine, 'cover').fitMode).toBe('cover');
   });
 });

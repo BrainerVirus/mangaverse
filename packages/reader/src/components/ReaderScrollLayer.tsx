@@ -2,6 +2,7 @@ import type { CoverCacheContextValue } from '@app/cache';
 import { READER_NEXT_CHAPTER_THRESHOLD_DEFAULT_PERCENT } from '@app/shared';
 import { ReaderScrollView, type ReaderScrollViewHandle } from './ReaderScrollView.js';
 import { STRIP_TILE_AUTO_THRESHOLD_PX } from '../scroll-layout.js';
+import type { ReaderPageMeasurement } from '../measured-page-shape.js';
 import type { ReaderPageData } from '../reader-page-data.js';
 import type { ReaderState } from '../types.js';
 
@@ -21,6 +22,7 @@ export interface ReaderScrollLayerProps {
     fromCache: boolean;
     durationMs: number;
   }) => void;
+  readonly onPageMeasured?: ((measurement: ReaderPageMeasurement) => void) | undefined;
 }
 
 /** The continuous vertical strip, configured from the reader engine settings. */
@@ -34,6 +36,7 @@ export function ReaderScrollLayer({
   onBack,
   onChapterEnd,
   onPageMetric,
+  onPageMeasured,
 }: ReaderScrollLayerProps) {
   return (
     <ReaderScrollView
@@ -57,6 +60,7 @@ export function ReaderScrollLayer({
       displayMaxEdgePx={data.engineSettings.displayMaxEdgePx}
       imageSmoothing={data.engineSettings.imageSmoothing !== false}
       onPageMetric={onPageMetric}
+      onPageMeasured={onPageMeasured}
       onBack={onBack}
       nextChapterThresholdPercent={
         data.engineSettings.nextChapterThresholdPercent ??

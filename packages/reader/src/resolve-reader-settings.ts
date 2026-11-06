@@ -96,6 +96,25 @@ function resolveReadingMode(
 }
 
 /**
+ * Whether a decoded page, alone, makes Auto read the chapter as a strip: the
+ * title has no concrete mode of its own and the page is clearly a long strip.
+ * The same rule as the page-shape step below, so a first open that switches
+ * after the first decode matches a later open that reads the stored shape.
+ */
+export function shouldResolveAutoToStrip(input: {
+  readonly settings: ReaderSettings;
+  readonly titleOverrides?: ReaderSettingsOverride | undefined;
+  readonly page: ReaderPage;
+}): boolean {
+  const mode = resolveReadingMode({
+    settings: input.settings,
+    titleOverrides: input.titleOverrides,
+    pages: [input.page],
+  });
+  return mode.readingModeSource === 'pageShape';
+}
+
+/**
  * Turns the saved settings into what the reader shows (spec R6). Reading mode:
  * an explicit title choice, then page shape when clearly a long strip, then
  * provider tags, then the global choice, then paged left-to-right. Auto layout

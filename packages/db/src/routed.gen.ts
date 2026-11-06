@@ -304,6 +304,10 @@ export const unmergeProviderMapping = route(
   'unmergeProviderMapping',
   procedures.unmergeProviderMapping,
 );
+export const updateChapterPageDimensions = route(
+  'updateChapterPageDimensions',
+  procedures.updateChapterPageDimensions,
+);
 export const updateDownloadState = route('updateDownloadState', procedures.updateDownloadState);
 export const updateInstalledExtensionHealth = route(
   'updateInstalledExtensionHealth',
@@ -476,6 +480,7 @@ export const ROUTED_PROCEDURE_NAMES = [
   'toLibraryEntry',
   'touchCacheEntry',
   'unmergeProviderMapping',
+  'updateChapterPageDimensions',
   'updateDownloadState',
   'updateInstalledExtensionHealth',
   'updateLibraryCategory',

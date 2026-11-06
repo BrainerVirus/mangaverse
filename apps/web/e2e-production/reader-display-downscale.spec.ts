@@ -1,37 +1,11 @@
-import { crc32, deflateSync } from 'node:zlib';
 import { expect, type Page } from '@playwright/test';
-import { MANGADEX_APP_MANGA_ID, test, waitForPingQuiet } from './helpers.js';
+import { grayscalePng, MANGADEX_APP_MANGA_ID, test, waitForPingQuiet } from './helpers.js';
 
 test.describe.configure({ timeout: 120_000 });
 
 const CHAPTER_BUTTON = /Ch\. 1 - The Summoner/;
 const LARGE_WIDTH = 2400;
 const LARGE_HEIGHT = 3600;
-
-/** A flat 8-bit grayscale PNG; the recorded page fixtures are 1x1. */
-function grayscalePng(width: number, height: number): Buffer {
-  const chunk = (type: string, data: Buffer) => {
-    const length = Buffer.alloc(4);
-    length.writeUInt32BE(data.length);
-    const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
-    const crc = Buffer.alloc(4);
-    crc.writeUInt32BE(crc32(body));
-    return Buffer.concat([length, body, crc]);
-  };
-  const header = Buffer.alloc(13);
-  header.writeUInt32BE(width, 0);
-  header.writeUInt32BE(height, 4);
-  header.writeUInt8(8, 8);
-  // Each row is a filter byte (0) and `width` mid-gray pixels.
-  const row = Buffer.concat([Buffer.from([0]), Buffer.alloc(width, 0x80)]);
-  const pixels = Buffer.concat(Array.from({ length: height }, () => row));
-  return Buffer.concat([
-    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    chunk('IHDR', header),
-    chunk('IDAT', deflateSync(pixels)),
-    chunk('IEND', Buffer.alloc(0)),
-  ]);
-}
 
 async function openFirstPage(page: Page) {
   await page.goto(`/manga/${MANGADEX_APP_MANGA_ID}`);

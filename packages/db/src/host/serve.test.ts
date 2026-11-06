@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { toChapterId } from '@app/shared';
 import { createDataHostClient, type DataHostClient } from '../data-host-client.js';
 import { DATA_HOST_ERROR, DataHostError, type DataHostReply } from '../data-host-protocol.js';
 import {
@@ -10,6 +11,7 @@ import {
   listLibraryCategories,
   listLibraryEntries,
   reorderLibraryCategories,
+  updateChapterPageDimensions,
   upsertAppSetting,
 } from '../routed.gen.js';
 import { NATIVE_PRAGMAS, openNativeDatabase } from './open-native.js';
@@ -135,6 +137,28 @@ describe('data host', () => {
     expect(wrongType.code).toBe(DATA_HOST_ERROR.invalidInput);
     // Nothing ran: the store is still empty.
     expect(await listLibraryCategories(db)).toEqual([]);
+  });
+
+  it('validates decoded page sizes before they reach chapter_pages', async () => {
+    const { client } = await opened();
+    for (const sizes of [
+      [{ pageIndex: 0, width: 0, height: 6000 }],
+      [{ pageIndex: 0, width: 800, height: 6000.5 }],
+      [{ pageIndex: -1, width: 800, height: 6000 }],
+      [{ pageIndex: 0, width: 800 }],
+      'not an array',
+    ]) {
+      const error = await rejection(
+        client.handle.call('updateChapterPageDimensions', ['ch-1', sizes]),
+      );
+      expect(error.code).toBe(DATA_HOST_ERROR.invalidInput);
+    }
+    // A valid call for a chapter that is not stored changes nothing.
+    expect(
+      await updateChapterPageDimensions(client.handle, toChapterId('missing'), [
+        { pageIndex: 0, width: 800, height: 6000 },
+      ]),
+    ).toEqual({ ok: true, value: 0 });
   });
 
   it('refuses an unknown procedure and keeps withTransaction in the host', async () => {

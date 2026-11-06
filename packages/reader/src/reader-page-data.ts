@@ -24,6 +24,12 @@ export interface ReaderPageData {
    * viewport, so Auto layout follows orientation.
    */
   readonly engineSettings: ReaderEngineSettings;
+  /**
+   * This session's first decode chose the strip under Auto (spec R6). The
+   * session resolves to the strip even when stored ordinary pages or a concrete
+   * global mode would outvote it. Never set under a concrete title mode.
+   */
+  readonly autoStripDecision?: 'strip';
   readonly previousChapterId?: ChapterId | undefined;
   readonly nextChapterId?: ChapterId | undefined;
 }

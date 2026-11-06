@@ -11,6 +11,7 @@ import { EmptyState, Button, ErrorState, GlassSurface, LoadingState } from '@app
 import { useReducedMotion } from '@app/design-system/motion';
 import type { ReaderSettings } from '@app/shared';
 import { useCoverCacheContext, CachedPageImage } from '@app/cache';
+import type { ReaderPageMeasurement } from '../measured-page-shape.js';
 import type { PageFitInput } from '../page-fit.js';
 import type { ReaderPageData } from '../reader-page-data.js';
 import { withPagedDirectionOnLeavingStrip } from '../reader-settings-change.js';
@@ -207,6 +208,8 @@ export interface ReaderScreenProps {
   /** Persists the current chapter's read/unread state; resolves once durable. */
   onMarkRead?: ((completed: boolean) => void | Promise<void>) | undefined;
   onMarkPreviousRead?: (() => void | Promise<void>) | undefined;
+  /** A page's natural size once its image decodes, from the paged layer or the strip. */
+  onPageMeasured?: ((measurement: ReaderPageMeasurement) => void) | undefined;
 }
 
 export function ReaderScreen(props: ReaderScreenProps) {
@@ -319,6 +322,7 @@ function ReaderReadyView({
   onResetSettings,
   onMarkRead,
   onMarkPreviousRead,
+  onPageMeasured,
 }: ReaderReadyProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [chapterActionsOpen, setChapterActionsOpen] = useState(false);
@@ -517,6 +521,7 @@ function ReaderReadyView({
         setPagedLayer={zoom.setZoomLayer}
         setPageTransitionLayer={setPageTransitionLayer}
         onPageMetric={handlePageMetric}
+        onPageMeasured={onPageMeasured}
       />
 
       <OfflineNote note={offlineNote} />

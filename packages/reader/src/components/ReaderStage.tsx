@@ -1,6 +1,7 @@
 /* oxlint-disable shadcn/no-inline-styles -- the tap-zone debug overlay draws measured pixel rectangles, which cannot be static classes. */
 import type { CSSProperties, PointerEvent as ReactPointerEvent, RefObject } from 'react';
 import type { CoverCacheContextValue } from '@app/cache';
+import type { ReaderPageMeasurement } from '../measured-page-shape.js';
 import type { PageFitInput } from '../page-fit.js';
 import type { ReaderPageData } from '../reader-page-data.js';
 import { calculateTapZones } from '../tap-zones.js';
@@ -46,6 +47,7 @@ export interface ReaderStageProps {
     fromCache: boolean;
     durationMs: number;
   }) => void;
+  readonly onPageMeasured?: ((measurement: ReaderPageMeasurement) => void) | undefined;
 }
 
 /** The reading surface and its page layers. Chrome and sheets are siblings. */
@@ -73,6 +75,7 @@ export function ReaderStage({
   setPagedLayer,
   setPageTransitionLayer,
   onPageMetric,
+  onPageMeasured,
 }: ReaderStageProps) {
   const isScrollMode = readerState.mode === 'scroll';
 
@@ -107,6 +110,7 @@ export function ReaderStage({
           onBack={onClose}
           onChapterEnd={onScrollChapterEnd}
           onPageMetric={onPageMetric}
+          onPageMeasured={onPageMeasured}
         />
       ) : (
         <ReaderPagedLayer
@@ -124,6 +128,7 @@ export function ReaderStage({
           onSkip={() => navigate({ type: 'nextPage' })}
           onBack={onClose}
           onPageMetric={onPageMetric}
+          onPageMeasured={onPageMeasured}
         />
       )}
 

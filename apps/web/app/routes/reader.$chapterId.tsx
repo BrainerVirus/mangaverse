@@ -29,6 +29,7 @@ import {
 import { failureMessage, feedback } from '../lib/app-feedback.js';
 import { useOnlineStatus } from '../lib/use-online-status.js';
 import { useCoalescedSettingsWrite } from '../lib/use-coalesced-settings-write.js';
+import { useReaderPageShape } from '../lib/use-reader-page-shape.js';
 import { getBindingForChapterId } from '../lib/provider-registry.js';
 import { useLayoutStore } from '../stores/useLayoutStore.js';
 import { ensureProviderChapterPages } from '../queries/provider-query-options.js';
@@ -246,12 +247,21 @@ function ReaderRouteSession({ chapterIdParam }: { chapterIdParam: string }) {
     void queryClient.invalidateQueries({ queryKey: readerQueryKeys.chapter(chapterId) });
   }, [chapterId, dbStatus, hydrationFailed, queryClient, retryDb, retryHydration, shouldHydrate]);
   const chapterActions = useReaderChapterActions(data ?? undefined, db, queryClient);
+  // The first decode's Auto-to-strip decision survives chapter refetches: the
+  // dimension write may not have landed, and stored ordinary pages must not
+  // outvote what the reader already saw.
+  const { data: readerData, onMeasured: handlePageMeasured } = useReaderPageShape({
+    chapterId,
+    db,
+    queryClient,
+    data,
+  });
 
   return (
     <>
       <ReaderScreen
         key={chapterId}
-        data={data ?? undefined}
+        data={readerData ?? undefined}
         isLoading={dbStatus === 'loading' || isLoading}
         isError={dbStatus === 'error' || isError || isMissingChapter}
         isHydrating={isHydrating}
@@ -260,6 +270,7 @@ function ReaderRouteSession({ chapterIdParam }: { chapterIdParam: string }) {
         onToggleChrome={toggleReaderChrome}
         onPersistProgress={handlePersistProgress}
         onChangeSettings={handleChangeSettings}
+        onPageMeasured={handlePageMeasured}
         isOffline={!isOnline}
         onRetry={handleRetry}
         {...chapterActions}

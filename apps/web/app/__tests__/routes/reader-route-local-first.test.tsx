@@ -28,6 +28,10 @@ vi.mock('../../queries/provider-query-options.js', () => ({
   ensureProviderChapterPages,
 }));
 vi.mock('@app/reader', () => ({
+  applyPageShapeDecision: (data: unknown) => data,
+  isUsableMeasurement: () => false,
+  pageHasSize: () => false,
+  resolveAutoStripSwitch: () => undefined,
   fetchReaderPage,
   persistReaderProgress: vi.fn<() => Promise<void>>(async () => {}),
   readerQueryKeys: {
