@@ -262,6 +262,18 @@ export const PROCEDURE_INPUTS: { readonly [K in ProcedureName]: z.ZodType<readon
   upsertChapterWithPages: z.tuple([chapterMetadata.extend({ pages: z.array(chapterPage) })]),
   listChapterHeadersForMapping: z.tuple([id]),
   getChapter: z.tuple([id]),
+  updateChapterPageDimensions: z.tuple([
+    id,
+    z
+      .array(
+        z.object({
+          pageIndex: z.number().int().nonnegative(),
+          width: z.number().int().positive(),
+          height: z.number().int().positive(),
+        }),
+      )
+      .max(10_000),
+  ]),
   listChaptersForManga: z.tuple([id]),
   getChapterProviderMappingId: z.tuple([id]),
   // A limit is required and bounded: the host refuses an unbounded chapter load.

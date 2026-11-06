@@ -105,4 +105,10 @@ export { buildProgressEvent, persistReaderProgress } from './persist-reader-prog
 export { readerQueryKeys } from './query-keys.js';
 export { toReaderEngineSettings } from './to-reader-engine-settings.js';
 export { applyReaderSettingsChange } from './reader-settings-change.js';
+export {
+  isUsableMeasurement,
+  pageHasSize,
+  resolveAutoStripSwitch,
+  type ReaderPageMeasurement,
+} from './measured-page-shape.js';
 export type { ReaderPageData } from './reader-page-data.js';

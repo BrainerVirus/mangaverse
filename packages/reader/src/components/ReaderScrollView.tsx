@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from '
 import { CachedPageImage } from '@app/cache';
 import { useStateReducer } from '@app/design-system';
 import { READER_NEXT_CHAPTER_THRESHOLD_DEFAULT_PERCENT } from '@app/shared';
+import type { ReaderPageMeasurement } from '../measured-page-shape.js';
 import type { ReaderPage } from '../types.js';
 import { tailSpacerPx, useChapterEndThreshold } from './use-chapter-end-threshold.js';
 import { useScrollActivity } from './use-scroll-activity.js';
@@ -58,6 +59,8 @@ interface ReaderScrollViewProps {
         durationMs: number;
       }) => void)
     | undefined;
+  /** A page's natural size once its image decodes; once per new size. */
+  readonly onPageMeasured?: ((measurement: ReaderPageMeasurement) => void) | undefined;
   readonly onBack?: (() => void) | undefined;
   /**
    * How far past the last page's end, in percent of the viewport height, the
@@ -397,6 +400,7 @@ export function ReaderScrollView({
   displayMaxEdgePx,
   imageSmoothing = true,
   onPageMetric,
+  onPageMeasured,
   onBack,
   nextChapterThresholdPercent = READER_NEXT_CHAPTER_THRESHOLD_DEFAULT_PERCENT,
   onChapterEnd,
@@ -581,6 +585,7 @@ export function ReaderScrollView({
         return;
       }
       const page = pagesRef.current[index];
+      if (page !== undefined) onPageMeasured?.({ pageIndex: page.index, ...size });
       // With no provider dimensions anywhere in the chapter, the first decoded
       // page is the best evidence of the chapter's shape. Adopting it for every
       // unloaded page keeps the strip's geometry stable instead of reflowing
@@ -611,7 +616,7 @@ export function ReaderScrollView({
       };
       dispatchGeometry({ type: 'measured', index, size, fallbackRatio });
     },
-    [dispatchGeometry, pagesHaveMetadata],
+    [dispatchGeometry, onPageMeasured, pagesHaveMetadata],
   );
 
   const skipPage = useCallback(

@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, inArray, type SQL } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, isNull, ne, or, type SQL } from 'drizzle-orm';
 import type { AppResult } from '@app/shared';
 import {
   createAppError,
@@ -18,6 +18,7 @@ import {
 import type { AppDrizzleDb } from '../adapter.js';
 import { readIdChunks } from '../read-id-chunks.js';
 import { chapterPages, chapters, mangaProviderMappings } from '../schema.js';
+import { withTransaction } from '../transactions.js';
 
 function newId(): string {
   return crypto.randomUUID();
@@ -138,6 +139,69 @@ export async function upsertChapterWithPages(
   }
 
   return ok(resolvedId);
+}
+
+export interface ChapterPageDimensions {
+  readonly pageIndex: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+/**
+ * Records decoded page shapes, so Auto mode reads a long strip before paint on
+ * the next open (spec R6). Only `width`/`height` change, and only on rows that
+ * differ; an index the chapter does not have is ignored. Returns how many rows
+ * changed.
+ */
+export async function updateChapterPageDimensions(
+  db: AppDrizzleDb,
+  chapterId: ChapterId,
+  dimensions: readonly ChapterPageDimensions[],
+): Promise<AppResult<number>> {
+  const invalid = dimensions.some(
+    (entry) =>
+      !Number.isInteger(entry.pageIndex) ||
+      entry.pageIndex < 0 ||
+      !Number.isInteger(entry.width) ||
+      entry.width <= 0 ||
+      !Number.isInteger(entry.height) ||
+      entry.height <= 0,
+  );
+  if (invalid) {
+    return err(
+      createAppError({
+        code: 'db.chapters.invalid_page_dimensions',
+        message: 'Page dimensions must be positive integers.',
+      }),
+    );
+  }
+  if (dimensions.length === 0) return ok(0);
+  return ok(
+    withTransaction(db, (tx) => {
+      let changed = 0;
+      for (const entry of dimensions) {
+        const rows = tx
+          .update(chapterPages)
+          .set({ width: entry.width, height: entry.height })
+          .where(
+            and(
+              eq(chapterPages.chapterId, chapterId),
+              eq(chapterPages.pageIndex, entry.pageIndex),
+              or(
+                isNull(chapterPages.width),
+                isNull(chapterPages.height),
+                ne(chapterPages.width, entry.width),
+                ne(chapterPages.height, entry.height),
+              ),
+            ),
+          )
+          .returning({ id: chapterPages.id })
+          .all();
+        changed += rows.length;
+      }
+      return changed;
+    }),
+  );
 }
 
 export interface ChapterHeader {

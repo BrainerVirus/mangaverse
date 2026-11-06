@@ -4,6 +4,7 @@ import {
   hasLongStripTag,
   isClearlyLongStrip,
   resolveReaderPresentation,
+  shouldResolveAutoToStrip,
 } from './resolve-reader-settings.js';
 import type { ReaderPage } from './types.js';
 
@@ -155,5 +156,49 @@ describe('long strip signals', () => {
     expect(hasLongStripTag(['Long_Strip'])).toBe(true);
     expect(hasLongStripTag(['Webtoons'])).toBe(true);
     expect(hasLongStripTag(['Web Comic', 'Manhwa'])).toBe(false);
+  });
+});
+
+describe('shouldResolveAutoToStrip (first decode under Auto)', () => {
+  const STRIP = page(0, 800, 6000);
+
+  it('Given Auto and a long-strip page, When it decodes, Then Auto resolves to the strip', () => {
+    expect(shouldResolveAutoToStrip({ settings: auto, page: STRIP })).toBe(true);
+  });
+
+  it('Given Auto and an ordinary page, When it decodes, Then the reader stays paged', () => {
+    expect(shouldResolveAutoToStrip({ settings: auto, page: page(0, 800, 1200) })).toBe(false);
+  });
+
+  it('Given a concrete title mode, When a long-strip page decodes, Then the title choice holds', () => {
+    for (const readingMode of ['ltr', 'rtl', 'vertical'] as const) {
+      expect(
+        shouldResolveAutoToStrip({
+          settings: settingsWith({ readingMode }),
+          titleOverrides: { readingMode },
+          page: STRIP,
+        }),
+      ).toBe(false);
+    }
+  });
+
+  it('Given a title Auto over a global RTL, When a long-strip page decodes, Then Auto resolves to the strip', () => {
+    expect(
+      shouldResolveAutoToStrip({
+        settings: settingsWith({ readingMode: 'auto' }),
+        titleOverrides: { readingMode: 'auto' },
+        page: STRIP,
+      }),
+    ).toBe(true);
+  });
+
+  it('Given a global concrete mode and no title choice, When a long-strip page decodes, Then page shape still decides, as on a later open', () => {
+    const settings = settingsWith({ readingMode: 'rtl' });
+    expect(shouldResolveAutoToStrip({ settings, page: STRIP })).toBe(true);
+    expect(resolveReaderPresentation({ settings, pages: [STRIP] }).readingMode).toBe('vertical');
+  });
+
+  it('Given a page with no size, When judging it, Then nothing switches', () => {
+    expect(shouldResolveAutoToStrip({ settings: auto, page: page(0) })).toBe(false);
   });
 });

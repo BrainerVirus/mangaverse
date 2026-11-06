@@ -3,6 +3,7 @@ import { useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { CachedPageImage, type CoverCacheContextValue } from '@app/cache';
 import { useStateReducer } from '@app/design-system';
 import { resolvePageFit, type PageFitInput } from '../page-fit.js';
+import type { ReaderPageMeasurement } from '../measured-page-shape.js';
 import type { ReaderPageData } from '../reader-page-data.js';
 import { isWidePage } from '../spreads.js';
 import type { ReaderPage, ReaderState } from '../types.js';
@@ -33,6 +34,7 @@ export interface ReaderPagedLayerProps {
     fromCache: boolean;
     durationMs: number;
   }) => void;
+  readonly onPageMeasured?: ((measurement: ReaderPageMeasurement) => void) | undefined;
 }
 
 /** The paged reading layer: fixed-fit boxes inside the pan/zoom transform. */
@@ -51,6 +53,7 @@ export function ReaderPagedLayer({
   onSkip,
   onBack,
   onPageMetric,
+  onPageMeasured,
 }: ReaderPagedLayerProps) {
   // A wide page alone in a double layout fills the spread as its two halves.
   const splitWide =
@@ -95,6 +98,7 @@ export function ReaderPagedLayer({
             imageSmoothing={imageSmoothing}
             split={splitWide}
             onPageMetric={onPageMetric}
+            onPageMeasured={onPageMeasured}
             onSkip={onSkip}
             onBack={onBack}
           />
@@ -127,6 +131,7 @@ function ReaderPageBox({
   imageSmoothing,
   split,
   onPageMetric,
+  onPageMeasured,
   onSkip,
   onBack,
 }: {
@@ -137,6 +142,7 @@ function ReaderPageBox({
   readonly imageSmoothing: boolean;
   readonly split: boolean;
   readonly onPageMetric: ReaderPagedLayerProps['onPageMetric'];
+  readonly onPageMeasured: ReaderPagedLayerProps['onPageMeasured'];
   readonly onSkip: () => void;
   readonly onBack: (() => void) | undefined;
 }) {
@@ -167,7 +173,14 @@ function ReaderPageBox({
       retention="read"
       imageRendering={imageSmoothing ? 'auto' : 'pixelated'}
       maxDisplayEdge={data.engineSettings.displayMaxEdgePx}
-      onLoad={owner ? setNatural : undefined}
+      onLoad={
+        owner
+          ? (size) => {
+              setNatural(size);
+              onPageMeasured?.({ pageIndex: page.index, ...size });
+            }
+          : undefined
+      }
       onMetric={(metric) => {
         // The owning half defines the page's state, so a successful retry
         // restores the split; a failing half falls back to one whole box.

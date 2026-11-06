@@ -29,6 +29,7 @@ import {
 import { failureMessage, feedback } from '../lib/app-feedback.js';
 import { useOnlineStatus } from '../lib/use-online-status.js';
 import { useCoalescedSettingsWrite } from '../lib/use-coalesced-settings-write.js';
+import { useReaderPageShape } from '../lib/use-reader-page-shape.js';
 import { getBindingForChapterId } from '../lib/provider-registry.js';
 import { useLayoutStore } from '../stores/useLayoutStore.js';
 import { ensureProviderChapterPages } from '../queries/provider-query-options.js';
@@ -246,6 +247,7 @@ function ReaderRouteSession({ chapterIdParam }: { chapterIdParam: string }) {
     void queryClient.invalidateQueries({ queryKey: readerQueryKeys.chapter(chapterId) });
   }, [chapterId, dbStatus, hydrationFailed, queryClient, retryDb, retryHydration, shouldHydrate]);
   const chapterActions = useReaderChapterActions(data ?? undefined, db, queryClient);
+  const handlePageMeasured = useReaderPageShape({ chapterId, db, queryClient });
 
   return (
     <>
@@ -260,6 +262,7 @@ function ReaderRouteSession({ chapterIdParam }: { chapterIdParam: string }) {
         onToggleChrome={toggleReaderChrome}
         onPersistProgress={handlePersistProgress}
         onChangeSettings={handleChangeSettings}
+        onPageMeasured={handlePageMeasured}
         isOffline={!isOnline}
         onRetry={handleRetry}
         {...chapterActions}
