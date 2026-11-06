@@ -141,6 +141,25 @@ describe('settings-style pages while their data loads', () => {
     expect(screen.getByRole('button', { name: 'Copy report' })).toBeDisabled();
   });
 
+  it('Diagnostics keeps the loading shell while the report is still being fetched', () => {
+    // The route stops holding the database before the report query resolves; the page must
+    // not paint the "unavailable" error for that window, or the event log below it jumps.
+    render(
+      <DiagnosticsPage
+        isLoading={false}
+        isError={false}
+        report={null}
+        capabilities={{} as never}
+        onRefresh={noop}
+        onCopyReport={noop}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Diagnostics' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Refresh diagnostics' })).toBeDisabled();
+    expect(screen.queryByText('Diagnostics unavailable')).not.toBeInTheDocument();
+  });
+
   it('Theme keeps its heading and description while presets load', () => {
     render(
       <ThemeCustomizationPage settings={undefined} isLoading isError={false} onChange={noop} />,

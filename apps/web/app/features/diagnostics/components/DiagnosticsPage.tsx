@@ -183,7 +183,21 @@ export function DiagnosticsPage({
 }: DiagnosticsPageProps) {
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
 
-  if (isLoading) {
+  if (isError) {
+    return (
+      <section aria-label="Diagnostics">
+        <ErrorState
+          title="Could not load diagnostics"
+          message="Local database or platform information is unavailable. Try reloading the page."
+        />
+      </section>
+    );
+  }
+
+  // No report and no error means the report is still being fetched. Rendering the error state
+  // here painted a short page for the fetch window, so everything below it (the event log)
+  // jumped into view and back out when the report arrived.
+  if (isLoading || report === null) {
     return (
       <section aria-label="Diagnostics" className="space-y-6">
         <PageHeader
@@ -199,25 +213,6 @@ export function DiagnosticsPage({
           }
         />
         <LoadingState type="sections" count={3} />
-      </section>
-    );
-  }
-
-  if (isError) {
-    return (
-      <section aria-label="Diagnostics">
-        <ErrorState
-          title="Could not load diagnostics"
-          message="Local database or platform information is unavailable. Try reloading the page."
-        />
-      </section>
-    );
-  }
-
-  if (report === null) {
-    return (
-      <section aria-label="Diagnostics">
-        <ErrorState title="Diagnostics unavailable" message="No report was generated." />
       </section>
     );
   }
