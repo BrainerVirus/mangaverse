@@ -11,6 +11,74 @@ export interface PageFitInput {
   readonly naturalSize?: { readonly width: number; readonly height: number } | undefined;
 }
 
+/** The strip's per-page box and the object-fit that fills it. */
+export interface StripPageFit {
+  readonly box: {
+    readonly width: number;
+    readonly height: number;
+  };
+  readonly objectFit: 'contain' | 'cover' | 'none';
+}
+
+export interface StripFitInput {
+  readonly fitMode: ResolvedFitMode;
+  /** The rendered strip column width, in CSS pixels. */
+  readonly stripWidth: number;
+  /** The strip viewport height, in CSS pixels; the height-limited modes use it. */
+  readonly viewportHeight: number;
+  /** Width / height of the page (or the best known fallback). */
+  readonly aspectRatio: number;
+  /** Intrinsic page size when the source reports it; Original size uses it. */
+  readonly naturalSize?: { readonly width: number; readonly height: number } | undefined;
+}
+
+/**
+ * The strip's documented fit semantics. Auto resolves to `width` before this
+ * runs (spec R6), so an explicit choice always changes the row geometry:
+ * width spans the column, height spans the viewport, contain fits both,
+ * cover fills both and crops, and original keeps the natural size. A page
+ * narrower than the column stays centred.
+ */
+export function resolveStripPageFit(input: StripFitInput): StripPageFit {
+  const stripWidth = Math.max(0, input.stripWidth);
+  const viewportHeight = Math.max(0, input.viewportHeight);
+  const aspectRatio = normalizeAspectRatio(input.aspectRatio);
+  const natural = normalizeNaturalSize(input.naturalSize);
+
+  switch (input.fitMode) {
+    case 'height':
+      return {
+        box: { width: viewportHeight * aspectRatio, height: viewportHeight },
+        objectFit: 'contain',
+      };
+    case 'contain': {
+      const width = Math.min(stripWidth, viewportHeight * aspectRatio);
+      return { box: { width, height: width / aspectRatio }, objectFit: 'contain' };
+    }
+    case 'cover':
+      return {
+        box: { width: stripWidth, height: viewportHeight },
+        objectFit: 'cover',
+      };
+    case 'original': {
+      const width = natural?.width ?? stripWidth;
+      const height = natural?.height ?? width / aspectRatio;
+      return { box: { width, height }, objectFit: 'none' };
+    }
+    case 'width':
+    default:
+      return {
+        box: { width: stripWidth, height: stripWidth / aspectRatio },
+        objectFit: 'contain',
+      };
+  }
+}
+
+function normalizeAspectRatio(ratio: number): number {
+  if (!Number.isFinite(ratio) || ratio <= 0) return DEFAULT_ASPECT_RATIO;
+  return ratio;
+}
+
 export interface PageFit {
   /** Inline box for one page wrapper, in CSS pixels. */
   readonly box: {

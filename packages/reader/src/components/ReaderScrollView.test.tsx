@@ -5,6 +5,7 @@ import { act, useState } from 'react';
 import { getDefaultReaderSettings, toChapterPageId } from '@app/shared';
 import type { ReaderPage } from '../types.js';
 import { toReaderEngineSettings } from '../to-reader-engine-settings.js';
+import type { ResolvedFitMode } from '../resolve-reader-settings.js';
 import { ReaderScrollView, type ReaderScrollViewHandle } from './ReaderScrollView.js';
 
 const cacheRender = vi.hoisted(() => ({
@@ -77,6 +78,7 @@ function Harness({
   displayMaxEdgePx,
   dataSaver,
   maxWidthPercent,
+  fitMode,
   nextChapterThresholdPercent,
   onChapterEnd,
   initialActive = 0,
@@ -92,6 +94,7 @@ function Harness({
   readonly displayMaxEdgePx?: number;
   readonly dataSaver?: boolean;
   readonly maxWidthPercent?: number;
+  readonly fitMode?: ResolvedFitMode;
   readonly nextChapterThresholdPercent?: number;
   readonly onChapterEnd?: () => void;
   readonly initialActive?: number;
@@ -119,6 +122,7 @@ function Harness({
       {...(displayMaxEdgePx === undefined ? {} : { displayMaxEdgePx })}
       {...(dataSaver === undefined ? {} : { dataSaver })}
       {...(maxWidthPercent === undefined ? {} : { maxWidthPercent })}
+      {...(fitMode === undefined ? {} : { fitMode })}
       {...(nextChapterThresholdPercent === undefined ? {} : { nextChapterThresholdPercent })}
       {...(onChapterEnd === undefined ? {} : { onChapterEnd })}
       onHandle={(handle) => {
@@ -147,6 +151,7 @@ function mount(
     readonly displayMaxEdgePx?: number;
     readonly dataSaver?: boolean;
     readonly maxWidthPercent?: number;
+    readonly fitMode?: ResolvedFitMode;
     readonly nextChapterThresholdPercent?: number;
     readonly onChapterEnd?: () => void;
     readonly initialActive?: number;
@@ -182,6 +187,7 @@ function mount(
         {...(options.maxWidthPercent === undefined
           ? {}
           : { maxWidthPercent: options.maxWidthPercent })}
+        {...(options.fitMode === undefined ? {} : { fitMode: options.fitMode })}
         {...(options.nextChapterThresholdPercent === undefined
           ? {}
           : { nextChapterThresholdPercent: options.nextChapterThresholdPercent })}
@@ -236,7 +242,12 @@ describe('ReaderScrollView strip rows', () => {
 
     const mounted = mount(1, { pages: [page] });
     const row = mounted.container.querySelector<HTMLElement>('[data-page-index="0"]');
-    expect(row?.style.aspectRatio).toBe('1600 / 900');
+    const tile = mounted.container.querySelector<HTMLElement>('[data-page-tile="0"]');
+    // Default 800px strip, 1600x900 page: the row is 450px tall and the image
+    // box spans the strip width.
+    expect(row?.style.height).toBe('450px');
+    expect(tile?.style.width).toBe('800px');
+    expect(row?.dataset['objectFit']).toBe('contain');
 
     unmount(mounted);
   });
@@ -544,6 +555,35 @@ describe('ReaderScrollView max strip width', () => {
     return { mounted, content, secondTop: offsets[1] };
   }
 
+  it('Given a page wider than the strip, Then the row anchors to the start so its left edge is reachable', () => {
+    const wide = {
+      id: toChapterPageId('wide'),
+      index: 0,
+      image: { url: 'https://example.com/wide.jpg', width: 1600, height: 900 },
+    };
+    const mounted = mount(1, { pages: [wide], fitMode: 'original' });
+    Object.defineProperty(mounted.strip, 'clientWidth', { configurable: true, value: 600 });
+    fireResize();
+
+    const row = mounted.container.querySelector<HTMLElement>('[data-page-index="0"]');
+    expect(row?.style.width).toBe('1600px');
+    expect(row?.className).toContain('start-0');
+    expect(row?.className).not.toContain('-translate-x-1/2');
+    // The container can scroll horizontally to the row's positive overflow.
+    expect(mounted.strip.className).toContain('overflow-auto');
+
+    unmount(mounted);
+  });
+
+  it('Given a page narrower than the strip, Then the row stays centred', () => {
+    const { mounted } = stripAt(999);
+    const row = mounted.container.querySelector<HTMLElement>('[data-page-index="0"]');
+    expect(row?.className).toContain('left-1/2');
+    expect(row?.className).toContain('-translate-x-1/2');
+
+    unmount(mounted);
+  });
+
   it.each([
     ['Auto on a 999px reader', 999, undefined, '100%', 1499],
     ['Auto on a 1280px reader', 1280, undefined, '70%', 1344],
@@ -562,6 +602,95 @@ describe('ReaderScrollView max strip width', () => {
       unmount(mounted);
     },
   );
+});
+
+describe('ReaderScrollView strip fit', () => {
+  // 2:3 portrait page; the strip column is 600px and the viewport 1000px.
+  const portrait: ReaderPage = {
+    id: toChapterPageId('portrait'),
+    index: 0,
+    image: { url: 'https://example.com/portrait.jpg', width: 800, height: 1200 },
+  };
+
+  function rowFit(
+    fitMode: ResolvedFitMode,
+    page: ReaderPage = portrait,
+    width = 600,
+    height = 1000,
+  ) {
+    const mounted = mount(1, { pages: [page], fitMode });
+    Object.defineProperty(mounted.strip, 'clientWidth', { configurable: true, value: width });
+    Object.defineProperty(mounted.strip, 'clientHeight', { configurable: true, value: height });
+    fireResize();
+    const row = mounted.container.querySelector<HTMLElement>('[data-page-index="0"]');
+    const tile = mounted.container.querySelector<HTMLElement>('[data-page-tile="0"]');
+    if (row === null || tile === null) throw new Error('the strip rendered no page row');
+    const result = {
+      width: Number.parseFloat(row.style.width),
+      height: Number.parseFloat(row.style.height),
+      tileWidth: Number.parseFloat(tile.style.width),
+      objectFit: row.dataset['objectFit'],
+    };
+    unmount(mounted);
+    return result;
+  }
+
+  it.each([
+    ['width', 600, 900, 'contain'],
+    ['height', 1000 * (2 / 3), 1000, 'contain'],
+    ['contain', 600, 900, 'contain'],
+    ['cover', 600, 1000, 'cover'],
+    ['original', 800, 1200, 'none'],
+  ] as const)(
+    'Given fit %s, When a 800x1200 page sits in a 600x1000 strip, Then its box is %sx%s with %s',
+    (fitMode, expectedWidth, expectedHeight, objectFit) => {
+      const fit = rowFit(fitMode);
+      expect(fit.width).toBeCloseTo(expectedWidth, 3);
+      expect(fit.height).toBeCloseTo(expectedHeight, 3);
+      expect(fit.tileWidth).toBeCloseTo(expectedWidth, 3);
+      expect(fit.objectFit).toBe(objectFit);
+    },
+  );
+
+  it('Given each explicit fit, When the strip lays out, Then no two alternatives produce the same portrait row', () => {
+    const modes = ['width', 'height', 'contain', 'cover', 'original'] as const;
+    const boxes = new Set(
+      modes.map((fitMode) => {
+        const fit = rowFit(fitMode);
+        return `${fit.width}x${fit.height}`;
+      }),
+    );
+
+    // width and contain coincide only when the width binds; the set still shows
+    // that explicit alternatives are no longer inert.
+    expect(boxes.size).toBeGreaterThan(2);
+    expect(rowFit('height').height).toBeGreaterThan(rowFit('width').height);
+    expect(rowFit('cover').objectFit).toBe('cover');
+    expect(rowFit('original').width).toBe(800);
+  });
+
+  it('Given a wide page, When fit contain, Then the strip box stays inside the column and viewport height', () => {
+    const wide: ReaderPage = {
+      id: toChapterPageId('wide'),
+      index: 0,
+      image: { url: 'https://example.com/wide.jpg', width: 1600, height: 900 },
+    };
+
+    const fit = rowFit('contain', wide, 600, 400);
+
+    expect(fit.width).toBe(600);
+    // 600 / (1600/900) = 337.5, rounded to the pixel grid like every strip row.
+    expect(fit.height).toBe(338);
+    expect(fit.objectFit).toBe('contain');
+  });
+
+  it('Given Auto, When the session resolves, Then the strip receives fit width', () => {
+    const engine = toReaderEngineSettings(
+      { ...getDefaultReaderSettings(), fitMode: 'auto', readingMode: 'vertical' },
+      {},
+    );
+    expect(engine.fitMode).toBe('width');
+  });
 });
 
 describe('ReaderScrollView next-chapter threshold', () => {

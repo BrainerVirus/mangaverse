@@ -91,4 +91,23 @@ describe('withPagedDirectionOnLeavingStrip', () => {
       ),
     ).toEqual({ pageLayout: 'double', readingMode: 'auto' });
   });
+
+  it('Given Auto layout in the strip, Then the strip is kept and no direction is written', () => {
+    expect(
+      withPagedDirectionOnLeavingStrip(
+        { pageLayout: 'auto' },
+        { shownMode: 'vertical', lastPagedDirection: 'rtl', globalSettings: global },
+      ),
+    ).toEqual({ pageLayout: 'auto' });
+  });
+
+  it('Given no session or global paged direction, When the merged settings hold RTL, Then RTL is preserved', () => {
+    const settings = { ...getDefaultReaderSettings(), readingMode: 'rtl' as const };
+    expect(
+      withPagedDirectionOnLeavingStrip(
+        { pageLayout: 'double' },
+        { shownMode: 'vertical', lastPagedDirection: null, globalSettings: undefined, settings },
+      ),
+    ).toEqual({ pageLayout: 'double', readingMode: 'rtl' });
+  });
 });

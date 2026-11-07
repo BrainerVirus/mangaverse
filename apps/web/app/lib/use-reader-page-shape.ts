@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 import { useStateReducer } from '@app/design-system';
 import type { AppDrizzleDb } from '@app/db';
@@ -66,13 +66,14 @@ export function useReaderPageShape({
       if (first) {
         next = {
           decision: switched !== undefined ? 'strip' : 'paged',
-          measurements:
-            switched !== undefined ? new Map([[measurement.pageIndex, measurement]]) : new Map(),
+          measurements: new Map([[measurement.pageIndex, measurement]]),
         };
-      } else if (current.decision === 'strip') {
+      } else if (!pageHasSize(page, measurement)) {
         const measurements = new Map(current.measurements);
+        const previous = measurements.get(measurement.pageIndex);
+        if (previous?.width === measurement.width && previous.height === measurement.height) return;
         measurements.set(measurement.pageIndex, measurement);
-        next = { decision: 'strip', measurements };
+        next = { decision: current.decision, measurements };
       }
       if (next !== current) {
         decisionRef.current = next;
@@ -100,8 +101,12 @@ export function useReaderPageShape({
     [chapterId, data, queryClient, setDecision, write],
   );
 
+  const shapedData = useMemo(
+    () => (data == null ? data : applyPageShapeDecision(data, decision)),
+    [data, decision],
+  );
   return {
-    data: data == null ? data : applyPageShapeDecision(data, decision),
+    data: shapedData,
     onMeasured,
   };
 }

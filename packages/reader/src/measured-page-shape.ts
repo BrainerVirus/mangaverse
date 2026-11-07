@@ -93,13 +93,15 @@ export function applyPageShapeDecision(
   data: ReaderPageData,
   decision: PageShapeDecision,
 ): ReaderPageData {
-  if (decision.decision !== 'strip') return data;
-  const titleMode = data.titleOverrides?.readingMode;
-  if (titleMode !== undefined && titleMode !== 'auto') return data;
+  if (decision.measurements.size === 0) return data;
   const pages = data.chapter.pages.map((page) => {
     const measurement = decision.measurements.get(page.index);
     return measurement === undefined ? page : withSize(page, measurement);
   });
+  const titleMode = data.titleOverrides?.readingMode;
+  if (decision.decision !== 'strip' || (titleMode !== undefined && titleMode !== 'auto')) {
+    return { ...data, chapter: { ...data.chapter, pages } };
+  }
   const engineSettings = toReaderEngineSettings(data.settings, {
     globalSettings: data.globalSettings,
     titleOverrides: data.titleOverrides,

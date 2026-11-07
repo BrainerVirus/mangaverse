@@ -67,12 +67,30 @@ describe('applyPageShapeDecision', () => {
     }
   });
 
-  it('Given a concrete title mode, When a strip decision is presented, Then the title choice wins and no decision is carried', () => {
+  it('Given a concrete title mode, When a strip decision is presented, Then the title choice wins, sizes still merge and no decision is carried', () => {
     const data = buildData({}, { titleOverrides: { readingMode: 'rtl' } });
 
     const next = applyPageShapeDecision(data, stripDecision);
 
-    expect(next).toBe(data);
+    expect(next.engineSettings.readingMode).toBe('rtl');
+    expect(next.chapter.pages[0]?.image).toMatchObject({ width: 800, height: 6000 });
+    expect(next.autoStripDecision).toBeUndefined();
+  });
+
+  it('Given a paged decision, When a page measures, Then its size merges into the live chapter and the shape vote stays paged', () => {
+    const data = buildData();
+    expect(data.engineSettings.readingMode).toBe('ltr');
+
+    const next = applyPageShapeDecision(data, {
+      decision: 'paged',
+      measurements: new Map([[1, { pageIndex: 1, width: 800, height: 1200 }]]),
+    });
+
+    expect(next.chapter.pages[1]?.image).toMatchObject({ width: 800, height: 1200 });
+    // The dimensions are available for Smart spread and wide-page handling,
+    // but a later measurement never re-resolves the reading mode.
+    expect(next.engineSettings).toBe(data.engineSettings);
+    expect(next.settings).toBe(data.settings);
     expect(next.autoStripDecision).toBeUndefined();
   });
 

@@ -11,11 +11,13 @@ function isPagedDirection(mode: ReaderSettings['readingMode'] | undefined): mode
 }
 
 /**
- * Choosing a page layout while the strip is showing asks for paged reading, so
- * the change also needs a paged direction. It is the direction the reader last
- * showed paged in this session, then the global row's paged direction, then
- * left-to-right only when neither exists. A change that names a reading mode
- * itself is left alone, so switching direction deliberately still works.
+ * Choosing a concrete page layout while the strip is showing asks for paged
+ * reading, so the change also needs a paged direction. It is the direction the
+ * reader last showed paged in this session, then the global row's paged
+ * direction, then the merged settings' paged direction, then left-to-right only
+ * when none exists. The direction is preserved rather than reset, and an Auto
+ * layout leaves the strip alone. A change that names a reading mode itself is
+ * left alone, so switching direction deliberately still works.
  */
 export function withPagedDirectionOnLeavingStrip(
   patch: Partial<ReaderSettings>,
@@ -23,13 +25,18 @@ export function withPagedDirectionOnLeavingStrip(
     readonly shownMode: ResolvedReadingMode;
     readonly lastPagedDirection: PagedDirection | null;
     readonly globalSettings: ReaderSettings | undefined;
+    /** The merged settings, when the caller has them: a saved paged direction. */
+    readonly settings?: ReaderSettings | undefined;
   },
 ): Partial<ReaderSettings> {
   if (input.shownMode !== 'vertical') return patch;
-  if (patch.pageLayout === undefined || patch.readingMode !== undefined) return patch;
+  if (patch.pageLayout === undefined || patch.pageLayout === 'auto') return patch;
+  if (patch.readingMode !== undefined) return patch;
   const globalMode = input.globalSettings?.readingMode;
+  const mergedMode = input.settings?.readingMode;
   const readingMode =
-    input.lastPagedDirection ?? (isPagedDirection(globalMode) ? globalMode : 'ltr');
+    input.lastPagedDirection ??
+    (isPagedDirection(globalMode) ? globalMode : isPagedDirection(mergedMode) ? mergedMode : 'ltr');
   return { ...patch, readingMode };
 }
 
