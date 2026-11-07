@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
   PageContainer,
+  PageHeader,
 } from '@app/design-system';
 import { CachedCoverImage, getDefaultProviderId } from '@app/cache';
 import {
@@ -397,28 +398,35 @@ function TrackingLinks({ links }: { links: readonly TrackingLink[] }) {
   );
 }
 
-function MangaSummaryHeader({ manga, inLibrary }: { manga: MangaIdentity; inLibrary: boolean }) {
+function MangaSummaryHeader({
+  manga,
+  inLibrary,
+  onBack,
+}: {
+  manga: MangaIdentity;
+  inLibrary: boolean;
+  onBack: (() => void) | undefined;
+}) {
   // `unknown` is the absence of a provider status, so it gets no badge.
   const statusLabel = mangaStatusLabel(manga.status);
 
   return (
-    <div className="min-w-0 space-y-2">
-      <h1 className="text-3xl font-bold tracking-tight">{manga.canonicalTitle}</h1>
-
-      {manga.alternativeTitles.length > 0 ? (
-        <p className="text-sm text-muted-foreground">
-          {manga.alternativeTitles.map((title) => title.value).join(' · ')}
-        </p>
-      ) : null}
-
-      <div className="flex flex-wrap gap-2">
-        {statusLabel !== undefined ? <Badge variant="secondary">{statusLabel}</Badge> : null}
-        {manga.contentRating !== 'safe' && manga.contentRating !== 'unknown' ? (
-          <Badge variant="destructive">{manga.contentRating}</Badge>
-        ) : null}
-        {inLibrary ? <Badge variant="outline">In library</Badge> : null}
-      </div>
-    </div>
+    <PageHeader
+      title={manga.canonicalTitle}
+      {...(manga.alternativeTitles.length === 0
+        ? {}
+        : { description: manga.alternativeTitles.map((title) => title.value).join(' · ') })}
+      {...(onBack === undefined ? {} : { back: { label: 'Back', onClick: onBack } })}
+      meta={
+        <>
+          {statusLabel !== undefined ? <Badge variant="secondary">{statusLabel}</Badge> : null}
+          {manga.contentRating !== 'safe' && manga.contentRating !== 'unknown' ? (
+            <Badge variant="destructive">{manga.contentRating}</Badge>
+          ) : null}
+          {inLibrary ? <Badge variant="outline">In library</Badge> : null}
+        </>
+      }
+    />
   );
 }
 
@@ -590,6 +598,7 @@ interface SummaryProps {
   onSetCustomCover: (() => void) | undefined;
   hasCustomCover: boolean;
   isCoverActionPending: boolean;
+  onBack: (() => void) | undefined;
 }
 
 function MangaSummary({
@@ -611,12 +620,13 @@ function MangaSummary({
   onSetCustomCover,
   hasCustomCover,
   isCoverActionPending,
+  onBack,
 }: SummaryProps) {
   const { manga, libraryEntry, chapters } = data;
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-4">
-      <MangaSummaryHeader manga={manga} inLibrary={libraryEntry !== undefined} />
+      <MangaSummaryHeader manga={manga} inLibrary={libraryEntry !== undefined} onBack={onBack} />
       <MangaFacts manga={manga} activeMapping={activeMapping} providerLabels={providerLabels} />
       {libraryEntry !== undefined ? (
         <ReadingFacts entry={libraryEntry} chapters={chapters} />
@@ -766,14 +776,6 @@ function MangaDetailHeader({
       data-detail-header
       className="flex flex-col gap-4 @5xl:flex-row @5xl:items-start @5xl:gap-6"
     >
-      {onBack !== undefined ? (
-        <div className="@5xl:pt-1">
-          <Button type="button" variant="ghost" onClick={onBack}>
-            Back
-          </Button>
-        </div>
-      ) : null}
-
       <div className="flex min-w-0 flex-1 flex-col gap-6 @2xl:flex-row @2xl:items-start">
         {coverUrl !== undefined ? (
           <div className="mx-auto w-40 shrink-0 self-start overflow-hidden rounded-box border border-border bg-muted @2xl:mx-0 @2xl:w-48">
@@ -790,6 +792,7 @@ function MangaDetailHeader({
 
         <MangaSummary
           data={data}
+          onBack={onBack}
           activeMapping={activeMapping}
           providerLabels={providerLabels}
           continueChapter={continueChapter}

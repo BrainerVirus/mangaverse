@@ -72,7 +72,7 @@ function DiscoverSectionPreview({
   return (
     <section aria-labelledby={`discover-section-${section.id}`} className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id={`discover-section-${section.id}`} className="text-lg font-semibold text-foreground">
+        <h2 id={`discover-section-${section.id}`} className="type-heading text-foreground">
           {section.title}
         </h2>
         <Button
@@ -120,7 +120,7 @@ function DiscoverExpandedSectionView({
         <Button type="button" variant="ghost" size="sm" onClick={onBackFromSection}>
           Back to discover
         </Button>
-        <h2 className="text-lg font-semibold text-foreground">{state.title}</h2>
+        <h2 className="type-heading text-foreground">{state.title}</h2>
       </div>
 
       {state.isLoading && state.results.length === 0 ? (

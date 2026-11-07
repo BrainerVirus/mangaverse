@@ -386,7 +386,7 @@ function SavedSearches({
       <div className="flex flex-wrap items-center gap-2">
         {savedSearches.length > 0 ? (
           <>
-            <h2 className="text-sm font-medium text-muted-foreground">Saved searches</h2>
+            <h2 className="type-label text-muted-foreground">Saved searches</h2>
             <Badge variant="outline">{savedSearches.length}</Badge>
           </>
         ) : null}
@@ -701,7 +701,7 @@ function RecentSearches({
   return (
     <section aria-label="Recent searches" className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
-        <h2 className="text-sm font-medium text-muted-foreground">Recent searches</h2>
+        <h2 className="type-label text-muted-foreground">Recent searches</h2>
         <Badge variant="outline">{Math.min(recentSearches.length, MAX_RECENT_SEARCHES)}</Badge>
       </div>
       <ul className="flex flex-wrap gap-2">

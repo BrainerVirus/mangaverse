@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
   Switch,
+  ThemeOption,
   ThemePreview,
   PageContainer,
 } from '@app/design-system';
@@ -217,29 +218,19 @@ function ThemeStep({
             const preview = toThemePreviewDefinitionForPreset(presetId, previewDark);
 
             return (
-              <button
+              <ThemeOption
                 key={presetId}
-                type="button"
+                selected={selected}
                 disabled={disabled}
-                aria-pressed={selected}
-                aria-label={`Select ${preset.name} theme`}
-                onClick={() => onChange({ ...settings, themeId: presetId })}
-                className="flex h-full w-full flex-col items-stretch gap-2 rounded-box border border-transparent p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+                label={`Select ${preset.name} theme`}
+                onSelect={() => onChange({ ...settings, themeId: presetId })}
               >
-                <div
-                  className={
-                    selected
-                      ? 'w-full rounded-box ring-2 ring-primary ring-offset-2 ring-offset-background'
-                      : 'w-full rounded-box hover:ring-1 hover:ring-border'
-                  }
-                >
-                  <ThemePreview theme={preview} />
-                </div>
+                <ThemePreview theme={preview} />
                 <div className="w-full px-1">
                   <p className="text-sm font-medium text-foreground">{preset.name}</p>
                   <p className="text-sm text-muted-foreground">{preset.description}</p>
                 </div>
-              </button>
+              </ThemeOption>
             );
           })}
         </div>

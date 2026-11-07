@@ -40,7 +40,7 @@ export function MangaProviderSwitcher({
 
   return (
     <section aria-label="Providers" aria-busy={isPending} className="space-y-3">
-      <h2 className="text-xl font-semibold">Providers</h2>
+      <h2 className="type-heading">Providers</h2>
 
       {mappings.length === 0 ? (
         <EmptyNote>No provider source is attached to this title.</EmptyNote>

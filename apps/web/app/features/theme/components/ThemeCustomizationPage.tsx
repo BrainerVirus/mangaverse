@@ -8,9 +8,10 @@ import {
   Label,
   LoadingState,
   Switch,
+  ThemeOption,
   ThemePreview,
-  cn,
   PageContainer,
+  PageHeader,
 } from '@app/design-system';
 import type { ThemeDefinition, ThemeSettings } from '@app/shared';
 
@@ -41,12 +42,6 @@ export interface ThemeCustomizationPageProps {
   onRetryCustomThemes?: () => void;
 }
 
-function selectedRing(selected: boolean): string {
-  return selected
-    ? 'rounded-box ring-2 ring-primary ring-offset-2 ring-offset-background'
-    : 'rounded-box group-hover:ring-1 group-hover:ring-border';
-}
-
 function ThemePresetCard({
   presetId,
   name,
@@ -69,38 +64,33 @@ function ThemePresetCard({
   const preview = toThemePreviewDefinitionForPreset(presetId, previewDark);
 
   return (
-    <div className="group flex h-full w-full flex-col gap-2">
-      <button
-        type="button"
-        disabled={disabled}
-        aria-pressed={selected}
-        aria-label={`Select ${name} theme`}
-        onClick={onSelect}
-        className="flex w-full flex-col items-stretch gap-2 rounded-box border border-transparent p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
-        data-selected={selected ? 'true' : 'false'}
-      >
-        <div className={cn('w-full', selectedRing(selected))}>
-          <ThemePreview theme={preview} />
-        </div>
-        <div className="px-1">
-          <p className="text-sm font-medium text-foreground">{name}</p>
-          <p className="text-sm text-muted-foreground">{description}</p>
-        </div>
-      </button>
-      {onDuplicate === undefined ? null : (
-        <div className="px-1">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={disabled}
-            aria-label={`Duplicate ${name} theme`}
-            onClick={onDuplicate}
-          >
-            Duplicate
-          </Button>
-        </div>
-      )}
-    </div>
+    <ThemeOption
+      selected={selected}
+      disabled={disabled}
+      label={`Select ${name} theme`}
+      onSelect={onSelect}
+      actions={
+        onDuplicate === undefined ? undefined : (
+          <div className="px-1">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={disabled}
+              aria-label={`Duplicate ${name} theme`}
+              onClick={onDuplicate}
+            >
+              Duplicate
+            </Button>
+          </div>
+        )
+      }
+    >
+      <ThemePreview theme={preview} />
+      <div className="px-1">
+        <p className="text-sm font-medium text-foreground">{name}</p>
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </div>
+    </ThemeOption>
   );
 }
 
@@ -127,49 +117,44 @@ function CustomThemeCard({
   );
 
   return (
-    <div className="group flex h-full w-full flex-col gap-2">
-      <button
-        type="button"
-        disabled={disabled}
-        aria-pressed={selected}
-        aria-label={`Select ${definition.name} theme`}
-        onClick={onSelect}
-        className="flex w-full flex-col items-stretch gap-2 rounded-box border border-transparent p-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
-        data-selected={selected ? 'true' : 'false'}
-      >
-        <div className={cn('w-full', selectedRing(selected))}>
-          <ThemePreview theme={preview} />
+    <ThemeOption
+      selected={selected}
+      disabled={disabled}
+      label={`Select ${definition.name} theme`}
+      onSelect={onSelect}
+      actions={
+        <div className="flex gap-2 px-1">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            aria-label={`Edit ${definition.name} theme`}
+            onClick={onEdit}
+          >
+            Edit
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={disabled}
+            aria-label={`Delete ${definition.name} theme`}
+            onClick={onDelete}
+          >
+            Delete
+          </Button>
         </div>
-        <div className="px-1">
-          <p className="text-sm font-medium text-foreground">{definition.name}</p>
-          <p className="text-sm text-muted-foreground">
-            {definition.basedOn === undefined
-              ? 'Custom theme'
-              : `Custom theme · based on ${definition.basedOn}`}
-          </p>
-        </div>
-      </button>
-      <div className="flex gap-2 px-1">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={disabled}
-          aria-label={`Edit ${definition.name} theme`}
-          onClick={onEdit}
-        >
-          Edit
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          disabled={disabled}
-          aria-label={`Delete ${definition.name} theme`}
-          onClick={onDelete}
-        >
-          Delete
-        </Button>
+      }
+    >
+      <ThemePreview theme={preview} />
+      <div className="px-1">
+        <p className="text-sm font-medium text-foreground">{definition.name}</p>
+        <p className="text-sm text-muted-foreground">
+          {definition.basedOn === undefined
+            ? 'Custom theme'
+            : `Custom theme · based on ${definition.basedOn}`}
+        </p>
       </div>
-    </div>
+    </ThemeOption>
   );
 }
 
@@ -265,13 +250,10 @@ function ThemeSection({
 
 function ThemeHeading() {
   return (
-    <header className="space-y-2">
-      <h1 className="type-display-lg text-foreground">Theme</h1>
-      <p className="type-body max-w-2xl text-muted-foreground">
-        Choose a visual preset or one of your custom themes. Changes apply across the app and are
-        saved locally.
-      </p>
-    </header>
+    <PageHeader
+      title="Theme"
+      description="Choose a visual preset or one of your custom themes. Changes apply across the app and are saved locally."
+    />
   );
 }
 

@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { PageHeader, type PageHeaderProps } from '../components/page-header.js';
 
 function renderHeader(props: Partial<PageHeaderProps> = {}) {
@@ -49,6 +50,21 @@ describe('PageHeader', () => {
     expect(header).toHaveClass('@container');
     expect(header.firstElementChild).toHaveClass('@xl:flex-wrap');
     expect(header.firstElementChild?.firstElementChild).toHaveClass('min-w-0');
+  });
+
+  it('renders a back control above the title and a meta row under the description', async () => {
+    const user = userEvent.setup();
+    const onBack = vi.fn<() => void>();
+    renderHeader({
+      back: { label: 'Back to library', onClick: onBack },
+      meta: <span>In library</span>,
+    });
+
+    const back = screen.getByRole('button', { name: 'Back to library' });
+    expect(back).toBeVisible();
+    expect(screen.getByText('In library')).toBeVisible();
+    await user.click(back);
+    expect(onBack).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the container contract and logical layout in RTL', () => {

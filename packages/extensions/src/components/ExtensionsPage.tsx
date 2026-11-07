@@ -268,7 +268,7 @@ function RegistryList({
     <section aria-label="Imported registries" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight">Imported registries</h2>
+          <h2 className="type-heading">Imported registries</h2>
           <p className="text-sm text-muted-foreground">
             Registry documents saved on this device. Their entries are not installed; install a
             provider from its manifest URL to use it.

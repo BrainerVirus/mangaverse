@@ -23,7 +23,7 @@ export function MangaRelatedTitles({
 }: MangaRelatedTitlesProps) {
   return (
     <section aria-label={heading} className="space-y-4">
-      <h2 className="text-xl font-semibold">{heading}</h2>
+      <h2 className="type-heading">{heading}</h2>
 
       {isLoading ? (
         <LoadingState type="grid" count={4} columns="viewport-4" />

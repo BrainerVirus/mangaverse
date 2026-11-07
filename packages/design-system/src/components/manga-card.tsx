@@ -88,9 +88,9 @@ function CardMeta({ manga, variant, sourceLabel }: MetaProps) {
       <div>
         <h3
           className={cn(
-            'font-semibold leading-tight text-card-foreground',
-            isGrid ? 'text-sm line-clamp-2' : 'text-base',
-            isCompact && 'text-sm line-clamp-1',
+            'text-card-foreground',
+            isGrid ? 'type-label line-clamp-2' : 'type-heading',
+            isCompact && 'type-label line-clamp-1',
           )}
         >
           {manga.canonicalTitle}
@@ -104,7 +104,7 @@ function CardMeta({ manga, variant, sourceLabel }: MetaProps) {
       {manga.tags.length > 0 && !isCompact && (
         <div className="mt-2 flex flex-wrap gap-1">
           {manga.tags.slice(0, 3).map((tag) => (
-            <Badge key={tag.label} variant="outline" className="keycap-text px-1.5 py-0">
+            <Badge key={tag.label} variant="outline" className="type-micro px-1.5 py-0">
               {tag.label}
             </Badge>
           ))}

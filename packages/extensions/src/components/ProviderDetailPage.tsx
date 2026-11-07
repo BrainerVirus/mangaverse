@@ -23,6 +23,10 @@ import {
   SettingsSection,
   Switch,
   PageContainer,
+  PageHeader,
+  buttonSizes,
+  buttonVariants,
+  cn,
 } from '@app/design-system';
 import type {
   ExtensionLogCounts,
@@ -609,54 +613,50 @@ export function ProviderDetailPage({
   return (
     <PageContainer variant="read">
       <section aria-label="Provider details" className="@container flex flex-col gap-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex flex-col gap-2">
-            {onBack !== undefined ? (
-              <Button type="button" variant="ghost" className="w-fit px-0" onClick={onBack}>
-                Back to extensions
-              </Button>
-            ) : null}
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">{provider.manifest.name}</h1>
-              <p className="text-sm text-muted-foreground">
-                v{provider.installedVersion} · {provider.manifest.id}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
+        <PageHeader
+          title={provider.manifest.name}
+          description={`v${provider.installedVersion} · ${provider.manifest.id}`}
+          {...(onBack === undefined
+            ? {}
+            : { back: { label: 'Back to extensions', onClick: onBack } })}
+          meta={
+            <>
               <Badge variant={provider.enabled ? 'default' : 'outline'}>
                 {provider.enabled ? 'Enabled' : 'Disabled'}
               </Badge>
               <Badge variant={healthBadgeVariant(provider.health)}>{provider.health}</Badge>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={isUpdating || provider.health === 'broken'}
-              onClick={() => onToggleEnabled(!provider.enabled)}
-            >
-              {provider.enabled ? 'Disable provider' : 'Enable provider'}
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={isUpdating}
-              onClick={() => setConfirmOpen(true)}
-            >
-              Uninstall
-            </Button>
-            <a
-              href={provider.sourceUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center rounded-control border border-border bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
-            >
-              View source
-              <ExternalLink aria-hidden className="ml-1 size-3.5" />
-            </a>
-          </div>
-        </div>
+            </>
+          }
+          actions={
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={isUpdating || provider.health === 'broken'}
+                onClick={() => onToggleEnabled(!provider.enabled)}
+              >
+                {provider.enabled ? 'Disable provider' : 'Enable provider'}
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={isUpdating}
+                onClick={() => setConfirmOpen(true)}
+              >
+                Uninstall
+              </Button>
+              <a
+                href={provider.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className={cn(buttonVariants.outline, buttonSizes.default, '[&_svg]:size-4')}
+              >
+                View source
+                <ExternalLink aria-hidden />
+              </a>
+            </>
+          }
+        />
 
         {provider.warnings.length > 0 ? (
           <Alert variant="destructive">
