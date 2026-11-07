@@ -30,6 +30,11 @@ function CoverThumb({ item }: CoverThumbProps) {
   );
 }
 
+/** A shelf's heading; the loading placeholder shows the same one, so its line box is shared. */
+export function ShelfHeading({ children }: { readonly children: string }) {
+  return <h2 className="text-lg font-semibold">{children}</h2>;
+}
+
 export interface ContinueReadingSectionProps {
   readonly items: readonly LibraryOverviewItem[];
   readonly onResume: (chapterId: ChapterId) => void;
@@ -47,7 +52,7 @@ export function ContinueReadingSection({
 
   return (
     <section aria-label="Continue reading" className="flex flex-col gap-3">
-      <h2 className="text-lg font-semibold">Continue reading</h2>
+      <ShelfHeading>Continue reading</ShelfHeading>
       {items.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           Nothing in progress yet. Open a chapter from your library to start.
@@ -105,7 +110,7 @@ export function RecentlyUpdatedSection({ items, onOpenManga }: RecentlyUpdatedSe
 
   return (
     <section aria-label="Recently updated" className="flex flex-col gap-3">
-      <h2 className="text-lg font-semibold">Recently updated</h2>
+      <ShelfHeading>Recently updated</ShelfHeading>
       <ul className="divide-y divide-border rounded-box border border-border bg-card">
         {items.map((item) => {
           const latest = item.latestChapter;
@@ -159,6 +164,8 @@ export interface LibraryUpdatesControl {
 
 export interface LibraryUpdatePanelProps {
   readonly updates: LibraryUpdatesControl;
+  /** The panel is static chrome and shows while the library loads; a check needs the database. */
+  readonly disabled?: boolean;
 }
 
 function isProblem(item: LibraryUpdateItem): boolean {
@@ -205,7 +212,7 @@ function summarize(report: LibraryUpdateReport | undefined, running: boolean): s
 }
 
 /** User-triggered library update check: progress, cancel and the failure report. */
-export function LibraryUpdatePanel({ updates }: LibraryUpdatePanelProps) {
+export function LibraryUpdatePanel({ updates, disabled = false }: LibraryUpdatePanelProps) {
   const { report, status, onCheck, onCancel, onRetry, onClearReport } = updates;
   const running = status === 'running';
   const problems = (report?.items ?? []).filter(isProblem);
@@ -244,7 +251,7 @@ export function LibraryUpdatePanel({ updates }: LibraryUpdatePanelProps) {
               Clear report
             </Button>
           ) : null}
-          <Button type="button" size="sm" onClick={onCheck} disabled={running}>
+          <Button type="button" size="sm" onClick={onCheck} disabled={running || disabled}>
             <RefreshCw aria-hidden className="size-4" />
             Check for updates
           </Button>

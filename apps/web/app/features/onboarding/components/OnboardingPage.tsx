@@ -444,6 +444,61 @@ function ProviderStep({ onInstallProvider }: { onInstallProvider: () => void }) 
   );
 }
 
+function OnboardingStepNav({
+  currentStep,
+  progress,
+}: {
+  readonly currentStep: OnboardingStepId | undefined;
+  readonly progress: ReturnType<typeof getOnboardingProgress> | undefined;
+}) {
+  return (
+    <nav aria-label="Onboarding steps">
+      <p className="text-xs text-muted-foreground sm:hidden">
+        {progress === undefined ? 'Setup' : `Step ${progress.current} of ${progress.total}`}
+      </p>
+      <ol className="type-body hidden gap-x-3 whitespace-nowrap sm:flex">
+        {ONBOARDING_STEP_IDS.map((step) => (
+          <li
+            key={step}
+            aria-current={step === currentStep ? 'step' : undefined}
+            className={
+              step === currentStep ? 'font-medium text-foreground' : 'text-muted-foreground'
+            }
+          >
+            {STEP_LABELS[step]}
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
+}
+
+/** The step list, the skip control and the footer are static; only the step's own content waits. */
+function OnboardingLoading() {
+  return (
+    <PageContainer variant="read">
+      <section aria-label="Onboarding" className="flex w-full max-w-2xl flex-col">
+        <div className="mb-8 flex items-center justify-between gap-3">
+          <OnboardingStepNav currentStep={undefined} progress={undefined} />
+          <Button type="button" variant="ghost" disabled>
+            Skip setup
+          </Button>
+        </div>
+        <div className="flex flex-col gap-6">
+          <LoadingState type="list" count={3} />
+        </div>
+        <footer className="sticky bottom-0 mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-background pt-4 pb-4">
+          <div className="ml-auto flex flex-wrap justify-end gap-2">
+            <Button type="button" className="min-h-11" disabled>
+              Continue
+            </Button>
+          </div>
+        </footer>
+      </section>
+    </PageContainer>
+  );
+}
+
 export function OnboardingPage({
   state,
   themeSettings,
@@ -461,15 +516,7 @@ export function OnboardingPage({
   onInstallProvider,
   onFinish,
 }: OnboardingPageProps) {
-  if (isLoading) {
-    return (
-      <PageContainer variant="read">
-        <section aria-label="Onboarding" className="w-full max-w-2xl">
-          <LoadingState type="list" />
-        </section>
-      </PageContainer>
-    );
-  }
+  if (isLoading) return <OnboardingLoading />;
 
   if (
     isError ||
@@ -498,26 +545,7 @@ export function OnboardingPage({
     <PageContainer variant="read">
       <section aria-label="Onboarding" className="flex w-full max-w-2xl flex-col">
         <div className="mb-8 flex items-center justify-between gap-3">
-          <nav aria-label="Onboarding steps">
-            <p className="text-xs text-muted-foreground sm:hidden">
-              Step {progress.current} of {progress.total}
-            </p>
-            <ol className="type-body hidden gap-x-3 whitespace-nowrap sm:flex">
-              {ONBOARDING_STEP_IDS.map((step) => (
-                <li
-                  key={step}
-                  aria-current={step === state.currentStep ? 'step' : undefined}
-                  className={
-                    step === state.currentStep
-                      ? 'font-medium text-foreground'
-                      : 'text-muted-foreground'
-                  }
-                >
-                  {STEP_LABELS[step]}
-                </li>
-              ))}
-            </ol>
-          </nav>
+          <OnboardingStepNav currentStep={state.currentStep} progress={progress} />
           {!isOnboardingFinished(state) ? (
             <Button type="button" variant="ghost" disabled={isSaving} onClick={onSkip}>
               Skip setup

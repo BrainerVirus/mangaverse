@@ -253,3 +253,23 @@ describe('MigrationPage review dialog', () => {
     expect(screen.getByRole('dialog', { name: 'Review migration' })).toBeInTheDocument();
   });
 });
+
+describe('MigrationPage while the providers load', () => {
+  it('Given providers still loading, Then the header and frame stay and the sections wait', () => {
+    const { container } = render(<MigrationPage {...pageProps({ isLoading: true })} />);
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Migration' })).toBeInTheDocument();
+    expect(screen.getByText(/Move library titles from one provider/)).toBeInTheDocument();
+    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('list', { name: 'Migration candidates' })).toBeNull();
+  });
+
+  it('Given providers still loading, Then the section spacing is the loaded page’s', () => {
+    const loading = render(<MigrationPage {...pageProps({ isLoading: true })} />);
+    const during = loading.container.querySelector('section')?.className;
+    cleanup();
+
+    const loaded = render(<MigrationPage {...pageProps()} />);
+    expect(loaded.container.querySelector('section')?.className).toBe(during);
+  });
+});

@@ -67,7 +67,7 @@ vi.mock('@app/design-system', async () => {
     EmptyState: () => null,
     ErrorState: () => null,
     GlassSurface: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
-    LoadingState: () => null,
+    Skeleton: () => null,
     // The chrome reduced to what the reader passes it; Next mirrors the real
     // chrome, which hands the last page's Next to `onChapterEnd` when present.
     ReaderChrome: (props: {

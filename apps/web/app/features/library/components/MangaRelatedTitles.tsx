@@ -2,6 +2,8 @@ import { CachedMangaCard } from '@app/cache';
 import { ErrorState, LoadingState } from '@app/design-system';
 import type { MangaId, MangaIdentity } from '@app/shared';
 
+const RELATED_GRID_CLASSES = 'grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4';
+
 export interface MangaRelatedTitlesProps {
   readonly heading: string;
   readonly items?: readonly MangaIdentity[];
@@ -24,7 +26,7 @@ export function MangaRelatedTitles({
       <h2 className="text-xl font-semibold">{heading}</h2>
 
       {isLoading ? (
-        <LoadingState type="grid" count={4} />
+        <LoadingState type="grid" count={4} columns="viewport-4" />
       ) : error !== undefined ? (
         <ErrorState
           title={`Could not load ${heading.toLowerCase()}`}
@@ -36,7 +38,7 @@ export function MangaRelatedTitles({
           No {heading.toLowerCase()} from this provider.
         </p>
       ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+        <div className={RELATED_GRID_CLASSES}>
           {items.map((manga) => (
             <CachedMangaCard key={manga.id} manga={manga} onClick={() => onOpenManga(manga.id)} />
           ))}

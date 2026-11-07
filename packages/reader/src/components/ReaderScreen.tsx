@@ -7,7 +7,7 @@ import {
   type ReactNode,
   type SetStateAction,
 } from 'react';
-import { EmptyState, Button, ErrorState, GlassSurface, LoadingState } from '@app/design-system';
+import { EmptyState, Button, ErrorState, GlassSurface } from '@app/design-system';
 import { useReducedMotion } from '@app/design-system/motion';
 import type { ReaderSettings } from '@app/shared';
 import { useCoverCacheContext, CachedPageImage } from '@app/cache';
@@ -115,7 +115,7 @@ function readerGateView({
     case 'hydrating':
       return (
         <ReaderPendingStage kind="hydrating" title={title}>
-          <LoadingState type="detail" />
+          <ReaderPageSkeleton />
         </ReaderPendingStage>
       );
     case 'hydration-error':
@@ -137,7 +137,7 @@ function readerGateView({
         />
       );
     case 'loading':
-      return <LoadingState type="detail" />;
+      return <ReaderLoadingStage />;
     case 'empty':
       return <EmptyState type="no-chapters" />;
     default:
@@ -260,7 +260,7 @@ export function ReaderScreen(props: ReaderScreenProps) {
   }
 
   if (data === undefined || readerState === null) {
-    return <LoadingState type="detail" />;
+    return <ReaderLoadingStage />;
   }
 
   return (
@@ -618,25 +618,51 @@ function PagePreview({
  * The reader's pre-pages surface: the local chapter title stays visible while
  * provider pages hydrate, or while a failed hydration waits for Retry.
  */
+const PENDING_STAGE_TEST_IDS = {
+  loading: 'reader-loading',
+  hydrating: 'reader-hydrating',
+  error: 'reader-hydration-error',
+} as const;
+
+/** One page's box on the reader's own black stage; the loaded page replaces it in place. */
+function ReaderPageSkeleton() {
+  return (
+    <div
+      data-testid="reader-page-skeleton"
+      className="aspect-2/3 min-h-0 w-auto max-w-full flex-1 animate-pulse bg-muted/40"
+      aria-hidden
+    />
+  );
+}
+
+/** The chapter's own data is still loading: the stage is the reader's, with a page-shaped box. */
+function ReaderLoadingStage() {
+  return (
+    <ReaderPendingStage kind="loading" title="">
+      <ReaderPageSkeleton />
+    </ReaderPendingStage>
+  );
+}
+
 function ReaderPendingStage({
   kind,
   title,
   children,
 }: {
-  readonly kind: 'hydrating' | 'error';
+  readonly kind: keyof typeof PENDING_STAGE_TEST_IDS;
   readonly title: string;
   readonly children: ReactNode;
 }) {
   return (
     <div
       className="flex h-full w-full flex-col bg-black"
-      data-testid={kind === 'hydrating' ? 'reader-hydrating' : 'reader-hydration-error'}
-      aria-busy={kind === 'hydrating' || undefined}
+      data-testid={PENDING_STAGE_TEST_IDS[kind]}
+      aria-busy={kind !== 'error' || undefined}
     >
       <div className="safe-area-x safe-area-top flex items-center pb-3">
         <span className="text-sm font-medium text-white">{title}</span>
       </div>
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-6 py-12">
         {children}
         {kind === 'hydrating' ? (
           <output className="mt-4 block text-sm text-white/70">Loading chapter pages…</output>

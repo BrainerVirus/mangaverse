@@ -174,6 +174,12 @@ function RestorePreviewPanel({
   );
 }
 
+const BACKUP_HEADER = {
+  title: 'Backup & Restore',
+  description:
+    'Export your library, categories, reading progress, providers, and settings to a local file. Import a backup to replace current local data.',
+} as const;
+
 export function BackupPage({
   isLoading,
   isError,
@@ -202,8 +208,9 @@ export function BackupPage({
   if (isLoading) {
     return (
       <PageContainer variant="read">
-        <section aria-label="Backup and restore">
-          <LoadingState type="list" count={3} />
+        <section aria-label="Backup and restore" className="space-y-6">
+          <PageHeader {...BACKUP_HEADER} />
+          <LoadingState type="sections" count={2} />
         </section>
       </PageContainer>
     );
@@ -225,10 +232,7 @@ export function BackupPage({
   return (
     <PageContainer variant="read">
       <section aria-label="Backup and restore" className="space-y-6">
-        <PageHeader
-          title="Backup & Restore"
-          description="Export your library, categories, reading progress, providers, and settings to a local file. Import a backup to replace current local data."
-        />
+        <PageHeader {...BACKUP_HEADER} />
 
         <RestoreStatus
           restoreSuccess={restoreSuccess}

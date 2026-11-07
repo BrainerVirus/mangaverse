@@ -6,6 +6,7 @@ import {
   LoadingState,
   PageContainer,
   PageHeader,
+  Skeleton,
 } from '@app/design-system';
 import { CachedMangaCard } from '@app/cache';
 import type { MangaId, MangaIdentity } from '@app/shared';
@@ -83,10 +84,7 @@ function DiscoverSectionPreview({
           See all
         </Button>
       </div>
-      <div
-        data-testid={`discover-section-${section.id}`}
-        className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6"
-      >
+      <div data-testid={`discover-section-${section.id}`} className={SECTION_GRID_CLASSES}>
         {section.results.slice(0, 6).map((manga) => (
           <CachedMangaCard key={manga.id} manga={manga} onClick={() => onOpenManga(manga.id)} />
         ))}
@@ -141,6 +139,23 @@ function DiscoverExpandedSectionView({
   );
 }
 
+const SECTION_GRID_CLASSES = 'grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6';
+
+/** The provider tab strip and the first section: a heading row over one row of six covers. */
+function DiscoverLoading() {
+  return (
+    <div className="flex flex-col gap-6" aria-busy="true" data-discover-loading>
+      <Skeleton className="h-10 w-full" />
+      <div className="flex flex-col gap-4">
+        <div className="flex min-h-9 flex-wrap items-center justify-between gap-3">
+          <Skeleton className="h-6 w-40" />
+        </div>
+        <LoadingState type="grid" count={6} columns="viewport-6" />
+      </div>
+    </div>
+  );
+}
+
 export function DiscoverPage({
   data,
   selectedProviderId,
@@ -183,7 +198,7 @@ export function DiscoverPage({
             : {})}
         />
 
-        {isLoading && !isExpandedView ? <LoadingState type="grid" /> : null}
+        {isLoading && !isExpandedView ? <DiscoverLoading /> : null}
 
         {isError ? (
           <ErrorState

@@ -5,6 +5,7 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
+  Skeleton,
   Select,
   SelectContent,
   SelectItem,
@@ -1133,10 +1134,48 @@ function MangaDetailContent(props: MangaDetailPageProps & { readonly data: Manga
   );
 }
 
-/** The page's states before there is a title to show: loading, a failure, or not found. */
-function MangaDetailStatus({ props }: { readonly props: MangaDetailPageProps }) {
-  if (props.isLoading) return <LoadingState type="detail" />;
+/**
+ * The header's own boxes before there is a title: the Back link is static, the cover keeps its
+ * 3:4 ratio and the summary column its lines, and the chapter list waits below them.
+ */
+function MangaDetailLoading({ onBack }: { readonly onBack: (() => void) | undefined }) {
+  return (
+    <section aria-label="Manga details" aria-busy="true" className="@container flex flex-col gap-8">
+      <div
+        data-detail-header
+        className="flex flex-col gap-4 @5xl:flex-row @5xl:items-start @5xl:gap-6"
+      >
+        {onBack !== undefined ? (
+          <div className="@5xl:pt-1">
+            <Button type="button" variant="ghost" onClick={onBack}>
+              Back
+            </Button>
+          </div>
+        ) : null}
 
+        <div className="flex min-w-0 flex-1 flex-col gap-6 @2xl:flex-row @2xl:items-start">
+          <div className="mx-auto w-40 shrink-0 self-start overflow-hidden rounded-box border border-border bg-muted @2xl:mx-0 @2xl:w-48">
+            <Skeleton className="aspect-3/4 w-full" />
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-4">
+            <Skeleton className="h-8 w-2/3" />
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-10 w-36" />
+            <div className="flex flex-wrap gap-2">
+              <Skeleton className="h-10 w-32" />
+              <Skeleton className="size-10" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <LoadingState type="list" count={4} />
+    </section>
+  );
+}
+
+/** The page's states before there is a title to show: a failure, or not found. */
+function MangaDetailStatus({ props }: { readonly props: MangaDetailPageProps }) {
   if (props.isError) {
     return (
       <ErrorState
@@ -1172,7 +1211,14 @@ function MangaDetailStatus({ props }: { readonly props: MangaDetailPageProps }) 
 
 export function MangaDetailPage(props: MangaDetailPageProps) {
   const { data } = props;
-  if (props.isLoading || props.isError || data === undefined || data === null) {
+  if (props.isLoading) {
+    return (
+      <PageContainer>
+        <MangaDetailLoading onBack={props.onBack} />
+      </PageContainer>
+    );
+  }
+  if (props.isError || data === undefined || data === null) {
     return (
       <PageContainer>
         <section aria-label="Manga details">

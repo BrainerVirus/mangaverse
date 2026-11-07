@@ -582,7 +582,8 @@ export function SearchPage({
           onDelete={onDeleteSavedSearch}
         />
 
-        {isLoading ? <LoadingState type="grid" /> : null}
+        {/* Only a query has results to wait for; an empty one shows nothing to replace. */}
+        {isLoading && hasQuery ? <LoadingState type="grid" /> : null}
 
         {isError ? (
           <ErrorState

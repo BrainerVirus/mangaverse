@@ -27,7 +27,7 @@
   },
   "apps/web/app/features/library/components/LibrarySections.tsx": {
     "no-hand-built-panel": 2,
-    "no-hand-rolled-heading": 3
+    "no-hand-rolled-heading": 2
   },
   "apps/web/app/features/library/components/LibraryToolbar.tsx": {
     "prefer-size-utility": 1
@@ -89,7 +89,7 @@
     "prefer-size-utility": 3
   },
   "packages/design-system/src/components/loading-state.tsx": {
-    "no-off-scale-radius": 9
+    "no-off-scale-radius": 4
   },
   "packages/design-system/src/components/manga-card.tsx": {
     "no-direct-gsap-import": 1,

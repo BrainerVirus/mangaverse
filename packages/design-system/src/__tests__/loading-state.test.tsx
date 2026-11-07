@@ -17,10 +17,53 @@ describe('LoadingState', () => {
     expect(gridContainer).toBeInTheDocument();
   });
 
-  it('renders a full column rhythm of 10 grid cards when count is omitted', () => {
+  it('renders two complete rows at every column count when count is omitted', () => {
     const { container } = render(<LoadingState type="grid" />);
 
-    expect(container.querySelectorAll('.grid > div')).toHaveLength(10);
+    const cells = [...container.querySelectorAll('.grid > div')];
+    expect(cells).toHaveLength(12);
+    // 2 columns show 4 cells, 3 show 6, 4 show 8, 5 show 10 and 6 show 12: a row is never partial.
+    const visibleAt = (width: number) =>
+      cells.filter((cell) => {
+        const gate = /@min-\[(\d+)px\]:block/.exec(cell.className);
+        return !cell.className.includes('hidden') || (gate !== null && width >= Number(gate[1]));
+      }).length;
+    expect([320, 640, 768, 1024, 1280].map(visibleAt)).toEqual([4, 6, 8, 10, 12]);
+  });
+
+  it('sizes every grid cell as a 3:4 cover and adds a caption line only on request', () => {
+    const plain = render(<LoadingState type="grid" count={2} />);
+    expect(plain.container.querySelectorAll('.aspect-3\\/4')).toHaveLength(2);
+    expect(plain.container.querySelector('.mt-1')).toBeNull();
+    plain.unmount();
+
+    const captioned = render(<LoadingState type="grid" count={2} caption />);
+    expect(captioned.container.querySelectorAll('.mt-1')).toHaveLength(2);
+  });
+
+  it('follows the content column by default, and the viewport when the page asks for its own columns', () => {
+    const content = render(<LoadingState type="grid" count={6} />);
+    expect(content.container.firstElementChild).toHaveClass('@container');
+    expect(content.container.querySelector('.grid')?.className).toContain(
+      '@min-[1280px]:grid-cols-6',
+    );
+    content.unmount();
+
+    const four = render(<LoadingState type="grid" count={4} columns="viewport-4" />);
+    expect(four.container.querySelector('.grid')).toHaveClass('md:grid-cols-4');
+    expect(four.container.querySelector('.grid')?.className).not.toContain('@min-');
+    four.unmount();
+
+    const six = render(<LoadingState type="grid" count={6} columns="viewport-6" />);
+    expect(six.container.querySelector('.grid')).toHaveClass('lg:grid-cols-6');
+  });
+
+  it('renders settings-style cards with the requested number of control rows', () => {
+    const { container } = render(<LoadingState type="sections" count={3} rows={2} />);
+
+    const cards = container.querySelectorAll('.rounded-box.border');
+    expect(cards).toHaveLength(3);
+    expect(cards[0]?.querySelectorAll('.h-11')).toHaveLength(2);
   });
 
   it('renders exactly count grid cards when count is passed', () => {

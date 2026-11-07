@@ -55,7 +55,9 @@ vi.mock('@app/design-system', async () => {
       </div>
     ),
     GlassSurface: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-    LoadingState: () => null,
+    Skeleton: ({ className, ...props }: { className?: string } & Record<string, unknown>) => (
+      <div className={className} {...props} />
+    ),
     ReaderChrome: () => null,
     Sheet: () => null,
     SheetContent: () => null,
@@ -524,4 +526,50 @@ describe('ReaderScreen prefetch wiring', () => {
       expect.objectContaining({ budgetBytes }),
     );
   });
+});
+
+describe('ReaderScreen while the chapter loads', () => {
+  function renderLoading(props: { isLoading: boolean }) {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => {
+      root.render(
+        <ReaderScreen
+          data={undefined}
+          isLoading={props.isLoading}
+          isError={false}
+          chromeVisible={true}
+          onToggleChrome={() => {}}
+          onClose={() => {}}
+        />,
+      );
+    });
+    return {
+      container,
+      cleanup: () => {
+        act(() => root.unmount());
+        container.remove();
+      },
+    };
+  }
+
+  it.each([true, false])(
+    'Given no chapter data yet (isLoading %s), Then the black reader stage holds a page-shaped box, not a cover-and-text skeleton',
+    (isLoading) => {
+      const view = renderLoading({ isLoading });
+
+      const stage = view.container.querySelector('[data-testid="reader-loading"]');
+      expect(stage).not.toBeNull();
+      expect(stage?.className).toContain('bg-black');
+      expect(stage?.getAttribute('aria-busy')).toBe('true');
+      const box = stage?.querySelector('[data-testid="reader-page-skeleton"]');
+      expect(box).not.toBeNull();
+      expect(box?.className).toContain('aspect-2/3');
+      // The book-cover-and-lines detail skeleton belongs to titles, not to a reading surface.
+      expect(view.container.querySelector('.h-80.w-56')).toBeNull();
+
+      view.cleanup();
+    },
+  );
 });

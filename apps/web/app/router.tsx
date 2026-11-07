@@ -1,10 +1,6 @@
 import { createRouter } from '@tanstack/react-router';
 import type { PlatformCapabilities } from '@app/platform';
 import { routeTree } from './routeTree.gen';
-import { LoadingState } from '@app/design-system';
-import { useRef } from 'react';
-import { useGSAP } from '@gsap/react';
-import { routeEnter, useReducedMotion } from '@app/design-system/motion';
 import { NotFoundPage, RouteErrorPage } from './components/StatusPages.js';
 import { feedback } from './lib/app-feedback.js';
 
@@ -12,18 +8,18 @@ interface RouterContext {
   platformDetectFn?: () => PlatformCapabilities;
 }
 
-function RouteTransition({ children }: { children: React.ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const reducedMotion = useReducedMotion();
-
-  useGSAP(
-    () => {
-      if (ref.current) routeEnter(ref.current, { reducedMotion });
-    },
-    { scope: ref, dependencies: [reducedMotion] },
+/**
+ * What stands in for a route whose chunk is still loading. Which page is coming is not known
+ * here (the Electron shell prerenders this one markup for every URL), so it paints no content
+ * placeholder: a card grid would claim a library for every route and be replaced wholesale.
+ * The shell around it stays, and the page renders its own header and placeholders once loaded.
+ */
+function RoutePending() {
+  return (
+    <output aria-label="Loading page" className="block min-h-full">
+      <span className="sr-only">Loading…</span>
+    </output>
   );
-
-  return <div ref={ref}>{children}</div>;
 }
 
 export function getRouter(options: { platformDetectFn?: () => PlatformCapabilities } = {}) {
@@ -33,11 +29,7 @@ export function getRouter(options: { platformDetectFn?: () => PlatformCapabiliti
       platformDetectFn: options.platformDetectFn,
     } as RouterContext,
     defaultPreload: 'intent',
-    defaultPendingComponent: () => (
-      <RouteTransition>
-        <LoadingState type="grid" />
-      </RouteTransition>
-    ),
+    defaultPendingComponent: RoutePending,
     defaultErrorComponent: RouteErrorPage,
     defaultOnCatch: (error) => feedback.log(error, 'route'),
     defaultNotFoundComponent: NotFoundPage,

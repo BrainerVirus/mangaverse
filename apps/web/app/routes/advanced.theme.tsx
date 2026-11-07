@@ -6,11 +6,12 @@ import {
   deleteThemeDefinition,
   saveThemeDefinition,
   themeQueryKeys,
+  ThemeEditorLoading,
   ThemeEditorPage,
   validateThemeDefinition,
   type ThemeEditorError,
 } from '@/features/theme';
-import { ErrorState, LoadingState, PageContainer } from '@app/design-system';
+import { ErrorState, PageContainer } from '@app/design-system';
 import type { AppDrizzleDb } from '@app/db';
 import type { ThemeDefinition, ThemeDefinitionIssue, ThemeSettings } from '@app/shared';
 
@@ -26,18 +27,13 @@ export const Route = createFileRoute('/advanced/theme')({
 });
 
 function ThemeEditorRoute() {
+  const navigate = useNavigate();
   const dbStatus = useLocalDbStatus();
   const db = useLocalDb();
   const { settings, customThemes, isLoadingCustomThemes } = useTheme();
 
   if (dbStatus === 'loading' || isLoadingCustomThemes) {
-    return (
-      <PageContainer variant="read" className="max-w-5xl">
-        <section aria-label="Theme editor">
-          <LoadingState type="detail" />
-        </section>
-      </PageContainer>
-    );
+    return <ThemeEditorLoading onCancel={() => void navigate({ to: '/theme' })} />;
   }
 
   if (dbStatus === 'error' || db === null) {

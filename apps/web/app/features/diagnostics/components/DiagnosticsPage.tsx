@@ -169,6 +169,9 @@ function LocalServiceSection({ report }: { report: DiagnosticsReport }) {
   );
 }
 
+const DIAGNOSTICS_DESCRIPTION =
+  'About MangaVerse, platform details, storage usage, and local database health for troubleshooting.';
+
 export function DiagnosticsPage({
   isLoading,
   isError,
@@ -179,14 +182,6 @@ export function DiagnosticsPage({
   onCopyReport,
 }: DiagnosticsPageProps) {
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
-
-  if (isLoading) {
-    return (
-      <section aria-label="Diagnostics">
-        <LoadingState type="list" count={3} />
-      </section>
-    );
-  }
 
   if (isError) {
     return (
@@ -199,10 +194,25 @@ export function DiagnosticsPage({
     );
   }
 
-  if (report === null) {
+  // No report and no error means the report is still being fetched. Rendering the error state
+  // here painted a short page for the fetch window, so everything below it (the event log)
+  // jumped into view and back out when the report arrived.
+  if (isLoading || report === null) {
     return (
-      <section aria-label="Diagnostics">
-        <ErrorState title="Diagnostics unavailable" message="No report was generated." />
+      <section aria-label="Diagnostics" className="space-y-6">
+        <PageHeader
+          title="Diagnostics"
+          description={DIAGNOSTICS_DESCRIPTION}
+          actions={
+            <>
+              <Button disabled>Refresh diagnostics</Button>
+              <Button variant="outline" disabled>
+                Copy report
+              </Button>
+            </>
+          }
+        />
+        <LoadingState type="sections" count={3} />
       </section>
     );
   }
@@ -213,7 +223,7 @@ export function DiagnosticsPage({
     <section aria-label="Diagnostics" className="space-y-6">
       <PageHeader
         title="Diagnostics"
-        description="About MangaVerse, platform details, storage usage, and local database health for troubleshooting."
+        description={DIAGNOSTICS_DESCRIPTION}
         actions={
           <>
             <Button onClick={onRefresh} disabled={isRefreshing}>

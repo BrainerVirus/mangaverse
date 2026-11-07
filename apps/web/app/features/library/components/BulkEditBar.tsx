@@ -44,6 +44,24 @@ export interface BulkEditBarProps {
   onMigrateSelected?: () => void;
 }
 
+/** The bar's resting state; the library's loading placeholder shows the same button, disabled. */
+export function SelectTitlesButton({
+  onClick,
+  disabled,
+}: {
+  readonly onClick?: () => void;
+  readonly disabled: boolean;
+}) {
+  return (
+    <div className="flex justify-end">
+      <Button type="button" variant="outline" size="sm" onClick={onClick} disabled={disabled}>
+        <CheckSquare aria-hidden className="size-4" />
+        Select titles
+      </Button>
+    </div>
+  );
+}
+
 export function BulkEditBar({
   selectionMode,
   selectedEntryIds,
@@ -93,20 +111,7 @@ export function BulkEditBar({
   }
 
   if (!selectionMode) {
-    return (
-      <div className="flex justify-end">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onToggleSelectionMode}
-          disabled={visibleCount === 0}
-        >
-          <CheckSquare aria-hidden className="size-4" />
-          Select titles
-        </Button>
-      </div>
-    );
+    return <SelectTitlesButton onClick={onToggleSelectionMode} disabled={visibleCount === 0} />;
   }
 
   return (

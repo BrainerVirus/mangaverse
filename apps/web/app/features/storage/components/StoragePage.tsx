@@ -232,6 +232,9 @@ function DownloadsSection({
   );
 }
 
+const STORAGE_DESCRIPTION =
+  'Review local storage usage and clear safe cache data without touching your library or reading progress.';
+
 export function StoragePage({
   isLoading,
   isError,
@@ -255,8 +258,13 @@ export function StoragePage({
   if (isLoading) {
     return (
       <PageContainer variant="read">
-        <section aria-label="Storage">
-          <LoadingState type="list" count={3} />
+        <section aria-label="Storage" className="space-y-6">
+          <PageHeader
+            title="Storage"
+            description={STORAGE_DESCRIPTION}
+            actions={<Button disabled>Refresh storage</Button>}
+          />
+          <LoadingState type="sections" count={3} />
         </section>
       </PageContainer>
     );
@@ -290,7 +298,7 @@ export function StoragePage({
       <section aria-label="Storage" className="space-y-6">
         <PageHeader
           title="Storage"
-          description="Review local storage usage and clear safe cache data without touching your library or reading progress."
+          description={STORAGE_DESCRIPTION}
           actions={
             <Button onClick={onRefresh} disabled={isRefreshing}>
               {isRefreshing ? 'Refreshing…' : 'Refresh storage'}

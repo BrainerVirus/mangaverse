@@ -683,6 +683,36 @@ export function AdvancedSettingsSection({
   );
 }
 
+function ReaderSettingsHeader({
+  titleScope,
+}: {
+  readonly titleScope: ReaderSettingsPageProps['titleScope'];
+}) {
+  return (
+    <PageHeader
+      title="Reader settings"
+      description={
+        titleScope !== undefined
+          ? 'Reading mode, layout, gestures, and display preferences for this title.'
+          : 'Default reading mode, layout, gestures, and display preferences.'
+      }
+      actions={
+        titleScope !== undefined ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={titleScope.isResetting === true}
+            onClick={titleScope.onReset}
+          >
+            {titleScope.isResetting === true ? 'Resetting…' : 'Reset title settings'}
+          </Button>
+        ) : undefined
+      }
+    />
+  );
+}
+
 export function ReaderSettingsPage({
   settings,
   isLoading,
@@ -694,8 +724,9 @@ export function ReaderSettingsPage({
   if (isLoading) {
     return (
       <PageContainer variant="read">
-        <section aria-label="Reader settings">
-          <LoadingState type="list" count={3} />
+        <section aria-label="Reader settings" className="flex flex-col gap-6">
+          <ReaderSettingsHeader titleScope={titleScope} />
+          <LoadingState type="sections" count={4} />
         </section>
       </PageContainer>
     );
@@ -727,27 +758,7 @@ export function ReaderSettingsPage({
   return (
     <PageContainer variant="read">
       <section aria-label="Reader settings" className="flex flex-col gap-6">
-        <PageHeader
-          title="Reader settings"
-          description={
-            titleScope !== undefined
-              ? 'Reading mode, layout, gestures, and display preferences for this title.'
-              : 'Default reading mode, layout, gestures, and display preferences.'
-          }
-          actions={
-            titleScope !== undefined ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={titleScope.isResetting === true}
-                onClick={titleScope.onReset}
-              >
-                {titleScope.isResetting === true ? 'Resetting…' : 'Reset title settings'}
-              </Button>
-            ) : undefined
-          }
-        />
+        <ReaderSettingsHeader titleScope={titleScope} />
 
         <SettingsSection
           title="Reading mode"
