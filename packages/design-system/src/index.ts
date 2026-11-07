@@ -92,6 +92,7 @@ export { ErrorState } from './components/error-state.js';
 export { Toaster, notify } from './components/toast.js';
 export { SettingsSection } from './components/settings-section.js';
 export { ThemeOption } from './components/theme-option.js';
+export { SegmentedControl } from './components/segmented-control.js';
 export { ReaderChrome } from './components/reader-chrome.js';
 export { ThemePreview } from './components/theme-preview.js';
 
@@ -106,5 +107,9 @@ export type { ErrorStateProps } from './components/error-state.js';
 export type { NotifyFailureInput } from './components/toast.js';
 export type { SettingsSectionProps } from './components/settings-section.js';
 export type { ThemeOptionProps } from './components/theme-option.js';
+export type {
+  SegmentedControlOption,
+  SegmentedControlProps,
+} from './components/segmented-control.js';
 export type { ReaderChromeProps, ReaderMode } from './components/reader-chrome.js';
 export type { ThemePreviewProps, ThemeDefinition } from './components/theme-preview.js';

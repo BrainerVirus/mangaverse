@@ -1,8 +1,7 @@
 import { useRef } from 'react';
 import { useGSAP } from '@gsap/react';
-import { gsap } from 'gsap';
 import { getMangaCoverUrl, type MangaIdentity } from '@app/shared';
-import { useReducedMotion } from '../motion/index.js';
+import { cardHover } from '../motion/index.js';
 import { cn } from '../lib/cn.js';
 import { Badge } from './ui/badge.js';
 
@@ -171,31 +170,11 @@ export function MangaCard({
 }: MangaCardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const reducedMotion = useReducedMotion();
 
   useGSAP(
     () => {
-      if (!buttonRef.current || reducedMotion) return;
-      const el = buttonRef.current;
-
-      const onEnter = () => {
-        gsap.to(el, { y: -2, scale: 1.02, duration: 0.2, ease: 'power2.out' });
-      };
-      const onLeave = () => {
-        gsap.to(el, { y: 0, scale: 1, duration: 0.2, ease: 'power2.out' });
-      };
-
-      el.addEventListener('mouseenter', onEnter);
-      el.addEventListener('mouseleave', onLeave);
-      el.addEventListener('focus', onEnter);
-      el.addEventListener('blur', onLeave);
-
-      return () => {
-        el.removeEventListener('mouseenter', onEnter);
-        el.removeEventListener('mouseleave', onLeave);
-        el.removeEventListener('focus', onEnter);
-        el.removeEventListener('blur', onLeave);
-      };
+      if (!buttonRef.current) return;
+      return cardHover(buttonRef.current);
     },
     { scope: containerRef },
   );
@@ -207,9 +186,9 @@ export function MangaCard({
         type="button"
         onClick={onClick}
         className={cn(
-          'group relative w-full cursor-pointer overflow-hidden rounded-box border border-border bg-card transition-all',
+          'group relative w-full cursor-pointer overflow-hidden rounded-box border border-border bg-card transition-colors',
           'hover:border-accent hover:shadow-md',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
           {
             'relative flex flex-col aspect-3/4': variant === 'grid',
             'flex gap-4 p-3': variant === 'list',

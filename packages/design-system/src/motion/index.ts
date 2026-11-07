@@ -16,6 +16,7 @@ export { CSS_EASING } from './tokens/css-easing.js';
 export { fadeIn, fadeOut } from './helpers/fade.js';
 export { slideUp, slideDown } from './helpers/slide.js';
 export { scaleIn } from './helpers/scale.js';
+export { cardHover } from './helpers/card-hover.js';
 export { staggerIn } from './helpers/stagger.js';
 export { createTimeline } from './helpers/timeline.js';
 

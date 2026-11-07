@@ -146,7 +146,7 @@ export function DesktopSidebar() {
             aria-label="Open command palette"
             className={actionClass}
           >
-            <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded border border-sidebar-border bg-sidebar-accent px-1 font-mono type-micro">
+            <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded-control border border-sidebar-border bg-sidebar-accent px-1 font-mono type-micro">
               ⌘K
             </kbd>
             {visuallyExpanded ? <span className="truncate">Commands</span> : null}

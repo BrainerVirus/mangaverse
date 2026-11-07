@@ -15,6 +15,9 @@ import {
   PageContainer,
   PageHeader,
   Skeleton,
+  buttonSizes,
+  buttonVariants,
+  cn,
 } from '@app/design-system';
 import type { ExtensionRegistryEntry } from '@app/shared';
 import { ExternalLink, Puzzle } from 'lucide-react';
@@ -151,10 +154,10 @@ function ProviderCard({
             href={provider.sourceUrl}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center rounded-control px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground pointer-coarse:min-h-11"
+            className={cn(buttonVariants.ghost, buttonSizes.sm, 'text-muted-foreground')}
           >
             Source
-            <ExternalLink aria-hidden className="ml-1 size-3.5" />
+            <ExternalLink aria-hidden />
           </a>
         </div>
       </CardContent>
