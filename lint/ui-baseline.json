@@ -1,7 +1,4 @@
 {
-  "apps/web/app/components/StatusPages.tsx": {
-    "no-hand-rolled-heading": 1
-  },
   "apps/web/app/components/shell/DesktopSidebar.tsx": {
     "no-off-scale-radius": 1
   },
@@ -10,56 +7,26 @@
     "no-off-scale-radius": 1,
     "prefer-size-utility": 3
   },
-  "apps/web/app/features/library/components/LibrarySections.tsx": {
-    "no-hand-rolled-heading": 2
-  },
   "apps/web/app/features/library/components/LibraryToolbar.tsx": {
     "prefer-size-utility": 1
   },
-  "apps/web/app/features/library/components/MangaChapterList.tsx": {
-    "no-hand-rolled-heading": 1
-  },
   "apps/web/app/features/library/components/MangaDetailPage.tsx": {
-    "no-hand-rolled-heading": 1,
     "no-hover-without-focus": 1
   },
-  "apps/web/app/features/library/components/MangaIdentityMerge.tsx": {
-    "no-hand-rolled-heading": 2
-  },
-  "apps/web/app/features/library/components/MangaProviderSwitcher.tsx": {
-    "no-hand-rolled-heading": 1
-  },
-  "apps/web/app/features/library/components/MangaRelatedTitles.tsx": {
-    "no-hand-rolled-heading": 1
-  },
   "apps/web/app/features/migration/components/MigrationPage.tsx": {
-    "no-hand-rolled-heading": 4,
     "no-hover-without-focus": 1,
     "no-off-scale-radius": 2
   },
   "apps/web/app/features/search/components/DiscoverPage.tsx": {
-    "no-hand-rolled-heading": 2,
     "no-hover-without-focus": 1
-  },
-  "apps/web/app/features/search/components/SearchPage.tsx": {
-    "no-hand-rolled-heading": 2
-  },
-  "apps/web/app/features/theme/components/ThemeGuidedEditor.tsx": {
-    "no-hand-rolled-heading": 3
   },
   "apps/web/app/routes/advanced.tsx": {
     "prefer-size-utility": 1
   },
   "packages/design-system/src/components/manga-card.tsx": {
-    "no-direct-gsap-import": 1,
-    "no-hand-rolled-heading": 1
+    "no-direct-gsap-import": 1
   },
   "packages/extensions/src/components/ExtensionsPage.tsx": {
-    "no-hand-rolled-heading": 1,
-    "no-hover-without-focus": 1
-  },
-  "packages/extensions/src/components/ProviderDetailPage.tsx": {
-    "no-hand-rolled-heading": 1,
     "no-hover-without-focus": 1
   }
 }

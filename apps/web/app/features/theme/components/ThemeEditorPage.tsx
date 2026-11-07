@@ -13,6 +13,7 @@ import {
   TabsTrigger,
   LoadingState,
   PageContainer,
+  PageHeader,
 } from '@app/design-system';
 import type { ThemeDefinition, ThemeDefinitionIssue } from '@app/shared';
 
@@ -153,12 +154,11 @@ function ThemePreviewPane({ definition, dark }: { definition: ThemeDefinition; d
 
 function ThemeEditorHeading() {
   return (
-    <div className="space-y-2">
-      <h1 className="type-display-lg text-foreground">Theme editor</h1>
-      <p className="type-body max-w-2xl text-muted-foreground">
-        Name the theme and preview both appearances. Nothing reaches the app shell until you save.
-      </p>
-    </div>
+    <PageHeader
+      title="Theme editor"
+      description="Name the theme and preview both appearances. Nothing reaches the app shell until you save."
+      className="min-w-0 flex-1"
+    />
   );
 }
 

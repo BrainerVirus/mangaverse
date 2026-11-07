@@ -626,7 +626,7 @@ function SummaryDialog({
           </Alert>
 
           <section aria-label="Selected mappings">
-            <h3 className="mb-2 text-sm font-medium text-foreground">
+            <h3 className="type-label mb-2 text-foreground">
               Selected mappings ({readyItems.length})
             </h3>
             <ul className="space-y-1 text-sm">
@@ -643,7 +643,7 @@ function SummaryDialog({
 
           {blockedItems.length > 0 ? (
             <section aria-label="Blocked mappings">
-              <h3 className="mb-2 text-sm font-medium text-foreground">
+              <h3 className="type-label mb-2 text-foreground">
                 Blocked or skipped ({blockedItems.length})
               </h3>
               <ul className="space-y-1 text-sm">
@@ -662,7 +662,7 @@ function SummaryDialog({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <section aria-label="Preserved data">
-              <h3 className="mb-2 text-sm font-medium text-foreground">Preserved</h3>
+              <h3 className="type-label mb-2 text-foreground">Preserved</h3>
               <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
                 {PRESERVED_ITEMS.map((item) => (
                   <li key={item}>{item}</li>
@@ -670,7 +670,7 @@ function SummaryDialog({
               </ul>
             </section>
             <section aria-label="Not migrated data">
-              <h3 className="mb-2 text-sm font-medium text-foreground">Not migrated</h3>
+              <h3 className="type-label mb-2 text-foreground">Not migrated</h3>
               <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
                 {NOT_MIGRATED_ITEMS.map((item) => (
                   <li key={item}>{item}</li>

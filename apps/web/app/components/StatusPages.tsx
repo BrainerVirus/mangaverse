@@ -35,7 +35,7 @@ export function NotFoundPage() {
       aria-label="Page not found"
       className="flex flex-col items-center gap-2 p-8 text-center"
     >
-      <h1 className="text-2xl font-bold tracking-tight text-foreground">Page not found</h1>
+      <h1 className="type-display-lg text-foreground">Page not found</h1>
       <p className="mb-4 max-w-sm text-sm text-muted-foreground">
         This address doesn&apos;t lead anywhere in MangaVerse.
       </p>

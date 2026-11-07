@@ -85,7 +85,7 @@ function MergeSideFacts({
 }) {
   return (
     <ListRow as="section" aria-label={heading} tone="outline" padding="md" className="min-w-0">
-      <h3 className="truncate text-base font-semibold">{side.canonicalTitle}</h3>
+      <h3 className="type-heading truncate">{side.canonicalTitle}</h3>
       <p className="mt-1 text-xs text-muted-foreground">
         {providerNames(side.providerIds, providerLabels)} · {side.mappingCount}{' '}
         {side.mappingCount === 1 ? 'source' : 'sources'} · {side.chapterCount}{' '}
@@ -144,7 +144,7 @@ function MergeMappingList({
 }) {
   return (
     <div>
-      <h3 className="text-sm font-medium text-muted-foreground">Provider sources</h3>
+      <h3 className="type-label text-muted-foreground">Provider sources</h3>
       <ul className="mt-2 flex flex-col divide-y divide-border">
         {preview.mappings.map((mapping) => (
           <ListRow

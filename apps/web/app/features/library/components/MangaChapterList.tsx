@@ -608,7 +608,7 @@ export function MangaChapterList({
     <section aria-label="Chapters" className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-1">
-          <h2 className="text-xl font-semibold">Chapters</h2>
+          <h2 className="type-heading">Chapters</h2>
           <p className="text-sm text-muted-foreground" data-testid="chapter-summary">
             {chapterSummaryText(isLoading, unreadCount, mappingChapters.length)}
             {lastReadChapter !== undefined ? ` · Last read: ${lastReadChapter.title}` : null}

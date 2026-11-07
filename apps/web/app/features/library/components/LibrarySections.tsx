@@ -32,7 +32,7 @@ function CoverThumb({ item }: CoverThumbProps) {
 
 /** A shelf's heading; the loading placeholder shows the same one, so its line box is shared. */
 export function ShelfHeading({ children }: { readonly children: string }) {
-  return <h2 className="text-lg font-semibold">{children}</h2>;
+  return <h2 className="type-heading">{children}</h2>;
 }
 
 export interface ContinueReadingSectionProps {
@@ -228,7 +228,7 @@ export function LibraryUpdatePanel({ updates, disabled = false }: LibraryUpdateP
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold">Updates</h2>
+          <h2 className="type-heading">Updates</h2>
           <output aria-live="polite" className="block text-sm text-muted-foreground">
             {summarize(report, running)}
           </output>

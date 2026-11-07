@@ -40,7 +40,7 @@ function GuidedSection({ title, description, children }: GuidedSectionProps) {
   return (
     <section className="space-y-3">
       <div className="space-y-1">
-        <h3 className="text-base font-semibold text-foreground">{title}</h3>
+        <h3 className="type-label text-foreground">{title}</h3>
         <p className="type-body text-muted-foreground">{description}</p>
       </div>
       {children}
@@ -206,7 +206,7 @@ function pinnedOverrides({ draft, appearance }: PinnedOverridesProps): ReactElem
       padding="md"
       className="space-y-2"
     >
-      <h3 id={headingId} className="text-base font-semibold text-foreground">
+      <h3 id={headingId} className="type-label text-foreground">
         Pinned by this preset
       </h3>
       <p className="text-sm text-muted-foreground">
@@ -434,7 +434,7 @@ export function ThemeGuidedEditor({ draft, onChange, disabled = false }: ThemeEd
           aria-labelledby={`guided-${appearance}-heading`}
           className="space-y-3"
         >
-          <h2 id={`guided-${appearance}-heading`} className="text-lg font-semibold text-foreground">
+          <h2 id={`guided-${appearance}-heading`} className="type-heading text-foreground">
             {appearance === 'light' ? 'Light appearance' : 'Dark appearance'}
           </h2>
           <GuidedAppearancePanel
