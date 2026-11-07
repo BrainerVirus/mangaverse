@@ -218,6 +218,41 @@ describe('/reader/$chapterId persistence reporting', () => {
     container.remove();
   });
 
+  it('Given overlapping fields in two scopes, Then the older scope flushes before the newer field', async () => {
+    const { root, container } = await renderRoute();
+    const change = screenProps.onChangeSettings as (patch: unknown, scope: string) => void;
+
+    await act(async () => {
+      change({ verticalGapPx: 16 }, 'title');
+      change({ readingMode: 'vertical' }, 'global');
+      change({ readingMode: 'ltr' }, 'global');
+      change({ verticalGapPx: 24 }, 'global');
+    });
+    await settle();
+    await act(async () => {});
+
+    const writes = saveSettingsScope.mock.calls.map(
+      (call) => call[1] as { scope?: string; patch?: Record<string, unknown> },
+    );
+    const lastLayers = writes.filter((write) => write.scope === 'layers').at(-1);
+    expect(lastLayers?.patch).toEqual({ verticalGapPx: 24 });
+    const globalLtr = writes.find(
+      (write) => write.scope === 'global' && write.patch?.readingMode === 'ltr',
+    );
+    expect(globalLtr).toBeDefined();
+    expect(
+      writes.some(
+        (write) =>
+          write.scope === 'layers' &&
+          write.patch?.readingMode === 'vertical' &&
+          writes.indexOf(write) > writes.indexOf(globalLtr!),
+      ),
+    ).toBe(false);
+
+    act(() => root.unmount());
+    container.remove();
+  });
+
   it('Given All titles scope, When a setting changes, Then only the global row carries it', async () => {
     const { root, container } = await renderRoute();
 

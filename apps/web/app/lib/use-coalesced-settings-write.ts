@@ -26,6 +26,7 @@ export interface CoalescedSettingsWriter<T> {
   /** Commits the pending value immediately (pointer-up, blur). */
   flush(): void;
   cancel(): void;
+  hasPending(): boolean;
 }
 
 /**
@@ -40,6 +41,7 @@ export interface ScopedCoalescedSettingsWriter<K extends string, T> {
   flush(scope?: K): void;
   /** Drops one scope's queued value, or every scope when omitted. */
   cancel(scope?: K): void;
+  hasPending(scope?: K): boolean;
 }
 
 /**
@@ -89,7 +91,12 @@ export function useCoalescedSettingsWrite<T>(
     pending.current = null;
     forgetPendingWriter(writerId.current);
   }, []);
-  return { schedule, flush, cancel };
+  return {
+    schedule,
+    flush,
+    cancel,
+    hasPending: () => pending.current !== null,
+  };
 }
 
 /**
@@ -182,5 +189,11 @@ export function useScopedCoalescedSettingsWrite<K extends string, T>(
     forgetPendingWriter(writerId.current);
   }, []);
 
-  return { schedule, flush, cancel };
+  return {
+    schedule,
+    flush,
+    cancel,
+    hasPending: (scope?: K) =>
+      scope === undefined ? pending.current.size > 0 : pending.current.has(scope),
+  };
 }

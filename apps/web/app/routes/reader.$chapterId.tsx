@@ -94,6 +94,10 @@ function mergeSaveWrites(
   return { ...next, patch: { ...previous.patch, ...next.patch } };
 }
 
+function patchesOverlap(a: Partial<ReaderSettings>, b: Partial<ReaderSettings>): boolean {
+  return Object.keys(a).some((key) => key in b);
+}
+
 function sameOverrides(
   a: ReaderSettingsOverride | undefined,
   b: ReaderSettingsOverride | undefined,
@@ -248,10 +252,35 @@ function ReaderRouteSession({ chapterIdParam }: { chapterIdParam: string }) {
     },
   });
 
+  const pendingPatches = useRef(new Map<ReaderSettingsWriteScope, Partial<ReaderSettings>>());
   const settingsWriter = useScopedCoalescedSettingsWrite<
     ReaderSettingsWriteScope,
     ReaderSettingsSave
   >((_scope, write) => saveSettings(write));
+  const scheduleSettings = useCallback(
+    (scope: ReaderSettingsWriteScope, save: ReaderSettingsSave, patch: Partial<ReaderSettings>) => {
+      // A field pending in another scope must land before this edit: merging it
+      // into this scope's later write would replay the older value.
+      const existing = settingsWriter.hasPending(scope)
+        ? (pendingPatches.current.get(scope) ?? {})
+        : {};
+      const combined = { ...existing, ...patch };
+      for (const [otherScope, otherPatch] of pendingPatches.current) {
+        if (otherScope === scope) continue;
+        if (!settingsWriter.hasPending(otherScope)) {
+          pendingPatches.current.delete(otherScope);
+          continue;
+        }
+        if (patchesOverlap(otherPatch, combined)) {
+          settingsWriter.flush(otherScope);
+          pendingPatches.current.delete(otherScope);
+        }
+      }
+      pendingPatches.current.set(scope, combined);
+      settingsWriter.schedule(scope, save, mergeSaveWrites);
+    },
+    [settingsWriter],
+  );
   const handleChangeSettings = useCallback(
     (patch: Partial<ReaderSettings>, scope: ReaderSettingsScope) => {
       // Merge over the cache, not over the last render: two changes can land
@@ -266,7 +295,7 @@ function ReaderRouteSession({ chapterIdParam }: { chapterIdParam: string }) {
       const revision = ++writeRevision.current;
 
       if (scope === 'title') {
-        settingsWriter.schedule(
+        scheduleSettings(
           'title',
           {
             kind: 'title',
@@ -274,7 +303,7 @@ function ReaderRouteSession({ chapterIdParam }: { chapterIdParam: string }) {
             patch,
             revision,
           },
-          mergeSaveWrites,
+          patch,
         );
         return;
       }
@@ -283,7 +312,7 @@ function ReaderRouteSession({ chapterIdParam }: { chapterIdParam: string }) {
       if (titleChanged) {
         // One write for both layers: the two rows settle together from the
         // cache's point of view, so a refetch cannot catch a half-written pair.
-        settingsWriter.schedule(
+        scheduleSettings(
           'layers',
           {
             kind: 'layers',
@@ -291,21 +320,21 @@ function ReaderRouteSession({ chapterIdParam }: { chapterIdParam: string }) {
             patch,
             revision,
           },
-          mergeSaveWrites,
+          patch,
         );
         return;
       }
-      settingsWriter.schedule(
+      scheduleSettings(
         'global',
         {
           kind: 'global',
           patch,
           revision,
         },
-        mergeSaveWrites,
+        patch,
       );
     },
-    [chapterId, db, queryClient, settingsWriter],
+    [chapterId, db, queryClient, scheduleSettings],
   );
 
   // The library keeps a five-minute staleTime, so reading must mark it stale or
@@ -387,7 +416,9 @@ function ReaderRouteSession({ chapterIdParam }: { chapterIdParam: string }) {
           // land before the delete, never after it; the shared mutation scope
           // also queues the reset behind anything already in flight.
           settingsWriter.cancel('title');
+          pendingPatches.current.delete('title');
           settingsWriter.flush();
+          pendingPatches.current.clear();
           saveSettings({
             kind: 'reset-title',
             mangaId: data.mangaId,
