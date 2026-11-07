@@ -111,6 +111,9 @@ jobs:
         with:
           name: web-output
           path: apps/web/.output/**
+          # .output begins with a dot, which upload-artifact skips by default.
+          include-hidden-files: true
+          if-no-files-found: error
           retention-days: 1
 
   e2e:
