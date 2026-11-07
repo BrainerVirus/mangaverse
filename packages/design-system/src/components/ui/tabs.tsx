@@ -25,7 +25,8 @@ const TabsTrigger = React.forwardRef<HTMLButtonElement, TabsPrimitive.Tab.Props>
     <TabsPrimitive.Tab
       ref={ref}
       className={cn(
-        'inline-flex items-center justify-center whitespace-nowrap rounded-control px-3 py-1.5 type-label ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-active:bg-background data-active:text-foreground data-active:shadow-sm',
+        // oxlint-disable-next-line shadcn/no-arbitrary-values -- Active tabs transition only their colour and elevation.
+        'inline-flex items-center justify-center whitespace-nowrap rounded-control px-3 py-1.5 type-label ring-offset-background transition-[color,background-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-active:bg-background data-active:text-foreground data-active:shadow-sm',
         className,
       )}
       {...props}

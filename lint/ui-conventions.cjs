@@ -366,6 +366,20 @@ const APPS_AND_NON_READER = (file) =>
 const CONSUMER_FILE = /(^|\/)(apps|packages\/extensions)\//;
 
 const rules = {
+  "no-transition-all": classRule({
+    check({ entries, report }) {
+      for (const { node, tokens } of entries) {
+        for (const { utility, raw } of tokens) {
+          if (utility === "transition-all" || utility === "transition") {
+            report(
+              node,
+              `"${raw}" transitions an unrestricted set of properties. Specify the intended properties instead.`,
+            );
+          }
+        }
+      }
+    },
+  }),
   /**
    * docs/Design.md "Cards": a Card is content, never a layout container. Reports a `Card` or
    * `SettingsSection` nested in another one in the same file, directly or through components
@@ -845,7 +859,7 @@ const rules = {
               context.report({
                 node,
                 message:
-                  "An outlined <ListRow> inside a Card or SettingsSection draws a second border in one grouping. Use tone=\"muted\" or tone=\"plain\", or a divide-y list.",
+                  'An outlined <ListRow> inside a Card or SettingsSection draws a second border in one grouping. Use tone="muted" or tone="plain", or a divide-y list.',
               });
               return;
             }

@@ -1,7 +1,4 @@
-import { useRef } from 'react';
-import { useGSAP } from '@gsap/react';
 import { getMangaCoverUrl, type MangaIdentity } from '@app/shared';
-import { cardHover } from '../motion/index.js';
 import { cn } from '../lib/cn.js';
 import { Badge } from './ui/badge.js';
 
@@ -168,42 +165,34 @@ export function MangaCard({
   unreadCount,
   sourceLabel,
 }: MangaCardProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
-
-  useGSAP(
-    () => {
-      if (!buttonRef.current) return;
-      return cardHover(buttonRef.current);
-    },
-    { scope: containerRef },
-  );
-
   return (
-    <div ref={containerRef}>
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={onClick}
-        className={cn(
-          'group relative w-full cursor-pointer overflow-hidden rounded-box border border-border bg-card transition-colors',
-          'hover:border-accent hover:shadow-md',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-          {
-            'relative flex flex-col aspect-3/4': variant === 'grid',
-            'flex gap-4 p-3': variant === 'list',
-            'flex-row gap-3 p-2': variant === 'compact',
-          },
-        )}
-      >
-        <CardCover manga={manga} variant={variant} coverSlot={coverSlot} />
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'group relative w-full cursor-pointer overflow-hidden rounded-box border border-border bg-card transition-colors',
+        // Hover changes colour and elevation only. A transform would move the card and re-raster
+        // its cover at fractional pixels, and focus never animates (DESIGN.md §5.3).
+        'hover:border-ring/40 hover:shadow-md',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        {
+          // The 2px matte (border 1 + matte 2 + cover radius 7 = the card's 10) keeps the cover
+          // off the border: a rounded clip that touches a border at a fractional device pixel
+          // (Windows 125/150%) paints the art into the border ring. The title plate buries the
+          // cover's bottom edge, so no edge of the art sits on the card's bottom border.
+          'relative flex flex-col aspect-3/4 p-0.5': variant === 'grid',
+          'flex gap-4 p-3': variant === 'list',
+          'flex-row gap-3 p-2': variant === 'compact',
+        },
+      )}
+    >
+      <CardCover manga={manga} variant={variant} coverSlot={coverSlot} />
 
-        <CardMeta manga={manga} variant={variant} sourceLabel={sourceLabel} />
+      <CardMeta manga={manga} variant={variant} sourceLabel={sourceLabel} />
 
-        <ContentRatingBadge manga={manga} variant={variant} />
+      <ContentRatingBadge manga={manga} variant={variant} />
 
-        <UnreadBadge unreadCount={unreadCount} variant={variant} />
-      </button>
-    </div>
+      <UnreadBadge unreadCount={unreadCount} variant={variant} />
+    </button>
   );
 }

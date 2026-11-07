@@ -110,6 +110,7 @@
     "ui-conventions/no-outlined-row-in-card": "error",
     // `space-x-*`/`space-y-*` margin stacks anywhere: siblings are spaced with `gap-*` on a flex or grid parent.
     "ui-conventions/no-space-utilities": "error",
+    "ui-conventions/no-transition-all": "error",
     "typescript/consistent-type-imports": "error",
     "typescript/no-explicit-any": "warn",
     "react-hooks/exhaustive-deps": "warn",
