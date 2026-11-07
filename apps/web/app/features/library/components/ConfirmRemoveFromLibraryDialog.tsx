@@ -34,7 +34,7 @@ export function ConfirmRemoveFromLibraryDialog({
             back at any time.
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter className="mt-6 gap-2">
+        <DialogFooter className="mt-6">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Keep in library
           </Button>

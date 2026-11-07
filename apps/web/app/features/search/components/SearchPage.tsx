@@ -351,7 +351,7 @@ function SaveSearchDialog({
             }}
           />
         </div>
-        <DialogFooter className="mt-6 gap-2">
+        <DialogFooter className="mt-6">
           <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
             Cancel
           </Button>

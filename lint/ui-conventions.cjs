@@ -467,6 +467,37 @@ const rules = {
   }),
 
   /**
+   * docs/Design.md "Spacing": siblings are separated by `gap-*` on a flex or grid parent. Tailwind's
+   * `space-x-*`/`space-y-*` write a margin on every child but the last (`> :not(:last-child)`), so
+   * they skip inline children, double up with a child's own margin or a `gap`, and break when a
+   * child is hidden, reordered or `display: contents`. Reports every `space-x|y-*`, the `-0` resets
+   * and `-reverse` included, in primitives as well as features (the header and footer stacks of
+   * Card, Dialog and Sheet are `gap-*` too).
+   */
+  "no-space-utilities": classRule({
+    check({ entries, report }) {
+      for (const { node, tokens } of entries) {
+        for (const { utility, variants, raw } of tokens) {
+          const match = utility.match(/^space-([xy])-(.+)$/);
+          if (!match) continue;
+          const [, axis, value] = match;
+          const prefix = variants === "" ? "" : `${variants}:`;
+          const fix =
+            value === "reverse"
+              ? "reverse the order with flex-col-reverse or flex-row-reverse"
+              : axis === "y"
+                ? `flex flex-col ${prefix}gap-${value}`
+                : `flex ${prefix}gap-${value}`;
+          report(
+            node,
+            `"${raw}" is a margin stack. Put the spacing on a flex or grid parent: ${fix} (docs/Design.md "Spacing").`,
+          );
+        }
+      }
+    },
+  }),
+
+  /**
    * DESIGN.md §2.4: depth is the four-step elevation scale (shadow-sm|md|lg|xl). Tailwind's
    * remaining shadows (bare `shadow`, `shadow-xs|2xs|2xl|inner`, `drop-shadow-*`) compile to
    * light-mode values outside that scale and show as dirt in dark mode.
@@ -755,7 +786,7 @@ const rules = {
 
   /**
    * ListRow owns its fill, border, radius, shadow and padding. A consumer may add layout,
-   * gap/space between children and typography; a resting fill, border or padding override
+   * gap between children and typography; a resting fill, border or padding override
    * reintroduces the one-off panel the primitive replaced.
    */
   "no-list-row-overrides": {

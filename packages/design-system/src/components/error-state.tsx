@@ -1,5 +1,6 @@
 import { AlertTriangle, ArrowLeft, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert.js';
+import { StateFrame } from './state-frame.js';
 import { Button } from './ui/button.js';
 
 export interface ErrorStateProps {
@@ -17,7 +18,7 @@ export interface ErrorStateProps {
  */
 export function ErrorState({ title, message, providerName, onRetry, onBack }: ErrorStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center px-6 py-12">
+    <StateFrame padding="page" align="center">
       <Alert variant="destructive" className="max-w-lg p-6">
         <AlertTriangle />
         <AlertTitle>{title}</AlertTitle>
@@ -43,6 +44,6 @@ export function ErrorState({ title, message, providerName, onRetry, onBack }: Er
           </div>
         )}
       </Alert>
-    </div>
+    </StateFrame>
   );
 }

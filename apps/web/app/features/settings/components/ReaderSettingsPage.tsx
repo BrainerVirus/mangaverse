@@ -186,7 +186,7 @@ function SettingToggleRow({
 }) {
   return (
     <div className="flex items-start justify-between gap-4">
-      <div className="space-y-1">
+      <div className="flex flex-col gap-1">
         <Label htmlFor={id} className="text-sm font-medium">
           {label}
         </Label>

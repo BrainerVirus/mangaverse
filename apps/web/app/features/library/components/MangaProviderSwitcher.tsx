@@ -39,7 +39,7 @@ export function MangaProviderSwitcher({
   }
 
   return (
-    <section aria-label="Providers" aria-busy={isPending} className="space-y-3">
+    <section aria-label="Providers" aria-busy={isPending} className="flex flex-col gap-3">
       <h2 className="type-heading">Providers</h2>
 
       {mappings.length === 0 ? (
@@ -59,7 +59,7 @@ export function MangaProviderSwitcher({
                 padding="row"
                 className="flex flex-wrap items-center justify-between gap-3"
               >
-                <div className="min-w-0 space-y-1">
+                <div className="min-w-0 flex flex-col gap-1">
                   <div className="flex flex-wrap items-center gap-2">
                     {name !== undefined ? <span className="font-medium">{name}</span> : null}
                     {isDefault ? <Badge variant="secondary">Default</Badge> : null}

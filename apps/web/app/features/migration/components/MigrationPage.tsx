@@ -182,7 +182,7 @@ function PreviewIssueList({ preview }: { preview: MigrationPreviewReport }) {
   const summary = summarizeMigrationPreview(preview);
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <Alert>
         <AlertTitle>Migration preview</AlertTitle>
         <AlertDescription>
@@ -192,7 +192,7 @@ function PreviewIssueList({ preview }: { preview: MigrationPreviewReport }) {
         </AlertDescription>
       </Alert>
 
-      <ul className="space-y-2" aria-label="Migration preview items">
+      <ul className="flex flex-col gap-2" aria-label="Migration preview items">
         {preview.items.map((item) => (
           <ListRow as="li" key={item.mangaId} tone="muted" padding="md" className="text-sm">
             <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -207,7 +207,7 @@ function PreviewIssueList({ preview }: { preview: MigrationPreviewReport }) {
               {item.sourceProviderMangaId} → {targetMappingLabel(item)}
             </p>
             {item.issues.length > 0 ? (
-              <ul className="mt-2 space-y-1">
+              <ul className="mt-2 flex flex-col gap-1">
                 {item.issues.map((issue) => (
                   <li key={`${issue.code}-${issue.message}`} className="text-muted-foreground">
                     <Badge variant={issue.severity === 'error' ? 'destructive' : 'secondary'}>
@@ -244,7 +244,7 @@ function ProviderSection({
       description="Choose where titles come from and where they should move."
     >
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           <Label htmlFor="migration-source-provider">Source provider</Label>
           <Select
             onValueChange={(value) => onSourceProviderChange(value)}
@@ -264,7 +264,7 @@ function ProviderSection({
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           <Label htmlFor="migration-target-provider">Target provider</Label>
           <Select
             onValueChange={(value) => onTargetProviderChange(value)}
@@ -354,7 +354,7 @@ function CandidateRow({
         Source id: {candidate.sourceProviderMangaId}
       </p>
 
-      <div className="space-y-2">
+      <div className="flex flex-col gap-2">
         <Label htmlFor={`search-${candidate.mangaId}`}>Search on {targetProviderName}</Label>
         <Input
           id={`search-${candidate.mangaId}`}
@@ -368,7 +368,10 @@ function CandidateRow({
           state={state}
           onRetry={() => onRetryTargetSearch(candidate.mangaId)}
         />
-        <ul className="space-y-2" aria-label={`Target matches for ${candidate.canonicalTitle}`}>
+        <ul
+          className="flex flex-col gap-2"
+          aria-label={`Target matches for ${candidate.canonicalTitle}`}
+        >
           {state.results.map((result) => {
             const isSelected = selectedId === result.providerMangaId;
             return (
@@ -392,7 +395,7 @@ function CandidateRow({
             );
           })}
         </ul>
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           <Label htmlFor={`target-${candidate.mangaId}`}>Target provider manga id</Label>
           <Input
             id={`target-${candidate.mangaId}`}
@@ -517,7 +520,7 @@ function CandidateSection({
             </p>
           </div>
 
-          <ul className="space-y-3" aria-label="Migration candidates">
+          <ul className="flex flex-col gap-3" aria-label="Migration candidates">
             {visibleCandidates.map((candidate) => (
               <CandidateRow
                 key={candidate.mangaId}
@@ -613,7 +616,7 @@ function SummaryDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           <Alert>
             <AlertTitle>Back up first</AlertTitle>
             <AlertDescription>
@@ -629,7 +632,7 @@ function SummaryDialog({
             <h3 className="type-label mb-2 text-foreground">
               Selected mappings ({readyItems.length})
             </h3>
-            <ul className="space-y-1 text-sm">
+            <ul className="flex flex-col gap-1 text-sm">
               {readyItems.map((item) => (
                 <ListRow as="li" key={item.mangaId} tone="muted" padding="sm">
                   <span className="font-medium">{item.canonicalTitle}</span>
@@ -646,7 +649,7 @@ function SummaryDialog({
               <h3 className="type-label mb-2 text-foreground">
                 Blocked or skipped ({blockedItems.length})
               </h3>
-              <ul className="space-y-1 text-sm">
+              <ul className="flex flex-col gap-1 text-sm">
                 {blockedItems.map((item) => (
                   <ListRow as="li" key={item.mangaId} tone="muted" padding="sm">
                     <span className="font-medium">{item.canonicalTitle}</span>
@@ -663,7 +666,7 @@ function SummaryDialog({
           <div className="grid gap-4 sm:grid-cols-2">
             <section aria-label="Preserved data">
               <h3 className="type-label mb-2 text-foreground">Preserved</h3>
-              <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+              <ul className="list-disc flex flex-col gap-1 pl-5 text-sm text-muted-foreground">
                 {PRESERVED_ITEMS.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
@@ -671,7 +674,7 @@ function SummaryDialog({
             </section>
             <section aria-label="Not migrated data">
               <h3 className="type-label mb-2 text-foreground">Not migrated</h3>
-              <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+              <ul className="list-disc flex flex-col gap-1 pl-5 text-sm text-muted-foreground">
                 {NOT_MIGRATED_ITEMS.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
@@ -680,7 +683,7 @@ function SummaryDialog({
           </div>
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
@@ -715,7 +718,7 @@ function RollbackStatus({
             {summary.skippedCount > 0 ? ` ${summary.skippedCount} could not be restored.` : ''}
           </AlertDescription>
           {summary.skipped.length > 0 ? (
-            <ul className="mt-2 space-y-1 text-sm">
+            <ul className="mt-2 flex flex-col gap-1 text-sm">
               {summary.skipped.map((item) => (
                 <li key={item.mangaId}>
                   {item.title}: {item.reason}
@@ -758,7 +761,7 @@ function ApplyReportPanel({
   if (applyReport === null && applyError === null) return null;
 
   return (
-    <section aria-label="Migration report" className="space-y-3">
+    <section aria-label="Migration report" className="flex flex-col gap-3">
       {applyReport !== null ? (
         <Alert>
           <AlertTitle>Migration applied</AlertTitle>
@@ -776,7 +779,7 @@ function ApplyReportPanel({
       ) : null}
 
       {applyReport !== null ? (
-        <ul className="space-y-2" aria-label="Migration report items">
+        <ul className="flex flex-col gap-2" aria-label="Migration report items">
           {applyReport.items.map((item) => (
             <ListRow
               as="li"
@@ -833,7 +836,7 @@ function HistorySection({
       {history.length === 0 ? (
         <p className="text-sm text-muted-foreground">No migrations recorded yet.</p>
       ) : (
-        <ul className="space-y-2" aria-label="Migration history">
+        <ul className="flex flex-col gap-2" aria-label="Migration history">
           {history.map((entry) => (
             <ListRow as="li" key={entry.id} tone="muted" padding="sm" className="text-sm">
               <span className="font-medium">{entry.canonicalTitle ?? titleFor(entry.mangaId)}</span>
@@ -857,7 +860,10 @@ function RequestedTitleList({
   titles: Readonly<Record<string, string>>;
 }) {
   return (
-    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm" aria-label="Skipped selected titles">
+    <ul
+      className="mt-2 list-disc flex flex-col gap-1 pl-5 text-sm"
+      aria-label="Skipped selected titles"
+    >
       {mangaIds.map((mangaId) => (
         <li key={mangaId}>{titles[mangaId] ?? mangaId}</li>
       ))}
@@ -1137,7 +1143,7 @@ export function MigrationPage({
   if (isLoading) {
     return (
       <PageContainer variant="read">
-        <section aria-label="Migration" className="space-y-6">
+        <section aria-label="Migration" className="flex flex-col gap-6">
           <PageHeader {...MIGRATION_HEADER} />
           <LoadingState type="sections" count={2} />
         </section>
@@ -1160,7 +1166,7 @@ export function MigrationPage({
 
   return (
     <PageContainer variant="read">
-      <section aria-label="Migration" className="space-y-6">
+      <section aria-label="Migration" className="flex flex-col gap-6">
         <PageHeader {...MIGRATION_HEADER} />
 
         <ApplyReportPanel

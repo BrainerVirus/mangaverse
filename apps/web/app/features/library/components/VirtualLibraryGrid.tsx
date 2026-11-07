@@ -68,7 +68,7 @@ const LibraryCard = memo(function LibraryCard({
   return (
     <div data-library-card className="relative">
       {selectionMode ? (
-        <label className="absolute top-2 left-2 z-20 flex size-7 cursor-pointer items-center justify-center rounded-control border border-border bg-background/90 shadow-sm">
+        <label className="absolute top-2 left-2 z-20 flex size-7 cursor-pointer items-center justify-center rounded-control border border-border bg-background shadow-sm pointer-coarse:size-11">
           <input
             type="checkbox"
             className="size-4 accent-foreground"

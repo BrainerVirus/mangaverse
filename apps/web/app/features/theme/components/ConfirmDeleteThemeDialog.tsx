@@ -34,7 +34,7 @@ export function ConfirmDeleteThemeDialog({
             theme.
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter className="gap-2">
+        <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Keep theme
           </Button>

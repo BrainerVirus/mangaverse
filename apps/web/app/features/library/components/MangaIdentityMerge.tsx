@@ -479,7 +479,7 @@ function MergeDialog({
           />
         )}
 
-        <DialogFooter className="mt-6 gap-2">
+        <DialogFooter className="mt-6">
           <Button type="button" variant="outline" disabled={isApplying} onClick={close}>
             Cancel
           </Button>
@@ -523,7 +523,7 @@ export function MangaDuplicatesSection({
   }
 
   return (
-    <section aria-label="Possible duplicates" className="space-y-3">
+    <section aria-label="Possible duplicates" className="flex flex-col gap-3">
       <SettingsSection title="Possible duplicates" collapsed>
         <DuplicatesList
           state={state}
@@ -695,7 +695,7 @@ export function MangaUnmergeDialog({
           )}
         </div>
 
-        <DialogFooter className="mt-6 gap-2">
+        <DialogFooter className="mt-6">
           <Button type="button" variant="outline" disabled={busy} onClick={close}>
             Cancel
           </Button>

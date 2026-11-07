@@ -95,6 +95,24 @@ const HOVER_GREEN = [
   `<button className="p-2 focus:outline-none" />`,
 ];
 
+// `space-x|y-*` margin stacks. The red lines carry two offenders on 7 and 8, so they report twice.
+const SPACE_RED = [
+  `<div className="space-y-2" />`,
+  `<div className="flex space-x-1" />`,
+  `<CardHeader className="space-y-1.5" />`,
+  `<ul className={cn('flex flex-col', ['sm:space-x-2', open && 'space-y-reverse'])} />`,
+  `<div className="space-y-0 hover:space-x-[3px]" />`,
+  `<div className={cva('p-4', { variants: { gap: { a: 'space-y-3' } } })} />`,
+];
+const SPACE_GREEN = [
+  `<div className="flex flex-col gap-2" />`,
+  `<div className="flex gap-x-1" />`,
+  `<ul className="divide-y divide-border" />`,
+  `<ul className="flex flex-col gap-1.5 divide-y" />`,
+  `<div className="justify-between content-between mt-2 mb-3" />`,
+  `<div className="gap-x-2 gap-y-4" />`,
+];
+
 describe("ui-conventions rules", () => {
   let dir;
   let rel;
@@ -243,6 +261,10 @@ export function A() {
   return <div className="rounded-box border border-border p-4" />;
 }
 `,
+    "apps/web/app/space-stacks.tsx": elements(SPACE_RED),
+    "apps/web/app/space-gap.tsx": elements(SPACE_GREEN),
+    // The Card/Dialog/Sheet header stacks are gap-based too: no primitive is exempt.
+    "packages/design-system/src/components/ui/card.tsx": `export const CardHeader = (p) => <div className={cn('flex flex-col space-y-1.5 p-6', p.className)} />;\n`,
     "apps/web/app/border-composed.tsx": elements(BORDER_RED),
     "apps/web/app/border-exclusive.tsx": elements(BORDER_GREEN),
     "apps/web/app/hover-invisible.tsx": elements(HOVER_RED),
@@ -314,6 +336,7 @@ export const sizes = { sm: \`h-9 \${base} border-[var(--border)]\` } as const;
         "ui-conventions/no-border-ring-doubling": "error",
         "ui-conventions/no-list-row-overrides": "error",
         "ui-conventions/no-outlined-row-in-card": "error",
+        "ui-conventions/no-space-utilities": "error",
       },
       jsPlugins: [join(ROOT, "lint/ui-conventions.cjs")],
     };
@@ -398,6 +421,26 @@ export const sizes = { sm: \`h-9 \${base} border-[var(--border)]\` } as const;
     assert.deepEqual(at("apps/web/app/outlined-row-in-card.tsx", "no-outlined-row-in-card"), [5, 6]);
   });
 
+  it("no-space-utilities fails stacks, resets, variants, arrays, cva options and CardHeader", () => {
+    assert.deepEqual(
+      at("apps/web/app/space-stacks.tsx", "no-space-utilities"),
+      [4, 5, 6, 7, 7, 8, 8, 9],
+    );
+    assert.deepEqual(at("packages/design-system/src/components/ui/card.tsx", "no-space-utilities"), [1]);
+  });
+
+  it("no-space-utilities passes gap, divide and look-alike utilities", () => {
+    assert.deepEqual(at("apps/web/app/space-gap.tsx", "no-space-utilities"), []);
+  });
+
+  it("no-space-utilities names the gap replacement", () => {
+    const messages = found.get("apps/web/app/space-stacks.tsx").map((d) => d.message);
+    assert.match(messages[0], /flex flex-col gap-2/);
+    assert.match(messages[1], /flex gap-1/);
+    assert.match(messages.find((m) => m.includes("sm:space-x-2")), /flex sm:gap-2/);
+    assert.match(messages.find((m) => m.includes("space-y-reverse")), /flex-col-reverse/);
+  });
+
   it("no-hover-without-focus fails invisible focus and a className prop that proves nothing", () => {
     assert.deepEqual(
       at("apps/web/app/hover-invisible.tsx", "no-hover-without-focus"),
@@ -452,6 +495,7 @@ describe("the repo oxlint config", () => {
 export function Red() {
   return (
     <Card>
+      <div className="space-y-2" />
       <Card className="bg-white/10 backdrop-blur-md border ring-1" />
       <Button className="p-[13px] bg-red-500 bg-[#fff]" style={{ padding: 13, color: '#fff' }} />
     </Card>
@@ -463,7 +507,9 @@ export function Green() {
   return (
     <Card className="mt-4">
       <CardContent>
-        <Button className="mt-2" size="sm">Save</Button>
+        <ul className="flex flex-col gap-2 divide-y">
+          <Button className="mt-2" size="sm">Save</Button>
+        </ul>
       </CardContent>
     </Card>
   );
@@ -484,9 +530,14 @@ export function Green() {
   const rulesOf = (name) =>
     new Set(diagnostics.filter((d) => d.file.endsWith(name)).map((d) => d.rule));
 
-  it("fails the red fixture on the three enforced ui-conventions rules", () => {
+  it("fails the red fixture on the four enforced ui-conventions rules", () => {
     const rules = rulesOf("red.tsx");
-    for (const rule of ["no-nested-card", "no-hand-rolled-glass", "no-border-ring-doubling"]) {
+    for (const rule of [
+      "no-nested-card",
+      "no-hand-rolled-glass",
+      "no-border-ring-doubling",
+      "no-space-utilities",
+    ]) {
       assert.ok(rules.has(`ui-conventions(${rule})`), `${rule} missing from ${[...rules]}`);
     }
   });

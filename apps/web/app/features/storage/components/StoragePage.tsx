@@ -143,7 +143,7 @@ function ClearDialog({
               <DialogTitle>{CLEAR_COPY[target].label}</DialogTitle>
               <DialogDescription>{CLEAR_COPY[target].description}</DialogDescription>
             </DialogHeader>
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter>
               <Button variant="outline" onClick={onCancel}>
                 Cancel
               </Button>
@@ -182,7 +182,7 @@ function DownloadsSection({
       </dl>
 
       {downloads.items.length > 0 ? (
-        <ul className="mt-4 space-y-2" aria-label="Downloaded chapters">
+        <ul className="mt-4 flex flex-col gap-2" aria-label="Downloaded chapters">
           {downloads.items.map((item) => (
             <ListRow
               as="li"
@@ -262,7 +262,7 @@ export function StoragePage({
   if (isLoading) {
     return (
       <PageContainer variant="read">
-        <section aria-label="Storage" className="space-y-6">
+        <section aria-label="Storage" className="flex flex-col gap-6">
           <PageHeader
             title="Storage"
             description={STORAGE_DESCRIPTION}
@@ -299,7 +299,7 @@ export function StoragePage({
 
   return (
     <PageContainer variant="read">
-      <section aria-label="Storage" className="space-y-6">
+      <section aria-label="Storage" className="flex flex-col gap-6">
         <PageHeader
           title="Storage"
           description={STORAGE_DESCRIPTION}
@@ -366,7 +366,7 @@ export function StoragePage({
           </dl>
 
           {summary.cacheByProvider.length > 0 ? (
-            <ul className="mt-4 space-y-2" aria-label="Cache entries by provider">
+            <ul className="mt-4 flex flex-col gap-2" aria-label="Cache entries by provider">
               {summary.cacheByProvider.map((entry) => (
                 <ListRow
                   as="li"

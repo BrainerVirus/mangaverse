@@ -118,7 +118,7 @@ function UninstallProviderDialog({
             manifest URL.
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter>
           <Button
             type="button"
             variant="outline"
@@ -328,7 +328,7 @@ function UpdateSection({
               and saved settings stay as they are.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter>
             <Button
               type="button"
               variant="outline"

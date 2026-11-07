@@ -66,8 +66,8 @@ function EditorSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-3">
-      <div className="space-y-1">
+    <section className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
         <h2 className="type-heading text-foreground">{title}</h2>
         {description === undefined ? null : (
           <p className="type-body text-muted-foreground">{description}</p>
@@ -117,13 +117,13 @@ function ThemePreviewPane({ definition, dark }: { definition: ThemeDefinition; d
   };
 
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2">
       <p className="type-label text-muted-foreground">{label}</p>
       <figure
         aria-label={label}
         data-appearance={dark ? 'dark' : 'light'}
         style={scope}
-        className="m-0 space-y-3 rounded-box bg-background p-4 text-foreground shadow-sm"
+        className="m-0 flex flex-col gap-3 rounded-box bg-background p-4 text-foreground shadow-sm"
       >
         <div className="flex items-center justify-between gap-3">
           <span className="type-label">Sample heading</span>
@@ -132,7 +132,7 @@ function ThemePreviewPane({ definition, dark }: { definition: ThemeDefinition; d
           </span>
         </div>
         <p className="type-body text-muted-foreground">Muted body text on the canvas.</p>
-        <ListRow tone="card" padding="md" className="space-y-1">
+        <ListRow tone="card" padding="md" className="flex flex-col gap-1">
           <p className="type-label">Card surface</p>
           <p className="type-body text-muted-foreground">Secondary line on a card.</p>
         </ListRow>
@@ -166,7 +166,7 @@ function ThemeEditorHeading() {
 export function ThemeEditorLoading({ onCancel }: { readonly onCancel: () => void }) {
   return (
     <PageContainer variant="read" className="max-w-5xl">
-      <section aria-label="Theme editor" className="space-y-8">
+      <section aria-label="Theme editor" className="flex flex-col gap-8">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <ThemeEditorHeading />
           <div className="flex flex-wrap gap-2">
@@ -203,7 +203,7 @@ export function ThemeEditorPage({
 
   return (
     <PageContainer variant="read" className="max-w-5xl">
-      <section aria-label="Theme editor" className="space-y-8">
+      <section aria-label="Theme editor" className="flex flex-col gap-8">
         <header className="flex flex-wrap items-start justify-between gap-4">
           <ThemeEditorHeading />
           <div className="flex flex-wrap gap-2">
@@ -238,7 +238,7 @@ export function ThemeEditorPage({
           <Alert variant="destructive">
             <AlertTitle>Check the theme before saving</AlertTitle>
             <div className="type-body">
-              <ul className="list-disc space-y-1 pl-4">
+              <ul className="list-disc flex flex-col gap-1 pl-4">
                 {issues.map((issue) => (
                   <li key={`${issue.path}:${issue.message}`}>
                     {issue.path === '' ? issue.message : `${issue.path}: ${issue.message}`}
@@ -257,7 +257,7 @@ export function ThemeEditorPage({
         )}
 
         <EditorSection title="Name" description="Shown in the theme gallery and on theme cards.">
-          <div className="max-w-md space-y-2">
+          <div className="max-w-md flex flex-col gap-2">
             <Label htmlFor="theme-name">Theme name</Label>
             <Input
               id="theme-name"
@@ -278,8 +278,8 @@ export function ThemeEditorPage({
           </div>
         </EditorSection>
 
-        <Tabs defaultValue="guided" className="space-y-4">
-          <TabsList aria-label="Editing mode">
+        <Tabs defaultValue="guided" className="flex flex-col gap-4">
+          <TabsList aria-label="Editing mode" className="self-start">
             <TabsTrigger value="guided">Guided</TabsTrigger>
             <TabsTrigger value="advanced">Advanced</TabsTrigger>
           </TabsList>

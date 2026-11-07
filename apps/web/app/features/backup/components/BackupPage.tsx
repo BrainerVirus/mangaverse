@@ -59,7 +59,7 @@ function PreviewIssueList({ preview }: { preview: RestorePreviewReport }) {
   }
 
   return (
-    <ul className="space-y-2" aria-label="Restore preview issues">
+    <ul className="flex flex-col gap-2" aria-label="Restore preview issues">
       {issues.map((issue) => (
         <ListRow
           as="li"
@@ -139,7 +139,7 @@ function RestorePreviewPanel({
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-2">
         <Badge variant={summary.canRestore ? 'default' : 'destructive'}>
           {summary.canRestore ? 'Valid backup' : 'Cannot restore'}
@@ -172,6 +172,7 @@ function RestorePreviewPanel({
       <PreviewIssueList preview={preview} />
       <Button
         variant="destructive"
+        className="self-start"
         disabled={!summary.canRestore || isRestoring}
         onClick={onRequestConfirm}
       >
@@ -215,7 +216,7 @@ export function BackupPage({
   if (isLoading) {
     return (
       <PageContainer variant="read">
-        <section aria-label="Backup and restore" className="space-y-6">
+        <section aria-label="Backup and restore" className="flex flex-col gap-6">
           <PageHeader {...BACKUP_HEADER} />
           <LoadingState type="sections" count={2} />
         </section>
@@ -238,7 +239,7 @@ export function BackupPage({
 
   return (
     <PageContainer variant="read">
-      <section aria-label="Backup and restore" className="space-y-6">
+      <section aria-label="Backup and restore" className="flex flex-col gap-6">
         <PageHeader {...BACKUP_HEADER} />
 
         <RestoreStatus
@@ -270,7 +271,7 @@ export function BackupPage({
           title="Import backup"
           description="Select a MangaVerse backup file. The app validates format, shows what the backup carries, and previews conflicts before replacing data."
         >
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-center gap-3">
               <input
                 ref={fileInputRef}
@@ -315,7 +316,7 @@ export function BackupPage({
                 their local records. This action cannot be undone automatically.
               </DialogDescription>
             </DialogHeader>
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter>
               <Button
                 variant="outline"
                 onClick={() => setConfirmOpen(false)}

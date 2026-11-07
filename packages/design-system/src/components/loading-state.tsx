@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { StateFrame } from './state-frame.js';
 import { Skeleton } from './ui/skeleton.js';
 import { Card, CardContent, CardHeader } from './ui/card.js';
 
@@ -143,7 +144,7 @@ function SectionsSkeleton({
             </div>
           </CardHeader>
           <CardContent className="pt-0">
-            <div className="space-y-4">
+            <div className="flex flex-col gap-4">
               {Array.from({ length: rows }).map((_row, r) => (
                 <Skeleton
                   key={`${baseId}-section-${i}-row-${r}`}
@@ -170,7 +171,7 @@ export function LoadingState({
   const actualCount = count !== undefined && count > 0 ? count : itemCount;
   const baseId = useId();
   return (
-    <div className="@container w-full">
+    <StateFrame padding="none" align="stretch" className="@container w-full">
       {type === 'grid' && (
         <GridSkeleton count={count} columns={columns} caption={caption} baseId={baseId} />
       )}
@@ -193,6 +194,6 @@ export function LoadingState({
       )}
       {type === 'sections' && <SectionsSkeleton count={actualCount} rows={rows} baseId={baseId} />}
       {type === 'detail' && <DetailSkeleton />}
-    </div>
+    </StateFrame>
   );
 }

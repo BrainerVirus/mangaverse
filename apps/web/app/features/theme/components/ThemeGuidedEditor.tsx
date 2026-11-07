@@ -38,8 +38,8 @@ interface GuidedSectionProps {
 /** Flat grouping: the editor shell bans cards, so a section is a heading and spacing. */
 function GuidedSection({ title, description, children }: GuidedSectionProps) {
   return (
-    <section className="space-y-3">
-      <div className="space-y-1">
+    <section className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
         <h3 className="type-label text-foreground">{title}</h3>
         <p className="type-body text-muted-foreground">{description}</p>
       </div>
@@ -127,7 +127,7 @@ function seedControl({ seed, field, value, appearance, disabled, onChange }: See
       data-testid={`seed-${appearance}-${seed}`}
       tone="muted"
       padding="md"
-      className="space-y-2"
+      className="flex flex-col gap-2"
     >
       <div className="flex items-center gap-2">
         {swatch(value, 'h-4 w-4 shrink-0 rounded-full border border-border')}
@@ -204,7 +204,7 @@ function pinnedOverrides({ draft, appearance }: PinnedOverridesProps): ReactElem
       data-testid={`pinned-${appearance}`}
       tone="muted"
       padding="md"
-      className="space-y-2"
+      className="flex flex-col gap-2"
     >
       <h3 id={headingId} className="type-label text-foreground">
         Pinned by this preset
@@ -243,7 +243,7 @@ function contrastMeter({ pair, draft, appearance, disabled, onChange }: Contrast
       data-testid={base}
       tone="muted"
       padding="md"
-      className="space-y-2"
+      className="flex flex-col gap-2"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="type-label text-foreground">{pair.label}</p>
@@ -260,13 +260,14 @@ function contrastMeter({ pair, draft, appearance, disabled, onChange }: Contrast
           {`Meets the ${BODY_TEXT_TARGET}:1 body-text target.`}
         </p>
       ) : (
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           <p id={`${base}-hint`} className="text-sm text-muted-foreground">
             {pair.fixHint}
           </p>
           <Button
             variant="outline"
             size="sm"
+            className="self-start"
             disabled={disabled}
             aria-label={`Fix ${pair.label}`}
             aria-describedby={`${base}-hint`}
@@ -310,7 +311,7 @@ export function GuidedAppearancePanel({
     onChange(setSeedChannel(draft, appearance, seed, patch));
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <GuidedSection
         title="Seeds"
         description="Every other token is derived from these ten colors. The preview above updates as you drag."
@@ -333,7 +334,7 @@ export function GuidedAppearancePanel({
         title="Accent and surfaces"
         description="Plain-language feel controls that move the accent and surface seeds."
       >
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           {sliderRow({
             id: `guided-${appearance}-accent-h`,
             label: 'Accent hue',
@@ -379,7 +380,7 @@ export function GuidedAppearancePanel({
         title="Contrast"
         description="WCAG 2.1 ratios for the text and glass pairs this theme paints."
       >
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           {sliderRow({
             id: `guided-${appearance}-text-contrast`,
             label: 'Text contrast',
@@ -408,7 +409,10 @@ export function GuidedAppearancePanel({
               </AlertDescription>
             </Alert>
           )}
-          <ul className="space-y-3" aria-label={`Contrast checks for the ${appearance} appearance`}>
+          <ul
+            className="flex flex-col gap-3"
+            aria-label={`Contrast checks for the ${appearance} appearance`}
+          >
             {pairs.map((pair) => contrastMeter({ pair, draft, appearance, disabled, onChange }))}
           </ul>
         </div>
@@ -423,7 +427,7 @@ export function GuidedAppearancePanel({
  */
 export function ThemeGuidedEditor({ draft, onChange, disabled = false }: ThemeEditorPanelProps) {
   return (
-    <div data-testid="theme-guided-editor" className="space-y-4">
+    <div data-testid="theme-guided-editor" className="flex flex-col gap-4">
       <p className="type-body text-muted-foreground">
         Pick the seeds and tune the accent, surface and contrast feel. The light and dark previews
         above update immediately, and you can save at any time.
@@ -432,7 +436,7 @@ export function ThemeGuidedEditor({ draft, onChange, disabled = false }: ThemeEd
         <section
           key={appearance}
           aria-labelledby={`guided-${appearance}-heading`}
-          className="space-y-3"
+          className="flex flex-col gap-3"
         >
           <h2 id={`guided-${appearance}-heading`} className="type-heading text-foreground">
             {appearance === 'light' ? 'Light appearance' : 'Dark appearance'}

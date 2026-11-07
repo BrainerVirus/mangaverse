@@ -209,6 +209,32 @@ describe('LibraryPage', () => {
     expect(screen.getByRole('button', { name: 'Select titles' })).toBeInTheDocument();
   });
 
+  it('Given selection mode, Then each card carries a solid select target with a 44px coarse-pointer floor', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <LibraryPage
+        data={{
+          items: [createItem('one', 'Title 1')],
+          categories: [],
+          total: 1,
+          viewState: DEFAULT_LIBRARY_VIEW_STATE,
+        }}
+        isLoading={false}
+        isError={false}
+        viewState={DEFAULT_LIBRARY_VIEW_STATE}
+        onViewStateChange={() => {}}
+        onOpenManga={() => {}}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Select titles' }));
+    const target = screen.getByLabelText('Select Title 1').closest('label');
+
+    expect(target).toHaveClass('size-7', 'pointer-coarse:size-11', 'bg-background');
+    expect(target?.className).not.toContain('bg-background/');
+  });
+
   it('Given no reading progress, Then continue reading shows its empty state', () => {
     render(
       <LibraryPage

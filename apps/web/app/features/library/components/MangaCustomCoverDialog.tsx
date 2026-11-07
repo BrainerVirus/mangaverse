@@ -89,7 +89,7 @@ export function MangaCustomCoverDialog({
           ) : null}
         </div>
 
-        <DialogFooter className="mt-6 gap-2">
+        <DialogFooter className="mt-6">
           {hasCustomCover ? (
             <Button type="button" variant="ghost" disabled={isSaving} onClick={() => run(onReset)}>
               Reset to provider cover
