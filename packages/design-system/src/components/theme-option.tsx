@@ -38,7 +38,7 @@ export function ThemeOption({
         aria-label={label}
         data-selected={selected ? 'true' : 'false'}
         onClick={onSelect}
-        className="flex h-full w-full flex-col items-stretch gap-2 rounded-box p-1 text-left transition-colors hover:ring-1 hover:ring-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 data-[selected=true]:ring-2 data-[selected=true]:ring-primary data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-background"
+        className="flex w-full flex-col items-stretch gap-2 rounded-box p-1 text-left transition-colors hover:ring-1 hover:ring-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 data-[selected=true]:ring-2 data-[selected=true]:ring-primary data-[selected=true]:ring-offset-2 data-[selected=true]:ring-offset-background"
       >
         {children}
       </button>

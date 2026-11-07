@@ -96,3 +96,31 @@ test('Given the theme editor, When a custom theme is saved, duplicated and delet
   });
   await expect(page.getByRole('button', { name: 'Select E2E Custom theme' })).toBeVisible();
 });
+
+test('Given the theme gallery, When descriptions differ in length, Then the previews and names align', async ({
+  page,
+  quickOnboarding,
+}) => {
+  await page.goto('/theme');
+  const names = ['Minimal', 'Minimal Light', 'Minimal Dark'] as const;
+  const previews = page.locator('[data-theme-preview]');
+  await expect(previews.first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('button', { name: 'Select Minimal theme' })).toBeVisible();
+
+  const heights = await previews.evaluateAll((nodes) =>
+    nodes.map((node) => node.getBoundingClientRect().height),
+  );
+  expect(Math.max(...heights) - Math.min(...heights)).toBeLessThanOrEqual(1);
+
+  const tops = await Promise.all(
+    names.map(async (name) => {
+      const box = await page
+        .getByRole('button', { name: `Select ${name} theme` })
+        .locator('p')
+        .first()
+        .boundingBox();
+      return box?.y ?? 0;
+    }),
+  );
+  expect(Math.max(...tops) - Math.min(...tops)).toBeLessThanOrEqual(1);
+});

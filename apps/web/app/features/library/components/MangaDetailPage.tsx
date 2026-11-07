@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   Badge,
   Button,
@@ -402,10 +402,12 @@ function MangaSummaryHeader({
   manga,
   inLibrary,
   onBack,
+  actions,
 }: {
   manga: MangaIdentity;
   inLibrary: boolean;
   onBack: (() => void) | undefined;
+  actions: ReactNode;
 }) {
   // `unknown` is the absence of a provider status, so it gets no badge.
   const statusLabel = mangaStatusLabel(manga.status);
@@ -426,6 +428,7 @@ function MangaSummaryHeader({
           {inLibrary ? <Badge variant="outline">In library</Badge> : null}
         </>
       }
+      actions={actions}
     />
   );
 }
@@ -623,20 +626,13 @@ function MangaSummary({
   onBack,
 }: SummaryProps) {
   const { manga, libraryEntry, chapters } = data;
-
-  return (
-    <div className="flex min-w-0 flex-1 flex-col gap-4">
-      <MangaSummaryHeader manga={manga} inLibrary={libraryEntry !== undefined} onBack={onBack} />
-      <MangaFacts manga={manga} activeMapping={activeMapping} providerLabels={providerLabels} />
-      {libraryEntry !== undefined ? (
-        <ReadingFacts entry={libraryEntry} chapters={chapters} />
-      ) : null}
+  const headerActions = (
+    <div className="flex flex-col gap-3">
       <ReadingAction
         chapter={continueChapter}
         isContinue={hasLastReadChapter}
         onOpenChapter={onOpenChapter}
       />
-
       <LibraryActions
         libraryEntry={libraryEntry}
         mangaTitle={manga.canonicalTitle}
@@ -645,6 +641,21 @@ function MangaSummary({
         onToggleFavorite={onToggleFavorite}
         isLibraryActionPending={isLibraryActionPending}
       />
+    </div>
+  );
+
+  return (
+    <div className="flex min-w-0 flex-1 flex-col gap-4">
+      <MangaSummaryHeader
+        manga={manga}
+        inLibrary={libraryEntry !== undefined}
+        onBack={onBack}
+        actions={headerActions}
+      />
+      <MangaFacts manga={manga} activeMapping={activeMapping} providerLabels={providerLabels} />
+      {libraryEntry !== undefined ? (
+        <ReadingFacts entry={libraryEntry} chapters={chapters} />
+      ) : null}
 
       {libraryEntry !== undefined && onStatusChange !== undefined ? (
         <LibraryStatusPicker
