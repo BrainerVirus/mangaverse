@@ -30,6 +30,23 @@ function Probe({ write }: { readonly write: (value: number) => void }) {
   );
 }
 
+function DualProbe({
+  writeA,
+  writeB,
+}: {
+  readonly writeA: (value: string) => void;
+  readonly writeB: (value: string) => void;
+}) {
+  const a = useCoalescedSettingsWrite(writeA);
+  const b = useCoalescedSettingsWrite(writeB);
+  return (
+    <>
+      <button type="button" data-testid="schedule-a" onClick={() => a.schedule('a')} />
+      <button type="button" data-testid="schedule-b" onClick={() => b.schedule('b')} />
+    </>
+  );
+}
+
 describe('useCoalescedSettingsWrite', () => {
   let container: HTMLDivElement;
   let root: Root;
@@ -87,6 +104,29 @@ describe('useCoalescedSettingsWrite', () => {
     expect(write).toHaveBeenCalledTimes(2);
   });
 
+  it('Given two surfaces with a queued write, When the second edits, Then the older write lands first', () => {
+    vi.useFakeTimers();
+    const writeA = vi.fn<(value: string) => void>();
+    const writeB = vi.fn<(value: string) => void>();
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    act(() => root.render(<DualProbe writeA={writeA} writeB={writeB} />));
+
+    act(() => container.querySelector<HTMLButtonElement>('[data-testid="schedule-a"]')?.click());
+    expect(writeA).not.toHaveBeenCalled();
+
+    // The newer surface flushes the older queued writer before it schedules.
+    act(() => container.querySelector<HTMLButtonElement>('[data-testid="schedule-b"]')?.click());
+    expect(writeA).toHaveBeenCalledWith('a');
+    expect(writeB).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(SETTINGS_WRITE_DELAY_MS);
+    });
+    expect(writeB).toHaveBeenCalledWith('b');
+  });
+
   it('Given a pending edit, When the interaction ends, Then it writes immediately once', () => {
     vi.useFakeTimers();
     const write = vi.fn<(value: number) => void>();
@@ -105,6 +145,31 @@ describe('useCoalescedSettingsWrite', () => {
 });
 
 type Scope = 'title' | 'global';
+
+function MixedProbe({
+  writeScoped,
+  writePlain,
+}: {
+  readonly writeScoped: (scope: Scope, value: string) => void;
+  readonly writePlain: (value: string) => void;
+}) {
+  const scoped = useScopedCoalescedSettingsWrite<Scope, string>(writeScoped);
+  const plain = useCoalescedSettingsWrite(writePlain);
+  return (
+    <>
+      <button
+        type="button"
+        data-testid="mixed-scoped"
+        onClick={() => scoped.schedule('title', 'reader')}
+      />
+      <button
+        type="button"
+        data-testid="mixed-plain"
+        onClick={() => plain.schedule('settings-page')}
+      />
+    </>
+  );
+}
 
 function ScopedProbe({ write }: { readonly write: (scope: Scope, value: string) => void }) {
   const writer = useScopedCoalescedSettingsWrite(write);
@@ -136,6 +201,39 @@ function ScopedProbe({ write }: { readonly write: (scope: Scope, value: string) 
     </>
   );
 }
+
+describe('cross-surface settings ordering', () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+    vi.useRealTimers();
+  });
+
+  it('Given a queued scoped reader write, When the settings page edits, Then the reader write lands first', () => {
+    vi.useFakeTimers();
+    const writeScoped = vi.fn<(scope: Scope, value: string) => void>();
+    const writePlain = vi.fn<(value: string) => void>();
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    act(() => root.render(<MixedProbe writeScoped={writeScoped} writePlain={writePlain} />));
+
+    act(() => container.querySelector<HTMLButtonElement>('[data-testid="mixed-scoped"]')?.click());
+    expect(writeScoped).not.toHaveBeenCalled();
+
+    act(() => container.querySelector<HTMLButtonElement>('[data-testid="mixed-plain"]')?.click());
+    expect(writeScoped).toHaveBeenCalledWith('title', 'reader');
+    expect(writePlain).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(SETTINGS_WRITE_DELAY_MS);
+    });
+    expect(writePlain).toHaveBeenCalledWith('settings-page');
+  });
+});
 
 describe('useScopedCoalescedSettingsWrite', () => {
   let container: HTMLDivElement;
