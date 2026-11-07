@@ -82,6 +82,18 @@ type ReaderSettingsSave =
       readonly revision: number;
     };
 
+function mergeSaveWrites(
+  previous: ReaderSettingsSave,
+  next: ReaderSettingsSave,
+): ReaderSettingsSave {
+  if (next.kind === 'reset-title' || previous.kind === 'reset-title') return next;
+  if (previous.kind !== next.kind) return next;
+  if (next.kind === 'title' || next.kind === 'layers') {
+    return { ...next, patch: { ...previous.patch, ...next.patch } };
+  }
+  return { ...next, patch: { ...previous.patch, ...next.patch } };
+}
+
 function sameOverrides(
   a: ReaderSettingsOverride | undefined,
   b: ReaderSettingsOverride | undefined,
@@ -254,12 +266,16 @@ function ReaderRouteSession({ chapterIdParam }: { chapterIdParam: string }) {
       const revision = ++writeRevision.current;
 
       if (scope === 'title') {
-        settingsWriter.schedule('title', {
-          kind: 'title',
-          mangaId: current.mangaId,
-          patch,
-          revision,
-        });
+        settingsWriter.schedule(
+          'title',
+          {
+            kind: 'title',
+            mangaId: current.mangaId,
+            patch,
+            revision,
+          },
+          mergeSaveWrites,
+        );
         return;
       }
 
@@ -267,19 +283,27 @@ function ReaderRouteSession({ chapterIdParam }: { chapterIdParam: string }) {
       if (titleChanged) {
         // One write for both layers: the two rows settle together from the
         // cache's point of view, so a refetch cannot catch a half-written pair.
-        settingsWriter.schedule('layers', {
-          kind: 'layers',
-          mangaId: current.mangaId,
-          patch,
-          revision,
-        });
+        settingsWriter.schedule(
+          'layers',
+          {
+            kind: 'layers',
+            mangaId: current.mangaId,
+            patch,
+            revision,
+          },
+          mergeSaveWrites,
+        );
         return;
       }
-      settingsWriter.schedule('global', {
-        kind: 'global',
-        patch,
-        revision,
-      });
+      settingsWriter.schedule(
+        'global',
+        {
+          kind: 'global',
+          patch,
+          revision,
+        },
+        mergeSaveWrites,
+      );
     },
     [chapterId, db, queryClient, settingsWriter],
   );

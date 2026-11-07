@@ -21,8 +21,8 @@ function forgetPendingWriter(self: object): void {
 }
 
 export interface CoalescedSettingsWriter<T> {
-  /** Queues the latest value; a 300 ms quiet window writes it once. */
-  schedule(value: T): void;
+  /** Queues a value; `merge` folds it into a pending value instead of replacing it. */
+  schedule(value: T, merge?: (previous: T, next: T) => T): void;
   /** Commits the pending value immediately (pointer-up, blur). */
   flush(): void;
   cancel(): void;
@@ -34,8 +34,8 @@ export interface CoalescedSettingsWriter<T> {
  * "this title" and "all titles" through the same surface.
  */
 export interface ScopedCoalescedSettingsWriter<K extends string, T> {
-  /** Queues the latest value for one scope; a 300 ms quiet window writes it once. */
-  schedule(scope: K, value: T): void;
+  /** Queues a value; `merge` folds it into a pending scope value instead of replacing it. */
+  schedule(scope: K, value: T, merge?: (previous: T, next: T) => T): void;
   /** Commits one scope, or every pending scope when omitted, immediately. */
   flush(scope?: K): void;
   /** Drops one scope's queued value, or every scope when omitted. */
@@ -68,9 +68,12 @@ export function useCoalescedSettingsWrite<T>(
   }, [write]);
 
   const schedule = useCallback(
-    (value: T) => {
+    (value: T, merge?: (previous: T, next: T) => T) => {
       flushOtherPendingWriters(writerId.current);
-      pending.current = { value };
+      const previous = pending.current;
+      pending.current = {
+        value: previous !== null && merge !== undefined ? merge(previous.value, value) : value,
+      };
       if (timer.current !== null) {
         clearTimeout(timer.current);
       }
@@ -143,10 +146,14 @@ export function useScopedCoalescedSettingsWrite<K extends string, T>(
   );
 
   const schedule = useCallback(
-    (scope: K, value: T) => {
+    (scope: K, value: T, merge?: (previous: T, next: T) => T) => {
       flushOtherPendingWriters(writerId.current);
       order.current.set(scope, ++sequence.current);
-      pending.current.set(scope, value);
+      const previous = pending.current.get(scope);
+      pending.current.set(
+        scope,
+        previous !== undefined && merge !== undefined ? merge(previous, value) : value,
+      );
       const existing = timers.current.get(scope);
       if (existing !== undefined) clearTimeout(existing);
       const timer = setTimeout(() => flushOne(scope), delayMs);

@@ -192,6 +192,32 @@ describe('/reader/$chapterId persistence reporting', () => {
     container.remove();
   });
 
+  it('Given two title fields in one quiet window, Then one write carries both', async () => {
+    const { root, container } = await renderRoute();
+
+    await act(async () => {
+      (screenProps.onChangeSettings as (patch: unknown, scope: string) => void)(
+        { fitMode: 'width' },
+        'title',
+      );
+      (screenProps.onChangeSettings as (patch: unknown, scope: string) => void)(
+        { keepScreenOn: false },
+        'title',
+      );
+    });
+    await settle();
+
+    expect(saveSettingsScope).toHaveBeenCalledTimes(1);
+    expect(saveSettingsScope).toHaveBeenCalledWith(expect.anything(), {
+      scope: 'title',
+      mangaId: 'dev-md-manga-1',
+      patch: { fitMode: 'width', keepScreenOn: false },
+    });
+
+    act(() => root.unmount());
+    container.remove();
+  });
+
   it('Given All titles scope, When a setting changes, Then only the global row carries it', async () => {
     const { root, container } = await renderRoute();
 

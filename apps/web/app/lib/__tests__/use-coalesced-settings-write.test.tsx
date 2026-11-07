@@ -30,6 +30,74 @@ function Probe({ write }: { readonly write: (value: number) => void }) {
   );
 }
 
+function MergedProbe({
+  write,
+}: {
+  readonly write: (value: { readonly a?: string; readonly b?: string }) => void;
+}) {
+  const writer = useCoalescedSettingsWrite(write);
+  const merge = (previous: { a?: string; b?: string }, next: { a?: string; b?: string }) => ({
+    ...previous,
+    ...next,
+  });
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="schedule a"
+        data-testid="merged-a"
+        onClick={() => writer.schedule({ a: 'a' }, merge)}
+      />
+      <button
+        type="button"
+        aria-label="schedule b"
+        data-testid="merged-b"
+        onClick={() => writer.schedule({ b: 'b' }, merge)}
+      />
+      <button
+        type="button"
+        aria-label="flush merged"
+        data-testid="merged-flush"
+        onClick={() => writer.flush()}
+      />
+    </>
+  );
+}
+
+function MergedScopedProbe({
+  write,
+}: {
+  readonly write: (scope: Scope, value: { readonly a?: string; readonly b?: string }) => void;
+}) {
+  const writer = useScopedCoalescedSettingsWrite<Scope, { a?: string; b?: string }>(write);
+  const merge = (previous: { a?: string; b?: string }, next: { a?: string; b?: string }) => ({
+    ...previous,
+    ...next,
+  });
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="schedule a"
+        data-testid="merged-a"
+        onClick={() => writer.schedule('title', { a: 'a' }, merge)}
+      />
+      <button
+        type="button"
+        aria-label="schedule b"
+        data-testid="merged-b"
+        onClick={() => writer.schedule('title', { b: 'b' }, merge)}
+      />
+      <button
+        type="button"
+        aria-label="flush merged"
+        data-testid="merged-flush"
+        onClick={() => writer.flush()}
+      />
+    </>
+  );
+}
+
 function DualProbe({
   writeA,
   writeB,
@@ -213,6 +281,49 @@ function ScopedProbe({ write }: { readonly write: (scope: Scope, value: string) 
     </>
   );
 }
+
+describe('pending patch merging', () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+    vi.useRealTimers();
+  });
+
+  it('Given two fields edited in one quiet window, When the writer flushes, Then one merged value is written', () => {
+    vi.useFakeTimers();
+    const write = vi.fn<(value: { a?: string; b?: string }) => void>();
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    act(() => root.render(<MergedProbe write={write} />));
+
+    act(() => container.querySelector<HTMLButtonElement>('[data-testid="merged-a"]')?.click());
+    act(() => container.querySelector<HTMLButtonElement>('[data-testid="merged-b"]')?.click());
+    act(() => container.querySelector<HTMLButtonElement>('[data-testid="merged-flush"]')?.click());
+
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(write).toHaveBeenCalledWith({ a: 'a', b: 'b' });
+  });
+
+  it('Given two scoped fields edited in one quiet window, Then the flushed patch keeps both', () => {
+    vi.useFakeTimers();
+    const write = vi.fn<(scope: Scope, value: { a?: string; b?: string }) => void>();
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    act(() => root.render(<MergedScopedProbe write={write} />));
+
+    act(() => container.querySelector<HTMLButtonElement>('[data-testid="merged-a"]')?.click());
+    act(() => container.querySelector<HTMLButtonElement>('[data-testid="merged-b"]')?.click());
+    act(() => container.querySelector<HTMLButtonElement>('[data-testid="merged-flush"]')?.click());
+
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(write).toHaveBeenCalledWith('title', { a: 'a', b: 'b' });
+  });
+});
 
 describe('cross-surface settings ordering', () => {
   let container: HTMLDivElement;

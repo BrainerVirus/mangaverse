@@ -122,7 +122,10 @@ function SettingsReaderRoute() {
     };
     // Every edit paints immediately; a slider gesture writes once at rest.
     queryClient.setQueryData(queryKey, next);
-    settingsWriter.schedule({ next, patch });
+    settingsWriter.schedule({ next, patch }, (previous, incoming) => ({
+      next: incoming.next,
+      patch: { ...previous.patch, ...incoming.patch },
+    }));
   };
 
   return (
