@@ -46,7 +46,11 @@ export function PageHeader({
             </Button>
           ) : null}
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="type-display-lg min-w-0 flex-1 break-words">{title}</h1>
+            <h1
+              className={cn('type-display-lg min-w-0 break-words', count === undefined && 'flex-1')}
+            >
+              {title}
+            </h1>
             {count !== undefined ? (
               <Badge size="meta" variant="secondary">
                 {count} {countLabel ?? (count === 1 ? 'item' : 'items')}

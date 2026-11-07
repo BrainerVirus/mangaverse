@@ -52,6 +52,14 @@ describe('PageHeader', () => {
     expect(header.firstElementChild?.firstElementChild).toHaveClass('min-w-0');
   });
 
+  it('lets an uncounted title fill its column and keeps a count badge beside a counted title', () => {
+    const { rerender } = render(<PageHeader title="Detail" />);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveClass('flex-1');
+
+    rerender(<PageHeader title="Library" count={3} />);
+    expect(screen.getByRole('heading', { level: 1 })).not.toHaveClass('flex-1');
+  });
+
   it('renders a back control above the title and a meta row under the description', async () => {
     const user = userEvent.setup();
     const onBack = vi.fn<() => void>();
