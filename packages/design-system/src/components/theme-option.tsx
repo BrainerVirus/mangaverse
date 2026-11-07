@@ -42,7 +42,7 @@ export function ThemeOption({
       >
         {children}
       </button>
-      {actions === undefined ? null : actions}
+      {actions === undefined ? null : <div className="mt-auto">{actions}</div>}
     </div>
   );
 }
