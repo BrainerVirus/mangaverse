@@ -1,0 +1,39 @@
+TLC2 Version 2026.11.06.222357 (rev: d8fb231)
+Running breadth-first search Model-Checking with fp 91 and seed -841585051871525869 with 4 workers on 10 cores with 1820MB heap and 64MB offheap memory [pid: 18820] (Mac OS X 27.2 aarch64, Eclipse Adoptium 21.0.7 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/cristhoferpincetti/.local/share/opencode/worktree/3f8de6/ui-loaders-audit/tla/Discover.tla
+Parsing file /private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/tlc-16551976255961803949/Naturals.tla (jar:file:/private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/mangaverse-tla2tools-1.8.0.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/tlc-16551976255961803949/TLC.tla (jar:file:/private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/mangaverse-tla2tools-1.8.0.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/tlc-16551976255961803949/Sequences.tla (jar:file:/private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/mangaverse-tla2tools-1.8.0.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/tlc-16551976255961803949/FiniteSets.tla (jar:file:/private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/mangaverse-tla2tools-1.8.0.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module Discover
+Linting of module Discover
+Starting... (2026-11-07 18:59:39)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-11-07 18:59:39.
+Error: Invariant FailureHasRecovery is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ action = "start"
+/\ urlProvider = "A"
+/\ selected = "A"
+/\ feed = "loaded"
+/\ appSettings = "ready"
+/\ errorVisible = FALSE
+/\ section = "idle"
+
+State 2: <AppFailure line 17, col 15 to line 19, col 59 of module Discover>
+/\ action = "app failure"
+/\ urlProvider = "A"
+/\ selected = "A"
+/\ feed = "idle"
+/\ appSettings = "error"
+/\ errorVisible = FALSE
+/\ section = "idle"
+
+18 states generated, 13 distinct states found, 4 states left on queue.
+The depth of the complete state graph search is 4.
+Finished in 00s at (2026-11-07 18:59:39)
