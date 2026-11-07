@@ -97,8 +97,8 @@ function ChoiceGroup<T extends string>({
   readonly onChoose: (value: T) => void;
 }) {
   return (
-    <fieldset className="space-y-2">
-      <legend className="text-sm font-medium">{label}</legend>
+    <fieldset>
+      <legend className="mb-2 text-sm font-medium">{label}</legend>
       <div className="flex flex-wrap gap-2">
         {choices.map(([choice, text]) => (
           <Button
@@ -136,7 +136,7 @@ function SliderRow({
 }) {
   const id = useId();
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-4">
         <label htmlFor={id} className="text-sm font-medium">
           {label}
@@ -256,7 +256,7 @@ function QuickSettings({
   const change = (patch: Partial<ReaderSettings>) => onChangeSettings?.(patch, scope);
 
   return (
-    <div className="mt-6 space-y-6">
+    <div className="mt-6 flex flex-col gap-6">
       <ChoiceGroup
         label="Reading mode"
         choices={READING_MODE_CHOICES}
@@ -346,7 +346,11 @@ function DiagnosticsPanel({
   ];
 
   return (
-    <section aria-label="Reader diagnostics" data-testid="reader-diagnostics" className="space-y-3">
+    <section
+      aria-label="Reader diagnostics"
+      data-testid="reader-diagnostics"
+      className="flex flex-col gap-3"
+    >
       <div>
         <p className="text-sm font-medium">Reader diagnostics</p>
         <p className="text-sm text-muted-foreground">
@@ -362,7 +366,10 @@ function DiagnosticsPanel({
         ))}
       </dl>
       {diagnostics.events.length > 0 ? (
-        <ol className="max-h-40 space-y-1 overflow-y-auto text-xs" aria-label="Recent events">
+        <ol
+          className="max-h-40 flex flex-col gap-1 overflow-y-auto text-xs"
+          aria-label="Recent events"
+        >
           {diagnostics.events.slice(0, 6).map((event) => (
             <li key={event.id} className="flex justify-between gap-2">
               <span>
@@ -378,7 +385,7 @@ function DiagnosticsPanel({
         </ol>
       ) : null}
       {onClear ? (
-        <Button variant="outline" size="sm" onClick={onClear}>
+        <Button variant="outline" size="sm" className="self-start" onClick={onClear}>
           Clear diagnostics
         </Button>
       ) : null}

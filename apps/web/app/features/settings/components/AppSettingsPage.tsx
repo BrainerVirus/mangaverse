@@ -52,7 +52,7 @@ function SettingToggleRow({
 }) {
   return (
     <div className="flex items-start justify-between gap-4">
-      <div className="space-y-1">
+      <div className="flex flex-col gap-1">
         <Label htmlFor={id} className="text-sm font-medium">
           {label}
         </Label>
@@ -179,7 +179,7 @@ export function AppSettingsPage({
           title="Appearance"
           description="Adjust motion and transparency across the app."
         >
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             <SettingToggleRow
               id="reduce-motion"
               label="Motion"
@@ -203,7 +203,7 @@ export function AppSettingsPage({
           title="Content"
           description="Control what the app shows in search, browse, and recommendations."
         >
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
             <SettingToggleRow
               id="explicit-content"
               label="Explicit content"
@@ -222,34 +222,32 @@ export function AppSettingsPage({
         </SettingsSection>
 
         <SettingsSection title="Storage" description="How much page data stays on this device.">
-          <div className="space-y-4">
-            <div className="grid gap-2">
-              <Label htmlFor="image-cache-limit">Local cache limit</Label>
-              <Input
-                id="image-cache-limit"
-                type="number"
-                min={50}
-                max={10240}
-                step={50}
-                value={bytesToMegabytes(settings.imageCacheLimitBytes)}
-                onBlur={onInteractionEnd}
-                onChange={(event) => {
-                  const megabytes = Number(event.target.value);
-                  if (!Number.isFinite(megabytes)) {
-                    return;
-                  }
-                  update({ imageCacheLimitBytes: megabytesToBytes(megabytes) });
-                }}
-              />
-              <p className="text-sm text-muted-foreground">
-                Covers and reader pages are stored locally and reused on later visits. Downloads are
-                never removed automatically, even when the limit is reached. Limit:{' '}
-                {formatCacheBytes(settings.imageCacheLimitBytes)}
-                {cacheUsageBytes !== undefined
-                  ? ` · Used: ${formatCacheBytes(cacheUsageBytes)}`
-                  : null}
-              </p>
-            </div>
+          <div className="grid gap-2">
+            <Label htmlFor="image-cache-limit">Local cache limit</Label>
+            <Input
+              id="image-cache-limit"
+              type="number"
+              min={50}
+              max={10240}
+              step={50}
+              value={bytesToMegabytes(settings.imageCacheLimitBytes)}
+              onBlur={onInteractionEnd}
+              onChange={(event) => {
+                const megabytes = Number(event.target.value);
+                if (!Number.isFinite(megabytes)) {
+                  return;
+                }
+                update({ imageCacheLimitBytes: megabytesToBytes(megabytes) });
+              }}
+            />
+            <p className="text-sm text-muted-foreground">
+              Covers and reader pages are stored locally and reused on later visits. Downloads are
+              never removed automatically, even when the limit is reached. Limit:{' '}
+              {formatCacheBytes(settings.imageCacheLimitBytes)}
+              {cacheUsageBytes !== undefined
+                ? ` · Used: ${formatCacheBytes(cacheUsageBytes)}`
+                : null}
+            </p>
           </div>
         </SettingsSection>
 

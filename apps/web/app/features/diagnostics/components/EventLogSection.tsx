@@ -47,7 +47,7 @@ function downloadEventLog(text: string): void {
 
 function EventRow({ event }: { event: DiagnosticEvent }) {
   return (
-    <li className="space-y-1 py-2 text-sm">
+    <li className="flex flex-col gap-1 py-2 text-sm">
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant={event.kind === 'error' ? 'destructive' : 'secondary'}>{event.kind}</Badge>
         <time dateTime={event.at} className="font-mono text-xs text-muted-foreground">

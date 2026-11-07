@@ -71,7 +71,7 @@ function GamutNotice({
   const srgbHex = toHexColor(srgbFallback);
   const p3Hex = toHexColor(value);
   return (
-    <ListRow tone="warning" padding="sm" className="space-y-1">
+    <ListRow tone="warning" padding="sm" className="flex flex-col gap-1">
       <p className="type-micro text-foreground">
         {path} is outside sRGB. The draft keeps the authored Display P3 value and still saves.
       </p>
@@ -120,7 +120,7 @@ function TokenRow({
   const invalid = value.trim() !== '' && !isCssColor(value);
 
   return (
-    <ListRow tone="muted" padding="md" className="space-y-2" data-token={token}>
+    <ListRow tone="muted" padding="md" className="flex flex-col gap-2" data-token={token}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Label htmlFor={id}>{token}</Label>
         <span className="type-micro text-muted-foreground">
@@ -150,6 +150,7 @@ function TokenRow({
         <Button
           variant="ghost"
           size="sm"
+          className="self-start"
           disabled={disabled}
           aria-label={`Reset ${token} to the derived color`}
           onClick={() => onChange(setThemeOverride(definition, appearance, token, undefined))}
@@ -172,20 +173,20 @@ function TokenEditor({ draft, disabled = false, onChange }: ThemeEditorPanelProp
   );
 
   return (
-    <Tabs defaultValue="light" className="space-y-4">
-      <TabsList aria-label="Theme appearance">
+    <Tabs defaultValue="light" className="flex flex-col gap-4">
+      <TabsList aria-label="Theme appearance" className="self-start">
         <TabsTrigger value="light">Light</TabsTrigger>
         <TabsTrigger value="dark">Dark</TabsTrigger>
       </TabsList>
       {(['light', 'dark'] as const).map((appearance) => (
-        <TabsContent key={appearance} value={appearance} className="space-y-4">
+        <TabsContent key={appearance} value={appearance} className="flex flex-col gap-4">
           {THEME_TOKEN_GROUPS.map((group) => (
             <SettingsSection
               key={group.label}
               title={group.label}
               description="Override an allow-listed color token; blank restores the derived color."
             >
-              <div className="space-y-3">
+              <div className="flex flex-col gap-3">
                 {group.tokens.map((token) => (
                   <TokenRow
                     key={token}
@@ -206,7 +207,7 @@ function TokenEditor({ draft, disabled = false, onChange }: ThemeEditorPanelProp
         title="Fixed by the design system"
         description="Glass tiers, sheen, inner shadow and radius are not themeable; overrides cannot set them."
       >
-        <ul data-testid="theme-fixed-tokens" className="space-y-2">
+        <ul data-testid="theme-fixed-tokens" className="flex flex-col gap-2">
           {FIXED_THEME_TOKENS.map((token) => (
             <ListRow
               as="li"
@@ -237,7 +238,10 @@ function DiagnosticList({ diagnostics }: { readonly diagnostics: readonly ThemeJ
   return (
     <Alert variant="destructive" aria-live="polite">
       <AlertTitle>Fix the theme JSON</AlertTitle>
-      <ul data-testid="theme-json-diagnostics" className="type-body list-disc space-y-1 pl-4">
+      <ul
+        data-testid="theme-json-diagnostics"
+        className="type-body list-disc flex flex-col gap-1 pl-4"
+      >
         {diagnostics.map((diagnostic) => (
           <li key={`${diagnostic.path}:${diagnostic.message}`}>
             Line {diagnostic.line}, column {diagnostic.column}: {diagnostic.message}
@@ -267,7 +271,7 @@ function JsonEditor({ draft, disabled = false, onChange }: ThemeEditorPanelProps
   const fileBase = draft.id.replace(/[^a-z0-9-]+/gi, '-').replace(/^-+|-+$/g, '') || 'theme';
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3">
       <p className="type-body text-muted-foreground">
         Edit the stored definition directly. Syntax errors and schema issues are marked at the exact
         token; import accepts JSON only, and CSS is export-only.
@@ -353,7 +357,7 @@ export function ThemeAdvancedEditor({ draft, onChange, disabled = false }: Theme
   const gamutEntries = findOutOfGamutThemeColors(draft);
 
   return (
-    <div data-testid="theme-advanced-editor" className="space-y-4">
+    <div data-testid="theme-advanced-editor" className="flex flex-col gap-4">
       <p className="type-body text-muted-foreground">
         Every value accepts any CSS Color 4 syntax. Nothing in this draft is applied until you save.
       </p>
@@ -361,12 +365,12 @@ export function ThemeAdvancedEditor({ draft, onChange, disabled = false }: Theme
       {gamutEntries.length === 0 ? null : (
         <Alert data-testid="theme-gamut-alert">
           <AlertTitle>Outside sRGB</AlertTitle>
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <p className="type-body text-muted-foreground">
               These authored colors fall outside sRGB. The sRGB fallback is previewed beside the
               Display P3 color; saving keeps the authored value.
             </p>
-            <ul className="space-y-2">
+            <ul className="flex flex-col gap-2">
               {gamutEntries.map((entry) => (
                 <li key={entry.path}>
                   <GamutNotice
@@ -381,8 +385,8 @@ export function ThemeAdvancedEditor({ draft, onChange, disabled = false }: Theme
         </Alert>
       )}
 
-      <Tabs defaultValue="tokens" className="space-y-4">
-        <TabsList aria-label="Advanced editing mode">
+      <Tabs defaultValue="tokens" className="flex flex-col gap-4">
+        <TabsList aria-label="Advanced editing mode" className="self-start">
           <TabsTrigger value="tokens">Tokens</TabsTrigger>
           <TabsTrigger value="json">JSON</TabsTrigger>
         </TabsList>

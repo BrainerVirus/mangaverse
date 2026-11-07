@@ -503,7 +503,7 @@ and drops the first of two that sit together.
 
 Command-palette group headers stay `text-xs font-semibold uppercase tracking-wide` (existing).
 
-**Spacing of type.** Headers sit in a `space-y-1.5` / `gap-2` stack with their description; page headers
+**Spacing of type.** Headers sit in a `gap-1.5` / `gap-2` stack with their description; page headers
 use `gap-4` before their action row; settings sections separate title from body with `pb-4` and a closing
 separator at `mt-4`.
 
@@ -735,7 +735,7 @@ is not a dependency of the package, so `GlassPanel` renders a `div` and forwards
 ### 7.3 Cards & surfaces
 
 - **Matte card (existing):** `--radius-box` (10px), 1px `--border`, `--card`, `shadow-sm`, `p-6`, internal
-  `space-y-1.5`.
+  `gap-1.5` between the header's title and description.
 - **Target card (proposed):** `GlassSurface level="regular"` over the ambient band, `--radius-glass`
   (14px), `--glass-edge`, `--elevation-1`, `p-6`. Over imagery (manga covers) the card is `thick` and its
   cover area sits on a plate so the title stays ≥ 4.5:1 (§3.5).
@@ -852,6 +852,10 @@ and `chromeShow`/`chromeHide` from `@app/design-system/motion`. The material is 
 - **Error (existing):** the panel recipe at `max-w-lg p-6` with a borderless destructive alert inside;
   errors are specific, recoverable and attributed to their provider. Target: `GlassSurface
   level="thick"`, destructive text on `--destructive-glass` (§3.4), retry as the primary action.
+- **One frame:** the three states share `StateFrame` (`@app/design-system`), a flex column whose only
+  inputs are `padding` (`none` | `compact` `p-8` | `page` `px-6 py-12`) and `align` (`center` |
+  `stretch`). Empty is compact + centered, error is page + centered, and loading is `none` + stretch with
+  `@container w-full`, so a skeleton keeps the geometry of the content it stands in for.
 
 ## 8. Layout Principles
 
@@ -871,7 +875,7 @@ shell, fixed, and never scrolls.
   titles share one left edge: `px-6 py-6`, rising to `lg:px-8 lg:py-8`. `wide` (1600px) is for grids
   and lists (library, discover, search, extensions, a title's detail page) with `gap-6` between
   header, filters and grid; `read` (768px) is for settings, forms and diagnostics. Theme
-  customisation keeps `max-w-5xl` via `className` with `space-y-8`. The reader is exempt.
+  customisation keeps `max-w-5xl` via `className` with `flex flex-col gap-8`. The reader is exempt.
 - Every page title is a `PageHeader`; the onboarding steps after Welcome keep `type-title`.
 - Detail pages: a 160px cover (192px from `md`) beside the metadata, description capped at `max-w-3xl`;
   chapter lists stay a single bordered, divider-separated block.

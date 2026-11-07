@@ -22,7 +22,7 @@ export function MangaRelatedTitles({
   onOpenManga,
 }: MangaRelatedTitlesProps) {
   return (
-    <section aria-label={heading} className="space-y-4">
+    <section aria-label={heading} className="flex flex-col gap-4">
       <h2 className="type-heading">{heading}</h2>
 
       {isLoading ? (

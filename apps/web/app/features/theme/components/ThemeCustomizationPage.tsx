@@ -236,8 +236,8 @@ function ThemeSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-3">
-      <div className="space-y-1">
+    <section className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
         <h2 className="type-heading text-foreground">{title}</h2>
         {description === undefined ? null : (
           <p className="type-body text-muted-foreground">{description}</p>
@@ -279,7 +279,7 @@ export function ThemeCustomizationPage({
   if (isLoading) {
     return (
       <PageContainer variant="read" className="max-w-5xl">
-        <section aria-label="Theme" className="space-y-8">
+        <section aria-label="Theme" className="flex flex-col gap-8">
           <ThemeHeading />
           <LoadingState type="sections" count={2} />
         </section>
@@ -309,7 +309,7 @@ export function ThemeCustomizationPage({
 
   return (
     <PageContainer variant="read" className="max-w-5xl">
-      <section aria-label="Theme" className="space-y-8">
+      <section aria-label="Theme" className="flex flex-col gap-8">
         <ThemeHeading />
 
         {themeNotice === null ? null : (
@@ -331,7 +331,7 @@ export function ThemeCustomizationPage({
           description="Switch between light and dark surfaces when your preset supports both modes."
         >
           <div className="flex items-start justify-between gap-4">
-            <div className="space-y-1">
+            <div className="flex flex-col gap-1">
               <Label htmlFor="theme-dark-mode">Dark mode</Label>
               <p className="type-body text-muted-foreground">
                 {usesSystemAppearance

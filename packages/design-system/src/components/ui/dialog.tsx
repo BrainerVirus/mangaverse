@@ -42,7 +42,7 @@ const DialogHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLD
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('flex shrink-0 flex-col space-y-1.5 text-center sm:text-left', className)}
+      className={cn('flex shrink-0 flex-col gap-1.5 text-center sm:text-left', className)}
       {...props}
     />
   ),
@@ -53,10 +53,7 @@ const DialogFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLD
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn(
-        'flex shrink-0 flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2',
-        className,
-      )}
+      className={cn('flex shrink-0 flex-col-reverse gap-2 sm:flex-row sm:justify-end', className)}
       {...props}
     />
   ),

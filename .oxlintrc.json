@@ -25,10 +25,9 @@
   // `pnpm lint` exits 0 and `pnpm run doctor` (which adopts this file) is green, so
   // doctor.config.ts no longer needs the rule carve-out it carried since ruling #1319.
   //
-  // lint/ui-conventions.cjs adds the visual-pattern rules @shadcn/lint cannot express. The
-  // three enabled below report nothing on the tree (measured 2026-11-06), so any new use fails
-  // here; the ones that still have sites are frozen per file in lint/ui-baseline.json by
-  // .oxlintrc.ui-baseline.json instead (AGENTS.md "UI Pattern Rules").
+  // lint/ui-conventions.cjs adds the visual-pattern rules @shadcn/lint cannot express. Six are
+  // enabled below and the rest run through the UI profile; both baselines are empty, so every
+  // rule fails on a new use (AGENTS.md "UI Pattern Rules").
   "jsPlugins": ["@shadcn/lint", "./lint/ui-conventions.cjs"],
   "settings": {
     "shadcn": {
@@ -57,7 +56,7 @@
           { "pattern": "^CardHeader$", "allow": ["layout", "spacing"] },
           { "pattern": "^CardTitle$", "allow": ["layout", "typography"] },
           { "pattern": "^CardContent$", "allow": ["layout", "spacing"] },
-          { "pattern": "^ListRow$", "allow": ["layout", "typography", "gap-*", "space-x-*", "space-y-*"] },
+          { "pattern": "^ListRow$", "allow": ["layout", "typography", "gap-*"] },
           { "pattern": "^DialogFooter$", "allow": ["layout", "spacing"] },
           { "pattern": "^AlertDescription$", "allow": ["layout", "spacing"] }
         ]
@@ -109,6 +108,8 @@
     "ui-conventions/no-list-row-overrides": "error",
     // An outlined ListRow inside a Card/SettingsSection is a second border in one grouping.
     "ui-conventions/no-outlined-row-in-card": "error",
+    // `space-x-*`/`space-y-*` margin stacks anywhere: siblings are spaced with `gap-*` on a flex or grid parent.
+    "ui-conventions/no-space-utilities": "error",
     "typescript/consistent-type-imports": "error",
     "typescript/no-explicit-any": "warn",
     "react-hooks/exhaustive-deps": "warn",

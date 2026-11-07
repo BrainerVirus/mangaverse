@@ -37,7 +37,7 @@ function AdvancedRoute() {
           {ADVANCED_TOOLS.map((item) => (
             <Card key={item.to} className="transition-colors hover:bg-muted/40">
               <Link to={item.to} className="block w-full text-left">
-                <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-2">
+                <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2">
                   <div>
                     <CardTitle className="text-base">{item.label}</CardTitle>
                     <CardDescription>{item.description}</CardDescription>

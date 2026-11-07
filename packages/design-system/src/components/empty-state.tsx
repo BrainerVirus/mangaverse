@@ -5,6 +5,7 @@ import { fadeIn } from '../motion/index.js';
 import { useReducedMotion } from '../motion/index.js';
 import { BookX, Database, Search, ChevronRight, Archive } from 'lucide-react';
 import { cn } from '../lib/cn.js';
+import { StateFrame } from './state-frame.js';
 import { Button } from './ui/button.js';
 
 type EmptyStateType =
@@ -87,12 +88,11 @@ export function EmptyState({ type, action }: EmptyStateProps) {
   );
 
   return (
-    <div
+    <StateFrame
       ref={ref}
-      className={cn(
-        'flex flex-col items-center justify-center p-8 text-center',
-        reducedMotion ? 'opacity-100' : 'opacity-0',
-      )}
+      padding="compact"
+      align="center"
+      className={cn('text-center', reducedMotion ? 'opacity-100' : 'opacity-0')}
     >
       <div className="mb-4 opacity-50">{config.icon}</div>
       <h3 className="type-heading text-foreground">{config.title}</h3>
@@ -102,6 +102,6 @@ export function EmptyState({ type, action }: EmptyStateProps) {
           {action.label}
         </Button>
       )}
-    </div>
+    </StateFrame>
   );
 }

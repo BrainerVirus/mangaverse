@@ -605,9 +605,9 @@ export function MangaChapterList({
   }
 
   return (
-    <section aria-label="Chapters" className="space-y-4">
+    <section aria-label="Chapters" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="space-y-1">
+        <div className="flex flex-col gap-1">
           <h2 className="type-heading">Chapters</h2>
           <p className="text-sm text-muted-foreground" data-testid="chapter-summary">
             {chapterSummaryText(isLoading, unreadCount, mappingChapters.length)}

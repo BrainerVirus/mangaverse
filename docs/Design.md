@@ -103,7 +103,9 @@ reading sessions, visual media browsing, and source management.
 
 - Use generous outer margins on desktop.
 - Use compact but breathable spacing on mobile.
-- Prefer `gap-*` over margin stacks.
+- Use `gap-*` on a flex or grid parent for spacing between siblings; `space-x-*` and `space-y-*` are
+  rejected by `ui-conventions/no-space-utilities` (they skip inline children and stack with a child's own
+  margin). A `fieldset`'s `legend` is the one case that takes a margin (`mb-2`), because it is not a flex item.
 - Avoid dense controls unless the mode is explicitly compact.
 - Reader controls must not crowd tap zones.
 
@@ -412,6 +414,7 @@ The easing presets are defined in `packages/design-system/src/motion/tokens/easi
 ## Loading States
 
 - Prefer skeletons for expected content shapes.
+- Loading, empty and error states share one `StateFrame`; pick its `padding` and `align` instead of writing a new wrapper.
 - Use progress indicators for long-running backup, restore, migration, or provider install flows.
 - Show provider-level loading in search instead of blocking the whole page.
 - Reader loading should be minimal and not visually noisy.

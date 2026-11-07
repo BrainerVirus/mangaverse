@@ -190,7 +190,7 @@ export function InstallProviderDialog({
           {awaitingConfirmation ? <InstallPreviewPanel preview={session.preview!} /> : null}
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter>
           <Button
             type="button"
             variant="ghost"

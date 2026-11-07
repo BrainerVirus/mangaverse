@@ -202,7 +202,7 @@ export function DiagnosticsPage({
   // jumped into view and back out when the report arrived.
   if (isLoading || report === null) {
     return (
-      <section aria-label="Diagnostics" className="space-y-6">
+      <section aria-label="Diagnostics" className="flex flex-col gap-6">
         <PageHeader
           title="Diagnostics"
           description={DIAGNOSTICS_DESCRIPTION}
@@ -223,7 +223,7 @@ export function DiagnosticsPage({
   const formattedReport = formatDiagnosticsReport(report);
 
   return (
-    <section aria-label="Diagnostics" className="space-y-6">
+    <section aria-label="Diagnostics" className="flex flex-col gap-6">
       <PageHeader
         title="Diagnostics"
         description={DIAGNOSTICS_DESCRIPTION}
