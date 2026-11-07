@@ -363,7 +363,7 @@ describe('registerPlatformIpc', () => {
       error?: { code?: string };
     };
     expect(r.ok).toBe(false);
-    expect(r.error?.code).toBe('platform.invalid-url');
+    expect(r.error?.code).toBe('network.blocked-address');
     expect(requestHop).not.toHaveBeenCalled();
   });
 
@@ -390,7 +390,7 @@ describe('registerPlatformIpc', () => {
       await vi.advanceTimersByTimeAsync(1);
       const r = (await pending) as { ok: boolean; error?: { code?: string } };
       expect(r.ok).toBe(false);
-      expect(r.error?.code).toBe('platform.io-failed');
+      expect(r.error?.code).toBe('network.timeout');
       expect(requestHop).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();
@@ -453,7 +453,7 @@ describe('registerPlatformIpc', () => {
       error?: { code?: string };
     };
     expect(r.ok).toBe(false);
-    expect(r.error?.code).toBe('platform.invalid-url');
+    expect(r.error?.code).toBe('network.blocked-url');
     expect(requestHop).toHaveBeenCalledTimes(1);
   });
 

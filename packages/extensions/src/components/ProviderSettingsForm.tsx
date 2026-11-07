@@ -305,7 +305,7 @@ function OptionalFields({
         <SettingSelectRow
           id="provider-default-sort"
           label="Default sort"
-          description="How browse sections order titles before any filters."
+          description="How search results are ordered before any filters. Browse sections keep their own order."
           value={draft.defaultSort}
           options={support.defaultSorts.map((sort) => ({
             value: sort,

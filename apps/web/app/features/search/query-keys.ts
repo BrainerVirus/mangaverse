@@ -14,8 +14,11 @@ export const searchQueryKeys = {
 
 export const discoverQueryKeys = {
   all: ['discover'] as const,
-  providers: (explicitContent = false) =>
-    [...discoverQueryKeys.all, 'providers', explicitContent] as const,
+  /** The installed-provider descriptors; independent of the content gate. */
+  providers: () => [...discoverQueryKeys.all, 'providers'] as const,
+  /** One six-cover section preview, independent from its paged `section` query. */
+  preview: (providerId: string, sectionId: string, explicitContent = false) =>
+    [...discoverQueryKeys.all, 'preview', providerId, sectionId, explicitContent] as const,
   section: (providerId: string, sectionId: string, explicitContent = false) =>
     [...discoverQueryKeys.all, 'section', providerId, sectionId, explicitContent] as const,
 };

@@ -1,4 +1,4 @@
-import { err, ok, type AppError, type AppResult } from '@app/shared';
+import { createAppError, err, ok, type AppError, type AppResult } from '@app/shared';
 import type {
   BrowserWindow,
   Clipboard,
@@ -70,18 +70,35 @@ export interface PlatformIpcDeps {
   readonly networkTransport: NetworkTransportDeps;
 }
 
-/** Maps a transport refusal to the platform error the renderer already handles. */
+/** Retrying these hits the same wall: a rejected URL, an oversized body or a redirect loop. */
+const NON_RETRYABLE_NETWORK: ReadonlySet<string> = new Set([
+  'network.invalid-url',
+  'network.blocked-url',
+  'network.blocked-address',
+  'network.redirect-limit',
+  'network.body-too-large',
+]);
+
+/**
+ * Maps a transport refusal to the platform error the renderer already handles,
+ * keeping main's typed code (`network.tls`, `network.dns-failed`, …) instead of
+ * collapsing every failure into one opaque `platform.io-failed`. The message is
+ * main's own user-safe copy; `errno` and the checked address are non-secret
+ * diagnostic fields. The full URL never crosses IPC, so credentials and query
+ * tokens cannot leak through `details`.
+ */
 export function networkErrorToAppError(error: unknown): AppError {
   if (error instanceof NetworkFetchError) {
-    if (
-      error.code === 'network.blocked-url' ||
-      error.code === 'network.blocked-address' ||
-      error.code === 'network.invalid-url' ||
-      error.code === 'network.dns-failed'
-    ) {
-      return platformInvalidUrl(error.message);
-    }
-    return platformIoFailed(error.message);
+    const details = {
+      ...(error.errno !== undefined ? { errno: error.errno } : {}),
+      ...(error.address !== undefined ? { address: error.address } : {}),
+    };
+    return createAppError({
+      code: error.code,
+      message: error.message,
+      retryable: !NON_RETRYABLE_NETWORK.has(error.code),
+      ...(Object.keys(details).length > 0 ? { details } : {}),
+    });
   }
   return platformIoFailed('Network request failed.', error);
 }

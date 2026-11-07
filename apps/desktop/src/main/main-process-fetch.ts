@@ -27,6 +27,9 @@ export type NetworkFailureCode =
   | 'network.timeout'
   | 'network.empty-body'
   | 'network.http-status'
+  | 'network.tls'
+  | 'network.connect-refused'
+  | 'network.reset'
   | 'network.transport-error';
 
 /** A refusal or limit breach, carrying enough detail for main's log and a typed IPC error. */
@@ -34,17 +37,20 @@ export class NetworkFetchError extends Error {
   readonly code: NetworkFailureCode;
   readonly url: string | undefined;
   readonly address: string | undefined;
+  /** The Node `err.code` (`CERT_*`, `ECONNRESET`, …) so the log keeps the cause. */
+  readonly errno: string | undefined;
 
   constructor(
     code: NetworkFailureCode,
     message: string,
-    options: { readonly url?: string; readonly address?: string } = {},
+    options: { readonly url?: string; readonly address?: string; readonly errno?: string } = {},
   ) {
     super(message);
     this.name = 'NetworkFetchError';
     this.code = code;
     this.url = options.url;
     this.address = options.address;
+    this.errno = options.errno;
   }
 }
 
@@ -52,6 +58,61 @@ interface NetworkRefusalEvent {
   readonly code: NetworkFailureCode;
   readonly url?: string;
   readonly address?: string;
+  /** The Node errno behind the failure, kept for the log; never a secret. */
+  readonly errno?: string;
+}
+
+/** Node's TLS/certificate failures all reach us as one of these families. */
+const TLS_ERROR_CODE =
+  /^(?:ERR_TLS_|ERR_SSL_|CERT_|UNABLE_TO_VERIFY_LEAF_SIGNATURE$|DEPTH_ZERO_SELF_SIGNED_CERT$|SELF_SIGNED_CERT_IN_CHAIN$|EPROTO$)/;
+
+function errorCode(error: unknown): string | undefined {
+  if (typeof error !== 'object' || error === null) return undefined;
+  const code = (error as { readonly code?: unknown }).code;
+  return typeof code === 'string' ? code : undefined;
+}
+
+/**
+ * Turn whatever a socket, DNS lookup or TLS handshake threw into a typed failure.
+ * Preserving the Node `err.code` is the point: "TLS certificate expired", "host
+ * not found" and "connection reset" used to collapse into one opaque message.
+ */
+function transportFailureFor(
+  error: unknown,
+  context: { readonly url?: string; readonly address?: string } = {},
+): NetworkFetchError {
+  if (error instanceof NetworkFetchError) return error;
+  const errno = errorCode(error);
+  const mapped = (code: NetworkFailureCode, message: string): NetworkFetchError =>
+    new NetworkFetchError(code, message, {
+      ...(context.url !== undefined ? { url: context.url } : {}),
+      ...(context.address !== undefined ? { address: context.address } : {}),
+      ...(errno !== undefined ? { errno } : {}),
+    });
+
+  if (errno === undefined) return mapped('network.transport-error', 'Network request failed.');
+  if (TLS_ERROR_CODE.test(errno)) {
+    return mapped('network.tls', 'Network TLS handshake or certificate check failed.');
+  }
+  switch (errno) {
+    case 'ENOTFOUND':
+    case 'EAI_AGAIN':
+    case 'EAI_NONAME':
+    case 'EAI_FAIL':
+    case 'EAI_NODATA':
+      return mapped('network.dns-failed', 'Network host could not be resolved.');
+    case 'ECONNREFUSED':
+      return mapped('network.connect-refused', 'Network connection was refused.');
+    case 'ECONNRESET':
+    case 'ECONNABORTED':
+    case 'EPIPE':
+      return mapped('network.reset', 'Network connection was reset.');
+    case 'ETIMEDOUT':
+    case 'ESOCKETTIMEDOUT':
+      return mapped('network.timeout', 'Network request timed out.');
+    default:
+      return mapped('network.transport-error', 'Network request failed.');
+  }
 }
 
 /** Caller-controlled request shape; the hop still owns Host, framing and the address. */
@@ -180,7 +241,15 @@ async function resolvePinnedAddress(
     });
   }
 
-  const addresses = await settleByDeadline(deps.resolveHostAddresses(hostname), deadline);
+  const addresses = await raceDeadline(deps.resolveHostAddresses(hostname), deadline).catch(
+    (error): never => {
+      const errno = errorCode(error);
+      throw new NetworkFetchError('network.dns-failed', 'DNS lookup failed.', {
+        url: url.toString(),
+        ...(errno !== undefined ? { errno } : {}),
+      });
+    },
+  );
   if (addresses === undefined) {
     throw new NetworkFetchError('network.timeout', 'DNS lookup timed out.', {
       url: url.toString(),
@@ -344,17 +413,19 @@ export const nodeRequestHop: RequestHop = (hop) =>
             finalUrl: hop.url.toString(),
           });
         });
-        response.on('error', () => {
+        response.on('error', (error) => {
           fail(
-            new NetworkFetchError('network.transport-error', 'Network response failed.', {
+            transportFailureFor(error, {
               url: hop.url.toString(),
+              address: hop.address,
             }),
           );
         });
         response.on('aborted', () => {
           fail(
-            new NetworkFetchError('network.transport-error', 'Network response was aborted.', {
+            new NetworkFetchError('network.reset', 'Network response was aborted.', {
               url: hop.url.toString(),
+              address: hop.address,
             }),
           );
         });
@@ -370,10 +441,11 @@ export const nodeRequestHop: RequestHop = (hop) =>
       );
     }, hopTimeout);
 
-    req.on('error', () => {
+    req.on('error', (error) => {
       fail(
-        new NetworkFetchError('network.transport-error', 'Network request failed.', {
+        transportFailureFor(error, {
           url: hop.url.toString(),
+          address: hop.address,
         }),
       );
     });
@@ -544,6 +616,7 @@ export async function withRefusalLog<T>(
         code: error.code,
         ...(error.url !== undefined ? { url: error.url } : {}),
         ...(error.address !== undefined ? { address: error.address } : {}),
+        ...(error.errno !== undefined ? { errno: error.errno } : {}),
       });
     }
     throw error;

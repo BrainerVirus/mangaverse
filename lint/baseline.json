@@ -149,9 +149,6 @@
   "apps/web/app/routes/backup.lazy.tsx": {
     "no-use-state": 5
   },
-  "apps/web/app/routes/discover.tsx": {
-    "no-use-state": 1
-  },
   "apps/web/app/routes/extensions.$providerId.tsx": {
     "no-use-state": 1
   },

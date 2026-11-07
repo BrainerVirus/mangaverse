@@ -191,4 +191,19 @@ describe('sanitizeLogDetails', () => {
     expect(sanitizeLogDetails(undefined)).toBeUndefined();
     expect(sanitizeLogDetails({ token: 's3cret' })).toBeUndefined();
   });
+
+  it('keeps typed transport diagnostics and drops credentials', () => {
+    expect(
+      sanitizeLogDetails({
+        errno: 'CERT_HAS_EXPIRED',
+        address: '93.184.216.34',
+        retryAfterMs: 25_000,
+        authorization: 'Bearer secret',
+      }),
+    ).toEqual({
+      errno: 'CERT_HAS_EXPIRED',
+      address: '93.184.216.34',
+      retryAfterMs: 25_000,
+    });
+  });
 });

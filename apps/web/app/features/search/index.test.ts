@@ -30,6 +30,13 @@ describe('@/features/search', () => {
       'test',
       true,
     ]);
-    expect(discoverQueryKeys.providers(true)).toEqual(['discover', 'providers', true]);
+    expect(discoverQueryKeys.providers()).toEqual(['discover', 'providers']);
+    expect(discoverQueryKeys.preview('mangadex', 'latest', true)).toEqual([
+      'discover',
+      'preview',
+      'mangadex',
+      'latest',
+      true,
+    ]);
   });
 });

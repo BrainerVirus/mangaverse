@@ -172,6 +172,28 @@ describe('provider activity log', () => {
     expect(sanitizeLogMessage('https://x.test/a?key=abc')).toBe('https://x.test/a');
   });
 
+  it('records typed transport details and never arbitrary error fields', async () => {
+    const { db } = await createSqlJsHarness();
+    const failure = Object.assign(new Error('TLS failed.'), {
+      code: 'network.tls',
+      details: {
+        errno: 'CERT_HAS_EXPIRED',
+        address: '93.184.216.34',
+        authorization: 'Bearer secret',
+      },
+    });
+
+    await recordProviderFailure(db, { providerId: 'p', operation: 'discover', error: failure });
+
+    const [entry] = await listProviderActivity(db, 'p');
+    expect(entry?.details).toMatchObject({
+      errno: 'CERT_HAS_EXPIRED',
+      address: '93.184.216.34',
+      operation: 'discover',
+    });
+    expect(JSON.stringify(entry?.details)).not.toContain('Bearer secret');
+  });
+
   it('redacts JSON token fields and auth header values', () => {
     expect(sanitizeLogMessage('{"token":"s3cr3t","page":2}')).not.toContain('s3cr3t');
     expect(sanitizeLogMessage('{"api_key":"s3cr3t"}')).not.toContain('s3cr3t');

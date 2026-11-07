@@ -9,6 +9,9 @@ const SAFE_DETAIL_KEYS = new Set([
   'version',
   'count',
   'checks',
+  'errno',
+  'address',
+  'retryAfterMs',
 ]);
 
 const UNSAFE_DETAIL_KEY = /token|secret|auth|password|credential|key|url|uri|query|cookie|session/i;

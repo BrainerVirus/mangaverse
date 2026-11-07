@@ -36,6 +36,14 @@ function bodyOf(init: RequestInit | undefined): string | undefined {
   return undefined;
 }
 
+function abortFailure(signal: AbortSignal | undefined): unknown {
+  // The SDK aborts with `Error('timeout')` for its own deadline; keep that
+  // reason so the failure normalizes to a timeout instead of a plain abort.
+  return signal?.reason instanceof Error
+    ? signal.reason
+    : new DOMException('The operation was aborted.', 'AbortError');
+}
+
 /**
  * The `fetch` a provider package gets on desktop: every call becomes a typed IPC
  * request that main runs under the provider's allowlist, SSRF checks and limits.
@@ -50,7 +58,7 @@ export function createProviderFetch(providerId: string): typeof fetch {
       typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
     const signal = init?.signal;
     if (signal?.aborted === true) {
-      throw new DOMException('The operation was aborted.', 'AbortError');
+      throw abortFailure(signal);
     }
 
     const requestHeaders = headersToRecord(init?.headers);
@@ -64,16 +72,15 @@ export function createProviderFetch(providerId: string): typeof fetch {
     });
 
     const aborted = new Promise<never>((_resolve, reject) => {
-      signal?.addEventListener(
-        'abort',
-        () => reject(new DOMException('The operation was aborted.', 'AbortError')),
-        { once: true },
-      );
+      signal?.addEventListener('abort', () => reject(abortFailure(signal)), { once: true });
     });
 
     const result = await Promise.race([request, aborted]);
     if (!result.ok) {
-      throw new Error(result.error.message);
+      // Main's typed failure (`network.tls`, `network.reset`, …) is already the
+      // shape the provider SDK's normalizer keeps; wrapping it in `Error` used to
+      // throw the code away and leave only a generic message.
+      throw result.error;
     }
 
     const { status, headers: responseHeaders, bodyText } = result.value;
@@ -99,7 +106,7 @@ export function createUserInitiatedFetch(): typeof fetch {
       typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
     const result = await adapter.network.fetchBytes(url);
     if (!result.ok) {
-      throw new Error(result.error.message);
+      throw result.error;
     }
     if (result.value === undefined) {
       throw new Error('Could not fetch the document.');

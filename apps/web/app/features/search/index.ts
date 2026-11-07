@@ -2,8 +2,11 @@ export {
   DiscoverPage,
   type DiscoverPageProps,
   type DiscoverPageData,
+  type DiscoverPageFailure,
   type DiscoverProviderFeed,
   type DiscoverSection,
+  type DiscoverSectionFailure,
+  type DiscoverSectionStatus,
   type DiscoverExpandedSectionState,
 } from './components/DiscoverPage.js';
 export {

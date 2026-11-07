@@ -28,6 +28,40 @@ function urlDetails(
   return { url: redacted };
 }
 
+/**
+ * The only failure details that may cross a normalization boundary. They are
+ * diagnostic (a Node errno, the checked address, a rate-limit horizon), never
+ * credentials or caller-provided extras such as headers.
+ */
+const DIAGNOSTIC_DETAIL_KEYS = new Set(['errno', 'address', 'retryAfterMs', 'status']);
+
+/** Keeps only allowlisted, primitive diagnostic fields a typed failure already carried. */
+function safeDetails(
+  value: unknown,
+): Readonly<Record<string, string | number | boolean | null>> | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const out: Record<string, string | number | boolean | null> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (!DIAGNOSTIC_DETAIL_KEYS.has(key)) continue;
+    if (
+      typeof entry === 'string' ||
+      typeof entry === 'number' ||
+      typeof entry === 'boolean' ||
+      entry === null
+    ) {
+      out[key] = entry;
+    }
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+function mergeDetails(
+  ...parts: readonly (Readonly<Record<string, string | number | boolean | null>> | undefined)[]
+): Readonly<Record<string, string | number | boolean | null>> | undefined {
+  const merged = Object.assign({}, ...parts.filter((part) => part !== undefined));
+  return Object.keys(merged).length > 0 ? merged : undefined;
+}
+
 export function normalizeProviderError(
   error: unknown,
   context?: NormalizeProviderErrorContext,
@@ -40,22 +74,16 @@ export function normalizeProviderError(
       message: unknown;
       providerId?: unknown;
       retryable?: unknown;
+      details?: unknown;
     };
     if (typeof e.code === 'string' && typeof e.message === 'string') {
-      if (ud !== undefined) {
-        return createAppError({
-          code: e.code,
-          message: e.message,
-          ...(typeof e.providerId === 'string' ? { providerId: e.providerId } : {}),
-          ...(typeof e.retryable === 'boolean' ? { retryable: e.retryable } : {}),
-          details: ud,
-        });
-      }
+      const details = mergeDetails(safeDetails(e.details), ud);
       return createAppError({
         code: e.code,
         message: e.message,
         ...(typeof e.providerId === 'string' ? { providerId: e.providerId } : {}),
         ...(typeof e.retryable === 'boolean' ? { retryable: e.retryable } : {}),
+        ...(details !== undefined ? { details } : {}),
       });
     }
   }

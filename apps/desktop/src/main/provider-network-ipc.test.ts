@@ -147,7 +147,7 @@ describe('registerProviderNetworkIpc', () => {
     })) as { ok: boolean };
 
     expect(unknownProvider.ok).toBe(false);
-    expect(unknownProvider.error?.code).toBe('platform.invalid-url');
+    expect(unknownProvider.error?.code).toBe('network.blocked-url');
     expect(undeclaredHost.ok).toBe(false);
     expect(requestHop).not.toHaveBeenCalled();
   });
@@ -167,7 +167,7 @@ describe('registerProviderNetworkIpc', () => {
     })) as { ok: boolean; error?: { code?: string } };
 
     expect(result.ok).toBe(false);
-    expect(result.error?.code).toBe('platform.invalid-url');
+    expect(result.error?.code).toBe('network.blocked-url');
     expect(requestHop).toHaveBeenCalledOnce();
   });
 
@@ -268,7 +268,7 @@ describe('registerProviderNetworkIpc', () => {
     })) as { ok: boolean; error?: { code?: string } };
 
     expect(result.ok).toBe(false);
-    expect(result.error?.code).toBe('platform.invalid-url');
+    expect(result.error?.code).toBe('network.blocked-address');
     expect(put).not.toHaveBeenCalled();
     expect(requestHop).not.toHaveBeenCalled();
   });
@@ -283,7 +283,7 @@ describe('registerProviderNetworkIpc', () => {
     })) as { ok: boolean; error?: { code?: string } };
 
     expect(result.ok).toBe(false);
-    expect(result.error?.code).toBe('platform.invalid-url');
+    expect(result.error?.code).toBe('network.blocked-url');
     expect(requestHop).not.toHaveBeenCalled();
     expect(put).not.toHaveBeenCalled();
     expect(log).toHaveBeenCalledWith(
