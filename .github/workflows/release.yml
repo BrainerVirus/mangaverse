@@ -104,8 +104,8 @@ jobs:
             exit 1
           fi
 
-          # A published release for this tag is final. (A draft, which an interrupted upload
-          # leaves behind, is invisible to this read-only token and is cleared by the release job.)
+          # A published release for this tag is final. A draft left by an interrupted upload is
+          # also refused; docs/release.md has the manual, tag-preserving recovery.
           if [ "$publish" = true ] && gh release view "$REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "::error::A published release for $REF_NAME already exists; it is never overwritten."
             exit 1
@@ -258,23 +258,18 @@ jobs:
           merge-multiple: true
           path: assets
 
-      # `gh release create` with assets makes a draft, uploads, then publishes, so an upload that
-      # dies midway leaves an unpublished draft. Replace only that: a draft is deleted by id
-      # (its tag is untouched), and a published release for the tag stops the run.
-      - name: Clear an interrupted draft
+      # Never delete a release from the workflow: a draft can be published by hand between a
+      # read and a delete. Stop with the recovery steps instead; docs/release.md owns the manual
+      # draft cleanup (tag kept, published releases never silently deleted).
+      - name: Refuse an existing release or draft
         run: |
           set -euo pipefail
           existing=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
-            --jq '.[] | select(.tag_name == env.TAG) | "\(.id) \(.draft)"')
-          while read -r id draft; do
-            [ -n "$id" ] || continue
-            if [ "$draft" != true ]; then
-              echo "::error::Release $id for $TAG is published; refusing to replace it."
-              exit 1
-            fi
-            echo "Deleting unpublished draft release $id for $TAG (the tag is kept)."
-            gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/$id"
-          done <<< "$existing"
+            --jq '.[] | select(.tag_name == env.TAG) | "\(.id) draft=\(.draft)"')
+          if [ -n "$existing" ]; then
+            echo "::error::A release or draft for $TAG already exists ($existing). Inspect it with gh release view $TAG; if it is an unpublished draft, delete it by hand with gh release delete $TAG --cleanup-tag=false and rerun. Never delete a published release."
+            exit 1
+          fi
 
       - name: Write SHA256SUMS
         working-directory: assets

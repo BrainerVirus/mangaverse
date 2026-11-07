@@ -74,9 +74,10 @@ publishes. An upload that dies midway therefore leaves a draft, never a half-pub
 
 1. Look first: `gh release view <tag>` (a published release) and, with a token that can push,
    `gh api repos/BrainerVirus/mangaverse/releases --jq '.[] | select(.tag_name=="<tag>") | {id, draft}'`.
-2. **Draft (unpublished):** re-run. Dispatch **Release** from the **tag ref** with _rehearsal_
-   unticked. The `release` job deletes an unpublished draft for that tag by id (the tag is kept,
-   `gh release delete <tag> --cleanup-tag=false` does the same by hand) and publishes again.
+2. **Draft (unpublished):** the workflow now refuses an existing draft rather than deleting it
+   (a draft can be published by hand between a read and a delete). After confirming the API says
+   `draft: true`, delete it by hand with `gh release delete <tag> --cleanup-tag=false` (this keeps
+   the tag), then dispatch **Release** from the **tag ref** with _rehearsal_ unticked.
 3. **Published:** the workflow refuses to touch it, and so should you: never delete a published
    release or its tag silently. If it is wrong, say so publicly, delete it deliberately, fix, and
    ship the next patch version (with immutable releases on, the old tag name is burned).
