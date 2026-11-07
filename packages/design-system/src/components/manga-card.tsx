@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { useGSAP } from '@gsap/react';
 import { getMangaCoverUrl, type MangaIdentity } from '@app/shared';
-import { cardHover, useReducedMotion } from '../motion/index.js';
+import { cardHover } from '../motion/index.js';
 import { cn } from '../lib/cn.js';
 import { Badge } from './ui/badge.js';
 
@@ -170,14 +170,13 @@ export function MangaCard({
 }: MangaCardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const reducedMotion = useReducedMotion();
 
   useGSAP(
     () => {
       if (!buttonRef.current) return;
-      return cardHover(buttonRef.current, { reducedMotion });
+      return cardHover(buttonRef.current);
     },
-    { scope: containerRef, dependencies: [reducedMotion] },
+    { scope: containerRef },
   );
 
   return (

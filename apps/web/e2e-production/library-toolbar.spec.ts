@@ -215,3 +215,32 @@ test('Given a populated library, When the content column is narrow, Then the too
   expectNoClipping(clamped);
   await clamp.evaluate((node) => node.remove());
 });
+
+test('Given a library card, When reduced motion is enabled after mount, Then the next hover does not lift it', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
+  await page.goto(MANGA_PATH);
+  await page.getByRole('button', { name: 'Add to library' }).click();
+  await expect(page.getByRole('button', { name: 'Remove from library' })).toBeVisible();
+  await waitForPingQuiet(page);
+
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/library');
+  const card = page.locator('[data-library-card] button').first();
+  await expect(card).toBeVisible({ timeout: 20_000 });
+
+  await card.hover();
+  await expect
+    .poll(() => card.evaluate((element) => getComputedStyle(element).transform), { timeout: 2_000 })
+    .toContain('1.02');
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.mouse.move(0, 0);
+  await card.hover();
+  await page.waitForTimeout(250);
+  const hovered = await card.evaluate((element) => getComputedStyle(element).transform);
+
+  expect(['none', 'matrix(1, 0, 0, 1, 0, 0)']).toContain(hovered);
+});
