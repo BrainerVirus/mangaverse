@@ -3,6 +3,7 @@ import {
   Button,
   EmptyState,
   ErrorState,
+  ListRow,
   LoadingState,
   PageContainer,
   PageHeader,
@@ -265,10 +266,12 @@ function DiscoverProviderBrowser({
 
   return (
     <div className="flex flex-col gap-6">
-      <div
+      <ListRow
         role="tablist"
         aria-label="Discover providers"
-        className="inline-flex h-10 w-full items-center justify-start gap-1 overflow-x-auto rounded-control bg-muted p-1 text-muted-foreground"
+        tone="muted"
+        padding="none"
+        className="inline-flex h-10 w-full items-center justify-start gap-1 overflow-x-auto p-1 text-muted-foreground"
       >
         {providers.map((provider) => {
           const isActive = provider.providerId === activeProvider.providerId;
@@ -289,7 +292,7 @@ function DiscoverProviderBrowser({
             </button>
           );
         })}
-      </div>
+      </ListRow>
 
       <div role="tabpanel" className="flex flex-col gap-8">
         {isExpandedView && expandedSectionState !== undefined ? (

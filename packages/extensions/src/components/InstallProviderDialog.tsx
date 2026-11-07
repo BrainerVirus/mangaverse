@@ -12,6 +12,7 @@ import {
   DialogTitle,
   Input,
   Label,
+  ListRow,
 } from '@app/design-system';
 import type { ExtensionInstallPreview, ExtensionInstallSession } from '../core/index.js';
 
@@ -43,7 +44,7 @@ export function InstallPreviewPanel({ preview }: { preview: ExtensionInstallPrev
   );
 
   return (
-    <div className="flex flex-col gap-4 rounded-control border border-border p-4">
+    <ListRow tone="outline" padding="md" className="flex flex-col gap-4">
       <div>
         <p className="font-medium">{preview.providerName}</p>
         <p className="text-sm text-muted-foreground">
@@ -90,13 +91,15 @@ export function InstallPreviewPanel({ preview }: { preview: ExtensionInstallPrev
         <p className="mb-2 text-sm text-muted-foreground">Content flags</p>
         <dl className="flex flex-wrap gap-2 text-sm">
           {CONTENT_FLAGS.map((flag) => (
-            <div
+            <ListRow
               key={flag.key}
-              className="flex items-center gap-2 rounded-control border border-border px-2.5 py-1"
+              tone="outline"
+              padding="row"
+              className="flex items-center gap-2"
             >
               <dt>{flag.label}</dt>
               <dd className="font-medium">{preview.contentFlags[flag.key] ? 'Yes' : 'No'}</dd>
-            </div>
+            </ListRow>
           ))}
         </dl>
       </div>
@@ -130,7 +133,7 @@ export function InstallPreviewPanel({ preview }: { preview: ExtensionInstallPrev
           </AlertDescription>
         </Alert>
       ) : null}
-    </div>
+    </ListRow>
   );
 }
 

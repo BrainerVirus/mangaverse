@@ -5,6 +5,7 @@ import {
   Badge,
   Button,
   ErrorState,
+  ListRow,
   LoadingState,
   SettingsSection,
   PageHeader,
@@ -43,15 +44,17 @@ function CapabilityGrid({ capabilities }: { capabilities: PlatformCapabilities }
   return (
     <dl className="grid gap-2 sm:grid-cols-2" aria-label="Platform capabilities">
       {entries.map(([key, enabled]) => (
-        <div
+        <ListRow
           key={key}
-          className="flex items-center justify-between rounded-control bg-muted/40 px-3 py-2 text-sm"
+          tone="muted"
+          padding="row"
+          className="flex items-center justify-between text-sm"
         >
           <dt className="text-muted-foreground">{key}</dt>
           <dd>
             <Badge variant={enabled ? 'secondary' : 'outline'}>{enabled ? 'yes' : 'no'}</Badge>
           </dd>
-        </div>
+        </ListRow>
       ))}
     </dl>
   );

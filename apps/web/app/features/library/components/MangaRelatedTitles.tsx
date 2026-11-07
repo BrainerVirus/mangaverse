@@ -1,5 +1,5 @@
 import { CachedMangaCard } from '@app/cache';
-import { ErrorState, LoadingState } from '@app/design-system';
+import { EmptyNote, ErrorState, LoadingState } from '@app/design-system';
 import type { MangaId, MangaIdentity } from '@app/shared';
 
 const RELATED_GRID_CLASSES = 'grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4';
@@ -34,9 +34,7 @@ export function MangaRelatedTitles({
           {...(onRetry !== undefined ? { onRetry } : {})}
         />
       ) : items === undefined ? null : items.length === 0 ? (
-        <p className="rounded-box border border-border px-4 py-6 text-sm text-muted-foreground">
-          No {heading.toLowerCase()} from this provider.
-        </p>
+        <EmptyNote>No {heading.toLowerCase()} from this provider.</EmptyNote>
       ) : (
         <div className={RELATED_GRID_CLASSES}>
           {items.map((manga) => (

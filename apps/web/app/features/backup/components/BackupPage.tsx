@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
   ErrorState,
+  ListRow,
   LoadingState,
   SettingsSection,
   PageContainer,
@@ -60,9 +61,12 @@ function PreviewIssueList({ preview }: { preview: RestorePreviewReport }) {
   return (
     <ul className="space-y-2" aria-label="Restore preview issues">
       {issues.map((issue) => (
-        <li
+        <ListRow
+          as="li"
           key={`${issue.code}-${issue.message}`}
-          className="rounded-control bg-muted/40 p-3 text-sm"
+          tone="muted"
+          padding="md"
+          className="text-sm"
         >
           <div className="mb-1 flex items-center gap-2">
             <Badge variant={issue.severity === 'error' ? 'destructive' : 'secondary'}>
@@ -71,7 +75,7 @@ function PreviewIssueList({ preview }: { preview: RestorePreviewReport }) {
             <span className="font-medium text-foreground">{issue.code}</span>
           </div>
           <p className="text-muted-foreground">{issue.message}</p>
-        </li>
+        </ListRow>
       ))}
     </ul>
   );
@@ -145,9 +149,12 @@ function RestorePreviewPanel({
         ) : null}
         {summary.infoCount > 0 ? <Badge variant="outline">{summary.infoCount} notes</Badge> : null}
       </div>
-      <dl
+      <ListRow
+        as="dl"
         aria-label="Backup contents"
-        className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-control bg-muted/30 p-3 text-sm sm:grid-cols-3"
+        tone="muted"
+        padding="md"
+        className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3"
       >
         {countRows.map((row) => (
           <div key={row.label} className="flex items-baseline justify-between gap-2">
@@ -155,7 +162,7 @@ function RestorePreviewPanel({
             <dd className="font-medium tabular-nums text-foreground">{row.value}</dd>
           </div>
         ))}
-      </dl>
+      </ListRow>
       {preview.schemaVersion !== null && preview.schemaVersion < 4 ? (
         <p className="text-sm text-muted-foreground">
           This backup predates categories, chapter progress, reading history and migration history.

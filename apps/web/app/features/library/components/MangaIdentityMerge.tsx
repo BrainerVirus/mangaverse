@@ -8,8 +8,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  EmptyNote,
   ErrorState,
   LoadingState,
+  ListRow,
   Select,
   SelectContent,
   SelectItem,
@@ -82,7 +84,7 @@ function MergeSideFacts({
   providerLabels: Readonly<Record<string, string>> | undefined;
 }) {
   return (
-    <section aria-label={heading} className="min-w-0 rounded-box border border-border p-4">
+    <ListRow as="section" aria-label={heading} tone="outline" padding="md" className="min-w-0">
       <h3 className="truncate text-base font-semibold">{side.canonicalTitle}</h3>
       <p className="mt-1 text-xs text-muted-foreground">
         {providerNames(side.providerIds, providerLabels)} · {side.mappingCount}{' '}
@@ -129,7 +131,7 @@ function MergeSideFacts({
           </div>
         ) : null}
       </dl>
-    </section>
+    </ListRow>
   );
 }
 
@@ -143,11 +145,14 @@ function MergeMappingList({
   return (
     <div>
       <h3 className="text-sm font-medium text-muted-foreground">Provider sources</h3>
-      <ul className="mt-2 flex flex-col gap-2">
+      <ul className="mt-2 flex flex-col divide-y divide-border">
         {preview.mappings.map((mapping) => (
-          <li
+          <ListRow
+            as="li"
             key={mapping.id}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-control border border-border px-3 py-2 text-sm"
+            tone="plain"
+            padding="row"
+            className="flex flex-wrap items-center justify-between gap-2 text-sm"
           >
             <span className="min-w-0">
               {providerDisplayName(mapping.providerId, providerLabels) !== undefined ? (
@@ -170,7 +175,7 @@ function MergeMappingList({
                 {mapping.action === 'dedupe' ? 'Duplicate removed' : 'Moves in'}
               </Badge>
             </span>
-          </li>
+          </ListRow>
         ))}
       </ul>
     </div>
@@ -257,18 +262,14 @@ function DuplicatesList({
   }
   const items = state.items ?? [];
   if (items.length === 0) {
-    return (
-      <p className="rounded-box border border-border px-4 py-3 text-sm text-muted-foreground">
-        No possible duplicates found.
-      </p>
-    );
+    return <EmptyNote>No possible duplicates found.</EmptyNote>;
   }
   return (
-    <ul className="flex flex-col gap-2">
+    <ul className="flex flex-col divide-y divide-border">
       {items.map((candidate) => (
         <li
           key={candidate.mangaId}
-          className="flex flex-wrap items-center justify-between gap-3 rounded-box border border-border px-4 py-3"
+          className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
         >
           <div className="min-w-0">
             <p className="truncate font-medium">{candidate.canonicalTitle}</p>

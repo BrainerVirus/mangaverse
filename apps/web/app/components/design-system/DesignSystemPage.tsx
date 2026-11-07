@@ -22,6 +22,7 @@ import {
   GlassSurface,
   Input,
   Label,
+  ListRow,
   PageHeader,
   Select,
   SelectContent,
@@ -184,43 +185,48 @@ function GlassTierSample({
 
 function GlassScrimSample({ theme, profile }: { theme: ThemeName; profile: GlassProfile }) {
   return (
-    <div
-      // oxlint-disable-next-line shadcn/no-unknown-classes -- app lint misses @utility classes.
-      className={cn('rounded-glass border border-border bg-accent p-3', theme)}
-      data-glass={profile === 'reduced' ? 'cheap' : undefined}
-    >
-      <div
-        data-testid={`glass-scrim-${profile}-${theme}`}
-        // oxlint-disable-next-line shadcn/no-unknown-classes -- app lint misses @utility classes.
-        className="glass-scrim rounded-glass p-4"
+    <div className={theme}>
+      <ListRow
+        tone="outline"
+        padding="md"
+        className="bg-accent"
+        data-glass={profile === 'reduced' ? 'cheap' : undefined}
       >
-        <p
+        <div
+          data-testid={`glass-scrim-${profile}-${theme}`}
           // oxlint-disable-next-line shadcn/no-unknown-classes -- app lint misses @utility classes.
-          className={cn('type-label', theme === 'light' ? 'text-background' : 'text-foreground')}
+          className="glass-scrim rounded-glass p-4"
         >
-          Modal scrim · 55% fill · {profile === 'full' ? '8px blur' : 'blur removed'}
-        </p>
-      </div>
+          <p
+            // oxlint-disable-next-line shadcn/no-unknown-classes -- app lint misses @utility classes.
+            className={cn('type-label', theme === 'light' ? 'text-background' : 'text-foreground')}
+          >
+            Modal scrim · 55% fill · {profile === 'full' ? '8px blur' : 'blur removed'}
+          </p>
+        </div>
+      </ListRow>
     </div>
   );
 }
 
 function GlassThemeSamples({ theme, profile }: { theme: ThemeName; profile: GlassProfile }) {
   return (
-    <div className={cn('flex flex-col gap-3 rounded-box border border-border bg-card p-4', theme)}>
-      <h3
-        // oxlint-disable-next-line shadcn/no-unknown-classes -- app lint misses @utility classes.
-        className="type-label text-foreground"
-      >
-        {theme === 'light' ? 'Light' : 'Dark'} ·{' '}
-        {profile === 'full' ? 'full transparency' : 'reduced profile'}
-      </h3>
-      <div className="grid gap-3 sm:grid-cols-2">
-        {glassTiers.map(({ level }) => (
-          <GlassTierSample key={level} level={level} theme={theme} profile={profile} />
-        ))}
-        <GlassScrimSample theme={theme} profile={profile} />
-      </div>
+    <div className={theme}>
+      <ListRow tone="outline" padding="md" className="flex flex-col gap-3 bg-card">
+        <h3
+          // oxlint-disable-next-line shadcn/no-unknown-classes -- app lint misses @utility classes.
+          className="type-label text-foreground"
+        >
+          {theme === 'light' ? 'Light' : 'Dark'} ·{' '}
+          {profile === 'full' ? 'full transparency' : 'reduced profile'}
+        </h3>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {glassTiers.map(({ level }) => (
+            <GlassTierSample key={level} level={level} theme={theme} profile={profile} />
+          ))}
+          <GlassScrimSample theme={theme} profile={profile} />
+        </div>
+      </ListRow>
     </div>
   );
 }

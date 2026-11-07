@@ -6,6 +6,7 @@ import {
   Button,
   Input,
   Label,
+  ListRow,
   SettingsSection,
   Tabs,
   TabsContent,
@@ -70,7 +71,7 @@ function GamutNotice({
   const srgbHex = toHexColor(srgbFallback);
   const p3Hex = toHexColor(value);
   return (
-    <div className="space-y-1 rounded-control border border-warning bg-warning/10 p-2">
+    <ListRow tone="warning" padding="sm" className="space-y-1">
       <p className="type-micro text-foreground">
         {path} is outside sRGB. The draft keeps the authored Display P3 value and still saves.
       </p>
@@ -94,7 +95,7 @@ function GamutNotice({
           Display P3 {value}
         </span>
       </div>
-    </div>
+    </ListRow>
   );
 }
 
@@ -119,7 +120,7 @@ function TokenRow({
   const invalid = value.trim() !== '' && !isCssColor(value);
 
   return (
-    <div className="space-y-2 rounded-control border border-border p-3" data-token={token}>
+    <ListRow tone="outline" padding="md" className="space-y-2" data-token={token}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Label htmlFor={id}>{token}</Label>
         <span className="type-micro text-muted-foreground">
@@ -156,7 +157,7 @@ function TokenRow({
           Reset to derived
         </Button>
       )}
-    </div>
+    </ListRow>
   );
 }
 
@@ -207,13 +208,16 @@ function TokenEditor({ draft, disabled = false, onChange }: ThemeEditorPanelProp
       >
         <ul data-testid="theme-fixed-tokens" className="space-y-2">
           {FIXED_THEME_TOKENS.map((token) => (
-            <li
+            <ListRow
+              as="li"
               key={token}
-              className="flex items-center justify-between rounded-control border border-border px-3 py-2"
+              tone="outline"
+              padding="row"
+              className="flex items-center justify-between"
             >
               <span className="type-label text-foreground">{token}</span>
               <span className="type-micro text-muted-foreground">Read-only</span>
-            </li>
+            </ListRow>
           ))}
         </ul>
       </SettingsSection>

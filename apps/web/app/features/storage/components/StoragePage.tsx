@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
   ErrorState,
+  ListRow,
   LoadingState,
   SettingsSection,
   PageContainer,
@@ -183,9 +184,12 @@ function DownloadsSection({
       {downloads.items.length > 0 ? (
         <ul className="mt-4 space-y-2" aria-label="Downloaded chapters">
           {downloads.items.map((item) => (
-            <li
+            <ListRow
+              as="li"
               key={item.chapterId}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-control bg-muted/40 px-3 py-2 text-sm"
+              tone="muted"
+              padding="row"
+              className="flex flex-wrap items-center justify-between gap-3 text-sm"
             >
               <div className="min-w-0">
                 <p className="truncate font-medium text-foreground">{item.title}</p>
@@ -220,7 +224,7 @@ function DownloadsSection({
                   Remove
                 </Button>
               </div>
-            </li>
+            </ListRow>
           ))}
         </ul>
       ) : (
@@ -364,13 +368,16 @@ export function StoragePage({
           {summary.cacheByProvider.length > 0 ? (
             <ul className="mt-4 space-y-2" aria-label="Cache entries by provider">
               {summary.cacheByProvider.map((entry) => (
-                <li
+                <ListRow
+                  as="li"
                   key={entry.providerId}
-                  className="flex items-center justify-between rounded-control bg-muted/40 px-3 py-2 text-sm"
+                  tone="muted"
+                  padding="row"
+                  className="flex items-center justify-between text-sm"
                 >
                   <span className="font-mono text-foreground">{entry.providerId}</span>
                   <Badge variant="secondary">{entry.count}</Badge>
-                </li>
+                </ListRow>
               ))}
             </ul>
           ) : (

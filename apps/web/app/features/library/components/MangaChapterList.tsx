@@ -12,6 +12,7 @@ import {
   Badge,
   Button,
   EmptyState,
+  EmptyNote,
   ErrorState,
   LoadingState,
   Select,
@@ -495,9 +496,7 @@ function ChapterBody({
   }
   if (visibleCount === 0) {
     return (
-      <p className="rounded-box border border-border px-4 py-6 text-sm text-muted-foreground">
-        {filter === 'unread' ? 'No unread chapters.' : 'No read chapters yet.'}
-      </p>
+      <EmptyNote>{filter === 'unread' ? 'No unread chapters.' : 'No read chapters yet.'}</EmptyNote>
     );
   }
   return <ChapterRows {...rows} totalCount={visibleCount} />;

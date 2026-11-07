@@ -57,6 +57,7 @@
           { "pattern": "^CardHeader$", "allow": ["layout", "spacing"] },
           { "pattern": "^CardTitle$", "allow": ["layout", "typography"] },
           { "pattern": "^CardContent$", "allow": ["layout", "spacing"] },
+          { "pattern": "^ListRow$", "allow": ["layout", "spacing", "typography", "color"] },
           { "pattern": "^DialogFooter$", "allow": ["layout", "spacing"] },
           { "pattern": "^AlertDescription$", "allow": ["layout", "spacing"] }
         ]

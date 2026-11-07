@@ -12,6 +12,7 @@ import {
   DialogTitle,
   Input,
   Label,
+  ListRow,
 } from '@app/design-system';
 import type { ExtensionImportPreview, ExtensionListImportPreparation } from '../core/index.js';
 import type { ExtensionInstallWarning } from '@app/shared';
@@ -55,8 +56,10 @@ function WarningList({ warnings }: { warnings: readonly ExtensionInstallWarning[
 function RegistryPreview({ preview }: { preview: ExtensionImportPreview }) {
   const registry = preview.registries[0];
   return (
-    <div
-      className="flex flex-col gap-3 rounded-control border border-border p-4"
+    <ListRow
+      tone="outline"
+      padding="md"
+      className="flex flex-col gap-3"
       data-testid="registry-import-preview"
     >
       <div>
@@ -86,7 +89,7 @@ function RegistryPreview({ preview }: { preview: ExtensionImportPreview }) {
           no provider code.
         </span>
       </div>
-    </div>
+    </ListRow>
   );
 }
 
@@ -106,8 +109,10 @@ function ExtensionListPreview({
   ];
 
   return (
-    <div
-      className="flex flex-col gap-4 rounded-control border border-border p-4"
+    <ListRow
+      tone="outline"
+      padding="md"
+      className="flex flex-col gap-4"
       data-testid="extension-list-import-preview"
     >
       <div>
@@ -154,7 +159,7 @@ function ExtensionListPreview({
         </ul>
       ) : null}
       <WarningList warnings={warnings} />
-    </div>
+    </ListRow>
   );
 }
 

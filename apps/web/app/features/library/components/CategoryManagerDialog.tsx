@@ -9,6 +9,7 @@ import {
   DialogTitle,
   Input,
   Label,
+  ListRow,
 } from '@app/design-system';
 import { ArrowDown, ArrowUp, Pencil, Pin, PinOff, Plus, Trash2 } from 'lucide-react';
 import type { CategoryId, LibraryCategory } from '@app/shared';
@@ -31,7 +32,11 @@ interface DeleteCategoryPromptProps {
 
 function DeleteCategoryPrompt({ name, onCancel, onConfirm }: DeleteCategoryPromptProps) {
   return (
-    <div className="flex flex-col gap-2 rounded-control bg-muted/50 p-2 sm:flex-row sm:items-center sm:justify-between">
+    <ListRow
+      tone="muted"
+      padding="sm"
+      className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+    >
       <p className="text-sm">Delete “{name}”? Titles stay in your library.</p>
       <div className="flex gap-2">
         <Button type="button" size="sm" variant="outline" onClick={onCancel}>
@@ -47,7 +52,7 @@ function DeleteCategoryPrompt({ name, onCancel, onConfirm }: DeleteCategoryPromp
           Delete category
         </Button>
       </div>
-    </div>
+    </ListRow>
   );
 }
 

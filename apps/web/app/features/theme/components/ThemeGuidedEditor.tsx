@@ -1,4 +1,12 @@
-import { Alert, AlertDescription, AlertTitle, Button, Label, Slider } from '@app/design-system';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  Button,
+  Label,
+  ListRow,
+  Slider,
+} from '@app/design-system';
 import type { ReactElement, ReactNode } from 'react';
 import type { ThemeDefinition, ThemeSeedTokenName } from '@app/shared';
 
@@ -114,10 +122,12 @@ function seedControl({ seed, field, value, appearance, disabled, onChange }: See
   const base = `guided-${appearance}-seed-${seed}`;
 
   return (
-    <div
+    <ListRow
       key={seed}
       data-testid={`seed-${appearance}-${seed}`}
-      className="space-y-2 rounded-control border border-border p-3"
+      tone="outline"
+      padding="md"
+      className="space-y-2"
     >
       <div className="flex items-center gap-2">
         {swatch(value, 'h-4 w-4 shrink-0 rounded-full border border-border')}
@@ -163,7 +173,7 @@ function seedControl({ seed, field, value, appearance, disabled, onChange }: See
         disabled,
         onChange: (hue) => onChange({ h: hue }),
       })}
-    </div>
+    </ListRow>
   );
 }
 
@@ -188,10 +198,13 @@ function pinnedOverrides({ draft, appearance }: PinnedOverridesProps): ReactElem
   const headingId = `guided-${appearance}-pinned-heading`;
 
   return (
-    <section
+    <ListRow
+      as="section"
       aria-labelledby={headingId}
       data-testid={`pinned-${appearance}`}
-      className="space-y-2 rounded-control border border-border p-3"
+      tone="outline"
+      padding="md"
+      className="space-y-2"
     >
       <h3 id={headingId} className="text-base font-semibold text-foreground">
         Pinned by this preset
@@ -208,7 +221,7 @@ function pinnedOverrides({ draft, appearance }: PinnedOverridesProps): ReactElem
           </li>
         ))}
       </ul>
-    </section>
+    </ListRow>
   );
 }
 
@@ -224,10 +237,13 @@ function contrastMeter({ pair, draft, appearance, disabled, onChange }: Contrast
   const base = `contrast-${appearance}-${pair.id}`;
 
   return (
-    <li
+    <ListRow
+      as="li"
       key={pair.id}
       data-testid={base}
-      className="space-y-2 rounded-control border border-border p-3"
+      tone="outline"
+      padding="md"
+      className="space-y-2"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="type-label text-foreground">{pair.label}</p>
@@ -265,7 +281,7 @@ function contrastMeter({ pair, draft, appearance, disabled, onChange }: Contrast
           </Button>
         </div>
       )}
-    </li>
+    </ListRow>
   );
 }
 
