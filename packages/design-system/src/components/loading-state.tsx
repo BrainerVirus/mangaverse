@@ -139,13 +139,16 @@ function SectionsSkeleton({
               <Skeleton className="h-4 w-40 rounded-control" />
             </div>
             <div className="type-body flex h-lh items-center">
-              <Skeleton className="h-3.5 w-72 max-w-full rounded" />
+              <Skeleton className="h-3.5 w-72 max-w-full rounded-control" />
             </div>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="space-y-4">
               {Array.from({ length: rows }).map((_row, r) => (
-                <Skeleton key={`${baseId}-section-${i}-row-${r}`} className="h-11 w-full rounded" />
+                <Skeleton
+                  key={`${baseId}-section-${i}-row-${r}`}
+                  className="h-11 w-full rounded-control"
+                />
               ))}
             </div>
             <div className="mt-4 h-px" />
@@ -180,9 +183,9 @@ export function LoadingState({
             >
               <Skeleton className="h-20 w-14 shrink-0 rounded-control" />
               <div className="flex flex-col gap-2">
-                <Skeleton className="h-5 w-48 rounded" />
+                <Skeleton className="h-5 w-48 rounded-control" />
                 <Skeleton className="h-4 w-32 rounded-control" />
-                <Skeleton className="h-3 w-24 rounded" />
+                <Skeleton className="h-3 w-24 rounded-control" />
               </div>
             </div>
           ))}

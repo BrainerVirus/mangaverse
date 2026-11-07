@@ -29,21 +29,21 @@ export function SettingsSection({
           onClick={() => setIsOpen(!isOpen)}
           className={cn(
             'flex w-full items-center justify-between text-left',
-            'rounded-control focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            'rounded-control focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
           )}
           aria-expanded={isOpen}
         >
           <div className="flex items-center gap-2">
-            {danger ? <AlertTriangle className="h-4 w-4 text-destructive" /> : null}
+            {danger ? <AlertTriangle className="size-4 text-destructive" /> : null}
             <CardTitle size="heading" className={cn(danger && 'text-destructive')}>
               {title}
             </CardTitle>
           </div>
           {collapsed ? (
             isOpen ? (
-              <ChevronDown className="h-4 w-4" />
+              <ChevronDown className="size-4" />
             ) : (
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="size-4" />
             )
           ) : null}
         </button>

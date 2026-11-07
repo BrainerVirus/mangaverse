@@ -57,10 +57,10 @@ describe('Sheet', () => {
 
     const dialog = screen.getByRole('dialog', { name: 'Reader settings' });
     expect(dialog.querySelector('[data-glass-tier="thick"]')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Close' })).toHaveClass(
-      'text-foreground',
-      'opacity-100',
-    );
+    const close = screen.getByRole('button', { name: 'Close' });
+    expect(close).toHaveClass('text-foreground', 'size-10', 'focus-visible:ring-2');
+    // The 16px, dimmed target failed 2.5.8; the icon button is 40px and never dimmed.
+    expect(close).not.toHaveClass('opacity-70');
   });
 
   it('moves focus into the sheet and returns it to the trigger on Escape', async () => {

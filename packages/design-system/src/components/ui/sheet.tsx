@@ -3,6 +3,7 @@ import { Dialog as SheetPrimitive } from '@base-ui/react/dialog';
 import { X } from 'lucide-react';
 import { cn } from '@design-system/lib/cn.js';
 import { GlassPanel } from '../glass-panel.js';
+import { buttonSizes, buttonVariants } from './button-variants.js';
 
 /**
  * shadcn-style sheet built on Base UI Dialog: focus trap, Escape and focus return
@@ -124,13 +125,16 @@ const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
             </GlassPanel>
           )}
           <SheetPrimitive.Close
+            type="button"
             className={cn(
-              'absolute top-4 right-4 rounded-sm text-muted-foreground opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none',
-              surface === 'glass' && 'text-foreground opacity-100',
+              buttonVariants.ghost,
+              buttonSizes.icon,
+              'absolute top-4 right-4 text-muted-foreground',
+              surface === 'glass' && 'text-foreground',
             )}
             aria-label="Close"
           >
-            <X className="h-4 w-4" />
+            <X />
           </SheetPrimitive.Close>
         </SheetPrimitive.Popup>
       </SheetPortal>

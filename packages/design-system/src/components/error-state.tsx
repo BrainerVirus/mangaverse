@@ -1,7 +1,6 @@
 import { AlertTriangle, ArrowLeft, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert.js';
 import { Button } from './ui/button.js';
-import { cn } from '../lib/cn.js';
 
 export interface ErrorStateProps {
   title: string;
@@ -11,39 +10,39 @@ export interface ErrorStateProps {
   onBack?: () => void;
 }
 
+/**
+ * The alert is the state's panel: its destructive border and tint are the only chrome,
+ * so a second bordered wrapper would draw the same grouping twice (docs/Design.md
+ * "Cards", DESIGN.md §7.8).
+ */
 export function ErrorState({ title, message, providerName, onRetry, onBack }: ErrorStateProps) {
   return (
     <div className="flex flex-col items-center justify-center px-6 py-12">
-      <div className={cn('surface-panel w-full max-w-lg p-6')}>
-        <Alert
-          variant="destructive"
-          className="border-none bg-destructive/10 text-foreground shadow-none"
-        >
-          <AlertTriangle className="h-4 w-4 text-destructive" />
-          <AlertTitle>{title}</AlertTitle>
-          <AlertDescription className="text-sm text-muted-foreground">
-            {providerName && <span className="font-medium text-foreground">{providerName}: </span>}
-            {message}
-          </AlertDescription>
-        </Alert>
+      <Alert variant="destructive" className="max-w-lg p-6">
+        <AlertTriangle />
+        <AlertTitle>{title}</AlertTitle>
+        <AlertDescription className="text-sm text-muted-foreground">
+          {providerName && <span className="font-medium text-foreground">{providerName}: </span>}
+          {message}
+        </AlertDescription>
 
         {(onBack || onRetry) && (
           <div className="mt-6 flex justify-end gap-3">
             {onBack && (
               <Button variant="outline" onClick={onBack}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
+                <ArrowLeft />
                 Go Back
               </Button>
             )}
             {onRetry && (
               <Button onClick={onRetry}>
-                <RefreshCw className="mr-2 h-4 w-4" />
+                <RefreshCw />
                 Retry
               </Button>
             )}
           </div>
         )}
-      </div>
+      </Alert>
     </div>
   );
 }

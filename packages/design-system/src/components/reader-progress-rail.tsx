@@ -185,7 +185,7 @@ export function ReaderProgressRail({
             level="stage"
             tone="reader"
             elevation={3}
-            className="overflow-hidden rounded-lg"
+            className="overflow-hidden"
             data-testid="reader-rail-preview-surface"
           >
             {renderPreview(hoverValue)}
@@ -232,7 +232,7 @@ export function ReaderProgressRail({
           data-testid="reader-rail-fill"
         />
         <div
-          className="reader-progress-thumb absolute top-1/2 h-4 w-4 rounded-full bg-white shadow"
+          className="reader-progress-thumb absolute top-1/2 size-4 rounded-full bg-white shadow-sm"
           // The thumb position and reduced-motion transition are computed from reader state.
           style={
             {

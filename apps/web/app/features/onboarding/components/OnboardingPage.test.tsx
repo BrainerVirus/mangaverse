@@ -136,7 +136,7 @@ describe('OnboardingPage', () => {
 
     const continueButton = screen.getByRole('button', { name: 'Continue' });
     expect(continueButton.className).toContain('inline-flex');
-    expect(continueButton.className).toContain('rounded-[var(--radius-btn)]');
+    expect(continueButton.className).toContain('rounded-btn');
   });
 
   it('exposes skip and continue actions on the first step', async () => {
