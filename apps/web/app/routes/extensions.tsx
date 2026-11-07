@@ -474,7 +474,11 @@ function ExtensionsRoute() {
           exportWarnings={exporter.warnings}
           importWarnings={registry.importWarnings}
           onOpenProvider={(providerId) =>
-            void navigate({ to: '/extensions/$providerId', params: { providerId } })
+            void navigate({
+              to: '/extensions/$providerId',
+              params: { providerId },
+              state: (previous) => ({ ...previous, navigationOpener: 'extensions' }),
+            })
           }
           onInstallProvider={() => {
             void navigate({ search: { install: true } });

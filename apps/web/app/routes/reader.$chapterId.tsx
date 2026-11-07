@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
 import { saveReaderSettingsLayers, settingsQueryKeys } from '@/features/settings';
@@ -33,6 +33,7 @@ import { useReaderPageShape } from '../lib/use-reader-page-shape.js';
 import { getBindingForChapterId } from '../lib/provider-registry.js';
 import { useLayoutStore } from '../stores/useLayoutStore.js';
 import { ensureProviderChapterPages } from '../queries/provider-query-options.js';
+import { goBackIfMarked } from '../lib/navigation-history.js';
 
 export const Route = createFileRoute('/reader/$chapterId')({
   // Controls start hidden on every open (spec R8): set before the first render,
@@ -290,19 +291,33 @@ function useReaderChapterActions(
   queryClient: ReturnType<typeof useQueryClient>,
 ) {
   const navigate = useNavigate();
+  const router = useRouter();
   const previous = data?.previousChapterId;
   const next = data?.nextChapterId;
   const handlePrevious = () => {
-    if (previous) void navigate({ to: '/reader/$chapterId', params: { chapterId: previous } });
+    if (previous)
+      void navigate({
+        to: '/reader/$chapterId',
+        params: { chapterId: previous },
+        replace: true,
+        state: (state) => state,
+      });
   };
   const handleNext = () => {
-    if (next) void navigate({ to: '/reader/$chapterId', params: { chapterId: next } });
+    if (next)
+      void navigate({
+        to: '/reader/$chapterId',
+        params: { chapterId: next },
+        replace: true,
+        state: (state) => state,
+      });
   };
   const handleClose = () => {
+    if (goBackIfMarked(router.history, 'reader')) return;
     if (data) {
-      void navigate({ to: '/manga/$id', params: { id: data.mangaId } });
+      void navigate({ to: '/manga/$id', params: { id: data.mangaId }, replace: true });
     } else {
-      void navigate({ to: '/library' });
+      void navigate({ to: '/library', replace: true });
     }
   };
   // Read state and the library badge both derive from SQLite. The open reader

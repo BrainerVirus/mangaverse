@@ -10,6 +10,7 @@ import type { ChapterId, MangaId } from '@app/shared';
 import { recentLibraryQueryOptions } from '../../queries/library-query-options.js';
 import { useLocalDb, useLocalDbStatus } from '../../providers/local-db-provider.js';
 import type { Command } from './CommandRegistry.js';
+import { readerSessionState } from '../../lib/navigation-history.js';
 
 /** A palette group longer than the palette itself stops being a shortcut. */
 const PROVIDER_COMMAND_LIMIT = 5;
@@ -82,7 +83,12 @@ export function useLocalCommands(enabled: boolean): Command[] {
     ...buildRecentCommands(
       recentQuery.data ?? [],
       (mangaId) => void navigate({ to: '/manga/$id', params: { id: mangaId } }),
-      (chapterId) => void navigate({ to: '/reader/$chapterId', params: { chapterId } }),
+      (chapterId) =>
+        void navigate({
+          to: '/reader/$chapterId',
+          params: { chapterId },
+          state: (previous) => ({ ...previous, ...readerSessionState }),
+        }),
     ),
     ...buildProviderCommands(providersQuery.data?.providers ?? [], (providerId) => {
       void navigate({ to: '/extensions/$providerId', params: { providerId } });

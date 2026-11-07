@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { z } from 'zod';
@@ -19,6 +19,7 @@ import {
   PROVIDER_SECTION_PAGE_SIZE,
 } from '../queries/provider-discover.js';
 import { getProviderBinding } from '../lib/provider-registry.js';
+import { goBackIfMarked } from '../lib/navigation-history.js';
 
 const discoverSearchSchema = z.object({
   provider: z.string().optional().catch(undefined),
@@ -171,6 +172,7 @@ function shouldShowProviderHint(
 
 function DiscoverRoute() {
   const navigate = useNavigate({ from: '/discover' });
+  const router = useRouter();
   const search = Route.useSearch();
   const db = useLocalDb();
   const dbStatus = useLocalDbStatus();
@@ -220,14 +222,20 @@ function DiscoverRoute() {
       }}
       onOpenManga={(mangaId) => navigate({ to: '/manga/$id', params: { id: mangaId } })}
       onSeeAllSection={(providerId, sectionId) => {
-        void navigate({ search: { provider: providerId, section: sectionId } });
+        const state =
+          search.section === undefined ? { navigationOpener: 'discover-feed' as const } : {};
+        void navigate({
+          search: { provider: providerId, section: sectionId },
+          state: (previous) => ({ ...previous, navigationOpener: state.navigationOpener }),
+        });
       }}
       onBackFromSection={() => {
+        if (goBackIfMarked(router.history, 'discover-feed')) return;
         if (search.provider !== undefined) {
-          void navigate({ search: { provider: search.provider } });
+          void navigate({ search: { provider: search.provider }, replace: true });
           return;
         }
-        void navigate({ search: {} });
+        void navigate({ search: {}, replace: true });
       }}
       onLoadMoreSection={loadMoreSection}
       onBrowseProviders={() => void navigate({ to: '/extensions' })}

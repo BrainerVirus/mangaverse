@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   extensionsQueryKeys,
@@ -22,6 +22,7 @@ import {
   syncProviderNetworkAllowlist,
 } from '../lib/provider-allowlist-sync.js';
 import { getProviderBinding } from '../lib/provider-registry.js';
+import { goBackIfMarked } from '../lib/navigation-history.js';
 import {
   useProviderActivity,
   useProviderHealth,
@@ -43,6 +44,7 @@ export const Route = createFileRoute('/extensions/$providerId')({
 function ProviderDetailRoute() {
   const { providerId } = Route.useParams();
   const navigate = useNavigate();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const db = useLocalDb();
   const dbStatus = useLocalDbStatus();
@@ -153,7 +155,10 @@ function ProviderDetailRoute() {
       activity={activity.state}
       health={health.state}
       update={update.state}
-      onBack={() => void navigate({ to: '/extensions' })}
+      onBack={() => {
+        if (!goBackIfMarked(router.history, 'extensions'))
+          void navigate({ to: '/extensions', replace: true });
+      }}
       onToggleEnabled={(enabled) => {
         toggleEnabledMutation.mutate(enabled);
       }}

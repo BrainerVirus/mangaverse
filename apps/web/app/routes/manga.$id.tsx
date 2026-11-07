@@ -1,5 +1,10 @@
 import { useMemo } from 'react';
-import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
+import {
+  createFileRoute,
+  useNavigate,
+  useRouter,
+  type RouterHistory,
+} from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   findDuplicateCandidates,
@@ -72,6 +77,7 @@ import {
   sourceLoadError,
 } from '../queries/manga-detail-route-helpers.js';
 import { saveFeedback } from '../lib/feedback.js';
+import { readerSessionState } from '../lib/navigation-history.js';
 import { failureMessage } from '../lib/app-feedback.js';
 import { useLocalDb, useLocalDbRetry, useLocalDbStatus } from '../providers/local-db-provider.js';
 
@@ -110,6 +116,17 @@ function detailLoadRetryProps(input: {
     onRetry: input.retryLocal,
     onRetrySource: input.retrySource,
     ...(input.sourceError === undefined ? {} : { sourceError: input.sourceError }),
+  };
+}
+
+function readerLocation(chapterId: string) {
+  return {
+    to: '/reader/$chapterId' as const,
+    params: { chapterId },
+    state: (previous: RouterHistory['location']['state']) => ({
+      ...previous,
+      ...readerSessionState,
+    }),
   };
 }
 
@@ -329,12 +346,10 @@ function MangaDetailRoute() {
         goBackOrLibrary({
           canGoBack: () => router.history.canGoBack(),
           back: () => router.history.back(),
-          openLibrary: () => void navigate({ to: '/library' }),
+          openLibrary: () => void navigate({ to: '/library', replace: true }),
         })
       }
-      onOpenChapter={(chapterId) =>
-        void navigate({ to: '/reader/$chapterId', params: { chapterId } })
-      }
+      onOpenChapter={(chapterId) => void navigate(readerLocation(chapterId))}
       onAddToLibrary={() => addMutation.mutate(toLibraryEntryId(globalThis.crypto.randomUUID()))}
       onRemoveFromLibrary={() => removeMutation.mutate()}
       onToggleFavorite={() => favoriteMutation.mutate(!(data?.libraryEntry?.favorite ?? false))}
@@ -399,7 +414,7 @@ function MangaDetailRoute() {
       onMerge={(input) => mergeMutation.mutateAsync(input).then(() => undefined)}
       onMerged={(targetId) => {
         if (targetId !== mangaId) {
-          void navigate({ to: '/manga/$id', params: { id: targetId } });
+          void navigate({ to: '/manga/$id', params: { id: targetId }, replace: true });
         }
       }}
       isUnmergePending={unmergeMutation.isPending}

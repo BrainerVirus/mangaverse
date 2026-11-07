@@ -27,6 +27,7 @@ import { feedback } from '../lib/app-feedback.js';
 import { saveFeedback } from '../lib/feedback.js';
 import { createLibraryUpdateProviderResolver } from '../lib/library-update-provider.js';
 import { subscribeToLocalChanges } from '../lib/local-db.js';
+import { readerSessionState } from '../lib/navigation-history.js';
 import { useLocalDb, useLocalDbStatus, useLocalDbRetry } from '../providers/local-db-provider.js';
 
 export const Route = createFileRoute('/library')({
@@ -84,7 +85,11 @@ function LibraryRoute() {
   );
   const openChapter = useCallback(
     (chapterId: ChapterId) => {
-      void navigate({ to: '/reader/$chapterId', params: { chapterId } });
+      void navigate({
+        to: '/reader/$chapterId',
+        params: { chapterId },
+        state: (previous) => ({ ...previous, ...readerSessionState }),
+      });
     },
     [navigate],
   );
