@@ -230,7 +230,7 @@ export function ReaderChrome({
               aria-label="Chapter actions"
               onClick={onOpenChapterActions}
             >
-              <MoreHorizontal className="h-5 w-5" />
+              <MoreHorizontal className="size-5" />
             </Button>
           ) : null}
           <Button
@@ -241,7 +241,7 @@ export function ReaderChrome({
             onClick={onOpenSettings}
             ref={settingsButtonRef}
           >
-            <Settings className="h-5 w-5" />
+            <Settings className="size-5" />
           </Button>
           <Button
             size="icon"
@@ -250,7 +250,7 @@ export function ReaderChrome({
             aria-label="Maximize"
             onClick={onToggleFullscreen}
           >
-            <Maximize2 className="h-5 w-5" />
+            <Maximize2 className="size-5" />
           </Button>
         </div>
       </div>
@@ -272,7 +272,7 @@ export function ReaderChrome({
           className="text-stage-foreground hover:bg-primary/20 disabled:opacity-30"
           aria-label="Previous page"
         >
-          <SkipBack className="h-5 w-5" />
+          <SkipBack className="size-5" />
         </Button>
 
         <div className="flex flex-1 items-center gap-4 px-4">
@@ -296,7 +296,7 @@ export function ReaderChrome({
           className="text-stage-foreground hover:bg-primary/20 disabled:opacity-30"
           aria-label="Next page"
         >
-          <SkipForward className="h-5 w-5" />
+          <SkipForward className="size-5" />
         </Button>
       </div>
     </div>

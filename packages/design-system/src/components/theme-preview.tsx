@@ -67,11 +67,11 @@ export function ThemePreview({ theme }: ThemePreviewProps) {
         />
         <div className="flex-1">
           <div
-            className="theme-preview-color mb-1 h-3 w-3/4 rounded"
+            className="theme-preview-color mb-1 h-3 w-3/4 rounded-control"
             style={{ '--theme-preview-color': theme.foreground } as ThemePreviewStyle}
           />
           <div
-            className="theme-preview-color h-2 w-1/2 rounded opacity-50"
+            className="theme-preview-color h-2 w-1/2 rounded-control opacity-50"
             style={{ '--theme-preview-color': theme.foreground } as ThemePreviewStyle}
           />
         </div>
@@ -85,7 +85,7 @@ export function ThemePreview({ theme }: ThemePreviewProps) {
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="theme-preview-color h-16 flex-1 rounded opacity-80"
+              className="theme-preview-color h-16 flex-1 rounded-control opacity-80"
               style={{ '--theme-preview-color': theme.surface } as ThemePreviewStyle}
             />
           ))}

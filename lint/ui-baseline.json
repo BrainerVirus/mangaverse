@@ -82,46 +82,9 @@
   "apps/web/app/routes/advanced.tsx": {
     "prefer-size-utility": 1
   },
-  "packages/design-system/src/components/empty-state.tsx": {
-    "prefer-size-utility": 8
-  },
-  "packages/design-system/src/components/error-state.tsx": {
-    "prefer-size-utility": 3
-  },
-  "packages/design-system/src/components/loading-state.tsx": {
-    "no-off-scale-radius": 4
-  },
   "packages/design-system/src/components/manga-card.tsx": {
     "no-direct-gsap-import": 1,
     "no-hand-rolled-heading": 1
-  },
-  "packages/design-system/src/components/reader-chrome.tsx": {
-    "prefer-size-utility": 5
-  },
-  "packages/design-system/src/components/reader-progress-rail.tsx": {
-    "no-off-scale-radius": 1,
-    "no-off-scale-shadow": 1,
-    "prefer-size-utility": 1
-  },
-  "packages/design-system/src/components/settings-section.tsx": {
-    "prefer-size-utility": 3
-  },
-  "packages/design-system/src/components/theme-preview.tsx": {
-    "no-off-scale-radius": 3
-  },
-  "packages/design-system/src/components/ui/button-variants.ts": {
-    "no-arbitrary-in-variant-maps": 5,
-    "prefer-size-utility": 1
-  },
-  "packages/design-system/src/components/ui/select.tsx": {
-    "prefer-size-utility": 3
-  },
-  "packages/design-system/src/components/ui/sheet.tsx": {
-    "no-off-scale-radius": 1,
-    "prefer-size-utility": 1
-  },
-  "packages/design-system/src/components/ui/switch.tsx": {
-    "prefer-size-utility": 1
   },
   "packages/extensions/src/components/ExtensionsPage.tsx": {
     "no-hand-built-panel": 1,

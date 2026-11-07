@@ -30,44 +30,44 @@ const emptyStateConfig: Record<
   { icon: React.ReactNode; title: string; description: string }
 > = {
   'no-library': {
-    icon: <BookX className="h-12 w-12 text-muted-foreground" />,
+    icon: <BookX className="size-12 text-muted-foreground" />,
     title: 'Your library is empty',
     description: 'Start by adding manga to your library from a provider.',
   },
   'no-provider': {
-    icon: <Database className="h-12 w-12 text-muted-foreground" />,
+    icon: <Database className="size-12 text-muted-foreground" />,
     title: 'No provider installed',
     description: 'Install a provider to start discovering and reading manga.',
   },
   'no-results': {
-    icon: <Search className="h-12 w-12 text-muted-foreground" />,
+    icon: <Search className="size-12 text-muted-foreground" />,
     title: 'No results found',
     description: 'Try adjusting your search or browse for different content.',
   },
   'search-prompt': {
-    icon: <Search className="h-12 w-12 text-muted-foreground" />,
+    icon: <Search className="size-12 text-muted-foreground" />,
     title: 'Search your manga',
     description: 'Type a title to search your library and your enabled sources.',
   },
   'manga-not-found': {
-    icon: <BookX className="h-12 w-12 text-muted-foreground" />,
+    icon: <BookX className="size-12 text-muted-foreground" />,
     title: 'Manga not found',
     description:
       'This title is not saved on this device. It may have been removed, or the link is wrong.',
   },
   'provider-not-found': {
-    icon: <Database className="h-12 w-12 text-muted-foreground" />,
+    icon: <Database className="size-12 text-muted-foreground" />,
     title: 'Provider not found',
     description:
       'This provider is not installed on this device. It may have been removed, or the link is wrong.',
   },
   'no-chapters': {
-    icon: <ChevronRight className="h-12 w-12 text-muted-foreground" />,
+    icon: <ChevronRight className="size-12 text-muted-foreground" />,
     title: 'No chapters available',
     description: "This manga doesn't have any chapters from this provider yet.",
   },
   'no-backups': {
-    icon: <Archive className="h-12 w-12 text-muted-foreground" />,
+    icon: <Archive className="size-12 text-muted-foreground" />,
     title: 'No backups found',
     description: 'Create a backup to restore your library and settings later.',
   },

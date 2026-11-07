@@ -72,6 +72,13 @@ describe('ErrorState', () => {
     expect(screen.getByRole('button', { name: /Go Back/i })).toBeInTheDocument();
   });
 
+  it('draws one panel: the alert owns the border and tint', () => {
+    render(<ErrorState title="Error" message="Failed" />);
+
+    expect(document.querySelector('.surface-panel')).toBeNull();
+    expect(screen.getByText('Error').closest('[data-alert]')).not.toBeNull();
+  });
+
   it('does not render buttons when callbacks not provided', () => {
     render(<ErrorState title="Error" message="Failed" />);
 
