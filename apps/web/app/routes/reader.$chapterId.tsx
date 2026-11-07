@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
 import {
   READER_SETTINGS_MUTATION_SCOPE,
-  saveReaderSettingsScope,
+  saveReaderSettingsPatch,
   settingsQueryKeys,
 } from '@/features/settings';
 import {
@@ -62,19 +62,18 @@ type ReaderSettingsSave =
   | {
       readonly kind: 'title';
       readonly mangaId: string;
-      readonly overrides: ReaderSettingsOverride;
+      readonly patch: Partial<ReaderSettings>;
       readonly revision: number;
     }
   | {
       readonly kind: 'global';
-      readonly settings: ReaderSettings;
+      readonly patch: Partial<ReaderSettings>;
       readonly revision: number;
     }
   | {
       readonly kind: 'layers';
       readonly mangaId: string;
-      readonly overrides: ReaderSettingsOverride;
-      readonly settings: ReaderSettings;
+      readonly patch: Partial<ReaderSettings>;
       readonly revision: number;
     }
   | {
@@ -198,23 +197,22 @@ function ReaderRouteSession({ chapterIdParam }: { chapterIdParam: string }) {
         return;
       }
       if (write.kind === 'title') {
-        await saveReaderSettingsScope(db, {
+        await saveReaderSettingsPatch(db, {
           scope: 'title',
           mangaId: write.mangaId,
-          overrides: write.overrides,
+          patch: write.patch,
         });
         return;
       }
       if (write.kind === 'layers') {
-        await saveReaderSettingsScope(db, {
+        await saveReaderSettingsPatch(db, {
           scope: 'layers',
           mangaId: write.mangaId,
-          overrides: write.overrides,
-          settings: write.settings,
+          patch: write.patch,
         });
         return;
       }
-      await saveReaderSettingsScope(db, { scope: 'global', settings: write.settings });
+      await saveReaderSettingsPatch(db, { scope: 'global', patch: write.patch });
     },
     onMutate: async () => {
       // The change handler already painted the scoped value. Only stop a reader
@@ -259,32 +257,29 @@ function ReaderRouteSession({ chapterIdParam }: { chapterIdParam: string }) {
         settingsWriter.schedule('title', {
           kind: 'title',
           mangaId: current.mangaId,
-          overrides: next.titleOverrides ?? {},
+          patch,
           revision,
         });
         return;
       }
 
       const titleChanged = !sameOverrides(current.titleOverrides, next.titleOverrides);
-      if (next.globalSettings !== undefined && titleChanged) {
+      if (titleChanged) {
         // One write for both layers: the two rows settle together from the
         // cache's point of view, so a refetch cannot catch a half-written pair.
         settingsWriter.schedule('layers', {
           kind: 'layers',
           mangaId: current.mangaId,
-          overrides: next.titleOverrides ?? {},
-          settings: next.globalSettings,
+          patch,
           revision,
         });
         return;
       }
-      if (next.globalSettings !== undefined) {
-        settingsWriter.schedule('global', {
-          kind: 'global',
-          settings: next.globalSettings,
-          revision,
-        });
-      }
+      settingsWriter.schedule('global', {
+        kind: 'global',
+        patch,
+        revision,
+      });
     },
     [chapterId, db, queryClient, settingsWriter],
   );

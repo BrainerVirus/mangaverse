@@ -100,6 +100,8 @@ export function useScopedCoalescedSettingsWrite<K extends string, T>(
   delayMs = SETTINGS_WRITE_DELAY_MS,
 ): ScopedCoalescedSettingsWriter<K, T> {
   const writerId = useRef<object>({});
+  const sequence = useRef(0);
+  const order = useRef(new Map<K, number>());
   const timers = useRef(new Map<K, ReturnType<typeof setTimeout>>());
   const pending = useRef(new Map<K, T>());
 
@@ -113,6 +115,7 @@ export function useScopedCoalescedSettingsWrite<K extends string, T>(
       const hasValue = pending.current.has(scope);
       const value = pending.current.get(scope);
       pending.current.delete(scope);
+      order.current.delete(scope);
       if (pending.current.size === 0 && timers.current.size === 0) {
         forgetPendingWriter(writerId.current);
       }
@@ -127,9 +130,12 @@ export function useScopedCoalescedSettingsWrite<K extends string, T>(
         flushOne(scope);
         return;
       }
-      // Snapshot the keys: a write may schedule another scope, and that edit
-      // belongs to its own quiet window, not this flush.
-      for (const key of [...pending.current.keys(), ...timers.current.keys()]) {
+      // Submit in edit order, not Map insertion order: rescheduling a scope
+      // must move it after scopes edited in between.
+      const keys = new Set([...pending.current.keys(), ...timers.current.keys()]);
+      for (const key of [...keys].sort(
+        (a, b) => (order.current.get(a) ?? 0) - (order.current.get(b) ?? 0),
+      )) {
         flushOne(key);
       }
     },
@@ -139,6 +145,7 @@ export function useScopedCoalescedSettingsWrite<K extends string, T>(
   const schedule = useCallback(
     (scope: K, value: T) => {
       flushOtherPendingWriters(writerId.current);
+      order.current.set(scope, ++sequence.current);
       pending.current.set(scope, value);
       const existing = timers.current.get(scope);
       if (existing !== undefined) clearTimeout(existing);
@@ -155,6 +162,7 @@ export function useScopedCoalescedSettingsWrite<K extends string, T>(
       if (timer !== undefined) clearTimeout(timer);
       timers.current.delete(scope);
       pending.current.delete(scope);
+      order.current.delete(scope);
       if (pending.current.size === 0 && timers.current.size === 0) {
         forgetPendingWriter(writerId.current);
       }
@@ -163,6 +171,7 @@ export function useScopedCoalescedSettingsWrite<K extends string, T>(
     for (const timer of timers.current.values()) clearTimeout(timer);
     timers.current.clear();
     pending.current.clear();
+    order.current.clear();
     forgetPendingWriter(writerId.current);
   }, []);
 

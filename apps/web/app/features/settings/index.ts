@@ -14,9 +14,10 @@ export { saveAppSettings } from './save-app-settings.js';
 export { saveReaderSettings } from './save-reader-settings.js';
 export {
   READER_SETTINGS_MUTATION_SCOPE,
-  saveReaderSettingsScope,
+  saveReaderSettingsPatch,
   saveTitleReaderSettings,
-  type ReaderSettingsScopeWrite,
+  type ReaderSettingsPatch,
+  type ReaderSettingsScopePatch,
 } from './save-title-reader-settings.js';
 export { settingsQueryKeys } from './query-keys.js';
 export { SETTINGS_NAV_SECTIONS } from './nav-sections.js';

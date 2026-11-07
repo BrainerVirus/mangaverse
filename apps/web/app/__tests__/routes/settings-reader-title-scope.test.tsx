@@ -8,6 +8,7 @@ import type * as SettingsModule from '@/features/settings';
 
 const mocks = vi.hoisted(() => ({
   getTitleReaderSettingsLayers: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+  getReaderSettings: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   resetTitleReaderSettings: vi.fn<(...args: unknown[]) => Promise<void>>(async () => {}),
   fetchReaderSettings: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
   saveReaderSettings: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({ ok: true })),
@@ -20,6 +21,7 @@ vi.mock('../../providers/local-db-provider.js', () => ({
 }));
 
 vi.mock('@app/db', () => ({
+  getReaderSettings: mocks.getReaderSettings,
   getTitleReaderSettingsLayers: mocks.getTitleReaderSettingsLayers,
   resetTitleReaderSettings: mocks.resetTitleReaderSettings,
 }));
@@ -148,6 +150,11 @@ describe('/settings/reader?title', () => {
   it('Given the plain page, When a setting changes, Then the global row is written', async () => {
     mocks.saveReaderSettings.mockClear();
     mocks.saveTitleReaderSettings.mockClear();
+    // A concurrent reader write already moved the global row after this page loaded.
+    mocks.getReaderSettings.mockResolvedValue({
+      ...getDefaultReaderSettings(),
+      readingMode: 'vertical',
+    });
     mocks.fetchReaderSettings.mockResolvedValue({ settings: getDefaultReaderSettings() });
 
     const { root, container } = await renderRoute({});
@@ -156,7 +163,7 @@ describe('/settings/reader?title', () => {
     await waitFor(() => mocks.saveReaderSettings.mock.calls.length > 0);
     expect(mocks.saveReaderSettings).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ keepScreenOn: false }),
+      expect.objectContaining({ readingMode: 'vertical', keepScreenOn: false }),
     );
     expect(mocks.saveTitleReaderSettings).not.toHaveBeenCalled();
 

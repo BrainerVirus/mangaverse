@@ -20,50 +20,50 @@ export async function saveTitleReaderSettings(
   if (!result.ok) throw new Error(result.error.message);
 }
 
-/**
- * One settings layer to persist. The scope is part of the write so a title edit
- * can never rewrite the global row from a captured snapshot, and a global edit
- * can never rewrite a stale title row.
- */
-export type ReaderSettingsScopeWrite =
+/** A field-level edit, so a full snapshot can never erase another surface's change. */
+export type ReaderSettingsPatch = Partial<ReaderSettings>;
+
+export type ReaderSettingsScopePatch =
   | {
       readonly scope: 'title';
       readonly mangaId: string;
-      readonly overrides: ReaderSettingsOverride;
+      readonly patch: ReaderSettingsPatch;
     }
   | {
       readonly scope: 'global';
-      readonly settings: ReaderSettings;
+      readonly patch: ReaderSettingsPatch;
     }
   | {
-      /** A global edit that also drops keys from this title's choices. */
+      /** A global edit that also drops its keys from this title's choices. */
       readonly scope: 'layers';
       readonly mangaId: string;
-      readonly overrides: ReaderSettingsOverride;
-      readonly settings: ReaderSettings;
+      readonly patch: ReaderSettingsPatch;
     };
 
 /**
- * Writes exactly the layer named by `write`. The caller schedules one write per
- * scope; a global edit that also drops some of this title's choices schedules a
- * second, title-scoped diff instead of folding both into one stale snapshot.
+ * Merges a field patch into the latest durable row, never a captured snapshot.
+ * A reader edit and a settings-page edit to different fields therefore compose
+ * instead of the later full-row write erasing the earlier one.
  */
-export async function saveReaderSettingsScope(
+export async function saveReaderSettingsPatch(
   db: AppDrizzleDb,
-  write: ReaderSettingsScopeWrite,
+  write: ReaderSettingsScopePatch,
 ): Promise<void> {
+  const { getReaderSettings, getTitleReaderSettingsLayers } = await import('@app/db');
   if (write.scope === 'title') {
-    await saveTitleReaderSettings(db, write.mangaId, write.overrides);
+    const layers = await getTitleReaderSettingsLayers(db, write.mangaId);
+    await saveTitleReaderSettings(db, write.mangaId, { ...layers.overrides, ...write.patch });
     return;
   }
-  if (write.scope === 'layers') {
-    // One mutation settles both layers, so the caller invalidates once and the
-    // cache never briefly refetches a half-written pair.
-    const result = await saveReaderSettings(db, write.settings);
-    if (!result.ok) throw new Error(result.error.message);
-    await saveTitleReaderSettings(db, write.mangaId, write.overrides);
-    return;
-  }
-  const result = await saveReaderSettings(db, write.settings);
+
+  const result = await saveReaderSettings(db, { ...(await getReaderSettings(db)), ...write.patch });
   if (!result.ok) throw new Error(result.error.message);
+  if (write.scope === 'global') return;
+
+  const layers = await getTitleReaderSettingsLayers(db, write.mangaId);
+  const overrides: ReaderSettingsOverride = { ...layers.overrides };
+  for (const key of Object.keys(write.patch) as (keyof ReaderSettings)[]) {
+    delete overrides[key];
+  }
+  await saveTitleReaderSettings(db, write.mangaId, overrides);
 }

@@ -41,8 +41,18 @@ function DualProbe({
   const b = useCoalescedSettingsWrite(writeB);
   return (
     <>
-      <button type="button" data-testid="schedule-a" onClick={() => a.schedule('a')} />
-      <button type="button" data-testid="schedule-b" onClick={() => b.schedule('b')} />
+      <button
+        type="button"
+        aria-label="schedule a"
+        data-testid="schedule-a"
+        onClick={() => a.schedule('a')}
+      />
+      <button
+        type="button"
+        aria-label="schedule b"
+        data-testid="schedule-b"
+        onClick={() => b.schedule('b')}
+      />
     </>
   );
 }
@@ -159,11 +169,13 @@ function MixedProbe({
     <>
       <button
         type="button"
+        aria-label="schedule reader"
         data-testid="mixed-scoped"
         onClick={() => scoped.schedule('title', 'reader')}
       />
       <button
         type="button"
+        aria-label="schedule settings page"
         data-testid="mixed-plain"
         onClick={() => plain.schedule('settings-page')}
       />
@@ -310,6 +322,22 @@ describe('useScopedCoalescedSettingsWrite', () => {
     });
     expect(write).toHaveBeenCalledTimes(2);
     expect(write).toHaveBeenLastCalledWith('global', 'global-value');
+  });
+
+  it('Given a scope rescheduled after another, When flushed, Then writes follow edit order', () => {
+    vi.useFakeTimers();
+    const write = vi.fn<(scope: Scope, value: string) => void>();
+    mountScoped(write);
+
+    clickScoped('schedule-title');
+    clickScoped('schedule-global');
+    clickScoped('schedule-title');
+    clickScoped('flush');
+
+    expect(write.mock.calls).toEqual([
+      ['global', 'global-value'],
+      ['title', 'title-value'],
+    ]);
   });
 
   it('Given both scopes queued, When flushed, Then each writes once', () => {

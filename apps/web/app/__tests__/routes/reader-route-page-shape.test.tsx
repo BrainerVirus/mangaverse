@@ -45,7 +45,7 @@ vi.mock('@app/reader', async (importOriginal) => ({
 }));
 vi.mock('@/features/settings', () => ({
   READER_SETTINGS_MUTATION_SCOPE: 'reader-settings',
-  saveReaderSettingsScope: vi.fn<() => Promise<void>>(async () => {}),
+  saveReaderSettingsPatch: vi.fn<() => Promise<void>>(async () => {}),
   settingsQueryKeys: { reader: () => ['settings', 'reader'] },
 }));
 vi.mock('@app/db', () => ({

@@ -95,7 +95,7 @@ vi.mock('@app/reader', () => ({
 
 vi.mock('@/features/settings', () => ({
   READER_SETTINGS_MUTATION_SCOPE: 'reader-settings',
-  saveReaderSettingsScope: saveSettingsScope,
+  saveReaderSettingsPatch: saveSettingsScope,
   settingsQueryKeys: { reader: () => ['settings', 'reader'] },
 }));
 vi.mock('@app/db', () => ({
@@ -185,7 +185,7 @@ describe('/reader/$chapterId persistence reporting', () => {
     expect(saveSettingsScope).toHaveBeenCalledWith(expect.anything(), {
       scope: 'title',
       mangaId: 'dev-md-manga-1',
-      overrides: { readingMode: 'rtl', fitMode: 'width' },
+      patch: { fitMode: 'width' },
     });
 
     act(() => root.unmount());
@@ -206,7 +206,7 @@ describe('/reader/$chapterId persistence reporting', () => {
     expect(saveSettingsScope).toHaveBeenCalledTimes(1);
     expect(saveSettingsScope).toHaveBeenCalledWith(expect.anything(), {
       scope: 'global',
-      settings: { ...getDefaultReaderSettings(), pageTransition: 'slide' },
+      patch: { pageTransition: 'slide' },
     });
 
     act(() => root.unmount());
@@ -228,8 +228,7 @@ describe('/reader/$chapterId persistence reporting', () => {
     expect(saveSettingsScope).toHaveBeenCalledWith(expect.anything(), {
       scope: 'layers',
       mangaId: 'dev-md-manga-1',
-      overrides: {},
-      settings: { ...getDefaultReaderSettings(), readingMode: 'vertical' },
+      patch: { readingMode: 'vertical' },
     });
 
     act(() => root.unmount());
@@ -326,7 +325,7 @@ describe('/reader/$chapterId persistence reporting', () => {
 
     expect(saveSettingsScope).toHaveBeenCalledWith(expect.anything(), {
       scope: 'global',
-      settings: { ...getDefaultReaderSettings(), pageTransition: 'slide' },
+      patch: { pageTransition: 'slide' },
     });
     expect(resetTitleSettings).toHaveBeenCalledTimes(1);
 
