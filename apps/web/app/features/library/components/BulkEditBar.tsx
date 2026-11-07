@@ -171,6 +171,7 @@ export function BulkEditBar({
 
         <Select
           value={null}
+          disabled={selectedCount === 0}
           onValueChange={(value) => {
             if (selectedCount === 0) return;
             const status = STATUS_OPTIONS.find((option) => option.value === value);

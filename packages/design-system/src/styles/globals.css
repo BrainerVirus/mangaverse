@@ -510,8 +510,11 @@
   border-color: var(--theme-preview-border);
 }
 
-@utility select-anchor-size {
-  height: var(--anchor-height);
+@utility select-popup-max {
+  max-height: min(24rem, var(--available-height, 24rem));
+}
+
+@utility select-list-min {
   min-width: var(--anchor-width);
 }
 

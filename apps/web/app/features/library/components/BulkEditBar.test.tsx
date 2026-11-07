@@ -65,6 +65,12 @@ describe('BulkEditBar', () => {
     });
   });
 
+  it('Given nothing selected, Then the status control is disabled instead of silently doing nothing', () => {
+    renderBulk({ selectedEntryIds: [] });
+
+    expect(screen.getByLabelText('Set status for selected')).toBeDisabled();
+  });
+
   it('sets a status and adds categories to the selection', async () => {
     const user = userEvent.setup();
     const props = renderBulk();
