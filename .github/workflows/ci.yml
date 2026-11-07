@@ -22,7 +22,7 @@ jobs:
   ci:
     name: Lint, Typecheck, Test, Build
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       # Full history: lint compares lint/baseline.json with its merge base on origin/main.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
