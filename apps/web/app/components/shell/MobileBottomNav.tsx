@@ -34,13 +34,13 @@ function SheetLinks({
             aria-current={isActive ? 'page' : undefined}
             onClick={onNavigate}
             className={cn(
-              'flex items-center gap-3 px-2 py-3 type-label transition-colors rounded-md',
+              'flex items-center gap-3 rounded-control px-2 py-3 type-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
               isActive
                 ? 'bg-sidebar-accent text-sidebar-accent-foreground'
                 : 'text-foreground hover:bg-sidebar-accent/60',
             )}
           >
-            <Icon className="h-5 w-5" />
+            <Icon className="size-5" />
             {label}
           </Link>
         );
@@ -90,7 +90,7 @@ export function MobileBottomNav() {
                     isActive ? 'text-primary' : 'text-muted-foreground',
                   )}
                 >
-                  <Icon className="h-5 w-5" />
+                  <Icon className="size-5" />
                   <span className="max-w-full truncate">{label}</span>
                 </Link>
               );
@@ -102,7 +102,7 @@ export function MobileBottomNav() {
               className="flex min-w-0 flex-1 basis-0 flex-col items-center justify-center gap-0.5 px-1 py-1.5 type-micro text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => setSheetOpen(true)}
             >
-              <Menu className="h-5 w-5" />
+              <Menu className="size-5" />
               <span className="max-w-full truncate">More</span>
             </button>
           </div>

@@ -378,7 +378,7 @@ function TrackingLinks({ links }: { links: readonly TrackingLink[] }) {
                     href={href}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline"
+                    className="inline-flex items-center gap-1 rounded-control text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
                     {link.externalId}
                     <ExternalLink aria-hidden className="size-3" />

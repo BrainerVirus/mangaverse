@@ -334,7 +334,7 @@ function CandidateRow({
         <label className="ml-auto inline-flex items-center gap-2 text-xs text-muted-foreground">
           <input
             type="checkbox"
-            className="size-4 rounded border-border accent-primary"
+            className="size-4 rounded-control border-border accent-primary"
             checked={hasSelection}
             disabled={blocked || !canInclude}
             aria-label={`Include ${candidate.canonicalTitle} in migration`}
@@ -376,7 +376,7 @@ function CandidateRow({
                 <button
                   type="button"
                   aria-pressed={isSelected}
-                  className={`flex w-full flex-wrap items-center gap-2 rounded-control border p-2 text-left text-sm transition-colors ${
+                  className={`flex w-full flex-wrap items-center gap-2 rounded-control border p-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                     isSelected
                       ? 'border-primary bg-primary/10 text-foreground'
                       : 'border-border bg-background hover:bg-accent'
@@ -503,7 +503,7 @@ function CandidateSection({
                 <label className="inline-flex items-center gap-2 text-xs text-muted-foreground">
                   <input
                     type="checkbox"
-                    className="size-4 rounded border-border accent-primary"
+                    className="size-4 rounded-control border-border accent-primary"
                     checked={hideBlocked}
                     onChange={(event) => setHideBlocked(event.target.checked)}
                   />

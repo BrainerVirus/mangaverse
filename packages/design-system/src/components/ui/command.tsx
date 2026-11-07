@@ -21,6 +21,8 @@ const CommandInput = React.forwardRef<
   <input
     ref={ref}
     className={cn(
+      // DESIGN.md §7.4: the palette search field is borderless; the palette opens with focus
+      // and the caret is the cue. Ruling: keep focus-visible:ring-0 on the field.
       'flex h-11 w-full rounded-none bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-0',
       className,
     )}

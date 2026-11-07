@@ -19,6 +19,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SegmentedControl,
   Sheet,
   SheetContent,
   SheetDescription,
@@ -416,25 +417,16 @@ export function LibraryToolbar({
               </Badge>
             ) : null}
           </Button>
-          <fieldset
-            className="inline-flex gap-0.5 rounded-control border border-border bg-muted/40 p-0.5"
-            aria-label="Library layout"
-          >
-            {layoutOptions.map(({ mode, label, icon: Icon }) => (
-              <Button
-                key={mode}
-                type="button"
-                variant={viewState.layout === mode ? 'default' : 'ghost'}
-                size="sm"
-                aria-pressed={viewState.layout === mode}
-                aria-label={label}
-                className="pointer-coarse:min-h-11"
-                onClick={() => onViewStateChange({ ...viewState, layout: mode })}
-              >
-                <Icon className="h-4 w-4" aria-hidden />
-              </Button>
-            ))}
-          </fieldset>
+          <SegmentedControl
+            label="Library layout"
+            value={viewState.layout}
+            options={layoutOptions.map(({ mode, label, icon: Icon }) => ({
+              value: mode,
+              label,
+              icon: <Icon aria-hidden />,
+            }))}
+            onChange={(layout) => onViewStateChange({ ...viewState, layout })}
+          />
         </div>
       </div>
 

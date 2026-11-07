@@ -284,8 +284,8 @@ function DiscoverProviderBrowser({
               onClick={() => onSelectProvider(provider.providerId)}
               className={
                 isActive
-                  ? 'inline-flex items-center justify-center whitespace-nowrap rounded-control bg-background px-3 py-1.5 text-sm font-medium text-foreground shadow-sm'
-                  : 'inline-flex items-center justify-center whitespace-nowrap rounded-control px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground'
+                  ? 'inline-flex items-center justify-center whitespace-nowrap rounded-control bg-background px-3 py-1.5 text-sm font-medium text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+                  : 'inline-flex items-center justify-center whitespace-nowrap rounded-control px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
               }
             >
               {provider.providerName}

@@ -66,7 +66,7 @@ export function ContinueReadingSection({
               <li key={item.item.entry.id}>
                 <button
                   type="button"
-                  className="flex w-full items-center gap-3 rounded-box border border-border bg-card p-3 text-left transition-colors hover:border-accent hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex w-full items-center gap-3 rounded-box border border-border bg-card p-3 text-left transition-colors hover:border-accent hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   onClick={() => {
                     if (chapter !== undefined) onResume(chapter.id);
                   }}
@@ -120,7 +120,7 @@ export function RecentlyUpdatedSection({ items, onOpenManga }: RecentlyUpdatedSe
             <li key={item.item.entry.id}>
               <button
                 type="button"
-                className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 onClick={() => onOpenManga(item.item.manga.id)}
               >
                 <span className="min-w-0">
