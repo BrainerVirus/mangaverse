@@ -26,7 +26,7 @@
     "@app/db": "workspace:*",
     "@app/design-system": "workspace:*",
     "@app/shared": "workspace:*",
-    "react": "^19.3.0"
+    "react": "^19.3.1"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

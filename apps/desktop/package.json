@@ -31,9 +31,9 @@
     "@app/platform": "workspace:*",
     "@app/shared": "workspace:*",
     "@app/web": "workspace:*",
-    "@tanstack/react-router": "^1.170.42",
+    "@tanstack/react-router": "^1.170.46",
     "electron-updater": "^6.8.11",
-    "react": "^19.3.0",
+    "react": "^19.3.1",
     "react-dom": "^19.3.0",
     "zod": "^4.6.7"
   },
