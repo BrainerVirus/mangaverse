@@ -1,0 +1,46 @@
+# Weekly, grouped update PRs for the workspace (pnpm) and for the SHA-pinned workflow actions.
+# Dependabot keeps `uses: owner/action@<sha> # vX.Y.Z` pins current and updates the comment.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 3
+    groups:
+      github-actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "ci"
+
+  - package-ecosystem: npm
+    # The npm ecosystem reads pnpm lockfiles; list the root and each workspace so every
+    # package.json is scanned, and the one pnpm-lock.yaml is updated in the same PR.
+    directories:
+      - /
+      - /apps/*
+      - /packages/*
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 3
+    # The workspace is large; keep the weekly volume to a few grouped PRs.
+    open-pull-requests-limit: 5
+    groups:
+      # Electron and the packager move together and gate the release: review them on their own.
+      electron:
+        patterns: ["electron", "electron-builder", "electron-updater", "@electron/*"]
+      dev-dependencies:
+        dependency-type: development
+        update-types: [minor, patch]
+        exclude-patterns: ["electron", "electron-builder", "electron-updater", "@electron/*"]
+      production-dependencies:
+        dependency-type: production
+        update-types: [minor, patch]
+        exclude-patterns: ["electron", "electron-builder", "electron-updater", "@electron/*"]
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"

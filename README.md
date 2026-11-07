@@ -64,4 +64,5 @@ docs/                  overhaul/, SPEC, ARCHITECTURE, Design
 - [`docs/SPEC.md`](docs/SPEC.md) — product spec
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — package boundaries and data flow
 - [`docs/Design.md`](docs/Design.md) — design system and motion rules
+- [`docs/release.md`](docs/release.md) — how desktop releases are built, published and verified
 - [`docs/overhaul/`](docs/overhaul/) — the current specs, roadmap and handoff

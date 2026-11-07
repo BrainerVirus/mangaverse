@@ -1,6 +1,15 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { createRequire } from 'node:module';
@@ -83,12 +92,67 @@ function unpackCurrentZip(): string | null {
   return app;
 }
 
+// The fuse wire Electron embeds in its framework: this sentinel, a version byte, a length byte,
+// then one ASCII byte per fuse ('1' on, '0' off). Index order is @electron/fuses' FuseV1Options.
+const FUSE_SENTINEL = 'dL7pKGdnNz796PbbjQWNKmHXBZaB9tsX';
+const FUSES = {
+  runAsNode: 0,
+  enableNodeOptionsEnvironmentVariable: 2,
+  enableNodeCliInspectArguments: 3,
+  enableEmbeddedAsarIntegrityValidation: 4,
+  onlyLoadAppFromAsar: 5,
+} as const;
+const FRAMEWORK = 'Contents/Frameworks/Electron Framework.framework/Versions/A/Electron Framework';
+
+function fuseWire(binary: Buffer): { offset: number; length: number } {
+  const at = binary.indexOf(FUSE_SENTINEL);
+  if (at < 0 || binary.indexOf(FUSE_SENTINEL, at + 1) >= 0) {
+    throw new Error('Expected exactly one Electron fuse wire in the framework');
+  }
+  const offset = at + FUSE_SENTINEL.length + 2;
+  return { offset, length: binary[offset - 1]! };
+}
+
+function readFuses(app: string): Record<keyof typeof FUSES, boolean> {
+  const binary = readFileSync(join(app, FRAMEWORK));
+  const { offset } = fuseWire(binary);
+  const entries = Object.entries(FUSES).map(([name, index]) => [
+    name,
+    binary[offset + index] === '1'.charCodeAt(0),
+  ]);
+  return Object.fromEntries(entries) as Record<keyof typeof FUSES, boolean>;
+}
+
+/**
+ * The shipped app turns `enableNodeCliInspectArguments` off, and Electron then also ignores
+ * `--remote-debugging-port`, which is how this proof drives the renderer. So the CDP-driven
+ * tests run a throwaway copy of the packaged app with only that one fuse switched back on
+ * (and re-signed ad hoc, which Apple Silicon needs after any edit). Every other byte, the asar
+ * and the preload are the shipped ones; a separate test pins the shipped fuses.
+ */
+function debugCopy(shipped: string): string {
+  const directory = join(desktopRoot, 'release/packed-proof-debug');
+  rmSync(directory, { recursive: true, force: true });
+  mkdirSync(directory, { recursive: true });
+  const app = join(directory, 'MangaVerse.app');
+  cpSync(shipped, app, { recursive: true, verbatimSymlinks: true });
+  const frameworkPath = join(app, FRAMEWORK);
+  const binary = readFileSync(frameworkPath);
+  const { offset } = fuseWire(binary);
+  binary[offset + FUSES.enableNodeCliInspectArguments] = '1'.charCodeAt(0);
+  writeFileSync(frameworkPath, binary);
+  execFileSync('codesign', ['--force', '--deep', '--sign', '-', app], { stdio: 'ignore' });
+  return app;
+}
+
 // Resolved on first use, so `--list` and the other specs never unpack an artifact.
 let packedAppPath: string | null | undefined;
+let debugAppPath: string | undefined;
 test.skip(() => process.platform !== 'darwin', 'macOS only');
 
 test.beforeAll(() => {
   packedAppPath = unpackCurrentZip();
+  if (packedAppPath !== null) debugAppPath = debugCopy(packedAppPath);
 });
 
 function packagedApp(): string {
@@ -124,8 +188,8 @@ async function freePort(): Promise<number> {
  * Attaching to the renderer is enough: the preload bridge is the app's whole backend surface.
  */
 async function launchPackaged(userDataDir: string): Promise<PackedApp> {
-  const bundle = packagedApp();
-  if (bundle === null) throw new Error('No packaged app');
+  const bundle = debugAppPath;
+  if (bundle === undefined) throw new Error('No packaged app');
   const env = { ...process.env } as Record<string, string>;
   delete env.VITE_DEV_SERVER_URL;
   delete env.MANGAVERSE_RENDERER_URL;
@@ -284,9 +348,10 @@ test('the packaged app loads app://, imports legacy data and serves page://', as
   // navigating, so the router never sees the half-imported profile.
   await expect.poll(() => existsSync(join(userDataDir, MARKER)), { timeout: 60_000 }).toBe(true);
 
-  // electron-updater loaded from the asar and found the generated GitHub feed. (It never
-  // blocks startup; this line is main's own record after the window exists.)
-  expect(logs.join('')).toContain('[updater] enabled');
+  // v0.0.1 ships with auto-update off: electron-builder.yml has no `publish` feed, so the
+  // build carries no app-update.yml and main's own record says the updater is disabled.
+  expect(existsSync(join(packagedApp(), 'Contents/Resources/app-update.yml'))).toBe(false);
+  expect(logs.join('')).toContain('[updater] disabled');
 
   // app:// deep route, offline, after the renderer-data import moved the title into the
   // native database through the data host.
@@ -328,6 +393,37 @@ test('the packaged app loads app://, imports legacy data and serves page://', as
     return loaded;
   }, stored.value);
   expect(rendered).toBeGreaterThan(0);
+});
+
+test('the shipped app flips the hardening fuses and ignores --remote-debugging-port', async () => {
+  const bundle = packagedApp();
+  expect(readFuses(bundle)).toEqual({
+    runAsNode: false,
+    enableNodeOptionsEnvironmentVariable: false,
+    enableNodeCliInspectArguments: false,
+    enableEmbeddedAsarIntegrityValidation: true,
+    onlyLoadAppFromAsar: true,
+  });
+
+  const port = await freePort();
+  const child = spawn(
+    join(bundle, 'Contents/MacOS/MangaVerse'),
+    [`--remote-debugging-port=${port}`, `--user-data-dir=${profile()}`],
+    { stdio: 'ignore' },
+  );
+  try {
+    await delay(8_000);
+    const reachable = await fetch(`http://127.0.0.1:${port}/json/version`, {
+      signal: AbortSignal.timeout(2_000),
+    }).then(
+      () => true,
+      () => false,
+    );
+    expect(reachable, 'the shipped app opened a DevTools endpoint').toBe(false);
+  } finally {
+    child.kill();
+    await delay(500);
+  }
 });
 
 test('a plain packaged launch opens no listening TCP port', async () => {

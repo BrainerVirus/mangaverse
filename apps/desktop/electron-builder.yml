@@ -1,9 +1,17 @@
 # Packaging for the three desktop platforms (#215, spec 04 X8).
 #
-# Unsigned by default: with no CSC_LINK / Apple credentials, electron-builder skips code
-# signing and notarization and the OS shows its normal install warning. Signing turns on by
-# itself when the owner's certificates are in the environment (CSC_LINK/CSC_KEY_PASSWORD on
-# macOS and Windows, APPLE_ID/APPLE_APP_SPECIFIC_PASSWORD/APPLE_TEAM_ID for notarization).
+# v0.0.1 targets: macOS arm64 (dmg + zip), Windows x64 (NSIS), Linux x64 (AppImage + deb).
+# Architectures are pinned per target here, so no `--arm64` / `--x64` flag is needed and a
+# different host arch cannot change what is built. There is no macOS Intel build.
+#
+# Unsigned: with no CSC_LINK / Apple credentials electron-builder skips code signing and
+# notarization, and the OS shows its normal install warning. Signing turns on by itself when
+# the owner's certificates are in the environment (see docs/release.md).
+#
+# No auto-update feed: there is no `publish` block, so electron-builder writes no
+# `app-update.yml` and the packaged app's updater stays disabled (src/main/updater.ts checks
+# for that file). Release uploads are owned by .github/workflows/release.yml. To turn updates
+# back on, see "Re-enabling auto-update" in docs/release.md.
 appId: app.mangaverse.desktop
 productName: MangaVerse
 copyright: Copyright © 2026 MangaVerse
@@ -23,20 +31,42 @@ files:
   - "!node_modules/**"
 extraMetadata:
   main: dist/main/index.js
+# Fuses flipped at package time (@electron/fuses). The unpackaged dev build and the Playwright
+# E2E are untouched. `runAsNode` is safe to turn off: the data host is a `utilityProcess`, and
+# nothing in the app uses `child_process` or ELECTRON_RUN_AS_NODE.
+electronFuses:
+  runAsNode: false
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  grantFileProtocolExtraPrivileges: false
+# `mangaverse://` deep links: Info.plist CFBundleURLTypes on macOS, the .desktop MimeType
+# (x-scheme-handler) on Linux, the registry entry on Windows. main registers the same scheme at
+# runtime with app.setAsDefaultProtocolClient.
+protocols:
+  - name: MangaVerse
+    schemes:
+      - mangaverse
 mac:
+  icon: build/icon.icns
   category: public.app-category.entertainment
   hardenedRuntime: true
   gatekeeperAssess: false
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
-  # dmg for people, zip for the auto-updater. Build both arches with `--arm64` / `--x64`.
+  # dmg for people, zip for a future auto-updater. Apple Silicon only.
   target:
-    - dmg
-    - zip
+    - target: dmg
+      arch: arm64
+    - target: zip
+      arch: arm64
   artifactName: ${productName}-${version}-${arch}.${ext}
 win:
+  icon: build/icon.ico
   target:
-    - nsis
+    - target: nsis
+      arch: x64
   artifactName: ${productName}-${version}-${arch}.${ext}
 nsis:
   oneClick: false
@@ -44,18 +74,14 @@ nsis:
   perMachine: false
   deleteAppDataOnUninstall: false
 linux:
+  icon: build/icon.png
   # The package name is scoped (@app/desktop); AppImage rejects that executable name.
   executableName: mangaverse
   target:
-    - AppImage
-    - deb
-  category: AudioVideo;Graphics
+    - target: AppImage
+      arch: x64
+    - target: deb
+      arch: x64
+  category: Graphics;Viewer
   maintainer: MangaVerse
   artifactName: ${productName}-${version}-${arch}.${ext}
-# Auto-update feed: electron-updater reads the generated app-update.yml and asks this
-# repository's releases. `--publish never` keeps local and CI builds from uploading.
-publish:
-  provider: github
-  owner: BrainerVirus
-  repo: mangaverse
-  releaseType: release
