@@ -1,4 +1,4 @@
-import { Badge, Button } from '@app/design-system';
+import { Badge, Button, ListRow } from '@app/design-system';
 import { CachedMangaCardCover } from '@app/cache';
 import type { ChapterId, LibraryEntryId, MangaId } from '@app/shared';
 import { libraryStatusLabel } from '@app/shared';
@@ -219,9 +219,12 @@ export function LibraryUpdatePanel({ updates, disabled = false }: LibraryUpdateP
   const failed = problems.filter((item) => item.status === 'failed');
 
   return (
-    <section
+    <ListRow
+      as="section"
       aria-label="Library updates"
-      className="flex flex-col gap-3 rounded-box border border-border bg-card/60 p-3"
+      tone="outline"
+      padding="md"
+      className="flex flex-col gap-3"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
@@ -261,9 +264,12 @@ export function LibraryUpdatePanel({ updates, disabled = false }: LibraryUpdateP
       {problems.length > 0 ? (
         <ul aria-label="Update failures" className="flex flex-col gap-2">
           {problems.map((item) => (
-            <li
+            <ListRow
+              as="li"
               key={item.entryId}
-              className="flex flex-wrap items-start justify-between gap-2 rounded-control bg-muted/40 px-3 py-2"
+              tone="muted"
+              padding="row"
+              className="flex flex-wrap items-start justify-between gap-2"
             >
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{item.title}</p>
@@ -284,10 +290,10 @@ export function LibraryUpdatePanel({ updates, disabled = false }: LibraryUpdateP
                   Retry
                 </Button>
               ) : null}
-            </li>
+            </ListRow>
           ))}
         </ul>
       ) : null}
-    </section>
+    </ListRow>
   );
 }

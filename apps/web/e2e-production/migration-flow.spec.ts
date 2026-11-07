@@ -248,7 +248,7 @@ async function migrateSelectionFromLibrary(page: Page, titles: readonly string[]
   await expect(page.getByRole('button', { name: 'Migrate selected' })).toHaveCount(0);
   await page
     .getByRole('region', { name: 'Bulk edit' })
-    .getByRole('button', { name: 'Advanced' })
+    .getByText('Advanced', { exact: true })
     .click();
   await page.getByRole('button', { name: 'Migrate selected' }).click();
   await expect(page).toHaveURL(/\/advanced\/migration\?ids=/, { timeout: 20_000 });
@@ -599,7 +599,7 @@ test('Given a hand-off whose source provider is not installed, When migration op
   await expect(page.getByRole('button', { name: 'Migrate selected' })).toHaveCount(0);
   await page
     .getByRole('region', { name: 'Bulk edit' })
-    .getByRole('button', { name: 'Advanced' })
+    .getByText('Advanced', { exact: true })
     .click();
   await page.getByRole('button', { name: 'Migrate selected' }).click();
   await expect(page).toHaveURL(/\/advanced\/migration\?ids=/, { timeout: 20_000 });

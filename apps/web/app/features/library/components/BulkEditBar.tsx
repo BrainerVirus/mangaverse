@@ -9,12 +9,12 @@ import {
   DialogHeader,
   DialogTitle,
   Input,
+  ListRow,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  SettingsSection,
 } from '@app/design-system';
 import { ArrowRightLeft, CheckSquare, Heart, HeartOff, ListChecks, Tags } from 'lucide-react';
 import type { CategoryId, LibraryCategory, LibraryEntryId, LibraryStatus } from '@app/shared';
@@ -115,9 +115,12 @@ export function BulkEditBar({
   }
 
   return (
-    <section
+    <ListRow
+      as="section"
       aria-label="Bulk edit"
-      className="flex flex-col gap-3 rounded-box border border-accent/40 bg-accent/5 p-3 sm:flex-row sm:flex-wrap sm:items-center"
+      tone="accent"
+      padding="md"
+      className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center"
     >
       <label className="flex items-center gap-2 text-sm font-medium">
         <input
@@ -219,18 +222,23 @@ export function BulkEditBar({
       </div>
 
       {onMigrateSelected !== undefined ? (
-        <SettingsSection title="Advanced" collapsed>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={selectedCount === 0}
-            onClick={onMigrateSelected}
-          >
-            <ArrowRightLeft aria-hidden className="size-4" />
-            Migrate selected
-          </Button>
-        </SettingsSection>
+        <details className="w-full">
+          <summary className="w-fit cursor-pointer rounded-control text-sm font-medium text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+            Advanced
+          </summary>
+          <div className="mt-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={selectedCount === 0}
+              onClick={onMigrateSelected}
+            >
+              <ArrowRightLeft aria-hidden className="size-4" />
+              Migrate selected
+            </Button>
+          </div>
+        </details>
       ) : null}
 
       <Dialog open={categoryDialogOpen} onOpenChange={closeCategoryDialog}>
@@ -316,6 +324,6 @@ export function BulkEditBar({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </section>
+    </ListRow>
   );
 }

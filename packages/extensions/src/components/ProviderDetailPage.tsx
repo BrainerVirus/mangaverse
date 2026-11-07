@@ -12,6 +12,7 @@ import {
   DialogTitle,
   EmptyState,
   ErrorState,
+  ListRow,
   LoadingState,
   Skeleton,
   Select,
@@ -232,9 +233,12 @@ function HealthCheckSection({ health }: { health: ProviderHealthState }) {
             </div>
             <ul className="flex flex-col gap-2">
               {health.report.checks.map((item) => (
-                <li
+                <ListRow
+                  as="li"
                   key={item.id}
-                  className="flex flex-col gap-1 rounded-control bg-muted/40 p-3 sm:flex-row sm:items-baseline sm:justify-between"
+                  tone="muted"
+                  padding="md"
+                  className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between"
                 >
                   <span className="font-medium">{item.label}</span>
                   <span className="flex flex-col gap-1 sm:items-end">
@@ -243,7 +247,7 @@ function HealthCheckSection({ health }: { health: ProviderHealthState }) {
                       <span className="text-sm text-muted-foreground">{item.reason}</span>
                     ) : null}
                   </span>
-                </li>
+                </ListRow>
               ))}
             </ul>
           </output>
@@ -449,7 +453,13 @@ function ActivitySection({
         ) : (
           <ul aria-label="Provider activity entries" className="flex flex-col gap-2">
             {logs.map((entry) => (
-              <li key={entry.id} className="flex flex-col gap-1 rounded-control bg-muted/40 p-3">
+              <ListRow
+                as="li"
+                key={entry.id}
+                tone="muted"
+                padding="md"
+                className="flex flex-col gap-1"
+              >
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant={logBadgeVariant(entry.level)}>{entry.level}</Badge>
                   <code className="text-xs text-muted-foreground">{entry.code}</code>
@@ -459,7 +469,7 @@ function ActivitySection({
                   </span>
                 </div>
                 <p className="break-words text-sm">{entry.message}</p>
-              </li>
+              </ListRow>
             ))}
           </ul>
         )}
@@ -730,10 +740,10 @@ export function ProviderDetailPage({
         >
           <ul className="flex flex-col gap-3">
             {permissions.map((row) => (
-              <li key={row.key} className="rounded-control p-3">
+              <ListRow as="li" key={row.key} tone="plain" padding="md">
                 <p className="font-medium">{row.label}</p>
                 <p className="text-sm text-muted-foreground">{row.description}</p>
-              </li>
+              </ListRow>
             ))}
           </ul>
         </SettingsSection>
@@ -743,8 +753,10 @@ export function ProviderDetailPage({
           description="Mature content support declared in the manifest."
         >
           <dl className="grid gap-3 @2xl:grid-cols-3">
-            <div
-              className="flex min-w-0 items-center justify-between gap-3 rounded-control bg-muted/40 p-3"
+            <ListRow
+              tone="muted"
+              padding="md"
+              className="flex min-w-0 items-center justify-between gap-3"
               data-testid="content-flag-tile"
             >
               <dt>NSFW</dt>
@@ -755,9 +767,11 @@ export function ProviderDetailPage({
                   aria-label="NSFW content flag"
                 />
               </dd>
-            </div>
-            <div
-              className="flex min-w-0 items-center justify-between gap-3 rounded-control bg-muted/40 p-3"
+            </ListRow>
+            <ListRow
+              tone="muted"
+              padding="md"
+              className="flex min-w-0 items-center justify-between gap-3"
               data-testid="content-flag-tile"
             >
               <dt>Suggestive</dt>
@@ -768,9 +782,11 @@ export function ProviderDetailPage({
                   aria-label="Suggestive content flag"
                 />
               </dd>
-            </div>
-            <div
-              className="flex min-w-0 items-center justify-between gap-3 rounded-control bg-muted/40 p-3"
+            </ListRow>
+            <ListRow
+              tone="muted"
+              padding="md"
+              className="flex min-w-0 items-center justify-between gap-3"
               data-testid="content-flag-tile"
             >
               <dt>Violence</dt>
@@ -781,7 +797,7 @@ export function ProviderDetailPage({
                   aria-label="Violence content flag"
                 />
               </dd>
-            </div>
+            </ListRow>
           </dl>
         </SettingsSection>
 

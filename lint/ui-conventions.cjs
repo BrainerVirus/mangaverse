@@ -754,6 +754,78 @@ const rules = {
   },
 
   /**
+   * ListRow owns its fill, border, radius, shadow and padding. A consumer may add layout,
+   * gap/space between children and typography; a resting fill, border or padding override
+   * reintroduces the one-off panel the primitive replaced.
+   */
+  "no-list-row-overrides": {
+    create(context) {
+      if (!CONSUMER_FILE.test(relativeFile(context))) return {};
+      return {
+        JSXOpeningElement(node) {
+          if (node.name.type !== "JSXIdentifier" || node.name.name !== "ListRow") return;
+          const attr = node.attributes.find(
+            (a) => a.type === "JSXAttribute" && a.name.name === "className" && a.value,
+          );
+          if (!attr) return;
+          const tokens = collectStrings(attr.value).flatMap(({ text }) => tokensOf(text));
+          const override = tokens.find(({ utility }) =>
+            /^(bg-|border|rounded|shadow|ring|outline|p[xytrbl]?-)/.test(utility),
+          );
+          if (override === undefined) return;
+          context.report({
+            node,
+            message: `"${override.utility}" is not allowed on <ListRow>: <ListRow> owns its fill, border, radius, shadow and padding. Use a tone or padding, or put spacing on the parent.`,
+          });
+        },
+      };
+    },
+  },
+
+  /**
+   * An outlined ListRow inside a Card or SettingsSection draws a second border in the same
+   * grouping (docs/Design.md "Cards"). Rows inside a card use the muted/plain tones or a
+   * divide-y list; the rule follows same-file JSX ancestors only.
+   */
+  "no-outlined-row-in-card": {
+    create(context) {
+      if (!CONSUMER_FILE.test(relativeFile(context))) return {};
+      return {
+        JSXOpeningElement(node) {
+          if (node.name.type !== "JSXIdentifier" || node.name.name !== "ListRow") return;
+          const tone = node.attributes.find(
+            (a) => a.type === "JSXAttribute" && a.name.name === "tone",
+          );
+          if (
+            tone === undefined ||
+            tone.value === null ||
+            tone.value.type !== "Literal" ||
+            tone.value.value !== "outline"
+          ) {
+            return;
+          }
+          let ancestor = node.parent?.parent ?? null;
+          while (ancestor !== null) {
+            if (
+              ancestor.type === "JSXElement" &&
+              ancestor.openingElement.name.type === "JSXIdentifier" &&
+              CARD_COMPONENTS.has(ancestor.openingElement.name.name)
+            ) {
+              context.report({
+                node,
+                message:
+                  "An outlined <ListRow> inside a Card or SettingsSection draws a second border in one grouping. Use tone=\"muted\" or tone=\"plain\", or a divide-y list.",
+              });
+              return;
+            }
+            ancestor = ancestor.parent ?? null;
+          }
+        },
+      };
+    },
+  },
+
+  /**
    * A class map that is a plain string constant (the shadcn `*-variants.ts` files) is invisible to
    * @shadcn/lint, so arbitrary values slip through there. Reports `prop-[value]` in those files.
    */

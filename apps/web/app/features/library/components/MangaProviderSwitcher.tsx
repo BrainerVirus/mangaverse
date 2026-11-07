@@ -1,4 +1,4 @@
-import { Badge, Button } from '@app/design-system';
+import { Badge, Button, EmptyNote, ListRow } from '@app/design-system';
 import {
   providerDisplayName,
   type MangaProviderMapping,
@@ -43,9 +43,7 @@ export function MangaProviderSwitcher({
       <h2 className="text-xl font-semibold">Providers</h2>
 
       {mappings.length === 0 ? (
-        <p className="rounded-box border border-border px-4 py-6 text-sm text-muted-foreground">
-          No provider source is attached to this title.
-        </p>
+        <EmptyNote>No provider source is attached to this title.</EmptyNote>
       ) : (
         <ul className="flex flex-col gap-2">
           {mappings.map((mapping) => {
@@ -54,9 +52,12 @@ export function MangaProviderSwitcher({
             const isActive = mapping.id === activeMappingId;
             const isPreferred = mapping.id === preferredMappingId;
             return (
-              <li
+              <ListRow
+                as="li"
                 key={mapping.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-box border border-border px-4 py-3"
+                tone="outline"
+                padding="row"
+                className="flex flex-wrap items-center justify-between gap-3"
               >
                 <div className="min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -118,7 +119,7 @@ export function MangaProviderSwitcher({
                     </Button>
                   ) : null}
                 </div>
-              </li>
+              </ListRow>
             );
           })}
         </ul>

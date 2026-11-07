@@ -182,6 +182,31 @@ export function A() {
   );
 }
 `,
+    "apps/web/app/list-row.tsx": `import { ListRow } from '@app/design-system';
+export function A() {
+  return (
+    <>
+      <ListRow className="bg-muted/40 p-8" />
+      <ListRow className="border border-border px-3 py-2" />
+      <ListRow className="rounded-box shadow-md" />
+      <ListRow className="hover:bg-muted/40" />
+      <ListRow className="flex gap-3 space-y-2 text-sm min-w-0" />
+    </>
+  );
+}
+`,
+    "apps/web/app/outlined-row-in-card.tsx": `import { Card, ListRow, SettingsSection } from '@app/design-system';
+export function A() {
+  return (
+    <>
+      <Card><ListRow tone="outline" /></Card>
+      <SettingsSection title="t"><ListRow tone="outline" /></SettingsSection>
+      <Card><ListRow tone="muted" /></Card>
+      <div><ListRow tone="outline" /></div>
+    </>
+  );
+}
+`,
     "apps/web/app/scales-ok.tsx": `export function A() {
   return (
     <>
@@ -287,6 +312,8 @@ export const sizes = { sm: \`h-9 \${base} border-[var(--border)]\` } as const;
         "ui-conventions/no-nested-card": "error",
         "ui-conventions/no-hand-rolled-glass": "error",
         "ui-conventions/no-border-ring-doubling": "error",
+        "ui-conventions/no-list-row-overrides": "error",
+        "ui-conventions/no-outlined-row-in-card": "error",
       },
       jsPlugins: [join(ROOT, "lint/ui-conventions.cjs")],
     };
@@ -361,6 +388,14 @@ export const sizes = { sm: \`h-9 \${base} border-[var(--border)]\` } as const;
       at("packages/design-system/src/components/panel-in-primitive.tsx", "no-hand-built-panel"),
       [],
     );
+  });
+
+  it("no-list-row-overrides fails fill, border, radius, shadow and padding; passes layout, gap, space and typography", () => {
+    assert.deepEqual(at("apps/web/app/list-row.tsx", "no-list-row-overrides"), [5, 6, 7, 8]);
+  });
+
+  it("no-outlined-row-in-card fails an outlined row inside a Card or SettingsSection and passes muted or standalone rows", () => {
+    assert.deepEqual(at("apps/web/app/outlined-row-in-card.tsx", "no-outlined-row-in-card"), [5, 6]);
   });
 
   it("no-hover-without-focus fails invisible focus and a className prop that proves nothing", () => {

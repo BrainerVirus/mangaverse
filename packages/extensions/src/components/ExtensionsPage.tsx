@@ -11,6 +11,7 @@ import {
   CardTitle,
   EmptyState,
   ErrorState,
+  ListRow,
   PageContainer,
   PageHeader,
   Skeleton,
@@ -277,9 +278,11 @@ function RegistryList({
       </div>
       <ul className="flex flex-col gap-2">
         {registries.map((registry) => (
-          <li
+          <ListRow
+            as="li"
             key={registry.registryUrl}
-            className="rounded-control border border-border p-3"
+            tone="outline"
+            padding="md"
             data-testid="registry-row"
           >
             <p className="font-medium">{registry.name}</p>
@@ -287,7 +290,7 @@ function RegistryList({
             {registry.description !== undefined ? (
               <p className="text-sm text-muted-foreground">{registry.description}</p>
             ) : null}
-          </li>
+          </ListRow>
         ))}
       </ul>
     </section>

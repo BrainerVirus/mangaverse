@@ -15,6 +15,7 @@ import {
   ErrorState,
   Input,
   Label,
+  ListRow,
   LoadingState,
   Select,
   SelectContent,
@@ -193,7 +194,7 @@ function PreviewIssueList({ preview }: { preview: MigrationPreviewReport }) {
 
       <ul className="space-y-2" aria-label="Migration preview items">
         {preview.items.map((item) => (
-          <li key={item.mangaId} className="rounded-control bg-muted/40 p-3 text-sm">
+          <ListRow as="li" key={item.mangaId} tone="muted" padding="md" className="text-sm">
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <span className="font-medium text-foreground">{item.canonicalTitle}</span>
               {item.blocked ? (
@@ -217,7 +218,7 @@ function PreviewIssueList({ preview }: { preview: MigrationPreviewReport }) {
                 ))}
               </ul>
             ) : null}
-          </li>
+          </ListRow>
         ))}
       </ul>
     </div>
@@ -324,7 +325,7 @@ function CandidateRow({
   const canInclude = hasSelection || state.results.length > 0;
 
   return (
-    <li key={candidate.mangaId} className="rounded-control bg-muted/40 p-3">
+    <ListRow as="li" key={candidate.mangaId} tone="muted" padding="md">
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <span className="font-medium text-foreground">{candidate.canonicalTitle}</span>
         {candidate.isDefaultProvider ? <Badge variant="secondary">default</Badge> : null}
@@ -401,7 +402,7 @@ function CandidateRow({
           />
         </div>
       </div>
-    </li>
+    </ListRow>
   );
 }
 
@@ -630,12 +631,12 @@ function SummaryDialog({
             </h3>
             <ul className="space-y-1 text-sm">
               {readyItems.map((item) => (
-                <li key={item.mangaId} className="rounded-control bg-muted/40 p-2">
+                <ListRow as="li" key={item.mangaId} tone="muted" padding="sm">
                   <span className="font-medium">{item.canonicalTitle}</span>
                   <span className="block text-xs text-muted-foreground">
                     {item.sourceProviderMangaId} → {targetMappingLabel(item)}
                   </span>
-                </li>
+                </ListRow>
               ))}
             </ul>
           </section>
@@ -647,13 +648,13 @@ function SummaryDialog({
               </h3>
               <ul className="space-y-1 text-sm">
                 {blockedItems.map((item) => (
-                  <li key={item.mangaId} className="rounded-control bg-muted/40 p-2">
+                  <ListRow as="li" key={item.mangaId} tone="muted" padding="sm">
                     <span className="font-medium">{item.canonicalTitle}</span>
                     <span className="block text-xs text-muted-foreground">
                       {item.issues.find((issue) => issue.severity === 'error')?.message ??
                         'Not eligible for migration.'}
                     </span>
-                  </li>
+                  </ListRow>
                 ))}
               </ul>
             </section>
@@ -777,9 +778,12 @@ function ApplyReportPanel({
       {applyReport !== null ? (
         <ul className="space-y-2" aria-label="Migration report items">
           {applyReport.items.map((item) => (
-            <li
+            <ListRow
+              as="li"
               key={`${item.mangaId}-${item.status}`}
-              className="rounded-control bg-muted/40 p-2 text-sm"
+              tone="muted"
+              padding="sm"
+              className="text-sm"
             >
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant={item.status === 'applied' ? 'secondary' : 'destructive'}>
@@ -790,7 +794,7 @@ function ApplyReportPanel({
               {item.reason !== undefined ? (
                 <p className="mt-1 text-xs text-muted-foreground">{item.reason}</p>
               ) : null}
-            </li>
+            </ListRow>
           ))}
         </ul>
       ) : null}
@@ -831,13 +835,13 @@ function HistorySection({
       ) : (
         <ul className="space-y-2" aria-label="Migration history">
           {history.map((entry) => (
-            <li key={entry.id} className="rounded-control bg-muted/40 p-2 text-sm">
+            <ListRow as="li" key={entry.id} tone="muted" padding="sm" className="text-sm">
               <span className="font-medium">{entry.canonicalTitle ?? titleFor(entry.mangaId)}</span>
               <span className="block text-xs text-muted-foreground">
                 {entry.sourceProviderId} → {entry.targetProviderId} ·{' '}
                 {new Date(entry.completedAt).toLocaleString()}
               </span>
-            </li>
+            </ListRow>
           ))}
         </ul>
       )}
