@@ -17,7 +17,8 @@
       "ignore": ["app/routeTree.gen.ts"]
     },
     "apps/desktop": {
-      "entry": ["src/preload/index.ts", "src/renderer/src/main.tsx"]
+      // `scripts/after-sign.mjs` is electron-builder's `afterSign` hook, named in electron-builder.yml.
+      "entry": ["src/preload/index.ts", "src/renderer/src/main.tsx", "scripts/after-sign.mjs"]
     }
   }
 }

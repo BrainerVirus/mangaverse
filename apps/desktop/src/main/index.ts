@@ -54,6 +54,7 @@ import {
   PAGE_CONTENT_SECURITY_POLICY,
   registerDevContentSecurityPolicy,
 } from './content-security-policy.js';
+import { registerNavigationGuards, registerPermissionPolicy } from './window-security.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -102,6 +103,16 @@ function appOrigins(): readonly string[] {
 }
 
 const ownedMainFrames = () => ownedWindows.mainFrames();
+
+// Every web contents (the main window, a popup Chromium makes, DevTools) is guarded: a
+// navigation off the app origin is cancelled, http(s) links go to the browser, <webview> is
+// refused. This does not own windows (`ownedWindows` stays explicit); it only restricts them.
+registerNavigationGuards(app, {
+  appOrigins: appOrigins(),
+  isSafeExternalUrl,
+  allowDevTools: process.env.VITE_DEV_SERVER_URL !== undefined,
+  openExternal: (url) => void shell.openExternal(url),
+});
 
 /**
  * Cached pages live as files under the profile (spec 04 X5, X13). The renderer writes and
@@ -269,6 +280,10 @@ void app.whenReady().then(async () => {
     if (process.env.VITE_DEV_SERVER_URL) {
       registerDevContentSecurityPolicy();
     }
+
+    // Deny-by-default browser permissions; only the reader's fullscreen and a sanitized
+    // clipboard write are granted, and only to the app origin.
+    registerPermissionPolicy(session.defaultSession, { appOrigins: appOrigins() });
 
     const secureModel = createSecureStorageModel({
       safeStorage,

@@ -1,0 +1,321 @@
+# Builds the installers and publishes a GitHub pre-release (docs/release.md).
+#
+#   push a tag `vX.Y.Z`   -> verify, build once, package macOS arm64 / Windows x64 / Linux x64,
+#                            write SHA256SUMS, attest, publish a PRE-RELEASE (not latest).
+#   workflow_dispatch     -> a rehearsal on any branch: everything up to the installers, which
+#                            stay workflow artifacts. Nothing is published. Dispatching from a
+#                            tag ref with `rehearsal: false` publishes that tag (use it to re-run
+#                            a release whose upload failed, without moving the tag).
+#
+# v0.0.1 is unsigned: no signing secrets are read anywhere in this file, and
+# CSC_IDENTITY_AUTO_DISCOVERY=false stops electron-builder from picking up a stray keychain
+# identity. Auto-update is off (no `publish` feed in apps/desktop/electron-builder.yml), so
+# uploads are done here with `gh release`, never by `electron-builder --publish`.
+#
+# Only the `release` job holds write permissions. Every job checks out with
+# persist-credentials: false.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      rehearsal:
+        description: "Rehearsal: build and keep the installers as artifacts, publish nothing. Untick only when dispatching from a tag ref to (re)publish that tag."
+        type: boolean
+        default: true
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  verify:
+    name: Verify tag
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      version: ${{ steps.verify.outputs.version }}
+      publish: ${{ steps.verify.outputs.publish }}
+    steps:
+      # Full history: the tagged commit must be an ancestor of origin/main.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - id: verify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          REHEARSAL: ${{ inputs.rehearsal }}
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./apps/desktop/package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          publish=false
+          if [ "$EVENT" = push ]; then
+            publish=true
+          elif [ "$EVENT" = workflow_dispatch ] && [ "$REHEARSAL" = false ]; then
+            if [ "$REF_TYPE" != tag ]; then
+              echo "::error::A non-rehearsal run publishes a tag: dispatch it from a v* tag ref, not from a branch."
+              exit 1
+            fi
+            publish=true
+          fi
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+
+          if [ "$REF_TYPE" != tag ]; then
+            echo "Rehearsal on branch $REF_NAME: version $version, nothing will be published."
+            exit 0
+          fi
+
+          if ! [[ "$REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Tag $REF_NAME is not vMAJOR.MINOR.PATCH[-suffix]."
+            exit 1
+          fi
+          if [ "$REF_NAME" != "v$version" ]; then
+            echo "::error::Tag $REF_NAME does not match apps/desktop/package.json version v$version."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::The tagged commit $GITHUB_SHA is not on main."
+            exit 1
+          fi
+
+          # The tagged commit must already have passed CI as a push to main. Filtering by SHA
+          # alone also matches the pull_request run of the same commit (a PR head is not
+          # necessarily on main), so ask for event=push on branch main, and re-check each
+          # returned run's event, branch and commit instead of trusting the filters alone.
+          green=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&event=push&branch=main&status=success&per_page=100" \
+            --jq '[.workflow_runs[] | select(.event == "push" and .head_branch == "main" and .conclusion == "success" and .head_sha == env.GITHUB_SHA)] | length')
+          if [ "$green" -lt 1 ]; then
+            echo "::error::No successful CI run (event push, branch main) found for $GITHUB_SHA. A green pull-request run does not count."
+            exit 1
+          fi
+
+          # A published release for this tag is final. A draft left by an interrupted upload is
+          # also refused; docs/release.md has the manual, tag-preserving recovery.
+          if [ "$publish" = true ] && gh release view "$REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::A published release for $REF_NAME already exists; it is never overwritten."
+            exit 1
+          fi
+
+  bundle:
+    name: Build desktop bundle (once)
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Main, the data host, the preload and the static shell are OS-independent (esbuild
+      # bundles, node:sqlite ships inside Electron), so every platform job packages this one
+      # build. No Turbo cache: a release build starts clean.
+      - name: Build desktop app
+        run: pnpm --filter @app/desktop build
+
+      - name: Upload bundle
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: desktop-dist
+          path: apps/desktop/dist
+          retention-days: 1
+          if-no-files-found: error
+
+  package:
+    name: Package (${{ matrix.id }})
+    needs: [verify, bundle]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: mac-arm64
+            os: macos-26
+            script: package:mac
+            files: |
+              apps/desktop/release/MangaVerse-*-arm64.dmg
+              apps/desktop/release/MangaVerse-*-arm64.zip
+          - id: win-x64
+            os: windows-2025
+            script: package:win
+            files: |
+              apps/desktop/release/MangaVerse-*-x64.exe
+          - id: linux-x64
+            os: ubuntu-24.04
+            script: package:linux
+            files: |
+              apps/desktop/release/MangaVerse-*-x86_64.AppImage
+              apps/desktop/release/MangaVerse-*-amd64.deb
+    defaults:
+      run:
+        # One shell on every OS; the Windows default is PowerShell.
+        shell: bash
+    env:
+      # Unsigned v0.0.1: never sign with a runner's stray identity.
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download bundle
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: desktop-dist
+          path: apps/desktop/dist
+
+      # Architectures are pinned per target in electron-builder.yml (mac arm64, win x64,
+      # linux x64), so no `--arm64` / `--x64` flag is passed. The scripts add `--publish never`.
+      - name: Package
+        run: pnpm --filter @app/desktop run ${{ matrix.script }}
+
+      - name: Assert the macOS app is arm64 only
+        if: matrix.id == 'mac-arm64'
+        run: test "$(lipo -archs apps/desktop/release/mac-arm64/MangaVerse.app/Contents/MacOS/MangaVerse)" = arm64
+
+      # The packaged proof seeds its legacy snapshot through @app/db's built output.
+      - name: Build @app/db for the packaged proof
+        if: matrix.id == 'mac-arm64'
+        run: pnpm exec turbo run build --filter=@app/db...
+
+      # Launches the packaged MangaVerse.app (unzipped from the arm64 zip) offline: app:// deep
+      # routes, the data host, the one-way import, page://, updater off, no listening port.
+      - name: Packaged app proof (macOS)
+        if: matrix.id == 'mac-arm64'
+        run: pnpm --filter @app/desktop test:e2e:packaged
+
+      - name: Upload installers
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: installers-${{ matrix.id }}
+          path: ${{ matrix.files }}
+          retention-days: ${{ needs.verify.outputs.publish == 'true' && 3 || 14 }}
+          if-no-files-found: error
+
+  release:
+    name: Publish pre-release
+    if: needs.verify.outputs.publish == 'true'
+    needs: [verify, package]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # No required reviewers by default; the owner can add protection to this environment.
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - name: Download installers
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: installers-*
+          merge-multiple: true
+          path: assets
+
+      # Never delete a release from the workflow: a draft can be published by hand between a
+      # read and a delete. Stop with the recovery steps instead; docs/release.md owns the manual
+      # draft cleanup (tag kept, published releases never silently deleted).
+      - name: Refuse an existing release or draft
+        run: |
+          set -euo pipefail
+          existing=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq '.[] | select(.tag_name == env.TAG) | "\(.id) draft=\(.draft)"')
+          if [ -n "$existing" ]; then
+            echo "::error::A release or draft for $TAG already exists ($existing). Inspect it with gh release view $TAG; if it is an unpublished draft, delete it by hand with gh release delete $TAG --cleanup-tag=false and rerun. Never delete a published release."
+            exit 1
+          fi
+
+      - name: Write SHA256SUMS
+        working-directory: assets
+        run: |
+          set -euo pipefail
+          ls -l
+          sha256sum -- * > ../SHA256SUMS
+          mv ../SHA256SUMS SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Attest build provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: assets/*
+
+      - name: Write release notes
+        run: |
+          cat > release-notes.md <<'EOF'
+          > **Unsigned early preview.** These installers are not Developer ID-signed or notarized,
+          > so macOS Gatekeeper and Windows SmartScreen warn on first launch. The macOS app carries
+          > an ad-hoc signature so Apple Silicon can launch it, not a trusted identity. Install only
+          > if you trust this repository. Apple Silicon only (no Intel Mac build); Windows x64; Linux
+          > x64. There is no auto-update in this release.
+
+          ### Verify what you download
+
+          ```sh
+          # checksums (run in the folder with the downloaded files)
+          sha256sum --check --ignore-missing SHA256SUMS      # Linux
+          shasum -a 256 --check --ignore-missing SHA256SUMS  # macOS
+
+          # build provenance (GitHub CLI)
+          gh attestation verify <file> --repo BrainerVirus/mangaverse
+          ```
+
+          See docs/release.md for install notes and how to open an unsigned app.
+
+          ---
+          EOF
+
+      - name: Create pre-release
+        run: |
+          gh release create "$TAG" assets/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --prerelease \
+            --latest=false \
+            --title "MangaVerse $TAG" \
+            --notes-file release-notes.md

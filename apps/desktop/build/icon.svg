@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- MangaVerse app icon source. Refined from apps/web/public/favicon.svg (dark rounded square,
+       gold M) onto a 1024 canvas with the macOS icon margin. Regenerate icon.png/.icns/.ico with
+       the commands in build/README.md. -->
+  <defs>
+    <linearGradient id="plate" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1c1c21"/>
+      <stop offset="1" stop-color="#09090b"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd75e"/>
+      <stop offset="1" stop-color="#e9b319"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+  </defs>
+  <rect x="100" y="112" width="824" height="824" rx="188" fill="#000" fill-opacity="0.4" filter="url(#shadow)"/>
+  <rect x="100" y="100" width="824" height="824" rx="188" fill="url(#plate)"/>
+  <rect x="103" y="103" width="818" height="818" rx="185" fill="none" stroke="url(#rim)" stroke-width="6"/>
+  <g transform="translate(512 512) scale(16.5) translate(-32 -32)">
+    <path d="M18 46V18h8l6 12 6-12h8v28h-7V30l-5 10h-4l-5-10v16h-7z" fill="url(#gold)"/>
+  </g>
+</svg>

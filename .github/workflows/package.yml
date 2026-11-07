@@ -1,27 +1,18 @@
-# Packages the Electron app for macOS, Windows and Linux (#215, spec 04 X8).
+# Manual packaging rehearsal (#215, spec 04 X8). It publishes nothing.
 #
-# Builds are unsigned unless the owner's secrets are present: electron-builder skips signing
-# and notarization when CSC_LINK / APPLE_* are empty, so absent secrets never fail the run and
-# the installers still work with the OS warning. None of these jobs install or launch the
-# Windows/Linux artifacts: CI proves they build, not that they install.
+# Run it from the Actions tab on any branch to get installers as 14-day workflow artifacts
+# before cutting a release: macOS arm64 (dmg + zip), Windows x64 (NSIS), Linux x64 (AppImage +
+# deb). The release itself is .github/workflows/release.yml, which builds the same way and
+# publishes on a `v*` tag. There is no pull_request or tag trigger here: packaging on every PR
+# was slow and duplicated the release build.
+#
+# Unsigned, and no secrets are read: CSC_IDENTITY_AUTO_DISCOVERY=false keeps electron-builder
+# from signing with a stray keychain identity. None of these jobs installs the Windows or Linux
+# artifacts: CI proves they build, not that they install (the macOS job launches the app).
 name: Package
 
 on:
   workflow_dispatch:
-  # Build the whole matrix on packaging changes so a PR proves all three platforms before
-  # landing, instead of finding out only when a tag is cut.
-  pull_request:
-    paths:
-      - "apps/desktop/**"
-      - "apps/web/**"
-      - "packages/**"
-      - ".github/workflows/package.yml"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
-  push:
-    tags:
-      - "v*"
 
 concurrency:
   group: package-${{ github.workflow }}-${{ github.ref }}
@@ -32,58 +23,46 @@ permissions:
 
 jobs:
   package:
-    name: Package (${{ matrix.platform }})
+    name: Package (${{ matrix.id }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
-            platform: mac
-            # One arm runner builds both arches; there are no native modules to rebuild.
-            arch_args: "--x64 --arm64"
-            artifacts: |
-              apps/desktop/release/*.dmg
-              apps/desktop/release/*.zip
-              apps/desktop/release/latest*.yml
-              apps/desktop/release/*.blockmap
-          - os: windows-latest
-            platform: win
-            arch_args: "--x64"
-            artifacts: |
-              apps/desktop/release/*.exe
-              apps/desktop/release/latest*.yml
-              apps/desktop/release/*.blockmap
-          - os: ubuntu-latest
-            platform: linux
-            arch_args: "--x64"
-            artifacts: |
-              apps/desktop/release/*.AppImage
-              apps/desktop/release/*.deb
-              apps/desktop/release/latest*.yml
-              apps/desktop/release/*.blockmap
+          - id: mac-arm64
+            os: macos-26
+            script: package:mac
+            files: |
+              apps/desktop/release/MangaVerse-*-arm64.dmg
+              apps/desktop/release/MangaVerse-*-arm64.zip
+          - id: win-x64
+            os: windows-2025
+            script: package:win
+            files: |
+              apps/desktop/release/MangaVerse-*-x64.exe
+          - id: linux-x64
+            os: ubuntu-24.04
+            script: package:linux
+            files: |
+              apps/desktop/release/MangaVerse-*-x86_64.AppImage
+              apps/desktop/release/MangaVerse-*-amd64.deb
+    defaults:
+      run:
+        # One shell on every OS; the Windows default is PowerShell.
+        shell: bash
     env:
-      # Signing turns on only when the owner's certificates are configured; empty secrets
-      # are ignored by electron-builder. `CSC_IDENTITY_AUTO_DISCOVERY` is false without a
-      # certificate so a runner's stray keychain identity never produces a half-signed app.
-      CSC_LINK: ${{ secrets.CSC_LINK }}
-      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-      WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
-      WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
-      CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.CSC_LINK != '' }}
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: pnpm
@@ -91,18 +70,31 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Builds the workspace packages too, which the macOS packaged proof below needs.
       - name: Build desktop app
         run: pnpm --filter @app/desktop build
 
-      # No `--` before the arch flags: pnpm forwards it literally and electron-builder then
-      # ignores the whole flag list, silently building the runner's own arch.
+      # Architectures are pinned per target in apps/desktop/electron-builder.yml: no arch flags.
       - name: Package
-        run: pnpm --filter @app/desktop package:${{ matrix.platform }} ${{ matrix.arch_args }}
+        run: pnpm --filter @app/desktop run ${{ matrix.script }}
+
+      - name: Assert the macOS app is arm64 only
+        if: matrix.id == 'mac-arm64'
+        run: test "$(lipo -archs apps/desktop/release/mac-arm64/MangaVerse.app/Contents/MacOS/MangaVerse)" = arm64
+
+      # The packaged proof seeds its legacy snapshot through @app/db's built output.
+      - name: Build @app/db for the packaged proof
+        if: matrix.id == 'mac-arm64'
+        run: pnpm exec turbo run build --filter=@app/db...
+
+      - name: Packaged app proof (macOS)
+        if: matrix.id == 'mac-arm64'
+        run: pnpm --filter @app/desktop test:e2e:packaged
 
       - name: Upload installers
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: mangaverse-${{ matrix.platform }}
-          if-no-files-found: warn
+          name: mangaverse-${{ matrix.id }}
+          path: ${{ matrix.files }}
           retention-days: 14
-          path: ${{ matrix.artifacts }}
+          if-no-files-found: error

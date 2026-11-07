@@ -1,4 +1,4 @@
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -83,6 +83,36 @@ function unpackCurrentZip(): string | null {
   return app;
 }
 
+// The fuse wire Electron embeds in its framework: this sentinel, a version byte, a length byte,
+// then one ASCII byte per fuse ('1' on, '0' off). Index order is @electron/fuses' FuseV1Options.
+const FUSE_SENTINEL = 'dL7pKGdnNz796PbbjQWNKmHXBZaB9tsX';
+const FUSES = {
+  runAsNode: 0,
+  enableNodeOptionsEnvironmentVariable: 2,
+  enableNodeCliInspectArguments: 3,
+  enableEmbeddedAsarIntegrityValidation: 4,
+  onlyLoadAppFromAsar: 5,
+} as const;
+const FRAMEWORK = 'Contents/Frameworks/Electron Framework.framework/Versions/A/Electron Framework';
+
+function fuseWireOffset(binary: Buffer): number {
+  const at = binary.indexOf(FUSE_SENTINEL);
+  if (at < 0 || binary.indexOf(FUSE_SENTINEL, at + 1) >= 0) {
+    throw new Error('Expected exactly one Electron fuse wire in the framework');
+  }
+  return at + FUSE_SENTINEL.length + 2;
+}
+
+function readFuses(app: string): Record<keyof typeof FUSES, boolean> {
+  const binary = readFileSync(join(app, FRAMEWORK));
+  const offset = fuseWireOffset(binary);
+  const entries = Object.entries(FUSES).map(([name, index]) => [
+    name,
+    binary[offset + index] === '1'.charCodeAt(0),
+  ]);
+  return Object.fromEntries(entries) as Record<keyof typeof FUSES, boolean>;
+}
+
 // Resolved on first use, so `--list` and the other specs never unpack an artifact.
 let packedAppPath: string | null | undefined;
 test.skip(() => process.platform !== 'darwin', 'macOS only');
@@ -125,7 +155,6 @@ async function freePort(): Promise<number> {
  */
 async function launchPackaged(userDataDir: string): Promise<PackedApp> {
   const bundle = packagedApp();
-  if (bundle === null) throw new Error('No packaged app');
   const env = { ...process.env } as Record<string, string>;
   delete env.VITE_DEV_SERVER_URL;
   delete env.MANGAVERSE_RENDERER_URL;
@@ -284,9 +313,10 @@ test('the packaged app loads app://, imports legacy data and serves page://', as
   // navigating, so the router never sees the half-imported profile.
   await expect.poll(() => existsSync(join(userDataDir, MARKER)), { timeout: 60_000 }).toBe(true);
 
-  // electron-updater loaded from the asar and found the generated GitHub feed. (It never
-  // blocks startup; this line is main's own record after the window exists.)
-  expect(logs.join('')).toContain('[updater] enabled');
+  // v0.0.1 ships with auto-update off: electron-builder.yml has no `publish` feed, so the
+  // build carries no app-update.yml and main's own record says the updater is disabled.
+  expect(existsSync(join(packagedApp(), 'Contents/Resources/app-update.yml'))).toBe(false);
+  expect(logs.join('')).toContain('[updater] disabled');
 
   // app:// deep route, offline, after the renderer-data import moved the title into the
   // native database through the data host.
@@ -330,28 +360,118 @@ test('the packaged app loads app://, imports legacy data and serves page://', as
   expect(rendered).toBeGreaterThan(0);
 });
 
-test('a plain packaged launch opens no listening TCP port', async () => {
-  const bundle = packagedApp();
-  if (bundle === null) throw new Error('No packaged app');
-  const plainProfile = profile();
+/**
+ * The shipped app, launched exactly as installed (the unmodified unzipped artifact). `logs`
+ * collects its stdout and stderr; `ended()` describes how it exited (or null while it runs), so
+ * a process the kernel killed cannot pass as "no port opened".
+ */
+interface ShippedLaunch {
+  readonly child: ChildProcess;
+  readonly logs: string[];
+  ended(): string | null;
+  close(): Promise<void>;
+}
+
+function launchShipped(extraArgs: string[] = []): ShippedLaunch {
   const child = spawn(
-    join(bundle, 'Contents/MacOS/MangaVerse'),
-    [`--user-data-dir=${plainProfile}`],
-    {
-      stdio: 'ignore',
-    },
+    join(packagedApp(), 'Contents/MacOS/MangaVerse'),
+    [...extraArgs, `--user-data-dir=${profile()}`],
+    { stdio: ['ignore', 'pipe', 'pipe'] },
   );
-  try {
-    const samples: string[] = [];
-    for (let i = 0; i < 8; i += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 1_000));
-      samples.push(listeningSockets(processTree(child.pid!)));
+  const logs: string[] = [];
+  child.stdout?.on('data', (chunk: Buffer) => logs.push(chunk.toString()));
+  child.stderr?.on('data', (chunk: Buffer) => logs.push(chunk.toString()));
+  let ended: string | null = null;
+  child.once('exit', (code, signal) => {
+    ended = signal === null ? `exit code ${code}` : `signal ${signal}`;
+  });
+  const launch: ShippedLaunch = {
+    child,
+    logs,
+    ended: () => ended,
+    close: async () => {
+      if (ended === null) child.kill('SIGKILL');
+      await delay(500);
+    },
+  };
+  cleanups.unshift(() => launch.close());
+  return launch;
+}
+
+/**
+ * Main's own last line of startup: `[updater] disabled` is logged after the data host, the
+ * protocols, the IPC handlers and the window exist. Seeing it means the app got through
+ * launch, which a process the kernel killed at exec never does.
+ */
+async function untilReady(launch: ShippedLaunch): Promise<void> {
+  const deadline = Date.now() + 60_000;
+  while (!launch.logs.join('').includes('[updater] disabled')) {
+    const ended = launch.ended();
+    // Fail at once, with its output, when the process is gone.
+    if (ended !== null) {
+      throw new Error(
+        `The shipped app died before it was ready (${ended}):\n${launch.logs.join('')}`,
+      );
     }
-    expect(samples.filter((sample) => sample !== '')).toEqual([]);
-  } finally {
-    child.kill();
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    if (Date.now() > deadline) {
+      throw new Error(`The shipped app was not ready in 60s:\n${launch.logs.join('')}`);
+    }
+    await delay(250);
   }
+}
+
+function assertAlive(launch: ShippedLaunch, when: string): void {
+  expect(launch.ended(), `the shipped app died ${when}\n${launch.logs.join('')}`).toBeNull();
+}
+
+test('the shipped app has a valid signature, including the fuse-edited framework', () => {
+  const app = packagedApp();
+  // Flipping fuses edits the Electron Framework binary; an unsigned build then has an invalid
+  // signature and Apple Silicon kills the app at launch. scripts/after-sign.mjs re-signs it.
+  execFileSync('codesign', ['--verify', '--deep', '--strict', app]);
+  execFileSync('codesign', [
+    '--verify',
+    '--strict',
+    join(app, 'Contents/Frameworks/Electron Framework.framework'),
+  ]);
+});
+
+test('the shipped app starts and stays running', async () => {
+  const launch = launchShipped();
+  await untilReady(launch);
+  // Chromium's helper processes (GPU, renderer, utility) exist beside the main process.
+  expect(processTree(launch.child.pid!).length).toBeGreaterThan(2);
+  await delay(5_000);
+  assertAlive(launch, 'during the first seconds');
+});
+
+test('the shipped app flips the hardening fuses and still runs with them', async () => {
+  expect(readFuses(packagedApp())).toEqual({
+    runAsNode: false,
+    enableNodeOptionsEnvironmentVariable: false,
+    enableNodeCliInspectArguments: false,
+    enableEmbeddedAsarIntegrityValidation: true,
+    onlyLoadAppFromAsar: true,
+  });
+  // The fuses are only meaningful if the app they were flipped in launches. This is the
+  // unmodified artifact: if the flip invalidated its signature the kernel kills it here.
+  const launch = launchShipped();
+  await untilReady(launch);
+  await delay(3_000);
+  assertAlive(launch, 'with the fuses flipped');
+});
+
+test('a plain packaged launch opens no listening TCP port', async () => {
+  const launch = launchShipped();
+  await untilReady(launch);
+  const samples: string[] = [];
+  for (let i = 0; i < 8; i += 1) {
+    await delay(1_000);
+    // A dead process lists no sockets either; it must be alive for every sample.
+    assertAlive(launch, `before sample ${i + 1}`);
+    samples.push(listeningSockets(processTree(launch.child.pid!)));
+  }
+  expect(samples.filter((sample) => sample !== '')).toEqual([]);
 });
 
 function processTree(rootPid: number): number[] {

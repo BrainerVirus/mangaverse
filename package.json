@@ -1,6 +1,6 @@
 {
   "name": "mangaverse",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "private": true,
   "scripts": {
     "test": "turbo run test && node --test lint/state-baseline.test.mjs lint/ui-conventions.test.mjs",

@@ -274,6 +274,14 @@ Recorded in the Workit ledger with `workit ledger list --type decision`, and in 
 
 ## Packaging (#215)
 
+- **v0.0.1 release (supersedes the bullets below where they differ).** The first release is an
+  unsigned pre-release for macOS arm64, Windows x64 and Linux x64, published by
+  `.github/workflows/release.yml` on a `v*` tag; `docs/release.md` is the runbook. Auto-update is
+  **off** for 0.0.1: `electron-builder.yml` has no `publish` block, so no `app-update.yml` ships
+  and main logs `[updater] disabled`; the updater code is intact (re-enable steps are in
+  `docs/release.md`). `package.yml` is now a manual rehearsal. Main also guards navigation and
+  denies browser permissions by default (`src/main/window-security.ts`), and packaged builds flip
+  the Electron fuses. Signing, notarization and the Windows/Linux install proof stay owner-gated.
 - **Self-contained asar.** `apps/desktop/scripts/bundle-main.mjs` esbuild-bundles `src/main/index.ts`
   and `src/main/data-host-process.ts` as ESM, keeping only `electron` external; the preload bundle is
   unchanged. `packages/db/migrations` is copied to `dist/main/migrations` and main points the data host
@@ -282,8 +290,8 @@ Recorded in the Workit ledger with `workit ledger list --type decision`, and in 
   SQL and `package.json`; no `node_modules` or workspace symlinks. `electron-updater` is inlined into
   `dist/main/index.js`, so the asar needs no runtime dependency tree.
 - **Installers.** `apps/desktop/electron-builder.yml` sets appId `app.mangaverse.desktop`, `asar: true`,
-  mac dmg/zip, Windows NSIS, Linux AppImage/deb, artifact names and a GitHub publish feed for
-  `BrainerVirus/mangaverse`. Builds are unsigned by default: with no `CSC_LINK`/Apple credentials
+  mac dmg/zip, Windows NSIS, Linux AppImage/deb and artifact names (the GitHub publish feed was
+  removed for 0.0.1, see above). Builds are unsigned by default: with no `CSC_LINK`/Apple credentials
   electron-builder skips signing and notarization, and macOS still runs the local build. The packaged
   `MangaVerse-0.0.1-arm64.dmg`/`.zip` were produced locally (unsigned) with `app-update.yml` and
   `latest-mac.yml`. `electron-builder` is a devDependency, `electron-updater` a runtime dependency.

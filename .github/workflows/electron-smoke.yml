@@ -3,8 +3,8 @@
 # The smoke launches the built desktop app (dist/main + dist/renderer) and proves what unit tests
 # cannot see: the real app:// protocol and CSP, the data host utility process, the main-process
 # port handoff, that no loopback port is opened, and the first-run snapshot import. It does NOT
-# prove a packaged installer (that is playwright.packaged.config.ts, macOS only) and it runs on
-# Linux only. Not a required check: it is informational until the owner promotes it.
+# prove a packaged installer (that is playwright.packaged.config.ts, which package.yml and
+# release.yml run on macOS) and it runs on Linux only. Not a required check: it is informational until the owner promotes it.
 #
 # Triggers: manual runs, pull requests touching the desktop app or what it bundles, and pushes to
 # main with the same paths (so a regression that slips in is seen on main, not only on a PR).
@@ -35,9 +35,10 @@ on:
       - "pnpm-workspace.yaml"
       - "turbo.json"
 
+# A newer push to a pull request supersedes the older run; a run on main is left to finish.
 concurrency:
   group: electron-smoke-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -45,16 +46,18 @@ permissions:
 jobs:
   smoke:
     name: Electron production smoke
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: pnpm
@@ -91,7 +94,7 @@ jobs:
       # test-results/ is listed too in case the config's output directory moves.
       - name: Upload Playwright output
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: electron-smoke-results
           path: |

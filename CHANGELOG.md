@@ -1,47 +1,38 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+All notable changes to this project are documented here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
+[SemVer](https://semver.org/). The desktop app's version is the `version` in
+`apps/desktop/package.json`, and a release tag must equal it (`v0.0.1`).
 
 ## [Unreleased]
 
-### Added
+## [0.0.1] - Unreleased
 
-- **Web + Desktop platform support** (feature branch `feat/web-desktop-migration`)
-- `lib/platform.ts` — unified platform detection (`PlatformInfo`) replacing `Platform.OS`
-- Platform abstraction layer (`services/platform/`) — storage (AsyncStorage/idb-keyval), filesystem (expo-file-system/IndexedDB), secure store (expo-secure-store/localStorage), database (expo-sqlite/sql.js WASM)
-- Responsive sidebar navigation (`components/ui/Sidebar.tsx`) — collapsible sidebar on desktop, bottom tabs on mobile
-- Platform-agnostic UI components: `BlurBackground`, `GradientWrapper`, `SafeAreaWrapper`
-- Tauri v2 desktop support (`src-tauri/`) — cross-platform native desktop app
-- Keyboard shortcuts for desktop: `Cmd+K` search, `Cmd+,` settings, `Cmd+B` sidebar, arrow keys for reader
-- Desktop scrollbar styling, selection colors, Tauri drag region utilities
-- `sql.js` for SQLite on web/desktop (same schema as expo-sqlite)
-- `idb-keyval` alternative — custom IndexedDB wrapper for key-value storage
-- Expo web export scripts: `npm run web:export`, `npm run desktop:dev`, `npm run desktop:build`
-
-### Changed
-
-- Replaced `NativeTabs` → Expo Router `<Tabs>` (works on web)
-- Replaced all `Platform.OS` checks with `PlatformInfo`
-- Replaced `expo-blur` with CSS `backdrop-filter` via `BlurBackground`
-- Replaced `expo-linear-gradient` with CSS gradients via `GradientWrapper`
-- Replaced `contentInsetAdjustmentBehavior="never"` → `"automatic"` (15 files)
-- Migrated all services to platform abstraction layer (db, auth, extensions, downloads, backups)
-- Zustand stores now use platform storage adapter instead of direct AsyncStorage imports
-- App config: `"orientation": "default"`, web PWA config, `EXPO_PUBLIC_SUPPORTS_DESKTOP`
-
-### Fixed
-
-- Zustand `import.meta.env` patched for web builds (Metro non-module context)
-- `pointerEvents` moved from props to `style` (react-native-web v0.21 deprecation)
-- sql.js WASM loading configured with proper `locateFile` and Metro asset extensions
-- `idb-keyval` ESM module issue — replaced with custom IndexedDB wrapper
-
-## [1.0.0] - 2026-05-01
-
-### Changed
-
-- Updated dependencies to latest compatible versions
+First installable build of the Electron desktop app: an **unsigned early preview**, published as
+a GitHub pre-release. See [`docs/release.md`](docs/release.md) for install notes and how to
+open an unsigned app.
 
 ### Added
 
-- AGENTS.md with project conventions for AI coding assistants
+- Desktop installers: macOS Apple Silicon (`.dmg`, `.zip`), Windows x64 (NSIS `.exe`), Linux
+  x64 (`.AppImage`, `.deb`). There is no macOS Intel build.
+- Local-first library, reader and MangaDex provider running entirely on the device: native
+  SQLite in a data process, pages cached as files and served over `page://`, the app UI served
+  over `app://` with no open network port.
+- App icon, `mangaverse://` deep-link registration, and a release pipeline that publishes
+  `SHA256SUMS` and a build-provenance attestation next to the installers.
+
+### Security
+
+- Navigation is limited to the app origin (links to http and https open in the system browser;
+  `<webview>` is refused) and browser permissions are denied except the reader's fullscreen and
+  a sanitized clipboard write from the app itself.
+- Packaged builds flip the Electron fuses `runAsNode`, `NODE_OPTIONS` and `--inspect` off and
+  enable embedded ASAR integrity validation and load-from-asar only.
+
+### Known limitations
+
+- Not code-signed or notarized: macOS Gatekeeper and Windows SmartScreen warn on first launch.
+- No auto-update. Install a newer release by hand.
+- Windows and Linux installers are built in CI but their install-and-launch proof is manual.
