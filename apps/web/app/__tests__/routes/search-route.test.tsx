@@ -52,6 +52,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@tanstack/react-router', () => ({
   createFileRoute: () => (options: unknown) => ({ options, useSearch: mocks.useSearch }),
   useNavigate: () => mocks.navigate,
+  useRouterState: (opts?: { select?: (state: { location: { state: object } }) => unknown }) => {
+    const state = { location: { state: { __TSR_index: 0 } } };
+    return opts?.select ? opts.select(state) : state;
+  },
 }));
 
 vi.mock('@/features/search', async (importOriginal) => {
@@ -283,6 +287,53 @@ describe('/search route', () => {
     await vi.waitFor(() => expect(buttonByText('Local berserk')).toBeDefined());
     expect(
       mocks.fetchSearchPage.mock.calls.some(([, viewState]) => viewState.query === 'berserk'),
+    ).toBe(true);
+  });
+
+  it('Given a typed query, When it settles, Then the URL is replaced so Back can restore it', async () => {
+    await act(async () => setQuery('berserk'));
+
+    await vi.waitFor(() =>
+      expect(mocks.navigate).toHaveBeenCalledWith({
+        search: { q: 'berserk' },
+        replace: true,
+        resetScroll: false,
+      }),
+    );
+    // Replacing keeps one history entry: typing never pushes one per keystroke.
+    expect(mocks.navigate).not.toHaveBeenCalledWith(expect.objectContaining({ replace: false }));
+  });
+
+  it('Given a filter, When it changes, Then the URL carries it with the query', async () => {
+    await act(async () => setQuery('berserk'));
+    await vi.waitFor(() => expect(buttonByText('Local berserk')).toBeDefined());
+
+    await act(async () => setInputValue(inputByLabel('Language filter'), 'en'));
+
+    await vi.waitFor(() =>
+      expect(mocks.navigate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          search: expect.objectContaining({ q: 'berserk', language: 'en' }),
+          replace: true,
+        }),
+      ),
+    );
+  });
+
+  it('Given a restored URL after Back or reload, Then the query and filters fill back in', async () => {
+    mocks.useSearch.mockReturnValue({ q: 'naruto', language: 'en', rating: 'safe' });
+    remount();
+
+    expect(inputByLabel('Search manga').value).toBe('naruto');
+    await vi.waitFor(() => expect(inputByLabel('Language filter').value).toBe('en'));
+    await vi.waitFor(() => expect(buttonByText('Local naruto')).toBeDefined());
+    expect(
+      mocks.fetchSearchPage.mock.calls.some(
+        ([, viewState]) =>
+          viewState.query === 'naruto' &&
+          viewState.filters?.language === 'en' &&
+          viewState.filters?.contentRating === 'safe',
+      ),
     ).toBe(true);
   });
 

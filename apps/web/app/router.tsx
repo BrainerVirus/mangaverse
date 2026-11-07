@@ -34,6 +34,9 @@ export function getRouter(options: { platformDetectFn?: () => PlatformCapabiliti
     defaultOnCatch: (error) => feedback.log(error, 'route'),
     defaultNotFoundComponent: NotFoundPage,
     scrollRestoration: true,
+    // The window never scrolls: `<main>` in the shell does. Tagging it restores
+    // the list position on Back, and this selector resets it on a fresh route.
+    scrollToTopSelectors: ['[data-scroll-restoration-id="app-main"]'],
   });
 }
 

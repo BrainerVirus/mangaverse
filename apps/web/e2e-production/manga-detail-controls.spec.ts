@@ -100,8 +100,16 @@ for (const width of [390, 1440]) {
 
     // Shortcuts carry the context the destination pages need.
     await page.getByRole('button', { name: 'Migrate' }).click();
-    await expect(page).toHaveURL(/\/migration\?source=mangadex/);
+    await expect(page).toHaveURL(/\/advanced\/migration\?/, { timeout: 20_000 });
+    const migrationUrl = new URL(page.url());
+    expect(migrationUrl.searchParams.get('ids')).toBe(JSON.stringify([MANGADEX_APP_MANGA_ID]));
+    expect(migrationUrl.searchParams.get('source')).toBe('mangadex');
     await expect(page.getByLabel('Source provider')).toContainText(/MangaDex/i);
+    // The hand-off binds this title, so a provider-wide candidate list cannot appear.
+    await expect(page.getByText('1 selected title')).toBeVisible();
+    const migrationCandidates = page.getByRole('list', { name: 'Migration candidates' });
+    await expect(migrationCandidates.locator(':scope > li')).toHaveCount(1, { timeout: 30_000 });
+    await expect(migrationCandidates.getByText(TITLE, { exact: true })).toBeVisible();
 
     await page.goto(MANGA_PATH);
     await expect(page.getByRole('heading', { name: TITLE })).toBeVisible({ timeout: 30_000 });

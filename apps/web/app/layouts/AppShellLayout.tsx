@@ -52,11 +52,15 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
       </a>
       <DesktopSidebar />
       {/* `min-w-0` keeps a wide child from widening the shell's flex row; the
-          content column then scrolls instead of pushing the page sideways. */}
+          content column then scrolls instead of pushing the page sideways.
+          This column, not the window, is the scroll container, so the router
+          restores it on Back through `data-scroll-restoration-id`. The reader
+          has its own layout and scroll, so it is never tagged. */}
       <main
         id="main-content"
         tabIndex={-1}
         data-app-nav-offset
+        data-scroll-restoration-id="app-main"
         className="min-w-0 flex-1 overflow-auto bg-background outline-none"
       >
         <AppNotices />

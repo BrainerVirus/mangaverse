@@ -23,6 +23,7 @@ import {
   type MangaProviderMapping,
 } from '@app/shared';
 import {
+  buildMigrationHandoff,
   canHydrateChapters,
   chapterHydrationQueryKey,
   countChaptersForMapping,
@@ -168,6 +169,21 @@ describe('runProviderAction', () => {
     const identity = await getMangaIdentity(db, mangaId);
     expect(identity?.preferredChapterSourceId).toBe(mappingB.id);
     expect((await getLibraryEntryForManga(db, mangaId))?.activeProviderMappingId).toBe(mappingB.id);
+  });
+});
+
+describe('buildMigrationHandoff', () => {
+  it('Given a title mapping, Then the canonical manga id travels as a batch id with its provider', () => {
+    const mapping: MangaProviderMapping = {
+      id: toProviderMappingId('mapping-a'),
+      providerId: toProviderId('mangadex'),
+      providerMangaId: 'remote-a',
+    };
+
+    expect(buildMigrationHandoff(MANGA_ID, String(mapping.providerId))).toEqual({
+      ids: [String(MANGA_ID)],
+      source: 'mangadex',
+    });
   });
 });
 

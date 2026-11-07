@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useNavigate, useRouterState } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useStateReducer } from '@app/design-system';
@@ -6,7 +6,6 @@ import type { AppDrizzleDb } from '@app/db';
 import { extensionsQueryKeys, fetchProviderUiInfo } from '@app/extensions';
 import {
   clearLibraryUpdateReport,
-  DEFAULT_LIBRARY_VIEW_STATE,
   editEntriesOptimistically,
   LibraryPage,
   libraryQueryKeys,
@@ -16,6 +15,12 @@ import {
   type LibraryOrganizationAction,
   type LibraryUpdateReport,
 } from '@/features/library';
+import {
+  librarySearchFromViewState,
+  libraryViewStateFromSearch,
+  parseLibraryRouteSearch,
+  type LibraryRouteSearch,
+} from '../lib/library-route-search.js';
 import { MIGRATION_BATCH_LIMIT } from '@/features/migration/index.js';
 import type { ChapterId, LibraryEntryId, LibraryViewState, MangaId } from '@app/shared';
 import {
@@ -31,6 +36,8 @@ import { readerSessionState } from '../lib/navigation-history.js';
 import { useLocalDb, useLocalDbStatus, useLocalDbRetry } from '../providers/local-db-provider.js';
 
 export const Route = createFileRoute('/library')({
+  validateSearch: (search: Record<string, unknown>): LibraryRouteSearch =>
+    parseLibraryRouteSearch(search),
   component: LibraryRoute,
 });
 
@@ -65,13 +72,44 @@ function useOverviewFirstLoad(isPending: boolean): boolean {
   return !settled && isPending;
 }
 
+/**
+ * The restorable view (filter, sort, category, layout) lives in the URL so Back
+ * from a title and a reload reopen the same list. A fresh history entry re-seeds
+ * it; replacing the URL while the toolbar changes leaves this entry in place.
+ */
 function LibraryRoute() {
-  const navigate = useNavigate();
+  const search = Route.useSearch();
+  const historyIndex = useRouterState({
+    select: (state) => state.location.state.__TSR_index ?? 0,
+  });
+  return (
+    <LibraryRouteContent key={historyIndex} initialViewState={libraryViewStateFromSearch(search)} />
+  );
+}
+
+function LibraryRouteContent({
+  initialViewState,
+}: {
+  readonly initialViewState: LibraryViewState;
+}) {
+  const navigate = useNavigate({ from: '/library' });
   const queryClient = useQueryClient();
   const db = useLocalDb();
   const dbStatus = useLocalDbStatus();
   const retryDb = useLocalDbRetry();
-  const [viewState, setViewState] = useState<LibraryViewState>(DEFAULT_LIBRARY_VIEW_STATE);
+  const [viewState, setViewState] = useState<LibraryViewState>(initialViewState);
+  const updateViewState = useCallback(
+    (next: LibraryViewState) => {
+      setViewState(next);
+      // One history entry: Back restores the list instead of each filter step.
+      void navigate({
+        search: librarySearchFromViewState(next),
+        replace: true,
+        resetScroll: false,
+      });
+    },
+    [navigate],
+  );
   const [progress, setProgress] = useState<LibraryUpdateReport | undefined>(undefined);
   const [isChecking, setIsChecking] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -186,7 +224,7 @@ function LibraryRoute() {
       isLoading={dbStatus === 'loading' || isLoading}
       isError={dbStatus === 'error' || isError}
       viewState={viewState}
-      onViewStateChange={setViewState}
+      onViewStateChange={updateViewState}
       onOpenManga={openManga}
       onOpenChapter={openChapter}
       {...(overview.data === undefined ? {} : { overview: overview.data })}

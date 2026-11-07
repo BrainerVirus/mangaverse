@@ -294,10 +294,19 @@ export function goBackOrLibrary(options: {
   options.openLibrary();
 }
 
-export function openMigration(
-  open: (href: string) => void,
-  mapping: MangaProviderMapping | undefined,
-): void {
-  if (mapping === undefined) return;
-  open(`/migration?source=${encodeURIComponent(String(mapping.providerId))}`);
+export interface MigrationHandoffSearch {
+  readonly ids: readonly string[];
+  readonly source: string;
+}
+
+/**
+ * The single-title migration hand-off. The canonical manga id travels through
+ * the same `ids` contract as the library batch, so the migration page binds
+ * exactly this title; the active mapping's provider is its source.
+ */
+export function buildMigrationHandoff(
+  mangaId: MangaId,
+  sourceProviderId: string,
+): MigrationHandoffSearch {
+  return { ids: [String(mangaId)], source: sourceProviderId };
 }

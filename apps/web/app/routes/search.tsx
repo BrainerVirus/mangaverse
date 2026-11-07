@@ -1,8 +1,7 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useNavigate, useRouterState } from '@tanstack/react-router';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useDeferredValue, useRef, useState } from 'react';
 import {
-  DEFAULT_SEARCH_VIEW_STATE,
   mergeSearchPageData,
   parseSearchFilters,
   recordSearchQuery,
@@ -15,6 +14,12 @@ import { removeSavedSearch, upsertSavedSearch } from '@app/db/browser';
 import type { SavedSearchEntry } from '@app/db';
 import { fetchAppSettings, settingsQueryKeys } from '@/features/settings';
 import { failureMessage } from '../lib/app-feedback.js';
+import {
+  parseSearchRouteSearch,
+  searchRouteSearchFromViewState,
+  searchViewStateFromRoute,
+  type SearchRouteSearch,
+} from '../lib/search-route-search.js';
 import { getLocalDb } from '../lib/local-db.js';
 import {
   savedSearchesQueryOptions,
@@ -29,15 +34,9 @@ import {
 import type { SearchProviderInfo } from '../queries/provider-query-options.js';
 import { useLocalDb, useLocalDbStatus, useLocalDbRetry } from '../providers/local-db-provider.js';
 
-interface SearchRouteSearch {
-  readonly q?: string;
-}
-
 export const Route = createFileRoute('/search')({
-  validateSearch: (search: Record<string, unknown>): SearchRouteSearch => {
-    const q = typeof search.q === 'string' ? search.q.trim() : '';
-    return q.length > 0 ? { q } : {};
-  },
+  validateSearch: (search: Record<string, unknown>): SearchRouteSearch =>
+    parseSearchRouteSearch(search),
   component: SearchRoute,
 });
 
@@ -65,23 +64,28 @@ function resolveProviderSelection(
   };
 }
 
-/** A new `?q=` starts a fresh search; typing afterwards stays local to the page. */
+/**
+ * The URL is the source of truth: it seeds the page on mount (Back, reload, a
+ * shared link) and a fresh history entry re-seeds it. Replacing the URL while
+ * typing keeps this same entry, so the page keeps its local input state.
+ */
 function SearchRoute() {
-  const { q } = Route.useSearch();
-  return <SearchRouteContent key={q ?? ''} initialQuery={q ?? ''} />;
+  const search = Route.useSearch();
+  const historyIndex = useRouterState({
+    select: (state) => state.location.state.__TSR_index ?? 0,
+  });
+  return (
+    <SearchRouteContent key={historyIndex} initialViewState={searchViewStateFromRoute(search)} />
+  );
 }
 
-function SearchRouteContent({ initialQuery }: { readonly initialQuery: string }) {
-  const navigate = useNavigate();
+function SearchRouteContent({ initialViewState }: { readonly initialViewState: SearchViewState }) {
+  const navigate = useNavigate({ from: '/search' });
   const queryClient = useQueryClient();
   const db = useLocalDb();
   const dbStatus = useLocalDbStatus();
   const retryDb = useLocalDbRetry();
-  const [viewState, setViewState] = useState<SearchViewState>(() =>
-    initialQuery.length > 0
-      ? { ...DEFAULT_SEARCH_VIEW_STATE, query: initialQuery }
-      : DEFAULT_SEARCH_VIEW_STATE,
-  );
+  const [viewState, setViewState] = useState<SearchViewState>(initialViewState);
   const lastRecordedQuery = useRef('');
   const pendingSearchWrite = useRef<Promise<void> | null>(null);
 
@@ -163,6 +167,13 @@ function SearchRouteContent({ initialQuery }: { readonly initialQuery: string })
 
   const handleViewStateChange = (next: SearchViewState) => {
     setViewState(next);
+    // Replace keeps one history entry, so Back from a title reopens these
+    // results; `resetScroll: false` keeps typing from jumping the list.
+    void navigate({
+      search: searchRouteSearchFromViewState(next),
+      replace: true,
+      resetScroll: false,
+    });
 
     const trimmed = next.query.trim();
     if (trimmed.length === 0) {

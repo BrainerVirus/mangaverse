@@ -66,7 +66,7 @@ import {
   isDbReady,
   isPageError,
   isPageLoading,
-  openMigration,
+  buildMigrationHandoff,
   pickRelatedProps,
   providerCapability,
   queryErrorMessage,
@@ -131,6 +131,11 @@ function readerLocation(chapterId: string) {
 }
 
 function MangaDetailRoute() {
+  return useMangaDetailRouteElement();
+}
+
+/** Route model + element; the component above only publishes the result. */
+function useMangaDetailRouteElement() {
   const navigate = useNavigate();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -389,7 +394,12 @@ function MangaDetailRoute() {
       onDownloadCommand={runDownloadCommand}
       isCoverActionPending={coverMutation.isPending}
       onSetCoverImageUrl={(url) => coverMutation.mutateAsync(url)}
-      onOpenMigration={() => openMigration((href) => void navigate({ href }), activeMapping)}
+      onOpenMigration={(providerId) =>
+        void navigate({
+          to: '/migration',
+          search: buildMigrationHandoff(mangaId, providerId),
+        })
+      }
       onOpenProviderSettings={(providerId) =>
         void navigate({ to: '/extensions/$providerId', params: { providerId } })
       }
