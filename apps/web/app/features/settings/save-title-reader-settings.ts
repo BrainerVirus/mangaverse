@@ -2,6 +2,13 @@ import type { AppDrizzleDb } from '@app/db';
 import type { ReaderSettings, ReaderSettingsOverride } from '@app/shared';
 import { saveReaderSettings } from './save-reader-settings.js';
 
+/**
+ * Every reader-settings surface uses this one mutation scope. The reader quick
+ * panel and the settings page can both write the global row, so they must be
+ * ordered against each other, not only against their own writes.
+ */
+export const READER_SETTINGS_MUTATION_SCOPE = 'reader-settings';
+
 /** Persists one title's choices; title rows always apply on read. */
 export async function saveTitleReaderSettings(
   db: AppDrizzleDb,
@@ -13,32 +20,50 @@ export async function saveTitleReaderSettings(
   if (!result.ok) throw new Error(result.error.message);
 }
 
-function sameSettings(a: ReaderSettings, b: ReaderSettings): boolean {
-  return (Object.keys({ ...a, ...b }) as (keyof ReaderSettings)[]).every(
-    (key) => JSON.stringify(a[key]) === JSON.stringify(b[key]),
-  );
-}
+/**
+ * One settings layer to persist. The scope is part of the write so a title edit
+ * can never rewrite the global row from a captured snapshot, and a global edit
+ * can never rewrite a stale title row.
+ */
+export type ReaderSettingsScopeWrite =
+  | {
+      readonly scope: 'title';
+      readonly mangaId: string;
+      readonly overrides: ReaderSettingsOverride;
+    }
+  | {
+      readonly scope: 'global';
+      readonly settings: ReaderSettings;
+    }
+  | {
+      /** A global edit that also drops keys from this title's choices. */
+      readonly scope: 'layers';
+      readonly mangaId: string;
+      readonly overrides: ReaderSettingsOverride;
+      readonly settings: ReaderSettings;
+    };
 
 /**
- * Persists the reader's settings after a scoped change (spec R7): the global
- * row when an "All titles" change moved it, then the title's choices. Writing
- * both from one snapshot keeps a coalesced burst that mixed scopes intact.
+ * Writes exactly the layer named by `write`. The caller schedules one write per
+ * scope; a global edit that also drops some of this title's choices schedules a
+ * second, title-scoped diff instead of folding both into one stale snapshot.
  */
-export async function saveReaderSettingsLayers(
+export async function saveReaderSettingsScope(
   db: AppDrizzleDb,
-  mangaId: string,
-  layers: {
-    readonly globalSettings?: ReaderSettings | undefined;
-    readonly titleOverrides?: ReaderSettingsOverride | undefined;
-  },
+  write: ReaderSettingsScopeWrite,
 ): Promise<void> {
-  const { getReaderSettings } = await import('@app/db');
-  if (layers.globalSettings !== undefined) {
-    const stored = await getReaderSettings(db);
-    if (!sameSettings(stored, layers.globalSettings)) {
-      const result = await saveReaderSettings(db, layers.globalSettings);
-      if (!result.ok) throw new Error(result.error.message);
-    }
+  if (write.scope === 'title') {
+    await saveTitleReaderSettings(db, write.mangaId, write.overrides);
+    return;
   }
-  await saveTitleReaderSettings(db, mangaId, layers.titleOverrides ?? {});
+  if (write.scope === 'layers') {
+    // One mutation settles both layers, so the caller invalidates once and the
+    // cache never briefly refetches a half-written pair.
+    const result = await saveReaderSettings(db, write.settings);
+    if (!result.ok) throw new Error(result.error.message);
+    await saveTitleReaderSettings(db, write.mangaId, write.overrides);
+    return;
+  }
+  const result = await saveReaderSettings(db, write.settings);
+  if (!result.ok) throw new Error(result.error.message);
 }

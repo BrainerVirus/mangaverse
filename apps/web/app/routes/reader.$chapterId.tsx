@@ -1,7 +1,11 @@
 import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
-import { saveReaderSettingsLayers, settingsQueryKeys } from '@/features/settings';
+import {
+  READER_SETTINGS_MUTATION_SCOPE,
+  saveReaderSettingsScope,
+  settingsQueryKeys,
+} from '@/features/settings';
 import {
   markPreviousChaptersCompleted,
   setChapterCompleted,
@@ -9,7 +13,7 @@ import {
 } from '@app/db';
 import type { AppDrizzleDb } from '@app/db';
 import { libraryQueryKeys } from '@/features/library';
-import type { ReaderSettings } from '@app/shared';
+import type { ReaderSettings, ReaderSettingsOverride } from '@app/shared';
 import {
   applyReaderSettingsChange,
   fetchReaderPage,
@@ -28,7 +32,7 @@ import {
 } from '../providers/local-db-provider.js';
 import { failureMessage, feedback } from '../lib/app-feedback.js';
 import { useOnlineStatus } from '../lib/use-online-status.js';
-import { useCoalescedSettingsWrite } from '../lib/use-coalesced-settings-write.js';
+import { useScopedCoalescedSettingsWrite } from '../lib/use-coalesced-settings-write.js';
 import { useReaderPageShape } from '../lib/use-reader-page-shape.js';
 import { getBindingForChapterId } from '../lib/provider-registry.js';
 import { useLayoutStore } from '../stores/useLayoutStore.js';
@@ -46,6 +50,52 @@ export const Route = createFileRoute('/reader/$chapterId')({
 });
 
 const WRITE_FAILED = 'Your latest reading changes could not be saved.';
+
+/**
+ * One pending reader settings write. The scope is carried with the value so a
+ * title edit can never persist a global snapshot (and the reverse), and so a
+ * reset can drop only its own scope's queued edits.
+ */
+type ReaderSettingsWriteScope = ReaderSettingsScope | 'layers';
+
+type ReaderSettingsSave =
+  | {
+      readonly kind: 'title';
+      readonly mangaId: string;
+      readonly overrides: ReaderSettingsOverride;
+      readonly revision: number;
+    }
+  | {
+      readonly kind: 'global';
+      readonly settings: ReaderSettings;
+      readonly revision: number;
+    }
+  | {
+      readonly kind: 'layers';
+      readonly mangaId: string;
+      readonly overrides: ReaderSettingsOverride;
+      readonly settings: ReaderSettings;
+      readonly revision: number;
+    }
+  | {
+      readonly kind: 'reset-title';
+      readonly mangaId: string;
+      readonly revision: number;
+    };
+
+function sameOverrides(
+  a: ReaderSettingsOverride | undefined,
+  b: ReaderSettingsOverride | undefined,
+): boolean {
+  const left = a ?? {};
+  const right = b ?? {};
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+  return [...keys].every(
+    (key) =>
+      JSON.stringify(left[key as keyof ReaderSettings]) ===
+      JSON.stringify(right[key as keyof ReaderSettings]),
+  );
+}
 
 function ReaderRoute() {
   const { chapterId: chapterIdParam } = Route.useParams();
@@ -131,62 +181,67 @@ function ReaderRouteSession({ chapterIdParam }: { chapterIdParam: string }) {
     useChapterHydration({ chapterId, data, isDbReady: dbStatus === 'ready' && db !== null });
   const isMissingChapter = data === null;
 
+  // Every write carries its own revision. A write that settles after a newer
+  // edit must not invalidate the query and pull the older durable row back over
+  // the newer optimistic value; the newest write invalidates instead.
+  const writeRevision = useRef(0);
+
   const { mutate: saveSettings } = useMutation({
-    scope: { id: `reader-settings:${data?.mangaId ?? chapterId}` },
-    // A snapshot of the reader data after the change, or null to reset the title.
-    mutationFn: async (next: ReaderPageData | null) => {
-      if (!data) return;
-      if (next === null) {
-        await resetTitleReaderSettings(db!, data.mangaId);
+    // One scope for this reader's writes: the reset queues behind a save that
+    // is already in flight and runs last, so a delayed save cannot recreate the
+    // deleted title row. Pending timers are cancelled per scope before a reset.
+    scope: { id: READER_SETTINGS_MUTATION_SCOPE },
+    mutationFn: async (write: ReaderSettingsSave) => {
+      if (!db) throw new Error('Local database is not ready.');
+      if (write.kind === 'reset-title') {
+        await resetTitleReaderSettings(db, write.mangaId);
         return;
       }
-      // The change carries its scope (R7): the snapshot holds the global row and
-      // this title's choices as the quick panel left them.
-      await saveReaderSettingsLayers(db!, data.mangaId, {
-        globalSettings: next.globalSettings,
-        titleOverrides: next.titleOverrides,
-      });
+      if (write.kind === 'title') {
+        await saveReaderSettingsScope(db, {
+          scope: 'title',
+          mangaId: write.mangaId,
+          overrides: write.overrides,
+        });
+        return;
+      }
+      if (write.kind === 'layers') {
+        await saveReaderSettingsScope(db, {
+          scope: 'layers',
+          mangaId: write.mangaId,
+          overrides: write.overrides,
+          settings: write.settings,
+        });
+        return;
+      }
+      await saveReaderSettingsScope(db, { scope: 'global', settings: write.settings });
     },
-    onMutate: async (next) => {
+    onMutate: async () => {
+      // The change handler already painted the scoped value. Only stop a reader
+      // refetch from overwriting it while the durable write runs.
       await queryClient.cancelQueries({ queryKey: readerQueryKeys.chapter(chapterId) });
-      if (next === null) return;
-      queryClient.setQueryData<ReaderPageData | null>(
-        readerQueryKeys.chapter(chapterId),
-        (current) =>
-          current == null
-            ? current
-            : {
-                ...current,
-                settings: next.settings,
-                engineSettings: next.engineSettings,
-                ...(next.globalSettings !== undefined
-                  ? { globalSettings: next.globalSettings }
-                  : {}),
-                ...(next.titleOverrides !== undefined
-                  ? { titleOverrides: next.titleOverrides }
-                  : {}),
-              },
-      );
     },
-    onError: (error) => {
-      // The cache already shows the attempted value; re-read the durable one.
-      void queryClient.invalidateQueries({ queryKey: readerQueryKeys.chapter(chapterId) });
+    onError: (error, write) => {
       // The reader has no shell banner above it; report through the same sink.
       feedback.log(error, 'reader settings');
       reportPersistenceError(failureMessage(error, WRITE_FAILED));
+      // Reconcile with the durable row unless a newer edit owns the cache and
+      // will reconcile when its own write settles.
+      if (write.revision !== writeRevision.current) return;
+      void queryClient.invalidateQueries({ queryKey: readerQueryKeys.chapter(chapterId) });
     },
-    onSettled: (_data, _error, next) => {
-      const current = queryClient.getQueryData<ReaderPageData | null>(
-        readerQueryKeys.chapter(chapterId),
-      )?.settings;
+    onSettled: (_data, _error, write) => {
       // A newer edit owns the cache; its own write will invalidate.
-      if (next !== null && current !== next.settings) return;
+      if (write.revision !== writeRevision.current) return;
       void queryClient.invalidateQueries({ queryKey: readerQueryKeys.chapter(chapterId) });
       void queryClient.invalidateQueries({ queryKey: settingsQueryKeys.reader() });
     },
   });
 
-  const settingsWriter = useCoalescedSettingsWrite(saveSettings);
+  const settingsWriter = useScopedCoalescedSettingsWrite<
+    ReaderSettingsWriteScope,
+    ReaderSettingsSave
+  >((_scope, write) => saveSettings(write));
   const handleChangeSettings = useCallback(
     (patch: Partial<ReaderSettings>, scope: ReaderSettingsScope) => {
       // Merge over the cache, not over the last render: two changes can land
@@ -198,7 +253,38 @@ function ReaderRouteSession({ chapterIdParam }: { chapterIdParam: string }) {
       const next = applyReaderSettingsChange(current, patch, scope);
       // Paint every change; the DB write waits for the gesture to rest.
       queryClient.setQueryData<ReaderPageData | null>(readerQueryKeys.chapter(chapterId), next);
-      settingsWriter.schedule(next);
+      const revision = ++writeRevision.current;
+
+      if (scope === 'title') {
+        settingsWriter.schedule('title', {
+          kind: 'title',
+          mangaId: current.mangaId,
+          overrides: next.titleOverrides ?? {},
+          revision,
+        });
+        return;
+      }
+
+      const titleChanged = !sameOverrides(current.titleOverrides, next.titleOverrides);
+      if (next.globalSettings !== undefined && titleChanged) {
+        // One write for both layers: the two rows settle together from the
+        // cache's point of view, so a refetch cannot catch a half-written pair.
+        settingsWriter.schedule('layers', {
+          kind: 'layers',
+          mangaId: current.mangaId,
+          overrides: next.titleOverrides ?? {},
+          settings: next.globalSettings,
+          revision,
+        });
+        return;
+      }
+      if (next.globalSettings !== undefined) {
+        settingsWriter.schedule('global', {
+          kind: 'global',
+          settings: next.globalSettings,
+          revision,
+        });
+      }
     },
     [chapterId, db, queryClient, settingsWriter],
   );
@@ -277,8 +363,17 @@ function ReaderRouteSession({ chapterIdParam }: { chapterIdParam: string }) {
         {...chapterActions}
         onResetSettings={() => {
           if (!db || !data) return;
-          settingsWriter.cancel();
-          saveSettings(null);
+          // Drop this title's queued edit, then drain every other pending
+          // scope before the reset. A delayed global or combined write must
+          // land before the delete, never after it; the shared mutation scope
+          // also queues the reset behind anything already in flight.
+          settingsWriter.cancel('title');
+          settingsWriter.flush();
+          saveSettings({
+            kind: 'reset-title',
+            mangaId: data.mangaId,
+            revision: ++writeRevision.current,
+          });
         }}
       />
     </>

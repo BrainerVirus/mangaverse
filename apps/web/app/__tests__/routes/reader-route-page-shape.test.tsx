@@ -44,7 +44,8 @@ vi.mock('@app/reader', async (importOriginal) => ({
   },
 }));
 vi.mock('@/features/settings', () => ({
-  saveReaderSettingsLayers: vi.fn<() => Promise<void>>(async () => {}),
+  READER_SETTINGS_MUTATION_SCOPE: 'reader-settings',
+  saveReaderSettingsScope: vi.fn<() => Promise<void>>(async () => {}),
   settingsQueryKeys: { reader: () => ['settings', 'reader'] },
 }));
 vi.mock('@app/db', () => ({
@@ -165,14 +166,15 @@ describe('/reader/$chapterId first-decode page shape', () => {
   it('Given Auto, When the first page is an ordinary page, Then the reader stays paged and the sizes are stored together', async () => {
     fetchReaderPage.mockResolvedValue(readerData());
     const mounted = await renderRoute();
-    const before = shown();
 
     await measure({ pageIndex: 1, width: 800, height: 1200 });
     await measure({ pageIndex: 2, width: 800, height: 1200 });
     // A tall page after the first decode does not switch a paged chapter.
     await measure({ pageIndex: 3, width: 800, height: 6000 });
 
-    expect(shown()).toBe(before);
+    expect(shown().chapter.pages[1]?.image).toMatchObject({ width: 800, height: 1200 });
+    expect(shown().chapter.pages[2]?.image).toMatchObject({ width: 800, height: 1200 });
+    expect(shown().engineSettings.readingMode).toBe('ltr');
     expect(updateChapterPageDimensions).not.toHaveBeenCalled();
     await settleWrites();
     expect(updateChapterPageDimensions).toHaveBeenCalledTimes(1);
@@ -199,7 +201,6 @@ describe('/reader/$chapterId first-decode page shape', () => {
   it('Given two decodes in one tick, When the first is ordinary and the second tall, Then the first decision holds', async () => {
     fetchReaderPage.mockResolvedValue(readerData());
     const mounted = await renderRoute();
-    const before = shown();
     const onMeasured = screenProps.onPageMeasured as (value: ReaderPageMeasurement) => void;
 
     await act(async () => {
@@ -208,7 +209,8 @@ describe('/reader/$chapterId first-decode page shape', () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    expect(shown()).toBe(before);
+    expect(shown().chapter.pages[1]?.image).toMatchObject({ width: 800, height: 1200 });
+    expect(shown().chapter.pages[2]?.image).toMatchObject({ width: 800, height: 6000 });
     expect(shown().engineSettings.readingMode).toBe('ltr');
     // Flush the ordinary page's batched size so the timer cannot outlive the test.
     await settleWrites();

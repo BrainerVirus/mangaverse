@@ -106,6 +106,45 @@ describe('/settings/reader?title', () => {
     act(() => root.unmount());
   });
 
+  it('Given a title save in flight, When the title is reset, Then the reset lands after the save', async () => {
+    mocks.saveReaderSettings.mockClear();
+    mocks.saveTitleReaderSettings.mockClear();
+    mocks.resetTitleReaderSettings.mockClear();
+    const global = getDefaultReaderSettings();
+    mocks.getTitleReaderSettingsLayers.mockResolvedValue({
+      global,
+      overrides: {},
+      settings: global,
+    });
+    let release: (() => void) | undefined;
+    mocks.saveTitleReaderSettings.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          release = resolve;
+        }),
+    );
+
+    const { root, container } = await renderRoute();
+    await toggleKeepScreenOn(container);
+    await waitFor(() => mocks.saveTitleReaderSettings.mock.calls.length > 0);
+
+    await act(async () => {
+      [...container.querySelectorAll('button')]
+        .find((button) => button.textContent?.includes('Reset title settings'))
+        ?.click();
+    });
+    expect(mocks.resetTitleReaderSettings).not.toHaveBeenCalled();
+
+    await act(async () => {
+      release?.();
+      await Promise.resolve();
+    });
+    await waitFor(() => mocks.resetTitleReaderSettings.mock.calls.length > 0);
+    expect(mocks.resetTitleReaderSettings).toHaveBeenCalledWith(expect.anything(), 'manga-1');
+
+    act(() => root.unmount());
+  });
+
   it('Given the plain page, When a setting changes, Then the global row is written', async () => {
     mocks.saveReaderSettings.mockClear();
     mocks.saveTitleReaderSettings.mockClear();

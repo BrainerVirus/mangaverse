@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchReaderSettings,
+  READER_SETTINGS_MUTATION_SCOPE,
   ReaderSettingsPage,
   saveReaderSettings,
   saveTitleReaderSettings,
@@ -53,9 +54,9 @@ function SettingsReaderRoute() {
 
   const saveMutation = useMutation({
     meta: saveFeedback('Could not save settings.'),
-    // One write at a time: a burst of coalesced edits can otherwise resolve out
-    // of order and the last snapshot to land would not be the last value painted.
-    scope: { id: isTitleScoped ? `reader-settings:${title}` : 'reader-settings' },
+    // One write at a time across reader surfaces, so a burst of coalesced edits
+    // cannot resolve out of order and the last snapshot to land is the newest.
+    scope: { id: READER_SETTINGS_MUTATION_SCOPE },
     // `?title=` edits that title's choices; the plain page edits the global row.
     mutationFn: async (next: ReaderSettingsPageState) => {
       if (db === null) throw new Error('Local database is not ready.');
@@ -85,9 +86,16 @@ function SettingsReaderRoute() {
 
   const resetMutation = useMutation({
     meta: saveFeedback('Could not reset settings.'),
+    // Same shared mutation scope as every save: a reset queues behind a write
+    // already in flight and runs last, so a delayed save cannot recreate the
+    // row the reset just deleted.
+    scope: { id: READER_SETTINGS_MUTATION_SCOPE },
     mutationFn: async () => {
       if (db === null || title === undefined) throw new Error('Local database is not ready.');
       await resetTitleReaderSettings(db, title);
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey });
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: settingsQueryKeys.reader() });
@@ -119,7 +127,12 @@ function SettingsReaderRoute() {
       {...(isTitleScoped
         ? {
             titleScope: {
-              onReset: () => resetMutation.mutate(),
+              onReset: () => {
+                // Drop this page's queued edit before the reset; the shared
+                // mutation scope fences anything already in flight.
+                settingsWriter.cancel();
+                resetMutation.mutate();
+              },
               isResetting: resetMutation.isPending,
             },
           }

@@ -12,7 +12,12 @@ export { fetchAppSettings } from './fetch-app-settings.js';
 export { fetchReaderSettings } from './fetch-reader-settings.js';
 export { saveAppSettings } from './save-app-settings.js';
 export { saveReaderSettings } from './save-reader-settings.js';
-export { saveReaderSettingsLayers, saveTitleReaderSettings } from './save-title-reader-settings.js';
+export {
+  READER_SETTINGS_MUTATION_SCOPE,
+  saveReaderSettingsScope,
+  saveTitleReaderSettings,
+  type ReaderSettingsScopeWrite,
+} from './save-title-reader-settings.js';
 export { settingsQueryKeys } from './query-keys.js';
 export { SETTINGS_NAV_SECTIONS } from './nav-sections.js';
 export type {
