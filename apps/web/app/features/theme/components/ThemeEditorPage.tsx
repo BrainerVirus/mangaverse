@@ -131,7 +131,7 @@ function ThemePreviewPane({ definition, dark }: { definition: ThemeDefinition; d
           </span>
         </div>
         <p className="type-body text-muted-foreground">Muted body text on the canvas.</p>
-        <ListRow tone="outline" padding="md" className="space-y-1 bg-card text-card-foreground">
+        <ListRow tone="card" padding="md" className="space-y-1">
           <p className="type-label">Card surface</p>
           <p className="type-body text-muted-foreground">Secondary line on a card.</p>
         </ListRow>

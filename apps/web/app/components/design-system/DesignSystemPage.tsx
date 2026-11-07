@@ -187,9 +187,8 @@ function GlassScrimSample({ theme, profile }: { theme: ThemeName; profile: Glass
   return (
     <div className={theme}>
       <ListRow
-        tone="outline"
+        tone="accent-solid"
         padding="md"
-        className="bg-accent"
         data-glass={profile === 'reduced' ? 'cheap' : undefined}
       >
         <div
@@ -212,7 +211,7 @@ function GlassScrimSample({ theme, profile }: { theme: ThemeName; profile: Glass
 function GlassThemeSamples({ theme, profile }: { theme: ThemeName; profile: GlassProfile }) {
   return (
     <div className={theme}>
-      <ListRow tone="outline" padding="md" className="flex flex-col gap-3 bg-card">
+      <ListRow tone="card" padding="md" className="flex flex-col gap-3">
         <h3
           // oxlint-disable-next-line shadcn/no-unknown-classes -- app lint misses @utility classes.
           className="type-label text-foreground"

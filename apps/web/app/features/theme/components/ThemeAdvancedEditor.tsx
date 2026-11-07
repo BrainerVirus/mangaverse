@@ -120,7 +120,7 @@ function TokenRow({
   const invalid = value.trim() !== '' && !isCssColor(value);
 
   return (
-    <ListRow tone="outline" padding="md" className="space-y-2" data-token={token}>
+    <ListRow tone="muted" padding="md" className="space-y-2" data-token={token}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Label htmlFor={id}>{token}</Label>
         <span className="type-micro text-muted-foreground">
@@ -211,7 +211,7 @@ function TokenEditor({ draft, disabled = false, onChange }: ThemeEditorPanelProp
             <ListRow
               as="li"
               key={token}
-              tone="outline"
+              tone="muted"
               padding="row"
               className="flex items-center justify-between"
             >

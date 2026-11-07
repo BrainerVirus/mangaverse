@@ -57,7 +57,7 @@
           { "pattern": "^CardHeader$", "allow": ["layout", "spacing"] },
           { "pattern": "^CardTitle$", "allow": ["layout", "typography"] },
           { "pattern": "^CardContent$", "allow": ["layout", "spacing"] },
-          { "pattern": "^ListRow$", "allow": ["layout", "spacing", "typography", "color"] },
+          { "pattern": "^ListRow$", "allow": ["layout", "typography", "gap-*", "space-x-*", "space-y-*"] },
           { "pattern": "^DialogFooter$", "allow": ["layout", "spacing"] },
           { "pattern": "^AlertDescription$", "allow": ["layout", "spacing"] }
         ]
@@ -105,6 +105,10 @@
     "ui-conventions/no-hand-rolled-glass": "error",
     // A resting border plus a resting ring or outline on one element.
     "ui-conventions/no-border-ring-doubling": "error",
+    // ListRow owns its fill, border, radius, shadow and padding; tones and paddings are the API.
+    "ui-conventions/no-list-row-overrides": "error",
+    // An outlined ListRow inside a Card/SettingsSection is a second border in one grouping.
+    "ui-conventions/no-outlined-row-in-card": "error",
     "typescript/consistent-type-imports": "error",
     "typescript/no-explicit-any": "warn",
     "react-hooks/exhaustive-deps": "warn",

@@ -13,10 +13,13 @@ const TONES = {
   outline: 'border border-border',
   warning: 'border border-warning bg-warning/10',
   accent: 'border border-accent/40 bg-accent/5',
+  card: 'border border-border bg-card text-card-foreground',
+  'accent-solid': 'border border-border bg-accent text-accent-foreground',
 } as const;
 
 const PADDINGS = {
   none: '',
+  tight: 'p-1',
   sm: 'p-2',
   md: 'p-3',
   row: 'px-3 py-2',

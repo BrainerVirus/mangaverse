@@ -270,8 +270,8 @@ function DiscoverProviderBrowser({
         role="tablist"
         aria-label="Discover providers"
         tone="muted"
-        padding="none"
-        className="inline-flex h-10 w-full items-center justify-start gap-1 overflow-x-auto p-1 text-muted-foreground"
+        padding="tight"
+        className="inline-flex h-10 w-full items-center justify-start gap-1 overflow-x-auto"
       >
         {providers.map((provider) => {
           const isActive = provider.providerId === activeProvider.providerId;
@@ -285,7 +285,7 @@ function DiscoverProviderBrowser({
               className={
                 isActive
                   ? 'inline-flex items-center justify-center whitespace-nowrap rounded-control bg-background px-3 py-1.5 text-sm font-medium text-foreground shadow-sm'
-                  : 'inline-flex items-center justify-center whitespace-nowrap rounded-control px-3 py-1.5 text-sm font-medium transition-colors hover:text-foreground'
+                  : 'inline-flex items-center justify-center whitespace-nowrap rounded-control px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground'
               }
             >
               {provider.providerName}

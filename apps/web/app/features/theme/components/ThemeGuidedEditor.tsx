@@ -125,7 +125,7 @@ function seedControl({ seed, field, value, appearance, disabled, onChange }: See
     <ListRow
       key={seed}
       data-testid={`seed-${appearance}-${seed}`}
-      tone="outline"
+      tone="muted"
       padding="md"
       className="space-y-2"
     >
@@ -202,7 +202,7 @@ function pinnedOverrides({ draft, appearance }: PinnedOverridesProps): ReactElem
       as="section"
       aria-labelledby={headingId}
       data-testid={`pinned-${appearance}`}
-      tone="outline"
+      tone="muted"
       padding="md"
       className="space-y-2"
     >
@@ -241,7 +241,7 @@ function contrastMeter({ pair, draft, appearance, disabled, onChange }: Contrast
       as="li"
       key={pair.id}
       data-testid={base}
-      tone="outline"
+      tone="muted"
       padding="md"
       className="space-y-2"
     >
