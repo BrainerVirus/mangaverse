@@ -19,12 +19,54 @@ permissions:
   contents: read
 
 jobs:
-  ci:
-    name: Lint, Typecheck, Test, Build
+  checks:
+    name: Lint, Typecheck, Test
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 15
     steps:
       # Full history: lint compares lint/baseline.json with its merge base on origin/main.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # oxlint, including the @shadcn/lint design-system plugin from .oxlintrc.json.
+      - name: Lint
+        run: pnpm lint
+
+      # packages/db/src/routed.gen.ts must match a fresh, formatted generation (needs no build).
+      - name: Routed client check
+        run: pnpm --filter @app/db generate:routed --check
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        # The runner has two cores. Uncapped Turbo concurrency started ~10 package
+        # suites (each with jsdom workers) at once and pushed 100ms tests past the
+        # 5s Vitest timeout. Bound the task concurrency instead of raising timeouts.
+        run: pnpm exec turbo run test --concurrency=2 && node --test lint/state-baseline.test.mjs lint/ui-conventions.test.mjs
+
+  build:
+    name: Build, Doctor, Knip
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -50,26 +92,6 @@ jobs:
           restore-keys: |
             turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
 
-      # oxlint, including the @shadcn/lint design-system plugin from .oxlintrc.json.
-      - name: Lint
-        run: pnpm lint
-
-      # packages/db/src/routed.gen.ts must match a fresh, formatted generation (needs no build).
-      - name: Routed client check
-        run: pnpm --filter @app/db generate:routed --check
-
-      - name: Format check
-        run: pnpm format:check
-
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Test
-        # The runner has two cores. Uncapped Turbo concurrency started ~10 package
-        # suites (each with jsdom workers) at once and pushed 100ms tests past the
-        # 5s Vitest timeout. Bound the task concurrency instead of raising timeouts.
-        run: pnpm exec turbo run test --concurrency=2 && node --test lint/state-baseline.test.mjs lint/ui-conventions.test.mjs
-
       - name: Build
         run: pnpm build
 
@@ -82,6 +104,40 @@ jobs:
 
       - name: Knip
         run: pnpm knip
+
+  e2e:
+    name: E2E ${{ matrix.shard }}/${{ matrix.total }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+        total: [6]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Restore turbo cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
 
       - name: Cache Playwright browsers
         id: playwright-cache
@@ -97,5 +153,13 @@ jobs:
       - name: Install Chromium
         run: pnpm --filter @app/web exec playwright install chromium
 
+      # Package dist/ trees must exist before the web build; the root build also
+      # warms the turbo cache for the Playwright webServer build below.
+      - name: Build workspace
+        run: pnpm build
+
+      # Each shard builds the same client-rendered app and runs one sixth of the
+      # production specs. The shards are the wall-clock bound; they run beside
+      # checks and build rather than after them.
       - name: Production web smoke test
-        run: pnpm test:e2e:production
+        run: pnpm --filter @app/web exec playwright test --config playwright.production.config.ts --shard=${{ matrix.shard }}/${{ matrix.total }}
