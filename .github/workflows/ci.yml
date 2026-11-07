@@ -69,7 +69,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
           persist-credentials: false
 
       - name: Install pnpm
@@ -105,15 +104,25 @@ jobs:
       - name: Knip
         run: pnpm knip
 
+      # Build once, run every E2E shard against the same output. This removes
+      # six duplicate web builds from the critical path.
+      - name: Upload web build
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: web-output
+          path: apps/web/.output/**
+          retention-days: 1
+
   e2e:
     name: E2E ${{ matrix.shard }}/${{ matrix.total }}
+    needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6]
-        total: [6]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        total: [8]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -131,14 +140,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Restore turbo cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .turbo/cache
-          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
-
       - name: Cache Playwright browsers
         id: playwright-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -147,19 +148,28 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Install Playwright system deps
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm --filter @app/web exec playwright install-deps chromium
 
       - name: Install Chromium
         run: pnpm --filter @app/web exec playwright install chromium
 
-      # Package dist/ trees must exist before the web build; the root build also
-      # warms the turbo cache for the Playwright webServer build below.
-      - name: Build workspace
-        run: pnpm build
+      - name: Download web build
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: web-output
+          path: apps/web/.output
 
-      # Each shard builds the same client-rendered app and runs one sixth of the
-      # production specs. The shards are the wall-clock bound; they run beside
-      # checks and build rather than after them.
+      # The shards are the wall-clock bound. They share one build and run beside
+      # checks and quality instead of after them.
       - name: Production web smoke test
+        env:
+          E2E_WEB_SERVER_COMMAND: pnpm start
         run: pnpm --filter @app/web exec playwright test --config playwright.production.config.ts --shard=${{ matrix.shard }}/${{ matrix.total }}
+
+      - name: Upload shard results
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-${{ matrix.shard }}-results
+          path: apps/web/test-results
+          retention-days: 3
