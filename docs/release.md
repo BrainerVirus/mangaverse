@@ -25,7 +25,9 @@ The version comes from `apps/desktop/package.json` (electron-builder reads it). 
 `.github/workflows/release.yml`:
 
 1. **verify**: the tag is `vX.Y.Z[-suffix]`, equals `v` + the desktop version, points at a commit
-   on `main`, that commit has a green `CI` run, and no release for the tag exists yet.
+   on `main`, that commit has a successful `CI` run **as a push to `main`** (a green pull-request run
+   of the same commit is not accepted: the query filters `event=push` and `branch=main`, and each
+   returned run is checked again), and no **published** release for the tag exists.
 2. **bundle**: one Ubuntu build of the desktop JS (`pnpm --filter @app/desktop build`). The bundle
    is OS-independent, so every platform job packages the same build.
 3. **package** (matrix, `fail-fast: false`): `macos-26` (arm64), `windows-2025`, `ubuntu-24.04`
@@ -65,14 +67,34 @@ published, artifacts are kept 14 days).
    latest, with the unsigned-preview notice, verification steps and the committed changes.
 7. Verify a download (below), then announce the release.
 
-If the upload step fails after the tag exists, fix the cause and dispatch **Release** again from
-the **tag ref** with _rehearsal_ unticked: it publishes that tag without moving it. If the
-release was created but is wrong, delete the release and the tag, fix, and use the next patch
-version (with immutable releases on, the old tag name is burned).
+### Recovering from a failed or interrupted upload
+
+`gh release create` with assets creates an unpublished **draft**, uploads the files, then
+publishes. An upload that dies midway therefore leaves a draft, never a half-published release.
+
+1. Look first: `gh release view <tag>` (a published release) and, with a token that can push,
+   `gh api repos/BrainerVirus/mangaverse/releases --jq '.[] | select(.tag_name=="<tag>") | {id, draft}'`.
+2. **Draft (unpublished):** re-run. Dispatch **Release** from the **tag ref** with _rehearsal_
+   unticked. The `release` job deletes an unpublished draft for that tag by id (the tag is kept,
+   `gh release delete <tag> --cleanup-tag=false` does the same by hand) and publishes again.
+3. **Published:** the workflow refuses to touch it, and so should you: never delete a published
+   release or its tag silently. If it is wrong, say so publicly, delete it deliberately, fix, and
+   ship the next patch version (with immutable releases on, the old tag name is burned).
 
 ## Unsigned builds: what users see
 
-The v0.0.1 installers are not code-signed or notarized.
+The v0.0.1 installers are not Developer ID-signed or notarized. The macOS app is ad-hoc signed so Apple Silicon can launch it; Windows and Linux are unsigned.
+
+On macOS the app is still **ad-hoc signed** (not a Developer ID signature, no notarization).
+Flipping the Electron fuses edits the Electron Framework and breaks the signature Electron ships
+with, and Apple Silicon kills a process with an invalid signature (SIGKILL at launch). So
+`apps/desktop/scripts/after-sign.mjs` (`afterSign` in `electron-builder.yml`) re-signs the `.app`
+after the fuses are applied and before the dmg and zip are built, only when the bundle does not
+already verify. A real Developer ID signature is left untouched. `afterPack` cannot do this: it
+runs before the fuses. The ad-hoc signature has no hardened runtime, because an ad-hoc process
+cannot load an equally ad-hoc framework under library validation. The packaged proof
+(`test:e2e:packaged`) checks `codesign --verify --deep --strict` on the shipped app and framework
+and launches the unmodified artifact.
 
 - **macOS**: Gatekeeper refuses to open the app. Open **System Settings → Privacy & Security**
   and choose **Open Anyway** for MangaVerse, then confirm. If macOS says the app is damaged,

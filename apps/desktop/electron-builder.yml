@@ -41,6 +41,12 @@ electronFuses:
   enableEmbeddedAsarIntegrityValidation: true
   onlyLoadAppFromAsar: true
   grantFileProtocolExtraPrivileges: false
+# The fuses above rewrite the Electron Framework, which breaks the signature Electron ships with
+# and gets the app SIGKILLed on Apple Silicon. electron-builder flips the fuses and signs, but an
+# unsigned build is left broken. This hook (it runs after the fuses, before the dmg and zip)
+# ad-hoc signs the .app only when it does not already verify; a real signing identity is left
+# untouched. `afterPack` is too early: it runs before the fuses. See scripts/after-sign.mjs.
+afterSign: scripts/after-sign.mjs
 # `mangaverse://` deep links: Info.plist CFBundleURLTypes on macOS, the .desktop MimeType
 # (x-scheme-handler) on Linux, the registry entry on Windows. main registers the same scheme at
 # runtime with app.setAsDefaultProtocolClient.

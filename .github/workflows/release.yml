@@ -93,15 +93,21 @@ jobs:
             exit 1
           fi
 
-          # The tagged commit must already have passed CI on main (the CI workflow's push run).
-          green=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&status=success&per_page=1" --jq .total_count)
+          # The tagged commit must already have passed CI as a push to main. Filtering by SHA
+          # alone also matches the pull_request run of the same commit (a PR head is not
+          # necessarily on main), so ask for event=push on branch main, and re-check each
+          # returned run's event, branch and commit instead of trusting the filters alone.
+          green=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&event=push&branch=main&status=success&per_page=100" \
+            --jq '[.workflow_runs[] | select(.event == "push" and .head_branch == "main" and .conclusion == "success" and .head_sha == env.GITHUB_SHA)] | length')
           if [ "$green" -lt 1 ]; then
-            echo "::error::No successful CI run found for $GITHUB_SHA."
+            echo "::error::No successful CI run (event push, branch main) found for $GITHUB_SHA. A green pull-request run does not count."
             exit 1
           fi
 
+          # A published release for this tag is final. (A draft, which an interrupted upload
+          # leaves behind, is invisible to this read-only token and is cleared by the release job.)
           if [ "$publish" = true ] && gh release view "$REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "::error::A release for $REF_NAME already exists."
+            echo "::error::A published release for $REF_NAME already exists; it is never overwritten."
             exit 1
           fi
 
@@ -252,6 +258,24 @@ jobs:
           merge-multiple: true
           path: assets
 
+      # `gh release create` with assets makes a draft, uploads, then publishes, so an upload that
+      # dies midway leaves an unpublished draft. Replace only that: a draft is deleted by id
+      # (its tag is untouched), and a published release for the tag stops the run.
+      - name: Clear an interrupted draft
+        run: |
+          set -euo pipefail
+          existing=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq '.[] | select(.tag_name == env.TAG) | "\(.id) \(.draft)"')
+          while read -r id draft; do
+            [ -n "$id" ] || continue
+            if [ "$draft" != true ]; then
+              echo "::error::Release $id for $TAG is published; refusing to replace it."
+              exit 1
+            fi
+            echo "Deleting unpublished draft release $id for $TAG (the tag is kept)."
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/releases/$id"
+          done <<< "$existing"
+
       - name: Write SHA256SUMS
         working-directory: assets
         run: |
@@ -269,10 +293,11 @@ jobs:
       - name: Write release notes
         run: |
           cat > release-notes.md <<'EOF'
-          > **Unsigned early preview.** These installers are not code-signed or notarized, so
-          > macOS Gatekeeper and Windows SmartScreen warn on first launch. Install only if you
-          > trust this repository. Apple Silicon only (no Intel Mac build); Windows x64; Linux x64.
-          > There is no auto-update in this release.
+          > **Unsigned early preview.** These installers are not Developer ID-signed or notarized,
+          > so macOS Gatekeeper and Windows SmartScreen warn on first launch. The macOS app carries
+          > an ad-hoc signature so Apple Silicon can launch it, not a trusted identity. Install only
+          > if you trust this repository. Apple Silicon only (no Intel Mac build); Windows x64; Linux
+          > x64. There is no auto-update in this release.
 
           ### Verify what you download
 
