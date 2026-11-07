@@ -321,6 +321,75 @@
       min-inline-size: 2.75rem;
     }
   }
+
+  /* Scrollbars — DESIGN.md §3.3. The platform default on Windows is a 17px light
+     rail that ignores the palette (and a bright track in dark mode). Both the
+     standard properties and the WebKit pseudo-elements are declared: Chromium
+     121+ (Electron 44) resolves `scrollbar-width`/`scrollbar-color` and ignores
+     the pseudo-elements, while older WebKit engines take the fallback. The idle
+     thumb mixes `--muted-foreground` into the surface at 65% — about 2.7:1 on
+     the light canvas and 3.8:1 on the dark one, against the default's ~1.5:1 —
+     without becoming a bright rail. Hover moves to the full muted ink (5.3:1 /
+     7.8:1). `scrollbar-color` inherits, so `main`, dialogs, sheets, the palette
+     list, textareas and the reader strip all follow the active theme; the width
+     uses the universal selector below because Chromium does not inherit it. */
+  html {
+    --scrollbar-thumb: color-mix(in oklab, var(--muted-foreground) 65%, transparent);
+    --scrollbar-thumb-hover: var(--muted-foreground);
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+
+  /* `scrollbar-color` is inherited but `scrollbar-width` is not (Chromium 142
+     computes `auto` on a nested scroller that only has it on `html`), so the
+     width needs the universal selector or `main` and every dialog keep the
+     platform's fat bar. */
+  * {
+    scrollbar-width: thin;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+
+  /* The transparent border plus `content-box` keeps the painted thumb 6px wide,
+     so the fallback reads as thin as the standards path. */
+  ::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 9999px;
+    background-color: var(--scrollbar-thumb);
+    background-clip: content-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+
+  ::-webkit-scrollbar-corner {
+    background-color: transparent;
+  }
+
+  /* High-contrast users get the full ink/paper pair instead of the muted mix. */
+  @media (prefers-contrast: more) {
+    html {
+      --scrollbar-thumb: var(--foreground);
+      --scrollbar-thumb-hover: var(--foreground);
+      scrollbar-color: var(--foreground) var(--background);
+    }
+  }
+
+  /* The app's page scroller on md+ (below md the shell still gives it the height).
+     `stable` reserves the thin bar's width (11px in this build), so a short page
+     and a long page share one content width instead of shifting as the bar appears. */
+  @media (width >= 48rem) {
+    [data-app-shell] > main {
+      scrollbar-gutter: stable;
+    }
+  }
 }
 
 @layer utilities {
