@@ -49,6 +49,7 @@ import { registerPageStoreIpc } from './page-store-ipc.js';
 import { createRendererImportStore, registerRendererImportIpc } from './renderer-import.js';
 import { createSecureStorageModel } from './secure-storage.js';
 import { registerAutoUpdate } from './updater.js';
+import { createScriptUpdater, hasScriptInstall } from './script-updater.js';
 import {
   buildContentSecurityPolicy,
   PAGE_CONTENT_SECURITY_POLICY,
@@ -354,7 +355,16 @@ void app.whenReady().then(async () => {
     bootstrap();
 
     // After the window and the data host exist: checks are delayed and quiet (#215).
+    const scriptUpdater =
+      app.getVersion().includes('-nightly.') && hasScriptInstall()
+        ? createScriptUpdater({
+            currentVersion: app.getVersion(),
+            resourcesPath: process.resourcesPath,
+            quit: () => app.quit(),
+          })
+        : undefined;
     const updater = registerAutoUpdate({
+      ...(scriptUpdater === undefined ? {} : { customUpdater: scriptUpdater }),
       getPromptWindow: () => mainWindow,
       isTrustedFrame,
     });

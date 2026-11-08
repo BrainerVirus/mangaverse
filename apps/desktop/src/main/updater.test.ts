@@ -35,7 +35,13 @@ afterEach(() => {
   for (const handle of handles.splice(0)) handle.stop();
 });
 
-function setup(overrides: { isPackaged?: boolean; hasFeed?: boolean } = {}) {
+function setup(
+  overrides: {
+    isPackaged?: boolean;
+    hasFeed?: boolean;
+    useScriptUpdater?: boolean;
+  } = {},
+) {
   const handlers = new Map<string, Handler>();
   const updater = new FakeUpdater();
   const send = vi.fn<(channel: string, ...args: unknown[]) => void>();
@@ -51,7 +57,9 @@ function setup(overrides: { isPackaged?: boolean; hasFeed?: boolean } = {}) {
     isPackaged: overrides.isPackaged ?? true,
     resourcesPath: '/resources',
     hasFeed: () => overrides.hasFeed ?? true,
-    updater: updater as unknown as UpdaterLike,
+    ...(overrides.useScriptUpdater
+      ? { customUpdater: updater as unknown as UpdaterLike }
+      : { updater: updater as unknown as UpdaterLike }),
     log,
   });
   handles.push(handle);
@@ -84,6 +92,15 @@ describe('registerAutoUpdate', () => {
     expect(ctx.handle.enabled).toBe(true);
     expect(ctx.updater.autoDownload).toBe(true);
     expect(ctx.updater.autoInstallOnAppQuit).toBe(false);
+  });
+
+  it('enables the injected script updater without a publish feed', () => {
+    const ctx = setup({ hasFeed: false, useScriptUpdater: true });
+    expect(ctx.handle.enabled).toBe(true);
+    expect(ctx.updater.autoDownload).toBe(true);
+    expect(ctx.updater.autoInstallOnAppQuit).toBe(false);
+    expect(ctx.updater.listenerCount('update-downloaded')).toBe(1);
+    expect(ctx.log).toHaveBeenCalledWith('enabled');
   });
 
   it('prompts only once a release has downloaded', () => {

@@ -41,6 +41,7 @@ jobs:
             script: package:win
             files: |
               apps/desktop/release/MangaVerse-*-x64.exe
+              apps/desktop/release/MangaVerse-*-x64.zip
           - id: linux-x64
             os: ubuntu-24.04
             script: package:linux
