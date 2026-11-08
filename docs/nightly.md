@@ -44,10 +44,13 @@ No `sudo` and no paid Apple/Windows account are used.
 
 ## Update
 
+macOS and Linux:
+
 ```sh
-# macOS / Linux
 curl -fsSL https://raw.githubusercontent.com/BrainerVirus/mangaverse/main/scripts/install/install.sh | sh -s -- update
 ```
+
+Windows PowerShell:
 
 ```powershell
 $s = [scriptblock]::Create((irm https://raw.githubusercontent.com/BrainerVirus/mangaverse/main/scripts/install/install.ps1)); & $s -Action update
@@ -81,9 +84,13 @@ once with the command above to move onto the nightly channel.
 
 ## Uninstall
 
+macOS and Linux:
+
 ```sh
 curl -fsSL https://raw.githubusercontent.com/BrainerVirus/mangaverse/main/scripts/install/install.sh | sh -s -- uninstall
 ```
+
+Windows PowerShell:
 
 ```powershell
 $s = [scriptblock]::Create((irm https://raw.githubusercontent.com/BrainerVirus/mangaverse/main/scripts/install/install.ps1)); & $s -Action uninstall

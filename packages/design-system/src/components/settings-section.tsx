@@ -2,7 +2,6 @@ import * as React from 'react';
 import { ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/cn.js';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card.js';
-import { Separator } from './ui/separator.js';
 
 export interface SettingsSectionProps {
   title: string;
@@ -50,12 +49,7 @@ export function SettingsSection({
         {description && isOpen ? <CardDescription>{description}</CardDescription> : null}
       </CardHeader>
 
-      {isOpen ? (
-        <CardContent className="pt-0">
-          {children}
-          <Separator className="mt-4" />
-        </CardContent>
-      ) : null}
+      {isOpen ? <CardContent className="pt-0">{children}</CardContent> : null}
     </Card>
   );
 }

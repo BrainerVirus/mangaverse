@@ -5,9 +5,21 @@ import {
   type CSSProperties,
   type Key,
   type KeyboardEvent,
+  type ComponentProps,
   type RefObject,
 } from 'react';
 import type { VirtualItem } from '@tanstack/react-virtual';
+import {
+  Check,
+  CheckCheck,
+  Download,
+  Play,
+  RotateCcw,
+  Trash2,
+  Undo2,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
 import {
   Badge,
   Button,
@@ -215,6 +227,106 @@ function downloadPresentation(
   }
 }
 
+/** The icon that says what a download command does; a paused download resumes with Play. */
+function downloadIcon(command: DownloadCommand, label: string): LucideIcon {
+  if (command === 'download') return Download;
+  if (command === 'cancel') return X;
+  if (command === 'remove') return Trash2;
+  return label === 'Resume' ? Play : RotateCcw;
+}
+
+/**
+ * A row action: an icon, plus its label once the list is wide enough (`@2xl`, the list is a
+ * container). The label stays on `title` and `aria-label` so the narrow icon-only form is
+ * still named for hover, keyboard and assistive technology.
+ */
+function RowAction({
+  icon: Icon,
+  label,
+  ...props
+}: ComponentProps<typeof Button> & { readonly icon: LucideIcon; readonly label: string }) {
+  return (
+    <Button type="button" size="sm" variant="ghost" title={label} {...props}>
+      <Icon aria-hidden className="size-4" />
+      <span className="hidden @2xl:inline">{label}</span>
+    </Button>
+  );
+}
+
+/** The download buttons that fit the row's status. */
+function DownloadActions({
+  chapter,
+  presentation,
+  disabled,
+  onDownloadCommand,
+}: {
+  readonly chapter: Chapter;
+  readonly presentation: DownloadPresentation | undefined;
+  readonly disabled: boolean;
+  onDownloadCommand: ((chapterId: ChapterId, command: DownloadCommand) => void) | undefined;
+}) {
+  if (onDownloadCommand === undefined || presentation === undefined) return null;
+  return presentation.commands.map((action) => (
+    <RowAction
+      key={action.command}
+      icon={downloadIcon(action.command, action.label)}
+      label={action.label}
+      disabled={disabled}
+      aria-label={
+        action.command === 'download'
+          ? `Download chapter ${chapter.index}`
+          : `${action.label} download: chapter ${chapter.index}`
+      }
+      aria-describedby={`chapter-title-${chapter.id}`}
+      onClick={() => onDownloadCommand(chapter.id, action.command)}
+    />
+  ));
+}
+
+/** Mark this chapter read or unread, and mark everything before it read. */
+function ReadActions({
+  chapter,
+  isFirst,
+  isRead,
+  isPending,
+  onSetChapterRead,
+  onMarkPreviousRead,
+  run,
+}: {
+  readonly chapter: Chapter;
+  readonly isFirst: boolean;
+  readonly isRead: boolean;
+  readonly isPending: boolean;
+  onSetChapterRead: ((chapterId: ChapterId, read: boolean) => Promise<void> | void) | undefined;
+  onMarkPreviousRead: ((chapterId: ChapterId) => Promise<void> | void) | undefined;
+  run: (action: () => Promise<void> | void) => void;
+}) {
+  return (
+    <>
+      {onSetChapterRead !== undefined ? (
+        <RowAction
+          icon={isRead ? Undo2 : Check}
+          label={isRead ? 'Mark unread' : 'Mark read'}
+          disabled={isPending}
+          aria-label={`${isRead ? 'Mark unread' : 'Mark read'}: chapter ${chapter.index}`}
+          aria-describedby={`chapter-title-${chapter.id}`}
+          onClick={() => run(() => onSetChapterRead(chapter.id, !isRead))}
+        />
+      ) : null}
+      {onMarkPreviousRead !== undefined && !isFirst ? (
+        <RowAction
+          icon={CheckCheck}
+          label="Read previous"
+          disabled={isPending}
+          aria-label={`Mark previous chapters read: chapter ${chapter.index}`}
+          aria-describedby={`chapter-title-${chapter.id}`}
+          onClick={() => run(() => onMarkPreviousRead(chapter.id))}
+        />
+      ) : null}
+    </>
+  );
+}
+
 /** One row's controls; the `<li>` and its positioning stay with the list. */
 function ChapterRowContent({
   chapter,
@@ -236,7 +348,7 @@ function ChapterRowContent({
       <button
         type="button"
         aria-label={`Open ${chapter.title}`}
-        className="flex min-w-0 flex-1 items-center gap-3 rounded-control py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="flex min-w-0 flex-1 items-center gap-3 self-stretch py-3 ps-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:ps-4"
         onClick={() => onOpenChapter(chapter.id)}
       >
         <span className="min-w-0">
@@ -260,54 +372,21 @@ function ChapterRowContent({
         </span>
       </button>
 
-      {onDownloadCommand !== undefined && presentation !== undefined
-        ? presentation.commands.map((action) => (
-            <Button
-              key={action.command}
-              type="button"
-              size="sm"
-              variant="ghost"
-              disabled={isDownloadPending}
-              aria-label={
-                action.command === 'download'
-                  ? `Download chapter ${chapter.index}`
-                  : `${action.label} download: chapter ${chapter.index}`
-              }
-              aria-describedby={`chapter-title-${chapter.id}`}
-              onClick={() => onDownloadCommand(chapter.id, action.command)}
-            >
-              {action.label}
-            </Button>
-          ))
-        : null}
-
-      {onSetChapterRead !== undefined ? (
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          disabled={isPending}
-          aria-label={`${isRead ? 'Mark unread' : 'Mark read'}: chapter ${chapter.index}`}
-          aria-describedby={`chapter-title-${chapter.id}`}
-          onClick={() => run(() => onSetChapterRead(chapter.id, !isRead))}
-        >
-          {isRead ? 'Unread' : 'Read'}
-        </Button>
-      ) : null}
-
-      {onMarkPreviousRead !== undefined && !isFirst ? (
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          disabled={isPending}
-          aria-label={`Mark previous chapters read: chapter ${chapter.index}`}
-          aria-describedby={`chapter-title-${chapter.id}`}
-          onClick={() => run(() => onMarkPreviousRead(chapter.id))}
-        >
-          Previous
-        </Button>
-      ) : null}
+      <DownloadActions
+        chapter={chapter}
+        presentation={presentation}
+        disabled={isDownloadPending}
+        onDownloadCommand={onDownloadCommand}
+      />
+      <ReadActions
+        chapter={chapter}
+        isFirst={isFirst}
+        isRead={isRead}
+        isPending={isPending}
+        onSetChapterRead={onSetChapterRead}
+        onMarkPreviousRead={onMarkPreviousRead}
+        run={run}
+      />
     </>
   );
 }
@@ -430,7 +509,7 @@ function ChapterRows({
       aria-label="Chapters"
       data-virtualized={isVirtualized ? '' : undefined}
       className={cn(
-        'rounded-box border border-border',
+        '@container overflow-hidden rounded-box border border-border',
         // Windowed rows are absolutely positioned inside the list; the list
         // keeps the full scroll height from the virtualizer's total size.
         isVirtualized ? 'relative' : 'divide-y divide-border',
@@ -449,7 +528,7 @@ function ChapterRows({
           aria-posinset={position + 1}
           onKeyDown={(event) => chapterRowKeyDown(event, position, totalCount, onFocusRow)}
           className={cn(
-            'flex items-center gap-2 px-2 sm:px-4',
+            'flex items-center gap-1 pe-2 transition-colors hover:bg-muted/50 sm:pe-4',
             isVirtualized && 'border-t border-border',
           )}
         >

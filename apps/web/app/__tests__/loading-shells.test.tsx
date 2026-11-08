@@ -323,6 +323,11 @@ describe('manga detail while the title loads', () => {
     const header = container.querySelector('[data-detail-header]');
     expect(header?.querySelector('.aspect-3\\/4')).not.toBeNull();
     expect(header?.className).toContain('@5xl:flex-row');
+    // Back sits in the summary column's page-header row, as it does once the title loads;
+    // a cell of its own moved it around until then.
+    expect(header?.querySelector('[data-page-header]')).toContainElement(
+      screen.getByRole('button', { name: 'Back' }),
+    );
     expect(screen.getByRole('region', { name: 'Manga details' })).toHaveAttribute(
       'aria-busy',
       'true',
