@@ -69,6 +69,22 @@ describe('MangaDex schemas', () => {
     ).toThrowError(expect.objectContaining({ code: MANGADEX_PAYLOAD_INVALID }));
   });
 
+  it('Given a locale map with no string entries, Then payload drift still throws', () => {
+    expect(() =>
+      parseCollectionResponse(
+        {
+          data: [
+            {
+              id: '00000000-0000-4000-8000-000000000001',
+              attributes: { title: { en: 'Title' }, description: { en: 42 } },
+            },
+          ],
+        },
+        '/manga',
+      ),
+    ).toThrowError(expect.objectContaining({ code: MANGADEX_PAYLOAD_INVALID }));
+  });
+
   it('Given a broken payload, When parsed, Then it throws a normalized payload error', () => {
     expect(() => parseCollectionResponse({ data: [{ id: 'x' }] }, '/manga')).toThrowError(
       expect.objectContaining({ code: MANGADEX_PAYLOAD_INVALID }),

@@ -130,8 +130,11 @@ const descriptionSchema = z
     (value) =>
       value === null ||
       typeof value === 'string' ||
-      (typeof value === 'object' && value !== null && !Array.isArray(value)),
-    { error: 'must be a string, a locale map, or null' },
+      (typeof value === 'object' &&
+        value !== null &&
+        !Array.isArray(value) &&
+        (Object.keys(value).length === 0 || hasStringEntry(value))),
+    { error: 'must be a string, a non-empty locale map with a string entry, or null' },
   )
   .optional()
   .transform((value): Readonly<Record<string, string>> | string | undefined => {
