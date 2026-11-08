@@ -1,6 +1,6 @@
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import {
   createScriptUpdater,
@@ -33,8 +33,19 @@ describe('scriptReceiptPath', () => {
       '/home/a/data/mangaverse/receipt',
     );
     expect(
-      scriptReceiptPath('win32', 'C:\\Users\\a', { LOCALAPPDATA: 'C:\\Users\\a\\AppData\\Local' }),
+      scriptReceiptPath(
+        'win32',
+        'C:\\Users\\a',
+        {},
+        'C:\\Users\\a\\AppData\\Local\\Programs\\MangaVerse\\MangaVerse.exe',
+      ),
     ).toBe('C:\\Users\\a\\AppData\\Local\\Programs\\MangaVerse\\receipt.json');
+  });
+
+  it('finds a custom Windows install because the receipt sits next to the exe', () => {
+    expect(
+      scriptReceiptPath('win32', 'C:\\Users\\a', {}, 'D:\\Apps\\MangaVerse\\MangaVerse.exe'),
+    ).toBe('D:\\Apps\\MangaVerse\\receipt.json');
   });
 
   it('detects the receipt next to the app', () => {
@@ -59,6 +70,7 @@ describe('createScriptUpdater', () => {
     mkdirSync(join(root, 'install'), { recursive: true });
     mkdirSync(join(root, 'tmp'), { recursive: true });
     writeFileSync(join(root, 'install', 'install.sh'), '#!/bin/sh\n');
+    writeFileSync(join(root, 'install', 'install.ps1'), '# ps\n');
     return { root, temp: join(root, 'tmp') };
   }
 
@@ -87,14 +99,49 @@ describe('createScriptUpdater', () => {
     expect(downloaded).toHaveBeenCalledWith({ version: '0.0.4-nightly.20261108.2' });
 
     updater.quitAndInstall();
-    const staged = join(temp, 'mangaverse-update-install.sh');
+    const [command, args] = spawnImpl.mock.calls[0] as unknown as [string, string[]];
+    const staged = args[0]!;
+    expect(command).toBe('/bin/sh');
+    expect(basename(staged)).toBe('install.sh');
+    expect(dirname(staged).startsWith(temp)).toBe(true);
+    expect(basename(dirname(staged))).toMatch(/^mangaverse-update-/);
     expect(readFileSync(staged, 'utf8')).toBe('#!/bin/sh\n');
-    expect(spawnImpl).toHaveBeenCalledWith(
-      '/bin/sh',
-      [staged, 'update', '--version', 'v0.0.4-nightly.20261108.2'],
-      { detached: true, stdio: 'ignore' },
-    );
+    expect(args.slice(1)).toEqual(['update', '--version', 'v0.0.4-nightly.20261108.2']);
     expect(quit).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes a custom Windows install directory to the PowerShell helper', async () => {
+    const base = mkdtempSync(join(tmpdir(), 'mangaverse-updater-win-'));
+    const appRoot = join(base, 'Programs', 'MangaVerse');
+    mkdirSync(join(appRoot, 'resources', 'install'), { recursive: true });
+    mkdirSync(join(base, 'tmp'), { recursive: true });
+    writeFileSync(join(appRoot, 'resources', 'install', 'install.ps1'), '# ps\n');
+    const spawnImpl = vi.fn<(...args: unknown[]) => { unref: () => void }>(() => ({
+      unref: () => {},
+    }));
+    const updater = createScriptUpdater({
+      currentVersion: '0.0.4-nightly.20261108.1',
+      resourcesPath: join(appRoot, 'resources'),
+      tempDir: join(base, 'tmp'),
+      platform: 'win32',
+      quit: () => {},
+      spawnImpl: spawnImpl as never,
+      fetchImpl: (async () => ({
+        ok: true,
+        json: async () => [nightlyRelease('v0.0.4-nightly.20261108.2')],
+      })) as never,
+    });
+
+    await updater.checkForUpdates();
+    updater.quitAndInstall();
+
+    const [command, args] = spawnImpl.mock.calls[0] as unknown as [string, string[]];
+    expect(command).toBe('powershell.exe');
+    expect(args[0]).toBe('-NoProfile');
+    expect(args).toContain('-Action');
+    expect(args[args.indexOf('-Action') + 1]).toBe('update');
+    expect(args[args.indexOf('-Version') + 1]).toBe('v0.0.4-nightly.20261108.2');
+    expect(args[args.indexOf('-InstallDir') + 1]).toBe(appRoot);
   });
 
   it('does nothing when the newest nightly is not newer', async () => {
@@ -126,5 +173,24 @@ describe('createScriptUpdater', () => {
 
     await expect(updater.checkForUpdates()).resolves.toBeNull();
     expect(error).toHaveBeenCalledWith(expect.objectContaining({ message: 'GitHub returned 503' }));
+  });
+
+  it('does not offer an update it cannot stage', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'mangaverse-updater-empty-'));
+    const error = vi.fn<(value: Error) => void>();
+    const updater = createScriptUpdater({
+      currentVersion: '0.0.4-nightly.20261108.1',
+      resourcesPath: root,
+      tempDir: root,
+      quit: () => {},
+      fetchImpl: (async () => ({
+        ok: true,
+        json: async () => [nightlyRelease('v0.0.4-nightly.20261108.2')],
+      })) as never,
+    });
+    updater.on('error', error);
+
+    expect(await updater.checkForUpdates()).toBeNull();
+    expect(error.mock.calls[0]?.[0]?.message).toContain('update helper missing');
   });
 });

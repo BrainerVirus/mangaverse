@@ -8,9 +8,9 @@
  */
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { chmod, copyFile } from 'node:fs/promises';
+import { chmod, copyFile, mkdtemp } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
-import { join, posix as pathPosix, win32 as pathWin32 } from 'node:path';
+import { dirname, join, posix as pathPosix, win32 as pathWin32 } from 'node:path';
 import type { UpdaterLike } from './updater.js';
 
 const REPO = 'BrainerVirus/mangaverse';
@@ -49,6 +49,7 @@ export function scriptReceiptPath(
   platform: NodeJS.Platform = process.platform,
   home = homedir(),
   env: NodeJS.ProcessEnv = process.env,
+  execPath: string = process.execPath,
 ): string {
   if (platform === 'darwin') {
     return pathPosix.join(
@@ -60,12 +61,8 @@ export function scriptReceiptPath(
     );
   }
   if (platform === 'win32') {
-    return pathWin32.join(
-      env['LOCALAPPDATA'] ?? pathWin32.join(home, 'AppData', 'Local'),
-      'Programs',
-      'MangaVerse',
-      'receipt.json',
-    );
+    // The Windows receipt sits next to the exe, so a custom -InstallDir is discoverable too.
+    return pathWin32.join(pathWin32.dirname(execPath), 'receipt.json');
   }
   const data = env['XDG_DATA_HOME'] ?? pathPosix.join(home, '.local', 'share');
   return pathPosix.join(data, 'mangaverse', 'receipt');
@@ -75,8 +72,9 @@ export function hasScriptInstall(
   platform: NodeJS.Platform = process.platform,
   home = homedir(),
   env: NodeJS.ProcessEnv = process.env,
+  execPath: string = process.execPath,
 ): boolean {
-  return existsSync(scriptReceiptPath(platform, home, env));
+  return existsSync(scriptReceiptPath(platform, home, env, execPath));
 }
 
 export interface ScriptUpdaterOptions {
@@ -112,8 +110,20 @@ export function createScriptUpdater(options: ScriptUpdaterOptions): UpdaterLike 
 
   const helperName = platform === 'win32' ? 'install.ps1' : 'install.sh';
   // The installer replaces (and on macOS deletes) the app bundle it came from, so it runs
-  // from a staged copy: a shell cannot keep reading a script whose file was just removed.
-  const stagedScript = join(options.tempDir ?? tmpdir(), `mangaverse-update-${helperName}`);
+  // from a fresh 0700 directory: a shell cannot keep reading a script whose file was removed,
+  // and a fixed shared-temp name could be pre-created by another local user.
+  let stagedScript: string | null = null;
+
+  // Stage before prompting so accepting can never fail on a missing or unreadable helper.
+  const stageHelper = async (): Promise<string> => {
+    const bundled = join(options.resourcesPath, 'install', helperName);
+    if (!existsSync(bundled)) throw new Error(`update helper missing: ${bundled}`);
+    const dir = await mkdtemp(join(options.tempDir ?? tmpdir(), 'mangaverse-update-'));
+    const script = join(dir, helperName);
+    await copyFile(bundled, script);
+    await chmod(script, 0o700);
+    return script;
+  };
 
   const checkChannel = async (): Promise<{
     readonly version: string;
@@ -142,14 +152,6 @@ export function createScriptUpdater(options: ScriptUpdaterOptions): UpdaterLike 
     return isNewerNightly(options.currentVersion, version) ? { version, tag } : null;
   };
 
-  // Stage before prompting so accepting can never fail on a missing or unreadable helper.
-  const stageHelper = async (): Promise<void> => {
-    const bundled = join(options.resourcesPath, 'install', helperName);
-    if (!existsSync(bundled)) throw new Error(`update helper missing: ${bundled}`);
-    await copyFile(bundled, stagedScript);
-    await chmod(stagedScript, 0o700);
-  };
-
   return {
     autoDownload: true,
     autoInstallOnAppQuit: false,
@@ -166,7 +168,7 @@ export function createScriptUpdater(options: ScriptUpdaterOptions): UpdaterLike 
       return checkChannel()
         .then(async (found) => {
           if (found === null) return null;
-          await stageHelper();
+          stagedScript = await stageHelper();
           pending = found;
           emit(downloaded, { version: found.version });
           return { downloadPromise: null };
@@ -177,7 +179,7 @@ export function createScriptUpdater(options: ScriptUpdaterOptions): UpdaterLike 
         });
     },
     quitAndInstall() {
-      if (pending === null) return;
+      if (pending === null || stagedScript === null) return;
       const command = platform === 'win32' ? 'powershell.exe' : '/bin/sh';
       const args =
         platform === 'win32'
@@ -191,6 +193,9 @@ export function createScriptUpdater(options: ScriptUpdaterOptions): UpdaterLike 
               'update',
               '-Version',
               pending.tag,
+              // resourcesPath is <installDir>\resources, so this also covers a custom dir.
+              '-InstallDir',
+              dirname(options.resourcesPath),
             ]
           : [stagedScript, 'update', '--version', pending.tag];
       log(`handing ${pending.version} to ${stagedScript}`);
