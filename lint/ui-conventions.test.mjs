@@ -225,6 +225,17 @@ export function A() {
   );
 }
 `,
+    "apps/web/app/filled-row-in-settings.tsx": `import { ListRow, SettingsSection } from '@app/design-system';
+export function A() {
+  return <>
+    <SettingsSection title="t"><ListRow /></SettingsSection>
+    <SettingsSection title="t"><div><ListRow tone="muted" /></div></SettingsSection>
+    <SettingsSection title="t"><ListRow tone="plain" /></SettingsSection>
+    <SettingsSection title="t"><ListRow tone="warning" /></SettingsSection>
+    <div><ListRow tone="muted" /></div>
+  </>;
+}
+`,
     "apps/web/app/scales-ok.tsx": `export function A() {
   return (
     <>
@@ -345,6 +356,7 @@ export const sizes = { sm: \`h-9 \${base} border-[var(--border)]\` } as const;
         "ui-conventions/no-border-ring-doubling": "error",
         "ui-conventions/no-list-row-overrides": "error",
         "ui-conventions/no-outlined-row-in-card": "error",
+        "ui-conventions/no-filled-row-in-settings": "error",
         "ui-conventions/no-space-utilities": "error",
         "ui-conventions/no-transition-all": "error",
       },
@@ -434,6 +446,13 @@ export const sizes = { sm: \`h-9 \${base} border-[var(--border)]\` } as const;
     );
   });
 
+  it("Given a settings section, when a default or muted tile is nested inside, then lint rejects it but permits plain rows and warnings", () => {
+    assert.deepEqual(
+      at("apps/web/app/filled-row-in-settings.tsx", "no-filled-row-in-settings"),
+      [4, 5],
+    );
+  });
+
   it("no-transition-all rejects catch-all utilities but permits explicit transitions", () => {
     assert.deepEqual(at("apps/web/app/transition-red.tsx", "no-transition-all"), [4, 5, 6, 6]);
     assert.deepEqual(at("apps/web/app/transition-green.tsx", "no-transition-all"), []);
@@ -518,13 +537,14 @@ describe("the repo oxlint config", () => {
   let dir;
   let rel;
   let diagnostics;
-  const red = `import { Button, Card } from '@app/design-system';
+  const red = `import { Button, Card, ListRow, SettingsSection } from '@app/design-system';
 export function Red() {
   return (
     <Card>
       <div className="space-y-2" />
       <Card className="bg-white/10 backdrop-blur-md border ring-1" />
       <Button className="p-[13px] bg-red-500 bg-[#fff]" style={{ padding: 13, color: '#fff' }} />
+      <SettingsSection title="t"><ListRow /></SettingsSection>
     </Card>
   );
 }
@@ -557,13 +577,14 @@ export function Green() {
   const rulesOf = (name) =>
     new Set(diagnostics.filter((d) => d.file.endsWith(name)).map((d) => d.rule));
 
-  it("fails the red fixture on the four enforced ui-conventions rules", () => {
+  it("fails the red fixture on the enforced ui-conventions rules", () => {
     const rules = rulesOf("red.tsx");
     for (const rule of [
       "no-nested-card",
       "no-hand-rolled-glass",
       "no-border-ring-doubling",
       "no-space-utilities",
+      "no-filled-row-in-settings",
     ]) {
       assert.ok(rules.has(`ui-conventions(${rule})`), `${rule} missing from ${[...rules]}`);
     }

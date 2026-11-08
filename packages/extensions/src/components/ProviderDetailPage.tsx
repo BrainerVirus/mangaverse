@@ -10,6 +10,8 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DividedList,
+  DividedRow,
   EmptyState,
   ErrorState,
   ListRow,
@@ -235,14 +237,12 @@ function HealthCheckSection({ health }: { health: ProviderHealthState }) {
                 {health.report.status}
               </Badge>
             </div>
-            <ul className="flex flex-col gap-2">
+            <DividedList>
               {health.report.checks.map((item) => (
-                <ListRow
-                  as="li"
+                <DividedRow
                   key={item.id}
-                  tone="muted"
-                  padding="md"
-                  className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between"
+                  layout="stacked"
+                  className="sm:flex-row sm:items-baseline sm:justify-between"
                 >
                   <span className="font-medium">{item.label}</span>
                   <span className="flex flex-col gap-1 sm:items-end">
@@ -251,9 +251,9 @@ function HealthCheckSection({ health }: { health: ProviderHealthState }) {
                       <span className="text-sm text-muted-foreground">{item.reason}</span>
                     ) : null}
                   </span>
-                </ListRow>
+                </DividedRow>
               ))}
-            </ul>
+            </DividedList>
           </output>
         ) : null}
       </div>
@@ -455,15 +455,9 @@ function ActivitySection({
         ) : logs.length === 0 ? (
           <ActivityEmptyMessage level={activity.level} retained={retainedForLevel} />
         ) : (
-          <ul aria-label="Provider activity entries" className="flex flex-col gap-2">
+          <DividedList aria-label="Provider activity entries">
             {logs.map((entry) => (
-              <ListRow
-                as="li"
-                key={entry.id}
-                tone="muted"
-                padding="md"
-                className="flex flex-col gap-1"
-              >
+              <DividedRow key={entry.id} layout="stacked">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant={logBadgeVariant(entry.level)}>{entry.level}</Badge>
                   <code className="text-xs text-muted-foreground">{entry.code}</code>
@@ -473,9 +467,9 @@ function ActivitySection({
                   </span>
                 </div>
                 <p className="break-words text-sm">{entry.message}</p>
-              </ListRow>
+              </DividedRow>
             ))}
-          </ul>
+          </DividedList>
         )}
       </div>
     </SettingsSection>
@@ -752,13 +746,8 @@ export function ProviderDetailPage({
           title="Content flags"
           description="Mature content support declared in the manifest."
         >
-          <dl className="grid gap-3 @2xl:grid-cols-3">
-            <ListRow
-              tone="muted"
-              padding="md"
-              className="flex min-w-0 items-center justify-between gap-3"
-              data-testid="content-flag-tile"
-            >
+          <DividedList as="dl">
+            <DividedRow as="div" data-testid="content-flag-tile">
               <dt>NSFW</dt>
               <dd>
                 <Switch
@@ -767,13 +756,8 @@ export function ProviderDetailPage({
                   aria-label="NSFW content flag"
                 />
               </dd>
-            </ListRow>
-            <ListRow
-              tone="muted"
-              padding="md"
-              className="flex min-w-0 items-center justify-between gap-3"
-              data-testid="content-flag-tile"
-            >
+            </DividedRow>
+            <DividedRow as="div" data-testid="content-flag-tile">
               <dt>Suggestive</dt>
               <dd>
                 <Switch
@@ -782,13 +766,8 @@ export function ProviderDetailPage({
                   aria-label="Suggestive content flag"
                 />
               </dd>
-            </ListRow>
-            <ListRow
-              tone="muted"
-              padding="md"
-              className="flex min-w-0 items-center justify-between gap-3"
-              data-testid="content-flag-tile"
-            >
+            </DividedRow>
+            <DividedRow as="div" data-testid="content-flag-tile">
               <dt>Violence</dt>
               <dd>
                 <Switch
@@ -797,8 +776,8 @@ export function ProviderDetailPage({
                   aria-label="Violence content flag"
                 />
               </dd>
-            </ListRow>
-          </dl>
+            </DividedRow>
+          </DividedList>
         </SettingsSection>
 
         <UninstallProviderDialog

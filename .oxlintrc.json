@@ -114,6 +114,7 @@
     "ui-conventions/no-list-row-overrides": "error",
     // An outlined ListRow inside a Card/SettingsSection is a second border in one grouping.
     "ui-conventions/no-outlined-row-in-card": "error",
+    "ui-conventions/no-filled-row-in-settings": "error",
     // `space-x-*`/`space-y-*` margin stacks anywhere: siblings are spaced with `gap-*` on a flex or grid parent.
     "ui-conventions/no-space-utilities": "error",
     "ui-conventions/no-transition-all": "error",
