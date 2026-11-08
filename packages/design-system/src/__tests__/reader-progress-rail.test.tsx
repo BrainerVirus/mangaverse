@@ -99,6 +99,25 @@ describe('ReaderProgressRail', () => {
     expect(screen.queryByTestId('reader-rail-preview')).not.toBeInTheDocument();
   });
 
+  it('Given a hovered rail, Then the preview is centred once, not shifted again by a second class', () => {
+    render(
+      <ReaderProgressRail
+        value={1}
+        min={1}
+        max={10}
+        onChange={() => {}}
+        renderPreview={(page) => <span>{page}</span>}
+      />,
+    );
+    fireEvent.pointerEnter(screen.getByRole('slider', { name: 'Page slider' }));
+
+    const preview = screen.getByTestId('reader-rail-preview');
+    // reader-progress-preview carries `translateX(-50%)`; any other translate class on top of it
+    // doubles the shift (the preview sat half its width to the left of the pointer).
+    expect(preview).toHaveClass('reader-progress-preview');
+    expect(preview.className).not.toMatch(/translate/);
+  });
+
   it('uses the documented rail transition and removes it for reduced motion', () => {
     const props = { value: 3, min: 1, max: 10, onChange: vi.fn<(value: number) => void>() };
     const { rerender } = render(<ReaderProgressRail {...props} />);

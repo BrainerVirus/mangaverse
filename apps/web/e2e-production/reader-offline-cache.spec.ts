@@ -1,9 +1,10 @@
 import { expect, type Page } from '@playwright/test';
 import {
   MANGADEX_APP_MANGA_ID,
-  TINY_JPEG,
+  settledBox,
   showReaderControls,
   test,
+  TINY_JPEG,
   waitForPingQuiet,
 } from './helpers.js';
 
@@ -86,7 +87,7 @@ test('Given a partially cached chapter, When reopened offline, Then the missing 
 
   await showReaderControls(page);
   const rail = page.getByRole('slider', { name: 'Page slider' });
-  const railBox = (await rail.boundingBox())!;
+  const railBox = await settledBox(rail);
   await page.mouse.move(railBox.x + railBox.width / 2, railBox.y + railBox.height / 2);
   await expect(page.getByTestId('reader-rail-preview')).toBeVisible();
   await expect(page.locator('[data-glass-tier="stage"]')).toHaveCount(3);

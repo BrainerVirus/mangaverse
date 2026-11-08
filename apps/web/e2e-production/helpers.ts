@@ -265,3 +265,24 @@ export const test = base.extend<{
     await use();
   },
 });
+
+/**
+ * The element's box once it has stopped moving. Chrome that slides in (the reader controls) is
+ * still travelling when it first becomes visible, and a pointer aimed at the mid-flight position
+ * misses a small target such as the 8px page rail once it settles.
+ */
+export async function settledBox(locator: Locator) {
+  let previous = '';
+  await expect
+    .poll(
+      async () => {
+        const current = JSON.stringify(await locator.boundingBox());
+        const settled = current === previous;
+        previous = current;
+        return settled;
+      },
+      { intervals: [120, 120, 120], timeout: 10_000 },
+    )
+    .toBe(true);
+  return (await locator.boundingBox())!;
+}
