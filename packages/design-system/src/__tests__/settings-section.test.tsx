@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { SettingsSection } from '../components/settings-section.js';
 
 describe('SettingsSection', () => {
@@ -110,6 +110,30 @@ describe('SettingsSection', () => {
 
     expect(screen.queryByText('Hidden content')).not.toBeInTheDocument();
     expect(screen.getByRole('button')).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('Given a collapsed section, When it is opened and closed, Then the body mounts once, eases via data-open and is inert while closed', () => {
+    render(
+      <SettingsSection title="Folding" collapsed>
+        <button type="button">Inside</button>
+      </SettingsSection>,
+    );
+    const toggle = screen.getByRole('button', { name: 'Folding' });
+    expect(screen.queryByRole('button', { name: 'Inside' })).not.toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    const inside = screen.getByRole('button', { name: 'Inside' });
+    const region = inside.closest('[data-open]')!;
+    expect(region).toHaveAttribute('data-open', 'true');
+    expect(inside.closest('[inert]')).toBeNull();
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.click(toggle);
+    // Still mounted so the height can ease down, but out of the tab order and the a11y tree.
+    expect(screen.getByRole('button', { name: 'Inside', hidden: true })).toBe(inside);
+    expect(region).toHaveAttribute('data-open', 'false');
+    expect(inside.closest('[inert]')).not.toBeNull();
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('children are visible by default when not collapsed', () => {

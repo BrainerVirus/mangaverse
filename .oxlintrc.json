@@ -84,6 +84,7 @@
           "scroll-fade-y",
           "scroll-fade-overlay-y",
           "expandable-box",
+          "collapsible-grid",
           "rounded-badge",
           "rounded-box",
           "rounded-btn",

@@ -208,9 +208,6 @@
   "packages/design-system/src/components/reader-progress-rail.tsx": {
     "no-use-state": 4
   },
-  "packages/design-system/src/components/settings-section.tsx": {
-    "no-use-state": 1
-  },
   "packages/extensions-sdk/src/contract-tests.ts": {
     "no-try-catch": 1
   },

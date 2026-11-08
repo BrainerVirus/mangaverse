@@ -942,3 +942,24 @@
     transition: none;
   }
 }
+
+/* A collapsible region that animates to and from its content height without measuring it: the
+   grid's single row eases between 0fr and 1fr, and the child (`min-h-0 overflow-hidden`) is
+   clipped while it travels. `@starting-style` makes a region that mounts open ease in from 0fr
+   too. Reduced motion snaps. Mark the state with `data-open="true"`. */
+@utility collapsible-grid {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 300ms ease-out;
+  &[data-open="true"] {
+    grid-template-rows: 1fr;
+  }
+  @starting-style {
+    &[data-open="true"] {
+      grid-template-rows: 0fr;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
