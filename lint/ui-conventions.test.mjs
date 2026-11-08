@@ -537,13 +537,14 @@ describe("the repo oxlint config", () => {
   let dir;
   let rel;
   let diagnostics;
-  const red = `import { Button, Card } from '@app/design-system';
+  const red = `import { Button, Card, ListRow, SettingsSection } from '@app/design-system';
 export function Red() {
   return (
     <Card>
       <div className="space-y-2" />
       <Card className="bg-white/10 backdrop-blur-md border ring-1" />
       <Button className="p-[13px] bg-red-500 bg-[#fff]" style={{ padding: 13, color: '#fff' }} />
+      <SettingsSection title="t"><ListRow /></SettingsSection>
     </Card>
   );
 }
@@ -576,13 +577,14 @@ export function Green() {
   const rulesOf = (name) =>
     new Set(diagnostics.filter((d) => d.file.endsWith(name)).map((d) => d.rule));
 
-  it("fails the red fixture on the four enforced ui-conventions rules", () => {
+  it("fails the red fixture on the enforced ui-conventions rules", () => {
     const rules = rulesOf("red.tsx");
     for (const rule of [
       "no-nested-card",
       "no-hand-rolled-glass",
       "no-border-ring-doubling",
       "no-space-utilities",
+      "no-filled-row-in-settings",
     ]) {
       assert.ok(rules.has(`ui-conventions(${rule})`), `${rule} missing from ${[...rules]}`);
     }
