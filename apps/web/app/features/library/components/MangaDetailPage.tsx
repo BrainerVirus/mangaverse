@@ -1178,8 +1178,10 @@ function MangaDetailContent(props: MangaDetailPageProps & { readonly data: Manga
 }
 
 /**
- * The header's own boxes before there is a title: the Back link is static, the cover keeps its
- * 3:4 ratio and the summary column its lines, and the chapter list waits below them.
+ * The header's own boxes before there is a title, laid out by the same rules as the loaded
+ * header: the cover, then the summary column whose `PageHeader` row carries Back over the title
+ * on the left and the reading and library actions on the right. Back is never its own cell:
+ * that put it somewhere else until the title arrived.
  */
 function MangaDetailLoading({ onBack }: { readonly onBack: (() => void) | undefined }) {
   return (
@@ -1188,33 +1190,45 @@ function MangaDetailLoading({ onBack }: { readonly onBack: (() => void) | undefi
         data-detail-header
         className="flex flex-col gap-4 @5xl:flex-row @5xl:items-start @5xl:gap-6"
       >
-        {onBack !== undefined ? (
-          <div className="@5xl:pt-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="-ms-2 w-fit"
-              onClick={onBack}
-            >
-              <ArrowLeft aria-hidden />
-              Back
-            </Button>
-          </div>
-        ) : null}
-
         <div className="flex min-w-0 flex-1 flex-col gap-6 @2xl:flex-row @2xl:items-start">
           <div className="mx-auto w-40 shrink-0 self-start overflow-hidden rounded-box border border-border bg-muted @2xl:mx-0 @2xl:w-48">
             <Skeleton className="aspect-3/4 w-full" />
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-4">
-            <Skeleton className="h-8 w-2/3" />
-            <Skeleton className="h-4 w-48" />
+            <div data-page-header className="@container">
+              <div className="flex flex-col gap-4 @xl:flex-row @xl:flex-wrap @xl:items-end @xl:justify-between">
+                <div className="flex min-w-0 flex-col gap-2">
+                  {onBack !== undefined ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="-ms-2 w-fit"
+                      onClick={onBack}
+                    >
+                      <ArrowLeft aria-hidden />
+                      Back
+                    </Button>
+                  ) : null}
+                  <div className="type-display-lg">
+                    <Skeleton className="h-lh w-64 max-w-full" />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-3 @xl:flex-row @xl:flex-wrap @xl:items-center">
+                  <div className="flex flex-col gap-3">
+                    <Skeleton className="h-10 w-36" />
+                    <Skeleton className="h-10 w-40" />
+                  </div>
+                </div>
+              </div>
+            </div>
             <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-10 w-36" />
+            <Skeleton className="h-4 w-full max-w-xl" />
             <div className="flex flex-wrap gap-2">
-              <Skeleton className="h-10 w-32" />
-              <Skeleton className="size-10" />
+              <Skeleton className="h-8 w-24" />
+              <Skeleton className="h-8 w-36" />
+              <Skeleton className="h-8 w-36" />
+              <Skeleton className="h-8 w-32" />
             </div>
           </div>
         </div>

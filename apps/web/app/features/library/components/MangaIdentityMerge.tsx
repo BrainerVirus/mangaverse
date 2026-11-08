@@ -8,7 +8,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  EmptyNote,
   ErrorState,
   LoadingState,
   ListRow,
@@ -262,7 +261,8 @@ function DuplicatesList({
   }
   const items = state.items ?? [];
   if (items.length === 0) {
-    return <EmptyNote>No possible duplicates found.</EmptyNote>;
+    // The section's Card is already the surface: a second bordered box inside it only nests.
+    return <p className="text-sm text-muted-foreground">No possible duplicates found.</p>;
   }
   return (
     <ul className="flex flex-col divide-y divide-border">
