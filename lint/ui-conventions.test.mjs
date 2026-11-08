@@ -225,6 +225,17 @@ export function A() {
   );
 }
 `,
+    "apps/web/app/filled-row-in-settings.tsx": `import { ListRow, SettingsSection } from '@app/design-system';
+export function A() {
+  return <>
+    <SettingsSection title="t"><ListRow /></SettingsSection>
+    <SettingsSection title="t"><div><ListRow tone="muted" /></div></SettingsSection>
+    <SettingsSection title="t"><ListRow tone="plain" /></SettingsSection>
+    <SettingsSection title="t"><ListRow tone="warning" /></SettingsSection>
+    <div><ListRow tone="muted" /></div>
+  </>;
+}
+`,
     "apps/web/app/scales-ok.tsx": `export function A() {
   return (
     <>
@@ -345,6 +356,7 @@ export const sizes = { sm: \`h-9 \${base} border-[var(--border)]\` } as const;
         "ui-conventions/no-border-ring-doubling": "error",
         "ui-conventions/no-list-row-overrides": "error",
         "ui-conventions/no-outlined-row-in-card": "error",
+        "ui-conventions/no-filled-row-in-settings": "error",
         "ui-conventions/no-space-utilities": "error",
         "ui-conventions/no-transition-all": "error",
       },
@@ -431,6 +443,13 @@ export const sizes = { sm: \`h-9 \${base} border-[var(--border)]\` } as const;
     assert.deepEqual(
       at("apps/web/app/outlined-row-in-card.tsx", "no-outlined-row-in-card"),
       [5, 6],
+    );
+  });
+
+  it("Given a settings section, when a default or muted tile is nested inside, then lint rejects it but permits plain rows and warnings", () => {
+    assert.deepEqual(
+      at("apps/web/app/filled-row-in-settings.tsx", "no-filled-row-in-settings"),
+      [4, 5],
     );
   });
 

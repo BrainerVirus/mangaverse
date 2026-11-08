@@ -870,6 +870,36 @@ const rules = {
     },
   },
 
+  /** Muted rows are tiles, not list separators, inside a settings section. */
+  "no-filled-row-in-settings": {
+    create(context) {
+      if (!CONSUMER_FILE.test(relativeFile(context))) return {};
+      return {
+        JSXOpeningElement(node) {
+          if (node.name.type !== "JSXIdentifier" || node.name.name !== "ListRow") return;
+          const tone = node.attributes.find(
+            (attribute) => attribute.type === "JSXAttribute" && attribute.name.name === "tone",
+          );
+          if (tone && (tone.value?.type !== "Literal" || tone.value.value !== "muted")) return;
+          for (let ancestor = node.parent?.parent; ancestor; ancestor = ancestor.parent) {
+            if (
+              ancestor.type === "JSXElement" &&
+              ancestor.openingElement.name.type === "JSXIdentifier" &&
+              ancestor.openingElement.name.name === "SettingsSection"
+            ) {
+              context.report({
+                node,
+                message:
+                  "A muted <ListRow> inside <SettingsSection> creates a nested tile. Use a divided list or a plain row; keep stateful warnings distinct.",
+              });
+              return;
+            }
+          }
+        },
+      };
+    },
+  },
+
   /**
    * A class map that is a plain string constant (the shadcn `*-variants.ts` files) is invisible to
    * @shadcn/lint, so arbitrary values slip through there. Reports `prop-[value]` in those files.
