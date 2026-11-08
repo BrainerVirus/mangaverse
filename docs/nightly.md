@@ -8,7 +8,11 @@ published on a schedule.
 | Channel | How it is built                                                                    | Version / tag                                                                                           | GitHub release          |
 | ------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ----------------------- |
 | Nightly | `.github/workflows/nightly.yml`, daily at 04:17 UTC or manual dispatch from `main` | next patch + `-nightly.YYYYMMDD.<run>`, e.g. `0.0.4-nightly.20261108.12` / `v0.0.4-nightly.20261108.12` | pre-release, not latest |
-| Stable  | `.github/workflows/release.yml` on a `vX.Y.Z` tag                                  | `X.Y.Z` / `vX.Y.Z`                                                                                      | normal release          |
+| Stable  | `.github/workflows/release.yml` on a `vX.Y.Z` tag                                  | `X.Y.Z` / `vX.Y.Z`                                                                                      | pre-release             |
+
+The stable channel means the newest tag that is not a nightly. Every release so far is published
+as a GitHub pre-release, so the scripts list releases and filter instead of using
+`/releases/latest`, which ignores pre-releases.
 
 Nightly releases are immutable and never overwrite stable. Every nightly has the installers,
 `SHA256SUMS`, build-provenance attestations and the two install scripts.
@@ -50,7 +54,9 @@ $s = [scriptblock]::Create((irm https://raw.githubusercontent.com/BrainerVirus/m
 ```
 
 `update` is the same verified install flow and keeps local library data. It is also what the
-app runs for an in-app update (below).
+app runs for an in-app update (below). An update stays in the directory the receipt recorded
+(macOS/Linux); on Windows the app passes its own install directory, and a manual `update` of a
+custom `-InstallDir` needs the same flag.
 
 ## In-app nightly updates
 
@@ -84,7 +90,10 @@ $s = [scriptblock]::Create((irm https://raw.githubusercontent.com/BrainerVirus/m
 ```
 
 Uninstall keeps the local library, settings and backups by default. Add `--purge-data` /
-`-PurgeData` to remove them too.
+`-PurgeData` to remove the app's Electron user-data folder as well. The current package name is
+`@app/desktop`, so that folder is `Application Support/@app/desktop` on macOS,
+`%APPDATA%\@app\desktop` on Windows and `~/.config/@app/desktop` on Linux; the script also
+removes a `MangaVerse` folder for forward compatibility.
 
 ## Signing caveats
 

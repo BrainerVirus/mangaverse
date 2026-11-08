@@ -26,13 +26,16 @@ $Headers = @{ 'User-Agent' = 'MangaVerse-Installer'; 'Accept' = 'application/vnd
 
 if (-not $IsWindows -and $PSVersionTable.PSEdition -eq 'Core') { throw 'This installer is for Windows.' }
 if ($Version) { $tag = 'v' + $Version.TrimStart('v') }
-elseif ($Channel -eq 'stable') {
-  $release = Invoke-RestMethod "$Api/latest" -Headers $Headers
-  $tag = $release.tag_name
-} else {
+else {
+  # Every current release is a pre-release, so /releases/latest is empty. "stable" means the
+  # newest tag that is not a nightly; "nightly" the newest that is.
   $releases = Invoke-RestMethod "$Api?per_page=30" -Headers $Headers
-  $release = $releases | Where-Object { $_.prerelease -and $_.tag_name -match '-nightly\.' } | Select-Object -First 1
-  if ($null -eq $release) { throw 'No nightly release found.' }
+  $release = if ($Channel -eq 'stable') {
+    $releases | Where-Object { $_.tag_name -notmatch '-nightly\.' } | Select-Object -First 1
+  } else {
+    $releases | Where-Object { $_.prerelease -and $_.tag_name -match '-nightly\.' } | Select-Object -First 1
+  }
+  if ($null -eq $release) { throw "No $Channel release found." }
   $tag = $release.tag_name
 }
 if (-not $tag) { throw "No $Channel release found." }
@@ -44,7 +47,10 @@ if ($Channel -eq 'stable' -and $version -match '-nightly\.') { throw "Tag $tag i
 if (-not $InstallDir) { $InstallDir = Join-Path $env:LOCALAPPDATA 'Programs\MangaVerse' }
 $Receipt = Join-Path $InstallDir 'receipt.json'
 $Shortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\MangaVerse.lnk'
+# The packaged app's userData is its package name (@app/desktop); MangaVerse is the name a
+# future productName would use. Remove both on -PurgeData.
 $DataDir = Join-Path $env:APPDATA 'MangaVerse'
+$PackageDataDir = Join-Path $env:APPDATA '@app\desktop'
 $AppPath = Join-Path $InstallDir 'MangaVerse.exe'
 
 function Read-Receipt {
@@ -79,6 +85,7 @@ if ($Action -eq 'uninstall') {
   Remove-Item -Recurse -Force $appDir -ErrorAction SilentlyContinue
   Remove-Item -Force $shortcutPath -ErrorAction SilentlyContinue
   if ($PurgeData) {
+    Remove-Item -Recurse -Force $PackageDataDir -ErrorAction SilentlyContinue
     Remove-Item -Recurse -Force $DataDir -ErrorAction SilentlyContinue
     Write-Host 'MangaVerse uninstalled (user data removed).'
   } else {

@@ -74,19 +74,19 @@ case "$OS" in
   *) die "unsupported OS: $OS" ;;
 esac
 
-APP_DIR="${INSTALL_DIR:-$DEFAULT_DIR}"
+WRAPPER="$HOME/.local/bin/mangaverse"
 if [ "$OS" = "Darwin" ]; then
-  APP_PATH="$APP_DIR/MangaVerse.app"
-  WRAPPER="$HOME/.local/bin/mangaverse"
   RECEIPT_DIR="$HOME/Library/Application Support/MangaVerse Installer"
   RECEIPT="$RECEIPT_DIR/receipt"
+  # The packaged app's userData is its package name (@app/desktop); MangaVerse is the
+  # name a future productName would use. Remove both on --purge-data.
+  PACKAGE_DATA_DIR="$HOME/Library/Application Support/@app/desktop"
   DATA_DIR="$HOME/Library/Application Support/MangaVerse"
   DESKTOP_ENTRY=""
 else
-  APP_PATH="$APP_DIR/MangaVerse.AppImage"
-  WRAPPER="$HOME/.local/bin/mangaverse"
   RECEIPT_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/mangaverse"
   RECEIPT="$RECEIPT_DIR/receipt"
+  PACKAGE_DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/@app/desktop"
   DATA_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/MangaVerse"
   DESKTOP_ENTRY="${XDG_DATA_HOME:-$HOME/.local/share}/applications/mangaverse.desktop"
 fi
@@ -96,6 +96,20 @@ read_receipt() {
   key=$1
   sed -n "s/^${key}=//p" "$RECEIPT" | head -1
 }
+
+# An update stays in the directory the receipt recorded; --dir still overrides it. Without
+# this, an in-app update of a non-default install would land in the default path.
+if [ "$ACTION" = "install" ] && [ -z "$INSTALL_DIR" ]; then
+  recorded_app_dir=$(read_receipt app_dir)
+  if [ -n "$recorded_app_dir" ]; then INSTALL_DIR="$recorded_app_dir"; fi
+fi
+
+APP_DIR="${INSTALL_DIR:-$DEFAULT_DIR}"
+if [ "$OS" = "Darwin" ]; then
+  APP_PATH="$APP_DIR/MangaVerse.app"
+else
+  APP_PATH="$APP_DIR/MangaVerse.AppImage"
+fi
 
 if [ "$ACTION" = "status" ]; then
   if [ -f "$RECEIPT" ]; then cat "$RECEIPT"; else say "MangaVerse is not installed by this script."; fi
@@ -112,8 +126,8 @@ if [ "$ACTION" = "uninstall" ]; then
   say "Remove $target_app"
   [ "$DRY_RUN" -eq 1 ] || rm -rf "$target_app" "$target_desktop" "$target_wrapper" "$RECEIPT"
   if [ "$PURGE" -eq 1 ]; then
-    say "Remove user data $DATA_DIR"
-    [ "$DRY_RUN" -eq 1 ] || rm -rf "$DATA_DIR"
+    say "Remove user data $PACKAGE_DATA_DIR and $DATA_DIR"
+    [ "$DRY_RUN" -eq 1 ] || rm -rf "$PACKAGE_DATA_DIR" "$DATA_DIR"
   fi
   say "MangaVerse uninstalled$( [ "$PURGE" -eq 1 ] || printf ' (data preserved)')."
   exit 0
@@ -123,12 +137,14 @@ api="https://api.github.com/repos/$REPO/releases"
 if [ -n "$VERSION" ]; then
   TAG="v${VERSION#v}"
 else
+  # Every current release is published as a pre-release, so /releases/latest is empty.
+  # "stable" means the newest tag that is not a nightly; "nightly" the newest that is.
+  json=$(curl -fsSL --proto '=https' --proto-redir '=https' --tlsv1.2 -H 'User-Agent: MangaVerse-Installer' -H 'Accept: application/vnd.github+json' "$api?per_page=30") || die "could not read $CHANNEL releases"
+  tags=$(printf '%s' "$json" | grep -o '"tag_name": *"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
   if [ "$CHANNEL" = "stable" ]; then
-    json=$(curl -fsSL --proto '=https' --proto-redir '=https' --tlsv1.2 -H 'User-Agent: MangaVerse-Installer' -H 'Accept: application/vnd.github+json' "$api/latest") || die "could not read the latest stable release"
-    TAG=$(printf '%s\n' "$json" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -1)
+    TAG=$(printf '%s\n' "$tags" | grep -v -- '-nightly\.' | head -1)
   else
-    json=$(curl -fsSL --proto '=https' --proto-redir '=https' --tlsv1.2 -H 'User-Agent: MangaVerse-Installer' -H 'Accept: application/vnd.github+json' "$api?per_page=30") || die "could not read nightly releases"
-    TAG=$(printf '%s\n' "$json" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | grep -E -- '-nightly\.' | head -1)
+    TAG=$(printf '%s\n' "$tags" | grep -E -- '-nightly\.' | head -1)
   fi
 fi
 [ -n "${TAG:-}" ] || die "no $CHANNEL release found"
