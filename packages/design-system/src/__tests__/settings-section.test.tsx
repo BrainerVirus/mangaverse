@@ -151,6 +151,24 @@ describe('SettingsSection', () => {
     expect(container.querySelector('[inert]')).toBeNull();
   });
 
+  it('Given a section that is open from the start, When its header is pressed, Then the body folds and returns', () => {
+    render(
+      <SettingsSection title="Appearance">
+        <div>Body</div>
+      </SettingsSection>,
+    );
+    const toggle = screen.getByRole('button', { name: 'Appearance' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Body')).not.toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Body')).toBeInTheDocument();
+  });
+
   it('children are visible by default when not collapsed', () => {
     render(
       <SettingsSection title="Expanded Section">

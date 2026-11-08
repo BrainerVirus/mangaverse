@@ -74,11 +74,12 @@ export function SettingsSection({
             </div>
           </div>
         ) : null
-      ) : (
-        // A section that is not collapsible renders in plain flow: no clipping wrapper, and
-        // nothing that could ease in from zero height when the page loads.
+      ) : isOpen ? (
+        // A section that is not collapsible keeps its original behaviour: its body renders in
+        // plain flow and the header still folds it, with no clipping wrapper and nothing that
+        // could ease in from zero height when the page loads.
         <CardContent className="pt-0">{children}</CardContent>
-      )}
+      ) : null}
     </Card>
   );
 }
