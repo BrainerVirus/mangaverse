@@ -10,7 +10,7 @@ import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { chmod, copyFile } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
-import { join, win32 as pathWin32 } from 'node:path';
+import { join, posix as pathPosix, win32 as pathWin32 } from 'node:path';
 import type { UpdaterLike } from './updater.js';
 
 const REPO = 'BrainerVirus/mangaverse';
@@ -51,7 +51,13 @@ export function scriptReceiptPath(
   env: NodeJS.ProcessEnv = process.env,
 ): string {
   if (platform === 'darwin') {
-    return join(home, 'Library', 'Application Support', 'MangaVerse Installer', 'receipt');
+    return pathPosix.join(
+      home,
+      'Library',
+      'Application Support',
+      'MangaVerse Installer',
+      'receipt',
+    );
   }
   if (platform === 'win32') {
     return pathWin32.join(
@@ -61,8 +67,8 @@ export function scriptReceiptPath(
       'receipt.json',
     );
   }
-  const data = env['XDG_DATA_HOME'] ?? join(home, '.local', 'share');
-  return join(data, 'mangaverse', 'receipt');
+  const data = env['XDG_DATA_HOME'] ?? pathPosix.join(home, '.local', 'share');
+  return pathPosix.join(data, 'mangaverse', 'receipt');
 }
 
 export function hasScriptInstall(
