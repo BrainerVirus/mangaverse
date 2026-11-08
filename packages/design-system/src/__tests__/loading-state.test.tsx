@@ -54,8 +54,21 @@ describe('LoadingState', () => {
     expect(four.container.querySelector('.grid')?.className).not.toContain('@min-');
     four.unmount();
 
-    const six = render(<LoadingState type="grid" count={6} columns="viewport-6" />);
-    expect(six.container.querySelector('.grid')).toHaveClass('lg:grid-cols-6');
+    const row = render(<LoadingState type="grid" count={6} columns="row" />);
+    expect(row.container.firstElementChild).toHaveClass('@container');
+    expect(row.container.querySelector('.grid')?.className).toContain('@min-[1280px]:grid-cols-6');
+    expect(row.container.querySelector('.grid')?.className).not.toMatch(/(^| )(sm|md|lg):/);
+  });
+
+  it('shows one placeholder row at every column count and never wraps or leaves a hole', () => {
+    const { container } = render(<LoadingState type="grid" count={6} columns="row" />);
+    const cells = [...container.querySelectorAll('.grid > div')].map((cell) => cell.className);
+    expect(cells).toHaveLength(6);
+    expect(cells.slice(0, 2).some((name) => name.includes('hidden'))).toBe(false);
+    expect(cells.slice(2).every((name) => name.includes('hidden'))).toBe(true);
+    // columns 2, 3, 4, 5, 6 show 2, 3, 4, 5, 6 covers: each cell appears at its own breakpoint.
+    expect(cells[2]).toContain('@min-[640px]:block');
+    expect(cells[5]).toContain('@min-[1280px]:block');
   });
 
   it('renders settings-style cards with the requested number of control rows', () => {

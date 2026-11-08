@@ -89,6 +89,7 @@ export { EmptyNote } from './components/empty-note.js';
 export { ListRow } from './components/list-row.js';
 export { StateFrame } from './components/state-frame.js';
 export { LoadingState } from './components/loading-state.js';
+export { CONTENT_GRID_CLASSES, contentRowCellClass } from './components/loading-grid.js';
 export { ErrorState } from './components/error-state.js';
 export { Toaster, notify } from './components/toast.js';
 export { SettingsSection } from './components/settings-section.js';

@@ -4,6 +4,8 @@ import {
   AlertDescription,
   AlertTitle,
   Button,
+  CONTENT_GRID_CLASSES,
+  contentRowCellClass,
   EmptyState,
   ErrorState,
   ListRow,
@@ -122,7 +124,7 @@ function DiscoverSectionPreview({
         ) : null}
       </div>
 
-      {status === 'loading' ? <LoadingState type="grid" count={6} columns="viewport-6" /> : null}
+      {status === 'loading' ? <LoadingState type="grid" count={6} columns="row" /> : null}
 
       {status === 'error' ? (
         <Alert
@@ -152,10 +154,14 @@ function DiscoverSectionPreview({
       ) : null}
 
       {status === 'ok' ? (
-        <div data-testid={`discover-section-${section.id}`} className={SECTION_GRID_CLASSES}>
-          {section.results.slice(0, 6).map((manga) => (
-            <CachedMangaCard key={manga.id} manga={manga} onClick={() => onOpenManga(manga.id)} />
-          ))}
+        <div className="@container w-full">
+          <div data-testid={`discover-section-${section.id}`} className={CONTENT_GRID_CLASSES}>
+            {section.results.slice(0, 6).map((manga, index) => (
+              <div key={manga.id} className={contentRowCellClass(index)}>
+                <CachedMangaCard manga={manga} onClick={() => onOpenManga(manga.id)} />
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
     </section>
@@ -276,8 +282,6 @@ function LoadMoreFailure({ message, onRetry }: { message: string; onRetry: () =>
   );
 }
 
-const SECTION_GRID_CLASSES = 'grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6';
-
 /** The provider tab strip and the first section: a heading row over one row of six covers. */
 function DiscoverLoading() {
   return (
@@ -287,7 +291,7 @@ function DiscoverLoading() {
         <div className="flex min-h-9 flex-wrap items-center justify-between gap-3">
           <Skeleton className="h-6 w-40" />
         </div>
-        <LoadingState type="grid" count={6} columns="viewport-6" />
+        <LoadingState type="grid" count={6} columns="row" />
       </div>
     </div>
   );

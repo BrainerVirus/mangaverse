@@ -2,6 +2,8 @@ import { useId } from 'react';
 import { StateFrame } from './state-frame.js';
 import { Skeleton } from './ui/skeleton.js';
 import { Card, CardContent, CardHeader } from './ui/card.js';
+import { CONTENT_GRID_CLASSES, contentRowCellClass, VIEWPORT_4_CLASSES } from './loading-grid.js';
+const COLUMN_CLASSES = CONTENT_GRID_CLASSES;
 
 type LoadingStateType = 'grid' | 'list' | 'detail' | 'sections';
 
@@ -10,28 +12,16 @@ export interface LoadingStateProps {
   count?: number;
   /**
    * `grid` only, with `count`: the columns of the grid that replaces the placeholder. `content`
-   * follows the content column's width (the library and search grids); the others follow the
-   * viewport, as a page's own CSS grid does (related titles: up to 4, discover rows: up to 6).
+   * follows the content column's width (the library and search grids); `row` is one row of that
+   * same grid (the discover rows: as many covers as the columns); `viewport-4` follows the
+   * viewport, as the related-titles CSS grid does.
    */
-  columns?: 'content' | 'viewport-4' | 'viewport-6';
+  columns?: 'content' | 'row' | 'viewport-4';
   /** `grid` only: reserve the one-line caption a library card carries under its cover. */
   caption?: boolean;
   /** `sections` only: placeholder rows inside each card. */
   rows?: number;
 }
-
-/**
- * Columns follow the width of the content column (container queries), at the breakpoints the
- * virtualized library and search grids use (640/768/1024/1280), so a placeholder row lands in
- * the same columns as the cards that replace it.
- */
-const COLUMN_CLASSES =
-  'grid grid-cols-2 gap-4 @min-[640px]:grid-cols-3 @min-[768px]:grid-cols-4 @min-[1024px]:grid-cols-5 @min-[1280px]:grid-cols-6';
-
-const VIEWPORT_COLUMN_CLASSES = {
-  'viewport-4': 'grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4',
-  'viewport-6': 'grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6',
-} as const;
 
 /**
  * Two complete rows at every column count: a cell is shown only from the width at which the
@@ -93,25 +83,29 @@ function GridSkeleton({
   baseId,
 }: {
   count: number | undefined;
-  columns: 'content' | 'viewport-4' | 'viewport-6';
+  columns: 'content' | 'row' | 'viewport-4';
   caption: boolean;
   baseId: string;
 }) {
   const explicit = count !== undefined && count > 0;
   const cells = explicit ? count : CELL_VISIBILITY.length;
+  const gridClass = explicit && columns === 'viewport-4' ? VIEWPORT_4_CLASSES : COLUMN_CLASSES;
+  const cellClass = (i: number): string | undefined => {
+    if (!explicit) return CELL_VISIBILITY[i];
+    return columns === 'row' ? contentRowCellClass(i) : undefined;
+  };
   return (
-    <div
-      className={
-        explicit && columns !== 'content' ? VIEWPORT_COLUMN_CLASSES[columns] : COLUMN_CLASSES
-      }
-    >
-      {Array.from({ length: cells }).map((_, i) => (
-        <GridCell
-          key={`${baseId}-${i}`}
-          caption={caption}
-          {...(explicit ? {} : { className: CELL_VISIBILITY[i] })}
-        />
-      ))}
+    <div className={gridClass}>
+      {Array.from({ length: cells }).map((_, i) => {
+        const className = cellClass(i);
+        return (
+          <GridCell
+            key={`${baseId}-${i}`}
+            caption={caption}
+            {...(className === undefined ? {} : { className })}
+          />
+        );
+      })}
     </div>
   );
 }
