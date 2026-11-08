@@ -1213,11 +1213,12 @@ function MangaDetailLoading({ onBack }: { readonly onBack: (() => void) | undefi
                   <div className="type-display-lg">
                     <Skeleton className="h-lh w-64 max-w-full" />
                   </div>
+                  <Skeleton className="h-5.5 w-24 rounded-full" />
                 </div>
                 <div className="flex flex-col gap-3 @xl:flex-row @xl:flex-wrap @xl:items-center">
                   <div className="flex flex-col gap-3">
+                    <Skeleton className="h-10 w-30" />
                     <Skeleton className="h-10 w-36" />
-                    <Skeleton className="h-10 w-40" />
                   </div>
                 </div>
               </div>
