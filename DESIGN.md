@@ -892,12 +892,19 @@ Long grids are virtualised; skeletons mirror the column rhythm so layout never s
 ### Scroll edges and folded text
 
 A scroller with hidden content fades the hidden edge, and the fade is gone once that edge is reached:
-the fade itself says "there is more". It is the `scroll-fade-y` utility, driven by the scroll
-position through a scroll timeline (no script, no listeners); the fade is `--scroll-fade-size`
-(2rem) and a scroller that does not overflow shows none. The mask also fades the element's own
-background and border, so it goes on a scroller with no chrome of its own (the page column, a list
-inside a surface), never on a dialog or sheet surface (those take an inner scroll wrapper). The
-reader's scroll views are excluded. Engines without scroll timelines show no fade.
+the fade itself says "there is more". The fade is `--scroll-fade-size` (2rem), driven by the scroll
+position through a scroll timeline (no script, no listeners), and a scroller that does not overflow
+shows none. There are two forms:
+
+- `scroll-fade-y` masks the scroller. Use it on a list inside a surface, where nothing sticky lives:
+  the mask fades everything under it, including the scroller's own background and border, so it never
+  goes on a dialog or sheet surface (those take an inner scroll wrapper).
+- `scroll-fade-overlay-y` is for the page column. It draws the fade as two sticky overlays in the
+  page colour (`--scroll-fade-color`), above the content (`z-index: 1`) and below sticky chrome, so
+  the notices pinned to the top of the column (`z-40`) and the onboarding footer (`z-10`) stay solid.
+  Sticky chrome in that column needs a `z-index` above 1.
+
+The reader's scroll views are excluded. Engines without scroll timelines show no fade.
 
 Long descriptions fold with `ExpandableText`: clamped to a standard height (7.5rem) behind a bottom
 fade, with a link-style Show more / Show less that eases the box to its full height. Text that

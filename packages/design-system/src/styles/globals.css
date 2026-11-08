@@ -857,6 +857,66 @@
   }
 }
 
+/* The page-column form of the same fade. A mask fades everything under it, including sticky
+   chrome (the notices pinned to the top of the column, the onboarding footer), so the page
+   column draws the fade as two sticky overlays in the page colour instead: they sit above the
+   content (z-index 1) and below any sticky chrome (z-index 10 and up), and their opacity follows
+   the same scroll position. The overlays are transparent when the column does not overflow.
+   `--scroll-fade-color` is the surface behind the scroller (the page background by default). */
+@keyframes scroll-fade-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scroll-fade-overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@utility scroll-fade-overlay-y {
+  @supports (animation-timeline: scroll()) {
+    &::before,
+    &::after {
+      content: "";
+      display: block;
+      position: sticky;
+      z-index: 1;
+      height: var(--scroll-fade-size, 2rem);
+      pointer-events: none;
+      opacity: 0;
+      animation-timing-function: linear;
+      animation-fill-mode: both;
+      animation-timeline: scroll(nearest block);
+    }
+    &::before {
+      top: 0;
+      margin-bottom: calc(var(--scroll-fade-size, 2rem) * -1);
+      background: linear-gradient(
+        to bottom,
+        var(--scroll-fade-color, var(--background)),
+        transparent
+      );
+      animation-name: scroll-fade-overlay-in;
+      animation-range: 0 var(--scroll-fade-size, 2rem);
+    }
+    &::after {
+      bottom: 0;
+      margin-top: calc(var(--scroll-fade-size, 2rem) * -1);
+      background: linear-gradient(to top, var(--scroll-fade-color, var(--background)), transparent);
+      animation-name: scroll-fade-overlay-out;
+      animation-range: calc(100% - var(--scroll-fade-size, 2rem)) 100%;
+    }
+  }
+}
+
 /* The clamped text box (ExpandableText): its height and bottom fade come from custom
    properties the component sets, and both ease so that Show more grows the box and clears the
    fade together. Both are registered so the transition can interpolate them. */

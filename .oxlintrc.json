@@ -82,6 +82,7 @@
           "reader-stage-background",
           "reader-page-scroll",
           "scroll-fade-y",
+          "scroll-fade-overlay-y",
           "expandable-box",
           "rounded-badge",
           "rounded-box",

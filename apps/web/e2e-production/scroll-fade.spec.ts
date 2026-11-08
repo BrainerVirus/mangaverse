@@ -29,7 +29,7 @@ test('Given a long description, Then it folds behind a fade and Show more grows 
   await expect.poll(height).toBe(120);
 });
 
-test('Given the main column overflows, Then each edge fades only while content is hidden past it', async ({
+test('Given the main column overflows, Then each edge fades only while content is hidden past it, beneath sticky chrome', async ({
   page,
   quickOnboarding,
   mockMangaDex,
@@ -37,6 +37,8 @@ test('Given the main column overflows, Then each edge fades only while content i
   await page.goto(`/manga/${MANGADEX_APP_MANGA_ID}`);
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 40_000 });
 
+  // The page column draws its fade as sticky overlays (::before is the top edge, ::after the
+  // bottom one) whose opacity follows the scroll position.
   const fadesAt = async (position: 'top' | 'middle' | 'end') => {
     await page.evaluate((at) => {
       const main = document.querySelector('main')!;
@@ -45,17 +47,28 @@ test('Given the main column overflows, Then each edge fades only while content i
     }, position);
     await page.waitForTimeout(250);
     return page.evaluate(() => {
-      const style = getComputedStyle(document.querySelector('main')!);
+      const main = document.querySelector('main')!;
       return {
-        top: parseFloat(style.getPropertyValue('--scroll-fade-top')),
-        bottom: parseFloat(style.getPropertyValue('--scroll-fade-bottom')),
+        top: parseFloat(getComputedStyle(main, '::before').opacity),
+        bottom: parseFloat(getComputedStyle(main, '::after').opacity),
       };
     });
   };
 
-  expect(await fadesAt('top')).toEqual({ top: 0, bottom: 32 });
+  expect(await fadesAt('top')).toEqual({ top: 0, bottom: 1 });
   const middle = await fadesAt('middle');
-  expect(middle.top).toBeGreaterThan(0);
-  expect(middle.bottom).toBeGreaterThan(0);
-  expect(await fadesAt('end')).toEqual({ top: 32, bottom: 0 });
+  expect(middle.top).toBe(1);
+  expect(middle.bottom).toBe(1);
+  expect(await fadesAt('end')).toEqual({ top: 1, bottom: 0 });
+
+  // Sticky chrome (the notices at z-40, the onboarding footer at z-10) stays above the fade.
+  const layers = await page.evaluate(() => {
+    const main = document.querySelector('main')!;
+    return {
+      overlay: Number(getComputedStyle(main, '::before').zIndex),
+      overlayBottom: Number(getComputedStyle(main, '::after').zIndex),
+    };
+  });
+  expect(layers.overlay).toBe(1);
+  expect(layers.overlayBottom).toBe(1);
 });
