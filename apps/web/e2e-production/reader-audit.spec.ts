@@ -306,7 +306,10 @@ test('fit width starts at the top, original scrolls, and landscape strips have o
     .toBe(8);
   // A 1440x720 page keeps its landscape ratio instead of a hardcoded 2:3 row.
   await expect
-    .poll(() => rows.nth(0).evaluate((row) => (row as HTMLElement).style.aspectRatio))
-    .toBe('1440 / 720');
+    .poll(async () => {
+      const box = await rows.nth(0).boundingBox();
+      return box === null ? 0 : Math.round((box.width / box.height) * 100) / 100;
+    })
+    .toBe(2);
   await page.screenshot({ path: testInfo.outputPath('landscape-strip.png') });
 });

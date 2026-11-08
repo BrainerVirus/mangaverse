@@ -59,8 +59,9 @@ for (const viewport of VIEWPORTS) {
       },
     );
 
-    // Applying restores the query and the filters it was saved with.
-    await expect(page.getByRole('searchbox', { name: 'Search manga' })).toHaveValue('');
+    // The URL restores the query and filters across reload; applying the saved
+    // search is idempotent and must keep them.
+    await expect(page.getByRole('searchbox', { name: 'Search manga' })).toHaveValue('berserk');
     await page.getByRole('button', { name: 'Berserk in English', exact: true }).click();
     await expect(page.getByRole('searchbox', { name: 'Search manga' })).toHaveValue('berserk');
     await expect(page.getByLabel('Language filter')).toHaveValue('en');

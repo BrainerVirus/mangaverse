@@ -97,13 +97,15 @@ test('Given provider failure, When Discover loads, Then an inline retry recovers
   });
 
   await page.goto('/discover');
-  await expect(page.getByText('Could not load discover feed')).toBeVisible({ timeout: 30_000 });
+  // Discover keeps the page and fails the section, with its own Retry.
+  const latestError = page.getByTestId('discover-section-latest-error');
+  await expect(latestError).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('body')).not.toContainText('abc123');
   await expect(toasts(page)).toHaveCount(0);
 
   failing = false;
-  await page.getByRole('button', { name: 'Retry' }).click();
-  await expect(page.getByText('Could not load discover feed')).toHaveCount(0, { timeout: 30_000 });
+  await latestError.getByRole('button', { name: 'Retry' }).click();
+  await expect(latestError).toHaveCount(0, { timeout: 30_000 });
   await expect(page.getByRole('button', { name: 'Kuro no Shoukanshi' }).first()).toBeVisible();
 });
 

@@ -216,7 +216,7 @@ test('Given a populated library, When the content column is narrow, Then the too
   await clamp.evaluate((node) => node.remove());
 });
 
-test('Given a library card, When reduced motion is enabled after mount, Then the next hover does not lift it', async ({
+test('Given a library card, When hovered, Then it never lifts or shifts', async ({
   page,
   quickOnboarding,
   mockMangaDex,
@@ -231,16 +231,16 @@ test('Given a library card, When reduced motion is enabled after mount, Then the
   const card = page.locator('[data-library-card] button').first();
   await expect(card).toBeVisible({ timeout: 20_000 });
 
+  const identity = /^(none|matrix\(1, 0, 0, 1, 0, 0\))$/;
   await card.hover();
   await expect
     .poll(() => card.evaluate((element) => getComputedStyle(element).transform), { timeout: 2_000 })
-    .toContain('1.02');
+    .toMatch(identity);
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.mouse.move(0, 0);
   await card.hover();
   await page.waitForTimeout(250);
   const hovered = await card.evaluate((element) => getComputedStyle(element).transform);
-
-  expect(['none', 'matrix(1, 0, 0, 1, 0, 0)']).toContain(hovered);
+  expect(hovered).toMatch(identity);
 });
