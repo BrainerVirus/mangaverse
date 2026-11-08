@@ -6,6 +6,8 @@ import {
   Button,
   Input,
   Label,
+  DividedList,
+  DividedRow,
   ListRow,
   SettingsSection,
   Tabs,
@@ -120,7 +122,7 @@ function TokenRow({
   const invalid = value.trim() !== '' && !isCssColor(value);
 
   return (
-    <ListRow tone="muted" padding="md" className="flex flex-col gap-2" data-token={token}>
+    <DividedRow layout="form" data-token={token}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Label htmlFor={id}>{token}</Label>
         <span className="type-micro text-muted-foreground">
@@ -158,7 +160,7 @@ function TokenRow({
           Reset to derived
         </Button>
       )}
-    </ListRow>
+    </DividedRow>
   );
 }
 
@@ -186,7 +188,7 @@ function TokenEditor({ draft, disabled = false, onChange }: ThemeEditorPanelProp
               title={group.label}
               description="Override an allow-listed color token; blank restores the derived color."
             >
-              <div className="flex flex-col gap-3">
+              <DividedList>
                 {group.tokens.map((token) => (
                   <TokenRow
                     key={token}
@@ -198,7 +200,7 @@ function TokenEditor({ draft, disabled = false, onChange }: ThemeEditorPanelProp
                     onChange={onChange}
                   />
                 ))}
-              </div>
+              </DividedList>
             </SettingsSection>
           ))}
         </TabsContent>
@@ -207,20 +209,14 @@ function TokenEditor({ draft, disabled = false, onChange }: ThemeEditorPanelProp
         title="Fixed by the design system"
         description="Glass tiers, sheen, inner shadow and radius are not themeable; overrides cannot set them."
       >
-        <ul data-testid="theme-fixed-tokens" className="flex flex-col gap-2">
+        <DividedList data-testid="theme-fixed-tokens">
           {FIXED_THEME_TOKENS.map((token) => (
-            <ListRow
-              as="li"
-              key={token}
-              tone="muted"
-              padding="row"
-              className="flex items-center justify-between"
-            >
+            <DividedRow key={token}>
               <span className="type-label text-foreground">{token}</span>
               <span className="type-micro text-muted-foreground">Read-only</span>
-            </ListRow>
+            </DividedRow>
           ))}
-        </ul>
+        </DividedList>
       </SettingsSection>
     </Tabs>
   );

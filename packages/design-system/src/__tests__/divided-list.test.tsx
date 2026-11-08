@@ -34,6 +34,18 @@ describe('DividedList', () => {
     expect(screen.getByTestId('row')).not.toHaveClass('justify-between');
   });
 
+  it('Given a form row, Then its label, field and help stack with room between them', () => {
+    render(
+      <DividedList>
+        <DividedRow layout="form" data-testid="row">
+          One
+        </DividedRow>
+      </DividedList>,
+    );
+
+    expect(screen.getByTestId('row')).toHaveClass('flex-col', 'gap-2');
+  });
+
   it('Given label and value pairs, Then a dl holds div rows', () => {
     render(
       <DividedList as="dl" aria-label="Facts">

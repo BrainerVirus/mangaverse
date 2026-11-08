@@ -24,6 +24,8 @@ const ROW_LAYOUTS = {
   inline: 'flex flex-wrap items-center justify-between gap-3',
   /** Content stacked: a heading line over its message. */
   stacked: 'flex flex-col gap-1',
+  /** A small form group: a label line, a field, its help text. */
+  form: 'flex flex-col gap-2',
 } as const;
 
 export interface DividedRowProps extends React.HTMLAttributes<HTMLElement> {
