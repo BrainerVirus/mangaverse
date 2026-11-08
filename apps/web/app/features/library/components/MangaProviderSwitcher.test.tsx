@@ -23,6 +23,26 @@ const mappings = [
 ];
 
 describe('MangaProviderSwitcher', () => {
+  it('Given several providers, Then the group is one outlined surface and its rows carry no box of their own', () => {
+    render(
+      <MangaProviderSwitcher
+        mappings={mappings}
+        defaultMappingId={MAP_A}
+        activeMappingId={MAP_A}
+        providerLabels={{ 'prov-a': 'Provider A', 'prov-b': 'Provider B' }}
+      />,
+    );
+
+    const rows = screen.getAllByRole('listitem');
+    expect(rows).toHaveLength(2);
+    // A bordered tile per provider put a box inside a box; the rows are separated by a hairline
+    // inside the one surface that wraps the list.
+    for (const row of rows) {
+      expect(row.className).not.toMatch(/(^| )(border|bg-|rounded)/);
+    }
+    expect(rows[0]!.parentElement!.parentElement).toHaveClass('border', 'border-border');
+  });
+
   it('shows every mapping with default, chapter source and viewing indicators', () => {
     render(
       <MangaProviderSwitcher
