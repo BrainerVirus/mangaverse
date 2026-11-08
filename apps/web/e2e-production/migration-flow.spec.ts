@@ -463,7 +463,18 @@ test('Given a searchable target provider, When a title is searched, Then the ran
     /Solo Leveling.*exact.*e2e-solo-exact/,
     { timeout: 30_000 },
   );
-  await soloMatches.getByRole('button').first().click();
+  const match = soloMatches.getByRole('button').first();
+  await page.emulateMedia({ forcedColors: 'active' });
+  for (const selected of [false, true]) {
+    await soloRow.getByRole('textbox', { name: 'Target search for Solo Leveling' }).focus();
+    await page.keyboard.press('Tab');
+    await expect(match).toBeFocused();
+    await expect(match).toHaveAttribute('aria-pressed', String(selected));
+    await expect(match).toHaveCSS('outline-style', 'solid');
+    await expect(match).toHaveCSS('outline-width', '2px');
+    if (!selected) await page.keyboard.press('Enter');
+  }
+  await page.emulateMedia({ forcedColors: 'none' });
 
   const berserkRow = candidateRow(page, TITLES[1].title);
   const berserkMatches = berserkRow.getByRole('list', {
