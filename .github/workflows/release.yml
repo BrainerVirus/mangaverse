@@ -20,6 +20,8 @@ on:
   push:
     tags:
       - "v*"
+      # Nightly tags are published by nightly.yml and must not enter the stable pipeline.
+      - "!v*-nightly.*"
   workflow_dispatch:
     inputs:
       rehearsal:
@@ -171,6 +173,7 @@ jobs:
             script: package:win
             files: |
               apps/desktop/release/MangaVerse-*-x64.exe
+              apps/desktop/release/MangaVerse-*-x64.zip
           - id: linux-x64
             os: ubuntu-24.04
             script: package:linux
@@ -270,6 +273,9 @@ jobs:
             echo "::error::A release or draft for $TAG already exists ($existing). Inspect it with gh release view $TAG; if it is an unpublished draft, delete it by hand with gh release delete $TAG --cleanup-tag=false and rerun. Never delete a published release."
             exit 1
           fi
+
+      - name: Add installer scripts
+        run: cp scripts/install/install.sh scripts/install/install.ps1 assets/
 
       - name: Write SHA256SUMS
         working-directory: assets

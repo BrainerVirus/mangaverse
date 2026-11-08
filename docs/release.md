@@ -7,14 +7,17 @@ unsigned early preview published as a GitHub **pre-release**. The decisions behi
 
 ## What a release contains
 
-| Platform             | Files                                                                    |
-| -------------------- | ------------------------------------------------------------------------ |
-| macOS, Apple Silicon | `MangaVerse-<version>-arm64.dmg`, `MangaVerse-<version>-arm64.zip`       |
-| Windows x64          | `MangaVerse-<version>-x64.exe` (NSIS installer)                          |
-| Linux x64            | `MangaVerse-<version>-x86_64.AppImage`, `MangaVerse-<version>-amd64.deb` |
-| Integrity            | `SHA256SUMS`, plus a GitHub build-provenance attestation for every file  |
+| Platform             | Files                                                                            |
+| -------------------- | -------------------------------------------------------------------------------- |
+| macOS, Apple Silicon | `MangaVerse-<version>-arm64.dmg`, `MangaVerse-<version>-arm64.zip`               |
+| Windows x64          | `MangaVerse-<version>-x64.exe` (NSIS), `MangaVerse-<version>-x64.zip` (portable) |
+| Linux x64            | `MangaVerse-<version>-x86_64.AppImage`, `MangaVerse-<version>-amd64.deb`         |
+| Installers           | `install.sh`, `install.ps1` (the contract in [`nightly.md`](nightly.md))         |
+| Integrity            | `SHA256SUMS`, plus a GitHub build-provenance attestation for every file          |
 
 There is no macOS Intel build, no Windows or Linux ARM build, and no `latest*.yml` update feed.
+Nightly builds, the install scripts and the script-based update path are documented in
+[`nightly.md`](nightly.md).
 
 The version comes from `apps/desktop/package.json` (electron-builder reads it). The root
 `package.json` is `0.0.0` and is not a release version. A release tag must equal
@@ -34,9 +37,9 @@ The version comes from `apps/desktop/package.json` (electron-builder reads it). 
    run `package:mac|win|linux`. Architectures are pinned in
    `apps/desktop/electron-builder.yml`. The macOS job also checks the binary is arm64 and runs the
    packaged-app proof (`test:e2e:packaged`) against the arm64 zip.
-4. **release** (the only job with write permission, `environment: release`): writes `SHA256SUMS`,
-   attests every file with `actions/attest`, and runs
-   `gh release create --verify-tag --prerelease --latest=false`.
+4. **release** (the only job with write permission, `environment: release`): adds `install.sh`
+   and `install.ps1` to the assets, writes `SHA256SUMS`, attests every file with `actions/attest`,
+   and runs `gh release create --verify-tag --prerelease --latest=false`.
 
 Uploads are done with `gh release`, never `electron-builder --publish` (the build jobs hold a
 read-only token and no secrets).
@@ -142,6 +145,10 @@ Nothing in the repo reads a signing secret today, and the `package` jobs run wit
   `spctl -a -vv`, `xcrun stapler validate` on macOS, and `Get-AuthenticodeSignature` on Windows.
 
 ## Re-enabling auto-update
+
+The nightly channel does not use this path: a script-installed nightly updates by handing off to
+the bundled installer ([`nightly.md`](nightly.md)). This section is only for turning on the
+signed electron-updater feed in a stable build.
 
 The updater code is intact (`apps/desktop/src/main/updater.ts`, `update-policy.ts`, the platform
 IPC and the renderer prompt). It stays off because `electron-builder.yml` has no `publish` block:

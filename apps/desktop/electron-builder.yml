@@ -8,10 +8,11 @@
 # notarization, and the OS shows its normal install warning. Signing turns on by itself when
 # the owner's certificates are in the environment (see docs/release.md).
 #
-# No auto-update feed: there is no `publish` block, so electron-builder writes no
-# `app-update.yml` and the packaged app's updater stays disabled (src/main/updater.ts checks
-# for that file). Release uploads are owned by .github/workflows/release.yml. To turn updates
-# back on, see "Re-enabling auto-update" in docs/release.md.
+# No electron-updater feed: there is no `publish` block, so electron-builder writes no
+# `app-update.yml`. A nightly installed by scripts/install updates through
+# src/main/script-updater.ts (a staged copy of the bundled installer), not electron-updater;
+# every other build keeps manual updates. Release uploads are owned by
+# .github/workflows/release.yml.
 appId: app.mangaverse.desktop
 productName: MangaVerse
 copyright: Copyright © 2026 MangaVerse
@@ -29,6 +30,14 @@ files:
   - "!**/*.map"
   - "!dist/e2e-results/**"
   - "!node_modules/**"
+# The nightly updater hands off to these scripts; they are outside the asar so a shell
+# can execute them while the app bundle is being replaced.
+extraResources:
+  - from: ../../scripts/install
+    to: install
+    filter:
+      - install.sh
+      - install.ps1
 extraMetadata:
   main: dist/main/index.js
 # Fuses flipped at package time (@electron/fuses). The unpackaged dev build and the Playwright
@@ -72,6 +81,9 @@ win:
   icon: build/icon.ico
   target:
     - target: nsis
+      arch: x64
+    # Portable zip used by the cross-platform install script; no admin needed.
+    - target: zip
       arch: x64
   artifactName: ${productName}-${version}-${arch}.${ext}
 nsis:

@@ -7,6 +7,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- A nightly release channel (`nightly.yml`) with unique pre-release tags, installers, checksums
+  and attestations. Stable remains a manual `vX.Y.Z` release.
+- Cross-platform install/update/uninstall scripts with one command contract: `install.sh` for
+  macOS/Linux and `install.ps1` for Windows. They verify `SHA256SUMS`, install per-user without
+  admin, write a receipt, preserve library data on uninstall and support `--purge-data`.
+- A portable Windows x64 ZIP target for the script installer.
+- In-app nightly updates without a signing account: a script-installed nightly checks GitHub
+  Releases and hands the update to a staged copy of the bundled installer after the app quits.
+
 ## [0.0.3] - Unreleased
 
 Third unsigned preview. Fixes Discover density and the repeated "source isn't responding"

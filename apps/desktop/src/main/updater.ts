@@ -6,7 +6,8 @@
  * and nothing installs until the user accepts. A chapter that is open holds both the prompt
  * and an accepted install until reading ends, and a declined version is not offered again
  * this session. Every failure is logged once and otherwise ignored. Development and
- * unpackaged builds, and builds without a publish feed, never register an updater.
+ * unpackaged builds never register an updater; a build without a publish feed registers only
+ * the injected nightly script updater.
  */
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -58,6 +59,8 @@ export interface RegisterAutoUpdateOptions {
   readonly resourcesPath?: string;
   readonly hasFeed?: (resourcesPath: string) => boolean;
   readonly updater?: UpdaterLike;
+  /** Nightly script updater; enables updates without an app-update.yml feed. */
+  readonly customUpdater?: UpdaterLike;
   readonly log?: (message: string) => void;
 }
 
@@ -81,12 +84,13 @@ export function registerAutoUpdate(options: RegisterAutoUpdateOptions): AutoUpda
 
   // electron-updater must not run in dev, in an unpackaged run, or when the build carries
   // no publish feed: there is nothing to compare against and no app-update.yml to read.
-  if (!isPackaged || !hasFeed(resourcesPath)) {
+  if (!isPackaged || (!hasFeed(resourcesPath) && options.customUpdater === undefined)) {
     log('disabled (not a packaged build with a publish feed)');
     return { enabled: false, stop: () => {} };
   }
 
-  const updater = options.updater ?? (electronAutoUpdater as unknown as UpdaterLike);
+  const updater =
+    options.updater ?? options.customUpdater ?? (electronAutoUpdater as unknown as UpdaterLike);
   let promptVersion: string | null = null;
   let accepted = false;
   let installing = false;
