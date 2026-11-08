@@ -15,7 +15,8 @@ import {
   DialogHeader,
   DialogTitle,
   ErrorState,
-  ListRow,
+  DividedList,
+  DividedRow,
   LoadingState,
   SettingsSection,
   PageContainer,
@@ -59,25 +60,19 @@ function PreviewIssueList({ preview }: { preview: RestorePreviewReport }) {
   }
 
   return (
-    <ul className="flex flex-col gap-2" aria-label="Restore preview issues">
+    <DividedList aria-label="Restore preview issues">
       {issues.map((issue) => (
-        <ListRow
-          as="li"
-          key={`${issue.code}-${issue.message}`}
-          tone="muted"
-          padding="md"
-          className="text-sm"
-        >
-          <div className="mb-1 flex items-center gap-2">
+        <DividedRow key={`${issue.code}-${issue.message}`} layout="stacked">
+          <div className="flex items-center gap-2">
             <Badge variant={issue.severity === 'error' ? 'destructive' : 'secondary'}>
               {issue.severity}
             </Badge>
             <span className="font-medium text-foreground">{issue.code}</span>
           </div>
           <p className="text-muted-foreground">{issue.message}</p>
-        </ListRow>
+        </DividedRow>
       ))}
-    </ul>
+    </DividedList>
   );
 }
 
@@ -149,11 +144,8 @@ function RestorePreviewPanel({
         ) : null}
         {summary.infoCount > 0 ? <Badge variant="outline">{summary.infoCount} notes</Badge> : null}
       </div>
-      <ListRow
-        as="dl"
+      <dl
         aria-label="Backup contents"
-        tone="muted"
-        padding="md"
         className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3"
       >
         {countRows.map((row) => (
@@ -162,7 +154,7 @@ function RestorePreviewPanel({
             <dd className="font-medium tabular-nums text-foreground">{row.value}</dd>
           </div>
         ))}
-      </ListRow>
+      </dl>
       {preview.schemaVersion !== null && preview.schemaVersion < 4 ? (
         <p className="text-sm text-muted-foreground">
           This backup predates categories, chapter progress, reading history and migration history.
