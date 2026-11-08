@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { SettingsSection } from '../components/settings-section.js';
 
 describe('SettingsSection', () => {
@@ -110,6 +110,63 @@ describe('SettingsSection', () => {
 
     expect(screen.queryByText('Hidden content')).not.toBeInTheDocument();
     expect(screen.getByRole('button')).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('Given a collapsed section, When it is opened and closed, Then the body mounts once, eases via data-open and is inert while closed', () => {
+    render(
+      <SettingsSection title="Folding" collapsed>
+        <button type="button">Inside</button>
+      </SettingsSection>,
+    );
+    const toggle = screen.getByRole('button', { name: 'Folding' });
+    expect(screen.queryByRole('button', { name: 'Inside' })).not.toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    const inside = screen.getByRole('button', { name: 'Inside' });
+    const region = inside.closest('[data-open]')!;
+    expect(region).toHaveAttribute('data-open', 'true');
+    expect(inside.closest('[inert]')).toBeNull();
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.click(toggle);
+    // Still mounted so the height can ease down, but out of the tab order and the a11y tree.
+    expect(screen.getByRole('button', { name: 'Inside', hidden: true })).toBe(inside);
+    expect(region).toHaveAttribute('data-open', 'false');
+    expect(inside.closest('[inert]')).not.toBeNull();
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('Given a section that is not collapsible, Then its body renders in plain flow, with no easing wrapper', () => {
+    const { container } = render(
+      <SettingsSection title="Always open">
+        <div>Body</div>
+      </SettingsSection>,
+    );
+
+    expect(screen.getByText('Body')).toBeInTheDocument();
+    // The easing wrapper starts at 0fr via @starting-style: on a section that is open from the
+    // start it would grow in on every page load, and its overflow-hidden would clip the body.
+    expect(container.querySelector('[data-open]')).toBeNull();
+    expect(container.querySelector('.collapsible-grid')).toBeNull();
+    expect(container.querySelector('[inert]')).toBeNull();
+  });
+
+  it('Given a section that is open from the start, When its header is pressed, Then the body folds and returns', () => {
+    render(
+      <SettingsSection title="Appearance">
+        <div>Body</div>
+      </SettingsSection>,
+    );
+    const toggle = screen.getByRole('button', { name: 'Appearance' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Body')).not.toBeInTheDocument();
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText('Body')).toBeInTheDocument();
   });
 
   it('children are visible by default when not collapsed', () => {
