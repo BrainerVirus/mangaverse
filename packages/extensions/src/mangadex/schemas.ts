@@ -120,11 +120,20 @@ const tagSchema = z
     return name === undefined ? {} : { attributes: { name: toStringMap(name) } };
   });
 
-/** Null means "no description"; a string and a non-empty locale map both count. */
-const descriptionSchema = z.custom<Readonly<Record<string, string>> | string | null>(
-  (value) => value === null || typeof value === 'string' || hasStringEntry(value),
-  { error: 'must be a string or a locale map with at least one string entry' },
-);
+/**
+ * A null, scalar or empty locale map all mean "no description". MangaDex sends
+ * empty maps on real records, and one optional field must not fail a whole page.
+ */
+const descriptionSchema = z
+  .unknown()
+  .optional()
+  .transform((value): Readonly<Record<string, string>> | string | undefined =>
+    typeof value === 'string' && value.length > 0
+      ? value
+      : hasStringEntry(value)
+        ? toStringMap(value)
+        : undefined,
+  );
 
 const mangaEntitySchema = z
   .object({
@@ -146,11 +155,7 @@ const mangaEntitySchema = z
       attributes: {
         title: toStringMap(title),
         ...(altTitles !== undefined ? { altTitles: altTitles.map(toStringMap) } : {}),
-        ...(description !== undefined && description !== null
-          ? {
-              description: typeof description === 'string' ? description : toStringMap(description),
-            }
-          : {}),
+        ...(description !== undefined ? { description } : {}),
         ...(status !== undefined ? { status } : {}),
         ...(contentRating !== undefined ? { contentRating } : {}),
         ...(tags !== undefined ? { tags } : {}),
