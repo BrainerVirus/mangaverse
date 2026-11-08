@@ -481,8 +481,8 @@ function MangaFacts({
       </dl>
 
       {description.length > 0 ? (
-        <ExpandableText className="max-w-3xl">
-          <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+        <ExpandableText>
+          <p className="max-w-3xl whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
             {description}
           </p>
         </ExpandableText>

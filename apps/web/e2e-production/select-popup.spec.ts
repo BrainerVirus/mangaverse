@@ -45,7 +45,10 @@ test.describe('select popup', () => {
     // The open zoom-in scales the popup to 95%; measurements taken mid-animation
     // would report a 553px-wide list for a 582px trigger.
     await list.evaluate(async (element) => {
-      const animations = element.parentElement?.getAnimations({ subtree: true }) ?? [];
+      // Only time-based animations finish: the list's scroll-linked edge fades never do.
+      const animations = (element.parentElement?.getAnimations({ subtree: true }) ?? []).filter(
+        (animation) => animation.timeline instanceof DocumentTimeline,
+      );
       await Promise.all(animations.map((animation) => animation.finished));
     });
 
