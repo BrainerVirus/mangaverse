@@ -3,6 +3,7 @@ import {
   Badge,
   Button,
   EmptyState,
+  ExpandableText,
   ErrorState,
   LoadingState,
   Skeleton,
@@ -480,9 +481,11 @@ function MangaFacts({
       </dl>
 
       {description.length > 0 ? (
-        <p className="max-w-3xl whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
-          {description}
-        </p>
+        <ExpandableText className="max-w-3xl">
+          <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+            {description}
+          </p>
+        </ExpandableText>
       ) : null}
 
       {manga.tags.length > 0 ? (

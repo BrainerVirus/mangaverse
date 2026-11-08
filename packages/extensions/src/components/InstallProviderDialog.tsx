@@ -166,7 +166,7 @@ export function InstallProviderDialog({
 
         <div
           data-testid="install-provider-body"
-          className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-1.5 scroll-p-2"
+          className="scroll-fade-y flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-1.5 scroll-p-2"
         >
           <div className="flex flex-col gap-2">
             <Label htmlFor="manifest-url">Manifest URL</Label>

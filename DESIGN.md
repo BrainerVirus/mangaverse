@@ -889,6 +889,21 @@ Library 2 → 3 → 4 → 5 → 6 columns at `gap-4` (list mode `grid-cols-1 gap
 lg:grid-cols-3`); discover 2 → 3 → 4 → 6; extensions and theme previews 1 → 2 → 3 at `gap-4`/`gap-6`.
 Long grids are virtualised; skeletons mirror the column rhythm so layout never shifts.
 
+### Scroll edges and folded text
+
+A scroller with hidden content fades the hidden edge, and the fade is gone once that edge is reached:
+the fade itself says "there is more". It is the `scroll-fade-y` utility, driven by the scroll
+position through a scroll timeline (no script, no listeners); the fade is `--scroll-fade-size`
+(2rem) and a scroller that does not overflow shows none. The mask also fades the element's own
+background and border, so it goes on a scroller with no chrome of its own (the page column, a list
+inside a surface), never on a dialog or sheet surface (those take an inner scroll wrapper). The
+reader's scroll views are excluded. Engines without scroll timelines show no fade.
+
+Long descriptions fold with `ExpandableText`: clamped to a standard height (7.5rem) behind a bottom
+fade, with a link-style Show more / Show less that eases the box to its full height. Text that
+fits is left alone. Height is the one layout property this animates, because the box has to grow;
+reduced motion snaps.
+
 ### Whitespace & rhythm
 
 Page padding 24px mobile / 32px desktop; internal stacks `gap-4`/`gap-6`; card interiors 24px; settings

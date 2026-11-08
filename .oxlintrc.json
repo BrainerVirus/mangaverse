@@ -81,6 +81,8 @@
           "select-popup-max",
           "reader-stage-background",
           "reader-page-scroll",
+          "scroll-fade-y",
+          "expandable-box",
           "rounded-badge",
           "rounded-box",
           "rounded-btn",
