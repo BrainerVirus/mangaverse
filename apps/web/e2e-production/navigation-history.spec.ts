@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { MANGADEX_APP_MANGA_ID, showReaderControls, test } from './helpers.js';
+import { MANGADEX_APP_MANGA_ID, showReaderControls, test, waitForPingQuiet } from './helpers.js';
 import { fixturesDir } from './helpers.js';
 
 test.describe.configure({ timeout: 180_000 });
@@ -35,6 +35,9 @@ for (const width of [390, 1440]) {
         await expect(
           page.getByRole('button', { name: /Remove from library|In library/ }).first(),
         ).toBeVisible({ timeout: 30_000 });
+        // The goto below is a full page load: let the add land durably first, or the library can
+        // reopen empty and the card never appears (the one navigation-history flake).
+        await waitForPingQuiet(page);
       }
       await page.goto(`/${origin}`);
       if (origin === 'search')
@@ -77,6 +80,8 @@ test('Continue reading closes to library without pushing detail', async ({
   const start = await index(page);
   await resume.click();
   await expect(page).toHaveURL(/\/reader\//);
+  // The URL changes before the reader mounts: Escape pressed in that gap reaches no handler.
+  await expect(page.getByTestId('reader-page-number')).toBeAttached({ timeout: 30_000 });
   const reader = await index(page);
   await page.keyboard.press('Escape');
   await expect(page).toHaveURL(/\/library$/);
