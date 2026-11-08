@@ -504,8 +504,8 @@ and drops the first of two that sit together.
 Command-palette group headers stay `text-xs font-semibold uppercase tracking-wide` (existing).
 
 **Spacing of type.** Headers sit in a `gap-1.5` / `gap-2` stack with their description; page headers
-use `gap-4` before their action row; settings sections separate title from body with `pb-4` and a closing
-separator at `mt-4`.
+use `gap-4` before their action row; settings sections separate title from body with `pb-4`; the card's own
+border closes the section, with no separator under the last row.
 
 ## 5. Motion Language
 
@@ -892,7 +892,7 @@ Long grids are virtualised; skeletons mirror the column rhythm so layout never s
 ### Whitespace & rhythm
 
 Page padding 24px mobile / 32px desktop; internal stacks `gap-4`/`gap-6`; card interiors 24px; settings
-sections separated by a 16px `mt-4` divider. Whitespace separates first, hairlines second, elevation
+sections separated by the page's `gap-6`, never a divider. Whitespace separates first, hairlines second, elevation
 third — the target adds glass as the fourth tool, and it is the only one that costs frames, so it is used
 where context matters (chrome, floating layers) and nowhere else. Reader chrome floats with `px-4 py-3`
 (top) and `px-4 py-2` (rail) — dense enough to stay out of the way, never overlapping tap zones.

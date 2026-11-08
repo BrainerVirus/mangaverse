@@ -113,7 +113,7 @@ function GridSkeleton({
 /**
  * Settings-style cards built from the real card chrome and the real line boxes: a heading line
  * and a description line (1lh of their type styles), then `rows` 44px control rows (a label over a
- * description, as the settings toggles are) and the closing separator gap. A section whose rows
+ * description, as the settings toggles are) and the card's bottom padding. A section whose rows
  * are taller or shorter still lines up to the pixel for the first rows.
  */
 function SectionsSkeleton({
@@ -146,7 +146,6 @@ function SectionsSkeleton({
                 />
               ))}
             </div>
-            <div className="mt-4 h-px" />
           </CardContent>
         </Card>
       ))}
