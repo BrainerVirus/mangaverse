@@ -1,4 +1,4 @@
-import { Badge, Button, EmptyNote, ListRow } from '@app/design-system';
+import { Badge, Button, DividedList, DividedRow, EmptyNote, ListRow } from '@app/design-system';
 import {
   providerDisplayName,
   type MangaProviderMapping,
@@ -45,84 +45,82 @@ export function MangaProviderSwitcher({
       {mappings.length === 0 ? (
         <EmptyNote>No provider source is attached to this title.</EmptyNote>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {mappings.map((mapping) => {
-            const name = providerDisplayName(mapping.providerId, providerLabels);
-            const isDefault = mapping.id === defaultMappingId;
-            const isActive = mapping.id === activeMappingId;
-            const isPreferred = mapping.id === preferredMappingId;
-            return (
-              <ListRow
-                as="li"
-                key={mapping.id}
-                tone="outline"
-                padding="row"
-                className="flex flex-wrap items-center justify-between gap-3"
-              >
-                <div className="min-w-0 flex flex-col gap-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {name !== undefined ? <span className="font-medium">{name}</span> : null}
-                    {isDefault ? <Badge variant="secondary">Default</Badge> : null}
-                    {isPreferred ? <Badge variant="outline">Chapter source</Badge> : null}
-                    {isActive ? <Badge>Viewing</Badge> : null}
-                  </div>
-                  {/* The remote id identifies the source; the provider id stays out
+        // One surface for the whole group and a hairline between providers: a bordered tile per
+        // provider put a box inside a box for the common single-provider title.
+        <ListRow as="div" tone="outline" padding="md">
+          <DividedList>
+            {mappings.map((mapping) => {
+              const name = providerDisplayName(mapping.providerId, providerLabels);
+              const isDefault = mapping.id === defaultMappingId;
+              const isActive = mapping.id === activeMappingId;
+              const isPreferred = mapping.id === preferredMappingId;
+              return (
+                <DividedRow key={mapping.id}>
+                  <div className="min-w-0 flex flex-col gap-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {name !== undefined ? <span className="font-medium">{name}</span> : null}
+                      {isDefault ? <Badge variant="secondary">Default</Badge> : null}
+                      {isPreferred ? <Badge variant="outline">Chapter source</Badge> : null}
+                      {isActive ? <Badge>Viewing</Badge> : null}
+                    </div>
+                    {/* The remote id identifies the source; the provider id stays out
                       of the UI because it is an implementation token. */}
-                  <p className="truncate text-xs text-muted-foreground">
-                    {mapping.providerMangaId}
-                  </p>
-                </div>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {mapping.providerMangaId}
+                    </p>
+                  </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  {!isActive && onSelectMapping !== undefined ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={isPending}
-                      onClick={() => run(() => onSelectMapping(mapping.id))}
-                    >
-                      View chapters
-                    </Button>
-                  ) : null}
-                  {!isDefault && onSetDefault !== undefined ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      disabled={isPending}
-                      onClick={() => run(() => onSetDefault(mapping.id))}
-                    >
-                      Set default
-                    </Button>
-                  ) : null}
-                  {!isPreferred && onSetPreferred !== undefined ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      disabled={isPending}
-                      onClick={() => run(() => onSetPreferred(mapping.id))}
-                    >
-                      Use for chapters
-                    </Button>
-                  ) : null}
-                  {mappings.length > 1 && onUnmergeMapping !== undefined ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      disabled={isPending}
-                      onClick={() => run(() => onUnmergeMapping(mapping.id))}
-                    >
-                      Split title
-                    </Button>
-                  ) : null}
-                </div>
-              </ListRow>
-            );
-          })}
-        </ul>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {!isActive && onSelectMapping !== undefined ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={isPending}
+                        onClick={() => run(() => onSelectMapping(mapping.id))}
+                      >
+                        View chapters
+                      </Button>
+                    ) : null}
+                    {!isDefault && onSetDefault !== undefined ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={isPending}
+                        onClick={() => run(() => onSetDefault(mapping.id))}
+                      >
+                        Set default
+                      </Button>
+                    ) : null}
+                    {!isPreferred && onSetPreferred !== undefined ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={isPending}
+                        onClick={() => run(() => onSetPreferred(mapping.id))}
+                      >
+                        Use for chapters
+                      </Button>
+                    ) : null}
+                    {mappings.length > 1 && onUnmergeMapping !== undefined ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        disabled={isPending}
+                        onClick={() => run(() => onUnmergeMapping(mapping.id))}
+                      >
+                        Split title
+                      </Button>
+                    ) : null}
+                  </div>
+                </DividedRow>
+              );
+            })}
+          </DividedList>
+        </ListRow>
       )}
     </section>
   );
