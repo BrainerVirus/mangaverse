@@ -28,6 +28,15 @@ const FEED_PAGE_LIMIT = 100;
 const FEED_MAX_PAGES = 25;
 /** MangaDex refuses any `/manga` request whose `offset + limit` exceeds 10000. */
 const MAX_RESULT_WINDOW = 10_000;
+/** Trending means the most-followed titles created in the last month. */
+const TRENDING_WINDOW_DAYS = 30;
+
+function isoDaysAgo(days: number): string {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() - days);
+  // MangaDex accepts `YYYY-MM-DDTHH:mm:ss`; milliseconds or a Z suffix are a 400.
+  return date.toISOString().slice(0, 19);
+}
 
 const DEFAULT_LANGUAGES: readonly string[] = ['en'];
 /** MangaDex ratings requested unless the user opts into mature content. */
@@ -185,6 +194,7 @@ export function createMangaDexProvider(options: CreateMangaDexProviderOptions): 
     page: number | undefined,
     order: string,
     limit: number | undefined,
+    extraParams?: Readonly<Record<string, string>>,
   ): Promise<ProviderSearchResult> => {
     const settings = settingsOf(ctx);
     const params = collectionParams(
@@ -195,6 +205,7 @@ export function createMangaDexProvider(options: CreateMangaDexProviderOptions): 
       },
       settings,
     );
+    for (const [name, value] of Object.entries(extraParams ?? {})) params.set(name, value);
     params.set(order, 'desc');
     const url = `${apiBase}/manga?${params.toString()}`;
     const collection = parseCollectionResponse(await requestJson(ctx, url), '/manga');
@@ -230,8 +241,14 @@ export function createMangaDexProvider(options: CreateMangaDexProviderOptions): 
     search: (ctx, input) => searchCollection(ctx, input),
     browseLatest: (ctx, input) =>
       browseOrdered(ctx, input.page, 'order[latestUploadedChapter]', input.limit),
+    browseTrending: (ctx, input) =>
+      browseOrdered(ctx, input.page, 'order[followedCount]', input.limit, {
+        createdAtSince: isoDaysAgo(TRENDING_WINDOW_DAYS),
+      }),
     browsePopular: (ctx, input) =>
       browseOrdered(ctx, input.page, 'order[followedCount]', input.limit),
+    browseRecent: (ctx, input) => browseOrdered(ctx, input.page, 'order[createdAt]', input.limit),
+    browseTopRated: (ctx, input) => browseOrdered(ctx, input.page, 'order[rating]', input.limit),
     getDetails: async (ctx, mangaId) => {
       const params = new URLSearchParams();
       params.append('includes[]', 'cover_art');

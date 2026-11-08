@@ -98,6 +98,24 @@ describe('MangaDex provider settings', () => {
     expect(lastParams().get('order[latestUploadedChapter]')).toBeNull();
   });
 
+  it('Given trending, recent and top-rated browse, Then each sends its own order', async () => {
+    const { provider, lastParams } = recordingProvider();
+
+    await provider.browseTrending!(baseCtx, { page: 1, limit: 6 });
+    expect(lastParams().get('order[followedCount]')).toBe('desc');
+    const since = lastParams().get('createdAtSince');
+    expect(since).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/);
+    const ageMs = Date.now() - Date.parse(since!);
+    expect(ageMs).toBeGreaterThan(29 * 24 * 60 * 60 * 1000);
+    expect(ageMs).toBeLessThan(31 * 24 * 60 * 60 * 1000);
+
+    await provider.browseRecent!(baseCtx, { page: 1, limit: 6 });
+    expect(lastParams().get('order[createdAt]')).toBe('desc');
+
+    await provider.browseTopRated!(baseCtx, { page: 1, limit: 6 });
+    expect(lastParams().get('order[rating]')).toBe('desc');
+  });
+
   it('Given a large catalog, When browsing the last full window, Then pagination stops before 10000', async () => {
     const entity = { id: 'x', attributes: { title: { en: 'Title' } } };
     const collection = (total: number) =>

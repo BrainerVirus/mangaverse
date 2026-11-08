@@ -127,6 +127,18 @@ export interface ProviderContract {
     ctx: ProviderContext,
     input: { readonly page?: number; readonly limit?: number },
   ) => Promise<ProviderSearchResult>;
+  readonly browseTrending?: (
+    ctx: ProviderContext,
+    input: { readonly page?: number; readonly limit?: number },
+  ) => Promise<ProviderSearchResult>;
+  readonly browseRecent?: (
+    ctx: ProviderContext,
+    input: { readonly page?: number; readonly limit?: number },
+  ) => Promise<ProviderSearchResult>;
+  readonly browseTopRated?: (
+    ctx: ProviderContext,
+    input: { readonly page?: number; readonly limit?: number },
+  ) => Promise<ProviderSearchResult>;
   readonly getDetails?: (
     ctx: ProviderContext,
     mangaId: ProviderMangaId,
