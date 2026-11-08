@@ -207,23 +207,25 @@ jobs:
           > and build provenance before running. Apple Silicon only (no Intel build); Windows
           > x64; Linux x64.
 
-          Install or update without admin:
+          Install or update without admin. macOS and Linux:
 
           ```sh
-          # macOS / Linux (channel defaults to nightly)
           curl -fsSL https://raw.githubusercontent.com/BrainerVirus/mangaverse/main/scripts/install/install.sh | sh
           ```
 
+          Windows PowerShell:
+
           ```powershell
-          # Windows PowerShell
           irm https://raw.githubusercontent.com/BrainerVirus/mangaverse/main/scripts/install/install.ps1 | iex
           ```
 
-          Uninstall:
+          Uninstall on macOS and Linux:
 
           ```sh
           curl -fsSL https://raw.githubusercontent.com/BrainerVirus/mangaverse/main/scripts/install/install.sh | sh -s -- uninstall
           ```
+
+          Uninstall on Windows PowerShell:
 
           ```powershell
           $s = [scriptblock]::Create((irm https://raw.githubusercontent.com/BrainerVirus/mangaverse/main/scripts/install/install.ps1)); & $s -Action uninstall
