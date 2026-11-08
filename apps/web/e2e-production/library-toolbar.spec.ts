@@ -233,9 +233,10 @@ test('Given a library card, When hovered, Then it never lifts or shifts', async 
 
   const identity = /^(none|matrix\(1, 0, 0, 1, 0, 0\))$/;
   await card.hover();
-  await expect
-    .poll(() => card.evaluate((element) => getComputedStyle(element).transform), { timeout: 2_000 })
-    .toMatch(identity);
+  // Wait past any hover transition so an identity read cannot race an animation.
+  await page.waitForTimeout(350);
+  const normalHover = await card.evaluate((element) => getComputedStyle(element).transform);
+  expect(normalHover).toMatch(identity);
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.mouse.move(0, 0);
