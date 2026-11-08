@@ -176,8 +176,10 @@ export function ReaderProgressRail({
     <div className={cn('relative flex-1 py-3', className)}>
       {showPreview ? (
         <div
-          className="reader-progress-preview pointer-events-none absolute bottom-full z-10 -translate-x-1/2"
+          className="reader-progress-preview pointer-events-none absolute bottom-full z-10"
           // The preview follows the measured pointer position, which no static class can carry.
+          // `reader-progress-preview` already centres it on that position (translateX(-50%)); a second
+          // centring class doubled the shift and put the preview half its width left of the pointer.
           style={{ '--reader-progress-x': `${hoverX}px` } as ReaderProgressStyle}
           data-testid="reader-rail-preview"
         >

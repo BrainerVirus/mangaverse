@@ -1,5 +1,11 @@
 import { expect, type Page } from '@playwright/test';
-import { MANGADEX_APP_MANGA_ID, showReaderControls, stubCapableHardware, test } from './helpers.js';
+import {
+  MANGADEX_APP_MANGA_ID,
+  settledBox,
+  showReaderControls,
+  stubCapableHardware,
+  test,
+} from './helpers.js';
 
 test.describe.configure({ timeout: 90_000 });
 
@@ -96,7 +102,7 @@ test('Given an open chapter, When hovering and dragging the rail, Then a page pr
   await showReaderControls(page);
   await expect(page.locator('[data-glass-tier="stage"]')).toHaveCount(1);
   const rail = page.getByRole('slider', { name: 'Page slider' });
-  const box = (await rail.boundingBox())!;
+  const box = await settledBox(rail);
 
   // Hover: a preview popover with a rendered page image follows the pointer.
   await page.mouse.move(box.x + box.width * 0.5, box.y + box.height / 2);
@@ -273,4 +279,29 @@ test('Given reader glass, When transparency is reduced, Then glass layers resolv
   await expect
     .poll(() => stage.evaluate((element) => getComputedStyle(element).backgroundColor))
     .toBe('rgba(0, 0, 0, 0.88)');
+});
+
+test('Given a hovered page rail, When the pointer moves along it, Then the preview is centred on the pointer', async ({
+  page,
+  quickOnboarding,
+  mockMangaDex,
+}) => {
+  await openReader(page);
+  await showReaderControls(page);
+  const box = await settledBox(page.getByRole('slider', { name: 'Page slider' }));
+
+  for (const fraction of [0.15, 0.5, 0.85]) {
+    const x = box.x + box.width * fraction;
+    const y = box.y + box.height / 2;
+    await page.mouse.move(x - 30, y - 20);
+    await page.mouse.move(x, y, { steps: 5 });
+    const preview = page.getByTestId('reader-rail-preview');
+    await expect(preview).toBeVisible();
+    await expect
+      .poll(async () => {
+        const rect = (await preview.boundingBox())!;
+        return Math.abs(rect.x + rect.width / 2 - x);
+      })
+      .toBeLessThan(2);
+  }
 });
