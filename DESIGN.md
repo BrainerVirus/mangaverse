@@ -901,8 +901,10 @@ shows none. There are two forms:
   goes on a dialog or sheet surface (those take an inner scroll wrapper).
 - `scroll-fade-overlay-y` is for the page column. It draws the fade as two sticky overlays in the
   page colour (`--scroll-fade-color`), above the content (`z-index: 1`) and below sticky chrome, so
-  the notices pinned to the top of the column (`z-40`) and the onboarding footer (`z-10`) stay solid.
-  Sticky chrome in that column needs a `z-index` above 1.
+  the notices pinned to the top of the column (`z-40`, outside the animated route outlet) stay solid.
+  The route outlet is a stacking context of its own, so sticky chrome _inside_ a page cannot be raised
+  above the overlay: a page whose bottom chrome is sticky (the onboarding footer) marks it
+  `data-no-bottom-fade`, which turns the bottom overlay off for that page.
 
 The reader's scroll views are excluded. Engines without scroll timelines show no fade.
 

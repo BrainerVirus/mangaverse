@@ -29,7 +29,7 @@ test('Given a long description, Then it folds behind a fade and Show more grows 
   await expect.poll(height).toBe(120);
 });
 
-test('Given the main column overflows, Then each edge fades only while content is hidden past it, beneath sticky chrome', async ({
+test('Given the main column overflows, Then each edge fades only while content is hidden past it', async ({
   page,
   quickOnboarding,
   mockMangaDex,
@@ -60,15 +60,25 @@ test('Given the main column overflows, Then each edge fades only while content i
   expect(middle.top).toBe(1);
   expect(middle.bottom).toBe(1);
   expect(await fadesAt('end')).toEqual({ top: 1, bottom: 0 });
+});
 
-  // Sticky chrome (the notices at z-40, the onboarding footer at z-10) stays above the fade.
-  const layers = await page.evaluate(() => {
+test('Given the onboarding page with its sticky footer, Then the bottom fade is off and the top one still works', async ({
+  page,
+  quickOnboarding,
+}) => {
+  await page.setViewportSize({ width: 1024, height: 400 });
+  await page.goto('/onboarding');
+  const footer = page.locator('footer[data-no-bottom-fade]');
+  await expect(footer).toBeVisible({ timeout: 40_000 });
+
+  // The route outlet is its own stacking context, so the footer cannot be raised above the
+  // overlay; the page opts out of the bottom fade instead of being painted over.
+  const overlays = await page.evaluate(() => {
     const main = document.querySelector('main')!;
     return {
-      overlay: Number(getComputedStyle(main, '::before').zIndex),
-      overlayBottom: Number(getComputedStyle(main, '::after').zIndex),
+      top: getComputedStyle(main, '::before').display,
+      bottom: getComputedStyle(main, '::after').display,
     };
   });
-  expect(layers.overlay).toBe(1);
-  expect(layers.overlayBottom).toBe(1);
+  expect(overlays).toEqual({ top: 'block', bottom: 'none' });
 });

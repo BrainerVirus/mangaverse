@@ -907,6 +907,12 @@
       animation-name: scroll-fade-overlay-in;
       animation-range: 0 var(--scroll-fade-size, 2rem);
     }
+    /* A page whose own bottom chrome is sticky (a footer bar) marks it `data-no-bottom-fade`:
+       the route outlet is a stacking context of its own, so chrome inside it cannot be raised
+       above this overlay, and fading the bar that closes the page is wrong anyway. */
+    &:has([data-no-bottom-fade])::after {
+      display: none;
+    }
     &::after {
       bottom: 0;
       margin-top: calc(var(--scroll-fade-size, 2rem) * -1);
