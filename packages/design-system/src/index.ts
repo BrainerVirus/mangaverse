@@ -85,6 +85,7 @@ export { PageHeader } from './components/page-header.js';
 
 export { MangaCard } from './components/manga-card.js';
 export { EmptyState } from './components/empty-state.js';
+export { DividedList, DividedRow } from './components/divided-list.js';
 export { EmptyNote } from './components/empty-note.js';
 export { ExpandableText } from './components/expandable-text.js';
 export { ListRow } from './components/list-row.js';
@@ -103,6 +104,7 @@ export type { PageContainerProps } from './components/page-container.js';
 export type { PageHeaderProps } from './components/page-header.js';
 export type { MangaCardProps } from './components/manga-card.js';
 export type { EmptyStateProps } from './components/empty-state.js';
+export type { DividedListProps, DividedRowProps } from './components/divided-list.js';
 export type { EmptyNoteProps } from './components/empty-note.js';
 export type { ExpandableTextProps } from './components/expandable-text.js';
 export type { ListRowProps } from './components/list-row.js';

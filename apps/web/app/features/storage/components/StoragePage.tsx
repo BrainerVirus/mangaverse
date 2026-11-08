@@ -11,7 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
   ErrorState,
-  ListRow,
+  DividedList,
+  DividedRow,
   LoadingState,
   SettingsSection,
   PageContainer,
@@ -182,15 +183,9 @@ function DownloadsSection({
       </dl>
 
       {downloads.items.length > 0 ? (
-        <ul className="mt-4 flex flex-col gap-2" aria-label="Downloaded chapters">
+        <DividedList className="mt-4" aria-label="Downloaded chapters">
           {downloads.items.map((item) => (
-            <ListRow
-              as="li"
-              key={item.chapterId}
-              tone="muted"
-              padding="row"
-              className="flex flex-wrap items-center justify-between gap-3 text-sm"
-            >
+            <DividedRow key={item.chapterId}>
               <div className="min-w-0">
                 <p className="truncate font-medium text-foreground">{item.title}</p>
                 <p className="truncate text-xs text-muted-foreground">
@@ -224,9 +219,9 @@ function DownloadsSection({
                   Remove
                 </Button>
               </div>
-            </ListRow>
+            </DividedRow>
           ))}
-        </ul>
+        </DividedList>
       ) : (
         <p className="mt-4 text-sm text-muted-foreground">
           No downloads yet. Download a chapter from its title to read it offline.
@@ -366,20 +361,14 @@ export function StoragePage({
           </dl>
 
           {summary.cacheByProvider.length > 0 ? (
-            <ul className="mt-4 flex flex-col gap-2" aria-label="Cache entries by provider">
+            <DividedList className="mt-4" aria-label="Cache entries by provider">
               {summary.cacheByProvider.map((entry) => (
-                <ListRow
-                  as="li"
-                  key={entry.providerId}
-                  tone="muted"
-                  padding="row"
-                  className="flex items-center justify-between text-sm"
-                >
+                <DividedRow key={entry.providerId}>
                   <span className="font-mono text-foreground">{entry.providerId}</span>
                   <Badge variant="secondary">{entry.count}</Badge>
-                </ListRow>
+                </DividedRow>
               ))}
-            </ul>
+            </DividedList>
           ) : (
             <p className="mt-4 text-sm text-muted-foreground">
               No provider cache metadata stored yet.
