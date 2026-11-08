@@ -80,7 +80,7 @@ test('Given unknown ids, Then each detail page names what is missing and offers 
     timeout: 30_000,
   });
   await expect(page.getByText('No results found')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Back to library' }).click();
+  await page.getByRole('button', { name: 'Go Back' }).click();
   await expect(page).toHaveURL(/\/library/);
 
   await page.goto('/extensions/not-a-real-id');

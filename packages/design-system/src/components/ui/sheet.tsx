@@ -31,9 +31,9 @@ const SheetOverlay = React.forwardRef<HTMLDivElement, SheetPrimitive.Backdrop.Pr
 SheetOverlay.displayName = 'SheetOverlay';
 
 const sideClasses = {
-  top: 'inset-x-0 top-0 h-auto rounded-b-2xl data-open:slide-in-from-top data-closed:slide-out-to-top',
+  top: 'inset-x-0 top-0 h-auto max-h-dvh rounded-b-2xl data-open:slide-in-from-top data-closed:slide-out-to-top',
   bottom:
-    'inset-x-0 bottom-0 h-auto rounded-t-2xl data-open:slide-in-from-bottom data-closed:slide-out-to-bottom',
+    'inset-x-0 bottom-0 h-auto max-h-dvh rounded-t-2xl data-open:slide-in-from-bottom data-closed:slide-out-to-bottom',
   left: 'inset-y-0 left-0 h-full w-3/4 max-w-sm data-open:slide-in-from-left data-closed:slide-out-to-left',
   right:
     'inset-y-0 right-0 h-full w-3/4 max-w-sm data-open:slide-in-from-right data-closed:slide-out-to-right',
@@ -89,7 +89,7 @@ const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
         <SheetPrimitive.Popup
           ref={ref}
           className={cn(
-            'fixed z-50 flex flex-col gap-4 bg-transparent p-0 shadow-none',
+            'fixed z-50 flex flex-col overflow-y-auto bg-transparent p-0 shadow-none',
             'data-open:animate-in data-closed:animate-out',
             'data-open:duration-300 data-closed:duration-200',
             sideClasses[side],
@@ -112,30 +112,38 @@ const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
           }}
         >
           {surface === 'glass' ? (
-            <GlassPanel level="thick" padding="md" className="h-full w-full rounded-none">
+            <GlassPanel
+              level="thick"
+              padding="md"
+              className="min-h-full w-full shrink-0 rounded-none"
+            >
               {children}
+              <div aria-hidden="true" className="safe-area-bottom" />
             </GlassPanel>
           ) : (
             <GlassPanel
               level="thick"
               padding="md"
-              className={cn('flex h-full w-full flex-col gap-4', sideGlassRadii[side])}
+              className={cn('flex min-h-full w-full shrink-0 flex-col gap-4', sideGlassRadii[side])}
             >
               {children}
+              <div aria-hidden="true" className="safe-area-bottom -mt-4" />
             </GlassPanel>
           )}
-          <SheetPrimitive.Close
-            type="button"
-            className={cn(
-              buttonVariants.ghost,
-              buttonSizes.icon,
-              'absolute top-4 right-4 text-muted-foreground',
-              surface === 'glass' && 'text-foreground',
-            )}
-            aria-label="Close"
-          >
-            <X />
-          </SheetPrimitive.Close>
+          <div className="sticky top-0 z-10 order-first h-0 w-full shrink-0">
+            <SheetPrimitive.Close
+              type="button"
+              className={cn(
+                buttonVariants.ghost,
+                buttonSizes.icon,
+                'absolute top-4 right-4 text-muted-foreground',
+                surface === 'glass' && 'text-foreground',
+              )}
+              aria-label="Close"
+            >
+              <X />
+            </SheetPrimitive.Close>
+          </div>
         </SheetPrimitive.Popup>
       </SheetPortal>
     );

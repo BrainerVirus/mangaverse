@@ -1,0 +1,138 @@
+TLC2 Version 2026.11.06.222357 (rev: d8fb231)
+Running breadth-first search Model-Checking with fp 83 and seed -3499343631385096587 with 4 workers on 10 cores with 1820MB heap and 64MB offheap memory [pid: 18868] (Mac OS X 27.2 aarch64, Eclipse Adoptium 21.0.7 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/cristhoferpincetti/.local/share/opencode/worktree/3f8de6/ui-loaders-audit/tla/ReaderSettings.tla
+Parsing file /private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/tlc-2915399674942782536/Integers.tla (jar:file:/private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/mangaverse-tla2tools-1.8.0.jar!/tla2sany/StandardModules/Integers.tla)
+Parsing file /private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/tlc-2915399674942782536/Sequences.tla (jar:file:/private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/mangaverse-tla2tools-1.8.0.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/tlc-2915399674942782536/TLC.tla (jar:file:/private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/mangaverse-tla2tools-1.8.0.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/tlc-2915399674942782536/Naturals.tla (jar:file:/private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/mangaverse-tla2tools-1.8.0.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/tlc-2915399674942782536/FiniteSets.tla (jar:file:/private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/mangaverse-tla2tools-1.8.0.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Semantic processing of module Naturals
+Semantic processing of module Integers
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module ReaderSettings
+Linting of module ReaderSettings
+Starting... (2026-11-07 18:59:43)
+Computing initial states...
+Computed 2 initial states...
+Finished computing initial states: 4 distinct states generated at 2026-11-07 18:59:43.
+Error: Invariant KeepsPagedDirection is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ action = "start"
+/\ chapter = 0
+/\ shown = <<"closed", "single", "contain">>
+/\ panel = "closed"
+/\ cache = << [mode |-> "auto", layout |-> "auto", fit |-> "auto"],
+   [mode |-> "unset", layout |-> "unset", fit |-> "unset"],
+   0 >>
+/\ db = << [mode |-> "auto", layout |-> "auto", fit |-> "auto"],
+   [mode |-> "unset", layout |-> "unset", fit |-> "unset"] >>
+/\ intended = << [mode |-> "auto", layout |-> "auto", fit |-> "auto"],
+   [mode |-> "unset", layout |-> "unset", fit |-> "unset"] >>
+/\ pending = "none"
+/\ queue = <<>>
+/\ fetch = "none"
+/\ decision = "none"
+/\ seenDir = "none"
+/\ choice = [f |-> "none"]
+
+State 2: <Next line 402, col 3 to line 404, col 81 of module ReaderSettings>
+/\ action = "OpenChapter"
+/\ chapter = 1
+/\ shown = <<"ltr", "single", "contain">>
+/\ panel = "closed"
+/\ cache = << [mode |-> "auto", layout |-> "auto", fit |-> "auto"],
+   [mode |-> "unset", layout |-> "unset", fit |-> "unset"],
+   0 >>
+/\ db = << [mode |-> "auto", layout |-> "auto", fit |-> "auto"],
+   [mode |-> "unset", layout |-> "unset", fit |-> "unset"] >>
+/\ intended = << [mode |-> "auto", layout |-> "auto", fit |-> "auto"],
+   [mode |-> "unset", layout |-> "unset", fit |-> "unset"] >>
+/\ pending = "none"
+/\ queue = <<>>
+/\ fetch = "none"
+/\ decision = "none"
+/\ seenDir = "ltr"
+/\ choice = [f |-> "none"]
+
+State 3: <Next line 402, col 3 to line 404, col 81 of module ReaderSettings>
+/\ action = "FirstDecode"
+/\ chapter = 1
+/\ shown = <<"vertical", "strip", "strip">>
+/\ panel = "closed"
+/\ cache = << [mode |-> "auto", layout |-> "auto", fit |-> "auto"],
+   [mode |-> "unset", layout |-> "unset", fit |-> "unset"],
+   0 >>
+/\ db = << [mode |-> "auto", layout |-> "auto", fit |-> "auto"],
+   [mode |-> "unset", layout |-> "unset", fit |-> "unset"] >>
+/\ intended = << [mode |-> "auto", layout |-> "auto", fit |-> "auto"],
+   [mode |-> "unset", layout |-> "unset", fit |-> "unset"] >>
+/\ pending = "none"
+/\ queue = <<>>
+/\ fetch = "none"
+/\ decision = "strip"
+/\ seenDir = "ltr"
+/\ choice = [f |-> "none"]
+
+State 4: <Next line 402, col 3 to line 404, col 81 of module ReaderSettings>
+/\ action = "OpenPanel"
+/\ chapter = 1
+/\ shown = <<"vertical", "strip", "strip">>
+/\ panel = <<"title", "auto", "auto", "auto">>
+/\ cache = << [mode |-> "auto", layout |-> "auto", fit |-> "auto"],
+   [mode |-> "unset", layout |-> "unset", fit |-> "unset"],
+   0 >>
+/\ db = << [mode |-> "auto", layout |-> "auto", fit |-> "auto"],
+   [mode |-> "unset", layout |-> "unset", fit |-> "unset"] >>
+/\ intended = << [mode |-> "auto", layout |-> "auto", fit |-> "auto"],
+   [mode |-> "unset", layout |-> "unset", fit |-> "unset"] >>
+/\ pending = "none"
+/\ queue = <<>>
+/\ fetch = "none"
+/\ decision = "strip"
+/\ seenDir = "ltr"
+/\ choice = [f |-> "none"]
+
+State 5: <Next line 402, col 3 to line 404, col 81 of module ReaderSettings>
+/\ action = "SetScope"
+/\ chapter = 1
+/\ shown = <<"vertical", "strip", "strip">>
+/\ panel = <<"global", "auto", "auto", "auto">>
+/\ cache = << [mode |-> "auto", layout |-> "auto", fit |-> "auto"],
+   [mode |-> "unset", layout |-> "unset", fit |-> "unset"],
+   0 >>
+/\ db = << [mode |-> "auto", layout |-> "auto", fit |-> "auto"],
+   [mode |-> "unset", layout |-> "unset", fit |-> "unset"] >>
+/\ intended = << [mode |-> "auto", layout |-> "auto", fit |-> "auto"],
+   [mode |-> "unset", layout |-> "unset", fit |-> "unset"] >>
+/\ pending = "none"
+/\ queue = <<>>
+/\ fetch = "none"
+/\ decision = "strip"
+/\ seenDir = "ltr"
+/\ choice = [f |-> "none"]
+
+State 6: <Next line 402, col 3 to line 404, col 81 of module ReaderSettings>
+/\ action = "Choose"
+/\ chapter = 1
+/\ shown = <<"vertical", "strip", "strip">>
+/\ panel = <<"global", "ltr", "auto", "auto">>
+/\ cache = << [mode |-> "ltr", layout |-> "auto", fit |-> "auto"],
+   [mode |-> "unset", layout |-> "unset", fit |-> "unset"],
+   1 >>
+/\ db = << [mode |-> "auto", layout |-> "auto", fit |-> "auto"],
+   [mode |-> "unset", layout |-> "unset", fit |-> "unset"] >>
+/\ intended = << [mode |-> "ltr", layout |-> "auto", fit |-> "auto"],
+   [mode |-> "unset", layout |-> "unset", fit |-> "unset"] >>
+/\ pending = <<1, 1>>
+/\ queue = <<>>
+/\ fetch = "none"
+/\ decision = "strip"
+/\ seenDir = "ltr"
+/\ choice = [f |-> "layout", v |-> "auto", fromStrip |-> TRUE, seen |-> "ltr"]
+
+3946 states generated, 2069 distinct states found, 1840 states left on queue.
+The depth of the complete state graph search is 6.
+Finished in 00s at (2026-11-07 18:59:43)

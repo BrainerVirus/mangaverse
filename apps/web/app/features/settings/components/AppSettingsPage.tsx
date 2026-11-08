@@ -13,8 +13,13 @@ import {
   SelectValue,
   SettingsSection,
   Switch,
+  useStateReducer,
 } from '@app/design-system';
-import type { AppSettings } from '@app/shared';
+import {
+  MAX_IMAGE_CACHE_LIMIT_BYTES,
+  MIN_IMAGE_CACHE_LIMIT_BYTES,
+  type AppSettings,
+} from '@app/shared';
 import { bytesToMegabytes, formatCacheBytes, megabytesToBytes } from '@app/cache';
 
 export interface AppSettingsPageProps {
@@ -22,9 +27,10 @@ export interface AppSettingsPageProps {
   readonly isLoading: boolean;
   readonly isError: boolean;
   readonly cacheUsageBytes?: number;
-  onChange: (next: AppSettings) => void;
+  onChange: (next: AppSettings, field?: 'cache') => void;
   /** Pointer-up or blur: commit a coalesced edit without waiting for the quiet window. */
   onInteractionEnd?: () => void;
+  cacheSaveError?: boolean;
 }
 
 const LOCALE_OPTIONS = [
@@ -125,6 +131,72 @@ function PreferredLanguagesField({
   );
 }
 
+function CacheLimitField({
+  bytes,
+  onChange,
+  onInteractionEnd,
+  saveError,
+}: {
+  bytes: number;
+  onChange: (bytes: number) => void;
+  onInteractionEnd: (() => void) | undefined;
+  saveError: boolean;
+}) {
+  const [draft, setDraft] = useStateReducer(
+    (_previous: string | null, next: string | null) => next,
+    null,
+  );
+  const value = draft ?? String(bytesToMegabytes(bytes));
+  const number = value.trim() === '' ? NaN : Number(value);
+  const nextBytes = megabytesToBytes(number);
+  const invalid =
+    !Number.isFinite(number) ||
+    nextBytes < MIN_IMAGE_CACHE_LIMIT_BYTES ||
+    nextBytes > MAX_IMAGE_CACHE_LIMIT_BYTES;
+  const message = invalid
+    ? 'Enter a cache limit between 50 and 10,240 MiB.'
+    : saveError
+      ? 'Could not save the local cache limit. Check storage and change the value or blur the field to retry.'
+      : null;
+  return (
+    <>
+      <Input
+        id="image-cache-limit"
+        type="number"
+        min={50}
+        max={10240}
+        step={50}
+        value={value}
+        aria-invalid={message !== null}
+        aria-describedby={message ? 'image-cache-limit-error' : undefined}
+        onBlur={() => {
+          if (!invalid && saveError) onChange(nextBytes);
+          onInteractionEnd?.();
+        }}
+        onChange={(event) => {
+          const next = event.target.value;
+          setDraft(next);
+          const parsed = next.trim() === '' ? NaN : Number(next);
+          const candidate = megabytesToBytes(parsed);
+          if (
+            !Number.isFinite(parsed) ||
+            candidate < MIN_IMAGE_CACHE_LIMIT_BYTES ||
+            candidate > MAX_IMAGE_CACHE_LIMIT_BYTES
+          ) {
+            return;
+          }
+          onChange(candidate);
+        }}
+      />
+      {message && (
+        <p id="image-cache-limit-error" className="text-sm text-destructive" role="alert">
+          {message}
+        </p>
+      )}
+    </>
+  );
+}
+
 const APP_SETTINGS_HEADER = {
   title: 'App settings',
   description: 'Global preferences for content, performance, and localization.',
@@ -137,6 +209,7 @@ export function AppSettingsPage({
   cacheUsageBytes,
   onChange,
   onInteractionEnd,
+  cacheSaveError = false,
 }: AppSettingsPageProps) {
   if (isLoading) {
     return (
@@ -224,21 +297,13 @@ export function AppSettingsPage({
         <SettingsSection title="Storage" description="How much page data stays on this device.">
           <div className="grid gap-2">
             <Label htmlFor="image-cache-limit">Local cache limit</Label>
-            <Input
-              id="image-cache-limit"
-              type="number"
-              min={50}
-              max={10240}
-              step={50}
-              value={bytesToMegabytes(settings.imageCacheLimitBytes)}
-              onBlur={onInteractionEnd}
-              onChange={(event) => {
-                const megabytes = Number(event.target.value);
-                if (!Number.isFinite(megabytes)) {
-                  return;
-                }
-                update({ imageCacheLimitBytes: megabytesToBytes(megabytes) });
-              }}
+            <CacheLimitField
+              bytes={settings.imageCacheLimitBytes}
+              onChange={(imageCacheLimitBytes) =>
+                onChange({ ...settings, imageCacheLimitBytes }, 'cache')
+              }
+              onInteractionEnd={onInteractionEnd}
+              saveError={cacheSaveError}
             />
             <p className="text-sm text-muted-foreground">
               Covers and reader pages are stored locally and reused on later visits. Downloads are

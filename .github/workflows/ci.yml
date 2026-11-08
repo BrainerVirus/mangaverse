@@ -19,15 +19,56 @@ permissions:
   contents: read
 
 jobs:
-  ci:
-    name: Lint, Typecheck, Test, Build
+  checks:
+    name: Lint, Typecheck, Test
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       # Full history: lint compares lint/baseline.json with its merge base on origin/main.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # oxlint, including the @shadcn/lint design-system plugin from .oxlintrc.json.
+      - name: Lint
+        run: pnpm lint
+
+      # packages/db/src/routed.gen.ts must match a fresh, formatted generation (needs no build).
+      - name: Routed client check
+        run: pnpm --filter @app/db generate:routed --check
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        # The runner has two cores. Uncapped Turbo concurrency started ~10 package
+        # suites (each with jsdom workers) at once and pushed 100ms tests past the
+        # 5s Vitest timeout. Bound the task concurrency instead of raising timeouts.
+        run: pnpm exec turbo run test --concurrency=2 && node --test lint/state-baseline.test.mjs lint/ui-conventions.test.mjs
+
+  build:
+    name: Build, Doctor, Knip
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
           persist-credentials: false
 
       - name: Install pnpm
@@ -50,26 +91,6 @@ jobs:
           restore-keys: |
             turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
 
-      # oxlint, including the @shadcn/lint design-system plugin from .oxlintrc.json.
-      - name: Lint
-        run: pnpm lint
-
-      # packages/db/src/routed.gen.ts must match a fresh, formatted generation (needs no build).
-      - name: Routed client check
-        run: pnpm --filter @app/db generate:routed --check
-
-      - name: Format check
-        run: pnpm format:check
-
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Test
-        # The runner has two cores. Uncapped Turbo concurrency started ~10 package
-        # suites (each with jsdom workers) at once and pushed 100ms tests past the
-        # 5s Vitest timeout. Bound the task concurrency instead of raising timeouts.
-        run: pnpm exec turbo run test --concurrency=2 && node --test lint/state-baseline.test.mjs lint/ui-conventions.test.mjs
-
       - name: Build
         run: pnpm build
 
@@ -83,6 +104,45 @@ jobs:
       - name: Knip
         run: pnpm knip
 
+      # Build once, run every E2E shard against the same output. This removes
+      # six duplicate web builds from the critical path.
+      - name: Upload web build
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: web-output
+          path: apps/web/.output/**
+          # .output begins with a dot, which upload-artifact skips by default.
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  e2e:
+    name: E2E ${{ matrix.shard }}/${{ matrix.total }}
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        total: [8]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Cache Playwright browsers
         id: playwright-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -91,11 +151,28 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Install Playwright system deps
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm --filter @app/web exec playwright install-deps chromium
 
       - name: Install Chromium
         run: pnpm --filter @app/web exec playwright install chromium
 
+      - name: Download web build
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: web-output
+          path: apps/web/.output
+
+      # The shards are the wall-clock bound. They share one build and run beside
+      # checks and quality instead of after them.
       - name: Production web smoke test
-        run: pnpm test:e2e:production
+        env:
+          E2E_WEB_SERVER_COMMAND: pnpm start
+        run: pnpm --filter @app/web exec playwright test --config playwright.production.config.ts --shard=${{ matrix.shard }}/${{ matrix.total }}
+
+      - name: Upload shard results
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-${{ matrix.shard }}-results
+          path: apps/web/test-results
+          retention-days: 3

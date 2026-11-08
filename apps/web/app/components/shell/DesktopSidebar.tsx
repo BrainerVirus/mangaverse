@@ -89,7 +89,8 @@ export function DesktopSidebar() {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       className={cn(
-        'relative z-40 flex h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-200 ease-out max-md:hidden',
+        // oxlint-disable-next-line shadcn/no-arbitrary-values -- The sidebar deliberately animates width, not all changing properties.
+        'relative z-40 flex h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-out max-md:hidden',
         visuallyExpanded ? 'w-55' : 'w-13',
       )}
     >

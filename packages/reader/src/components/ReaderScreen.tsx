@@ -58,8 +58,17 @@ function resolveChromeVisible(settings: ReaderSettings | undefined, visible: boo
 
 function resolveChromeMode(readerState: ReaderState): ChromeMode {
   if (readerState.mode === 'scroll') return 'scroll';
-  return readerState.layout === 'double' ? 'double' : 'single';
+  // Smart spread is a two-page layout; the chrome's two-page control must show
+  // it rather than fall back to Single.
+  return readerState.layout === 'double' || readerState.layout === 'smartSpread'
+    ? 'double'
+    : 'single';
 }
+
+const PAGED_DIRECTION_LABEL = {
+  rtl: 'right to left',
+  ltr: 'left to right',
+} as const;
 
 type ReaderGate =
   | 'loading'
@@ -441,16 +450,27 @@ function ReaderReadyView({
     (patch, scope) => {
       if (!onChangeSettings) return;
       if (shownMode !== 'vertical') lastPagedDirectionRef.current = shownMode;
-      onChangeSettings(
-        withPagedDirectionOnLeavingStrip(patch, {
-          shownMode,
-          lastPagedDirection: lastPagedDirectionRef.current,
-          globalSettings: data.globalSettings,
-        }),
-        scope,
-      );
+      // A concrete layout is the only change that leaves the strip; Auto keeps
+      // it. Announce the transition instead of switching direction silently.
+      const leavesStrip =
+        shownMode === 'vertical' &&
+        patch.pageLayout !== undefined &&
+        patch.pageLayout !== 'auto' &&
+        patch.readingMode === undefined;
+      const next = withPagedDirectionOnLeavingStrip(patch, {
+        shownMode,
+        lastPagedDirection: lastPagedDirectionRef.current,
+        globalSettings: data.globalSettings,
+        settings: data.settings,
+      });
+      onChangeSettings(next, scope);
+      if (leavesStrip && (next.readingMode === 'rtl' || next.readingMode === 'ltr')) {
+        setStatus(
+          `Page layout starts paged reading, ${PAGED_DIRECTION_LABEL[next.readingMode]}. Vertical scroll is still available in Reading mode.`,
+        );
+      }
     },
-    [data.globalSettings, onChangeSettings, shownMode],
+    [data.globalSettings, data.settings, onChangeSettings, shownMode],
   );
   const handleModeChange = useCallback(
     (mode: 'single' | 'double' | 'scroll' | 'webtoon') =>

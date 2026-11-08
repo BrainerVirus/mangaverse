@@ -165,7 +165,7 @@ describe('MangaDetailPage', () => {
     expect(screen.getByText('Manga not found')).toBeInTheDocument();
     expect(screen.queryByText('No results found')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Back to library' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Go Back' }));
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
@@ -642,7 +642,7 @@ describe('MangaDetailPage', () => {
   });
 
   it('exposes migration, provider settings and per-title reader settings shortcuts', () => {
-    const onOpenMigration = vi.fn<() => void>();
+    const onOpenMigration = vi.fn<(providerId: string) => void>();
     const onOpenProviderSettings = vi.fn<(providerId: string) => void>();
     const onOpenReaderSettings = vi.fn<() => void>();
 
@@ -669,9 +669,34 @@ describe('MangaDetailPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Provider settings' }));
     fireEvent.click(screen.getByRole('button', { name: 'Reader settings' }));
 
-    expect(onOpenMigration).toHaveBeenCalledTimes(1);
+    expect(onOpenMigration).toHaveBeenCalledWith('prov-a');
     expect(onOpenProviderSettings).toHaveBeenCalledWith('prov-a');
     expect(onOpenReaderSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it('Given a title without a provider mapping, Then Migrate is disabled and explained', () => {
+    const onOpenMigration = vi.fn<(providerId: string) => void>();
+
+    render(
+      <MangaDetailPage
+        mangaId={MANGA_ID}
+        data={makeDetail()}
+        isLoading={false}
+        isError={false}
+        onOpenChapter={() => {}}
+        onOpenMigration={onOpenMigration}
+      />,
+    );
+
+    const migrate = screen.getByRole('button', { name: 'Migrate' });
+    expect(migrate).toBeDisabled();
+    expect(migrate).toHaveAttribute('title', 'This title has no provider mapping to migrate from.');
+    expect(
+      screen.getByText('This title has no provider mapping to migrate from.'),
+    ).toBeInTheDocument();
+
+    fireEvent.click(migrate);
+    expect(onOpenMigration).not.toHaveBeenCalled();
   });
 
   it('opens the custom cover dialog from the title actions', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolvePageFit } from './page-fit.js';
+import { resolvePageFit, resolveStripPageFit } from './page-fit.js';
 
 const area = {
   availableWidth: 900,
@@ -113,5 +113,74 @@ describe('resolvePageFit', () => {
 
     // Width-first is what the user asked for: the page is read by scrolling.
     expect(fit.box.height).toBeGreaterThan(area.availableHeight);
+  });
+});
+
+describe('resolveStripPageFit', () => {
+  const strip = { stripWidth: 600, viewportHeight: 1000, aspectRatio: 2 / 3 };
+
+  it('Given fit width, When resolved, Then the row spans the column and the height follows the page', () => {
+    const fit = resolveStripPageFit({ ...strip, fitMode: 'width' });
+
+    expect(fit.box).toEqual({ width: 600, height: 900 });
+    expect(fit.objectFit).toBe('contain');
+  });
+
+  it('Given fit height, When resolved, Then the row spans the viewport height and the width follows the page', () => {
+    const fit = resolveStripPageFit({ ...strip, fitMode: 'height' });
+
+    expect(fit.box.height).toBe(1000);
+    expect(fit.box.width).toBeCloseTo(1000 * (2 / 3), 5);
+  });
+
+  it('Given fit contain, When resolved, Then the row fits inside the column and viewport', () => {
+    const fit = resolveStripPageFit({ ...strip, fitMode: 'contain' });
+
+    expect(fit.box).toEqual({ width: 600, height: 900 });
+  });
+
+  it('Given fit cover, When resolved, Then the row fills the column and viewport and crops', () => {
+    const fit = resolveStripPageFit({ ...strip, fitMode: 'cover' });
+
+    expect(fit.box).toEqual({ width: 600, height: 1000 });
+    expect(fit.objectFit).toBe('cover');
+  });
+
+  it('Given fit original with a known natural size, When resolved, Then the row keeps those pixels', () => {
+    const fit = resolveStripPageFit({
+      ...strip,
+      fitMode: 'original',
+      naturalSize: { width: 800, height: 1200 },
+    });
+
+    expect(fit.box).toEqual({ width: 800, height: 1200 });
+    expect(fit.objectFit).toBe('none');
+  });
+
+  it('Given fit original without a natural size, When resolved, Then the column width and page ratio are used', () => {
+    const fit = resolveStripPageFit({ ...strip, fitMode: 'original' });
+
+    expect(fit.box).toEqual({ width: 600, height: 900 });
+    expect(fit.objectFit).toBe('none');
+  });
+
+  it('Given each fit mode, When resolved for a portrait page, Then explicit choices are not inert', () => {
+    const modes = ['width', 'height', 'contain', 'cover', 'original'] as const;
+    const rendered = modes.map((fitMode) => {
+      const fit = resolveStripPageFit({
+        ...strip,
+        fitMode,
+        naturalSize: { width: 800, height: 1200 },
+      });
+      return `${Math.round(fit.box.width)}x${Math.round(fit.box.height)}:${fit.objectFit}`;
+    });
+
+    expect(rendered).toEqual([
+      '600x900:contain',
+      '667x1000:contain',
+      '600x900:contain',
+      '600x1000:cover',
+      '800x1200:none',
+    ]);
   });
 });

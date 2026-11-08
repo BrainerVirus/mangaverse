@@ -10,25 +10,6 @@ import type {
   MangaIdentity,
 } from '@app/shared';
 
-vi.mock('../motion/index.js', async () => {
-  const actual = await vi.importActual('../motion/index.js');
-  return {
-    ...actual,
-    useReducedMotion: () => false,
-  };
-});
-
-vi.mock('@gsap/react', () => ({
-  useGSAP: vi.fn<(callback: () => void, config?: { scope?: { current?: unknown } }) => () => void>(
-    (callback, config) => {
-      if (config?.scope?.current) {
-        callback();
-      }
-      return () => {};
-    },
-  ),
-}));
-
 const createMockManga = (overrides: Partial<MangaIdentity> = {}): MangaIdentity => ({
   id: 'test-id' as MangaId,
   canonicalTitle: 'Test Manga',
@@ -117,6 +98,40 @@ describe('MangaCard', () => {
 
     const button = container.querySelector('button');
     expect(button).toHaveClass('aspect-3/4');
+  });
+
+  it.each(['grid', 'list', 'compact'] as const)(
+    'Given the %s variant, When it is hovered or focused, Then script never moves or scales the card',
+    async (variant) => {
+      const user = userEvent.setup();
+      render(<MangaCard manga={createMockManga()} variant={variant} unreadCount={2} />);
+
+      const card = screen.getByRole('button');
+      await user.hover(card);
+      // The lift used to write an inline transform on the button (GSAP y -2, scale 1.02), which
+      // moved the card by 4px and re-rastered the cover at fractional pixels.
+      expect(card.getAttribute('style')).toBeNull();
+      expect(card.className).not.toMatch(
+        /(^|\s)(hover:|group-hover:|focus:|focus-visible:)?-?(scale|translate)-/,
+      );
+
+      await user.unhover(card);
+      card.focus();
+      expect(card.getAttribute('style')).toBeNull();
+    },
+  );
+
+  it('Given the grid variant, Then the cover sits in a matte inside the border and the title plate buries its bottom edge', () => {
+    const { container } = render(<MangaCard manga={createMockManga()} variant="grid" />);
+
+    // The cover must not touch the 1px border: a rounded clip against a border at a fractional
+    // device pixel leaks the art into the border ring (Windows 125/150%).
+    expect(container.querySelector('button')).toHaveClass('p-0.5');
+    expect(container.querySelector('[data-card-plate]')).toHaveClass(
+      'bottom-0',
+      'left-0',
+      'right-0',
+    );
   });
 
   it('Given an unread count, Then the card shows a badge and hides zero', () => {

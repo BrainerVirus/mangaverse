@@ -1,5 +1,8 @@
 import { useRef } from 'react';
 import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
   Button,
   EmptyState,
   ErrorState,
@@ -14,11 +17,25 @@ import type { MangaId, MangaIdentity } from '@app/shared';
 import { useInfiniteScrollSentinel } from '../hooks/use-infinite-scroll-sentinel.js';
 import { VirtualSearchGrid } from './VirtualSearchGrid.js';
 
+export type DiscoverSectionStatus = 'ok' | 'empty' | 'error' | 'loading';
+
+/** A user-safe, classified explanation for one section (or one loaded section's next page). */
+export interface DiscoverSectionFailure {
+  /** An `AppErrorKind`: `rate-limited`, `offline`, `provider-unavailable`, … */
+  readonly kind: string;
+  readonly message: string;
+  /** Remaining rate-limit wait, so the row can say how long instead of "a moment". */
+  readonly retryAfterMs?: number;
+}
+
 export interface DiscoverSection {
   readonly id: string;
   readonly title: string;
   readonly capability: string;
   readonly results: readonly MangaIdentity[];
+  /** Omitted by callers that only have results: `ok` when non-empty, else `empty`. */
+  readonly status?: DiscoverSectionStatus;
+  readonly error?: DiscoverSectionFailure;
 }
 
 export interface DiscoverProviderFeed {
@@ -31,12 +48,23 @@ export interface DiscoverPageData {
   readonly providers: readonly DiscoverProviderFeed[];
 }
 
+/** Page-level failure, typed so a local-DB failure never reads as a provider failure. */
+export interface DiscoverPageFailure {
+  readonly kind: 'database' | 'provider' | 'settings';
+  readonly title: string;
+  readonly message: string;
+}
+
 export interface DiscoverExpandedSectionState {
   readonly title: string;
   readonly results: readonly MangaIdentity[];
   readonly isLoading: boolean;
   readonly isFetchingNextPage: boolean;
   readonly hasNextPage: boolean;
+  /** The first page failed and there is nothing to show. */
+  readonly error?: DiscoverSectionFailure;
+  /** A later page failed; the already-loaded results stay. */
+  readonly nextPageError?: DiscoverSectionFailure;
 }
 
 export interface DiscoverPageProps {
@@ -45,13 +73,19 @@ export interface DiscoverPageProps {
   readonly expandedSection: { providerId: string; sectionId: string } | null;
   readonly expandedSectionState?: DiscoverExpandedSectionState;
   readonly isLoading: boolean;
-  readonly isError: boolean;
+  /** The page cannot be drawn: the library, the descriptor read or settings failed. */
+  readonly failure?: DiscoverPageFailure;
+  /** Non-blocking: settings could not be read, so Discover runs with safe defaults. */
+  readonly settingsFailure?: DiscoverPageFailure;
   readonly showProviderHint?: boolean;
   onSelectProvider: (providerId: string) => void;
   onOpenManga: (mangaId: MangaId) => void;
   onSeeAllSection: (providerId: string, sectionId: string) => void;
   onBackFromSection: () => void;
   onLoadMoreSection?: () => void;
+  onRetrySection?: (sectionId: string) => void;
+  onRetryExpandedSection?: () => void;
+  onRetrySettings?: () => void;
   onBrowseProviders?: () => void;
   onRetry?: () => void;
 }
@@ -60,14 +94,14 @@ function DiscoverSectionPreview({
   section,
   onOpenManga,
   onSeeAll,
+  onRetry,
 }: {
   section: DiscoverSection;
   onOpenManga: (mangaId: MangaId) => void;
   onSeeAll: () => void;
+  onRetry: (() => void) | undefined;
 }) {
-  if (section.results.length === 0) {
-    return null;
-  }
+  const status = section.status ?? (section.results.length > 0 ? 'ok' : 'empty');
 
   return (
     <section aria-labelledby={`discover-section-${section.id}`} className="flex flex-col gap-4">
@@ -75,21 +109,55 @@ function DiscoverSectionPreview({
         <h2 id={`discover-section-${section.id}`} className="type-heading text-foreground">
           {section.title}
         </h2>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          data-testid={`discover-section-${section.id}-see-all`}
-          onClick={onSeeAll}
+        {status === 'ok' ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            data-testid={`discover-section-${section.id}-see-all`}
+            onClick={onSeeAll}
+          >
+            See all
+          </Button>
+        ) : null}
+      </div>
+
+      {status === 'loading' ? <LoadingState type="grid" count={6} /> : null}
+
+      {status === 'error' ? (
+        <Alert
+          variant="destructive"
+          data-testid={`discover-section-${section.id}-error`}
+          aria-live="polite"
         >
-          See all
-        </Button>
-      </div>
-      <div data-testid={`discover-section-${section.id}`} className={SECTION_GRID_CLASSES}>
-        {section.results.slice(0, 6).map((manga) => (
-          <CachedMangaCard key={manga.id} manga={manga} onClick={() => onOpenManga(manga.id)} />
-        ))}
-      </div>
+          <AlertTitle>{section.title} couldn’t load</AlertTitle>
+          <AlertDescription>
+            <p>{section.error?.message ?? 'This section could not load. Try again in a moment.'}</p>
+            {onRetry !== undefined ? (
+              <Button type="button" variant="outline" size="sm" className="mt-3" onClick={onRetry}>
+                Retry
+              </Button>
+            ) : null}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {status === 'empty' ? (
+        <p
+          className="type-body text-muted-foreground"
+          data-testid={`discover-section-${section.id}-empty`}
+        >
+          Nothing here yet.
+        </p>
+      ) : null}
+
+      {status === 'ok' ? (
+        <div data-testid={`discover-section-${section.id}`} className={SECTION_GRID_CLASSES}>
+          {section.results.slice(0, 6).map((manga) => (
+            <CachedMangaCard key={manga.id} manga={manga} onClick={() => onOpenManga(manga.id)} />
+          ))}
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -99,20 +167,15 @@ function DiscoverExpandedSectionView({
   onOpenManga,
   onBackFromSection,
   onLoadMoreSection,
+  onRetry,
 }: {
   state: DiscoverExpandedSectionState;
   onOpenManga: (mangaId: MangaId) => void;
   onBackFromSection: () => void;
   onLoadMoreSection?: () => void;
+  onRetry: () => void;
 }) {
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const canLoadMore = state.hasNextPage && !state.isFetchingNextPage;
-
-  useInfiniteScrollSentinel(
-    sentinelRef,
-    onLoadMoreSection,
-    canLoadMore && onLoadMoreSection !== undefined,
-  );
+  const hasInitialFailure = state.error !== undefined && state.results.length === 0;
 
   return (
     <div className="flex flex-col gap-4" data-testid="discover-expanded-section">
@@ -122,21 +185,94 @@ function DiscoverExpandedSectionView({
         </Button>
         <h2 className="type-heading text-foreground">{state.title}</h2>
       </div>
-
-      {state.isLoading && state.results.length === 0 ? (
-        <LoadingState type="grid" count={12} />
-      ) : null}
-
-      {!state.isLoading && state.results.length === 0 ? <EmptyState type="no-results" /> : null}
-
-      {state.results.length > 0 ? (
-        <>
-          <VirtualSearchGrid results={state.results} onOpenManga={onOpenManga} />
-          {state.isFetchingNextPage ? <LoadingState type="grid" count={6} /> : null}
-          {canLoadMore ? <div ref={sentinelRef} aria-hidden className="h-px w-full" /> : null}
-        </>
-      ) : null}
+      {hasInitialFailure ? (
+        <ExpandedFailure state={state} onRetry={onRetry} onBack={onBackFromSection} />
+      ) : (
+        <ExpandedResults
+          state={state}
+          onOpenManga={onOpenManga}
+          onLoadMoreSection={onLoadMoreSection}
+          onRetry={onRetry}
+        />
+      )}
     </div>
+  );
+}
+
+function ExpandedFailure({
+  state,
+  onRetry,
+  onBack,
+}: {
+  state: DiscoverExpandedSectionState;
+  onRetry: () => void;
+  onBack: () => void;
+}) {
+  return (
+    <ErrorState
+      title={`${state.title} couldn’t load`}
+      message={state.error?.message ?? 'This section could not load. Try again in a moment.'}
+      onRetry={onRetry}
+      onBack={onBack}
+    />
+  );
+}
+
+function ExpandedResults({
+  state,
+  onOpenManga,
+  onLoadMoreSection,
+  onRetry,
+}: {
+  state: DiscoverExpandedSectionState;
+  onOpenManga: (mangaId: MangaId) => void;
+  onLoadMoreSection: (() => void) | undefined;
+  onRetry: () => void;
+}) {
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const canLoadMore =
+    state.hasNextPage &&
+    !state.isFetchingNextPage &&
+    state.nextPageError === undefined &&
+    state.results.length > 0;
+
+  useInfiniteScrollSentinel(
+    sentinelRef,
+    onLoadMoreSection,
+    canLoadMore && onLoadMoreSection !== undefined,
+  );
+
+  if (state.results.length === 0) {
+    return state.isLoading ? (
+      <LoadingState type="grid" count={12} />
+    ) : (
+      <EmptyState type="no-results" />
+    );
+  }
+
+  return (
+    <>
+      <VirtualSearchGrid results={state.results} onOpenManga={onOpenManga} />
+      {state.isFetchingNextPage ? <LoadingState type="grid" count={6} /> : null}
+      {state.nextPageError !== undefined ? (
+        <LoadMoreFailure message={state.nextPageError.message} onRetry={onRetry} />
+      ) : null}
+      {canLoadMore ? <div ref={sentinelRef} aria-hidden className="h-px w-full" /> : null}
+    </>
+  );
+}
+
+function LoadMoreFailure({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <Alert variant="destructive" data-testid="discover-section-load-more-error" aria-live="polite">
+      <AlertTitle>Couldn’t load more</AlertTitle>
+      <AlertDescription>
+        <p>{message}</p>
+        <Button type="button" variant="outline" size="sm" className="mt-3" onClick={onRetry}>
+          Retry
+        </Button>
+      </AlertDescription>
+    </Alert>
   );
 }
 
@@ -163,13 +299,17 @@ export function DiscoverPage({
   expandedSection,
   expandedSectionState,
   isLoading,
-  isError,
+  failure,
+  settingsFailure,
   showProviderHint = false,
   onSelectProvider,
   onOpenManga,
   onSeeAllSection,
   onBackFromSection,
   onLoadMoreSection,
+  onRetrySection,
+  onRetryExpandedSection,
+  onRetrySettings,
   onBrowseProviders,
   onRetry,
 }: DiscoverPageProps) {
@@ -188,38 +328,38 @@ export function DiscoverPage({
     0,
   );
 
+  const showCount = !isExpandedView && failure === undefined && totalTitles > 0;
+
   return (
     <PageContainer>
       <section aria-label="Discover" className="flex flex-col gap-6">
         <PageHeader
           title="Discover"
           description="Browse popular and latest manga from your enabled providers."
-          {...(!isExpandedView && totalTitles > 0
-            ? { count: totalTitles, countLabel: 'titles' }
-            : {})}
+          {...(showCount ? { count: totalTitles, countLabel: 'titles' } : {})}
         />
-
-        {isLoading && !isExpandedView ? <DiscoverLoading /> : null}
-
-        {isError ? (
-          <ErrorState
-            title="Could not load discover feed"
-            message="Provider catalog failed to load. Try again in a moment."
-            {...(onRetry !== undefined ? { onRetry } : {})}
-          />
-        ) : null}
-
-        {showProviderHint ? (
-          <EmptyState
-            type="no-results"
-            {...(onBrowseProviders !== undefined
-              ? { action: { label: 'Browse providers', onClick: onBrowseProviders } }
-              : {})}
-          />
-        ) : null}
-
-        <DiscoverProviderBrowser
-          isError={isError}
+        <DiscoverLoadingSurface
+          isLoading={isLoading}
+          isExpandedView={isExpandedView}
+          failure={failure}
+        />
+        <DiscoverFailureSurface
+          failure={failure}
+          hasExpandedSection={expandedSection !== null}
+          onRetry={onRetry}
+          onBackFromSection={onBackFromSection}
+        />
+        <DiscoverSettingsSurface
+          settingsFailure={settingsFailure}
+          onRetrySettings={onRetrySettings}
+        />
+        <DiscoverHintSurface
+          failure={failure}
+          showProviderHint={showProviderHint}
+          onBrowseProviders={onBrowseProviders}
+        />
+        <DiscoverBrowserSurface
+          failure={failure}
           providers={providers}
           activeProvider={activeProvider}
           isExpandedView={isExpandedView}
@@ -229,18 +369,100 @@ export function DiscoverPage({
           onSeeAllSection={onSeeAllSection}
           onBackFromSection={onBackFromSection}
           onLoadMoreSection={onLoadMoreSection}
+          onRetrySection={onRetrySection}
+          onRetryExpandedSection={onRetryExpandedSection}
         />
       </section>
     </PageContainer>
   );
 }
 
-/**
- * The provider tabs and the panel they select. A failed feed or a provider-less
- * install has nothing to browse, so the whole region steps aside.
- */
-function DiscoverProviderBrowser({
-  isError,
+function DiscoverLoadingSurface({
+  isLoading,
+  isExpandedView,
+  failure,
+}: {
+  isLoading: boolean;
+  isExpandedView: boolean;
+  failure: DiscoverPageFailure | undefined;
+}) {
+  if (!isLoading || isExpandedView || failure !== undefined) return null;
+  return <DiscoverLoading />;
+}
+
+function DiscoverFailureSurface({
+  failure,
+  hasExpandedSection,
+  onRetry,
+  onBackFromSection,
+}: {
+  failure: DiscoverPageFailure | undefined;
+  hasExpandedSection: boolean;
+  onRetry: (() => void) | undefined;
+  onBackFromSection: () => void;
+}) {
+  if (failure === undefined) return null;
+  return (
+    <ErrorState
+      title={failure.title}
+      message={failure.message}
+      {...(onRetry !== undefined ? { onRetry } : {})}
+      {...(hasExpandedSection ? { onBack: onBackFromSection } : {})}
+    />
+  );
+}
+
+function DiscoverSettingsSurface({
+  settingsFailure,
+  onRetrySettings,
+}: {
+  settingsFailure: DiscoverPageFailure | undefined;
+  onRetrySettings: (() => void) | undefined;
+}) {
+  if (settingsFailure === undefined) return null;
+  return (
+    <Alert data-testid="discover-settings-error" aria-live="polite">
+      <AlertTitle>{settingsFailure.title}</AlertTitle>
+      <AlertDescription>
+        <p>{settingsFailure.message}</p>
+        {onRetrySettings !== undefined ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={onRetrySettings}
+          >
+            Retry
+          </Button>
+        ) : null}
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+function DiscoverHintSurface({
+  failure,
+  showProviderHint,
+  onBrowseProviders,
+}: {
+  failure: DiscoverPageFailure | undefined;
+  showProviderHint: boolean;
+  onBrowseProviders: (() => void) | undefined;
+}) {
+  if (failure !== undefined || !showProviderHint) return null;
+  return (
+    <EmptyState
+      type="no-results"
+      {...(onBrowseProviders !== undefined
+        ? { action: { label: 'Browse providers', onClick: onBrowseProviders } }
+        : {})}
+    />
+  );
+}
+
+function DiscoverBrowserSurface({
+  failure,
   providers,
   activeProvider,
   isExpandedView,
@@ -250,8 +472,10 @@ function DiscoverProviderBrowser({
   onSeeAllSection,
   onBackFromSection,
   onLoadMoreSection,
+  onRetrySection,
+  onRetryExpandedSection,
 }: {
-  isError: boolean;
+  failure: DiscoverPageFailure | undefined;
   providers: readonly DiscoverProviderFeed[];
   activeProvider: DiscoverProviderFeed | undefined;
   isExpandedView: boolean;
@@ -261,8 +485,58 @@ function DiscoverProviderBrowser({
   onSeeAllSection: (providerId: string, sectionId: string) => void;
   onBackFromSection: () => void;
   onLoadMoreSection: (() => void) | undefined;
+  onRetrySection: ((sectionId: string) => void) | undefined;
+  onRetryExpandedSection: (() => void) | undefined;
 }) {
-  if (isError || providers.length === 0 || activeProvider === undefined) return null;
+  if (failure !== undefined) return null;
+  return (
+    <DiscoverProviderBrowser
+      providers={providers}
+      activeProvider={activeProvider}
+      isExpandedView={isExpandedView}
+      expandedSectionState={expandedSectionState}
+      onSelectProvider={onSelectProvider}
+      onOpenManga={onOpenManga}
+      onSeeAllSection={onSeeAllSection}
+      onBackFromSection={onBackFromSection}
+      onLoadMoreSection={onLoadMoreSection}
+      onRetrySection={onRetrySection}
+      onRetryExpandedSection={onRetryExpandedSection}
+    />
+  );
+}
+
+/**
+ * The provider tabs and the panel they select. A provider-less install has
+ * nothing to browse, so the whole region steps aside; a failed section keeps
+ * its row and the rest of the page instead.
+ */
+function DiscoverProviderBrowser({
+  providers,
+  activeProvider,
+  isExpandedView,
+  expandedSectionState,
+  onSelectProvider,
+  onOpenManga,
+  onSeeAllSection,
+  onBackFromSection,
+  onLoadMoreSection,
+  onRetrySection,
+  onRetryExpandedSection,
+}: {
+  providers: readonly DiscoverProviderFeed[];
+  activeProvider: DiscoverProviderFeed | undefined;
+  isExpandedView: boolean;
+  expandedSectionState: DiscoverExpandedSectionState | undefined;
+  onSelectProvider: (providerId: string) => void;
+  onOpenManga: (mangaId: MangaId) => void;
+  onSeeAllSection: (providerId: string, sectionId: string) => void;
+  onBackFromSection: () => void;
+  onLoadMoreSection: (() => void) | undefined;
+  onRetrySection: ((sectionId: string) => void) | undefined;
+  onRetryExpandedSection: (() => void) | undefined;
+}) {
+  if (providers.length === 0 || activeProvider === undefined) return null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -300,6 +574,7 @@ function DiscoverProviderBrowser({
             state={expandedSectionState}
             onOpenManga={onOpenManga}
             onBackFromSection={onBackFromSection}
+            onRetry={() => onRetryExpandedSection?.()}
             {...(onLoadMoreSection !== undefined ? { onLoadMoreSection } : {})}
           />
         ) : (
@@ -309,6 +584,7 @@ function DiscoverProviderBrowser({
               section={section}
               onOpenManga={onOpenManga}
               onSeeAll={() => onSeeAllSection(activeProvider.providerId, section.id)}
+              onRetry={onRetrySection === undefined ? undefined : () => onRetrySection(section.id)}
             />
           ))
         )}

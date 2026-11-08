@@ -7,6 +7,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import {
   SETTINGS_WRITE_DELAY_MS,
   useCoalescedSettingsWrite,
+  useScopedCoalescedSettingsWrite,
 } from '../use-coalesced-settings-write.js';
 
 function Probe({ write }: { readonly write: (value: number) => void }) {
@@ -25,6 +26,101 @@ function Probe({ write }: { readonly write: (value: number) => void }) {
       <button type="button" data-testid="flush" onClick={() => writer.flush()}>
         flush
       </button>
+    </>
+  );
+}
+
+function MergedProbe({
+  write,
+}: {
+  readonly write: (value: { readonly a?: string; readonly b?: string }) => void;
+}) {
+  const writer = useCoalescedSettingsWrite(write);
+  const merge = (previous: { a?: string; b?: string }, next: { a?: string; b?: string }) => ({
+    ...previous,
+    ...next,
+  });
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="schedule a"
+        data-testid="merged-a"
+        onClick={() => writer.schedule({ a: 'a' }, merge)}
+      />
+      <button
+        type="button"
+        aria-label="schedule b"
+        data-testid="merged-b"
+        onClick={() => writer.schedule({ b: 'b' }, merge)}
+      />
+      <button
+        type="button"
+        aria-label="flush merged"
+        data-testid="merged-flush"
+        onClick={() => writer.flush()}
+      />
+    </>
+  );
+}
+
+function MergedScopedProbe({
+  write,
+}: {
+  readonly write: (scope: Scope, value: { readonly a?: string; readonly b?: string }) => void;
+}) {
+  const writer = useScopedCoalescedSettingsWrite<Scope, { a?: string; b?: string }>(write);
+  const merge = (previous: { a?: string; b?: string }, next: { a?: string; b?: string }) => ({
+    ...previous,
+    ...next,
+  });
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="schedule a"
+        data-testid="merged-a"
+        onClick={() => writer.schedule('title', { a: 'a' }, merge)}
+      />
+      <button
+        type="button"
+        aria-label="schedule b"
+        data-testid="merged-b"
+        onClick={() => writer.schedule('title', { b: 'b' }, merge)}
+      />
+      <button
+        type="button"
+        aria-label="flush merged"
+        data-testid="merged-flush"
+        onClick={() => writer.flush()}
+      />
+    </>
+  );
+}
+
+function DualProbe({
+  writeA,
+  writeB,
+}: {
+  readonly writeA: (value: string) => void;
+  readonly writeB: (value: string) => void;
+}) {
+  const a = useCoalescedSettingsWrite(writeA);
+  const b = useCoalescedSettingsWrite(writeB);
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="schedule a"
+        data-testid="schedule-a"
+        onClick={() => a.schedule('a')}
+      />
+      <button
+        type="button"
+        aria-label="schedule b"
+        data-testid="schedule-b"
+        onClick={() => b.schedule('b')}
+      />
     </>
   );
 }
@@ -86,6 +182,29 @@ describe('useCoalescedSettingsWrite', () => {
     expect(write).toHaveBeenCalledTimes(2);
   });
 
+  it('Given two surfaces with a queued write, When the second edits, Then the older write lands first', () => {
+    vi.useFakeTimers();
+    const writeA = vi.fn<(value: string) => void>();
+    const writeB = vi.fn<(value: string) => void>();
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    act(() => root.render(<DualProbe writeA={writeA} writeB={writeB} />));
+
+    act(() => container.querySelector<HTMLButtonElement>('[data-testid="schedule-a"]')?.click());
+    expect(writeA).not.toHaveBeenCalled();
+
+    // The newer surface flushes the older queued writer before it schedules.
+    act(() => container.querySelector<HTMLButtonElement>('[data-testid="schedule-b"]')?.click());
+    expect(writeA).toHaveBeenCalledWith('a');
+    expect(writeB).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(SETTINGS_WRITE_DELAY_MS);
+    });
+    expect(writeB).toHaveBeenCalledWith('b');
+  });
+
   it('Given a pending edit, When the interaction ends, Then it writes immediately once', () => {
     vi.useFakeTimers();
     const write = vi.fn<(value: number) => void>();
@@ -100,5 +219,254 @@ describe('useCoalescedSettingsWrite', () => {
       vi.advanceTimersByTime(SETTINGS_WRITE_DELAY_MS);
     });
     expect(write).toHaveBeenCalledTimes(1);
+  });
+});
+
+type Scope = 'title' | 'global';
+
+function MixedProbe({
+  writeScoped,
+  writePlain,
+}: {
+  readonly writeScoped: (scope: Scope, value: string) => void;
+  readonly writePlain: (value: string) => void;
+}) {
+  const scoped = useScopedCoalescedSettingsWrite<Scope, string>(writeScoped);
+  const plain = useCoalescedSettingsWrite(writePlain);
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="schedule reader"
+        data-testid="mixed-scoped"
+        onClick={() => scoped.schedule('title', 'reader')}
+      />
+      <button
+        type="button"
+        aria-label="schedule settings page"
+        data-testid="mixed-plain"
+        onClick={() => plain.schedule('settings-page')}
+      />
+    </>
+  );
+}
+
+function ScopedProbe({ write }: { readonly write: (scope: Scope, value: string) => void }) {
+  const writer = useScopedCoalescedSettingsWrite(write);
+  return (
+    <>
+      <button
+        type="button"
+        data-testid="schedule-title"
+        onClick={() => writer.schedule('title', 'title-value')}
+      >
+        title
+      </button>
+      <button
+        type="button"
+        data-testid="schedule-global"
+        onClick={() => writer.schedule('global', 'global-value')}
+      >
+        global
+      </button>
+      <button type="button" data-testid="cancel-title" onClick={() => writer.cancel('title')}>
+        cancel title
+      </button>
+      <button type="button" data-testid="cancel-global" onClick={() => writer.cancel('global')}>
+        cancel global
+      </button>
+      <button type="button" data-testid="flush" onClick={() => writer.flush()}>
+        flush
+      </button>
+    </>
+  );
+}
+
+describe('pending patch merging', () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+    vi.useRealTimers();
+  });
+
+  it('Given two fields edited in one quiet window, When the writer flushes, Then one merged value is written', () => {
+    vi.useFakeTimers();
+    const write = vi.fn<(value: { a?: string; b?: string }) => void>();
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    act(() => root.render(<MergedProbe write={write} />));
+
+    act(() => container.querySelector<HTMLButtonElement>('[data-testid="merged-a"]')?.click());
+    act(() => container.querySelector<HTMLButtonElement>('[data-testid="merged-b"]')?.click());
+    act(() => container.querySelector<HTMLButtonElement>('[data-testid="merged-flush"]')?.click());
+
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(write).toHaveBeenCalledWith({ a: 'a', b: 'b' });
+  });
+
+  it('Given two scoped fields edited in one quiet window, Then the flushed patch keeps both', () => {
+    vi.useFakeTimers();
+    const write = vi.fn<(scope: Scope, value: { a?: string; b?: string }) => void>();
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    act(() => root.render(<MergedScopedProbe write={write} />));
+
+    act(() => container.querySelector<HTMLButtonElement>('[data-testid="merged-a"]')?.click());
+    act(() => container.querySelector<HTMLButtonElement>('[data-testid="merged-b"]')?.click());
+    act(() => container.querySelector<HTMLButtonElement>('[data-testid="merged-flush"]')?.click());
+
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(write).toHaveBeenCalledWith('title', { a: 'a', b: 'b' });
+  });
+});
+
+describe('cross-surface settings ordering', () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+    vi.useRealTimers();
+  });
+
+  it('Given a queued scoped reader write, When the settings page edits, Then the reader write lands first', () => {
+    vi.useFakeTimers();
+    const writeScoped = vi.fn<(scope: Scope, value: string) => void>();
+    const writePlain = vi.fn<(value: string) => void>();
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    act(() => root.render(<MixedProbe writeScoped={writeScoped} writePlain={writePlain} />));
+
+    act(() => container.querySelector<HTMLButtonElement>('[data-testid="mixed-scoped"]')?.click());
+    expect(writeScoped).not.toHaveBeenCalled();
+
+    act(() => container.querySelector<HTMLButtonElement>('[data-testid="mixed-plain"]')?.click());
+    expect(writeScoped).toHaveBeenCalledWith('title', 'reader');
+    expect(writePlain).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(SETTINGS_WRITE_DELAY_MS);
+    });
+    expect(writePlain).toHaveBeenCalledWith('settings-page');
+  });
+});
+
+describe('useScopedCoalescedSettingsWrite', () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+    vi.useRealTimers();
+  });
+
+  function mountScoped(write: (scope: Scope, value: string) => void) {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    act(() => root.render(<ScopedProbe write={write} />));
+  }
+
+  function clickScoped(testId: string) {
+    act(() => container.querySelector<HTMLButtonElement>(`[data-testid="${testId}"]`)?.click());
+  }
+
+  it('Given both scopes queued, When the title scope is cancelled, Then the global edit still lands', () => {
+    vi.useFakeTimers();
+    const write = vi.fn<(scope: Scope, value: string) => void>();
+    mountScoped(write);
+
+    clickScoped('schedule-title');
+    clickScoped('schedule-global');
+    clickScoped('cancel-title');
+    act(() => {
+      vi.advanceTimersByTime(SETTINGS_WRITE_DELAY_MS);
+    });
+
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(write).toHaveBeenCalledWith('global', 'global-value');
+  });
+
+  it('Given both scopes queued, When the global scope is cancelled, Then the title edit still lands', () => {
+    vi.useFakeTimers();
+    const write = vi.fn<(scope: Scope, value: string) => void>();
+    mountScoped(write);
+
+    clickScoped('schedule-title');
+    clickScoped('schedule-global');
+    clickScoped('cancel-global');
+    act(() => {
+      vi.advanceTimersByTime(SETTINGS_WRITE_DELAY_MS);
+    });
+
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(write).toHaveBeenCalledWith('title', 'title-value');
+  });
+
+  it('Given scopes scheduled at different times, Then each keeps its own quiet window', () => {
+    vi.useFakeTimers();
+    const write = vi.fn<(scope: Scope, value: string) => void>();
+    mountScoped(write);
+
+    clickScoped('schedule-title');
+    act(() => {
+      vi.advanceTimersByTime(SETTINGS_WRITE_DELAY_MS - 100);
+    });
+    clickScoped('schedule-global');
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(write).toHaveBeenCalledWith('title', 'title-value');
+
+    act(() => {
+      vi.advanceTimersByTime(SETTINGS_WRITE_DELAY_MS - 100);
+    });
+    expect(write).toHaveBeenCalledTimes(2);
+    expect(write).toHaveBeenLastCalledWith('global', 'global-value');
+  });
+
+  it('Given a scope rescheduled after another, When flushed, Then writes follow edit order', () => {
+    vi.useFakeTimers();
+    const write = vi.fn<(scope: Scope, value: string) => void>();
+    mountScoped(write);
+
+    clickScoped('schedule-title');
+    clickScoped('schedule-global');
+    clickScoped('schedule-title');
+    clickScoped('flush');
+
+    expect(write.mock.calls).toEqual([
+      ['global', 'global-value'],
+      ['title', 'title-value'],
+    ]);
+  });
+
+  it('Given both scopes queued, When flushed, Then each writes once', () => {
+    vi.useFakeTimers();
+    const write = vi.fn<(scope: Scope, value: string) => void>();
+    mountScoped(write);
+
+    clickScoped('schedule-title');
+    clickScoped('schedule-global');
+    clickScoped('flush');
+
+    expect(write).toHaveBeenCalledTimes(2);
+    expect(write).toHaveBeenCalledWith('title', 'title-value');
+    expect(write).toHaveBeenCalledWith('global', 'global-value');
+
+    act(() => {
+      vi.advanceTimersByTime(SETTINGS_WRITE_DELAY_MS);
+    });
+    expect(write).toHaveBeenCalledTimes(2);
   });
 });

@@ -5,8 +5,9 @@ import {
   recordProviderFailure,
 } from '@app/extensions';
 import type { ProviderContract } from '@app/extensions-sdk';
+import { createAppError } from '@app/shared';
 import type { MangaIdentity, ProviderSettingsValues } from '@app/shared';
-import type { DiscoverPageData, DiscoverSection } from '@/features/search';
+import type { DiscoverSection } from '@/features/search';
 
 import {
   listProviderBindings,
@@ -19,6 +20,13 @@ import {
 
 export const PROVIDER_SECTION_PAGE_SIZE = 24;
 const PROVIDER_SECTION_PREVIEW_SIZE = 6;
+/**
+ * Discover is interactive: a silent 30s socket wait or a multi-minute rate-gate
+ * park reads as a hung page. Bound the request and expose the gate's horizon
+ * instead, so the user sees a typed "rate limited / timed out" row with Retry.
+ */
+const DISCOVER_REQUEST_TIMEOUT_MS = 15_000;
+const DISCOVER_GATE_WAIT_MS = 2_000;
 
 /** Only sections the provider's declared capabilities can serve. */
 export function getEnabledSections(
@@ -51,13 +59,15 @@ async function fetchSection(
     providerId: binding.providerId,
     settings,
     ...(signal !== undefined ? { signal } : {}),
+    timeoutMs: DISCOVER_REQUEST_TIMEOUT_MS,
+    maxGateWaitMs: DISCOVER_GATE_WAIT_MS,
   };
   const browse = provider[section.browse]?.bind(provider);
   if (browse === undefined) {
     return null;
   }
 
-  const result = await browse(ctx, { page });
+  const result = await browse(ctx, { page, limit });
   return {
     results: binding.toSearchIdentities(result.items.slice(0, limit)),
     hasMore: result.hasMore ?? false,
@@ -111,96 +121,111 @@ export async function fetchProviderSectionPage(
   return { results: fetched.results, hasMore: fetched.hasMore, offset };
 }
 
+/** The installed-provider descriptors Discover needs before it asks for any section. */
+export interface DiscoverProviderDescriptor {
+  readonly providerId: string;
+  readonly providerName: string;
+  readonly sections: readonly ProviderSectionDefinition[];
+}
+
 /**
- * Provider previews for the discover grid. A failed install read rejects so the
- * route shows its error state, as does a feed where every section that could
- * have shown something failed; one broken provider or section is dropped and
- * never blanks the rest of the page.
+ * Reads the install table once and returns every enabled provider that can
+ * serve at least one section. A broken provider or malformed manifest is
+ * skipped; the rest of the strip still renders.
  */
-export async function fetchProviderDiscoverData(
+export async function fetchDiscoverProviders(
   db: AppDrizzleDb,
-  signal?: AbortSignal,
-  explicitContent = false,
-): Promise<DiscoverPageData> {
-  const entries: DiscoverPageData['providers'][number][] = [];
-  const failures: unknown[] = [];
+): Promise<readonly DiscoverProviderDescriptor[]> {
   const installed = await readInstalledExtensions(db);
-
+  const descriptors: DiscoverProviderDescriptor[] = [];
   for (const binding of listProviderBindings()) {
-    let provider: ProviderContract;
-    let providerName: string;
-    let enabled: readonly ProviderSectionDefinition[];
-    let settings: ProviderSettingsValues;
-    // A provider that throws while resolving, or ships a malformed manifest,
-    // must not blank the whole feed.
     try {
-      const resolved = resolveInstalledProviderFrom(installed, binding.providerId);
-      if (resolved === null) {
-        continue;
-      }
-      provider = resolved;
-      providerName = resolved.manifest.name;
-      enabled = getEnabledSections(binding, resolved.manifest.capabilities);
-      settings = applyExplicitContentGate(
-        await loadProviderSettings(db, binding.providerId),
-        explicitContent,
-      );
+      const provider = resolveInstalledProviderFrom(installed, binding.providerId);
+      if (provider === null) continue;
+      const sections = getEnabledSections(binding, provider.manifest.capabilities);
+      if (sections.length === 0) continue;
+      descriptors.push({
+        providerId: binding.providerId,
+        providerName: provider.manifest.name,
+        sections,
+      });
     } catch {
-      continue;
+      // A provider that throws while resolving, or ships a malformed manifest,
+      // must not blank the whole feed.
     }
+  }
+  return descriptors;
+}
 
-    const settled = await Promise.allSettled(
-      enabled.map(async (section): Promise<DiscoverSection> => {
-        const fetched = await fetchSection(
-          provider,
-          binding,
-          section.id,
-          1,
-          PROVIDER_SECTION_PREVIEW_SIZE,
-          settings,
-          signal,
-        ).catch(async (error: unknown) => {
-          await recordProviderFailure(db, {
-            providerId: binding.providerId,
-            operation: 'discover',
-            error,
-            ...(signal !== undefined ? { signal } : {}),
-          });
-          throw error;
-        });
-        return {
-          id: section.id,
-          title: section.title,
-          capability: section.capability,
-          results: fetched?.results ?? [],
-        };
-      }),
-    );
-
-    for (const result of settled) {
-      if (result.status === 'rejected') failures.push(result.reason);
-    }
-
-    const sections = settled
-      .filter(
-        (result): result is PromiseFulfilledResult<DiscoverSection> =>
-          result.status === 'fulfilled',
-      )
-      .map((result) => result.value)
-      .filter((section) => section.results.length > 0);
-
-    entries.push({
+async function fetchSectionPreviewFor(
+  db: AppDrizzleDb,
+  provider: ProviderContract,
+  binding: ProviderAppBinding,
+  section: ProviderSectionDefinition,
+  signal: AbortSignal | undefined,
+  explicitContent: boolean,
+): Promise<DiscoverSection> {
+  const settings = applyExplicitContentGate(
+    await loadProviderSettings(db, binding.providerId),
+    explicitContent,
+  );
+  const fetched = await fetchSection(
+    provider,
+    binding,
+    section.id,
+    1,
+    PROVIDER_SECTION_PREVIEW_SIZE,
+    settings,
+    signal,
+  ).catch(async (error: unknown) => {
+    await recordProviderFailure(db, {
       providerId: binding.providerId,
-      providerName,
-      sections,
+      operation: 'discover',
+      error,
+      ...(signal !== undefined ? { signal } : {}),
+    });
+    throw error;
+  });
+  if (fetched === null) {
+    throw createAppError({
+      code: 'extensions.discover.section_unavailable',
+      message: 'That Discover section is not available for this provider.',
     });
   }
+  return {
+    id: section.id,
+    title: section.title,
+    capability: section.capability,
+    results: fetched.results,
+    status: fetched.results.length > 0 ? 'ok' : 'empty',
+  };
+}
 
-  // Nothing loaded because the sources failed: that is a failure with a retry,
-  // not an empty catalog with a blank page.
-  if (failures.length > 0 && entries.every((entry) => entry.sections.length === 0)) {
-    throw failures[0];
+/**
+ * One section's six-cover preview, its own query. Keyed separately from the
+ * paged `section` query so a preview retry never refetches loaded pages.
+ */
+export async function fetchProviderSectionPreview(
+  db: AppDrizzleDb,
+  providerId: string,
+  sectionId: string,
+  signal?: AbortSignal,
+  explicitContent = false,
+): Promise<DiscoverSection> {
+  const binding = listProviderBindings().find((entry) => entry.providerId === providerId);
+  const section = binding?.sections.find((entry) => entry.id === sectionId);
+  if (binding === undefined || section === undefined) {
+    throw createAppError({
+      code: 'extensions.discover.section_unavailable',
+      message: 'That Discover section is not available for this provider.',
+    });
   }
-
-  return { providers: entries };
+  const provider = await resolveInstalledProvider(db, providerId);
+  if (provider === null) {
+    throw createAppError({
+      code: 'extensions.discover.provider_missing',
+      message: 'This provider is not installed or is disabled.',
+    });
+  }
+  return fetchSectionPreviewFor(db, provider, binding, section, signal, explicitContent);
 }

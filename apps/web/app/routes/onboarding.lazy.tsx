@@ -196,7 +196,7 @@ function OnboardingRoute() {
     }
 
     updateOnboarding(completeOnboarding(current), () => {
-      void navigate({ to: '/library' });
+      void navigate({ to: '/library', replace: true });
     });
   };
 
@@ -221,7 +221,7 @@ function OnboardingRoute() {
           return;
         }
         updateOnboarding(skipOnboarding(current), () => {
-          void navigate({ to: '/library' });
+          void navigate({ to: '/library', replace: true });
         });
       }}
       onBack={() => {

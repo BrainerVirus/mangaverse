@@ -2,12 +2,13 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchReaderSettings,
+  READER_SETTINGS_MUTATION_SCOPE,
   ReaderSettingsPage,
   saveReaderSettings,
   saveTitleReaderSettings,
   settingsQueryKeys,
 } from '@/features/settings';
-import { getTitleReaderSettingsLayers, resetTitleReaderSettings } from '@app/db';
+import { getReaderSettings, getTitleReaderSettingsLayers, resetTitleReaderSettings } from '@app/db';
 import type { ReaderSettings, ReaderSettingsOverride } from '@app/shared';
 import { saveFeedback } from '../lib/feedback.js';
 import { QUERY_GC_TIMES, QUERY_STALE_TIMES } from '../queries/query-timing.js';
@@ -27,6 +28,11 @@ interface ReaderSettingsPageState {
   readonly settings: ReaderSettings;
   readonly overrides?: ReaderSettingsOverride;
 }
+
+type ReaderSettingsSaveVars = {
+  readonly next: ReaderSettingsPageState;
+  readonly patch: Partial<ReaderSettings>;
+};
 
 function SettingsReaderRoute() {
   const { title } = Route.useSearch();
@@ -53,20 +59,23 @@ function SettingsReaderRoute() {
 
   const saveMutation = useMutation({
     meta: saveFeedback('Could not save settings.'),
-    // One write at a time: a burst of coalesced edits can otherwise resolve out
-    // of order and the last snapshot to land would not be the last value painted.
-    scope: { id: isTitleScoped ? `reader-settings:${title}` : 'reader-settings' },
+    // One write at a time across reader surfaces, so a burst of coalesced edits
+    // cannot resolve out of order and the last snapshot to land is the newest.
+    scope: { id: READER_SETTINGS_MUTATION_SCOPE },
     // `?title=` edits that title's choices; the plain page edits the global row.
-    mutationFn: async (next: ReaderSettingsPageState) => {
+    // The patch is merged into the latest durable row, never a stale page snapshot,
+    // so a concurrent edit to another field is preserved.
+    mutationFn: async ({ patch }: ReaderSettingsSaveVars) => {
       if (db === null) throw new Error('Local database is not ready.');
       if (title !== undefined) {
-        await saveTitleReaderSettings(db, title, next.overrides ?? {});
+        const layers = await getTitleReaderSettingsLayers(db, title);
+        await saveTitleReaderSettings(db, title, { ...layers.overrides, ...patch });
         return;
       }
-      const result = await saveReaderSettings(db, next.settings);
+      const result = await saveReaderSettings(db, { ...(await getReaderSettings(db)), ...patch });
       if (!result.ok) throw new Error(result.error.message);
     },
-    onMutate: async (next) => {
+    onMutate: async ({ next }) => {
       await queryClient.cancelQueries({ queryKey });
       queryClient.setQueryData(queryKey, next);
     },
@@ -74,7 +83,7 @@ function SettingsReaderRoute() {
       // The cache already shows the attempted value; re-read the durable one.
       void queryClient.invalidateQueries({ queryKey: settingsQueryKeys.reader() });
     },
-    onSettled: (_data, _error, next) => {
+    onSettled: (_data, _error, { next }) => {
       const current = queryClient.getQueryData<ReaderSettingsPageState>(queryKey);
       // A newer edit owns the cache; its own write will invalidate.
       if (current !== next) return;
@@ -85,9 +94,16 @@ function SettingsReaderRoute() {
 
   const resetMutation = useMutation({
     meta: saveFeedback('Could not reset settings.'),
+    // Same shared mutation scope as every save: a reset queues behind a write
+    // already in flight and runs last, so a delayed save cannot recreate the
+    // row the reset just deleted.
+    scope: { id: READER_SETTINGS_MUTATION_SCOPE },
     mutationFn: async () => {
       if (db === null || title === undefined) throw new Error('Local database is not ready.');
       await resetTitleReaderSettings(db, title);
+    },
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey });
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: settingsQueryKeys.reader() });
@@ -106,7 +122,10 @@ function SettingsReaderRoute() {
     };
     // Every edit paints immediately; a slider gesture writes once at rest.
     queryClient.setQueryData(queryKey, next);
-    settingsWriter.schedule(next);
+    settingsWriter.schedule({ next, patch }, (previous, incoming) => ({
+      next: incoming.next,
+      patch: { ...previous.patch, ...incoming.patch },
+    }));
   };
 
   return (
@@ -119,7 +138,12 @@ function SettingsReaderRoute() {
       {...(isTitleScoped
         ? {
             titleScope: {
-              onReset: () => resetMutation.mutate(),
+              onReset: () => {
+                // Drop this page's queued edit before the reset; the shared
+                // mutation scope fences anything already in flight.
+                settingsWriter.cancel();
+                resetMutation.mutate();
+              },
               isResetting: resetMutation.isPending,
             },
           }

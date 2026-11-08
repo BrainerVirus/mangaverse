@@ -26,6 +26,8 @@ export const MANGADEX_API_BASE = 'https://api.mangadex.org';
 const FEED_PAGE_LIMIT = 100;
 /** Safety cap so a pathological feed cannot loop forever. */
 const FEED_MAX_PAGES = 25;
+/** MangaDex refuses any `/manga` request whose `offset + limit` exceeds 10000. */
+const MAX_RESULT_WINDOW = 10_000;
 
 const DEFAULT_LANGUAGES: readonly string[] = ['en'];
 /** MangaDex ratings requested unless the user opts into mature content. */
@@ -39,11 +41,6 @@ const RATING_PARAM: Readonly<Record<ContentRating, string>> = {
   unknown: '',
 };
 /** Settings sort names the browse methods understand. */
-const BROWSE_ORDER: Readonly<Record<string, string>> = {
-  latest: 'order[latestUploadedChapter]',
-  popular: 'order[followedCount]',
-};
-
 function settingsOf(ctx: ProviderContext): ProviderSettingsValues {
   return ctx.settings ?? {};
 }
@@ -62,10 +59,33 @@ function contentRatings(settings: ProviderSettingsValues): readonly string[] {
   return settings.nsfwAllowed === true ? NSFW_CONTENT_RATINGS : DEFAULT_CONTENT_RATINGS;
 }
 
-function browseOrder(settings: ProviderSettingsValues, fallback: string): string {
+/** Sort names the provider setting exposes, mapped to MangaDex's order parameter. */
+const BROWSE_ORDER: Readonly<Record<string, string>> = {
+  latest: 'order[latestUploadedChapter]',
+  popular: 'order[followedCount]',
+};
+
+/** The user's default sort applies to search; browse sections keep their identity. */
+function searchOrder(settings: ProviderSettingsValues): string | undefined {
   const sort = settings.defaultSort;
-  const order = sort === undefined ? undefined : BROWSE_ORDER[sort];
-  return order ?? fallback;
+  return sort === undefined ? undefined : BROWSE_ORDER[sort];
+}
+
+/**
+ * Whether another page of `limit` items exists after `offset`. Two independent
+ * stops: the source's own `total`, and MangaDex's 10000-result window, so the
+ * last page never asks for `offset + limit > 10000` and turns into an HTTP 400.
+ */
+function hasMorePages(
+  total: number | undefined,
+  offset: number,
+  itemsLength: number,
+  limit: number,
+): boolean {
+  if (itemsLength < limit) return false;
+  const nextOffset = offset + limit;
+  if (nextOffset + limit > MAX_RESULT_WINDOW) return false;
+  return total === undefined ? true : nextOffset < total;
 }
 
 export interface CreateMangaDexProviderOptions {
@@ -89,6 +109,8 @@ export function createMangaDexProvider(options: CreateMangaDexProviderOptions): 
     const response = await client.request({
       url,
       ...(ctx.signal !== undefined ? { signal: ctx.signal } : {}),
+      ...(ctx.timeoutMs !== undefined ? { timeoutMs: ctx.timeoutMs } : {}),
+      ...(ctx.maxGateWaitMs !== undefined ? { maxGateWaitMs: ctx.maxGateWaitMs } : {}),
       ...(ctx.settings?.rateLimitOverrideRpm !== undefined
         ? { requestsPerMinute: ctx.settings.rateLimitOverrideRpm }
         : {}),
@@ -143,6 +165,10 @@ export function createMangaDexProvider(options: CreateMangaDexProviderOptions): 
     if (trimmed.length > 0) {
       params.set('title', trimmed);
     }
+    const order = searchOrder(settingsOf(ctx));
+    if (order !== undefined) {
+      params.set(order, 'desc');
+    }
     const url = `${apiBase}/manga?${params.toString()}`;
     const endpoint = '/manga';
     const collection = parseCollectionResponse(await requestJson(ctx, url), endpoint);
@@ -150,10 +176,7 @@ export function createMangaDexProvider(options: CreateMangaDexProviderOptions): 
     const items = collection.entities.map(toSearchItem);
     return {
       items,
-      hasMore:
-        collection.total !== undefined
-          ? offset + items.length < collection.total
-          : items.length === Number(params.get('limit')),
+      hasMore: hasMorePages(collection.total, offset, items.length, Number(params.get('limit'))),
     };
   };
 
@@ -161,23 +184,25 @@ export function createMangaDexProvider(options: CreateMangaDexProviderOptions): 
     ctx: ProviderContext,
     page: number | undefined,
     order: string,
+    limit: number | undefined,
   ): Promise<ProviderSearchResult> => {
     const settings = settingsOf(ctx);
     const params = collectionParams(
-      { query: '', ...(page !== undefined ? { page } : {}) },
+      {
+        query: '',
+        ...(page !== undefined ? { page } : {}),
+        ...(limit !== undefined ? { limit } : {}),
+      },
       settings,
     );
-    params.set(browseOrder(settings, order), 'desc');
+    params.set(order, 'desc');
     const url = `${apiBase}/manga?${params.toString()}`;
     const collection = parseCollectionResponse(await requestJson(ctx, url), '/manga');
     const offset = Number(params.get('offset') ?? '0');
     const items = collection.entities.map(toSearchItem);
     return {
       items,
-      hasMore:
-        collection.total !== undefined
-          ? offset + items.length < collection.total
-          : items.length === Number(params.get('limit')),
+      hasMore: hasMorePages(collection.total, offset, items.length, Number(params.get('limit'))),
     };
   };
 
@@ -203,8 +228,10 @@ export function createMangaDexProvider(options: CreateMangaDexProviderOptions): 
   const provider: ProviderContract = {
     manifest: MANGADEX_MANIFEST,
     search: (ctx, input) => searchCollection(ctx, input),
-    browseLatest: (ctx, input) => browseOrdered(ctx, input.page, 'order[latestUploadedChapter]'),
-    browsePopular: (ctx, input) => browseOrdered(ctx, input.page, 'order[followedCount]'),
+    browseLatest: (ctx, input) =>
+      browseOrdered(ctx, input.page, 'order[latestUploadedChapter]', input.limit),
+    browsePopular: (ctx, input) =>
+      browseOrdered(ctx, input.page, 'order[followedCount]', input.limit),
     getDetails: async (ctx, mangaId) => {
       const params = new URLSearchParams();
       params.append('includes[]', 'cover_art');

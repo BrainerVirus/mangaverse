@@ -151,6 +151,22 @@ describe('useMigrationController hand-off glue', () => {
     await vi.waitFor(() => expect(probeAttribute('data-titles')).toBe('gone=Deleted Title'));
   });
 
+  it('Given a detail hand-off for one of two titles on the same provider, When it loads, Then only that id is offered', async () => {
+    // Two candidates share the provider, so a provider-only hand-off would offer both.
+    await renderController({ ids: ['m1'], source: 'source' });
+
+    await vi.waitFor(() => expect(probeAttribute('data-source')).toBe('source'));
+    await vi.waitFor(() => expect(probeAttribute('data-candidates')).toBe('m1'));
+    expect(probeAttribute('data-requested-sources')).toBe('');
+  });
+
+  it('Given a bulk hand-off, When it loads, Then every selected id is still offered', async () => {
+    await renderController({ ids: ['m1', 'm2'], sources: ['source'] });
+
+    await vi.waitFor(() => expect(probeAttribute('data-source')).toBe('source'));
+    await vi.waitFor(() => expect(probeAttribute('data-candidates')).toBe('m1,m2'));
+  });
+
   it('Given a rejected link, When the controller loads, Then batch mode stays off', async () => {
     await renderController({ handoffError: 'too-many', handoffIdCount: 201 });
 

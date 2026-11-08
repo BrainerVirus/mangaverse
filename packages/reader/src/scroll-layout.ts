@@ -1,4 +1,6 @@
 import { READER_STRIP_WIDTH_AUTO_PERCENT, type TilingThreshold } from '@app/shared';
+import { resolveStripPageFit } from './page-fit.js';
+import type { ResolvedFitMode } from './resolve-reader-settings.js';
 import type { ReaderPage } from './types.js';
 
 /** Reader width from which Auto bounds the strip instead of filling the screen. */
@@ -140,6 +142,45 @@ export function resolveStripPageSize(
     return { width, height, ratio: height / width };
   }
   return { width: 1, height: fallbackRatio, ratio: fallbackRatio };
+}
+
+/** A strip row's box and object-fit for one page under a fit mode. */
+export interface StripRowFit {
+  readonly width: number;
+  readonly height: number;
+  readonly objectFit: 'contain' | 'cover' | 'none';
+}
+
+/**
+ * The strip row geometry for one page, from the documented fit semantics.
+ * `resolveStripPageSize` supplies the aspect ratio and the placeholder fallback;
+ * only a real (provider or measured) size is treated as the natural size, so
+ * Original size never falls back to the `1`-width placeholder.
+ */
+export function resolveStripRowFit(input: {
+  readonly page: ReaderPage;
+  readonly stripWidth: number;
+  readonly viewportHeight: number;
+  readonly natural?: { readonly width: number; readonly height: number } | undefined;
+  readonly fallbackRatio?: number;
+  readonly fitMode?: ResolvedFitMode;
+}): StripRowFit {
+  const size = resolveStripPageSize(input.page, input.natural, input.fallbackRatio);
+  const naturalSize = hasPageShape(input.page)
+    ? { width: size.width, height: size.height }
+    : input.natural !== undefined && input.natural.width > 0 && input.natural.height > 0
+      ? input.natural
+      : undefined;
+  const fit = resolveStripPageFit({
+    fitMode: input.fitMode ?? 'width',
+    stripWidth: input.stripWidth,
+    viewportHeight: input.viewportHeight,
+    aspectRatio: size.ratio > 0 ? 1 / size.ratio : 1 / PLACEHOLDER_PAGE_RATIO,
+    naturalSize,
+  });
+  // Round the rendered height to the CSS pixel grid; the width stays fractional so the
+  // strip still fills its measured column. This matches the old stripPageHeight rounding.
+  return { width: fit.box.width, height: Math.round(fit.box.height), objectFit: fit.objectFit };
 }
 
 /** A rendered page height at `stripWidth`, using the page's shape. */

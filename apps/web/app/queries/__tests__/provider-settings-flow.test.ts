@@ -7,7 +7,7 @@ import type { ProviderAppBinding } from '../../lib/provider-registry.js';
 // costs seconds under CPU contention, and Vitest charges that to the test's 5s
 // timeout when it is awaited inside the test body. Collection has no per-test timeout.
 import { fetchProviderSearchIdentities } from '../provider-query-options.js';
-import { fetchProviderDiscoverData, fetchProviderSectionPage } from '../provider-discover.js';
+import { fetchProviderSectionPage, fetchProviderSectionPreview } from '../provider-discover.js';
 
 const mocks = vi.hoisted(() => ({
   loadProviderSettings:
@@ -105,7 +105,7 @@ describe('provider calls receive saved settings', () => {
     mocks.resolveInstalledProviderFrom.mockReturnValue(provider);
     mocks.resolveInstalledProvider.mockResolvedValue(provider);
 
-    await fetchProviderDiscoverData(db);
+    await fetchProviderSectionPreview(db, 'fake', 'latest');
     await fetchProviderSectionPage(db, binding, 'latest', 0, 6);
 
     expect(contexts).toHaveLength(2);

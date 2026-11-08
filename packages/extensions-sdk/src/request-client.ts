@@ -102,6 +102,7 @@ export function createProviderRequestClient(
             ...(input.requestsPerMinute !== undefined
               ? { requestsPerMinute: input.requestsPerMinute }
               : {}),
+            ...(input.maxGateWaitMs !== undefined ? { maxWaitMs: input.maxGateWaitMs } : {}),
             signal: controller.signal,
           })
           .then(

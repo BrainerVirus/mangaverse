@@ -30,6 +30,12 @@ export interface ProviderRequest {
   readonly timeoutMs?: number;
   /** Per-request rate override, forwarded to the provider's request gate. */
   readonly requestsPerMinute?: number;
+  /**
+   * Fail fast instead of sleeping when the gate would wait longer than this.
+   * Interactive callers (Discover) bound the visible wait; background
+   * prefetches leave it unset and keep the gate's normal behavior.
+   */
+  readonly maxGateWaitMs?: number;
 }
 
 export interface ProviderContext {
@@ -38,6 +44,13 @@ export interface ProviderContext {
   /** User settings for this provider; providers fall back to their documented defaults. */
   readonly settings?: ProviderSettingsValues;
   readonly signal?: AbortSignal;
+  /**
+   * Interactive surfaces (Discover) bound the visible wait: the request fails
+   * with a typed timeout instead of holding a spinner for the full default.
+   */
+  readonly timeoutMs?: number;
+  /** Fail fast when the rate gate would wait longer than this, exposing its horizon. */
+  readonly maxGateWaitMs?: number;
 }
 
 export interface ProviderSearchInput {
@@ -108,11 +121,11 @@ export interface ProviderContract {
   ) => Promise<ProviderSearchResult>;
   readonly browseLatest?: (
     ctx: ProviderContext,
-    input: { readonly page?: number },
+    input: { readonly page?: number; readonly limit?: number },
   ) => Promise<ProviderSearchResult>;
   readonly browsePopular?: (
     ctx: ProviderContext,
-    input: { readonly page?: number },
+    input: { readonly page?: number; readonly limit?: number },
   ) => Promise<ProviderSearchResult>;
   readonly getDetails?: (
     ctx: ProviderContext,

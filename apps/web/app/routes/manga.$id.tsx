@@ -1,5 +1,10 @@
 import { useMemo } from 'react';
-import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
+import {
+  createFileRoute,
+  useNavigate,
+  useRouter,
+  type RouterHistory,
+} from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   findDuplicateCandidates,
@@ -61,7 +66,7 @@ import {
   isDbReady,
   isPageError,
   isPageLoading,
-  openMigration,
+  buildMigrationHandoff,
   pickRelatedProps,
   providerCapability,
   queryErrorMessage,
@@ -72,6 +77,7 @@ import {
   sourceLoadError,
 } from '../queries/manga-detail-route-helpers.js';
 import { saveFeedback } from '../lib/feedback.js';
+import { readerSessionState } from '../lib/navigation-history.js';
 import { failureMessage } from '../lib/app-feedback.js';
 import { useLocalDb, useLocalDbRetry, useLocalDbStatus } from '../providers/local-db-provider.js';
 
@@ -113,7 +119,23 @@ function detailLoadRetryProps(input: {
   };
 }
 
+function readerLocation(chapterId: string) {
+  return {
+    to: '/reader/$chapterId' as const,
+    params: { chapterId },
+    state: (previous: RouterHistory['location']['state']) => ({
+      ...previous,
+      ...readerSessionState,
+    }),
+  };
+}
+
 function MangaDetailRoute() {
+  return useMangaDetailRouteElement();
+}
+
+/** Route model + element; the component above only publishes the result. */
+function useMangaDetailRouteElement() {
   const navigate = useNavigate();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -329,12 +351,10 @@ function MangaDetailRoute() {
         goBackOrLibrary({
           canGoBack: () => router.history.canGoBack(),
           back: () => router.history.back(),
-          openLibrary: () => void navigate({ to: '/library' }),
+          openLibrary: () => void navigate({ to: '/library', replace: true }),
         })
       }
-      onOpenChapter={(chapterId) =>
-        void navigate({ to: '/reader/$chapterId', params: { chapterId } })
-      }
+      onOpenChapter={(chapterId) => void navigate(readerLocation(chapterId))}
       onAddToLibrary={() => addMutation.mutate(toLibraryEntryId(globalThis.crypto.randomUUID()))}
       onRemoveFromLibrary={() => removeMutation.mutate()}
       onToggleFavorite={() => favoriteMutation.mutate(!(data?.libraryEntry?.favorite ?? false))}
@@ -374,7 +394,12 @@ function MangaDetailRoute() {
       onDownloadCommand={runDownloadCommand}
       isCoverActionPending={coverMutation.isPending}
       onSetCoverImageUrl={(url) => coverMutation.mutateAsync(url)}
-      onOpenMigration={() => openMigration((href) => void navigate({ href }), activeMapping)}
+      onOpenMigration={(providerId) =>
+        void navigate({
+          to: '/migration',
+          search: buildMigrationHandoff(mangaId, providerId),
+        })
+      }
       onOpenProviderSettings={(providerId) =>
         void navigate({ to: '/extensions/$providerId', params: { providerId } })
       }
@@ -399,7 +424,7 @@ function MangaDetailRoute() {
       onMerge={(input) => mergeMutation.mutateAsync(input).then(() => undefined)}
       onMerged={(targetId) => {
         if (targetId !== mangaId) {
-          void navigate({ to: '/manga/$id', params: { id: targetId } });
+          void navigate({ to: '/manga/$id', params: { id: targetId }, replace: true });
         }
       }}
       isUnmergePending={unmergeMutation.isPending}

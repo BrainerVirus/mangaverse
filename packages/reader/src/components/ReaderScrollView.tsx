@@ -3,6 +3,7 @@ import { CachedPageImage } from '@app/cache';
 import { useStateReducer } from '@app/design-system';
 import { READER_NEXT_CHAPTER_THRESHOLD_DEFAULT_PERCENT } from '@app/shared';
 import type { ReaderPageMeasurement } from '../measured-page-shape.js';
+import type { ResolvedFitMode } from '../resolve-reader-settings.js';
 import type { ReaderPage } from '../types.js';
 import { tailSpacerPx, useChapterEndThreshold } from './use-chapter-end-threshold.js';
 import { useScrollActivity } from './use-scroll-activity.js';
@@ -15,9 +16,9 @@ import {
   STRIP_TILE_AUTO_THRESHOLD_PX,
   STRIP_TILE_HEIGHT_PX,
   resolveStripMaxWidthPercent,
-  resolveStripPageSize,
-  stripPageHeight,
+  resolveStripRowFit,
   type ScrollPageMetric,
+  type StripRowFit,
 } from '../scroll-layout.js';
 
 export interface ReaderScrollViewHandle {
@@ -33,6 +34,8 @@ interface ReaderScrollViewProps {
   readonly gapPx: number;
   /** The strip width setting (`maxStripWidthPercent`); 100 is Auto. */
   readonly maxWidthPercent?: number;
+  /** The strip's fit semantics; Auto resolves to width before this. */
+  readonly fitMode?: ResolvedFitMode;
   readonly activePageIndex: number;
   readonly onActivePageChange: (index: number) => void;
   readonly providerId: string;
@@ -80,6 +83,8 @@ const MIN_ROW_RADIUS = 3;
  * first computed row heights are in the right ballpark.
  */
 const DEFAULT_STRIP_WIDTH = 800;
+/** Strip viewport height fallback for the height-limited fit modes before the first resize. */
+const DEFAULT_STRIP_VIEWPORT_HEIGHT = 800;
 
 interface NaturalSize {
   readonly width: number;
@@ -159,8 +164,8 @@ interface ScrollContentProps {
   readonly rowWindow: ReadonlySet<number>;
   readonly imageWindow: ReadonlySet<number>;
   readonly metrics: readonly ScrollPageMetric[];
-  readonly heights: readonly number[];
-  readonly geometry: StripGeometry;
+  readonly fits: readonly StripRowFit[];
+  readonly stripWidth: number;
   readonly widthPercent: number;
   readonly contentHeight: number;
   readonly totalHeight: number;
@@ -191,8 +196,8 @@ function ScrollContent({
   rowWindow,
   imageWindow,
   metrics,
-  heights,
-  geometry,
+  fits,
+  stripWidth,
   widthPercent,
   contentHeight,
   totalHeight,
@@ -218,16 +223,15 @@ function ScrollContent({
       {pages.map((page, index) => {
         if (!rowWindow.has(index)) return null;
         const metric = metrics[index];
-        const height = heights[index] ?? 0;
-        const size = resolveStripPageSize(page, geometry.natural[index], geometry.fallbackRatio);
+        const fit = fits[index];
         return (
           <ScrollPageRow
             key={page.id}
             page={page}
             index={index}
             top={metric?.top ?? 0}
-            height={height}
-            aspectRatio={`${size.width} / ${size.height}`}
+            fit={fit}
+            stripWidth={stripWidth}
             mounted={imageWindow.has(index)}
             cacheReady={cacheReady}
             providerId={providerId}
@@ -268,8 +272,8 @@ const ScrollPageRow = memo(function ScrollPageRow({
   page,
   index,
   top,
-  height,
-  aspectRatio,
+  fit,
+  stripWidth,
   mounted,
   cacheReady,
   providerId,
@@ -286,8 +290,9 @@ const ScrollPageRow = memo(function ScrollPageRow({
   readonly page: ReaderPage;
   readonly index: number;
   readonly top: number;
-  readonly height: number;
-  readonly aspectRatio: string;
+  readonly fit: StripRowFit | undefined;
+  /** The strip column width; a wider row anchors to the inline start. */
+  readonly stripWidth: number;
   readonly mounted: boolean;
   readonly cacheReady: boolean;
   readonly providerId: string;
@@ -308,31 +313,48 @@ const ScrollPageRow = memo(function ScrollPageRow({
       }) => void)
     | undefined;
 }) {
+  const height = fit?.height ?? 0;
+  const width = fit?.width ?? 0;
+  // A page wider than the strip cannot be centred: its left edge would sit at a
+  // negative scroll offset the container cannot reach. Anchor it to the inline
+  // start instead, so horizontal overflow is scrollable in the positive axis.
+  const widerThanStrip = width > stripWidth;
+  const objectFitClass =
+    fit?.objectFit === 'cover'
+      ? 'object-cover'
+      : fit?.objectFit === 'none'
+        ? 'object-none'
+        : 'object-contain';
   const tiles = planPageTiles(height, STRIP_TILE_HEIGHT_PX, tilingThresholdPx);
   return (
     <div
       data-page-index={index}
-      style={{ top, height, aspectRatio }}
-      className="absolute left-0 w-full"
+      data-object-fit={fit?.objectFit}
+      style={{ top, height, width }}
+      className={
+        widerThanStrip
+          ? 'absolute start-0 overflow-hidden'
+          : 'absolute left-1/2 -translate-x-1/2 overflow-hidden'
+      }
     >
       {tiles.map((tile) => (
         <div
           key={tile.offset}
           data-page-tile={tile.offset}
-          className="relative w-full overflow-hidden"
-          style={{ height: tile.height }}
+          className="relative overflow-hidden"
+          style={{ height: tile.height, width }}
         >
           {cacheReady && mounted ? (
             // The image keeps its full rendered height and is shifted up by the
             // tile offset; the tile clips it. Every tile shares one blob URL.
-            <div className="absolute left-0 w-full" style={{ top: -tile.offset }}>
+            <div className="absolute left-0 top-0" style={{ top: -tile.offset, width, height }}>
               <CachedPageImage
                 providerId={providerId}
                 mangaId={mangaId}
                 chapterId={chapterId}
                 pageIndex={page.index}
                 remoteUrl={page.image.url}
-                className="h-auto w-full select-none"
+                className={`h-full w-full select-none ${objectFitClass}`}
                 retention="read"
                 imageRendering={imageSmoothing ? 'auto' : 'pixelated'}
                 maxDisplayEdge={displayMaxEdgePx}
@@ -380,28 +402,20 @@ function readPageMetrics(container: HTMLElement): readonly ScrollPageMetric[] {
  * come from page shapes (provider metadata or the loaded natural size), which
  * is what the absolutely positioned rows render.
  */
-export function ReaderScrollView({
+function useReaderScrollViewState({
   pages,
   gapPx,
   maxWidthPercent = 100,
+  fitMode = 'width',
   activePageIndex,
   onActivePageChange,
-  providerId,
-  mangaId,
-  chapterId,
-  cacheReady,
   reducedMotion,
   onHandle,
   preloadAhead = MIN_ROW_RADIUS,
   lowMemoryMode = false,
   longStripOptimization = false,
   dataSaver = false,
-  tilingThresholdPx = STRIP_TILE_AUTO_THRESHOLD_PX,
-  displayMaxEdgePx,
-  imageSmoothing = true,
-  onPageMetric,
   onPageMeasured,
-  onBack,
   nextChapterThresholdPercent = READER_NEXT_CHAPTER_THRESHOLD_DEFAULT_PERCENT,
   onChapterEnd,
 }: ReaderScrollViewProps) {
@@ -418,18 +432,27 @@ export function ReaderScrollView({
   const containerWidth = geometry.width;
   const measuredWidth = containerWidth > 0 ? containerWidth : DEFAULT_STRIP_WIDTH;
   const widthPercent = resolveStripMaxWidthPercent(maxWidthPercent, measuredWidth);
-  const stripWidth = (containerWidth * widthPercent) / 100;
-  const spacerPx = geometry.spacerPx;
   const geometryWidth = (measuredWidth * widthPercent) / 100;
-  const stripWidthRef = useRef(stripWidth);
+  const geometryWidthRef = useRef(geometryWidth);
+  const spacerPx = geometry.spacerPx;
   const pagesHaveMetadata = useMemo(() => pages.some(hasPageShape), [pages]);
-  const heights = useMemo(
+  const viewportHeight =
+    geometry.viewportHeight > 0 ? geometry.viewportHeight : DEFAULT_STRIP_VIEWPORT_HEIGHT;
+  const fits = useMemo(
     () =>
       pages.map((page, index) =>
-        stripPageHeight(page, geometryWidth, geometry.natural[index], geometry.fallbackRatio),
+        resolveStripRowFit({
+          page,
+          stripWidth: geometryWidth,
+          viewportHeight,
+          natural: geometry.natural[index],
+          fallbackRatio: geometry.fallbackRatio,
+          fitMode,
+        }),
       ),
-    [geometry.fallbackRatio, geometry.natural, geometryWidth, pages],
+    [fitMode, geometry.fallbackRatio, geometry.natural, geometryWidth, pages, viewportHeight],
   );
+  const heights = useMemo(() => fits.map((fit) => fit.height), [fits]);
   const metrics = useMemo(
     () =>
       computeScrollPageMetrics(
@@ -447,7 +470,7 @@ export function ReaderScrollView({
   const pagesRef = useRef(pages);
 
   const totalHeight =
-    metrics.length === 0 ? 0 : (metrics[metrics.length - 1]!.top ?? 0) + (heights.at(-1) ?? 0);
+    metrics.length === 0 ? 0 : metrics[metrics.length - 1]!.top + (heights.at(-1) ?? 0);
   // A chapter shorter than the viewport must still have room to scroll to the
   // next-chapter threshold; otherwise the gesture can never fire it.
   const thresholdPx = (geometry.viewportHeight * nextChapterThresholdPercent) / 100;
@@ -551,7 +574,7 @@ export function ReaderScrollView({
   useLayoutEffect(() => {
     metricsRef.current = metrics;
     geometryRef.current = geometry;
-    stripWidthRef.current = stripWidth;
+    geometryWidthRef.current = geometryWidth;
     pagesRef.current = pages;
     lastPageBottomRef.current = totalHeight;
     const pending = pendingCorrectionRef.current;
@@ -597,9 +620,23 @@ export function ReaderScrollView({
         size.height > 0;
       const fallbackRatio = adoptFallback ? size.height / size.width : current.fallbackRatio;
       if (page !== undefined && size.width > 0 && size.height > 0) {
-        const width = stripWidthRef.current;
-        const before = stripPageHeight(page, width, previous, current.fallbackRatio);
-        const after = stripPageHeight(page, width, size, fallbackRatio);
+        const stripWidth = geometryWidthRef.current;
+        const before = resolveStripRowFit({
+          page,
+          stripWidth,
+          viewportHeight,
+          natural: previous,
+          fallbackRatio: current.fallbackRatio,
+          fitMode,
+        }).height;
+        const after = resolveStripRowFit({
+          page,
+          stripWidth,
+          viewportHeight,
+          natural: size,
+          fallbackRatio,
+          fitMode,
+        }).height;
         const delta = after - before;
         const top = metricsRef.current[index]?.top;
         const container = containerRef.current;
@@ -616,7 +653,7 @@ export function ReaderScrollView({
       };
       dispatchGeometry({ type: 'measured', index, size, fallbackRatio });
     },
-    [dispatchGeometry, onPageMeasured, pagesHaveMetadata],
+    [dispatchGeometry, fitMode, onPageMeasured, pagesHaveMetadata, viewportHeight],
   );
 
   const skipPage = useCallback(
@@ -636,10 +673,56 @@ export function ReaderScrollView({
     rowOverscan: ROW_OVERSCAN,
   });
 
+  return {
+    containerRef,
+    handleScroll,
+    metrics,
+    rowWindow,
+    imageWindow,
+    fits,
+    geometryWidth,
+    widthPercent,
+    contentHeight,
+    totalHeight,
+    effectiveSpacerPx,
+    reportMeasured,
+    skipPage,
+  };
+}
+
+export function ReaderScrollView(props: ReaderScrollViewProps) {
+  const {
+    containerRef,
+    handleScroll,
+    metrics,
+    rowWindow,
+    imageWindow,
+    fits,
+    geometryWidth,
+    widthPercent,
+    contentHeight,
+    totalHeight,
+    effectiveSpacerPx,
+    reportMeasured,
+    skipPage,
+  } = useReaderScrollViewState(props);
+  const {
+    pages,
+    cacheReady,
+    providerId,
+    mangaId,
+    chapterId,
+    imageSmoothing = true,
+    tilingThresholdPx = STRIP_TILE_AUTO_THRESHOLD_PX,
+    displayMaxEdgePx,
+    onBack,
+    onPageMetric,
+  } = props;
+
   return (
     <div
       ref={containerRef}
-      className="h-full w-full overflow-y-auto overscroll-contain"
+      className="h-full w-full overflow-auto overscroll-contain"
       onScroll={handleScroll}
       data-testid="reader-scroll-view"
       // Test seam: page tops let E2E drive a virtualised strip without needing
@@ -652,8 +735,8 @@ export function ReaderScrollView({
         rowWindow={rowWindow}
         imageWindow={imageWindow}
         metrics={metrics}
-        heights={heights}
-        geometry={geometry}
+        fits={fits}
+        stripWidth={geometryWidth}
         widthPercent={widthPercent}
         contentHeight={contentHeight}
         totalHeight={totalHeight}

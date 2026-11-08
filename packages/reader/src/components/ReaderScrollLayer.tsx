@@ -45,6 +45,7 @@ export function ReaderScrollLayer({
       pages={data.chapter.pages}
       gapPx={data.engineSettings.verticalGapPx}
       maxWidthPercent={data.engineSettings.maxStripWidthPercent ?? 100}
+      fitMode={readerState.settings.fitMode}
       activePageIndex={readerState.activePageIndex}
       onActivePageChange={onActivePageChange}
       providerId={data.providerId}

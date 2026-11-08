@@ -24,6 +24,13 @@ export interface RequestGateAcquireOptions {
   /** Per-request override, e.g. the user's `rateLimitOverrideRpm` setting. */
   readonly requestsPerMinute?: number;
   readonly signal?: AbortSignal;
+  /**
+   * Fail fast when the wait would exceed this, instead of sleeping. Interactive
+   * surfaces (Discover) pass a short bound so a parked provider surfaces its
+   * wait to the user rather than holding a spinner. Never extends the built-in
+   * 15-minute ceiling.
+   */
+  readonly maxWaitMs?: number;
 }
 
 export interface RequestGate {
@@ -165,6 +172,10 @@ export function createRequestGate(options: RequestGateOptions): RequestGate {
       if (!Number.isFinite(rpm) || rpm <= 0) {
         throw blockedError('Rate limit is zero; request rejected.', 0);
       }
+      const maxWaitMs = Math.max(
+        0,
+        Math.min(input.maxWaitMs ?? MAX_AUTO_WAIT_MS, MAX_AUTO_WAIT_MS),
+      );
 
       for (;;) {
         assertNotAborted(input.signal);
@@ -173,7 +184,7 @@ export function createRequestGate(options: RequestGateOptions): RequestGate {
         if (blockedUntil !== undefined) {
           if (blockedUntil > t) {
             const remaining = blockedUntil - t;
-            if (remaining > MAX_AUTO_WAIT_MS) {
+            if (remaining > maxWaitMs) {
               // Too long to sleep without losing the user's intent: refuse, and keep the
               // horizon so every later call fails fast too.
               const waitText =
@@ -197,6 +208,12 @@ export function createRequestGate(options: RequestGateOptions): RequestGate {
           return;
         }
         const waitMs = Math.max(1, windowMs - (t - state.timestamps[0]!));
+        if (waitMs > maxWaitMs) {
+          throw blockedError(
+            `The provider is at its request limit; try again in ${Math.ceil(waitMs / 1000)}s.`,
+            waitMs,
+          );
+        }
         await wait(waitMs, input.signal);
       }
     },

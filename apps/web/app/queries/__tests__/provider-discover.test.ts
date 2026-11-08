@@ -6,7 +6,7 @@ import type { ProviderAppBinding } from '../../lib/provider-registry.js';
 // Static import: evaluating the provider query graph costs seconds under CPU
 // contention, and Vitest charges that to the test's 5s timeout when it is awaited
 // inside the test body. Collection has no per-test timeout.
-import { fetchProviderDiscoverData } from '../provider-discover.js';
+import { fetchDiscoverProviders } from '../provider-discover.js';
 
 const mocks = vi.hoisted(() => {
   const binding = {
@@ -52,7 +52,7 @@ function installedProvider(name = 'Fake'): ProviderContract {
   } as unknown as ProviderContract;
 }
 
-describe('fetchProviderDiscoverData', () => {
+describe('fetchDiscoverProviders', () => {
   beforeEach(() => {
     mocks.bindings = [mocks.binding];
     mocks.readInstalledExtensions.mockReset().mockResolvedValue(installed);
@@ -66,21 +66,21 @@ describe('fetchProviderDiscoverData', () => {
   it('reads the install table once and resolves every binding once', async () => {
     mocks.bindings = [{ ...mocks.binding, providerId: 'broken' }, mocks.binding];
 
-    const data = await fetchProviderDiscoverData(db);
+    const descriptors = await fetchDiscoverProviders(db);
 
     expect(mocks.readInstalledExtensions).toHaveBeenCalledTimes(1);
     expect(mocks.readInstalledExtensions).toHaveBeenCalledWith(db);
     expect(mocks.resolveInstalledProviderFrom).toHaveBeenCalledTimes(2);
     expect(mocks.resolveInstalledProviderFrom).toHaveBeenCalledWith(installed, 'broken');
     expect(mocks.resolveInstalledProviderFrom).toHaveBeenCalledWith(installed, 'fake');
-    expect(data.providers).toHaveLength(1);
-    expect(data.providers[0]?.sections.map((section) => section.id)).toEqual(['latest', 'popular']);
+    expect(descriptors).toHaveLength(1);
+    expect(descriptors[0]?.sections.map((section) => section.id)).toEqual(['latest', 'popular']);
   });
 
   it('drops the provider when it is not installed', async () => {
     mocks.resolveInstalledProviderFrom.mockReturnValue(null);
 
-    await expect(fetchProviderDiscoverData(db)).resolves.toEqual({ providers: [] });
+    await expect(fetchDiscoverProviders(db)).resolves.toEqual([]);
   });
 
   it('keeps healthy providers when another provider throws while resolving', async () => {
@@ -90,10 +90,10 @@ describe('fetchProviderDiscoverData', () => {
       return installedProvider();
     });
 
-    const data = await fetchProviderDiscoverData(db);
+    const descriptors = await fetchDiscoverProviders(db);
 
-    expect(data.providers.map((provider) => provider.providerId)).toEqual(['fake']);
-    expect(data.providers[0]?.sections.map((section) => section.id)).toEqual(['latest', 'popular']);
+    expect(descriptors.map((provider) => provider.providerId)).toEqual(['fake']);
+    expect(descriptors[0]?.sections.map((section) => section.id)).toEqual(['latest', 'popular']);
   });
 
   it('drops only the provider whose manifest is malformed', async () => {
@@ -115,50 +115,31 @@ describe('fetchProviderDiscoverData', () => {
       providerId === 'broken' ? malformed : installedProvider(),
     );
 
-    const data = await fetchProviderDiscoverData(db);
+    const descriptors = await fetchDiscoverProviders(db);
 
-    expect(data.providers.map((provider) => provider.providerId)).toEqual(['fake']);
-    expect(data.providers[0]?.providerName).toBe('Fake');
+    expect(descriptors.map((provider) => provider.providerId)).toEqual(['fake']);
+    expect(descriptors[0]?.providerName).toBe('Fake');
   });
 
   it('surfaces an install read failure instead of an empty feed', async () => {
     mocks.readInstalledExtensions.mockRejectedValue(new Error('db offline'));
 
-    await expect(fetchProviderDiscoverData(db)).rejects.toThrow('db offline');
+    await expect(fetchDiscoverProviders(db)).rejects.toThrow('db offline');
     expect(mocks.resolveInstalledProviderFrom).not.toHaveBeenCalled();
   });
 
-  it('Given every section fails, When the feed loads, Then it rejects instead of showing an empty feed', async () => {
-    mocks.resolveInstalledProviderFrom.mockImplementation(
-      () =>
-        ({
-          ...installedProvider(),
-          browseLatest: async () => {
-            throw new Error('HTTP 503.');
-          },
-          browsePopular: async () => {
-            throw new Error('HTTP 503.');
-          },
-        }) as unknown as ProviderContract,
-    );
-    const { fetchProviderDiscoverData } = await import('../provider-discover.js');
+  it('Given a capability is not declared, Then that section is not offered', async () => {
+    mocks.resolveInstalledProviderFrom.mockReturnValue({
+      ...installedProvider(),
+      manifest: {
+        id: 'fake',
+        name: 'Fake',
+        capabilities: { 'discovery.latest': true, 'discovery.popular': false },
+      },
+    } as unknown as ProviderContract);
 
-    await expect(fetchProviderDiscoverData(db)).rejects.toThrow('HTTP 503.');
-  });
+    const descriptors = await fetchDiscoverProviders(db);
 
-  it('Given one section fails, When the feed loads, Then the healthy section still shows', async () => {
-    mocks.resolveInstalledProviderFrom.mockImplementation(
-      () =>
-        ({
-          ...installedProvider(),
-          browseLatest: async () => {
-            throw new Error('HTTP 503.');
-          },
-        }) as unknown as ProviderContract,
-    );
-    const { fetchProviderDiscoverData } = await import('../provider-discover.js');
-
-    const data = await fetchProviderDiscoverData(db);
-    expect(data.providers[0]?.sections.map((section) => section.id)).toEqual(['popular']);
+    expect(descriptors[0]?.sections.map((section) => section.id)).toEqual(['latest']);
   });
 });

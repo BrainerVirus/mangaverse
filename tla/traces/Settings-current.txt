@@ -1,0 +1,49 @@
+TLC2 Version 2026.11.06.222357 (rev: d8fb231)
+Running breadth-first search Model-Checking with fp 31 and seed 4486841582135543288 with 4 workers on 10 cores with 1820MB heap and 64MB offheap memory [pid: 20227] (Mac OS X 27.2 aarch64, Eclipse Adoptium 21.0.7 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /Users/cristhoferpincetti/.local/share/opencode/worktree/3f8de6/ui-loaders-audit/tla/Settings.tla
+Parsing file /private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/tlc-14723415978361160914/Naturals.tla (jar:file:/private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/mangaverse-tla2tools-1.8.0.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/tlc-14723415978361160914/Sequences.tla (jar:file:/private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/mangaverse-tla2tools-1.8.0.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/tlc-14723415978361160914/TLC.tla (jar:file:/private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/mangaverse-tla2tools-1.8.0.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/tlc-14723415978361160914/FiniteSets.tla (jar:file:/private/var/folders/23/xhz962rx7l9cf4w_q55ld51w0000gn/T/mangaverse-tla2tools-1.8.0.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module Settings
+Linting of module Settings
+Starting... (2026-11-07 18:59:55)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-11-07 18:59:56.
+Error: Invariant GlobalEditSurvivesTitleReset is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ action = "start"
+/\ savedGlobal = 0
+/\ savedTitle = 0
+/\ pending = "none"
+/\ queue = <<>>
+
+State 2: <EditGlobal line 9, col 15 to line 11, col 49 of module Settings>
+/\ action = "edit global"
+/\ savedGlobal = 0
+/\ savedTitle = 0
+/\ pending = "global1"
+/\ queue = <<>>
+
+State 3: <Reset line 13, col 10 to line 16, col 63 of module Settings>
+/\ action = "reset title"
+/\ savedGlobal = 0
+/\ savedTitle = 0
+/\ pending = "none"
+/\ queue = <<"reset">>
+
+State 4: <Write line 17, col 10 to line 19, col 72 of module Settings>
+/\ action = "write"
+/\ savedGlobal = 0
+/\ savedTitle = 0
+/\ pending = "none"
+/\ queue = <<>>
+
+4 states generated, 4 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 4.
+Finished in 00s at (2026-11-07 18:59:56)

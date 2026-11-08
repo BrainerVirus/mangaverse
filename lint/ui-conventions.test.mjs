@@ -261,6 +261,15 @@ export function A() {
   return <div className="rounded-box border border-border p-4" />;
 }
 `,
+    "apps/web/app/transition-red.tsx": elements([
+      `<div className="transition-all" />`,
+      `<div className="transition" />`,
+      `<div className={cn('hover:transition-all', 'focus:transition')} />`,
+    ]),
+    "apps/web/app/transition-green.tsx": elements([
+      `<div className="transition-colors transition-transform transition-opacity transition-shadow transition-[width]" />`,
+      `<div className="transition-none transition-[color,background-color,box-shadow]" />`,
+    ]),
     "apps/web/app/space-stacks.tsx": elements(SPACE_RED),
     "apps/web/app/space-gap.tsx": elements(SPACE_GREEN),
     // The Card/Dialog/Sheet header stacks are gap-based too: no primitive is exempt.
@@ -337,6 +346,7 @@ export const sizes = { sm: \`h-9 \${base} border-[var(--border)]\` } as const;
         "ui-conventions/no-list-row-overrides": "error",
         "ui-conventions/no-outlined-row-in-card": "error",
         "ui-conventions/no-space-utilities": "error",
+        "ui-conventions/no-transition-all": "error",
       },
       jsPlugins: [join(ROOT, "lint/ui-conventions.cjs")],
     };
@@ -418,7 +428,15 @@ export const sizes = { sm: \`h-9 \${base} border-[var(--border)]\` } as const;
   });
 
   it("no-outlined-row-in-card fails an outlined row inside a Card or SettingsSection and passes muted or standalone rows", () => {
-    assert.deepEqual(at("apps/web/app/outlined-row-in-card.tsx", "no-outlined-row-in-card"), [5, 6]);
+    assert.deepEqual(
+      at("apps/web/app/outlined-row-in-card.tsx", "no-outlined-row-in-card"),
+      [5, 6],
+    );
+  });
+
+  it("no-transition-all rejects catch-all utilities but permits explicit transitions", () => {
+    assert.deepEqual(at("apps/web/app/transition-red.tsx", "no-transition-all"), [4, 5, 6, 6]);
+    assert.deepEqual(at("apps/web/app/transition-green.tsx", "no-transition-all"), []);
   });
 
   it("no-space-utilities fails stacks, resets, variants, arrays, cva options and CardHeader", () => {
@@ -426,7 +444,10 @@ export const sizes = { sm: \`h-9 \${base} border-[var(--border)]\` } as const;
       at("apps/web/app/space-stacks.tsx", "no-space-utilities"),
       [4, 5, 6, 7, 7, 8, 8, 9],
     );
-    assert.deepEqual(at("packages/design-system/src/components/ui/card.tsx", "no-space-utilities"), [1]);
+    assert.deepEqual(
+      at("packages/design-system/src/components/ui/card.tsx", "no-space-utilities"),
+      [1],
+    );
   });
 
   it("no-space-utilities passes gap, divide and look-alike utilities", () => {
@@ -437,8 +458,14 @@ export const sizes = { sm: \`h-9 \${base} border-[var(--border)]\` } as const;
     const messages = found.get("apps/web/app/space-stacks.tsx").map((d) => d.message);
     assert.match(messages[0], /flex flex-col gap-2/);
     assert.match(messages[1], /flex gap-1/);
-    assert.match(messages.find((m) => m.includes("sm:space-x-2")), /flex sm:gap-2/);
-    assert.match(messages.find((m) => m.includes("space-y-reverse")), /flex-col-reverse/);
+    assert.match(
+      messages.find((m) => m.includes("sm:space-x-2")),
+      /flex sm:gap-2/,
+    );
+    assert.match(
+      messages.find((m) => m.includes("space-y-reverse")),
+      /flex-col-reverse/,
+    );
   });
 
   it("no-hover-without-focus fails invisible focus and a className prop that proves nothing", () => {

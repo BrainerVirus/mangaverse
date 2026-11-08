@@ -15,9 +15,11 @@ const mocks = vi.hoisted(() => ({
     providerId: 'healthy',
     sections: [
       { id: 'latest', title: 'Latest', capability: 'discovery.latest', browse: 'browseLatest' },
+      { id: 'popular', title: 'Popular', capability: 'discovery.popular', browse: 'browsePopular' },
     ],
     toSearchIdentities: (items: readonly unknown[]) => items,
   },
+  search: {} as Record<string, unknown>,
   bindings: [] as unknown[],
   readInstalledExtensions: vi.fn<(db: unknown) => Promise<readonly ExtensionInstallMetadata[]>>(),
   resolveInstalledProviderFrom:
@@ -32,8 +34,9 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@tanstack/react-router', () => ({
-  createFileRoute: () => (options: unknown) => ({ options, useSearch: () => ({}) }),
+  createFileRoute: () => (options: unknown) => ({ options, useSearch: () => mocks.search }),
   useNavigate: () => mocks.navigate,
+  useRouter: () => ({ history: { canGoBack: () => false } }),
 }));
 
 vi.mock('@/features/settings', async (importOriginal) => {
@@ -42,10 +45,12 @@ vi.mock('@/features/settings', async (importOriginal) => {
 });
 
 vi.mock('../../lib/provider-registry.js', () => ({
-  getProviderBinding: () => null,
+  getProviderBinding: () => (mocks.search.section === undefined ? null : mocks.binding),
   listProviderBindings: () => mocks.bindings as unknown as readonly ProviderAppBinding[],
   readInstalledExtensions: mocks.readInstalledExtensions,
   resolveInstalledProviderFrom: mocks.resolveInstalledProviderFrom,
+  resolveInstalledProvider: (_db: unknown, providerId: string) =>
+    Promise.resolve(mocks.resolveInstalledProviderFrom([], providerId)),
 }));
 
 const db = {};
@@ -53,6 +58,7 @@ const db = {};
 vi.mock('../../providers/local-db-provider.js', () => ({
   useLocalDb: () => db,
   useLocalDbStatus: () => 'ready',
+  useLocalDbError: () => null,
   useLocalDbRetry: () => vi.fn<() => void>(),
 }));
 
@@ -79,8 +85,13 @@ function healthyProvider(): ProviderContract {
     merged: false,
   };
   return {
-    manifest: { id: 'healthy', name: 'Healthy', capabilities: { 'discovery.latest': true } },
+    manifest: {
+      id: 'healthy',
+      name: 'Healthy',
+      capabilities: { 'discovery.latest': true, 'discovery.popular': true },
+    },
     browseLatest: async () => ({ items: [manga], hasMore: false }),
+    browsePopular: async () => ({ items: [manga], hasMore: false }),
   } as unknown as ProviderContract;
 }
 
@@ -92,13 +103,16 @@ describe('/discover route provider feed', () => {
     vi.clearAllMocks();
     mocks.bindings = [mocks.binding];
     mocks.readInstalledExtensions.mockResolvedValue([]);
+    mocks.search = {};
     mocks.resolveInstalledProviderFrom.mockReturnValue(healthyProvider());
     mocks.fetchAppSettings.mockResolvedValue({ settings: { explicitContent: false } });
 
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
+  });
 
+  function renderRoute(): void {
     act(() => {
       root.render(
         <QueryClientProvider
@@ -108,7 +122,7 @@ describe('/discover route provider feed', () => {
         </QueryClientProvider>,
       );
     });
-  });
+  }
 
   afterEach(() => {
     act(() => {
@@ -123,6 +137,7 @@ describe('/discover route provider feed', () => {
       if (providerId === 'broken') throw new Error('createProvider failed');
       return healthyProvider();
     });
+    renderRoute();
 
     await vi.waitFor(() => expect(container.textContent).toContain('Latest'));
 
@@ -133,8 +148,58 @@ describe('/discover route provider feed', () => {
     expect(container.textContent).not.toContain('Browse providers');
   });
 
+  it('Given one section preview fails, When discover loads, Then its row retries while the healthy section shows', async () => {
+    const provider = healthyProvider();
+    let popularCalls = 0;
+    provider.browsePopular = async () => {
+      popularCalls += 1;
+      if (popularCalls === 1) throw new Error('HTTP 503.');
+      return { items: [], hasMore: false };
+    };
+    mocks.resolveInstalledProviderFrom.mockReturnValue(provider);
+    renderRoute();
+
+    await vi.waitFor(() => expect(container.textContent).toContain('Popular couldn’t load'));
+    expect(container.textContent).toContain('Latest One');
+    const popularError = container.querySelector('[data-testid="discover-section-popular-error"]');
+    expect(popularError).not.toBeNull();
+    const retry = popularError?.querySelector('button');
+    expect(retry?.textContent).toContain('Retry');
+
+    await act(async () => {
+      retry?.click();
+    });
+    await vi.waitFor(() => expect(popularCalls).toBe(2));
+    await vi.waitFor(() => expect(container.textContent).not.toContain('Popular couldn’t load'));
+  });
+
+  it('Given app settings fail, When discover loads, Then safe content still renders with a settings retry', async () => {
+    mocks.fetchAppSettings.mockRejectedValue(new Error('settings unavailable'));
+    renderRoute();
+
+    await vi.waitFor(() => expect(container.textContent).toContain('Latest One'));
+    expect(container.textContent).toContain('Settings could not be read');
+    expect(container.textContent).toContain('Retry');
+    expect(container.textContent).not.toContain('Browse providers');
+  });
+
+  it('Given a deep link to a failing section, When it loads, Then loaded content keeps its Back button', async () => {
+    mocks.search = { provider: 'healthy', section: 'popular' };
+    const provider = healthyProvider();
+    provider.browsePopular = async () => {
+      throw new Error('HTTP 503.');
+    };
+    mocks.resolveInstalledProviderFrom.mockReturnValue(provider);
+    renderRoute();
+
+    await vi.waitFor(() => expect(container.textContent).toContain('Popular couldn’t load'));
+    expect(container.textContent).toContain('Back to discover');
+    expect(container.textContent).not.toContain('Could not load discover feed');
+  });
+
   it('Given the install read fails, When discover loads, Then the route error state renders', async () => {
     mocks.readInstalledExtensions.mockRejectedValue(new Error('db offline'));
+    renderRoute();
 
     await vi.waitFor(() => expect(container.textContent).toContain('Could not load discover feed'));
 

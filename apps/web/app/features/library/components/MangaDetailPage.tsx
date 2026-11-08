@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import {
   Badge,
   Button,
@@ -14,6 +14,7 @@ import {
   PageContainer,
   PageHeader,
 } from '@app/design-system';
+import { ArrowLeft } from 'lucide-react';
 import { CachedCoverImage, getDefaultProviderId } from '@app/cache';
 import {
   LIBRARY_STATUS_OPTIONS,
@@ -111,7 +112,8 @@ export interface MangaDetailPageProps {
   onMarkPreviousChaptersRead?: (chapterId: ChapterId) => Promise<void> | void;
   isCoverActionPending?: boolean;
   onSetCoverImageUrl?: (url: string | undefined) => Promise<void> | void;
-  onOpenMigration?: () => void;
+  /** Receives the provider the title is currently read from, so the hand-off binds it. */
+  onOpenMigration?: (providerId: string) => void;
   onOpenProviderSettings?: (providerId: string) => void;
   onOpenReaderSettings?: () => void;
   recommendations?: MangaDetailRelatedState;
@@ -496,6 +498,9 @@ function MangaFacts({
   );
 }
 
+/** A title with no mapping has nothing for the migration page to bind, so it is not a no-op. */
+const MIGRATION_UNAVAILABLE_REASON = 'This title has no provider mapping to migrate from.';
+
 function ShortcutActions({
   activeProviderId,
   hasCustomCover,
@@ -508,11 +513,14 @@ function ShortcutActions({
   activeProviderId: string | undefined;
   hasCustomCover: boolean;
   onSetCustomCover: (() => void) | undefined;
-  onOpenMigration: (() => void) | undefined;
+  onOpenMigration: ((providerId: string) => void) | undefined;
   onOpenProviderSettings: ((providerId: string) => void) | undefined;
   onOpenReaderSettings: (() => void) | undefined;
   isCoverActionPending: boolean;
 }) {
+  const migrationReasonId = useId();
+  const migrationUnavailable = onOpenMigration !== undefined && activeProviderId === undefined;
+
   if (
     onSetCustomCover === undefined &&
     onOpenMigration === undefined &&
@@ -523,43 +531,64 @@ function ShortcutActions({
   }
 
   return (
-    <fieldset aria-label="Title actions" className="m-0 flex min-w-0 flex-wrap gap-2 border-0 p-0">
-      {onOpenMigration !== undefined ? (
-        <Button type="button" size="sm" variant="outline" onClick={onOpenMigration}>
-          <ArrowRightLeft aria-hidden className="size-4" />
-          Migrate
-        </Button>
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <fieldset
+        aria-label="Title actions"
+        className="m-0 flex min-w-0 flex-wrap gap-2 border-0 p-0"
+      >
+        {onOpenMigration !== undefined ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={migrationUnavailable}
+            {...(migrationUnavailable
+              ? { title: MIGRATION_UNAVAILABLE_REASON, 'aria-describedby': migrationReasonId }
+              : {})}
+            onClick={() => {
+              if (activeProviderId !== undefined) onOpenMigration(activeProviderId);
+            }}
+          >
+            <ArrowRightLeft aria-hidden className="size-4" />
+            Migrate
+          </Button>
+        ) : null}
+        {onOpenProviderSettings !== undefined && activeProviderId !== undefined ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => onOpenProviderSettings(activeProviderId)}
+          >
+            <Settings aria-hidden className="size-4" />
+            Provider settings
+          </Button>
+        ) : null}
+        {onOpenReaderSettings !== undefined ? (
+          <Button type="button" size="sm" variant="outline" onClick={onOpenReaderSettings}>
+            <SlidersHorizontal aria-hidden className="size-4" />
+            Reader settings
+          </Button>
+        ) : null}
+        {onSetCustomCover !== undefined ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={isCoverActionPending}
+            onClick={onSetCustomCover}
+          >
+            <Image aria-hidden className="size-4" />
+            {hasCustomCover ? 'Change cover' : 'Custom cover'}
+          </Button>
+        ) : null}
+      </fieldset>
+      {migrationUnavailable ? (
+        <p id={migrationReasonId} className="text-sm text-muted-foreground">
+          {MIGRATION_UNAVAILABLE_REASON}
+        </p>
       ) : null}
-      {onOpenProviderSettings !== undefined && activeProviderId !== undefined ? (
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={() => onOpenProviderSettings(activeProviderId)}
-        >
-          <Settings aria-hidden className="size-4" />
-          Provider settings
-        </Button>
-      ) : null}
-      {onOpenReaderSettings !== undefined ? (
-        <Button type="button" size="sm" variant="outline" onClick={onOpenReaderSettings}>
-          <SlidersHorizontal aria-hidden className="size-4" />
-          Reader settings
-        </Button>
-      ) : null}
-      {onSetCustomCover !== undefined ? (
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={isCoverActionPending}
-          onClick={onSetCustomCover}
-        >
-          <Image aria-hidden className="size-4" />
-          {hasCustomCover ? 'Change cover' : 'Custom cover'}
-        </Button>
-      ) : null}
-    </fieldset>
+    </div>
   );
 }
 
@@ -595,7 +624,7 @@ interface SummaryProps {
   onCategoriesChange: ((categoryIds: readonly CategoryId[]) => Promise<void> | void) | undefined;
   onStatusChange: ((status: LibraryStatus) => void) | undefined;
   isLibraryActionPending: boolean;
-  onOpenMigration: (() => void) | undefined;
+  onOpenMigration: ((providerId: string) => void) | undefined;
   onOpenProviderSettings: ((providerId: string) => void) | undefined;
   onOpenReaderSettings: (() => void) | undefined;
   onSetCustomCover: (() => void) | undefined;
@@ -750,7 +779,7 @@ interface MangaDetailHeaderProps {
   onToggleFavorite: (() => void) | undefined;
   onCategoriesChange: ((categoryIds: readonly CategoryId[]) => Promise<void> | void) | undefined;
   onStatusChange: ((status: LibraryStatus) => void) | undefined;
-  onOpenMigration: (() => void) | undefined;
+  onOpenMigration: ((providerId: string) => void) | undefined;
   onOpenProviderSettings: ((providerId: string) => void) | undefined;
   onOpenReaderSettings: (() => void) | undefined;
   onOpenCover: (() => void) | undefined;
@@ -1161,7 +1190,14 @@ function MangaDetailLoading({ onBack }: { readonly onBack: (() => void) | undefi
       >
         {onBack !== undefined ? (
           <div className="@5xl:pt-1">
-            <Button type="button" variant="ghost" onClick={onBack}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="-ms-2 w-fit"
+              onClick={onBack}
+            >
+              <ArrowLeft aria-hidden />
               Back
             </Button>
           </div>
@@ -1218,7 +1254,7 @@ function MangaDetailStatus({ props }: { readonly props: MangaDetailPageProps }) 
       type="manga-not-found"
       {...(props.onBack === undefined
         ? {}
-        : { action: { label: 'Back to library', onClick: props.onBack } })}
+        : { action: { label: 'Go Back', onClick: props.onBack } })}
     />
   );
 }

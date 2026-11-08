@@ -74,6 +74,29 @@ function errorCode(error: unknown): string {
   return 'extensions.logs.failure';
 }
 
+/** The only failure details Diagnostics may persist; everything else is dropped. */
+const DIAGNOSTIC_DETAIL_KEYS = new Set(['errno', 'address', 'retryAfterMs']);
+
+/** Structured, non-secret fields a normalized failure already carries (errno, address, …). */
+function errorDetails(error: unknown): Record<string, unknown> {
+  if (typeof error !== 'object' || error === null || !('details' in error)) return {};
+  const details = (error as { details?: unknown }).details;
+  if (typeof details !== 'object' || details === null || Array.isArray(details)) return {};
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(details)) {
+    if (!DIAGNOSTIC_DETAIL_KEYS.has(key)) continue;
+    if (
+      typeof value === 'string' ||
+      typeof value === 'number' ||
+      typeof value === 'boolean' ||
+      value === null
+    ) {
+      out[key] = value;
+    }
+  }
+  return out;
+}
+
 /**
  * Captures a normalized provider failure for Diagnostics. Page failures are
  * throttled: reading a broken chapter must not turn into a write per page.
@@ -107,7 +130,7 @@ export async function recordProviderFailure(
     message: errorMessage(input.error, 'Provider operation failed.', {
       acceptSerializedMessage: true,
     }),
-    details: { operation: input.operation },
+    details: { ...errorDetails(input.error), operation: input.operation },
   });
 }
 

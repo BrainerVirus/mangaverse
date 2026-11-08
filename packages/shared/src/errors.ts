@@ -132,6 +132,10 @@ function kindOf(signals: FailureSignals, online: boolean | undefined): AppErrorK
   if (names.includes('QuotaExceededError') || QUOTA_FAILURE.test(text)) return 'storage-full';
   if (status === 429 || RATE_LIMIT_FAILURE.test(text)) return 'rate-limited';
   if (status === 404 || codes.some((code) => code.endsWith('not_found'))) return 'not-found';
+  // Main's typed transport failures: TLS, DNS, refused, reset, timeout, allowlist.
+  if (codes.some((code) => code.startsWith('network.'))) {
+    return online === false ? 'offline' : 'provider-unavailable';
+  }
   if (NETWORK_FAILURE.test(text)) return online === false ? 'offline' : 'provider-unavailable';
   if (
     (status !== undefined && status >= 400) ||

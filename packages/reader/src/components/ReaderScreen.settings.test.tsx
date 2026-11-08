@@ -221,7 +221,7 @@ describe('ReaderScreen settings', () => {
   });
 
   describe('leaving the strip through a layout (#224 vertical-forces-LTR)', () => {
-    it('Given RTL paged reading, When the chrome goes to the strip and back to single, Then RTL returns', () => {
+    it('Given RTL paged reading, When the chrome goes to the strip and back to single, Then RTL returns and the transition is announced', () => {
       const { root, container, changes } = renderReader(buildData({ readingMode: 'rtl' }));
 
       click(buttonNamed(container, 'Chrome scroll'));
@@ -230,6 +230,9 @@ describe('ReaderScreen settings', () => {
 
       expect(changes.at(-1)?.patch).toEqual({ pageLayout: 'single', readingMode: 'rtl' });
       expect(chromeMode(container)).toBe('single');
+      expect(container.querySelector('[data-testid="reader-status"]')?.textContent).toContain(
+        'right to left',
+      );
       act(() => root.unmount());
     });
 
@@ -263,6 +266,38 @@ describe('ReaderScreen settings', () => {
       click(buttonNamed(container, 'Chrome single'));
 
       expect(changes.at(-1)?.patch).toEqual({ pageLayout: 'single', readingMode: 'ltr' });
+      act(() => root.unmount());
+    });
+
+    it('Given a strip, When Auto layout is chosen, Then the strip stays and no direction is written', () => {
+      const { root, container, changes } = renderReader(
+        buildData({ readingMode: 'rtl' }, { readingMode: 'vertical' }),
+      );
+
+      click(buttonNamed(container, 'Settings'));
+      click(buttonNamed(group(container, 'Page layout'), 'Auto'));
+
+      expect(changes.at(-1)?.patch).toEqual({ pageLayout: 'auto' });
+      act(() => root.unmount());
+    });
+
+    it('Given a strip whose merged settings hold RTL, When a layout is chosen, Then RTL is preserved', () => {
+      const { root, container, changes } = renderReader(
+        buildData({ readingMode: 'rtl' }, { readingMode: 'vertical' }),
+      );
+
+      click(buttonNamed(container, 'Chrome double'));
+
+      expect(changes.at(-1)?.patch).toEqual({ pageLayout: 'double', readingMode: 'rtl' });
+      act(() => root.unmount());
+    });
+
+    it('Given Smart spread, When the chrome renders, Then it reports the two-page layout rather than single', () => {
+      const { root, container } = renderReader(
+        buildData({ pageLayout: 'smartSpread', readingMode: 'ltr' }),
+      );
+
+      expect(chromeMode(container)).toBe('double');
       act(() => root.unmount());
     });
 

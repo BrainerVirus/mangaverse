@@ -88,17 +88,44 @@ describe('MangaDex provider settings', () => {
     expect(lastParams().getAll('excludedTags[]')).toEqual(['tag-b']);
   });
 
-  it('Given a default sort, When browsing, Then the matching order parameter wins', async () => {
+  it('Given a default sort, When browsing latest and popular, Then each keeps its own order', async () => {
     const { provider, lastParams } = recordingProvider();
     await provider.browseLatest!(ctxWith({ defaultSort: 'popular' }), { page: 1 });
+    expect(lastParams().get('order[latestUploadedChapter]')).toBe('desc');
+    expect(lastParams().get('order[followedCount]')).toBeNull();
+    await provider.browsePopular!(ctxWith({ defaultSort: 'latest' }), { page: 1 });
     expect(lastParams().get('order[followedCount]')).toBe('desc');
     expect(lastParams().get('order[latestUploadedChapter]')).toBeNull();
   });
 
-  it('Given a default sort, When searching, Then search ordering is untouched', async () => {
+  it('Given a large catalog, When browsing the last full window, Then pagination stops before 10000', async () => {
+    const entity = { id: 'x', attributes: { title: { en: 'Title' } } };
+    const collection = (total: number) =>
+      JSON.stringify({
+        result: 'ok',
+        response: 'collection',
+        data: Array.from({ length: 24 }, (_, index) => ({
+          ...entity,
+          id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+        })),
+        total,
+      });
+    const provider = createMangaDexProvider({
+      fetchImpl: async () => new Response(collection(95_000)),
+    });
+    // Page 416 → offset 9960; the next page would ask for 9984+24 = 10008 > 10000.
+    const lastFullWindow = await provider.browsePopular!(baseCtx, { page: 416 });
+    expect(lastFullWindow.hasMore).toBe(false);
+    // Page 415 → offset 9936; the next page (9960+24) is still inside the window.
+    const stillMore = await provider.browsePopular!(baseCtx, { page: 415 });
+    expect(stillMore.hasMore).toBe(true);
+  });
+
+  it('Given a default sort, When searching, Then search ordering follows it', async () => {
     const { provider, lastParams } = recordingProvider();
     await provider.search!(ctxWith({ defaultSort: 'popular' }), { query: 'test' });
-    expect([...lastParams().keys()].filter((key) => key.startsWith('order['))).toEqual([]);
+    expect(lastParams().get('order[followedCount]')).toBe('desc');
+    expect(lastParams().get('order[latestUploadedChapter]')).toBeNull();
   });
 
   it('Given a rate limit override of zero, When a request starts, Then it is rejected before fetching', async () => {

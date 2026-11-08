@@ -49,6 +49,8 @@ if (memoized === undefined) {
   process.env.E2E_RESOLVED_PORT = String(port);
 }
 const baseURL = `http://127.0.0.1:${port}`;
+// CI builds once and shares .output; local runs keep building before serving.
+const webServerCommand = process.env.E2E_WEB_SERVER_COMMAND ?? 'pnpm build && pnpm start';
 
 export default defineConfig({
   testDir: './e2e-production',
@@ -56,7 +58,7 @@ export default defineConfig({
   workers: 1,
   use: { baseURL, trace: 'retain-on-failure' },
   webServer: {
-    command: 'pnpm build && pnpm start',
+    command: webServerCommand,
     env: { PORT: String(port) },
     url: `${baseURL}/favicon.svg`,
     reuseExistingServer: false,

@@ -5,7 +5,7 @@ import { failureMessage } from '../lib/app-feedback.js';
 
 function BackToLibrary() {
   return (
-    <Link to="/library" className={cn(buttonVariants.outline, buttonSizes.default)}>
+    <Link to="/library" replace className={cn(buttonVariants.outline, buttonSizes.default)}>
       Back to library
     </Link>
   );
