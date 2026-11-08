@@ -121,19 +121,24 @@ const tagSchema = z
   });
 
 /**
- * A null, scalar or empty locale map all mean "no description". MangaDex sends
- * empty maps on real records, and one optional field must not fail a whole page.
+ * A string, null or plain locale map is valid. MangaDex sends empty maps on real
+ * records, so an empty map means "no description"; a number, array or other
+ * malformed value is still payload drift.
  */
 const descriptionSchema = z
-  .unknown()
+  .custom<Readonly<Record<string, unknown>> | string | null>(
+    (value) =>
+      value === null ||
+      typeof value === 'string' ||
+      (typeof value === 'object' && value !== null && !Array.isArray(value)),
+    { error: 'must be a string, a locale map, or null' },
+  )
   .optional()
-  .transform((value): Readonly<Record<string, string>> | string | undefined =>
-    typeof value === 'string' && value.length > 0
-      ? value
-      : hasStringEntry(value)
-        ? toStringMap(value)
-        : undefined,
-  );
+  .transform((value): Readonly<Record<string, string>> | string | undefined => {
+    if (value === undefined || value === null) return undefined;
+    if (typeof value === 'string') return value.length > 0 ? value : undefined;
+    return hasStringEntry(value) ? toStringMap(value) : undefined;
+  });
 
 const mangaEntitySchema = z
   .object({

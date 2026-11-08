@@ -36,6 +36,8 @@ export interface ProviderRequest {
    * prefetches leave it unset and keep the gate's normal behavior.
    */
   readonly maxGateWaitMs?: number;
+  /** Hard per-second request cap (MangaDex uses 5). */
+  readonly maxRequestsPerSecond?: number;
 }
 
 export interface ProviderContext {

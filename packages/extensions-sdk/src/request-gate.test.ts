@@ -63,6 +63,23 @@ describe('createRequestGate', () => {
     expect(clock.delays).toHaveLength(1);
   });
 
+  it('Given a 2-per-second burst cap, When a third request starts at once, Then it waits for the second window', async () => {
+    const clock = fakeClock(0);
+    const gate = createRequestGate({
+      defaultRequestsPerMinute: 120,
+      now: clock.now,
+      sleep: clock.sleep,
+    });
+
+    await gate.acquire({ maxPerSecond: 2 });
+    await gate.acquire({ maxPerSecond: 2 });
+    expect(clock.delays).toEqual([]);
+
+    await gate.acquire({ maxPerSecond: 2 });
+    expect(clock.delays).toHaveLength(1);
+    expect(clock.delays[0]).toBe(1_000);
+  });
+
   it('Given a 429 with Retry-After: 2, When a queued request runs, Then it waits at least two seconds', async () => {
     const clock = fakeClock(1_000);
     const gate = createRequestGate({

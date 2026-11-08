@@ -30,6 +30,8 @@ const FEED_MAX_PAGES = 25;
 const MAX_RESULT_WINDOW = 10_000;
 /** Trending means the most-followed titles created in the last month. */
 const TRENDING_WINDOW_DAYS = 30;
+/** MangaDex's approximate documented ceiling is 5 requests/second. */
+const MANGADEX_MAX_REQUESTS_PER_SECOND = 5;
 
 function isoDaysAgo(days: number): string {
   const date = new Date();
@@ -120,6 +122,7 @@ export function createMangaDexProvider(options: CreateMangaDexProviderOptions): 
       ...(ctx.signal !== undefined ? { signal: ctx.signal } : {}),
       ...(ctx.timeoutMs !== undefined ? { timeoutMs: ctx.timeoutMs } : {}),
       ...(ctx.maxGateWaitMs !== undefined ? { maxGateWaitMs: ctx.maxGateWaitMs } : {}),
+      maxRequestsPerSecond: MANGADEX_MAX_REQUESTS_PER_SECOND,
       ...(ctx.settings?.rateLimitOverrideRpm !== undefined
         ? { requestsPerMinute: ctx.settings.rateLimitOverrideRpm }
         : {}),
