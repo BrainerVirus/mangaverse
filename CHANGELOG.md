@@ -3,9 +3,35 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/). The desktop app's version is the `version` in
-`apps/desktop/package.json`, and a release tag must equal it (`v0.0.2`).
+`apps/desktop/package.json`, and a release tag must equal it (`v0.0.3`).
 
 ## [Unreleased]
+
+## [0.0.3] - Unreleased
+
+Third unsigned preview. Fixes Discover density and the repeated "source isn't responding"
+error.
+
+### Fixed
+
+- Discover shows five rows from MangaDex: Latest updates, Trending this month, Popular,
+  Recently added and Top rated. Trending uses the most-followed titles created in the last
+  30 days; the extra rows use the official order parameters.
+- MangaDex's rate gate now reflects its documented 2 requests/second pace (120 rpm) instead of
+  the old 40 rpm, and Discover tolerates a 10s gate wait. Five section previews no longer queue
+  past the interactive bound.
+- A live MangaDex record with an empty description map no longer fails the whole page as an
+  invalid payload; empty optional descriptions are treated as absent. This removes the spurious
+  "source isn't responding" / "Couldn't load more" failures.
+- Discover section skeletons use the same viewport columns as the rendered prepopulated grids,
+  so placeholders no longer appear oversized.
+
+### Known limitations
+
+- Not code-signed or notarized: macOS Gatekeeper and Windows SmartScreen warn on first launch.
+- No auto-update. Install a newer release by hand.
+- Windows and Linux installers are built in CI but their install-and-launch proof is manual.
+- Multi-window concurrent settings writes and quit-before-flush durability remain unverified.
 
 ## [0.0.2] - Unreleased
 

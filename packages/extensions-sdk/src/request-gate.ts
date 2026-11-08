@@ -31,6 +31,8 @@ export interface RequestGateAcquireOptions {
    * 15-minute ceiling.
    */
   readonly maxWaitMs?: number;
+  /** Hard burst cap: no more than this many starts in any 1000 ms. */
+  readonly maxPerSecond?: number;
 }
 
 export interface RequestGate {
@@ -203,6 +205,21 @@ export function createRequestGate(options: RequestGateOptions): RequestGate {
         }
 
         prune(t);
+        const maxPerSecond = input.maxPerSecond;
+        if (maxPerSecond !== undefined && maxPerSecond > 0) {
+          const recent = state.timestamps.filter((timestamp) => t - timestamp < 1000);
+          if (recent.length >= maxPerSecond) {
+            const waitMs = Math.max(1, 1000 - (t - recent[0]!));
+            if (waitMs > maxWaitMs) {
+              throw blockedError(
+                `The provider allows ${maxPerSecond} requests per second; try again in ${Math.ceil(waitMs / 1000)}s.`,
+                waitMs,
+              );
+            }
+            await wait(waitMs, input.signal);
+            continue;
+          }
+        }
         if (state.timestamps.length < rpm) {
           state.timestamps.push(t);
           return;

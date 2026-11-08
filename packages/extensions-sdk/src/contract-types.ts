@@ -36,6 +36,8 @@ export interface ProviderRequest {
    * prefetches leave it unset and keep the gate's normal behavior.
    */
   readonly maxGateWaitMs?: number;
+  /** Hard per-second request cap (MangaDex uses 5). */
+  readonly maxRequestsPerSecond?: number;
 }
 
 export interface ProviderContext {
@@ -124,6 +126,18 @@ export interface ProviderContract {
     input: { readonly page?: number; readonly limit?: number },
   ) => Promise<ProviderSearchResult>;
   readonly browsePopular?: (
+    ctx: ProviderContext,
+    input: { readonly page?: number; readonly limit?: number },
+  ) => Promise<ProviderSearchResult>;
+  readonly browseTrending?: (
+    ctx: ProviderContext,
+    input: { readonly page?: number; readonly limit?: number },
+  ) => Promise<ProviderSearchResult>;
+  readonly browseRecent?: (
+    ctx: ProviderContext,
+    input: { readonly page?: number; readonly limit?: number },
+  ) => Promise<ProviderSearchResult>;
+  readonly browseTopRated?: (
     ctx: ProviderContext,
     input: { readonly page?: number; readonly limit?: number },
   ) => Promise<ProviderSearchResult>;

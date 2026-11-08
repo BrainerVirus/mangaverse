@@ -21,10 +21,11 @@ describe('getEnabledSections', () => {
     expect(getEnabledSections(binding, {})).toEqual([]);
   });
 
-  it('Given both discovery capabilities, When filtering, Then every declared section is enabled', () => {
+  it('Given the discovery capabilities, When filtering, Then every declared section is enabled', () => {
     const enabled = getEnabledSections(binding, {
       'discovery.latest': true,
       'discovery.popular': true,
+      'discovery.browse': true,
     });
     expect(enabled.map((section) => section.id)).toEqual(
       binding.sections.map((section) => section.id),

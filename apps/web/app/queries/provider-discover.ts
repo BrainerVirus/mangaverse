@@ -26,7 +26,7 @@ const PROVIDER_SECTION_PREVIEW_SIZE = 6;
  * instead, so the user sees a typed "rate limited / timed out" row with Retry.
  */
 const DISCOVER_REQUEST_TIMEOUT_MS = 15_000;
-const DISCOVER_GATE_WAIT_MS = 2_000;
+const DISCOVER_GATE_WAIT_MS = 10_000;
 
 /** Only sections the provider's declared capabilities can serve. */
 export function getEnabledSections(

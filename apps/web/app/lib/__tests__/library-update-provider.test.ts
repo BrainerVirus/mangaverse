@@ -44,8 +44,8 @@ describe('createLibraryUpdateProviderResolver', () => {
 
     expect(resolution.status).toBe('available');
     if (resolution.status !== 'available') return;
-    // MangaDex declares 40 requests/minute for its official API.
-    expect(resolution.provider.requestIntervalMs).toBe(1500);
+    // MangaDex declares 120 requests/minute for its official API (500 ms).
+    expect(resolution.provider.requestIntervalMs).toBe(500);
   });
 
   it('Given a disabled provider, Then it is reported unavailable and never called', async () => {

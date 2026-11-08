@@ -122,7 +122,7 @@ function DiscoverSectionPreview({
         ) : null}
       </div>
 
-      {status === 'loading' ? <LoadingState type="grid" count={6} /> : null}
+      {status === 'loading' ? <LoadingState type="grid" count={6} columns="viewport-6" /> : null}
 
       {status === 'error' ? (
         <Alert
@@ -335,7 +335,7 @@ export function DiscoverPage({
       <section aria-label="Discover" className="flex flex-col gap-6">
         <PageHeader
           title="Discover"
-          description="Browse popular and latest manga from your enabled providers."
+          description="Browse trending, popular, latest and more from your enabled providers."
           {...(showCount ? { count: totalTitles, countLabel: 'titles' } : {})}
         />
         <DiscoverLoadingSurface

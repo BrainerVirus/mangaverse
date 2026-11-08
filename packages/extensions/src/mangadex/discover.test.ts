@@ -15,10 +15,13 @@ describe('MangaDex discover sections', () => {
     }
   });
 
-  it('Given the sections, When read, Then they are the latest and popular lists', () => {
+  it('Given the sections, When read, Then they cover latest, trending, popular, recent and top rated', () => {
     expect(MANGADEX_SECTION_DEFINITIONS.map((section) => [section.id, section.title])).toEqual([
       ['latest', 'Latest updates'],
+      ['trending', 'Trending this month'],
       ['popular', 'Popular'],
+      ['recent', 'Recently added'],
+      ['top-rated', 'Top rated'],
     ]);
   });
 });

@@ -108,7 +108,10 @@ test('Given an enabled provider, When Discover opens, Then capability sections r
 }) => {
   await page.goto('/discover');
   await expect(page.getByTestId('discover-section-latest')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('discover-section-trending')).toBeVisible();
   await expect(page.getByTestId('discover-section-popular')).toBeVisible();
+  await expect(page.getByTestId('discover-section-recent')).toBeVisible();
+  await expect(page.getByTestId('discover-section-top-rated')).toBeVisible();
   const popular = page.getByTestId('discover-section-popular');
   await expect(popular.getByRole('button', { name: 'Kuro no Shoukanshi' })).toBeVisible();
   const image = popular.locator('img').first();

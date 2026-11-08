@@ -120,11 +120,28 @@ const tagSchema = z
     return name === undefined ? {} : { attributes: { name: toStringMap(name) } };
   });
 
-/** Null means "no description"; a string and a non-empty locale map both count. */
-const descriptionSchema = z.custom<Readonly<Record<string, string>> | string | null>(
-  (value) => value === null || typeof value === 'string' || hasStringEntry(value),
-  { error: 'must be a string or a locale map with at least one string entry' },
-);
+/**
+ * A string, null or plain locale map is valid. MangaDex sends empty maps on real
+ * records, so an empty map means "no description"; a number, array or other
+ * malformed value is still payload drift.
+ */
+const descriptionSchema = z
+  .custom<Readonly<Record<string, unknown>> | string | null>(
+    (value) =>
+      value === null ||
+      typeof value === 'string' ||
+      (typeof value === 'object' &&
+        value !== null &&
+        !Array.isArray(value) &&
+        (Object.keys(value).length === 0 || hasStringEntry(value))),
+    { error: 'must be a string, a non-empty locale map with a string entry, or null' },
+  )
+  .optional()
+  .transform((value): Readonly<Record<string, string>> | string | undefined => {
+    if (value === undefined || value === null) return undefined;
+    if (typeof value === 'string') return value.length > 0 ? value : undefined;
+    return hasStringEntry(value) ? toStringMap(value) : undefined;
+  });
 
 const mangaEntitySchema = z
   .object({
@@ -146,11 +163,7 @@ const mangaEntitySchema = z
       attributes: {
         title: toStringMap(title),
         ...(altTitles !== undefined ? { altTitles: altTitles.map(toStringMap) } : {}),
-        ...(description !== undefined && description !== null
-          ? {
-              description: typeof description === 'string' ? description : toStringMap(description),
-            }
-          : {}),
+        ...(description !== undefined ? { description } : {}),
         ...(status !== undefined ? { status } : {}),
         ...(contentRating !== undefined ? { contentRating } : {}),
         ...(tags !== undefined ? { tags } : {}),

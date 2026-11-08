@@ -25,6 +25,7 @@ export const MANGADEX_MANIFEST: ProviderManifest = {
     'discovery.search': true,
     'discovery.latest': true,
     'discovery.popular': true,
+    'discovery.browse': true,
     'metadata.details': true,
     'metadata.chapters': true,
     'metadata.pages': true,
@@ -35,7 +36,7 @@ export const MANGADEX_MANIFEST: ProviderManifest = {
     'ops.officialApi': true,
   },
   capabilityDetails: [
-    { key: 'ops.officialApi', supported: true, rateLimitRpm: 40 },
+    { key: 'ops.officialApi', supported: true, rateLimitRpm: 120 },
     {
       key: 'metadata.chapters',
       supported: true,

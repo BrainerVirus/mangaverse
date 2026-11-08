@@ -39,7 +39,12 @@ export interface ProviderSectionDefinition {
   readonly id: string;
   readonly title: string;
   readonly capability: ProviderCapabilityKey;
-  readonly browse: 'browseLatest' | 'browsePopular';
+  readonly browse:
+    | 'browseLatest'
+    | 'browsePopular'
+    | 'browseTrending'
+    | 'browseRecent'
+    | 'browseTopRated';
 }
 
 /**
