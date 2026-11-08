@@ -15,7 +15,8 @@ import {
   ErrorState,
   Input,
   Label,
-  ListRow,
+  DividedList,
+  DividedRow,
   LoadingState,
   Select,
   SelectContent,
@@ -192,10 +193,10 @@ function PreviewIssueList({ preview }: { preview: MigrationPreviewReport }) {
         </AlertDescription>
       </Alert>
 
-      <ul className="flex flex-col gap-2" aria-label="Migration preview items">
+      <DividedList aria-label="Migration preview items">
         {preview.items.map((item) => (
-          <ListRow as="li" key={item.mangaId} tone="muted" padding="md" className="text-sm">
-            <div className="mb-2 flex flex-wrap items-center gap-2">
+          <DividedRow key={item.mangaId} layout="stacked">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="font-medium text-foreground">{item.canonicalTitle}</span>
               {item.blocked ? (
                 <Badge variant="destructive">blocked</Badge>
@@ -218,9 +219,9 @@ function PreviewIssueList({ preview }: { preview: MigrationPreviewReport }) {
                 ))}
               </ul>
             ) : null}
-          </ListRow>
+          </DividedRow>
         ))}
-      </ul>
+      </DividedList>
     </div>
   );
 }
@@ -325,8 +326,8 @@ function CandidateRow({
   const canInclude = hasSelection || state.results.length > 0;
 
   return (
-    <ListRow as="li" key={candidate.mangaId} tone="muted" padding="md">
-      <div className="mb-2 flex flex-wrap items-center gap-2">
+    <DividedRow key={candidate.mangaId} layout="form">
+      <div className="flex flex-wrap items-center gap-2">
         <span className="font-medium text-foreground">{candidate.canonicalTitle}</span>
         {candidate.isDefaultProvider ? <Badge variant="secondary">default</Badge> : null}
         {candidate.isActiveProvider ? <Badge variant="secondary">active</Badge> : null}
@@ -350,9 +351,7 @@ function CandidateRow({
           Include
         </label>
       </div>
-      <p className="mb-3 text-xs text-muted-foreground">
-        Source id: {candidate.sourceProviderMangaId}
-      </p>
+      <p className="text-xs text-muted-foreground">Source id: {candidate.sourceProviderMangaId}</p>
 
       <div className="flex flex-col gap-2">
         <Label htmlFor={`search-${candidate.mangaId}`}>Search on {targetProviderName}</Label>
@@ -379,10 +378,10 @@ function CandidateRow({
                 <button
                   type="button"
                   aria-pressed={isSelected}
-                  className={`flex w-full flex-wrap items-center gap-2 rounded-control border p-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                  className={`flex w-full flex-wrap items-center gap-2 rounded-control p-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                     isSelected
-                      ? 'border-primary bg-primary/10 text-foreground'
-                      : 'border-border bg-background hover:bg-accent'
+                      ? 'bg-primary/10 text-foreground ring-1 ring-inset ring-primary'
+                      : 'hover:bg-accent'
                   }`}
                   onClick={() => onTargetMangaIdChange(candidate.mangaId, result.providerMangaId)}
                 >
@@ -405,7 +404,7 @@ function CandidateRow({
           />
         </div>
       </div>
-    </ListRow>
+    </DividedRow>
   );
 }
 
@@ -520,7 +519,7 @@ function CandidateSection({
             </p>
           </div>
 
-          <ul className="flex flex-col gap-3" aria-label="Migration candidates">
+          <DividedList aria-label="Migration candidates">
             {visibleCandidates.map((candidate) => (
               <CandidateRow
                 key={candidate.mangaId}
@@ -544,7 +543,7 @@ function CandidateSection({
                 onTargetMangaIdChange={onTargetMangaIdChange}
               />
             ))}
-          </ul>
+          </DividedList>
         </>
       )}
 
@@ -632,16 +631,16 @@ function SummaryDialog({
             <h3 className="type-label mb-2 text-foreground">
               Selected mappings ({readyItems.length})
             </h3>
-            <ul className="flex flex-col gap-1 text-sm">
+            <DividedList>
               {readyItems.map((item) => (
-                <ListRow as="li" key={item.mangaId} tone="muted" padding="sm">
+                <DividedRow key={item.mangaId} layout="stacked">
                   <span className="font-medium">{item.canonicalTitle}</span>
                   <span className="block text-xs text-muted-foreground">
                     {item.sourceProviderMangaId} → {targetMappingLabel(item)}
                   </span>
-                </ListRow>
+                </DividedRow>
               ))}
-            </ul>
+            </DividedList>
           </section>
 
           {blockedItems.length > 0 ? (
@@ -649,17 +648,17 @@ function SummaryDialog({
               <h3 className="type-label mb-2 text-foreground">
                 Blocked or skipped ({blockedItems.length})
               </h3>
-              <ul className="flex flex-col gap-1 text-sm">
+              <DividedList>
                 {blockedItems.map((item) => (
-                  <ListRow as="li" key={item.mangaId} tone="muted" padding="sm">
+                  <DividedRow key={item.mangaId} layout="stacked">
                     <span className="font-medium">{item.canonicalTitle}</span>
                     <span className="block text-xs text-muted-foreground">
                       {item.issues.find((issue) => issue.severity === 'error')?.message ??
                         'Not eligible for migration.'}
                     </span>
-                  </ListRow>
+                  </DividedRow>
                 ))}
-              </ul>
+              </DividedList>
             </section>
           ) : null}
 
@@ -779,15 +778,9 @@ function ApplyReportPanel({
       ) : null}
 
       {applyReport !== null ? (
-        <ul className="flex flex-col gap-2" aria-label="Migration report items">
+        <DividedList aria-label="Migration report items">
           {applyReport.items.map((item) => (
-            <ListRow
-              as="li"
-              key={`${item.mangaId}-${item.status}`}
-              tone="muted"
-              padding="sm"
-              className="text-sm"
-            >
+            <DividedRow key={`${item.mangaId}-${item.status}`} layout="stacked">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant={item.status === 'applied' ? 'secondary' : 'destructive'}>
                   {item.status}
@@ -795,11 +788,11 @@ function ApplyReportPanel({
                 <span className="font-medium">{item.title}</span>
               </div>
               {item.reason !== undefined ? (
-                <p className="mt-1 text-xs text-muted-foreground">{item.reason}</p>
+                <p className="text-xs text-muted-foreground">{item.reason}</p>
               ) : null}
-            </ListRow>
+            </DividedRow>
           ))}
-        </ul>
+        </DividedList>
       ) : null}
 
       <RollbackStatus summary={rollbackSummary} error={rollbackError} />
@@ -836,17 +829,17 @@ function HistorySection({
       {history.length === 0 ? (
         <p className="text-sm text-muted-foreground">No migrations recorded yet.</p>
       ) : (
-        <ul className="flex flex-col gap-2" aria-label="Migration history">
+        <DividedList aria-label="Migration history">
           {history.map((entry) => (
-            <ListRow as="li" key={entry.id} tone="muted" padding="sm" className="text-sm">
+            <DividedRow key={entry.id} layout="stacked">
               <span className="font-medium">{entry.canonicalTitle ?? titleFor(entry.mangaId)}</span>
               <span className="block text-xs text-muted-foreground">
                 {entry.sourceProviderId} → {entry.targetProviderId} ·{' '}
                 {new Date(entry.completedAt).toLocaleString()}
               </span>
-            </ListRow>
+            </DividedRow>
           ))}
-        </ul>
+        </DividedList>
       )}
     </SettingsSection>
   );
