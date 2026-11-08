@@ -264,7 +264,7 @@ export function BulkEditBar({
                 value={categoryFilter}
                 onChange={(event) => setCategoryFilter(event.target.value)}
               />
-              <div className="mt-3 flex max-h-64 flex-col gap-1 overflow-y-auto">
+              <div className="scroll-fade-y mt-3 flex max-h-64 flex-col gap-1 overflow-y-auto">
                 {orderedCategories
                   .filter((category) =>
                     category.name.toLowerCase().includes(categoryFilter.trim().toLowerCase()),

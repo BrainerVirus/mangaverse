@@ -61,7 +61,7 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
         tabIndex={-1}
         data-app-nav-offset
         data-scroll-restoration-id="app-main"
-        className="min-w-0 flex-1 overflow-auto bg-background outline-none"
+        className="scroll-fade-overlay-y min-w-0 flex-1 overflow-auto bg-background outline-none"
       >
         <AppNotices />
         <AnimatedRouteOutlet>{children}</AnimatedRouteOutlet>

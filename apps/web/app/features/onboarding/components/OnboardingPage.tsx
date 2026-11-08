@@ -478,7 +478,10 @@ function OnboardingLoading() {
         <div className="flex flex-col gap-6">
           <LoadingState type="list" count={3} />
         </div>
-        <footer className="sticky bottom-0 mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-background pt-4 pb-4">
+        <footer
+          data-no-bottom-fade
+          className="sticky bottom-0 mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-background pt-4 pb-4"
+        >
           <div className="ml-auto flex flex-wrap justify-end gap-2">
             <Button type="button" className="min-h-11" disabled>
               Continue
@@ -568,7 +571,10 @@ export function OnboardingPage({
           ) : null}
         </StepPanel>
 
-        <footer className="sticky bottom-0 mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-background pt-4 pb-4">
+        <footer
+          data-no-bottom-fade
+          className="sticky bottom-0 mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-background pt-4 pb-4"
+        >
           {isFirstStep ? null : (
             <Button
               type="button"

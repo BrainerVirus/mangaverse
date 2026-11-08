@@ -367,7 +367,7 @@ function DiagnosticsPanel({
       </dl>
       {diagnostics.events.length > 0 ? (
         <ol
-          className="max-h-40 flex flex-col gap-1 overflow-y-auto text-xs"
+          className="scroll-fade-y max-h-40 flex flex-col gap-1 overflow-y-auto text-xs"
           aria-label="Recent events"
         >
           {diagnostics.events.slice(0, 6).map((event) => (

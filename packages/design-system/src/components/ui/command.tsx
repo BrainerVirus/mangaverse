@@ -33,7 +33,11 @@ CommandInput.displayName = 'CommandInput';
 
 const CommandList = React.forwardRef<HTMLUListElement, React.HTMLAttributes<HTMLUListElement>>(
   ({ className, ...props }, ref) => (
-    <ul ref={ref} className={cn('max-h-80 overflow-y-auto p-2', className)} {...props} />
+    <ul
+      ref={ref}
+      className={cn('scroll-fade-y max-h-80 overflow-y-auto p-2', className)}
+      {...props}
+    />
   ),
 );
 CommandList.displayName = 'CommandList';

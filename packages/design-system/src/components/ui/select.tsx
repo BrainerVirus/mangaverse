@@ -123,7 +123,8 @@ const SelectContent = React.forwardRef<HTMLDivElement, SelectContentProps>(
           <SelectPrimitive.List
             className={cn(
               'p-1',
-              position === 'popper' && 'select-list-min min-h-0 w-full overflow-y-auto',
+              position === 'popper' &&
+                'select-list-min scroll-fade-y min-h-0 w-full overflow-y-auto',
             )}
           >
             {children}

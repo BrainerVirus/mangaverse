@@ -889,6 +889,30 @@ Library 2 → 3 → 4 → 5 → 6 columns at `gap-4` (list mode `grid-cols-1 gap
 lg:grid-cols-3`); discover 2 → 3 → 4 → 6; extensions and theme previews 1 → 2 → 3 at `gap-4`/`gap-6`.
 Long grids are virtualised; skeletons mirror the column rhythm so layout never shifts.
 
+### Scroll edges and folded text
+
+A scroller with hidden content fades the hidden edge, and the fade is gone once that edge is reached:
+the fade itself says "there is more". The fade is `--scroll-fade-size` (2rem), driven by the scroll
+position through a scroll timeline (no script, no listeners), and a scroller that does not overflow
+shows none. There are two forms:
+
+- `scroll-fade-y` masks the scroller. Use it on a list inside a surface, where nothing sticky lives:
+  the mask fades everything under it, including the scroller's own background and border, so it never
+  goes on a dialog or sheet surface (those take an inner scroll wrapper).
+- `scroll-fade-overlay-y` is for the page column. It draws the fade as two sticky overlays in the
+  page colour (`--scroll-fade-color`), above the content (`z-index: 1`) and below sticky chrome, so
+  the notices pinned to the top of the column (`z-40`, outside the animated route outlet) stay solid.
+  The route outlet is a stacking context of its own, so sticky chrome _inside_ a page cannot be raised
+  above the overlay: a page whose bottom chrome is sticky (the onboarding footer) marks it
+  `data-no-bottom-fade`, which turns the bottom overlay off for that page.
+
+The reader's scroll views are excluded. Engines without scroll timelines show no fade.
+
+Long descriptions fold with `ExpandableText`: clamped to a standard height (7.5rem) behind a bottom
+fade, with a link-style Show more / Show less that eases the box to its full height. Text that
+fits is left alone. Height is the one layout property this animates, because the box has to grow;
+reduced motion snaps.
+
 ### Whitespace & rhythm
 
 Page padding 24px mobile / 32px desktop; internal stacks `gap-4`/`gap-6`; card interiors 24px; settings

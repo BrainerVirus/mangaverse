@@ -798,3 +798,147 @@
   align-items: safe center;
   justify-content: safe center;
 }
+
+/* Scroll-edge fades (DESIGN.md "Scroll edges"). A scroller that has hidden content above or
+   below fades that edge out, and the fade is gone once the edge is reached, so the fade itself
+   says "there is more". It is driven by the scroll position with a scroll timeline, so there is
+   no script, no listener and nothing to keep in sync: the top fade grows over the first
+   `--scroll-fade-size` of scrolling and the bottom fade shrinks over the last one. A scroller
+   that does not overflow has an inactive timeline and shows no fade. The mask also fades the
+   element's own background and border, so use it on a scroller with no chrome of its own (a
+   page column, a list inside a surface), not on the surface itself. Engines without scroll
+   timelines (the `@supports` gate) simply show no fade. */
+@property --scroll-fade-top {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --scroll-fade-bottom {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@keyframes scroll-fade-top {
+  from {
+    --scroll-fade-top: 0px;
+  }
+  to {
+    --scroll-fade-top: var(--scroll-fade-size, 2rem);
+  }
+}
+
+@keyframes scroll-fade-bottom {
+  from {
+    --scroll-fade-bottom: var(--scroll-fade-size, 2rem);
+  }
+  to {
+    --scroll-fade-bottom: 0px;
+  }
+}
+
+@utility scroll-fade-y {
+  @supports (animation-timeline: scroll()) {
+    animation:
+      scroll-fade-top linear both,
+      scroll-fade-bottom linear both;
+    animation-timeline: scroll(self block), scroll(self block);
+    animation-range:
+      0 var(--scroll-fade-size, 2rem),
+      calc(100% - var(--scroll-fade-size, 2rem)) 100%;
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      #000 var(--scroll-fade-top),
+      #000 calc(100% - var(--scroll-fade-bottom)),
+      transparent 100%
+    );
+  }
+}
+
+/* The page-column form of the same fade. A mask fades everything under it, including sticky
+   chrome (the notices pinned to the top of the column, the onboarding footer), so the page
+   column draws the fade as two sticky overlays in the page colour instead: they sit above the
+   content (z-index 1) and below any sticky chrome (z-index 10 and up), and their opacity follows
+   the same scroll position. The overlays are transparent when the column does not overflow.
+   `--scroll-fade-color` is the surface behind the scroller (the page background by default). */
+@keyframes scroll-fade-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scroll-fade-overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@utility scroll-fade-overlay-y {
+  @supports (animation-timeline: scroll()) {
+    &::before,
+    &::after {
+      content: "";
+      display: block;
+      position: sticky;
+      z-index: 1;
+      height: var(--scroll-fade-size, 2rem);
+      pointer-events: none;
+      opacity: 0;
+      animation-timing-function: linear;
+      animation-fill-mode: both;
+      animation-timeline: scroll(nearest block);
+    }
+    &::before {
+      top: 0;
+      margin-bottom: calc(var(--scroll-fade-size, 2rem) * -1);
+      background: linear-gradient(
+        to bottom,
+        var(--scroll-fade-color, var(--background)),
+        transparent
+      );
+      animation-name: scroll-fade-overlay-in;
+      animation-range: 0 var(--scroll-fade-size, 2rem);
+    }
+    /* A page whose own bottom chrome is sticky (a footer bar) marks it `data-no-bottom-fade`:
+       the route outlet is a stacking context of its own, so chrome inside it cannot be raised
+       above this overlay, and fading the bar that closes the page is wrong anyway. */
+    &:has([data-no-bottom-fade])::after {
+      display: none;
+    }
+    &::after {
+      bottom: 0;
+      margin-top: calc(var(--scroll-fade-size, 2rem) * -1);
+      background: linear-gradient(to top, var(--scroll-fade-color, var(--background)), transparent);
+      animation-name: scroll-fade-overlay-out;
+      animation-range: calc(100% - var(--scroll-fade-size, 2rem)) 100%;
+    }
+  }
+}
+
+/* The clamped text box (ExpandableText): its height and bottom fade come from custom
+   properties the component sets, and both ease so that Show more grows the box and clears the
+   fade together. Both are registered so the transition can interpolate them. */
+@property --expandable-fade {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@utility expandable-box {
+  height: var(--expandable-height, auto);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--expandable-fade)), transparent);
+  transition:
+    height 300ms ease-out,
+    --expandable-fade 300ms ease-out;
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
