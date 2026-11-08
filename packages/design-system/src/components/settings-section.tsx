@@ -66,13 +66,19 @@ export function SettingsSection({
         {description && isOpen ? <CardDescription>{description}</CardDescription> : null}
       </CardHeader>
 
-      {hasOpened ? (
-        <div className="collapsible-grid" data-open={isOpen}>
-          <div className="min-h-0 overflow-hidden" inert={!isOpen}>
-            <CardContent className="pt-0">{children}</CardContent>
+      {collapsed ? (
+        hasOpened ? (
+          <div className="collapsible-grid" data-open={isOpen}>
+            <div className="min-h-0 overflow-hidden" inert={!isOpen}>
+              <CardContent className="pt-0">{children}</CardContent>
+            </div>
           </div>
-        </div>
-      ) : null}
+        ) : null
+      ) : (
+        // A section that is not collapsible renders in plain flow: no clipping wrapper, and
+        // nothing that could ease in from zero height when the page loads.
+        <CardContent className="pt-0">{children}</CardContent>
+      )}
     </Card>
   );
 }

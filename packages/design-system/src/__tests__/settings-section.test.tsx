@@ -136,6 +136,21 @@ describe('SettingsSection', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
   });
 
+  it('Given a section that is not collapsible, Then its body renders in plain flow, with no easing wrapper', () => {
+    const { container } = render(
+      <SettingsSection title="Always open">
+        <div>Body</div>
+      </SettingsSection>,
+    );
+
+    expect(screen.getByText('Body')).toBeInTheDocument();
+    // The easing wrapper starts at 0fr via @starting-style: on a section that is open from the
+    // start it would grow in on every page load, and its overflow-hidden would clip the body.
+    expect(container.querySelector('[data-open]')).toBeNull();
+    expect(container.querySelector('.collapsible-grid')).toBeNull();
+    expect(container.querySelector('[inert]')).toBeNull();
+  });
+
   it('children are visible by default when not collapsed', () => {
     render(
       <SettingsSection title="Expanded Section">
