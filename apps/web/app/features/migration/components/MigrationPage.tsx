@@ -378,10 +378,10 @@ function CandidateRow({
                 <button
                   type="button"
                   aria-pressed={isSelected}
-                  className={`flex w-full flex-wrap items-center gap-2 rounded-control p-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                  className={`flex w-full flex-wrap items-center gap-2 rounded-control border p-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 forced-colors:focus-visible:outline-2 ${
                     isSelected
-                      ? 'bg-primary/10 text-foreground ring-1 ring-inset ring-primary'
-                      : 'hover:bg-accent'
+                      ? 'border-primary bg-primary/10 text-foreground'
+                      : 'border-border bg-background hover:bg-accent'
                   }`}
                   onClick={() => onTargetMangaIdChange(candidate.mangaId, result.providerMangaId)}
                 >
