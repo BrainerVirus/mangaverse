@@ -74,3 +74,21 @@ export async function checkForUpdatesNow(): Promise<void> {
     publish(result.value);
   }
 }
+
+/** "Restart and install": main restarts into the downloaded release, waiting while a chapter is open. */
+export function installUpdateNow(): void {
+  void bridge()?.updateInstall();
+}
+
+/** Whether this window has the desktop bridge. It never changes, so the subscription is a no-op. */
+export function subscribeUpdateBridge(): () => void {
+  return () => {};
+}
+
+export function hasUpdateBridgeSnapshot(): boolean {
+  return typeof bridge()?.onUpdateState === 'function';
+}
+
+export function getServerUpdateBridgeSnapshot(): boolean {
+  return false;
+}

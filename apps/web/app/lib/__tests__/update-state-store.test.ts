@@ -152,4 +152,12 @@ describe('update state store', () => {
     await expect(store.checkForUpdatesNow()).resolves.toBeUndefined();
     expect(store.getUpdateStateSnapshot()).toBeNull();
   });
+
+  it('Given the desktop bridge, Then the bridge snapshot is true; without it, false', async () => {
+    const store = await freshStore();
+    expect(store.hasUpdateBridgeSnapshot()).toBe(false);
+    expect(store.getServerUpdateBridgeSnapshot()).toBe(false);
+    installBridge();
+    expect(store.hasUpdateBridgeSnapshot()).toBe(true);
+  });
 });

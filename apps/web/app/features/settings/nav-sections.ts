@@ -8,6 +8,7 @@ import {
   Palette,
   Play,
   Puzzle,
+  RefreshCw,
   Settings2,
   SlidersHorizontal,
 } from 'lucide-react';
@@ -37,6 +38,12 @@ export const SETTINGS_NAV_SECTIONS: readonly {
         description: 'Presets, colors, and appearance.',
         to: '/theme',
         icon: Palette,
+      },
+      {
+        label: 'Updates',
+        description: 'Check for a new version and restart into it.',
+        to: '/settings/updates',
+        icon: RefreshCw,
       },
     ],
   },

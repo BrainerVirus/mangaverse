@@ -29,6 +29,7 @@ import { Route as MangaIdRouteImport } from './routes/manga.$id'
 import { Route as ReaderChapterIdRouteImport } from './routes/reader.$chapterId'
 import { Route as SettingsAppRouteImport } from './routes/settings.app'
 import { Route as SettingsReaderRouteImport } from './routes/settings.reader'
+import { Route as SettingsUpdatesRouteImport } from './routes/settings.updates'
 import { Route as ThemeEditorRouteImport } from './routes/theme.editor'
 
 const BackupLazyRouteImport = createFileRoute('/backup')()
@@ -146,6 +147,11 @@ const SettingsReaderRoute = SettingsReaderRouteImport.update({
   path: '/reader',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsUpdatesRoute = SettingsUpdatesRouteImport.update({
+  id: '/updates',
+  path: '/updates',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const ThemeEditorRoute = ThemeEditorRouteImport.update({
   id: '/editor',
   path: '/editor',
@@ -175,6 +181,7 @@ export interface FileRoutesByFullPath {
   '/reader/$chapterId': typeof ReaderChapterIdRoute
   '/settings/app': typeof SettingsAppRoute
   '/settings/reader': typeof SettingsReaderRoute
+  '/settings/updates': typeof SettingsUpdatesRoute
   '/theme/editor': typeof ThemeEditorRoute
 }
 export interface FileRoutesByTo {
@@ -200,6 +207,7 @@ export interface FileRoutesByTo {
   '/reader/$chapterId': typeof ReaderChapterIdRoute
   '/settings/app': typeof SettingsAppRoute
   '/settings/reader': typeof SettingsReaderRoute
+  '/settings/updates': typeof SettingsUpdatesRoute
   '/theme/editor': typeof ThemeEditorRoute
 }
 export interface FileRoutesById {
@@ -226,6 +234,7 @@ export interface FileRoutesById {
   '/reader/$chapterId': typeof ReaderChapterIdRoute
   '/settings/app': typeof SettingsAppRoute
   '/settings/reader': typeof SettingsReaderRoute
+  '/settings/updates': typeof SettingsUpdatesRoute
   '/theme/editor': typeof ThemeEditorRoute
 }
 export interface FileRouteTypes {
@@ -253,6 +262,7 @@ export interface FileRouteTypes {
     | '/reader/$chapterId'
     | '/settings/app'
     | '/settings/reader'
+    | '/settings/updates'
     | '/theme/editor'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -278,6 +288,7 @@ export interface FileRouteTypes {
     | '/reader/$chapterId'
     | '/settings/app'
     | '/settings/reader'
+    | '/settings/updates'
     | '/theme/editor'
   id:
     | '__root__'
@@ -303,6 +314,7 @@ export interface FileRouteTypes {
     | '/reader/$chapterId'
     | '/settings/app'
     | '/settings/reader'
+    | '/settings/updates'
     | '/theme/editor'
   fileRoutesById: FileRoutesById
 }
@@ -481,6 +493,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsReaderRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/updates': {
+      id: '/settings/updates'
+      path: '/updates'
+      fullPath: '/settings/updates'
+      preLoaderRoute: typeof SettingsUpdatesRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/theme/editor': {
       id: '/theme/editor'
       path: '/editor'
@@ -522,11 +541,13 @@ const ExtensionsRouteWithChildren = ExtensionsRoute._addFileChildren(
 interface SettingsRouteChildren {
   SettingsAppRoute: typeof SettingsAppRoute
   SettingsReaderRoute: typeof SettingsReaderRoute
+  SettingsUpdatesRoute: typeof SettingsUpdatesRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsAppRoute: SettingsAppRoute,
   SettingsReaderRoute: SettingsReaderRoute,
+  SettingsUpdatesRoute: SettingsUpdatesRoute,
 }
 
 const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
