@@ -11,6 +11,7 @@ describe('SETTINGS_NAV_SECTIONS', () => {
       '/settings/app',
       '/settings/reader',
       '/theme',
+      '/settings/updates',
       '/extensions',
       '/backup',
       '/storage',

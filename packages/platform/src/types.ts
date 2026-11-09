@@ -184,7 +184,12 @@ export type PlatformUpdatePhase =
       readonly total: number;
     }
   | { readonly kind: 'ready'; readonly version: string }
-  | { readonly kind: 'installing'; readonly version: string }
+  | {
+      readonly kind: 'installing';
+      readonly version: string;
+      /** True while the restart waits for a window that is mid-chapter to finish reading. */
+      readonly queued: boolean;
+    }
   | { readonly kind: 'error'; readonly message: string };
 
 /** One value for everything the update UI shows: the button, its progress window, and settings. */

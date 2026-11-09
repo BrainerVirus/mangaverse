@@ -17,7 +17,8 @@ export interface UpdateStateMachine {
   found(version: string): void;
   progress(progress: UpdateProgress): void;
   ready(version: string): void;
-  installing(): void;
+  /** The install was accepted; `queued` while a chapter is open and the restart must wait. */
+  installing(queued: boolean): void;
   failed(error: unknown): void;
   /** The check ended: records the time, and falls back to idle if nothing was found. */
   finishCheck(): void;
@@ -91,10 +92,10 @@ export function createUpdateState(options: UpdateStateOptions): UpdateStateMachi
     ready(version) {
       set({ phase: { kind: 'ready', version } });
     },
-    installing() {
+    installing(queued) {
       const phase = state.phase;
-      if (phase.kind !== 'ready') return;
-      set({ phase: { kind: 'installing', version: phase.version } });
+      if (phase.kind !== 'ready' && phase.kind !== 'installing') return;
+      set({ phase: { kind: 'installing', version: phase.version, queued } });
     },
     failed(error) {
       set({ phase: { kind: 'error', message: safeUpdateMessage(error) } });

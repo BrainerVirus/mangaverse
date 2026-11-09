@@ -162,12 +162,15 @@ export function registerAutoUpdate(options: RegisterAutoUpdateOptions): AutoUpda
   const install = () => {
     if (stopped || installing || readerWindows.size > 0) return;
     installing = true;
-    state.installing();
+    state.installing(false);
     updater.quitAndInstall();
   };
 
   const setReaderCount = () => {
-    controller.setReaderCount(readerWindows.size);
+    // A window's listeners outlive stop(); after it nothing may prompt or install.
+    if (stopped) return;
+    // Once the install is accepted a deferred prompt would only flash before the restart.
+    if (!accepted) controller.setReaderCount(readerWindows.size);
     // An install accepted while another window was reading runs once the last reader leaves.
     if (readerWindows.size === 0 && accepted) install();
   };
@@ -182,6 +185,14 @@ export function registerAutoUpdate(options: RegisterAutoUpdateOptions): AutoUpda
     onError: (error: Error) => {
       log(`Update failed: ${error.message}`);
       state.failed(error);
+      // A failure cancels an accepted install, whether it was queued behind a chapter or the
+      // restart had begun and failed, so a later release can be installed; the prompt
+      // controller hears about readers again.
+      if (accepted) {
+        accepted = false;
+        installing = false;
+        controller.setReaderCount(readerWindows.size);
+      }
     },
   };
   updater.on('update-available', handlers.onFound);
@@ -267,7 +278,9 @@ export function registerAutoUpdate(options: RegisterAutoUpdateOptions): AutoUpda
       return err(platformUnexpected('No update is waiting to install.'));
     }
     accepted = true;
-    install();
+    // A chapter is open somewhere: say the restart is queued, and run it when reading ends.
+    if (readerWindows.size > 0) state.installing(true);
+    else install();
     return ok(undefined);
   });
 
