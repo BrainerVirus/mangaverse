@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import {
   Alert,
   AlertDescription,
@@ -14,6 +14,7 @@ import {
   PageHeader,
   Skeleton,
 } from '@app/design-system';
+import { useGridStaggerReveal } from '@app/design-system/motion';
 import { CachedMangaCard } from '@app/cache';
 import type { MangaId, MangaIdentity } from '@app/shared';
 import { useInfiniteScrollSentinel } from '../hooks/use-infinite-scroll-sentinel.js';
@@ -104,6 +105,21 @@ function DiscoverSectionPreview({
   onRetry: (() => void) | undefined;
 }) {
   const status = section.status ?? (section.results.length > 0 ? 'ok' : 'empty');
+  // A section's covers fade in when its results arrive, as search results do; the key is the
+  // visible six, so a refetch with the same covers does not replay.
+  const previewKey = useMemo(
+    () =>
+      section.results
+        .slice(0, 6)
+        .map((manga) => manga.id)
+        .join(','),
+    [section.results],
+  );
+  const revealRef = useGridStaggerReveal(
+    `${section.id}:${previewKey}`,
+    status === 'ok',
+    ':scope > *',
+  );
 
   return (
     <section aria-labelledby={`discover-section-${section.id}`} className="flex flex-col gap-4">
@@ -155,7 +171,13 @@ function DiscoverSectionPreview({
 
       {status === 'ok' ? (
         <div className="@container w-full">
-          <div data-testid={`discover-section-${section.id}`} className={CONTENT_GRID_CLASSES}>
+          <div
+            ref={(node) => {
+              revealRef.current = node;
+            }}
+            data-testid={`discover-section-${section.id}`}
+            className={CONTENT_GRID_CLASSES}
+          >
             {section.results.slice(0, 6).map((manga, index) => (
               <div key={manga.id} className={contentRowCellClass(index)}>
                 <CachedMangaCard manga={manga} onClick={() => onOpenManga(manga.id)} />
