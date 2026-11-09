@@ -118,7 +118,11 @@ export function createScriptUpdater(options: ScriptUpdaterOptions): UpdaterLike 
     error: new Set(),
   };
   const emit = (event: EventName, value: unknown): void => {
-    for (const listener of listeners[event]) listener(value as never);
+    for (const listener of listeners[event]) {
+      // Disposal can happen inside a listener: nobody after it is told about a download that is gone.
+      if (disposed) return;
+      listener(value as never);
+    }
   };
   let pending: { readonly version: string; readonly tag: string } | null = null;
   // The directory a finished (or running) download lives in. Once the installer owns it, it is
@@ -144,8 +148,12 @@ export function createScriptUpdater(options: ScriptUpdaterOptions): UpdaterLike 
     if (!existsSync(bundled)) throw new Error(`update helper missing: ${bundled}`);
     const dir = await mkdtemp(join(options.tempDir ?? tmpdir(), 'mangaverse-update-'));
     const script = join(dir, helperName);
-    await copyFile(bundled, script);
-    await chmod(script, 0o700);
+    await copyFile(bundled, script)
+      .then(() => chmod(script, 0o700))
+      .catch(async (error: unknown) => {
+        await rm(dir, { recursive: true, force: true });
+        throw error;
+      });
     return script;
   };
 
@@ -276,6 +284,8 @@ export function createScriptUpdater(options: ScriptUpdaterOptions): UpdaterLike 
     await writeFile(join(dir, 'SHA256SUMS'), sumsText, { mode: 0o600 });
     abort.signal.throwIfAborted();
     report(100);
+    // A progress listener may have disposed the updater: nothing is published for a download that is gone.
+    abort.signal.throwIfAborted();
   };
 
   const check = (): Promise<UpdateCheckResult | null> => {
@@ -285,22 +295,27 @@ export function createScriptUpdater(options: ScriptUpdaterOptions): UpdaterLike 
     current = abort;
     inFlight = checkChannel(AbortSignal.any([abort.signal, AbortSignal.timeout(stallTimeoutMs)]))
       .then(async (found) => {
+        abort.signal.throwIfAborted();
         if (found === null) return null;
         // The same release is already on disk and waiting.
         if (pending?.tag === found.tag && stagedDir !== null) return { downloadPromise: null };
         pending = null;
         await discardDownload();
+        abort.signal.throwIfAborted();
         // One helper copy serves every release this session: a newer one must not strand the last.
         stagedScript ??= await stageHelper();
         abort.signal.throwIfAborted();
         emit('update-available', { version: found.version });
+        abort.signal.throwIfAborted();
         await download(found, abort);
+        abort.signal.throwIfAborted();
         pending = found;
         emit('update-downloaded', { version: found.version });
         return { downloadPromise: null };
       })
       .catch(async (error: unknown) => {
-        await discardDownload();
+        // After the handoff the installer owns the staged directory: an error here must not remove it.
+        if (!handedOff) await discardDownload();
         // A disposed updater says nothing, and a helper copy that finished after dispose goes too.
         if (disposed && stagedScript !== null) {
           rmSync(dirname(stagedScript), { recursive: true, force: true });
@@ -330,7 +345,8 @@ export function createScriptUpdater(options: ScriptUpdaterOptions): UpdaterLike 
     },
     checkForUpdates: check,
     quitAndInstall() {
-      if (pending === null || stagedScript === null || stagedDir === null) return;
+      // A second call must not start a second installer.
+      if (handedOff || pending === null || stagedScript === null || stagedDir === null) return;
       const command = platform === 'win32' ? 'powershell.exe' : '/bin/sh';
       const args =
         platform === 'win32'

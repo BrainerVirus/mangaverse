@@ -401,6 +401,80 @@ describe('createScriptUpdater', () => {
     expect(entries(temp, 'mangaverse-update-')).toHaveLength(1);
   });
 
+  it('Given a progress listener that disposes at 100%, When the download completes, Then no download is announced and nothing is left behind', async () => {
+    const { root, temp } = resources();
+    const error = vi.fn<(value: Error) => void>();
+    const downloaded = vi.fn<(info: { version: string }) => void>();
+    const updater = createScriptUpdater({
+      currentVersion: '0.0.4-nightly.20261108.1',
+      resourcesPath: root,
+      tempDir: temp,
+      platform: 'linux',
+      quit: () => {},
+      fetchImpl: fakeGitHub('linux').fetchImpl,
+    });
+    updater.on('download-progress', (progress) => {
+      if (progress.percent === 100) updater.dispose?.();
+    });
+    updater.on('update-downloaded', downloaded);
+    updater.on('error', error);
+
+    expect(await updater.checkForUpdates()).toBeNull();
+    expect(downloaded).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
+    expect(entries(temp, 'mangaverse-staged-')).toHaveLength(0);
+    expect(entries(temp, 'mangaverse-update-')).toHaveLength(0);
+  });
+
+  it('Given a downloaded listener that disposes, When more listeners follow, Then they are not told about the removed download and the handoff does nothing', async () => {
+    const { root, temp } = resources();
+    const spawnImpl = spawnStub();
+    const later = vi.fn<(info: { version: string }) => void>();
+    const updater = createScriptUpdater({
+      currentVersion: '0.0.4-nightly.20261108.1',
+      resourcesPath: root,
+      tempDir: temp,
+      platform: 'linux',
+      quit: () => {},
+      spawnImpl: spawnImpl as never,
+      fetchImpl: fakeGitHub('linux').fetchImpl,
+    });
+    updater.on('update-downloaded', () => updater.dispose?.());
+    updater.on('update-downloaded', later);
+
+    await updater.checkForUpdates();
+    expect(later).not.toHaveBeenCalled();
+    expect(entries(temp, 'mangaverse-staged-')).toHaveLength(0);
+    updater.quitAndInstall();
+    expect(spawnImpl).not.toHaveBeenCalled();
+  });
+
+  it('Given the installer is started from the downloaded listener and the app disposes while quitting, Then the installer keeps its directories and a second call starts nothing', async () => {
+    const { root, temp } = resources();
+    const spawnImpl = spawnStub();
+    const quit = vi.fn<() => void>(() => updater.dispose?.());
+    const updater = createScriptUpdater({
+      currentVersion: '0.0.4-nightly.20261108.1',
+      resourcesPath: root,
+      tempDir: temp,
+      platform: 'linux',
+      quit,
+      spawnImpl: spawnImpl as never,
+      fetchImpl: fakeGitHub('linux').fetchImpl,
+    });
+    updater.on('update-downloaded', () => {
+      updater.quitAndInstall();
+      updater.quitAndInstall();
+    });
+
+    await updater.checkForUpdates();
+    expect(spawnImpl).toHaveBeenCalledTimes(1);
+    expect(quit).toHaveBeenCalledTimes(1);
+    const [, args] = spawnImpl.mock.calls[0] as unknown as [string, string[]];
+    expect(existsSync(args.at(-1)!)).toBe(true);
+    expect(existsSync(args[0]!)).toBe(true);
+  });
+
   it('Given Windows, When installing, Then the staged directory and the custom install directory go to the PowerShell helper', async () => {
     const base = mkdtempSync(join(tmpdir(), 'mangaverse-updater-win-'));
     const appRoot = join(base, 'Programs', 'MangaVerse');
