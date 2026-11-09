@@ -183,6 +183,12 @@ export function registerAutoUpdate(options: RegisterAutoUpdateOptions): AutoUpda
     onError: (error: Error) => {
       log(`Update failed: ${error.message}`);
       state.failed(error);
+      // A failure cancels an install that was only queued behind a chapter, and the prompt
+      // controller hears about readers again.
+      if (accepted && !installing) {
+        accepted = false;
+        controller.setReaderCount(readerWindows.size);
+      }
     },
   };
   updater.on('update-available', handlers.onFound);

@@ -418,6 +418,20 @@ describe('the update state', () => {
     expect(ctx.send).not.toHaveBeenCalled();
   });
 
+  it('Given a queued install, When the updater fails, Then the install is cancelled and prompts work again', async () => {
+    const ctx = setup();
+    const reader = new FakeSender(2);
+    ctx.updater.emit('update-downloaded', { version: '1.2.0' });
+    reading(ctx, reader, true);
+    await ctx.invoke(PLATFORM_IPC.UPDATE_INSTALL, sender);
+    ctx.updater.emit('error', new Error('GitHub returned 503'));
+
+    reading(ctx, reader, false);
+    expect(ctx.updater.quitAndInstall).not.toHaveBeenCalled();
+    ctx.updater.emit('update-downloaded', { version: '1.3.0' });
+    expect(ctx.send).toHaveBeenLastCalledWith(UPDATE_AVAILABLE_IPC, { version: '1.3.0' });
+  });
+
   it('Given an install accepted while a chapter is open, Then the state says queued until reading ends', async () => {
     const ctx = setup();
     const reader = new FakeSender(2);
