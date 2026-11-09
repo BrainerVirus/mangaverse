@@ -190,9 +190,17 @@ export function registerAutoUpdate(options: RegisterAutoUpdateOptions): AutoUpda
   updater.on('error', handlers.onError);
 
   // One check at a time, and none while an update is downloading, ready or installing.
+  // A failed check can end (phase `error`) before its promise settles, so the in-flight flag,
+  // not the phase, decides whether a retry may start; otherwise the old check's end would reset
+  // the new one's state.
+  let checkInFlight = false;
   const check = (): Promise<void> => {
-    if (stopped || !state.startCheck()) return Promise.resolve();
-    return runQuietUpdateCheck(() => updater.checkForUpdates()).finally(() => state.finishCheck());
+    if (stopped || checkInFlight || !state.startCheck()) return Promise.resolve();
+    checkInFlight = true;
+    return runQuietUpdateCheck(() => updater.checkForUpdates()).finally(() => {
+      checkInFlight = false;
+      state.finishCheck();
+    });
   };
 
   ipc.handle(PLATFORM_IPC.UPDATE_CHECK_NOW, (event) => {
@@ -253,9 +261,9 @@ export function registerAutoUpdate(options: RegisterAutoUpdateOptions): AutoUpda
   ipc.handle(PLATFORM_IPC.UPDATE_INSTALL, (event) => {
     const denied = guard(event);
     if (denied !== null) return denied;
-    // Main only prompts for a release that finished downloading, so the prompted version is
-    // the one on disk.
-    if (promptVersion === null) {
+    // Only a release that finished downloading is `ready`, so that is the one on disk. Saying
+    // "Later" to the prompt does not take it away: the title-bar button can still install it.
+    if (state.get().phase.kind !== 'ready') {
       return err(platformUnexpected('No update is waiting to install.'));
     }
     accepted = true;

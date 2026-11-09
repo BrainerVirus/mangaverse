@@ -8,6 +8,10 @@ import type { DesktopPlatformBridge, PlatformUpdateState } from '@app/platform';
  */
 let snapshot: PlatformUpdateState | null = null;
 let subscribed = false;
+/** Counts every published state, so a reply that was asked for earlier can tell it is stale. */
+let revision = 0;
+/** Counts subscription lifecycles, so a reply to a previous one is dropped. */
+let generation = 0;
 let unsubscribeBridge: (() => void) | null = null;
 const listeners = new Set<() => void>();
 
@@ -17,6 +21,7 @@ function bridge(): DesktopPlatformBridge | undefined {
 }
 
 function publish(next: PlatformUpdateState): void {
+  revision += 1;
   snapshot = next;
   for (const listener of [...listeners]) listener();
 }
@@ -27,10 +32,12 @@ function start(): void {
   if (desktop === undefined || typeof desktop.onUpdateState !== 'function') return;
   subscribed = true;
   unsubscribeBridge = desktop.onUpdateState(publish);
-  // A window that opens after the last change asks for the current state. An event that
-  // arrives first is newer than this answer, so it wins.
+  // A window that opens after the last change asks for the current state. Any event that
+  // arrives first, or a later subscription lifecycle, makes this answer stale.
+  const askedAt = revision;
+  const lifecycle = generation;
   void desktop.updateGetState().then((result) => {
-    if (result.ok && snapshot === null) publish(result.value);
+    if (result.ok && lifecycle === generation && revision === askedAt) publish(result.value);
   });
 }
 
@@ -44,6 +51,7 @@ export function subscribeUpdateState(listener: () => void): () => void {
       unsubscribeBridge = null;
       subscribed = false;
       snapshot = null;
+      generation += 1;
     }
   };
 }
@@ -58,6 +66,11 @@ export function getServerUpdateStateSnapshot(): PlatformUpdateState | null {
 
 /** "Check for updates": main starts the check and answers with the state it began in. */
 export async function checkForUpdatesNow(): Promise<void> {
+  const askedAt = revision;
+  const lifecycle = generation;
   const result = await bridge()?.updateCheckNow();
-  if (result?.ok === true) publish(result.value);
+  // A state event that arrived while main answered is newer than the reply.
+  if (result?.ok === true && lifecycle === generation && revision === askedAt) {
+    publish(result.value);
+  }
 }

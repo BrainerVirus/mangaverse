@@ -109,9 +109,41 @@ describe('update state store', () => {
     const { bridge } = installBridge();
     const store = await freshStore();
     store.subscribeUpdateState(() => {});
+    await vi.waitFor(() => expect(store.getUpdateStateSnapshot()).toEqual(idle));
     await store.checkForUpdatesNow();
     expect(bridge.updateCheckNow).toHaveBeenCalledTimes(1);
     expect(store.getUpdateStateSnapshot()?.phase).toEqual({ kind: 'checking' });
+  });
+
+  it('Given a state event arrives while check now is answering, Then the older reply does not overwrite it', async () => {
+    const { bridge, emit } = installBridge();
+    const store = await freshStore();
+    store.subscribeUpdateState(() => {});
+    await vi.waitFor(() => expect(store.getUpdateStateSnapshot()).toEqual(idle));
+    let reply: (value: unknown) => void = () => {};
+    bridge.updateCheckNow.mockImplementationOnce(() => new Promise((resolve) => (reply = resolve)));
+    const pending = store.checkForUpdatesNow();
+    emit(downloading);
+    reply(ok({ ...idle, phase: { kind: 'checking' } }));
+    await pending;
+    expect(store.getUpdateStateSnapshot()).toEqual(downloading);
+  });
+
+  it('Given the last subscriber leaves and another arrives, Then the old initial answer is dropped', async () => {
+    let releaseFirst: (state: PlatformUpdateState) => void = () => {};
+    const { bridge } = installBridge();
+    bridge.updateGetState
+      .mockImplementationOnce(async () =>
+        ok(await new Promise<PlatformUpdateState>((r) => (releaseFirst = r))),
+      )
+      .mockImplementationOnce(async () => ok(downloading));
+    const store = await freshStore();
+    store.subscribeUpdateState(() => {})();
+    store.subscribeUpdateState(() => {});
+    await vi.waitFor(() => expect(store.getUpdateStateSnapshot()).toEqual(downloading));
+    releaseFirst(idle);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(store.getUpdateStateSnapshot()).toEqual(downloading);
   });
 
   it('Given no bridge, When check now is called, Then it does nothing', async () => {

@@ -197,17 +197,18 @@ describe('registerAutoUpdate', () => {
     expect(ctx.updater.quitAndInstall).not.toHaveBeenCalled();
   });
 
-  it('a dismissed version is neither installed nor offered again', () => {
+  it('a dismissed version is not offered again, but the ready update can still be installed', () => {
     const ctx = setup();
     const sender = new FakeSender(1);
     ctx.updater.emit('update-downloaded', { version: '1.2.0' });
     expect(ctx.invoke(PLATFORM_IPC.UPDATE_DISMISS, sender)).toMatchObject({ ok: true });
-    expect(ctx.invoke(PLATFORM_IPC.UPDATE_INSTALL, sender)).toMatchObject({ ok: false });
     reading(ctx, sender, true);
     reading(ctx, sender, false);
     ctx.updater.emit('update-downloaded', { version: '1.2.0' });
     expect(ctx.send).toHaveBeenCalledTimes(1);
     expect(ctx.updater.quitAndInstall).not.toHaveBeenCalled();
+    expect(ctx.invoke(PLATFORM_IPC.UPDATE_INSTALL, sender)).toMatchObject({ ok: true });
+    expect(ctx.updater.quitAndInstall).toHaveBeenCalledTimes(1);
 
     ctx.updater.emit('update-downloaded', { version: '1.3.0' });
     expect(ctx.send).toHaveBeenLastCalledWith(UPDATE_AVAILABLE_IPC, { version: '1.3.0' });
@@ -365,6 +366,24 @@ describe('the update state', () => {
       expect((await current(ctx)).value.phase).toEqual({ kind: 'idle' }),
     );
     expect((await current(ctx)).value.lastCheckedAt).not.toBeNull();
+  });
+
+  it('Given a check that failed but has not settled, When check now is pressed again, Then no second check starts', async () => {
+    const ctx = setup();
+    let settle: () => void = () => {};
+    ctx.updater.checkForUpdates.mockImplementation(
+      () => new Promise((resolve) => (settle = () => resolve(null))),
+    );
+    await ctx.invoke(PLATFORM_IPC.UPDATE_CHECK_NOW, sender);
+    ctx.updater.emit('error', new Error('GitHub returned 503'));
+    await ctx.invoke(PLATFORM_IPC.UPDATE_CHECK_NOW, sender);
+    expect(ctx.updater.checkForUpdates).toHaveBeenCalledTimes(1);
+
+    settle();
+    await vi.waitFor(async () => expect((await current(ctx)).value.lastCheckedAt).not.toBeNull());
+    expect((await current(ctx)).value.phase).toMatchObject({ kind: 'error' });
+    await ctx.invoke(PLATFORM_IPC.UPDATE_CHECK_NOW, sender);
+    expect(ctx.updater.checkForUpdates).toHaveBeenCalledTimes(2);
   });
 
   it('Given an update that is ready, When check now is pressed, Then nothing is fetched again', async () => {
