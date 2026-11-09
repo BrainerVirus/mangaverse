@@ -289,7 +289,12 @@ export function createScriptUpdater(options: ScriptUpdaterOptions): UpdaterLike 
   };
 
   const check = (): Promise<UpdateCheckResult | null> => {
-    if (disposed) return Promise.resolve(null);
+    // Once the installer has the update there is nothing left to check.
+    if (disposed || handedOff) return Promise.resolve(null);
+    // An update that is ready is kept until it is installed or the app restarts: a newer release is
+    // picked up next launch. Replacing it would pull the files from under an accepted install, or
+    // leave an open prompt pointing at a download that no longer exists.
+    if (pending !== null) return Promise.resolve({ downloadPromise: null });
     if (inFlight !== null) return inFlight;
     const abort = new AbortController();
     current = abort;
@@ -297,11 +302,6 @@ export function createScriptUpdater(options: ScriptUpdaterOptions): UpdaterLike 
       .then(async (found) => {
         abort.signal.throwIfAborted();
         if (found === null) return null;
-        // The same release is already on disk and waiting.
-        if (pending?.tag === found.tag && stagedDir !== null) return { downloadPromise: null };
-        pending = null;
-        await discardDownload();
-        abort.signal.throwIfAborted();
         // One helper copy serves every release this session: a newer one must not strand the last.
         stagedScript ??= await stageHelper();
         abort.signal.throwIfAborted();

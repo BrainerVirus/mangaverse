@@ -377,28 +377,58 @@ describe('createScriptUpdater', () => {
     expect(await updater.checkForUpdates()).toBeNull();
   });
 
-  it('Given a newer release while an older one is staged, When checking, Then the old download is replaced and only one helper copy exists', async () => {
+  it('Given an update is waiting, When a newer release appears, Then the waiting download is kept and nothing is fetched', async () => {
     const { root, temp } = resources();
     const NEWER = 'v0.0.4-nightly.20261108.3';
+    const github = fakeGitHub('linux', { tags: [TAG, NEWER] });
     const updater = createScriptUpdater({
       currentVersion: '0.0.4-nightly.20261108.1',
       resourcesPath: root,
       tempDir: temp,
       platform: 'linux',
       quit: () => {},
-      fetchImpl: fakeGitHub('linux', { tags: [TAG, NEWER] }).fetchImpl,
+      fetchImpl: github.fetchImpl,
     });
     const downloaded = vi.fn<(info: { version: string }) => void>();
     updater.on('update-downloaded', downloaded);
 
     await updater.checkForUpdates();
+    const requests = github.urls.length;
     await updater.checkForUpdates();
 
-    expect(downloaded.mock.calls.map(([info]) => info.version)).toEqual([VERSION, NEWER.slice(1)]);
+    expect(downloaded.mock.calls.map(([info]) => info.version)).toEqual([VERSION]);
+    expect(github.urls).toHaveLength(requests);
     const [stagedName] = entries(temp, 'mangaverse-staged-');
     expect(entries(temp, 'mangaverse-staged-')).toHaveLength(1);
-    expect(readdirSync(join(temp, stagedName!))).toContain(assetName('linux', NEWER.slice(1)));
+    expect(readdirSync(join(temp, stagedName!))).toContain(assetName('linux', VERSION));
     expect(entries(temp, 'mangaverse-update-')).toHaveLength(1);
+  });
+
+  it('Given the installer has the update, When a check runs after accepting, Then it does nothing and the installer keeps its directories', async () => {
+    const { root, temp } = resources();
+    const github = fakeGitHub('linux', { tags: [TAG, 'v0.0.4-nightly.20261108.3'] });
+    const spawnImpl = spawnStub();
+    const updater = createScriptUpdater({
+      currentVersion: '0.0.4-nightly.20261108.1',
+      resourcesPath: root,
+      tempDir: temp,
+      platform: 'linux',
+      quit: () => {},
+      spawnImpl: spawnImpl as never,
+      fetchImpl: github.fetchImpl,
+    });
+    await updater.checkForUpdates();
+    updater.quitAndInstall();
+    const requests = github.urls.length;
+
+    expect(await updater.checkForUpdates()).toBeNull();
+    updater.dispose?.();
+
+    expect(github.urls).toHaveLength(requests);
+    expect(spawnImpl).toHaveBeenCalledTimes(1);
+    const [, args] = spawnImpl.mock.calls[0] as unknown as [string, string[]];
+    expect(existsSync(args.at(-1)!)).toBe(true);
+    expect(existsSync(args[0]!)).toBe(true);
   });
 
   it('Given a progress listener that disposes at 100%, When the download completes, Then no download is announced and nothing is left behind', async () => {
