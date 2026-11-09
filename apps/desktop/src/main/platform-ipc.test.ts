@@ -77,6 +77,8 @@ describe('registerPlatformIpc', () => {
       PLATFORM_IPC.UPDATE_SET_READER_ACTIVE,
       PLATFORM_IPC.UPDATE_INSTALL,
       PLATFORM_IPC.UPDATE_DISMISS,
+      PLATFORM_IPC.UPDATE_GET_STATE,
+      PLATFORM_IPC.UPDATE_CHECK_NOW,
     ]);
     const expected = new Set(
       Object.values(PLATFORM_IPC).filter((channel) => !elsewhere.has(channel)),

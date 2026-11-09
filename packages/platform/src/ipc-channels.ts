@@ -32,6 +32,8 @@ export const PLATFORM_IPC = {
   UPDATE_SET_READER_ACTIVE: 'platform:update:set-reader-active',
   UPDATE_INSTALL: 'platform:update:install',
   UPDATE_DISMISS: 'platform:update:dismiss',
+  UPDATE_GET_STATE: 'platform:update:get-state',
+  UPDATE_CHECK_NOW: 'platform:update:check-now',
 } as const;
 
 /**
@@ -39,5 +41,8 @@ export const PLATFORM_IPC = {
  * request, so it stays outside `PlatformIpcChannel`.
  */
 export const UPDATE_AVAILABLE_IPC = 'platform:update:available' as const;
+
+/** Main→renderer: the update state changed. Also an event, so also outside `PlatformIpcChannel`. */
+export const UPDATE_STATE_IPC = 'platform:update:state' as const;
 
 export type PlatformIpcChannel = (typeof PLATFORM_IPC)[keyof typeof PLATFORM_IPC];

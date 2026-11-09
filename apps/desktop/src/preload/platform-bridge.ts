@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { PLATFORM_IPC, UPDATE_AVAILABLE_IPC } from '@app/platform';
-import type { DesktopPlatformBridge, PlatformUpdateInfo } from '@app/platform';
+import { PLATFORM_IPC, UPDATE_AVAILABLE_IPC, UPDATE_STATE_IPC } from '@app/platform';
+import type { DesktopPlatformBridge, PlatformUpdateInfo, PlatformUpdateState } from '@app/platform';
 
 const bridge: DesktopPlatformBridge = {
   getCapabilities: () => ipcRenderer.invoke(PLATFORM_IPC.CAPABILITIES_GET),
@@ -45,6 +45,15 @@ const bridge: DesktopPlatformBridge = {
     ipcRenderer.invoke(PLATFORM_IPC.UPDATE_SET_READER_ACTIVE, active),
   updateInstall: () => ipcRenderer.invoke(PLATFORM_IPC.UPDATE_INSTALL),
   updateDismiss: () => ipcRenderer.invoke(PLATFORM_IPC.UPDATE_DISMISS),
+  updateGetState: () => ipcRenderer.invoke(PLATFORM_IPC.UPDATE_GET_STATE),
+  updateCheckNow: () => ipcRenderer.invoke(PLATFORM_IPC.UPDATE_CHECK_NOW),
+  onUpdateState: (listener: (state: PlatformUpdateState) => void) => {
+    const wrapped = (_event: unknown, state: PlatformUpdateState) => listener(state);
+    ipcRenderer.on(UPDATE_STATE_IPC, wrapped);
+    return () => {
+      ipcRenderer.removeListener(UPDATE_STATE_IPC, wrapped);
+    };
+  },
   onUpdateAvailable: (listener: (info: PlatformUpdateInfo) => void) => {
     const wrapped = (_event: unknown, info: PlatformUpdateInfo) => listener(info);
     ipcRenderer.on(UPDATE_AVAILABLE_IPC, wrapped);

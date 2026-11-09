@@ -17,9 +17,30 @@ const updateStubs = {
   updateInstall: async () => ok(undefined),
   updateDismiss: async () => ok(undefined),
   onUpdateAvailable: () => () => {},
+  updateGetState: async () =>
+    ok({
+      enabled: false,
+      currentVersion: '0.0.0',
+      lastCheckedAt: null,
+      phase: { kind: 'idle' as const },
+    }),
+  updateCheckNow: async () =>
+    ok({
+      enabled: false,
+      currentVersion: '0.0.0',
+      lastCheckedAt: null,
+      phase: { kind: 'idle' as const },
+    }),
+  onUpdateState: () => () => {},
 } satisfies Pick<
   DesktopPlatformBridge,
-  'updateSetReaderActive' | 'updateInstall' | 'updateDismiss' | 'onUpdateAvailable'
+  | 'updateSetReaderActive'
+  | 'updateInstall'
+  | 'updateDismiss'
+  | 'onUpdateAvailable'
+  | 'updateGetState'
+  | 'updateCheckNow'
+  | 'onUpdateState'
 >;
 
 const pageStoreStubs = {
@@ -59,6 +80,9 @@ const pageStoreStubs = {
   | 'updateInstall'
   | 'updateDismiss'
   | 'onUpdateAvailable'
+  | 'updateGetState'
+  | 'updateCheckNow'
+  | 'onUpdateState'
 >;
 
 describe('createElectronPlatformAdapter', () => {

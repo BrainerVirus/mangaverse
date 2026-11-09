@@ -224,6 +224,8 @@ export const platformIpcRequestSchema = z.discriminatedUnion('channel', [
   request(PLATFORM_IPC.UPDATE_SET_READER_ACTIVE, z.tuple([z.boolean()])),
   request(PLATFORM_IPC.UPDATE_INSTALL, z.tuple([])),
   request(PLATFORM_IPC.UPDATE_DISMISS, z.tuple([])),
+  request(PLATFORM_IPC.UPDATE_GET_STATE, z.tuple([])),
+  request(PLATFORM_IPC.UPDATE_CHECK_NOW, z.tuple([])),
   request(PLATFORM_IPC.PROVIDER_NETWORK_REPLACE, z.tuple([providerNetworkReplace])),
   request(PLATFORM_IPC.PROVIDER_NETWORK_REVOKE, z.tuple([providerNetworkRevoke])),
   request(PLATFORM_IPC.PROVIDER_NETWORK_NEXT_REVISION, z.tuple([])),

@@ -166,6 +166,37 @@ export interface PlatformUpdateInfo {
   readonly version: string;
 }
 
+/**
+ * Where an update is, as main knows it. A release downloads on its own once found, so "available"
+ * is just `downloading` from 0%; `ready` means the verified bytes are on disk and "Restart and
+ * install" is actionable. `error` carries a short, safe message (never a path or a raw error).
+ */
+export type PlatformUpdatePhase =
+  | { readonly kind: 'idle' }
+  | { readonly kind: 'checking' }
+  | {
+      readonly kind: 'downloading';
+      readonly version: string;
+      /** 0-100, whole numbers. */
+      readonly percent: number;
+      readonly transferred: number;
+      /** 0 when the size is not known yet. */
+      readonly total: number;
+    }
+  | { readonly kind: 'ready'; readonly version: string }
+  | { readonly kind: 'installing'; readonly version: string }
+  | { readonly kind: 'error'; readonly message: string };
+
+/** One value for everything the update UI shows: the button, its progress window, and settings. */
+export interface PlatformUpdateState {
+  /** False in a build that cannot update itself (development, an unpackaged run, no feed). */
+  readonly enabled: boolean;
+  readonly currentVersion: string;
+  /** ISO time of the last finished check, or null before the first one. */
+  readonly lastCheckedAt: string | null;
+  readonly phase: PlatformUpdatePhase;
+}
+
 export type PlatformInstallPromptState =
   | { readonly kind: 'unsupported' }
   | { readonly kind: 'available' }
@@ -308,6 +339,12 @@ export interface PlatformAdapter {
     dismiss(): Promise<AppResult<void>>;
     /** Subscribes to main's ready-to-install events; returns the unsubscribe function. */
     onAvailable(listener: (info: PlatformUpdateInfo) => void): () => void;
+    /** The current update state, for a window that opens after the last change. */
+    getState(): Promise<AppResult<PlatformUpdateState>>;
+    /** Starts a check now and returns the state it began in; progress arrives through `onState`. */
+    checkNow(): Promise<AppResult<PlatformUpdateState>>;
+    /** Subscribes to every state change; returns the unsubscribe function. */
+    onState(listener: (state: PlatformUpdateState) => void): () => void;
   };
 }
 
@@ -375,6 +412,10 @@ export interface DesktopPlatformBridge {
   updateDismiss: () => Promise<AppResult<void>>;
   /** Main→renderer: a release downloaded and is ready to install. */
   onUpdateAvailable: (listener: (info: PlatformUpdateInfo) => void) => () => void;
+  updateGetState: () => Promise<AppResult<PlatformUpdateState>>;
+  updateCheckNow: () => Promise<AppResult<PlatformUpdateState>>;
+  /** Main→renderer: the update state changed (checking, progress, ready, error). */
+  onUpdateState: (listener: (state: PlatformUpdateState) => void) => () => void;
 }
 
 export interface WebCapabilityEnvironment {
