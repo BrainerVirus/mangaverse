@@ -53,6 +53,10 @@ export default defineConfig({
     // Concurrent runs race on node_modules/.vitest-cache cleanup (ENOTEMPTY, #261).
     fsModuleCache: false,
     environment: 'node',
+    // Every repository call crosses a MessageChannel into node:sqlite, and the Windows runner takes
+    // 7-16 s for single tests that finish in well under 1 s elsewhere: the default 5 s fails them.
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
     include: ['src/**/*.{test,spec}.ts'],
     // These test the renderer's sql.js session and migrator, which the host replaces.
     exclude: [
