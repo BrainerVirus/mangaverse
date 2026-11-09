@@ -13,6 +13,8 @@ export function gridStaggerReveal(
   const { reducedMotion = false, ...tweenVars } = vars ?? {};
 
   if (reducedMotion) {
+    // A reveal already in flight would keep stepping toward its end state; stop it here instead.
+    gsap.killTweensOf(target);
     return gsap.set(target, { y: 0, autoAlpha: 1 });
   }
 
@@ -25,6 +27,8 @@ export function gridStaggerReveal(
       duration: DURATION.standard / 1000,
       ease: EASING.softEntrance,
       stagger: DURATION.micro / 1000,
+      // A new result set can arrive mid-reveal: the older tween on the same cards must not fight it.
+      overwrite: 'auto',
       ...tweenVars,
     },
   );

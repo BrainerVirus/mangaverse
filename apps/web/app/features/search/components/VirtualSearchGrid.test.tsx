@@ -12,6 +12,10 @@ import type {
 } from '@app/shared';
 import { VirtualSearchGrid } from './VirtualSearchGrid.js';
 
+vi.mock('@app/design-system/motion', () => ({
+  useGridStaggerReveal: () => ({ current: null }),
+}));
+
 vi.mock('@app/design-system', () => ({
   cn: (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' '),
   MangaCard: ({

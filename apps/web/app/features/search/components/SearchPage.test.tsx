@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type * as Motion from '@app/design-system/motion';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { MangaIdentity } from '@app/shared';
@@ -31,6 +32,12 @@ function makeData(query: string, titles: readonly string[] = []): SearchPageData
     viewState: { query },
   };
 }
+
+// Real GSAP starts revealed items at visibility:hidden, which role queries skip.
+vi.mock('@app/design-system/motion', async (importOriginal) => ({
+  ...(await importOriginal<typeof Motion>()),
+  useGridStaggerReveal: () => ({ current: null }),
+}));
 
 describe('SearchPage', () => {
   it('fills the shell main instead of rendering a second main landmark', () => {

@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { CachedMangaCard } from '@app/cache';
+import { useGridStaggerReveal } from '@app/design-system/motion';
 import { librarySourceLabel } from '@app/shared';
 import type { MangaId, MangaIdentity } from '@app/shared';
 import { useContainerWidth } from '../hooks/use-container-width.js';
@@ -54,6 +55,13 @@ export function VirtualSearchGrid({ results, onOpenManga, sourceLabels }: Virtua
   });
 
   const isVirtualized = shouldVirtualize;
+  // Reveal only the plain grid: virtualized rows mount as the user scrolls, which is not a new result set.
+  const resultsKey = useMemo(() => results.map((manga) => manga.id).join(','), [results]);
+  const revealRef = useGridStaggerReveal(
+    resultsKey,
+    !isVirtualized && results.length > 0,
+    ':scope > *',
+  );
   const fallbackResults = isMeasured ? results : results.slice(0, FALLBACK_CARD_LIMIT);
 
   const renderCard = (manga: MangaIdentity) => {
@@ -73,7 +81,10 @@ export function VirtualSearchGrid({ results, onOpenManga, sourceLabels }: Virtua
   if (!isVirtualized) {
     return (
       <section
-        ref={containerRef}
+        ref={(node) => {
+          containerRef.current = node;
+          revealRef.current = node;
+        }}
         aria-label="Search results"
         data-testid="search-results-grid"
         className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
