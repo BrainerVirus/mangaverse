@@ -38,17 +38,32 @@ const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 /** Delayed so a cold start is never waiting on the network. */
 const UPDATE_INITIAL_DELAY_MS = 30 * 1000;
 
+/** Download progress, shaped like electron-updater's `download-progress` payload. */
+export interface UpdateProgress {
+  /** 0-100; 0 while the size is unknown. */
+  readonly percent: number;
+  readonly transferred: number;
+  /** Bytes in the release; 0 when the server did not say. */
+  readonly total: number;
+}
+
 /** The slice of electron-updater's `autoUpdater` this module drives (injectable for tests). */
 export interface UpdaterLike {
   autoDownload: boolean;
   autoInstallOnAppQuit: boolean;
   logger: unknown;
+  on(event: 'update-available', listener: (info: { version: string }) => void): unknown;
+  on(event: 'download-progress', listener: (progress: UpdateProgress) => void): unknown;
   on(event: 'update-downloaded', listener: (info: { version: string }) => void): unknown;
   on(event: 'error', listener: (error: Error) => void): unknown;
+  off(event: 'update-available', listener: (info: { version: string }) => void): unknown;
+  off(event: 'download-progress', listener: (progress: UpdateProgress) => void): unknown;
   off(event: 'update-downloaded', listener: (info: { version: string }) => void): unknown;
   off(event: 'error', listener: (error: Error) => void): unknown;
   checkForUpdates(): Promise<UpdateCheckResult | null>;
   quitAndInstall(): void;
+  /** Releases anything held for an update that was never installed (a staged download). */
+  dispose?(): void;
 }
 
 export interface RegisterAutoUpdateOptions {
@@ -218,6 +233,7 @@ export function registerAutoUpdate(options: RegisterAutoUpdateOptions): AutoUpda
       clearInterval(intervalTimer);
       updater.off('update-downloaded', handlers.onDownloaded);
       updater.off('error', handlers.onError);
+      updater.dispose?.();
       ipc.removeHandler(PLATFORM_IPC.UPDATE_SET_READER_ACTIVE);
       ipc.removeHandler(PLATFORM_IPC.UPDATE_INSTALL);
       ipc.removeHandler(PLATFORM_IPC.UPDATE_DISMISS);

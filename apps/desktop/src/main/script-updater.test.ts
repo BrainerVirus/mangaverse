@@ -1,4 +1,12 @@
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import {
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
@@ -64,6 +72,50 @@ function nightlyRelease(tag: string, prerelease = true) {
   return { tag_name: tag, prerelease };
 }
 
+const ASSET_BYTES = Buffer.from('release-bytes-'.repeat(1000));
+const TAG = 'v0.0.4-nightly.20261108.2';
+const VERSION = TAG.slice(1);
+const sha256 = (bytes: Buffer): string => createHash('sha256').update(bytes).digest('hex');
+const ASSETS = {
+  linux: `MangaVerse-${VERSION}-x86_64.AppImage`,
+  win32: `MangaVerse-${VERSION}-x64.zip`,
+  darwin: `MangaVerse-${VERSION}-arm64.zip`,
+} as const;
+
+/** GitHub as the updater sees it: the release list, the asset as a real stream, and SHA256SUMS. */
+function fakeGitHub(
+  platform: keyof typeof ASSETS,
+  options: { releasesStatus?: number; sums?: string } = {},
+) {
+  const asset = ASSETS[platform];
+  const urls: string[] = [];
+  const fetchImpl = (async (input: string) => {
+    urls.push(input);
+    if (input.includes('api.github.com')) {
+      return new Response(JSON.stringify([nightlyRelease(TAG)]), {
+        status: options.releasesStatus ?? 200,
+      });
+    }
+    if (input.endsWith(`/${asset}`)) {
+      const chunks = [0, 1, 2, 3].map((i) => ASSET_BYTES.subarray(i * 3500, (i + 1) * 3500));
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            for (const chunk of chunks) controller.enqueue(chunk);
+            controller.close();
+          },
+        }),
+        { headers: { 'content-length': String(ASSET_BYTES.length) } },
+      );
+    }
+    if (input.endsWith('/SHA256SUMS')) {
+      return new Response(options.sums ?? `${sha256(ASSET_BYTES)}  ${asset}\n`);
+    }
+    return new Response('not found', { status: 404 });
+  }) as never;
+  return { fetchImpl, urls, asset };
+}
+
 describe('createScriptUpdater', () => {
   function resources(): { root: string; temp: string } {
     const root = mkdtempSync(join(tmpdir(), 'mangaverse-updater-'));
@@ -73,13 +125,16 @@ describe('createScriptUpdater', () => {
     writeFileSync(join(root, 'install', 'install.ps1'), '# ps\n');
     return { root, temp: join(root, 'tmp') };
   }
+  const entries = (temp: string, prefix: string) =>
+    readdirSync(temp).filter((name) => name.startsWith(prefix));
+  const spawnStub = () =>
+    vi.fn<(...args: unknown[]) => { unref: () => void }>(() => ({ unref: () => {} }));
 
-  it('stages a copy of the installer and hands it the new tag', async () => {
+  it('Given a newer nightly, When checking, Then it downloads with progress, verifies, and hands the staged directory to the installer', async () => {
     const { root, temp } = resources();
+    const github = fakeGitHub('linux');
     const quit = vi.fn<() => void>();
-    const spawnImpl = vi.fn<(...args: unknown[]) => { unref: () => void }>(() => ({
-      unref: () => {},
-    }));
+    const spawnImpl = spawnStub();
     const updater = createScriptUpdater({
       currentVersion: '0.0.4-nightly.20261108.1',
       resourcesPath: root,
@@ -87,38 +142,107 @@ describe('createScriptUpdater', () => {
       platform: 'linux',
       quit,
       spawnImpl: spawnImpl as never,
-      fetchImpl: (async () => ({
-        ok: true,
-        json: async () => [nightlyRelease('v0.0.4-nightly.20261108.2')],
-      })) as never,
+      fetchImpl: github.fetchImpl,
     });
-    const downloaded = vi.fn<(info: { version: string }) => void>();
-    updater.on('update-downloaded', downloaded);
+    const events: string[] = [];
+    const percents: number[] = [];
+    updater.on('update-available', (info) => events.push(`available ${info.version}`));
+    updater.on('download-progress', (progress) => {
+      percents.push(progress.percent);
+      expect(progress.total).toBe(ASSET_BYTES.length);
+    });
+    updater.on('update-downloaded', (info) => events.push(`downloaded ${info.version}`));
 
     await updater.checkForUpdates();
-    expect(downloaded).toHaveBeenCalledWith({ version: '0.0.4-nightly.20261108.2' });
+    expect(events).toEqual([`available ${VERSION}`, `downloaded ${VERSION}`]);
+    expect(percents.length).toBeGreaterThan(1);
+    expect(percents).toEqual([...percents].sort((a, b) => a - b));
+    expect(percents.at(-1)).toBe(100);
+
+    const [stagedName] = entries(temp, 'mangaverse-staged-');
+    const stagedDir = join(temp, stagedName!);
+    expect(readFileSync(join(stagedDir, github.asset))).toEqual(ASSET_BYTES);
+    expect(readFileSync(join(stagedDir, 'SHA256SUMS'), 'utf8')).toContain(sha256(ASSET_BYTES));
 
     updater.quitAndInstall();
     const [command, args] = spawnImpl.mock.calls[0] as unknown as [string, string[]];
-    const staged = args[0]!;
+    const script = args[0]!;
     expect(command).toBe('/bin/sh');
-    expect(basename(staged)).toBe('install.sh');
-    expect(dirname(staged).startsWith(temp)).toBe(true);
-    expect(basename(dirname(staged))).toMatch(/^mangaverse-update-/);
-    expect(readFileSync(staged, 'utf8')).toBe('#!/bin/sh\n');
-    expect(args.slice(1)).toEqual(['update', '--version', 'v0.0.4-nightly.20261108.2']);
+    expect(basename(script)).toBe('install.sh');
+    expect(basename(dirname(script))).toMatch(/^mangaverse-update-/);
+    expect(readFileSync(script, 'utf8')).toBe('#!/bin/sh\n');
+    expect(args.slice(1)).toEqual(['update', '--version', TAG, '--staged', stagedDir]);
     expect(quit).toHaveBeenCalledTimes(1);
+
+    // The installer owns the directory now: disposing must not pull it from under it.
+    updater.dispose?.();
+    expect(existsSync(stagedDir)).toBe(true);
+    expect(existsSync(script)).toBe(true);
   });
 
-  it('passes a custom Windows install directory to the PowerShell helper', async () => {
+  it('Given a download that is never installed, When the updater is disposed, Then nothing is left in the temp directory', async () => {
+    const { root, temp } = resources();
+    const updater = createScriptUpdater({
+      currentVersion: '0.0.4-nightly.20261108.1',
+      resourcesPath: root,
+      tempDir: temp,
+      platform: 'linux',
+      quit: () => {},
+      fetchImpl: fakeGitHub('linux').fetchImpl,
+    });
+    await updater.checkForUpdates();
+    expect(entries(temp, 'mangaverse-staged-')).toHaveLength(1);
+
+    updater.dispose?.();
+    expect(entries(temp, 'mangaverse-staged-')).toHaveLength(0);
+    expect(entries(temp, 'mangaverse-update-')).toHaveLength(0);
+  });
+
+  it('Given SHA256SUMS that does not match the download, When checking, Then it reports a checksum error, offers nothing and leaves no staged files', async () => {
+    const { root, temp } = resources();
+    const error = vi.fn<(value: Error) => void>();
+    const downloaded = vi.fn<(info: { version: string }) => void>();
+    const updater = createScriptUpdater({
+      currentVersion: '0.0.4-nightly.20261108.1',
+      resourcesPath: root,
+      tempDir: temp,
+      platform: 'linux',
+      quit: () => {},
+      fetchImpl: fakeGitHub('linux', { sums: `${'0'.repeat(64)}  ${ASSETS.linux}\n` }).fetchImpl,
+    });
+    updater.on('error', error);
+    updater.on('update-downloaded', downloaded);
+
+    expect(await updater.checkForUpdates()).toBeNull();
+    expect(error.mock.calls[0]?.[0]?.message).toContain('checksum mismatch');
+    expect(downloaded).not.toHaveBeenCalled();
+    expect(entries(temp, 'mangaverse-staged-')).toHaveLength(0);
+  });
+
+  it('Given the same release is already downloaded, When checking again, Then it is not downloaded twice', async () => {
+    const { root, temp } = resources();
+    const github = fakeGitHub('linux');
+    const updater = createScriptUpdater({
+      currentVersion: '0.0.4-nightly.20261108.1',
+      resourcesPath: root,
+      tempDir: temp,
+      platform: 'linux',
+      quit: () => {},
+      fetchImpl: github.fetchImpl,
+    });
+    await updater.checkForUpdates();
+    await updater.checkForUpdates();
+    expect(github.urls.filter((url) => url.endsWith(`/${github.asset}`))).toHaveLength(1);
+    expect(entries(temp, 'mangaverse-staged-')).toHaveLength(1);
+  });
+
+  it('Given Windows, When installing, Then the staged directory and the custom install directory go to the PowerShell helper', async () => {
     const base = mkdtempSync(join(tmpdir(), 'mangaverse-updater-win-'));
     const appRoot = join(base, 'Programs', 'MangaVerse');
     mkdirSync(join(appRoot, 'resources', 'install'), { recursive: true });
     mkdirSync(join(base, 'tmp'), { recursive: true });
     writeFileSync(join(appRoot, 'resources', 'install', 'install.ps1'), '# ps\n');
-    const spawnImpl = vi.fn<(...args: unknown[]) => { unref: () => void }>(() => ({
-      unref: () => {},
-    }));
+    const spawnImpl = spawnStub();
     const updater = createScriptUpdater({
       currentVersion: '0.0.4-nightly.20261108.1',
       resourcesPath: join(appRoot, 'resources'),
@@ -126,10 +250,7 @@ describe('createScriptUpdater', () => {
       platform: 'win32',
       quit: () => {},
       spawnImpl: spawnImpl as never,
-      fetchImpl: (async () => ({
-        ok: true,
-        json: async () => [nightlyRelease('v0.0.4-nightly.20261108.2')],
-      })) as never,
+      fetchImpl: fakeGitHub('win32').fetchImpl,
     });
 
     await updater.checkForUpdates();
@@ -138,27 +259,26 @@ describe('createScriptUpdater', () => {
     const [command, args] = spawnImpl.mock.calls[0] as unknown as [string, string[]];
     expect(command).toBe('powershell.exe');
     expect(args[0]).toBe('-NoProfile');
-    expect(args).toContain('-Action');
     expect(args[args.indexOf('-Action') + 1]).toBe('update');
-    expect(args[args.indexOf('-Version') + 1]).toBe('v0.0.4-nightly.20261108.2');
+    expect(args[args.indexOf('-Version') + 1]).toBe(TAG);
+    expect(basename(args[args.indexOf('-Staged') + 1]!)).toMatch(/^mangaverse-staged-/);
     expect(args[args.indexOf('-InstallDir') + 1]).toBe(appRoot);
   });
 
   it('does nothing when the newest nightly is not newer', async () => {
     const downloaded = vi.fn<(info: { version: string }) => void>();
+    const github = fakeGitHub('linux');
     const updater = createScriptUpdater({
       currentVersion: '0.0.4-nightly.20261108.2',
       resourcesPath: resources().root,
       quit: () => {},
-      fetchImpl: (async () => ({
-        ok: true,
-        json: async () => [nightlyRelease('v0.0.4-nightly.20261108.2')],
-      })) as never,
+      fetchImpl: github.fetchImpl,
     });
     updater.on('update-downloaded', downloaded);
 
     expect(await updater.checkForUpdates()).toBeNull();
     expect(downloaded).not.toHaveBeenCalled();
+    expect(github.urls.every((url) => url.includes('api.github.com'))).toBe(true);
   });
 
   it('reports a provider failure without throwing', async () => {
@@ -167,7 +287,7 @@ describe('createScriptUpdater', () => {
       currentVersion: '0.0.4-nightly.20261108.1',
       resourcesPath: resources().root,
       quit: () => {},
-      fetchImpl: (async () => ({ ok: false, status: 503, json: async () => [] })) as never,
+      fetchImpl: fakeGitHub('linux', { releasesStatus: 503 }).fetchImpl,
     });
     updater.on('error', error);
 
@@ -178,19 +298,18 @@ describe('createScriptUpdater', () => {
   it('does not offer an update it cannot stage', async () => {
     const root = mkdtempSync(join(tmpdir(), 'mangaverse-updater-empty-'));
     const error = vi.fn<(value: Error) => void>();
+    const github = fakeGitHub('linux');
     const updater = createScriptUpdater({
       currentVersion: '0.0.4-nightly.20261108.1',
       resourcesPath: root,
       tempDir: root,
       quit: () => {},
-      fetchImpl: (async () => ({
-        ok: true,
-        json: async () => [nightlyRelease('v0.0.4-nightly.20261108.2')],
-      })) as never,
+      fetchImpl: github.fetchImpl,
     });
     updater.on('error', error);
 
     expect(await updater.checkForUpdates()).toBeNull();
     expect(error.mock.calls[0]?.[0]?.message).toContain('update helper missing');
+    expect(github.urls.some((url) => url.includes('/releases/download/'))).toBe(false);
   });
 });
