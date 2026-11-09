@@ -180,16 +180,33 @@ trap cleanup EXIT HUP INT TERM
 if [ "$STAGED_SET" -eq 1 ]; then
   # The app downloaded these itself (to show real progress). Accept only a directory it made: resolved
   # to its real path first (so ../ and symlinks cannot rename it), named mangaverse-staged-*, owned by
-  # this user and not writable by anyone else, holding regular files. Then copy into this script's own
+  # this user and not writable by anyone else, in a parent that others cannot rename entries in
+  # (not writable, or sticky like /tmp), holding regular files. Then copy into this script's own
   # private directory and verify that copy, so nothing can change the bytes between check and install.
   [ -n "$STAGED" ] || die "--staged needs a directory"
-  STAGED=$(cd -P -- "$STAGED" 2>/dev/null && pwd -P) || die "staged directory not found"
+  case "$STAGED" in
+    *'
+'*) die "staged path contains a newline" ;;
+  esac
+  # The sentinel keeps command substitution from stripping a trailing newline from the path.
+  resolved=$(cd -P -- "$STAGED" 2>/dev/null && { pwd -P && printf x; }) || die "staged directory not found"
+  resolved=${resolved%?x}
+  case "$resolved" in
+    *'
+'*) die "resolved staged path contains a newline" ;;
+  esac
+  [ "$resolved" -ef "$STAGED" ] || die "staged directory changed during resolution"
+  STAGED=$resolved
   case "$(basename "$STAGED")" in
     mangaverse-staged-*) ;;
     *) die "staged directory must be one the app created (mangaverse-staged-*)" ;;
   esac
   [ -O "$STAGED" ] || die "staged directory is not owned by you"
-  [ -z "$(find "$STAGED" -maxdepth 0 \( -perm -020 -o -perm -002 \) 2>/dev/null)" ] || die "staged directory is writable by others"
+  unsafe=$(find "$STAGED" -maxdepth 0 \( -perm -020 -o -perm -002 \) -print 2>/dev/null) || die "could not inspect staged directory permissions"
+  [ -z "$unsafe" ] || die "staged directory is writable by others"
+  parent=$(dirname "$STAGED")
+  unsafe=$(find "$parent" -maxdepth 0 \( -perm -020 -o -perm -002 \) ! -perm -1000 -print 2>/dev/null) || die "could not inspect staged parent permissions"
+  [ -z "$unsafe" ] || die "staged parent is writable by others without sticky bit"
   for name in "$ASSET" SHA256SUMS; do
     [ -f "$STAGED/$name" ] && [ ! -L "$STAGED/$name" ] || die "staged $name is missing or is a symlink"
     [ -O "$STAGED/$name" ] || die "staged $name is not owned by you"

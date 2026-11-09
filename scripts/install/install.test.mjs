@@ -236,6 +236,40 @@ cp "${fixtures}/$(basename "$url")" "$out"
     }
   });
 
+  it("Given a staged path ending in a newline next to a sibling without it, When installing, Then it is refused and neither directory is touched", () => {
+    const sibling = stage("mangaverse-staged-newline");
+    const dir = stage("mangaverse-staged-newline\n");
+    const result = run(["update", "--version", VERSION, "--staged", dir]);
+    assert.notEqual(result.code, 0);
+    assert.match(result.stderr, /newline/);
+    assert.equal(result.installed, false);
+    assert.equal(existsSync(join(sibling, ASSET)), true);
+    assert.equal(existsSync(join(dir, ASSET)), true);
+  });
+
+  it("Given a staged directory in a parent others can write to without the sticky bit, When installing, Then it is refused", () => {
+    const parent = join(root, "open-parent");
+    mkdirSync(parent);
+    chmodSync(parent, 0o777);
+    const dir = stage("open-parent/mangaverse-staged-open-parent");
+    const result = run(["update", "--version", VERSION, "--staged", dir]);
+    assert.notEqual(result.code, 0);
+    assert.match(result.stderr, /parent.*writable/);
+    assert.equal(result.installed, false);
+    assert.equal(existsSync(join(dir, ASSET)), true);
+  });
+
+  it("Given a staged directory in a sticky world-writable parent like /tmp, When installing, Then it installs and the directory is removed", () => {
+    const parent = join(root, "sticky-parent");
+    mkdirSync(parent);
+    chmodSync(parent, 0o1777);
+    const dir = stage("sticky-parent/mangaverse-staged-sticky");
+    const result = run(["update", "--version", VERSION, "--staged", dir]);
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(result.installed, true);
+    assert.equal(existsSync(dir), false);
+  });
+
   it("Given no --staged, When installing, Then the asset and SHA256SUMS are still downloaded and verified as before", () => {
     const result = run(["update", "--version", VERSION]);
     assert.equal(result.code, 0, result.stderr);

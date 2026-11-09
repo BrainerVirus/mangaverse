@@ -70,6 +70,12 @@ others. It copies the two files into its own private temporary directory and ver
 copy, so nothing can change them between the check and the install. It removes DIR afterwards, and
 only a directory that passed those checks.
 
+The supported case is a directory the app creates under its own per-user temporary directory or under
+a sticky one such as `/tmp`. On macOS and Linux the script also refuses a parent that other users can
+write to without the sticky bit, and a path containing a newline. These are checks on a path, not a
+guarantee against someone who can replace directories while the script runs (a writable ancestor, ACLs,
+or the same user); do not point `--staged` at a directory you do not control.
+
 ## In-app nightly updates
 
 A nightly installed by these scripts is self-updating. The app checks GitHub Releases about 30
