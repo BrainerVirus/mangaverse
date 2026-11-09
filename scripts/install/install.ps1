@@ -7,12 +7,14 @@ param(
   [string]$Channel = 'nightly',
   [string]$Version = '',
   [string]$InstallDir = '',
+  [string]$Staged = '',
   [switch]$PurgeData,
   [switch]$DryRun,
   [switch]$NoLaunch
 )
 
 $ErrorActionPreference = 'Stop'
+if ($PSBoundParameters.ContainsKey('Staged') -and -not $Staged) { throw '-Staged needs a directory.' }
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 # A pinned version says which channel it belongs to unless -Channel overrides it.
@@ -102,11 +104,30 @@ if ($DryRun) { Write-Host 'Dry run: nothing downloaded or written.'; return }
 
 $tmp = Join-Path $env:TEMP ("mangaverse-install-" + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $tmp | Out-Null
+# Only a directory validated below is ever removed, so a rejected or odd -Staged path never is.
+$stagedClean = $null
 try {
   $zip = Join-Path $tmp $asset
   $sums = Join-Path $tmp 'SHA256SUMS'
-  Invoke-WebRequest -UseBasicParsing -Uri "$base/$asset" -OutFile $zip
-  Invoke-WebRequest -UseBasicParsing -Uri "$base/SHA256SUMS" -OutFile $sums
+  if ($Staged) {
+    # The app downloaded these itself (to show real progress). Accept only a directory it made:
+    # resolved first (so .. cannot rename it), not a link, named mangaverse-staged-*. Then copy into
+    # this script's own temp directory and verify that copy, so nothing can change the bytes
+    # between the check and the install.
+    $resolved = (Resolve-Path -LiteralPath $Staged -ErrorAction Stop).Path.TrimEnd('\')
+    if ((Get-Item -LiteralPath $resolved -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Staged directory is a link.' }
+    if ((Split-Path -Leaf $resolved) -notlike 'mangaverse-staged-*') { throw 'Staged directory must be one the app created (mangaverse-staged-*).' }
+    foreach ($name in @($asset, 'SHA256SUMS')) {
+      $from = Join-Path $resolved $name
+      if (-not (Test-Path -LiteralPath $from -PathType Leaf)) { throw "Staged $name is missing." }
+      if ((Get-Item -LiteralPath $from -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Staged $name is a link." }
+      Copy-Item -LiteralPath $from -Destination (Join-Path $tmp $name)
+    }
+    $stagedClean = $resolved
+  } else {
+    Invoke-WebRequest -UseBasicParsing -Uri "$base/$asset" -OutFile $zip
+    Invoke-WebRequest -UseBasicParsing -Uri "$base/SHA256SUMS" -OutFile $sums
+  }
   $line = Get-Content $sums | Where-Object { $_ -match "\s+$([regex]::Escape($asset))$" } | Select-Object -First 1
   if (-not $line) { throw "SHA256SUMS has no entry for $asset" }
   $expected = ($line -split '\s+')[0].ToLowerInvariant()
@@ -134,4 +155,5 @@ try {
   if (-not $NoLaunch) { Start-Process $AppPath }
 } finally {
   Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
+  if ($stagedClean) { Remove-Item -Recurse -Force -LiteralPath $stagedClean -ErrorAction SilentlyContinue }
 }
