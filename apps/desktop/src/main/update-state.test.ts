@@ -31,13 +31,23 @@ describe('createUpdateState', () => {
     machine.found('0.0.4-nightly.20261109.2');
     machine.ready('0.0.4-nightly.20261109.2');
     machine.finishCheck();
-    machine.installing();
+    machine.installing(false);
     expect(phases()).toEqual(['checking', 'downloading', 'ready', 'ready', 'installing']);
     expect(machine.get().phase).toEqual({
       kind: 'installing',
       version: '0.0.4-nightly.20261109.2',
+      queued: false,
     });
     expect(machine.get().lastCheckedAt).toBe('2026-11-09T12:00:00.000Z');
+  });
+
+  it('Given a queued install, When reading ends and it runs, Then the same phase is no longer queued', () => {
+    const { machine } = setup();
+    machine.ready('1.0.1');
+    machine.installing(true);
+    expect(machine.get().phase).toEqual({ kind: 'installing', version: '1.0.1', queued: true });
+    machine.installing(false);
+    expect(machine.get().phase).toEqual({ kind: 'installing', version: '1.0.1', queued: false });
   });
 
   it('Given a check that finds nothing, When it ends, Then it returns to idle and records the time', () => {
@@ -103,7 +113,7 @@ describe('createUpdateState', () => {
 
   it('Given nothing is ready, When installing is requested, Then the phase does not change', () => {
     const { machine, published } = setup();
-    machine.installing();
+    machine.installing(false);
     expect(published).toEqual([]);
   });
 

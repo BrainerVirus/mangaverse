@@ -8,9 +8,9 @@ import {
 } from '@app/design-system';
 
 import {
-  canCheckForUpdates,
   describeUpdate,
   formatLastChecked,
+  updateAction,
   updateChannel,
 } from '../describe-update.js';
 
@@ -59,8 +59,7 @@ export function UpdatesPage({ state, isDesktop, onCheck, onInstall }: UpdatesPag
   }
 
   const description = describeUpdate(state);
-  const phase = state.phase;
-  const checking = phase.kind === 'checking' || phase.kind === 'downloading';
+  const action = updateAction(state);
 
   return (
     <PageContainer variant="read">
@@ -69,13 +68,19 @@ export function UpdatesPage({ state, isDesktop, onCheck, onInstall }: UpdatesPag
           title="Updates"
           description={DESCRIPTION}
           actions={
-            phase.kind === 'ready' ? (
-              <Button onClick={onInstall}>Restart and install</Button>
-            ) : (
-              <Button onClick={onCheck} disabled={!canCheckForUpdates(state)}>
-                {checking ? 'Checking…' : 'Check for updates'}
-              </Button>
-            )
+            <Button
+              disabled={action.kind === 'off'}
+              aria-disabled={action.kind === 'busy' ? true : undefined}
+              onClick={
+                action.kind === 'check'
+                  ? onCheck
+                  : action.kind === 'install'
+                    ? onInstall
+                    : undefined
+              }
+            >
+              {action.label}
+            </Button>
           }
         />
 

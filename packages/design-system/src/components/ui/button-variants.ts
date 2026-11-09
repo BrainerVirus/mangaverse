@@ -7,7 +7,7 @@
 // The coarse-pointer floor lives here as well, because a link styled as a button is not
 // matched by the base layer's `button` rule.
 const buttonBase =
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-btn type-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 pointer-coarse:min-h-11 pointer-coarse:min-w-11 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0';
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-btn type-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 pointer-coarse:min-h-11 pointer-coarse:min-w-11 disabled:pointer-events-none disabled:opacity-50 aria-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0';
 
 export const buttonVariants = {
   default: `${buttonBase} bg-primary text-primary-foreground hover:bg-primary/90`,

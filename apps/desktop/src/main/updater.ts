@@ -162,7 +162,7 @@ export function registerAutoUpdate(options: RegisterAutoUpdateOptions): AutoUpda
   const install = () => {
     if (stopped || installing || readerWindows.size > 0) return;
     installing = true;
-    state.installing();
+    state.installing(false);
     updater.quitAndInstall();
   };
 
@@ -267,7 +267,9 @@ export function registerAutoUpdate(options: RegisterAutoUpdateOptions): AutoUpda
       return err(platformUnexpected('No update is waiting to install.'));
     }
     accepted = true;
-    install();
+    // A chapter is open somewhere: say the restart is queued, and run it when reading ends.
+    if (readerWindows.size > 0) state.installing(true);
+    else install();
     return ok(undefined);
   });
 

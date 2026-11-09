@@ -399,7 +399,33 @@ describe('the update state', () => {
     ctx.updater.emit('update-downloaded', { version: '1.2.0' });
     await ctx.invoke(PLATFORM_IPC.UPDATE_INSTALL, sender);
     expect(ctx.updater.quitAndInstall).toHaveBeenCalledTimes(1);
-    expect(states(ctx).at(-1)?.phase).toEqual({ kind: 'installing', version: '1.2.0' });
+    expect(states(ctx).at(-1)?.phase).toEqual({
+      kind: 'installing',
+      version: '1.2.0',
+      queued: false,
+    });
+  });
+
+  it('Given an install accepted while a chapter is open, Then the state says queued until reading ends', async () => {
+    const ctx = setup();
+    const reader = new FakeSender(2);
+    ctx.updater.emit('update-downloaded', { version: '1.2.0' });
+    reading(ctx, reader, true);
+    await ctx.invoke(PLATFORM_IPC.UPDATE_INSTALL, sender);
+    expect(ctx.updater.quitAndInstall).not.toHaveBeenCalled();
+    expect(states(ctx).at(-1)?.phase).toEqual({
+      kind: 'installing',
+      version: '1.2.0',
+      queued: true,
+    });
+
+    reading(ctx, reader, false);
+    expect(ctx.updater.quitAndInstall).toHaveBeenCalledTimes(1);
+    expect(states(ctx).at(-1)?.phase).toEqual({
+      kind: 'installing',
+      version: '1.2.0',
+      queued: false,
+    });
   });
 
   it('Given the updater is stopped, Then its state handlers and listeners are removed', () => {

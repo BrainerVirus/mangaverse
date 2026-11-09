@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 import type { PlatformUpdateState } from '@app/platform';
 
 import {
-  canCheckForUpdates,
   describeUpdate,
   formatLastChecked,
+  updateAction,
   updateChannel,
 } from './describe-update.js';
 
@@ -31,7 +31,11 @@ describe('describeUpdate', () => {
       'Downloading 1.2.0',
     ],
     [withPhase({ kind: 'ready', version: '1.2.0' }), '1.2.0 is ready to install'],
-    [withPhase({ kind: 'installing', version: '1.2.0' }), 'Restarting to install 1.2.0'],
+    [
+      withPhase({ kind: 'installing', version: '1.2.0', queued: false }),
+      'Restarting to install 1.2.0',
+    ],
+    [withPhase({ kind: 'installing', version: '1.2.0', queued: true }), 'Restart queued for 1.2.0'],
     [withPhase({ kind: 'error', message: 'download stalled' }), 'The update did not finish'],
   ])('Given %j, Then the title is %s', (state, title) => {
     expect(describeUpdate(state).title).toBe(title);
@@ -56,16 +60,22 @@ describe('describeUpdate', () => {
   });
 });
 
-describe('canCheckForUpdates', () => {
+describe('updateAction', () => {
   it.each([
-    [base, true],
-    [withPhase({ kind: 'error', message: 'x' }), true],
-    [{ ...base, enabled: false }, false],
-    [withPhase({ kind: 'checking' }), false],
-    [withPhase({ kind: 'ready', version: '1' }), false],
-    [withPhase({ kind: 'installing', version: '1' }), false],
-  ])('Given %j, Then a check may start: %s', (state, expected) => {
-    expect(canCheckForUpdates(state)).toBe(expected);
+    [base, 'Check for updates', 'check'],
+    [withPhase({ kind: 'error', message: 'x' }), 'Check for updates', 'check'],
+    [{ ...base, enabled: false }, 'Check for updates', 'off'],
+    [withPhase({ kind: 'checking' }), 'Checking…', 'busy'],
+    [
+      withPhase({ kind: 'downloading', version: '1', percent: 1, transferred: 1, total: 9 }),
+      'Downloading…',
+      'busy',
+    ],
+    [withPhase({ kind: 'ready', version: '1' }), 'Restart and install', 'install'],
+    [withPhase({ kind: 'installing', version: '1', queued: true }), 'Restart queued', 'busy'],
+    [withPhase({ kind: 'installing', version: '1', queued: false }), 'Restarting…', 'busy'],
+  ])('Given %j, Then the button reads %s and is %s', (state, label, kind) => {
+    expect(updateAction(state)).toEqual({ label, kind });
   });
 });
 

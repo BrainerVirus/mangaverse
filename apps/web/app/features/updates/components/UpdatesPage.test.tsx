@@ -17,10 +17,17 @@ const idle: PlatformUpdateState = {
 function renderPage(state: PlatformUpdateState | null, isDesktop = true) {
   const onCheck = vi.fn<() => void>();
   const onInstall = vi.fn<() => void>();
-  render(
+  const view = render(
     <UpdatesPage state={state} isDesktop={isDesktop} onCheck={onCheck} onInstall={onInstall} />,
   );
-  return { onCheck, onInstall };
+  return {
+    onCheck,
+    onInstall,
+    rerender: (next: PlatformUpdateState | null) =>
+      view.rerender(
+        <UpdatesPage state={next} isDesktop={isDesktop} onCheck={onCheck} onInstall={onInstall} />,
+      ),
+  };
 }
 
 describe('UpdatesPage', () => {
@@ -33,9 +40,11 @@ describe('UpdatesPage', () => {
     expect(onCheck).toHaveBeenCalledTimes(1);
   });
 
-  it('Given a check is running, Then the button is disabled', () => {
+  it('Given a check is running, Then the button is announced as disabled but stays focusable', () => {
     renderPage({ ...idle, phase: { kind: 'checking' } });
-    expect(screen.getByRole('button', { name: 'Checking…' }).hasAttribute('disabled')).toBe(true);
+    const button = screen.getByRole('button', { name: 'Checking…' });
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    expect(button.hasAttribute('disabled')).toBe(false);
   });
 
   it('Given a download, Then the percent is shown but not announced', () => {
@@ -45,6 +54,34 @@ describe('UpdatesPage', () => {
     });
     expect(screen.getByRole('status').textContent).toBe('Downloading 1.2.0');
     expect(screen.getByText(/40%/)).toBeTruthy();
+  });
+
+  it('Given a download, Then the button says so, is announced as disabled, and ignores a click', () => {
+    const { onCheck, onInstall } = renderPage({
+      ...idle,
+      phase: { kind: 'downloading', version: '1.2.0', percent: 40, transferred: 4, total: 10 },
+    });
+    const button = screen.getByRole('button', { name: 'Downloading…' });
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    fireEvent.click(button);
+    expect(onCheck).not.toHaveBeenCalled();
+    expect(onInstall).not.toHaveBeenCalled();
+  });
+
+  it('Given the check starts, Then the same button element keeps keyboard focus', () => {
+    const view = renderPage(idle);
+    const button = screen.getByRole('button', { name: 'Check for updates' });
+    button.focus();
+    view.rerender({ ...idle, phase: { kind: 'checking' } });
+    const after = screen.getByRole('button', { name: 'Checking…' });
+    expect(after).toBe(button);
+    expect(document.activeElement).toBe(after);
+  });
+
+  it('Given an install queued behind a chapter, Then the page says the restart is queued', () => {
+    renderPage({ ...idle, phase: { kind: 'installing', version: '1.2.0', queued: true } });
+    expect(screen.getByRole('status').textContent).toBe('Restart queued for 1.2.0');
+    expect(screen.getByRole('button', { name: 'Restart queued' })).toBeTruthy();
   });
 
   it('Given a ready update, Then the action is Restart and install', () => {

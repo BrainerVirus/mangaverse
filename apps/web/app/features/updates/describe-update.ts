@@ -49,15 +49,40 @@ export function describeUpdate(state: PlatformUpdateState): UpdateDescription {
         detail: 'Restart to finish. Your reading progress is already saved.',
       };
     case 'installing':
-      return { title: `Restarting to install ${phase.version}`, detail: 'The app will reopen.' };
+      return phase.queued
+        ? {
+            title: `Restart queued for ${phase.version}`,
+            detail: 'MangaVerse will restart when you finish reading.',
+          }
+        : { title: `Restarting to install ${phase.version}`, detail: 'The app will reopen.' };
     case 'error':
       return { title: 'The update did not finish', detail: phase.message };
   }
 }
 
-/** Whether "Check for updates" can start a check right now. */
-export function canCheckForUpdates(state: PlatformUpdateState): boolean {
-  if (!state.enabled) return false;
-  const kind = state.phase.kind;
-  return kind === 'idle' || kind === 'error';
+export type UpdateActionKind = 'check' | 'install' | 'busy' | 'off';
+
+/**
+ * The page's one action button. `busy` is announced as disabled but stays focusable, so a keyboard
+ * user who just pressed it keeps their place while the check or download runs.
+ */
+export function updateAction(state: PlatformUpdateState): {
+  readonly label: string;
+  readonly kind: UpdateActionKind;
+} {
+  if (!state.enabled) return { label: 'Check for updates', kind: 'off' };
+  const phase = state.phase;
+  switch (phase.kind) {
+    case 'idle':
+    case 'error':
+      return { label: 'Check for updates', kind: 'check' };
+    case 'checking':
+      return { label: 'Checking…', kind: 'busy' };
+    case 'downloading':
+      return { label: 'Downloading…', kind: 'busy' };
+    case 'ready':
+      return { label: 'Restart and install', kind: 'install' };
+    case 'installing':
+      return { label: phase.queued ? 'Restart queued' : 'Restarting…', kind: 'busy' };
+  }
 }
