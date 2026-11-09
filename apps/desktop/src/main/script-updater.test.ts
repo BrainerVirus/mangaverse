@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import {
+  chmodSync,
   existsSync,
   mkdtempSync,
   mkdirSync,
@@ -550,6 +551,56 @@ describe('createScriptUpdater', () => {
     expect(entries(temp, 'mangaverse-staged-')).toHaveLength(0);
     expect(entries(temp, 'mangaverse-update-')).toHaveLength(0);
   });
+
+  it('Given the installer was started and a downloaded listener then throws, When the app disposes, Then the installer keeps its helper and directory', async () => {
+    const { root, temp } = resources();
+    const spawnImpl = spawnStub();
+    const updater = createScriptUpdater({
+      currentVersion: '0.0.4-nightly.20261108.1',
+      resourcesPath: root,
+      tempDir: temp,
+      platform: 'linux',
+      quit: () => updater.dispose?.(),
+      spawnImpl: spawnImpl as never,
+      fetchImpl: fakeGitHub('linux').fetchImpl,
+    });
+    updater.on('update-downloaded', () => {
+      updater.quitAndInstall();
+      throw new Error('listener failed after the handoff');
+    });
+
+    await updater.checkForUpdates();
+    expect(spawnImpl).toHaveBeenCalledTimes(1);
+    const [, args] = spawnImpl.mock.calls[0] as unknown as [string, string[]];
+    expect(existsSync(args[0]!)).toBe(true);
+    expect(existsSync(args.at(-1)!)).toBe(true);
+  });
+
+  it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
+    'Given the directories cannot be removed, When the app disposes, Then it logs and does not throw out of shutdown',
+    async () => {
+      const { root, temp } = resources();
+      const log = vi.fn<(message: string) => void>();
+      const updater = createScriptUpdater({
+        currentVersion: '0.0.4-nightly.20261108.1',
+        resourcesPath: root,
+        tempDir: temp,
+        platform: 'linux',
+        quit: () => {},
+        log,
+        fetchImpl: fakeGitHub('linux').fetchImpl,
+      });
+      await updater.checkForUpdates();
+
+      // A read-only parent: removing the entries inside it fails (EACCES).
+      chmodSync(temp, 0o500);
+      expect(() => updater.dispose?.()).not.toThrow();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      chmodSync(temp, 0o700);
+
+      expect(log.mock.calls.some(([message]) => message.includes('could not remove'))).toBe(true);
+    },
+  );
 
   it('Given Windows, When installing, Then the staged directory and the custom install directory go to the PowerShell helper', async () => {
     const base = mkdtempSync(join(tmpdir(), 'mangaverse-updater-win-'));

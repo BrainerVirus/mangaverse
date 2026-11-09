@@ -136,6 +136,20 @@ export function createScriptUpdater(options: ScriptUpdaterOptions): UpdaterLike 
   let disposed = false;
   const stallTimeoutMs = options.stallTimeoutMs ?? STALL_TIMEOUT_MS;
 
+  // Cleanup never throws: a failure (a permission error, a Windows lock that outlasts the retries)
+  // is logged, because it must not interrupt shutdown or wedge a check. The removal runs inside a
+  // promise executor, so it is still synchronous but a throw becomes a handled rejection (the repo
+  // bans try/catch). The aborted download may still be closing its file, which makes a removal race
+  // with it (ENOTEMPTY); retry briefly.
+  const logCleanupFailure = (path: string, error: unknown): void =>
+    log(`could not remove ${path}: ${error instanceof Error ? error.message : String(error)}`);
+  const remove = (path: string): void => {
+    void new Promise<void>((resolve) => {
+      rmSync(path, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
+      resolve();
+    }).catch((error: unknown) => logCleanupFailure(path, error));
+  };
+
   const helperName = platform === 'win32' ? 'install.ps1' : 'install.sh';
   // The installer replaces (and on macOS deletes) the app bundle it came from, so it runs
   // from a fresh 0700 directory: a shell cannot keep reading a script whose file was removed,
@@ -197,7 +211,11 @@ export function createScriptUpdater(options: ScriptUpdaterOptions): UpdaterLike 
   const discardDownload = async (): Promise<void> => {
     const dir = stagedDir;
     stagedDir = null;
-    if (dir !== null) await rm(dir, { recursive: true, force: true });
+    if (dir !== null) {
+      await rm(dir, { recursive: true, force: true }).catch((error: unknown) =>
+        logCleanupFailure(dir, error),
+      );
+    }
   };
 
   /**
@@ -317,8 +335,9 @@ export function createScriptUpdater(options: ScriptUpdaterOptions): UpdaterLike 
         // After the handoff the installer owns the staged directory: an error here must not remove it.
         if (!handedOff) await discardDownload();
         // A disposed updater says nothing, and a helper copy that finished after dispose goes too.
-        if (disposed && stagedScript !== null) {
-          rmSync(dirname(stagedScript), { recursive: true, force: true });
+        // After a handoff the helper is the installer's, even if a listener threw afterwards.
+        if (disposed && !handedOff && stagedScript !== null) {
+          remove(dirname(stagedScript));
           stagedScript = null;
         }
         if (!disposed) emit('error', error instanceof Error ? error : new Error(String(error)));
@@ -379,10 +398,6 @@ export function createScriptUpdater(options: ScriptUpdaterOptions): UpdaterLike 
       disposed = true;
       current?.abort(new Error('updater disposed'));
       if (handedOff) return;
-      // The aborted download is still closing its file while this runs, and a file opened in the
-      // meantime makes the removal race with it (ENOTEMPTY); retry briefly instead of failing shutdown.
-      const remove = (path: string): void =>
-        rmSync(path, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
       if (stagedDir !== null) remove(stagedDir);
       if (stagedScript !== null) remove(dirname(stagedScript));
       stagedDir = null;
