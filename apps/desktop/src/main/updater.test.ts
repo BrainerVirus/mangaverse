@@ -418,6 +418,30 @@ describe('the update state', () => {
     expect(ctx.send).not.toHaveBeenCalled();
   });
 
+  it('Given an error after the restart began, Then a later release can still be installed', async () => {
+    const ctx = setup();
+    ctx.updater.emit('update-downloaded', { version: '1.2.0' });
+    await ctx.invoke(PLATFORM_IPC.UPDATE_INSTALL, sender);
+    expect(ctx.updater.quitAndInstall).toHaveBeenCalledTimes(1);
+    ctx.updater.emit('error', new Error('GitHub returned 503'));
+
+    ctx.updater.emit('update-downloaded', { version: '1.3.0' });
+    await ctx.invoke(PLATFORM_IPC.UPDATE_INSTALL, sender);
+    expect(ctx.updater.quitAndInstall).toHaveBeenCalledTimes(2);
+  });
+
+  it('Given the updater is stopped, When a reader leaves, Then nothing is prompted or installed', async () => {
+    const ctx = setup();
+    const reader = new FakeSender(2);
+    reading(ctx, reader, true);
+    ctx.updater.emit('update-downloaded', { version: '1.2.0' });
+    ctx.handle.stop();
+    // The window's own listener outlives stop(); the IPC handlers do not.
+    reader.emit('destroyed');
+    expect(ctx.send).not.toHaveBeenCalled();
+    expect(ctx.updater.quitAndInstall).not.toHaveBeenCalled();
+  });
+
   it('Given a queued install, When the updater fails, Then the install is cancelled and prompts work again', async () => {
     const ctx = setup();
     const reader = new FakeSender(2);

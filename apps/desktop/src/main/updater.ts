@@ -167,6 +167,8 @@ export function registerAutoUpdate(options: RegisterAutoUpdateOptions): AutoUpda
   };
 
   const setReaderCount = () => {
+    // A window's listeners outlive stop(); after it nothing may prompt or install.
+    if (stopped) return;
     // Once the install is accepted a deferred prompt would only flash before the restart.
     if (!accepted) controller.setReaderCount(readerWindows.size);
     // An install accepted while another window was reading runs once the last reader leaves.
@@ -183,10 +185,12 @@ export function registerAutoUpdate(options: RegisterAutoUpdateOptions): AutoUpda
     onError: (error: Error) => {
       log(`Update failed: ${error.message}`);
       state.failed(error);
-      // A failure cancels an install that was only queued behind a chapter, and the prompt
+      // A failure cancels an accepted install, whether it was queued behind a chapter or the
+      // restart had begun and failed, so a later release can be installed; the prompt
       // controller hears about readers again.
-      if (accepted && !installing) {
+      if (accepted) {
         accepted = false;
+        installing = false;
         controller.setReaderCount(readerWindows.size);
       }
     },
