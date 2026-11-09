@@ -28,7 +28,11 @@ function Grid({ itemsKey, selector }: { itemsKey: string; selector?: string }) {
   );
 }
 
-const revealed = () => (reveal.mock.calls[0]?.[0] as NodeListOf<Element>).length;
+function revealed(): number {
+  const target = reveal.mock.calls[0]?.[0];
+  if (!(target instanceof NodeList)) throw new Error('nothing was revealed');
+  return target.length;
+}
 
 describe('useGridStaggerReveal', () => {
   beforeEach(() => {
