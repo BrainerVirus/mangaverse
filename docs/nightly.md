@@ -63,8 +63,12 @@ custom `-InstallDir` needs the same flag.
 
 `--staged DIR` (`-Staged DIR` on Windows) installs a release the app already downloaded: DIR holds the
 asset and `SHA256SUMS`, and the same checksum check decides whether it installs, so a staged file is no
-more trusted than a downloaded one. The app uses it to show real download progress. The script removes
-DIR afterwards only if its name starts with `mangaverse-staged-`; any other directory is left alone.
+more trusted than a downloaded one. The app uses it to show real download progress. The script accepts
+only a directory the app made: it resolves the path first (so `..` and links cannot rename it), requires
+the name to start with `mangaverse-staged-`, and on macOS and Linux that it is yours and not writable by
+others. It copies the two files into its own private temporary directory and verifies and installs that
+copy, so nothing can change them between the check and the install. It removes DIR afterwards, and
+only a directory that passed those checks.
 
 ## In-app nightly updates
 

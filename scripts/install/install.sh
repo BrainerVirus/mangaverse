@@ -9,6 +9,7 @@ CHANNEL_SET=0
 ACTION="install"
 VERSION=""
 STAGED=""
+STAGED_SET=0
 INSTALL_DIR=""
 PURGE=0
 DRY_RUN=0
@@ -38,7 +39,7 @@ while [ "$#" -gt 0 ]; do
     status) ACTION="status" ;;
     --channel) CHANNEL="${2:-}"; CHANNEL_SET=1; shift ;;
     --version) VERSION="${2:-}"; shift ;;
-    --staged) STAGED="${2:-}"; shift ;;
+    --staged) STAGED="${2:-}"; STAGED_SET=1; shift ;;
     --dir) INSTALL_DIR="${2:-}"; shift ;;
     --purge-data|--purge) PURGE=1 ;;
     --dry-run) DRY_RUN=1 ;;
@@ -167,29 +168,42 @@ say "  wrapper: $WRAPPER"
 [ "$DRY_RUN" -eq 1 ] && { say "Dry run: nothing downloaded or written."; exit 0; }
 
 TMP=$(mktemp -d "${TMPDIR:-/tmp}/mangaverse-install.XXXXXX")
-# An update the app downloaded itself (to show real progress) arrives in a directory the app made;
-# only that kind of directory is removed afterwards, so a mistaken --staged path is never deleted.
+# Only a directory validated below is ever removed (STAGED_CLEAN), so a rejected or odd --staged
+# path can never be deleted.
+STAGED_CLEAN=""
 cleanup() {
   rm -rf "$TMP"
-  case "$STAGED" in
-    */mangaverse-staged-*) rm -rf "$STAGED" ;;
-  esac
+  [ -z "$STAGED_CLEAN" ] || rm -rf "$STAGED_CLEAN"
 }
 trap cleanup EXIT HUP INT TERM
 
-if [ -n "$STAGED" ]; then
-  [ -f "$STAGED/$ASSET" ] || die "staged directory has no $ASSET"
-  [ -f "$STAGED/SHA256SUMS" ] || die "staged directory has no SHA256SUMS"
-  SRC="$STAGED"
+if [ "$STAGED_SET" -eq 1 ]; then
+  # The app downloaded these itself (to show real progress). Accept only a directory it made: resolved
+  # to its real path first (so ../ and symlinks cannot rename it), named mangaverse-staged-*, owned by
+  # this user and not writable by anyone else, holding regular files. Then copy into this script's own
+  # private directory and verify that copy, so nothing can change the bytes between check and install.
+  [ -n "$STAGED" ] || die "--staged needs a directory"
+  STAGED=$(cd -P -- "$STAGED" 2>/dev/null && pwd -P) || die "staged directory not found"
+  case "$(basename "$STAGED")" in
+    mangaverse-staged-*) ;;
+    *) die "staged directory must be one the app created (mangaverse-staged-*)" ;;
+  esac
+  [ -O "$STAGED" ] || die "staged directory is not owned by you"
+  [ -z "$(find "$STAGED" -maxdepth 0 \( -perm -020 -o -perm -002 \) 2>/dev/null)" ] || die "staged directory is writable by others"
+  for name in "$ASSET" SHA256SUMS; do
+    [ -f "$STAGED/$name" ] && [ ! -L "$STAGED/$name" ] || die "staged $name is missing or is a symlink"
+    [ -O "$STAGED/$name" ] || die "staged $name is not owned by you"
+    cp "$STAGED/$name" "$TMP/$name"
+  done
+  STAGED_CLEAN="$STAGED"
 else
   curl -fsSL --proto '=https' --proto-redir '=https' --tlsv1.2 -o "$TMP/$ASSET" "$BASE/$ASSET"
   curl -fsSL --proto '=https' --proto-redir '=https' --tlsv1.2 -o "$TMP/SHA256SUMS" "$BASE/SHA256SUMS"
-  SRC="$TMP"
 fi
+SRC="$TMP"
 # Staged or downloaded, the checksum is what decides whether this installs.
-line=$(grep "  $ASSET\$" "$SRC/SHA256SUMS" | head -1)
-[ -n "$line" ] || die "SHA256SUMS has no entry for $ASSET"
-expected=${line%% *}
+expected=$(awk -v asset="$ASSET" '$2 == asset { print $1; exit }' "$SRC/SHA256SUMS")
+[ -n "$expected" ] || die "SHA256SUMS has no entry for $ASSET"
 if command -v sha256sum >/dev/null 2>&1; then
   actual=$(sha256sum "$SRC/$ASSET" | awk '{print $1}')
 else

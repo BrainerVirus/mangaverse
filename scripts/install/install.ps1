@@ -14,6 +14,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+if ($PSBoundParameters.ContainsKey('Staged') -and -not $Staged) { throw '-Staged needs a directory.' }
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 # A pinned version says which channel it belongs to unless -Channel overrides it.
@@ -103,16 +104,27 @@ if ($DryRun) { Write-Host 'Dry run: nothing downloaded or written.'; return }
 
 $tmp = Join-Path $env:TEMP ("mangaverse-install-" + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $tmp | Out-Null
+# Only a directory validated below is ever removed, so a rejected or odd -Staged path never is.
+$stagedClean = $null
 try {
+  $zip = Join-Path $tmp $asset
+  $sums = Join-Path $tmp 'SHA256SUMS'
   if ($Staged) {
-    # The app downloaded these itself (to show real progress); the checksum below still decides.
-    $zip = Join-Path $Staged $asset
-    $sums = Join-Path $Staged 'SHA256SUMS'
-    if (-not (Test-Path $zip)) { throw "Staged directory has no $asset" }
-    if (-not (Test-Path $sums)) { throw 'Staged directory has no SHA256SUMS' }
+    # The app downloaded these itself (to show real progress). Accept only a directory it made:
+    # resolved first (so .. cannot rename it), not a link, named mangaverse-staged-*. Then copy into
+    # this script's own temp directory and verify that copy, so nothing can change the bytes
+    # between the check and the install.
+    $resolved = (Resolve-Path -LiteralPath $Staged -ErrorAction Stop).Path.TrimEnd('\')
+    if ((Get-Item -LiteralPath $resolved -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Staged directory is a link.' }
+    if ((Split-Path -Leaf $resolved) -notlike 'mangaverse-staged-*') { throw 'Staged directory must be one the app created (mangaverse-staged-*).' }
+    foreach ($name in @($asset, 'SHA256SUMS')) {
+      $from = Join-Path $resolved $name
+      if (-not (Test-Path -LiteralPath $from -PathType Leaf)) { throw "Staged $name is missing." }
+      if ((Get-Item -LiteralPath $from -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Staged $name is a link." }
+      Copy-Item -LiteralPath $from -Destination (Join-Path $tmp $name)
+    }
+    $stagedClean = $resolved
   } else {
-    $zip = Join-Path $tmp $asset
-    $sums = Join-Path $tmp 'SHA256SUMS'
     Invoke-WebRequest -UseBasicParsing -Uri "$base/$asset" -OutFile $zip
     Invoke-WebRequest -UseBasicParsing -Uri "$base/SHA256SUMS" -OutFile $sums
   }
@@ -143,8 +155,5 @@ try {
   if (-not $NoLaunch) { Start-Process $AppPath }
 } finally {
   Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
-  # Only a directory the app made is removed, so a mistaken -Staged path is never deleted.
-  if ($Staged -and (Split-Path -Leaf $Staged) -like 'mangaverse-staged-*') {
-    Remove-Item -Recurse -Force $Staged -ErrorAction SilentlyContinue
-  }
+  if ($stagedClean) { Remove-Item -Recurse -Force -LiteralPath $stagedClean -ErrorAction SilentlyContinue }
 }

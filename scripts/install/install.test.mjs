@@ -11,6 +11,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -84,19 +85,22 @@ cp "${fixtures}/$(basename "$url")" "$out"
     mkdirSync(dir);
     writeFileSync(join(dir, ASSET), readFileSync(join(fixtures, ASSET)));
     writeFileSync(join(dir, "SHA256SUMS"), readFileSync(join(fixtures, "SHA256SUMS")));
+    chmodSync(dir, 0o700);
     mutate?.(dir);
     return dir;
   }
 
-  function run(args) {
+  function run(args, { env = {}, cwd } = {}) {
     home = mkdtempSync(join(root, "home-"));
     writeFileSync(curlLog, "");
     const result = spawnSync("sh", [SCRIPT, ...args, "--no-launch"], {
       encoding: "utf8",
+      ...(cwd === undefined ? {} : { cwd }),
       env: {
         PATH: `${shim}:${process.env.PATH}`,
         HOME: home,
         TMPDIR: root,
+        ...env,
         ...(process.platform === "linux" ? { XDG_DATA_HOME: join(home, ".local/share") } : {}),
       },
     });
@@ -104,7 +108,16 @@ cp "${fixtures}/$(basename "$url")" "$out"
       encoding: "utf8",
       env: { HOME: home, PATH: process.env.PATH },
     });
+    const appPath = /^app_path=(.*)$/m.exec(status.stdout)?.[1];
+    const binary =
+      appPath === undefined
+        ? undefined
+        : DARWIN
+          ? join(appPath, "Contents/MacOS/MangaVerse")
+          : appPath;
     return {
+      installedContent:
+        binary !== undefined && existsSync(binary) ? readFileSync(binary, "utf8") : undefined,
       code: result.status,
       stderr: result.stderr,
       installed: /version=/.test(status.stdout) && status.stdout.includes(`version=${VERSION}`),
@@ -136,15 +149,91 @@ cp "${fixtures}/$(basename "$url")" "$out"
     const dir = stage("mangaverse-staged-nosums", (d) => rmSync(join(d, "SHA256SUMS")));
     const result = run(["update", "--version", VERSION, "--staged", dir]);
     assert.notEqual(result.code, 0);
-    assert.match(result.stderr, /no SHA256SUMS/);
+    assert.match(result.stderr, /SHA256SUMS is missing/);
     assert.equal(result.installed, false);
   });
 
-  it("Given a staged directory the app did not name, When installing, Then it installs and the directory is left alone", () => {
+  it("Given a staged directory the app did not name, When installing, Then it is refused and left alone", () => {
     const dir = stage("somebody-elses-dir");
     const result = run(["update", "--version", VERSION, "--staged", dir]);
-    assert.equal(result.code, 0, result.stderr);
+    assert.notEqual(result.code, 0);
+    assert.match(result.stderr, /one the app created/);
+    assert.equal(result.installed, false);
     assert.equal(existsSync(join(dir, ASSET)), true);
+  });
+
+  it("Given a path that only looks like a staged directory through .., When installing, Then the real target is refused and never deleted", () => {
+    const decoy = stage("mangaverse-staged-decoy");
+    const victim = join(root, "victim");
+    mkdirSync(victim);
+    writeFileSync(join(victim, "keep.txt"), "mine");
+    const result = run(["update", "--version", VERSION, "--staged", `${decoy}/../victim`]);
+    assert.notEqual(result.code, 0);
+    assert.equal(existsSync(join(victim, "keep.txt")), true);
+    assert.equal(existsSync(decoy), true);
+  });
+
+  it("Given a relative path to a staged directory, When installing, Then it installs and that directory is removed", () => {
+    const dir = stage("mangaverse-staged-relative");
+    const result = run(["update", "--version", VERSION, "--staged", "mangaverse-staged-relative"], {
+      cwd: root,
+    });
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(existsSync(dir), false);
+  });
+
+  it("Given an empty --staged value, When installing, Then it is refused instead of falling back to a download", () => {
+    const result = run(["update", "--version", VERSION, "--staged", ""]);
+    assert.notEqual(result.code, 0);
+    assert.match(result.stderr, /needs a directory/);
+    assert.deepEqual(result.curlCalls, []);
+  });
+
+  it("Given a staged asset that is a symlink, When installing, Then it is refused", () => {
+    const dir = stage("mangaverse-staged-link", (d) => {
+      rmSync(join(d, ASSET));
+      symlinkSync(join(fixtures, ASSET), join(d, ASSET));
+    });
+    const result = run(["update", "--version", VERSION, "--staged", dir]);
+    assert.notEqual(result.code, 0);
+    assert.match(result.stderr, /symlink/);
+    assert.equal(result.installed, false);
+  });
+
+  it("Given a staged directory other users can write to, When installing, Then it is refused", () => {
+    const dir = stage("mangaverse-staged-open", (d) => chmodSync(d, 0o777));
+    const result = run(["update", "--version", VERSION, "--staged", dir]);
+    assert.notEqual(result.code, 0);
+    assert.match(result.stderr, /writable by others/);
+    assert.equal(result.installed, false);
+  });
+
+  it("Given the staged asset is swapped right after it is hashed, When installing, Then the bytes that were checked are the ones installed", () => {
+    const dir = stage("mangaverse-staged-race");
+    // A hashing shim that runs the real tool, then replaces the staged asset: what an attacker would
+    // do. Whichever of sha256sum and shasum the script picks on this machine is shimmed.
+    const shimmed = ["sha256sum", "shasum"].flatMap((tool) => {
+      const real = spawnSync("sh", ["-c", `command -v ${tool}`], {
+        encoding: "utf8",
+      }).stdout.trim();
+      if (real === "") return [];
+      writeFileSync(
+        join(shim, tool),
+        `#!/bin/sh\n"${real}" "$@"\nrc=$?\n[ -z "\${RACE_TARGET:-}" ] || printf tampered > "$RACE_TARGET"\nexit $rc\n`,
+      );
+      chmodSync(join(shim, tool), 0o755);
+      return [tool];
+    });
+    assert.notEqual(shimmed.length, 0, "no hashing tool to shim");
+    try {
+      const result = run(["update", "--version", VERSION, "--staged", dir], {
+        env: { RACE_TARGET: join(dir, ASSET) },
+      });
+      assert.equal(result.code, 0, result.stderr);
+      assert.equal(result.installedContent, "#!/bin/sh\nexit 0\n");
+    } finally {
+      for (const tool of shimmed) rmSync(join(shim, tool), { force: true });
+    }
   });
 
   it("Given no --staged, When installing, Then the asset and SHA256SUMS are still downloaded and verified as before", () => {
