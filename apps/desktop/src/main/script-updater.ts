@@ -8,15 +8,18 @@
  */
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { once } from 'node:events';
 import { createWriteStream, existsSync, rmSync } from 'node:fs';
 import { chmod, copyFile, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, posix as pathPosix, win32 as pathWin32 } from 'node:path';
+import { Readable, Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import type { UpdateProgress, UpdaterLike } from './updater.js';
 import type { UpdateCheckResult } from './update-policy.js';
 
 const REPO = 'BrainerVirus/mangaverse';
+/** A request that gets no answer, or a download that goes quiet, for this long is given up on. */
+const STALL_TIMEOUT_MS = 30_000;
 const NIGHTLY_PATTERN = /^(\d+)\.(\d+)\.(\d+)-nightly\.(\d{8})\.(\d+)$/;
 
 interface NightlyVersion {
@@ -90,6 +93,8 @@ export interface ScriptUpdaterOptions {
   readonly platform?: NodeJS.Platform;
   /** Where the helper script is copied before it runs; tests redirect it. */
   readonly tempDir?: string;
+  /** How long a request or download may be silent before it is abandoned. */
+  readonly stallTimeoutMs?: number;
 }
 
 type Listener = (value: never) => void;
@@ -121,6 +126,11 @@ export function createScriptUpdater(options: ScriptUpdaterOptions): UpdaterLike 
   let stagedDir: string | null = null;
   let handedOff = false;
   let inFlight: Promise<UpdateCheckResult | null> | null = null;
+  // One controller per check: dispose() aborts it, and every await after it checks it, so a
+  // disposed updater neither writes new files nor reports anything.
+  let current: AbortController | null = null;
+  let disposed = false;
+  const stallTimeoutMs = options.stallTimeoutMs ?? STALL_TIMEOUT_MS;
 
   const helperName = platform === 'win32' ? 'install.ps1' : 'install.sh';
   // The installer replaces (and on macOS deletes) the app bundle it came from, so it runs
@@ -139,11 +149,14 @@ export function createScriptUpdater(options: ScriptUpdaterOptions): UpdaterLike 
     return script;
   };
 
-  const checkChannel = async (): Promise<{
+  const checkChannel = async (
+    signal: AbortSignal,
+  ): Promise<{
     readonly version: string;
     readonly tag: string;
   } | null> => {
     const response = await fetchImpl(`https://api.github.com/repos/${REPO}/releases?per_page=30`, {
+      signal,
       headers: {
         Accept: 'application/vnd.github+json',
         'User-Agent': 'MangaVerse-Updater',
@@ -179,22 +192,35 @@ export function createScriptUpdater(options: ScriptUpdaterOptions): UpdaterLike 
     if (dir !== null) await rm(dir, { recursive: true, force: true });
   };
 
-  /** Streams the asset to disk with progress, then checks it against the release's SHA256SUMS. */
-  const download = async (release: { readonly version: string; readonly tag: string }) => {
+  /**
+   * Streams the asset to disk with progress, then checks it against the release's SHA256SUMS.
+   * One `pipeline` carries the body through a hashing meter into the file, so an error anywhere
+   * (network, disk) rejects here instead of escaping, and back-pressure is handled. The idle
+   * watchdog covers the wait for the response and every gap between chunks.
+   */
+  const download = async (
+    release: { readonly version: string; readonly tag: string },
+    abort: AbortController,
+  ) => {
     const base = `https://github.com/${REPO}/releases/download/${release.tag}`;
     const asset = assetFor(release.version);
     const headers = { 'User-Agent': 'MangaVerse-Updater' };
     const dir = await mkdtemp(join(options.tempDir ?? tmpdir(), 'mangaverse-staged-'));
     stagedDir = dir;
+    abort.signal.throwIfAborted();
 
-    const response = await fetchImpl(`${base}/${asset}`, { headers });
-    if (!response.ok || response.body === null) {
-      throw new Error(`GitHub returned ${String(response.status)} for ${asset}`);
-    }
-    const total = Number(response.headers.get('content-length') ?? 0) || 0;
+    let idle: ReturnType<typeof setTimeout> | undefined;
+    const arm = (): void => {
+      clearTimeout(idle);
+      idle = setTimeout(() => abort.abort(new Error('download stalled')), stallTimeoutMs);
+    };
+    const stalled = (error: unknown): unknown =>
+      abort.signal.aborted && abort.signal.reason instanceof Error ? abort.signal.reason : error;
+
+    arm();
     const hash = createHash('sha256');
-    const file = createWriteStream(join(dir, asset), { mode: 0o600 });
     let transferred = 0;
+    let total = 0;
     let lastPercent = -1;
     const report = (percent: number): void => {
       if (percent === lastPercent) return;
@@ -206,18 +232,37 @@ export function createScriptUpdater(options: ScriptUpdaterOptions): UpdaterLike 
       };
       emit('download-progress', progress);
     };
-    for await (const chunk of response.body as unknown as AsyncIterable<Uint8Array>) {
-      hash.update(chunk);
-      if (!file.write(chunk)) await once(file, 'drain');
-      transferred += chunk.byteLength;
-      report(total > 0 ? Math.min(99, Math.floor((transferred / total) * 100)) : 0);
-    }
-    await new Promise<void>((resolve, reject) => {
-      file.once('error', reject);
-      file.end(resolve);
+    const meter = new Transform({
+      transform(chunk: Buffer, _encoding, callback) {
+        arm();
+        hash.update(chunk);
+        transferred += chunk.byteLength;
+        report(total > 0 ? Math.min(99, Math.floor((transferred / total) * 100)) : 0);
+        callback(null, chunk);
+      },
     });
+    await fetchImpl(`${base}/${asset}`, { headers, signal: abort.signal })
+      .then((response) => {
+        if (!response.ok || response.body === null) {
+          throw new Error(`GitHub returned ${String(response.status)} for ${asset}`);
+        }
+        total = Number(response.headers.get('content-length') ?? 0) || 0;
+        return pipeline(
+          Readable.fromWeb(response.body as never),
+          meter,
+          createWriteStream(join(dir, asset), { mode: 0o600 }),
+          { signal: abort.signal },
+        );
+      })
+      .catch((error: unknown) => {
+        throw stalled(error);
+      })
+      .finally(() => clearTimeout(idle));
 
-    const sums = await fetchImpl(`${base}/SHA256SUMS`, { headers });
+    const sums = await fetchImpl(`${base}/SHA256SUMS`, {
+      headers,
+      signal: AbortSignal.any([abort.signal, AbortSignal.timeout(stallTimeoutMs)]),
+    });
     if (!sums.ok) throw new Error(`GitHub returned ${String(sums.status)} for SHA256SUMS`);
     const sumsText = await sums.text();
     const expected = sumsText
@@ -229,32 +274,44 @@ export function createScriptUpdater(options: ScriptUpdaterOptions): UpdaterLike 
       throw new Error(`checksum mismatch for ${asset}`);
     }
     await writeFile(join(dir, 'SHA256SUMS'), sumsText, { mode: 0o600 });
+    abort.signal.throwIfAborted();
     report(100);
   };
 
   const check = (): Promise<UpdateCheckResult | null> => {
+    if (disposed) return Promise.resolve(null);
     if (inFlight !== null) return inFlight;
-    inFlight = checkChannel()
+    const abort = new AbortController();
+    current = abort;
+    inFlight = checkChannel(AbortSignal.any([abort.signal, AbortSignal.timeout(stallTimeoutMs)]))
       .then(async (found) => {
         if (found === null) return null;
         // The same release is already on disk and waiting.
         if (pending?.tag === found.tag && stagedDir !== null) return { downloadPromise: null };
         pending = null;
         await discardDownload();
-        stagedScript = await stageHelper();
+        // One helper copy serves every release this session: a newer one must not strand the last.
+        stagedScript ??= await stageHelper();
+        abort.signal.throwIfAborted();
         emit('update-available', { version: found.version });
-        await download(found);
+        await download(found, abort);
         pending = found;
         emit('update-downloaded', { version: found.version });
         return { downloadPromise: null };
       })
       .catch(async (error: unknown) => {
         await discardDownload();
-        emit('error', error instanceof Error ? error : new Error(String(error)));
+        // A disposed updater says nothing, and a helper copy that finished after dispose goes too.
+        if (disposed && stagedScript !== null) {
+          rmSync(dirname(stagedScript), { recursive: true, force: true });
+          stagedScript = null;
+        }
+        if (!disposed) emit('error', error instanceof Error ? error : new Error(String(error)));
         return null;
       })
       .finally(() => {
         inFlight = null;
+        current = null;
       });
     return inFlight;
   };
@@ -303,6 +360,8 @@ export function createScriptUpdater(options: ScriptUpdaterOptions): UpdaterLike 
     dispose() {
       // After the handoff the installer owns both directories; before it, nothing may be left behind.
       if (handedOff) return;
+      disposed = true;
+      current?.abort(new Error('updater disposed'));
       if (stagedDir !== null) rmSync(stagedDir, { recursive: true, force: true });
       if (stagedScript !== null) rmSync(dirname(stagedScript), { recursive: true, force: true });
       stagedDir = null;

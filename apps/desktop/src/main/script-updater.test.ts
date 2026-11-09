@@ -76,44 +76,93 @@ const ASSET_BYTES = Buffer.from('release-bytes-'.repeat(1000));
 const TAG = 'v0.0.4-nightly.20261108.2';
 const VERSION = TAG.slice(1);
 const sha256 = (bytes: Buffer): string => createHash('sha256').update(bytes).digest('hex');
+const assetName = (platform: 'linux' | 'win32' | 'darwin', version: string) =>
+  platform === 'linux'
+    ? `MangaVerse-${version}-x86_64.AppImage`
+    : platform === 'win32'
+      ? `MangaVerse-${version}-x64.zip`
+      : `MangaVerse-${version}-arm64.zip`;
 const ASSETS = {
-  linux: `MangaVerse-${VERSION}-x86_64.AppImage`,
-  win32: `MangaVerse-${VERSION}-x64.zip`,
-  darwin: `MangaVerse-${VERSION}-arm64.zip`,
+  linux: assetName('linux', VERSION),
+  win32: assetName('win32', VERSION),
+  darwin: assetName('darwin', VERSION),
 } as const;
 
-/** GitHub as the updater sees it: the release list, the asset as a real stream, and SHA256SUMS. */
+/**
+ * GitHub as the updater sees it: the release list, the asset as a real stream, and SHA256SUMS.
+ * `tags` is the newest release on each successive list call; `body` shapes the asset stream: it
+ * completes, resets after the first chunk, goes silent after it, or waits on `openGate()`.
+ */
 function fakeGitHub(
   platform: keyof typeof ASSETS,
-  options: { releasesStatus?: number; sums?: string } = {},
+  options: {
+    releasesStatus?: number;
+    sums?: string;
+    tags?: string[];
+    body?: 'ok' | 'reset' | 'stall' | 'gate';
+  } = {},
 ) {
   const asset = ASSETS[platform];
   const urls: string[] = [];
+  const tags = options.tags ?? [TAG];
+  let listCalls = 0;
+  let openGate: () => void = () => {};
+  let cancelled = false;
+  const chunks = [0, 1, 2, 3].map((i) => ASSET_BYTES.subarray(i * 3500, (i + 1) * 3500));
   const fetchImpl = (async (input: string) => {
     urls.push(input);
     if (input.includes('api.github.com')) {
-      return new Response(JSON.stringify([nightlyRelease(TAG)]), {
+      const tag = tags[Math.min(listCalls, tags.length - 1)]!;
+      listCalls += 1;
+      return new Response(JSON.stringify([nightlyRelease(tag)]), {
         status: options.releasesStatus ?? 200,
       });
     }
-    if (input.endsWith(`/${asset}`)) {
-      const chunks = [0, 1, 2, 3].map((i) => ASSET_BYTES.subarray(i * 3500, (i + 1) * 3500));
+    if (input.endsWith('/SHA256SUMS')) {
+      const tag = /download\/(v[^/]+)\//.exec(input)![1]!;
+      return new Response(
+        options.sums ?? `${sha256(ASSET_BYTES)}  ${assetName(platform, tag.slice(1))}\n`,
+      );
+    }
+    const download = /\/releases\/download\/(v[^/]+)\/(.+)$/.exec(input);
+    if (download !== null && download[2] === assetName(platform, download[1]!.slice(1))) {
       return new Response(
         new ReadableStream({
           start(controller) {
-            for (const chunk of chunks) controller.enqueue(chunk);
-            controller.close();
+            controller.enqueue(chunks[0]);
+            if (options.body === 'reset') {
+              controller.error(new Error('connection reset'));
+            } else if (options.body === 'stall') {
+              // Never closes: a connection that went quiet.
+            } else if (options.body === 'gate') {
+              return new Promise<void>((resolve) => {
+                openGate = () => {
+                  // A consumer that gave up has cancelled the stream by now; that is not an error here.
+                  try {
+                    for (const chunk of chunks.slice(1)) controller.enqueue(chunk);
+                    controller.close();
+                  } catch {
+                    // cancelled
+                  }
+                  resolve();
+                };
+              });
+            } else {
+              for (const chunk of chunks.slice(1)) controller.enqueue(chunk);
+              controller.close();
+            }
+            return undefined;
+          },
+          cancel() {
+            cancelled = true;
           },
         }),
         { headers: { 'content-length': String(ASSET_BYTES.length) } },
       );
     }
-    if (input.endsWith('/SHA256SUMS')) {
-      return new Response(options.sums ?? `${sha256(ASSET_BYTES)}  ${asset}\n`);
-    }
     return new Response('not found', { status: 404 });
   }) as never;
-  return { fetchImpl, urls, asset };
+  return { fetchImpl, urls, asset, openGate: () => openGate(), wasCancelled: () => cancelled };
 }
 
 describe('createScriptUpdater', () => {
@@ -234,6 +283,122 @@ describe('createScriptUpdater', () => {
     await updater.checkForUpdates();
     expect(github.urls.filter((url) => url.endsWith(`/${github.asset}`))).toHaveLength(1);
     expect(entries(temp, 'mangaverse-staged-')).toHaveLength(1);
+  });
+
+  it('Given the download is cut mid-stream, When checking, Then it reports the error, cleans up, and the next check can succeed', async () => {
+    const { root, temp } = resources();
+    const error = vi.fn<(value: Error) => void>();
+    let broken = true;
+    const good = fakeGitHub('linux');
+    const bad = fakeGitHub('linux', { body: 'reset' });
+    const updater = createScriptUpdater({
+      currentVersion: '0.0.4-nightly.20261108.1',
+      resourcesPath: root,
+      tempDir: temp,
+      platform: 'linux',
+      quit: () => {},
+      fetchImpl: ((input: string, init: unknown) =>
+        (broken ? bad : good).fetchImpl(input, init)) as never,
+    });
+    updater.on('error', error);
+
+    expect(await updater.checkForUpdates()).toBeNull();
+    expect(error.mock.calls[0]?.[0]?.message).toContain('connection reset');
+    expect(entries(temp, 'mangaverse-staged-')).toHaveLength(0);
+
+    broken = false;
+    const downloaded = vi.fn<(info: { version: string }) => void>();
+    updater.on('update-downloaded', downloaded);
+    await updater.checkForUpdates();
+    expect(downloaded).toHaveBeenCalledWith({ version: VERSION });
+  });
+
+  it('Given a download that goes silent, When the stall timeout passes, Then it is abandoned, cleaned up, and later checks are not blocked', async () => {
+    const { root, temp } = resources();
+    const error = vi.fn<(value: Error) => void>();
+    let stalling = true;
+    const good = fakeGitHub('linux');
+    const hung = fakeGitHub('linux', { body: 'stall' });
+    const updater = createScriptUpdater({
+      currentVersion: '0.0.4-nightly.20261108.1',
+      resourcesPath: root,
+      tempDir: temp,
+      platform: 'linux',
+      stallTimeoutMs: 60,
+      quit: () => {},
+      fetchImpl: ((input: string, init: unknown) =>
+        (stalling ? hung : good).fetchImpl(input, init)) as never,
+    });
+    updater.on('error', error);
+
+    expect(await updater.checkForUpdates()).toBeNull();
+    expect(error.mock.calls[0]?.[0]?.message).toContain('stalled');
+    expect(entries(temp, 'mangaverse-staged-')).toHaveLength(0);
+
+    stalling = false;
+    const downloaded = vi.fn<(info: { version: string }) => void>();
+    updater.on('update-downloaded', downloaded);
+    await updater.checkForUpdates();
+    expect(downloaded).toHaveBeenCalledTimes(1);
+  });
+
+  it('Given a download in progress, When the updater is disposed, Then it stops quietly and nothing is written or left behind', async () => {
+    const { root, temp } = resources();
+    const github = fakeGitHub('linux', { body: 'gate' });
+    const error = vi.fn<(value: Error) => void>();
+    const downloaded = vi.fn<(info: { version: string }) => void>();
+    const updater = createScriptUpdater({
+      currentVersion: '0.0.4-nightly.20261108.1',
+      resourcesPath: root,
+      tempDir: temp,
+      platform: 'linux',
+      quit: () => {},
+      fetchImpl: github.fetchImpl,
+    });
+    updater.on('error', error);
+    updater.on('update-downloaded', downloaded);
+    const firstChunk = new Promise<void>((resolve) =>
+      updater.on('download-progress', () => resolve()),
+    );
+
+    const check = updater.checkForUpdates();
+    await firstChunk;
+    updater.dispose?.();
+    // Disposing cancels the network stream at once; it does not wait for the response to finish.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(github.wasCancelled()).toBe(true);
+    github.openGate();
+    await check;
+
+    expect(error).not.toHaveBeenCalled();
+    expect(downloaded).not.toHaveBeenCalled();
+    expect(entries(temp, 'mangaverse-staged-')).toHaveLength(0);
+    expect(entries(temp, 'mangaverse-update-')).toHaveLength(0);
+    expect(await updater.checkForUpdates()).toBeNull();
+  });
+
+  it('Given a newer release while an older one is staged, When checking, Then the old download is replaced and only one helper copy exists', async () => {
+    const { root, temp } = resources();
+    const NEWER = 'v0.0.4-nightly.20261108.3';
+    const updater = createScriptUpdater({
+      currentVersion: '0.0.4-nightly.20261108.1',
+      resourcesPath: root,
+      tempDir: temp,
+      platform: 'linux',
+      quit: () => {},
+      fetchImpl: fakeGitHub('linux', { tags: [TAG, NEWER] }).fetchImpl,
+    });
+    const downloaded = vi.fn<(info: { version: string }) => void>();
+    updater.on('update-downloaded', downloaded);
+
+    await updater.checkForUpdates();
+    await updater.checkForUpdates();
+
+    expect(downloaded.mock.calls.map(([info]) => info.version)).toEqual([VERSION, NEWER.slice(1)]);
+    const [stagedName] = entries(temp, 'mangaverse-staged-');
+    expect(entries(temp, 'mangaverse-staged-')).toHaveLength(1);
+    expect(readdirSync(join(temp, stagedName!))).toContain(assetName('linux', NEWER.slice(1)));
+    expect(entries(temp, 'mangaverse-update-')).toHaveLength(1);
   });
 
   it('Given Windows, When installing, Then the staged directory and the custom install directory go to the PowerShell helper', async () => {
