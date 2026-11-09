@@ -17,19 +17,20 @@ export function useGridStaggerReveal(
 ) {
   const gridRef = useRef<HTMLElement>(null);
   const reducedMotion = useReducedMotion();
-  const lastAnimatedKeyRef = useRef<string | null>(null);
+  const lastHandledKeyRef = useRef<string | null>(null);
   const revealRef = useRef<ReturnType<typeof gridStaggerReveal> | null>(null);
 
   useGSAP(
     () => {
       if (!enabled || !gridRef.current) return;
       // Reduced motion also lands here when it turns on mid-reveal: the items must show at once.
-      if (!reducedMotion && lastAnimatedKeyRef.current === itemsKey) return;
+      if (!reducedMotion && lastHandledKeyRef.current === itemsKey) return;
 
       const cards = gridRef.current.querySelectorAll(selector);
       if (cards.length === 0) return;
 
-      if (!reducedMotion) lastAnimatedKeyRef.current = itemsKey;
+      // A set shown at once under reduced motion is handled too: turning motion back on must not replay it.
+      lastHandledKeyRef.current = itemsKey;
       // The tween already running is stopped by handle: killing by target does not reach a stagger.
       const running = revealRef.current;
       if (running !== null)

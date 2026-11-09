@@ -82,4 +82,45 @@ describe('useGridStaggerReveal', () => {
     // The running tween is stopped through its handle, or it would keep stepping after the snap.
     expect(kill).toHaveBeenCalledTimes(1);
   });
+
+  it('Given a set shown under reduced motion, When reduced motion turns off, Then it is not replayed', () => {
+    reduced.mockReturnValue(true);
+    const { rerender } = render(<Grid itemsKey="a,b,c" selector=":scope > *" />);
+    reduced.mockReturnValue(false);
+    rerender(<Grid itemsKey="a,b,c" selector=":scope > *" />);
+    expect(reveal).toHaveBeenCalledTimes(1);
+  });
+
+  it('Given reduced motion toggled on then off mid-reveal, Then the end state shows once and nothing restarts', () => {
+    const { rerender } = render(<Grid itemsKey="a,b,c" selector=":scope > *" />);
+    reduced.mockReturnValue(true);
+    rerender(<Grid itemsKey="a,b,c" selector=":scope > *" />);
+    reduced.mockReturnValue(false);
+    rerender(<Grid itemsKey="a,b,c" selector=":scope > *" />);
+    expect(reveal.mock.calls.map((call) => call[1])).toEqual([
+      { reducedMotion: false },
+      { reducedMotion: true },
+    ]);
+    expect(kill).toHaveBeenCalledTimes(1);
+  });
+
+  it('Given a new set after reduced motion is off, Then it animates', () => {
+    reduced.mockReturnValue(true);
+    const { rerender } = render(<Grid itemsKey="a,b,c" selector=":scope > *" />);
+    reduced.mockReturnValue(false);
+    rerender(<Grid itemsKey="a,b,c,d" selector=":scope > *" />);
+    expect(reveal.mock.calls[1]?.[1]).toEqual({ reducedMotion: false });
+  });
+
+  it('Given a new set while reduced motion is on, When it turns off, Then the set is shown at once and not replayed', () => {
+    const { rerender } = render(<Grid itemsKey="a,b,c" selector=":scope > *" />);
+    reduced.mockReturnValue(true);
+    rerender(<Grid itemsKey="a,b" selector=":scope > *" />);
+    reduced.mockReturnValue(false);
+    rerender(<Grid itemsKey="a,b" selector=":scope > *" />);
+    expect(reveal.mock.calls.map((call) => call[1])).toEqual([
+      { reducedMotion: false },
+      { reducedMotion: true },
+    ]);
+  });
 });
