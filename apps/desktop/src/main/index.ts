@@ -50,7 +50,7 @@ import { resizePageForDisplay } from './page-display.js';
 import { registerPageStoreIpc } from './page-store-ipc.js';
 import { createRendererImportStore, registerRendererImportIpc } from './renderer-import.js';
 import { createSecureStorageModel } from './secure-storage.js';
-import { registerAutoUpdate } from './updater.js';
+import { quietLog, registerAutoUpdate } from './updater.js';
 import { createScriptUpdater, hasScriptInstall } from './script-updater.js';
 import {
   buildContentSecurityPolicy,
@@ -364,6 +364,7 @@ void app.whenReady().then(async () => {
             currentVersion: app.getVersion(),
             resourcesPath: process.resourcesPath,
             quit: () => app.quit(),
+            log: quietLog,
           })
         : undefined;
     const updater = registerAutoUpdate({
