@@ -25,6 +25,8 @@ export function gridStaggerReveal(
       duration: DURATION.standard / 1000,
       ease: EASING.softEntrance,
       stagger: DURATION.micro / 1000,
+      // A new result set can arrive mid-reveal: the older tween on the same cards must not fight it.
+      overwrite: 'auto',
       ...tweenVars,
     },
   );
