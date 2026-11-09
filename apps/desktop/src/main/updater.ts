@@ -84,7 +84,8 @@ export interface AutoUpdateHandle {
   stop(): void;
 }
 
-function quietLog(message: string): void {
+/** The updater's log line (also given to the script updater): main's console is its only record. */
+export function quietLog(message: string): void {
   // oxlint-disable-next-line no-console -- ruling: desktop-updater-log: an update failure has no renderer surface by design (it must never block startup), so main's log is the only record.
   // react-doctor-disable-next-line eslint/no-console -- ruling: desktop-updater-log: an update failure has no renderer surface by design (it must never block startup), so main's log is the only record.
   console.warn(`[updater] ${message}`);

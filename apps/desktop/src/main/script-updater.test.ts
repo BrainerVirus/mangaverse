@@ -592,13 +592,16 @@ describe('createScriptUpdater', () => {
       });
       await updater.checkForUpdates();
 
-      // A read-only parent: removing the entries inside it fails (EACCES).
+      // A read-only parent: removing the entries inside it fails (EACCES). Permissions come back even
+      // if an assertion fails, so the scratch directory can always be cleaned up.
       chmodSync(temp, 0o500);
-      expect(() => updater.dispose?.()).not.toThrow();
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      chmodSync(temp, 0o700);
-
-      expect(log.mock.calls.some(([message]) => message.includes('could not remove'))).toBe(true);
+      try {
+        expect(() => updater.dispose?.()).not.toThrow();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(log.mock.calls.some(([message]) => message.includes('could not remove'))).toBe(true);
+      } finally {
+        chmodSync(temp, 0o700);
+      }
     },
   );
 
