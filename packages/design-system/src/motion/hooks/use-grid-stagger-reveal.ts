@@ -18,17 +18,23 @@ export function useGridStaggerReveal(
   const gridRef = useRef<HTMLElement>(null);
   const reducedMotion = useReducedMotion();
   const lastAnimatedKeyRef = useRef<string | null>(null);
+  const revealRef = useRef<ReturnType<typeof gridStaggerReveal> | null>(null);
 
   useGSAP(
     () => {
-      if (!enabled || !gridRef.current || reducedMotion) return;
-      if (lastAnimatedKeyRef.current === itemsKey) return;
+      if (!enabled || !gridRef.current) return;
+      // Reduced motion also lands here when it turns on mid-reveal: the items must show at once.
+      if (!reducedMotion && lastAnimatedKeyRef.current === itemsKey) return;
 
       const cards = gridRef.current.querySelectorAll(selector);
       if (cards.length === 0) return;
 
-      lastAnimatedKeyRef.current = itemsKey;
-      gridStaggerReveal(cards, { reducedMotion });
+      if (!reducedMotion) lastAnimatedKeyRef.current = itemsKey;
+      // The tween already running is stopped by handle: killing by target does not reach a stagger.
+      const running = revealRef.current;
+      if (running !== null)
+        for (const tween of Array.isArray(running) ? running : [running]) tween.kill();
+      revealRef.current = gridStaggerReveal(cards, { reducedMotion });
     },
     { scope: gridRef, dependencies: [itemsKey, enabled, reducedMotion, selector] },
   );

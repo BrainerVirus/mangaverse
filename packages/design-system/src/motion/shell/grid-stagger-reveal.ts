@@ -13,6 +13,8 @@ export function gridStaggerReveal(
   const { reducedMotion = false, ...tweenVars } = vars ?? {};
 
   if (reducedMotion) {
+    // A reveal already in flight would keep stepping toward its end state; stop it here instead.
+    gsap.killTweensOf(target);
     return gsap.set(target, { y: 0, autoAlpha: 1 });
   }
 

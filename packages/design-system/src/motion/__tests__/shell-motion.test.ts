@@ -11,6 +11,7 @@ vi.mock('gsap', () => ({
     })),
     to: vi.fn<(target: unknown, vars: unknown) => unknown>(() => ({ then: vi.fn<() => void>() })),
     set: vi.fn<(target: unknown, vars: unknown) => unknown>(() => ({ then: vi.fn<() => void>() })),
+    killTweensOf: vi.fn<(target: unknown) => void>(),
     timeline: vi.fn<(vars: unknown) => unknown>(() => ({
       fromTo: vi.fn<(...args: unknown[]) => unknown>().mockReturnThis(),
       to: vi.fn<(...args: unknown[]) => unknown>().mockReturnThis(),
@@ -44,6 +45,7 @@ describe('shell motion helpers', () => {
 
   it('gridStaggerReveal uses gsap.set when reduced motion is enabled', () => {
     gridStaggerReveal('.cards', { reducedMotion: true });
+    expect(gsap.killTweensOf).toHaveBeenCalledWith('.cards');
     expect(gsap.set).toHaveBeenCalledWith('.cards', { y: 0, autoAlpha: 1 });
     expect(gsap.fromTo).not.toHaveBeenCalled();
   });

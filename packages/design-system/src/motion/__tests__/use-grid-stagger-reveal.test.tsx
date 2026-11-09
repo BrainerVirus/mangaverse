@@ -4,7 +4,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from '@testing-library/react';
 
-const reveal = vi.fn<(...args: unknown[]) => void>();
+const kill = vi.fn<() => void>();
+const reveal = vi.fn<(...args: unknown[]) => unknown>();
 const reduced = vi.fn<() => boolean>(() => false);
 
 vi.mock('../shell/grid-stagger-reveal.js', () => ({
@@ -37,6 +38,8 @@ function revealed(): number {
 describe('useGridStaggerReveal', () => {
   beforeEach(() => {
     reveal.mockReset();
+    kill.mockReset();
+    reveal.mockImplementation(() => ({ kill }));
     reduced.mockReturnValue(false);
   });
 
@@ -62,9 +65,21 @@ describe('useGridStaggerReveal', () => {
     expect(reveal).toHaveBeenCalledTimes(2);
   });
 
-  it('Given reduced motion, When the grid mounts, Then nothing animates', () => {
+  it('Given reduced motion, When the grid mounts, Then its items are shown at once, not animated', () => {
     reduced.mockReturnValue(true);
     render(<Grid itemsKey="a,b,c" selector=":scope > *" />);
-    expect(reveal).not.toHaveBeenCalled();
+    expect(reveal).toHaveBeenCalledTimes(1);
+    expect(reveal.mock.calls[0]?.[1]).toEqual({ reducedMotion: true });
+  });
+
+  it('Given a reveal in flight, When reduced motion turns on, Then the items snap to their end state', () => {
+    const { rerender } = render(<Grid itemsKey="a,b,c" selector=":scope > *" />);
+    expect(reveal.mock.calls[0]?.[1]).toEqual({ reducedMotion: false });
+    reduced.mockReturnValue(true);
+    rerender(<Grid itemsKey="a,b,c" selector=":scope > *" />);
+    expect(reveal).toHaveBeenCalledTimes(2);
+    expect(reveal.mock.calls[1]?.[1]).toEqual({ reducedMotion: true });
+    // The running tween is stopped through its handle, or it would keep stepping after the snap.
+    expect(kill).toHaveBeenCalledTimes(1);
   });
 });
