@@ -1,6 +1,6 @@
 # 9. Design - spec
 
-Status: blocked on visual references from the owner.
+Status: concepts approved on 2026-11-09 (#228), based on Apple's liquid glass; see [concepts](concepts/README.md). #229 (DESIGN.md and registry) is next, then #230.
 
 ## Problem
 
@@ -35,9 +35,9 @@ Functional repairs in earlier milestones use existing tokens and need no concept
 - Given light and dark themes, When text sits on any surface, Then it meets WCAG AA contrast.
 - Given reading is active, When nothing is being interacted with, Then nothing moves on screen.
 
-## Needed from the owner
+## Reference
 
-Two or three visual references, showing what to borrow from each.
+Apple's liquid glass is the reference. The approved concepts and what they change are in [concepts](concepts/README.md).
 
 ## Out of scope
 

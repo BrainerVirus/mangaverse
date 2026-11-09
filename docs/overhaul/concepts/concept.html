@@ -1,0 +1,734 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      :root,
+      .light {
+        .light {
+          --background: #f7f5f2;
+          --foreground: #141210;
+          --muted: #ece8e3;
+          --muted-foreground: #69635e;
+          --surface: #ffffff;
+          --surface-raised: #ffffff;
+          --popover: #ffffff;
+          --popover-foreground: #141210;
+          --card: #ffffff;
+          --card-foreground: #141210;
+          --border: #e3ddd4;
+          --input: #e3ddd4;
+          --primary: #1c1917;
+          --primary-foreground: #faf8f5;
+          --secondary: #ece8e3;
+          --secondary-foreground: #1c1917;
+          --accent: #e8e2d9;
+          --accent-foreground: #1c1917;
+          --destructive: #dc2626;
+          --destructive-glass: #b91c1c;
+          --destructive-foreground: #fafafa;
+          --success: #16a34a;
+          --success-glass: #15803d;
+          --warning: #d97706;
+          --warning-glass: #b45309;
+          /* DESIGN.md §3.3 fix: 4.41:1 on the light canvas, 4.80:1 on --surface (WCAG 2.2 needs 3:1). */
+          --ring: #78716c;
+          --reader-background: #faf8f5;
+          --sidebar: #f0ece6;
+          --sidebar-foreground: #141210;
+          --sidebar-border: #e3ddd4;
+          --sidebar-accent: #b5b0a9;
+          --sidebar-accent-foreground: #141210;
+
+          /* DESIGN.md §2.1 — the four glass tiers. */
+          --glass-thin: rgb(255 255 255 / 0.55);
+          --glass-regular: rgb(255 255 255 / 0.68);
+          --glass-thick: rgb(255 255 255 / 0.82);
+          /* §2.2 — the layered-light recipe. */
+          --glass-edge: rgb(255 255 255 / 0.5);
+          --glass-specular: rgb(255 255 255 / 0.7);
+          --glass-inner: inset 0 -1px 0 rgb(0 0 0 / 0.05);
+          --glass-sheen: linear-gradient(180deg, rgb(255 255 255 / 0.22), rgb(255 255 255 / 0) 45%);
+          /* §3.5 — the local fill under text that sits over imagery. */
+          --glass-plate: rgb(255 255 255 / 0.35);
+          /* §3.2 — the only secondary text colour allowed on glass. */
+          --glass-muted-foreground: #57534e;
+          /* §2.3 — the ambient band the shell's glass refracts. */
+          --ambient-1: #efe9e1;
+          --ambient-2: #f7f5f2;
+
+          /* §2.4 — the elevation scale. */
+          --elevation-1: 0 1px 2px rgb(0 0 0 / 0.04);
+          --elevation-2: 0 1px 2px rgb(0 0 0 / 0.05), 0 8px 24px rgb(0 0 0 / 0.08);
+          --elevation-3: 0 2px 4px rgb(0 0 0 / 0.06), 0 16px 40px rgb(0 0 0 / 0.12);
+          --elevation-4: 0 24px 64px rgb(0 0 0 / 0.22);
+        }
+      }
+      :root {
+        --glass-stage: rgb(0 0 0 / 0.78);
+      }
+      .dark {
+        --background: #0c0b0a;
+        --foreground: #f5f2eb;
+        --muted: #1a1816;
+        --muted-foreground: #a8a29e;
+        --surface: #141210;
+        --surface-raised: #1c1917;
+        --popover: #1c1917;
+        --popover-foreground: #f5f2eb;
+        --card: #141210;
+        --card-foreground: #f5f2eb;
+        --border: #2a2724;
+        --input: #2a2724;
+        --primary: #f5f2eb;
+        --primary-foreground: #0c0b0a;
+        --secondary: #1a1816;
+        --secondary-foreground: #f5f2eb;
+        --accent: #262320;
+        --accent-foreground: #f5f2eb;
+        --destructive: #ef4444;
+        --destructive-glass: #ef4444;
+        --destructive-foreground: #fafafa;
+        --success: #22c55e;
+        --success-glass: #22c55e;
+        --warning: #f59e0b;
+        --warning-glass: #f59e0b;
+        /* DESIGN.md §3.3 fix: 7.80:1 on the dark canvas, 7.41:1 on --surface. */
+        --ring: #a8a29e;
+        --reader-background: #0c0b0a;
+        --sidebar: #0f0e0d;
+        --sidebar-foreground: #f5f2eb;
+        --sidebar-border: #2a2724;
+        --sidebar-accent: #585551;
+        --sidebar-accent-foreground: #f5f2eb;
+
+        --glass-thin: rgb(20 18 16 / 0.55);
+        --glass-regular: rgb(20 18 16 / 0.66);
+        --glass-thick: rgb(20 18 16 / 0.78);
+        --glass-edge: rgb(255 255 255 / 0.08);
+        --glass-specular: rgb(255 255 255 / 0.1);
+        --glass-inner: inset 0 -1px 0 rgb(0 0 0 / 0.45);
+        --glass-sheen: linear-gradient(180deg, rgb(255 255 255 / 0.06), rgb(255 255 255 / 0) 45%);
+        --glass-plate: rgb(20 18 16 / 0.35);
+        --glass-muted-foreground: #d6d1ca;
+        --ambient-1: #17140f;
+        --ambient-2: #0c0b0a;
+
+        --elevation-1: 0 1px 2px rgb(0 0 0 / 0.35), inset 0 1px 0 rgb(255 255 255 / 0.03);
+        --elevation-2: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.45);
+        --elevation-3: 0 2px 4px rgb(0 0 0 / 0.45), 0 16px 40px rgb(0 0 0 / 0.55);
+        --elevation-4: 0 24px 64px rgb(0 0 0 / 0.6);
+      }
+
+      @layer base {
+      }
+      /* ---- PROPOSED (not in the repo): vivid accent, colour wash, larger radii (spec 9 V2) ---- */
+      :root,
+      .light {
+        --vivid: #ff5a3c;
+        --vivid-fg: #fff;
+        --vivid-soft: rgb(255 90 60/0.14);
+        --wash-a: #ffd6c2;
+        --wash-b: #d9cffd;
+        --wash-c: #c9ecd9;
+        --wash-d: #ffe9b8;
+        --r-box: 18px;
+        --r-control: 12px;
+        --r-glass: 24px;
+      }
+      .dark {
+        --vivid: #ff7a5c;
+        --vivid-fg: #1a0d09;
+        --vivid-soft: rgb(255 122 92/0.18);
+        --wash-a: #5a2b3f;
+        --wash-b: #2a2f7a;
+        --wash-c: #1d4a52;
+        --wash-d: #5b3a1a;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+      body {
+        font-family: -apple-system, "SF Pro Text", Inter, system-ui, sans-serif;
+        color: var(--foreground);
+        letter-spacing: -0.011em;
+        -webkit-font-smoothing: antialiased;
+      }
+      .stage {
+        position: relative;
+        width: 1440px;
+        height: 900px;
+        overflow: hidden;
+        background: var(--background);
+        isolation: isolate;
+      }
+      .ambient {
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        background:
+          radial-gradient(48% 52% at 8% 4%, var(--wash-a), transparent 70%),
+          radial-gradient(42% 48% at 96% 8%, var(--wash-b), transparent 70%),
+          radial-gradient(46% 50% at 78% 104%, var(--wash-c), transparent 72%),
+          radial-gradient(34% 40% at 30% 100%, var(--wash-d), transparent 72%), var(--background);
+      }
+      .dark .ambient {
+        opacity: 0.95;
+      }
+      /* glass recipe: DESIGN.md 2.1 tiers + 2.2 layered light */
+      .glass {
+        position: relative;
+        isolation: isolate;
+        border: 1px solid var(--glass-edge);
+        border-radius: var(--r-glass);
+      }
+      .glass::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        border-radius: inherit;
+        pointer-events: none;
+        background-image: var(--glass-sheen);
+        box-shadow:
+          inset 0 1px 0 var(--glass-specular),
+          var(--glass-inner);
+      }
+      .thin {
+        background: var(--glass-thin);
+        backdrop-filter: blur(12px) saturate(140%);
+      }
+      .regular {
+        background: var(--glass-regular);
+        backdrop-filter: blur(20px) saturate(160%);
+        box-shadow: var(--elevation-2);
+      }
+      .thick {
+        background: var(--glass-thick);
+        backdrop-filter: blur(32px) saturate(180%);
+        box-shadow: var(--elevation-3);
+      }
+      .stagegl {
+        background: var(--glass-stage);
+        backdrop-filter: blur(24px) saturate(120%);
+        border: 1px solid rgb(255 255 255/0.14);
+        border-radius: var(--r-glass);
+        color: #fff;
+        box-shadow: var(--elevation-3);
+      }
+      .stagegl::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        pointer-events: none;
+        z-index: -1;
+        background-image: linear-gradient(180deg, rgb(255 255 255/0.1), rgb(255 255 255/0) 60%);
+        box-shadow: inset 0 1px 0 rgb(255 255 255/0.22);
+      }
+      .muted {
+        color: var(--glass-muted-foreground);
+      }
+      .rail {
+        position: absolute;
+        left: 16px;
+        top: 16px;
+        bottom: 16px;
+        width: 72px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 16px 0;
+      }
+      .rail .logo {
+        width: 40px;
+        height: 40px;
+        border-radius: 14px;
+        background: var(--vivid);
+        margin-bottom: 12px;
+        display: grid;
+        place-items: center;
+        color: var(--vivid-fg);
+        font-weight: 700;
+      }
+      .rail .item {
+        width: 48px;
+        height: 48px;
+        border-radius: 16px;
+        display: grid;
+        place-items: center;
+        color: var(--glass-muted-foreground);
+      }
+      .rail .item.on {
+        background: var(--glass-thin);
+        color: var(--foreground);
+        box-shadow:
+          inset 0 1px 0 var(--glass-specular),
+          0 4px 14px rgb(0 0 0/0.12);
+        border: 1px solid var(--glass-edge);
+      }
+      .rail .sp {
+        flex: 1;
+      }
+      svg {
+        width: 22px;
+        height: 22px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .main {
+        position: absolute;
+        left: 112px;
+        right: 32px;
+        top: 16px;
+        bottom: 16px;
+      }
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        height: 60px;
+        border-radius: 22px;
+      }
+      .search {
+        flex: 1;
+        height: 40px;
+        border-radius: 999px;
+        background: var(--glass-thin);
+        border: 1px solid var(--glass-edge);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 16px;
+        color: var(--glass-muted-foreground);
+        font-size: 14px;
+        box-shadow: inset 0 1px 0 var(--glass-specular);
+      }
+      .pill {
+        height: 40px;
+        padding: 0 16px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        background: var(--glass-thin);
+        border: 1px solid var(--glass-edge);
+        box-shadow: inset 0 1px 0 var(--glass-specular);
+      }
+      .pill.vivid {
+        background: var(--vivid);
+        color: var(--vivid-fg);
+        border-color: transparent;
+        box-shadow:
+          inset 0 1px 0 rgb(255 255 255/0.35),
+          0 8px 20px rgb(255 90 60/0.35);
+      }
+      .seg {
+        display: flex;
+        gap: 2px;
+        padding: 4px;
+        border-radius: 999px;
+        background: var(--glass-thin);
+        border: 1px solid var(--glass-edge);
+      }
+      .seg span {
+        width: 36px;
+        height: 32px;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        color: var(--glass-muted-foreground);
+      }
+      .seg span.on {
+        background: var(--glass-thick);
+        color: var(--foreground);
+        box-shadow:
+          inset 0 1px 0 var(--glass-specular),
+          0 3px 10px rgb(0 0 0/0.16);
+      }
+      .seg svg {
+        width: 18px;
+        height: 18px;
+      }
+      h1 {
+        font-size: 34px;
+        line-height: 1.1;
+        font-weight: 650;
+        letter-spacing: -0.022em;
+      }
+      h2 {
+        font-size: 18px;
+        font-weight: 650;
+        letter-spacing: -0.01em;
+      }
+      .sub {
+        font-size: 14px;
+        color: var(--muted-foreground);
+      }
+      .badge {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: var(--glass-thick);
+        border: 1px solid var(--glass-edge);
+        color: var(--foreground);
+        backdrop-filter: blur(12px);
+      }
+      .badge.vivid {
+        background: var(--vivid);
+        color: var(--vivid-fg);
+        border-color: transparent;
+      }
+      .cover {
+        position: relative;
+        border-radius: var(--r-box);
+        overflow: hidden;
+        box-shadow:
+          var(--elevation-2),
+          inset 0 0 0 1px rgb(255 255 255/0.18);
+      }
+      .cover .art {
+        position: absolute;
+        inset: 0;
+      }
+      .cover .tag {
+        position: absolute;
+        left: 8px;
+        top: 8px;
+        display: flex;
+        gap: 6px;
+      }
+      .card-c {
+        display: flex;
+        gap: 14px;
+        padding: 12px;
+        border-radius: 22px;
+        align-items: center;
+      }
+      .bar {
+        height: 6px;
+        border-radius: 99px;
+        background: rgb(0 0 0/0.1);
+        overflow: hidden;
+      }
+      .dark .bar {
+        background: rgb(255 255 255/0.14);
+      }
+      .bar i {
+        display: block;
+        height: 100%;
+        border-radius: 99px;
+        background: var(--vivid);
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 20px;
+      }
+      .t {
+        font-size: 13px;
+        font-weight: 600;
+        margin-top: 8px;
+        letter-spacing: -0.006em;
+      }
+      .m {
+        font-size: 12px;
+        color: var(--muted-foreground);
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 0;
+        border-top: 1px solid var(--glass-edge);
+      }
+      .row:first-child {
+        border-top: 0;
+      }
+      .panel {
+        padding: 20px 22px;
+        border-radius: var(--r-glass);
+      }
+      .btn {
+        height: 44px;
+        padding: 0 20px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        font-size: 14px;
+      }
+      .btn.vivid {
+        background: var(--vivid);
+        color: var(--vivid-fg);
+        box-shadow:
+          inset 0 1px 0 rgb(255 255 255/0.35),
+          0 10px 24px rgb(255 90 60/0.38);
+      }
+      .btn.glass2 {
+        background: var(--glass-thin);
+        border: 1px solid var(--glass-edge);
+        box-shadow: inset 0 1px 0 var(--glass-specular);
+      }
+      .hidden {
+        display: none;
+      }
+      .screen {
+        display: none;
+      }
+      .screen.on {
+        display: block;
+      }
+      /* reader */
+      .rstage {
+        position: absolute;
+        inset: 0;
+        background: #000;
+      }
+      .page {
+        position: absolute;
+        left: 50%;
+        top: 0;
+        transform: translateX(-50%);
+        width: 612px;
+        height: 900px;
+        background: #f4f1ea;
+        overflow: hidden;
+      }
+      .panelx {
+        position: absolute;
+        border: 3px solid #111;
+        background: #fbfaf6;
+        overflow: hidden;
+      }
+      .halft {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(#111 1.1px, transparent 1.4px) 0 0/7px 7px;
+        opacity: 0.5;
+      }
+      .speed {
+        position: absolute;
+        inset: 0;
+        background: repeating-conic-gradient(
+          from 0deg at 50% 60%,
+          #111 0 1.2deg,
+          transparent 1.2deg 6deg
+        );
+        opacity: 0.85;
+      }
+      .bubble {
+        position: absolute;
+        background: #fff;
+        border: 2.5px solid #111;
+        border-radius: 50%;
+      }
+      .rail2 {
+        position: absolute;
+        left: 50%;
+        bottom: 28px;
+        transform: translateX(-50%);
+        width: 760px;
+        padding: 16px 22px;
+        border-radius: 26px;
+      }
+      .track {
+        position: relative;
+        height: 6px;
+        border-radius: 99px;
+        background: rgb(255 255 255/0.25);
+      }
+      .track i {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 37%;
+        border-radius: 99px;
+        background: var(--vivid);
+      }
+      .track b {
+        position: absolute;
+        left: 37%;
+        top: 50%;
+        width: 18px;
+        height: 18px;
+        margin: -9px 0 0 -9px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 2px 8px rgb(0 0 0/0.5);
+      }
+      .prev {
+        position: absolute;
+        left: 628px;
+        bottom: 118px;
+        transform: translateX(-50%);
+        z-index: 5;
+        width: 104px;
+        padding: 8px;
+        border-radius: 16px;
+        text-align: center;
+        font-size: 12px;
+      }
+      .prev .th {
+        height: 112px;
+        border-radius: 8px;
+        background: #f4f1ea;
+        margin-bottom: 6px;
+        position: relative;
+        overflow: hidden;
+      }
+      .topbar {
+        position: absolute;
+        left: 50%;
+        top: 20px;
+        transform: translateX(-50%);
+        width: 760px;
+        height: 56px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 14px;
+      }
+      .cb {
+        width: 36px;
+        height: 36px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        background: rgb(255 255 255/0.12);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      const I = {
+        compass: '<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/>',
+        book: '<path d="M3 5.5C5 4 8 4 12 6c4-2 7-2 9-.5V19c-2-1.5-5-1.5-9 .5-4-2-7-2-9-.5z"/><path d="M12 6v13.5"/>',
+        search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+        puzzle:
+          '<path d="M10 4a2 2 0 1 1 4 0v2h4v4h-2a2 2 0 1 0 0 4h2v4h-4v-2a2 2 0 1 0-4 0v2H6v-4h2a2 2 0 1 0 0-4H6V6h4z"/>',
+        gear: '<circle cx="12" cy="12" r="3"/><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6 7 7m10 10 1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/>',
+        grid: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
+        list: '<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>',
+        rows: '<rect x="4" y="5" width="16" height="5" rx="1.5"/><rect x="4" y="14" width="16" height="5" rx="1.5"/>',
+        sliders:
+          '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
+        left: '<path d="m15 5-7 7 7 7"/>',
+        mark: '<path d="M7 4h10v16l-5-4-5 4z"/>',
+        down: '<path d="M12 4v11m-4-4 4 4 4-4M5 20h14"/>',
+        play: '<path d="M8 5v14l11-7z"/>',
+      };
+      const ic = (n, s) =>
+        `<svg ${s ? `style="width:${s}px;height:${s}px"` : ""} viewBox="0 0 24 24">${I[n]}</svg>`;
+      const PAL = [
+        ["#ff8a5c", "#ffd166", "#2b1b3d"],
+        ["#6c63ff", "#9ad0ff", "#101b3c"],
+        ["#12b886", "#c0f0d4", "#0b2b2a"],
+        ["#ff5d8f", "#ffc2d6", "#3a0f24"],
+        ["#f59f00", "#fff0b3", "#3a2a00"],
+        ["#3bc9db", "#d0f4ff", "#0a2a38"],
+        ["#845ef7", "#e5dbff", "#220f4a"],
+        ["#ff6b6b", "#ffe3e3", "#3d0f14"],
+        ["#51cf66", "#e5ffe9", "#0f3320"],
+        ["#4dabf7", "#e7f5ff", "#0b2a4a"],
+        ["#e599f7", "#fbe3ff", "#3a1048"],
+        ["#ffa94d", "#fff1de", "#3d1f05"],
+      ];
+      function art(i) {
+        const [a, b, c] = PAL[i % PAL.length];
+        const k = i % 4;
+        const shape = [
+          `<circle cx="70%" cy="34%" r="26%" fill="${b}" opacity=".9"/><path d="M0 100 L40 58 L70 82 L100 52 V150 H0z" fill="${c}" opacity=".85"/>`,
+          `<g stroke="${b}" stroke-width="3" opacity=".7">${Array.from({ length: 14 }, (_, j) => `<line x1="50%" y1="45%" x2="${j * 8}%" y2="0"/>`).join("")}</g><circle cx="50%" cy="48%" r="17%" fill="${b}"/><rect x="0" y="72%" width="100%" height="40%" fill="${c}" opacity=".9"/>`,
+          `<circle cx="30%" cy="30%" r="34%" fill="${b}" opacity=".55"/><circle cx="68%" cy="64%" r="30%" fill="${c}" opacity=".7"/><path d="M20 0 Q50 60 80 0z" fill="${b}"/>`,
+          `<rect x="12%" y="14%" width="76%" height="46%" rx="14" fill="${b}" opacity=".85"/><circle cx="50%" cy="37%" r="12%" fill="${c}"/><rect x="0" y="68%" width="100%" height="40%" fill="${c}" opacity=".88"/>`,
+        ][k];
+        return `<svg class="art" style="width:100%;height:100%;stroke:none" viewBox="0 0 100 150" preserveAspectRatio="none"><defs><linearGradient id="g${i}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${c}"/></linearGradient></defs><rect width="100" height="150" fill="url(#g${i})"/>${shape}</svg>`;
+      }
+      const cover = (i, w, h, tags = "") =>
+        `<div class="cover" style="width:${w};aspect-ratio:2/3;${h || ""}">${art(i)}<div class="tag">${tags}</div></div>`;
+      const rail = (on) =>
+        `<nav class="glass thick rail"><div class="logo">M</div>${[
+          ["compass", "d"],
+          ["book", "l"],
+          ["search", "s"],
+          ["puzzle", "e"],
+        ]
+          .map(([n, k]) => `<div class="item ${k == on ? "on" : ""}">${ic(n)}</div>`)
+          .join("")}<div class="sp"></div><div class="item">${ic("gear")}</div></nav>`;
+      const TIT = [
+        "Moonlit Alley",
+        "Paper Kingdom",
+        "Tide & Ember",
+        "Ninth Floor",
+        "Violet Hours",
+        "Saltwind",
+        "Clockwork Fox",
+        "Hollow Crown",
+        "Night Courier",
+        "Ash Garden",
+        "Starling",
+        "Lanternfall",
+      ];
+      const lib =
+        () => `<section class="screen" id="lib"><div class="stage"><div class="ambient"></div>${rail("l")}<div class="main">
+ <div class="glass regular toolbar"><div class="search">${ic("search", 18)}Search your library</div><div class="pill">${ic("sliders", 18)}Filters <span class="badge vivid">2</span></div><div class="seg"><span class="on">${ic("grid")}</span><span>${ic("rows")}</span><span>${ic("list")}</span></div></div>
+ <div style="display:flex;align-items:end;justify-content:space-between;margin:26px 4px 14px"><div><h1>Library</h1><div class="sub" style="margin-top:6px">24 titles · 6 with new chapters</div></div></div>
+ <h2 style="margin:0 4px 12px">Continue reading</h2>
+ <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:26px">${[0, 3, 6].map((i, j) => `<div class="glass regular card-c">${cover(i, "64px")}<div style="flex:1;min-width:0"><div class="t" style="margin:0">${TIT[i]}</div><div class="m" style="margin:2px 0 10px">Chapter ${[12, 48, 7][j]} · ${[4, 11, 2][j]} left</div><div class="bar"><i style="width:${[72, 35, 88][j]}%"></i></div></div><div class="pill vivid" style="width:40px;padding:0;justify-content:center">${ic("play", 16)}</div></div>`).join("")}</div>
+ <div class="grid">${[1, 2, 4, 5, 7, 8, 9, 10, 11, 0, 3, 6].map((i, j) => `<div>${cover(i, "100%", "", j % 3 == 0 ? `<span class="badge vivid">${[3, 12, 1, 5][j % 4]}</span>` : "")}<div class="t">${TIT[i]}</div><div class="m">MangaDex</div></div>`).join("")}</div>
+</div></div></section>`;
+      const det =
+        () => `<section class="screen" id="det"><div class="stage"><div class="ambient"></div>
+ <div style="position:absolute;inset:-40px;filter:blur(70px) saturate(1.6);opacity:.55;z-index:-1">${cover(0, "100%", "border-radius:0;height:100%;aspect-ratio:auto;box-shadow:none")}</div>${rail("l")}<div class="main" style="display:grid;grid-template-columns:300px 1fr;gap:36px;padding-top:8px">
+ <div>${cover(0, "300px", "box-shadow:var(--elevation-4),inset 0 0 0 1px rgb(255 255 255/.25)")}</div>
+ <div><div class="sub" style="margin-bottom:8px">Action · Fantasy · Ongoing</div><h1 style="font-size:40px">Moonlit Alley</h1><div class="sub" style="margin:8px 0 16px">by Hana Voss · 138 chapters · MangaDex</div>
+ <div style="display:flex;gap:8px;margin-bottom:16px"><span class="badge">Action</span><span class="badge">Fantasy</span><span class="badge">Mystery</span></div>
+ <p style="font-size:15px;line-height:1.55;max-width:600px;margin-bottom:20px" class="muted">A courier who delivers parcels across a city that only exists after dark discovers that one of her packages is a door. Each night the alley moves; every chapter, someone new knocks.</p>
+ <div style="display:flex;gap:10px;margin-bottom:24px"><div class="btn vivid">${ic("play", 16)}Continue reading</div><div class="btn glass2">Add to library</div><div class="btn glass2">Migrate</div></div>
+ <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+ <div class="glass regular panel"><h2 style="margin-bottom:6px">Providers</h2><div class="row"><div><b style="font-size:14px">MangaDex</b> <span class="badge">Default</span> <span class="badge vivid">Viewing</span><div class="m" style="margin-top:4px">dc332d04-d3b0-413c-a767-70f5e451b031</div></div><span class="m" style="color:var(--foreground)">Split title</span></div><div class="row"><div><b style="font-size:14px">MangaDex</b><div class="m" style="margin-top:4px">ffffffff-1111-2222-3333-444444444444</div></div><span class="m" style="color:var(--foreground)">View chapters</span></div></div>
+ <div class="glass regular panel"><h2 style="margin-bottom:6px">Chapters <span class="m">· 41 unread</span></h2>${[
+   [138, 0],
+   [137, 0],
+   [136, 1],
+   [135, 1],
+   [134, 1],
+ ]
+   .map(
+     ([n, r]) =>
+       `<div class="row"><div style="font-size:14px;font-weight:${r ? 400 : 600};${r ? "color:var(--muted-foreground)" : ""}">Chapter ${n}<div class="m">Nov ${9 - (138 - n)} · 22 pages</div></div><span style="color:var(--glass-muted-foreground)">${ic("down", 18)}</span></div>`,
+   )
+   .join("")}</div>
+ </div></div></div></div></section>`;
+      const rdr =
+        () => `<section class="screen" id="rdr"><div class="stage"><div class="rstage"></div><div class="page">
+ <div class="panelx" style="left:24px;top:24px;width:564px;height:250px"><div class="speed"></div><div class="halft" style="opacity:.2"></div><div class="bubble" style="left:60px;top:40px;width:150px;height:78px"></div></div>
+ <div class="panelx" style="left:24px;top:290px;width:272px;height:300px"><div class="halft"></div><div style="position:absolute;left:40px;top:80px;width:190px;height:190px;border-radius:50% 50% 40% 40%;background:#111"></div><div style="position:absolute;left:84px;top:140px;width:34px;height:20px;border-radius:50%;background:#fff"></div><div style="position:absolute;left:150px;top:140px;width:34px;height:20px;border-radius:50%;background:#fff"></div></div>
+ <div class="panelx" style="left:312px;top:290px;width:276px;height:140px"><div class="halft" style="opacity:.28"></div><div class="bubble" style="left:30px;top:30px;width:120px;height:60px"></div></div>
+ <div class="panelx" style="left:312px;top:446px;width:276px;height:144px"><div class="speed" style="opacity:.6"></div></div>
+ <div class="panelx" style="left:24px;top:606px;width:564px;height:268px"><div class="halft" style="opacity:.16"></div><div style="position:absolute;left:0;right:0;bottom:0;height:120px;background:#111;clip-path:polygon(0 100%,18% 30%,34% 70%,52% 10%,70% 62%,86% 24%,100% 100%)"></div><div class="bubble" style="left:330px;top:34px;width:190px;height:84px"></div></div>
+ </div>
+ <div class="glass stagegl topbar"><div class="cb">${ic("left", 18)}</div><div style="flex:1"><div style="font-size:14px;font-weight:600">Chapter 12 · The Door in the Alley</div><div style="font-size:12px;color:rgb(255 255 255/.7)">Moonlit Alley · MangaDex</div></div><div class="cb">${ic("mark", 18)}</div><div class="cb">${ic("sliders", 18)}</div></div>
+ <div class="glass stagegl prev"><div class="th"><div style="position:absolute;left:8px;top:8px;right:8px;height:34px;border:2px solid #111;background:#fbfaf6"></div><div style="position:absolute;left:8px;top:50px;width:40px;height:52px;border:2px solid #111;background:#ddd"></div><div style="position:absolute;left:54px;top:50px;right:8px;height:52px;border:2px solid #111;background:#fbfaf6"></div></div>Page 14</div>
+ <div class="glass stagegl rail2"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:12px"><span style="color:rgb(255 255 255/.7)">Ch. 12</span><b>14 / 38</b><span style="color:rgb(255 255 255/.7)">Next: Ch. 13</span></div><div class="track"><i></i><b></b></div></div>
+</div></section>`;
+      document.getElementById("root").innerHTML = lib() + det() + rdr();
+      const [screen, theme] = (location.hash || "#lib,light").slice(1).split(",");
+      document.body.className = theme;
+      document.getElementById(screen).classList.add("on");
+    </script>
+  </body>
+</html>
