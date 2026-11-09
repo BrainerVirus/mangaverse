@@ -8,6 +8,7 @@ import {
   clipboard,
   dialog,
   ipcMain,
+  Menu,
   MessageChannelMain,
   nativeImage,
   protocol,
@@ -16,6 +17,7 @@ import {
   shell,
   utilityProcess,
 } from 'electron';
+import { hidesApplicationMenu } from './application-menu.js';
 import {
   detectElectronCapabilities,
   isSafeExternalUrl,
@@ -254,6 +256,7 @@ function bootstrap() {
 
 void app.whenReady().then(async () => {
   try {
+    if (hidesApplicationMenu(process.platform)) Menu.setApplicationMenu(null);
     try {
       app.setAsDefaultProtocolClient('mangaverse');
     } catch {
