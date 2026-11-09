@@ -131,19 +131,20 @@ describe('update state store', () => {
 
   it('Given the last subscriber leaves and another arrives, Then the old initial answer is dropped', async () => {
     let releaseFirst: (state: PlatformUpdateState) => void = () => {};
+    let releaseSecond: (state: PlatformUpdateState) => void = () => {};
     const { bridge } = installBridge();
     bridge.updateGetState
-      .mockImplementationOnce(async () =>
-        ok(await new Promise<PlatformUpdateState>((r) => (releaseFirst = r))),
-      )
-      .mockImplementationOnce(async () => ok(downloading));
+      .mockImplementationOnce(async () => ok(await new Promise((r) => (releaseFirst = r))))
+      .mockImplementationOnce(async () => ok(await new Promise((r) => (releaseSecond = r))));
     const store = await freshStore();
     store.subscribeUpdateState(() => {})();
     store.subscribeUpdateState(() => {});
-    await vi.waitFor(() => expect(store.getUpdateStateSnapshot()).toEqual(downloading));
+    // The old lifecycle answers first, with a value that must not be shown.
     releaseFirst(idle);
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(store.getUpdateStateSnapshot()).toEqual(downloading);
+    expect(store.getUpdateStateSnapshot()).toBeNull();
+    releaseSecond(downloading);
+    await vi.waitFor(() => expect(store.getUpdateStateSnapshot()).toEqual(downloading));
   });
 
   it('Given no bridge, When check now is called, Then it does nothing', async () => {
