@@ -7,6 +7,7 @@ param(
   [string]$Channel = 'nightly',
   [string]$Version = '',
   [string]$InstallDir = '',
+  [string]$Staged = '',
   [switch]$PurgeData,
   [switch]$DryRun,
   [switch]$NoLaunch
@@ -103,10 +104,18 @@ if ($DryRun) { Write-Host 'Dry run: nothing downloaded or written.'; return }
 $tmp = Join-Path $env:TEMP ("mangaverse-install-" + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $tmp | Out-Null
 try {
-  $zip = Join-Path $tmp $asset
-  $sums = Join-Path $tmp 'SHA256SUMS'
-  Invoke-WebRequest -UseBasicParsing -Uri "$base/$asset" -OutFile $zip
-  Invoke-WebRequest -UseBasicParsing -Uri "$base/SHA256SUMS" -OutFile $sums
+  if ($Staged) {
+    # The app downloaded these itself (to show real progress); the checksum below still decides.
+    $zip = Join-Path $Staged $asset
+    $sums = Join-Path $Staged 'SHA256SUMS'
+    if (-not (Test-Path $zip)) { throw "Staged directory has no $asset" }
+    if (-not (Test-Path $sums)) { throw 'Staged directory has no SHA256SUMS' }
+  } else {
+    $zip = Join-Path $tmp $asset
+    $sums = Join-Path $tmp 'SHA256SUMS'
+    Invoke-WebRequest -UseBasicParsing -Uri "$base/$asset" -OutFile $zip
+    Invoke-WebRequest -UseBasicParsing -Uri "$base/SHA256SUMS" -OutFile $sums
+  }
   $line = Get-Content $sums | Where-Object { $_ -match "\s+$([regex]::Escape($asset))$" } | Select-Object -First 1
   if (-not $line) { throw "SHA256SUMS has no entry for $asset" }
   $expected = ($line -split '\s+')[0].ToLowerInvariant()
@@ -134,4 +143,8 @@ try {
   if (-not $NoLaunch) { Start-Process $AppPath }
 } finally {
   Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
+  # Only a directory the app made is removed, so a mistaken -Staged path is never deleted.
+  if ($Staged -and (Split-Path -Leaf $Staged) -like 'mangaverse-staged-*') {
+    Remove-Item -Recurse -Force $Staged -ErrorAction SilentlyContinue
+  }
 }

@@ -8,6 +8,7 @@ CHANNEL="nightly"
 CHANNEL_SET=0
 ACTION="install"
 VERSION=""
+STAGED=""
 INSTALL_DIR=""
 PURGE=0
 DRY_RUN=0
@@ -18,7 +19,7 @@ usage() {
 MangaVerse installer
 
 Usage:
-  install.sh [install|update] [--channel nightly|stable] [--version V] [--dry-run] [--no-launch]
+  install.sh [install|update] [--channel nightly|stable] [--version V] [--staged DIR] [--dry-run] [--no-launch]
   install.sh uninstall [--purge-data] [--dry-run]
   install.sh status
 
@@ -37,6 +38,7 @@ while [ "$#" -gt 0 ]; do
     status) ACTION="status" ;;
     --channel) CHANNEL="${2:-}"; CHANNEL_SET=1; shift ;;
     --version) VERSION="${2:-}"; shift ;;
+    --staged) STAGED="${2:-}"; shift ;;
     --dir) INSTALL_DIR="${2:-}"; shift ;;
     --purge-data|--purge) PURGE=1 ;;
     --dry-run) DRY_RUN=1 ;;
@@ -165,18 +167,33 @@ say "  wrapper: $WRAPPER"
 [ "$DRY_RUN" -eq 1 ] && { say "Dry run: nothing downloaded or written."; exit 0; }
 
 TMP=$(mktemp -d "${TMPDIR:-/tmp}/mangaverse-install.XXXXXX")
-cleanup() { rm -rf "$TMP"; }
+# An update the app downloaded itself (to show real progress) arrives in a directory the app made;
+# only that kind of directory is removed afterwards, so a mistaken --staged path is never deleted.
+cleanup() {
+  rm -rf "$TMP"
+  case "$STAGED" in
+    */mangaverse-staged-*) rm -rf "$STAGED" ;;
+  esac
+}
 trap cleanup EXIT HUP INT TERM
 
-curl -fsSL --proto '=https' --proto-redir '=https' --tlsv1.2 -o "$TMP/$ASSET" "$BASE/$ASSET"
-curl -fsSL --proto '=https' --proto-redir '=https' --tlsv1.2 -o "$TMP/SHA256SUMS" "$BASE/SHA256SUMS"
-line=$(grep "  $ASSET\$" "$TMP/SHA256SUMS" | head -1)
+if [ -n "$STAGED" ]; then
+  [ -f "$STAGED/$ASSET" ] || die "staged directory has no $ASSET"
+  [ -f "$STAGED/SHA256SUMS" ] || die "staged directory has no SHA256SUMS"
+  SRC="$STAGED"
+else
+  curl -fsSL --proto '=https' --proto-redir '=https' --tlsv1.2 -o "$TMP/$ASSET" "$BASE/$ASSET"
+  curl -fsSL --proto '=https' --proto-redir '=https' --tlsv1.2 -o "$TMP/SHA256SUMS" "$BASE/SHA256SUMS"
+  SRC="$TMP"
+fi
+# Staged or downloaded, the checksum is what decides whether this installs.
+line=$(grep "  $ASSET\$" "$SRC/SHA256SUMS" | head -1)
 [ -n "$line" ] || die "SHA256SUMS has no entry for $ASSET"
 expected=${line%% *}
 if command -v sha256sum >/dev/null 2>&1; then
-  actual=$(sha256sum "$TMP/$ASSET" | awk '{print $1}')
+  actual=$(sha256sum "$SRC/$ASSET" | awk '{print $1}')
 else
-  actual=$(shasum -a 256 "$TMP/$ASSET" | awk '{print $1}')
+  actual=$(shasum -a 256 "$SRC/$ASSET" | awk '{print $1}')
 fi
 [ "$actual" = "$expected" ] || die "checksum mismatch for $ASSET"
 
@@ -198,7 +215,7 @@ wait_for_app_exit
 mkdir -p "$APP_DIR" "$(dirname "$WRAPPER")" "$RECEIPT_DIR"
 if [ "$OS" = "Darwin" ]; then
   mkdir -p "$TMP/extract"
-  ditto -x -k "$TMP/$ASSET" "$TMP/extract"
+  ditto -x -k "$SRC/$ASSET" "$TMP/extract"
   [ -d "$TMP/extract/MangaVerse.app" ] || die "zip did not contain MangaVerse.app"
   rm -rf "$APP_PATH"
   ditto "$TMP/extract/MangaVerse.app" "$APP_PATH"
@@ -209,7 +226,7 @@ if [ "$OS" = "Darwin" ]; then
 exec "$APP_PATH/Contents/MacOS/MangaVerse" "\$@"
 WRAP
 else
-  install -m 0755 "$TMP/$ASSET" "$APP_PATH"
+  install -m 0755 "$SRC/$ASSET" "$APP_PATH"
   cat > "$WRAPPER" <<WRAP
 #!/bin/sh
 exec "$APP_PATH" "\$@"

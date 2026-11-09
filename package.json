@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "test": "turbo run test && node --test lint/state-baseline.test.mjs lint/ui-conventions.test.mjs",
+    "test": "turbo run test && node --test lint/state-baseline.test.mjs lint/ui-conventions.test.mjs scripts/install/install.test.mjs",
     "test:e2e:production": "turbo run test:e2e:production",
     "test:watch": "vitest watch",
     "bootstrap": "pnpm install",

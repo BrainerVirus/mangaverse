@@ -61,6 +61,11 @@ app runs for an in-app update (below). An update stays in the directory the rece
 (macOS/Linux); on Windows the app passes its own install directory, and a manual `update` of a
 custom `-InstallDir` needs the same flag.
 
+`--staged DIR` (`-Staged DIR` on Windows) installs a release the app already downloaded: DIR holds the
+asset and `SHA256SUMS`, and the same checksum check decides whether it installs, so a staged file is no
+more trusted than a downloaded one. The app uses it to show real download progress. The script removes
+DIR afterwards only if its name starts with `mangaverse-staged-`; any other directory is left alone.
+
 ## In-app nightly updates
 
 A nightly installed by these scripts is self-updating. The app checks GitHub Releases about 30
