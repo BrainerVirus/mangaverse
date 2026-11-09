@@ -21,6 +21,7 @@ import type {
   PlatformFileOpenOptions,
   PlatformInstallPromptState,
   PlatformUpdateInfo,
+  PlatformUpdateState,
 } from './types.js';
 import { isSafeExternalUrl } from './url-protocol.js';
 
@@ -232,6 +233,9 @@ export function createElectronPlatformAdapter(bridge: DesktopPlatformBridge): Pl
       dismiss: () => asResult(() => bridge.updateDismiss()),
       onAvailable: (listener: (info: PlatformUpdateInfo) => void) =>
         bridge.onUpdateAvailable(listener),
+      getState: () => asResult(() => bridge.updateGetState()),
+      checkNow: () => asResult(() => bridge.updateCheckNow()),
+      onState: (listener: (state: PlatformUpdateState) => void) => bridge.onUpdateState(listener),
     },
   };
 }

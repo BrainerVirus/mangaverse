@@ -24,6 +24,7 @@ import { autoUpdater as electronAutoUpdater } from 'electron-updater';
 import {
   PLATFORM_IPC,
   UPDATE_AVAILABLE_IPC,
+  UPDATE_STATE_IPC,
   platformPermissionDenied,
   platformUnexpected,
   type PlatformUpdateInfo,
@@ -31,6 +32,7 @@ import {
 import type { AppResult } from '@app/shared';
 import { err, ok } from '@app/shared';
 import { createUpdatePromptController, runQuietUpdateCheck } from './update-policy.js';
+import { createUpdateState } from './update-state.js';
 import type { UpdateCheckResult } from './update-policy.js';
 
 /** Six hours: frequent enough to notice a release, quiet enough to leave the network alone. */
@@ -71,6 +73,8 @@ export interface RegisterAutoUpdateOptions {
   readonly getPromptWindow: () => BrowserWindow | null;
   readonly isTrustedFrame: (frame: WebFrameMain | null) => frame is WebFrameMain;
   readonly isPackaged?: boolean;
+  /** Shown in the update state; defaults to the running app's version. */
+  readonly currentVersion?: string;
   readonly resourcesPath?: string;
   readonly hasFeed?: (resourcesPath: string) => boolean;
   readonly updater?: UpdaterLike;
@@ -100,9 +104,34 @@ export function registerAutoUpdate(options: RegisterAutoUpdateOptions): AutoUpda
 
   // electron-updater must not run in dev, in an unpackaged run, or when the build carries
   // no publish feed: there is nothing to compare against and no app-update.yml to read.
-  if (!isPackaged || (!hasFeed(resourcesPath) && options.customUpdater === undefined)) {
+  const enabled = isPackaged && (hasFeed(resourcesPath) || options.customUpdater !== undefined);
+
+  const state = createUpdateState({
+    enabled,
+    currentVersion: options.currentVersion ?? app.getVersion(),
+    publish: (next) => {
+      const window = options.getPromptWindow();
+      if (window === null || window.isDestroyed()) return;
+      window.webContents.send(UPDATE_STATE_IPC, next);
+    },
+  });
+  const guard = (event: IpcMainInvokeEvent): AppResult<void> | null =>
+    options.isTrustedFrame(event.senderFrame)
+      ? null
+      : err(platformPermissionDenied('This frame may not update the app.'));
+  // Answered even when updates are off, so the renderer can say so instead of failing to ask.
+  ipc.handle(PLATFORM_IPC.UPDATE_GET_STATE, (event) => guard(event) ?? ok(state.get()));
+
+  if (!enabled) {
     log('disabled (not a packaged build with a publish feed)');
-    return { enabled: false, stop: () => {} };
+    ipc.handle(PLATFORM_IPC.UPDATE_CHECK_NOW, (event) => guard(event) ?? ok(state.get()));
+    return {
+      enabled: false,
+      stop: () => {
+        ipc.removeHandler(PLATFORM_IPC.UPDATE_GET_STATE);
+        ipc.removeHandler(PLATFORM_IPC.UPDATE_CHECK_NOW);
+      },
+    };
   }
 
   const updater =
@@ -133,6 +162,7 @@ export function registerAutoUpdate(options: RegisterAutoUpdateOptions): AutoUpda
   const install = () => {
     if (stopped || installing || readerWindows.size > 0) return;
     installing = true;
+    state.installing();
     updater.quitAndInstall();
   };
 
@@ -143,21 +173,35 @@ export function registerAutoUpdate(options: RegisterAutoUpdateOptions): AutoUpda
   };
 
   const handlers = {
-    onDownloaded: (info: { version: string }) => controller.setAvailable(info.version),
-    onError: (error: Error) => log(`Update failed: ${error.message}`),
+    onFound: (info: { version: string }) => state.found(info.version),
+    onProgress: (progress: UpdateProgress) => state.progress(progress),
+    onDownloaded: (info: { version: string }) => {
+      state.ready(info.version);
+      controller.setAvailable(info.version);
+    },
+    onError: (error: Error) => {
+      log(`Update failed: ${error.message}`);
+      state.failed(error);
+    },
   };
+  updater.on('update-available', handlers.onFound);
+  updater.on('download-progress', handlers.onProgress);
   updater.on('update-downloaded', handlers.onDownloaded);
   updater.on('error', handlers.onError);
 
-  const check = () => {
-    if (stopped) return;
-    void runQuietUpdateCheck(() => updater.checkForUpdates());
+  // One check at a time, and none while an update is downloading, ready or installing.
+  const check = (): Promise<void> => {
+    if (stopped || !state.startCheck()) return Promise.resolve();
+    return runQuietUpdateCheck(() => updater.checkForUpdates()).finally(() => state.finishCheck());
   };
 
-  const guard = (event: IpcMainInvokeEvent): AppResult<void> | null =>
-    options.isTrustedFrame(event.senderFrame)
-      ? null
-      : err(platformPermissionDenied('This frame may not update the app.'));
+  ipc.handle(PLATFORM_IPC.UPDATE_CHECK_NOW, (event) => {
+    const denied = guard(event);
+    if (denied !== null) return denied;
+    // The check runs on; progress reaches the renderer through the state events.
+    void check();
+    return ok(state.get());
+  });
 
   // A reload, a full navigation, a crashed renderer or a closed window ends that window's
   // reading: the new document has not opened a chapter, so it must not hold the update.
@@ -219,9 +263,9 @@ export function registerAutoUpdate(options: RegisterAutoUpdateOptions): AutoUpda
     return ok(undefined);
   });
 
-  const initialTimer = setTimeout(check, UPDATE_INITIAL_DELAY_MS);
+  const initialTimer = setTimeout(() => void check(), UPDATE_INITIAL_DELAY_MS);
   initialTimer.unref?.();
-  const intervalTimer = setInterval(check, UPDATE_CHECK_INTERVAL_MS);
+  const intervalTimer = setInterval(() => void check(), UPDATE_CHECK_INTERVAL_MS);
   intervalTimer.unref?.();
 
   log('enabled');
@@ -232,12 +276,16 @@ export function registerAutoUpdate(options: RegisterAutoUpdateOptions): AutoUpda
       stopped = true;
       clearTimeout(initialTimer);
       clearInterval(intervalTimer);
+      updater.off('update-available', handlers.onFound);
+      updater.off('download-progress', handlers.onProgress);
       updater.off('update-downloaded', handlers.onDownloaded);
       updater.off('error', handlers.onError);
       updater.dispose?.();
       ipc.removeHandler(PLATFORM_IPC.UPDATE_SET_READER_ACTIVE);
       ipc.removeHandler(PLATFORM_IPC.UPDATE_INSTALL);
       ipc.removeHandler(PLATFORM_IPC.UPDATE_DISMISS);
+      ipc.removeHandler(PLATFORM_IPC.UPDATE_GET_STATE);
+      ipc.removeHandler(PLATFORM_IPC.UPDATE_CHECK_NOW);
     },
   };
 }
