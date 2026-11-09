@@ -374,12 +374,17 @@ export function createScriptUpdater(options: ScriptUpdaterOptions): UpdaterLike 
       options.quit();
     },
     dispose() {
-      // After the handoff the installer owns both directories; before it, nothing may be left behind.
-      if (handedOff) return;
+      // Disposed is separate from who owns the directories: after a handoff the updater is just as
+      // finished (no more notifications), but the files belong to the installer.
       disposed = true;
       current?.abort(new Error('updater disposed'));
-      if (stagedDir !== null) rmSync(stagedDir, { recursive: true, force: true });
-      if (stagedScript !== null) rmSync(dirname(stagedScript), { recursive: true, force: true });
+      if (handedOff) return;
+      // The aborted download is still closing its file while this runs, and a file opened in the
+      // meantime makes the removal race with it (ENOTEMPTY); retry briefly instead of failing shutdown.
+      const remove = (path: string): void =>
+        rmSync(path, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
+      if (stagedDir !== null) remove(stagedDir);
+      if (stagedScript !== null) remove(dirname(stagedScript));
       stagedDir = null;
       stagedScript = null;
     },

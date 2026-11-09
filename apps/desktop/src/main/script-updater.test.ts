@@ -505,6 +505,52 @@ describe('createScriptUpdater', () => {
     expect(existsSync(args[0]!)).toBe(true);
   });
 
+  it('Given the installer was started from a downloaded listener and the app disposes, Then later listeners are not called', async () => {
+    const { root, temp } = resources();
+    const later = vi.fn<(info: { version: string }) => void>();
+    const quit = vi.fn<() => void>(() => updater.dispose?.());
+    const updater = createScriptUpdater({
+      currentVersion: '0.0.4-nightly.20261108.1',
+      resourcesPath: root,
+      tempDir: temp,
+      platform: 'linux',
+      quit,
+      spawnImpl: spawnStub() as never,
+      fetchImpl: fakeGitHub('linux').fetchImpl,
+    });
+    updater.on('update-downloaded', () => updater.quitAndInstall());
+    updater.on('update-downloaded', later);
+
+    await updater.checkForUpdates();
+    expect(quit).toHaveBeenCalledTimes(1);
+    expect(later).not.toHaveBeenCalled();
+  });
+
+  it('Given many downloads disposed mid-stream, When the staging directory is removed while the stream closes, Then disposal never throws and nothing is left', async () => {
+    const { root, temp } = resources();
+    for (let round = 0; round < 600; round += 1) {
+      const github = fakeGitHub('linux', { body: 'gate' });
+      const updater = createScriptUpdater({
+        currentVersion: '0.0.4-nightly.20261108.1',
+        resourcesPath: root,
+        tempDir: temp,
+        platform: 'linux',
+        quit: () => {},
+        fetchImpl: github.fetchImpl,
+      });
+      const firstChunk = new Promise<void>((resolve) => {
+        updater.on('download-progress', () => resolve());
+      });
+      const check = updater.checkForUpdates();
+      await firstChunk;
+      expect(() => updater.dispose?.()).not.toThrow();
+      github.openGate();
+      await check;
+    }
+    expect(entries(temp, 'mangaverse-staged-')).toHaveLength(0);
+    expect(entries(temp, 'mangaverse-update-')).toHaveLength(0);
+  });
+
   it('Given Windows, When installing, Then the staged directory and the custom install directory go to the PowerShell helper', async () => {
     const base = mkdtempSync(join(tmpdir(), 'mangaverse-updater-win-'));
     const appRoot = join(base, 'Programs', 'MangaVerse');
