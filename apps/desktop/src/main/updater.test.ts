@@ -406,6 +406,18 @@ describe('the update state', () => {
     });
   });
 
+  it('Given a release that arrived mid-chapter and was installed from Settings, Then no prompt appears when reading ends', async () => {
+    const ctx = setup();
+    const reader = new FakeSender(2);
+    reading(ctx, reader, true);
+    ctx.updater.emit('update-downloaded', { version: '1.2.0' });
+    expect(ctx.send).not.toHaveBeenCalled();
+    await ctx.invoke(PLATFORM_IPC.UPDATE_INSTALL, sender);
+    reading(ctx, reader, false);
+    expect(ctx.updater.quitAndInstall).toHaveBeenCalledTimes(1);
+    expect(ctx.send).not.toHaveBeenCalled();
+  });
+
   it('Given an install accepted while a chapter is open, Then the state says queued until reading ends', async () => {
     const ctx = setup();
     const reader = new FakeSender(2);

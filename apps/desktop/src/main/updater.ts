@@ -167,7 +167,8 @@ export function registerAutoUpdate(options: RegisterAutoUpdateOptions): AutoUpda
   };
 
   const setReaderCount = () => {
-    controller.setReaderCount(readerWindows.size);
+    // Once the install is accepted a deferred prompt would only flash before the restart.
+    if (!accepted) controller.setReaderCount(readerWindows.size);
     // An install accepted while another window was reading runs once the last reader leaves.
     if (readerWindows.size === 0 && accepted) install();
   };
