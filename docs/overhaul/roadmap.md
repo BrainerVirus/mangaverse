@@ -11,7 +11,7 @@ tracked on [GitHub](https://github.com/BrainerVirus/mangaverse/milestones) under
 | 4   | Local data, downloads | 6       | Fast library and dependable offline reading                  | Milestone 2                   |
 | 5   | Reader                | 7       | Page turns under 50ms and three-level settings               | Milestones 2 and 4            |
 | 6   | Sync                  | 8       | Library and settings across devices                          | Milestone 2; Supabase project |
-| 7   | Design                | 9       | Playful liquid glass across the app                          | Owner's references            |
+| 7   | Design                | 9       | Playful liquid glass across the app                          | #228 concepts approved        |
 | 8   | Web                   | 10      | Invite-only website with gateway and offline PWA             | Gateway test; legal advice    |
 
 Milestones 3 and 4 can run in parallel, and concept screens for milestone 7 can start at any time.

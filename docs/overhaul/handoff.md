@@ -330,7 +330,7 @@ Recorded in the Workit ledger with `workit ledger list --type decision`, and in 
 
 | Needed                                              | Blocks                    |
 | --------------------------------------------------- | ------------------------- |
-| Two or three visual references                      | #228                      |
+| Concept screens approved 2026-11-09 (#228)          | done; #229 is next        |
 | Two or three real recipe sources to test            | #217/#218                 |
 | Supabase project                                    | #225                      |
 | Code-signing decision                               | #215 (signed builds only) |

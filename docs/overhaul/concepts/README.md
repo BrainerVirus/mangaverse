@@ -17,7 +17,8 @@ snapshot and does not follow later token changes.
 ## Existing, unchanged
 
 The four glass tiers, the specular edge and sheen, the elevation scale, the type roles and the reader's
-black stage with its dark glass chrome (DESIGN.md §2, §4, §7.6).
+black stage with its dark glass chrome (DESIGN.md §2, §4, §7.6). The type roles are the system's; the
+mockup's exact sizes and weights (for example the 40px detail title) are illustrative, not a change to them.
 
 ## Approved changes
 
