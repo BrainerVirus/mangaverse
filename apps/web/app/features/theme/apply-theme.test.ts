@@ -12,7 +12,7 @@ afterEach(() => {
 });
 
 describe('applyThemeToRoot on desktop', () => {
-  it('Given a theme applies, Then main gets its canvas and ink as #rrggbb for the title bar overlay', () => {
+  it('Given a theme applies, Then main gets its chrome fill and ink as #rrggbb for the title bar overlay', () => {
     const windowSetTitleBarColors = vi.fn<(color: string, symbolColor: string) => Promise<unknown>>(
       async () => ok(undefined),
     );
@@ -25,7 +25,10 @@ describe('applyThemeToRoot on desktop', () => {
     const style = document.documentElement.style;
     expect(windowSetTitleBarColors).toHaveBeenCalledTimes(1);
     const [color, symbolColor] = windowSetTitleBarColors.mock.calls[0]!;
-    expect(color).toBe(style.getPropertyValue('--background'));
+    // The strip paints --sidebar / --sidebar-foreground (the title-bar utility), not the canvas.
+    expect(color).toBe(style.getPropertyValue('--sidebar'));
+    expect(symbolColor).toBe(style.getPropertyValue('--sidebar-foreground'));
+    expect(color).not.toBe(style.getPropertyValue('--background'));
     expect(color).toMatch(/^#[0-9a-f]{6}$/);
     expect(symbolColor).toMatch(/^#[0-9a-f]{6}$/);
   });

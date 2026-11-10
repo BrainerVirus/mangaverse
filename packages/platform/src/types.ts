@@ -210,7 +210,7 @@ export interface PlatformWindowChrome {
   readonly platform: WindowChromePlatform;
   /** True while the window is fullscreen: the native controls are gone, so the strip hides. */
   readonly fullScreen: boolean;
-  /** The strip's height in CSS pixels (`TITLE_BAR_HEIGHT`). */
+  /** The strip's height in CSS pixels (`titleBarHeight(platform)`). */
   readonly height: number;
 }
 

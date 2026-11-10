@@ -1,8 +1,8 @@
 import { createAppError, err, ok, type AppResult } from '@app/shared';
 import {
   PLATFORM_IPC,
-  TITLE_BAR_HEIGHT,
   WINDOW_CHROME_IPC,
+  titleBarHeight,
   platformInvalidUrl,
   platformIoFailed,
   platformIpcRequestSchema,
@@ -45,7 +45,8 @@ export interface WindowChromeIpcDeps {
 }
 
 function chromeOf(platform: NodeJS.Platform, fullScreen: boolean): PlatformWindowChrome {
-  return { platform: windowChromePlatform(platform), fullScreen, height: TITLE_BAR_HEIGHT };
+  const chromePlatform = windowChromePlatform(platform);
+  return { platform: chromePlatform, fullScreen, height: titleBarHeight(chromePlatform) };
 }
 
 export function registerWindowChromeIpc(deps: WindowChromeIpcDeps): void {
@@ -88,7 +89,13 @@ export function registerWindowChromeIpc(deps: WindowChromeIpcDeps): void {
       const [color, symbolColor] = request.args;
       // A failed repaint keeps the previous colours; the renderer is told, nothing throws.
       return Promise.resolve()
-        .then(() => window.setTitleBarOverlay({ color, symbolColor, height: TITLE_BAR_HEIGHT }))
+        .then(() =>
+          window.setTitleBarOverlay({
+            color,
+            symbolColor,
+            height: titleBarHeight(windowChromePlatform(deps.platform)),
+          }),
+        )
         .then(
           () => ok(undefined),
           (cause: unknown) =>

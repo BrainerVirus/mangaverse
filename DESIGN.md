@@ -434,8 +434,10 @@ The resulting **hard rules**:
 
 ### 3.7 Navigation rail
 
-- **Warm Stone** `#f0ece6` → **Ink Rail** `#0f0e0d` — `--sidebar`, completed by `--sidebar-foreground`
+- **Warm Stone** `#f0ece6` → **Ink Rail** `#161412` — `--sidebar`, completed by `--sidebar-foreground`
   (`#141210` → `#f5f2eb`), `--sidebar-border`, `--sidebar-accent` and `--sidebar-accent-foreground`.
+  Ink Rail was `#0f0e0d`, ΔRGB 5 from Midnight Ink, so the rail and the desktop title bar (which paint
+  `--sidebar`) did not read as a frame against the canvas in dark; `#161412` is ΔRGB 16 with 16.4:1 text.
   In the target the rail is a **thick glass sheet** floating over the ambient band (radius
   `--radius-glass`, elevation-4); the opaque `--sidebar` values remain its low-end, reduced-transparency
   and no-blur resolution.

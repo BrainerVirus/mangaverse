@@ -56,6 +56,8 @@ export { Tabs, TabsList, TabsTrigger, TabsContent } from './components/ui/tabs.j
 export { Alert, AlertTitle, AlertDescription } from './components/ui/alert.js';
 export { Separator } from './components/ui/separator.js';
 export { Tooltip } from './components/ui/tooltip.js';
+export { UpdatePill } from './components/update-pill.js';
+export type { UpdatePillProps } from './components/update-pill.js';
 
 export { GlassSurface, useGlassLevel } from './components/glass-surface.js';
 export type { GlassSurfaceProps } from './components/glass-surface.js';

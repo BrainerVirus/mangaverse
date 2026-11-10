@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { ok } from '@app/shared';
 import {
-  TITLE_BAR_HEIGHT,
+  TITLE_BAR_HEIGHTS,
   type DesktopPlatformBridge,
   type PlatformUpdateState,
   type PlatformWindowChrome,
@@ -86,17 +86,45 @@ describe('TitleBarView', () => {
 
   it.each([
     [
+      'downloading',
       withPhase({ kind: 'downloading', version: '1.1.0', percent: 40, transferred: 4, total: 10 }),
-      'Updating 40%',
+      '40%',
+      'Downloading update 1.1.0, 40%',
+      'download',
+      'neutral',
     ],
-    [withPhase({ kind: 'ready', version: '1.1.0' }), 'Restart to update'],
-    [withPhase({ kind: 'installing', version: '1.1.0', queued: true }), 'Restart queued'],
+    [
+      'ready',
+      withPhase({ kind: 'ready', version: '1.1.0' }),
+      'Restart to update',
+      'Restart to update: 1.1.0 is ready to install',
+      'rotate-cw',
+      'attention',
+    ],
+    [
+      'queued',
+      withPhase({ kind: 'installing', version: '1.1.0', queued: true }),
+      'Restart queued',
+      'Restart queued: Restart queued for 1.1.0',
+      'clock',
+      'neutral',
+    ],
+    [
+      'restarting',
+      withPhase({ kind: 'installing', version: '1.1.0', queued: false }),
+      'Restarting…',
+      'Restarting…: Restarting to install 1.1.0',
+      'rotate-cw',
+      'neutral',
+    ],
   ])(
-    'Given an update in flight, Then a clickable named button opens the updates page',
-    (update, label) => {
+    'Given an update %s, Then a named pill with its icon and label opens the updates page',
+    (_phase, update, label, name, icon, tone) => {
       const { onOpenUpdates } = renderView(mac, update);
-      const button = screen.getByRole('button', { name: new RegExp(`^${label}: .*1\\.1\\.0`) });
+      const button = screen.getByRole('button', { name });
       expect(button.textContent).toBe(label);
+      expect(button.querySelector(`svg.lucide-${icon}`)).not.toBeNull();
+      expect(button.dataset.tone).toBe(tone);
       // The button opts out of the drag region, or the click would move the window instead.
       expect(button.closest('.app-region-no-drag')).not.toBeNull();
       button.focus();
@@ -105,6 +133,40 @@ describe('TitleBarView', () => {
       expect(onOpenUpdates).toHaveBeenCalledTimes(1);
     },
   );
+
+  it('Given a restart is waiting, Then the pill is the filled primary call to action', () => {
+    renderView(mac, withPhase({ kind: 'ready', version: '1.1.0' }));
+    const button = screen.getByRole('button');
+    expect(button.classList.contains('bg-primary')).toBe(true);
+    expect(button.classList.contains('text-primary-foreground')).toBe(true);
+    expect(button.querySelector('[data-progress-ring]')).toBeNull();
+  });
+
+  it.each([0, 40, 100])(
+    'Given a download at %i%, Then the ring arc is offset by the share still to come',
+    (percent) => {
+      renderView(
+        mac,
+        withPhase({ kind: 'downloading', version: '1.1.0', percent, transferred: 4, total: 10 }),
+      );
+      const arc = screen.getByRole('button').querySelector('[data-progress-arc]')!;
+      const circumference = 2 * Math.PI * 14;
+      expect(Number(arc.getAttribute('stroke-dasharray'))).toBeCloseTo(circumference, 5);
+      expect(Number(arc.getAttribute('stroke-dashoffset'))).toBeCloseTo(
+        circumference * (1 - percent / 100),
+        5,
+      );
+      expect(arc.getAttribute('class')).toContain('progress-ring-arc');
+      expect(arc.getAttribute('class')).toContain('motion-reduce:transition-none');
+    },
+  );
+
+  it('Given a restart in progress, Then the spinner stops for reduced motion', () => {
+    renderView(mac, withPhase({ kind: 'installing', version: '1.1.0', queued: false }));
+    const icon = screen.getByRole('button').querySelector('svg.lucide-rotate-cw')!;
+    expect(icon.getAttribute('class')).toContain('animate-spin');
+    expect(icon.getAttribute('class')).toContain('motion-reduce:animate-none');
+  });
 });
 
 describe('TitleBar', () => {
@@ -124,7 +186,7 @@ describe('TitleBar', () => {
 
     const { container } = render(<TitleBar />);
     await act(async () => {});
-    fireEvent.click(screen.getByRole('button', { name: /^Restart to update/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Restart to update: 1\.1\.0/ }));
     expect(navigate).toHaveBeenCalledWith({ to: '/settings/updates' });
 
     act(() => emitChrome({ ...mac, fullScreen: true }));
@@ -143,12 +205,23 @@ describe('title bar styles', () => {
     return css.slice(start, css.indexOf('\n}\n', start));
   };
 
-  it('Given a strip, Then the offset is the height main draws the native controls at', () => {
-    expect(css).toMatch(
-      new RegExp(
-        `:root:has\\(\\[data-title-bar\\]\\) \\{\\s*--title-bar-height: ${TITLE_BAR_HEIGHT}px;`,
-      ),
-    );
+  /** The `--title-bar-height` each platform's `:root:has(...)` rule sets, read from the sheet. */
+  const cssHeights = () => {
+    const heights: Record<string, number> = {};
+    const rule =
+      /((?::root:has\(\[data-title-bar\]\[data-platform="\w+"\]\),?\s*)+)\{\s*--title-bar-height: (\d+)px;/g;
+    for (const match of css.matchAll(rule)) {
+      for (const platform of match[1]!.matchAll(/data-platform="(\w+)"/g)) {
+        heights[platform[1]!] = Number(match[2]);
+      }
+    }
+    return heights;
+  };
+
+  it('Given a strip, Then each platform offsets by the height main draws its native controls at', () => {
+    expect(cssHeights()).toEqual(TITLE_BAR_HEIGHTS);
+    expect(TITLE_BAR_HEIGHTS).toEqual({ darwin: 52, win32: 40, linux: 40 });
+    // No strip (the web build, a fullscreen window): no offset.
     expect(css).toMatch(/:root \{\s*--title-bar-height: 0px;/);
   });
 
@@ -158,13 +231,35 @@ describe('title bar styles', () => {
     expect(block('@utility app-region-no-drag {')).toContain('app-region: no-drag;');
   });
 
+  it('Given the strip, Then it paints the sidebar chrome and not the canvas', () => {
+    const titleBar = block('@utility title-bar {');
+    expect(titleBar).toContain('background-color: var(--sidebar);');
+    expect(titleBar).toContain('color: var(--sidebar-foreground);');
+    expect(titleBar).toContain('border-block-end: 1px solid var(--sidebar-border);');
+    expect(titleBar).not.toContain('var(--background)');
+  });
+
+  it('Given the ring arc, Then it eases between percents and snaps for reduced motion', () => {
+    expect(block('@utility progress-ring-arc {')).toContain(
+      'transition: stroke-dashoffset 300ms ease-out;',
+    );
+  });
+
   it('Given each platform, Then the strip keeps clear of its native controls', () => {
     const titleBar = block('@utility title-bar {');
-    expect(titleBar).toMatch(/&\[data-platform="darwin"\] \{\s*padding-inline-start: 5rem;/);
+    expect(titleBar).toMatch(/&\[data-platform="darwin"\] \{\s*padding-inline-start: 90px;/);
     expect(titleBar).toMatch(
       /&:is\(\[data-platform="win32"\], \[data-platform="linux"\]\) \{\s*padding-inline-end: calc\(/,
     );
     expect(titleBar).toContain('env(titlebar-area-width');
+  });
+
+  it('Given the strip, Then its controls keep 0.75rem from the right edge and the overlay', () => {
+    const titleBar = block('@utility title-bar {');
+    // macOS: the strip's own inline padding; Windows and Linux: the overlay's width plus the same.
+    expect(titleBar).toContain('padding-inline: calc(var(--spacing) * 3);');
+    expect(titleBar).toMatch(/var\(--spacing\) \* 3\s*\);\s*\}/);
+    expect(titleBar).not.toContain('var(--spacing) * 2');
   });
 
   it('Given the shell and the reader, Then both start below the strip', () => {

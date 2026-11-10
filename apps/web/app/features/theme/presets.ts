@@ -122,7 +122,7 @@ const DEFAULT_DARK_OVERRIDES: ThemeOverrides = {
   '--muted-foreground': '#a8a29e', // §3.2 Smoke Gray
   '--popover': '#1c1917', // §3.1 Espresso
   '--secondary': '#1a1816',
-  '--sidebar': '#0f0e0d', // §3.7 Ink Rail
+  '--sidebar': '#161412', // §3.7 Ink Rail
 };
 
 export const THEME_PRESETS: readonly ThemePresetDefinition[] = [

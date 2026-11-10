@@ -60,30 +60,54 @@ export function describeUpdate(state: PlatformUpdateState): UpdateDescription {
   }
 }
 
+type TitleBarUpdateKind = 'downloading' | 'ready' | 'queued' | 'restarting';
+
+export interface TitleBarUpdate {
+  readonly kind: TitleBarUpdateKind;
+  /** The short visible text: the percent while downloading, else the action. */
+  readonly label: string;
+  /** The accessible name; it repeats the visible label and adds the version. */
+  readonly name: string;
+  /** 0-100 while a release downloads, else `null`. */
+  readonly percent: number | null;
+}
+
 /**
- * The title bar's Update button: shown only while a release downloads, waits for a restart or
- * installs. The accessible name starts with the visible label and adds the version.
+ * The title bar's Update pill: shown only while a release downloads, waits for a restart or
+ * installs. A download shows just its percent (the ring and the name carry the rest).
  */
-export function titleBarUpdate(
-  state: PlatformUpdateState | null,
-): { readonly label: string; readonly name: string } | null {
+export function titleBarUpdate(state: PlatformUpdateState | null): TitleBarUpdate | null {
   if (state === null) return null;
   const phase = state.phase;
-  let label: string;
   switch (phase.kind) {
-    case 'downloading':
-      label = `Updating ${phase.percent}%`;
-      break;
+    case 'downloading': {
+      const label = `${phase.percent}%`;
+      return {
+        kind: 'downloading',
+        label,
+        name: `Downloading update ${phase.version}, ${label}`,
+        percent: phase.percent,
+      };
+    }
     case 'ready':
-      label = 'Restart to update';
-      break;
-    case 'installing':
-      label = updateAction(state).label;
-      break;
+      return {
+        kind: 'ready',
+        label: 'Restart to update',
+        name: `Restart to update: ${describeUpdate(state).title}`,
+        percent: null,
+      };
+    case 'installing': {
+      const label = updateAction(state).label;
+      return {
+        kind: phase.queued ? 'queued' : 'restarting',
+        label,
+        name: `${label}: ${describeUpdate(state).title}`,
+        percent: null,
+      };
+    }
     default:
       return null;
   }
-  return { label, name: `${label}: ${describeUpdate(state).title}` };
 }
 
 export type UpdateActionKind = 'check' | 'install' | 'busy' | 'off';

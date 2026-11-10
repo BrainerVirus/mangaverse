@@ -195,7 +195,7 @@
   /* DESIGN.md §3.3 fix: 7.80:1 on the dark canvas, 7.41:1 on --surface. */
   --ring: #a8a29e;
   --reader-background: #0c0b0a;
-  --sidebar: #0f0e0d;
+  --sidebar: #161412;
   --sidebar-foreground: #f5f2eb;
   --sidebar-border: #2a2724;
   --sidebar-accent: #585551;
@@ -282,14 +282,20 @@
      the 100vh line is the fallback for engines without `dvh`. Its background still paints under
      the notch; the padded content box keeps the rail and main inside the safe area. */
   /* The desktop's app-drawn title bar (TitleBar.tsx) is fixed at the top; the shell and the reader
-     start below it. 36px is `TITLE_BAR_HEIGHT` in @app/platform, the native overlay's height, so it
-     stays in CSS pixels. Without the strip (the web build, a fullscreen window) the offset is 0. */
+     start below it. The heights are `TITLE_BAR_HEIGHTS` in @app/platform (macOS 52px, Windows and
+     Linux 40px, the native overlay's height), so they stay in CSS pixels. Without the strip (the web
+     build, a fullscreen window) the offset is 0. */
   :root {
     --title-bar-height: 0px;
   }
 
-  :root:has([data-title-bar]) {
-    --title-bar-height: 36px;
+  :root:has([data-title-bar][data-platform="darwin"]) {
+    --title-bar-height: 52px;
+  }
+
+  :root:has([data-title-bar][data-platform="win32"]),
+  :root:has([data-title-bar][data-platform="linux"]) {
+    --title-bar-height: 40px;
   }
 
   [data-app-shell] {
@@ -623,9 +629,12 @@
   padding-top: calc(var(--spacing) * 3 + env(safe-area-inset-top));
 }
 
-/* The desktop title bar. The whole strip drags the window; macOS keeps 5rem on the left for the
-   traffic lights, Windows and Linux keep the overlay's width on the right (from the window
-   controls overlay's `titlebar-area-*`, else the controls' usual width). */
+/* The desktop title bar. The whole strip drags the window; its controls keep 0.75rem from the right
+   edge. macOS keeps 90px on the left for the traffic lights, Windows and Linux keep the overlay's
+   width on the right (from the window controls overlay's `titlebar-area-*`, else the controls'
+   usual width) plus that 0.75rem. It paints the sidebar's
+   chrome colours, so the app frame (title bar and rail) reads as one surface distinct from the
+   content; the Windows and Linux overlay is fed the same pair (apply-theme.ts). */
 @utility title-bar {
   position: fixed;
   inset-inline: 0;
@@ -635,23 +644,31 @@
   align-items: center;
   justify-content: flex-end;
   height: var(--title-bar-height);
-  padding-inline: calc(var(--spacing) * 2);
-  background-color: var(--background);
-  color: var(--foreground);
+  padding-inline: calc(var(--spacing) * 3);
+  background-color: var(--sidebar);
+  color: var(--sidebar-foreground);
+  border-block-end: 1px solid var(--sidebar-border);
   user-select: none;
   -webkit-app-region: drag;
   app-region: drag;
 
   &[data-platform="darwin"] {
-    padding-inline-start: 5rem;
+    padding-inline-start: 90px;
   }
 
   &:is([data-platform="win32"], [data-platform="linux"]) {
     padding-inline-end: calc(
       100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, calc(100vw - 9rem)) +
-        var(--spacing) * 2
+        var(--spacing) * 3
     );
   }
+}
+
+/* The arc of `UpdatePill`'s progress ring eases between percents (`motion-reduce:transition-none`
+   on the element makes it snap). Not a media query here: glass-tokens.test.ts slices the sheet
+   from its first `prefers-reduced-motion` block. */
+@utility progress-ring-arc {
+  transition: stroke-dashoffset 300ms ease-out;
 }
 
 /* A control inside the title bar: it takes clicks instead of dragging the window. */

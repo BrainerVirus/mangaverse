@@ -1,9 +1,10 @@
 import { useSyncExternalStore } from 'react';
 import { useNavigate } from '@tanstack/react-router';
-import { Button } from '@app/design-system';
+import { Clock, Download, RotateCw } from 'lucide-react';
+import { UpdatePill } from '@app/design-system';
 import type { PlatformUpdateState, PlatformWindowChrome } from '@app/platform';
 
-import { titleBarUpdate } from '../../features/updates/describe-update.js';
+import { titleBarUpdate, type TitleBarUpdate } from '../../features/updates/describe-update.js';
 import {
   getServerUpdateStateSnapshot,
   getUpdateStateSnapshot,
@@ -22,11 +23,26 @@ export interface TitleBarViewProps {
   onOpenUpdates: () => void;
 }
 
+/** The pill's glyph: the spinner only turns without a reduced-motion preference. */
+function updateIcon(action: TitleBarUpdate) {
+  switch (action.kind) {
+    case 'downloading':
+      return <Download />;
+    case 'ready':
+      return <RotateCw />;
+    case 'queued':
+      return <Clock />;
+    case 'restarting':
+      return <RotateCw className="animate-spin motion-reduce:animate-none" />;
+  }
+}
+
 /**
  * The desktop's app-drawn title bar. The strip drags the window; the native controls keep their
  * place (traffic lights on the left on macOS, the overlay on the right on Windows and Linux) and
  * the `title-bar` utility pads around them. It is not a landmark, and its only control is the
- * Update button, which opts out of the drag region so it can be clicked.
+ * Update pill, which opts out of the drag region so it can be clicked: a quiet pill with a
+ * progress ring while downloading, the filled call to action once a restart is waiting.
  */
 export function TitleBarView({ chrome, update, onOpenUpdates }: TitleBarViewProps) {
   if (chrome === null || chrome.fullScreen) return null;
@@ -35,9 +51,14 @@ export function TitleBarView({ chrome, update, onOpenUpdates }: TitleBarViewProp
     <div data-title-bar data-platform={chrome.platform} className="title-bar">
       {action === null ? null : (
         <div className="app-region-no-drag flex">
-          <Button variant="ghost" size="sm" aria-label={action.name} onClick={onOpenUpdates}>
-            {action.label}
-          </Button>
+          <UpdatePill
+            tone={action.kind === 'ready' ? 'attention' : 'neutral'}
+            icon={updateIcon(action)}
+            label={action.label}
+            progress={action.percent ?? undefined}
+            aria-label={action.name}
+            onClick={onOpenUpdates}
+          />
         </div>
       )}
     </div>

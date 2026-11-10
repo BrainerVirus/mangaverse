@@ -101,7 +101,8 @@
           "width-transition",
           "title-bar",
           "app-region-no-drag",
-          "below-title-bar"
+          "below-title-bar",
+          "progress-ring-arc"
         ]
       }
     ],

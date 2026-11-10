@@ -1,4 +1,4 @@
-import { TITLE_BAR_HEIGHT, type WindowChromePlatform } from '@app/platform';
+import { titleBarHeight, type WindowChromePlatform } from '@app/platform';
 import type { BrowserWindowConstructorOptions } from 'electron';
 
 /**
@@ -7,9 +7,9 @@ import type { BrowserWindowConstructorOptions } from 'electron';
  */
 export const DEFAULT_TITLE_BAR_COLORS = { color: '#fafafa', symbolColor: '#1a1a1a' } as const;
 
-/** The traffic lights are 14px tall; 12px from the left edge matches the system inset. */
+/** The traffic lights are 14px tall; 16px from the left edge leaves the strip's left inset room. */
 const TRAFFIC_LIGHT_SIZE = 14;
-const TRAFFIC_LIGHT_INSET_X = 12;
+const TRAFFIC_LIGHT_INSET_X = 16;
 
 /** macOS and Windows are themselves; every other desktop draws the Linux overlay. */
 export function windowChromePlatform(platform: NodeJS.Platform): WindowChromePlatform {
@@ -28,19 +28,21 @@ export function windowChromeOptions(
   BrowserWindowConstructorOptions,
   'titleBarStyle' | 'titleBarOverlay' | 'trafficLightPosition' | 'backgroundColor'
 > {
-  if (windowChromePlatform(platform) === 'darwin') {
+  const chromePlatform = windowChromePlatform(platform);
+  const height = titleBarHeight(chromePlatform);
+  if (chromePlatform === 'darwin') {
     return {
       titleBarStyle: 'hidden',
       trafficLightPosition: {
         x: TRAFFIC_LIGHT_INSET_X,
-        y: Math.round((TITLE_BAR_HEIGHT - TRAFFIC_LIGHT_SIZE) / 2),
+        y: Math.round((height - TRAFFIC_LIGHT_SIZE) / 2),
       },
       backgroundColor: DEFAULT_TITLE_BAR_COLORS.color,
     };
   }
   return {
     titleBarStyle: 'hidden',
-    titleBarOverlay: { ...DEFAULT_TITLE_BAR_COLORS, height: TITLE_BAR_HEIGHT },
+    titleBarOverlay: { ...DEFAULT_TITLE_BAR_COLORS, height },
     backgroundColor: DEFAULT_TITLE_BAR_COLORS.color,
   };
 }

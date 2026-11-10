@@ -45,9 +45,9 @@ export function applyThemeToRoot(
     foreground: cssVariables['--foreground'],
   });
 
-  // The desktop's overlay controls sit on the title bar, which paints `--background`.
-  const color = toHexColor(cssVariables['--background']);
-  const symbolColor = toHexColor(cssVariables['--foreground']);
+  // The desktop's overlay controls sit on the title bar, which paints the sidebar's chrome colours.
+  const color = toHexColor(cssVariables['--sidebar']);
+  const symbolColor = toHexColor(cssVariables['--sidebar-foreground']);
   if (color !== undefined && symbolColor !== undefined) setTitleBarColors(color, symbolColor);
 }
 

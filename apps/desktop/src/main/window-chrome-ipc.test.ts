@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { PLATFORM_IPC, TITLE_BAR_HEIGHT, WINDOW_CHROME_IPC } from '@app/platform';
+import { PLATFORM_IPC, TITLE_BAR_HEIGHTS, WINDOW_CHROME_IPC } from '@app/platform';
 import type { IpcMainInvokeEvent, TitleBarOverlayOptions, WebFrameMain } from 'electron';
 import {
   WINDOW_CHROME_CHANNELS,
@@ -62,7 +62,20 @@ describe('window chrome IPC', () => {
     const { invoke } = register('win32', fakeWindow({ fullScreen: true }).window);
     expect(await invoke(PLATFORM_IPC.WINDOW_CHROME_GET, trusted)).toEqual({
       ok: true,
-      value: { platform: 'win32', fullScreen: true, height: TITLE_BAR_HEIGHT },
+      value: { platform: 'win32', fullScreen: true, height: TITLE_BAR_HEIGHTS.win32 },
+    });
+  });
+
+  it.each([
+    ['darwin', 52],
+    ['win32', 40],
+    ['linux', 40],
+    ['freebsd', 40],
+  ] as const)('Given %s, Then GET answers a %ipx strip', async (platform, height) => {
+    const { invoke } = register(platform, fakeWindow().window);
+    expect(await invoke(PLATFORM_IPC.WINDOW_CHROME_GET, trusted)).toMatchObject({
+      ok: true,
+      value: { height },
     });
   });
 
@@ -92,7 +105,7 @@ describe('window chrome IPC', () => {
       expect(fake.setTitleBarOverlay).toHaveBeenCalledWith({
         color: '#09090b',
         symbolColor: '#FAFAFA',
-        height: TITLE_BAR_HEIGHT,
+        height: TITLE_BAR_HEIGHTS.win32,
       });
     },
   );
@@ -147,8 +160,14 @@ describe('watchWindowChrome', () => {
     fake.emit('enter-full-screen', true);
     fake.emit('leave-full-screen', false);
     expect(fake.send.mock.calls).toEqual([
-      [WINDOW_CHROME_IPC, { platform: 'darwin', fullScreen: true, height: TITLE_BAR_HEIGHT }],
-      [WINDOW_CHROME_IPC, { platform: 'darwin', fullScreen: false, height: TITLE_BAR_HEIGHT }],
+      [
+        WINDOW_CHROME_IPC,
+        { platform: 'darwin', fullScreen: true, height: TITLE_BAR_HEIGHTS.darwin },
+      ],
+      [
+        WINDOW_CHROME_IPC,
+        { platform: 'darwin', fullScreen: false, height: TITLE_BAR_HEIGHTS.darwin },
+      ],
     ]);
   });
 

@@ -116,28 +116,36 @@ describe('titleBarUpdate', () => {
   it.each([
     [
       withPhase({ kind: 'downloading', version: '1.2.0', percent: 40, transferred: 4, total: 10 }),
-      'Updating 40%',
-      'Updating 40%: Downloading 1.2.0',
+      'downloading',
+      '40%',
+      'Downloading update 1.2.0, 40%',
+      40,
     ],
     [
       withPhase({ kind: 'ready', version: '1.2.0' }),
+      'ready',
       'Restart to update',
       'Restart to update: 1.2.0 is ready to install',
+      null,
     ],
     [
       withPhase({ kind: 'installing', version: '1.2.0', queued: true }),
+      'queued',
       'Restart queued',
       'Restart queued: Restart queued for 1.2.0',
+      null,
     ],
     [
       withPhase({ kind: 'installing', version: '1.2.0', queued: false }),
+      'restarting',
       'Restarting…',
       'Restarting…: Restarting to install 1.2.0',
+      null,
     ],
   ])(
-    'Given an update in flight, Then the label is short and the name starts with it',
-    (state, label, name) => {
-      expect(titleBarUpdate(state)).toEqual({ label, name });
+    'Given an update in flight, Then the label is short and the name repeats it with the version',
+    (state, kind, label, name, percent) => {
+      expect(titleBarUpdate(state)).toEqual({ kind, label, name, percent });
     },
   );
 });

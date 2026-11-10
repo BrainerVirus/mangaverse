@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TITLE_BAR_HEIGHT } from '@app/platform';
+import { TITLE_BAR_HEIGHTS } from '@app/platform';
 import {
   DEFAULT_TITLE_BAR_COLORS,
   windowChromeOptions,
@@ -11,16 +11,17 @@ describe('windowChromeOptions', () => {
     const options = windowChromeOptions('darwin');
     expect(options.titleBarStyle).toBe('hidden');
     expect(options.titleBarOverlay).toBeUndefined();
-    const y = options.trafficLightPosition!.y;
-    // 14px lights, centred in the strip.
-    expect(y * 2 + 14).toBeGreaterThanOrEqual(TITLE_BAR_HEIGHT - 1);
-    expect(y * 2 + 14).toBeLessThanOrEqual(TITLE_BAR_HEIGHT + 1);
-    expect(options.trafficLightPosition!.x).toBeGreaterThan(0);
+    const { x, y } = options.trafficLightPosition!;
+    // 14px lights, centred in the 52px strip: y = 52 / 2 - 7.
+    expect(TITLE_BAR_HEIGHTS.darwin).toBe(52);
+    expect(y).toBe(19);
+    expect(y * 2 + 14).toBe(TITLE_BAR_HEIGHTS.darwin);
+    expect(x).toBe(16);
     expect(options.backgroundColor).toBe(DEFAULT_TITLE_BAR_COLORS.color);
   });
 
   it.each(['win32', 'linux', 'freebsd'] as const)(
-    'Given %s, Then the controls are an overlay at the strip height in the default colours',
+    'Given %s, Then the controls are a 40px overlay in the default colours',
     (platform) => {
       const options = windowChromeOptions(platform);
       expect(options.titleBarStyle).toBe('hidden');
@@ -28,7 +29,7 @@ describe('windowChromeOptions', () => {
       expect(options.titleBarOverlay).toEqual({
         color: '#fafafa',
         symbolColor: '#1a1a1a',
-        height: TITLE_BAR_HEIGHT,
+        height: 40,
       });
       expect(options.backgroundColor).toBe('#fafafa');
     },
