@@ -1,6 +1,6 @@
 export { registerGsapPlugins } from './plugins.js';
 
-export { useGsapContext } from './hooks/use-gsap-context.js';
+export { useGsapContext, type GsapContextOptions } from './hooks/use-gsap-context.js';
 export { useReducedMotion } from './hooks/use-reduced-motion.js';
 export {
   getReducedMotionPreference,
@@ -41,3 +41,13 @@ export {
   type CommandPaletteMotionOptions,
 } from './shell/command-palette.js';
 export { gridStaggerReveal, type GridStaggerRevealOptions } from './shell/grid-stagger-reveal.js';
+export {
+  createUpdatePillMotion,
+  UPDATE_PILL_TIMING,
+  type UpdatePillFrame,
+  type UpdatePillIcon,
+  type UpdatePillKind,
+  type UpdatePillMotion,
+  type UpdatePillMotionOptions,
+  type UpdatePillParts,
+} from './shell/update-pill.js';

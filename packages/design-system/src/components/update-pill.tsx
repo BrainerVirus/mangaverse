@@ -1,5 +1,14 @@
 import * as React from 'react';
+import { Check, Clock, Download, RotateCw } from 'lucide-react';
 import { cn } from '@design-system/lib/cn.js';
+import {
+  createUpdatePillMotion,
+  useGsapContext,
+  useReducedMotion,
+  type UpdatePillIcon,
+  type UpdatePillKind,
+  type UpdatePillMotion,
+} from '../motion/index.js';
 
 // The ring is drawn in a 32-unit box shown at 16px: radius 14 plus a stroke of 3 (1.5px on screen)
 // leaves the arc inside the box.
@@ -13,60 +22,76 @@ const pillTones = {
   attention: 'bg-primary text-primary-foreground hover:bg-primary/90',
 } as const;
 
+/** The glyph of each phase; the check only shows for the moment a download completes. */
+const iconFor: Record<UpdatePillKind, UpdatePillIcon> = {
+  downloading: 'download',
+  ready: 'rotate',
+  queued: 'clock',
+  restarting: 'rotate',
+};
+
 export interface UpdatePillProps extends Omit<
   React.ButtonHTMLAttributes<HTMLButtonElement>,
   'children'
 > {
-  tone?: keyof typeof pillTones;
-  /** The glyph before the label; it is decorative, the button's name comes from `aria-label`. */
-  icon: React.ReactNode;
+  /** The phase: it picks the glyph, the tone and the motion between phases. */
+  kind: UpdatePillKind;
+  /** The visible text. A trailing `…` is drawn as three dots that fade in turn. */
   label: string;
   /** 0-100. When set, a progress ring is drawn around the icon. */
   progress?: number | undefined;
+}
+
+interface HoldStore {
+  subscribe: (listener: () => void) => () => void;
+  get: () => boolean;
+  getServer: () => boolean;
+  set: (on: boolean) => void;
+}
+
+/** Whether the motion is holding clicks, for `aria-disabled`: the controller sets it, the render reads it. */
+function createHoldStore(): HoldStore {
+  let active = false;
+  const listeners = new Set<() => void>();
+  return {
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    get: () => active,
+    getServer: () => false,
+    set: (on) => {
+      if (active === on) return;
+      active = on;
+      for (const listener of [...listeners]) listener();
+    },
+  };
 }
 
 function clampPercent(value: number): number {
   return Math.min(100, Math.max(0, value));
 }
 
-function ProgressRing({ progress, icon }: { progress: number; icon: React.ReactNode }) {
-  const offset = RING_CIRCUMFERENCE * (1 - clampPercent(progress) / 100);
+function Layer({
+  name,
+  active,
+  children,
+}: {
+  name: UpdatePillIcon;
+  active: boolean;
+  children: React.ReactNode;
+}) {
   return (
-    <span data-progress-ring className="relative grid size-4 place-items-center">
-      <svg
-        viewBox="0 0 32 32"
-        fill="none"
-        aria-hidden="true"
-        focusable="false"
-        className="absolute inset-0 size-4 -rotate-90"
-      >
-        <circle
-          cx="16"
-          cy="16"
-          r={RING_RADIUS}
-          stroke="currentColor"
-          strokeWidth={3}
-          opacity={0.25}
-        />
-        <circle
-          data-progress-arc
-          className="progress-ring-arc motion-reduce:transition-none"
-          cx="16"
-          cy="16"
-          r={RING_RADIUS}
-          stroke="currentColor"
-          strokeWidth={3}
-          strokeLinecap="round"
-          strokeDasharray={RING_CIRCUMFERENCE}
-          strokeDashoffset={offset}
-        />
-      </svg>
-      <span
-        className="grid place-items-center [&_svg]:size-2.5 [&_svg]:shrink-0"
-        aria-hidden="true"
-      >
-        {icon}
-      </span>
+    <span
+      data-pill-icon={name}
+      aria-hidden="true"
+      className={cn(
+        'absolute inset-0 grid place-items-center [&_svg]:size-3.5 [&_svg]:shrink-0',
+        // The resting look before (or without) motion; GSAP owns the inline values afterwards.
+        active ? (name === 'download' ? 'scale-70' : '') : 'scale-60 opacity-0',
+      )}
+    >
+      {children}
     </span>
   );
 }
@@ -76,36 +101,228 @@ function ProgressRing({ progress, icon }: { progress: number; icon: React.ReactN
  * ring has no offset: 2px of ring fits in the 2.5px the 28px strip leaves above the pill, where an
  * offset ring would be clipped by the window's top edge.
  *
- * The title bar's update control: a compact pill on the app frame, icon first. `neutral` is a
- * quiet control surface (downloading, restart queued, restarting); `attention` is the filled
- * call to action. With `progress` the icon sits inside a ring that fills as the download runs.
+ * The title bar's update control: a compact pill on the app frame, icon first. `downloading`,
+ * `queued` and `restarting` are a quiet control surface; `ready` is the filled call to action.
+ * While downloading the icon sits inside a ring that fills as the download runs. Between phases
+ * the label slides, the number counts, the width and colour glide and a finished download turns
+ * into the restart glyph (`motion/shell/update-pill.ts`); reduced motion changes state at once.
+ * The accessible name is never held back by it; a click is, only while the old label is still on
+ * show (`data-motion-hold`, reflected as `aria-disabled` from the render, which owns that attribute).
  */
 const UpdatePill = React.forwardRef<HTMLButtonElement, UpdatePillProps>(
-  ({ className, tone = 'neutral', icon, label, progress, type = 'button', ...props }, ref) => (
-    <button
-      ref={ref}
-      type={type}
-      data-tone={tone}
-      className={cn(
-        'inline-flex h-5.5 items-center gap-1.5 whitespace-nowrap rounded-badge px-2.5 text-xs font-medium tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0',
-        pillTones[tone],
-        className,
-      )}
-      {...props}
-    >
-      {progress === undefined ? (
+  (
+    {
+      className,
+      kind,
+      label,
+      progress,
+      type = 'button',
+      onPointerEnter,
+      onPointerLeave,
+      onPointerDown,
+      onPointerUp,
+      onPointerCancel,
+      onFocus,
+      onBlur,
+      onClick,
+      'aria-disabled': ariaDisabled,
+      ...props
+    },
+    ref,
+  ) => {
+    const tone = kind === 'ready' ? 'attention' : 'neutral';
+    const pillRef = React.useRef<HTMLButtonElement | null>(null);
+    const motionRef = React.useRef<UpdatePillMotion | null>(null);
+    // The preference as of the last run: a cleanup from the first run must not close over a stale one.
+    const reducedRef = React.useRef(false);
+    const hold = React.useMemo(() => createHoldStore(), []);
+    // The controller reports to whichever store this render holds, even if a memo were rebuilt.
+    const holdRef = React.useRef(hold);
+    const holdActive = React.useSyncExternalStore(hold.subscribe, hold.get, hold.getServer);
+    const disabled = holdActive || ariaDisabled === true || ariaDisabled === 'true';
+    const reducedMotion = useReducedMotion();
+    React.useImperativeHandle(ref, () => pillRef.current as HTMLButtonElement, []);
+
+    const percent = progress === undefined ? null : clampPercent(progress);
+    const offset = RING_CIRCUMFERENCE * (1 - (percent ?? 0) / 100);
+    const hasEllipsis = label.endsWith('…');
+    const text = hasEllipsis ? label.slice(0, -1) : label;
+
+    useGsapContext(
+      pillRef,
+      () => {
+        const pill = pillRef.current;
+        if (pill === null) return;
+        reducedRef.current = reducedMotion;
+        holdRef.current = hold;
+        const created = motionRef.current === null;
+        if (motionRef.current === null) {
+          const find = <T extends Element>(selector: string): T => {
+            const found = pill.querySelector<T>(selector);
+            if (found === null) throw new Error(`UpdatePill: ${selector} is missing`);
+            return found;
+          };
+          const icon = (name: UpdatePillIcon) => find<HTMLElement>(`[data-pill-icon="${name}"]`);
+          motionRef.current = createUpdatePillMotion(
+            {
+              pill,
+              glow: find<HTMLElement>('[data-pill-glow]'),
+              fill: find<HTMLElement>('[data-pill-fill]'),
+              ring: find<Element>('[data-progress-ring-svg]'),
+              arc: pill.querySelector<SVGElement>('[data-progress-arc]'),
+              icons: {
+                download: icon('download'),
+                check: icon('check'),
+                rotate: icon('rotate'),
+                clock: icon('clock'),
+              },
+              labelSlot: find<HTMLElement>('[data-pill-label]'),
+              text: find<HTMLElement>('[data-pill-text]'),
+              dots: () => [...pill.querySelectorAll<HTMLElement>('[data-pill-dot]')],
+            },
+            { onHold: (on) => holdRef.current.set(on) },
+          );
+        }
+        motionRef.current.to({ kind, label, percent }, { reducedMotion });
+        // Every run adds its cleanup to the context, so only the run that made the controller does.
+        if (!created) return;
+        return () => {
+          motionRef.current?.exit({ reducedMotion: reducedRef.current });
+          motionRef.current?.dispose();
+          motionRef.current = null;
+        };
+      },
+      [kind, label, percent, reducedMotion, hold],
+      { revertOnUpdate: false },
+    );
+
+    const options = { reducedMotion };
+    return (
+      <button
+        ref={pillRef}
+        type={type}
+        data-tone={tone}
+        data-kind={kind}
+        aria-disabled={disabled ? true : undefined}
+        className={cn(
+          'relative isolate inline-flex h-5.5 items-center gap-1.5 whitespace-nowrap rounded-badge px-2.5 text-xs font-medium tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0',
+          pillTones[tone],
+          className,
+        )}
+        onClick={(event) => {
+          // While the old label is still on show, a click must not do what the new one says.
+          if (event.currentTarget.hasAttribute('data-motion-hold')) {
+            event.preventDefault();
+            return;
+          }
+          onClick?.(event);
+        }}
+        onPointerEnter={(event) => {
+          onPointerEnter?.(event);
+          motionRef.current?.hover(true, options);
+        }}
+        onPointerLeave={(event) => {
+          onPointerLeave?.(event);
+          motionRef.current?.hover(false, options);
+          motionRef.current?.press(false, options);
+        }}
+        onPointerDown={(event) => {
+          onPointerDown?.(event);
+          motionRef.current?.press(true, options);
+        }}
+        onPointerUp={(event) => {
+          onPointerUp?.(event);
+          motionRef.current?.press(false, options);
+        }}
+        onPointerCancel={(event) => {
+          onPointerCancel?.(event);
+          motionRef.current?.press(false, options);
+        }}
+        onFocus={(event) => {
+          onFocus?.(event);
+          if (event.currentTarget.matches(':focus-visible'))
+            motionRef.current?.hover(true, options);
+        }}
+        onBlur={(event) => {
+          onBlur?.(event);
+          motionRef.current?.hover(false, options);
+        }}
+        {...props}
+      >
         <span
-          className="grid place-items-center [&_svg]:size-3.5 [&_svg]:shrink-0"
+          data-pill-fill
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -z-10 rounded-badge bg-primary opacity-0"
+        />
+        <span
+          data-pill-glow
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -z-10 rounded-badge bg-primary opacity-0"
+        />
+        <span
+          data-pill-icons
+          className="relative grid size-4 place-items-center"
           aria-hidden="true"
         >
-          {icon}
+          <svg
+            data-progress-ring-svg
+            {...(kind === 'downloading' ? { 'data-progress-ring': '' } : {})}
+            viewBox="0 0 32 32"
+            fill="none"
+            focusable="false"
+            className={cn(
+              'absolute inset-0 size-4 -rotate-90',
+              kind === 'downloading' ? '' : 'opacity-0',
+            )}
+          >
+            <circle
+              cx="16"
+              cy="16"
+              r={RING_RADIUS}
+              stroke="currentColor"
+              strokeWidth={3}
+              opacity={0.25}
+            />
+            <circle
+              data-progress-arc
+              cx="16"
+              cy="16"
+              r={RING_RADIUS}
+              stroke="currentColor"
+              strokeWidth={3}
+              strokeLinecap="round"
+              strokeDasharray={RING_CIRCUMFERENCE}
+              strokeDashoffset={offset}
+            />
+          </svg>
+          <Layer name="download" active={iconFor[kind] === 'download'}>
+            <Download />
+          </Layer>
+          <Layer name="check" active={false}>
+            <Check />
+          </Layer>
+          <Layer name="rotate" active={iconFor[kind] === 'rotate'}>
+            <RotateCw />
+          </Layer>
+          <Layer name="clock" active={iconFor[kind] === 'clock'}>
+            <Clock />
+          </Layer>
         </span>
-      ) : (
-        <ProgressRing progress={progress} icon={icon} />
-      )}
-      <span>{label}</span>
-    </button>
-  ),
+        <span data-pill-label className="relative grid overflow-hidden">
+          <span data-pill-text>
+            {text}
+            {hasEllipsis
+              ? [0, 1, 2].map((dot) => (
+                  <span key={dot} data-pill-dot aria-hidden="true">
+                    .
+                  </span>
+                ))
+              : null}
+          </span>
+        </span>
+      </button>
+    );
+  },
 );
 UpdatePill.displayName = 'UpdatePill';
 

@@ -118,34 +118,38 @@ describe('titleBarUpdate', () => {
       withPhase({ kind: 'downloading', version: '1.2.0', percent: 40, transferred: 4, total: 10 }),
       'downloading',
       '40%',
-      'Downloading update 1.2.0, 40%',
+      'Downloading update 1.2.0, 40%: open update settings',
+      'settings',
       40,
     ],
     [
       withPhase({ kind: 'ready', version: '1.2.0' }),
       'ready',
       'Restart to update',
-      'Restart to update: 1.2.0 is ready to install',
+      'Restart to update: install MangaVerse 1.2.0 now',
+      'install',
       null,
     ],
     [
       withPhase({ kind: 'installing', version: '1.2.0', queued: true }),
       'queued',
       'Restart queued',
-      'Restart queued: Restart queued for 1.2.0',
+      'Restart queued: MangaVerse 1.2.0 installs when you finish reading',
+      'none',
       null,
     ],
     [
       withPhase({ kind: 'installing', version: '1.2.0', queued: false }),
       'restarting',
       'Restarting…',
-      'Restarting…: Restarting to install 1.2.0',
+      'Restarting…: installing MangaVerse 1.2.0',
+      'none',
       null,
     ],
   ])(
-    'Given an update in flight, Then the label is short and the name repeats it with the version',
-    (state, kind, label, name, percent) => {
-      expect(titleBarUpdate(state)).toEqual({ kind, label, name, percent });
+    'Given an update in flight, Then the label is short and the name says what a click does',
+    (state, kind, label, name, click, percent) => {
+      expect(titleBarUpdate(state)).toEqual({ kind, label, name, click, percent });
     },
   );
 });

@@ -66,15 +66,19 @@ export interface TitleBarUpdate {
   readonly kind: TitleBarUpdateKind;
   /** The short visible text: the percent while downloading, else the action. */
   readonly label: string;
-  /** The accessible name; it repeats the visible label and adds the version. */
+  /** The accessible name; it repeats the visible label and says what a click does. */
   readonly name: string;
+  /** What a click does: open the settings page, install now, or nothing (a restart is under way). */
+  readonly click: 'settings' | 'install' | 'none';
   /** 0-100 while a release downloads, else `null`. */
   readonly percent: number | null;
 }
 
 /**
  * The title bar's Update pill: shown only while a release downloads, waits for a restart or
- * installs. A download shows just its percent (the ring and the name carry the rest).
+ * installs. A download shows just its percent (the ring and the name carry the rest). The name
+ * says what a click does: a download opens the settings page, a ready release installs at once
+ * (main queues the restart while a chapter is open), and a restart under way takes no click.
  */
 export function titleBarUpdate(state: PlatformUpdateState | null): TitleBarUpdate | null {
   if (state === null) return null;
@@ -85,7 +89,8 @@ export function titleBarUpdate(state: PlatformUpdateState | null): TitleBarUpdat
       return {
         kind: 'downloading',
         label,
-        name: `Downloading update ${phase.version}, ${label}`,
+        name: `Downloading update ${phase.version}, ${label}: open update settings`,
+        click: 'settings',
         percent: phase.percent,
       };
     }
@@ -93,7 +98,8 @@ export function titleBarUpdate(state: PlatformUpdateState | null): TitleBarUpdat
       return {
         kind: 'ready',
         label: 'Restart to update',
-        name: `Restart to update: ${describeUpdate(state).title}`,
+        name: `Restart to update: install MangaVerse ${phase.version} now`,
+        click: 'install',
         percent: null,
       };
     case 'installing': {
@@ -101,7 +107,10 @@ export function titleBarUpdate(state: PlatformUpdateState | null): TitleBarUpdat
       return {
         kind: phase.queued ? 'queued' : 'restarting',
         label,
-        name: `${label}: ${describeUpdate(state).title}`,
+        name: phase.queued
+          ? `${label}: MangaVerse ${phase.version} installs when you finish reading`
+          : `${label}: installing MangaVerse ${phase.version}`,
+        click: 'none',
         percent: null,
       };
     }

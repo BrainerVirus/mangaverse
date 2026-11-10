@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, waitFor, fireEvent, render, screen } from '@testing-library/react';
 import { ok } from '@app/shared';
 import {
   TITLE_BAR_HEIGHTS,
@@ -33,10 +33,16 @@ const withPhase = (phase: PlatformUpdateState['phase']): PlatformUpdateState => 
 
 function renderView(chrome: PlatformWindowChrome | null, update: PlatformUpdateState | null) {
   const onOpenUpdates = vi.fn<() => void>();
+  const onInstall = vi.fn<() => void>();
   const view = render(
-    <TitleBarView chrome={chrome} update={update} onOpenUpdates={onOpenUpdates} />,
+    <TitleBarView
+      chrome={chrome}
+      update={update}
+      onOpenUpdates={onOpenUpdates}
+      onInstall={onInstall}
+    />,
   );
-  return { onOpenUpdates, container: view.container };
+  return { onOpenUpdates, onInstall, container: view.container };
 }
 
 const strip = (container: HTMLElement) => container.querySelector<HTMLElement>('[data-title-bar]');
@@ -89,48 +95,58 @@ describe('TitleBarView', () => {
       'downloading',
       withPhase({ kind: 'downloading', version: '1.1.0', percent: 40, transferred: 4, total: 10 }),
       '40%',
-      'Downloading update 1.1.0, 40%',
+      'Downloading update 1.1.0, 40%: open update settings',
       'download',
       'neutral',
+      'settings',
     ],
     [
       'ready',
       withPhase({ kind: 'ready', version: '1.1.0' }),
       'Restart to update',
-      'Restart to update: 1.1.0 is ready to install',
-      'rotate-cw',
+      'Restart to update: install MangaVerse 1.1.0 now',
+      'rotate',
       'attention',
+      'install',
     ],
     [
       'queued',
       withPhase({ kind: 'installing', version: '1.1.0', queued: true }),
       'Restart queued',
-      'Restart queued: Restart queued for 1.1.0',
+      'Restart queued: MangaVerse 1.1.0 installs when you finish reading',
       'clock',
       'neutral',
+      'none',
     ],
     [
       'restarting',
       withPhase({ kind: 'installing', version: '1.1.0', queued: false }),
       'Restarting…',
-      'Restarting…: Restarting to install 1.1.0',
-      'rotate-cw',
+      'Restarting…: installing MangaVerse 1.1.0',
+      'rotate',
       'neutral',
+      'none',
     ],
   ])(
-    'Given an update %s, Then a named pill with its icon and label opens the updates page',
-    (_phase, update, label, name, icon, tone) => {
-      const { onOpenUpdates } = renderView(mac, update);
+    'Given an update %s, Then a pill named for what a click does acts on it',
+    (_phase, update, label, name, icon, tone, click) => {
+      const { onOpenUpdates, onInstall } = renderView(mac, update);
       const button = screen.getByRole('button', { name });
-      expect(button.textContent).toBe(label);
-      expect(button.querySelector(`svg.lucide-${icon}`)).not.toBeNull();
+      expect(button.textContent).toBe(label.replace('…', '...'));
+      const layer = (name: string) => button.querySelector(`[data-pill-icon="${name}"]`)!;
+      for (const name of ['download', 'check', 'rotate', 'clock']) {
+        expect(layer(name).classList.contains('opacity-0')).toBe(name !== icon);
+      }
       expect(button.dataset.tone).toBe(tone);
       // The button opts out of the drag region, or the click would move the window instead.
       expect(button.closest('.app-region-no-drag')).not.toBeNull();
       button.focus();
-      expect(document.activeElement).toBe(button);
       fireEvent.click(button);
-      expect(onOpenUpdates).toHaveBeenCalledTimes(1);
+      // Pressing it never costs the keyboard user their place, whatever it does.
+      expect(document.activeElement).toBe(button);
+      expect(onOpenUpdates).toHaveBeenCalledTimes(click === 'settings' ? 1 : 0);
+      expect(onInstall).toHaveBeenCalledTimes(click === 'install' ? 1 : 0);
+      expect(button.getAttribute('aria-disabled')).toBe(click === 'none' ? 'true' : null);
     },
   );
 
@@ -139,6 +155,7 @@ describe('TitleBarView', () => {
     const button = screen.getByRole('button');
     expect(button.classList.contains('bg-primary')).toBe(true);
     expect(button.classList.contains('text-primary-foreground')).toBe(true);
+    // The ring is only drawn while a download runs.
     expect(button.querySelector('[data-progress-ring]')).toBeNull();
   });
 
@@ -156,41 +173,121 @@ describe('TitleBarView', () => {
         circumference * (1 - percent / 100),
         5,
       );
-      expect(arc.getAttribute('class')).toContain('progress-ring-arc');
-      expect(arc.getAttribute('class')).toContain('motion-reduce:transition-none');
+      // The ring is moved by GSAP now (UpdatePill), not by a CSS transition.
+      expect(arc.getAttribute('class')).toBeNull();
     },
   );
 
-  it('Given a restart in progress, Then the spinner stops for reduced motion', () => {
+  it('Given a restart in progress, Then the label ends in three dots and the spinner glyph shows', () => {
     renderView(mac, withPhase({ kind: 'installing', version: '1.1.0', queued: false }));
-    const icon = screen.getByRole('button').querySelector('svg.lucide-rotate-cw')!;
-    expect(icon.getAttribute('class')).toContain('animate-spin');
-    expect(icon.getAttribute('class')).toContain('motion-reduce:animate-none');
+    const button = screen.getByRole('button');
+    expect(button.querySelectorAll('[data-pill-dot]')).toHaveLength(3);
+    expect(button.querySelector('[data-pill-icon="rotate"]')!.classList.contains('opacity-0')).toBe(
+      false,
+    );
   });
 });
 
 describe('TitleBar', () => {
-  it('Given the desktop bridge, Then it draws from main, hides on fullscreen and navigates to updates', async () => {
+  function installBridge(phase: PlatformUpdateState['phase']) {
     let emitChrome: (chrome: PlatformWindowChrome) => void = () => {};
+    let emitState: (state: PlatformUpdateState) => void = () => {};
+    const updateInstall = vi.fn<() => Promise<unknown>>(async () => ok(undefined));
     const bridge = {
       windowChromeGet: async () => ok(mac),
       onWindowChrome: (listener: (chrome: PlatformWindowChrome) => void) => {
         emitChrome = listener;
         return () => {};
       },
-      updateGetState: async () => ok(withPhase({ kind: 'ready', version: '1.1.0' })),
-      onUpdateState: () => () => {},
+      updateGetState: async () => ok(withPhase(phase)),
+      onUpdateState: (listener: (state: PlatformUpdateState) => void) => {
+        emitState = listener;
+        return () => {};
+      },
+      updateInstall,
     };
     (window as unknown as { mangaversePlatform: unknown }).mangaversePlatform =
       bridge as unknown as DesktopPlatformBridge;
+    return {
+      updateInstall,
+      emitChrome: (chrome: PlatformWindowChrome) => emitChrome(chrome),
+      emitState: (phase: PlatformUpdateState['phase']) => emitState(withPhase(phase)),
+    };
+  }
 
+  it('Given a download, Then clicking the pill opens the updates page and hides on fullscreen', async () => {
+    const { emitChrome, updateInstall } = installBridge({
+      kind: 'downloading',
+      version: '1.1.0',
+      percent: 40,
+      transferred: 4,
+      total: 10,
+    });
     const { container } = render(<TitleBar />);
     await act(async () => {});
-    fireEvent.click(screen.getByRole('button', { name: /^Restart to update: 1\.1\.0/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Downloading update 1\.1\.0/ }));
     expect(navigate).toHaveBeenCalledWith({ to: '/settings/updates' });
+    expect(updateInstall).not.toHaveBeenCalled();
 
     act(() => emitChrome({ ...mac, fullScreen: true }));
     expect(strip(container)).toBeNull();
+  });
+
+  it('Given a ready release, Then clicking the pill asks main to install at once', async () => {
+    navigate.mockClear();
+    const { updateInstall } = installBridge({ kind: 'ready', version: '1.1.0' });
+    render(<TitleBar />);
+    await act(async () => {});
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Restart to update: install MangaVerse 1.1.0 now' }),
+    );
+    expect(updateInstall).toHaveBeenCalledTimes(1);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('Given a download that just finished, Then a click installs only once "Restart to update" is on show', async () => {
+    navigate.mockClear();
+    const { updateInstall, emitState } = installBridge({
+      kind: 'downloading',
+      version: '1.1.0',
+      percent: 100,
+      transferred: 10,
+      total: 10,
+    });
+    render(<TitleBar />);
+    await act(async () => {});
+    // Let the entrance play out; the pill shows "100%".
+    await waitFor(() => expect(screen.getByRole('button').style.opacity).toBe(''));
+
+    act(() => emitState({ kind: 'ready', version: '1.1.0' }));
+    const button = screen.getByRole('button', {
+      name: 'Restart to update: install MangaVerse 1.1.0 now',
+    });
+    // The name is already the new one, but the old "100%" is still what the user sees.
+    expect(button.querySelector('[data-pill-ghost]')?.textContent).toBe('100%');
+    fireEvent.click(button);
+    expect(updateInstall).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+
+    // The real transition plays out (about 0.6s); the click is held until the new label is on show.
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    await waitFor(() => expect(button.hasAttribute('aria-disabled')).toBe(false), {
+      timeout: 3000,
+    });
+    expect(button.querySelector('[data-pill-ghost]')).toBeNull();
+    expect(button.querySelector('[data-pill-text]')?.textContent).toBe('Restart to update');
+    fireEvent.click(button);
+    expect(updateInstall).toHaveBeenCalledTimes(1);
+  });
+
+  it('Given a restart under way, Then clicking the pill asks for nothing', async () => {
+    navigate.mockClear();
+    const { updateInstall } = installBridge({ kind: 'installing', version: '1.1.0', queued: true });
+    render(<TitleBar />);
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: /^Restart queued/ }));
+    expect(updateInstall).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
   });
 });
 
@@ -239,12 +336,6 @@ describe('title bar styles', () => {
     expect(titleBar).not.toContain('var(--background)');
   });
 
-  it('Given the ring arc, Then it eases between percents and snaps for reduced motion', () => {
-    expect(block('@utility progress-ring-arc {')).toContain(
-      'transition: stroke-dashoffset 300ms ease-out;',
-    );
-  });
-
   it('Given each platform, Then the strip keeps clear of its native controls', () => {
     const titleBar = block('@utility title-bar {');
     expect(titleBar).toMatch(/&\[data-platform="darwin"\] \{\s*padding-inline-start: 80px;/);
@@ -260,6 +351,18 @@ describe('title bar styles', () => {
     expect(titleBar).toContain('padding-inline: calc(var(--spacing) * 3);');
     expect(titleBar).toMatch(/var\(--spacing\) \* 3\s*\);\s*\}/);
     expect(titleBar).not.toContain('var(--spacing) * 2');
+  });
+
+  it('Given the skip link, Then it shows below the title bar, with its own padding, only on focus', () => {
+    const skip = block('@utility skip-link {');
+    expect(skip).toContain(
+      'inset-block-start: calc(var(--title-bar-height) + var(--spacing) * 2);',
+    );
+    expect(skip).toContain('position: fixed;');
+    expect(skip).toContain('clip-path: inset(50%);');
+    const focused = skip.slice(skip.indexOf('&:focus {'));
+    expect(focused).toContain('padding: calc(var(--spacing) * 2) calc(var(--spacing) * 4);');
+    expect(focused).toContain('clip-path: none;');
   });
 
   it('Given the shell and the reader, Then both start below the strip', () => {
