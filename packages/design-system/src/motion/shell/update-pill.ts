@@ -98,8 +98,8 @@ export interface UpdatePillMotion {
   /** The press of the ready pill. */
   press: (on: boolean, options: UpdatePillMotionOptions) => void;
   /**
-   * True while the pill still shows the label of the phase before (a swap is under way). A click
-   * must not act then: what the user sees is not what the click would do.
+   * True while the pill still shows the label of the phase before (a swap is under way); the pill
+   * carries `data-motion-hold` then. A click must not act: what the user sees is not what it does.
    */
   pending: () => boolean;
   /** Fade a copy of the pill out where it was; call as the pill leaves. */
@@ -114,7 +114,10 @@ export interface UpdatePillMotion {
  * render, from a layout effect scoped to the pill (`useGsapContext`); the DOM already shows the
  * new text, so the helper sets the old one back for the length of the swap.
  */
-export function createUpdatePillMotion(parts: UpdatePillParts): UpdatePillMotion {
+export function createUpdatePillMotion(
+  parts: UpdatePillParts,
+  { onHold }: { readonly onHold?: (on: boolean) => void } = {},
+): UpdatePillMotion {
   const { pill, glow, fill, ring, arc, icons, labelSlot, text } = parts;
   const createdAt = Date.now();
   let last: UpdatePillFrame | null = null;
@@ -123,7 +126,6 @@ export function createUpdatePillMotion(parts: UpdatePillParts): UpdatePillMotion
   let spin: gsap.core.Tween | null = null;
   let dotLoop: gsap.core.Timeline | null = null;
   let pending = false;
-  let markedDisabled = false;
   const counter = { value: 0 };
   const everything = (): gsap.TweenTarget[] => [
     pill,
@@ -144,16 +146,17 @@ export function createUpdatePillMotion(parts: UpdatePillParts): UpdatePillMotion
   };
   const visibleBase = (label: string): string => (label.endsWith('…') ? label.slice(0, -1) : label);
 
-  /** Hold clicks (`aria-disabled`, which keeps focus) while the old label is still on show. */
+  /**
+   * Hold clicks while the old label is still on show. The hold is its own signal, never
+   * `aria-disabled` (the app owns that): a `data-motion-hold` attribute for the click guard, and
+   * `onHold` so the component can reflect it to assistive tech.
+   */
   function holdClicks(on: boolean): void {
+    if (pending === on) return;
     pending = on;
-    if (on && !pill.hasAttribute('aria-disabled')) {
-      pill.setAttribute('aria-disabled', 'true');
-      markedDisabled = true;
-    } else if (!on && markedDisabled) {
-      pill.removeAttribute('aria-disabled');
-      markedDisabled = false;
-    }
+    if (on) pill.setAttribute('data-motion-hold', '');
+    else pill.removeAttribute('data-motion-hold');
+    onHold?.(on);
   }
 
   function stopLoops(): void {

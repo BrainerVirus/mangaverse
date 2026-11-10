@@ -128,9 +128,11 @@ describe('UpdatePill wiring', () => {
 
   /** Run every finite tween to its end; infinite loops are left alone. */
   const settle = () => {
-    for (const child of gsap.globalTimeline.getChildren(true, true, true)) {
-      if (child.repeat() !== -1 && child.parent === gsap.globalTimeline) child.progress(1);
-    }
+    act(() => {
+      for (const child of gsap.globalTimeline.getChildren(true, true, true)) {
+        if (child.repeat() !== -1 && child.parent === gsap.globalTimeline) child.progress(1);
+      }
+    });
   };
 
   it('Given the real sequence ready -> restarting, Then the dots (drawn only then) fade in turn and the glyph spins', () => {
@@ -147,6 +149,33 @@ describe('UpdatePill wiring', () => {
     }
     const rotate = container.querySelector<HTMLElement>('[data-pill-icon="rotate"]')!;
     expect(gsap.getTweensOf(rotate).some((tween) => tween.repeat() === -1)).toBe(true);
+  });
+
+  it('Given ready with a swap under way, When the phase becomes installing, Then aria-disabled is still true after the swap', () => {
+    const { rerender } = render(
+      <UpdatePill kind="downloading" label="100%" progress={100} aria-label="Downloading" />,
+    );
+    settle();
+    rerender(<UpdatePill kind="ready" label="Restart to update" aria-label="Ready" />);
+    const button = screen.getByRole('button', { name: 'Ready' });
+    expect(button.hasAttribute('data-motion-hold')).toBe(true);
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    // The app now disables it for good: a restart is queued.
+    rerender(<UpdatePill kind="queued" label="Restart queued" aria-label="Queued" aria-disabled />);
+    settle();
+    const queued = screen.getByRole('button', { name: 'Queued' });
+    expect(queued.hasAttribute('data-motion-hold')).toBe(false);
+    expect(queued.getAttribute('aria-disabled')).toBe('true');
+  });
+
+  it('Given the hold ends on a pill the app never disabled, Then aria-disabled goes away', () => {
+    const { rerender } = render(
+      <UpdatePill kind="downloading" label="100%" progress={100} aria-label="Downloading" />,
+    );
+    settle();
+    rerender(<UpdatePill kind="ready" label="Restart to update" aria-label="Ready" />);
+    settle();
+    expect(screen.getByRole('button', { name: 'Ready' }).hasAttribute('aria-disabled')).toBe(false);
   });
 
   it('Given the old label is still on show, Then a click is swallowed, and after the swap it goes through', () => {

@@ -272,30 +272,53 @@ describe('update pill motion', () => {
     expect(parts.pill.style.backgroundColor).toBe('');
   });
 
-  it('Given a phase change, Then clicks are held (aria-disabled) until the new label is on show', () => {
+  it('Given a phase change, Then clicks are held (data-motion-hold, never aria-disabled) until the new label is on show', () => {
     pill.to(downloading(80), motion);
     settle();
     expect(pill.pending()).toBe(false);
     parts.text.firstChild!.nodeValue = ready.label;
     pill.to(ready, motion);
     expect(pill.pending()).toBe(true);
-    expect(parts.pill.getAttribute('aria-disabled')).toBe('true');
+    expect(parts.pill.hasAttribute('data-motion-hold')).toBe(true);
+    expect(parts.pill.hasAttribute('aria-disabled')).toBe(false);
     // Halfway through the celebration the old percent is still what the user sees.
     const timeline = gsap.getTweensOf(parts.arc!)[0]!.parent as gsap.core.Timeline;
     timeline.time(0.4);
     expect(pill.pending()).toBe(true);
     settle();
     expect(pill.pending()).toBe(false);
-    expect(parts.pill.hasAttribute('aria-disabled')).toBe(false);
+    expect(parts.pill.hasAttribute('data-motion-hold')).toBe(false);
   });
 
-  it('Given the pill was already aria-disabled, Then holding and releasing leave it so', () => {
+  it('Given the pill is aria-disabled, Then holding and releasing never touch it', () => {
     parts.pill.setAttribute('aria-disabled', 'true');
+    pill.to(downloading(80), motion);
+    settle();
+    parts.text.firstChild!.nodeValue = queued.label;
     pill.to(queued, motion);
+    expect(parts.pill.hasAttribute('data-motion-hold')).toBe(true);
     settle();
     pill.to(restarting, motion);
     settle();
     expect(parts.pill.getAttribute('aria-disabled')).toBe('true');
+    // The app removes it; the helper had nothing to restore.
+    parts.pill.removeAttribute('aria-disabled');
+    parts.text.firstChild!.nodeValue = ready.label;
+    pill.to(ready, motion);
+    settle();
+    expect(parts.pill.hasAttribute('aria-disabled')).toBe(false);
+  });
+
+  it('Given a hold callback, Then it hears every change once', () => {
+    const changes: boolean[] = [];
+    const watched = createUpdatePillMotion(parts, { onHold: (on) => changes.push(on) });
+    watched.to(downloading(80), motion);
+    settle();
+    parts.text.firstChild!.nodeValue = ready.label;
+    watched.to(ready, motion);
+    settle();
+    watched.dispose();
+    expect(changes).toEqual([true, false]);
   });
 
   it('Given reduced motion is switched on mid-transition, Then the ghost and the hold are gone at once', () => {
@@ -307,7 +330,7 @@ describe('update pill motion', () => {
     pill.to(ready, reduced);
     expect(parts.labelSlot.querySelector('[data-pill-ghost]')).toBeNull();
     expect(pill.pending()).toBe(false);
-    expect(parts.pill.hasAttribute('aria-disabled')).toBe(false);
+    expect(parts.pill.hasAttribute('data-motion-hold')).toBe(false);
     expect(shown(parts)).toBe('Restart to update');
     expect(parts.text.style.opacity).toBe('1');
     expect(gsap.globalTimeline.getChildren(true, true, true)).toHaveLength(0);

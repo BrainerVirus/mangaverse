@@ -42,6 +42,32 @@ export interface UpdatePillProps extends Omit<
   progress?: number | undefined;
 }
 
+interface HoldStore {
+  subscribe: (listener: () => void) => () => void;
+  get: () => boolean;
+  getServer: () => boolean;
+  set: (on: boolean) => void;
+}
+
+/** Whether the motion is holding clicks, for `aria-disabled`: the controller sets it, the render reads it. */
+function createHoldStore(): HoldStore {
+  let active = false;
+  const listeners = new Set<() => void>();
+  return {
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    get: () => active,
+    getServer: () => false,
+    set: (on) => {
+      if (active === on) return;
+      active = on;
+      for (const listener of [...listeners]) listener();
+    },
+  };
+}
+
 function clampPercent(value: number): number {
   return Math.min(100, Math.max(0, value));
 }
@@ -80,7 +106,8 @@ function Layer({
  * While downloading the icon sits inside a ring that fills as the download runs. Between phases
  * the label slides, the number counts, the width and colour glide and a finished download turns
  * into the restart glyph (`motion/shell/update-pill.ts`); reduced motion changes state at once.
- * The name and the click are never held back by it.
+ * The accessible name is never held back by it; a click is, only while the old label is still on
+ * show (`data-motion-hold`, reflected as `aria-disabled` from the render, which owns that attribute).
  */
 const UpdatePill = React.forwardRef<HTMLButtonElement, UpdatePillProps>(
   (
@@ -98,6 +125,7 @@ const UpdatePill = React.forwardRef<HTMLButtonElement, UpdatePillProps>(
       onFocus,
       onBlur,
       onClick,
+      'aria-disabled': ariaDisabled,
       ...props
     },
     ref,
@@ -107,6 +135,11 @@ const UpdatePill = React.forwardRef<HTMLButtonElement, UpdatePillProps>(
     const motionRef = React.useRef<UpdatePillMotion | null>(null);
     // The preference as of the last run: a cleanup from the first run must not close over a stale one.
     const reducedRef = React.useRef(false);
+    const hold = React.useMemo(() => createHoldStore(), []);
+    // The controller reports to whichever store this render holds, even if a memo were rebuilt.
+    const holdRef = React.useRef(hold);
+    const holdActive = React.useSyncExternalStore(hold.subscribe, hold.get, hold.getServer);
+    const disabled = holdActive || ariaDisabled === true || ariaDisabled === 'true';
     const reducedMotion = useReducedMotion();
     React.useImperativeHandle(ref, () => pillRef.current as HTMLButtonElement, []);
 
@@ -121,6 +154,7 @@ const UpdatePill = React.forwardRef<HTMLButtonElement, UpdatePillProps>(
         const pill = pillRef.current;
         if (pill === null) return;
         reducedRef.current = reducedMotion;
+        holdRef.current = hold;
         const created = motionRef.current === null;
         if (motionRef.current === null) {
           const find = <T extends Element>(selector: string): T => {
@@ -129,22 +163,25 @@ const UpdatePill = React.forwardRef<HTMLButtonElement, UpdatePillProps>(
             return found;
           };
           const icon = (name: UpdatePillIcon) => find<HTMLElement>(`[data-pill-icon="${name}"]`);
-          motionRef.current = createUpdatePillMotion({
-            pill,
-            glow: find<HTMLElement>('[data-pill-glow]'),
-            fill: find<HTMLElement>('[data-pill-fill]'),
-            ring: find<Element>('[data-progress-ring-svg]'),
-            arc: pill.querySelector<SVGElement>('[data-progress-arc]'),
-            icons: {
-              download: icon('download'),
-              check: icon('check'),
-              rotate: icon('rotate'),
-              clock: icon('clock'),
+          motionRef.current = createUpdatePillMotion(
+            {
+              pill,
+              glow: find<HTMLElement>('[data-pill-glow]'),
+              fill: find<HTMLElement>('[data-pill-fill]'),
+              ring: find<Element>('[data-progress-ring-svg]'),
+              arc: pill.querySelector<SVGElement>('[data-progress-arc]'),
+              icons: {
+                download: icon('download'),
+                check: icon('check'),
+                rotate: icon('rotate'),
+                clock: icon('clock'),
+              },
+              labelSlot: find<HTMLElement>('[data-pill-label]'),
+              text: find<HTMLElement>('[data-pill-text]'),
+              dots: () => [...pill.querySelectorAll<HTMLElement>('[data-pill-dot]')],
             },
-            labelSlot: find<HTMLElement>('[data-pill-label]'),
-            text: find<HTMLElement>('[data-pill-text]'),
-            dots: () => [...pill.querySelectorAll<HTMLElement>('[data-pill-dot]')],
-          });
+            { onHold: (on) => holdRef.current.set(on) },
+          );
         }
         motionRef.current.to({ kind, label, percent }, { reducedMotion });
         // Every run adds its cleanup to the context, so only the run that made the controller does.
@@ -155,7 +192,7 @@ const UpdatePill = React.forwardRef<HTMLButtonElement, UpdatePillProps>(
           motionRef.current = null;
         };
       },
-      [kind, label, percent, reducedMotion],
+      [kind, label, percent, reducedMotion, hold],
       { revertOnUpdate: false },
     );
 
@@ -166,6 +203,7 @@ const UpdatePill = React.forwardRef<HTMLButtonElement, UpdatePillProps>(
         type={type}
         data-tone={tone}
         data-kind={kind}
+        aria-disabled={disabled ? true : undefined}
         className={cn(
           'relative isolate inline-flex h-5.5 items-center gap-1.5 whitespace-nowrap rounded-badge px-2.5 text-xs font-medium tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0',
           pillTones[tone],
@@ -173,7 +211,7 @@ const UpdatePill = React.forwardRef<HTMLButtonElement, UpdatePillProps>(
         )}
         onClick={(event) => {
           // While the old label is still on show, a click must not do what the new one says.
-          if (motionRef.current?.pending() === true) {
+          if (event.currentTarget.hasAttribute('data-motion-hold')) {
             event.preventDefault();
             return;
           }
