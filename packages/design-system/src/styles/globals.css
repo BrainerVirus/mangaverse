@@ -671,6 +671,12 @@
   transition: stroke-dashoffset 300ms ease-out;
 }
 
+/* The fill of `Progress` eases between values (`motion-reduce:transition-none` on the element
+   makes it snap). Only the width moves, so no `transition: all`. */
+@utility progress-fill {
+  transition: width 300ms ease-out;
+}
+
 /* A control inside the title bar: it takes clicks instead of dragging the window. */
 @utility app-region-no-drag {
   -webkit-app-region: no-drag;

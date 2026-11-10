@@ -136,3 +136,64 @@ export function updateAction(state: PlatformUpdateState): {
       return { label: phase.queued ? 'Restart queued' : 'Restarting…', kind: 'busy' };
   }
 }
+
+/** "40.2 MB": decimal megabytes, the unit the OS shows for a download. */
+export function formatMegabytes(bytes: number): string {
+  return `${(Math.max(0, bytes) / 1_000_000).toFixed(1)} MB`;
+}
+
+export interface UpdatePopoverCopy {
+  readonly kind: TitleBarUpdateKind;
+  /** Announced once per phase: it never carries the percent. */
+  readonly title: string;
+  readonly detail: string;
+  /** The download's bar and its quiet readout; `null` outside a download. */
+  readonly progress: { readonly percent: number; readonly text: string } | null;
+}
+
+/**
+ * The words in the title-bar popover, per phase. Only the phases the Update pill shows have copy;
+ * everything else is `null` (the popover has nothing to say and no pill to hang from).
+ */
+export function updatePopoverCopy(state: PlatformUpdateState | null): UpdatePopoverCopy | null {
+  if (state === null) return null;
+  const phase = state.phase;
+  switch (phase.kind) {
+    case 'downloading':
+      return {
+        kind: 'downloading',
+        title: `Downloading MangaVerse ${phase.version}`,
+        detail: 'It installs only when you restart.',
+        progress: {
+          percent: phase.percent,
+          text:
+            phase.total > 0
+              ? `${formatMegabytes(phase.transferred)} of ${formatMegabytes(phase.total)}`
+              : `${phase.percent}%`,
+        },
+      };
+    case 'ready':
+      return {
+        kind: 'ready',
+        title: `MangaVerse ${phase.version} is ready`,
+        detail: 'Restart to finish. Your reading progress is already saved.',
+        progress: null,
+      };
+    case 'installing':
+      return phase.queued
+        ? {
+            kind: 'queued',
+            title: 'Restart queued',
+            detail: 'MangaVerse will restart when you finish reading.',
+            progress: null,
+          }
+        : {
+            kind: 'restarting',
+            title: 'Restarting…',
+            detail: 'The app will reopen.',
+            progress: null,
+          };
+    default:
+      return null;
+  }
+}

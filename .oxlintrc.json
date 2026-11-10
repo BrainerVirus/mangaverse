@@ -96,13 +96,15 @@
           "type-display-lg",
           "type-heading",
           "type-label",
+          "type-meta",
           "type-micro",
           "type-title",
           "width-transition",
           "title-bar",
           "app-region-no-drag",
           "below-title-bar",
-          "progress-ring-arc"
+          "progress-ring-arc",
+          "progress-fill"
         ]
       }
     ],

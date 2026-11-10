@@ -32,11 +32,19 @@ const withPhase = (phase: PlatformUpdateState['phase']): PlatformUpdateState => 
 });
 
 function renderView(chrome: PlatformWindowChrome | null, update: PlatformUpdateState | null) {
-  const onOpenUpdates = vi.fn<() => void>();
+  const onOpenChange = vi.fn<(open: boolean) => void>();
   const view = render(
-    <TitleBarView chrome={chrome} update={update} onOpenUpdates={onOpenUpdates} />,
+    <TitleBarView
+      chrome={chrome}
+      update={update}
+      open={false}
+      onOpenChange={onOpenChange}
+      onLater={() => {}}
+      onInstall={() => {}}
+      onOpenSettings={() => {}}
+    />,
   );
-  return { onOpenUpdates, container: view.container };
+  return { onOpenChange, container: view.container };
 }
 
 const strip = (container: HTMLElement) => container.querySelector<HTMLElement>('[data-title-bar]');
@@ -118,19 +126,21 @@ describe('TitleBarView', () => {
       'neutral',
     ],
   ])(
-    'Given an update %s, Then a named pill with its icon and label opens the updates page',
+    'Given an update %s, Then a named pill with its icon and label opens the update popover',
     (_phase, update, label, name, icon, tone) => {
-      const { onOpenUpdates } = renderView(mac, update);
+      const { onOpenChange } = renderView(mac, update);
       const button = screen.getByRole('button', { name });
       expect(button.textContent).toBe(label);
       expect(button.querySelector(`svg.lucide-${icon}`)).not.toBeNull();
       expect(button.dataset.tone).toBe(tone);
       // The button opts out of the drag region, or the click would move the window instead.
       expect(button.closest('.app-region-no-drag')).not.toBeNull();
+      expect(button.getAttribute('aria-expanded')).toBe('false');
       button.focus();
       expect(document.activeElement).toBe(button);
       fireEvent.click(button);
-      expect(onOpenUpdates).toHaveBeenCalledTimes(1);
+      expect(onOpenChange).toHaveBeenCalledTimes(1);
+      expect(onOpenChange.mock.calls[0]![0]).toBe(true);
     },
   );
 
@@ -170,7 +180,7 @@ describe('TitleBarView', () => {
 });
 
 describe('TitleBar', () => {
-  it('Given the desktop bridge, Then it draws from main, hides on fullscreen and navigates to updates', async () => {
+  it('Given the desktop bridge, Then it draws from main, opens the popover from the pill and hides on fullscreen', async () => {
     let emitChrome: (chrome: PlatformWindowChrome) => void = () => {};
     const bridge = {
       windowChromeGet: async () => ok(mac),
@@ -186,8 +196,15 @@ describe('TitleBar', () => {
 
     const { container } = render(<TitleBar />);
     await act(async () => {});
+    expect(screen.queryByRole('dialog')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /^Restart to update: 1\.1\.0/ }));
+    expect(screen.getByRole('dialog', { name: 'MangaVerse 1.1.0 is ready' })).not.toBeNull();
+    expect(navigate).not.toHaveBeenCalled();
+
+    // The panel's footer link goes to the settings page and closes the panel.
+    fireEvent.click(screen.getByRole('button', { name: 'Update settings' }));
     expect(navigate).toHaveBeenCalledWith({ to: '/settings/updates' });
+    expect(screen.queryByRole('dialog')).toBeNull();
 
     act(() => emitChrome({ ...mac, fullScreen: true }));
     expect(strip(container)).toBeNull();
