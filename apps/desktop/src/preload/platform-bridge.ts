@@ -1,6 +1,16 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { PLATFORM_IPC, UPDATE_AVAILABLE_IPC, UPDATE_STATE_IPC } from '@app/platform';
-import type { DesktopPlatformBridge, PlatformUpdateInfo, PlatformUpdateState } from '@app/platform';
+import {
+  PLATFORM_IPC,
+  UPDATE_AVAILABLE_IPC,
+  UPDATE_STATE_IPC,
+  WINDOW_CHROME_IPC,
+} from '@app/platform';
+import type {
+  DesktopPlatformBridge,
+  PlatformUpdateInfo,
+  PlatformUpdateState,
+  PlatformWindowChrome,
+} from '@app/platform';
 
 const bridge: DesktopPlatformBridge = {
   getCapabilities: () => ipcRenderer.invoke(PLATFORM_IPC.CAPABILITIES_GET),
@@ -52,6 +62,16 @@ const bridge: DesktopPlatformBridge = {
     ipcRenderer.on(UPDATE_STATE_IPC, wrapped);
     return () => {
       ipcRenderer.removeListener(UPDATE_STATE_IPC, wrapped);
+    };
+  },
+  windowChromeGet: () => ipcRenderer.invoke(PLATFORM_IPC.WINDOW_CHROME_GET),
+  windowSetTitleBarColors: (color: string, symbolColor: string) =>
+    ipcRenderer.invoke(PLATFORM_IPC.WINDOW_SET_TITLE_BAR_COLORS, color, symbolColor),
+  onWindowChrome: (listener: (chrome: PlatformWindowChrome) => void) => {
+    const wrapped = (_event: unknown, chrome: PlatformWindowChrome) => listener(chrome);
+    ipcRenderer.on(WINDOW_CHROME_IPC, wrapped);
+    return () => {
+      ipcRenderer.removeListener(WINDOW_CHROME_IPC, wrapped);
     };
   },
   onUpdateAvailable: (listener: (info: PlatformUpdateInfo) => void) => {

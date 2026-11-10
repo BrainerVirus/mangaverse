@@ -10,6 +10,7 @@ import {
   mixCssColors,
   normalizeCssColor,
   parseCssColor,
+  toHexColor,
 } from './color.js';
 
 const COLOR_4_INPUTS = [
@@ -107,5 +108,19 @@ describe('legacy-compatible mixing', () => {
 
   it('keeps OKLCH notation when the source is OKLCH', () => {
     expect(mixCssColors('oklch(0.21 0 0)', 'oklch(0.9702 0 0)', 0.12)).toBe('oklch(0.31997 0 0)');
+  });
+});
+
+describe('toHexColor', () => {
+  it('Given any CSS colour, Then native chrome gets #rrggbb, clamped to sRGB without alpha', () => {
+    expect(toHexColor('#FAFAFA')).toBe('#fafafa');
+    expect(toHexColor('#e00')).toBe('#ee0000');
+    expect(toHexColor('rgb(255 0 0 / 50%)')).toBe('#ff0000');
+    expect(toHexColor('oklch(1 0 0)')).toBe('#ffffff');
+    expect(toHexColor('color(display-p3 1 0 0)')).toMatch(/^#[0-9a-f]{6}$/);
+  });
+
+  it('Given something that is not a colour, Then there is nothing to send', () => {
+    expect(toHexColor('not a colour')).toBeUndefined();
   });
 });

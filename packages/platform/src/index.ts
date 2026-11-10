@@ -13,3 +13,4 @@ export * from './unsupported.js';
 export * from './blob-storage-idb.js';
 export * from './network-fetch.js';
 export * from './app-adapter.js';
+export * from './window-chrome.js';

@@ -34,6 +34,8 @@ export const PLATFORM_IPC = {
   UPDATE_DISMISS: 'platform:update:dismiss',
   UPDATE_GET_STATE: 'platform:update:get-state',
   UPDATE_CHECK_NOW: 'platform:update:check-now',
+  WINDOW_CHROME_GET: 'platform:window-chrome:get',
+  WINDOW_SET_TITLE_BAR_COLORS: 'platform:window-chrome:set-title-bar-colors',
 } as const;
 
 /**
@@ -44,5 +46,8 @@ export const UPDATE_AVAILABLE_IPC = 'platform:update:available' as const;
 
 /** Main→renderer: the update state changed. Also an event, so also outside `PlatformIpcChannel`. */
 export const UPDATE_STATE_IPC = 'platform:update:state' as const;
+
+/** Main→renderer: the window entered or left fullscreen. An event, so outside `PlatformIpcChannel`. */
+export const WINDOW_CHROME_IPC = 'platform:window-chrome:changed' as const;
 
 export type PlatformIpcChannel = (typeof PLATFORM_IPC)[keyof typeof PLATFORM_IPC];

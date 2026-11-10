@@ -86,22 +86,18 @@ function regularGlassFill(background: string, dark: boolean): string {
 }
 
 /**
- * DESIGN.md is authoritative for the default theme's light shell: §3.2 sets `--secondary` to
- * Soft Linen `#ece8e3` and §3.7 sets `--sidebar` to Warm Stone `#f0ece6`, which are ΔRGB 6 apart.
- * That one pair keeps the spec's own separation as its floor; every other pair stays at 12.
+ * DESIGN.md is authoritative for the default theme's shell: §3.2 sets `--secondary` to Soft Linen
+ * `#ece8e3` (Charred Linen `#1a1816` in dark) and §3.7 sets `--sidebar` to Warm Stone `#f0ece6`
+ * (Ink Rail `#161412`), which are ΔRGB 6 (light) and 7 (dark) apart. The dark rail was lifted from
+ * `#0f0e0d` so the rail and title bar contrast with the canvas; the secondary fill is only a button
+ * face, never beside the rail. That one pair keeps the spec's own separation as its floor; every
+ * other pair stays at 12.
  */
 const SPEC_SHELL_FILL_FLOOR = 6;
 
-function shellFillFloor(
-  themeId: string,
-  appearance: string,
-  leftRole: string,
-  rightRole: string,
-): number {
+function shellFillFloor(themeId: string, leftRole: string, rightRole: string): number {
   const specPair = leftRole === '--secondary' && rightRole === '--sidebar';
-  return themeId === 'default' && appearance === 'light' && specPair
-    ? SPEC_SHELL_FILL_FLOOR
-    : MIN_SHELL_FILL_DISTANCE;
+  return themeId === 'default' && specPair ? SPEC_SHELL_FILL_FLOOR : MIN_SHELL_FILL_DISTANCE;
 }
 
 describe('shell fills per preset', () => {
@@ -120,9 +116,29 @@ describe('shell fills per preset', () => {
           expect(
             distance(leftValue, rightValue),
             `${themeId} (${appearance}): ${leftRole} ${leftValue} vs ${rightRole} ${rightValue}`,
-          ).toBeGreaterThanOrEqual(shellFillFloor(themeId, appearance, leftRole, rightRole));
+          ).toBeGreaterThanOrEqual(shellFillFloor(themeId, leftRole, rightRole));
         }
       }
+    }
+  });
+
+  // DESIGN.md §3.7: the dark rail is Ink Rail `#161412`, lifted so the rail and the title bar
+  // (both paint --sidebar) read as a frame against the canvas; its text stays readable.
+  it('keeps the default dark rail apart from the canvas with readable text', () => {
+    const variables = buildThemeCssVariables({ themeId: 'default', dark: true });
+
+    expect(variables['--sidebar']).toBe('#161412');
+    expect(distance(variables['--sidebar']!, variables['--background']!)).toBeGreaterThanOrEqual(
+      MIN_SHELL_FILL_DISTANCE,
+    );
+    for (const [text, fill] of [
+      ['--sidebar-foreground', '--sidebar'],
+      ['--sidebar-accent-foreground', '--sidebar-accent'],
+    ] as const) {
+      expect(
+        contrast(variables[text]!, variables[fill]!),
+        `${text} on ${fill}`,
+      ).toBeGreaterThanOrEqual(4.5);
     }
   });
 

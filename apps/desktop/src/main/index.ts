@@ -58,6 +58,8 @@ import {
   registerDevContentSecurityPolicy,
 } from './content-security-policy.js';
 import { registerNavigationGuards, registerPermissionPolicy } from './window-security.js';
+import { windowChromeOptions } from './window-chrome.js';
+import { registerWindowChromeIpc, watchWindowChrome } from './window-chrome-ipc.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -158,10 +160,11 @@ function createWindow(url: string) {
       sandbox: true,
     },
     show: false,
-    titleBarStyle: 'default',
+    ...windowChromeOptions(process.platform),
   });
   mainWindow = window;
   ownedWindows.own(window);
+  watchWindowChrome(window, process.platform);
 
   window.once('ready-to-show', () => {
     window.show();
@@ -338,6 +341,13 @@ void app.whenReady().then(async () => {
       getLocalServiceInfo: () => LOCAL_SERVICE_INFO,
       buildDiagnosticsSnapshot,
       networkTransport,
+    });
+
+    registerWindowChromeIpc({
+      ipcMain,
+      platform: process.platform,
+      isTrustedFrame,
+      windowFor: (event) => BrowserWindow.fromWebContents(event.sender),
     });
 
     const pageStore = registerPageStore(isTrustedFrame);

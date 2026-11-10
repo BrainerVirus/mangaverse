@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useLayoutStore, detectDeviceLayout } from '../stores/useLayoutStore.js';
 import { DesktopSidebar } from '../components/shell/DesktopSidebar.js';
+import { TitleBar } from '../components/shell/TitleBar.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.js';
 import { AnimatedRouteOutlet } from '../components/shell/AnimatedRouteOutlet.js';
 import { AppNotices } from '../components/AppNotices.js';
@@ -50,6 +51,9 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
       >
         Skip to content
       </a>
+      {/* The desktop title bar is fixed at the top, so it can sit anywhere in the DOM: right
+          after the skip link makes its Update pill the second Tab stop, before the page. */}
+      <TitleBar />
       <DesktopSidebar />
       {/* `min-w-0` keeps a wide child from widening the shell's flex row; the
           content column then scrolls instead of pushing the page sideways.

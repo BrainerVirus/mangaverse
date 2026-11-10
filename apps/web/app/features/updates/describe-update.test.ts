@@ -5,6 +5,7 @@ import type { PlatformUpdateState } from '@app/platform';
 import {
   describeUpdate,
   formatLastChecked,
+  titleBarUpdate,
   updateAction,
   updateChannel,
 } from './describe-update.js';
@@ -97,4 +98,54 @@ describe('formatLastChecked', () => {
   it('formats a real time as a date', () => {
     expect(formatLastChecked('2026-11-09T12:00:00.000Z')).toMatch(/2026/);
   });
+});
+
+describe('titleBarUpdate', () => {
+  it.each([
+    [withPhase({ kind: 'idle' }), null],
+    [withPhase({ kind: 'checking' }), null],
+    [withPhase({ kind: 'error', message: 'Offline.' }), null],
+  ])('Given nothing to install, Then the title bar shows no button', (state, expected) => {
+    expect(titleBarUpdate(state)).toBe(expected);
+  });
+
+  it('Given no state yet, Then the title bar shows no button', () => {
+    expect(titleBarUpdate(null)).toBeNull();
+  });
+
+  it.each([
+    [
+      withPhase({ kind: 'downloading', version: '1.2.0', percent: 40, transferred: 4, total: 10 }),
+      'downloading',
+      '40%',
+      'Downloading update 1.2.0, 40%',
+      40,
+    ],
+    [
+      withPhase({ kind: 'ready', version: '1.2.0' }),
+      'ready',
+      'Restart to update',
+      'Restart to update: 1.2.0 is ready to install',
+      null,
+    ],
+    [
+      withPhase({ kind: 'installing', version: '1.2.0', queued: true }),
+      'queued',
+      'Restart queued',
+      'Restart queued: Restart queued for 1.2.0',
+      null,
+    ],
+    [
+      withPhase({ kind: 'installing', version: '1.2.0', queued: false }),
+      'restarting',
+      'Restarting…',
+      'Restarting…: Restarting to install 1.2.0',
+      null,
+    ],
+  ])(
+    'Given an update in flight, Then the label is short and the name repeats it with the version',
+    (state, kind, label, name, percent) => {
+      expect(titleBarUpdate(state)).toEqual({ kind, label, name, percent });
+    },
+  );
 });

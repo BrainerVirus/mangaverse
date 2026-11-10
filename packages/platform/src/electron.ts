@@ -22,6 +22,7 @@ import type {
   PlatformInstallPromptState,
   PlatformUpdateInfo,
   PlatformUpdateState,
+  PlatformWindowChrome,
 } from './types.js';
 import { isSafeExternalUrl } from './url-protocol.js';
 
@@ -236,6 +237,14 @@ export function createElectronPlatformAdapter(bridge: DesktopPlatformBridge): Pl
       getState: () => asResult(() => bridge.updateGetState()),
       checkNow: () => asResult(() => bridge.updateCheckNow()),
       onState: (listener: (state: PlatformUpdateState) => void) => bridge.onUpdateState(listener),
+    },
+
+    windowChrome: {
+      get: () => asResult(() => bridge.windowChromeGet()),
+      setColors: (color: string, symbolColor: string) =>
+        asResult(() => bridge.windowSetTitleBarColors(color, symbolColor)),
+      onChange: (listener: (chrome: PlatformWindowChrome) => void) =>
+        bridge.onWindowChrome(listener),
     },
   };
 }
