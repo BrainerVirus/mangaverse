@@ -34,7 +34,8 @@ export interface UpdatePillParts {
   readonly labelSlot: HTMLElement;
   /** The element whose first child is the label's text node. */
   readonly text: HTMLElement;
-  readonly dots: readonly HTMLElement[];
+  /** Read when a loop starts: the dots only exist while the label ends in `…`. */
+  readonly dots: () => readonly HTMLElement[];
 }
 
 /** Times in seconds, from the shared duration scale. */
@@ -96,6 +97,11 @@ export interface UpdatePillMotion {
   hover: (on: boolean, options: UpdatePillMotionOptions) => void;
   /** The press of the ready pill. */
   press: (on: boolean, options: UpdatePillMotionOptions) => void;
+  /**
+   * True while the pill still shows the label of the phase before (a swap is under way). A click
+   * must not act then: what the user sees is not what the click would do.
+   */
+  pending: () => boolean;
   /** Fade a copy of the pill out where it was; call as the pill leaves. */
   exit: (options: UpdatePillMotionOptions) => void;
   /** Stop everything this controller started. */
@@ -109,13 +115,15 @@ export interface UpdatePillMotion {
  * new text, so the helper sets the old one back for the length of the swap.
  */
 export function createUpdatePillMotion(parts: UpdatePillParts): UpdatePillMotion {
-  const { pill, glow, fill, ring, arc, icons, labelSlot, text, dots } = parts;
+  const { pill, glow, fill, ring, arc, icons, labelSlot, text } = parts;
   const createdAt = Date.now();
   let last: UpdatePillFrame | null = null;
   let lastWidth = 0;
   let timeline: gsap.core.Timeline | null = null;
   let spin: gsap.core.Tween | null = null;
   let dotLoop: gsap.core.Timeline | null = null;
+  let pending = false;
+  let markedDisabled = false;
   const counter = { value: 0 };
   const everything = (): gsap.TweenTarget[] => [
     pill,
@@ -136,6 +144,18 @@ export function createUpdatePillMotion(parts: UpdatePillParts): UpdatePillMotion
   };
   const visibleBase = (label: string): string => (label.endsWith('…') ? label.slice(0, -1) : label);
 
+  /** Hold clicks (`aria-disabled`, which keeps focus) while the old label is still on show. */
+  function holdClicks(on: boolean): void {
+    pending = on;
+    if (on && !pill.hasAttribute('aria-disabled')) {
+      pill.setAttribute('aria-disabled', 'true');
+      markedDisabled = true;
+    } else if (!on && markedDisabled) {
+      pill.removeAttribute('aria-disabled');
+      markedDisabled = false;
+    }
+  }
+
   function stopLoops(): void {
     spin?.kill();
     spin = null;
@@ -147,6 +167,7 @@ export function createUpdatePillMotion(parts: UpdatePillParts): UpdatePillMotion
     stopLoops();
     if (kind !== 'restarting') return;
     spin = gsap.to(icons.rotate, { rotation: 360, duration: 0.9, ease: 'none', repeat: -1 });
+    const dots = parts.dots();
     if (dots.length === 0) return;
     dotLoop = gsap.timeline({ repeat: -1 });
     dotLoop
@@ -160,6 +181,8 @@ export function createUpdatePillMotion(parts: UpdatePillParts): UpdatePillMotion
     gsap.killTweensOf(everything());
     timeline?.kill();
     timeline = null;
+    removeGhosts();
+    holdClicks(false);
     stopLoops();
     for (const name of ICON_NAMES) gsap.set(icons[name], iconRest(frame.kind, name));
     gsap.set(ring, { opacity: frame.kind === 'downloading' ? 1 : 0 });
@@ -197,6 +220,7 @@ export function createUpdatePillMotion(parts: UpdatePillParts): UpdatePillMotion
     ghostFrom?: { from: number; to: number },
   ): void {
     const ghost = ghostOf(previous.label);
+    holdClicks(true);
     tl.fromTo(
       ghost,
       { opacity: 1, y: 0 },
@@ -233,6 +257,7 @@ export function createUpdatePillMotion(parts: UpdatePillParts): UpdatePillMotion
         duration: UPDATE_PILL_TIMING.swap,
         ease: EASING.standardOut,
         clearProps: 'transform',
+        onComplete: () => holdClicks(false),
       },
       at + 0.04,
     );
@@ -524,6 +549,8 @@ export function createUpdatePillMotion(parts: UpdatePillParts): UpdatePillMotion
       });
     },
 
+    pending: () => pending,
+
     exit({ reducedMotion }) {
       const parent = pill.offsetParent;
       // Not before the pill has had a moment to show (a development double mount), nor off-screen.
@@ -558,6 +585,7 @@ export function createUpdatePillMotion(parts: UpdatePillParts): UpdatePillMotion
       stopLoops();
       gsap.killTweensOf(everything());
       removeGhosts();
+      holdClicks(false);
     },
   };
 }

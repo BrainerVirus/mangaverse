@@ -1,7 +1,7 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { gsap } from 'gsap';
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { UpdatePill } from '../components/update-pill.js';
 import { setInAppReducedMotionPreference } from '../motion/index.js';
 
@@ -124,5 +124,94 @@ describe('UpdatePill wiring', () => {
     rerender(<UpdatePill kind="restarting" label="Restarting…" aria-label="Restarting" />);
     unmount();
     expect(gsap.globalTimeline.getChildren(true, true, true)).toHaveLength(0);
+  });
+
+  /** Run every finite tween to its end; infinite loops are left alone. */
+  const settle = () => {
+    for (const child of gsap.globalTimeline.getChildren(true, true, true)) {
+      if (child.repeat() !== -1 && child.parent === gsap.globalTimeline) child.progress(1);
+    }
+  };
+
+  it('Given the real sequence ready -> restarting, Then the dots (drawn only then) fade in turn and the glyph spins', () => {
+    const { rerender, container } = render(
+      <UpdatePill kind="ready" label="Restart to update" aria-label="Ready" />,
+    );
+    expect(container.querySelectorAll('[data-pill-dot]')).toHaveLength(0);
+    rerender(<UpdatePill kind="restarting" label="Restarting…" aria-label="Restarting" />);
+    settle();
+    const dots = [...container.querySelectorAll<HTMLElement>('[data-pill-dot]')];
+    expect(dots).toHaveLength(3);
+    for (const dot of dots) {
+      expect(gsap.getTweensOf(dot).length).toBeGreaterThan(0);
+    }
+    const rotate = container.querySelector<HTMLElement>('[data-pill-icon="rotate"]')!;
+    expect(gsap.getTweensOf(rotate).some((tween) => tween.repeat() === -1)).toBe(true);
+  });
+
+  it('Given the old label is still on show, Then a click is swallowed, and after the swap it goes through', () => {
+    const onClick = vi.fn<() => void>();
+    const { rerender } = render(
+      <UpdatePill
+        kind="downloading"
+        label="100%"
+        progress={100}
+        aria-label="Downloading"
+        onClick={onClick}
+      />,
+    );
+    settle();
+    rerender(
+      <UpdatePill kind="ready" label="Restart to update" aria-label="Ready" onClick={onClick} />,
+    );
+    const button = screen.getByRole('button', { name: 'Ready' });
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    fireEvent.click(button);
+    expect(onClick).not.toHaveBeenCalled();
+    settle();
+    expect(button.hasAttribute('aria-disabled')).toBe(false);
+    fireEvent.click(button);
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  describe('leaving the bar', () => {
+    const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetParent');
+    const setup = () => {
+      // jsdom has no layout: give the pill a parent to be positioned against.
+      Object.defineProperty(HTMLElement.prototype, 'offsetParent', {
+        configurable: true,
+        get(this: HTMLElement) {
+          return this.parentElement;
+        },
+      });
+      vi.useFakeTimers({ toFake: ['Date'] });
+    };
+    afterEach(() => {
+      vi.useRealTimers();
+      if (original !== undefined)
+        Object.defineProperty(HTMLElement.prototype, 'offsetParent', original);
+      else Reflect.deleteProperty(HTMLElement.prototype, 'offsetParent');
+    });
+
+    const clones = (container: HTMLElement) =>
+      container.querySelectorAll('[aria-hidden="true"][data-kind]');
+
+    it('Given motion, Then the pill leaves as a fading copy', () => {
+      setup();
+      const { unmount, container } = render(<UpdatePill kind="ready" label="Go" aria-label="Go" />);
+      const parent = container;
+      vi.setSystemTime(Date.now() + 500);
+      unmount();
+      expect(clones(parent)).toHaveLength(1);
+    });
+
+    it('Given reduced motion is switched on while mounted, Then leaving makes no copy', () => {
+      setup();
+      const { unmount, container } = render(<UpdatePill kind="ready" label="Go" aria-label="Go" />);
+      vi.setSystemTime(Date.now() + 500);
+      act(() => setInAppReducedMotionPreference(true));
+      unmount();
+      expect(clones(container)).toHaveLength(0);
+    });
   });
 });

@@ -36,7 +36,7 @@ function build(): UpdatePillParts {
     },
     labelSlot: q<HTMLElement>('[data-label]'),
     text: q<HTMLElement>('[data-text]'),
-    dots: [...document.querySelectorAll<HTMLElement>('[data-dot]')],
+    dots: () => [...document.querySelectorAll<HTMLElement>('[data-dot]')],
   };
 }
 
@@ -219,7 +219,7 @@ describe('update pill motion', () => {
     expect(spin[0]?.vars.rotation).toBe(360);
     expect(spin[0]?.vars.ease).toBe('none');
     expect(
-      parts.dots.flatMap((dot) => infinite(dot).concat(gsap.getTweensOf(dot))),
+      parts.dots().flatMap((dot) => infinite(dot).concat(gsap.getTweensOf(dot))),
     ).not.toHaveLength(0);
     pill.to(queued, motion);
     settle();
@@ -270,6 +270,47 @@ describe('update pill motion', () => {
     settle();
     expect(parts.fill.style.opacity).toBe('0');
     expect(parts.pill.style.backgroundColor).toBe('');
+  });
+
+  it('Given a phase change, Then clicks are held (aria-disabled) until the new label is on show', () => {
+    pill.to(downloading(80), motion);
+    settle();
+    expect(pill.pending()).toBe(false);
+    parts.text.firstChild!.nodeValue = ready.label;
+    pill.to(ready, motion);
+    expect(pill.pending()).toBe(true);
+    expect(parts.pill.getAttribute('aria-disabled')).toBe('true');
+    // Halfway through the celebration the old percent is still what the user sees.
+    const timeline = gsap.getTweensOf(parts.arc!)[0]!.parent as gsap.core.Timeline;
+    timeline.time(0.4);
+    expect(pill.pending()).toBe(true);
+    settle();
+    expect(pill.pending()).toBe(false);
+    expect(parts.pill.hasAttribute('aria-disabled')).toBe(false);
+  });
+
+  it('Given the pill was already aria-disabled, Then holding and releasing leave it so', () => {
+    parts.pill.setAttribute('aria-disabled', 'true');
+    pill.to(queued, motion);
+    settle();
+    pill.to(restarting, motion);
+    settle();
+    expect(parts.pill.getAttribute('aria-disabled')).toBe('true');
+  });
+
+  it('Given reduced motion is switched on mid-transition, Then the ghost and the hold are gone at once', () => {
+    pill.to(downloading(80), motion);
+    settle();
+    parts.text.firstChild!.nodeValue = ready.label;
+    pill.to(ready, motion);
+    expect(parts.labelSlot.querySelector('[data-pill-ghost]')).not.toBeNull();
+    pill.to(ready, reduced);
+    expect(parts.labelSlot.querySelector('[data-pill-ghost]')).toBeNull();
+    expect(pill.pending()).toBe(false);
+    expect(parts.pill.hasAttribute('aria-disabled')).toBe(false);
+    expect(shown(parts)).toBe('Restart to update');
+    expect(parts.text.style.opacity).toBe('1');
+    expect(gsap.globalTimeline.getChildren(true, true, true)).toHaveLength(0);
   });
 
   describe('reduced motion', () => {

@@ -97,6 +97,7 @@ const UpdatePill = React.forwardRef<HTMLButtonElement, UpdatePillProps>(
       onPointerCancel,
       onFocus,
       onBlur,
+      onClick,
       ...props
     },
     ref,
@@ -104,6 +105,8 @@ const UpdatePill = React.forwardRef<HTMLButtonElement, UpdatePillProps>(
     const tone = kind === 'ready' ? 'attention' : 'neutral';
     const pillRef = React.useRef<HTMLButtonElement | null>(null);
     const motionRef = React.useRef<UpdatePillMotion | null>(null);
+    // The preference as of the last run: a cleanup from the first run must not close over a stale one.
+    const reducedRef = React.useRef(false);
     const reducedMotion = useReducedMotion();
     React.useImperativeHandle(ref, () => pillRef.current as HTMLButtonElement, []);
 
@@ -117,6 +120,7 @@ const UpdatePill = React.forwardRef<HTMLButtonElement, UpdatePillProps>(
       () => {
         const pill = pillRef.current;
         if (pill === null) return;
+        reducedRef.current = reducedMotion;
         const created = motionRef.current === null;
         if (motionRef.current === null) {
           const find = <T extends Element>(selector: string): T => {
@@ -139,14 +143,14 @@ const UpdatePill = React.forwardRef<HTMLButtonElement, UpdatePillProps>(
             },
             labelSlot: find<HTMLElement>('[data-pill-label]'),
             text: find<HTMLElement>('[data-pill-text]'),
-            dots: [...pill.querySelectorAll<HTMLElement>('[data-pill-dot]')],
+            dots: () => [...pill.querySelectorAll<HTMLElement>('[data-pill-dot]')],
           });
         }
         motionRef.current.to({ kind, label, percent }, { reducedMotion });
         // Every run adds its cleanup to the context, so only the run that made the controller does.
         if (!created) return;
         return () => {
-          motionRef.current?.exit({ reducedMotion });
+          motionRef.current?.exit({ reducedMotion: reducedRef.current });
           motionRef.current?.dispose();
           motionRef.current = null;
         };
@@ -167,6 +171,14 @@ const UpdatePill = React.forwardRef<HTMLButtonElement, UpdatePillProps>(
           pillTones[tone],
           className,
         )}
+        onClick={(event) => {
+          // While the old label is still on show, a click must not do what the new one says.
+          if (motionRef.current?.pending() === true) {
+            event.preventDefault();
+            return;
+          }
+          onClick?.(event);
+        }}
         onPointerEnter={(event) => {
           onPointerEnter?.(event);
           motionRef.current?.hover(true, options);

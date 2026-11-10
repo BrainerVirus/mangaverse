@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, waitFor, fireEvent, render, screen } from '@testing-library/react';
 import { ok } from '@app/shared';
 import {
   TITLE_BAR_HEIGHTS,
@@ -191,6 +191,7 @@ describe('TitleBarView', () => {
 describe('TitleBar', () => {
   function installBridge(phase: PlatformUpdateState['phase']) {
     let emitChrome: (chrome: PlatformWindowChrome) => void = () => {};
+    let emitState: (state: PlatformUpdateState) => void = () => {};
     const updateInstall = vi.fn<() => Promise<unknown>>(async () => ok(undefined));
     const bridge = {
       windowChromeGet: async () => ok(mac),
@@ -199,12 +200,19 @@ describe('TitleBar', () => {
         return () => {};
       },
       updateGetState: async () => ok(withPhase(phase)),
-      onUpdateState: () => () => {},
+      onUpdateState: (listener: (state: PlatformUpdateState) => void) => {
+        emitState = listener;
+        return () => {};
+      },
       updateInstall,
     };
     (window as unknown as { mangaversePlatform: unknown }).mangaversePlatform =
       bridge as unknown as DesktopPlatformBridge;
-    return { updateInstall, emitChrome: (chrome: PlatformWindowChrome) => emitChrome(chrome) };
+    return {
+      updateInstall,
+      emitChrome: (chrome: PlatformWindowChrome) => emitChrome(chrome),
+      emitState: (phase: PlatformUpdateState['phase']) => emitState(withPhase(phase)),
+    };
   }
 
   it('Given a download, Then clicking the pill opens the updates page and hides on fullscreen', async () => {
@@ -235,6 +243,41 @@ describe('TitleBar', () => {
     );
     expect(updateInstall).toHaveBeenCalledTimes(1);
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('Given a download that just finished, Then a click installs only once "Restart to update" is on show', async () => {
+    navigate.mockClear();
+    const { updateInstall, emitState } = installBridge({
+      kind: 'downloading',
+      version: '1.1.0',
+      percent: 100,
+      transferred: 10,
+      total: 10,
+    });
+    render(<TitleBar />);
+    await act(async () => {});
+    // Let the entrance play out; the pill shows "100%".
+    await waitFor(() => expect(screen.getByRole('button').style.opacity).toBe(''));
+
+    act(() => emitState({ kind: 'ready', version: '1.1.0' }));
+    const button = screen.getByRole('button', {
+      name: 'Restart to update: install MangaVerse 1.1.0 now',
+    });
+    // The name is already the new one, but the old "100%" is still what the user sees.
+    expect(button.querySelector('[data-pill-ghost]')?.textContent).toBe('100%');
+    fireEvent.click(button);
+    expect(updateInstall).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+
+    // The real transition plays out (about 0.6s); the click is held until the new label is on show.
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    await waitFor(() => expect(button.hasAttribute('aria-disabled')).toBe(false), {
+      timeout: 3000,
+    });
+    expect(button.querySelector('[data-pill-ghost]')).toBeNull();
+    expect(button.querySelector('[data-pill-text]')?.textContent).toBe('Restart to update');
+    fireEvent.click(button);
+    expect(updateInstall).toHaveBeenCalledTimes(1);
   });
 
   it('Given a restart under way, Then clicking the pill asks for nothing', async () => {
