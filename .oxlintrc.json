@@ -98,7 +98,10 @@
           "type-label",
           "type-micro",
           "type-title",
-          "width-transition"
+          "width-transition",
+          "title-bar",
+          "app-region-no-drag",
+          "below-title-bar"
         ]
       }
     ],

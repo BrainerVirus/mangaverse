@@ -281,10 +281,21 @@
   /* The shell fills the visible viewport so mobile browser chrome cannot hide the bottom nav;
      the 100vh line is the fallback for engines without `dvh`. Its background still paints under
      the notch; the padded content box keeps the rail and main inside the safe area. */
+  /* The desktop's app-drawn title bar (TitleBar.tsx) is fixed at the top; the shell and the reader
+     start below it. 36px is `TITLE_BAR_HEIGHT` in @app/platform, the native overlay's height, so it
+     stays in CSS pixels. Without the strip (the web build, a fullscreen window) the offset is 0. */
+  :root {
+    --title-bar-height: 0px;
+  }
+
+  :root:has([data-title-bar]) {
+    --title-bar-height: 36px;
+  }
+
   [data-app-shell] {
     height: 100vh;
     height: 100dvh;
-    padding-block-start: env(safe-area-inset-top);
+    padding-block-start: calc(env(safe-area-inset-top) + var(--title-bar-height));
     padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
   }
 
@@ -610,6 +621,48 @@
 /* The reader chrome's top row: its 0.75rem padding plus the top inset. */
 @utility safe-area-top {
   padding-top: calc(var(--spacing) * 3 + env(safe-area-inset-top));
+}
+
+/* The desktop title bar. The whole strip drags the window; macOS keeps 5rem on the left for the
+   traffic lights, Windows and Linux keep the overlay's width on the right (from the window
+   controls overlay's `titlebar-area-*`, else the controls' usual width). */
+@utility title-bar {
+  position: fixed;
+  inset-inline: 0;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: var(--title-bar-height);
+  padding-inline: calc(var(--spacing) * 2);
+  background-color: var(--background);
+  color: var(--foreground);
+  user-select: none;
+  -webkit-app-region: drag;
+  app-region: drag;
+
+  &[data-platform="darwin"] {
+    padding-inline-start: 5rem;
+  }
+
+  &:is([data-platform="win32"], [data-platform="linux"]) {
+    padding-inline-end: calc(
+      100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, calc(100vw - 9rem)) +
+        var(--spacing) * 2
+    );
+  }
+}
+
+/* A control inside the title bar: it takes clicks instead of dragging the window. */
+@utility app-region-no-drag {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+/* A fixed layer that starts under the title bar (0 without one). */
+@utility below-title-bar {
+  top: var(--title-bar-height);
 }
 
 @utility width-transition {

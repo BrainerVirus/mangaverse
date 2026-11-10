@@ -27,8 +27,9 @@ describe('ReaderLayout', () => {
 
     expect(html.match(/<main[\s>]/g) ?? []).toHaveLength(1);
     // The landmark is the fixed full-bleed box itself, so nothing about the
-    // reader's sizing or scroll container changed.
-    expect(html).toContain('fixed inset-0 overflow-hidden');
+    // reader's sizing or scroll container changed; its top starts below the
+    // desktop title bar (`--title-bar-height`, 0 without one or in fullscreen).
+    expect(html).toContain('below-title-bar fixed inset-x-0 bottom-0 overflow-hidden');
     expect(html).toContain('Reader surface');
   });
 });

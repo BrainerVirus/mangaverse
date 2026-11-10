@@ -17,7 +17,8 @@ export function ReaderLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <main className="fixed inset-0 overflow-hidden">
+    // Below the desktop title bar; `--title-bar-height` is 0 without one and in fullscreen.
+    <main className="below-title-bar fixed inset-x-0 bottom-0 overflow-hidden">
       {/* A column, not a bare outlet: a notice takes its own row instead of
           painting over the reader chrome, and the outlet keeps the rest. */}
       <div className="flex h-full flex-col">

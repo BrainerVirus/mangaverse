@@ -97,13 +97,26 @@ export function mixCssColors(from: string, toward: string, amount: number): stri
     return formatOklch(oklch.l, oklch.c ?? 0, oklch.h ?? 0);
   }
 
-  return `#${mixed
+  return formatHexRgb(mixed);
+}
+
+function formatHexRgb(rgb: Rgb): string {
+  return `#${rgb
     .map((channel) =>
       Math.round(channel * 255)
         .toString(16)
         .padStart(2, '0'),
     )
     .join('')}`;
+}
+
+/**
+ * The `#rrggbb` form of any accepted color, clamped to sRGB with its alpha dropped: native
+ * window chrome (the Windows/Linux title-bar overlay) takes nothing else.
+ */
+export function toHexColor(value: string): string | undefined {
+  const rgb = parseCssColor(value);
+  return rgb === undefined ? undefined : formatHexRgb(rgb);
 }
 
 /** WCAG 2.1 contrast ratio, or `null` when either color is unparseable. */

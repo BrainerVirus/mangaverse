@@ -1,5 +1,7 @@
 import type { ThemeDefinition, ThemeSettings } from '@app/shared';
 
+import { setTitleBarColors } from '../../lib/window-chrome-store.js';
+import { toHexColor } from './color.js';
 import { buildThemeCssVariablesForDefinition } from './derive.js';
 import { getBuiltInThemeDefinition } from './built-in-themes.js';
 import { writeThemePaintSnapshot } from './paint-snapshot.js';
@@ -42,6 +44,11 @@ export function applyThemeToRoot(
     background: cssVariables['--background'],
     foreground: cssVariables['--foreground'],
   });
+
+  // The desktop's overlay controls sit on the title bar, which paints `--background`.
+  const color = toHexColor(cssVariables['--background']);
+  const symbolColor = toHexColor(cssVariables['--foreground']);
+  if (color !== undefined && symbolColor !== undefined) setTitleBarColors(color, symbolColor);
 }
 
 export function clearAppliedTheme(root: HTMLElement): void {

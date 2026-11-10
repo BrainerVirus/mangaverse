@@ -35,6 +35,8 @@ const valid: PlatformIpcRequest[] = [
   { channel: PLATFORM_IPC.UPDATE_DISMISS, args: [] },
   { channel: PLATFORM_IPC.UPDATE_GET_STATE, args: [] },
   { channel: PLATFORM_IPC.UPDATE_CHECK_NOW, args: [] },
+  { channel: PLATFORM_IPC.WINDOW_CHROME_GET, args: [] },
+  { channel: PLATFORM_IPC.WINDOW_SET_TITLE_BAR_COLORS, args: ['#fafafa', '#1A1A1A'] },
   {
     channel: PLATFORM_IPC.RENDERER_IMPORT_COMPLETE,
     args: [
@@ -119,6 +121,11 @@ const invalid: { channel: PlatformIpcChannel; args: unknown[] }[] = [
   { channel: PLATFORM_IPC.UPDATE_DISMISS, args: [42] },
   { channel: PLATFORM_IPC.UPDATE_GET_STATE, args: ['extra'] },
   { channel: PLATFORM_IPC.UPDATE_CHECK_NOW, args: [1] },
+  { channel: PLATFORM_IPC.WINDOW_CHROME_GET, args: ['extra'] },
+  { channel: PLATFORM_IPC.WINDOW_SET_TITLE_BAR_COLORS, args: ['oklch(0.98 0 0)', '#1a1a1a'] },
+  { channel: PLATFORM_IPC.WINDOW_SET_TITLE_BAR_COLORS, args: ['#fafafa', 'red'] },
+  { channel: PLATFORM_IPC.WINDOW_SET_TITLE_BAR_COLORS, args: ['#fff', '#000'] },
+  { channel: PLATFORM_IPC.WINDOW_SET_TITLE_BAR_COLORS, args: ['#fafafa'] },
   {
     channel: PLATFORM_IPC.RENDERER_IMPORT_COMPLETE,
     args: [{ database: null, blobs: { pages: -1, covers: 0, totalBytes: 0, checksums: {} } }],

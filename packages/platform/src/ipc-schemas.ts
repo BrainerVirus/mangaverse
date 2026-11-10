@@ -5,6 +5,7 @@ import { PLATFORM_IPC, type PlatformIpcChannel } from './ipc-channels.js';
 import { isSafeNetworkFetchUrl } from './network-url.js';
 import { isValidSecureStorageKey } from './secure-storage-key.js';
 import { isSafeExternalUrl } from './url-protocol.js';
+import { isTitleBarColor } from './window-chrome.js';
 
 /**
  * Payloads the renderer may send over a platform IPC channel. Every channel has
@@ -185,6 +186,8 @@ export const rendererImportReport = z
 
 export type RendererImportReport = z.output<typeof rendererImportReport>;
 
+const titleBarColor = z.string().refine(isTitleBarColor, { error: 'must be a #rrggbb colour' });
+
 function request<C extends PlatformIpcChannel, A extends z.ZodType>(channel: C, args: A) {
   return z.object({ channel: z.literal(channel), args });
 }
@@ -226,6 +229,8 @@ export const platformIpcRequestSchema = z.discriminatedUnion('channel', [
   request(PLATFORM_IPC.UPDATE_DISMISS, z.tuple([])),
   request(PLATFORM_IPC.UPDATE_GET_STATE, z.tuple([])),
   request(PLATFORM_IPC.UPDATE_CHECK_NOW, z.tuple([])),
+  request(PLATFORM_IPC.WINDOW_CHROME_GET, z.tuple([])),
+  request(PLATFORM_IPC.WINDOW_SET_TITLE_BAR_COLORS, z.tuple([titleBarColor, titleBarColor])),
   request(PLATFORM_IPC.PROVIDER_NETWORK_REPLACE, z.tuple([providerNetworkReplace])),
   request(PLATFORM_IPC.PROVIDER_NETWORK_REVOKE, z.tuple([providerNetworkRevoke])),
   request(PLATFORM_IPC.PROVIDER_NETWORK_NEXT_REVISION, z.tuple([])),

@@ -32,6 +32,9 @@ const updateStubs = {
       phase: { kind: 'idle' as const },
     }),
   onUpdateState: () => () => {},
+  windowChromeGet: async () => ok({ platform: 'darwin' as const, fullScreen: false, height: 36 }),
+  windowSetTitleBarColors: async () => ok(undefined),
+  onWindowChrome: () => () => {},
 } satisfies Pick<
   DesktopPlatformBridge,
   | 'updateSetReaderActive'
@@ -41,6 +44,9 @@ const updateStubs = {
   | 'updateGetState'
   | 'updateCheckNow'
   | 'onUpdateState'
+  | 'windowChromeGet'
+  | 'windowSetTitleBarColors'
+  | 'onWindowChrome'
 >;
 
 const pageStoreStubs = {
@@ -83,6 +89,9 @@ const pageStoreStubs = {
   | 'updateGetState'
   | 'updateCheckNow'
   | 'onUpdateState'
+  | 'windowChromeGet'
+  | 'windowSetTitleBarColors'
+  | 'onWindowChrome'
 >;
 
 describe('createElectronPlatformAdapter', () => {
@@ -198,6 +207,43 @@ describe('createElectronPlatformAdapter', () => {
     expect(bridge.secureStorageDelete).toHaveBeenCalledWith('k');
     expect(bridge.diagnosticsGetSnapshot).toHaveBeenCalled();
     expect(bridge.localServiceGetInfo).toHaveBeenCalled();
+  });
+
+  it('delegates the window chrome to the bridge', async () => {
+    const windowSetTitleBarColors = vi.fn<
+      (color: string, symbolColor: string) => Promise<AppResult<void>>
+    >(async () => ok(undefined));
+    const unsubscribe = vi.fn<() => void>();
+    const onWindowChrome = vi.fn<DesktopPlatformBridge['onWindowChrome']>(() => unsubscribe);
+    const bridge: DesktopPlatformBridge = {
+      getCapabilities: async () => ok(caps),
+      clipboardReadText: async () => ok(''),
+      clipboardWriteText: async () => ok(undefined),
+      fileOpenText: async () => ok({ content: '' }),
+      fileSaveText: async () => ok({ content: '' }),
+      fullscreenEnter: async () => ok(undefined),
+      fullscreenExit: async () => ok(undefined),
+      fullscreenIsActive: async () => ok(false),
+      protocolGetPendingInstallUrl: async () => ok(null),
+      externalLinkOpen: async () => ok(undefined),
+      secureStorageGet: async () => ok(undefined),
+      secureStorageSet: async () => ok(undefined),
+      secureStorageDelete: async () => ok(undefined),
+      diagnosticsGetSnapshot: async () => ok({}),
+      localServiceGetInfo: async () => ok({ running: false, host: null, port: null }),
+      networkFetchBytes: async () => ok(undefined),
+      ...pageStoreStubs,
+      windowSetTitleBarColors,
+      onWindowChrome,
+    };
+    const chrome = createElectronPlatformAdapter(bridge).windowChrome!;
+
+    expect(await chrome.get()).toEqual(ok({ platform: 'darwin', fullScreen: false, height: 36 }));
+    await chrome.setColors('#fafafa', '#1a1a1a');
+    expect(windowSetTitleBarColors).toHaveBeenCalledWith('#fafafa', '#1a1a1a');
+    const listener = () => {};
+    expect(chrome.onChange(listener)).toBe(unsubscribe);
+    expect(onWindowChrome).toHaveBeenCalledWith(listener);
   });
 
   it('rejects invalid external URLs before calling bridge', async () => {

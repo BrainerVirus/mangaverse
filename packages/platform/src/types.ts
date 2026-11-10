@@ -202,6 +202,18 @@ export interface PlatformUpdateState {
   readonly phase: PlatformUpdatePhase;
 }
 
+/** The desktops the window chrome is drawn for; any other Unix is treated as Linux. */
+export type WindowChromePlatform = 'darwin' | 'win32' | 'linux';
+
+/** What the renderer needs to draw the title bar: where the native controls sit, and whether to. */
+export interface PlatformWindowChrome {
+  readonly platform: WindowChromePlatform;
+  /** True while the window is fullscreen: the native controls are gone, so the strip hides. */
+  readonly fullScreen: boolean;
+  /** The strip's height in CSS pixels (`TITLE_BAR_HEIGHT`). */
+  readonly height: number;
+}
+
 export type PlatformInstallPromptState =
   | { readonly kind: 'unsupported' }
   | { readonly kind: 'available' }
@@ -351,6 +363,14 @@ export interface PlatformAdapter {
     /** Subscribes to every state change; returns the unsubscribe function. */
     onState(listener: (state: PlatformUpdateState) => void): () => void;
   };
+  /** Desktop only: the app-drawn title bar's platform, fullscreen state and native colours. */
+  readonly windowChrome?: {
+    get(): Promise<AppResult<PlatformWindowChrome>>;
+    /** Paints the Windows/Linux overlay controls; `#rrggbb` only, a no-op on macOS. */
+    setColors(color: string, symbolColor: string): Promise<AppResult<void>>;
+    /** Subscribes to fullscreen changes; returns the unsubscribe function. */
+    onChange(listener: (chrome: PlatformWindowChrome) => void): () => void;
+  };
 }
 
 // Property-style function types, not methods: callers read these off the bridge
@@ -421,6 +441,10 @@ export interface DesktopPlatformBridge {
   updateCheckNow: () => Promise<AppResult<PlatformUpdateState>>;
   /** Main→renderer: the update state changed (checking, progress, ready, error). */
   onUpdateState: (listener: (state: PlatformUpdateState) => void) => () => void;
+  windowChromeGet: () => Promise<AppResult<PlatformWindowChrome>>;
+  windowSetTitleBarColors: (color: string, symbolColor: string) => Promise<AppResult<void>>;
+  /** Main→renderer: the window entered or left fullscreen. */
+  onWindowChrome: (listener: (chrome: PlatformWindowChrome) => void) => () => void;
 }
 
 export interface WebCapabilityEnvironment {

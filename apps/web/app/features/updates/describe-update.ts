@@ -60,6 +60,32 @@ export function describeUpdate(state: PlatformUpdateState): UpdateDescription {
   }
 }
 
+/**
+ * The title bar's Update button: shown only while a release downloads, waits for a restart or
+ * installs. The accessible name starts with the visible label and adds the version.
+ */
+export function titleBarUpdate(
+  state: PlatformUpdateState | null,
+): { readonly label: string; readonly name: string } | null {
+  if (state === null) return null;
+  const phase = state.phase;
+  let label: string;
+  switch (phase.kind) {
+    case 'downloading':
+      label = `Updating ${phase.percent}%`;
+      break;
+    case 'ready':
+      label = 'Restart to update';
+      break;
+    case 'installing':
+      label = updateAction(state).label;
+      break;
+    default:
+      return null;
+  }
+  return { label, name: `${label}: ${describeUpdate(state).title}` };
+}
+
 export type UpdateActionKind = 'check' | 'install' | 'busy' | 'off';
 
 /**
