@@ -43,11 +43,11 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
     >
       <AmbientBackdrop />
       {/* Keyboard users land on the shell first; the skip link is the only
-          focusable element before the sidebar, so one Tab + Enter reaches the
-          page content without walking the whole navigation. */}
+          focusable element before the title bar and the sidebar, so one Tab + Enter reaches the
+          page content without walking the whole navigation. It shows below the title bar. */}
       <a
         href="#main-content"
-        className="sr-only rounded-control bg-primary px-3 py-2 text-primary-foreground focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-60 focus:inline-flex focus:items-center pointer-coarse:focus:min-h-11"
+        className="skip-link rounded-control bg-primary type-label text-primary-foreground shadow-lg outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background pointer-coarse:focus:min-h-11"
       >
         Skip to content
       </a>

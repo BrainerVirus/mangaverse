@@ -664,19 +664,6 @@
   }
 }
 
-/* The arc of `UpdatePill`'s progress ring eases between percents (`motion-reduce:transition-none`
-   on the element makes it snap). Not a media query here: glass-tokens.test.ts slices the sheet
-   from its first `prefers-reduced-motion` block. */
-@utility progress-ring-arc {
-  transition: stroke-dashoffset 300ms ease-out;
-}
-
-/* The fill of `Progress` eases between values (`motion-reduce:transition-none` on the element
-   makes it snap). Only the width moves, so no `transition: all`. */
-@utility progress-fill {
-  transition: width 300ms ease-out;
-}
-
 /* A control inside the title bar: it takes clicks instead of dragging the window. */
 @utility app-region-no-drag {
   -webkit-app-region: no-drag;
@@ -686,6 +673,36 @@
 /* A fixed layer that starts under the title bar (0 without one). */
 @utility below-title-bar {
   top: var(--title-bar-height);
+}
+
+/* The keyboard "Skip to content" link: out of sight until it takes focus, then a pill fixed just
+   below the title bar (so never over the macOS traffic lights or the Windows overlay), 0.5rem
+   under it and 0.75rem in from the edge, the same inset the bar keeps for its own controls.
+   Written as one utility, not `sr-only focus:not-sr-only`: `not-sr-only` resets padding to 0 and
+   cut the label off. Colour, radius, shadow and the focus ring come from the element's classes. */
+@utility skip-link {
+  position: fixed;
+  z-index: 60;
+  inset-block-start: calc(var(--title-bar-height) + var(--spacing) * 2);
+  inset-inline-start: calc(var(--spacing) * 3);
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+
+  &:focus {
+    width: auto;
+    height: auto;
+    margin: 0;
+    padding: calc(var(--spacing) * 2) calc(var(--spacing) * 4);
+    overflow: visible;
+    clip-path: none;
+    display: inline-flex;
+    align-items: center;
+  }
 }
 
 @utility width-transition {

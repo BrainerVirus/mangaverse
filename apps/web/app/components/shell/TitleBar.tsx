@@ -1,17 +1,13 @@
 import { useSyncExternalStore } from 'react';
 import { useNavigate } from '@tanstack/react-router';
+import { UpdatePill } from '@app/design-system';
 import type { PlatformUpdateState, PlatformWindowChrome } from '@app/platform';
 
-import { dismissUpdatePrompt, installUpdatePrompt } from '../../lib/update-prompt-store.js';
-import {
-  getServerUpdatePopoverOpenSnapshot,
-  getUpdatePopoverOpenSnapshot,
-  setUpdatePopoverOpen,
-  subscribeUpdatePopover,
-} from '../../lib/update-popover-store.js';
+import { titleBarUpdate } from '../../features/updates/describe-update.js';
 import {
   getServerUpdateStateSnapshot,
   getUpdateStateSnapshot,
+  installUpdateNow,
   subscribeUpdateState,
 } from '../../lib/update-state-store.js';
 import {
@@ -19,12 +15,15 @@ import {
   getWindowChromeSnapshot,
   subscribeWindowChrome,
 } from '../../lib/window-chrome-store.js';
-import { UpdatePopover, type UpdatePopoverProps } from './UpdatePopover.js';
 
-export interface TitleBarViewProps extends Omit<UpdatePopoverProps, 'update'> {
+export interface TitleBarViewProps {
   /** `null` before main answers and in the web build: no strip at all. */
   readonly chrome: PlatformWindowChrome | null;
   readonly update: PlatformUpdateState | null;
+  /** A download's click: the settings page, where its progress lives. */
+  onOpenUpdates: () => void;
+  /** A ready release's click: restart and install (main queues it while a chapter is open). */
+  onInstall: () => void;
 }
 
 /**
@@ -32,14 +31,30 @@ export interface TitleBarViewProps extends Omit<UpdatePopoverProps, 'update'> {
  * place (traffic lights on the left on macOS, the overlay on the right on Windows and Linux) and
  * the `title-bar` utility pads around them. It is not a landmark, and its only control is the
  * Update pill, which opts out of the drag region so it can be clicked: a quiet pill with a
- * progress ring while downloading, the filled call to action once a restart is waiting. The pill
- * opens the update popover.
+ * progress ring while downloading (a click opens the settings page), the filled call to action
+ * once a restart is waiting (a click restarts and installs; main queues it while a chapter is
+ * open and the pill then reads "Restart queued"), and a pill that takes no click while it installs.
  */
-export function TitleBarView({ chrome, update, ...popover }: TitleBarViewProps) {
+export function TitleBarView({ chrome, update, onOpenUpdates, onInstall }: TitleBarViewProps) {
   if (chrome === null || chrome.fullScreen) return null;
+  const action = titleBarUpdate(update);
+  const clicks = { settings: onOpenUpdates, install: onInstall, none: undefined };
   return (
     <div data-title-bar data-platform={chrome.platform} className="title-bar">
-      <UpdatePopover update={update} {...popover} />
+      {action === null ? null : (
+        <div className="app-region-no-drag flex">
+          <UpdatePill
+            kind={action.kind}
+            label={action.label}
+            progress={action.percent ?? undefined}
+            aria-label={action.name}
+            // A restart under way takes no click: `aria-disabled` keeps the pill focusable, so a
+            // keyboard user who just pressed it keeps their place.
+            aria-disabled={action.click === 'none' ? true : undefined}
+            onClick={clicks[action.click]}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -56,26 +71,12 @@ export function TitleBar() {
     getUpdateStateSnapshot,
     getServerUpdateStateSnapshot,
   );
-  const open = useSyncExternalStore(
-    subscribeUpdatePopover,
-    getUpdatePopoverOpenSnapshot,
-    getServerUpdatePopoverOpenSnapshot,
-  );
   return (
     <TitleBarView
       chrome={chrome}
       update={update}
-      open={open}
-      onOpenChange={setUpdatePopoverOpen}
-      onLater={() => {
-        dismissUpdatePrompt();
-        setUpdatePopoverOpen(false);
-      }}
-      onInstall={installUpdatePrompt}
-      onOpenSettings={() => {
-        setUpdatePopoverOpen(false);
-        void navigate({ to: '/settings/updates' });
-      }}
+      onOpenUpdates={() => void navigate({ to: '/settings/updates' })}
+      onInstall={installUpdateNow}
     />
   );
 }

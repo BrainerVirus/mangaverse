@@ -5,9 +5,7 @@ import type { PlatformUpdateState } from '@app/platform';
 import {
   describeUpdate,
   formatLastChecked,
-  formatMegabytes,
   titleBarUpdate,
-  updatePopoverCopy,
   updateAction,
   updateChannel,
 } from './describe-update.js';
@@ -120,106 +118,38 @@ describe('titleBarUpdate', () => {
       withPhase({ kind: 'downloading', version: '1.2.0', percent: 40, transferred: 4, total: 10 }),
       'downloading',
       '40%',
-      'Downloading update 1.2.0, 40%',
+      'Downloading update 1.2.0, 40%: open update settings',
+      'settings',
       40,
     ],
     [
       withPhase({ kind: 'ready', version: '1.2.0' }),
       'ready',
       'Restart to update',
-      'Restart to update: 1.2.0 is ready to install',
+      'Restart to update: install MangaVerse 1.2.0 now',
+      'install',
       null,
     ],
     [
       withPhase({ kind: 'installing', version: '1.2.0', queued: true }),
       'queued',
       'Restart queued',
-      'Restart queued: Restart queued for 1.2.0',
+      'Restart queued: MangaVerse 1.2.0 installs when you finish reading',
+      'none',
       null,
     ],
     [
       withPhase({ kind: 'installing', version: '1.2.0', queued: false }),
       'restarting',
       'Restarting…',
-      'Restarting…: Restarting to install 1.2.0',
+      'Restarting…: installing MangaVerse 1.2.0',
+      'none',
       null,
     ],
   ])(
-    'Given an update in flight, Then the label is short and the name repeats it with the version',
-    (state, kind, label, name, percent) => {
-      expect(titleBarUpdate(state)).toEqual({ kind, label, name, percent });
+    'Given an update in flight, Then the label is short and the name says what a click does',
+    (state, kind, label, name, click, percent) => {
+      expect(titleBarUpdate(state)).toEqual({ kind, label, name, click, percent });
     },
   );
-});
-
-describe('formatMegabytes', () => {
-  it.each([
-    [0, '0.0 MB'],
-    [4_020_000, '4.0 MB'],
-    [100_540_000, '100.5 MB'],
-    [-5, '0.0 MB'],
-  ])('%i bytes read %s', (bytes, text) => {
-    expect(formatMegabytes(bytes)).toBe(text);
-  });
-});
-
-describe('updatePopoverCopy', () => {
-  it.each([
-    [null],
-    [withPhase({ kind: 'idle' })],
-    [withPhase({ kind: 'checking' })],
-    [withPhase({ kind: 'error', message: 'Offline.' })],
-  ])('Given nothing to say, Then there is no copy', (state) => {
-    expect(updatePopoverCopy(state)).toBeNull();
-  });
-
-  it('Given a download, Then it names the version, keeps the percent out of the title and shows the bytes', () => {
-    const copy = updatePopoverCopy(
-      withPhase({
-        kind: 'downloading',
-        version: '1.2.0',
-        percent: 40,
-        transferred: 40_200_000,
-        total: 100_500_000,
-      }),
-    );
-    expect(copy).toEqual({
-      kind: 'downloading',
-      title: 'Downloading MangaVerse 1.2.0',
-      detail: 'It installs only when you restart.',
-      progress: { percent: 40, text: '40.2 MB of 100.5 MB' },
-    });
-  });
-
-  it('Given a download whose size is not known yet, Then the readout is just the percent', () => {
-    const copy = updatePopoverCopy(
-      withPhase({ kind: 'downloading', version: '1.2.0', percent: 7, transferred: 0, total: 0 }),
-    );
-    expect(copy?.progress).toEqual({ percent: 7, text: '7%' });
-  });
-
-  it('Given a ready release, Then it says progress is saved and has no bar', () => {
-    expect(updatePopoverCopy(withPhase({ kind: 'ready', version: '1.2.0' }))).toEqual({
-      kind: 'ready',
-      title: 'MangaVerse 1.2.0 is ready',
-      detail: 'Restart to finish. Your reading progress is already saved.',
-      progress: null,
-    });
-  });
-
-  it('Given a queued restart, Then it waits for the end of the chapter', () => {
-    expect(
-      updatePopoverCopy(withPhase({ kind: 'installing', version: '1.2.0', queued: true })),
-    ).toMatchObject({
-      kind: 'queued',
-      title: 'Restart queued',
-      detail: 'MangaVerse will restart when you finish reading.',
-    });
-  });
-
-  it('Given a restart in progress, Then the title is Restarting…', () => {
-    expect(
-      updatePopoverCopy(withPhase({ kind: 'installing', version: '1.2.0', queued: false })),
-    ).toMatchObject({ kind: 'restarting', title: 'Restarting…' });
-  });
 });

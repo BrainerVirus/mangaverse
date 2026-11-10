@@ -69,7 +69,14 @@ describe('the title bar in the Tab order', () => {
 
     const order = stops(container);
     expect(order[0]).toBe('Skip to content');
-    expect(order[1]).toMatch(/^Restart to update: 1\.1\.0/);
+    // Hidden until focus, then below the title bar, in full, on design-system tokens.
+    const skip = container.querySelector<HTMLElement>('a[href="#main-content"]')!;
+    expect(skip.classList.contains('skip-link')).toBe(true);
+    expect(skip.classList.contains('sr-only')).toBe(false);
+    for (const token of ['rounded-control', 'bg-primary', 'shadow-lg', 'focus:ring-2']) {
+      expect(skip.classList.contains(token)).toBe(true);
+    }
+    expect(order[1]).toMatch(/^Restart to update: install MangaVerse 1\.1\.0/);
     expect(order.indexOf('Page action')).toBeGreaterThan(1);
     expect(order.indexOf('Library')).toBeGreaterThan(1);
     // The pill is also before the main landmark in the document.
@@ -88,7 +95,7 @@ describe('the title bar in the Tab order', () => {
     await act(async () => {});
 
     const order = stops(container);
-    expect(order[0]).toMatch(/^Restart to update: 1\.1\.0/);
+    expect(order[0]).toMatch(/^Restart to update: install MangaVerse 1\.1\.0/);
     expect(order.indexOf('Reader control')).toBeGreaterThan(0);
     const strip = container.querySelector('[data-title-bar]')!;
     const main = container.querySelector('main')!;
