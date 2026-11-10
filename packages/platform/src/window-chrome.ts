@@ -6,9 +6,9 @@ import type { WindowChromePlatform } from './types.js';
  * (the `--title-bar-height` rules in the design system's stylesheet, pinned by a test).
  */
 export const TITLE_BAR_HEIGHTS = {
-  darwin: 52,
-  win32: 40,
-  linux: 40,
+  darwin: 28,
+  win32: 32,
+  linux: 32,
 } as const satisfies Record<WindowChromePlatform, number>;
 
 export function titleBarHeight(platform: WindowChromePlatform): number {

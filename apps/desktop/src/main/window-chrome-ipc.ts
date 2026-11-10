@@ -62,8 +62,15 @@ export function registerWindowChromeIpc(deps: WindowChromeIpcDeps): void {
 
   deps.ipcMain.handle(
     PLATFORM_IPC.WINDOW_CHROME_GET,
-    (event: IpcMainInvokeEvent): AppResult<PlatformWindowChrome> => {
+    (event: IpcMainInvokeEvent, ...args: unknown[]): AppResult<PlatformWindowChrome> => {
       if (!deps.isTrustedFrame(event.senderFrame)) return refuse();
+      const parsed = platformIpcRequestSchema.safeParse({
+        channel: PLATFORM_IPC.WINDOW_CHROME_GET,
+        args,
+      });
+      if (!parsed.success) {
+        return toIpcAppResult(err(platformInvalidUrl('IPC request payload is invalid.')));
+      }
       const window = deps.windowFor(event);
       const fullScreen = window !== null && !window.isDestroyed() && window.isFullScreen();
       return ok(chromeOf(deps.platform, fullScreen));

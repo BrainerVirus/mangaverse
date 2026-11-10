@@ -9,9 +9,10 @@ describe('UpdatePill', () => {
     const html = renderToStaticMarkup(<UpdatePill icon={glyph} label="Restart to update" />);
     expect(html).toContain('type="button"');
     expect(html).toContain('rounded-badge');
-    expect(html).toContain('h-7');
+    expect(html).toContain('h-5.5');
     expect(html).toContain('gap-1.5');
-    expect(html).toContain('px-3');
+    expect(html).toContain('px-2.5');
+    expect(html).toContain('size-3.5');
     expect(html).toContain('tabular-nums');
     expect(html).not.toContain('data-progress-ring');
     expect(html.indexOf('data-glyph')).toBeLessThan(html.indexOf('Restart to update'));
@@ -35,7 +36,7 @@ describe('UpdatePill', () => {
     const html = renderToStaticMarkup(<UpdatePill icon={glyph} label="Go" />);
     expect(html).toContain('focus-visible:ring-2');
     expect(html).toContain('focus-visible:ring-ring');
-    expect(html).toContain('focus-visible:ring-offset-2');
+    expect(html).toContain('focus-visible:ring-offset-0');
   });
 
   it.each([
@@ -48,7 +49,7 @@ describe('UpdatePill', () => {
     expect(html).toContain('data-progress-ring');
     expect(html).toContain('viewBox="0 0 32 32"');
     expect(html).toContain('r="14"');
-    expect(html).toContain('stroke-width="1.5"');
+    expect(html).toContain('stroke-width="3"');
     expect(html).toContain(`stroke-dashoffset="${circumference * left}"`);
   });
 

@@ -220,7 +220,7 @@ describe('title bar styles', () => {
 
   it('Given a strip, Then each platform offsets by the height main draws its native controls at', () => {
     expect(cssHeights()).toEqual(TITLE_BAR_HEIGHTS);
-    expect(TITLE_BAR_HEIGHTS).toEqual({ darwin: 52, win32: 40, linux: 40 });
+    expect(TITLE_BAR_HEIGHTS).toEqual({ darwin: 28, win32: 32, linux: 32 });
     // No strip (the web build, a fullscreen window): no offset.
     expect(css).toMatch(/:root \{\s*--title-bar-height: 0px;/);
   });
@@ -247,7 +247,7 @@ describe('title bar styles', () => {
 
   it('Given each platform, Then the strip keeps clear of its native controls', () => {
     const titleBar = block('@utility title-bar {');
-    expect(titleBar).toMatch(/&\[data-platform="darwin"\] \{\s*padding-inline-start: 90px;/);
+    expect(titleBar).toMatch(/&\[data-platform="darwin"\] \{\s*padding-inline-start: 80px;/);
     expect(titleBar).toMatch(
       /&:is\(\[data-platform="win32"\], \[data-platform="linux"\]\) \{\s*padding-inline-end: calc\(/,
     );

@@ -18,7 +18,6 @@ import { AppShellLayout } from '../layouts/AppShellLayout.js';
 import { ReaderLayout } from '../layouts/ReaderLayout.js';
 import { useCommandPaletteStore } from '../stores/useCommandPaletteStore';
 import { CommandPalette } from './shell/CommandPalette.js';
-import { TitleBar } from './shell/TitleBar.js';
 
 interface ShellProvidersProps {
   children: ReactNode;
@@ -79,9 +78,6 @@ export function ShellProviders({ children, detectFn }: ShellProvidersProps) {
                 <OnboardingGate>
                   <AppShellOrReaderLayout>{children}</AppShellOrReaderLayout>
                 </OnboardingGate>
-                {/* Fixed at the top, but after the content in the DOM: the shell's skip link
-                    stays the first Tab stop. */}
-                <TitleBar />
               </ThemeProvider>
             </PlatformProvider>
           </DownloadsProvider>

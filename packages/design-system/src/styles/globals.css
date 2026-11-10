@@ -282,20 +282,20 @@
      the 100vh line is the fallback for engines without `dvh`. Its background still paints under
      the notch; the padded content box keeps the rail and main inside the safe area. */
   /* The desktop's app-drawn title bar (TitleBar.tsx) is fixed at the top; the shell and the reader
-     start below it. The heights are `TITLE_BAR_HEIGHTS` in @app/platform (macOS 52px, Windows and
-     Linux 40px, the native overlay's height), so they stay in CSS pixels. Without the strip (the web
+     start below it. The heights are `TITLE_BAR_HEIGHTS` in @app/platform (macOS 28px, Windows and
+     Linux 32px, the native title bar's thickness), so they stay in CSS pixels. Without the strip (the web
      build, a fullscreen window) the offset is 0. */
   :root {
     --title-bar-height: 0px;
   }
 
   :root:has([data-title-bar][data-platform="darwin"]) {
-    --title-bar-height: 52px;
+    --title-bar-height: 28px;
   }
 
   :root:has([data-title-bar][data-platform="win32"]),
   :root:has([data-title-bar][data-platform="linux"]) {
-    --title-bar-height: 40px;
+    --title-bar-height: 32px;
   }
 
   [data-app-shell] {
@@ -630,7 +630,7 @@
 }
 
 /* The desktop title bar. The whole strip drags the window; its controls keep 0.75rem from the right
-   edge. macOS keeps 90px on the left for the traffic lights, Windows and Linux keep the overlay's
+   edge. macOS keeps 80px on the left for the traffic lights, Windows and Linux keep the overlay's
    width on the right (from the window controls overlay's `titlebar-area-*`, else the controls'
    usual width) plus that 0.75rem. It paints the sidebar's
    chrome colours, so the app frame (title bar and rail) reads as one surface distinct from the
@@ -653,7 +653,7 @@
   app-region: drag;
 
   &[data-platform="darwin"] {
-    padding-inline-start: 90px;
+    padding-inline-start: 80px;
   }
 
   &:is([data-platform="win32"], [data-platform="linux"]) {

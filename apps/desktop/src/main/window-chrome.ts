@@ -7,9 +7,13 @@ import type { BrowserWindowConstructorOptions } from 'electron';
  */
 export const DEFAULT_TITLE_BAR_COLORS = { color: '#fafafa', symbolColor: '#1a1a1a' } as const;
 
-/** The traffic lights are 14px tall; 16px from the left edge leaves the strip's left inset room. */
+/**
+ * The traffic lights' box is 14px tall and sits 12px from the left edge, the standard 28px title
+ * bar's inset. Left unset, Electron reports no position (`getWindowButtonPosition()` is `null`),
+ * so the position is explicit: centred in the strip, and checkable.
+ */
 const TRAFFIC_LIGHT_SIZE = 14;
-const TRAFFIC_LIGHT_INSET_X = 16;
+const TRAFFIC_LIGHT_INSET_X = 12;
 
 /** macOS and Windows are themselves; every other desktop draws the Linux overlay. */
 export function windowChromePlatform(platform: NodeJS.Platform): WindowChromePlatform {

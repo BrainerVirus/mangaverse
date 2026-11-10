@@ -55,7 +55,21 @@ function register(platform: NodeJS.Platform, window: ChromeWindow | null) {
 describe('window chrome IPC', () => {
   it('registers exactly the window chrome channels', () => {
     const { handlers } = register('darwin', null);
-    expect([...handlers.keys()].sort()).toEqual([...WINDOW_CHROME_CHANNELS].sort());
+    const byName = (left: string, right: string) => left.localeCompare(right);
+    expect([...handlers.keys()].sort(byName)).toEqual([...WINDOW_CHROME_CHANNELS].sort(byName));
+  });
+
+  it('Given arguments GET does not take, Then it is refused and no state is read', async () => {
+    const isFullScreen = vi.fn<() => boolean>(() => false);
+    const window: ChromeWindow = { ...fakeWindow().window, isFullScreen };
+    const { invoke } = register('darwin', window);
+    for (const args of [['extra'], [{ platform: 'win32' }], [undefined]]) {
+      expect(await invoke(PLATFORM_IPC.WINDOW_CHROME_GET, trusted, ...args)).toMatchObject({
+        ok: false,
+        error: { code: 'platform.invalid-url' },
+      });
+    }
+    expect(isFullScreen).not.toHaveBeenCalled();
   });
 
   it('Given the app frame, Then GET answers the platform, the fullscreen state and the strip height', async () => {
@@ -67,10 +81,10 @@ describe('window chrome IPC', () => {
   });
 
   it.each([
-    ['darwin', 52],
-    ['win32', 40],
-    ['linux', 40],
-    ['freebsd', 40],
+    ['darwin', 28],
+    ['win32', 32],
+    ['linux', 32],
+    ['freebsd', 32],
   ] as const)('Given %s, Then GET answers a %ipx strip', async (platform, height) => {
     const { invoke } = register(platform, fakeWindow().window);
     expect(await invoke(PLATFORM_IPC.WINDOW_CHROME_GET, trusted)).toMatchObject({
