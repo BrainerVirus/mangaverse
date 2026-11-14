@@ -1,4 +1,5 @@
 import type { AppDrizzleDb } from '@app/db';
+import type { EnsureQueryDataOptions, QueryClient, QueryKey } from '@tanstack/react-query';
 
 /**
  * The local database once `LocalDbProvider` reports it ready (first-party providers installed,
@@ -23,10 +24,34 @@ export function getRouteDataDb(): AppDrizzleDb | null {
 const ROUTE_DATA_WAIT_MS = 400;
 
 /**
- * Keeps a query a loader started alive long enough for the page that opens next to pick it up,
- * when the query's own `gcTime` is zero.
+ * Warms one query for a route loader, tied to the loader's lifetime. Once the router abandons the
+ * loader (a newer navigation, a dropped preload) nothing new starts, and the query is cancelled
+ * while no page observes it, so its provider request stops and it reverts to its earlier state.
+ * A query a mounted page already observes carries on: the page needs it. Query options that a
+ * loader warms set `retryOnMount: false`, so a failure here reaches the page as its inline error
+ * (with Retry) rather than being fetched a second time when the page mounts.
  */
-export const ROUTE_DATA_HANDOFF_GC_MS = 5_000;
+export function warmRouteQuery<TData, TKey extends QueryKey>(
+  queryClient: QueryClient,
+  options: EnsureQueryDataOptions<TData, Error, TData, TKey>,
+  signal: AbortSignal | undefined,
+): Promise<TData> {
+  if (signal?.aborted === true) return Promise.reject(signal.reason);
+  const cancelUnobserved = () => {
+    void queryClient.cancelQueries({
+      queryKey: options.queryKey,
+      exact: true,
+      predicate: (query) => query.getObserversCount() === 0,
+    });
+  };
+  signal?.addEventListener('abort', cancelUnobserved, { once: true });
+  const warm = queryClient.ensureQueryData(options);
+  void warm.then(
+    () => signal?.removeEventListener('abort', cancelUnobserved),
+    () => signal?.removeEventListener('abort', cancelUnobserved),
+  );
+  return warm;
+}
 
 /**
  * Resolves when `warm` settles or `ms` passes, whichever is first, and never rejects: a failed

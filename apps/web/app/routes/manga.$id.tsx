@@ -85,15 +85,20 @@ import { failureMessage } from '../lib/app-feedback.js';
 import { useLocalDb, useLocalDbRetry, useLocalDbStatus } from '../providers/local-db-provider.js';
 
 export const Route = createFileRoute('/manga/$id')({
-  // Hover (intent preload) and the click warm the page's local read and, for a title with nothing
-  // saved, its first source refresh, so the page opens complete when they are quick.
+  // A hover (intent preload) warms the page's local read; the click also warms the first source
+  // refresh of a title with nothing saved, so the page opens complete when it is quick.
   loader: {
     // A return to a title waits too (briefly, see `waitForRouteData`); its cache usually answers.
     staleReloadMode: 'blocking',
-    handler: ({ params }) => {
+    handler: ({ params, preload, abortController }) => {
       const db = getRouteDataDb();
       if (db === null) return;
-      return waitForRouteData(warmMangaDetail(appQueryClient, db, toMangaId(params.id)));
+      return waitForRouteData(
+        warmMangaDetail(appQueryClient, db, toMangaId(params.id), {
+          signal: abortController.signal,
+          preload,
+        }),
+      );
     },
   },
   component: MangaDetailRoute,

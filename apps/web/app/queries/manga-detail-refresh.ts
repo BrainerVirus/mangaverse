@@ -12,7 +12,7 @@ import {
   resetMangaRefreshJob,
 } from '../lib/manga-refresh-queue.js';
 import { getBindingForMangaId } from '../lib/provider-registry.js';
-import { ROUTE_DATA_HANDOFF_GC_MS } from '../lib/route-data.js';
+import { warmRouteQuery } from '../lib/route-data.js';
 
 /**
  * Kept outside `libraryQueryKeys.all`: the queue's own invalidation must never
@@ -20,6 +20,11 @@ import { ROUTE_DATA_HANDOFF_GC_MS } from '../lib/route-data.js';
  */
 function mangaDetailRefreshQueryKey(mangaId: MangaId): readonly unknown[] {
   return ['manga-detail-refresh', mangaId];
+}
+
+/** A function, not an inline check: the signal can change across the awaits between checks. */
+function isCancelled(signal: AbortSignal | undefined): boolean {
+  return signal?.aborted === true;
 }
 
 /** A registered provider binding is the only case where a refresh can do work. */
@@ -35,6 +40,8 @@ export function localMangaDetailQueryOptions(db: AppDrizzleDb, mangaId: MangaId)
   return queryOptions({
     queryKey: libraryQueryKeys.detail(mangaId),
     queryFn: () => fetchMangaDetail(db, mangaId),
+    // A failed read the route loader met is the page's to show, with Retry; not read twice.
+    retryOnMount: false,
   });
 }
 
@@ -54,6 +61,8 @@ export async function refreshMangaDetailForRoute(
     hasMangaRefreshJob(db, mangaId),
   ]);
   if (!queued && !shouldRefreshMangaDetail(local)) return false;
+  // Cancelled before any durable work (an abandoned navigation): the queue is left as it was.
+  if (isCancelled(signal)) return false;
 
   if (!queued) await enqueueMangaRefresh(db, mangaId, 'detail');
   // Held back from the queue's log: when nothing is saved locally this call is
@@ -100,8 +109,10 @@ export function mangaDetailRefreshQueryOptions(
   return queryOptions({
     queryKey: mangaDetailRefreshQueryKey(mangaId),
     queryFn: ({ signal }) => refreshMangaDetailForRoute(db, queryClient, mangaId, signal),
-    // The queue owns retries and backoff; a query-level retry would double-call.
+    // The queue owns retries and backoff; a query-level retry would double-call, and so would a
+    // rerun on mount of a failure the route loader already met.
     retry: false,
+    retryOnMount: false,
     staleTime: Infinity,
     gcTime: 0,
     meta: { feedback: { surface: 'silent' } },
@@ -110,19 +121,28 @@ export function mangaDetailRefreshQueryOptions(
 
 /**
  * The route loader's half of the detail page. Local-first: the SQLite read decides, and a title
- * with anything saved opens at once while the page refreshes it beside the surface. Only a title
- * with nothing saved waits on its source, the same refresh query the page then reads; it outlives
- * the gap until the page mounts, so a failure is reported once, by the page.
+ * with anything saved opens at once while the page refreshes it beside the surface. A hover
+ * (`preload`) only reads locally: the source refresh enqueues durable work, which waits for a
+ * real navigation. Only a title with nothing saved then waits on its source, through the same
+ * refresh query the page reads, so the page picks up the request in flight. An abandoned loader
+ * (`signal`) starts nothing new and cancels the refresh while no page shows it.
  */
 export async function warmMangaDetail(
   queryClient: QueryClient,
   db: AppDrizzleDb,
   mangaId: MangaId,
+  { signal, preload = false }: { readonly signal?: AbortSignal; readonly preload?: boolean } = {},
 ): Promise<void> {
-  const local = await queryClient.ensureQueryData(localMangaDetailQueryOptions(db, mangaId));
-  if (local !== null || !canRefreshMangaDetail(mangaId)) return;
-  await queryClient.ensureQueryData({
-    ...mangaDetailRefreshQueryOptions(db, queryClient, mangaId),
-    gcTime: ROUTE_DATA_HANDOFF_GC_MS,
-  });
+  const local = await warmRouteQuery(
+    queryClient,
+    localMangaDetailQueryOptions(db, mangaId),
+    signal,
+  );
+  if (preload || local !== null || !canRefreshMangaDetail(mangaId)) return;
+  if (signal?.aborted === true) return;
+  await warmRouteQuery(
+    queryClient,
+    mangaDetailRefreshQueryOptions(db, queryClient, mangaId),
+    signal,
+  );
 }

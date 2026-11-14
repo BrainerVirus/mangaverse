@@ -62,10 +62,12 @@ export const Route = createFileRoute('/discover')({
     // A return to Discover waits too (briefly, see `waitForRouteData`), instead of showing the
     // cached match at once and warming its feed behind the skeleton.
     staleReloadMode: 'blocking',
-    handler: ({ location }) => {
+    handler: ({ location, abortController }) => {
       const db = getRouteDataDb();
       if (db === null) return;
-      return waitForRouteData(warmDiscover(appQueryClient, db, location.search as DiscoverSearch));
+      return waitForRouteData(
+        warmDiscover(appQueryClient, db, location.search as DiscoverSearch, abortController.signal),
+      );
     },
   },
   component: DiscoverRoute,
