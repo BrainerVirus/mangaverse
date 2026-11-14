@@ -13,6 +13,8 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
   return {
     ...actual,
     useLocation: () => ({ pathname: '/library' }),
+    useMatches: (opts: { select: (matches: { routeId: string; pathname: string }[]) => unknown }) =>
+      opts.select([{ routeId: '/library', pathname: '/library' }]),
     useRouterState: (opts?: { select?: (state: { location: { pathname: string } }) => unknown }) =>
       opts?.select
         ? opts.select({ location: { pathname: '/library' } })

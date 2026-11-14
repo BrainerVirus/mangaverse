@@ -16,6 +16,7 @@ import {
   PageHeader,
 } from '@app/design-system';
 import { ArrowLeft } from 'lucide-react';
+import { useSkeletonReveal } from '@app/design-system/motion';
 import { CachedCoverImage, getDefaultProviderId } from '@app/cache';
 import {
   LIBRARY_STATUS_OPTIONS,
@@ -1279,16 +1280,18 @@ function MangaDetailStatus({ props }: { readonly props: MangaDetailPageProps }) 
 
 export function MangaDetailPage(props: MangaDetailPageProps) {
   const { data } = props;
+  // Every branch keeps the same container, so the content fades in where the skeleton was.
+  const revealRef = useSkeletonReveal(props.isLoading);
   if (props.isLoading) {
     return (
-      <PageContainer>
+      <PageContainer ref={revealRef}>
         <MangaDetailLoading onBack={props.onBack} />
       </PageContainer>
     );
   }
   if (props.isError || data === undefined || data === null) {
     return (
-      <PageContainer>
+      <PageContainer ref={revealRef}>
         <section aria-label="Manga details">
           <MangaDetailStatus props={props} />
         </section>
@@ -1297,7 +1300,7 @@ export function MangaDetailPage(props: MangaDetailPageProps) {
   }
 
   return (
-    <PageContainer>
+    <PageContainer ref={revealRef}>
       <MangaDetailContent {...props} data={data} />
     </PageContainer>
   );

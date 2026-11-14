@@ -456,7 +456,7 @@ describe('AmbientBackdrop', () => {
     const band = container.querySelector<HTMLDivElement>('[data-ambient-backdrop]');
 
     expect(band).toBeInTheDocument();
-    expect(band?.style.transform).toBe('');
+    expect(band?.style.opacity).toBe('');
   });
 
   it('waits for the full glass profile before entering', async () => {
@@ -464,10 +464,10 @@ describe('AmbientBackdrop', () => {
     const band = container.querySelector<HTMLDivElement>('[data-ambient-backdrop]');
 
     expect(band).toBeInTheDocument();
-    expect(band?.style.transform).toBe('');
+    expect(band?.style.opacity).toBe('');
     allowFullGlassProfile();
 
-    await waitFor(() => expect(band?.style.transform).toContain('translate'));
+    await waitFor(() => expect(band?.style.opacity).not.toBe(''));
   });
 
   it.each([
@@ -481,7 +481,23 @@ describe('AmbientBackdrop', () => {
     const band = container.querySelector<HTMLDivElement>('[data-ambient-backdrop]');
 
     expect(band).toBeInTheDocument();
-    expect(band?.style.transform).toBe('');
+    expect(band?.style.opacity).toBe('');
+  });
+
+  // Last in this block: the other cases unmount before the fade ends, so it has not played yet.
+  it('fades in on the first mount only, not when the shell mounts it again after the reader', async () => {
+    allowFullGlassProfile();
+    const first = render(<AmbientBackdrop />);
+    const band = first.container.querySelector<HTMLDivElement>('[data-ambient-backdrop]');
+    await waitFor(() => expect(band?.style.opacity).not.toBe(''));
+    await waitFor(() => expect(band?.style.opacity).toBe('1'), { timeout: 2000 });
+    first.unmount();
+
+    const second = render(<AmbientBackdrop />);
+    const again = second.container.querySelector<HTMLDivElement>('[data-ambient-backdrop]');
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(again?.style.opacity).toBe('');
+    expect(again?.style.visibility).toBe('');
   });
 });
 

@@ -3,11 +3,23 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { ok } from '@app/shared';
 import type { DesktopPlatformBridge, PlatformUpdateState } from '@app/platform';
 
+const router = vi.hoisted(() => ({
+  routeIds: ['__root__', '/library'] as string[],
+  /** The URL, which moves as soon as a navigation starts. */
+  pathname: '/library',
+}));
+
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => vi.fn<(options: unknown) => Promise<void>>(),
+  useLocation: () => ({ pathname: router.pathname }),
+  useRouterState: ({ select }: { select: (state: unknown) => unknown }) =>
+    select({ location: { pathname: router.pathname }, resolvedLocation: undefined }),
+  useMatches: ({ select }: { select: (matches: { routeId: string }[]) => unknown }) =>
+    select(router.routeIds.map((routeId) => ({ routeId }))),
 }));
 vi.mock('../../components/shell/DesktopSidebar.js', () => ({
   DesktopSidebar: () => <a href="/library">Library</a>,
@@ -25,8 +37,7 @@ vi.mock('../../features/diagnostics/create-app-platform-adapter.js', () => ({
   createAppPlatformAdapter: () => ({ updates: undefined }),
 }));
 
-import { AppShellLayout } from '../AppShellLayout.js';
-import { ReaderLayout } from '../ReaderLayout.js';
+import { AppLayout } from '../AppLayout.js';
 
 const ready: PlatformUpdateState = {
   enabled: true,
@@ -48,6 +59,8 @@ function installBridge() {
 
 afterEach(() => {
   cleanup();
+  router.routeIds = ['__root__', '/library'];
+  router.pathname = '/library';
   delete (window as { mangaversePlatform?: unknown }).mangaversePlatform;
 });
 
@@ -61,9 +74,9 @@ describe('the title bar in the Tab order', () => {
   it('Given the app shell, Then the skip link comes first, then the Update pill, then the page', async () => {
     installBridge();
     const { container } = render(
-      <AppShellLayout>
+      <AppLayout>
         <button type="button">Page action</button>
-      </AppShellLayout>,
+      </AppLayout>,
     );
     await act(async () => {});
 
@@ -87,10 +100,11 @@ describe('the title bar in the Tab order', () => {
 
   it('Given the reader, Then the Update pill is the first stop and comes before the reader', async () => {
     installBridge();
+    router.routeIds = ['__root__', '/reader/$chapterId'];
     const { container } = render(
-      <ReaderLayout>
+      <AppLayout>
         <button type="button">Reader control</button>
-      </ReaderLayout>,
+      </AppLayout>,
     );
     await act(async () => {});
 
@@ -104,11 +118,68 @@ describe('the title bar in the Tab order', () => {
 
   it('Given the web build (no bridge), Then there is no strip and the skip link stays first', () => {
     const { container } = render(
-      <AppShellLayout>
+      <AppLayout>
         <button type="button">Page action</button>
-      </AppShellLayout>,
+      </AppLayout>,
     );
     expect(container.querySelector('[data-title-bar]')).toBeNull();
     expect(stops(container)[0]).toBe('Skip to content');
+  });
+});
+
+describe('moving between the shell and the reader', () => {
+  function Page({ children }: { children: ReactNode }) {
+    return <button type="button">{children}</button>;
+  }
+
+  it('Given the desktop strip, When the reader opens and closes, Then the strip is never removed', async () => {
+    installBridge();
+    const { container, rerender } = render(
+      <AppLayout>
+        <Page>Detail</Page>
+      </AppLayout>,
+    );
+    await act(async () => {});
+    const strip = container.querySelector('[data-title-bar]');
+    expect(strip).not.toBeNull();
+
+    const removed: Node[] = [];
+    const observer = new MutationObserver((records) => {
+      for (const record of records) removed.push(...record.removedNodes);
+    });
+    observer.observe(container, { childList: true, subtree: true });
+
+    router.routeIds = ['__root__', '/reader/$chapterId'];
+    rerender(
+      <AppLayout>
+        <Page>Reader</Page>
+      </AppLayout>,
+    );
+    expect(container.querySelector('main')?.closest('[data-app-shell]')).toBeNull();
+    router.routeIds = ['__root__', '/manga/$id'];
+    rerender(
+      <AppLayout>
+        <Page>Detail</Page>
+      </AppLayout>,
+    );
+    await act(async () => {});
+    observer.disconnect();
+
+    expect(container.querySelector('[data-title-bar]')).toBe(strip);
+    expect(removed.some((node) => node === strip || node.contains(strip))).toBe(false);
+  });
+
+  it('Given the URL already points at the reader, While its route is pending, Then the page on screen keeps the shell', () => {
+    // The matches on screen are still the detail page's: the layout follows them, not the URL.
+    router.pathname = '/reader/chapter-1';
+    router.routeIds = ['__root__', '/manga/$id'];
+    const { container } = render(
+      <AppLayout>
+        <Page>Detail</Page>
+      </AppLayout>,
+    );
+    const page = container.querySelector('button')!;
+    expect(page.closest('[data-app-shell]')).not.toBeNull();
+    expect(container.querySelector('main.below-title-bar')).toBeNull();
   });
 });

@@ -5,6 +5,7 @@ export interface PageContainerProps {
   variant?: 'wide' | 'read';
   className?: string;
   children: React.ReactNode;
+  ref?: React.Ref<HTMLDivElement>;
 }
 
 /**
@@ -14,9 +15,10 @@ export interface PageContainerProps {
  * every title shares one left edge at any window width; on an ultrawide screen a wide grid hugs
  * the left instead of centring.
  */
-export function PageContainer({ variant = 'wide', className, children }: PageContainerProps) {
+export function PageContainer({ variant = 'wide', className, children, ref }: PageContainerProps) {
   return (
     <div
+      ref={ref}
       data-page-container={variant}
       className={cn(
         'w-full px-6 py-6 lg:px-8 lg:py-8',

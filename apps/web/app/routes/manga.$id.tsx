@@ -51,6 +51,7 @@ import {
   localMangaDetailQueryOptions,
   mangaDetailRefreshQueryOptions,
   retryMangaDetailRefresh,
+  warmMangaDetail,
 } from '../queries/manga-detail-refresh.js';
 import {
   anyActionPending,
@@ -77,11 +78,24 @@ import {
   sourceLoadError,
 } from '../queries/manga-detail-route-helpers.js';
 import { saveFeedback } from '../lib/feedback.js';
+import { getRouteDataDb, waitForRouteData } from '../lib/route-data.js';
+import { queryClient as appQueryClient } from '../providers/query-client.js';
 import { readerSessionState } from '../lib/navigation-history.js';
 import { failureMessage } from '../lib/app-feedback.js';
 import { useLocalDb, useLocalDbRetry, useLocalDbStatus } from '../providers/local-db-provider.js';
 
 export const Route = createFileRoute('/manga/$id')({
+  // Hover (intent preload) and the click warm the page's local read and, for a title with nothing
+  // saved, its first source refresh, so the page opens complete when they are quick.
+  loader: {
+    // A return to a title waits too (briefly, see `waitForRouteData`); its cache usually answers.
+    staleReloadMode: 'blocking',
+    handler: ({ params }) => {
+      const db = getRouteDataDb();
+      if (db === null) return;
+      return waitForRouteData(warmMangaDetail(appQueryClient, db, toMangaId(params.id)));
+    },
+  },
   component: MangaDetailRoute,
 });
 

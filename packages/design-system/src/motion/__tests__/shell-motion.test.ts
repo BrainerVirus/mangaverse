@@ -71,14 +71,38 @@ describe('route transitions', () => {
     vi.clearAllMocks();
   });
 
-  it('routeEnter uses quicker motion for reader routes', () => {
-    routeEnter('.route', { reducedMotion: false, variant: 'reader' });
-    expect(gsap.timeline).toHaveBeenCalled();
+  function enterTween() {
+    const timeline = vi.mocked(gsap.timeline).mock.results[0]?.value as {
+      fromTo: ReturnType<typeof vi.fn>;
+    };
+    const [, from, to] = timeline.fromTo.mock.calls[0] as [unknown, gsap.TweenVars, gsap.TweenVars];
+    return { from, to };
+  }
+
+  it('routeEnter never hides the page: it settles in from almost fully drawn, a few px low', () => {
+    routeEnter('.route', { reducedMotion: false });
+    const { from, to } = enterTween();
+    expect(from).toEqual({ opacity: 0.85, y: 4 });
+    expect(from).not.toHaveProperty('autoAlpha');
+    expect(from).not.toHaveProperty('visibility');
+    expect(to).toMatchObject({ opacity: 1, y: 0, duration: 0.14 });
+    // No transform is left behind to trap the page's fixed layers.
+    expect(to.clearProps).toContain('transform');
   });
 
-  it('routeEnter snaps to visible state when reduced motion is enabled', () => {
+  it('routeEnter keeps the reader still: a short fade, no movement', () => {
+    routeEnter('.route', { reducedMotion: false, variant: 'reader' });
+    const { from, to } = enterTween();
+    expect(from).toEqual({ opacity: 0.85, y: 0 });
+    expect(to).toMatchObject({ opacity: 1, y: 0 });
+  });
+
+  it('routeEnter does not animate when reduced motion is enabled', () => {
     routeEnter('.route', { reducedMotion: true });
-    expect(gsap.set).toHaveBeenCalledWith('.route', { autoAlpha: 1, y: 0 });
+    expect(gsap.set).toHaveBeenCalledWith('.route', {
+      clearProps: 'opacity,visibility,transform',
+    });
+    expect(gsap.fromTo).not.toHaveBeenCalled();
   });
 
   it('routeExit snaps to hidden state when reduced motion is enabled', () => {

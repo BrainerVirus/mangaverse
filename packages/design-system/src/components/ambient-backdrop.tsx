@@ -1,8 +1,14 @@
 import * as React from 'react';
 import { useGSAP } from '@gsap/react';
-import { routeEnter, useReducedMotion } from '../motion/index.js';
+import { fadeIn, useReducedMotion } from '../motion/index.js';
 import { cn } from '../lib/cn.js';
 import { useGlassProfileFallback } from '../hooks/use-glass-profile-fallback.js';
+
+/**
+ * The band fades in once per app session. The shell remounts it after the reader, and a second
+ * fade there would read as the whole window blinking.
+ */
+let entrancePlayed = false;
 
 /**
  * DESIGN.md §2.3 — the ambient band behind the shell's content: fixed, decorative, never
@@ -47,7 +53,14 @@ export const AmbientBackdrop = React.forwardRef<
 
   useGSAP(
     () => {
-      if (!reducedMotion && !profileFallback && ref.current) routeEnter(ref.current);
+      if (entrancePlayed || reducedMotion || profileFallback || ref.current === null) return;
+      // Marked once it has played: the profile is only known after hydration, and a fade reverted
+      // before it ends (a strict-mode remount) plays again.
+      fadeIn(ref.current, {
+        onComplete: () => {
+          entrancePlayed = true;
+        },
+      });
     },
     { scope: ref, dependencies: [reducedMotion, profileFallback], revertOnUpdate: true },
   );

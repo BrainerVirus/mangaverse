@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { useLayoutStore, detectDeviceLayout } from '../stores/useLayoutStore.js';
 import { DesktopSidebar } from '../components/shell/DesktopSidebar.js';
-import { TitleBar } from '../components/shell/TitleBar.js';
 import { MobileBottomNav } from '../components/shell/MobileBottomNav.js';
 import { AnimatedRouteOutlet } from '../components/shell/AnimatedRouteOutlet.js';
 import { AppNotices } from '../components/AppNotices.js';
@@ -42,18 +41,7 @@ export function AppShellLayout({ children }: { children: React.ReactNode }) {
       className="flex overflow-hidden bg-background max-md:flex-col max-md:overflow-visible"
     >
       <AmbientBackdrop />
-      {/* Keyboard users land on the shell first; the skip link is the only
-          focusable element before the title bar and the sidebar, so one Tab + Enter reaches the
-          page content without walking the whole navigation. It shows below the title bar. */}
-      <a
-        href="#main-content"
-        className="skip-link rounded-control bg-primary type-label text-primary-foreground shadow-lg outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background pointer-coarse:focus:min-h-11"
-      >
-        Skip to content
-      </a>
-      {/* The desktop title bar is fixed at the top, so it can sit anywhere in the DOM: right
-          after the skip link makes its Update pill the second Tab stop, before the page. */}
-      <TitleBar />
+      {/* The skip link and the title bar come before the shell, in AppLayout. */}
       <DesktopSidebar />
       {/* `min-w-0` keeps a wide child from widening the shell's flex row; the
           content column then scrolls instead of pushing the page sideways.

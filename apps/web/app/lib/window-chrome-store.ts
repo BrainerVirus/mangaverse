@@ -49,14 +49,16 @@ export function subscribeWindowChrome(listener: () => void): () => void {
     if (listeners.size === 0 && unsubscribeBridge !== null) {
       unsubscribeBridge();
       unsubscribeBridge = null;
-      snapshot = null;
+      // The last known chrome stays: a strip that remounts draws at once instead of vanishing
+      // for a frame, and the next subscriber asks main again in case it changed meanwhile.
       generation += 1;
     }
   };
 }
 
 export function getWindowChromeSnapshot(): PlatformWindowChrome | null {
-  return snapshot;
+  // The kept copy belongs to a desktop window; without the bridge there is no chrome at all.
+  return bridge() === undefined ? null : snapshot;
 }
 
 export function getServerWindowChromeSnapshot(): PlatformWindowChrome | null {

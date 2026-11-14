@@ -12,6 +12,7 @@ import {
   resetMangaRefreshJob,
 } from '../lib/manga-refresh-queue.js';
 import { getBindingForMangaId } from '../lib/provider-registry.js';
+import { ROUTE_DATA_HANDOFF_GC_MS } from '../lib/route-data.js';
 
 /**
  * Kept outside `libraryQueryKeys.all`: the queue's own invalidation must never
@@ -104,5 +105,24 @@ export function mangaDetailRefreshQueryOptions(
     staleTime: Infinity,
     gcTime: 0,
     meta: { feedback: { surface: 'silent' } },
+  });
+}
+
+/**
+ * The route loader's half of the detail page. Local-first: the SQLite read decides, and a title
+ * with anything saved opens at once while the page refreshes it beside the surface. Only a title
+ * with nothing saved waits on its source, the same refresh query the page then reads; it outlives
+ * the gap until the page mounts, so a failure is reported once, by the page.
+ */
+export async function warmMangaDetail(
+  queryClient: QueryClient,
+  db: AppDrizzleDb,
+  mangaId: MangaId,
+): Promise<void> {
+  const local = await queryClient.ensureQueryData(localMangaDetailQueryOptions(db, mangaId));
+  if (local !== null || !canRefreshMangaDetail(mangaId)) return;
+  await queryClient.ensureQueryData({
+    ...mangaDetailRefreshQueryOptions(db, queryClient, mangaId),
+    gcTime: ROUTE_DATA_HANDOFF_GC_MS,
   });
 }

@@ -20,6 +20,7 @@ import {
   setPersistenceErrorHandler,
   watchLocalDbForExternalChanges,
 } from '../lib/local-db.js';
+import { setRouteDataDb } from '../lib/route-data.js';
 
 export type LocalDbStatus = 'loading' | 'ready' | 'error';
 
@@ -71,6 +72,7 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
 
   const retry = useCallback(() => {
     resetLocalDb();
+    setRouteDataDb(null);
     setValue({ status: 'loading', db: null, errorMessage: null, persistenceError: null });
     setAttempt((current) => current + 1);
   }, []);
@@ -106,12 +108,15 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
           // Pending provider refreshes (O5) resume from the persisted queue here
           // and on every reconnect, without adding a React effect of their own.
           stopRefreshQueue = startMangaRefreshQueue(handle, queryClient);
+          // Route loaders warm a page's queries only against a database that is ready.
+          setRouteDataDb(handle);
           setValue((current) => ({ ...current, status: 'ready', db: handle, errorMessage: null }));
         }
       })
       .catch((error: unknown) => {
         logDbInitFailure(error);
         if (!cancelled) {
+          setRouteDataDb(null);
           setValue((current) => ({
             ...current,
             status: 'error',
@@ -124,6 +129,7 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
       stopRefreshQueue?.();
+      setRouteDataDb(null);
     };
   }, [attempt, queryClient]);
 
@@ -144,6 +150,7 @@ export function LocalDbProvider({ children }: { children: ReactNode }) {
     const unsubscribe = watchLocalDbForExternalChanges((handle) => {
       // Replace the handle on the next render; invalidation happens in the
       // effect below so observers refetch with the fresh handle.
+      setRouteDataDb(handle);
       setValue((current) => ({ ...current, status: 'ready', db: handle, errorMessage: null }));
       setHandleVersion((version) => version + 1);
     });

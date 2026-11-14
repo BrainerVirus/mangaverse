@@ -94,6 +94,28 @@ const MAP_A = 'map-a';
 const MAP_B = 'map-b';
 
 describe('MangaDetailPage', () => {
+  it('Given the skeleton, When the title arrives, Then it fades in where the skeleton was instead of popping', () => {
+    const props = {
+      mangaId: MANGA_ID,
+      isError: false,
+      providerLabels: {},
+      onOpenChapter: () => {},
+    };
+    const { container, rerender } = render(
+      <MangaDetailPage {...props} data={undefined} isLoading />,
+    );
+    const frame = container.querySelector<HTMLElement>('[data-page-container]')!;
+    expect(frame.style.opacity).toBe('');
+
+    rerender(<MangaDetailPage {...props} data={makeDetail()} isLoading={false} />);
+    // The same frame, now holding the title, starts half-drawn and is never hidden.
+    expect(container.querySelector('[data-page-container]')).toBe(frame);
+    expect(screen.getByRole('heading', { name: 'Kuro no Shoukanshi' })).toBeInTheDocument();
+    expect(Number(frame.style.opacity)).toBeGreaterThanOrEqual(0.5);
+    expect(Number(frame.style.opacity)).toBeLessThan(1);
+    expect(frame.style.visibility).not.toBe('hidden');
+  });
+
   it('Given a provider id and no status, Then the source name shows and no raw token does', () => {
     const base = makeDetail();
     const data = makeDetail({

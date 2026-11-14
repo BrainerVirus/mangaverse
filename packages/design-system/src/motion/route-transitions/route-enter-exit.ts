@@ -9,20 +9,28 @@ export interface RouteTransitionOptions extends gsap.TimelineVars {
   variant?: RouteTransitionVariant;
 }
 
+/**
+ * A page that has arrived settles in from almost fully drawn: it is never hidden, so a navigation
+ * can never show an empty frame. The reader does not move at all.
+ */
+const ENTER_FROM_OPACITY = 0.85;
+/** Inline styles the enter leaves behind; a leftover transform would trap fixed descendants. */
+const ENTER_PROPS = 'opacity,visibility,transform';
+
 function getRouteMotion(variant: RouteTransitionVariant) {
   if (variant === 'reader') {
     return {
       enterDuration: DURATION.quick,
       exitDuration: DURATION.micro,
-      enterOffset: 4,
+      enterOffset: 0,
       exitOffset: -4,
     };
   }
 
   return {
-    enterDuration: DURATION.standard,
+    enterDuration: DURATION.quick,
     exitDuration: DURATION.quick,
-    enterOffset: 8,
+    enterOffset: 4,
     exitOffset: -8,
   };
 }
@@ -35,19 +43,20 @@ export function routeEnter(
   const motion = getRouteMotion(variant);
 
   if (reducedMotion) {
-    gsap.set(target, { autoAlpha: 1, y: 0 });
+    gsap.set(target, { clearProps: ENTER_PROPS });
     return gsap.timeline(timelineVars);
   }
 
   const timeline = gsap.timeline(timelineVars);
   timeline.fromTo(
     target,
-    { autoAlpha: 0, y: motion.enterOffset },
+    { opacity: ENTER_FROM_OPACITY, y: motion.enterOffset },
     {
-      autoAlpha: 1,
+      opacity: 1,
       y: 0,
       duration: motion.enterDuration / 1000,
       ease: EASING.standardOut,
+      clearProps: ENTER_PROPS,
     },
   );
   return timeline;

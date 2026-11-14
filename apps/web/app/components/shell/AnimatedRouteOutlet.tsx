@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { useLocation } from '@tanstack/react-router';
+import { useMatches } from '@tanstack/react-router';
 import { useGSAP } from '@gsap/react';
 import type { ReactNode } from 'react';
 import {
@@ -19,7 +19,9 @@ export function AnimatedRouteOutlet({
   variant = 'default',
   className = 'min-h-full',
 }: AnimatedRouteOutletProps) {
-  const location = useLocation();
+  // The page on screen, not the URL: the URL changes when a navigation starts, and replaying the
+  // enter then would run it on the page being left while the next one loads.
+  const pathname = useMatches({ select: (matches) => matches.at(-1)?.pathname });
   const ref = useRef<HTMLDivElement>(null);
   const reducedMotion = useReducedMotion();
 
@@ -28,7 +30,8 @@ export function AnimatedRouteOutlet({
       if (!ref.current) return;
       routeEnter(ref.current, { reducedMotion, variant });
     },
-    { scope: ref, dependencies: [location.pathname, reducedMotion, variant] },
+    // A new page reverts the previous enter first, so two tweens never fight over the outlet.
+    { scope: ref, dependencies: [pathname, reducedMotion, variant], revertOnUpdate: true },
   );
 
   return (

@@ -13,7 +13,6 @@ import {
   type DiscoverPageFailure,
   type DiscoverSectionFailure,
 } from '@/features/search';
-import { fetchAppSettings, settingsQueryKeys } from '@/features/settings';
 import {
   useLocalDb,
   useLocalDbError,
@@ -22,12 +21,18 @@ import {
 } from '../providers/local-db-provider.js';
 import type { LocalDbStatus } from '../providers/local-db-provider.js';
 import {
-  fetchDiscoverProviders,
   fetchProviderSectionPage,
-  fetchProviderSectionPreview,
   getSectionTitle,
   PROVIDER_SECTION_PAGE_SIZE,
 } from '../queries/provider-discover.js';
+import {
+  discoverPreviewQueryOptions,
+  discoverProvidersQueryOptions,
+  discoverSettingsQueryOptions,
+  warmDiscover,
+} from '../queries/discover-query-options.js';
+import { queryClient as appQueryClient } from '../providers/query-client.js';
+import { getRouteDataDb, waitForRouteData } from '../lib/route-data.js';
 import type { DiscoverProviderDescriptor } from '../queries/provider-discover.js';
 import { getProviderBinding } from '../lib/provider-registry.js';
 import { goBackIfMarked } from '../lib/navigation-history.js';
@@ -50,6 +55,19 @@ type ExpandedSectionMeta = {
 export const Route = createFileRoute('/discover')({
   validateSearch: (search: Record<string, unknown>): DiscoverSearch =>
     discoverSearchSchema.parse(search),
+  // Hover (intent preload) and the click warm the feed, so a quick source opens the page complete
+  // rather than as a skeleton. The search is read from the location, not declared as loader deps:
+  // a provider tab is the same match, so switching tabs never reloads it and never waits.
+  loader: {
+    // A return to Discover waits too (briefly, see `waitForRouteData`), instead of showing the
+    // cached match at once and warming its feed behind the skeleton.
+    staleReloadMode: 'blocking',
+    handler: ({ location }) => {
+      const db = getRouteDataDb();
+      if (db === null) return;
+      return waitForRouteData(warmDiscover(appQueryClient, db, location.search as DiscoverSearch));
+    },
+  },
   component: DiscoverRoute,
 });
 
@@ -337,10 +355,8 @@ function DiscoverRoute() {
   const retryDb = useLocalDbRetry();
 
   const appSettingsQuery = useQuery({
-    queryKey: settingsQueryKeys.app(),
-    queryFn: () => fetchAppSettings(db!),
+    ...discoverSettingsQueryOptions(db!),
     enabled: dbStatus === 'ready' && db !== null,
-    retry: false,
   });
 
   // A failed settings read must not disable Discover: show safe content and an
@@ -348,10 +364,7 @@ function DiscoverRoute() {
   const explicitContent = appSettingsQuery.data?.settings.explicitContent ?? false;
 
   const providersQuery = useQuery({
-    queryKey: discoverQueryKeys.providers(),
-    queryFn: () => fetchDiscoverProviders(db!),
-    meta: { feedback: { surface: 'inline' } },
-    retry: false,
+    ...discoverProvidersQueryOptions(db!),
     enabled: dbStatus === 'ready' && db !== null,
   });
 
@@ -366,18 +379,8 @@ function DiscoverRoute() {
 
   const sectionQueries = useQueries({
     queries: activeSections.map((section) => ({
-      queryKey: discoverQueryKeys.preview(activeProviderId ?? '', section.id, explicitContent),
-      queryFn: ({ signal }: { signal: AbortSignal }) =>
-        fetchProviderSectionPreview(
-          db!,
-          activeProviderId ?? '',
-          section.id,
-          signal,
-          explicitContent,
-        ),
+      ...discoverPreviewQueryOptions(db!, activeProviderId ?? '', section.id, explicitContent),
       enabled: dbStatus === 'ready' && db !== null && activeProviderId !== null,
-      retry: false,
-      meta: { feedback: { surface: 'inline' } },
     })),
   });
 
