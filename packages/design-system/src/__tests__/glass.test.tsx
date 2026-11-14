@@ -11,7 +11,8 @@ import {
 } from '../components/glass-variants.js';
 import { GlassPanel } from '../components/glass-panel.js';
 import { RefractionLayer } from '../components/refraction-layer.js';
-import { AmbientBackdrop, resetAmbientBackdropEntrance } from '../components/ambient-backdrop.js';
+import { AmbientBackdrop } from '../components/ambient-backdrop.js';
+import { resetAmbientBackdropEntrance } from '../components/ambient-backdrop-entrance.js';
 import { resolveGlassProfile } from '../lib/glass-profile.js';
 import { DURATION, setInAppReducedMotionPreference } from '../motion/index.js';
 
