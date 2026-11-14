@@ -10,6 +10,11 @@ import { useGlassProfileFallback } from '../hooks/use-glass-profile-fallback.js'
  */
 let entrancePlayed = false;
 
+/** Tests only: forget that the entrance played, so each case starts from a fresh session. */
+export function resetAmbientBackdropEntrance(): void {
+  entrancePlayed = false;
+}
+
 /**
  * DESIGN.md §2.3 — the ambient band behind the shell's content: fixed, decorative, never
  * scrolling, and off under reduced motion, reduced transparency or the low-end profile.

@@ -11,9 +11,9 @@ import {
 } from '../components/glass-variants.js';
 import { GlassPanel } from '../components/glass-panel.js';
 import { RefractionLayer } from '../components/refraction-layer.js';
-import { AmbientBackdrop } from '../components/ambient-backdrop.js';
+import { AmbientBackdrop, resetAmbientBackdropEntrance } from '../components/ambient-backdrop.js';
 import { resolveGlassProfile } from '../lib/glass-profile.js';
-import { setInAppReducedMotionPreference } from '../motion/index.js';
+import { DURATION, setInAppReducedMotionPreference } from '../motion/index.js';
 
 const TIERS = ['thin', 'regular', 'thick', 'stage'] as const;
 const ELEVATIONS = [0, 1, 2, 3, 4] as const;
@@ -484,13 +484,16 @@ describe('AmbientBackdrop', () => {
     expect(band?.style.opacity).toBe('');
   });
 
-  // Last in this block: the other cases unmount before the fade ends, so it has not played yet.
   it('fades in on the first mount only, not when the shell mounts it again after the reader', async () => {
     allowFullGlassProfile();
+    // Whether an earlier case already let the once-per-session fade finish depends on timing.
+    resetAmbientBackdropEntrance();
     const first = render(<AmbientBackdrop />);
     const band = first.container.querySelector<HTMLDivElement>('[data-ambient-backdrop]');
     await waitFor(() => expect(band?.style.opacity).not.toBe(''));
     await waitFor(() => expect(band?.style.opacity).toBe('1'), { timeout: 2000 });
+    // The ease-out rounds the opacity to 1 before the tween ends; let it finish so it counts as played.
+    await new Promise((resolve) => setTimeout(resolve, DURATION.standard));
     first.unmount();
 
     const second = render(<AmbientBackdrop />);
