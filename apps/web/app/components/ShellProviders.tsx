@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { useLocation } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
 import { Toaster } from '@app/design-system';
 import type { PlatformCapabilities } from '@app/platform';
@@ -13,24 +12,13 @@ import { ThemeSettingsBridge } from '../providers/theme-settings-bridge.js';
 import { ShellAppearanceBridge } from '../providers/shell-appearance-bridge.js';
 import { LocalDataPrefetch } from './LocalDataPrefetch.js';
 import { OnboardingGate } from './OnboardingGate.js';
-import { AppShellLayout } from '../layouts/AppShellLayout.js';
-import { ReaderLayout } from '../layouts/ReaderLayout.js';
+import { AppLayout } from '../layouts/AppLayout.js';
 import { useCommandPaletteStore } from '../stores/useCommandPaletteStore';
 import { CommandPalette } from './shell/CommandPalette.js';
 
 interface ShellProvidersProps {
   children: ReactNode;
   detectFn?: (() => PlatformCapabilities) | undefined;
-}
-
-function AppShellOrReaderLayout({ children }: { children: ReactNode }) {
-  const location = useLocation();
-  const isReaderMatch = location.pathname.startsWith('/reader/');
-  return isReaderMatch ? (
-    <ReaderLayout>{children}</ReaderLayout>
-  ) : (
-    <AppShellLayout>{children}</AppShellLayout>
-  );
 }
 
 function KeyboardShortcuts() {
@@ -74,7 +62,7 @@ export function ShellProviders({ children, detectFn }: ShellProvidersProps) {
                 <CommandPalette />
                 <Toaster />
                 <OnboardingGate>
-                  <AppShellOrReaderLayout>{children}</AppShellOrReaderLayout>
+                  <AppLayout>{children}</AppLayout>
                 </OnboardingGate>
               </ThemeProvider>
             </PlatformProvider>

@@ -1,8 +1,12 @@
 import * as React from 'react';
 import { useGSAP } from '@gsap/react';
-import { routeEnter, useReducedMotion } from '../motion/index.js';
+import { fadeIn, useReducedMotion } from '../motion/index.js';
 import { cn } from '../lib/cn.js';
 import { useGlassProfileFallback } from '../hooks/use-glass-profile-fallback.js';
+import {
+  hasAmbientBackdropEntrancePlayed,
+  markAmbientBackdropEntrancePlayed,
+} from './ambient-backdrop-entrance.js';
 
 /**
  * DESIGN.md §2.3 — the ambient band behind the shell's content: fixed, decorative, never
@@ -47,7 +51,20 @@ export const AmbientBackdrop = React.forwardRef<
 
   useGSAP(
     () => {
-      if (!reducedMotion && !profileFallback && ref.current) routeEnter(ref.current);
+      if (
+        hasAmbientBackdropEntrancePlayed() ||
+        reducedMotion ||
+        profileFallback ||
+        ref.current === null
+      )
+        return;
+      // Marked once it has played: the profile is only known after hydration, and a fade reverted
+      // before it ends (a strict-mode remount) plays again.
+      fadeIn(ref.current, {
+        onComplete: () => {
+          markAmbientBackdropEntrancePlayed();
+        },
+      });
     },
     { scope: ref, dependencies: [reducedMotion, profileFallback], revertOnUpdate: true },
   );

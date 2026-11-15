@@ -12,8 +12,9 @@ import {
 import { GlassPanel } from '../components/glass-panel.js';
 import { RefractionLayer } from '../components/refraction-layer.js';
 import { AmbientBackdrop } from '../components/ambient-backdrop.js';
+import { resetAmbientBackdropEntrance } from '../components/ambient-backdrop-entrance.js';
 import { resolveGlassProfile } from '../lib/glass-profile.js';
-import { setInAppReducedMotionPreference } from '../motion/index.js';
+import { DURATION, setInAppReducedMotionPreference } from '../motion/index.js';
 
 const TIERS = ['thin', 'regular', 'thick', 'stage'] as const;
 const ELEVATIONS = [0, 1, 2, 3, 4] as const;
@@ -456,7 +457,7 @@ describe('AmbientBackdrop', () => {
     const band = container.querySelector<HTMLDivElement>('[data-ambient-backdrop]');
 
     expect(band).toBeInTheDocument();
-    expect(band?.style.transform).toBe('');
+    expect(band?.style.opacity).toBe('');
   });
 
   it('waits for the full glass profile before entering', async () => {
@@ -464,10 +465,10 @@ describe('AmbientBackdrop', () => {
     const band = container.querySelector<HTMLDivElement>('[data-ambient-backdrop]');
 
     expect(band).toBeInTheDocument();
-    expect(band?.style.transform).toBe('');
+    expect(band?.style.opacity).toBe('');
     allowFullGlassProfile();
 
-    await waitFor(() => expect(band?.style.transform).toContain('translate'));
+    await waitFor(() => expect(band?.style.opacity).not.toBe(''));
   });
 
   it.each([
@@ -481,7 +482,26 @@ describe('AmbientBackdrop', () => {
     const band = container.querySelector<HTMLDivElement>('[data-ambient-backdrop]');
 
     expect(band).toBeInTheDocument();
-    expect(band?.style.transform).toBe('');
+    expect(band?.style.opacity).toBe('');
+  });
+
+  it('fades in on the first mount only, not when the shell mounts it again after the reader', async () => {
+    allowFullGlassProfile();
+    // Whether an earlier case already let the once-per-session fade finish depends on timing.
+    resetAmbientBackdropEntrance();
+    const first = render(<AmbientBackdrop />);
+    const band = first.container.querySelector<HTMLDivElement>('[data-ambient-backdrop]');
+    await waitFor(() => expect(band?.style.opacity).not.toBe(''));
+    await waitFor(() => expect(band?.style.opacity).toBe('1'), { timeout: 2000 });
+    // The ease-out rounds the opacity to 1 before the tween ends; let it finish so it counts as played.
+    await new Promise((resolve) => setTimeout(resolve, DURATION.standard));
+    first.unmount();
+
+    const second = render(<AmbientBackdrop />);
+    const again = second.container.querySelector<HTMLDivElement>('[data-ambient-backdrop]');
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(again?.style.opacity).toBe('');
+    expect(again?.style.visibility).toBe('');
   });
 });
 

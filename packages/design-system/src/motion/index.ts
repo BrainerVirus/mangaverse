@@ -8,6 +8,7 @@ export {
 } from './utils/reduced-motion-preference.js';
 export { useIsClient } from './hooks/use-is-client.js';
 export { useGridStaggerReveal } from './hooks/use-grid-stagger-reveal.js';
+export { useSkeletonReveal } from './hooks/use-skeleton-reveal.js';
 
 export { DURATION } from './tokens/duration.js';
 export { EASING } from './tokens/easing.js';

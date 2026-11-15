@@ -51,6 +51,8 @@ import {
   localMangaDetailQueryOptions,
   mangaDetailRefreshQueryOptions,
   retryMangaDetailRefresh,
+  promoteMangaDetailHover,
+  warmMangaDetail,
 } from '../queries/manga-detail-refresh.js';
 import {
   anyActionPending,
@@ -77,11 +79,37 @@ import {
   sourceLoadError,
 } from '../queries/manga-detail-route-helpers.js';
 import { saveFeedback } from '../lib/feedback.js';
+import { getRouteDataDb, waitForRouteData } from '../lib/route-data.js';
+import { queryClient as appQueryClient } from '../providers/query-client.js';
 import { readerSessionState } from '../lib/navigation-history.js';
 import { failureMessage } from '../lib/app-feedback.js';
 import { useLocalDb, useLocalDbRetry, useLocalDbStatus } from '../providers/local-db-provider.js';
 
 export const Route = createFileRoute('/manga/$id')({
+  // A hover (intent preload) warms the page's local read; the click also warms the first source
+  // refresh of a title with nothing saved, so the page opens complete when it is quick.
+  // A hover's match is never reused as is: the click runs the loader again, as a navigation, so
+  // the refresh a hover must not start begins at the click rather than once the page mounts.
+  preloadStaleTime: 0,
+  // A click while a hover's loader is still reading locally reuses that loader, which ran as a
+  // hover: promote it, so the source refresh still starts during the navigation.
+  beforeLoad: ({ preload, params, abortController }) => {
+    if (!preload) promoteMangaDetailHover(toMangaId(params.id), abortController.signal);
+  },
+  loader: {
+    // A return to a title waits too (briefly, see `waitForRouteData`); its cache usually answers.
+    staleReloadMode: 'blocking',
+    handler: ({ params, preload, abortController }) => {
+      const db = getRouteDataDb();
+      if (db === null) return;
+      return waitForRouteData(
+        warmMangaDetail(appQueryClient, db, toMangaId(params.id), {
+          signal: abortController.signal,
+          preload,
+        }),
+      );
+    },
+  },
   component: MangaDetailRoute,
 });
 

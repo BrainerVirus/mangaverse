@@ -12,6 +12,7 @@ import {
   resetMangaRefreshJob,
 } from '../lib/manga-refresh-queue.js';
 import { getBindingForMangaId } from '../lib/provider-registry.js';
+import { ROUTE_DATA_HANDOFF_GC_MS, warmRouteQuery } from '../lib/route-data.js';
 
 /**
  * Kept outside `libraryQueryKeys.all`: the queue's own invalidation must never
@@ -19,6 +20,11 @@ import { getBindingForMangaId } from '../lib/provider-registry.js';
  */
 function mangaDetailRefreshQueryKey(mangaId: MangaId): readonly unknown[] {
   return ['manga-detail-refresh', mangaId];
+}
+
+/** A function, not an inline check: the signal can change across the awaits between checks. */
+function isCancelled(signal: AbortSignal | undefined): boolean {
+  return signal?.aborted === true;
 }
 
 /** A registered provider binding is the only case where a refresh can do work. */
@@ -34,6 +40,8 @@ export function localMangaDetailQueryOptions(db: AppDrizzleDb, mangaId: MangaId)
   return queryOptions({
     queryKey: libraryQueryKeys.detail(mangaId),
     queryFn: () => fetchMangaDetail(db, mangaId),
+    // A failed read the route loader met is the page's to show, with Retry; not read twice.
+    retryOnMount: false,
   });
 }
 
@@ -53,6 +61,8 @@ export async function refreshMangaDetailForRoute(
     hasMangaRefreshJob(db, mangaId),
   ]);
   if (!queued && !shouldRefreshMangaDetail(local)) return false;
+  // Cancelled before any durable work (an abandoned navigation): the queue is left as it was.
+  if (isCancelled(signal)) return false;
 
   if (!queued) await enqueueMangaRefresh(db, mangaId, 'detail');
   // Held back from the queue's log: when nothing is saved locally this call is
@@ -99,10 +109,108 @@ export function mangaDetailRefreshQueryOptions(
   return queryOptions({
     queryKey: mangaDetailRefreshQueryKey(mangaId),
     queryFn: ({ signal }) => refreshMangaDetailForRoute(db, queryClient, mangaId, signal),
-    // The queue owns retries and backoff; a query-level retry would double-call.
+    // The queue owns retries and backoff; a query-level retry would double-call, and so would a
+    // rerun on mount of a failure the route loader already met.
     retry: false,
+    retryOnMount: false,
     staleTime: Infinity,
-    gcTime: 0,
+    // Long enough for the page to take over what its route loader warmed, a failure included;
+    // `warmMangaDetail` forgets the leftover on the next visit, so every visit checks again.
+    gcTime: ROUTE_DATA_HANDOFF_GC_MS,
     meta: { feedback: { surface: 'silent' } },
   });
+}
+
+/** A settled refresh no page shows is an earlier visit's answer; this visit must check again. */
+function forgetEarlierRefresh(queryClient: QueryClient, mangaId: MangaId): void {
+  queryClient.removeQueries({
+    queryKey: mangaDetailRefreshQueryKey(mangaId),
+    exact: true,
+    predicate: (query) => query.getObserversCount() === 0 && query.state.fetchStatus === 'idle',
+  });
+}
+
+/** A hover warm-up still reading locally: a navigation to its title can promote it. */
+interface PendingHover {
+  /** Set once a navigation commits to the title; aborts with that navigation. */
+  navigation: AbortSignal | null;
+}
+
+const pendingHovers = new Map<MangaId, Set<PendingHover>>();
+
+/**
+ * Called when a navigation (not a hover) commits to a title, from the route's `beforeLoad`. The
+ * router may hand that navigation a hover's loader that is still reading locally instead of
+ * running the loader again; such a warm-up then goes on into the source refresh as the
+ * navigation's own, during the navigation. With no hover in flight this does nothing.
+ */
+export function promoteMangaDetailHover(mangaId: MangaId, navigation: AbortSignal): void {
+  for (const hover of pendingHovers.get(mangaId) ?? []) hover.navigation = navigation;
+}
+
+function trackHover(mangaId: MangaId): { hover: PendingHover; done: () => void } {
+  const hover: PendingHover = { navigation: null };
+  const hovers = pendingHovers.get(mangaId) ?? new Set<PendingHover>();
+  hovers.add(hover);
+  pendingHovers.set(mangaId, hovers);
+  return {
+    hover,
+    done: () => {
+      hovers.delete(hover);
+      if (hovers.size === 0 && pendingHovers.get(mangaId) === hovers) pendingHovers.delete(mangaId);
+    },
+  };
+}
+
+/** Aborts when either signal does: a promoted hover stops with the hover or the navigation. */
+function eitherAborted(first: AbortSignal | undefined, second: AbortSignal): AbortSignal {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  for (const signal of [first, second]) {
+    if (signal === undefined) continue;
+    if (signal.aborted) abort();
+    else signal.addEventListener('abort', abort, { once: true });
+  }
+  return controller.signal;
+}
+
+/**
+ * The route loader's half of the detail page. Local-first: the SQLite read decides, and a title
+ * with anything saved opens at once while the page refreshes it beside the surface. A hover
+ * (`preload`) only reads locally: the source refresh enqueues durable work, which waits for a
+ * real navigation, either a loader of its own or this hover's, promoted by the navigation while
+ * the local read was still running (`promoteMangaDetailHover`). Only a title with nothing saved
+ * then waits on its source, through the same refresh query the page reads, so the page picks up
+ * the request in flight. An abandoned loader (`signal`) starts nothing new and cancels the
+ * refresh while no page shows it. Each visit first forgets an earlier visit's settled refresh,
+ * so a reopened title is checked again.
+ */
+export async function warmMangaDetail(
+  queryClient: QueryClient,
+  db: AppDrizzleDb,
+  mangaId: MangaId,
+  { signal, preload = false }: { readonly signal?: AbortSignal; readonly preload?: boolean } = {},
+): Promise<void> {
+  if (!preload) forgetEarlierRefresh(queryClient, mangaId);
+  const tracked = preload ? trackHover(mangaId) : null;
+  const local = await warmRouteQuery(
+    queryClient,
+    localMangaDetailQueryOptions(db, mangaId),
+    signal,
+  ).finally(() => tracked?.done());
+
+  let visit = signal;
+  if (tracked !== null) {
+    // A hover alone stops here: it never asks the source or writes the queue.
+    if (tracked.hover.navigation === null) return;
+    forgetEarlierRefresh(queryClient, mangaId);
+    visit = eitherAborted(signal, tracked.hover.navigation);
+  }
+  if (local !== null || !canRefreshMangaDetail(mangaId)) return;
+  if (visit?.aborted === true) return;
+  await warmRouteQuery(
+    queryClient,
+    mangaDetailRefreshQueryOptions(db, queryClient, mangaId),
+    visit,
+  );
 }

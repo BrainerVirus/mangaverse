@@ -83,18 +83,34 @@ describe('window chrome store', () => {
     expect(store.getWindowChromeSnapshot()).toEqual(fullScreen);
   });
 
-  it('Given the last subscriber leaves, Then the bridge listener is removed and the next one asks again', async () => {
+  it('Given the last subscriber leaves, Then the bridge listener is removed, the last chrome stays and the next one asks again', async () => {
     const { bridge, unsubscribe } = installBridge();
     const store = await freshStore();
     const stop = store.subscribeWindowChrome(() => {});
     await settle();
     stop();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
-    expect(store.getWindowChromeSnapshot()).toBeNull();
+    // A strip that remounts must not read "no chrome" for a frame.
+    expect(store.getWindowChromeSnapshot()).toEqual(windowed);
     store.subscribeWindowChrome(() => {});
+    expect(store.getWindowChromeSnapshot()).toEqual(windowed);
     await settle();
     expect(bridge.windowChromeGet).toHaveBeenCalledTimes(2);
     expect(store.getWindowChromeSnapshot()).toEqual(windowed);
+  });
+
+  it('Given the window went fullscreen while nobody listened, Then the next subscriber gets the fresh answer', async () => {
+    let current: PlatformWindowChrome = windowed;
+    const { bridge } = installBridge();
+    bridge.windowChromeGet.mockImplementation(async () => ok(current));
+    const store = await freshStore();
+    const stop = store.subscribeWindowChrome(() => {});
+    await settle();
+    stop();
+    current = fullScreen;
+    store.subscribeWindowChrome(() => {});
+    await settle();
+    expect(store.getWindowChromeSnapshot()).toEqual(fullScreen);
   });
 
   it('Given theme colours, Then they reach main unchanged', async () => {

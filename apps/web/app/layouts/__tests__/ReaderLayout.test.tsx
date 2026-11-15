@@ -5,6 +5,8 @@ import type * as RouterModule from '@tanstack/react-router';
 vi.mock('@tanstack/react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof RouterModule>()),
   useLocation: () => ({ pathname: '/reader/chapter-1' }),
+  useMatches: (opts: { select: (matches: { routeId: string; pathname: string }[]) => unknown }) =>
+    opts.select([{ routeId: '/reader/$chapterId', pathname: '/reader/chapter-1' }]),
 }));
 
 vi.mock('@app/design-system/motion', () => ({

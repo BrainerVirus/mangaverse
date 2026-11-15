@@ -15,6 +15,8 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
   return {
     ...actual,
     useLocation: () => ({ pathname: '/library' }),
+    useMatches: (opts: { select: (matches: { routeId: string; pathname: string }[]) => unknown }) =>
+      opts.select([{ routeId: '/library', pathname: '/library' }]),
     useRouter: () => ({ navigate: vi.fn<(options: unknown) => void>(), subscribe: () => () => {} }),
     useRouterState: (opts?: { select?: (state: { location: { pathname: string } }) => unknown }) =>
       opts?.select
@@ -44,6 +46,7 @@ vi.mock('@app/design-system/motion', () => ({
   getReducedMotionPreference: () => false,
   setInAppReducedMotionPreference: vi.fn<(reduced: boolean) => void>(),
   routeEnter: vi.fn<(...args: unknown[]) => unknown>(),
+  fadeIn: vi.fn<(...args: unknown[]) => unknown>(),
   commandPaletteEnter: vi.fn<(...args: unknown[]) => unknown>(),
   commandPaletteExit: vi.fn<(...args: unknown[]) => unknown>(),
 }));

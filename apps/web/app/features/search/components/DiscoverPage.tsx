@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, type Ref } from 'react';
 import {
   Alert,
   AlertDescription,
@@ -14,7 +14,7 @@ import {
   PageHeader,
   Skeleton,
 } from '@app/design-system';
-import { useGridStaggerReveal } from '@app/design-system/motion';
+import { useGridStaggerReveal, useSkeletonReveal } from '@app/design-system/motion';
 import { CachedMangaCard } from '@app/cache';
 import type { MangaId, MangaIdentity } from '@app/shared';
 import { useInfiniteScrollSentinel } from '../hooks/use-infinite-scroll-sentinel.js';
@@ -355,6 +355,8 @@ export function DiscoverPage({
   );
 
   const showCount = !isExpandedView && failure === undefined && totalTitles > 0;
+  // The tabs and the panel fade in where the page skeleton was; the header never moved.
+  const browserRef = useSkeletonReveal(isLoading);
 
   return (
     <PageContainer>
@@ -385,6 +387,7 @@ export function DiscoverPage({
           onBrowseProviders={onBrowseProviders}
         />
         <DiscoverBrowserSurface
+          browserRef={browserRef}
           failure={failure}
           providers={providers}
           activeProvider={activeProvider}
@@ -488,6 +491,7 @@ function DiscoverHintSurface({
 }
 
 function DiscoverBrowserSurface({
+  browserRef,
   failure,
   providers,
   activeProvider,
@@ -501,6 +505,7 @@ function DiscoverBrowserSurface({
   onRetrySection,
   onRetryExpandedSection,
 }: {
+  browserRef: Ref<HTMLDivElement>;
   failure: DiscoverPageFailure | undefined;
   providers: readonly DiscoverProviderFeed[];
   activeProvider: DiscoverProviderFeed | undefined;
@@ -517,6 +522,7 @@ function DiscoverBrowserSurface({
   if (failure !== undefined) return null;
   return (
     <DiscoverProviderBrowser
+      browserRef={browserRef}
       providers={providers}
       activeProvider={activeProvider}
       isExpandedView={isExpandedView}
@@ -538,6 +544,7 @@ function DiscoverBrowserSurface({
  * its row and the rest of the page instead.
  */
 function DiscoverProviderBrowser({
+  browserRef,
   providers,
   activeProvider,
   isExpandedView,
@@ -550,6 +557,7 @@ function DiscoverProviderBrowser({
   onRetrySection,
   onRetryExpandedSection,
 }: {
+  browserRef: Ref<HTMLDivElement>;
   providers: readonly DiscoverProviderFeed[];
   activeProvider: DiscoverProviderFeed | undefined;
   isExpandedView: boolean;
@@ -565,7 +573,7 @@ function DiscoverProviderBrowser({
   if (providers.length === 0 || activeProvider === undefined) return null;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div ref={browserRef} className="flex flex-col gap-6">
       <ListRow
         role="tablist"
         aria-label="Discover providers"
