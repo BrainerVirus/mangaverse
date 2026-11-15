@@ -119,7 +119,8 @@ export function ReaderChrome({
     <div
       ref={ref}
       className={cn(
-        'dark fixed inset-x-0 top-0 z-50 flex flex-col opacity-0',
+        // Below the desktop title bar (`--title-bar-height`, 0 on the web and in fullscreen).
+        'dark below-title-bar fixed inset-x-0 z-50 flex flex-col opacity-0',
         visible ? 'pointer-events-auto' : 'pointer-events-none',
       )}
       role="toolbar"

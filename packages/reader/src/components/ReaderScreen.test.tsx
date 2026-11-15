@@ -555,7 +555,7 @@ describe('ReaderScreen while the chapter loads', () => {
   }
 
   it.each([true, false])(
-    'Given no chapter data yet (isLoading %s), Then the black reader stage holds a page-shaped box, not a cover-and-text skeleton',
+    'Given no chapter data yet (isLoading %s), Then the black reader stage is busy and guesses no page shape',
     (isLoading) => {
       const view = renderLoading({ isLoading });
 
@@ -563,9 +563,10 @@ describe('ReaderScreen while the chapter loads', () => {
       expect(stage).not.toBeNull();
       expect(stage?.className).toContain('bg-black');
       expect(stage?.getAttribute('aria-busy')).toBe('true');
-      const box = stage?.querySelector('[data-testid="reader-page-skeleton"]');
-      expect(box).not.toBeNull();
-      expect(box?.className).toContain('aspect-2/3');
+      expect(stage?.querySelector('output')?.textContent).toBe('Loading chapter…');
+      // Without the chapter's settings any box would be a guess that changes shape.
+      expect(stage?.querySelector('[data-testid="reader-page-box"]')).toBeNull();
+      expect(stage?.querySelector('[data-page-index]')).toBeNull();
       // The book-cover-and-lines detail skeleton belongs to titles, not to a reading surface.
       expect(view.container.querySelector('.h-80.w-56')).toBeNull();
 

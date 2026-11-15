@@ -34,6 +34,14 @@ describe('ReaderChrome', () => {
     vi.clearAllMocks();
   });
 
+  it('Given the desktop title bar, When the chrome renders, Then it starts below the strip, not at the window edge', () => {
+    const { container } = render(<ReaderChrome visible={true} currentPage={1} totalPages={3} />);
+    const toolbar = container.querySelector('[role="toolbar"]');
+    // `below-title-bar` is `top: var(--title-bar-height)`: 28/32px under the strip, 0 on the web and in fullscreen.
+    expect(toolbar?.className).toContain('below-title-bar');
+    expect(toolbar?.className).not.toMatch(/(^|\s)(top-|inset-0|inset-y-)/);
+  });
+
   it('displays chapter title when provided', () => {
     render(
       <ReaderChrome

@@ -7,6 +7,7 @@ import type { ReaderPageMeasurement } from '../measured-page-shape.js';
 import type { ReaderPageData } from '../reader-page-data.js';
 import { isWidePage } from '../spreads.js';
 import type { ReaderPage, ReaderState } from '../types.js';
+import { readerPagePlaceholderClass } from './page-placeholder.js';
 
 const OBJECT_FIT_CLASS = {
   contain: 'object-contain',
@@ -21,6 +22,8 @@ export interface ReaderPagedLayerProps {
   readonly fitInput: PageFitInput;
   readonly cacheContext: CoverCacheContextValue | null;
   readonly imageSmoothing: boolean;
+  /** Placeholders hold still instead of pulsing. */
+  readonly reducedMotion: boolean;
   readonly setPagedLayer: (node: HTMLDivElement | null) => void;
   readonly setPageTransitionLayer: (node: HTMLDivElement | null) => void;
   readonly onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
@@ -45,6 +48,7 @@ export function ReaderPagedLayer({
   fitInput,
   cacheContext,
   imageSmoothing,
+  reducedMotion,
   setPagedLayer,
   setPageTransitionLayer,
   onPointerDown,
@@ -96,6 +100,7 @@ export function ReaderPagedLayer({
             fitInput={fitInput}
             cacheContext={cacheContext}
             imageSmoothing={imageSmoothing}
+            placeholderClassName={readerPagePlaceholderClass(reducedMotion)}
             split={splitWide}
             onPageMetric={onPageMetric}
             onPageMeasured={onPageMeasured}
@@ -119,7 +124,8 @@ function resolveNaturalSize(
 
 /**
  * One fitted page box. Without a cache context there is nothing to read from
- * yet, so the box keeps its size and pulses instead of collapsing. Split, the
+ * yet, so the box keeps its size and shows the page placeholder instead of
+ * collapsing. Split, the
  * page renders as two half boxes; a failed load falls back to one box so its
  * retry controls stay whole.
  */
@@ -129,6 +135,7 @@ function ReaderPageBox({
   fitInput,
   cacheContext,
   imageSmoothing,
+  placeholderClassName,
   split,
   onPageMetric,
   onPageMeasured,
@@ -140,6 +147,7 @@ function ReaderPageBox({
   readonly fitInput: PageFitInput;
   readonly cacheContext: CoverCacheContextValue | null;
   readonly imageSmoothing: boolean;
+  readonly placeholderClassName: string;
   readonly split: boolean;
   readonly onPageMetric: ReaderPagedLayerProps['onPageMetric'];
   readonly onPageMeasured: ReaderPagedLayerProps['onPageMeasured'];
@@ -156,7 +164,7 @@ function ReaderPageBox({
         data-fit-mode={fitInput.fitMode}
         data-object-fit={fit.objectFit}
         style={{ width: `${fit.box.width}px`, height: `${fit.box.height}px`, flex: '0 0 auto' }}
-        className="animate-pulse bg-muted/80"
+        className={placeholderClassName}
         aria-hidden
       />
     );
@@ -170,6 +178,7 @@ function ReaderPageBox({
       pageIndex={page.index}
       remoteUrl={page.image.url}
       className={`h-full w-full select-none ${OBJECT_FIT_CLASS[fit.objectFit]}`}
+      placeholderClassName={placeholderClassName}
       retention="read"
       imageRendering={imageSmoothing ? 'auto' : 'pixelated'}
       maxDisplayEdge={data.engineSettings.displayMaxEdgePx}

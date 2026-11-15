@@ -142,9 +142,12 @@ function HiddenReaderExit({
 }) {
   if (visible || !onClose) return null;
   return (
-    <Button size="sm" variant="secondary" className="fixed top-2 left-2 z-50" onClick={onClose}>
-      Close reader
-    </Button>
+    // Where the pending stage put it, below the desktop title bar.
+    <div data-testid="reader-exit" className="below-title-bar fixed left-4 z-50 mt-3">
+      <Button size="sm" variant="secondary" onClick={onClose}>
+        Close reader
+      </Button>
+    </div>
   );
 }
 

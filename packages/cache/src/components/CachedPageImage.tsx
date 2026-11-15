@@ -20,6 +20,12 @@ export interface CachedPageImageProps {
   readonly remoteUrl: string;
   readonly alt?: string;
   readonly className?: string;
+  /**
+   * The look of the box while the page has no image yet, and any motion it
+   * carries: the caller knows the surface and the reduced-motion preference.
+   * A still muted fill when absent.
+   */
+  readonly placeholderClassName?: string;
   readonly retention?: 'read' | 'normal';
   readonly imageRendering?: 'auto' | 'pixelated';
   /**
@@ -42,6 +48,7 @@ export function CachedPageImage({
   remoteUrl,
   alt = '',
   className,
+  placeholderClassName = 'bg-muted/80',
   retention = 'read',
   imageRendering,
   maxDisplayEdge,
@@ -78,7 +85,7 @@ export function CachedPageImage({
   if (context === null || src === undefined) {
     return (
       <div
-        className={cn('animate-pulse bg-muted/80', context === null && 'animate-none', className)}
+        className={cn(placeholderClassName, className)}
         aria-hidden={alt === ''}
         role={alt === '' ? undefined : 'img'}
         aria-label={alt === '' ? undefined : alt}

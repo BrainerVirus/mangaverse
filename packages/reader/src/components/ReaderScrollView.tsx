@@ -8,6 +8,7 @@ import type { ReaderPage } from '../types.js';
 import { tailSpacerPx, useChapterEndThreshold } from './use-chapter-end-threshold.js';
 import { useScrollActivity } from './use-scroll-activity.js';
 import { resolveStripWindows } from './strip-windows.js';
+import { readerPagePlaceholderClass } from './page-placeholder.js';
 import {
   computeScrollPageMetrics,
   hasPageShape,
@@ -175,6 +176,7 @@ interface ScrollContentProps {
   readonly mangaId: string;
   readonly chapterId: string;
   readonly imageSmoothing: boolean;
+  readonly placeholderClassName: string;
   readonly tilingThresholdPx: number;
   readonly displayMaxEdgePx: number | undefined;
   readonly onSkipPage: (index: number) => void;
@@ -207,6 +209,7 @@ function ScrollContent({
   mangaId,
   chapterId,
   imageSmoothing,
+  placeholderClassName,
   tilingThresholdPx,
   displayMaxEdgePx,
   onSkipPage,
@@ -240,6 +243,7 @@ function ScrollContent({
             onSkipPage={onSkipPage}
             onBack={onBack}
             imageSmoothing={imageSmoothing}
+            placeholderClassName={placeholderClassName}
             tilingThresholdPx={tilingThresholdPx}
             displayMaxEdgePx={displayMaxEdgePx}
             onMeasured={onMeasured}
@@ -282,6 +286,7 @@ const ScrollPageRow = memo(function ScrollPageRow({
   onSkipPage,
   onBack,
   imageSmoothing,
+  placeholderClassName,
   tilingThresholdPx,
   displayMaxEdgePx,
   onMeasured,
@@ -301,6 +306,8 @@ const ScrollPageRow = memo(function ScrollPageRow({
   readonly onSkipPage?: ((index: number) => void) | undefined;
   readonly onBack?: (() => void) | undefined;
   readonly imageSmoothing: boolean;
+  /** The page placeholder's look, motion included. */
+  readonly placeholderClassName: string;
   readonly tilingThresholdPx: number;
   readonly displayMaxEdgePx: number | undefined;
   readonly onMeasured: (index: number, size: NaturalSize) => void;
@@ -355,6 +362,7 @@ const ScrollPageRow = memo(function ScrollPageRow({
                 pageIndex={page.index}
                 remoteUrl={page.image.url}
                 className={`h-full w-full select-none ${objectFitClass}`}
+                placeholderClassName={placeholderClassName}
                 retention="read"
                 imageRendering={imageSmoothing ? 'auto' : 'pixelated'}
                 maxDisplayEdge={displayMaxEdgePx}
@@ -369,7 +377,7 @@ const ScrollPageRow = memo(function ScrollPageRow({
               />
             </div>
           ) : (
-            <div className="h-full w-full animate-pulse bg-muted/40" aria-hidden />
+            <div className={`h-full w-full ${placeholderClassName}`} aria-hidden />
           )}
         </div>
       ))}
@@ -538,9 +546,11 @@ function useReaderScrollViewState({
   }, []);
 
   // The container box drives the row heights; the observer also refreshes the
-  // metrics cache when the width (and therefore every offset) changes.
+  // metrics cache when the width (and therefore every offset) changes. A layout
+  // effect, so the first painted rows already have the container's width, not
+  // the fallback's: a strip that replaces its placeholder must not jump.
   // react-doctor-disable-next-line team-conventions/no-use-effect -- external boundary: ResizeObserver on the scroll container
-  useEffect(() => {
+  useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container) return;
     const update = () => {
@@ -709,6 +719,7 @@ export function ReaderScrollView(props: ReaderScrollViewProps) {
   const {
     pages,
     cacheReady,
+    reducedMotion,
     providerId,
     mangaId,
     chapterId,
@@ -746,6 +757,7 @@ export function ReaderScrollView(props: ReaderScrollViewProps) {
         mangaId={mangaId}
         chapterId={chapterId}
         imageSmoothing={imageSmoothing}
+        placeholderClassName={readerPagePlaceholderClass(reducedMotion)}
         tilingThresholdPx={tilingThresholdPx}
         displayMaxEdgePx={displayMaxEdgePx}
         onSkipPage={skipPage}

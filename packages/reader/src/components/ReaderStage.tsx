@@ -120,6 +120,7 @@ export function ReaderStage({
           fitInput={fitInput}
           cacheContext={cacheContext}
           imageSmoothing={data.engineSettings.imageSmoothing !== false}
+          reducedMotion={reducedMotion}
           setPagedLayer={setPagedLayer}
           setPageTransitionLayer={setPageTransitionLayer}
           onPointerDown={onZoomPointerDown}

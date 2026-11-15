@@ -78,6 +78,7 @@ function mount(
         fitInput={FIT_INPUT}
         cacheContext={CACHE}
         imageSmoothing
+        reducedMotion={false}
         setPagedLayer={() => {}}
         setPageTransitionLayer={() => {}}
         onPointerDown={() => {}}

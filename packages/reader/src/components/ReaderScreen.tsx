@@ -12,10 +12,15 @@ import { useReducedMotion } from '@app/design-system/motion';
 import type { ReaderSettings } from '@app/shared';
 import { useCoverCacheContext, CachedPageImage } from '@app/cache';
 import type { ReaderPageMeasurement } from '../measured-page-shape.js';
-import type { PageFitInput } from '../page-fit.js';
+import { READER_CHROME_INSETS, resolvePagedFitInput } from '../page-fit.js';
 import type { ReaderPageData } from '../reader-page-data.js';
 import { withPagedDirectionOnLeavingStrip } from '../reader-settings-change.js';
 import { ReaderOverlays } from './ReaderOverlays.js';
+import {
+  ReaderPendingStage,
+  ReaderStageHeader,
+  type ReaderPendingSession,
+} from './ReaderPendingStage.js';
 import type { ReaderSettingsChangeHandler } from './reader-settings-sheet.js';
 import { ReaderStage } from './ReaderStage.js';
 import type { ReaderScrollViewHandle } from './ReaderScrollView.js';
@@ -38,15 +43,12 @@ import { useReaderZoom } from './use-reader-zoom.js';
 import { useScreenWakeLock } from './use-screen-wake-lock.js';
 import type {
   ReaderNavigationAction,
-  ReaderOverlayInsets,
   ReaderPage,
   ReaderProgressEvent,
   ReaderSessionInput,
   ReaderState,
   ReaderViewport,
 } from '../types.js';
-
-const CHROME_INSETS: ReaderOverlayInsets = { top: 96, right: 0, bottom: 48, left: 0 };
 
 type ChromeMode = 'single' | 'double' | 'scroll';
 
@@ -107,12 +109,34 @@ function readerGateView({
   gate,
   title,
   onRetry,
+  onClose,
+  pendingSession,
+  containerRef,
+  reducedMotion,
 }: {
   readonly gate: Exclude<ReaderGate, null>;
   readonly title: string;
   readonly onRetry: (() => void) | undefined;
+  readonly onClose: (() => void) | undefined;
+  readonly pendingSession: ReaderPendingSession | null;
+  readonly containerRef: (node: HTMLDivElement | null) => void;
+  readonly reducedMotion: boolean;
 }): ReactNode {
   switch (gate) {
+    // Before the pages arrive the stage is already the reader's: once the local
+    // read returns, the chapter's settings lay out placeholder pages exactly
+    // where the loaded pages will be.
+    case 'loading':
+    case 'hydrating':
+      return (
+        <ReaderPendingStage
+          kind={gate}
+          session={gate === 'hydrating' ? pendingSession : null}
+          containerRef={containerRef}
+          reducedMotion={reducedMotion}
+          onClose={onClose}
+        />
+      );
     case 'error':
       return (
         <ErrorState
@@ -121,21 +145,15 @@ function readerGateView({
           {...retryProps(onRetry)}
         />
       );
-    case 'hydrating':
-      return (
-        <ReaderPendingStage kind="hydrating" title={title}>
-          <ReaderPageSkeleton />
-        </ReaderPendingStage>
-      );
     case 'hydration-error':
       return (
-        <ReaderPendingStage kind="error" title={title}>
+        <ReaderHydrationErrorStage title={title} onClose={onClose}>
           <ErrorState
             title="Could not load chapter"
             message="The chapter is saved locally, but its pages could not be fetched from the provider."
             {...retryProps(onRetry)}
           />
-        </ReaderPendingStage>
+        </ReaderHydrationErrorStage>
       );
     case 'offline':
       return (
@@ -145,14 +163,18 @@ function readerGateView({
           {...retryProps(onRetry)}
         />
       );
-    case 'loading':
-      return <ReaderLoadingStage />;
     case 'empty':
       return <EmptyState type="no-chapters" />;
     default:
       return null;
   }
 }
+
+const GATES_WITH_HEADER: ReadonlySet<ReaderGate> = new Set([
+  'loading',
+  'hydrating',
+  'hydration-error',
+]);
 
 /** `exactOptionalPropertyTypes` forbids passing an absent callback explicitly. */
 function retryProps(onRetry: (() => void) | undefined): { readonly onRetry?: () => void } {
@@ -255,29 +277,39 @@ export function ReaderScreen(props: ReaderScreenProps) {
     isHydrating,
     isHydrationError,
   });
-  if (gate !== null) {
+  const session: ReaderPendingSession | null =
+    data !== undefined && readerState !== null && sessionInput !== null
+      ? { data, readerState, sessionInput }
+      : null;
+  if (gate !== null || session === null) {
+    const shownGate = gate ?? 'loading';
     return (
       <>
-        {onClose ? (
-          <Button className="fixed top-4 left-4 z-50" onClick={onClose}>
-            Close reader
-          </Button>
+        {/* The stages with a header row carry Close in it; the others float it below the title bar. */}
+        {onClose && !GATES_WITH_HEADER.has(shownGate) ? (
+          <div data-testid="reader-exit" className="below-title-bar fixed left-4 z-50 mt-3">
+            <Button onClick={onClose}>Close reader</Button>
+          </div>
         ) : null}
-        {readerGateView({ gate, title: data?.chapter.title ?? '', onRetry: props.onRetry })}
+        {readerGateView({
+          gate: shownGate,
+          title: data?.chapter.title ?? '',
+          onRetry: props.onRetry,
+          onClose,
+          pendingSession: session,
+          containerRef,
+          reducedMotion,
+        })}
       </>
     );
-  }
-
-  if (data === undefined || readerState === null) {
-    return <ReaderLoadingStage />;
   }
 
   return (
     <ReaderReadyView
       {...props}
-      data={data}
-      readerState={readerState}
-      sessionInput={sessionInput}
+      data={session.data}
+      readerState={session.readerState}
+      sessionInput={session.sessionInput}
       setReaderState={setReaderState}
       navigate={navigate}
       viewport={viewport}
@@ -408,7 +440,7 @@ function ReaderReadyView({
       sessionInput,
       readerState,
       surface,
-      overlayInsets: CHROME_INSETS,
+      overlayInsets: READER_CHROME_INSETS,
       navigate,
       onToggleChrome,
       zoom,
@@ -501,13 +533,12 @@ function ReaderReadyView({
   const visiblePages = readerState.visiblePageIndexes
     .map((index) => data.chapter.pages[index])
     .filter((page) => page !== undefined);
-  const fitInput: PageFitInput = {
+  const fitInput = resolvePagedFitInput({
+    viewport,
     fitMode: readerState.settings.fitMode,
-    availableWidth: viewport.width - CHROME_INSETS.left - CHROME_INSETS.right,
-    availableHeight: viewport.height - CHROME_INSETS.top - CHROME_INSETS.bottom,
     pageCount: visiblePages.length,
     naturalSize: resolveNaturalSize(data.chapter.pages[readerState.activePageIndex]),
-  };
+  });
 
   return (
     <>
@@ -524,7 +555,7 @@ function ReaderReadyView({
         reducedMotion={reducedMotion}
         fitInput={fitInput}
         visiblePages={visiblePages}
-        overlayInsets={CHROME_INSETS}
+        overlayInsets={READER_CHROME_INSETS}
         containerRef={containerRef}
         scrollHandleRef={scrollHandleRef}
         verticalTargetRef={verticalTargetRef}
@@ -635,58 +666,23 @@ function PagePreview({
 }
 
 /**
- * The reader's pre-pages surface: the local chapter title stays visible while
- * provider pages hydrate, or while a failed hydration waits for Retry.
+ * A failed provider hydration: the local chapter title stays visible above the
+ * retryable error.
  */
-const PENDING_STAGE_TEST_IDS = {
-  loading: 'reader-loading',
-  hydrating: 'reader-hydrating',
-  error: 'reader-hydration-error',
-} as const;
-
-/** One page's box on the reader's own black stage; the loaded page replaces it in place. */
-function ReaderPageSkeleton() {
-  return (
-    <div
-      data-testid="reader-page-skeleton"
-      className="aspect-2/3 min-h-0 w-auto max-w-full flex-1 animate-pulse bg-muted/40"
-      aria-hidden
-    />
-  );
-}
-
-/** The chapter's own data is still loading: the stage is the reader's, with a page-shaped box. */
-function ReaderLoadingStage() {
-  return (
-    <ReaderPendingStage kind="loading" title="">
-      <ReaderPageSkeleton />
-    </ReaderPendingStage>
-  );
-}
-
-function ReaderPendingStage({
-  kind,
+function ReaderHydrationErrorStage({
   title,
+  onClose,
   children,
 }: {
-  readonly kind: keyof typeof PENDING_STAGE_TEST_IDS;
   readonly title: string;
+  readonly onClose: (() => void) | undefined;
   readonly children: ReactNode;
 }) {
   return (
-    <div
-      className="flex h-full w-full flex-col bg-black"
-      data-testid={PENDING_STAGE_TEST_IDS[kind]}
-      aria-busy={kind !== 'error' || undefined}
-    >
-      <div className="safe-area-x safe-area-top flex items-center pb-3">
-        <span className="text-sm font-medium text-white">{title}</span>
-      </div>
+    <div className="flex h-full w-full flex-col bg-black" data-testid="reader-hydration-error">
+      <ReaderStageHeader title={title} onClose={onClose} />
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-6 py-12">
         {children}
-        {kind === 'hydrating' ? (
-          <output className="mt-4 block text-sm text-white/70">Loading chapter pages…</output>
-        ) : null}
       </div>
     </div>
   );
