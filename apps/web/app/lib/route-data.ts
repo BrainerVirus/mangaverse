@@ -24,6 +24,13 @@ export function getRouteDataDb(): AppDrizzleDb | null {
 const ROUTE_DATA_WAIT_MS = 400;
 
 /**
+ * The `gcTime` of a query a loader warms that must not outlive its visit: long enough for the page
+ * that opens next to take it over, settled or not. The loader forgets such a leftover on the next
+ * visit, so it never stands in for a fresh check.
+ */
+export const ROUTE_DATA_HANDOFF_GC_MS = 5_000;
+
+/**
  * Warms one query for a route loader, tied to the loader's lifetime. Once the router abandons the
  * loader (a newer navigation, a dropped preload) nothing new starts, and the query is cancelled
  * while no page observes it, so its provider request stops and it reverts to its earlier state.

@@ -291,23 +291,62 @@ describe('the manga detail loader warm-up', () => {
     expect(mocks.drainMangaRefreshQueue).toHaveBeenCalledTimes(2);
   });
 
-  it('Given the page is left and opened again at once, Then the refresh check runs again: nothing keeps the last answer alive', async () => {
+  it('Given a refresh the warm-up failed that settled before the page mounts, Then the page shows the failure without a second source call', async () => {
+    mocks.drainMangaRefreshQueue.mockImplementation(
+      async (_db, _client, _options, deps?: { log: (error: unknown) => void }) => {
+        deps?.log(new Error('offline'));
+      },
+    );
+    await warmMangaDetail(client, db, MANGA_ID).catch(() => undefined);
+    // The navigation committed later than a garbage-collection tick.
+    await flush();
+    await flush();
+
+    const observer = observe(refreshOptions());
+    await flush();
+    expect(mocks.drainMangaRefreshQueue).toHaveBeenCalledTimes(1);
+    expect(observer.getCurrentResult().isError).toBe(true);
+  });
+
+  it('Given a refresh the warm-up finished before the page mounts, Then the page takes it over without a second check', async () => {
     await warmMangaDetail(client, db, MANGA_ID);
-    const first = observe(refreshOptions());
+    await flush();
     await flush();
     const checks = mocks.hasMangaRefreshJob.mock.calls.length;
-    const drains = mocks.drainMangaRefreshQueue.mock.calls.length;
-    for (const cleanup of cleanups.splice(0)) cleanup();
+    const observer = observe(refreshOptions());
     await flush();
-    expect(client.getQueryState(refreshOptions().queryKey)).toBeUndefined();
+    expect(mocks.hasMangaRefreshJob.mock.calls.length).toBe(checks);
+    expect(observer.getCurrentResult().isSuccess).toBe(true);
+  });
 
-    // A refresh queued meanwhile (or a deleted title) is seen on the next open.
+  it('Given a title with nothing saved, When it is left and opened again within seconds, Then the refresh is checked again', async () => {
+    await warmMangaDetail(client, db, MANGA_ID);
+    observe(refreshOptions());
+    await flush();
+    for (const cleanup of cleanups.splice(0)) cleanup();
+    const drains = mocks.drainMangaRefreshQueue.mock.calls.length;
+
+    // Reopened: the route loader runs again for the new visit, then the page mounts.
+    await warmMangaDetail(client, db, MANGA_ID);
+    observe(refreshOptions());
+    await flush();
+    expect(mocks.drainMangaRefreshQueue).toHaveBeenCalledTimes(drains + 1);
+  });
+
+  it('Given a saved title, When it is left and opened again within seconds, Then the page checks the refresh again (a refresh queued meanwhile is seen)', async () => {
+    mocks.fetchMangaDetail.mockResolvedValue({ manga: {}, chapters: [] });
+    await warmMangaDetail(client, db, MANGA_ID);
+    observe(refreshOptions());
+    await flush();
+    for (const cleanup of cleanups.splice(0)) cleanup();
+    const checks = mocks.hasMangaRefreshJob.mock.calls.length;
+
     mocks.hasMangaRefreshJob.mockResolvedValue(true);
+    await warmMangaDetail(client, db, MANGA_ID);
     observe(refreshOptions());
     await flush();
     expect(mocks.hasMangaRefreshJob.mock.calls.length).toBeGreaterThan(checks);
-    expect(mocks.drainMangaRefreshQueue).toHaveBeenCalledTimes(drains + 1);
-    expect(first.getCurrentResult().isSuccess).toBe(true);
+    expect(mocks.drainMangaRefreshQueue).toHaveBeenCalled();
   });
 
   it('Given a local read the warm-up failed, When the page mounts, Then it is not read twice', async () => {

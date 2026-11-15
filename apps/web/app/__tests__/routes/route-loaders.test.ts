@@ -14,11 +14,29 @@ const mocks = vi.hoisted(() => ({
     vi.fn<
       (db: unknown, providerId: string, sectionId: string, signal?: AbortSignal) => Promise<unknown>
     >(),
+  fetchMangaDetail: vi.fn<() => Promise<unknown>>(),
+  hasMangaRefreshJob: vi.fn<() => Promise<boolean>>(),
+  enqueueMangaRefresh: vi.fn<() => Promise<void>>(),
+  drainMangaRefreshQueue: vi.fn<() => Promise<void>>(),
 }));
 
 vi.mock('@/features/settings', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   fetchAppSettings: mocks.fetchAppSettings,
+}));
+vi.mock('@/features/library', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  fetchMangaDetail: mocks.fetchMangaDetail,
+}));
+vi.mock('../../lib/provider-registry.js', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  getBindingForMangaId: () => ({}),
+}));
+vi.mock('../../lib/manga-refresh-queue.js', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  hasMangaRefreshJob: mocks.hasMangaRefreshJob,
+  enqueueMangaRefresh: mocks.enqueueMangaRefresh,
+  drainMangaRefreshQueue: mocks.drainMangaRefreshQueue,
 }));
 vi.mock('../../queries/provider-discover.js', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -64,6 +82,11 @@ beforeEach(() => {
   mocks.fetchAppSettings.mockResolvedValue({ settings: { explicitContent: false } });
   mocks.fetchDiscoverProviders.mockResolvedValue(providers);
   mocks.fetchProviderSectionPreview.mockResolvedValue({ results: [] });
+  // A title with nothing saved: only its source can fill the page.
+  mocks.fetchMangaDetail.mockResolvedValue(null);
+  mocks.hasMangaRefreshJob.mockResolvedValue(false);
+  mocks.enqueueMangaRefresh.mockResolvedValue(undefined);
+  mocks.drainMangaRefreshQueue.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -173,5 +196,32 @@ describe('route loaders on the app router', () => {
     expect(router.state.resolvedLocation?.pathname).toBe('/library');
     expect(mocks.fetchProviderSectionPreview).toHaveBeenCalledTimes(1);
     expect(mocks.fetchDiscoverProviders).toHaveBeenCalledTimes(1);
+  });
+
+  it('Given a hover over a title with nothing saved, Then only the local read runs: nothing is queued and the source is not asked', async () => {
+    const router = await routerAt('/library');
+    await router.preloadRoute({ to: '/manga/$id', params: { id: 'manga-1' } });
+    expect(mocks.fetchMangaDetail).toHaveBeenCalled();
+    expect(mocks.enqueueMangaRefresh).not.toHaveBeenCalled();
+    expect(mocks.drainMangaRefreshQueue).not.toHaveBeenCalled();
+  });
+
+  it('Given a hover that completed, When the title is clicked, Then its source refresh starts during the navigation, before the page mounts', async () => {
+    const router = await routerAt('/library');
+    await router.preloadRoute({ to: '/manga/$id', params: { id: 'manga-1' } });
+    const drain = deferred<undefined>();
+    mocks.drainMangaRefreshQueue.mockReturnValue(drain.promise);
+
+    const navigation = router.navigate({ to: '/manga/$id', params: { id: 'manga-1' } });
+    await flush();
+    await flush();
+    // Nothing is rendered here, so only the route loader can have started it.
+    expect(router.state.resolvedLocation?.pathname).toBe('/library');
+    expect(mocks.enqueueMangaRefresh).toHaveBeenCalledTimes(1);
+    expect(mocks.drainMangaRefreshQueue).toHaveBeenCalledTimes(1);
+
+    drain.resolve(undefined);
+    await navigation;
+    expect(router.state.resolvedLocation?.pathname).toBe('/manga/manga-1');
   });
 });

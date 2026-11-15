@@ -87,6 +87,9 @@ import { useLocalDb, useLocalDbRetry, useLocalDbStatus } from '../providers/loca
 export const Route = createFileRoute('/manga/$id')({
   // A hover (intent preload) warms the page's local read; the click also warms the first source
   // refresh of a title with nothing saved, so the page opens complete when it is quick.
+  // A hover's match is never reused as is: the click runs the loader again, as a navigation, so
+  // the refresh a hover must not start begins at the click rather than once the page mounts.
+  preloadStaleTime: 0,
   loader: {
     // A return to a title waits too (briefly, see `waitForRouteData`); its cache usually answers.
     staleReloadMode: 'blocking',

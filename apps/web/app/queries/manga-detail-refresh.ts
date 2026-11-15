@@ -12,7 +12,7 @@ import {
   resetMangaRefreshJob,
 } from '../lib/manga-refresh-queue.js';
 import { getBindingForMangaId } from '../lib/provider-registry.js';
-import { warmRouteQuery } from '../lib/route-data.js';
+import { ROUTE_DATA_HANDOFF_GC_MS, warmRouteQuery } from '../lib/route-data.js';
 
 /**
  * Kept outside `libraryQueryKeys.all`: the queue's own invalidation must never
@@ -114,8 +114,19 @@ export function mangaDetailRefreshQueryOptions(
     retry: false,
     retryOnMount: false,
     staleTime: Infinity,
-    gcTime: 0,
+    // Long enough for the page to take over what its route loader warmed, a failure included;
+    // `warmMangaDetail` forgets the leftover on the next visit, so every visit checks again.
+    gcTime: ROUTE_DATA_HANDOFF_GC_MS,
     meta: { feedback: { surface: 'silent' } },
+  });
+}
+
+/** A settled refresh no page shows is an earlier visit's answer; this visit must check again. */
+function forgetEarlierRefresh(queryClient: QueryClient, mangaId: MangaId): void {
+  queryClient.removeQueries({
+    queryKey: mangaDetailRefreshQueryKey(mangaId),
+    exact: true,
+    predicate: (query) => query.getObserversCount() === 0 && query.state.fetchStatus === 'idle',
   });
 }
 
@@ -125,7 +136,8 @@ export function mangaDetailRefreshQueryOptions(
  * (`preload`) only reads locally: the source refresh enqueues durable work, which waits for a
  * real navigation. Only a title with nothing saved then waits on its source, through the same
  * refresh query the page reads, so the page picks up the request in flight. An abandoned loader
- * (`signal`) starts nothing new and cancels the refresh while no page shows it.
+ * (`signal`) starts nothing new and cancels the refresh while no page shows it. Each visit
+ * first forgets an earlier visit's settled refresh, so a reopened title is checked again.
  */
 export async function warmMangaDetail(
   queryClient: QueryClient,
@@ -133,6 +145,7 @@ export async function warmMangaDetail(
   mangaId: MangaId,
   { signal, preload = false }: { readonly signal?: AbortSignal; readonly preload?: boolean } = {},
 ): Promise<void> {
+  if (!preload) forgetEarlierRefresh(queryClient, mangaId);
   const local = await warmRouteQuery(
     queryClient,
     localMangaDetailQueryOptions(db, mangaId),
