@@ -224,4 +224,61 @@ describe('route loaders on the app router', () => {
     await navigation;
     expect(router.state.resolvedLocation?.pathname).toBe('/manga/manga-1');
   });
+
+  it('Given a hover still reading locally, When the title is clicked before the read settles, Then the source refresh starts during the navigation, once', async () => {
+    const router = await routerAt('/library');
+    const read = deferred<unknown>();
+    mocks.fetchMangaDetail.mockReturnValue(read.promise);
+    const drain = deferred<undefined>();
+    mocks.drainMangaRefreshQueue.mockReturnValue(drain.promise);
+
+    const hover = router.preloadRoute({ to: '/manga/$id', params: { id: 'manga-1' } });
+    await flush();
+    const navigation = router.navigate({ to: '/manga/$id', params: { id: 'manga-1' } });
+    await flush();
+    read.resolve(null);
+    await flush();
+    await flush();
+
+    // Nothing is rendered here, so only the route loader can have started it.
+    expect(router.state.resolvedLocation?.pathname).toBe('/library');
+    expect(mocks.enqueueMangaRefresh).toHaveBeenCalledTimes(1);
+    expect(mocks.drainMangaRefreshQueue).toHaveBeenCalledTimes(1);
+
+    drain.resolve(undefined);
+    await Promise.all([hover, navigation]);
+    expect(router.state.resolvedLocation?.pathname).toBe('/manga/manga-1');
+    expect(mocks.drainMangaRefreshQueue).toHaveBeenCalledTimes(1);
+  });
+
+  it('Given a hover still reading locally that is never clicked, Then nothing is queued once the read settles', async () => {
+    const router = await routerAt('/library');
+    const read = deferred<unknown>();
+    mocks.fetchMangaDetail.mockReturnValue(read.promise);
+
+    const hover = router.preloadRoute({ to: '/manga/$id', params: { id: 'manga-1' } });
+    await flush();
+    read.resolve(null);
+    await hover;
+    await flush();
+    expect(mocks.enqueueMangaRefresh).not.toHaveBeenCalled();
+    expect(mocks.drainMangaRefreshQueue).not.toHaveBeenCalled();
+  });
+
+  it('Given a hover still reading locally, When the click is abandoned for another page before the read settles, Then nothing is queued', async () => {
+    const router = await routerAt('/library');
+    const read = deferred<unknown>();
+    mocks.fetchMangaDetail.mockReturnValue(read.promise);
+
+    void router.preloadRoute({ to: '/manga/$id', params: { id: 'manga-1' } });
+    await flush();
+    void router.navigate({ to: '/manga/$id', params: { id: 'manga-1' } });
+    await flush();
+    await router.navigate({ to: '/search' });
+    read.resolve(null);
+    await flush();
+    await flush();
+    expect(router.state.resolvedLocation?.pathname).toBe('/search');
+    expect(mocks.enqueueMangaRefresh).not.toHaveBeenCalled();
+  });
 });

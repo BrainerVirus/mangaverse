@@ -130,14 +130,60 @@ function forgetEarlierRefresh(queryClient: QueryClient, mangaId: MangaId): void 
   });
 }
 
+/** A hover warm-up still reading locally: a navigation to its title can promote it. */
+interface PendingHover {
+  /** Set once a navigation commits to the title; aborts with that navigation. */
+  navigation: AbortSignal | null;
+}
+
+const pendingHovers = new Map<MangaId, Set<PendingHover>>();
+
+/**
+ * Called when a navigation (not a hover) commits to a title, from the route's `beforeLoad`. The
+ * router may hand that navigation a hover's loader that is still reading locally instead of
+ * running the loader again; such a warm-up then goes on into the source refresh as the
+ * navigation's own, during the navigation. With no hover in flight this does nothing.
+ */
+export function promoteMangaDetailHover(mangaId: MangaId, navigation: AbortSignal): void {
+  for (const hover of pendingHovers.get(mangaId) ?? []) hover.navigation = navigation;
+}
+
+function trackHover(mangaId: MangaId): { hover: PendingHover; done: () => void } {
+  const hover: PendingHover = { navigation: null };
+  const hovers = pendingHovers.get(mangaId) ?? new Set<PendingHover>();
+  hovers.add(hover);
+  pendingHovers.set(mangaId, hovers);
+  return {
+    hover,
+    done: () => {
+      hovers.delete(hover);
+      if (hovers.size === 0 && pendingHovers.get(mangaId) === hovers) pendingHovers.delete(mangaId);
+    },
+  };
+}
+
+/** Aborts when either signal does: a promoted hover stops with the hover or the navigation. */
+function eitherAborted(first: AbortSignal | undefined, second: AbortSignal): AbortSignal {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  for (const signal of [first, second]) {
+    if (signal === undefined) continue;
+    if (signal.aborted) abort();
+    else signal.addEventListener('abort', abort, { once: true });
+  }
+  return controller.signal;
+}
+
 /**
  * The route loader's half of the detail page. Local-first: the SQLite read decides, and a title
  * with anything saved opens at once while the page refreshes it beside the surface. A hover
  * (`preload`) only reads locally: the source refresh enqueues durable work, which waits for a
- * real navigation. Only a title with nothing saved then waits on its source, through the same
- * refresh query the page reads, so the page picks up the request in flight. An abandoned loader
- * (`signal`) starts nothing new and cancels the refresh while no page shows it. Each visit
- * first forgets an earlier visit's settled refresh, so a reopened title is checked again.
+ * real navigation, either a loader of its own or this hover's, promoted by the navigation while
+ * the local read was still running (`promoteMangaDetailHover`). Only a title with nothing saved
+ * then waits on its source, through the same refresh query the page reads, so the page picks up
+ * the request in flight. An abandoned loader (`signal`) starts nothing new and cancels the
+ * refresh while no page shows it. Each visit first forgets an earlier visit's settled refresh,
+ * so a reopened title is checked again.
  */
 export async function warmMangaDetail(
   queryClient: QueryClient,
@@ -146,16 +192,25 @@ export async function warmMangaDetail(
   { signal, preload = false }: { readonly signal?: AbortSignal; readonly preload?: boolean } = {},
 ): Promise<void> {
   if (!preload) forgetEarlierRefresh(queryClient, mangaId);
+  const tracked = preload ? trackHover(mangaId) : null;
   const local = await warmRouteQuery(
     queryClient,
     localMangaDetailQueryOptions(db, mangaId),
     signal,
-  );
-  if (preload || local !== null || !canRefreshMangaDetail(mangaId)) return;
-  if (signal?.aborted === true) return;
+  ).finally(() => tracked?.done());
+
+  let visit = signal;
+  if (tracked !== null) {
+    // A hover alone stops here: it never asks the source or writes the queue.
+    if (tracked.hover.navigation === null) return;
+    forgetEarlierRefresh(queryClient, mangaId);
+    visit = eitherAborted(signal, tracked.hover.navigation);
+  }
+  if (local !== null || !canRefreshMangaDetail(mangaId)) return;
+  if (visit?.aborted === true) return;
   await warmRouteQuery(
     queryClient,
     mangaDetailRefreshQueryOptions(db, queryClient, mangaId),
-    signal,
+    visit,
   );
 }

@@ -51,6 +51,7 @@ import {
   localMangaDetailQueryOptions,
   mangaDetailRefreshQueryOptions,
   retryMangaDetailRefresh,
+  promoteMangaDetailHover,
   warmMangaDetail,
 } from '../queries/manga-detail-refresh.js';
 import {
@@ -90,6 +91,11 @@ export const Route = createFileRoute('/manga/$id')({
   // A hover's match is never reused as is: the click runs the loader again, as a navigation, so
   // the refresh a hover must not start begins at the click rather than once the page mounts.
   preloadStaleTime: 0,
+  // A click while a hover's loader is still reading locally reuses that loader, which ran as a
+  // hover: promote it, so the source refresh still starts during the navigation.
+  beforeLoad: ({ preload, params, abortController }) => {
+    if (!preload) promoteMangaDetailHover(toMangaId(params.id), abortController.signal);
+  },
   loader: {
     // A return to a title waits too (briefly, see `waitForRouteData`); its cache usually answers.
     staleReloadMode: 'blocking',
