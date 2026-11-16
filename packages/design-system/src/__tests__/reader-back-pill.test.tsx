@@ -26,30 +26,29 @@ describe('ReaderBackPill', () => {
     expect(label.className).toContain('min-w-0');
     const anchor = screen
       .getByRole('button', { name: /close reader/i })
-      .closest('.group\\/tooltip');
+      .closest('[data-glass-tier]');
     expect(anchor?.className).toContain('max-w-md');
     expect(anchor?.className).toContain('min-w-0');
   });
 
-  it('Given the tooltip, Then it names Esc, opens to the right of the pill (never over the controls below) and shows on hover or keyboard focus', () => {
-    render(<ReaderBackPill label="Ch. 1" />);
-    const tooltip = screen.getByRole('tooltip');
-    expect(tooltip).toHaveTextContent('Close reader (Esc)');
-    expect(tooltip.className).toContain('left-full');
-    expect(tooltip.className).toContain('top-1/2');
-    expect(tooltip.className).not.toContain('top-full');
-    expect(tooltip.className).toContain('group-hover/tooltip:opacity-100');
-    expect(tooltip.className).toContain('group-focus-within/tooltip:opacity-100');
+  it('Given either variant, Then there is no hover tooltip: the pill says what it is, and Esc needs no hint on touch', () => {
+    render(
+      <>
+        <ReaderBackPill label="Ch. 1" />
+        <ReaderBackPill variant="round" />
+      </>,
+    );
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    expect(screen.queryByText(/Esc/)).toBeNull();
   });
 
-  it('Given the round variant, Then it is the chevron alone with the same name and tooltip', () => {
+  it('Given the round variant, Then it is the chevron alone with the same name and size', () => {
     render(<ReaderBackPill variant="round" label="Ch. 1" />);
     const button = screen.getByRole('button', { name: 'Close reader' });
     expect(button).toHaveAttribute('data-variant', 'round');
     expect(button).toHaveTextContent('');
     expect(button.className).toContain('w-10');
     expect(button.className).toContain('h-10');
-    expect(screen.getByRole('tooltip')).toHaveTextContent('Close reader (Esc)');
   });
 
   it('Given no label, Then the pill falls back to the round button', () => {

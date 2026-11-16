@@ -121,53 +121,6 @@ async function box(page: Page, selector: string): Promise<Box> {
   };
 }
 
-async function setContentSize(app: ElectronApplication, width: number, height: number) {
-  await app.evaluate(
-    ({ BrowserWindow }, size) => {
-      BrowserWindow.getAllWindows()[0]?.setContentSize(size.width, size.height);
-    },
-    { width, height },
-  );
-}
-
-/**
- * Hovers the chrome's back pill and returns the tooltip's box and every visible control in the
- * chrome that the box overlaps (the pill itself aside).
- */
-async function tooltipOverlaps(
-  page: Page,
-): Promise<{ readonly right: number; readonly hit: string[] }> {
-  const pill = page
-    .getByRole('toolbar', { name: 'Reader controls' })
-    .getByRole('button', { name: /, close reader$/i });
-  await pill.hover();
-  const tooltip = page.getByRole('toolbar', { name: 'Reader controls' }).getByRole('tooltip');
-  await expect
-    .poll(async () => tooltip.evaluate((node) => getComputedStyle(node).opacity))
-    .toBe('1');
-  return tooltip.evaluate((node) => {
-    const tip = node.getBoundingClientRect();
-    const pillButton = node.parentElement?.querySelector('button');
-    const controls = [
-      ...document.querySelectorAll<HTMLElement>(
-        '[role="toolbar"] :is(button, a, input, [role="slider"], [role="radio"], [role="tab"])',
-      ),
-    ].filter((control) => control !== pillButton && control.getClientRects().length > 0);
-    const hit = controls
-      .filter((control) => {
-        const box = control.getBoundingClientRect();
-        return (
-          box.left < tip.right &&
-          box.right > tip.left &&
-          box.top < tip.bottom &&
-          box.bottom > tip.top
-        );
-      })
-      .map((control) => control.getAttribute('aria-label') ?? control.textContent ?? '?');
-    return { right: tip.right, hit };
-  });
-}
-
 async function setFullScreen(app: ElectronApplication, fullScreen: boolean): Promise<void> {
   await app.evaluate(({ BrowserWindow }, next) => {
     BrowserWindow.getAllWindows()[0]?.setFullScreen(next);
@@ -248,21 +201,6 @@ test('the reader top controls start below the title bar, and at the window edge 
   expect(await exit.boundingBox()).toMatchObject({ x: pendingClose.left, y: pendingClose.top });
   await showReaderControls(page);
   await expect.poll(async () => (await chromePill.boundingBox())?.y).toBe(pendingClose.top);
-
-  // Its tooltip opens to the right, over the title's meta, never over a control, at a wide
-  // window and at the narrowest one (where a long title fills the row up to the controls).
-  for (const width of [1280, 800]) {
-    await setContentSize(app, width, 800);
-    await expect
-      .poll(async () => (await box(page, '[data-testid="reader-surface"]')).right)
-      .toBe(width);
-    const overlap = await tooltipOverlaps(page);
-    expect(overlap.hit, `tooltip covers controls at ${width}px`).toEqual([]);
-    expect(overlap.right).toBeLessThanOrEqual(width);
-    await expect.poll(async () => (await chromePill.boundingBox())?.y).toBe(pendingClose.top);
-  }
-  await setContentSize(app, 1280, 800);
-  await page.mouse.move(640, 500);
 
   // Fullscreen has no strip: the surface and the chrome take the window's top edge.
   await setFullScreen(app, true);

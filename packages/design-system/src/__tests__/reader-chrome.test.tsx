@@ -58,10 +58,9 @@ describe('ReaderChrome', () => {
       name: 'Kuro no Shoukanshi · Ch. 1 - The Summoner, close reader',
     });
     expect(back).toHaveAttribute('data-variant', 'pill');
-    // Top of the row, with room left for the tooltip that opens to its right.
-    const group = back.closest('.group\\/tooltip')?.parentElement;
+    // Top of the row, where the pending header and the hidden-chrome exit put the pill too.
+    const group = back.closest('[data-glass-tier]')?.parentElement;
     expect(group?.className).toContain('self-start');
-    expect(group?.className).toContain('sm:pr-44');
     expect(screen.getAllByText('Kuro no Shoukanshi · Ch. 1 - The Summoner')).toHaveLength(1);
     await userEvent.click(back);
     expect(onClose).toHaveBeenCalledTimes(1);

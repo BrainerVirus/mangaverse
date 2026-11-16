@@ -152,11 +152,9 @@ export function ReaderChrome({
           The back pill carries what is being read; without a way out the title stands alone. The
           group sits at the top of the row (not centred against the taller mode switcher), so the
           pill is where the pending header and the hidden-chrome exit put it and never moves when
-          the chrome toggles. From `sm`, where the controls share this row, its end keeps room for
-          the pill's tooltip, which opens to the right: it lands on the title's meta, never on the
-          controls beyond it. Below `sm` the controls take a row of their own.
+          the chrome toggles.
         */}
-        <div className="flex min-w-0 flex-1 items-center gap-2 self-start sm:pr-44">
+        <div className="flex min-w-0 flex-1 items-center gap-2 self-start">
           {onClose ? (
             <ReaderBackPill label={readingLabel(seriesTitle, chapterTitle)} onClick={onClose} />
           ) : chapterTitle ? (
