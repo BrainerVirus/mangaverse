@@ -40,7 +40,7 @@
   "devDependencies": {
     "@playwright/test": "^1.64.0",
     "@types/node": "^26.6.5",
-    "electron": "^44.7.0",
+    "electron": "^45.2.2",
     "electron-builder": "^26.18.0",
     "esbuild": "^0.28.2",
     "oxlint": "^1.87.0",
