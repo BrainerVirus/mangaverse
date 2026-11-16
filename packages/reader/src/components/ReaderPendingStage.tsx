@@ -1,9 +1,10 @@
 /* oxlint-disable shadcn/no-inline-styles -- the stage colour is the reader's own setting, a runtime value that cannot be a static class. */
 import type { CSSProperties } from 'react';
-import { Button } from '@app/design-system';
+import { ReaderBackPill, readingLabel } from '@app/design-system';
 import { resolvePagedFitInput } from '../page-fit.js';
 import { pendingVisiblePages } from '../pending-pages.js';
 import type { ReaderPageData } from '../reader-page-data.js';
+import { readerStageTone } from '../stage-tone.js';
 import type { ReaderSessionInput, ReaderState } from '../types.js';
 import { ReaderPagedLayer } from './ReaderPagedLayer.js';
 import { ReaderScrollLayer } from './ReaderScrollLayer.js';
@@ -49,6 +50,7 @@ export function ReaderPendingStage({
   readonly onClose: (() => void) | undefined;
 }) {
   const title = session?.data.chapter.title ?? '';
+  const backgroundColor = session?.data.settings.backgroundColor;
   return (
     <div
       ref={containerRef}
@@ -63,48 +65,55 @@ export function ReaderPendingStage({
           : ({ '--reader-stage-color': session.data.settings.backgroundColor } as CSSProperties)
       }
       data-testid={PENDING_STAGE_TEST_IDS[kind]}
+      // Without settings the stage is the default black one.
+      data-stage-tone={backgroundColor === undefined ? 'dark' : readerStageTone(backgroundColor)}
       aria-busy="true"
     >
       {session === null ? null : <PendingPages session={session} reducedMotion={reducedMotion} />}
-      <ReaderStageHeader title={title} onClose={onClose} absolute />
+      <ReaderStageHeader
+        title={title}
+        seriesTitle={session?.data.seriesTitle}
+        onClose={onClose}
+        absolute
+      />
       <output className="sr-only">{PENDING_STAGE_MESSAGES[kind]}</output>
     </div>
   );
 }
 
 /**
- * The stage's top row before the pages arrive: Close, then the chapter title,
- * which truncates instead of running under the button at any width. It lives
- * inside the reader's surface, which already starts below the desktop title
- * bar, so neither sits under the strip.
+ * The stage's top row before the pages arrive: the back pill, carrying what is
+ * being read and truncating at any width (the title alone when there is no way
+ * out). It sits where the reader chrome's own pill will, inside the reader's
+ * surface, which already starts below the desktop title bar.
  */
 export function ReaderStageHeader({
   title,
+  seriesTitle,
   onClose,
   absolute = false,
 }: {
   readonly title: string;
+  readonly seriesTitle?: string | undefined;
   readonly onClose: (() => void) | undefined;
   /** Float over the stage instead of taking a row of its own. */
   readonly absolute?: boolean;
 }) {
-  if (title === '' && onClose === undefined) return null;
+  const label = readingLabel(seriesTitle, title);
+  if (label === undefined && onClose === undefined) return null;
   return (
     <div
       data-testid="reader-stage-header"
       className={
         absolute
-          ? 'safe-area-x safe-area-top absolute inset-x-0 top-0 z-10 flex items-center gap-3 pb-3'
-          : 'safe-area-x safe-area-top flex items-center gap-3 pb-3'
+          ? 'safe-area-x safe-area-top absolute inset-x-0 top-0 z-10 flex items-center pb-3'
+          : 'safe-area-x safe-area-top flex items-center pb-3'
       }
     >
-      {onClose === undefined ? null : (
-        <Button size="sm" variant="secondary" className="shrink-0" onClick={onClose}>
-          Close reader
-        </Button>
-      )}
-      {title === '' ? null : (
-        <span className="min-w-0 truncate text-sm font-medium text-white">{title}</span>
+      {onClose === undefined ? (
+        <span className="min-w-0 truncate text-sm font-medium text-white">{label}</span>
+      ) : (
+        <ReaderBackPill label={label} onClick={onClose} />
       )}
     </div>
   );
@@ -146,7 +155,6 @@ function PendingPages({
       })}
       cacheContext={null}
       imageSmoothing={data.engineSettings.imageSmoothing !== false}
-      reducedMotion={reducedMotion}
       setPagedLayer={noop}
       setPageTransitionLayer={noop}
       onPointerDown={noop}

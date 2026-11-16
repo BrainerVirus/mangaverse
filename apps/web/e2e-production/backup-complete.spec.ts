@@ -108,7 +108,11 @@ async function readToPage(page: Page, fromPage: number, toPage: number): Promise
 }
 
 async function closeReader(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Close reader' }).click();
+  // The back pill ("<series · chapter>, close reader") or, chrome hidden, the round exit.
+  await page
+    .getByRole('button', { name: /close reader$/i })
+    .first()
+    .click();
   await expect(page).not.toHaveURL(/\/reader\//);
 }
 

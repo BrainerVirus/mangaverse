@@ -7,7 +7,7 @@ import {
   type ReactNode,
   type SetStateAction,
 } from 'react';
-import { EmptyState, Button, ErrorState, GlassSurface } from '@app/design-system';
+import { EmptyState, ErrorState, GlassSurface, ReaderBackPill } from '@app/design-system';
 import { useReducedMotion } from '@app/design-system/motion';
 import type { ReaderSettings } from '@app/shared';
 import { useCoverCacheContext, CachedPageImage } from '@app/cache';
@@ -108,6 +108,7 @@ async function runReaderAction(
 function readerGateView({
   gate,
   title,
+  seriesTitle,
   onRetry,
   onClose,
   pendingSession,
@@ -116,6 +117,7 @@ function readerGateView({
 }: {
   readonly gate: Exclude<ReaderGate, null>;
   readonly title: string;
+  readonly seriesTitle: string | undefined;
   readonly onRetry: (() => void) | undefined;
   readonly onClose: (() => void) | undefined;
   readonly pendingSession: ReaderPendingSession | null;
@@ -147,7 +149,7 @@ function readerGateView({
       );
     case 'hydration-error':
       return (
-        <ReaderHydrationErrorStage title={title} onClose={onClose}>
+        <ReaderHydrationErrorStage title={title} seriesTitle={seriesTitle} onClose={onClose}>
           <ErrorState
             title="Could not load chapter"
             message="The chapter is saved locally, but its pages could not be fetched from the provider."
@@ -288,12 +290,13 @@ export function ReaderScreen(props: ReaderScreenProps) {
         {/* The stages with a header row carry Close in it; the others float it below the title bar. */}
         {onClose && !GATES_WITH_HEADER.has(shownGate) ? (
           <div data-testid="reader-exit" className="below-title-bar fixed left-4 z-50 mt-3">
-            <Button onClick={onClose}>Close reader</Button>
+            <ReaderBackPill variant="round" onClick={onClose} />
           </div>
         ) : null}
         {readerGateView({
           gate: shownGate,
           title: data?.chapter.title ?? '',
+          seriesTitle: data?.seriesTitle,
           onRetry: props.onRetry,
           onClose,
           pendingSession: session,
@@ -579,6 +582,7 @@ function ReaderReadyView({
 
       <ReaderOverlays
         chapterTitle={data.chapter.title}
+        seriesTitle={data.seriesTitle}
         sourceName={data.sourceName}
         currentPage={readerState.activePageIndex + 1}
         totalPages={data.chapter.pageCount}
@@ -671,16 +675,18 @@ function PagePreview({
  */
 function ReaderHydrationErrorStage({
   title,
+  seriesTitle,
   onClose,
   children,
 }: {
   readonly title: string;
+  readonly seriesTitle: string | undefined;
   readonly onClose: (() => void) | undefined;
   readonly children: ReactNode;
 }) {
   return (
     <div className="flex h-full w-full flex-col bg-black" data-testid="reader-hydration-error">
-      <ReaderStageHeader title={title} onClose={onClose} />
+      <ReaderStageHeader title={title} seriesTitle={seriesTitle} onClose={onClose} />
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-6 py-12">
         {children}
       </div>

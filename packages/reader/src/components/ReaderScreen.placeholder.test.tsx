@@ -45,6 +45,40 @@ vi.mock('@app/design-system', async () => {
     SheetContent: () => null,
     SheetHeader: () => null,
     SheetTitle: () => null,
+    // The sketch and the back pill as plain markup: enough to find them and drive them.
+    PanelSketch: ({ seed, animate = true, revealed = false }: Record<string, unknown>) => (
+      <div
+        data-panel-sketch={String(seed)}
+        data-animate={String(animate)}
+        data-revealed={String(revealed)}
+        aria-hidden="true"
+      />
+    ),
+    ReaderBackPill: ({
+      label,
+      variant = 'pill',
+      onClick,
+    }: {
+      label?: string;
+      variant?: string;
+      onClick?: () => void;
+    }) => (
+      <button
+        type="button"
+        aria-label={
+          variant === 'round' || label === undefined || label === ''
+            ? 'Close reader'
+            : `${label}, close reader`
+        }
+        data-variant={label === undefined || label === '' ? 'round' : variant}
+        onClick={onClick}
+      >
+        {variant === 'round' ? null : label}
+      </button>
+    ),
+    readingLabel: (series: string | undefined, chapter: string | undefined) =>
+      [series, chapter].filter((part) => part !== undefined && part !== '').join(' · ') ||
+      undefined,
     useStateReducer: (reducer: (state: unknown, event: unknown) => unknown, initial: unknown) =>
       useReducer(reducer as never, initial),
   };
@@ -359,16 +393,37 @@ describe('ReaderScreen page placeholder geometry', () => {
 });
 
 describe('ReaderScreen page placeholder look', () => {
-  function placeholderClasses(container: HTMLElement): string[] {
+  const PLATE = ['bg-stage-ink/5', 'border-stage-ink/15'];
+
+  function plates(container: HTMLElement): HTMLElement[] {
     return [
       ...container.querySelectorAll<HTMLElement>(
-        '[data-testid="reader-page-box"], [data-page-tile] > div',
+        '[data-testid="reader-page-box"], [data-page-tile] > div > div',
       ),
-    ].map((node) => node.className);
+    ];
+  }
+
+  function sketches(container: HTMLElement) {
+    return [...container.querySelectorAll<HTMLElement>('[data-panel-sketch]')].map((node) => ({
+      seed: node.dataset['panelSketch'],
+      animate: node.dataset['animate'],
+      revealed: node.dataset['revealed'],
+    }));
+  }
+
+  /** What each still-loading page image draws over itself, before and once its source arrives. */
+  function imageSketches(): { pending: Record<string, unknown>; ready: Record<string, unknown> }[] {
+    // Each page's latest render: the mock records every render.
+    const latest = new Map(images.map((image) => [image.pageIndex, image]));
+    return [...latest.values()].map((image) => {
+      const pending = image.renderPlaceholder?.(false) as { props: Record<string, unknown> };
+      const ready = image.renderPlaceholder?.(true) as { props: Record<string, unknown> };
+      return { pending: pending.props, ready: ready.props };
+    });
   }
 
   it.each(['ltr', 'vertical'] as const)(
-    'Given full motion in %s mode, When pages are pending, Then the placeholder pulses on the stage plate',
+    'Given %s pages pending, Then each page slot is the still stage plate with the page sketched over it',
     (readingMode) => {
       viewport.width = LANDSCAPE.width;
       viewport.height = LANDSCAPE.height;
@@ -377,45 +432,117 @@ describe('ReaderScreen page placeholder look', () => {
           hydrating: true,
         }),
       );
-      const classes = placeholderClasses(container);
-      expect(classes.length).toBeGreaterThan(0);
-      for (const className of classes) {
-        expect(className).toContain('animate-pulse');
-        expect(className).toContain('bg-stage-foreground/8');
-        expect(className).toContain('border-stage-foreground/12');
+      const slots = plates(container);
+      expect(slots.length).toBeGreaterThan(0);
+      for (const slot of slots) {
+        for (const token of PLATE) expect(slot.className).toContain(token);
+        // The plate never pulses: the sketch is the only motion.
+        expect(slot.className).not.toMatch(/animate-/);
       }
+      expect(sketches(container)).toEqual([
+        { seed: 'chapter-1:0', animate: 'true', revealed: 'false' },
+      ]);
     },
   );
 
   it.each(['ltr', 'vertical'] as const)(
-    'Given reduced motion in %s mode, When pages are pending and then land unloaded, Then no placeholder animates',
+    'Given %s pages pending and landed, Then every sketch fills a positioned page box, never the whole stage',
     (readingMode) => {
-      setInAppReducedMotionPreference(true);
+      viewport.width = LANDSCAPE.width;
+      viewport.height = LANDSCAPE.height;
+      const patch = { readingMode, pageLayout: 'single' } as const;
+      for (const data of [
+        buildData(patch, { pageCount: 0 }),
+        buildData(patch, { pageCount: 12 }),
+      ]) {
+        const container = render(screen(data, { hydrating: data.chapter.pageCount === 0 }));
+        const nodes = [...container.querySelectorAll<HTMLElement>('[data-panel-sketch]')];
+        for (const node of nodes) {
+          // `absolute inset-0` resolves against the nearest positioned box: it must be the page's.
+          expect(node.parentElement?.className).toMatch(/(^|\s)(relative|absolute)(\s|$)/);
+          expect(
+            node.parentElement?.closest('[data-testid="reader-page-box"], [data-page-index]'),
+          ).not.toBeNull();
+        }
+        // Loaded images draw theirs inside the page box (or the strip tile), which is positioned too.
+        const boxes = container.querySelectorAll<HTMLElement>(
+          '[data-testid="reader-page-box"], [data-page-tile] > div',
+        );
+        for (const box of boxes) expect(box.className).toMatch(/(^|\s)(relative|absolute)(\s|$)/);
+      }
+    },
+  );
+
+  it('Given a spread pending, Then its two pages sketch different layouts', () => {
+    viewport.width = LANDSCAPE.width;
+    viewport.height = LANDSCAPE.height;
+    const container = render(
+      screen(
+        buildData({ readingMode: 'rtl', pageLayout: 'double', spreadOffset: 1 }, { pageCount: 0 }),
+        { hydrating: true },
+      ),
+    );
+    const seeds = sketches(container).map((sketch) => sketch.seed);
+    expect(seeds).toHaveLength(2);
+    expect(new Set(seeds).size).toBe(2);
+  });
+
+  it.each(['ltr', 'vertical'] as const)(
+    'Given %s pages that land, Then each image keeps sketching the same page until its source arrives, then dissolves into it',
+    (readingMode) => {
       viewport.width = LANDSCAPE.width;
       viewport.height = LANDSCAPE.height;
       const patch = { readingMode, pageLayout: 'single' } as const;
       let container = render(screen(buildData(patch, { pageCount: 0 }), { hydrating: true }));
-      const pending = placeholderClasses(container);
-      expect(pending.length).toBeGreaterThan(0);
-      for (const className of pending) expect(className).not.toMatch(/animate-/);
+      const pendingSeed = sketches(container)[0]?.seed;
 
-      container = render(screen(buildData(patch, { pageCount: 12 }), { hydrating: false }));
+      container = render(screen(buildData(patch, { pageCount: 12 })));
       expect(images.length).toBeGreaterThan(0);
+      const first = imageSketches().find((sketch) => sketch.pending['seed'] === pendingSeed);
+      // The same seed: the drawing carries on across the hand-over instead of changing page.
+      expect(first?.pending).toMatchObject({ revealed: false });
+      expect(first?.ready).toMatchObject({ revealed: true });
       for (const image of images) {
-        expect(image.placeholderClassName).toBeDefined();
+        for (const token of PLATE) expect(image.placeholderClassName).toContain(token);
         expect(image.placeholderClassName).not.toMatch(/animate-/);
       }
       expect(container.querySelector('[class*="animate-"]')).toBeNull();
     },
   );
 
-  it('Given full motion, When pages land unloaded, Then the image placeholder carries the same pulsing plate', () => {
+  it('Given a strip with rows above and below the viewport, Then only the rows on screen draw', () => {
     viewport.width = LANDSCAPE.width;
     viewport.height = LANDSCAPE.height;
-    render(screen(buildData({ readingMode: 'ltr', pageLayout: 'single' }, { pageCount: 12 })));
-    expect(images.length).toBeGreaterThan(0);
-    for (const image of images) expect(image.placeholderClassName).toContain('animate-pulse');
+    const container = render(
+      screen(buildData({ readingMode: 'vertical', fitMode: 'width' }, { pageCount: 12 })),
+    );
+    // The first row (896 x 1344) fills the 800px viewport; the rest are below it.
+    const onScreen = imageSketches().filter((sketch) => sketch.pending['animate'] === true);
+    const offScreen = imageSketches().filter((sketch) => sketch.pending['animate'] === false);
+    expect(onScreen.map((sketch) => sketch.pending['seed'])).toEqual(['chapter-1:0']);
+    expect(offScreen.length).toBeGreaterThan(0);
+    for (const sketch of sketches(container)) expect(sketch.animate).toBe('false');
   });
+
+  it.each([
+    ['#000000', 'dark'],
+    ['#f5f2eb', 'light'],
+  ] as const)(
+    'Given a %s stage, Then the stage is marked %s so the ink reads on it, pending and loaded',
+    (backgroundColor, tone) => {
+      const patch = { readingMode: 'ltr', backgroundColor } as const;
+      let container = render(screen(buildData(patch, { pageCount: 0 }), { hydrating: true }));
+      expect(
+        container
+          .querySelector('[data-testid="reader-hydrating"]')
+          ?.getAttribute('data-stage-tone'),
+      ).toBe(tone);
+      container = render(screen(buildData(patch, { pageCount: 12 })));
+      expect(
+        container.querySelector('[data-testid="reader-surface"]')?.getAttribute('data-stage-tone'),
+      ).toBe(tone);
+    },
+  );
 
   it('Given pages pending, When the stage renders, Then it is busy with a quiet screen-reader message and the title', () => {
     const container = render(
@@ -430,6 +557,9 @@ describe('ReaderScreen page placeholder look', () => {
     // The placeholder is decoration: nothing to announce or focus.
     for (const box of stage?.querySelectorAll('[data-testid="reader-page-box"]') ?? []) {
       expect(box.getAttribute('aria-hidden')).toBe('true');
+    }
+    for (const sketch of stage?.querySelectorAll('[data-panel-sketch]') ?? []) {
+      expect(sketch.getAttribute('aria-hidden')).toBe('true');
     }
   });
 });
@@ -534,8 +664,8 @@ describe('ReaderScreen top controls and the desktop title bar', () => {
   const VIEWPORT_TOP = /(^|\s)top-\d/;
 
   function closeButtons(container: HTMLElement): HTMLButtonElement[] {
-    return [...container.querySelectorAll('button')].filter(
-      (button) => button.textContent === 'Close reader',
+    return [...container.querySelectorAll('button')].filter((button) =>
+      /close reader$/i.test(button.getAttribute('aria-label') ?? ''),
     );
   }
 
@@ -543,7 +673,7 @@ describe('ReaderScreen top controls and the desktop title bar', () => {
     ['hydrating', true, false],
     ['hydration-error', false, true],
   ] as const)(
-    'Given the %s stage, When it renders, Then Close and the chapter title share one header row and never overlap',
+    'Given the %s stage, When it renders, Then one back pill in the header carries the title, so nothing overlaps',
     (_stage, isHydrating, isHydrationError) => {
       const container = render(
         <ReaderScreen
@@ -561,14 +691,13 @@ describe('ReaderScreen top controls and the desktop title bar', () => {
       expect(others).toHaveLength(0);
       const header = container.querySelector('[data-testid="reader-stage-header"]');
       expect(close?.parentElement).toBe(header);
-      // A flex row: the button keeps its width and the title truncates after it at any width.
-      expect(header?.className).toMatch(/(^|\s)flex(\s|$)/);
-      expect(close?.className).toContain('shrink-0');
-      expect(close?.className).not.toMatch(/(^|\s)(fixed|absolute)(\s|$)/);
-      const title = close?.nextElementSibling;
-      expect(title?.textContent).toBe('Chapter 1');
-      expect(title?.className).toContain('min-w-0');
-      expect(title?.className).toContain('truncate');
+      // The title lives inside the pill (which truncates it), not beside it.
+      expect(close?.getAttribute('data-variant')).toBe('pill');
+      expect(close?.textContent).toBe('Chapter 1');
+      // Its name starts with the visible title (label in name).
+      expect(close?.getAttribute('aria-label')).toBe('Chapter 1, close reader');
+      expect(header?.children).toHaveLength(1);
+      expect(header?.className).not.toMatch(/(^|\s)fixed(\s|$)/);
     },
   );
 
@@ -587,7 +716,7 @@ describe('ReaderScreen top controls and the desktop title bar', () => {
     expect(close?.parentElement?.getAttribute('data-testid')).toBe('reader-stage-header');
   });
 
-  it('Given a gate with no header, When it renders, Then the floating Close starts below the title bar', () => {
+  it('Given a gate with no header, When it renders, Then the round back button floats below the title bar', () => {
     const container = render(
       <ReaderScreen
         data={undefined}
@@ -599,6 +728,7 @@ describe('ReaderScreen top controls and the desktop title bar', () => {
       />,
     );
     const [close] = closeButtons(container);
+    expect(close?.getAttribute('data-variant')).toBe('round');
     const anchor = close?.parentElement;
     expect(anchor?.getAttribute('data-testid')).toBe('reader-exit');
     expect(anchor?.className).toContain('below-title-bar');
@@ -606,7 +736,7 @@ describe('ReaderScreen top controls and the desktop title bar', () => {
     expect(anchor?.className).not.toMatch(VIEWPORT_TOP);
   });
 
-  it('Given the chrome hidden after the pages land, When the reader shows its exit, Then it starts below the title bar where the pending Close was', () => {
+  it('Given the chrome hidden after the pages land, When the reader shows its exit, Then it is the round back button below the title bar where the pending pill was', () => {
     const container = render(
       <ReaderScreen
         data={buildData({ readingMode: 'ltr' }, { pageCount: 12 })}
@@ -618,6 +748,7 @@ describe('ReaderScreen top controls and the desktop title bar', () => {
       />,
     );
     const [close] = closeButtons(container);
+    expect(close?.getAttribute('data-variant')).toBe('round');
     const anchor = close?.parentElement;
     expect(anchor?.getAttribute('data-testid')).toBe('reader-exit');
     expect(anchor?.className).toContain('below-title-bar');

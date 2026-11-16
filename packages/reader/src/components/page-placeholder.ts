@@ -1,14 +1,13 @@
 /**
- * The look of a page that has no image yet: a quiet plate in the stage's own
- * ink with a hairline edge. Every reader placeholder shares it, so a chapter
- * whose pages are still on their way, a paged box and a strip row are one
- * surface. It pulses slowly only when motion is allowed.
+ * The page a placeholder stands in for: a quiet plate in the stage's ink
+ * (`--stage-ink`, light or dark with the stage) with a hairline edge. The ink
+ * sketch drawn over it is the motion; the plate itself never moves. It is
+ * positioned, so the sketch can fill it.
  */
-const READER_PAGE_PLACEHOLDER_CLASS = {
-  still: 'rounded-control border border-stage-foreground/12 bg-stage-foreground/8',
-  pulsing: 'rounded-control border border-stage-foreground/12 bg-stage-foreground/8 animate-pulse',
-} as const;
+export const READER_PAGE_PLATE_CLASS =
+  'relative rounded-control border border-stage-ink/15 bg-stage-ink/5';
 
-export function readerPagePlaceholderClass(reducedMotion: boolean): string {
-  return READER_PAGE_PLACEHOLDER_CLASS[reducedMotion ? 'still' : 'pulsing'];
+/** What a placeholder sketches: the same page in the pending stage and once the pages land. */
+export function pageSketchSeed(chapterId: string, pageIndex: number): string {
+  return `${chapterId}:${pageIndex}`;
 }

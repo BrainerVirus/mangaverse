@@ -1,13 +1,13 @@
 /* oxlint-disable shadcn/no-inline-styles -- the zoom transform and fitted page box are per-frame numeric values; they cannot be expressed as static classes. */
 import { useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { CachedPageImage, type CoverCacheContextValue } from '@app/cache';
-import { useStateReducer } from '@app/design-system';
+import { PanelSketch, useStateReducer } from '@app/design-system';
 import { resolvePageFit, type PageFitInput } from '../page-fit.js';
 import type { ReaderPageMeasurement } from '../measured-page-shape.js';
 import type { ReaderPageData } from '../reader-page-data.js';
 import { isWidePage } from '../spreads.js';
 import type { ReaderPage, ReaderState } from '../types.js';
-import { readerPagePlaceholderClass } from './page-placeholder.js';
+import { pageSketchSeed, READER_PAGE_PLATE_CLASS } from './page-placeholder.js';
 
 const OBJECT_FIT_CLASS = {
   contain: 'object-contain',
@@ -22,8 +22,6 @@ export interface ReaderPagedLayerProps {
   readonly fitInput: PageFitInput;
   readonly cacheContext: CoverCacheContextValue | null;
   readonly imageSmoothing: boolean;
-  /** Placeholders hold still instead of pulsing. */
-  readonly reducedMotion: boolean;
   readonly setPagedLayer: (node: HTMLDivElement | null) => void;
   readonly setPageTransitionLayer: (node: HTMLDivElement | null) => void;
   readonly onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
@@ -48,7 +46,6 @@ export function ReaderPagedLayer({
   fitInput,
   cacheContext,
   imageSmoothing,
-  reducedMotion,
   setPagedLayer,
   setPageTransitionLayer,
   onPointerDown,
@@ -100,7 +97,6 @@ export function ReaderPagedLayer({
             fitInput={fitInput}
             cacheContext={cacheContext}
             imageSmoothing={imageSmoothing}
-            placeholderClassName={readerPagePlaceholderClass(reducedMotion)}
             split={splitWide}
             onPageMetric={onPageMetric}
             onPageMeasured={onPageMeasured}
@@ -123,9 +119,10 @@ function resolveNaturalSize(
 }
 
 /**
- * One fitted page box. Without a cache context there is nothing to read from
- * yet, so the box keeps its size and shows the page placeholder instead of
- * collapsing. Split, the
+ * One fitted page box. Until its image arrives the box is the page plate with
+ * the page sketched in ink over it (without a cache context there is nothing
+ * to read from yet, so it stays that way); the sketch dissolves into the image
+ * in the same box. Split, the
  * page renders as two half boxes; a failed load falls back to one box so its
  * retry controls stay whole.
  */
@@ -135,7 +132,6 @@ function ReaderPageBox({
   fitInput,
   cacheContext,
   imageSmoothing,
-  placeholderClassName,
   split,
   onPageMetric,
   onPageMeasured,
@@ -147,7 +143,6 @@ function ReaderPageBox({
   readonly fitInput: PageFitInput;
   readonly cacheContext: CoverCacheContextValue | null;
   readonly imageSmoothing: boolean;
-  readonly placeholderClassName: string;
   readonly split: boolean;
   readonly onPageMetric: ReaderPagedLayerProps['onPageMetric'];
   readonly onPageMeasured: ReaderPagedLayerProps['onPageMeasured'];
@@ -157,6 +152,14 @@ function ReaderPageBox({
   const [natural, setNatural] = useState<{ width: number; height: number } | undefined>(undefined);
   const [failed, setFailed] = useStateReducer<boolean, boolean>((_current, next) => next, false);
   const fit = resolvePageFit({ ...fitInput, naturalSize: resolveNaturalSize(page) ?? natural });
+  const sketch = (revealed: boolean) => (
+    <PanelSketch
+      seed={pageSketchSeed(data.chapterId, page.index)}
+      width={fit.box.width}
+      height={fit.box.height}
+      revealed={revealed}
+    />
+  );
   if (cacheContext === null) {
     return (
       <div
@@ -164,9 +167,11 @@ function ReaderPageBox({
         data-fit-mode={fitInput.fitMode}
         data-object-fit={fit.objectFit}
         style={{ width: `${fit.box.width}px`, height: `${fit.box.height}px`, flex: '0 0 auto' }}
-        className={placeholderClassName}
+        className={READER_PAGE_PLATE_CLASS}
         aria-hidden
-      />
+      >
+        {sketch(false)}
+      </div>
     );
   }
 
@@ -178,7 +183,8 @@ function ReaderPageBox({
       pageIndex={page.index}
       remoteUrl={page.image.url}
       className={`h-full w-full select-none ${OBJECT_FIT_CLASS[fit.objectFit]}`}
-      placeholderClassName={placeholderClassName}
+      placeholderClassName={READER_PAGE_PLATE_CLASS}
+      renderPlaceholder={sketch}
       retention="read"
       imageRendering={imageSmoothing ? 'auto' : 'pixelated'}
       maxDisplayEdge={data.engineSettings.displayMaxEdgePx}
@@ -228,6 +234,7 @@ function ReaderPageBox({
         >
           <div
             data-testid="reader-page-half-image"
+            className="relative"
             style={{
               width: `${fit.box.width}px`,
               height: `${fit.box.height}px`,
@@ -253,6 +260,7 @@ function ReaderPageBox({
           >
             <div
               data-testid="reader-page-half-image"
+              className="relative"
               style={{
                 width: `${fit.box.width}px`,
                 height: `${fit.box.height}px`,
@@ -272,6 +280,7 @@ function ReaderPageBox({
       data-testid="reader-page-box"
       data-fit-mode={fitInput.fitMode}
       data-object-fit={fit.objectFit}
+      className="relative"
       style={{
         width: `${fit.box.width}px`,
         height: `${fit.box.height}px`,

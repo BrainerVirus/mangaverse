@@ -31,7 +31,11 @@ async function openReaderSettings(page: Page) {
 }
 
 async function closeReader(page: Page) {
-  await page.getByRole('button', { name: 'Close reader', exact: true }).click();
+  // The back pill with the chrome shown, the round exit without it.
+  await page
+    .getByRole('button', { name: /close reader$/i })
+    .first()
+    .click();
   await expect(page).toHaveURL(new RegExp(`/manga/${MANGADEX_APP_MANGA_ID}`));
 }
 

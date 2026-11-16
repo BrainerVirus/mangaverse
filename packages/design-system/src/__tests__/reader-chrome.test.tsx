@@ -42,6 +42,31 @@ describe('ReaderChrome', () => {
     expect(toolbar?.className).not.toMatch(/(^|\s)(top-|inset-0|inset-y-)/);
   });
 
+  it('Given a way out, When the chrome renders, Then the back pill carries series and chapter in place of the separate title', async () => {
+    const onClose = vi.fn<() => void>();
+    render(
+      <ReaderChrome
+        visible={true}
+        seriesTitle="Kuro no Shoukanshi"
+        chapterTitle="Ch. 1 - The Summoner"
+        currentPage={1}
+        totalPages={3}
+        onClose={onClose}
+      />,
+    );
+    const back = screen.getByRole('button', {
+      name: 'Kuro no Shoukanshi · Ch. 1 - The Summoner, close reader',
+    });
+    expect(back).toHaveAttribute('data-variant', 'pill');
+    // Top of the row, with room left for the tooltip that opens to its right.
+    const group = back.closest('.group\\/tooltip')?.parentElement;
+    expect(group?.className).toContain('self-start');
+    expect(group?.className).toContain('sm:pr-44');
+    expect(screen.getAllByText('Kuro no Shoukanshi · Ch. 1 - The Summoner')).toHaveLength(1);
+    await userEvent.click(back);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('displays chapter title when provided', () => {
     render(
       <ReaderChrome

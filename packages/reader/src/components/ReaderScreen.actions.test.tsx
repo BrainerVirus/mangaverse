@@ -108,6 +108,40 @@ vi.mock('@app/design-system', async () => {
     SheetTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
     Input: (props: Record<string, unknown>) => <input {...(props as object)} />,
     Slider: (props: Record<string, unknown>) => <input type="range" {...(props as object)} />,
+    // The sketch and the back pill as plain markup: enough to find them and drive them.
+    PanelSketch: ({ seed, animate = true, revealed = false }: Record<string, unknown>) => (
+      <div
+        data-panel-sketch={String(seed)}
+        data-animate={String(animate)}
+        data-revealed={String(revealed)}
+        aria-hidden="true"
+      />
+    ),
+    ReaderBackPill: ({
+      label,
+      variant = 'pill',
+      onClick,
+    }: {
+      label?: string;
+      variant?: string;
+      onClick?: () => void;
+    }) => (
+      <button
+        type="button"
+        aria-label={
+          variant === 'round' || label === undefined || label === ''
+            ? 'Close reader'
+            : `${label}, close reader`
+        }
+        data-variant={label === undefined || label === '' ? 'round' : variant}
+        onClick={onClick}
+      >
+        {variant === 'round' ? null : label}
+      </button>
+    ),
+    readingLabel: (series: string | undefined, chapter: string | undefined) =>
+      [series, chapter].filter((part) => part !== undefined && part !== '').join(' · ') ||
+      undefined,
     useStateReducer: (reducer: (state: unknown, event: unknown) => unknown, initial: unknown) =>
       useReducer(reducer as never, initial),
   };

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Button, cn } from '@app/design-system';
 import type { ChapterId, MangaId, ProviderId } from '@app/shared';
 
@@ -26,6 +27,13 @@ export interface CachedPageImageProps {
    * A still muted fill when absent.
    */
   readonly placeholderClassName?: string;
+  /**
+   * Drawn over the page until it arrives and while it settles in: `ready` turns true the moment
+   * the image has a source, so the overlay can dissolve into it. It keeps its place across that
+   * change (no remount) and is dropped if the page fails, so the Retry controls stay clear. The
+   * caller's parent must be positioned.
+   */
+  readonly renderPlaceholder?: ((ready: boolean) => ReactNode) | undefined;
   readonly retention?: 'read' | 'normal';
   readonly imageRendering?: 'auto' | 'pixelated';
   /**
@@ -49,6 +57,7 @@ export function CachedPageImage({
   alt = '',
   className,
   placeholderClassName = 'bg-muted/80',
+  renderPlaceholder,
   retention = 'read',
   imageRendering,
   maxDisplayEdge,
@@ -82,33 +91,42 @@ export function CachedPageImage({
     );
   }
 
-  if (context === null || src === undefined) {
+  const ready = context !== null && src !== undefined;
+  // The same position in both branches, so the overlay survives the placeholder becoming the image.
+  const overlay = renderPlaceholder?.(ready) ?? null;
+  if (!ready) {
     return (
-      <div
-        className={cn(placeholderClassName, className)}
-        aria-hidden={alt === ''}
-        role={alt === '' ? undefined : 'img'}
-        aria-label={alt === '' ? undefined : alt}
-      />
+      <>
+        <div
+          className={cn(placeholderClassName, className)}
+          aria-hidden={alt === ''}
+          role={alt === '' ? undefined : 'img'}
+          aria-label={alt === '' ? undefined : alt}
+        />
+        {overlay}
+      </>
     );
   }
 
   return (
-    <img
-      src={src}
-      alt={alt}
-      // oxlint-disable-next-line shadcn/no-unknown-classes -- image-pixelated is declared with @utility in design-system globals.css; package lint misses @utility classes.
-      className={cn(className, imageRendering === 'pixelated' && 'image-pixelated')}
-      draggable={false}
-      onError={reportFailed}
-      onLoad={(event) => {
-        onLoad?.({
-          width: event.currentTarget.naturalWidth,
-          height: event.currentTarget.naturalHeight,
-        });
-        reportLoaded();
-      }}
-    />
+    <>
+      <img
+        src={src}
+        alt={alt}
+        // oxlint-disable-next-line shadcn/no-unknown-classes -- image-pixelated is declared with @utility in design-system globals.css; package lint misses @utility classes.
+        className={cn(className, imageRendering === 'pixelated' && 'image-pixelated')}
+        draggable={false}
+        onError={reportFailed}
+        onLoad={(event) => {
+          onLoad?.({
+            width: event.currentTarget.naturalWidth,
+            height: event.currentTarget.naturalHeight,
+          });
+          reportLoaded();
+        }}
+      />
+      {overlay}
+    </>
   );
 }
 

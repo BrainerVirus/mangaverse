@@ -69,6 +69,7 @@
   --color-stage-muted-foreground: var(--stage-muted-foreground);
   --color-stage-selected: var(--stage-selected);
   --color-stage-selected-foreground: var(--stage-selected-foreground);
+  --color-stage-ink: var(--stage-ink);
   --color-ambient-1: var(--ambient-1);
   --color-ambient-2: var(--ambient-2);
   --color-sidebar: var(--sidebar);
@@ -164,6 +165,13 @@
   --stage-muted-foreground: rgb(255 255 255 / 0.7);
   --stage-selected: #ffffff;
   --stage-selected-foreground: #000000;
+  /* Ink drawn on the reading stage itself (the page-placeholder sketch). The stage colour is the
+     reader's own setting, so the stage marks itself light or dark and the ink follows. */
+  --stage-ink: var(--stage-foreground);
+}
+
+[data-stage-tone="light"] {
+  --stage-ink: #141210;
 }
 
 .dark {

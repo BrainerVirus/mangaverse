@@ -1,13 +1,6 @@
 import { useRef, useCallback, type ReactNode } from 'react';
 import { useGSAP } from '@gsap/react';
-import {
-  ArrowLeft,
-  Maximize2,
-  MoreHorizontal,
-  Settings,
-  SkipBack,
-  SkipForward,
-} from 'lucide-react';
+import { Maximize2, MoreHorizontal, Settings, SkipBack, SkipForward } from 'lucide-react';
 import { cn } from '../lib/cn.js';
 import { chromeShow, chromeHide, readerModePill } from '../motion/index.js';
 import { useReducedMotion } from '../motion/index.js';
@@ -15,12 +8,16 @@ import { Button } from './ui/button.js';
 import { ReaderProgressRail } from './reader-progress-rail.js';
 import { Badge } from './ui/badge.js';
 import { GlassSurface } from './glass-surface.js';
+import { ReaderBackPill } from './reader-back-pill.js';
+import { readingLabel } from './reading-label.js';
 
 export type ReaderMode = 'single' | 'double' | 'scroll' | 'webtoon';
 
 export interface ReaderChromeProps {
   visible: boolean;
   chapterTitle?: string;
+  /** The series, shown before the chapter in the back pill. */
+  seriesTitle?: string | undefined;
   /** Provider display name shown as quiet attribution beside the chapter title. */
   sourceName?: string;
   currentPage: number;
@@ -50,6 +47,7 @@ const readerModes: { value: ReaderMode; label: string }[] = [
 export function ReaderChrome({
   visible,
   chapterTitle,
+  seriesTitle,
   sourceName,
   currentPage,
   totalPages,
@@ -150,23 +148,22 @@ export function ReaderChrome({
           data-glass-plate=""
           className="glass-plate pointer-events-none absolute inset-0 -z-10"
         />
-        <div className="flex min-w-0 flex-1 items-center gap-2">
+        {/*
+          The back pill carries what is being read; without a way out the title stands alone. The
+          group sits at the top of the row (not centred against the taller mode switcher), so the
+          pill is where the pending header and the hidden-chrome exit put it and never moves when
+          the chrome toggles. From `sm`, where the controls share this row, its end keeps room for
+          the pill's tooltip, which opens to the right: it lands on the title's meta, never on the
+          controls beyond it. Below `sm` the controls take a row of their own.
+        */}
+        <div className="flex min-w-0 flex-1 items-center gap-2 self-start sm:pr-44">
           {onClose ? (
-            <Button
-              size="icon"
-              variant="ghost"
-              className="shrink-0 text-stage-foreground"
-              aria-label="Close reader"
-              onClick={onClose}
-            >
-              <ArrowLeft />
-            </Button>
-          ) : null}
-          {chapterTitle && (
+            <ReaderBackPill label={readingLabel(seriesTitle, chapterTitle)} onClick={onClose} />
+          ) : chapterTitle ? (
             <span className="min-w-0 truncate text-sm font-medium text-stage-foreground">
               {chapterTitle}
             </span>
-          )}
+          ) : null}
           {sourceName ? (
             <span
               className="type-meta min-w-0 truncate text-stage-muted-foreground"
