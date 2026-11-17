@@ -29,7 +29,7 @@ vi.mock('@app/cache', () => ({
 }));
 
 vi.mock('@app/design-system', async () => {
-  const { useReducer } = await import('react');
+  const { useId, useReducer } = await import('react');
   return {
     Button: ({ children, ...props }: { children?: ReactNode } & Record<string, unknown>) => (
       <button {...props}>{children}</button>
@@ -80,20 +80,29 @@ vi.mock('@app/design-system', async () => {
       label?: string;
       variant?: string;
       onClick?: () => void;
-    }) => (
-      <button
-        type="button"
-        aria-label={
-          variant === 'round' || label === undefined || label === ''
-            ? 'Close reader'
-            : `${label}, close reader`
-        }
-        data-variant={label === undefined || label === '' ? 'round' : variant}
-        onClick={onClick}
-      >
-        {variant === 'round' ? null : label}
-      </button>
-    ),
+    }) => {
+      const round = variant === 'round' || label === undefined || label === '';
+      const descriptionId = useId();
+      return (
+        /* The pill's GlassSurface wrapper, so the header sees one child as it does in the app. */
+        <div>
+          <button
+            type="button"
+            aria-label={round ? 'Close reader' : undefined}
+            aria-describedby={round ? undefined : descriptionId}
+            data-variant={round ? 'round' : variant}
+            onClick={onClick}
+          >
+            {round ? null : label}
+          </button>
+          {round ? null : (
+            <span id={descriptionId} className="sr-only">
+              Closes the reader
+            </span>
+          )}
+        </div>
+      );
+    },
     readingLabel: (series: string | undefined, chapter: string | undefined) =>
       [series, chapter].filter((part) => part !== undefined && part !== '').join(' · ') ||
       undefined,
@@ -203,7 +212,7 @@ function renderScreen(overrides: Partial<ComponentProps<typeof ReaderScreen>> = 
 }
 
 function buttonNamed(container: HTMLElement, name: string): HTMLButtonElement | undefined {
-  // The accessible name: an aria-label (the back pill's "Close reader") wins over the text.
+  // The accessible name: an aria-label (the round exit's "Close reader") wins over the text.
   return [...container.querySelectorAll('button')].find(
     (button) => (button.getAttribute('aria-label') ?? button.textContent) === name,
   ) as HTMLButtonElement | undefined;

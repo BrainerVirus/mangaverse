@@ -7,16 +7,20 @@ import { readingLabel } from '../components/reading-label.js';
 describe('ReaderBackPill', () => {
   afterEach(cleanup);
 
-  it('Given what is being read, Then the pill shows it after a chevron and its name starts with that visible text', () => {
+  it('Given what is being read, Then the pill shows it after a chevron and its name is that visible text alone', () => {
     render(<ReaderBackPill label="Kuro no Shoukanshi · Ch. 1" onClick={() => {}} />);
-    // Label in name (WCAG 2.5.3): saying what is on screen operates the pill.
-    const button = screen.getByRole('button', {
-      name: 'Kuro no Shoukanshi · Ch. 1, close reader',
-    });
+    const button = screen.getByRole('button', { name: 'Kuro no Shoukanshi · Ch. 1' });
     expect(button).toHaveTextContent('Kuro no Shoukanshi · Ch. 1');
-    expect(button.getAttribute('aria-label')).toContain(button.textContent ?? '');
+    expect(button).not.toHaveAttribute('aria-label');
     expect(button.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
     expect(button).toHaveAttribute('data-variant', 'pill');
+  });
+
+  it('Given the pill, Then its accessible name equals its visible text and its description says what it does', () => {
+    render(<ReaderBackPill label="Kuro no Shoukanshi · Ch. 1 - The Summoner" />);
+    const button = screen.getByRole('button');
+    expect(button).toHaveAccessibleName(button.textContent ?? '');
+    expect(button).toHaveAccessibleDescription('Closes the reader');
   });
 
   it('Given a long title, Then the label truncates inside a bounded pill instead of pushing the controls', () => {
@@ -24,9 +28,7 @@ describe('ReaderBackPill', () => {
     const label = screen.getByText(/A very long series title/);
     expect(label.className).toContain('truncate');
     expect(label.className).toContain('min-w-0');
-    const anchor = screen
-      .getByRole('button', { name: /close reader/i })
-      .closest('[data-glass-tier]');
+    const anchor = screen.getByRole('button').closest('[data-glass-tier]');
     expect(anchor?.className).toContain('max-w-md');
     expect(anchor?.className).toContain('min-w-0');
   });
@@ -64,7 +66,7 @@ describe('ReaderBackPill', () => {
     const onClick = vi.fn<() => void>();
     render(<ReaderBackPill label="Ch. 1" onClick={onClick} />);
     await user.tab();
-    const button = screen.getByRole('button', { name: /close reader/i });
+    const button = screen.getByRole('button', { description: 'Closes the reader' });
     expect(button).toHaveFocus();
     expect(button.className).toContain('focus-visible:ring-2');
     await user.keyboard('{Enter}');

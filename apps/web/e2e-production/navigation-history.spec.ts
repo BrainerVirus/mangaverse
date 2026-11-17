@@ -51,7 +51,7 @@ for (const width of [390, 1440]) {
       const reader = await index(page);
       expect(reader.index).toBe(start.index + 2);
       await showReaderControls(page);
-      await page.getByRole('button', { name: /, close reader$/i }).click();
+      await page.getByRole('button', { description: 'Closes the reader' }).click();
       await expect(page).toHaveURL(/\/manga\//);
       expect(await index(page)).toEqual({ index: start.index + 1, length: reader.length });
       await page.getByRole('button', { name: 'Back', exact: true }).first().click();
@@ -140,7 +140,7 @@ test('next and previous chapters replace the same reader session entry', async (
   await expect(page.getByTestId('reader-page-number')).toBeAttached({ timeout: 30_000 });
   expect(await index(page)).toEqual(before);
   await showReaderControls(page);
-  await page.getByRole('button', { name: /, close reader$/i }).click();
+  await page.getByRole('button', { description: 'Closes the reader' }).click();
   await expect(page).toHaveURL(/\/manga\//);
   expect(await index(page)).toEqual({ index: before.index - 1, length: before.length });
 });

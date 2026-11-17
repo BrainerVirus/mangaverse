@@ -55,7 +55,8 @@ describe('ReaderChrome', () => {
       />,
     );
     const back = screen.getByRole('button', {
-      name: 'Kuro no Shoukanshi · Ch. 1 - The Summoner, close reader',
+      name: 'Kuro no Shoukanshi · Ch. 1 - The Summoner',
+      description: 'Closes the reader',
     });
     expect(back).toHaveAttribute('data-variant', 'pill');
     // Top of the row, where the pending header and the hidden-chrome exit put the pill too.

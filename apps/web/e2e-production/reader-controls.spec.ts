@@ -261,7 +261,7 @@ test('Given the reader chrome, When each control is clicked, Then the page does 
   await chromeStillOpen();
 
   // The back pill, title and all, is the one chrome control whose job is to leave the reader.
-  await toolbar.getByRole('button', { name: /, close reader$/i }).click();
+  await toolbar.getByRole('button', { description: 'Closes the reader' }).click();
   await expect(page).not.toHaveURL(/\/reader\//);
   await expect(toolbar).toHaveCount(0);
 });

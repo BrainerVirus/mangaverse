@@ -211,11 +211,13 @@ test('mobile chrome fits and chapter end offers a next chapter and a return path
   );
 
   await openReader(page);
-  // The back pill is named for what it shows: "<series · chapter>, close reader".
-  for (const name of [/, close reader$/i, 'Settings', 'Maximize']) {
-    const button = (await page
-      .getByRole('button', typeof name === 'string' ? { name, exact: true } : { name })
-      .boundingBox())!;
+  // The back pill is named for what it shows ("<series · chapter>") and described "Closes the reader".
+  for (const locator of [
+    page.getByRole('button', { description: 'Closes the reader' }),
+    page.getByRole('button', { name: 'Settings', exact: true }),
+    page.getByRole('button', { name: 'Maximize', exact: true }),
+  ]) {
+    const button = (await locator.boundingBox())!;
     expect(button.x).toBeGreaterThanOrEqual(0);
     expect(button.x + button.width).toBeLessThanOrEqual(390);
   }
@@ -253,7 +255,7 @@ test('mobile chrome fits and chapter end offers a next chapter and a return path
   await expect(page.getByText('37 / 37')).toBeVisible({ timeout: 30_000 });
   await showReaderControls(page);
 
-  await page.getByRole('button', { name: /, close reader$/i }).click();
+  await page.getByRole('button', { description: 'Closes the reader' }).click();
   await expect(page).toHaveURL(new RegExp(`/manga/${MANGADEX_APP_MANGA_ID}`));
 });
 

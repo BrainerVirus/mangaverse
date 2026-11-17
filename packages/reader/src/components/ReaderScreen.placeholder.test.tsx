@@ -30,7 +30,7 @@ vi.mock('@app/cache', () => ({
 }));
 
 vi.mock('@app/design-system', async () => {
-  const { useReducer } = await import('react');
+  const { useId, useReducer } = await import('react');
   return {
     Button: ({ children, ...props }: { children?: ReactNode } & Record<string, unknown>) => (
       <button {...props}>{children}</button>
@@ -62,20 +62,29 @@ vi.mock('@app/design-system', async () => {
       label?: string;
       variant?: string;
       onClick?: () => void;
-    }) => (
-      <button
-        type="button"
-        aria-label={
-          variant === 'round' || label === undefined || label === ''
-            ? 'Close reader'
-            : `${label}, close reader`
-        }
-        data-variant={label === undefined || label === '' ? 'round' : variant}
-        onClick={onClick}
-      >
-        {variant === 'round' ? null : label}
-      </button>
-    ),
+    }) => {
+      const round = variant === 'round' || label === undefined || label === '';
+      const descriptionId = useId();
+      return (
+        /* The pill's GlassSurface wrapper, so the header sees one child as it does in the app. */
+        <div>
+          <button
+            type="button"
+            aria-label={round ? 'Close reader' : undefined}
+            aria-describedby={round ? undefined : descriptionId}
+            data-variant={round ? 'round' : variant}
+            onClick={onClick}
+          >
+            {round ? null : label}
+          </button>
+          {round ? null : (
+            <span id={descriptionId} className="sr-only">
+              Closes the reader
+            </span>
+          )}
+        </div>
+      );
+    },
     readingLabel: (series: string | undefined, chapter: string | undefined) =>
       [series, chapter].filter((part) => part !== undefined && part !== '').join(' · ') ||
       undefined,
@@ -663,9 +672,18 @@ describe('ReaderScreen top controls and the desktop title bar', () => {
   // in fullscreen. A viewport-relative `top-*` would put the control under the strip.
   const VIEWPORT_TOP = /(^|\s)top-\d/;
 
+  /** What a button says it does: the text its aria-describedby points at. */
+  function describedText(button: HTMLButtonElement, container: HTMLElement): string | null {
+    const id = button.getAttribute('aria-describedby');
+    if (id === null) return null;
+    return container.querySelector(`[id="${id}"]`)?.textContent ?? null;
+  }
+
   function closeButtons(container: HTMLElement): HTMLButtonElement[] {
-    return [...container.querySelectorAll('button')].filter((button) =>
-      /close reader$/i.test(button.getAttribute('aria-label') ?? ''),
+    return [...container.querySelectorAll('button')].filter(
+      (button) =>
+        describedText(button, container) === 'Closes the reader' ||
+        button.getAttribute('aria-label') === 'Close reader',
     );
   }
 
@@ -690,12 +708,14 @@ describe('ReaderScreen top controls and the desktop title bar', () => {
       const [close, ...others] = closeButtons(container);
       expect(others).toHaveLength(0);
       const header = container.querySelector('[data-testid="reader-stage-header"]');
-      expect(close?.parentElement).toBe(header);
+      // In the header, inside the pill's own wrapper: the title is not a sibling control.
+      expect(close?.closest('[data-testid="reader-stage-header"]')).toBe(header);
       // The title lives inside the pill (which truncates it), not beside it.
       expect(close?.getAttribute('data-variant')).toBe('pill');
       expect(close?.textContent).toBe('Chapter 1');
-      // Its name starts with the visible title (label in name).
-      expect(close?.getAttribute('aria-label')).toBe('Chapter 1, close reader');
+      // Its name is the visible title; what it does is the description.
+      expect(close?.hasAttribute('aria-label')).toBe(false);
+      expect(close && describedText(close, container)).toBe('Closes the reader');
       expect(header?.children).toHaveLength(1);
       expect(header?.className).not.toMatch(/(^|\s)fixed(\s|$)/);
     },
@@ -713,7 +733,7 @@ describe('ReaderScreen top controls and the desktop title bar', () => {
       />,
     );
     const [close] = closeButtons(container);
-    expect(close?.parentElement?.getAttribute('data-testid')).toBe('reader-stage-header');
+    expect(close?.closest('[data-testid="reader-stage-header"]')).not.toBeNull();
   });
 
   it('Given a gate with no header, When it renders, Then the round back button floats below the title bar', () => {
@@ -729,8 +749,8 @@ describe('ReaderScreen top controls and the desktop title bar', () => {
     );
     const [close] = closeButtons(container);
     expect(close?.getAttribute('data-variant')).toBe('round');
-    const anchor = close?.parentElement;
-    expect(anchor?.getAttribute('data-testid')).toBe('reader-exit');
+    const anchor = close?.closest('[data-testid="reader-exit"]');
+    expect(anchor).not.toBeNull();
     expect(anchor?.className).toContain('below-title-bar');
     expect(anchor?.className).toContain('fixed');
     expect(anchor?.className).not.toMatch(VIEWPORT_TOP);
@@ -749,8 +769,8 @@ describe('ReaderScreen top controls and the desktop title bar', () => {
     );
     const [close] = closeButtons(container);
     expect(close?.getAttribute('data-variant')).toBe('round');
-    const anchor = close?.parentElement;
-    expect(anchor?.getAttribute('data-testid')).toBe('reader-exit');
+    const anchor = close?.closest('[data-testid="reader-exit"]');
+    expect(anchor).not.toBeNull();
     expect(anchor?.className).toContain('below-title-bar');
     expect(anchor?.className).not.toMatch(VIEWPORT_TOP);
     // The pending header's row: 1rem in and 0.75rem down from the surface top.

@@ -192,7 +192,7 @@ test('the reader top controls start below the title bar, and at the window edge 
   // so toggling the chrome never moves it.
   const chromePill = page
     .getByRole('toolbar', { name: 'Reader controls' })
-    .getByRole('button', { name: /, close reader$/i });
+    .getByRole('button', { description: 'Closes the reader' });
   await expect.poll(async () => (await chromePill.boundingBox())?.y).toBe(pendingClose.top);
   expect((await chromePill.boundingBox())?.x).toBe(pendingClose.left);
   expect((await chromePill.boundingBox())?.height).toBe(pendingClose.bottom - pendingClose.top);

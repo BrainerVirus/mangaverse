@@ -33,7 +33,7 @@ vi.mock('@app/design-system/motion', () => ({
 }));
 
 vi.mock('@app/design-system', async () => {
-  const { useReducer } = await import('react');
+  const { useId, useReducer } = await import('react');
   return {
     Button: ({ children, ...props }: { children?: ReactNode } & Record<string, unknown>) => (
       <button {...(props as object)}>{children}</button>
@@ -96,20 +96,29 @@ vi.mock('@app/design-system', async () => {
       label?: string;
       variant?: string;
       onClick?: () => void;
-    }) => (
-      <button
-        type="button"
-        aria-label={
-          variant === 'round' || label === undefined || label === ''
-            ? 'Close reader'
-            : `${label}, close reader`
-        }
-        data-variant={label === undefined || label === '' ? 'round' : variant}
-        onClick={onClick}
-      >
-        {variant === 'round' ? null : label}
-      </button>
-    ),
+    }) => {
+      const round = variant === 'round' || label === undefined || label === '';
+      const descriptionId = useId();
+      return (
+        /* The pill's GlassSurface wrapper, so the header sees one child as it does in the app. */
+        <div>
+          <button
+            type="button"
+            aria-label={round ? 'Close reader' : undefined}
+            aria-describedby={round ? undefined : descriptionId}
+            data-variant={round ? 'round' : variant}
+            onClick={onClick}
+          >
+            {round ? null : label}
+          </button>
+          {round ? null : (
+            <span id={descriptionId} className="sr-only">
+              Closes the reader
+            </span>
+          )}
+        </div>
+      );
+    },
     readingLabel: (series: string | undefined, chapter: string | undefined) =>
       [series, chapter].filter((part) => part !== undefined && part !== '').join(' · ') ||
       undefined,
