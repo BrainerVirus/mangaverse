@@ -10,6 +10,10 @@ published on a schedule.
 | Nightly | `.github/workflows/nightly.yml`, daily at 04:17 UTC or manual dispatch from `main` | next patch + `-nightly.YYYYMMDD.<run>`, e.g. `0.0.4-nightly.20261108.12` / `v0.0.4-nightly.20261108.12` | pre-release, not latest |
 | Stable  | `.github/workflows/release.yml` on a `vX.Y.Z` tag                                  | `X.Y.Z` / `vX.Y.Z`                                                                                      | pre-release             |
 
+The daily nightly only publishes when `main` moved: if the newest nightly tag still points at the
+current `main` commit, the run is skipped, finishes green and says so in its summary; dispatch the
+workflow with `force` to publish anyway.
+
 The stable channel means the newest tag that is not a nightly. Every release so far is published
 as a GitHub pre-release, so the scripts list releases and filter instead of using
 `/releases/latest`, which ignores pre-releases.
