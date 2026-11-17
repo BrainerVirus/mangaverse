@@ -126,6 +126,8 @@ const LANDSCAPE = { width: 1280, height: 800 } as const;
 const PORTRAIT = { width: 800, height: 1280 } as const;
 
 const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+const originalOffsetTop = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetTop');
+const originalScrollTop = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollTop');
 const originalClientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
 
 beforeAll(() => {
@@ -137,6 +139,24 @@ beforeAll(() => {
     configurable: true,
     get: () => viewport.height,
   });
+  // jsdom has no layout: a strip row's offset is its absolute `top`, as a browser reports it.
+  Object.defineProperty(HTMLElement.prototype, 'offsetTop', {
+    configurable: true,
+    get(this: HTMLElement) {
+      return Number.parseFloat(this.style.top) || 0;
+    },
+  });
+  // jsdom ignores scroll offsets; keep them, so a resumed strip's scroll position is readable.
+  const scrollTops = new WeakMap<Element, number>();
+  Object.defineProperty(Element.prototype, 'scrollTop', {
+    configurable: true,
+    get(this: Element) {
+      return scrollTops.get(this) ?? 0;
+    },
+    set(this: Element, value: number) {
+      scrollTops.set(this, value);
+    },
+  });
 });
 
 afterAll(() => {
@@ -145,6 +165,10 @@ afterAll(() => {
   }
   if (originalClientHeight) {
     Object.defineProperty(HTMLElement.prototype, 'clientHeight', originalClientHeight);
+  }
+  if (originalScrollTop) Object.defineProperty(Element.prototype, 'scrollTop', originalScrollTop);
+  if (originalOffsetTop) {
+    Object.defineProperty(HTMLElement.prototype, 'offsetTop', originalOffsetTop);
   }
 });
 
@@ -179,7 +203,49 @@ function buildData(
 interface Box {
   readonly width: string;
   readonly height: string;
+  /**
+   * Where the box sits, as far as jsdom can tell without layout: its own offset styles, its place
+   * among its siblings, and every positioning ancestor up to the stage (classes, the zoom
+   * transform, widths and offsets). Equal placements lay out at the same spot.
+   */
+  readonly placement: string;
 }
+
+const POSITION_STYLES = [
+  'top',
+  'left',
+  'right',
+  'transform',
+  'transform-origin',
+  'width',
+  'margin',
+];
+
+function positionStyles(element: HTMLElement): string {
+  return POSITION_STYLES.map((name) => element.style.getPropertyValue(name)).join(';');
+}
+
+function placement(element: HTMLElement): string {
+  // A strip row's place on screen is its offset less the strip's scroll: a resumed chapter lays
+  // the row further down and opens scrolled to it. A paged box's place is its slot in the spread.
+  const scroller = element.closest<HTMLElement>('[data-testid="reader-scroll-view"]');
+  const slot =
+    scroller === null
+      ? `slot ${[...(element.parentElement?.children ?? [])].indexOf(element)}`
+      : `y ${Number.parseFloat(element.style.top || '0') - scroller.scrollTop}`;
+  const own = `${slot}:${element.style.left}:${element.className.includes('left-1/2') ? 'centred' : 'start'}`;
+  const chain: string[] = [];
+  for (
+    let node = element.parentElement;
+    node !== null && !['reader-hydrating', 'reader-surface'].includes(node.dataset['testid'] ?? '');
+    node = node.parentElement
+  ) {
+    chain.push(`${node.tagName}.${node.className}{${positionStyles(node)}}`);
+  }
+  return [own, ...chain].join(' < ');
+}
+
+const size = ({ width, height }: Box) => ({ width, height });
 
 let mounted: { root: Root; container: HTMLElement } | undefined;
 
@@ -228,14 +294,14 @@ function screen(
 
 function pagedBoxes(container: HTMLElement): Box[] {
   return [...container.querySelectorAll<HTMLElement>('[data-testid="reader-page-box"]')].map(
-    (box) => ({ width: box.style.width, height: box.style.height }),
+    (box) => ({ width: box.style.width, height: box.style.height, placement: placement(box) }),
   );
 }
 
 function stripRow(container: HTMLElement, index: number): Box {
   const row = container.querySelector<HTMLElement>(`[data-page-index="${index}"]`);
   if (row === null) throw new Error(`strip row ${index} did not render`);
-  return { width: row.style.width, height: row.style.height };
+  return { width: row.style.width, height: row.style.height, placement: placement(row) };
 }
 
 /**
@@ -299,7 +365,7 @@ describe('ReaderScreen page placeholder geometry', () => {
       { viewport: LANDSCAPE },
     );
     // Contain: the 800px surface minus the 96 + 48 chrome insets, at 2:3.
-    expect(pending).toEqual([{ width: `${(656 * 2) / 3}px`, height: '656px' }]);
+    expect(pending.map(size)).toEqual([{ width: `${(656 * 2) / 3}px`, height: '656px' }]);
   });
 
   it.each([
@@ -335,6 +401,48 @@ describe('ReaderScreen page placeholder geometry', () => {
     expect(pending).toEqual(loaded);
   });
 
+  it.each([
+    ['single', 'contain'],
+    ['double', 'width'],
+  ] as const)(
+    'Given %s pages fit to %s that landed still loading, When the reader zooms, Then the placeholders scale with the zoom layer and keep the pending size and slot',
+    (pageLayout, fitMode) => {
+      const { pending, container } = openChapter(
+        { readingMode: 'ltr', pageLayout, spreadOffset: 1, fitMode },
+        { viewport: LANDSCAPE },
+      );
+      const surface = container.querySelector<HTMLElement>('[data-testid="reader-surface"]');
+      const layer = container.querySelector<HTMLElement>('[data-testid="reader-zoom-layer"]');
+      if (surface === null || layer === null) throw new Error('the reader did not render');
+      const rect = { left: 0, top: 0, right: 1280, bottom: 800, width: 1280, height: 800 };
+      Object.defineProperty(surface, 'getBoundingClientRect', { value: () => rect });
+      Object.defineProperty(layer, 'getBoundingClientRect', { value: () => rect });
+      const tap = (pointerId: number) => {
+        for (const type of ['pointerdown', 'pointerup'] as const) {
+          const event = new Event(type, { bubbles: true, cancelable: true });
+          Object.assign(event, { pointerId, clientX: 640, clientY: 400 });
+          act(() => {
+            layer.dispatchEvent(event);
+          });
+        }
+      };
+      tap(1);
+      tap(2);
+      expect(layer.style.transform).toContain('scale(1.5)');
+
+      const zoomed = pagedBoxes(container);
+      // The zoom is the layer's transform: every box keeps its unzoomed size and slot, so the
+      // placeholder and the page that replaces it are still one box under the zoom.
+      expect(zoomed.map(size)).toEqual(pending.map(size));
+      const unzoom = (box: Box) => box.placement.replace(/translate\([^)]*\) scale\([^)]*\)/, '');
+      expect(zoomed.map(unzoom)).toEqual(pending.map(unzoom));
+      expect(zoomed[0]?.placement).toContain('scale(1.5)');
+      for (const box of container.querySelectorAll('[data-testid="reader-page-box"]')) {
+        expect(box.closest('[data-testid="reader-zoom-layer"]')).toBe(layer);
+      }
+    },
+  );
+
   it('Given a double layout resuming mid-chapter, When the pages land, Then the placeholder spread was the resumed spread', () => {
     const { pending, loaded } = openChapter(
       { readingMode: 'ltr', pageLayout: 'double', spreadOffset: 0, fitMode: 'height' },
@@ -358,7 +466,7 @@ describe('ReaderScreen page placeholder geometry', () => {
       );
       expect(pending).toEqual(loaded);
       // The chrome never resizes the page: a centre tap must not move it.
-      expect(pending).toEqual([
+      expect(pending.map(size)).toEqual([
         { width: `${(656 * 2) / 3}px`, height: '656px' },
         { width: `${(656 * 2) / 3}px`, height: '656px' },
       ]);
@@ -389,7 +497,7 @@ describe('ReaderScreen page placeholder geometry', () => {
       { viewport: LANDSCAPE },
     );
     // Auto bounds the strip to 70% from 1024px up; the row is that column at 2:3.
-    expect(pending).toEqual([{ width: '896px', height: '1344px' }]);
+    expect(pending.map(size)).toEqual([{ width: '896px', height: '1344px' }]);
   });
 
   it('Given a strip resuming mid-chapter, When the pages land, Then the placeholder row was the resumed page row', () => {

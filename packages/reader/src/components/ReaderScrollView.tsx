@@ -9,7 +9,7 @@ import { tailSpacerPx, useChapterEndThreshold } from './use-chapter-end-threshol
 import { useScrollActivity } from './use-scroll-activity.js';
 import { resolveStripWindows } from './strip-windows.js';
 import { pageSketchSeed, READER_PAGE_PLATE_CLASS } from './page-placeholder.js';
-import type { VisibleRange } from './use-scroll-activity.js';
+import { pageScreenBounds, type ScreenSpan } from './use-scroll-activity.js';
 import {
   computeScrollPageMetrics,
   hasPageShape,
@@ -19,6 +19,7 @@ import {
   STRIP_TILE_HEIGHT_PX,
   resolveStripMaxWidthPercent,
   resolveStripRowFit,
+  type PageTile,
   type ScrollPageMetric,
   type StripRowFit,
 } from '../scroll-layout.js';
@@ -177,8 +178,8 @@ interface ScrollContentProps {
   readonly mangaId: string;
   readonly chapterId: string;
   readonly imageSmoothing: boolean;
-  /** The rows the viewport shows: only their placeholders draw. */
-  readonly visibleRange: VisibleRange;
+  /** What the viewport shows, to the tile (`null` in a gap): only that draws. */
+  readonly screen: ScreenSpan | null;
   readonly tilingThresholdPx: number;
   readonly displayMaxEdgePx: number | undefined;
   readonly onSkipPage: (index: number) => void;
@@ -211,7 +212,7 @@ function ScrollContent({
   mangaId,
   chapterId,
   imageSmoothing,
-  visibleRange,
+  screen,
   tilingThresholdPx,
   displayMaxEdgePx,
   onSkipPage,
@@ -245,7 +246,8 @@ function ScrollContent({
             onSkipPage={onSkipPage}
             onBack={onBack}
             imageSmoothing={imageSmoothing}
-            onScreen={index >= visibleRange.start && index <= visibleRange.end}
+            screenFrom={pageScreenBounds(screen, index).from}
+            screenTo={pageScreenBounds(screen, index).to}
             tilingThresholdPx={tilingThresholdPx}
             displayMaxEdgePx={displayMaxEdgePx}
             onMeasured={onMeasured}
@@ -288,7 +290,8 @@ const ScrollPageRow = memo(function ScrollPageRow({
   onSkipPage,
   onBack,
   imageSmoothing,
-  onScreen,
+  screenFrom,
+  screenTo,
   tilingThresholdPx,
   displayMaxEdgePx,
   onMeasured,
@@ -308,8 +311,12 @@ const ScrollPageRow = memo(function ScrollPageRow({
   readonly onSkipPage?: ((index: number) => void) | undefined;
   readonly onBack?: (() => void) | undefined;
   readonly imageSmoothing: boolean;
-  /** The row overlaps the viewport: its placeholder sketch draws, an off-screen one holds still. */
-  readonly onScreen: boolean;
+  /**
+   * The page-local part of the row on screen, `[screenFrom, screenTo)` (empty off screen). Each
+   * tile's sketch draws only while that tile overlaps it; the rest hold still.
+   */
+  readonly screenFrom: number;
+  readonly screenTo: number;
   readonly tilingThresholdPx: number;
   readonly displayMaxEdgePx: number | undefined;
   readonly onMeasured: (index: number, size: NaturalSize) => void;
@@ -335,12 +342,12 @@ const ScrollPageRow = memo(function ScrollPageRow({
         ? 'object-none'
         : 'object-contain';
   const tiles = planPageTiles(height, STRIP_TILE_HEIGHT_PX, tilingThresholdPx);
-  const sketch = (revealed: boolean) => (
+  const sketch = (tile: PageTile) => (revealed: boolean) => (
     <PanelSketch
       seed={pageSketchSeed(chapterId, page.index)}
       width={width}
       height={height}
-      animate={onScreen}
+      animate={tile.offset < screenTo && tile.offset + tile.height > screenFrom}
       revealed={revealed}
     />
   );
@@ -376,7 +383,7 @@ const ScrollPageRow = memo(function ScrollPageRow({
                 remoteUrl={page.image.url}
                 className={`h-full w-full select-none ${objectFitClass}`}
                 placeholderClassName={READER_PAGE_PLATE_CLASS}
-                renderPlaceholder={sketch}
+                renderPlaceholder={sketch(tile)}
                 retention="read"
                 imageRendering={imageSmoothing ? 'auto' : 'pixelated'}
                 maxDisplayEdge={displayMaxEdgePx}
@@ -391,7 +398,7 @@ const ScrollPageRow = memo(function ScrollPageRow({
               />
             ) : (
               <div className={`h-full w-full ${READER_PAGE_PLATE_CLASS}`} aria-hidden>
-                {sketch(false)}
+                {sketch(tile)(false)}
               </div>
             )}
           </div>
@@ -584,7 +591,7 @@ function useReaderScrollViewState({
     return () => observer.disconnect();
   }, [dispatchGeometry, nextChapterThresholdPercent]);
 
-  const { visibleRange, handleScroll, refreshRange } = useScrollActivity({
+  const { visibleRange, screen, handleScroll, refreshRange } = useScrollActivity({
     containerRef,
     geometryWidthRef: geometryRef,
     metricsRef,
@@ -593,6 +600,7 @@ function useReaderScrollViewState({
     measurePages,
     onActivePageChange,
     onFrame: chapterEnd.check,
+    tileHeight: STRIP_TILE_HEIGHT_PX,
   });
 
   // React commits are the only place a row can enter/leave the DOM; after each
@@ -713,7 +721,7 @@ function useReaderScrollViewState({
     effectiveSpacerPx,
     reportMeasured,
     skipPage,
-    visibleRange,
+    screen,
   };
 }
 
@@ -732,7 +740,7 @@ export function ReaderScrollView(props: ReaderScrollViewProps) {
     effectiveSpacerPx,
     reportMeasured,
     skipPage,
-    visibleRange,
+    screen,
   } = useReaderScrollViewState(props);
   const {
     pages,
@@ -774,7 +782,7 @@ export function ReaderScrollView(props: ReaderScrollViewProps) {
         mangaId={mangaId}
         chapterId={chapterId}
         imageSmoothing={imageSmoothing}
-        visibleRange={visibleRange}
+        screen={screen}
         tilingThresholdPx={tilingThresholdPx}
         displayMaxEdgePx={displayMaxEdgePx}
         onSkipPage={skipPage}

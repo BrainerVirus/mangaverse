@@ -15,9 +15,67 @@ describe('PanelSketch', () => {
   beforeEach(() => setInAppReducedMotionPreference(false));
   afterEach(() => {
     cleanup();
+    // Unmounting must have stopped everything the sketches started: nothing is cleared for them.
+    const leftover = gsap.globalTimeline.getChildren(true, true, true);
     vi.restoreAllMocks();
-    gsap.globalTimeline.clear();
     setInAppReducedMotionPreference(false);
+    gsap.globalTimeline.clear();
+    if (leftover.length > 0) {
+      throw new Error(`${leftover.length} GSAP animation(s) outlived the unmounted sketches`);
+    }
+  });
+
+  /** Tweens still driving any part of a sketch in `container` (its root, borders or tones). */
+  const tweensOn = (container: ParentNode) =>
+    [...container.querySelectorAll('[data-panel-sketch], [data-panel-sketch] path')].flatMap(
+      (node) => gsap.getTweensOf(node),
+    );
+
+  it('Given a drawing sketch, When it unmounts, Then no timeline or tween is left running', () => {
+    const { container, unmount } = render(
+      <PanelSketch seed="chapter-1:0" width={420} height={630} animate />,
+    );
+    const strokes = [...container.querySelectorAll('[data-sketch-stroke]')];
+    expect(loops()).toHaveLength(1);
+    expect(strokes.flatMap((stroke) => gsap.getTweensOf(stroke)).length).toBeGreaterThan(0);
+
+    unmount();
+    expect(loops()).toHaveLength(0);
+    expect(strokes.flatMap((stroke) => gsap.getTweensOf(stroke))).toHaveLength(0);
+    expect(gsap.globalTimeline.getChildren(true, true, true)).toHaveLength(0);
+  });
+
+  it('Given rapid page replacement, When a new page id lands several times quickly, Then only the current sketch draws and none leaks', () => {
+    const { container, rerender, unmount } = render(
+      <PanelSketch key="page-0" seed="chapter-1:0" width={420} height={630} animate />,
+    );
+    const replaced: Element[] = [];
+    for (let index = 1; index <= 6; index += 1) {
+      replaced.push(...container.querySelectorAll('[data-sketch-stroke]'));
+      // A new page id is a new sketch (as the reader keys rows by page id).
+      rerender(
+        <PanelSketch
+          key={`page-${index}`}
+          seed={`chapter-1:${index}`}
+          width={420 + index}
+          height={630}
+          animate
+        />,
+      );
+      expect(loops()).toHaveLength(1);
+    }
+    expect(replaced.flatMap((stroke) => gsap.getTweensOf(stroke))).toHaveLength(0);
+    expect(tweensOn(container).length).toBeGreaterThan(0);
+
+    // The same sketch resized as quickly: still one loop.
+    for (let width = 430; width < 436; width += 1) {
+      rerender(<PanelSketch key="page-6" seed="chapter-1:6" width={width} height={630} animate />);
+    }
+    expect(loops()).toHaveLength(1);
+
+    unmount();
+    expect(loops()).toHaveLength(0);
+    expect(gsap.globalTimeline.getChildren(true, true, true)).toHaveLength(0);
   });
 
   it('Given a page box, Then a decorative ink layout fills it without taking pointer events', () => {

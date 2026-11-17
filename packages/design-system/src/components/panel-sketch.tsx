@@ -52,8 +52,11 @@ export function PanelSketch({
     if (revealed) {
       const instant = reducedMotion || !shownRef.current || dissolvedRef.current;
       dissolvedRef.current = true;
-      panelSketchDissolve(root, { reducedMotion: instant });
-      return undefined;
+      const tween = panelSketchDissolve(root, { reducedMotion: instant });
+      // Killed, not reverted: the drawing must stay gone, but nothing may outlive the sketch.
+      return () => {
+        tween.kill();
+      };
     }
     shownRef.current = true;
     const timeline = panelSketchDraw(parts, {
