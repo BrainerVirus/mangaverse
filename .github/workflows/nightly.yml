@@ -1,5 +1,8 @@
-# Nightly desktop builds from main. Every run is a unique immutable tag and a
-# GitHub pre-release; stable releases remain manual tag releases from release.yml.
+# Nightly desktop builds from main. Every run that publishes is a unique immutable
+# tag and a GitHub pre-release; stable releases remain manual tag releases from
+# release.yml. A run is skipped, green and with nothing published, when main still
+# points at the commit of the newest nightly tag; dispatch with `force` to publish
+# anyway.
 #
 # No paid signing account: installers are unsigned/ad-hoc. The install scripts are
 # attached so first users and updates can use one interface per OS (install.sh /
@@ -11,6 +14,11 @@ on:
     # Daily at 04:17 UTC; avoid minute zero when GitHub scheduling is busiest.
     - cron: "17 4 * * *"
   workflow_dispatch:
+    inputs:
+      force:
+        description: Publish even if main has not changed since the last nightly
+        type: boolean
+        default: false
 
 concurrency:
   group: nightly
@@ -26,6 +34,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
+      skip: ${{ steps.changes.outputs.skip }}
       version: ${{ steps.meta.outputs.version }}
       tag: ${{ steps.meta.outputs.tag }}
       commit: ${{ steps.meta.outputs.commit }}
@@ -33,6 +42,49 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Check main for changes since the last nightly
+        id: changes
+        env:
+          FORCE: ${{ inputs.force || 'false' }}
+        run: |
+          set -euo pipefail
+          # Nightly tags are v<version>-nightly.<YYYYMMDD>.<run>, so version sort
+          # puts the newest last. A tag may be annotated: its `^{}` ref names the
+          # commit it points at, and a tag object must never be compared to a commit.
+          refs=$(git ls-remote --tags origin 'refs/tags/v*-nightly.*')
+          latest=$(
+            printf '%s\n' "$refs" |
+              awk '
+                {
+                  tag = $2
+                  sub("^refs/tags/", "", tag)
+                  peeled = (substr(tag, length(tag) - 2) == "^{}")
+                  if (peeled) tag = substr(tag, 1, length(tag) - 3)
+                  if (peeled || !(tag in commit)) commit[tag] = $1
+                }
+                END { for (tag in commit) print tag "\t" commit[tag] }
+              ' |
+              sort -V |
+              tail -n 1
+          )
+          latest_tag=${latest%%$'\t'*}
+          latest_commit=${latest#*$'\t'}
+          if [[ "$FORCE" == "true" ]]; then
+            skip=false
+            reason="Forced nightly: publishing without checking for changes."
+          elif [[ -z "$latest_tag" ]]; then
+            skip=false
+            reason="No previous nightly tag; publishing."
+          elif [[ "$latest_commit" == "${GITHUB_SHA:?}" ]]; then
+            skip=true
+            reason="No changes on main since $latest_tag (${latest_commit:0:7}); nothing published."
+          else
+            skip=false
+            reason="main moved past $latest_tag (${latest_commit:0:7} -> ${GITHUB_SHA:0:7}); publishing."
+          fi
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
+          echo "$reason"
+          echo "$reason" >> "$GITHUB_STEP_SUMMARY"
       - id: meta
         run: |
           set -euo pipefail
@@ -50,6 +102,7 @@ jobs:
   bundle:
     name: Build desktop bundle
     needs: prepare
+    if: needs.prepare.outputs.skip != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -80,6 +133,7 @@ jobs:
   package:
     name: Package (${{ matrix.id }})
     needs: [prepare, bundle]
+    if: needs.prepare.outputs.skip != 'true'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     permissions:
@@ -168,6 +222,7 @@ jobs:
   publish:
     name: Publish nightly pre-release
     needs: [prepare, package]
+    if: needs.prepare.outputs.skip != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
