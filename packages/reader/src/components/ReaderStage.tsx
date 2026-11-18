@@ -4,6 +4,7 @@ import type { CoverCacheContextValue } from '@app/cache';
 import type { ReaderPageMeasurement } from '../measured-page-shape.js';
 import type { PageFitInput } from '../page-fit.js';
 import type { ReaderPageData } from '../reader-page-data.js';
+import { readerStageTone } from '../stage-tone.js';
 import { calculateTapZones } from '../tap-zones.js';
 import type {
   ReaderNavigationAction,
@@ -84,6 +85,8 @@ export function ReaderStage({
       ref={containerRef}
       className="reader-stage-background relative h-full w-full overflow-hidden"
       style={{ '--reader-stage-color': data.settings.backgroundColor } as CSSProperties}
+      // Ink drawn on the stage itself (the page sketch) follows the stage colour.
+      data-stage-tone={readerStageTone(data.settings.backgroundColor)}
       onPointerUp={onPointerUp}
       data-testid="reader-surface"
     >

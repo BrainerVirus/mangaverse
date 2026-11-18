@@ -33,7 +33,7 @@ vi.mock('@app/design-system/motion', () => ({
 }));
 
 vi.mock('@app/design-system', async () => {
-  const { useReducer } = await import('react');
+  const { useId, useReducer } = await import('react');
   return {
     Button: ({ children, ...props }: { children?: ReactNode } & Record<string, unknown>) => (
       <button {...(props as object)}>{children}</button>
@@ -79,6 +79,49 @@ vi.mock('@app/design-system', async () => {
     SheetTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
     Input: (props: Record<string, unknown>) => <input {...(props as object)} />,
     Slider: (props: Record<string, unknown>) => <input type="range" {...(props as object)} />,
+    // The sketch and the back pill as plain markup: enough to find them and drive them.
+    PanelSketch: ({ seed, animate = true, revealed = false }: Record<string, unknown>) => (
+      <div
+        data-panel-sketch={String(seed)}
+        data-animate={String(animate)}
+        data-revealed={String(revealed)}
+        aria-hidden="true"
+      />
+    ),
+    ReaderBackPill: ({
+      label,
+      variant = 'pill',
+      onClick,
+    }: {
+      label?: string;
+      variant?: string;
+      onClick?: () => void;
+    }) => {
+      const round = variant === 'round' || label === undefined || label === '';
+      const descriptionId = useId();
+      return (
+        /* The pill's GlassSurface wrapper, so the header sees one child as it does in the app. */
+        <div>
+          <button
+            type="button"
+            aria-label={round ? 'Close reader' : undefined}
+            aria-describedby={round ? undefined : descriptionId}
+            data-variant={round ? 'round' : variant}
+            onClick={onClick}
+          >
+            {round ? null : label}
+          </button>
+          {round ? null : (
+            <span id={descriptionId} className="sr-only">
+              Closes the reader
+            </span>
+          )}
+        </div>
+      );
+    },
+    readingLabel: (series: string | undefined, chapter: string | undefined) =>
+      [series, chapter].filter((part) => part !== undefined && part !== '').join(' · ') ||
+      undefined,
     useStateReducer: (reducer: (state: unknown, event: unknown) => unknown, initial: unknown) =>
       useReducer(reducer as never, initial),
   };

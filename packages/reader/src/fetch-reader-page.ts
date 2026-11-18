@@ -11,6 +11,7 @@ export async function fetchReaderPage(
   const {
     getChapter,
     getChapterReadState,
+    getMangaIdentity,
     getTitleReaderSettingsLayers,
     listChaptersForManga,
     listInstalledExtensions,
@@ -22,12 +23,13 @@ export async function fetchReaderPage(
     return undefined;
   }
 
-  const [readState, layers, chapters, installed, titleTags] = await Promise.all([
+  const [readState, layers, chapters, installed, titleTags, identity] = await Promise.all([
     getChapterReadState(db, chapterId),
     getTitleReaderSettingsLayers(db, chapter.mangaId),
     listChaptersForManga(db, chapter.mangaId),
     listInstalledExtensions(db),
     listMangaTagLabels(db, chapter.mangaId),
+    getMangaIdentity(db, chapter.mangaId),
   ]);
   const { settings, overrides: titleOverrides, global: globalSettings } = layers;
 
@@ -58,6 +60,7 @@ export async function fetchReaderPage(
     chapterId: chapter.id,
     providerId: String(chapter.providerId ?? 'unknown'),
     ...(sourceName !== undefined && sourceName !== '' ? { sourceName } : {}),
+    ...(identity?.canonicalTitle ? { seriesTitle: identity.canonicalTitle } : {}),
     initialPageIndex,
     initialCompleted: readState?.progress.completed === true,
     settings,

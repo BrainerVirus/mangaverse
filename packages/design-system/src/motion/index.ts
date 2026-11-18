@@ -29,6 +29,14 @@ export {
   type ReaderPageTransition,
 } from './reader-safe/page-enter.js';
 export { settingsDrawerTransition } from './reader-safe/settings-drawer.js';
+export {
+  PANEL_SKETCH_TIMING,
+  panelSketchDissolve,
+  panelSketchDraw,
+  panelSketchParts,
+  type PanelSketchDrawOptions,
+  type PanelSketchParts,
+} from './reader-safe/panel-sketch.js';
 
 export {
   routeEnter,

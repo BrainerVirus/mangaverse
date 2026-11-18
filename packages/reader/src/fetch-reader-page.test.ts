@@ -79,6 +79,8 @@ describe('fetchReaderPage', () => {
     expect(page).toBeDefined();
     expect(page?.chapter.title).toBe('Chapter 1');
     expect(page?.sourceName).toBeUndefined();
+    // The back pill names the series from the stored identity.
+    expect(page?.seriesTitle).toBe('Reader Target');
     expect(page?.initialCompleted).toBe(false);
     expect(page?.chapter.pageCount).toBe(2);
     expect(page?.initialPageIndex).toBe(1);

@@ -6,6 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
   GlassSurface,
+  ReaderBackPill,
   ReaderChrome,
 } from '@app/design-system';
 import type { ReaderSettings } from '@app/shared';
@@ -14,6 +15,7 @@ import { ReaderSettingsSheet, type ReaderSettingsChangeHandler } from './reader-
 
 export interface ReaderOverlaysProps {
   readonly chapterTitle: string;
+  readonly seriesTitle: string | undefined;
   readonly sourceName: string | undefined;
   readonly currentPage: number;
   readonly totalPages: number;
@@ -48,6 +50,7 @@ export interface ReaderOverlaysProps {
 /** Chrome, sheets and dialogs: everything that floats above the reading surface. */
 export function ReaderOverlays({
   chapterTitle,
+  seriesTitle,
   sourceName,
   currentPage,
   totalPages,
@@ -88,6 +91,7 @@ export function ReaderOverlays({
           settings.showChapterTransition ? () => onChapterEndOpenChange(true) : undefined
         }
         chapterTitle={chapterTitle}
+        seriesTitle={seriesTitle}
         {...(sourceName !== undefined ? { sourceName } : {})}
         currentPage={currentPage}
         totalPages={totalPages}
@@ -142,9 +146,10 @@ function HiddenReaderExit({
 }) {
   if (visible || !onClose) return null;
   return (
-    <Button size="sm" variant="secondary" className="fixed top-2 left-2 z-50" onClick={onClose}>
-      Close reader
-    </Button>
+    // Where the pending stage put it, below the desktop title bar.
+    <div data-testid="reader-exit" className="below-title-bar fixed left-4 z-50 mt-3">
+      <ReaderBackPill variant="round" onClick={onClose} />
+    </div>
   );
 }
 

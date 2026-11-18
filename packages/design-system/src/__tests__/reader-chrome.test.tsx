@@ -34,6 +34,39 @@ describe('ReaderChrome', () => {
     vi.clearAllMocks();
   });
 
+  it('Given the desktop title bar, When the chrome renders, Then it starts below the strip, not at the window edge', () => {
+    const { container } = render(<ReaderChrome visible={true} currentPage={1} totalPages={3} />);
+    const toolbar = container.querySelector('[role="toolbar"]');
+    // `below-title-bar` is `top: var(--title-bar-height)`: 28/32px under the strip, 0 on the web and in fullscreen.
+    expect(toolbar?.className).toContain('below-title-bar');
+    expect(toolbar?.className).not.toMatch(/(^|\s)(top-|inset-0|inset-y-)/);
+  });
+
+  it('Given a way out, When the chrome renders, Then the back pill carries series and chapter in place of the separate title', async () => {
+    const onClose = vi.fn<() => void>();
+    render(
+      <ReaderChrome
+        visible={true}
+        seriesTitle="Kuro no Shoukanshi"
+        chapterTitle="Ch. 1 - The Summoner"
+        currentPage={1}
+        totalPages={3}
+        onClose={onClose}
+      />,
+    );
+    const back = screen.getByRole('button', {
+      name: 'Kuro no Shoukanshi · Ch. 1 - The Summoner',
+      description: 'Closes the reader',
+    });
+    expect(back).toHaveAttribute('data-variant', 'pill');
+    // Top of the row, where the pending header and the hidden-chrome exit put the pill too.
+    const group = back.closest('[data-glass-tier]')?.parentElement;
+    expect(group?.className).toContain('self-start');
+    expect(screen.getAllByText('Kuro no Shoukanshi · Ch. 1 - The Summoner')).toHaveLength(1);
+    await userEvent.click(back);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('displays chapter title when provided', () => {
     render(
       <ReaderChrome

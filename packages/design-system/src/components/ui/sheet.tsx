@@ -30,13 +30,17 @@ const SheetOverlay = React.forwardRef<HTMLDivElement, SheetPrimitive.Backdrop.Pr
 );
 SheetOverlay.displayName = 'SheetOverlay';
 
+/**
+ * Top and side sheets start below the desktop title bar (`below-title-bar`, 0 on the web and in
+ * fullscreen), so they never paint over the window's drag strip and controls.
+ */
 const sideClasses = {
-  top: 'inset-x-0 top-0 h-auto max-h-dvh rounded-b-2xl data-open:slide-in-from-top data-closed:slide-out-to-top',
+  top: 'below-title-bar inset-x-0 h-auto max-h-dvh rounded-b-2xl data-open:slide-in-from-top data-closed:slide-out-to-top',
   bottom:
     'inset-x-0 bottom-0 h-auto max-h-dvh rounded-t-2xl data-open:slide-in-from-bottom data-closed:slide-out-to-bottom',
-  left: 'inset-y-0 left-0 h-full w-3/4 max-w-sm data-open:slide-in-from-left data-closed:slide-out-to-left',
+  left: 'below-title-bar bottom-0 left-0 w-3/4 max-w-sm data-open:slide-in-from-left data-closed:slide-out-to-left',
   right:
-    'inset-y-0 right-0 h-full w-3/4 max-w-sm data-open:slide-in-from-right data-closed:slide-out-to-right',
+    'below-title-bar right-0 bottom-0 w-3/4 max-w-sm data-open:slide-in-from-right data-closed:slide-out-to-right',
 } as const;
 
 const sideGlassRadii = {

@@ -76,4 +76,54 @@ describe('CachedPageImage recovery', () => {
     expect(mocks.resolve).toHaveBeenCalledTimes(2);
     act(() => root.unmount());
   });
+
+  it('Given an overlay, When the source arrives, Then the same overlay node stays and learns the page is ready', async () => {
+    let release: (value: { objectUrl: string }) => void = () => {};
+    mocks.resolve.mockReturnValue(new Promise((resolve) => (release = resolve)));
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    await act(async () =>
+      root.render(
+        <CachedPageImage
+          providerId="p"
+          mangaId="m"
+          chapterId="c"
+          pageIndex={4}
+          remoteUrl="https://example.com/4.png"
+          renderPlaceholder={(ready) => <span data-overlay={String(ready)} />}
+        />,
+      ),
+    );
+    const overlay = container.querySelector('[data-overlay]');
+    expect(overlay?.getAttribute('data-overlay')).toBe('false');
+    expect(container.querySelector('img')).toBeNull();
+
+    await act(async () => release({ objectUrl: 'blob:page' }));
+    expect(container.querySelector('img')?.getAttribute('src')).toBe('blob:page');
+    // Not remounted: an animation on it carries on into the dissolve.
+    expect(container.querySelector('[data-overlay]')).toBe(overlay);
+    expect(overlay?.getAttribute('data-overlay')).toBe('true');
+    act(() => root.unmount());
+  });
+
+  it('Given an overlay, When the page fails, Then the overlay is dropped so the Retry controls stay clear', async () => {
+    mocks.resolve.mockResolvedValue(undefined);
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    await act(async () =>
+      root.render(
+        <CachedPageImage
+          providerId="p"
+          mangaId="m"
+          chapterId="c"
+          pageIndex={5}
+          remoteUrl="https://example.com/5.png"
+          renderPlaceholder={(ready) => <span data-overlay={String(ready)} />}
+        />,
+      ),
+    );
+    expect(container.textContent).toContain('Could not load page 6');
+    expect(container.querySelector('[data-overlay]')).toBeNull();
+    act(() => root.unmount());
+  });
 });

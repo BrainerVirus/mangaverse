@@ -38,6 +38,18 @@ describe('Sheet', () => {
     cleanup();
   });
 
+  it('Given the desktop title bar, When a side sheet opens, Then it starts below the strip and runs to the bottom', async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    await user.click(screen.getByRole('button', { name: 'Settings' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Reader settings' });
+    expect(dialog.className).toContain('below-title-bar');
+    expect(dialog.className).toContain('bottom-0');
+    expect(dialog.className).not.toMatch(/(^|\s)(inset-y-0|top-0|h-full)(\s|$)/);
+  });
+
   it('renders as a modal dialog in a portal, outside the render container', async () => {
     const user = userEvent.setup();
     const { container } = render(<Harness />);

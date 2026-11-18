@@ -29,7 +29,7 @@ vi.mock('@app/cache', () => ({
 }));
 
 vi.mock('@app/design-system', async () => {
-  const { useReducer } = await import('react');
+  const { useId, useReducer } = await import('react');
   return {
     Button: ({ children, ...props }: { children?: ReactNode } & Record<string, unknown>) => (
       <button {...props}>{children}</button>
@@ -63,6 +63,49 @@ vi.mock('@app/design-system', async () => {
     SheetContent: () => null,
     SheetHeader: () => null,
     SheetTitle: () => null,
+    // The sketch and the back pill as plain markup: enough to find them and drive them.
+    PanelSketch: ({ seed, animate = true, revealed = false }: Record<string, unknown>) => (
+      <div
+        data-panel-sketch={String(seed)}
+        data-animate={String(animate)}
+        data-revealed={String(revealed)}
+        aria-hidden="true"
+      />
+    ),
+    ReaderBackPill: ({
+      label,
+      variant = 'pill',
+      onClick,
+    }: {
+      label?: string;
+      variant?: string;
+      onClick?: () => void;
+    }) => {
+      const round = variant === 'round' || label === undefined || label === '';
+      const descriptionId = useId();
+      return (
+        /* The pill's GlassSurface wrapper, so the header sees one child as it does in the app. */
+        <div>
+          <button
+            type="button"
+            aria-label={round ? 'Close reader' : undefined}
+            aria-describedby={round ? undefined : descriptionId}
+            data-variant={round ? 'round' : variant}
+            onClick={onClick}
+          >
+            {round ? null : label}
+          </button>
+          {round ? null : (
+            <span id={descriptionId} className="sr-only">
+              Closes the reader
+            </span>
+          )}
+        </div>
+      );
+    },
+    readingLabel: (series: string | undefined, chapter: string | undefined) =>
+      [series, chapter].filter((part) => part !== undefined && part !== '').join(' · ') ||
+      undefined,
     useStateReducer: (reducer: (state: unknown, event: unknown) => unknown, initial: unknown) =>
       useReducer(reducer as never, initial),
   };
@@ -169,9 +212,10 @@ function renderScreen(overrides: Partial<ComponentProps<typeof ReaderScreen>> = 
 }
 
 function buttonNamed(container: HTMLElement, name: string): HTMLButtonElement | undefined {
-  return [...container.querySelectorAll('button')].find((button) => button.textContent === name) as
-    | HTMLButtonElement
-    | undefined;
+  // The accessible name: an aria-label (the round exit's "Close reader") wins over the text.
+  return [...container.querySelectorAll('button')].find(
+    (button) => (button.getAttribute('aria-label') ?? button.textContent) === name,
+  ) as HTMLButtonElement | undefined;
 }
 
 function pressKey(key: string) {
@@ -555,7 +599,7 @@ describe('ReaderScreen while the chapter loads', () => {
   }
 
   it.each([true, false])(
-    'Given no chapter data yet (isLoading %s), Then the black reader stage holds a page-shaped box, not a cover-and-text skeleton',
+    'Given no chapter data yet (isLoading %s), Then the black reader stage is busy and guesses no page shape',
     (isLoading) => {
       const view = renderLoading({ isLoading });
 
@@ -563,9 +607,10 @@ describe('ReaderScreen while the chapter loads', () => {
       expect(stage).not.toBeNull();
       expect(stage?.className).toContain('bg-black');
       expect(stage?.getAttribute('aria-busy')).toBe('true');
-      const box = stage?.querySelector('[data-testid="reader-page-skeleton"]');
-      expect(box).not.toBeNull();
-      expect(box?.className).toContain('aspect-2/3');
+      expect(stage?.querySelector('output')?.textContent).toBe('Loading chapter…');
+      // Without the chapter's settings any box would be a guess that changes shape.
+      expect(stage?.querySelector('[data-testid="reader-page-box"]')).toBeNull();
+      expect(stage?.querySelector('[data-page-index]')).toBeNull();
       // The book-cover-and-lines detail skeleton belongs to titles, not to a reading surface.
       expect(view.container.querySelector('.h-80.w-56')).toBeNull();
 

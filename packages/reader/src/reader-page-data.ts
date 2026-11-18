@@ -6,6 +6,8 @@ export interface ReaderPageData {
   readonly mangaId: MangaId;
   readonly chapterId: ChapterId;
   readonly providerId: string;
+  /** The series' display title, for the back pill; absent when the identity is not stored. */
+  readonly seriesTitle?: string | undefined;
   /** Human-readable provider name for the reading surface, when one is installed. */
   readonly sourceName?: string | undefined;
   readonly initialPageIndex: number;

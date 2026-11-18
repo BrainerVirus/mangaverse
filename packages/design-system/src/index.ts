@@ -57,6 +57,11 @@ export { Alert, AlertTitle, AlertDescription } from './components/ui/alert.js';
 export { Separator } from './components/ui/separator.js';
 export { Tooltip } from './components/ui/tooltip.js';
 export { UpdatePill } from './components/update-pill.js';
+export { PanelSketch } from './components/panel-sketch.js';
+export type { PanelSketchProps } from './components/panel-sketch.js';
+export { ReaderBackPill } from './components/reader-back-pill.js';
+export { readingLabel } from './components/reading-label.js';
+export type { ReaderBackPillProps } from './components/reader-back-pill.js';
 export type { UpdatePillProps } from './components/update-pill.js';
 
 export { GlassSurface, useGlassLevel } from './components/glass-surface.js';

@@ -1,4 +1,31 @@
 import type { ResolvedFitMode } from './resolve-reader-settings.js';
+import type { ReaderOverlayInsets, ReaderViewport } from './types.js';
+
+/**
+ * The room the reader chrome claims from the paged view and from the tap zones
+ * (DESIGN.md §6.1). It is the same whether or not the chrome shows: a centre
+ * tap toggles the chrome, and it must never resize the page under the finger.
+ */
+export const READER_CHROME_INSETS: ReaderOverlayInsets = { top: 96, right: 0, bottom: 48, left: 0 };
+
+/**
+ * The paged view's fit input for a surface. Loaded pages and the placeholder
+ * shown before they arrive both size from it, so the two boxes are one.
+ */
+export function resolvePagedFitInput(input: {
+  readonly viewport: Pick<ReaderViewport, 'width' | 'height'>;
+  readonly fitMode: ResolvedFitMode;
+  readonly pageCount: number;
+  readonly naturalSize?: { readonly width: number; readonly height: number } | undefined;
+}): PageFitInput {
+  return {
+    fitMode: input.fitMode,
+    availableWidth: input.viewport.width - READER_CHROME_INSETS.left - READER_CHROME_INSETS.right,
+    availableHeight: input.viewport.height - READER_CHROME_INSETS.top - READER_CHROME_INSETS.bottom,
+    pageCount: input.pageCount,
+    naturalSize: input.naturalSize,
+  };
+}
 
 export interface PageFitInput {
   readonly fitMode: ResolvedFitMode;

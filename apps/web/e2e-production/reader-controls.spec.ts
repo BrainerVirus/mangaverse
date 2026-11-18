@@ -253,9 +253,17 @@ test('Given the reader chrome, When each control is clicked, Then the page does 
   await toolbar.getByRole('button', { name: 'Single' }).click();
   await chromeStillOpen();
 
-  // The chrome's own text is not a control and must not be a tap either.
-  await toolbar.locator('span').first().click();
+  // The chrome's own text is not a control and must not be a tap either. The chapter title is
+  // not among it: it lives inside the back pill, which is the close control.
+  await toolbar.getByTestId('reader-source').click();
   await chromeStillOpen();
+  await toolbar.getByTestId('reader-page-number').click();
+  await chromeStillOpen();
+
+  // The back pill, title and all, is the one chrome control whose job is to leave the reader.
+  await toolbar.getByRole('button', { description: 'Closes the reader' }).click();
+  await expect(page).not.toHaveURL(/\/reader\//);
+  await expect(toolbar).toHaveCount(0);
 });
 
 test('Given reader glass, When transparency is reduced, Then glass layers resolve opaque', async ({
